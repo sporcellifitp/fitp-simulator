@@ -2,7 +2,7 @@
 // - anello di arrivo a terra, nel punto in cui atterrerà la palla (noto già al momento del colpo), colorato:
 //   verde = perfetto, giallo = buono / in anticipo / in ritardo, rosso = finirà fuori; al rimbalzo pulsa;
 // - lampo dello stesso colore sulla racchetta;
-// - messaggio breve («Perfetto», «Anticipo», «Ritardo», «Buono», «Fuori», «In rete», «Mancata»), con il motivo quando la
+// - messaggio breve («Perfetto», «Anticipo», «Ritardo», «Buono», «Fuori · troppo presto», «In rete», «Troppo tardi»), con il motivo quando la
 //   situazione rende il colpo debole o lo fa fallire («palla debole: in corsa», «scambio lungo»).
 // I colpi dell'avversario restano con l'anello bianco di rimbalzo del motore base.
 import * as THREE from 'three';
@@ -21,13 +21,23 @@ export function landsIn(target, { towardNegativeZ = true, serve = false } = {}){
 // grade del motore (es. «PERFECT • FOREHAND TOPSPIN», «POWER SERVE!», «EARLY SERVE», «TOO LATE! • WHIFF») → esito.
 // net: la palla va in rete. Il motore lascia il bersaglio in campo e abbassa la traiettoria: prima il messaggio diceva
 // «Perfetto», con l'anello verde in campo, e poi la palla finiva in rete (segnalazione del 23/10, sera)
+// B18 (difetto 10 dell'audit B16): quando l'errore viene dal tempo la scritta dice anche il perché, «Fuori · troppo
+// presto», «In rete · in ritardo» (why), e il colpo a vuoto in ritardo dice «Troppo tardi» invece di «Mancata». label
+// resta l'esito breve («Fuori», «In rete»: lo leggono allenamento e minigiochi); text è la scritta intera da mostrare.
+export function timingWhy(grade = ''){
+  const g = String(grade).toUpperCase();
+  return /VERY EARLY/.test(g) ? 'troppo presto' : /VERY LATE/.test(g) ? 'troppo tardi' : /EARLY/.test(g) ? 'in anticipo' : /LATE/.test(g) ? 'in ritardo' : null;
+}
+const withWhy = (q, why) => why ? { ...q, why, text: `${q.label} · ${why}` } : q;
+export const qualityText = q => q?.text || q?.label || '';
 export function shotQuality(grade = '', { inCourt = true, net = false } = {}){
   const g = String(grade).toUpperCase();
   if (/WHIFF/.test(g) && /EARLY/.test(g)) return { color: 'red', label: 'Troppo presto' };
   if (/WHIFF/.test(g) && /REACH/.test(g)) return { color: 'red', label: 'Troppo lontana' };
-  if (/WHIFF|TOO LATE/.test(g)) return { color: 'red', label: 'Mancata' };
-  if (net) return { color: 'red', label: 'In rete' };
-  if (!inCourt) return { color: 'red', label: 'Fuori' };
+  if (/TOO LATE|WHIFF.*LATE|LATE.*WHIFF/.test(g)) return { color: 'red', label: 'Troppo tardi' };
+  if (/WHIFF/.test(g)) return { color: 'red', label: 'Mancata' };
+  if (net) return withWhy({ color: 'red', label: 'In rete' }, timingWhy(g));
+  if (!inCourt) return withWhy({ color: 'red', label: 'Fuori' }, timingWhy(g));
   if (/PERFECT|POWER/.test(g)) return { color: 'green', label: 'Perfetto' };
   if (/EARLY/.test(g)) return { color: 'yellow', label: 'Anticipo' };
   if (/LATE/.test(g)) return { color: 'yellow', label: 'Ritardo' };
@@ -129,7 +139,7 @@ export class NatpfShotFeedback {
       const who = place.kind === 'partner' ? 'compagno' : place.kind === 'other' ? 'avversario' : null;
       const name = shotName(g), why = shotWhy(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
       const miss = q.color === 'red' && /WHIFF/.test(g.toUpperCase());
-      popup({ ...o, screenPos: null, durationMs: Math.min(o.durationMs ?? POPUP_MS.hit, miss ? POPUP_MS.miss : POPUP_MS.hit), grade: q.label, detail: [who, name, why, kmh.toLowerCase()].filter(Boolean).join(' · ') });
+      popup({ ...o, screenPos: null, durationMs: Math.min(o.durationMs ?? POPUP_MS.hit, miss ? POPUP_MS.miss : POPUP_MS.hit), grade: qualityText(q), detail: [who, name, why, kmh.toLowerCase()].filter(Boolean).join(' · ') });
       const el = document.getElementById('timing-popup-grade');
       if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red', 'q-super'); el.classList.add('q-' + q.color); }
       this._place(document.getElementById('timing-popup'), place);
@@ -235,7 +245,8 @@ export class NatpfShotFeedback {
   // dal giro dell'aptica: kind «hit»/«whiff» del giocatore locale; restituisce l'esito (anche per il telefono)
   onLocalFeedback({ kind, grade } = {}){
     const e = this.engine, towardNegativeZ = e.playerRole !== 'p2';
-    if (kind === 'whiff'){ const q = shotQuality(/EARLY/i.test(grade || '') ? grade : 'WHIFF'); this.pending = q; return q; }
+    // colpo a vuoto: troppo presto, troppo tardi o troppo lontana, come la scritta del computer (prima «Mancata» in ritardo)
+    if (kind === 'whiff'){ const q = shotQuality(/WHIFF/i.test(grade || '') ? grade : 'WHIFF'); this.pending = q; return q; }
     if (kind !== 'hit') return null;
     const serve = /SERVE/i.test(grade), target = e.ball?.targetLanding, net = !!e.ball?.natpfNetFault;
     const q = shotQuality(grade, { inCourt: landsIn(target, { towardNegativeZ, serve }), net });

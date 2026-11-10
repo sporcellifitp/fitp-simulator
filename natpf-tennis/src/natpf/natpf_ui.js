@@ -192,8 +192,11 @@ export class NatpfUi {
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);
     this.gesture?.onFeedback(e, q);
-    if (q && e.kind === 'hit'){ this.training.onShot(q); this.events.onShot(q, e); }
-    else if ((e.kind === 'fault' || e.kind === 'whiff') && /VERY (EARLY|LATE)|WHIFF/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
+    // colpo difensivo (molto fuori tempo, la palla resta in gioco: dal B18 arriva come «hit»): per l'allenamento e i
+    // minigiochi resta un tentativo fuori tempo, come prima quando arrivava come «fault»
+    const defensive = e.kind === 'hit' && (!!e.defensive || /DEFENSIVE/.test(e.grade || ''));
+    if (q && e.kind === 'hit' && !defensive){ this.training.onShot(q); this.events.onShot(q, e); }
+    else if ((defensive || e.kind === 'fault' || e.kind === 'whiff') && /VERY (EARLY|LATE)|WHIFF/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
     return q;
   }
   // tabellone della partita (natpf_scoreboard.js): una riga per giocatore o squadra con chi serve, nome, game e punti,

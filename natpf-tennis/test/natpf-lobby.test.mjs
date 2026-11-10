@@ -72,13 +72,14 @@ test('esito del colpo: verde perfetto, giallo anticipo/ritardo, rosso fuori o ma
   assert.deepEqual(shotQuality('LATE • FOREHAND CROSS'), { color: 'yellow', label: 'Ritardo' });
   assert.deepEqual(shotQuality('SLICE'), { color: 'yellow', label: 'Buono' });
   assert.deepEqual(shotQuality('PERFECT • FOREHAND', { inCourt: false }), { color: 'red', label: 'Fuori' });
-  assert.deepEqual(shotQuality('TOO LATE! • WHIFF'), { color: 'red', label: 'Mancata' });
+  assert.deepEqual(shotQuality('TOO LATE! • WHIFF'), { color: 'red', label: 'Troppo tardi' }, 'B18: in ritardo «Troppo tardi», non «Mancata»');
+  assert.deepEqual(shotQuality('WHIFF'), { color: 'red', label: 'Mancata' });
   assert.ok(QUALITY_COLORS.green && QUALITY_COLORS.yellow && QUALITY_COLORS.red);
 });
 
 test('palla in rete: il messaggio dice «In rete», non «Perfetto» (il bersaglio del motore resta in campo); colpo debole con il motivo (23/10, sera)', () => {
   assert.deepEqual(shotQuality('PERFECT • FOREHAND TOPSPIN', { inCourt: true, net: true }), { color: 'red', label: 'In rete' });
-  assert.deepEqual(shotQuality('TOO LATE! • WHIFF', { net: true }), { color: 'red', label: 'Mancata' });
+  assert.deepEqual(shotQuality('TOO LATE! • WHIFF', { net: true }), { color: 'red', label: 'Troppo tardi' });
   const shot = (out, o = {}) => ({ who: 'player', at: 12.5, cause: 'in allungo', out: { failed: true, weak: false, ...out }, ...o });
   assert.equal(shotWhy(shot({ weak: true }), { now: 12.5 }), 'palla debole: in allungo');
   assert.equal(shotWhy(shot({}, { cause: 'scambio lungo' }), { now: 12.5 }), 'scambio lungo');

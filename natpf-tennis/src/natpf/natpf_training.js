@@ -474,7 +474,7 @@ export class NatpfTraining {
     this.message = d.shot ? (ok ? `${d.label} ✓` : ['lob', 'drop'].includes(d.shot) ? specialHint(d.shot, this.lastLearn) : d.hint.phone)
       : ok ? `${d.label} ✓` : this.progress.wrongDirection ? (d.direction === 'cross' ? 'Serve un incrociato: mira nell’altra metà, oltre il centro' : 'Serve un lungolinea: mira lungo il lato da cui colpisci')
       : this.progress.notVolley ? 'La palla ha rimbalzato: colpiscila prima, al volo'
-      : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
+      : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' && q.why ? `Fuori: ${q.why}` : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.text || q.label;
     this.flash = { text: this.message, ok, until: performance.now() + 1200 };
     this.paint();
   }

@@ -2170,7 +2170,11 @@ export class NatpfTennisEngine {
           this.motionController.triggerHapticFeedback &&
           this.motionController.triggerHapticFeedback({
             role: "p1",
-            kind: _ ? "fault" : "hit",
+            // NATPF B18 (difetto 10): il colpo difensivo è un colpo come gli altri (la palla resta in gioco). Prima
+            // «fault» faceva scrivere al telefono «Punto avversario» per più di un secondo con lo scambio ancora aperto;
+            // «fault» resta solo in _awardPoint, a punto finito
+            kind: "hit",
+            defensive: !!_,
             grade: `${u} \u2022 ${X}`,
             // NATPF: al telefono «Smash!» solo se la scritta e la voce lo dicono (non sotto «Volée» del compagno)
             shotType: /\bSMASH\b/.test(X) ? "SMASH" : T,

@@ -4,7 +4,12 @@
 // le misure sul campo proiettato: tools/e2e/natpf-scritte-2v2.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { NatpfShotFeedback, popupPlace, POPUP_MS } from '../src/natpf/natpf_shot_feedback.js';
+import * as THREE from 'three';
+import { NatpfShotFeedback, popupPlace, POPUP_MS, shotQuality, timingWhy, qualityText } from '../src/natpf/natpf_shot_feedback.js';
+import { NatpfPhoneRacket, phoneLabel, pointReason } from '../src/natpf/natpf_phone_racket.js';
+import { eventFlash } from '../../site/js/tennis/phone-screen.js';
+import * as NI from '../src/natpf/natpf_impact.js';
+import { ENGINE_SHOT } from '../src/natpf/natpf_gestures.js';
 
 test('posto della scritta: il tuo lato a sinistra, stesso schermo P1 a sinistra e P2 a destra, l’altro giocatore a destra', () => {
   assert.deepEqual(popupPlace({ p2: false, role: 'p1' }), { side: 'left', kind: 'mine' });
@@ -37,7 +42,7 @@ test('scritta del colpo: niente posizione sopra la testa, «compagno» per il co
     assert.equal(shown[1].detail, 'avversario · 120 km/h');
     assert.ok(pop.classList.contains('side-right') && pop.classList.contains('other'));
     engine.hud.showTimingPopup({ grade: 'TOO LATE! • WHIFF', detail: 'BALL PASSED', durationMs: 750 });
-    assert.equal(shown[2].durationMs, POPUP_MS.miss); assert.equal(shown[2].grade, 'Mancata');
+    assert.equal(shown[2].durationMs, POPUP_MS.miss); assert.equal(shown[2].grade, 'Troppo tardi', 'B18: il colpo a vuoto in ritardo dice «Troppo tardi»');
     // in prima persona come in terza: nell'angolo (prima al centro dello sguardo, sopra il campo)
     engine._isFirstPersonActive = () => true;
     engine.hud.showTimingPopup({ grade: 'EARLY • FOREHAND CROSS!', detail: '98 KM/H' });
@@ -149,4 +154,116 @@ test('stesso schermo: la scritta resta nella sua metà e salta i posti occupati 
     assert.equal(pop.style.bottom, `${(720 - 600 + 6).toFixed(1)}px`, 'sopra le barre');
     assert.ok(!pop.classList.contains('side-right'), 'mai nella metà dell’altro');
   } finally { if (had === undefined) delete globalThis.document; else globalThis.document = had; }
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// B18 (difetto 10 dell'audit B16): le scritte spiegano l'errore che viene dal tempo, il telefono dice la stessa cosa del
+// computer e «Punto avversario» arriva al telefono solo a punto finito
+test('B18 scritte: «Fuori · troppo presto», «In rete · in ritardo»; «Troppo tardi» per il colpo a vuoto in ritardo', () => {
+  assert.equal(timingWhy('VERY EARLY • FOREHAND CROSS'), 'troppo presto');
+  assert.equal(timingWhy('VERY LATE • BACKHAND LINE'), 'troppo tardi');
+  assert.equal(timingWhy('EARLY • FOREHAND CROSS'), 'in anticipo');
+  assert.equal(timingWhy('LATE SERVE'), 'in ritardo');
+  assert.equal(timingWhy('PERFECT • FOREHAND TOPSPIN'), null);
+  assert.deepEqual(shotQuality('VERY EARLY • FOREHAND CROSS', { inCourt: false }), { color: 'red', label: 'Fuori', why: 'troppo presto', text: 'Fuori · troppo presto' });
+  assert.equal(qualityText(shotQuality('VERY LATE • FOREHAND LINE', { net: true })), 'In rete · troppo tardi');
+  assert.equal(qualityText(shotQuality('LATE • FOREHAND LINE', { inCourt: false })), 'Fuori · in ritardo');
+  // senza errore di tempo: solo «Fuori» (il motivo della situazione, se c'è, va nella riga piccola: shotWhy)
+  assert.deepEqual(shotQuality('PERFECT • FOREHAND TOPSPIN', { inCourt: false }), { color: 'red', label: 'Fuori' });
+  assert.equal(qualityText(shotQuality('PERFECT • FOREHAND TOPSPIN', { inCourt: false })), 'Fuori');
+  // in campo il voto resta quello di prima
+  assert.deepEqual(shotQuality('VERY EARLY • DEFENSIVE'), { color: 'yellow', label: 'Anticipo' });
+  // colpi a vuoto
+  assert.equal(shotQuality('TOO LATE! • WHIFF').label, 'Troppo tardi');
+  assert.equal(shotQuality('P2 TOO LATE! • WHIFF').label, 'Troppo tardi');
+  assert.equal(shotQuality('VERY EARLY • WHIFF').label, 'Troppo presto');
+  assert.equal(shotQuality('OUT OF REACH • WHIFF').label, 'Troppo lontana');
+});
+
+test('B18 scritta del computer: la riga grande dice il perché; il colpo a vuoto in ritardo dice «Troppo tardi»', () => {
+  const shown = [], had = globalThis.document;
+  globalThis.document = fakeDom();
+  try {
+    const engine = { scene: { add(){} }, ball: { targetLanding: { x: 6.5, z: -8 } }, playerRole: 'p1', elapsedTime: 0, hud: { showTimingPopup: o => shown.push(o) } };
+    const fb = new NatpfShotFeedback(engine);
+    engine.hud.showTimingPopup({ grade: 'VERY EARLY • FOREHAND CROSS!', detail: '98 KM/H' });
+    assert.equal(shown[0].grade, 'Fuori · troppo presto');
+    engine.ball.natpfNetFault = true; engine.ball.targetLanding = { x: 0, z: -8 };
+    engine.hud.showTimingPopup({ grade: 'VERY LATE • FOREHAND LINE!', detail: '98 KM/H' });
+    assert.equal(shown[1].grade, 'In rete · troppo tardi');
+    // giro dell'aptica: lo stesso esito va al telefono
+    assert.equal(fb.onLocalFeedback({ kind: 'whiff', grade: 'TOO LATE! • WHIFF' }).label, 'Troppo tardi', 'prima «Mancata»');
+    assert.equal(fb.onLocalFeedback({ kind: 'whiff', grade: 'OUT OF REACH • WHIFF' }).label, 'Troppo lontana', 'prima «Mancata»');
+    assert.equal(fb.onLocalFeedback({ kind: 'hit', grade: 'VERY LATE • FOREHAND LINE' }).text, 'In rete · troppo tardi');
+  } finally { if (had === undefined) delete globalThis.document; else globalThis.document = had; }
+});
+
+// telefono finto: le chiamate del motore all'aptica → messaggi al telefono (stessa funzione del gioco)
+function phoneSink(){
+  const sent = [], ph = Object.create(NatpfPhoneRacket.prototype);
+  Object.defineProperty(ph, 'ready', { value: true });
+  Object.defineProperty(ph, 'role', { value: 'p1' });
+  ph.link = { send: m => sent.push(m) };
+  return { ph, sent };
+}
+test('B18 telefono: dice la stessa cosa del computer (fuori, in rete, il perché), motivo del punto in italiano', () => {
+  const { ph, sent } = phoneSink();
+  ph.feedback({ role: 'p1', kind: 'hit', grade: 'VERY EARLY • FOREHAND CROSS', shotType: 'TOPSPIN', quality: shotQuality('VERY EARLY • FOREHAND CROSS', { inCourt: false }) });
+  assert.deepEqual({ ...sent[0], vib: null }, { t: 'ev', k: 'contact', label: 'anticipo', shot: 'drive', vib: null, out: true, net: false, why: 'troppo presto' });
+  assert.equal(eventFlash(sent[0]).big, 'Fuori', 'prima il telefono diceva «In anticipo» mentre il computer diceva «Fuori»');
+  assert.equal(eventFlash(sent[0]).sub, 'Troppo presto');
+  ph.feedback({ role: 'p1', kind: 'hit', grade: 'LATE • FOREHAND LINE', shotType: 'TOPSPIN', quality: shotQuality('LATE • FOREHAND LINE', { net: true }) });
+  assert.equal(sent[1].net, true); assert.equal(eventFlash(sent[1]).big, 'In rete'); assert.equal(eventFlash(sent[1]).sub, 'In ritardo');
+  // in campo: il voto del computer
+  ph.feedback({ role: 'p1', kind: 'hit', grade: 'PERFECT • FOREHAND TOPSPIN', shotType: 'TOPSPIN', quality: shotQuality('PERFECT • FOREHAND TOPSPIN') });
+  assert.equal(eventFlash(sent[2]).big, 'Perfetto!'); assert.equal(sent[2].out, false); assert.equal(sent[2].why, undefined);
+  // colpo a vuoto in ritardo
+  ph.feedback({ role: 'p1', kind: 'whiff', grade: 'TOO LATE! • WHIFF' });
+  assert.equal(eventFlash(sent[3]).big, 'Troppo tardi');
+  // punto finito: motivo in italiano (prima «Out», «Net», «Nice Shot!»)
+  ph.feedback({ role: 'p1', kind: 'fault', grade: 'Out' });
+  assert.deepEqual(sent[4], { t: 'ev', k: 'point', mine: false, txt: 'Fuori' });
+  assert.equal(eventFlash(sent[4]).big, 'Punto avversario');
+  assert.equal(pointReason('Net'), 'In rete'); assert.equal(pointReason('Nice Shot!'), 'Vincente'); assert.equal(pointReason('Point'), 'Palla non presa');
+  assert.equal(pointReason('VERY EARLY • DEFENSIVE'), '', 'niente testo inglese del motore');
+  assert.equal(phoneLabel(null, 'EARLY • FOREHAND'), 'anticipo');
+  assert.equal(phoneLabel({ label: 'Perfetto' }, 'EARLY • FOREHAND'), 'perfetto', 'il voto del computer prima del grade');
+});
+
+// motore vero senza grafica: un colpo molto fuori tempo giocato in difesa (la palla resta in gioco) non manda più «fault»
+const DT = 1/120;
+const phoneSwing = (intent, { side = 'forehand' } = {}) => ({ source: 'natpf-phone', side, shotType: ENGINE_SHOT[intent.shot], speed: .8 + intent.power*.85, dirX: 0,
+  natpf: { aim: 'swing', shot: intent.shot, intent: { depth: intent.power, rise: 0, face: 0, ...intent }, power: intent.power, peak: 900, latency: 0, hand: 'right' } });
+async function rallyWithLead(lead, difficulty = 'casual'){
+  const { createHeadlessEngine, mulberry32 } = await import('../scripts/audit/headless-engine.mjs');
+  const real = Math.random; Math.random = mulberry32(17);
+  try {
+    const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
+    const events = [];
+    e.motionController = { triggerHapticFeedback: ev => events.push({ ...ev, phase: e.phase, inPlay: e.ball.inPlay }) };
+    e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = 3;
+    e.player.pos.set(.4, 0, 11.7); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
+    e.ball.pos.set(-.5, 1, -11);
+    e._launchBallToTarget(e.ball.pos, new THREE.Vector3(1.6, 0, 8.5), 1.05, { topspin: 14 });
+    e._natpfPlanPlayer();
+    let sent = false;
+    for (let t = 0; t < 6; t += DT){
+      const ttc = NI.timeToContact(e, e.player);
+      if (!sent && ttc != null && ttc <= lead){ e._handleUserSwingInput(phoneSwing({ shot: 'topspin', power: .6 })); sent = true; }
+      e.step(DT);
+      if (e.phase !== 'RALLY') break;
+    }
+    return { events, racket: e.natpfLastRacket, phase: e.phase };
+  } finally { Math.random = real; }
+}
+test('B18 motore: il colpo difensivo è «hit» (palla in gioco), «fault» solo all’assegnazione del punto', async () => {
+  let defensive = 0;
+  for (const lead of [-.04, -.06, -.08, -.1, -.12, .3, .35, .4, .45]){
+    const r = await rallyWithLead(lead);
+    for (const ev of r.events){
+      if (ev.kind === 'fault') assert.equal(ev.phase, 'POINT_OVER', `«fault» con la palla in gioco (lead ${lead}): ${ev.grade}`);
+      if (/DEFENSIVE/.test(ev.grade || '')){ defensive++; assert.equal(ev.kind, 'hit', ev.grade); assert.equal(ev.defensive, true); }
+    }
+  }
+  assert.ok(defensive >= 1, `colpi difensivi nelle prove: ${defensive}`);
 });

@@ -15,7 +15,7 @@ export function gestureLabel(ev = {}, s = {}){
 }
 // esito del colpo dal giro dell'aptica (kind, voto) e dall'anello (q: colore e scritta di natpf_shot_feedback)
 export function gestureOutcome(e = {}, q = null){
-  if (e.kind === 'hit') return { state: q?.color === 'red' ? 'bad' : q?.color === 'green' ? 'ok' : 'mid', text: q?.label || 'Colpita' };
+  if (e.kind === 'hit') return { state: q?.color === 'red' ? 'bad' : q?.color === 'green' ? 'ok' : 'mid', text: q?.text || q?.label || 'Colpita' };
   if (e.kind === 'whiff') return { state: 'bad', text: /EARLY/i.test(e.grade || '') ? 'Troppo presto' : 'Troppo tardi' };
   if (e.kind === 'fault' && /VERY (EARLY|LATE)/.test(e.grade || '')) return { state: 'bad', text: /EARLY/.test(e.grade) ? 'Molto in anticipo' : 'Molto in ritardo' };
   return null;

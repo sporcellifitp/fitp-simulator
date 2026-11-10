@@ -33,6 +33,19 @@ import { weakSwing, livePlan } from './natpf_impact.js';
 import { SMASH_FROM } from './natpf_stroke_outcome.js';
 
 const NATPF_BASE = '/natpf/';
+// B18 (difetto 10): voto del colpo per il telefono dall'esito del computer (natpf_shot_feedback.shotQuality); senza esito
+// dal grade del motore, come prima
+const PHONE_LABEL = Object.freeze({ Perfetto: 'perfetto', 'Super!': 'perfetto', Anticipo: 'anticipo', Ritardo: 'ritardo', Buono: 'buono' });
+export function phoneLabel(quality = null, grade = ''){
+  if (quality && PHONE_LABEL[quality.label]) return PHONE_LABEL[quality.label];
+  return /PERFECT|POWER/i.test(grade) ? 'perfetto' : /EARLY/i.test(grade) ? 'anticipo' : /LATE/i.test(grade) ? 'ritardo' : 'buono';
+}
+// motivo del punto finito (_awardPoint) in italiano per il telefono: prima arrivava «Out», «Net», «Nice Shot!» in inglese
+const POINT_REASON = Object.freeze({ OUT: 'Fuori', NET: 'In rete', 'NICE SHOT!': 'Vincente', POINT: 'Palla non presa', 'POINT WON!': '', 'POINT LOST': '' });
+export function pointReason(grade = ''){
+  const k = String(grade || '').trim().toUpperCase();
+  return k in POINT_REASON ? POINT_REASON[k] : '';
+}
 const scripts = new Map();
 const loadScript = src => scripts.get(src) || scripts.set(src, new Promise((resolve, reject) => {
   const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = () => { scripts.delete(src); reject(new Error(src)); }; document.head.appendChild(s);
@@ -707,9 +720,14 @@ export class NatpfPhoneRacket {
     const shot = /SMASH/i.test(shotType) ? 'smash' : /LOB/i.test(shotType) ? 'lob' : /SLICE/i.test(shotType) ? 'slice' : 'drive';
     // vib: vibrazione per esito (lunga = perfetto, breve = buono, doppia = errore); i telefoni senza supporto la ignorano
     const vib = quality ? VIBRATION[quality.color] : undefined;
-    if (kind === 'hit') this.link.send({ t: 'ev', k: 'contact', label: /PERFECT|POWER/i.test(grade) ? 'perfetto' : /EARLY/i.test(grade) ? 'anticipo' : /LATE/i.test(grade) ? 'ritardo' : 'buono', shot, vib, out: quality?.label === 'Fuori' });
+    // B18 (difetto 10): il telefono dice la stessa cosa del computer. Il voto viene dall'esito del computer (quality), poi
+    // «Fuori» e «In rete» con il perché quando viene dal tempo (why: «troppo presto», «in ritardo»…); prima il telefono
+    // ignorava fuori e rete e diceva «In anticipo» mentre il computer diceva «Fuori»
+    if (kind === 'hit') this.link.send({ t: 'ev', k: 'contact', label: phoneLabel(quality, grade), shot, vib,
+      out: quality?.label === 'Fuori', net: quality?.label === 'In rete', ...(quality?.why ? { why: quality.why } : {}) });
     else if (kind === 'whiff') this.link.send({ t: 'ev', k: 'miss', why: /REACH/i.test(grade) ? 'portata' : /EARLY/i.test(grade) ? 'presto' : 'tardi', vib: VIBRATION.red });
-    else if (kind === 'point_won' || kind === 'fault') this.link.send({ t: 'ev', k: 'point', mine: kind === 'point_won', txt: grade });
+    // «Punto tuo» / «Punto avversario» solo a punto finito (_awardPoint: point_won o fault), con il motivo in italiano
+    else if (kind === 'point_won' || kind === 'fault') this.link.send({ t: 'ev', k: 'point', mine: kind === 'point_won', txt: pointReason(grade) });
   }
 
   // Ogni fotogramma: fase al telefono e orientamento del telefono alla racchetta del motore base.
