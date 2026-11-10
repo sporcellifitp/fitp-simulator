@@ -352,6 +352,14 @@ export function weakSwing(e = {}, net = false){
   return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < (net ? WEAK.netRel : WEAK.rel)*typ;
 }
 
+// B18 (D16): dove era la palla (x, z) al momento del gesto, «lat» secondi prima dell'arrivo del messaggio. Solo il ritardo
+// positivo (revisione): una latenza negativa per lo scarto tra gli orologi (eventLatency fino a −0,15 s) non porta la palla
+// in avanti, che renderebbe «palla passata» più severo di prima
+export function ballAtGesture(b, lat){
+  const back = Math.max(0, finite(lat));
+  return { x: finite(b?.pos?.x) - finite(b?.vel?.x)*back, z: finite(b?.pos?.z) - finite(b?.vel?.z)*back };
+}
+
 // Lo swing di chi gioca nello scambio: in attesa fino all'arrivo della palla (o subito, se è già passata da poco).
 // Restituisce 'held' (in attesa), 'late' (colpito in ritardo adesso), 'whiff' (a vuoto), 'ignored' (gesto debole dopo il
 // punto d'impatto: il rientro della mano, niente a schermo) o null (nessuna palla in arrivo).
@@ -372,7 +380,7 @@ export function queueUserSwing(engine, e, actor){
     // dove è all'arrivo del messaggio: prima il ritardo della connessione (e quello dello schermo impostato dallo staff,
     // displayLag) si contava due volte e con 130 ms un colpo appena in ritardo su una palla veloce era «Troppo tardi» a
     // tutti i livelli. La palla parte comunque da dov'è adesso (_attemptPlayerRallyStrike), senza riportarla indietro
-    const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, gz = b.pos.z - finite(b.vel?.z)*lat, gx = b.pos.x - finite(b.vel?.x)*lat;
+    const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, { x: gx, z: gz } = ballAtGesture(b, lat);
     const behind = (gz - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
     const extra = W.lateExtra || IMPACT.lateExtra;
     if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(gx - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4){

@@ -54,3 +54,16 @@ test('D16: con la latenza il limite «palla passata» resta quello senza latenza
     assert.equal(attempt(difficulty, f0 - .1, .13, .6).hit, false, `${difficulty}: ${f0 - .1} con 130 ms`);
   }
 });
+
+test('D16 (revisione): una latenza negativa (scarto tra gli orologi) non porta la palla in avanti nel giudizio «palla passata»', () => {
+  const b = { pos: { x: 1, y: 1, z: 10 }, vel: { x: 2, y: 0, z: 20 } };
+  assert.deepEqual(NI.ballAtGesture(b, .1), { x: .8, z: 8 });              // ritardo vero: la palla era 2 m più indietro
+  assert.deepEqual(NI.ballAtGesture(b, -.15), { x: 1, z: 10 });             // prima: 3 m più avanti, «palla passata» più severo
+  assert.deepEqual(NI.ballAtGesture(b, NaN), { x: 1, z: 10 });
+  // nel motore, con −100 ms, lo stesso ultimo colpo in ritardo che senza latenza
+  const first = (difficulty, lat) => { let last = null; for (let lead = 0; lead >= -.3; lead -= .005){ if (attempt(difficulty, +lead.toFixed(3), lat, .6).hit) last = +lead.toFixed(3); else break; } return last; };
+  for (const difficulty of ['casual', 'pro']){
+    const f0 = first(difficulty, 0), fneg = first(difficulty, -.1);
+    assert.ok(f0 != null && fneg != null && fneg <= f0 + .0051, `${difficulty}: 0 ms ${f0}, −100 ms ${fneg}`);
+  }
+});
