@@ -368,9 +368,14 @@ export function queueUserSwing(engine, e, actor){
     // Al posto di un colpo a vuoto in anticipo va bene ogni swing che prende la palla
     const cur = engine[key], deferred = !!cur?.natpfWindow && cur.softDefer;
     if (deferred && cur.lead <= earlyWindow(engine, actor) && !cur.weak && (strength < cur.strength*SOFT.replace || keepsSpecial(engine, cur, e, now))) return 'ignored';
-    const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, behind = (b.pos.z - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
+    // B18 (D16 del rapporto B16): «palla passata» si giudica dove era la palla al momento del gesto (b.pos − b.vel·lat), non
+    // dove è all'arrivo del messaggio: prima il ritardo della connessione (e quello dello schermo impostato dallo staff,
+    // displayLag) si contava due volte e con 130 ms un colpo appena in ritardo su una palla veloce era «Troppo tardi» a
+    // tutti i livelli. La palla parte comunque da dov'è adesso (_attemptPlayerRallyStrike), senza riportarla indietro
+    const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, gz = b.pos.z - finite(b.vel?.z)*lat, gx = b.pos.x - finite(b.vel?.x)*lat;
+    const behind = (gz - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
     const extra = W.lateExtra || IMPACT.lateExtra;
-    if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4){
+    if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(gx - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4){
       engine[key] = null;
       return strike(engine, actor, { ...e, natpfTau: lead, natpfLateSpan: lateSpan }) ? 'late' : 'whiff';
     }
