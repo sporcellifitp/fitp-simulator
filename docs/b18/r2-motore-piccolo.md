@@ -27,14 +27,17 @@ Tutte le correzioni di questo ramo sono sempre attive. Non c'è nessuna opzione 
    - Un gesto più forte non dà mai una palla più lenta. Il tipo cambia l'effetto (rimbalzo alto del kick, curva del
      tagliato), non la velocità.
    - «Gran servizio» arriva quando il servizio è a tempo e chiaramente più forte del proprio servizio abituale. Ci
-     arriva anche chi serve piano. Cambia la scritta, con gli effetti di scena: per la risposta della CPU la palla
+     arriva anche chi serve piano. Al primo servizio della partita, quando il gioco non conosce ancora il servizio di
+     chi gioca, serve un servizio davvero forte (forza 0,75); chi serve sempre al massimo lo ottiene ancora. Cambia la scritta, con gli effetti di scena: per la risposta della CPU la palla
      «potente» resta quella di prima.
    - Webcam e mouse non hanno la forma del gesto: i loro servizi restano come prima.
 4. **Il tagliato un po' più lento resta un tagliato (difetto 13).** Prima, già al 10% più lento, cadeva a 2 m come una
    palla corta. Adesso diventa palla corta solo in tre casi:
    - un gesto nettamente morbido;
-   - un gesto morbido e verticale;
+   - un gesto morbido e verticale, con la testa della racchetta che scende poco;
    - un gesto corto.
+   Vale anche con la presa a racchetta insegnata dal tutorial, dove il tagliato è uno swing verticale che scende deciso
+   (corretto dopo la revisione: prima con questa presa il tagliato restava palla corta fino a 0,9×).
    La palla corta del tutorial resta palla corta a tutte le velocità provate.
 5. **Il ritardo della connessione non fa più «Troppo tardi» (difetto 16).** «Palla passata» si giudica dove era la palla
    al momento del gesto, non quando il messaggio arriva al computer. Con 130 ms di ritardo, per esempio una connessione
@@ -56,12 +59,13 @@ Tutte le correzioni di questo ramo sono sempre attive. Non c'è nessuna opzione 
 |---|---|
 | `natpf-tennis/src/natpf/natpf_skill.js` | `fatigueRest` e `resetFatigue` (D6); `CPU_DEFENSE` e `cpuDefensive` (D9); Pro `cpuErr.rally` da 0,012 a 0,009 (bilanciamento) |
 | `natpf-tennis/src/natpf/natpf_legend.js` | `LEGEND.accel`/`decel` da 20/28 a 22/30 m/s² (bilanciamento; velocità massima invariata) |
-| `natpf-tennis/src/game_engine.js` | recupero fuori dallo scambio in `_stepPhysics`; azzeramento in `startNewMatch` e `startSplit` (D6). Servizio abituale per chi batte in `_executeServeHit`, azzerato a ogni partita; `ball.isPowerShot` da `strong` (D12). Soglia difensiva e `natpfCpuDefense` in `_executeOpponentReturn` (D9) |
-| `natpf-tennis/src/natpf/natpf_phone_racket.js` | `ballIsHigh` in risposta (`rallyStrokeCount ≤ 1`) solo da `SMASH_FROM.always` (2,3 m); `isServeReturn` (D7) |
-| `natpf-tennis/src/natpf/natpf_stroke_intent.js` | `INTENT.smashMaxRise` 0: ramo «verticale e manico alto» solo se la testa non sale (D7). `INTENT.dropSoft` 0,28: soglia del morbido secondo il piano (D13) |
-| `natpf-tennis/src/natpf/natpf_stroke_outcome.js` | `SERVE.habit`, `kickRel`, `sliceRel`, `greatRel`, `learn`, `strongPace`, `legacyFlight`; una curva di volo per i tre tipi; `createServeRef`, `serveRefOf`; `serveOutcome({ ref })` e `strong` (D12) |
-| `natpf-tennis/src/natpf/natpf_impact.js` | `queueUserSwing`: limite «palla passata» e portata di lato su `b.pos − b.vel·lat` (D16) |
-| `natpf-tennis/scripts/audit/letture-gesti.mjs` | il tagliato sotto 1× ammette la palla corta solo sotto 0,8×; riferimenti nuovi nell'intestazione (D13) |
+| `natpf-tennis/src/game_engine.js` | `ball.natpfFeed` tolto al servizio e al reset della palla (revisione di D7); recupero fuori dallo scambio in `_stepPhysics`; azzeramento in `startNewMatch` e `startSplit` (D6). Servizio abituale per chi batte in `_executeServeHit`, azzerato a ogni partita; `ball.isPowerShot` da `strong` (D12). Soglia difensiva e `natpfCpuDefense` in `_executeOpponentReturn` (D9) |
+| `natpf-tennis/src/natpf/natpf_phone_racket.js` | `ballIsHigh` in risposta (`rallyStrokeCount ≤ 1`) solo da `SMASH_FROM.always` (2,3 m); `isServeReturn` (D7), che esclude le palle del lanciapalle (`ball.natpfFeed`, revisione) |
+| `natpf-tennis/src/natpf/natpf_training.js` | le due palle degli esercizi portano `natpfFeed: true` (revisione di D7) |
+| `natpf-tennis/src/natpf/natpf_stroke_intent.js` | `INTENT.smashMaxRise` 0: ramo «verticale e manico alto» solo se la testa non sale (D7). `INTENT.dropSoft` 0,28: soglia del morbido secondo il piano (D13); `INTENT.dropDeepRise` −0,4: con la discesa decisa vale la soglia del nettamente morbido anche se verticale (revisione, presa a racchetta) |
+| `natpf-tennis/src/natpf/natpf_stroke_outcome.js` | `SERVE.habit`, `kickRel`, `sliceRel`, `greatRel`, `learn`, `strongPace`, `legacyFlight`; una curva di volo per i tre tipi; `createServeRef`, `serveRefOf`; `serveOutcome({ ref })` e `strong` (D12). Revisione: `learnFree` 3, `greatCold` 0,75, `greatMax` 0,9 |
+| `natpf-tennis/src/natpf/natpf_impact.js` | `queueUserSwing`: limite «palla passata» e portata di lato su `b.pos − b.vel·lat` (D16); `ballAtGesture` con solo il ritardo positivo (revisione) |
+| `natpf-tennis/scripts/audit/letture-gesti.mjs` | il tagliato sotto 1× ammette la palla corta solo sotto 0,8×; riferimenti nuovi nell'intestazione (D13); `GRIPS=racchetta` per misurare la presa insegnata (revisione) |
 | `natpf-tennis/test/natpf-b18-*.test.mjs` | test nuovi: `stanchezza`, `risposta`, `servizio`, `tagliato`, `ritardo`, `difesa-cpu` |
 | `natpf-tennis/test/natpf-racchetta-motore.test.mjs`, `natpf-servizio-profondita.test.mjs` | il tagliato di prova ha \|piano\| 0,9 (prima 0,6–0,7): con la regola nuova 0,6 è il servizio abituale |
 
@@ -129,6 +133,18 @@ braccio, destro e mancino. Tre servizi «propri» a 1× e poi la variante.
   presa a martello a 1,5× era a 205 km/h, ora a 185 km/h: la curva unica è quella del vecchio tagliato.
 - **«Gran servizio», servizio abituale a 1×.** 32/72 → 32/72, da 1,2× in su.
 - **«Gran servizio», chi serve piano** (servizio abituale a 0,7×, varianti da 0,7× a 1×): 0/32 → 8/32.
+- Dopo la revisione le misure con palmo e martello restano identiche (stesso script, ramo finale): piatto a 1×, 0 passi
+  «più forte → più lento», «Gran servizio» 32/72.
+
+**Presa a racchetta** (quella insegnata dal B17; misurata dopo la revisione con lo script
+`scratchpad/servizio-racchetta.mjs`, destro e mancino, calibrazione con la posa e con il braccio, tre servizi propri a 1×):
+
+| | prima (`d09357a`) | dopo |
+|---|---|---|
+| tipo a 1× | tagliato 4/4, 165–173 km/h | piatto 4/4, 165–174 km/h |
+| da 0,7× a 1,5× | tagliato, poi kick a 1,1×–1,2× (142–151 km/h, più lento di 1×), piatto a 1,3× (208–214), kick a 1,5× (155–158) | sempre piatto, 145 → 200 km/h, monotono |
+| «Gran servizio» al primo servizio della partita a 1× | 4/4 | 0/4 («Buon servizio») |
+| «Gran servizio» da 1,1× in su (dopo tre servizi propri) | 4/4 | 4/4 |
 
 ### D13 · tagliati
 
@@ -138,6 +154,16 @@ martello, calibrazione con la posa e con il braccio, destro e mancino, semi 7, 1
   nettamente morbido con forza fino a 0,25.
 - **Palla corta del tutorial**, da 0,7× a 1,3×: palla corta 240/240 prima e dopo. La sua forza arriva a 0,31 a 1,4×, ma è
   verticale (\|piano\| 0,2) e corta (22–31°).
+- **Presa a racchetta** (dopo la revisione; destro e mancino, calibrazione con la posa e con il braccio, semi 7 e 11,
+  8 letture per passo; script `scratchpad/tagliato-prese.mjs`):
+
+  | gesto del tutorial | prima (`d09357a`) e ramo prima della revisione | dopo la revisione |
+  |---|---|---|
+  | tagliato | palla corta 8/8 da 0,7× a 0,9×, 4/8 a 0,95× | palla corta solo a 0,7–0,75× (8/8) e 4/8 a 0,8×; tagliato 8/8 da 0,85× a 1,4× |
+  | tagliato di rovescio | palla corta 8/8 da 0,7× a 0,8× | palla corta 4/8 a 0,7×; tagliato 8/8 da 0,75× a 1,4× |
+  | palla corta | palla corta 8/8 da 0,7× a 1,2×; 4/8 top spin a 1,3–1,4× | uguale |
+
+  Con palmo e martello niente cambia rispetto al ramo: tagliati palla corta 96/480, palla corta 240/240.
 - **Stima per una persona vera**, con velocità del gesto distribuita intorno a 1× e deviazione 0,15. Prima circa il 32%
   dei tagliati diventava palla corta, dopo circa il 7%. Il rapporto B16 misurava 31–43% con il suo modello. La stima non è
   misurata con persone vere.
@@ -152,7 +178,20 @@ martello, calibrazione con la posa e con il braccio, destro e mancino, semi 7, 1
 | imitrates | 1220/1260 | 1256/1260 |
 | seeds | 576/576 | 576/576 |
 
-Nessun errore nuovo e 84 risolti (tagliati letti palla corta). Gli errori che restano c'erano già nella base:
+Nessun errore nuovo e 84 risolti (tagliati letti palla corta). Le stesse cifre dopo la revisione.
+
+Con la presa a racchetta (`GRIPS=racchetta`, revisione), stesso script sulla base e sul ramo finale:
+
+| modo | base | dopo |
+|---|---|---|
+| std | 620/644 | 626/644 |
+| sweep | 714/912 | 744/912 |
+| rates | 164/196 | 168/196 |
+
+Nessun errore nuovo; i risolti sono tutti tagliati (30 in sweep, 4 in rates, 6 in std). Gli errori che restano con
+questa presa c'erano già nella base e non sono di questo ramo: soprattutto piatto, incrociato e lungolinea con la
+calibrazione del braccio (lato o mira), più schiacciata e volée in sweep. Per questo `GRIPS` di serie resta palmo e
+martello, e i riferimenti di sempre non cambiano. Gli errori che restano c'erano già nella base:
 - piatto con la presa a martello un po' più veloce letto top spin;
 - volée 50/25 a 0,9× letta pallonetto;
 - schiacciata e volée a 0,7× con la calibrazione del braccio.
@@ -171,6 +210,11 @@ ritardo ancora colpito, in secondi:
 Con lead −0,02 e 130 ms di ritardo:
 - palla veloce: prima mancata a tutti i livelli, dopo colpita a tutti i livelli;
 - palla normale: prima mancata solo a Leggenda, dopo colpita a tutti i livelli.
+
+Dopo la revisione una latenza negativa (scarto tra gli orologi di telefono e computer, fino a −0,15 s) non sposta più
+la palla in avanti. Nel motore, con palla veloce e normale e ritardo −30/−50/−100/−150 ms, il primo ritardo colpito è
+lo stesso con e senza questa correzione: il limite che decide lì è quello sul tempo, non quello sulla posizione. La
+correzione toglie un caso raro e il test la prova sulla funzione (`ballAtGesture`).
 
 Con 130 ms resta un limite più vicino. Quando il messaggio arriva, la palla è già oltre di molto e a volte il punto è
 già finito.
@@ -252,21 +296,21 @@ rumore. La Leggenda non è più debole.
 
 - Test nuovi:
   - `natpf-b18-stanchezza`: 2 prove sul motore vero (partita simulata e `POINT_OVER`), senza chiamare `fatigueStep` a mano.
-  - `natpf-b18-risposta`: 4 prove; il colpo n. 143 parte dalla forma e passa dal telefono al motore con il servizio vero
+  - `natpf-b18-risposta`: 5 prove; il colpo n. 143 parte dalla forma e passa dal telefono al motore con il servizio vero
     della CPU.
-  - `natpf-b18-servizio`: 5 prove, con il telefono simulato e il motore.
-  - `natpf-b18-tagliato`: 3 prove, con il telefono simulato.
-  - `natpf-b18-ritardo`: 2 prove.
+  - `natpf-b18-servizio`: 6 prove, con il telefono simulato (prese palmo, martello e racchetta) e il motore.
+  - `natpf-b18-tagliato`: 4 prove, con il telefono simulato (prese palmo, martello e racchetta).
+  - `natpf-b18-ritardo`: 3 prove.
   - `natpf-b18-difesa-cpu`: 2 prove.
 - Ho controllato che `stanchezza`, `risposta` e `ritardo` falliscono sulla base: sono test veri del difetto.
 - Test dei gesti (`natpf-gesture-*`, `natpf-racchetta*`, `natpf-diag*`, `natpf-presa*`, `natpf-gesti-speciali`,
   `natpf-tutorial` e gli altri): 254/254.
-- `npm test` del gioco: 1008/1008, più 1 saltato (avvio LAN senza `npm ci` in `tools/lan`, come prima). Sul ramo senza ritocchi
+- `npm test` del gioco, dopo la revisione: 1012/1012, più 1 saltato (prima della revisione 1008/1008) (avvio LAN senza `npm ci` in `tools/lan`, come prima). Sul ramo senza ritocchi
   c'erano 2 rossi: il test B16 «preciso» e il motore finto di `natpf-recording` senza `rallyStrokeCount`. Sono risolti.
 - Sito (`node --test tools/test/*.test.mjs`): 200/200.
 - `npm run build`: ok.
 - `npm run audit:legend`: 69/69, «Tutti i criteri rispettati». Le cifre sono nella sezione «Bilanciamento».
-- Prove nel browser (Chromium, telefono simulato, ramo finale):
+- Prove nel browser (Chromium, telefono simulato, ramo finale prima della revisione):
   - `natpf-rally`: 8/8;
   - `natpf-gesti-speciali`: 9/9;
   - `natpf-leggenda`: 7/7;
@@ -274,11 +318,68 @@ rumore. La Leggenda non è più debole.
   - `natpf-latency`: 9/9.
 
   Le stesse cinque prove erano verdi anche prima del bilanciamento.
+- Prove nel browser dopo la revisione: `natpf-rally` 8/8, `natpf-gesti-speciali` 9/9, `natpf-1v1-p2p` 39/39,
+  `natpf-latency` verde, `natpf-training-flow` 22/22 (esercizi del lanciapalle, per il segno `ball.natpfFeed`).
+  `natpf-leggenda`: 6/7 al primo giro, poi 7/7 e 7/7. Il rosso è la verifica del disegno della CPU nell'allungo: in un
+  allungo **in partita** (palla a 1,79 m dal corpo, la CPU in corsa) il piatto della racchetta è andato fuori di +0,05 m,
+  sul limite di 5 cm (mano +0,21, testa +0,41: sopra le loro soglie). Il commento della prova stessa dice che con la
+  CPU in corsa il piatto si sposta poco (+0,08–0,23). Gli allunghi in partita capitano a caso: nei due giri verdi non ce
+  n'erano (solo i 4 forzati), nei due giri del ramo prima della revisione ce n'era uno (piatto +0,10 e +0,15). Sulla base
+  `d09357a` tre giri: 7/7 tutte e tre le volte, ma senza nessun allungo in partita, quindi lì il caso non è stato
+  esercitato. Le correzioni della revisione non toccano movimento né disegno della CPU; il ritocco della Leggenda del
+  ramo (primo passo 22/30 m/s²) sì, e non posso escludere che renda più frequenti questi allunghi. Da ricontrollare
+  dopo l'unione con più giri di `natpf-leggenda`.
+
+## Revisione
+
+Il revisore indipendente ha riletto il diff e rifatto le verifiche. Ha trovato un difetto bloccante e sei minori.
+
+**Bloccante: D13 non era corretto per la presa insegnata.** Dal B17 il tutorial insegna la presa a racchetta
+(`site/js/tennis/grip-art.js`, `GRIP_STYLE = 'racchetta'`). Con questa presa il tagliato del tutorial è uno swing
+verticale (\|piano\| 0,20–0,29) che scende deciso (salita −0,57/−0,80). Finiva nel ramo «taglio verticale morbido» o
+nella regola «morbido e verticale», con la soglia della forza 0,36. Risultato: imitato a 0,7–0,9× restava palla corta
+8/8, come sulla base. Il ramo aveva misurato solo palmo e martello, e il documento diceva il falso per chi imita il
+tutorial.
+- Correzione (`natpf_stroke_intent.js`): nuova soglia `INTENT.dropDeepRise` −0,4. Con la testa che scende decisa,
+  palla corta solo se il gesto è nettamente morbido (forza fino a 0,28), anche se verticale. Vale in tutti e due i
+  rami della palla corta. La palla corta del tutorial scende poco (−0,23/−0,25) e non cambia.
+- Misure: nella sezione D13 qui sopra. Tagliato con la presa a racchetta da 0,85× a 1,4× letto tagliato 8/8; palla corta
+  invariata; `letture-gesti` std 796/796 con palmo e martello, nessun errore nuovo con la presa a racchetta.
+- Test: `natpf-b18-tagliato` prova la presa a racchetta (tagliato, tagliato di rovescio, palla corta, destro e mancino,
+  due calibrazioni) e la regola nuova sulla forma. Il test che fissava la vecchia regola (forza 0,34 con \|piano\| 0,5 e
+  salita −0,42) ora usa una palla corta che scende poco. `letture-gesti` accetta `GRIPS=racchetta`.
+
+**Minori corretti:**
+- *Servizio con la presa a racchetta non provato.* Il test del servizio dal telefono simulato ora gira anche con la
+  presa a racchetta. Misure nella sezione D12.
+- *«Gran servizio» al primo servizio di ogni partita con la presa a racchetta.* Il riferimento iniziale è tarato sul
+  palmo (forza 0,5) e la racchetta a 1× ha forza 0,62. Ora, finché il riferimento non ha imparato nessun servizio,
+  «Gran servizio» vuole forza 0,75 (`SERVE.greatCold`).
+- *Il riferimento del servizio imparava solo i servizi letti piatti.* Chi serve sempre con la testa che sale, o molto di
+  lato, non veniva mai imparato. Ora i primi tre servizi della partita (`SERVE.learnFree`) si imparano di qualunque
+  tipo; dopo, solo quelli piatti rispetto al riferimento.
+- *Chi serve sempre al massimo non poteva più avere «Gran servizio».* La soglia ora è al più 0,9 (`SERVE.greatMax`).
+- *Le palle del lanciapalle contavano come risposta al servizio* (anche loro hanno `rallyStrokeCount` 1). Oggi
+  l'esercizio «Schiacciata» non ne soffriva (misura del revisore: palla alta 40/40), ma il margine dipendeva dalla
+  traiettoria. Ora le due palle degli esercizi portano `ball.natpfFeed` e `isServeReturn` le esclude. Il servizio della
+  partita e il reset della palla tolgono il segno.
+- *D16 con latenza negativa.* `ballAtGesture` usa solo il ritardo positivo.
+
+**Minore da decidere nell'unione: i ritocchi di bilanciamento.** Pro `cpuErr.rally` da 0,012 a 0,009 e Leggenda
+`accel`/`decel` da 20/28 a 22/30 m/s² toccano errori e movimento della CPU, che il rapporto assegna alla tappa 2. Sono
+misurati (sezione «Bilanciamento») e servono a tenere Pro e Leggenda come prima dopo D6, D9 e D12. Vanno dichiarati
+nell'unione come decisione da confermare con l'utente, e dopo l'unione dei quattro rami vanno rilanciati
+`npm run audit:legend` e i test B16 prima di tenerli.
+
+Dopo la revisione: `npm test` 1012/1012 più 1 saltato; sito 200/200; build ok; `audit:legend` 69/69 con le stesse cifre
+di prima (Pro contro «medio» 80,8%, Leggenda contro «preciso» 70,3%, contro «tennista» 90,6%).
 
 ## Cosa NON è verificato
 
 - **Telefono vero e persone vere.**
-  - Le soglie del tagliato e della palla corta sono provate solo con i gesti del tutorial imitati dal telefono simulato.
+  - Le soglie del tagliato e della palla corta sono provate solo con i gesti del tutorial imitati dal telefono simulato,
+    con le prese palmo, martello e racchetta. Non so quanto scende davvero il tagliato di una persona con la presa a
+    racchetta: se scende meno di 0,4, il tagliato appena lento e verticale è ancora palla corta.
   - Le soglie del servizio sono provate allo stesso modo: kick e tagliato «rispetto al proprio» e «Gran servizio» +0,1.
   - Non è misurato quanto varia davvero il gesto da un colpo all'altro. È la misura 12 della tappa 1 nel rapporto.
 - **Il kick e il tagliato voluti al servizio da persone vere.** Il kick vuole la testa che sale 0,3 più del proprio
