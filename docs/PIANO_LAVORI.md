@@ -201,10 +201,16 @@ Come si aggiorna:
     campo aperto a Pro (D1, D9); gruppo 2 = (3) Leggenda stessa regola (D2) e (4) palla corta che può sbagliare (D8);
     gruppo 3 = (5) livelli Evento e Bambini (D3: dire all'utente come si attivano) e (6) segnale del momento giusto e
     colpo super spiegato. Il ramo di lavoro è nella worktree `.claude/worktrees/wf_*` più recente (`git worktree list`).
-  - **B19 · audit dell'1v1 tra utenti** (stesso schermo e sfida tra due computer), in parallelo, solo lettura e misure:
-    tre angolazioni (stesso schermo nel browser, due computer P2P/LAN, equilibrio umano contro umano in simulazione), ogni
-    risultato ricontrollato da un verificatore, rapporto in `docs/b19/audit-1v1-utenti.md` (priorità, costi, piano).
-    Il rapporto chiede decisioni all'utente: non si implementa senza il suo sì.
+  - **B19 · audit dell'1v1 tra utenti: FATTO (10/11 notte)**, rapporto `docs/b19/audit-1v1-utenti.md` (tre angolazioni,
+    ognuna ricontrollata da un verificatore; script in `natpf-tennis/scripts/audit/b19/`). Non cambia il gioco: aspetta le
+    risposte dell'utente alle 16 domande del §5 (tappa A di correzioni piccole, chi batte per primo, formato in fiera di
+    base nello stesso schermo, tempo massimo, aiuti per giocatore, scambio che si scalda, chi vince resta…). Un difetto
+    certo rientra in una decisione già presa (31/10: in risposta schiacciata solo se voluta): al **Player 2** nello stesso
+    schermo la risposta al servizio diventa schiacciata (la tappa 1 l'ha corretto solo per il Player 1) → da correggere
+    con la prossima versione.
+  - Nota di ripresa: il primo workflow si è fermato per il limite d'uso (18:30 UTC); ripresa con
+    `workflows/scripts/b18-2-ripresa.js` (run `wf_ccb07fad-3b8`): correzioni del passo 1 fatte (`1f170bb` nella worktree
+    `wf_326755c7-755-1`), passo 2 in corso nella stessa worktree.
 - **Prossima azione esatta:** **B18.2 = tappa 2** del rapporto (`docs/b16/rapporto-gameplay.md` §4), una cosa alla volta con
   le prove simulate prima e dopo: (1) personaggi fermi a ogni servizio + peso del servizio (D11); (2) CPU che sbaglia per la
   pressione e campo aperto a Pro (D1, D9); (3) Leggenda stessa regola per chi gioca e per la CPU (D2); (4) palla corta che
