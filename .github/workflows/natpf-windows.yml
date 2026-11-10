@@ -84,7 +84,10 @@ jobs:
           node ../scripts/manifesto.mjs --exe="$f" --out=latest.json --novita=../novita.txt
           cp ../../docs/COLLAUDO_WINDOWS.md .
           ls -l
-      - name: Un unico file da scaricare
+      - name: Un unico file da scaricare (copia di riserva su GitHub)
+        # Non blocca la pubblicazione: se la quota degli artifact di GitHub è piena
+        # (successo il 10/11 con 124 MB a versione) l'installer va comunque su R2.
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: NATPF-Simulator-Windows-${{ steps.v.outputs.build }}
@@ -95,7 +98,7 @@ jobs:
             natpf-desktop/dist/COLLAUDO_WINDOWS.md
           if-no-files-found: error
           compression-level: 0
-          retention-days: 30
+          retention-days: 2
       - name: Segreti di Cloudflare R2
         id: r2
         env:
