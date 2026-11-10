@@ -15,10 +15,11 @@ export const rivalOf = ({ multiplayer = false, viewer = 'player' } = {}) => (!mu
   : viewer === 'opponent' ? { of: 'di Player 1', who: 'Player 1', Who: 'Player 1' } : { of: 'di Player 2', who: 'Player 2', Who: 'Player 2' });
 
 // punteggio del game dal lato di chi guarda: «30-15» (il proprio prima), parità, vantaggio di chi
-export function viewScore({ player = '0', opponent = '0' } = {}, viewer = 'player', rival = rivalOf()){
+// deciding: 40-40 con il formato in fiera (B18, natpf_fair_format.js): chi vince il punto vince il game
+export function viewScore({ player = '0', opponent = '0', deciding = false } = {}, viewer = 'player', rival = rivalOf()){
   const z = v => (String(v) === '00' ? '0' : String(v));   // il motore scrive lo zero «00»
   const mine = z(viewer === 'opponent' ? opponent : player), theirs = z(viewer === 'opponent' ? player : opponent);
-  if (mine === '40' && theirs === '40') return 'Parità';
+  if (mine === '40' && theirs === '40') return deciding ? 'Punto decisivo' : 'Parità';
   if (mine === 'Ad') return 'Vantaggio tuo';
   if (theirs === 'Ad') return `Vantaggio ${rival.of}`;
   return `${mine}-${theirs}`;
@@ -38,7 +39,7 @@ export function pointCall({ winner = 'player', why = '', viewer = 'player', riva
   if (sharedNames){
     const win = sharedNames[winner], lose = sharedNames[winner === 'player' ? 'opponent' : 'player'];
     const reason = why === 'Out' ? `Errore di ${lose}: palla fuori` : why === 'Net' ? `Errore di ${lose}: palla in rete` : why === 'Point' ? `${lose} non ci arriva` : why === 'Ace!' ? `Ace di ${win}` : why === 'Nice Shot!' ? `Vincente di ${win}` : '';
-    const sc = score ? (score.player === 'Ad' ? `Vantaggio ${sharedNames.player}` : score.opponent === 'Ad' ? `Vantaggio ${sharedNames.opponent}` : `${sharedNames.player} ${score.player} · ${sharedNames.opponent} ${score.opponent}`) : '';
+    const sc = score ? (score.deciding ? 'Punto decisivo' : score.player === 'Ad' ? `Vantaggio ${sharedNames.player}` : score.opponent === 'Ad' ? `Vantaggio ${sharedNames.opponent}` : `${sharedNames.player} ${score.player} · ${sharedNames.opponent} ${score.opponent}`) : '';
     return { mine: winner === 'player', text: `Punto ${win}`, subText: [reason, sc].filter(Boolean).join(' · '), style: winner === 'player' ? 'style-won' : 'style-lost' };
   }
   const mine = winner === viewer;
@@ -74,7 +75,8 @@ export function callContext(engine){
 // testo dell'host). Senza dati (host di prima) resta quello dell'host
 export function callFromBroadcast(engine, b){
   const c = b?.call, ctx = callContext(engine);
-  if (!c) return { text: b?.text || '', subText: b?.subText || '', style: b?.style || 'style-score' };
+  // B18: dati senza «kind» ({ voice } del punto decisivo, solo la frase da dire): resta il messaggio dell'host
+  if (!c || !c.kind) return { text: b?.text || '', subText: b?.subText || '', style: b?.style || 'style-score' };
   if (c.kind === 'point') return pointCall({ winner: c.winner, why: c.why, score: c.score, ...ctx });
   return gameCall({ winner: c.winner, games: c.games || undefined, match: c.kind === 'match', ...ctx });
 }

@@ -7,7 +7,8 @@
 // game, punti in una casella piena gialla («AD» al vantaggio); niente intestazioni; formato e «Parità»/«Vantaggio …»
 // come sottotitolo piccolo sotto il riquadro. Lo stato (nomi interi, punti, scritte) non cambia: cambia solo l'HTML.
 // La partita del motore non ha set né tie-break: si vince arrivando per primi a `gamesToWin` game, e un game si vince
-// con due punti di scarto (parità e vantaggio). Funzioni pure: le usa natpf_ui.onScore e le provano i test.
+// con due punti di scarto (parità e vantaggio), o con il formato in fiera (B18, natpf_fair_format.js) al punto decisivo
+// sul 40-40, con il servizio che passa ogni due punti (la pallina di chi serve segue score.server). Funzioni pure: le usa natpf_ui.onScore e le provano i test.
 import { viewScore } from './natpf_point_call.js';
 
 const POINTS = ['0', '15', '30', '40'];
@@ -108,7 +109,9 @@ export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', 
   const short = shortNames(names.me, names.them);
   const rows = [{ side: 'me', name: names.me, short: short.me, ...side(mine) }, { side: 'them', name: names.them, short: short.them, ...side(theirs) }];
   let label = '';
-  if (pts.deuce) label = 'Parità';
+  // B18: formato in fiera (score.fair, natpf_fair_format.js): sul 40-40 chi vince il punto vince il game, niente vantaggi
+  if (pts.deuce && score.fair) label = 'Punto decisivo';
+  else if (pts.deuce) label = 'Parità';
   else if (pts.adv){
     if (split) label = `Vantaggio ${pts.adv === 'player' ? names.me : names.them}`;
     else {

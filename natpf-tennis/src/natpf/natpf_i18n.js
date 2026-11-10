@@ -54,6 +54,7 @@ const PHRASES = [
   ["Final Games", "Game finali"],
   ["Games", "Game"],
   ["Game Set and Match", "Game, set e partita"],
+  ["Deciding Point", "Punto decisivo"], // B18: formato in fiera, 40-40 (natpf_fair_format.js)
   ["Game Point", "Palla game"],
   ["Break Point", "Palla break"],
   ["Match Point", "Palla match"],

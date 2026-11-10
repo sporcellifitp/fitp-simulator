@@ -320,9 +320,11 @@ export function guestHoldNotice(hold = {}, { hostName = 'Player 1', phoneText = 
 // menu o lasciando la sfida: vale solo per il ricaricamento.
 export const CHECKPOINT_KEY = 'natpf.versus.checkpoint';
 export const CHECKPOINT_MAX_MS = 30 * 60e3;
-const SCORE_KEYS = ['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames', 'server', 'deuceSide'];
+// B18: con il formato in fiera anche la regola (fair) e chi ha iniziato il game (gameServer), se ci sono
+const SCORE_KEYS = ['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames', 'server', 'deuceSide'], FAIR_KEYS = ['fair', 'gameServer'];
 export function makeCheckpoint({ roomId, fmt = null, gamesToWin = 1, score = {} }, now = Date.now()){
-  return { roomId, fmt, gamesToWin, at: now, score: Object.fromEntries(SCORE_KEYS.map(k => [k, score[k]])) };
+  const keys = [...SCORE_KEYS, ...FAIR_KEYS.filter(k => score[k] !== undefined)];
+  return { roomId, fmt, gamesToWin, at: now, score: Object.fromEntries(keys.map(k => [k, score[k]])) };
 }
 const zero = s => !s.playerPoints && !s.opponentPoints && !s.playerGames && !s.opponentGames;
 // il punteggio da riprendere per questa partita, o null
@@ -332,5 +334,9 @@ export function checkpointFor(cp, { roomId, fmt = null, gamesToWin = 1, score = 
   const s = cp.score;
   if (![s.playerPoints, s.opponentPoints, s.playerGames, s.opponentGames].every(n => Number.isInteger(n) && n >= 0 && n < 50)) return null;
   if (s.playerGames >= gamesToWin || s.opponentGames >= gamesToWin) return null;
-  return { ...s, server: s.server === 'opponent' ? 'opponent' : 'player', deuceSide: s.deuceSide !== false };
+  // B18: la regola del game (formato in fiera) cambiata nel frattempo dal pannello dello stand: si riparte da 0-0
+  if (!!s.fair !== !!score.fair) return null;
+  const out = { ...s, server: s.server === 'opponent' ? 'opponent' : 'player', deuceSide: s.deuceSide !== false };
+  if (s.gameServer !== undefined) out.gameServer = s.gameServer === 'opponent' ? 'opponent' : 'player';
+  return out;
 }

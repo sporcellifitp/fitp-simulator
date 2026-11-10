@@ -804,6 +804,12 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 .natpf-sheet .sheet-desc { margin: 0 0 16px; font: 500 16px/1.45 var(--font-text); color: var(--text-2); }
 .natpf-sheet .sheet-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
 .natpf-sheet .pause-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+/* pannello dello stand (B18): con «Formato in fiera» i pulsanti sono 9; su tre colonne il foglio resta di 3 file e
+   «Chiudi» in vista anche a 1024 × 600 e 1366 × 657 (prova natpf-menu); su schermi stretti torna a 2 colonne e a 1 */
+.natpf-sheet-backdrop .natpf-sheet.staff-sheet { width: min(780px, calc(100cqw - 2 * var(--gutter))); }
+.natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(3, 1fr); }
+@container natpf (max-width: 820px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(2, 1fr); } }
+@container natpf (max-width: 640px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: 1fr; } }
 .natpf-sheet .pause-grid button {
   display: flex;
   flex-direction: column;

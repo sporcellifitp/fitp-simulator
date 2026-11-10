@@ -19,6 +19,7 @@
 // Pausa, «Torna al menu» e il «Menu» della schermata finale riportano al menu principale.
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 import { FORMAT_KEY, SERVE_KEY, serveChoice } from './match_format.js';
+import { readFairFormat, FAIR_MAX_GAMES_LABEL } from './natpf_fair_format.js';
 import { CHALLENGES, challengeById, pickableChallenge, validNickname } from './natpf_events.js';
 import { MEDAL_LABEL, nextMedal, medalCount } from './natpf_arcade.js';
 // icone dei minigiochi (natpf_arcade.MODES[].icon)
@@ -114,9 +115,10 @@ export function nearestTile(tiles, from, code, rect = el => el.getBoundingClient
 }
 // Pagina «Partita»: riassunto delle impostazioni chiuse sotto «Altre impostazioni» (B15): durata, formato (non nello stesso
 // schermo, che è solo singolare) e visuale
-export function matchSummary({ games = 1, format = 'singles', view = 'third', split = false } = {}){
+// fair: formato in fiera acceso dal pannello dello stand (B18, natpf_fair_format.js), detto nel riassunto
+export function matchSummary({ games = 1, format = 'singles', view = 'third', split = false, fair = false } = {}){
   const n = parseInt(games, 10) || 1;
-  return [n > 1 ? `Al meglio di ${n}` : '1 game', split ? null : format === 'doubles' ? 'doppio' : 'singolare', view === 'first' ? '1ª persona' : '3ª persona'].filter(Boolean).join(' · ');
+  return [n > 1 ? `Al meglio di ${n}` : '1 game', fair ? 'formato fiera' : null, split ? null : format === 'doubles' ? 'doppio' : 'singolare', view === 'first' ? '1ª persona' : '3ª persona'].filter(Boolean).join(' · ');
 }
 // Riconosce la parola dell'easter egg tra i tasti digitati
 export function eggTyped(buffer, key){ const next = (buffer + String(key || '').toLowerCase()).slice(-EGG_WORD.length); return { buffer: next, hit: next === EGG_WORD }; }
@@ -488,9 +490,16 @@ export class NatpfLobby {
     const open = !!this.matchMore;
     show(box, open);
     if (btn && btn.getAttribute('aria-expanded') !== String(open)) btn.setAttribute('aria-expanded', String(open));
+    // B18: con il formato in fiera la partita più lunga è al meglio di 3 (natpf_fair_format.fairGamesToWin): «Al meglio
+    // di 5» sparisce e, se era scelto, si passa a «Al meglio di 3»; spento torna com'era
+    const fair = readFairFormat(), five = document.querySelector('#match-length-group [data-games="5"]');
+    if (five){
+      if (five.classList.contains('hidden') !== fair){ five.classList.toggle('hidden', fair); five.title = fair ? FAIR_MAX_GAMES_LABEL : ''; }
+      if (fair && five.classList.contains('selected')) document.querySelector('#match-length-group [data-games="3"]')?.click();
+    }
     const games = document.querySelector('#match-length-group .selected')?.dataset?.games;
     const view = this.el.querySelector('[data-page="match"] [data-natpf-view].selected')?.dataset?.natpfView;
-    const t = matchSummary({ games, format: this.format, view, split });
+    const t = matchSummary({ games, format: this.format, view, split, fair });
     if (sum && sum.textContent !== t) sum.textContent = t;
   }
   // Sfida un amico (host): la barra dell'invito (codice, link, stato del Player 2) resta in vista dalla racchetta alla
