@@ -84,9 +84,10 @@ export function matchEndView({ winner = 'player', games = { player: 0, opponent:
     return { title: `Vince ${sharedNames[winner]}!`, won: true, rows, score: `${g.player}-${g.opponent}`, voice: MATCH_VOICE };
   }
   const me = viewer === 'opponent' ? 'opponent' : 'player', mine = winner === me, nick = String(nickname || '').trim();
-  const myName = nick || 'Tu', rivalName = !multiplayer ? (doubles ? '2 CPU' : 'CPU') : rival.who;
+  // doppio in rete: ciascuno con la sua CPU in coppia, come la pagina «Partita» («Amico + CPU», revisione B18)
+  const myName = nick || 'Tu', rivalName = !multiplayer ? (doubles ? '2 CPU' : 'CPU') : doubles ? `${rival.who} + CPU` : rival.who;
   const title = mine ? (nick ? `Vince ${nick}!` : doubles ? 'Avete vinto!' : 'Hai vinto!') : !multiplayer ? (doubles ? 'Vincono le CPU' : 'Vince la CPU') : `Vince ${rival.who}!`;
-  const rows = [{ name: doubles && !multiplayer ? `${myName} + CPU` : myName, games: g[me], win: mine }, { name: rivalName, games: g[other(me)], win: !mine }];
+  const rows = [{ name: doubles ? `${myName} + CPU` : myName, games: g[me], win: mine }, { name: rivalName, games: g[other(me)], win: !mine }];
   return { title, won: mine, rows, score: `${g[me]}-${g[other(me)]}`, voice: MATCH_VOICE };
 }
 

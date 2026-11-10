@@ -43,6 +43,10 @@ test('schermata finale: chi vince con il nome, i game dei due, la voce di fine p
   assert.equal(matchEndView({ winner: 'player', games: { player: 1, opponent: 0 }, viewer: 'opponent', rival: rivalOf({ multiplayer: true, viewer: 'opponent' }), multiplayer: true }).title, 'Vince Player 1!');
   // doppio contro le CPU
   assert.equal(matchEndView({ winner: 'opponent', doubles: true }).title, 'Vincono le CPU');
+  assert.deepEqual(matchEndView({ winner: 'opponent', doubles: true, nickname: 'Ada' }).rows.map(r => r.name), ['Ada + CPU', '2 CPU']);
+  // doppio in rete (revisione B18): ciascuno con la sua CPU, come la pagina «Partita»
+  const d = matchEndView({ winner: 'player', games: { player: 1, opponent: 0 }, rival: rivalOf({ multiplayer: true, viewer: 'player' }), multiplayer: true, doubles: true });
+  assert.deepEqual(d.rows.map(r => r.name), ['Tu + CPU', 'Player 2 + CPU']);
 });
 
 test('niente rating finto: la schermata finale non ha più numero, grafico e nome fisso «Tu»', () => {

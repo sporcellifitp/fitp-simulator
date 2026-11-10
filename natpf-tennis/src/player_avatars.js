@@ -14,7 +14,6 @@ export const MII_PROFILES = {
     "pl-icon-player-2": "player2",
     "plate-pl-player": "player1",
     "setup-pl-player": "player1",
-    "victory-pl-icon": "player1",
     "pl-icon-opponent": "opponent1",
     "pl-icon-opponent-2": "opponent2",
     "setup-pl-opponent": "opponent1",

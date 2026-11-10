@@ -670,8 +670,8 @@ body {
 #victory-modal .nt-footer-btn.new-player {
   grid-column: 1 / -1;
   order: -1;
-  height: 58px;
-  font-size: 21px;
+  height: clamp(48px, 8cqh, 64px);
+  font-size: clamp(17px, 3cqh, 23px);
   background: var(--hud-pink);
   color: #fff;
 }
