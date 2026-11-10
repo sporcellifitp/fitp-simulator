@@ -633,7 +633,7 @@ export const CAMERAS_VIDEO = Object.freeze({
   // (scratchpad b17C/camsearch.mjs; misure in docs/b17/gesti-dal-video.md): telefono non di taglio nelle pose chiave
   // (≥ 30° dove si può), avambraccio ≥ 30° dal raggio visivo in tutto il ciclo, la più frontale possibile, schermo in vista
   // il più a lungo possibile. Il rovescio a due mani è stato riottimizzato con questa camera (ottimizza.mjs --camdir).
-  forehand: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco orizzontale da destra a sinistra, fine davanti al viso con lo schermo verso di te' }),
+  forehand: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco da destra a sinistra, all\u2019impatto lo schermo verso la palla, fine davanti al viso' }),
   // incrociato (passo B3): 5° più di lato e più alta del dritto (az 35°, el −17,5°): con il piatto girato verso il centro e lo
   // schermo verso la rete la fine era di taglio (23°) con la camera del dritto
   cross: Object.freeze({ dir: [-.547, -.301, -.781], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .32, arrow: .012 }), frame: 'swing', read: 'come il dritto, con il polso girato: cima e schermo verso il centro' }),

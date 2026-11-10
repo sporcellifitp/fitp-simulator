@@ -37,8 +37,18 @@ di partenza, schermo di lato) la mira di incrociato e lungolinea non si legge (0
 Dettagli e misure: `docs/b17/ottimizzazione.md` §9. Test: gioco 988/988 (nuovi: faccia all'impatto, rovescio a una mano,
 semi 1–23 in tre file), sito 200/200, build ok.
 
+## Giro 3 (FATTO): fogli, prove nel browser, documenti
+- Fogli `docs/b17/img/O-*` e `VC-*` di dritto, rovescio e tagliati rifatti con il **primo piano dalla palla** all'impatto e la
+  faccia scritta; guardati (dritto: vetro blu verso la palla; rovescio: dorso scuro). Confronto `PREFIX=O` 24/24, `VC` 20/20.
+- Camere: piatto e volée con la camera del dritto, incrociato az 35° el −17,5°, volée che segue come il dritto; il braccio libero
+  del rovescio a una mano non allarga il quadro. `natpf-gesti-fotogrammi` 31/31 con tre limiti dichiarati (27 % a 1600×1000 per
+  rovescio, dritto, lungolinea), `natpf-modale-gesti` 18/18, `natpf-tutorial-phone` 52/52.
+- `docs/b17/ottimizzazione.md` §9 (angoli prima/dopo, scarti dal video, letture, limiti con le misure).
+
 ## Prossima azione
-Fogli O-* e VC-* rifatti (con la faccia all'impatto scritta) e guardati; `docs/b17/ottimizzazione.md` §9; prove nel browser.
+Passo B3 chiuso. Da chiedere all'utente (con i fogli O/VC): dritto che colpisce all'altezza della testa (12 cm sopra il video),
+volée e piatto diventati dritti alti (la volée non è più un gesto corto), incrociato a 21°; se accettare che con una calibrazione
+fatta tenendo lo schermo di lato la mira e il piatto non si leggano (nel gioco la calibrazione si fa con il dritto del tutorial).
 
 ## Come riprendere
 Dalla cartella `natpf-tennis`: `node --import ./test/register.mjs scripts/video/ottimizza.mjs --card=<id> --out=DIR

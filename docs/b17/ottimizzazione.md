@@ -1,5 +1,8 @@
 # B17.1 · passo B2 · Coreografie ottimizzate con il rilevatore nel costo, presa e partenza dal video
 
+> **Passo B3 (10/11/2026 notte): rovescio a una mano, schermo verso la palla all'impatto del dritto e dorso nel rovescio: §9
+> (vale sopra a §1–§8 dove le misure sono cambiate).**
+
 > Stato (09/11/2026 notte, worktree B17.1, **dopo le correzioni della revisione**). Decisioni dell'utente: (1) «ottimizza senza
 > di me» = scelta B di `docs/b17/posa-dal-video.md` §4: tenere la FORMA del video e cercare polso e tempi con il rilevatore
 > vero nel costo, misurando quanto il gesto si allontana dal video; (2) presa e partenza «come la mia impugnatura del video» =
@@ -247,3 +250,113 @@ piatto del primo giro a 0,8× era letto due top spin con tutti i semi). Polsi ca
 - Palla corta e schiacciata non partono dalla posa del video (§1). Lato non controllato per tagliato, pallonetto, palla corta e
   schiacciata (§3). Il flusso del tutorial nel browser non è stato provato in questo giro (solo i fogli e la prova dei
   fotogrammi).
+
+## 9. Passo B3: rovescio a una mano, faccia del telefono all'impatto
+Richieste dell'utente (09/11 notte, sulle anteprime VC-*): **«Per il rovescio, a una mano»**; **«Assicurati che con il dritto la
+pallina venga colpita con il display in maniera frontale, il rovescio invece stesso movimento ma con l'altro lato»**. Confermate le
+eccezioni di palla corta e schiacciata (partenza da `REST_COLPI_RACCHETTA`) e la terza indicazione della «Presa». Il
+riconoscimento non è stato toccato; tutte le letture sono del **telefono simulato** (nessun telefono vero).
+
+### 9.1 Che cosa si misura
+`GP.IMPACT_FACE` dice quale faccia colpisce: **schermo** (normale +z del telefono) per dritto, piatto, incrociato, lungolinea,
+tagliato di dritto e volée; **dorso** per rovescio e tagliato di rovescio. `GP.impactFaceAngle(id)` = angolo tra quella faccia e
+la direzione della rete (−z del campo, da dove arriva la palla) nell'istante del contatto; il mancino è lo specchio esatto (stesso
+angolo, normale specchiata: test `natpf-gesture-physics` «faccia all'impatto»).
+
+| Scheda | Faccia | Prima (passo C) | Dopo (passo B3) |
+|---|---|---|---|
+| Dritto | schermo | 83,5° (schermo verso sinistra, telefono di taglio verso la palla) | **17,0°** |
+| Rovescio | dorso | 102,6° | **8,7°** |
+| Tagliato di dritto | schermo | 55,4° | **17,0°** |
+| Tagliato di rovescio | dorso | 37,8° | **5,9°** |
+| Piatto | schermo | 158,8° (colpiva con il dorso, a 21°) | **17,0°** |
+| Volée | schermo | 163,9° (colpiva con il dorso, a 16°) | **17,0°** |
+| Lungolinea | schermo | 73,8° | **12,1°** |
+| Incrociato | schermo | 88,3° | **21,1°** (minimo trovato con la mira letta: §9.4) |
+
+Il costo dell'ottimizzatore penalizza oltre 17° (20° − 3° di margine): per questo molte schede stanno a 17,0°.
+
+### 9.2 Come (ottimizzatore, `natpf-tennis/scripts/video/ottimizza.mjs`)
+- `--impact=20`: penalità sulla faccia all'impatto **senza tetto** (con il tetto di 50 il rovescio a 103° non aveva pendenza);
+  `--noinit` prosegue dalla soluzione di prima stringendo il vincolo (così sono nati dritto, rovescio e i tagliati, che restano
+  letti giusti a ogni passo); senza, `impactInit` risolve prima la posa C con la faccia girata (salvata in `opts.init`).
+- **Dritto e rovescio insieme**: ognuno entra nella calibrazione «con l'animazione» dell'altro; il dritto nuovo con il rovescio di
+  prima era letto in due colpi (32/48 sbagliate) e viceversa (28/48). Coppia coerente con `--also=backhand` (il dritto non deve
+  rompere il rovescio) e verifica incrociata.
+- **Piatto e volée dal dritto nuovo** (`--initFrom=forehand --like`): girati dalla loro posa di prima (cima del telefono verso
+  l'altra parte) erano letti dal **lato del rovescio** (l'asse di rotazione nel telefono era opposto a quello calibrato con il
+  dritto); ripartiti dalle pose chiave del dritto nuovo con la parte veloce fino a 0,08 s, `--axisLike=forehand` (asse di
+  rotazione vicino a quello del dritto) e la camera del dritto (`--camdir`).
+- Incrociato e lungolinea: `--aimwide` (la mira gira anche deviazione ed elevazione del braccio). Palla corta riottimizzata (con il
+  dritto nuovo nella calibrazione era letta top spin). Altre opzioni: `--tipLike`, `--peakOver`, `--riseMax`, `--cals=pose`.
+- Il rovescio porta anche lo **scarto dallo specchio del dritto** (`--mirror`, peso basso): la mano dista in media **42 cm** dallo
+  specchio della mano del dritto (carica 35, impatto 45, fine 55 cm). Il rovescio tiene la forma del rovescio del video (dall'anca
+  sinistra in alto sopra la spalla destra), che non è lo specchio del dritto del video (che finisce davanti al viso): ho tenuto il
+  video e misurato lo scarto, non ho forzato lo specchio. Il verso è speculare (da sinistra a destra) e la faccia opposta.
+
+### 9.3 Quanto ci si è allontanati dal video (mano alle pose chiave, cm; Δ altezza)
+| Scheda | Carica | Impatto | Fine | Traiettoria media / max | Tempi carica→impatto, impatto→fine (video) |
+|---|---|---|---|---|---|
+| Dritto | 3,2 (−2,0) | **12,6 (+12,4)** (prima 1,3) | 2,7 (−0,7) | 11,7 / 25,9 (prima 7,2 / 21) | 0,30 (0,50), 0,17 (0,17) |
+| Rovescio a una mano | 2,4 (−0,7) | 11,4 (−0,3) (prima 7,6) | 3,0 (+0,9) | 8,5 / 17,0 | 0,33 (0,17), 0,56 (0,20) |
+| Tagliato di dritto | 9,1 (−6,7) | 5,9 (+3,6) (prima 1,9) | 7,8 (−3,5) | 6,7 / 9,1 | 0,19 (0,23), 0,99 (0,23) |
+| Tagliato di rovescio | 7,5 (−6,6) | 4,8 (+1,8) | 5,0 (−2,4) | 6,7 / 14,3 | 0,12 (0,27), 0,41 (0,17) |
+| Incrociato / lungolinea | 6,4 / 8,9 | 13,6 / 15,5 | 4,9 / 4,4 | 12,1 / 12,8 | come il dritto |
+
+Il dritto con lo schermo verso la rete colpisce **12 cm più in alto** del video (polso a 1,53 m, all'altezza della testa): con il
+polso del video la faccia verso la rete chiedeva l'estensione del polso al limite e il dritto non era letto giusto
+(partenza girata: 48/48 sbagliate). Picco del telefono 765 °/s (prima 540).
+Schede che il video non mostra, contro la forma di oggi (B13/B14): **piatto** impatto 38,8 cm più in alto (+26 cm) e traiettoria
+22,5 cm in media, **volée** 42,8 cm (+33 cm) e 28,3 cm: sono il dritto nuovo più veloce (piatto: parte veloce 0,14 s, picco 904
+°/s) e il dritto nuovo con la stessa velocità (volée 0,32 s). La volée **non è più un gesto corto** davanti al corpo: è il limite
+più visibile del passo (§9.5). Partenze invariate (`REST_VIDEO`; palla corta e schiacciata da `REST_COLPI_RACCHETTA`).
+
+### 9.4 Letture (semi 1–23 × 2 calibrazioni × 2 mani × 0,8/1/1,25×; test `natpf-gesture-semi-a/b/c`)
+| Scheda | Letture giuste | Note |
+|---|---|---|
+| Dritto, rovescio, tagliati, servizio, pallonetto, palla corta, schiacciata, volée | 276/276 ciascuna | |
+| Piatto | 138/138 con la calibrazione con l'animazione; **15/138** con quella del braccio simulato | limite dichiarato |
+| Incrociato, lungolinea | 138/138 con la calibrazione con l'animazione (mira minima 0,49 / 0,50); **0/138** con quella del braccio | limite dichiarato |
+
+Fuori dai limiti dichiarati **3 174/3 174**. Perché i limiti (misurato, non nascosto):
+- La calibrazione «del braccio simulato» del banco di prova (`test/arm-sim.mjs`) fa dritto e rovescio tenendo il telefono come
+  nella **posa di partenza** (schermo di lato) e ruotando attorno alla verticale. Con lo schermo verso la rete all'impatto il
+  centro della mira che ne nasce (`faceRef.heading`) dista **83,6°** da quello della calibrazione con il dritto del tutorial
+  (−6,5° contro 77,1°; prima del passo B3: −6,5° contro −9,8°, 3°). La mira è credibile solo entro 80° dal centro
+  (`AIM.maxDev`): un colpo mirato dovrebbe avere il verso giusto rispetto a due centri distanti più di 80°, che è impossibile; con
+  la calibrazione del braccio l'incrociato è letto dal lato del rovescio (mira 0,99) e il lungolinea con la mira 0 (scarto
+  92,7°), anche dopo 4 o 5 dritti di prova (0/12 in ogni caso). Ruotando il dritto (scarti del polso e dell'omero) la distanza
+  dei centri scende sotto 70° solo con la faccia a 90° e più dalla rete.
+- Il piatto si legge «in piano e forte» se la salita della testa sta entro ±0,12 dalla salita abituale della calibrazione: con
+  il dritto nuovo (salita 0,47) l'abituale è 0,30 con la calibrazione con l'animazione e −0,02 con quella del braccio, due
+  finestre che non si toccano. Provato anche un dritto con la salita ridotta a 0,20 (`--riseMax`): tutte le altre schede restavano
+  lette giuste ma il piatto no con nessuna delle due calibrazioni nel tempo disponibile (scartato).
+- **Incrociato a 21,1°**: la mira si legge girando il piatto di ~10° rispetto al dritto (che è a 17°); con la mira ≥ 0,5 su tutti i
+  semi l'ottimizzatore non è sceso sotto 21,1° (minimo trovato, non dimostrato). Il lungolinea gira dall'altra parte (12,1°).
+- Nel gioco la calibrazione si fa con il dritto e il rovescio del tutorial (calibrazione «con l'animazione»): lì tutto è letto
+  giusto. Una calibrazione fatta con lo schermo di lato e poi colpi con lo schermo verso la rete darebbe gli stessi limiti per la
+  mira finché il centro non si corregge con i colpi veri (dopo 4 colpi se dista più di 35°: `AIM.verify`), e il piatto top spin.
+
+### 9.5 Disegno, fogli, prove
+- **Rovescio a una mano**: `GESTURES.backhand.twoHanded` tolto, `balance` (solo disegno): la mano libera non tocca mai il
+  telefono (≥ 28 cm), nella carica resta di lato, dal contatto si apre **dietro e di lato** per l'equilibrio (`FREE_BALANCE`,
+  quasi disteso) e torna a riposo nel ritorno; non allarga il quadro del gesto intero. Test `natpf-gesture-anim`.
+- Camere: piatto e volée con la camera del dritto (prima di fronte/dal lato: con lo schermo verso la rete l'avambraccio puntava
+  la camera); incrociato 5° più di lato e più alto (az 35°, el −17,5°: con la camera del dritto la fine era di taglio, 23°); volée
+  con la camera che segue come il dritto (a 200×200 la palla usciva dal quadro per 117 ms).
+- **Fogli `docs/b17/img/O-*.webp` e `VC-*.webp`** rifatti per dritto, rovescio e tagliati, con un **primo piano dalla palla**
+  all'impatto (camera 0,8 m davanti al telefono, dalla parte della rete) e la scritta «dalla palla: SCHERMO/DORSO a N° dalla rete».
+  **Guardati**: nel dritto si vede il vetro blu verso la palla, nel rovescio il dorso scuro con le dita attorno; la palla copre in
+  parte la cima del telefono. `natpf-gesti-video-confronto` `PREFIX=O` 24/24 (nuova verifica: la camera frontale vede lo schermo
+  nei colpi di dritto e il dorso nel rovescio; polso del dritto all'impatto entro 0,13 m dal video, limite dichiarato come il
+  servizio), `VC` 20/20.
+- `natpf-gesti-fotogrammi` 31/31 con tre limiti dichiarati nuovi: a 1600×1000 mano+telefono all'impatto al **27 %** (limite 28 %)
+  per rovescio, dritto e lungolinea (gesto intero a camera ferma; il dritto colpisce più in alto, il rovescio ha un arco più largo).
+  `natpf-modale-gesti` 18/18, `natpf-tutorial-phone` 52/52.
+- Test: gioco **988/988** (nuovi: faccia all'impatto destro e mancino, rovescio a una mano, semi 1–23 in tre file paralleli),
+  sito 200/200, build ok.
+
+### 9.6 Non verificato
+- Nessun telefono vero: non so se un telefono vero, calibrato con il dritto del tutorial, legga piatto e mira come il telefono
+  simulato. Non so come l'utente trovi la volée e il piatto (ora dritti più alti e veloci) né il dritto che colpisce all'altezza
+  della testa: **da mostrare all'utente**. La presa del video resta una misura a bassa confidenza (37,7°).

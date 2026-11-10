@@ -1,5 +1,9 @@
 # B17.1 · passo C · Il disegno dei gesti come il video: camera frontale specchiata, gesto intero, figura chiara
 
+> **Passo B3 (10/11 notte)**: il rovescio è ora **a una mano** (decisione dell'utente) e all'impatto il dritto colpisce con lo
+> schermo verso la palla, il rovescio con il dorso; coreografie, camere di piatto, volée e incrociato e misure aggiornate in
+> `docs/b17/ottimizzazione.md` §9. Le righe qui sotto sul «rovescio a due mani» descrivono il passo C.
+
 > Stato al 09/11/2026 notte, worktree B17.1 (`.claude/worktrees/wf_bb380d57-57a-1`). Piano: `docs/b17/analisi-e-piano.md`
 > §1.4 punti 4–5. Coreografie: quelle ottimizzate del passo B2 (`docs/b17/ottimizzazione.md`), con il rovescio a due mani e il
 > piatto rifatti qui per la camera frontale. Decisioni dell'utente del 09/11 sera: (1) scelta B (forma del video, polso e tempi
