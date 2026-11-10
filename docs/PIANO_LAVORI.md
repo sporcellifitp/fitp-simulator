@@ -194,6 +194,17 @@ Come si aggiorna:
   `sergio4/foro-italico-world`). Push della 2026-11-10.2 fatto (`9e9ac3a`); i segreti R2 sono passati con il trasferimento:
   la corsa 22 di «NATPF eseguibili Windows» ha pubblicato l'installer **2026-11-10.2** su R2 (124.649.916 B, sha256
   `a546aae4…2505c8f`, verificato dal link fisso). Zip Cloudflare 2026-11-10.2: 22.626.641 B, sha256 `8459a7e0…3d41aa`.
+- **In corso dal 10/11 sera (richiesta dell'utente: «procedi con la tappa 2 e nel frattempo fai un nuovo audit delle
+  migliorie da apportare adesso sul gameplay nell'1v1 tra utenti»):**
+  - **B18.2 · tappa 2** a passi, ognuno in worktree con revisore e correzioni, una versione per gruppo di passi:
+    gruppo 1 = (1) personaggi fermi a ogni servizio + peso del servizio (D11) e (2) CPU che sbaglia per la pressione +
+    campo aperto a Pro (D1, D9); gruppo 2 = (3) Leggenda stessa regola (D2) e (4) palla corta che può sbagliare (D8);
+    gruppo 3 = (5) livelli Evento e Bambini (D3: dire all'utente come si attivano) e (6) segnale del momento giusto e
+    colpo super spiegato. Il ramo di lavoro è nella worktree `.claude/worktrees/wf_*` più recente (`git worktree list`).
+  - **B19 · audit dell'1v1 tra utenti** (stesso schermo e sfida tra due computer), in parallelo, solo lettura e misure:
+    tre angolazioni (stesso schermo nel browser, due computer P2P/LAN, equilibrio umano contro umano in simulazione), ogni
+    risultato ricontrollato da un verificatore, rapporto in `docs/b19/audit-1v1-utenti.md` (priorità, costi, piano).
+    Il rapporto chiede decisioni all'utente: non si implementa senza il suo sì.
 - **Prossima azione esatta:** **B18.2 = tappa 2** del rapporto (`docs/b16/rapporto-gameplay.md` §4), una cosa alla volta con
   le prove simulate prima e dopo: (1) personaggi fermi a ogni servizio + peso del servizio (D11); (2) CPU che sbaglia per la
   pressione e campo aperto a Pro (D1, D9); (3) Leggenda stessa regola per chi gioca e per la CPU (D2); (4) palla corta che
