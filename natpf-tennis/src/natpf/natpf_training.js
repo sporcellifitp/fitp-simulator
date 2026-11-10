@@ -380,7 +380,7 @@ export class NatpfTraining {
     E.ballTrail?.clear?.(); E.swingVfx?.clearAllTrails?.();
     E.ball.pos.set(x, CAL_SPOT.height, z); E.ball.vel.set(0, 0, 2); E.ball.spin?.set?.(0, 0, 0);
     E.ball.targetLanding?.set?.(x, 0, p.pos.z);
-    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 1, rallyStrokeCount: 1, shotType: 'TOPSPIN', isPowerShot: false });
+    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 1, rallyStrokeCount: 1, natpfFeed: true, shotType: 'TOPSPIN', isPowerShot: false });
     E.pendingUserSwing = null;
     E.phase = 'RALLY'; E.phaseTimer = 0; E.cameraMode = 'RALLY_CAM';
     E.natpfTimeScale = 0;                           // tutto fermo finché non arriva il gesto
@@ -524,7 +524,7 @@ export class NatpfTraining {
     E.ball.pos.copy(start);
     const flight = high ? 1.9 : profile?.flight ?? 1.15, spin = high ? 5 : profile?.spin ?? 10;
     E._launchBallToTarget(start, target, flight, { topspin: spin, sidespin: 0, allowNetFault: false });
-    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1, shotType: high ? 'MOON' : 'TOPSPIN', isPowerShot: false });
+    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1, natpfFeed: true, shotType: high ? 'MOON' : 'TOPSPIN', isPowerShot: false });
     E.phase = 'RALLY'; E.phaseTimer = 0; E.cameraMode = 'RALLY_CAM';
     // come in partita: piano d'intercetto sulla traiettoria vera (finestra d'impatto e movimento, natpf_impact.js)
     E._natpfPlanPlayer ? E._natpfPlanPlayer() : E._predictBallIntercept(p);

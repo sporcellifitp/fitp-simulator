@@ -1257,6 +1257,7 @@ export class NatpfTennisEngine {
       (this.ball.inPlay = !1),
       (this.ball.bounceCountOnCurrentSide = 0),
       (this.ball.rallyStrokeCount = 0),
+      (this.ball.natpfFeed = !1),
       (this.pendingUserSwing = null),
       (this.pendingP2Swing = null),
       (this.pendingServeSwing = null),
@@ -1853,6 +1854,7 @@ export class NatpfTennisEngine {
       (this.ball.lastHitter = e.role === "player" ? "player" : "opponent"),
       (this.ball.bounceCountOnCurrentSide = 0),
       (this.ball.rallyStrokeCount = 1),
+      (this.ball.natpfFeed = !1), // NATPF B18 (D7, revisione): palla di una partita, non del lanciapalle
       // NATPF B18 (D12): «Gran servizio» (s) è sulla forza di servizio di chi batte; la palla potente per la CPU resta con la
       // regola di prima (natpfServe.strong), così la risposta della CPU non cambia
       (this.ball.isPowerShot = natpfServe ? natpfServe.strong : s),

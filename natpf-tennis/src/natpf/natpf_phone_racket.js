@@ -316,7 +316,9 @@ export function phoneGamePhase(engine, role = engine.playerRole){
 // (rallyStrokeCount ≤ 1) la palla è «alta» solo molto sopra la testa (SMASH_FROM.always, 2,3 m). La risposta si prende
 // fino a 1,72 m (natpf_impact.PLAN.returnTop), sopra SMASH_FROM.gesture: prima ogni risposta al servizio vero della CPU era
 // «palla alta» (60 su 60) e tagliati e pallonetti del tutorial diventavano schiacciate a circa 180 km/h
-export const isServeReturn = b => { const n = Number(b?.rallyStrokeCount); return Number.isFinite(n) && n <= 1; };
+// Revisione: le palle del lanciapalle (natpf_training: rallyStrokeCount 1 anche loro) non sono risposte al servizio
+// (ball.natpfFeed, tolto al servizio della partita): l'esercizio «Schiacciata» resta com'era
+export const isServeReturn = b => { const n = Number(b?.rallyStrokeCount); return Number.isFinite(n) && n <= 1 && !b?.natpfFeed; };
 export function ballIsHigh(engine, role = engine.playerRole){
   const b = engine.ball; if (!b || !b.inPlay) return false;
   const me = actorOf(engine, role), plan = me ? livePlan(engine, me) : null, ret = isServeReturn(b);

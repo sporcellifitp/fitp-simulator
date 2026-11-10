@@ -11,7 +11,8 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import * as NI from '../src/natpf/natpf_impact.js';
-import { ballIsHigh, natpfSwingToEngine } from '../src/natpf/natpf_phone_racket.js';
+import { ballIsHigh, natpfSwingToEngine, isServeReturn } from '../src/natpf/natpf_phone_racket.js';
+import { readFileSync } from 'node:fs';
 import { classifyStroke, INTENT } from '../src/natpf/natpf_stroke_intent.js';
 import { SMASH_FROM } from '../src/natpf/natpf_stroke_outcome.js';
 
@@ -106,4 +107,24 @@ test('D7: classifyStroke, swing verticale col manico alto: schiacciata solo se l
   assert.equal(INTENT.smashMaxRise, 0);
   // dall'alto in basso con la palla alta: schiacciata come prima
   assert.equal(classifyStroke({ rise: -.5, plane: .8, tilt: 0 }, opt).shot, 'smash');
+});
+
+test('D7 (revisione): le palle del lanciapalle non sono risposte al servizio; il servizio della partita sì', () => {
+  assert.equal(isServeReturn({ rallyStrokeCount: 1 }), true);
+  assert.equal(isServeReturn({ rallyStrokeCount: 1, natpfFeed: true }), false);
+  assert.equal(isServeReturn({ rallyStrokeCount: 2 }), false);
+  // le due palle degli esercizi (natpf_training _presentBall e _feed) portano il segno
+  const tr = readFileSync(new URL('../src/natpf/natpf_training.js', import.meta.url), 'utf8');
+  assert.equal((tr.match(/rallyStrokeCount: 1, natpfFeed: true/g) || []).length, 2);
+  // dopo un esercizio, il servizio vero della CPU toglie il segno: la risposta torna «risposta»
+  const real = Math.random; Math.random = mulberry32(3);
+  try {
+    const e = createHeadlessEngine({ difficulty: 'pro' }); e.startNewMatch({ showStartBanner: false });
+    e.ball.natpfFeed = true;
+    e.score.server = 'opponent'; e._setupPointServe({ showBanner: false });
+    for (let t = 0; t < 6 && !(e.phase === 'RALLY' && e.ball.lastHitter === 'opponent' && e.ball.inPlay); t += DT) e.step(DT);
+    assert.equal(e.ball.rallyStrokeCount, 1);
+    assert.ok(!e.ball.natpfFeed);
+    assert.equal(isServeReturn(e.ball), true);
+  } finally { Math.random = real; }
 });
