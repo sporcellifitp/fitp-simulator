@@ -190,8 +190,8 @@ Come si aggiorna:
   latenza, difesa a Pro), scritte dell'esito e istruzioni del servizio, Precision e Combo per principianti, misure in
   diagnostica, **formato in fiera come opzione spenta** (pannello dello stand → «Formato in fiera»). Gioco 1075+, sito 201,
   LAN 12, Windows 28, build, `audit:legend` 69/69, 20 prove nel browser.
-- **Repository trasferito (10/11 pomeriggio):** ora è **`sporcellifitp/foro-italico-world`** (prima `sergio4/...`; il
-  vecchio indirizzo dà 404/403). Remoto da usare: `https://github.com/sporcellifitp/foro-italico-world`. Dopo il
+- **Repository trasferito (10/11 pomeriggio):** ora è **`sporcellifitp/fitp-simulator`** (prima `sergio4/...`; il
+  vecchio indirizzo dà 404/403). Remoto da usare: `https://github.com/sporcellifitp/fitp-simulator`. Dopo il
   trasferimento controllare nel repository nuovo i 4 segreti di R2 (Settings → Secrets and variables → Actions,
   `docs/GUIDA_AGGIORNAMENTI_R2.md`) e che la pubblicazione su R2 vada (manifesto `windows/latest.json`). Zip Cloudflare
   2026-11-10.2 consegnato (22.626.641 B, sha256 `8459a7e0…3d41aa`).

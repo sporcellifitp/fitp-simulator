@@ -58,7 +58,7 @@ Non mandatemi mai queste chiavi in chat o per email: vanno **solo** nei segreti 
 
 ## D · Mettere le chiavi in GitHub (segreti)
 
-11. Su GitHub aprite il repository **sporcellifitp/foro-italico-world** (prima sergio4/foro-italico-world) → **Settings** → **Secrets and variables** →
+11. Su GitHub aprite il repository **sporcellifitp/fitp-simulator** (prima sergio4/foro-italico-world) → **Settings** → **Secrets and variables** →
     **Actions** → scheda **Secrets** → **New repository secret**. Aggiungete quattro segreti (nomi identici, maiuscole
     comprese):
 
