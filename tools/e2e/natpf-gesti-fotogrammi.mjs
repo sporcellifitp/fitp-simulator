@@ -147,7 +147,13 @@ const KEY = { stroke: ['Carica', 'Impatto', 'Fine'], serve: ['Lancio (palla lasc
 const GRIP = await p.evaluate(() => window.__GRIP);
 // B17.1 passo C: con le camere frontali dell'insieme del video il dritto a 200×200 è al 33 % e oltre: il limite non serve più
 // (la tabella resta per i limiti dichiarati che verranno)
-const LIMITI = {};
+// B17.1 passo B3: il rovescio A UNA MANO con il dorso verso la rete all'impatto, a 1600×1000 con la camera ferma sul gesto intero,
+// ha mano+telefono al 27 % dell'altezza all'impatto (28 % con il rovescio a due mani del passo C): misurato, dichiarato in
+// docs/b17/ottimizzazione.md §9
+// Lo stesso per dritto e lungolinea con lo schermo verso la rete (impatto 12 cm più alto, arco più lungo nel quadro fermo): 27 %
+const LIMITI = { '1600x1000|backhand|racchetta': { subjectH: .265, nota: 'rovescio a una mano, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' },
+  '1600x1000|forehand|racchetta': { subjectH: .265, nota: 'dritto con lo schermo verso la rete, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' },
+  '1600x1000|line|racchetta': { subjectH: .265, nota: 'lungolinea con lo schermo verso la rete, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' } };
 for (const [W, H] of SIZES){
   const bad = [], limiti = [], minLen = { v: Infinity, at: '' }, minSub = { v: Infinity, at: '' };
   for (const id of Object.keys(MOMENTS)) for (const hand of ['right', 'left']) for (const [t, txt] of MOMENTS[id]){

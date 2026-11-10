@@ -650,7 +650,7 @@ export const CAMERAS_VIDEO = Object.freeze({
   // posizione di partenza: frontale specchiata come i colpi, dalla testa alle cosce (braccio che pende, telefono all'anca)
   ready: Object.freeze({ dir: [-.259, .087, -.962], dist: 2.6, mirror: true, frameBody: 'head', read: CAMERAS.ready.read }),
   drop: Object.freeze({ dir: [0, .087, -.996], dist: 3.4, mirror: true, whole: true, frameBody: 'head', read: CAMERAS.drop.read }),
-  volley: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.4, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: CAMERAS.volley.read }),
+  volley: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.4, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), read: CAMERAS.volley.read }),
 });
 // camera di una scheda per insieme di coreografie: nell'insieme del video quella frontale (CAMERAS_VIDEO), se c'è
 export const camSpec = (id, set = 'legacy') => (set === 'video' && CAMERAS_VIDEO[id]) || CAMERAS[id] || null;

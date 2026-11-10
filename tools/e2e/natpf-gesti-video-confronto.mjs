@@ -120,6 +120,22 @@ async function confronto(st){
       cam.depth = P => GP.dot(GP.sub(P, eye), fw);
       cam.p = P => { const dd = GP.sub(P, eye), z = Math.max(.02, GP.dot(dd, fw)), x = cx + f*GP.dot(dd, rr)/z; return { x: W - x, y: cy - f*GP.dot(dd, u)/z, z }; };
       cam.rad = (P, q) => cam.f*q/Math.max(.02, cam.depth(P)); return cam; };
+    // passo B3: primo piano del telefono all'impatto visto dalla palla (dalla rete, 0,8 m davanti al telefono e 0,38 m più in alto, così la palla non copre la faccia),
+    // specchiato come la camera fissa: si vede quale faccia colpisce (schermo blu con «Pronto» o dorso scuro)
+    const closeCam = (P, W, H) => { const eye = [P[0], P[1] + .38, P[2] - .8], target = P, fw = GP.norm(GP.sub(target, eye)), rr = GP.norm(GP.cross(fw, [0, 1, 0])), u = GP.cross(rr, fw), f = H*.9/.42, cx = W/2, cy = H/2;
+      const cam = { eye, target, fw, r: rr, u, f, cx, cy, mirror: true, W, H };
+      cam.depth = X => GP.dot(GP.sub(X, eye), fw);
+      cam.p = X => { const dd = GP.sub(X, eye), z = Math.max(.02, GP.dot(dd, fw)), x = cx + f*GP.dot(dd, rr)/z; return { x: W - x, y: cy - f*GP.dot(dd, u)/z, z }; };
+      cam.rad = (X, q) => cam.f*q/Math.max(.02, cam.depth(X)); return cam; };
+    // primo piano dalla palla nell'angolo in alto a destra della cella (poi l'animazione torna alla sua camera)
+    const inset = (pose, ta, hit, x, y) => {
+      const pos = pose.pos; d._cam = () => closeCam(pos, 640, 400); d.show(ta, { rate: 1 });
+      const iw = cw*.42, ih = iw*400/640, ix = x + cw - iw - 6, iy = y + cap + 6, col = hit <= 20 ? '#7dff9a' : '#ff8a7a';
+      o.drawImage(d.canvas, ix, iy, iw, ih); o.strokeStyle = col; o.lineWidth = 3; o.strokeRect(ix, iy, iw, ih);
+      delete d._cam;
+      o.font = '800 italic 20px "Barlow Condensed", sans-serif'; o.fillStyle = col;
+      o.fillText(`dalla palla: ${GP.IMPACT_FACE[id] > 0 ? 'SCHERMO' : 'DORSO'} a ${hit.toFixed(0)}° dalla rete`, ix, iy + ih + 20);
+    };
     const o = out.getContext('2d'); o.fillStyle = '#0b0f1a'; o.fillRect(0, 0, out.width, out.height);
     o.fillStyle = '#f4f6fc'; o.font = '700 18px Barlow, sans-serif'; o.textBaseline = 'top';
     o.fillText(two ? `${title} · video dell'utente (specchiato) | posa ottimizzata` : `${title} · video dell'utente (specchiato come la camera) · animazione nuova · tutorial di prima (presa nel palmo)`, gap, 6);
@@ -156,11 +172,12 @@ async function confronto(st){
           const hit = pose.label === 'Impatto' && GP.IMPACT_FACE?.[id] ? GP.faceAngleOf(id, pose.q) : null;
           o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif';
           fit(`${lab} · croce gialla: polso del video${s ? ` · Δ ${(Math.hypot(...GP.sub(W, s.W))*100).toFixed(0)} cm` : ''} · vede lo ${fFacing ? 'SCHERMO' : 'DORSO'}`, x, y + 4, cw);
-          if (hit != null){ o.font = '800 italic 22px "Barlow Condensed", sans-serif'; o.fillStyle = hit <= 20 ? '#7dff9a' : '#ff8a7a';
-            o.fillText(`${GP.IMPACT_FACE[id] > 0 ? 'SCHERMO' : 'DORSO'} verso la palla: ${hit.toFixed(0)}°`, x + 8, y + cap + ch - 10); }
+          if (hit != null) inset(pose, ta, hit, x, y);
           row.fixed = { facing: fFacing, hit };
           return;
         }
+        // fogli VC (passo B3): primo piano dalla palla all'impatto anche sull'animazione dal video
+        if (!two && set === 'video' && pose.label === 'Impatto' && GP.IMPACT_FACE?.[id]) inset(pose, ta, GP.faceAngleOf(id, pose.q), x, y);
         o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif';
         fit(`${lab} · t = ${ta.toFixed(2)} s · ${pose.label || 'fermo'} · polso (${W.map(q => q.toFixed(2)).join('; ')}) · telefono ${edge.toFixed(0)}° ${facing ? 'schermo' : 'dorso'}`, x, y + 4, cw);
         row[set] = { ta, label: pose.label, W, edge, facing, dW: s ? Math.hypot(W[0] - s.W[0], W[1] - s.W[1], W[2] - s.W[2]) : null, dY: s ? W[1] - s.W[1] : null };
@@ -188,7 +205,8 @@ async function confronto(st){
   const reliable = !['backhand', 'sliceBackhand'].includes(st.id);
   // fogli O (passo B2): le coreografie ottimizzate si allontanano dal video dove la lettura lo chiede, misurato e dichiarato in
   // docs/b17/ottimizzazione.md: impatto del servizio 0,12–0,13 m (la fine del tagliato di dritto, 0,26 m nel primo giro, ora è entro 0,05 m)
-  const LIM_O = { serve: .13 }, lim = LIM_O[st.id] ?? .12;   // servizio: limite dichiarato in ottimizzazione.md (fogli O e VC)
+  // passo B3: il dritto con lo schermo verso la rete all'impatto ha il polso 12,4 cm più alto del video (ottimizzazione.md §9)
+  const LIM_O = { serve: .13, forehand: .13 }, lim = LIM_O[st.id] ?? .12;   // servizio: limite dichiarato in ottimizzazione.md (fogli O e VC)
   const far = keyRows.filter(row => row.video.dW != null && row.video.dW > lim);
   check(`${st.title}: polso dell'animazione dal video entro ${lim.toFixed(2).replace('.', ',')} m dal video alle pose chiave${reliable ? '' : ' (solo misura: ricostruzione del video non attendibile)'}${lim > .12 ? ' (LIMITE DICHIARATO, ottimizzazione.md)' : ''}`, !reliable || far.length === 0,
     keyRows.map(row => `${row.t.toFixed(2)} s Δ ${row.video.dW?.toFixed(2) ?? '—'} m`).join(', '));

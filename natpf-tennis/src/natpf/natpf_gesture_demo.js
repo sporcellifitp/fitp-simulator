@@ -295,7 +295,9 @@ export function motion(id, grip = GRIP_STYLE, set = undefined){
       const r = handRig(p, H);
       for (const v of [[-HW, HH, 0], [HW, HH, 0], [-HW, -HH, 0], [HW, -HH, 0]]) whole.push(r.T(v));
       whole.push(r.W, elb[i], ...r.fingers.map(f => f.pts[3]));
-      const fh = gestureFreeHand(id, t, { grip, set }); if (fh) whole.push(fh);
+      // (passo B3: il braccio libero in equilibrio del rovescio a una mano non allarga il quadro: con la sua mano aperta dietro il
+      // soggetto all'impatto scendeva al 27 % a 1600×1000; la spalla sinistra c'è già)
+      const fh = GESTURES[id]?.balance ? null : gestureFreeHand(id, t, { grip, set }); if (fh) whole.push(fh);
       if (p.chain && i % 12 === 0){ const B = bodyOf(p.chain); whole.push(B.S, B.shoulderL, add(B.head, [0, .11, 0]), B.waistR, B.waistL); }
     }
     if ((i % 4 === 0 || P.still) && inFrame){
