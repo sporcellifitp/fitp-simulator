@@ -108,5 +108,7 @@ try {
   check('battuta con il gesto: il servizio parte e le istruzioni spariscono', served && !c2.shown, JSON.stringify({ phase: await game.evaluate(() => __natpfTennis.phase), coach: c2 }));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
-  await B.close(); stop(); summary();
+  await B.close(); stop();
 }
+summary();
+setTimeout(() => process.exit(), 300);

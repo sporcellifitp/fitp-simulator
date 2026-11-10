@@ -2,6 +2,7 @@
 // nello script di confronto). Nessuna metrica dichiara un errore di riconoscimento senza un riferimento: precisione di
 // lato, tipo e direzione solo per i colpi della prova guidata (evento «atteso»), che restano da verificare nel video.
 // Tempi in ms dall'inizio della sessione (orologio del computer), salvo dove indicato.
+import { gestureMeasures, gestureMeasureLines } from './diag_gesture.js';
 
 export const pct = (a, p) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(p*s.length))] : null; };
 const r1 = v => (Number.isFinite(v) ? Math.round(v*10)/10 : null);
@@ -554,6 +555,9 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
   const segni = by('marca');
   if (segni.length) out.segni = segni.slice(0, 50).map(x => ({ t: r1(x.t), testo: x.testo || '' }));
 
+  // ---- misure da raccogliere con persone vere (B18): variazione del gesto, dal rimbalzo al gesto (diag_gesture.js) ----
+  const misure = gestureMeasures(events); if (misure) out.misurePersone = misure;
+
   // ---- registrazione ----
   out.registrazione = {
     eventi: eventi ?? events.length, campioniTelefono: raw.length, avvisi: tally(by('avviso'), a => a.codice || a.testo),
@@ -645,6 +649,7 @@ export function summaryLines(m = {}){
   if (KR?.servizi) L.push(`Servizi dal gesto: ${KR.servizi.n} · ${list(KR.servizi.voti)}`);
   const P2 = m.p2;
   if (P2) L.push(`Player 2: ${P2.ricevuti} colpi ricevuti${Object.keys(P2.esitiRicevuti || {}).length ? ' (' + list(P2.esitiRicevuti) + ')' : ''}${P2.etaMs?.n ? ` · età mediana ${P2.etaMs.p50} ms` : ''}${P2.vecchi ? ` · troppo vecchi ${P2.vecchi}` : ''} · ${P2.colpi} colpi della racchetta${P2.tempoMs?.n ? `, tempo mediana ${P2.tempoMs.p50} ms` : ''}${Object.keys(P2.vuoti || {}).length ? ' · a vuoto: ' + list(P2.vuoti) : ''}${P2.servizi ? ` · servizi dal gesto ${P2.servizi.n} (${list(P2.servizi.voti)})` : ''}`);
+  L.push(...gestureMeasureLines(m.misurePersone));   // B18: variazione del gesto e dal rimbalzo al gesto
   L.push(...sideLines(m.latoPalle));
   if (m.pauseTelefono) L.push(`Partita in pausa per il telefono: ${Object.entries(m.pauseTelefono).map(([k, n]) => `${k} ${n}`).join(', ')}`);
   if (m.segni?.length) L.push(`Segni «qui è successo un problema»: ${m.segni.length} (${m.segni.slice(0, 8).map(x => `${(x.t/1000).toFixed(1)} s`).join(', ')}${m.segni.length > 8 ? ', …' : ''})`);

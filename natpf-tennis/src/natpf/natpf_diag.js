@@ -18,6 +18,8 @@ import { buildPackage, download } from './diag/diag_export.js';
 import { DIAG_PROTOCOLS, protocolDrills, expectedFor } from './diag/diag_protocol.js';
 import { writeDisplayLagMs } from './natpf_phone_racket.js';
 import { aimLevelLabel } from './natpf_aim_level.js';
+import { gestureMeasures, gestureMeasureLines } from './diag/diag_gesture.js';
+const MEASURE_KINDS = new Set(['tel.colpo', 'rimbalzo', 'piano', 'punto', 'colpo.gioco']);
 
 const $ = id => document.getElementById(id);
 const r1 = v => (Number.isFinite(v) ? Math.round(v) : '–');
@@ -40,6 +42,11 @@ export class NatpfDiag {
     this.swings = []; this.fps = 60; this.lastFrame = null;
     this.on = new URLSearchParams(location.search).get('diag') === '1';
     this.recorder = new DiagRecorder({ engine, ui });
+    // B18: copia degli eventi per le due misure da raccogliere con persone vere (il registratore svuota i suoi eventi a
+    // ogni scrittura su disco); si riparte a ogni registrazione nuova (id diverso)
+    this._mev = []; this._mevId = null;
+    const log = this.recorder.log.bind(this.recorder);
+    this.recorder.log = (k, data) => { log(k, data); const R = this.recorder; if (R.active && MEASURE_KINDS.has(k)){ if (R.id !== this._mevId){ this._mevId = R.id; this._mev = []; } this._mev.push(R.events.at(-1)); } };
     this.sessions = []; this.selected = new Set(); this.summary = null; this.busy = '';
     // video del gioco spento all'inizio: è quello che pesa sulle prestazioni (vedi compareNote); si accende quando serve
     this.opts = { webcamVideo: true, gameVideo: false, phoneSamples: true };
@@ -246,6 +253,12 @@ export class NatpfDiag {
     const ls = this.engine.natpfSkill?.lastShot;
     last.result = { kind: e.kind, grade: e.grade, quality: q?.label || null, landingX: ls ? +ls.landingX.toFixed(2) : null, landingZ: ls && Number.isFinite(ls.landingZ) ? +ls.landingZ.toFixed(2) : null };
   }
+  _measureLines(){
+    const R = this.recorder, now = performance.now();
+    if (!R?.active || R.id !== this._mevId) return [];
+    if (!this._ml || now - this._ml.at > 1000) this._ml = { at: now, lines: gestureMeasureLines(gestureMeasures(this._mev)) };
+    return this._ml.lines;
+  }
   paint(){
     const body = $('natpf-diag-body'); if (!body) return;
     const ph = this.engine.natpfPhone, link = ph.link, st = link?.stats?.() || { rates: {} }, R = st.rates || {};
@@ -259,6 +272,10 @@ export class NatpfDiag {
       '',
       'colpo  lato/tipo         mira         rilev  prep  consegna  totale  attesa palla  schermo  esito',
     ];
+    // B18 (tappa 1 punto 12): durante la registrazione, le due misure da raccogliere con persone vere (variazione del
+    // gesto, dal rimbalzo al gesto: diag/diag_gesture.js), ricalcolate al più una volta al secondo
+    const ml = this._measureLines();
+    if (ml.length) lines.splice(lines.length - 2, 0, ...ml);
     for (const r of [...this.swings].reverse()){
       const t = swingTimeline(r.s, r), n = r.ev.natpf || {};
       lines.push(`${String(r.s.seq ?? '').padStart(4)}  ${(`${r.ev.side || '–'}/${n.shot || r.ev.shotType}`).padEnd(17)} ${(`${(n.wrist ?? 0).toFixed(2)} ${n.aimSource || ''}`).padEnd(12)} ${String(r1(t.detect)).padStart(5)} ${String(r1(t.hold)).padStart(5)} ${String(r1(t.delivery)).padStart(9)} ${String(r1(t.total)).padStart(7)} ${String(r1(t.ball)).padStart(13)} ${String(r1(t.screen)).padStart(8)}  ${r.result ? `${r.result.quality || r.result.kind} x ${r.result.landingX}` : ''}`);
