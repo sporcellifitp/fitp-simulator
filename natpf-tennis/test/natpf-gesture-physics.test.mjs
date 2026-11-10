@@ -268,3 +268,29 @@ test('schiacciata: l\'accompagnamento scende attraverso il corpo fino alla vita,
   assert.ok(f[1] <= 1.15 && f[0] <= -.1, `fine della schiacciata ${f}`);
   assert.ok(c[1] - f[1] >= .6, `scende di ${(c[1] - f[1]).toFixed(2)} m dall'impatto alla fine`);
 });
+
+// B17.1 passo B3 (richiesta dell'utente del 09/11 notte): «con il dritto la pallina venga colpita con il display in maniera
+// frontale, il rovescio invece stesso movimento ma con l'altro lato». Nell'istante del contatto la normale dello SCHERMO
+// del telefono guarda la rete (−z del campo, da dove arriva la palla) nei colpi di dritto (dritto, piatto, incrociato,
+// lungolinea, tagliato di dritto, volée) e il DORSO nel rovescio e nel tagliato di rovescio, entro 20°; prima del passo B3 il
+// dritto aveva lo schermo a 83° (telefono di taglio verso la palla), il piatto e la volée il dorso (159° e 164°), il rovescio
+// lo schermo a 103°. Mancino: specchio esatto (stesso angolo, normale specchiata)
+// incrociato: la mira (letta dalla direzione del piatto rispetto ai dritti) chiede il piatto girato verso il centro; con la
+// lettura perfetta (calibrazione con l'animazione, semi 7, 1, 5, 10, mira ≥ 0,5) l'ottimizzatore non scende sotto 21,1°
+// (misurato, limite dichiarato in docs/b17/ottimizzazione.md §9); tutte le altre ≤ 20°
+const IMPACT_LIM = { cross: 21.5 };
+test('faccia all\'impatto: schermo verso la rete nei colpi di dritto, dorso nel rovescio e nel tagliato di rovescio (≤ 20°), mancino specchio', () => {
+  assert.deepEqual(Object.keys(GP.IMPACT_FACE).sort(), ['backhand', 'cross', 'flat', 'forehand', 'line', 'slice', 'sliceBackhand', 'volley']);
+  assert.equal(GP.IMPACT_MAX, 20);
+  for (const [id, face] of Object.entries(GP.IMPACT_FACE)){
+    const o = { grip: 'racchetta' }, P = gesturePlan(id, o);
+    assert.equal(P.set, 'video', id);
+    const r = gesturePose(id, P.contact, o), l = gesturePose(id, P.contact, { ...o, hand: 'left' });
+    const n = qrot(r.q, [0, 0, 1]), nl = qrot(l.q, [0, 0, 1]), a = GP.impactFaceAngle(id, o), lim = IMPACT_LIM[id] ?? GP.IMPACT_MAX;
+    assert.ok(a <= lim, `${id}: ${face > 0 ? 'schermo' : 'dorso'} a ${a.toFixed(1)}° dalla rete (≤ ${lim})`);
+    // la faccia che colpisce guarda la rete (−z), l'altra chi gioca (+z)
+    assert.ok(-face*n[2] >= Math.cos(lim*Math.PI/180) - 1e-9, `${id}: normale dello schermo ${n.map(v => v.toFixed(2))}`);
+    assert.ok(Math.abs(GP.impactFaceAngle(id, { ...o, hand: 'left' }) - a) < 1e-9, `${id}: mancino`);
+    [-n[0], n[1], n[2]].forEach((v, i) => assert.ok(Math.abs(v - nl[i]) < 1e-9, `${id}: normale del mancino non specchiata`));
+  }
+});

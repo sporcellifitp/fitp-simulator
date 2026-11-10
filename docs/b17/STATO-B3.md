@@ -26,24 +26,19 @@
 | Rovescio | dorso | 102,6° |
 | Tagliato di rovescio | dorso | 37,8° |
 
-## In corso (giro 2, ottimizzazioni in background, log in scratchpad `b17B3/r*`)
-- Dritto e rovescio vanno ottimizzati INSIEME: ognuno entra nella calibrazione «con l'animazione» dell'altro (con il dritto
-  nuovo il rovescio di prima era letto in due colpi e viceversa, 28–32 letture sbagliate su 48). Coppia coerente trovata
-  (`b17B3/w2`): dritto 17,0° (schermo), rovescio 8,7° (dorso), 48/48 ciascuno e l'altro letto giusto (`--also`).
-- Tagliato di dritto 17,0°, tagliato di rovescio 5,9° (48/48). Palla corta riottimizzata (la calibrazione nuova la leggeva
-  top spin): 48/48. Pallonetto, schiacciata e servizio: 48/48 senza cambiare niente.
-- Piatto e volée: con la cima del telefono girata dall'altra parte (soluzione più vicina della partenza) erano letti dal lato
-  del rovescio; ripartiti dal dritto nuovo (`--initFrom=forehand --like`). Volée 60/60 a 17° ma con la forma del dritto
-  (impatto 43 cm più alto della volée di oggi): in corso. Piatto: letto «piatto» ma dal lato del rovescio, in corso.
-- Incrociato e lungolinea: con la calibrazione del braccio simulato la mira NON si legge (centro della mira 90° lontano: lo
-  scarto è 92,7°, oltre gli 80° credibili di `AIM.maxDev`, mira 0); con la calibrazione con l'animazione sì (24/24, incrociato
-  a 21,1°). In corso la misura (quanti dritti servono prima perché la mira valga con la calibrazione del braccio).
-- Nuove opzioni di `ottimizza.mjs`: `--also`, `--tipLike`, `--initFrom --like [--acc]`, `--aimwide`, `--cals=pose`,
-  `--camdir`; limiti articolari e faccia all'impatto senza tetto nel costo.
+## Giro 2 (FATTO, commit «coreografie con lo schermo verso la rete nel codice»)
+Coreografie nel codice (`CHOREO_VIDEO`, `AIM_TURN_VIDEO` da `scripts/video/soluzioni/`, `--emit`); faccia all'impatto (destro =
+mancino): dritto 17,0°, rovescio (dorso) 8,7°, tagliato 17,0°, tagliato di rovescio (dorso) 5,9°, piatto 17,0°, volée 17,0°,
+lungolinea 12,1°, **incrociato 21,1°** (minimo trovato con la mira letta: limite dichiarato). Letture semi 1–23: 3 174/3 174
+fuori dai limiti dichiarati. **Limite dichiarato**: con la calibrazione del braccio simulato (telefono tenuto come nella posa
+di partenza, schermo di lato) la mira di incrociato e lungolinea non si legge (0/138 ciascuno) e il piatto è letto top spin
+(15/138): con lo schermo verso la rete i due centri della mira distano 83,6° (> 80° credibili) e le finestre del piatto
+(± 0,12 dalla salita abituale 0,30 e −0,02) non si toccano. Con la calibrazione con l'animazione (quella del tutorial) 138/138.
+Dettagli e misure: `docs/b17/ottimizzazione.md` §9. Test: gioco 988/988 (nuovi: faccia all'impatto, rovescio a una mano,
+semi 1–23 in tre file), sito 200/200, build ok.
 
 ## Prossima azione
-Chiudere piatto, volée, incrociato, lungolinea; tabella delle letture semi 1–23; `--emit` nel codice (lo script
-`b17r/apply.sh DIR`), test (forma, fisica del dritto, faccia all'impatto, semi), fogli O/VC, documenti.
+Fogli O-* e VC-* rifatti (con la faccia all'impatto scritta) e guardati; `docs/b17/ottimizzazione.md` §9; prove nel browser.
 
 ## Come riprendere
 Dalla cartella `natpf-tennis`: `node --import ./test/register.mjs scripts/video/ottimizza.mjs --card=<id> --out=DIR

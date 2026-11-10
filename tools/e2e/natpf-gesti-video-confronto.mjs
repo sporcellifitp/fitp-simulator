@@ -150,8 +150,15 @@ async function confronto(st){
           delete d._cam;
           // polso ricostruito dal video, con la stessa camera: croce gialla
           if (s){ const q = fixedCam(640, 400).p(s.W), k = cw/640, qx = x + q.x*k, qy = y + cap + q.y*k; o.strokeStyle = '#ffe600'; o.lineWidth = 3; o.beginPath(); o.moveTo(qx - 8, qy - 8); o.lineTo(qx + 8, qy + 8); o.moveTo(qx + 8, qy - 8); o.lineTo(qx - 8, qy + 8); o.stroke(); }
+          // passo B3: quale faccia del telefono vede la camera fissa (davanti, dalla parte della rete) e, all'impatto, l'angolo tra
+          // la faccia che colpisce (IMPACT_FACE: schermo nel dritto, dorso nel rovescio) e la rete; in grande sul disegno
+          const fc = fixedCam(640, 400), fv = GP.sub(fc.eye, pose.pos), fFacing = GP.dot(n, fv) > 0;
+          const hit = pose.label === 'Impatto' && GP.IMPACT_FACE?.[id] ? GP.faceAngleOf(id, pose.q) : null;
           o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif';
-          fit(`${lab} · croce gialla: polso del video${s ? ` · Δ ${(Math.hypot(...GP.sub(W, s.W))*100).toFixed(0)} cm` : ''}`, x, y + 4, cw);
+          fit(`${lab} · croce gialla: polso del video${s ? ` · Δ ${(Math.hypot(...GP.sub(W, s.W))*100).toFixed(0)} cm` : ''} · vede lo ${fFacing ? 'SCHERMO' : 'DORSO'}`, x, y + 4, cw);
+          if (hit != null){ o.font = '800 italic 22px "Barlow Condensed", sans-serif'; o.fillStyle = hit <= 20 ? '#7dff9a' : '#ff8a7a';
+            o.fillText(`${GP.IMPACT_FACE[id] > 0 ? 'SCHERMO' : 'DORSO'} verso la palla: ${hit.toFixed(0)}°`, x + 8, y + cap + ch - 10); }
+          row.fixed = { facing: fFacing, hit };
           return;
         }
         o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif';
@@ -186,6 +193,10 @@ async function confronto(st){
   check(`${st.title}: polso dell'animazione dal video entro ${lim.toFixed(2).replace('.', ',')} m dal video alle pose chiave${reliable ? '' : ' (solo misura: ricostruzione del video non attendibile)'}${lim > .12 ? ' (LIMITE DICHIARATO, ottimizzazione.md)' : ''}`, !reliable || far.length === 0,
     keyRows.map(row => `${row.t.toFixed(2)} s Δ ${row.video.dW?.toFixed(2) ?? '—'} m`).join(', '));
   const imp = r.rows.find(row => Math.abs(row.t - anchors.impatto) < 1e-6);
+  // passo B3: all'impatto la camera fissa davanti vede lo schermo nei colpi di dritto e il dorso nel rovescio, e la faccia che
+  // colpisce è entro 20° dalla rete (fogli O)
+  if (TWO && imp.fixed?.hit != null){ const want = ['backhand', 'sliceBackhand'].includes(st.id) ? false : true;
+    check(`${st.title}: all'impatto la camera frontale vede lo ${want ? 'schermo' : 'dorso'} e la faccia che colpisce è entro 20° dalla rete`, imp.fixed.facing === want && imp.fixed.hit <= 20, `${imp.fixed.facing ? 'schermo' : 'dorso'}, ${imp.fixed.hit.toFixed(1)}°`); }
   check(`${st.title}: «Impatto» scritto all'istante dell'impatto`, imp.video.label === 'Impatto' && (!imp.legacy || imp.legacy.label === 'Impatto'), `${imp.video.label} / ${imp.legacy?.label ?? '—'}`);
   // telefono mai di taglio nelle pose chiave dell'animazione dal video; limiti dichiarati dove la coreografia dal video non
   // lo permette (misurato: rovescio a due mani all'impatto, dalla ricostruzione a due mani sovrapposte)

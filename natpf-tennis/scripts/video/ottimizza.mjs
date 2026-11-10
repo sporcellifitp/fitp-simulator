@@ -181,7 +181,7 @@ export function readAll(src, id, { stop = Infinity, combos = COMBOS } = {}){
     // margine della mira (incrociato, lungolinea): letta giusta ma vicina alla soglia di 0,4
     let margin = 0;
     if (!why.length && GESTURES[id]?.aim && r?.read?.[0]){ const w = Math.abs(+r.read[0].ev.natpf.wrist); if (w < AIM_MARGIN) margin += (AIM_MARGIN - w)*100; }
-    out.push({ ...c, why, desc, margin, dPeak: r?.dPeak ?? null });
+    out.push({ ...c, why, desc, margin, dPeak: r?.dPeak ?? null, rise: r?.read?.[0]?.ev?.natpf?.intent?.rise ?? null });
   }
   return out;
 }
@@ -256,7 +256,8 @@ export function physicsOf(id, P){
   if (up > .22 || wup > 30) bad.push(['frenata', Math.max(0, up - .22)*10 + Math.max(0, wup - 30)/10]);
   // sequenza prossimo-distale (colpi): busto prima della mano, omero e avambraccio non dopo; picco della mano al contatto
   // la mano non salta più di 0,14 m tra due campioni a 60 Hz (test di continuità: 0,15)
-  let jump = 0; for (let t = 0; t < P.total; t += 1/60) jump = Math.max(jump, len(sub(W(t + 1/60), W(t))));
+  // (passo B3: anche il centro del telefono, che il test di continuità misura: il piatto veloce lo spostava di 0,169 m)
+  let jump = 0; for (let t = 0; t < P.total; t += 1/60) jump = Math.max(jump, len(sub(W(t + 1/60), W(t))), len(sub(p(t + 1/60).pos, p(t).pos)));
   if (jump > .14) bad.push(['salto della mano', (jump - .14)*100]);
   // il picco del telefono è al contatto anche rispetto alla salita del servizio (curva della velocità per il disegno)
   if (P.kind === 'serve'){ const wq2 = t => len(omega(p(t - 1/480).q, p(t + 1/480).q, 1/240)); let up = 0; for (let t = T.load; t < T.tossEnd + .05; t += 1/240) up = Math.max(up, wq2(t)); const hit = wq2(P.contact); if (up > hit - 40) bad.push(['salita più veloce della battuta', (up - hit + 40)/20]); }
@@ -321,7 +322,10 @@ export function mirrorOf(P, F){
     const d = len(sub(rel(P, KP[a] + (KP[b] - KP[a])*u), m(rel(F, KF[a] + (KF[b] - KF[a])*u))))*100; sum += d; n++; mx = Math.max(mx, d); }
   return { keys, mean: sum/n, max: mx };
 }
-export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALSO, combos = COMBOS, descent = DESCENT, impact = IMPACT, mirror = MIRROR, ref = LEGACY_IDS.includes(id) ? legacyRef(id) : videoRef(id) } = {}){
+const phoneAxis = P => { const q = P.raw(P.contact).q; return qrot(qconj(q), omega(P.raw(P.contact - 1/480).q, P.raw(P.contact + 1/480).q, 1/240)); };
+const RISE_MAX = arg('riseMax', null) != null ? +arg('riseMax') : null, AXIS_LIKE = arg('axisLike', null), PEAK_OVER = arg('peakOver', null) ? String(arg('peakOver')).split(',') : null;
+const peakOf = P => { let m = 0; for (let t = P.contact - .15; t <= P.contact + .1; t += 1/480) m = Math.max(m, len(omega(P.raw(t - 1/960).q, P.raw(t + 1/960).q, 1/480))); return m; };
+export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALSO, combos = COMBOS, descent = DESCENT, impact = IMPACT, mirror = MIRROR, axisLike = AXIS_LIKE, ref = LEGACY_IDS.includes(id) ? legacyRef(id) : videoRef(id) } = {}){
   let P;
   try { P = planOf(id, choreo); } catch (e){ return { cost: 1e6, err: e.message }; }
   P.choreo = choreo;
@@ -339,8 +343,18 @@ export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALS
   const face = impactOf(id, P);
   if (impact != null && face != null && face > impact - IMPACT_MARGIN) phys.push(['faccia all\'impatto', (face - impact + IMPACT_MARGIN)/1.5]);
   const mir = mirror && id !== 'forehand' && plans.forehand ? mirrorOf(P, plans.forehand) : null;
-  const cost = 50*read + 5*margin + (sh ? shapeCost(sh) : 0) + 30*physCost(phys) + (mir ? (mir.mean/8)**2 : 0);
-  return { id, cost, read, margin, face, mirror: mir, nBad: reads.filter(r => r.why.length).length + alsoReads.filter(r => r.why.length).length, reads, alsoReads, phys, shape: sh, P };
+  // --axisLike=<scheda> (passo B3, piatto): asse di rotazione del telefono (nel riferimento del telefono) all'impatto vicino a
+  // quello della scheda data: il lato del colpo si legge da quell'asse (calibrato con il dritto) e la lettura è a gradini
+  const ax = axisLike && plans[axisLike] ? angDeg(phoneAxis(P), phoneAxis(plans[axisLike])) : null;
+  // --peakOver=<scheda>,k (passo B3, piatto «come il dritto, ma più veloce»): picco del telefono ≥ k volte quello della scheda
+  const po = PEAK_OVER && plans[PEAK_OVER[0]] ? peakOf(P)/peakOf(plans[PEAK_OVER[0]]) : null, poc = po != null && po < +PEAK_OVER[1] ? 200*(+PEAK_OVER[1] - po)**2 : 0;
+  // --riseMax=x (passo B3, dritto): salita della testa letta dal telefono (forma del colpo, calibrazione con l'animazione, 1×)
+  // al più x: la salita abituale della calibrazione con il dritto nuovo (0,48 → abituale 0,30) e quella del braccio simulato
+  // (−0,02) lasciavano al piatto due finestre (± 0,12) che non si toccano
+  const rises = RISE_MAX != null ? reads.filter(r => r.cal === 'pose' && r.rate === 1 && Number.isFinite(r.rise)).map(r => r.rise) : [];
+  const riseMean = rises.length ? rises.reduce((a, b) => a + b, 0)/rises.length : null, rc2 = riseMean != null && riseMean > RISE_MAX ? 2000*(riseMean - RISE_MAX)**2 : 0;
+  const cost = 50*read + 5*margin + (sh ? shapeCost(sh) : 0) + 30*physCost(phys) + (mir ? (mir.mean/8)**2 : 0) + (ax != null ? 5*(ax/10)**2 : 0) + poc + rc2;
+  return { id, cost, read, margin, face, mirror: mir, axis: ax, peakRatio: po, riseMean, nBad: reads.filter(r => r.why.length).length + alsoReads.filter(r => r.why.length).length, reads, alsoReads, phys, shape: sh, P };
 }
 
 /* ---------- partenza: la coreografia del video con la presa misurata ---------- */
@@ -393,7 +407,7 @@ const gauss = R => { const u = Math.max(1e-12, R()), v = R(); return Math.sqrt(-
 function summary(e){
   const sh = e.shape;
   return { cost: +e.cost.toFixed(2), nBad: e.nBad, nReads: e.reads?.length, margin: +(e.margin || 0).toFixed(2), ...(e.face != null ? { impact_deg: +e.face.toFixed(1) } : {}),
-    ...(e.mirror ? { mirror_cm: { mean: +e.mirror.mean.toFixed(1), max: +e.mirror.max.toFixed(1), keys: Object.fromEntries(Object.entries(e.mirror.keys).map(([k, v]) => [k, +v.toFixed(1)])) } } : {}), read: e.reads?.filter(r => r.why.length).map(r => `seme ${r.seed} ${r.cal} ${r.hand} ×${r.rate}: ${r.why.join('; ')} [${r.desc}]`),
+    ...(e.riseMean != null ? { rise: +e.riseMean.toFixed(3) } : {}), ...(e.axis != null ? { axis_deg: +e.axis.toFixed(1) } : {}), ...(e.peakRatio != null ? { peak_ratio: +e.peakRatio.toFixed(2) } : {}), ...(e.mirror ? { mirror_cm: { mean: +e.mirror.mean.toFixed(1), max: +e.mirror.max.toFixed(1), keys: Object.fromEntries(Object.entries(e.mirror.keys).map(([k, v]) => [k, +v.toFixed(1)])) } } : {}), read: e.reads?.filter(r => r.why.length).map(r => `seme ${r.seed} ${r.cal} ${r.hand} ×${r.rate}: ${r.why.join('; ')} [${r.desc}]`),
     aimMin: GESTURES[e.id]?.aim ? Math.min(...e.reads.filter(r => !r.why.length).map(r => Math.abs(+(r.desc.match(/mira (-?[\d.]+)/)?.[1] ?? 9)))) : undefined,
     also: e.alsoReads?.filter(r => r.why.length).map(r => `${r.card} ${r.hand} ×${r.rate}: ${r.why.join('; ')}`),
     phys: e.phys, shape: sh && { keys: Object.fromEntries(Object.entries(sh.keys).map(([k, v]) => [k, { dW_cm: +v.dW.toFixed(1), dE_cm: +v.dE.toFixed(1), dy_cm: +v.dy.toFixed(1), tip_deg: +v.tip.toFixed(0), screen_deg: +v.screen.toFixed(0), gomito: +v.elbow.toFixed(0) }])),

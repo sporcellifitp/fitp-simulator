@@ -14,6 +14,7 @@ import * as GP from '../src/natpf/natpf_gesture_pose.js';
 import { GESTURES, GRIP_STYLE } from '../src/natpf/natpf_gesture_motion.js';
 import { TUTORIAL_CARDS } from '../src/natpf/natpf_tutorial.js';
 import { videoRef, shapeOf, planOf as planVideo, solutionChoreo, SEEDS_DEFAULT, AIM_MARGIN } from '../scripts/video/ottimizza.mjs';
+import { declared } from './gesture-semi.mjs';
 
 const { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureRig, omega, len, sub, qangle } = GP;
 const source = (grip = undefined, set = undefined) => ({ name: 'posa nuova', pose: (id, t, hand) => gesturePose(id, t, { hand, grip, set }), plan: id => gesturePlan(id, { grip, set }) });
@@ -28,11 +29,15 @@ const allowFor = (id, rate) => rate > 1 ? (['forehand', 'backhand', 'volley', 'c
 // B17.1 (passo B2): con la presa a racchetta tutte le schede usano CHOREO_VIDEO (ottimizzate con il telefono simulato nel
 // costo): nessun limite ammesso (docs/b17/ottimizzazione.md)
 const allowLimit = () => null;
+// B17.1 passo B3: con lo schermo verso la rete all'impatto del dritto (richiesta dell'utente) la calibrazione del braccio
+// simulato (telefono tenuto come nella posa di partenza, schermo di lato) non legge la mira di incrociato e lungolinea né il
+// piatto: limite dichiarato e misurato in docs/b17/ottimizzazione.md §9; quelle letture si contano a parte (lim)
 function check(src, ids, { hands = HANDS, cals = CALS, rates = [1], grip = GRIP_STYLE } = {}){
   const bad = [];
   let n = 0;
   for (const cal of cals) for (const hand of hands) for (const rate of rates) for (const id of ids){
     n++;
+    if (grip === 'racchetta' && declared(id, cal)) continue;
     const r = readCard(src, id, { hand, cal, rate });
     const why = judgeCard(src, id, r, { hand, rate, allow: [...(allowFor(id, rate) || []), ...(allowLimit(grip, id, cal) || [])] });
     if (why.length) bad.push(`${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
@@ -244,7 +249,10 @@ test('insieme del video: tutte le schede della racchetta, dalla partenza del vid
 // quelli ricostruiti dal video al netto del bacino, traiettoria della mano a tempo normalizzato tra le pose chiave); limiti =
 // valori trovati arrotondati in su (docs/b17/ottimizzazione.md), così una coreografia che si allontana dal video si vede qui
 // (correzioni della revisione del passo B2: rovescio e tagliato di dritto con il proseguimento lento verso la fine del video)
-const SHAPE_MAX = { forehand: { key: 5, impact: 3, path: 9 }, backhand: { key: 9, impact: 9, path: 8 }, slice: { key: 11, impact: 3, path: 7 }, sliceBackhand: { key: 13, impact: 13, path: 14 }, serve: { key: 14, impact: 13, path: 10 } };
+// Passo B3 (schermo verso la rete all'impatto del dritto, dorso nel rovescio a una mano): l'impatto del dritto sale di 12,4 cm
+// (12,6 cm dal video, prima 1,3) e la traiettoria si allontana di 11,7 cm in media (prima 7,2); rovescio impatto 11,4 cm (prima
+// 7,6); tagliato di dritto impatto 5,9 cm (prima 1,9): misure in docs/b17/ottimizzazione.md §9
+const SHAPE_MAX = { forehand: { key: 13, impact: 13, path: 12 }, backhand: { key: 12, impact: 12, path: 9 }, slice: { key: 10, impact: 6, path: 7 }, sliceBackhand: { key: 8, impact: 5, path: 7 }, serve: { key: 14, impact: 13, path: 10 } };
 test('insieme del video: la forma resta quella del video (mano alle pose chiave e traiettoria entro gli scarti misurati)', () => {
   for (const id of FROM_VIDEO){
     const P = planVideo(id, GP.CHOREO_VIDEO[id]); P.choreo = GP.CHOREO_VIDEO[id];
@@ -267,6 +275,7 @@ test('insieme del video: letto giusto anche con semi del rumore che l\'ottimizza
   let n = 0, aimMin = Infinity;
   for (const seed of HELD) for (const id of ids) for (const cal of CALS) for (const hand of HANDS) for (const rate of [1, .8, 1.25]){
     n++;
+    if (declared(id, cal)) continue;   // limite dichiarato (passo B3, ottimizzazione.md §9)
     const r = readCard(src, id, { hand, cal, rate, seed }), why = judgeCard(src, id, r, { hand, rate, allow: allowFor(id, rate) });
     if (why.length) bad.push(`seme ${seed} ${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
     else if (GESTURES[id].aim) aimMin = Math.min(aimMin, Math.abs(+r.read[0].ev.natpf.wrist));

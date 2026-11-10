@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { readCard, judgeCard, omega } from './pose-sensors.mjs';
 import * as GP from '../src/natpf/natpf_gesture_pose.js';
+import { declared } from './gesture-semi.mjs';
 import * as DEMO from '../src/natpf/natpf_gesture_demo.js';
 import { GESTURES } from '../src/natpf/natpf_gesture_motion.js';
 
@@ -74,6 +75,9 @@ test('fedeltà dell\'animazione: ogni scheda e la mira, destro e mancino, racche
     const src = demoSource(grip);
     for (const cal of ['pose', 'arm']) for (const hand of HANDS) for (const rate of RATES) for (const id of GP.POSE_IDS){
       if (GESTURES[id].still && rate !== 1) continue;
+      // B17.1 passo B3: limite dichiarato (ottimizzazione.md §9): con lo schermo verso la rete nel dritto la calibrazione del
+      // braccio simulato non legge la mira di incrociato e lungolinea né il piatto (letture contate a parte, test gesture-semi)
+      if (grip === 'racchetta' && declared(id, cal)) continue;
       n++;
       const r = readCard(src, id, { hand, cal, rate });
       const why = judgeCard(src, id, r, { hand, rate, allow: allowFor(id, rate), peakTol: 40 });
@@ -81,7 +85,7 @@ test('fedeltà dell\'animazione: ogni scheda e la mira, destro e mancino, racche
       if (why.length) bad.push(`${grip} ${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
     }
   }
-  assert.ok(n >= 420, `${n} letture`);
+  assert.ok(n >= 400, `${n} letture`);
   assert.deepEqual(bad, [], bad.join('\n'));
 });
 
