@@ -1,0 +1,25 @@
+== Tattiche (profilo medio e amatore), 1 game, media dei due lati ==
+medio che non mira mai contro medio normale          | 300 part.: vince il primo 64.7% (da P1 62%, da P2 67.3%) · punti 55.8% · game a zero 9.7%, ai vantaggi 33% · colpi a punto 12.9 · finiti con il colpo fallito per regola 1.8%
+medio che mira sempre contro medio normale           | 300 part.: vince il primo 39.3% (da P1 47.3%, da P2 31.3%) · punti 46.2% · game a zero 10%, ai vantaggi 30.7% · colpi a punto 11.3 · finiti con il colpo fallito per regola 1%
+medio che tira sempre fortissimo contro medio normale | 300 part.: vince il primo 61.3% (da P1 62.7%, da P2 60%) · punti 54.5% · game a zero 15.3%, ai vantaggi 28.3% · colpi a punto 10.2 · finiti con il colpo fallito per regola 1.3%
+medio che fa solo palle corte contro medio normale      | 300 part.: vince il primo 6% (da P1 6.7%, da P2 5.3%) · punti 24.5% · game a zero 37%, ai vantaggi 12% · colpi a punto 15.8 · finiti con il colpo fallito per regola 2%
+medio che fa solo pallonetti contro medio normale       | 300 part.: vince il primo 2.7% (da P1 3.3%, da P2 2%) · punti 17% · game a zero 51.7%, ai vantaggi 3.7% · colpi a punto 7.4 · finiti con il colpo fallito per regola 14.4%
+medio che fa solo tagliati contro medio normale         | 300 part.: vince il primo 26.3% (da P1 37.3%, da P2 15.3%) · punti 37.9% · game a zero 24%, ai vantaggi 23.3% · colpi a punto 12.0 · finiti con il colpo fallito per regola 1.8%
+medio che mira sempre contro medio che non mira mai  | 300 part.: vince il primo 28.3% (da P1 26.7%, da P2 30%) · punti 39.8% · game a zero 16.3%, ai vantaggi 23.3% · colpi a punto 12.4 · finiti con il colpo fallito per regola 1.3%
+amatore che non mira mai contro amatore normale      | 300 part.: vince il primo 75.3% (da P1 72.7%, da P2 78%) · punti 60.5% · game a zero 17%, ai vantaggi 26% · colpi a punto 20.7 · finiti con il colpo fallito per regola 5.4%
+amatore che mira sempre contro amatore normale       | 300 part.: vince il primo 35% (da P1 39.3%, da P2 30.7%) · punti 43.3% · game a zero 19.3%, ai vantaggi 27.7% · colpi a punto 15.8 · finiti con il colpo fallito per regola 2.2%
+amatore che tira sempre fortissimo contro amatore normale | 300 part.: vince il primo 63% (da P1 60.7%, da P2 65.3%) · punti 55.8% · game a zero 17.7%, ai vantaggi 27% · colpi a punto 15.0 · finiti con il colpo fallito per regola 2.2%
+amatore che fa solo palle corte contro amatore normale  | 300 part.: vince il primo 4.3% (da P1 5.3%, da P2 3.3%) · punti 26.3% · game a zero 27.7%, ai vantaggi 17.7% · colpi a punto 24.2 · finiti con il colpo fallito per regola 3.1%
+amatore che fa solo pallonetti contro amatore normale   | 300 part.: vince il primo 0.3% (da P1 0.7%, da P2 0%) · punti 10.8% · game a zero 64.3%, ai vantaggi 1.7% · colpi a punto 8.7 · finiti con il colpo fallito per regola 16.3%
+amatore che fa solo tagliati contro amatore normale     | 300 part.: vince il primo 19.3% (da P1 29.3%, da P2 9.3%) · punti 34.5% · game a zero 25%, ai vantaggi 22% · colpi a punto 18.6 · finiti con il colpo fallito per regola 3.5%
+amatore che mira sempre contro amatore che non mira mai | 300 part.: vince il primo 16.3% (da P1 15.3%, da P2 17.3%) · punti 34% · game a zero 20.7%, ai vantaggi 23% · colpi a punto 18.2 · finiti con il colpo fallito per regola 4.1%
+-- corsa più lenta per tutti e due: vincenti veri --
+medio contro medio, corsa 9.8 m/s: vincenti veri 0.2% dei 2035 punti · colpi a punto 11.9
+medio contro medio, corsa 7.5 m/s: vincenti veri 0.2% dei 1984 punti · colpi a punto 11.6
+medio contro medio, corsa 4.7 m/s: vincenti veri 1.9% dei 2016 punti · colpi a punto 11.3
+medio contro medio, corsa 3.5 m/s: vincenti veri 11.9% dei 1972 punti · colpi a punto 9.3
+tennista contro tennista, corsa 9.8 m/s: vincenti veri 0% dei 381 punti · colpi a punto 53.1
+tennista contro tennista, corsa 7.5 m/s: vincenti veri 0% dei 406 punti · colpi a punto 55.8
+tennista contro tennista, corsa 4.7 m/s: vincenti veri 3.1% dei 418 punti · colpi a punto 36.1
+tennista contro tennista, corsa 3.5 m/s: vincenti veri 34.3% dei 408 punti · colpi a punto 21.3
+(semi 7001, 7103, 7207 · --partite=1 · 178 s)

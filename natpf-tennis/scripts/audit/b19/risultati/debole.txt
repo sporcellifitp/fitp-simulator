@@ -1,0 +1,23 @@
+== Livelli diversi, 1 game classico, media dei due lati ==
+bambino contro medio                                 | 480 part.: vince il primo 7.3% (da P1 6.7%, da P2 7.9%) · punti 27% · game a zero 28.3%, ai vantaggi 13.3% · colpi a punto 7.8 · finiti con il colpo fallito per regola 0.3%
+bambino contro amatore                               | 480 part.: vince il primo 2.1% (da P1 2.1%, da P2 2.1%) · punti 19.6% · game a zero 42.1%, ai vantaggi 7.5% · colpi a punto 8.9 · finiti con il colpo fallito per regola 0.8%
+medio contro amatore                                 | 480 part.: vince il primo 29.2% (da P1 30.4%, da P2 27.9%) · punti 40.8% · game a zero 17.7%, ai vantaggi 26.5% · colpi a punto 14.0 · finiti con il colpo fallito per regola 2.1%
+medio contro tennista                                | 480 part.: vince il primo 0% (da P1 0%, da P2 0%) · punti 8.2% · game a zero 72.1%, ai vantaggi 1% · colpi a punto 18.0 · finiti con il colpo fallito per regola 3.6%
+amatore contro tennista                              | 480 part.: vince il primo 0.2% (da P1 0%, da P2 0.4%) · punti 10.8% · game a zero 64.2%, ai vantaggi 1.7% · colpi a punto 23.0 · finiti con il colpo fallito per regola 4.9%
+bambino~ant contro medio~ant                         | 480 part.: vince il primo 12.7% (da P1 11.7%, da P2 13.8%) · punti 33.1% · game a zero 20%, ai vantaggi 24.2% · colpi a punto 11.6 · finiti con il colpo fallito per regola 5.4%
+-- solo il tempo: stesso profilo, cambia l'errore di tempo --
+medio ±0,075 s contro medio ±0,09 s                  | 720 part.: vince il primo 71.1% (da P1 75.3%, da P2 66.9%) · punti 59.5% · game a zero 15.7%, ai vantaggi 27.1% · colpi a punto 13.6 · finiti con il colpo fallito per regola 2%
+medio ±0,06 s contro medio ±0,09 s                   | 720 part.: vince il primo 90.4% (da P1 91.4%, da P2 89.4%) · punti 70.7% · game a zero 25.3%, ai vantaggi 17.9% · colpi a punto 15.8 · finiti con il colpo fallito per regola 2.6%
+-- vantaggio di punti a ogni game per il più debole --
+bambino contro medio, il bambino parte da 0-0        | 360 part.: vince il primo 7.2% (da P1 7.8%, da P2 6.7%) · punti 26% · game a zero 31.4%, ai vantaggi 11.9% · colpi a punto 7.7 · finiti con il colpo fallito per regola 0.3%
+bambino contro medio, il bambino parte da 15-0       | 360 part.: vince il primo 13.3% (da P1 12.8%, da P2 13.9%) · punti 24.7% · game a zero 33.9%, ai vantaggi 11.9% · colpi a punto 7.7 · finiti con il colpo fallito per regola 0.8%
+bambino contro medio, il bambino parte da 30-0       | 360 part.: vince il primo 35% (da P1 34.4%, da P2 35.6%) · punti 27.5% · game a zero 36.7%, ai vantaggi 9.7% · colpi a punto 7.8 · finiti con il colpo fallito per regola 0.5%
+bambino contro medio, il bambino parte da 40-0       | 360 part.: vince il primo 66.7% (da P1 62.8%, da P2 70.6%) · punti 27.7% · game a zero 51.4%, ai vantaggi 6.7% · colpi a punto 7.7 · finiti con il colpo fallito per regola 0.6%
+-- prototipo «aiuto per giocatore»: le regole di un livello per chi deve colpire (solo in memoria) --
+bambino (Casual) contro medio (Leggenda)             | 360 part.: vince il primo 53.6% (da P1 52.2%, da P2 55%) · punti 51% · game a zero 11.7%, ai vantaggi 32.5% · colpi a punto 7.3 · finiti con il colpo fallito per regola 18.3%
+bambino (1v1) contro medio (Leggenda)                | 360 part.: vince il primo 40.6% (da P1 38.3%, da P2 42.8%) · punti 46.1% · game a zero 13.9%, ai vantaggi 30.8% · colpi a punto 6.8 · finiti con il colpo fallito per regola 16.6%
+medio (Casual) contro amatore (Leggenda)             | 360 part.: vince il primo 78.1% (da P1 81.7%, da P2 74.4%) · punti 62.5% · game a zero 20%, ai vantaggi 23.9% · colpi a punto 10.5 · finiti con il colpo fallito per regola 22.7%
+medio (1v1) contro amatore (Leggenda)                | 360 part.: vince il primo 75% (da P1 77.2%, da P2 72.8%) · punti 60.3% · game a zero 16.7%, ai vantaggi 25.8% · colpi a punto 10.4 · finiti con il colpo fallito per regola 22.7%
+amatore (Casual) contro tennista (Leggenda)          | 360 part.: vince il primo 44.4% (da P1 45.6%, da P2 43.3%) · punti 47.5% · game a zero 10.6%, ai vantaggi 28.1% · colpi a punto 19.4 · finiti con il colpo fallito per regola 38.6%
+amatore (1v1) contro tennista (Leggenda)             | 360 part.: vince il primo 23.6% (da P1 26.1%, da P2 21.1%) · punti 38.6% · game a zero 15%, ai vantaggi 28.6% · colpi a punto 17.5 · finiti con il colpo fallito per regola 31.2%
+(semi 7001, 7103, 7207 · --partite=1 · 187 s)

@@ -1,0 +1,6 @@
+== Stesso profilo (medio), cambia solo un ritardo o un anticipo fisso del gesto ==
+medio con 70 ms di ritardo contro medio              | 600 part.: vince il primo 9% (da P1 10%, da P2 8%) · punti 29.1% · game a zero 26.2%, ai vantaggi 16.8% · colpi a punto 7.3 · finiti con il colpo fallito per regola 0.4%
+medio con 40 ms di ritardo contro medio              | 600 part.: vince il primo 21.8% (da P1 25.7%, da P2 18%) · punti 37.8% · game a zero 15.8%, ai vantaggi 27% · colpi a punto 9.1 · finiti con il colpo fallito per regola 0.7%
+medio con 40 ms di anticipo contro medio             | 600 part.: vince il primo 64% (da P1 63.7%, da P2 64.3%) · punti 56% · game a zero 11.7%, ai vantaggi 29.2% · colpi a punto 13.2 · finiti con il colpo fallito per regola 2.2%
+medio con 70 ms di anticipo contro medio             | 600 part.: vince il primo 63.3% (da P1 66.3%, da P2 60.3%) · punti 55.6% · game a zero 12.7%, ai vantaggi 29.2% · colpi a punto 12.9 · finiti con il colpo fallito per regola 2.9%
+(semi 7001, 7103, 7207 · --partite=1 · 56 s)

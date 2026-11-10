@@ -1,0 +1,13 @@
+n=300 base=5000 local=false diff=1v1
+p1 D=0    validi 300 · perfetto 100.0% · in ritardo 0.0% · molto in ritardo 0.0% · a vuoto 0.0% · in campo 100.0% · spost. lato mediano - m {"perfetto":300}
+p2 D=0    validi 300 · perfetto 100.0% · in ritardo 0.0% · molto in ritardo 0.0% · a vuoto 0.0% · in campo 100.0% · spost. lato mediano - m {"perfetto":300}
+p2 D=20   validi 300 · perfetto 100.0% · in ritardo 0.0% · molto in ritardo 0.0% · a vuoto 0.0% · in campo 100.0% · spost. lato mediano 0.45 m {"perfetto":300}
+p2 D=30   validi 300 · perfetto 98.7% · in ritardo 1.3% · molto in ritardo 0.0% · a vuoto 0.0% · in campo 100.0% · spost. lato mediano 0.72 m {"perfetto":296,"in ritardo":4}
+p2 D=40   validi 300 · perfetto 77.3% · in ritardo 22.7% · molto in ritardo 0.0% · a vuoto 0.0% · in campo 100.0% · spost. lato mediano 0.91 m {"perfetto":232,"in ritardo":68}
+p2 D=50   validi 300 · perfetto 55.3% · in ritardo 44.7% · molto in ritardo 0.0% · a vuoto 0.0% · in campo 100.0% · spost. lato mediano 1.09 m {"in ritardo":134,"perfetto":166}
+p2 D=60   validi 300 · perfetto 17.0% · in ritardo 83.0% · molto in ritardo 0.0% · a vuoto 0.0% · in campo 100.0% · spost. lato mediano 1.35 m {"in ritardo":249,"perfetto":51}
+p2 D=80   validi 300 · perfetto 0.0% · in ritardo 100.0% · molto in ritardo 0.0% · a vuoto 0.0% · in campo 100.0% · spost. lato mediano 1.79 m {"in ritardo":300}
+p2 D=100  validi 300 · perfetto 0.0% · in ritardo 100.0% · molto in ritardo 0.0% · a vuoto 0.0% · in campo 100.0% · spost. lato mediano 2.08 m {"in ritardo":300}
+p2 D=150  validi 300 · perfetto 0.0% · in ritardo 81.0% · molto in ritardo 15.7% · a vuoto 3.3% · in campo 89.0% · spost. lato mediano 2.94 m {"in ritardo":243,"a vuoto":10,"molto in ritardo":47}
+p2 D=200  validi 263 · perfetto 0.0% · in ritardo 46.4% · molto in ritardo 31.9% · a vuoto 21.7% · in campo 66.5% · spost. lato mediano 3.36 m {"molto in ritardo":84,"a vuoto":57,"in ritardo":122}
+p2 D=irr  validi 278 · perfetto 11.5% · in ritardo 66.2% · molto in ritardo 11.5% · a vuoto 10.8% · in campo 83.8% · spost. lato mediano 2.37 m {"in ritardo":184,"molto in ritardo":32,"a vuoto":30,"perfetto":32}

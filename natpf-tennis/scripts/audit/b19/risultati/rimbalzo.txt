@@ -1,0 +1,8 @@
+== Dal rimbalzo al momento giusto del colpo (secondi) e altezza della palla al contatto ==
+bambino   risposta al servizio: 1050 palle · p10 0.53 · p50 0.63 · p90 0.69 s · entro 0,2 s dal rimbalzo 0% · contatto a 1.59 m (p50)
+bambino   scambio             : 5672 palle · p10 0.08 · p50 0.09 · p90 0.47 s · entro 0,2 s dal rimbalzo 61.8% · contatto a 0.53 m (p50)
+amatore   risposta al servizio: 1048 palle · p10 0.47 · p50 0.57 · p90 0.64 s · entro 0,2 s dal rimbalzo 0% · contatto a 1.62 m (p50)
+amatore   scambio             : 16378 palle · p10 0.08 · p50 0.10 · p90 0.44 s · entro 0,2 s dal rimbalzo 72.4% · contatto a 0.52 m (p50)
+tennista  risposta al servizio: 271 palle · p10 0.42 · p50 0.49 · p90 0.56 s · entro 0,2 s dal rimbalzo 0% · contatto a 1.62 m (p50)
+tennista  scambio             : 13771 palle · p10 0.09 · p50 0.10 · p90 0.38 s · entro 0,2 s dal rimbalzo 78.6% · contatto a 0.52 m (p50)
+(semi 7001, 7103, 7207 · --partite=1 · 15 s)

@@ -1,0 +1,60 @@
+# chi batte tra bambini: batte sempre il P1, poi sempre il P2
+
+== classico · 1 game · P1 bambino / P2 bambino · 400 partite (non finite 0) · velocità 9.8,9.8
+  P1 vince 38.3% partite, 45% punti · punti/partita 6.8 · batte P2 0% · chi batte vince P1 45% P2 0%
+  durata s: p50 109 p90 203 max 456 · colpi/punto: media 8.9 p50 6 p90 20 · punti a 80 colpi 0% · punto s p50 10.5 · pausa tra i punti p50 2.16 s
+  fine dei punti: a vuoto per il tempo 50% · fuori 40.2% · non colpita (vicina, senza gesto) 7.1% · rete 1.1% · non raggiunta (scritta) 1.1% · non raggiunta (senza gesto, lontana) 0.5% · [palla mai più vicina di 1,6 m a chi perde: 3.4%]
+
+== classico · 1 game · P1 bambino / P2 bambino · 400 partite (non finite 0) · velocità 9.8,9.8
+  P1 vince 61.8% partite, 55% punti · punti/partita 6.8 · batte P2 100% · chi batte vince P1 0% P2 45%
+  durata s: p50 109 p90 203 max 456 · colpi/punto: media 8.9 p50 6 p90 20 · punti a 80 colpi 0% · punto s p50 10.5 · pausa tra i punti p50 2.16 s
+  fine dei punti: a vuoto per il tempo 50% · fuori 40.2% · non colpita (vicina, senza gesto) 7.1% · rete 1.1% · non raggiunta (scritta) 1.1% · non raggiunta (senza gesto, lontana) 0.5% · [palla mai più vicina di 1,6 m a chi perde: 3.4%]
+
+# chi colpisce 0,25 s dopo il rimbalzo (profilo umano): formato di base e formato in fiera
+
+== classico · 1 game · P1 umano / P2 umano · 200 partite (non finite 0) · velocità 9.8,9.8
+  P1 vince 98.5% partite, 81.1% punti · punti/partita 5.1 · batte P2 0% · chi batte vince P1 81.1% P2 0%
+  durata s: p50 31 p90 51 max 111 · colpi/punto: media 2.1 p50 2 p90 4 · punti a 80 colpi 0% · punto s p50 3.0 · pausa tra i punti p50 2.16 s
+  fine dei punti: fuori 49% · a vuoto per il tempo 49% · rete 1.9% · non colpita (vicina, senza gesto) 0.1% · [palla mai più vicina di 1,6 m a chi perde: 0.4%]
+
+== FIERA · 1 game · P1 umano / P2 umano · 200 partite (non finite 0) · velocità 9.8,9.8
+  P1 vince 38.5% partite, 49.7% punti · punti/partita 6.0 · batte P2 51.7% · chi batte vince P1 81.8% P2 80.3%
+  durata s: p50 43 p90 51 max 72 · colpi/punto: media 2.1 p50 2 p90 4 · punti a 80 colpi 0% · punto s p50 3.1 · pausa tra i punti p50 2.16 s
+  fine dei punti: a vuoto per il tempo 51% · fuori 48.5% · rete 0.4% · non colpita (vicina, senza gesto) 0.1% · [palla mai più vicina di 1,6 m a chi perde: 0.4%]
+  punto decisivo (3-3): 83 su 200 partite (41.5%) · lo batte P1 0, P2 83 · lo vince chi batte 85.5%
+
+# durate e colpi a punto tra pari, formato di base e in fiera
+
+== classico · 1 game · P1 amatore / P2 amatore · 200 partite (non finite 0) · velocità 9.8,9.8
+  P1 vince 50% partite, 50.5% punti · punti/partita 6.9 · batte P2 0% · chi batte vince P1 50.5% P2 0%
+  durata s: p50 127 p90 237 max 530 · colpi/punto: media 14.2 p50 11 p90 30 · punti a 80 colpi 0% · punto s p50 14.1 · pausa tra i punti p50 2.16 s
+  fine dei punti: fuori 61.8% · a vuoto per il tempo 34.6% · rete 2.7% · non colpita (vicina, senza gesto) 0.9% · [palla mai più vicina di 1,6 m a chi perde: 0.2%]
+
+== classico · 1 game · P1 tennista / P2 tennista · 200 partite (non finite 0) · velocità 9.8,9.8
+  P1 vince 57.5% partite, 53% punti · punti/partita 7.0 · batte P2 0% · chi batte vince P1 53% P2 0%
+  durata s: p50 184 p90 315 max 605 · colpi/punto: media 23.3 p50 18 p90 52 · punti a 80 colpi 2% · punto s p50 18.7 · pausa tra i punti p50 2.16 s
+  fine dei punti: fuori 80.1% · a vuoto per il tempo 12.5% · rete 5% · infinito 2% · non colpita (vicina, senza gesto) 0.4% · [palla mai più vicina di 1,6 m a chi perde: 0%]
+
+== FIERA · 1 game · P1 amatore / P2 amatore · 200 partite (non finite 0) · velocità 9.8,9.8
+  P1 vince 48% partite, 48.5% punti · punti/partita 5.8 · batte P2 50.8% · chi batte vince P1 47.6% P2 50.6%
+  durata s: p50 122 p90 184 max 257 · colpi/punto: media 13.8 p50 11 p90 30 · punti a 80 colpi 0% · punto s p50 14.1 · pausa tra i punti p50 2.16 s
+  fine dei punti: fuori 63.1% · a vuoto per il tempo 34.1% · non colpita (vicina, senza gesto) 1.4% · rete 1.3% · non raggiunta (scritta) 0.1% · [palla mai più vicina di 1,6 m a chi perde: 0.4%]
+  punto decisivo (3-3): 63 su 200 partite (31.5%) · lo batte P1 0, P2 63 · lo vince chi batte 50.8%
+
+== FIERA · 1 game · P1 tennista / P2 tennista · 200 partite (non finite 0) · velocità 9.8,9.8
+  P1 vince 52.5% partite, 51.6% punti · punti/partita 5.8 · batte P2 50.7% · chi batte vince P1 55% P2 51.7%
+  durata s: p50 160 p90 250 max 327 · colpi/punto: media 23.7 p50 18 p90 52 · punti a 80 colpi 2% · punto s p50 19.1 · pausa tra i punti p50 2.16 s
+  fine dei punti: fuori 80.7% · a vuoto per il tempo 13.3% · rete 3.6% · infinito 2% · non colpita (vicina, senza gesto) 0.4% · [palla mai più vicina di 1,6 m a chi perde: 0%]
+  punto decisivo (3-3): 60 su 200 partite (30%) · lo batte P1 0, P2 60 · lo vince chi batte 46.7%
+
+# personaggi più lenti (4,5 m/s)
+
+== classico · 1 game · P1 amatore / P2 amatore · 100 partite (non finite 0) · velocità 4.5,4.5
+  P1 vince 51% partite, 50.1% punti · punti/partita 6.9 · batte P2 0% · chi batte vince P1 50.1% P2 0%
+  durata s: p50 135 p90 258 max 452 · colpi/punto: media 14.7 p50 11 p90 33 · punti a 80 colpi 0% · punto s p50 14.4 · pausa tra i punti p50 2.16 s
+  fine dei punti: fuori 62.1% · a vuoto per il tempo 31% · rete 5.4% · non colpita (vicina, senza gesto) 1% · non raggiunta (scritta) 0.4% · [palla mai più vicina di 1,6 m a chi perde: 1.5%]
+
+== classico · 1 game · P1 tennista / P2 tennista · 100 partite (non finite 0) · velocità 4.5,4.5
+  P1 vince 35% partite, 44.5% punti · punti/partita 6.7 · batte P2 0% · chi batte vince P1 44.5% P2 0%
+  durata s: p50 151 p90 271 max 486 · colpi/punto: media 21.2 p50 19 p90 41 · punti a 80 colpi 0% · punto s p50 20.2 · pausa tra i punti p50 2.16 s
+  fine dei punti: fuori 57.9% · rete 23.8% · a vuoto per il tempo 16.2% · non raggiunta (scritta) 1.8% · non colpita (vicina, senza gesto) 0.3% · [palla mai più vicina di 1,6 m a chi perde: 9%]
