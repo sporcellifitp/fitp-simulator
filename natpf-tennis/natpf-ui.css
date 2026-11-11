@@ -1181,6 +1181,8 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 #title-modal .split-status[data-state="go"] b { color: var(--ball); }
 #title-modal .split-status[data-state="ko"] b { color: var(--warn); }
 #title-modal .split-actions { grid-area: actions; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+/* B25: riga dell'aiuto al più giovane sulla scheda di chi è aiutato («Aiuto: Bambino · parte da 15-0…», natpf_duo_rules.js) */
+#title-modal .split-help { flex: 1 1 100%; margin: 0; font: 700 clamp(12px, 1.25cqw, 15px)/1.3 var(--font-text); color: var(--ball); }
 #title-modal .split-grip { grid-column: 1 / -1; margin: 0; font: 500 15px/1.4 var(--font-text); color: var(--text-2); }
 @container natpf (max-width: 860px) {
   #title-modal .split-setup { grid-template-columns: 1fr; }
@@ -1273,6 +1275,8 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 .natpf-split-hud .split-tag span { font: 700 italic 1em/1 var(--font-display); text-transform: uppercase; }
 .natpf-split-hud .split-tag span:empty { display: none; }
 .natpf-split-hud .split-tag.warn span { color: var(--warn); }
+/* B25: «Aiuto: Bambino» sotto il nome di chi è aiutato, sobrio (più piccolo e più chiaro del nome) */
+.natpf-split-hud .split-tag.helped span { font-size: 0.78em; color: var(--ball); opacity: 0.92; }
 
 /* =====================================================================================================================
    Schermo di un ledwall (natpf_screen.js): tutto il gioco nell'area scelta, fuori nero. Il body è il riquadro dell'area

@@ -21,6 +21,7 @@ import { webcamOpenError } from './natpf_webcam_watch.js';
 
 import { NatpfTutorial, tutorialCards } from './natpf_tutorial.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
+import { BAND_DEFAULT, bandOf, helpFor, helpText, helpLabel } from './natpf_duo_rules.js';
 import { slotView, splitSlot, startGate, waitingText, bothNames, cancelText, createCountdown, paintSlot, paintBoard, defaultName, READY_COUNTDOWN_MS } from './natpf_ready.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -122,6 +123,9 @@ export class NatpfSplitUi {
     this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 }; this._here = null; this._leftBoth = false; this._dropAt = null;
     const box = document.querySelector('[data-setup="split"]');
     engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
+    // B25: fascia di ciascun giocatore (Bambino · Ragazzo · Adulto, natpf_duo_rules.js), scelta sulla sua scheda; di base
+    // Adulto per tutti e due (nessun aiuto). Il motore la legge a inizio partita (startNewMatch → natpfDuo)
+    engine.natpfSplitBands = { p1: BAND_DEFAULT, p2: BAND_DEFAULT };
     box?.addEventListener('input', e => {
       const id = e.target.dataset.splitName; if (!['p1', 'p2'].includes(id)) return;
       this._typedAt = performance.now();
@@ -142,6 +146,7 @@ export class NatpfSplitUi {
       const inp = e.target.closest('[data-split-input]'); if (inp){ e.stopPropagation(); this.setInput(inp.dataset.splitInput); return; }
       if (e.target.closest('#split-cam-go')){ e.stopPropagation(); this._camOn(); return; }
       const h = e.target.closest('[data-split-hand]'); if (h){ e.stopPropagation(); const [id, hand] = h.dataset.splitHand.split(':'); this.setHand(id, hand); return; }
+      const bd = e.target.closest('[data-split-band]'); if (bd){ e.stopPropagation(); const [id, band] = bd.dataset.splitBand.split(':'); this.setBand(id, band); return; }
       const s = e.target.closest('[data-split-skip]'); if (s){ e.stopPropagation(); this._tutDone(s.dataset.splitSkip); this.phone(s.dataset.splitSkip)?.skipCalibration(); this.paint(); }
     });
   }
@@ -222,6 +227,25 @@ export class NatpfSplitUi {
     const ok = mc.webcamActive || await mc.enableWebcam();
     this.paint();
     return ok;
+  }
+  // B25: fascia del giocatore (per l'aiuto al più giovane); vale dalla partita dopo
+  band(id){ return bandOf(this.engine.natpfSplitBands?.[id]); }
+  setBand(id, band){
+    if (!SPLIT_PLAYERS.includes(id)) return;
+    this.engine.natpfSplitBands = { p1: this.band('p1'), p2: this.band('p2'), [id]: bandOf(band) };
+    this.ui.diag?.recorder?.log?.('split.fascia', { giocatore: id, fascia: this.band(id) });
+    this.paint();
+  }
+  // «Nuovo giocatore» e chiosco: le fasce tornano Adulto per tutti e due
+  resetBands(){ this.engine.natpfSplitBands = { p1: BAND_DEFAULT, p2: BAND_DEFAULT }; if (typeof document !== 'undefined') this._paintBands(); }
+  // pulsanti delle fasce e riga dell'aiuto sulla scheda di chi è aiutato («Aiuto: Bambino · parte da 15-0 a ogni game…»)
+  _paintBands(){
+    const help = this.webcam ? { p1: null, p2: null } : helpFor(this.engine.natpfSplitBands || {});
+    for (const id of SPLIT_PLAYERS){
+      for (const btn of document.querySelectorAll(`[data-split-band^="${id}:"]`)){ const on = btn.dataset.splitBand.endsWith(':' + this.band(id)); btn.classList.toggle('selected', on); btn.setAttribute('aria-pressed', String(on)); }
+      const note = document.querySelector(`[data-split-help="${id}"]`), text = helpText(help[id]);
+      if (note){ if (note.textContent !== text) note.textContent = text; show(note, !!text); }
+    }
   }
   setHand(id, hand){
     // (natpfP2Hand: il piano d'intercetto del P2 sa da che lato è il suo dritto prima del primo colpo, natpf_impact.handOf).
@@ -334,6 +358,7 @@ export class NatpfSplitUi {
       card?.classList.toggle('ready', v.state === 'ready');
       paintSlot(card, v);
     }
+    this._paintBands();
     this._paintStart(now);
   }
   /* ---------- stato «pronto» delle schede e conto alla rovescia (B9, natpf_ready.js) ---------- */
@@ -349,6 +374,7 @@ export class NatpfSplitUi {
     this.engine.natpfSplitNames = { p1: defaultName('p1'), p2: defaultName('p2') };
     if (typeof document !== 'undefined') for (const el of document.querySelectorAll('[data-split-name]')) el.value = '';
     this._paintNames();
+    this.resetBands();   // B25: con «Nuovo giocatore» anche le fasce tornano Adulto
   }
   // scheda mostrata del tutorial di questo giocatore (1…n), per «Tutorial 3/5»
   tutInfo(id){ const t = this.tut[id]; return { i: (t?.state?.idx ?? 0) + 1, n: t?.state?.cards || tutorialCards('short').length }; }
@@ -565,9 +591,11 @@ export class NatpfSplitUi {
       this._paintNames();
       for (const id of SPLIT_PLAYERS){
         const tag = hud.querySelector(`[data-split-tag="${id}"] span`), p = this.webcam ? null : this.phone(id);
-        const text = p && !p.ready ? 'Telefono in pausa' : '';
+        // B25: sotto il nome di chi è aiutato in questa partita, «Aiuto: Bambino» (natpf_duo_rules.helpLabel)
+        const text = p && !p.ready ? 'Telefono in pausa' : helpLabel(E.natpfDuo?.help?.[id]);
         if (tag && tag.textContent !== text) tag.textContent = text;
         tag?.parentElement?.classList.toggle('warn', !!p && !p.ready);
+        tag?.parentElement?.classList.toggle('helped', !(p && !p.ready) && !!text);
       }
     }
     // con la webcam per due il telefono del P2 non c'è: niente pausa per lui (la webcam ha la sua, natpf_webcam_watch)

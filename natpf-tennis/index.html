@@ -237,6 +237,8 @@
           ><button type="button" data-staff="music"><span>Musica</span><b>Sì</b></button
           ><button type="button" data-staff="fair" title="No · Solo stesso schermo · Sì. Punto decisivo sul 40-40 e servizio che passa ogni due punti: con «Solo stesso schermo» vale tra due persone nello stesso schermo, con «Sì» anche contro la CPU. Vale dalla prossima partita e resta salvata."><span>Formato in fiera</span><b>Solo stesso schermo</b></button
           ><button type="button" data-staff="hot" title="Sì: nello stesso schermo, dal 10° colpo dello scambio la palla va sempre più veloce per tutti e due, finché uno sbaglia; compare la scritta «Scambio caldo». Vale dalla prossima partita e resta salvata."><span>Scambio che si scalda</span><b>No</b></button
+          ><button type="button" data-staff="autotoss" title="Sì: nello stesso schermo, se chi deve battere resta fermo 30 secondi il gioco lancia la palla da solo; dopo due lanci automatici a vuoto batte il gioco un servizio morbido. Vale dalla prossima partita e resta salvata."><span>Lancio automatico</span><b>No</b></button
+          ><button type="button" data-staff="open" title="Sì: nello stesso schermo i personaggi corrono come persone e non arrivano più su ogni palla: la palla angolata e lontana si prende in allungo o non si prende. Vale dalla prossima partita e resta salvata."><span>Stesso schermo: campo aperto</span><b>No</b></button
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
@@ -509,7 +511,12 @@
               <div class="split-actions">
                 <div class="seg" role="group" aria-label="Mano del Player 1"><button type="button" class="seg-btn" data-split-hand="p1:right">Destra</button
                   ><button type="button" class="seg-btn" data-split-hand="p1:left">Sinistra</button></div>
+                <!-- B25: fascia del giocatore (natpf_duo_rules.js); se le due fasce sono diverse il più giovane è aiutato -->
+                <div class="seg split-band" role="group" aria-label="Fascia del Player 1"><button type="button" class="seg-btn" data-split-band="p1:bambino">Bambino</button
+                  ><button type="button" class="seg-btn" data-split-band="p1:ragazzo">Ragazzo</button
+                  ><button type="button" class="seg-btn" data-split-band="p1:adulto">Adulto</button></div>
                 <button type="button" class="lobby-link" data-split-skip="p1">Gioca senza calibrare</button>
+                <p class="split-help hidden" data-split-help="p1"></p>
               </div>
             </div>
             <div class="split-player is-off" data-split-player="p2" data-ready="off">
@@ -519,7 +526,11 @@
               <div class="split-actions">
                 <div class="seg" role="group" aria-label="Mano del Player 2"><button type="button" class="seg-btn" data-split-hand="p2:right">Destra</button
                   ><button type="button" class="seg-btn" data-split-hand="p2:left">Sinistra</button></div>
+                <div class="seg split-band" role="group" aria-label="Fascia del Player 2"><button type="button" class="seg-btn" data-split-band="p2:bambino">Bambino</button
+                  ><button type="button" class="seg-btn" data-split-band="p2:ragazzo">Ragazzo</button
+                  ><button type="button" class="seg-btn" data-split-band="p2:adulto">Adulto</button></div>
                 <button type="button" class="lobby-link" data-split-skip="p2">Gioca senza calibrare</button>
+                <p class="split-help hidden" data-split-help="p2"></p>
               </div>
             </div>
             <!-- barra dell'avvio: chi manca; con tutti e due pronti il conto alla rovescia (poi si gioca da soli), «Aspetta» -->

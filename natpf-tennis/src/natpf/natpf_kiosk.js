@@ -7,9 +7,12 @@
 // E il formato in fiera (B18: punto decisivo e servizio come nel tie-break, natpf_fair_format.js): dal B20 tre valori,
 // «No · Solo stesso schermo · Sì», di base «Solo stesso schermo».
 // E lo «scambio che si scalda» (B20, natpf_hot_rally.js): No · Sì, spento di base.
+// E le due opzioni dello stesso schermo del B25 (natpf_duo_rules.js), spente di base: «Lancio automatico» (No · 30 s) e
+// «Stesso schermo: campo aperto» (No · Sì).
 import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLevel } from './natpf_aim_level.js';
 import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './natpf_fair_format.js';
 import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
+import { readAutoToss, writeAutoToss, autoTossButton, autoTossToast, readOpenCourt, writeOpenCourt, openCourtButton, openCourtToast } from './natpf_duo_rules.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -84,6 +87,8 @@ export class NatpfKiosk {
     // imparati da un ospite senza nome (il setter del nickname li toglie solo se c'era un nome; revisione dell'insieme B18.1)
     ui.events.forgetGuest?.();
     ui.events.forgetLearned?.();
+    // B25: le fasce dei due giocatori dello stesso schermo tornano «Adulto» (sono di chi gioca, non dello stand)
+    ui.split?.resetBands?.();
     // il visitatore successivo rivede il tutorial prima di calibrare (gioco singolo e stesso schermo)
     // (il tutorial visto è segnato sul telefono, per abbinamento: si dimentica anche con lo stesso telefono)
     if (ui.split) ui.split.closeTutorials?.();
@@ -122,6 +127,18 @@ export class NatpfKiosk {
       ui.toast?.(hotToast(on));
       ui.diag?.recorder?.log?.('stand.scambioCaldo', { acceso: on });
     }
+    // B25: «lancio automatico» e «campo aperto» (natpf_duo_rules.js), no ↔ sì, salvati; valgono dalla partita dopo, nello
+    // stesso schermo con i due telefoni
+    if (cmd === 'autotoss'){
+      const on = writeAutoToss(!readAutoToss());
+      ui.toast?.(autoTossToast(on));
+      ui.diag?.recorder?.log?.('stand.lancioAuto', { acceso: on });
+    }
+    if (cmd === 'open'){
+      const on = writeOpenCourt(!readOpenCourt());
+      ui.toast?.(openCourtToast(on));
+      ui.diag?.recorder?.log?.('stand.campoAperto', { acceso: on });
+    }
     this.paint();
   }
   paint(){
@@ -134,6 +151,8 @@ export class NatpfKiosk {
     set('aim', aimLevelButton(readAimLevel()));
     const fair = readFairMode(); set('fair', fairButton(fair, fairForcedByUrl()), fair !== 'no');
     const hot = readHotRally(); set('hot', hotButton(hot), hot);
+    const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);
+    const open = readOpenCourt(); set('open', openCourtButton(open), open);
     const n = $('staff-note');
     if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
   }
