@@ -6,7 +6,7 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## ADESSO (aggiornato l'11/11/2026 alle 21:45 UTC)
+## ADESSO (aggiornato l'11/11/2026 alle 22:55 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
 - [x] Tappa 2 passo 1 (servizio, personaggi fermi) con revisore · su GitHub (`0bdb83f`)
@@ -35,13 +35,11 @@ opzione), con revisore indipendente e correzioni (ramo `worktree-wf_190d3d32-58d
       formato-fiera 22/22 e p2p 9/9, 1v1-p2p 39/39, tabellone 42/42, nuovo-giocatore 28/28, servizio-lancio 12/12,
       servizio-peso 8/8, menu 28/28, rally 9/9, leggenda 7/7, training-flow 22/22, tutorial-phone 52/52, gesti-speciali
       9/9, phone-keep 13/13)
-- [~] **Installer 2026-11-11.2 NON ancora pubblicato**: la corsa 43098482940 di GitHub Actions («NATPF eseguibili
-      Windows») è **in coda dalle 20:51 UTC** insieme alle altre due del repository (nessun runner parte: probabile quota
-      dei minuti di Actions del profilo `sporcellifitp`, o ritardo di GitHub; detto all'utente: Settings → Billing and
-      plans). Quando parte: aspettare `…r2.dev/windows/latest.json` con `"build": "2026-11-11.2"`, scaricare il link
-      fisso, controllare lo sha256, controllare il trailer su R2
-      (`https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev/media/trailer-aad6b9311db4.mp4`, oggi 404) e mandare il link.
-      Se la corsa risulta annullata o fallita: rilanciarla a mano (workflow_dispatch) dopo che l'utente ha sistemato la quota.
+- [x] **Installer 2026-11-11.2 pubblicato su R2** e verificato dal link fisso: 127.584.496 B, sha256
+      `ac7525fc1a581b2bd2ad09c9dbd8c67ebb37fa49ec854cf4c7d9104d4cfeaa02`; trailer su R2 (200, 2.258.622 B). Le Actions erano
+      ferme per il budget a 0 $ con i minuti gratuiti finiti: l'utente ha reso **pubblico** il repository (Actions gratuite);
+      la corsa incastrata non ripartiva, rilanciata a mano con workflow_dispatch (corsa 43114132100). La scritta «Usage
+      blocked» sul budget resta ma non blocca i repository pubblici.
 - [x] Detto all'utente come si spegne la scia (Opzioni → «Scia della palla») e `?trailer=0`
 
 **In corso dalle 22:26 UTC dell'11/11: B25** (workflow `b25-stesso-schermo-equilibrio`, run `wf_d8163833-9f8`: agente in

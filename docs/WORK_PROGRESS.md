@@ -1381,4 +1381,8 @@ guida provato nel browser.
   si vede il video di prima (ripiego).
 - **Non verificato**: Windows vero, R2 vero, Safari/Firefox/telefoni (su iPhone il trailer può non scaricarsi da fermo:
   si vedrebbe il video di prima), scheda grafica vera, ledwall.
+- **Installer 2026-11-11.2 pubblicato (11/11, 22:50 UTC)**: 127.584.496 B, sha256
+  `ac7525fc1a581b2bd2ad09c9dbd8c67ebb37fa49ec854cf4c7d9104d4cfeaa02`, verificato dal link fisso; trailer su R2
+  `media/trailer-aad6b9311db4.mp4` (2.258.622 B). Repository reso pubblico dall'utente per sbloccare le Actions (budget a
+  0 $); controllo rapido di file e storia per chiavi o credenziali: niente trovato (solo asserzioni dei test).
 

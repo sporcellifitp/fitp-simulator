@@ -709,3 +709,8 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   tutorial; resta valida la regola del 28/10 per le dimostrazioni dei gesti (animazione 3D e foto). I video si generano da
   fotogrammi veri del gioco (SHOTS=1 di `tools/e2e/natpf-rally.mjs`), senza audio. Tetto di spesa deciso dall'utente caso
   per caso (120 crediti Higgsfield l'11/11, spesi 86).
+- **Repository pubblico dall'11/11/2026** (scelta dell'utente per avere le GitHub Actions gratuite: con il budget a 0 $ i
+  minuti inclusi erano finiti e le corse restavano in coda senza partire). Conseguenze: **mai** mettere chiavi, token,
+  indirizzi e-mail o dati personali nei file o nei messaggi di commit; i segreti di R2 restano solo nei Secrets di GitHub.
+  Una corsa rimasta in coda non riparte da sola dopo lo sblocco: rilanciare con workflow_dispatch.
+
