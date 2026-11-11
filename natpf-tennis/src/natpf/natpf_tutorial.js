@@ -20,8 +20,11 @@
 // Gesti e indicazioni da natpf_gesture_motion.js; la posa disegnata è natpf_gesture_pose.gesturePose, la stessa che il
 // telefono simulato riconosce (test natpf-gesture-pose e natpf-gesture-anim). Velocità 'auto': primo ciclo a tempo reale,
 // poi ×0,5 «Rallentato» e tempo reale alternati (brief §5.4).
+// Dal B21 (11/11) dietro la scheda, a modale aperta, due clip di gioco sfocate in ciclo (natpf_tutorial_bg.js): solo uno
+// sfondo, i gesti restano l'animazione 3D e le foto; a modale chiusa i video sono fermi.
 import { GESTURES } from './natpf_gesture_motion.js';
 import { PHOTOS } from './natpf_media.js';
+import { TutorialBackdrop } from './natpf_tutorial_bg.js';
 import { GRIP } from '@natpf/tennis/grip-art.js';
 
 // seenMs: tempo a schermo perché una scheda conti come vista (chi tocca ‹ › di fila non le «vede» tutte); tickMs: controllo
@@ -130,6 +133,8 @@ export class NatpfTutorial {
     // il riquadro dell'animazione cambia misura (finestra, schermo intero, ledwall): l'animazione si ridimensiona
     const stage = root.querySelector?.('.tut-stage');
     if (stage && typeof ResizeObserver === 'function'){ this.ro = new ResizeObserver(() => this._fit()); this.ro.observe(stage); }
+    // sfondo sfocato (B21): due clip di gioco dietro la scheda, solo a modale aperta
+    this.bg = new TutorialBackdrop(root, { half });
   }
   get card(){ return this.cards[this.state?.idx ?? 0]; }
   get progress(){ return this.state ? { ...tutorialProgress(this.state), nm: this.cards[this.state.idx]?.title || '' } : null; }
@@ -151,6 +156,7 @@ export class NatpfTutorial {
     this.root.querySelector('.tut-close')?.classList.toggle('hidden', mode !== 'review');
     const k = this.root.querySelector('.tut-kicker'); if (k) k.textContent = [player, mode === 'phone' ? 'Come si gioca' : 'Rivedi i gesti'].filter(Boolean).join(' · ');
     clearInterval(this.timer); this.timer = setInterval(() => this.tick(), TUTORIAL.tickMs);
+    this.bg?.start();
     this.paint(); this._progress();
   }
   // cosa succede dopo «ho capito» (lo stato del telefono può cambiare mentre la modale è aperta)
@@ -208,6 +214,7 @@ export class NatpfTutorial {
     if (!this.open) return;
     this.open = false; clearInterval(this.timer); this.timer = null;
     this.root?.classList.add('hidden');
+    this.bg?.stop();
     const d = this.demo?.(); if (d && this.demoOn){ d.stop(); }
     this.demoOn = false; this.paintKey = '';
     const cb = this.opts.onClose; this.opts = {};
