@@ -4,7 +4,8 @@
 // natpf_duo_rules.openTuning / helpTuning / superTuning).
 // Uso, da natpf-tennis:
 //   node --import ./test/register.mjs scripts/audit/b25/misure.mjs <gruppo> [--partite=1] [--semi=7001,7103,7207] [--formato=fiera|classico]
-// Gruppi: pari · super · preparazione · campo · campo-prove · aiuto · aiuto-prove · tutti (i primi cinque di fila)
+// Gruppi: pari · super · preparazione · campo · campo-prove · aiuto · aiuto-altro · aiuto-prove · tutti (pari, super,
+// preparazione, campo, aiuto, aiuto-altro di fila: circa un'ora; meglio un gruppo per volta, ognuno nel suo processo)
 // «prima» = regole di f08243a (colpo super con la soglia uguale per tutti, preparazione che conta), rimesse a mano.
 import { many, sum, pc, qt } from '../b19/due-umani.mjs';
 import * as ND from '../../../src/natpf/natpf_duo_rules.js';
@@ -164,9 +165,16 @@ const groups = {
       const pair = `${young}:${old}`;
       for (const v of ['0', 'A', 'B', 'C']){ const h = ND.HELP[v][pair]; row(`${pa} (${young}) contro ${pb} (${old}) · ${v === '0' ? 'nessun aiuto' : 'variante ' + v + ' ' + JSON.stringify(h)}`, young, old, pa, pb, v); }
     }
-    say('-- con il campo aperto acceso (opzione dello staff): il più giovane, senza aiuto e con la variante in gioco --');
-    for (const [young, old, pa, pb] of [['bambino', 'adulto', 'bambino', 'medio'], ['ragazzo', 'adulto', 'ragazzo', 'medio']]) for (const v of ['0', ND.HELP_DEFAULT])
+    setObj(ND.helpTuning, null);
+  },
+  // parte 5, il resto: l'aiuto con il campo aperto acceso, i soli punti di vantaggio, l'adulto segnato «Bambino»
+  'aiuto-altro'(){
+    const row = (lab, young, old, pa, pb, variant, tune = null) => { const d = duo(pa, pb, { matches: 150 }, bands(young, old, variant, tune)); line(lab, d); return d; };
+    say(`== Aiuto al più giovane, 1 game ${fair ? 'in fiera' : 'classico'}: il resto ==`);
+    say('-- con il campo aperto acceso (opzione dello staff): vince il più giovane, senza aiuto e con le tre varianti --');
+    for (const [young, old, pa, pb] of [['bambino', 'adulto', 'bambino', 'medio'], ['ragazzo', 'adulto', 'ragazzo', 'medio'], ['bambino', 'ragazzo', 'bambino', 'ragazzo']]) for (const v of ['0', 'A', 'B', 'C'])
       line(`${pa} contro ${pb} · campo aperto · ${v === '0' ? 'nessun aiuto' : 'variante ' + v}`, duo(pa, pb, { matches: 150 }, side => both(bands(young, old, v)(side), open(true))));
+    setObj(ND.openTuning, null);
     say('-- bambino contro adulto medio: solo i punti di vantaggio --');
     for (const head of [1, 2, 3]) row(`bambino contro medio · parte da ${['', '15', '30', '40'][head]}-0`, 'bambino', 'adulto', 'bambino', 'medio', 'B', { head });
     say('-- due adulti medi, uno segnato «Bambino» per sbaglio o per furbizia: quanto pesa l\'aiuto --');
@@ -184,7 +192,7 @@ const groups = {
 };
 
 const t0 = Date.now();
-if (G === 'tutti') for (const k of ['pari', 'super', 'preparazione', 'campo', 'aiuto']){ groups[k](); say(''); }
+if (G === 'tutti') for (const k of ['pari', 'super', 'preparazione', 'campo', 'aiuto', 'aiuto-altro']){ groups[k](); say(''); }
 else if (groups[G]) groups[G]();
 else { say(`Gruppo sconosciuto: ${G}. Gruppi: ${Object.keys(groups).join(' · ')} · tutti`); process.exitCode = 1; }
 say(`(semi ${SEEDS.join(', ')} · --partite=${K} · formato ${fair ? 'in fiera' : 'classico'} · ${Math.round((Date.now() - t0)/1000)} s)`);

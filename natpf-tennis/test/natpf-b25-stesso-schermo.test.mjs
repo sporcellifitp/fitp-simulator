@@ -157,6 +157,19 @@ test('lancio automatico nel motore: il lancio di chi gioca ricomincia il conto �
   assert.equal(cpu.phase, 'SERVE_STANCE'); assert.equal(cpu.natpfTossMisses || 0, 0);
 }));
 
+// trovato dalla prova nel browser (tools/e2e/natpf-stesso-schermo-b25.mjs): nel gioco vero natpf_hand avvolge
+// _startServeToss (palla nella mano giusta per i mancini) e passava solo il personaggio: il lancio del gioco contava come
+// lancio di chi gioca, senza «Lancio automatico» e senza arrivare mai al servizio automatico
+test('lancio automatico: chi avvolge _startServeToss lascia passare «chi ha lanciato»', () => {
+  assert.match(src('../src/natpf/natpf_hand.js'), /engine\._startServeToss = \(actor, \.\.\.more\) => \{ const r = toss\(actor, \.\.\.more\);/);
+  const wrap = e => { const toss = e._startServeToss.bind(e); e._startServeToss = (actor, ...more) => toss(actor, ...more); };
+  withSeed(5, () => {
+    const e = splitEngine(x => { x.natpfAutoToss = true; wrap(x); });
+    assert.ok(run(e, 31, x => x.phase === 'SERVE_TOSS'));
+    assert.equal(e.natpfAutoLive, 'toss');
+  });
+});
+
 test('lancio automatico: lo schermo lo annuncia negli ultimi 10 s, dice «Lancio automatico» e «Servizio automatico»', () => {
   assert.equal(AUTO_WARN, 10);
   const s = { served: { player: 5, opponent: 5 }, missAt: null };
@@ -340,6 +353,12 @@ test('fasce: Bambino · Ragazzo · Adulto, di base Adulto; fasce uguali nessun a
   assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, '0'), { p1: null, p2: null });
   for (const v of ['A', 'B', 'C']) for (const pair of ['bambino:adulto', 'ragazzo:adulto', 'bambino:ragazzo']) assert.ok(Object.keys(ND.HELP[v][pair]).length, `${v} ${pair}`);
   for (const pair of Object.keys(ND.HELP.A)) assert.ok(!('head' in ND.HELP.A[pair]), 'A: solo tolleranza sul tempo');
+  // con il campo aperto acceso la variante C non dà il 15-0 al bambino (lo farebbe vincere più dell'adulto: misurato)
+  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'C', true).p1, { span: 2, late: .1, band: 'bambino', vs: 'adulto' });
+  assert.deepEqual(ND.helpFor({ p1: 'ragazzo', p2: 'adulto' }, 'C', true).p1, ND.helpFor({ p1: 'ragazzo', p2: 'adulto' }, 'C', false).p1, 'le altre coppie non cambiano');
+  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'B', true).p1, { head: 2, band: 'bambino', vs: 'adulto' }, 'le altre varianti non cambiano');
+  assert.equal(ND.duoFor({ split: true, storage: memory(), bands: { p1: 'bambino', p2: 'adulto' }, forced: { openCourt: true } }).help.p1.head, undefined);
+  assert.equal(ND.duoFor({ split: true, storage: memory(), bands: { p1: 'bambino', p2: 'adulto' } }).help.p1.head, 1);
   for (const pair of Object.keys(ND.HELP.B)) assert.deepEqual(Object.keys(ND.HELP.B[pair]), ['head'], 'B: solo punti');
   // dichiarato in modo sobrio
   const h = ND.helpFor({ p1: 'bambino', p2: 'adulto' }).p1;

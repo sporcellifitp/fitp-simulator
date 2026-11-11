@@ -21,7 +21,7 @@ import { webcamOpenError } from './natpf_webcam_watch.js';
 
 import { NatpfTutorial, tutorialCards } from './natpf_tutorial.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
-import { BAND_DEFAULT, bandOf, helpFor, helpSentence, helpLabel } from './natpf_duo_rules.js';
+import { BAND_DEFAULT, bandOf, helpFor, helpSentence, helpLabel, readOpenCourt } from './natpf_duo_rules.js';
 import { slotView, splitSlot, startGate, waitingText, bothNames, cancelText, createCountdown, paintSlot, paintBoard, defaultName, READY_COUNTDOWN_MS } from './natpf_ready.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -246,7 +246,8 @@ export class NatpfSplitUi {
   // 15-0 e ha più margine sul tempo.» ('' con le fasce uguali o con la webcam per due, dove l'aiuto non vale)
   helpNote(){
     if (this.webcam) return '';
-    const help = helpFor(this.engine.natpfSplitBands || {}), id = help.p1 ? 'p1' : help.p2 ? 'p2' : null;
+    // (con il campo aperto acceso l'aiuto può essere diverso: lo stesso che il motore userà nella partita)
+    const help = helpFor(this.engine.natpfSplitBands || {}, undefined, readOpenCourt()), id = help.p1 ? 'p1' : help.p2 ? 'p2' : null;
     return id ? helpSentence(help[id], this.name(id)) : '';
   }
   setHand(id, hand){

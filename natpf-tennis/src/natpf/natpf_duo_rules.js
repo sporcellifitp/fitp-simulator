@@ -134,24 +134,29 @@ export const HELP = Object.freeze({
     'bambino:ragazzo': Object.freeze({ head: 1 }),
   }),
   // C: per il bambino contro l'adulto 15-0 e un po' di margine sul tempo; tra fasce vicine basta il margine (già 0,03 s
-  // spostano molto: con 0,06 s il ragazzo batteva l'adulto medio 55 volte su 100)
+  // spostano molto: con 0,06 s il ragazzo batteva l'adulto medio 55 volte su 100).
+  // open: con il campo aperto acceso (opzione dello staff) gli scambi sono più corti e il bambino è già più vicino
+  // all'adulto (19 partite su 100 senza aiuto, invece di 11): con il 15-0 lo batterebbe (54 su 100, misurato), quindi lì
+  // la variante C dà solo il margine sul tempo, più largo (40 su 100)
   C: Object.freeze({
     'bambino:adulto': Object.freeze({ head: 1, span: 1.5, late: .06 }),
     'ragazzo:adulto': Object.freeze({ span: 1.3, late: .03 }),
     'bambino:ragazzo': Object.freeze({ late: .03 }),
+    open: Object.freeze({ 'bambino:adulto': Object.freeze({ span: 2, late: .1 }) }),
   }),
 });
 export const HELP_DEFAULT = 'C';
 // solo per le misure: coppia → parametri che sostituiscono quelli della variante. Vuoto nel gioco
 export const helpTuning = {};
 // aiuto per i due giocatori dalle loro fasce: { p1, p2 } con i parametri (e band, vs) per chi è aiutato, null per l'altro.
-// Fasce uguali (o sconosciute: Adulto): nessun aiuto
-export function helpFor(bands = {}, variant = HELP_DEFAULT){
+// Fasce uguali (o sconosciute: Adulto): nessun aiuto. open: la partita è con il campo aperto acceso (la variante può
+// avere valori suoi per quel caso: HELP.C.open)
+export function helpFor(bands = {}, variant = HELP_DEFAULT, open = false){
   const b1 = bandOf(bands?.p1), b2 = bandOf(bands?.p2), i1 = BANDS.indexOf(b1), i2 = BANDS.indexOf(b2);
   const out = { p1: null, p2: null };
   if (i1 === i2) return out;
   const young = i1 < i2 ? 'p1' : 'p2', pair = i1 < i2 ? `${b1}:${b2}` : `${b2}:${b1}`;
-  const P = helpTuning[pair] || (HELP[variant] || HELP[HELP_DEFAULT])[pair];
+  const T = HELP[variant] || HELP[HELP_DEFAULT], P = helpTuning[pair] || (open && T.open?.[pair]) || T[pair];
   if (!P || !Object.keys(P).length) return out;
   out[young] = { ...P, band: young === 'p1' ? b1 : b2, vs: young === 'p1' ? b2 : b1 };
   return out;
@@ -177,9 +182,10 @@ export function helpText(h){
 export function duoFor({ split = false, webcam = false, bands = null, forced = {}, storage = globalThis.localStorage } = {}){
   if (!split) return null;
   const pick = (v, read) => (typeof v === 'boolean' ? v : !webcam && read({ storage }));
-  const help = webcam ? { p1: null, p2: null } : helpFor(bands || {}, forced.helpVariant ?? HELP_DEFAULT);
+  const open = pick(forced.openCourt, readOpenCourt);
+  const help = webcam ? { p1: null, p2: null } : helpFor(bands || {}, forced.helpVariant ?? HELP_DEFAULT, open);
   return {
-    autoToss: pick(forced.autoToss, readAutoToss), open: pick(forced.openCourt, readOpenCourt),
+    autoToss: pick(forced.autoToss, readAutoToss), open,
     superRel: forced.superRel !== false, noPrep: forced.noPrep !== false,
     help, helped: !!(help.p1 || help.p2),
   };
