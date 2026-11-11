@@ -19,6 +19,11 @@
 //     scambio), per numero del colpo nello scambio, per difficoltà, con la CPU stanca (solo Pro: natpf_skill.cpuTired);
 //   • campo aperto: per distanza laterale tra dove cade la palla di chi gioca e dov'era la CPU quando è partita
 //     (<2, 2–4, 4–6, >6 m): vincenti, errori della CPU, riprese.
+// DUE DISTORSIONI della simulazione (rally-balance.simulate), da tenere presenti leggendo i numeri di Pro:
+//   • lo scambio che arriva a 60 colpi è chiuso d'ufficio e il punto va alla CPU (fine «infinito»: conta nei punti e nei
+//     game come perso da chi gioca, non nelle voci di «fine dei punti»);
+//   • ogni simulazione si ferma a 4000 s di gioco anche se non ha finito i punti chiesti: a Pro le caselle hanno meno
+//     di semi × punti (il numero vero è «punti» di ogni casella).
 // PALLA FACILE (definizione fisica, non usa il modello d'errore del motore): colpo dello scambio (non la risposta al
 // servizio), colpo normale di chi gioca (non palla corta, pallonetto, schiacciata o super), che cade a meno di 2 m di
 // lato da dov'era la CPU e a meno di 9,5 m dalla rete (non profonda), e che la CPU colpisce comoda: palla entro metà
@@ -159,11 +164,14 @@ export function goals(rows){
   const add = (name, list, ok) => { if (list.length) g.push({ name, ok: list.every(([, v]) => ok(v)), values: Object.fromEntries(list) }); };
   const CP = Object.keys(rows).filter(k => /^(casual|pro)\//.test(k));
   add('CPU in rete al massimo in 1 punto su 8 (12,5%), Casual e Pro', each(CP, r => r.fine.cpuRete), v => v <= 12.5);
-  // decide solo la casella con almeno 300 palle facili (sotto, l'errore della misura supera un punto: «tennista» ne riceve
-  // circa 160 con 8 semi); le altre si leggono tra parentesi
-  const few = CP.filter(k => rows[k].facili.n < 300);
-  add(`errori della CPU sulle palle facili non oltre il 3%, Casual e Pro${few.length ? ` (non decidono, meno di 300 palle facili: ${few.map(k => `${k} ${rows[k].facili.errori}% su ${rows[k].facili.n}`).join(', ')})` : ''}`,
-    each(CP.filter(k => !few.includes(k)), r => r.facili.errori), v => v <= 3);
+  // Una casella fallisce se il suo errore è sopra il 3% oltre il rumore della misura: errori − 2 × errore standard > 3%
+  // (errore standard = √(p·(1−p)/n) sulle n palle facili della casella). Con poche palle il rumore è grande («tennista»
+  // riceve circa 160 palle facili con 8 semi, ±1,3 punti: 3,2% lì non dice che la regola è sbagliata, 9% sì). Nella
+  // tabella il valore mostrato è quello misurato; tra parentesi il limite basso (errori − 2 × errore standard) quando serve
+  const low = r => { const p = r.facili.errori/100, n = Math.max(1, r.facili.n); return +(r.facili.errori - 200*Math.sqrt(Math.max(0, p*(1 - p))/n)).toFixed(2); };
+  const over = CP.filter(k => rows[k].facili.errori > 3);
+  if (CP.length) g.push({ name: `errori della CPU sulle palle facili non oltre il 3%, Casual e Pro${over.length ? ` (sopra il 3% misurato: ${over.map(k => `${k} ${rows[k].facili.errori}% su ${rows[k].facili.n} palle, limite basso ${low(rows[k])}%`).join(', ')})` : ''}`,
+    ok: CP.every(k => low(rows[k]) <= 3), values: Object.fromEntries(CP.map(k => [k, rows[k].facili.errori])) });
   add('palle facili: l\'errore non cresce con lo scambio (dal 17° colpo non oltre il 3%)', each(CP.filter(k => rows[k].facili.perColpo[2].n >= 100), r => r.facili.perColpo[2].errori), v => v <= 3);
   if (has('pro/umano')) add('Pro, palla a 4–6 m dalla CPU: almeno il 15% di vincenti («umano»)', [['pro/umano', R('pro/umano').campo['4-6 m']?.vincenti ?? 0]], v => v >= 15);
   if (has('pro/medio')) add('Pro, palla a 4–6 m dalla CPU: almeno il 15% di vincenti («medio»)', [['pro/medio', R('pro/medio').campo['4-6 m']?.vincenti ?? 0]], v => v >= 15);

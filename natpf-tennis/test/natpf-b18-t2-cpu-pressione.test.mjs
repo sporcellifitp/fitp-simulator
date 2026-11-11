@@ -285,10 +285,15 @@ test('banco: valori di prova (--prova) letti tutti o errore; senza prova il gioc
 });
 
 test('banco ridotto: obiettivi del passo sul gioco simulato (CPU in rete, palle facili, campo aperto a Pro, livelli)', () => {
-  // 5 semi × 300 punti per casella (il banco intero, npm run audit:cpu, ne usa 8 o più): soglie con il margine del rumore
-  const seeds = SEMI(5), rows = {};
-  for (const [difficulty, profile] of [['casual', 'medio'], ['casual', 'umano'], ['casual', 'bambino'], ['pro', 'medio'], ['pro', 'umano'], ['pro', 'amatore']])
-    rows[`${difficulty}/${profile}`] = measure({ difficulty, profile, points: 300, seeds });
+  // 5 semi × 300 punti per casella (il banco intero, npm run audit:cpu, ne usa 8 o più): soglie con il margine del rumore.
+  // Revisione: le due caselle che decidono gli obiettivi stretti del passo, «Pro contro medio» (70–85% dei game) e i
+  // vincenti con la palla a 4–6 m contro «umano» (almeno il 15%), si misurano su 16 semi e si controllano con l'obiettivo
+  // vero. Con 5 semi le soglie dovevano essere larghe (70–90% e 11%: i game oscillano di ±4 punti, i vincenti di ±3) e
+  // lasciavano passare una taratura fuori obiettivo; con 16 semi il rumore scende a ±2 e ±1,5 e i valori di oggi (83,3% e
+  // 18,2%) hanno margine. I semi sono fissi: il test non è instabile, ma una taratura nuova vicina al bordo lo fa fallire
+  const rows = {};
+  for (const [difficulty, profile, n] of [['casual', 'medio', 5], ['casual', 'umano', 5], ['casual', 'bambino', 5], ['pro', 'medio', 16], ['pro', 'umano', 16], ['pro', 'amatore', 5]])
+    rows[`${difficulty}/${profile}`] = measure({ difficulty, profile, points: 300, seeds: SEMI(n) });
   const txt = k => JSON.stringify({ punti: rows[k].puntiG, game: rows[k].gameG, fine: rows[k].fine, facili: rows[k].facili, campo: rows[k].campo });
   for (const k of Object.keys(rows)){
     const r = rows[k];
@@ -313,22 +318,34 @@ test('banco ridotto: obiettivi del passo sul gioco simulato (CPU in rete, palle 
   assert.ok(rows['pro/umano'].vincentiPunti >= 25 && rows['pro/medio'].vincentiPunti >= 30 && rows['pro/amatore'].vincentiPunti >= 22, `${txt('pro/umano')}`);
   // meno punti chiusi da un errore della CPU (prima 55–67%)
   for (const k of ['casual/umano', 'casual/medio', 'pro/umano', 'pro/medio', 'pro/amatore']) assert.ok(rows[k].erroriCpuPunti <= 50, `${k}: ${rows[k].erroriCpuPunti}%`);
-  // D9: a Pro la palla a 4–6 m dalla CPU fa vincente (prima 1,4% «umano», 4,3% «medio»; obiettivo 15%: qui il margine del rumore)
-  assert.ok(rows['pro/umano'].campo['4-6 m'].vincenti >= 11, `pro/umano ${JSON.stringify(rows['pro/umano'].campo)}`);
-  assert.ok(rows['pro/medio'].campo['4-6 m'].vincenti >= 20, `pro/medio ${JSON.stringify(rows['pro/medio'].campo)}`);
-  // livelli: Casual resta il livello facile, Pro contro «medio» nella fascia (con il margine di 5 semi), «amatore» a Pro
-  // non crolla (togliendo solo la parte dello scambio lungo scendeva al 31% dei game)
+  // D9: a Pro la palla a 4–6 m dalla CPU fa vincente almeno il 15% delle volte contro «umano» (obiettivo vero, 16 semi;
+  // prima 2,0%) e la CPU la riprende meno di prima (82%); contro «medio» prima 4,5%
+  assert.ok(rows['pro/umano'].campo['4-6 m'].n > 1500 && rows['pro/umano'].campo['4-6 m'].vincenti >= 15, `pro/umano ${JSON.stringify(rows['pro/umano'].campo)}`);
+  assert.ok(rows['pro/umano'].campo['4-6 m'].riprese <= 80, `pro/umano ${JSON.stringify(rows['pro/umano'].campo)}`);
+  assert.ok(rows['pro/medio'].campo['4-6 m'].vincenti >= 25, `pro/medio ${JSON.stringify(rows['pro/medio'].campo)}`);
+  // livelli: Casual resta il livello facile, Pro contro «medio» nella fascia vera 70–85% (16 semi), «amatore» a Pro
+  // non crolla (togliendo solo la parte dello scambio lungo scendeva al 31% dei game; 5 semi, soglia larga)
   assert.ok(rows['casual/medio'].gameG >= 95 && rows['casual/umano'].gameG >= 95, `${txt('casual/medio')}`);
   assert.ok(rows['casual/bambino'].gameG >= 31 && rows['casual/bambino'].gameG <= 60, `casual/bambino ${rows['casual/bambino'].gameG}%`);
-  assert.ok(rows['pro/medio'].gameG >= 70 && rows['pro/medio'].gameG <= 90, `pro/medio ${rows['pro/medio'].gameG}%`);
+  assert.ok(rows['pro/medio'].gameG >= 70 && rows['pro/medio'].gameG <= 85, `pro/medio ${rows['pro/medio'].gameG}%`);
+  // la tabella degli obiettivi del banco dice lo stesso sulle due caselle da 16 semi
+  for (const re of [/4–6 m.*«umano»/, /4–6 m.*«medio»/, /Pro contro «medio»/]) assert.equal(goals(rows).find(g => re.test(g.name)).ok, true, String(re));
   assert.ok(rows['pro/amatore'].gameG >= 45, `pro/amatore ${rows['pro/amatore'].gameG}%`);
   // la tabella degli obiettivi del banco legge le stesse caselle
   const G = goals(rows);
   assert.ok(G.length >= 7 && G.find(g => /in rete/.test(g.name)).ok && G.find(g => /palle facili non oltre/.test(g.name)).ok && G.find(g => /non cresce con lo scambio/.test(g.name)).ok, JSON.stringify(G.map(g => [g.name, g.ok])));
-  // una casella con poche palle facili (meno di 300: l'errore della misura supera un punto) non decide l'obiettivo
-  const few = { ...rows, 'casual/umano': { ...rows['casual/umano'], facili: { ...rows['casual/umano'].facili, n: 160, errori: 9 } } };
-  const gFew = goals(few).find(g => /palle facili non oltre/.test(g.name));
-  assert.ok(gFew.ok && /non decidono.*casual\/umano 9% su 160/.test(gFew.name) && !('casual/umano' in gFew.values), gFew.name);
-  few['casual/umano'].facili.n = 400;
-  assert.equal(goals(few).find(g => /palle facili non oltre/.test(g.name)).ok, false);
+  // palle facili: una casella fallisce se il suo errore è sopra il 3% oltre il rumore (errori − 2 × errore standard > 3%).
+  // Prima versione, scartata dalla revisione: «decidono solo le caselle con almeno 300 palle», che lasciava passare
+  // anche il 9% su 160 palle
+  const withEasy = (errori, n) => ({ ...rows, 'casual/umano': { ...rows['casual/umano'], facili: { ...rows['casual/umano'].facili, n, errori } } });
+  const easyGoal = r => goals(r).find(g => /palle facili non oltre/.test(g.name));
+  // 9% su 160 palle: errore standard 2,26 → limite basso 4,5%: fallisce, e la tabella lo scrive
+  let gE = easyGoal(withEasy(9, 160));
+  assert.equal(gE.ok, false); assert.equal(gE.values['casual/umano'], 9); assert.match(gE.name, /casual\/umano 9% su 160 palle, limite basso 4\.4[0-9]%/);
+  // 3,2% su 160 palle (la casella «tennista» con 8 semi): limite basso 0,4%: dentro il rumore, passa ma è scritto
+  gE = easyGoal(withEasy(3.2, 160));
+  assert.equal(gE.ok, true); assert.match(gE.name, /sopra il 3% misurato: casual\/umano 3\.2% su 160 palle/);
+  // con tante palle il rumore è piccolo: 3,5% su 6000 fallisce (limite basso 3,03%), 3,4% passa (2,93%), 2,9% non è nemmeno segnalato
+  assert.equal(easyGoal(withEasy(3.5, 6000)).ok, false); assert.equal(easyGoal(withEasy(3.4, 6000)).ok, true);
+  gE = easyGoal(withEasy(2.9, 6000)); assert.equal(gE.ok, true); assert.doesNotMatch(gE.name, /sopra il 3%/);
 });
