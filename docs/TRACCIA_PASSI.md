@@ -6,7 +6,7 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## ADESSO (aggiornato l'11/11/2026 alle 16:00 UTC)
+## ADESSO (aggiornato l'11/11/2026 alle 18:10 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
 - [x] Tappa 2 passo 1 (servizio, personaggi fermi) con revisore · su GitHub (`0bdb83f`)
@@ -24,12 +24,32 @@ Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) 
       menu 28/28, rally 9/9, leggenda 7/7, training-flow 22/22, tutorial-phone 52/52, gesti-speciali 9/9, phone-keep 13/13)
 - [x] Detto all'utente come si attivano le opzioni nuove
 
-**In corso: B21 + B22** (workflow `b21-b22-video-scia`: un agente in worktree → revisore indipendente → correzioni).
-File dei video pronti in `/tmp/claude-0/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/scratchpad/video/`
-(`trailer-crf29.mp4` 2,26 MB per il gioco, `come-si-gioca-clip*-sfocato.mp4` 0,23 e 0,33 MB). Se lo scratchpad è sparito:
-i video sono nella libreria Higgsfield dell'utente (job nel PIANO, B21) e nei file mandati all'utente.
-Quando finisce: unire il ramo, prove complete, versione 2026-11-11.2 (o del giorno), installer e zip, «come si attiva».
-Poi B23, B24, tappa 2 gruppi 2 e 3.
+**In corso: B21 + B22 (video nel gioco, scia luminosa)** — stato alle 18:10 UTC dell'11/11:
+- [x] Implementazione finita nella worktree `/home/user/foro-italico-world/.claude/worktrees/wf_190d3d32-58d-1` (ramo `worktree-wf_190d3d32-58d-1` o quello indicato da
+      `git worktree list`), commit `31fcfac` (scia + opzione), `b721432` (trailer con ripiego), `05eeeb3` (sfondo del
+      tutorial), `69ae8b0`, `da4e827` (documento `docs/b21/video-e-scia.md`)
+- [~] **Revisore indipendente in corso** (workflow `b21-b22-video-scia`, run `wf_190d3d32-58d`; il risultato, se finito, è
+      l'ultima riga `result` di `/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/subagents/workflows/wf_190d3d32-58d/journal.jsonl`).
+      **Se il lavoro si è fermato per il limite d'uso**: rilanciare il workflow con
+      `Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b21-b22-video-scia-wf_190d3d32-58d.js', resumeFromRunId: 'wf_190d3d32-58d'})`
+      (riusa l'implementazione e, se c'è, la revisione). Se la sessione è nuova e quei file non ci sono più: fare la revisione
+      a mano sul diff `4dc6ae7..da4e827` del ramo (controlli elencati sotto) e correggere.
+      Controlli del revisore: ripiego dell'intro in tutti i casi (trailer 404, rete lenta, autoplay bloccato, ?intro=0);
+      zip Cloudflare sotto 25.000.000 byte e senza il trailer; trailer dentro l'installer; passo nuovo del workflow GitHub
+      (carica il trailer su R2 in `media/`, non blocca l'installer, niente segreti); sfondo del tutorial che non copre gesti
+      e testi e si ferma a tutorial chiuso; scia: con «No» gioco e disegno identici a prima, nessun calo di fotogrammi.
+- [ ] Correzioni dei punti trovati (stessa worktree)
+- [ ] Unire il ramo su `natpf-simulator` (`git merge --no-ff`), versione nuova (2026-11-11.2 o del giorno: `version.js`,
+      `build.json`, prima riga di `lan/LEGGIMI.txt`, riga in `natpf-desktop/novita.txt`), prove complete (script
+      `scratchpad/v1111/prove.sh` come modello: gioco, build, sito, LAN, Windows, `audit:legend`, prove nel browser comprese
+      le nuove `natpf-intro-trailer` e `natpf-scia-palla`), push
+- [ ] Installer su R2 verificato dal link fisso; controllare anche che il trailer sia su R2
+      (`https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev/media/…`, nome nel documento del ramo); zip Cloudflare
+      (`npm run build` prima) provato estratto e mandato all'utente
+- [ ] Dire all'utente come si spegne la scia (Opzioni → «Scia della palla: Sì · No») e come è venuto il resto
+
+File dei video: `/tmp/claude-0/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/scratchpad/video/` (se lo scratchpad è
+sparito: sono già committati nel ramo di lavoro, e nella libreria Higgsfield dell'utente).
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
