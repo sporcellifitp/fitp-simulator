@@ -6,25 +6,24 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## ADESSO (aggiornato l'11/11/2026 alle 16:20 UTC)
+## ADESSO (aggiornato l'11/11/2026 alle 16:00 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
 - [x] Tappa 2 passo 1 (servizio, personaggi fermi) con revisore · su GitHub (`0bdb83f`)
 - [x] Tappa 2 passo 2 (CPU che sbaglia per la pressione) con revisore; Pro lasciato com'è (decisione dell'utente) · su GitHub
 - [x] B20 stesso schermo con revisore e correzioni · unito in locale
 - [x] Versione 2026-11-11.1 e documenti · commit locale
-- [~] **Prove complete sul codice unito**: script `scratchpad/v1111/prove.sh`, risultati in `scratchpad/v1111/prove.txt`
-      (gioco, build, sito, LAN, Windows, `audit:legend`, 16 prove nel browser). Se il file non finisce con `== FINE`,
-      rilanciare lo script (o a mano i comandi di CLAUDE.md).
-- [ ] Se tutto verde: `git push origin natpf-simulator` → GitHub costruisce l'installer e lo pubblica su R2
-- [ ] Aspettare `https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev/windows/latest.json` con `"build": "2026-11-11.1"`,
-      scaricare il link fisso `…/windows/NATPF-Simulator-Setup.exe` e controllare lo sha256
-- [ ] Zip Cloudflare: `cd natpf-tennis && npm run build`, poi `node natpf-tennis/scripts/pacchetto-cloudflare.mjs
-      --out=… --zip=…/natpf-simulator-cloudflare-2026-11-11.1.zip --turn-url=https://natpf-turn.s-porcelli.workers.dev/`,
-      provarlo estratto, mandarlo all'utente
-- [ ] Scrivere sha e misure in `docs/WORK_PROGRESS.md`, aggiornare questo file, push
-- [ ] Dire all'utente **come si attivano**: Batte per primo (Stesso schermo → Partita → Altre impostazioni), Formato in
-      fiera a tre valori e Scambio che si scalda (pannello dello stand, Ctrl+Maiusc+K)
+- [x] Push `5262fde`; prove sul codice unito: gioco 1132/1132, sito 205/205, LAN 12/12, Windows 28/28, build ok,
+      `audit:legend` 69/69
+- [x] Installer **2026-11-11.1** pubblicato su R2 e verificato dal link fisso: 124.644.689 B, sha256
+      `099bf51c71ec13f7462f2d099cb3d04a1df0d1eee94e8fa80f7f057343e093fb`
+- [x] Zip Cloudflare consegnato: 22.633.811 B, sha256
+      `78bb85e3206b0f8fd2adcbaa278fe5fbac8b0adac58dea8eeb55f44885c379cf`, provato estratto
+- [~] Prove nel browser sul codice unito (16, in `scratchpad/v1111/prove.txt`): le prime verdi (stesso-schermo-b20 52/52,
+      split-ready 34/34); se una risulta rossa: rilanciarla da sola, correggere, versione nuova
+- [x] Detto all'utente come si attivano le opzioni nuove
+
+**Prossimo lavoro: B21 + B22** (vedi sotto), poi B23, B24, tappa 2 gruppi 2 e 3.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 

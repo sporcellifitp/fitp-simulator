@@ -1350,3 +1350,8 @@ guida provato nel browser.
 - **Non verificato**: telefoni e persone vere, Windows, ledwall, due computer veri, webcam per due; tutte le misure sono
   di profili simulati. Aperti dal B20: conto del chiosco con la rivincita, testo sul grande schermo al rientro con il QR,
   effetto laterale del tagliato del P2 con la webcam per due.
+- **Consegna 2026-11-11.1**: push `5262fde`; codice unito: gioco 1132/1132, sito 205/205, LAN 12/12, programma Windows
+  28/28, build ok, `audit:legend` 69/69; installer su R2 124.644.689 B, sha256
+  `099bf51c71ec13f7462f2d099cb3d04a1df0d1eee94e8fa80f7f057343e093fb` (verificato dal link fisso); zip Cloudflare
+  22.633.811 B, sha256 `78bb85e3206b0f8fd2adcbaa278fe5fbac8b0adac58dea8eeb55f44885c379cf`, provato estratto. Prove nel
+  browser sul codice unito: vedi `docs/TRACCIA_PASSI.md` (in corso alla consegna; sui due rami erano tutte verdi).
