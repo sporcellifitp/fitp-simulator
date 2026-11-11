@@ -1,7 +1,8 @@
 // NATPF motore base (natpf-tennis/): B20, 1v1 tra due persone nello stesso schermo (docs/b20/tappa-a.md; decisioni
 // dell'utente del 10/11 sull'audit B19). Gioco vero con vite e due telefoni simulati. Percorso:
 //   1. pannello dello stand (Ctrl+Maiusc+K): «Formato in fiera» di base «Solo stesso schermo» (tre valori), «Scambio che
-//      si scalda» di base «No» (si accende e si spegne, resta salvato);
+//      si scalda» di base «No» (si accende e si spegne, resta salvato); il foglio con i dieci pulsanti sta nello schermo a
+//      1280×720, 1920×540, 1024×600, 1366×657, 1920×1080 e 720×720;
 //   2. menu → Gioca → Stesso schermo: «Batte per primo» di base «Sorteggio»; i due telefoni si collegano, conto, partita;
 //      il banner d'inizio dice chi batte («Sorteggio: batte …», sorteggio guidato), formato in fiera acceso senza toccare
 //      niente, sottotitolo del tabellone «1 game · punto decisivo sul 40-40», «Palla match <nome>»;
@@ -75,8 +76,20 @@ try {
     savedFair: localStorage.getItem('natpf-tennis.formatoFiera'), savedHot: localStorage.getItem('natpf-tennis.scambioCaldo') }));
   let st = await staff();
   check('1. pannello dello stand: «Formato in fiera» di base «Solo stesso schermo», «Scambio che si scalda» di base «No» (niente di salvato)', st.fair === 'Solo stesso schermo' && st.hot === 'No' && !st.hotOn && st.savedFair == null && st.savedHot == null, fmt(st));
-  const sheet = await g.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'), c = s.querySelector('[data-staff="close"]').getBoundingClientRect(), r = s.getBoundingClientRect(); return { close: Math.round(c.bottom), bottom: Math.round(Math.min(r.bottom, innerHeight)) }; });
-  check('   il pannello con il pulsante in più sta nello schermo («Chiudi» in vista)', sheet.close <= sheet.bottom, fmt(sheet));
+  // revisione: con il decimo pulsante a 1920×540 «Chiudi» e «Nuovo giocatore» finivano fuori vista (quarta fila), e a
+  // 1024×600 restavano 23 px. Il foglio non scorre e i due pulsanti in fondo si vedono interi, a ogni misura
+  const sheetAt = () => g.evaluate(() => {
+    const s = document.querySelector('#natpf-staff .natpf-sheet'), r = s.getBoundingClientRect(), b = sel => s.querySelector(sel).getBoundingClientRect();
+    const c = b('[data-staff="close"]'), n = b('[data-staff="newplayer"]'), tops = new Set([...s.querySelectorAll('.pause-grid > button')].map(x => Math.round(x.getBoundingClientRect().top)));
+    return { scroll: s.scrollHeight - s.clientHeight, top: Math.round(r.top), bottom: Math.round(r.bottom), close: [Math.round(c.top), Math.round(c.bottom)], nuovo: [Math.round(n.top), Math.round(n.bottom)], file: tops.size, pulsanti: s.querySelectorAll('.pause-grid > button').length, H: innerHeight, margine: Math.round(innerHeight - r.bottom) };
+  });
+  for (const [w, h] of [[1280, 720], [1920, 540], [1024, 600], [1366, 657], [1920, 1080], [720, 720]]){
+    await g.setViewportSize({ width: w, height: h }); await sleep(450);
+    const s = await sheetAt();
+    check(`   pannello dello stand a ${w}×${h}: dieci pulsanti, niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 10 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
+    if (w === 1920 && h === 540 || w === 1024) await shot(`1-pannello-stand-${w}x${h}`);
+  }
+  await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
   await shot('1-pannello-stand');
   const fairSeq = [];
   for (let i = 0; i < 3; i++){ await g.click('#natpf-staff [data-staff="fair"]'); await sleep(120); const s = await staff(); fairSeq.push(`${s.fair}=${s.savedFair}`); }
@@ -216,6 +229,9 @@ try {
   });
   check('6. telefono di Giulia chiuso in partita: pausa «Telefono di Giulia in pausa» con il suo QR dentro il riquadro', held && hold.title === 'Telefono di Giulia in pausa' && hold.cap === 'Telefono di Giulia: inquadra questo QR' && !hold.p1qr && hold.paused, fmt({ title: hold.title, cap: hold.cap, text: hold.text }));
   check('   il QR non è coperto (25 punti su 25), sta nello schermo, si legge e porta al collegamento del Player 2', hold.free === 25 && hold.inView && hold.size >= 150 && !!hold.decoded && hold.decoded === hold.url, fmt({ liberi: hold.free, lato: hold.size, letto: hold.decoded === hold.url }));
+  // revisione: a partita ferma le istruzioni del servizio non restano sotto il riquadro della pausa
+  const coachHidden = await g.evaluate(() => document.getElementById('natpf-serve-coach').classList.contains('hidden'));
+  check('   in pausa le istruzioni del servizio spariscono', coachHidden);
   const hb = await rects(g, 'natpf-phone-hold');
   check('   il riquadro della pausa non copre i tabelloni', !!hb.box && !covered(hb).length, fmt({ box: hb.box, coperti: covered(hb) }));
   const p1note = await until(ph1, () => /aspetto il telefono di Giulia/.test(document.getElementById('sub').textContent), null, 8000);
