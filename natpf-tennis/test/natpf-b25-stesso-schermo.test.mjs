@@ -259,6 +259,25 @@ test('colpo super nel motore: nello stesso schermo il gesto forte PER LUI (bambi
   }
 });
 
+test('colpo super: la barra della potenza si riempie rispetto alla propria soglia (tra due persone), come prima altrove', async () => {
+  const { powerView } = await import('../src/natpf/natpf_power_hud.js');
+  assert.equal(ND.relLevel({ natpf: { peak: 494, typical: 380 } }), 1, 'alla soglia');
+  assert.ok(Math.abs(ND.relLevel({ natpf: { peak: 380, typical: 380 } }) - 1/1.3) < 1e-9, 'il proprio colpo abituale');
+  assert.equal(ND.relLevel({ natpf: { peak: 380 } }), null);
+  // bambino: gesto normale per lui → barra sotto la tacca; forte per lui → alla tacca («Fortissimo»)
+  const weak = { shot: 'topspin', power: .3, typePower: .3 };
+  assert.ok(powerView({ intent: weak, superRel: 1/1.3 }).fill < NO.SUPER.power);
+  assert.equal(powerView({ intent: weak, superRel: 1.02 }).label, 'Fortissimo');
+  assert.equal(powerView({ intent: weak, superRel: 1.02, super: 'alta' }).label, 'SUPER!');
+  // senza il valore (contro la CPU, tra due computer): la forza di sempre
+  assert.deepEqual(powerView({ intent: weak, superRel: null }), powerView({ intent: weak }));
+  assert.equal(powerView({ intent: weak }).fill, .3);
+  // nel motore: lo dice l'esito del colpo nello stesso schermo, non fuori
+  assert.ok(Math.abs(strike({ peak: 520, typical: 380 }).L.superRel - 520/(1.3*380)) < 1e-9);
+  assert.equal(strike({ split: false }).L.superRel, null);
+  assert.equal(strike({ set: e => { e.natpfSuperRel = false; } }).L.superRel, null);
+});
+
 test('colpo super nel motore: nella sfida tra due computer resta la soglia uguale per tutti', () => {
   const v = strike({ split: false });
   assert.ok(v.hit);

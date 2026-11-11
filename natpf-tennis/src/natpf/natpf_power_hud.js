@@ -19,9 +19,12 @@ const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
 
 // barra della potenza di un colpo: { fill 0…1, super, label }. La forza sulla scala del colpo super (superStrength: con il
 // telefono la pendenza relativa di prima), così la tacca della soglia vale per il super
+// B25: tra due persone nello stesso schermo il super si misura sul proprio colpo abituale (natpf_duo_rules.relStrong): la
+// barra si riempie rispetto alla PROPRIA soglia (shot.superRel: 1 = alla soglia), così la tacca resta quella del super
+// anche per un bambino (prima la barra di un bambino restava sempre bassa, quella di un adulto forte sempre piena)
 export function powerView(shot){
   if (!shot) return null;
-  const power = clamp01(superStrength(shot.intent || {})), sup = !!shot.super;
+  const power = clamp01(Number.isFinite(shot.superRel) ? shot.superRel*SUPER.power : superStrength(shot.intent || {})), sup = !!shot.super;
   return { fill: sup ? 1 : power, super: sup, label: sup ? 'SUPER!' : power >= SUPER.power ? 'Fortissimo' : power >= .65 ? 'Forte' : 'Potenza' };
 }
 // energia (0…1, piena senza stanchezza) e stato

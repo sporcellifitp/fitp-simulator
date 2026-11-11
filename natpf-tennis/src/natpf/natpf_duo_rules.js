@@ -105,6 +105,14 @@ export function relStrong(e = {}, ratio = superTuning.ratio ?? SUPER_REL.ratio){
   return peak >= SUPER_REL.min && peak >= ratio*typ;
 }
 
+// quanto è forte il gesto rispetto alla soglia del proprio super: 1 = proprio alla soglia (ratio volte il colpo abituale),
+// 0,77 = il proprio colpo abituale; null se non si può dire. Per la barra della potenza (natpf_power_hud.powerView): tra due
+// persone la tacca del super è la propria, non quella uguale per tutti
+export function relLevel(e = {}, ratio = superTuning.ratio ?? SUPER_REL.ratio){
+  if (relStrong(e, ratio) === null) return null;
+  return Math.max(0, finite(e.natpf.peak)/(ratio*finite(e.natpf.typical, 1)));
+}
+
 /* ---------- 5 · fasce e aiuto al più giovane ---------- */
 export const BANDS = Object.freeze(['bambino', 'ragazzo', 'adulto']);
 export const BAND_LABEL = Object.freeze({ bambino: 'Bambino', ragazzo: 'Ragazzo', adulto: 'Adulto' });

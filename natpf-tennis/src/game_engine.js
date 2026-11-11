@@ -2386,7 +2386,9 @@ export class NatpfTennisEngine {
     // hand, source, aimFull (B16, diagnostica: lato delle palle per partita): mano di chi colpisce, da dove arriva il colpo
     // (telefono o webcam) e gradi della mira piena con cui il telefono ha letto il piatto (sensibilità della mira)
     this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime, super: sup.on ? sup.ball : null, superWhy: sup.why, smashCalled: !!called,
-      hand, source: (e.natpf && e.natpf.source) || e.source || null, aimFull: e.natpf && Number.isFinite(e.natpf.aimFull) ? e.natpf.aimFull : null };
+      hand, source: (e.natpf && e.natpf.source) || e.source || null, aimFull: e.natpf && Number.isFinite(e.natpf.aimFull) ? e.natpf.aimFull : null,
+      // B25: forza del gesto rispetto alla soglia del proprio super (1 = alla soglia), per la barra della potenza tra due persone
+      superRel: duo?.superRel ? ND.relLevel(e, help?.superRatio) : null };
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
     const netClear = sup.on ? NO.SUPER.netGap : out.attack || out.hot ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null; // (B20: anche lo scambio caldo passa basso)
     return {
