@@ -121,7 +121,7 @@ const desc = e => ({
   piano: () => 'piano ' + (e.chi || '') + ': ' + (e.tipo || '?') + (e.contatto ? ' a z ' + e.contatto[2] + ', alta ' + e.contatto[1] + ' m' : '') + ' fra ' + (e.tc ?? '?') + ' s · corsa ' + e.corsa,
   'tel.scartato': () => 'telefono: gesto non mandato (' + (e.perche || '?') + ')' + (e.pk != null ? ' · ' + e.pk + ' °/s' : '') + (e.ampiezza != null ? ' · ' + e.ampiezza + '°' : ''),
   'tel.dispositivo': () => 'telefono: ' + (e.ua || '?') + (e.version ? ' · pagina ' + e.version : '') + (e.wakeLock === false ? ' · niente blocco dello schermo' : ''),
-  servizio: () => 'servizio ' + (e.chi || '') + ': ' + (e.tipo || '?') + ' · ' + (e.voto || '') + ' · qualità ' + e.qualita + ' · dal colmo ' + e.tauMs + ' ms · ' + (e.kmh ?? '?') + ' km/h',
+  servizio: () => 'servizio ' + (e.chi || '') + ': ' + (e.tipo || '?') + ' · ' + (e.voto || '') + ' · qualità ' + e.qualita + ' · dal colmo ' + e.tauMs + ' ms · ' + (e.kmh ?? '?') + ' km/h' + (e.minaccia != null ? ' · minaccia ' + e.minaccia + ' · stretto ' + e.stretto + (e.ritardoCpuMs ? ' · CPU in ritardo di ' + e.ritardoCpuMs + ' ms' : '') : ''),
   vuoto: () => 'colpo a vuoto' + (e.chi === 'p2' ? ' del Player 2' : '') + ': ' + (e.perche || '?') + (e.anticipoMs != null ? ' · ' + e.anticipoMs + ' ms prima del punto d’impatto' : ''),
   input: () => 'input ' + (e.fonte || '?') + ': ' + e.tipo + ' ' + (e.lato || '') + ' ' + (e.colpo || ''),
   'colpo.gioco': () => e.chi + (e.esito ? ': ' + e.esito : '') + (e.tempo ? ' · ' + e.tempo : '') + (e.qualita ? ' · ' + e.qualita : '') + (e.x != null ? ' · rimbalzo x ' + e.x : '') + (e.direzione ? ' · ' + e.direzione : ''),

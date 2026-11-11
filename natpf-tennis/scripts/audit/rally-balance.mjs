@@ -66,7 +66,9 @@ function phoneIntent(e, P, rng){
 
 // onStep(e): facoltativo, dopo ogni passo della fisica (misure di altri banchi: scripts/audit/rhythm.mjs)
 // setup(e): facoltativo, prima della partita (B18: formato in fiera, scripts/audit/formato-fiera.mjs)
-export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000, onStep = null, setup = null } = {}){
+// serve(e, rng): facoltativo, il servizio di chi gioca lo sceglie il banco (B18.2: scripts/audit/servizio.mjs). Restituisce
+//   { tau, swing }: il gesto «swing» parte quando al punto più alto del lancio mancano tau secondi (negativo = dopo)
+export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000, onStep = null, setup = null, serve = null } = {}){
   const P = typeof profile === 'string' ? PROFILES[profile] : profile;
   const rng = mulberry32(seed), engineRng = mulberry32(seed*7919 + 13);
   const realRandom = Math.random; Math.random = engineRng;
@@ -101,9 +103,12 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
     void popup;
     setup?.(e);
     e.startNewMatch({ showStartBanner: false });
-    let intent = null, serveAt = null, lastSeenShot = null, lastSeenCpu = null, lastSeenRacket = null, lastSeenPlan = null, bounceAt = null;
+    let intent = null, serveAt = null, servePlan = null, lastSeenShot = null, lastSeenCpu = null, lastSeenRacket = null, lastSeenPlan = null, bounceAt = null;
     for (let t = 0; t < maxSeconds && out.points < points; t += DT){
-      if (e.phase === 'SERVE_STANCE'){ intent = null; bounceAt = null; if (e.score.server === 'player' && e.phaseTimer > .6){ e._handleUserTossInput({}); serveAt = e.elapsedTime + .55 + gauss(rng)*P.timingSd*.6; } }
+      if (e.phase === 'SERVE_STANCE'){ intent = null; bounceAt = null; if (e.score.server === 'player' && e.phaseTimer > .6){ e._handleUserTossInput({}); if (serve){ servePlan = serve(e, rng); serveAt = null; } else serveAt = e.elapsedTime + .55 + gauss(rng)*P.timingSd*.6; } }
+      if (e.phase === 'SERVE_TOSS' && e.score.server === 'player' && servePlan && e.phaseTimer >= .16 && e.ball.vel.y/9.15 <= servePlan.tau){
+        const sp = servePlan; servePlan = null; e._handleUserSwingInput(sp.swing);
+      }
       if (e.phase === 'SERVE_TOSS' && e.score.server === 'player' && serveAt != null && e.elapsedTime >= serveAt){
         serveAt = null; e._handleUserSwingInput({ source: 'audit', speed: P.speed + gauss(rng)*P.speedSd, dirX: gauss(rng)*.3 });
       }

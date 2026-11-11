@@ -329,6 +329,13 @@ export function sideLines(lp, { prefix = 'Lato delle palle' } = {}){
   return L;
 }
 
+// B18.2 (D11): riassunto del peso del servizio dalle righe «servizio» che lo portano (minaccia, ritardoCpuMs)
+export function serveWeight(serv){
+  const w = serv.filter(x => Number.isFinite(x.minaccia)); if (!w.length) return { conPeso: 0 };
+  const share = f => Math.round(1000*w.filter(f).length/w.length)/10;
+  return { conPeso: w.length, conMinacciaPercento: share(x => x.minaccia > 0), conRitardoPercento: share(x => x.ritardoCpuMs > 0),
+    minacciaMedia: Math.round(1000*w.reduce((a, x) => a + x.minaccia, 0)/w.length)/1000 };
+}
 export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spanMs = null } = {}){
   const by = k => events.filter(e => e.k === k);
   const durata = Number.isFinite(spanMs) ? spanMs/1000 : events.length ? (events.at(-1).t - events[0].t)/1000 : 0;
@@ -461,7 +468,11 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       // dell'avversario al proprio colpo (ms): con l'impatto appena dopo il rimbalzo chi gioca non vede la palla salire
       contattoAltezzaCm: dist(piani.filter(p => p.tipo === 'ground' && Array.isArray(p.contatto)).map(p => 100*p.contatto[1])),
       rimbalzoContattoMs: dist(bounceToContact(events)),
-      servizi: serv.length ? { n: serv.length, tipi: tally(serv, x => x.tipo), voti: tally(serv, x => x.voto), qualitaPercento: dist(serv.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))), dalColmoMs: dist(serv.map(x => x.tauMs)) } : null,
+      servizi: serv.length ? { n: serv.length, tipi: tally(serv, x => x.tipo), voti: tally(serv, x => x.voto), qualitaPercento: dist(serv.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))), dalColmoMs: dist(serv.map(x => x.tauMs)),
+        // B18.2 (D11): peso del servizio contro la CPU (natpf_skill.serveInfo), per sapere quanti servizi forti e stretti
+        // fanno le persone vere. Solo i servizi che lo portano (contro la CPU, dal B18.2): quanti hanno una minaccia, quanti
+        // la CPU li ha letti in ritardo, minaccia media (0–1) e km/h
+        kmh: dist(serv.map(x => x.kmh)), ...serveWeight(serv) } : null,
     };
   }
 
@@ -646,7 +657,7 @@ export function summaryLines(m = {}){
   if (KR?.colpi && (KR.mira?.n || KR.cadutaScartoM?.n)) L.push(`Direzione della racchetta: mira mediana ${KR.mira?.p50 ?? '–'}, variazione ${KR.mira?.jitter ?? '–'} (−1 e +1 le righe) · scarto tra caduta calcolata e rimbalzo vero mediana ${KR.cadutaScartoM?.p50 ?? '–'} m, p90 ${KR.cadutaScartoM?.p90 ?? '–'} m`);
   if (KR && Object.keys(KR.vuoti || {}).length) L.push(`Colpi a vuoto: ${list(KR.vuoti)}`);
   if (KR?.contattoAltezzaCm?.n || KR?.rimbalzoContattoMs?.n) L.push(`Impatto dopo il rimbalzo: altezza della palla mediana ${KR.contattoAltezzaCm?.p50 ?? '–'} cm · dal rimbalzo al colpo mediana ${KR.rimbalzoContattoMs?.p50 ?? '–'} ms`);
-  if (KR?.servizi) L.push(`Servizi dal gesto: ${KR.servizi.n} · ${list(KR.servizi.voti)}`);
+  if (KR?.servizi) L.push(`Servizi dal gesto: ${KR.servizi.n} · ${list(KR.servizi.voti)}${KR.servizi.kmh?.n ? ` · ${KR.servizi.kmh.p50} km/h (mediana)` : ''}${KR.servizi.conPeso ? ` · contro la CPU ${KR.servizi.conPeso}: con minaccia ${KR.servizi.conMinacciaPercento}%, letti in ritardo dalla CPU ${KR.servizi.conRitardoPercento}%, minaccia media ${KR.servizi.minacciaMedia}` : ''}`);
   const P2 = m.p2;
   if (P2) L.push(`Player 2: ${P2.ricevuti} colpi ricevuti${Object.keys(P2.esitiRicevuti || {}).length ? ' (' + list(P2.esitiRicevuti) + ')' : ''}${P2.etaMs?.n ? ` · età mediana ${P2.etaMs.p50} ms` : ''}${P2.vecchi ? ` · troppo vecchi ${P2.vecchi}` : ''} · ${P2.colpi} colpi della racchetta${P2.tempoMs?.n ? `, tempo mediana ${P2.tempoMs.p50} ms` : ''}${Object.keys(P2.vuoti || {}).length ? ' · a vuoto: ' + list(P2.vuoti) : ''}${P2.servizi ? ` · servizi dal gesto ${P2.servizi.n} (${list(P2.servizi.voti)})` : ''}`);
   L.push(...gestureMeasureLines(m.misurePersone));   // B18: variazione del gesto e dal rimbalzo al gesto

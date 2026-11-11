@@ -11,7 +11,7 @@ import * as NI from '../src/natpf/natpf_impact.js';
 import { ENGINE_SHOT } from '../src/natpf/natpf_gestures.js';
 import { DiagRecorder } from '../src/natpf/diag/diag_recorder.js';
 import { memoryStore } from '../src/natpf/diag/diag_store.js';
-import { computeMetrics } from '../src/natpf/diag/diag_metrics.js';
+import { computeMetrics, serveWeight, summaryLines } from '../src/natpf/diag/diag_metrics.js';
 import { viewerHtml } from '../src/natpf/diag/diag_viewer.js';
 
 const DT = 1/120;
@@ -347,12 +347,22 @@ test('diagnostica: esito, piano, servizio e colpi a vuoto nel registro; ripetibi
     assert.deepEqual(of('vuoto').map(v => v.perche), ['presto']);
     const sv = of('servizio');
     assert.equal(sv.length, 1); assert.equal(sv[0].chi, 'giocatore'); assert.ok(sv[0].qualita > .9, JSON.stringify(sv[0]));
+    // B18.2 (D11): contro la CPU il registro porta anche il peso del servizio (minaccia, strettezza, lettura in ritardo)
+    assert.ok(sv[0].minaccia >= 0 && sv[0].minaccia <= 1 && sv[0].stretto >= 0 && sv[0].ritardoCpuMs >= 0, JSON.stringify(sv[0]));
     const m = computeMetrics(ev).racchetta;
     assert.equal(m.colpi, 3); assert.deepEqual(m.voluti, { topspin: 3 });
     // stesso gesto, stesso esito: nessuna variazione del punto di caduta tra i tre colpi (senza gesti del telefono i
     // gruppi della ripetibilità sono i tipi voluti)
     assert.equal(computeMetrics(ev).ripetibilita.gruppi.topspin.x, 0); assert.equal(computeMetrics(ev).ripetibilita.gruppi.topspin.profondita, 0);
     assert.deepEqual(m.vuoti, { presto: 1 }); assert.equal(m.servizi.n, 1);
+    // B18.2 (revisione): il peso del servizio entra nelle misure riassunte (quanti con minaccia, quanti letti in ritardo)
+    assert.equal(m.servizi.conPeso, 1);
+    assert.equal(m.servizi.conMinacciaPercento, sv[0].minaccia > 0 ? 100 : 0); assert.equal(m.servizi.conRitardoPercento, sv[0].ritardoCpuMs > 0 ? 100 : 0);
+    assert.equal(m.servizi.minacciaMedia, sv[0].minaccia); assert.equal(m.servizi.kmh.p50, sv[0].kmh);
+    assert.deepEqual(serveWeight([{ minaccia: 0, ritardoCpuMs: 0 }, { minaccia: .5, ritardoCpuMs: 0 }, { minaccia: 1, ritardoCpuMs: 120 }, { tipo: 'vecchio' }]),
+      { conPeso: 3, conMinacciaPercento: 66.7, conRitardoPercento: 33.3, minacciaMedia: .5 });
+    assert.deepEqual(serveWeight([{ tipo: 'vecchio' }]), { conPeso: 0 });
+    assert.match(summaryLines(computeMetrics(ev)).join('\n'), /Servizi dal gesto: 1 .*contro la CPU 1: con minaccia/);
     // la pagina del rapporto: lo script si legge (nessun apice che chiude una stringa)
     const html = viewerHtml({ meta: { id }, metrics: computeMetrics(ev), events: ev });
     const code = html.split('<script>').pop().split('</script>')[0];

@@ -1268,6 +1268,7 @@ export class NatpfTennisEngine {
       this.opponentPartner.pos.set(-h, 0, -5.2),
       this.opponentPartner.targetPos.copy(this.opponentPartner.pos),
       this._applyMatchFormat(),
+      this._natpfStandStill(!0), // NATPF B18.2 (D11): i quattro personaggi partono fermi a ogni servizio
       this.ball.vel.set(0, 0, 0),
       this.ball.spin.set(0, 0, 0),
       (this.ball.inPlay = !1),
@@ -1797,6 +1798,21 @@ export class NatpfTennisEngine {
       }
     }
   }
+  // NATPF B18.2 (difetto 11 / D11 del rapporto B16): i quattro personaggi fermi. Il motore muove i personaggi solo con la
+  // palla in gioco: a fine punto la velocità restava quella dell'ultimo passo e nessuno la azzerava. Al servizio dopo la CPU
+  // (che ha inerzia: natpf_skill.cpuStep, natpf_legend.legendStep) ripartiva con quella velocità, spesso nel verso
+  // sbagliato (4–5 m/s di lato: gli unici ace del gioco nascevano da lì, 0 su migliaia di servizi con la CPU ferma), e
+  // per tutta la pausa le gambe correvano sul posto (player_body_animation: passo di corsa sopra 0,25 m/s).
+  // Si chiama a fine punto (le gambe si fermano subito) e a ogni servizio (rig: anche lo stato della corsa
+  // dell'animazione, così il personaggio spostato sulla riga del servizio non «frena»)
+  _natpfStandStill(rig = !1) {
+    for (const a of [this.player, this.playerPartner, this.opponent, this.opponentPartner]) {
+      if (!a || !a.vel) continue;
+      a.vel.set(0, 0, 0);
+      rig && a.rig && ((a.rig.prevLocalVelX = 0), (a.rig.prevLocalVelZ = 0), (a.rig.wasMoving = !1));
+    }
+    this.natpfLegend && (this.natpfLegend.lunging = !1);
+  }
   _startServeToss(e) {
     (this.phase = "SERVE_TOSS"), (this.phaseTimer = 0), (this.pendingServeSwing = null), (this.natpfWeakServe = null), (this.natpfWeakServeP2 = null);
     const t = e.sideSign > 0 ? -0.32 : 0.32;
@@ -1939,6 +1955,18 @@ export class NatpfTennisEngine {
     }
     const x = e.role === "player" ? this.opponent : this.player;
     x === this.player ? this._natpfPlanPlayer() : this._natpfPlanOpponent(x);
+    // NATPF B18.2 (D11): il servizio di chi gioca contro la CPU ha un peso suo (natpf_skill.registerServe): la risposta
+    // dipende da velocità, strettezza e tempo del servizio, e quello forte e angolato la CPU lo legge in ritardo. Solo contro
+    // la CPU: nello stesso schermo e nella sfida tra due computer risponde una persona, e il servizio della CPU non cambia.
+    // Senza il servizio dal gesto (webcam «argon»): tempo del colpo dal voto del motore base
+    e === this.player && !this.isMultiplayer && !this.autoPlayMode
+      ? NS.registerServe(this, {
+          speed: this.ball.vel.length(),
+          q: natpfServe ? natpfServe.q : s ? 1 : n ? 0.6 : 0.85,
+          x: natpfServe ? natpfServe.x : p,
+          box: e.sideSign * (this.score.deuceSide ? -1 : 1),
+        })
+      : (NS.skillState(this).serve = null);
     // NATPF: la CPU che ha servito torna al centro dietro la riga di fondo durante il volo del servizio, come chi serve
     // davvero (prima restava dove aveva servito, fuori centro: con la risposta presa da fondo campo il campo aperto
     // regalava vincenti in risposta)
@@ -2583,7 +2611,9 @@ export class NatpfTennisEngine {
     if (this.autoPlayMode && !this.userHasInteracted) (y = "TOPSPIN"), (f = 0.84);
     else if (natpfPlan.kind === "net") (m = !0), (c = 3.2 + Math.random() * 2.4), (f = 0.78);
     else if (natpfPlan.kind === "wide")
-      (g = (Math.random() < 0.5 ? 1 : -1) * (S.SINGLES_X + 0.45 + Math.random() * 0.7)),
+      // NATPF B18.2 passo 2: la palla esce dal lato da cui la CPU la colpisce (prima un lato a caso: attraversando il campo
+      // l'aria la frenava e metà di queste palle «larghe» cadeva dentro, cioè l'errore non c'era), un poco più larga
+      (g = (Math.abs(this.ball.pos.x) > 0.4 ? Math.sign(this.ball.pos.x) : Math.random() < 0.5 ? 1 : -1) * (S.SINGLES_X + 0.6 + Math.random() * 0.7)),
         (c = 8.4 + Math.random() * 2.6),
         (f = 0.92);
     else if (natpfPlan.kind === "long") (c = S.BASELINE_Z + 0.55 + Math.random() * 1.1), (f = 1.02);
@@ -2962,6 +2992,9 @@ export class NatpfTennisEngine {
       return;
     }
     if (this.phase === "POINT_OVER") {
+      // NATPF B18.2 (D11): sul computer del P2 il punto lo chiude l'host (snapshot, senza _awardPoint): anche lì nessuno
+      // corre sul posto nella pausa
+      this.playerRole === "p2" && this.isMultiplayer && this._natpfStandStill();
       // NATPF 1v1: il punto successivo lo prepara l'host (snapshot), non il computer del P2
       this.phaseTimer > 2.15 && !(this.playerRole === "p2" && this.isMultiplayer) && this._setupPointServe({ showBanner: !0 });
       return;
@@ -3252,6 +3285,7 @@ export class NatpfTennisEngine {
     (this.phase = "POINT_OVER"),
       (this.phaseTimer = 0),
       (this.ball.inPlay = !1),
+      this._natpfStandStill(), // NATPF B18.2 (D11): a fine punto nessuno corre più sul posto
       (this.cheerEnergy = 1),
       (this.pendingUserSwing = null),
       (this.pendingP2Swing = null),

@@ -31,22 +31,39 @@ export const SKILL_LEVELS = Object.freeze({
     scatter: .45, lineRisk: .5, depthRisk: .5,          // m: dispersione laterale e in profondità
     playerErr: Object.freeze({ base: .008, power: .1, timing: .28, max: .45 }),  // rischio d'errore del giocatore
     streakGain: .045, streakMin: .82,                   // tempo di volo −4,5% per colpo perfetto consecutivo, fino a −18%
-    cpuReach: 1.4, cpuSpeed: 4.7, cpuReact: .24, cpuReadSd: .45, cpuReadFix: .38, cpuCenterBias: .35,
-    cpuAccel: 10, cpuDecel: 16,                         // m/s²: la CPU accelera e frena (23/10: prima cambiava verso all'istante)
-    cpuErr: Object.freeze({ base: .03, angle: .2, speed: .12, pressure: .06, stretch: .25, rally: .014, drop: .32, lob: .3, smash: .5, max: .7 }),
+    // B18.2 passo 2 (D1): la difficoltà passa dalla corsa. Casual corre più piano di prima (4,7 m/s e 10 m/s²) e legge un
+    // poco in ritardo la palla nel campo aperto (cpuWide): più vincenti veri per chi gioca, meno errori regalati
+    cpuReach: 1.4, cpuSpeed: 4.4, cpuReact: .24, cpuReadSd: .45, cpuReadFix: .38, cpuCenterBias: .35,
+    cpuWide: Object.freeze({ react: .06, from: 2, to: 4.5 }),
+    cpuAccel: 9, cpuDecel: 16,                          // m/s²: la CPU accelera e frena (23/10: prima cambiava verso all'istante)
+    // errori per la pressione (cpuErrorChance): base sulla palla comoda (prima 3% + 1,4% a colpo oltre il quarto), poi
+    // allungo (stretch), corsa (run) e palla veloce (speed); angolo e pressione accumulata moltiplicano; soft: una palla
+    // lenta vale almeno il 70% (a Casual la CPU è impacciata quando deve muoversi); net: quota di base degli errori in rete.
+    // Niente stanchezza (cpuFatigue, solo a Pro): a Casual gli scambi finiscono da soli (oltre i 40 colpi lo 0,8–1,1% dei
+    // punti) e con la stanchezza «bambino» passava dal 45 al 58–64% dei game: il livello cambiava più del voluto
+    cpuErr: Object.freeze({ base: .017, stretch: .24, run: .1, speed: .1, angle: .5, pressure: .4, soft: .7, net: .2, drop: .32, lob: .3, smash: .5, sup: .25, max: .7 }),
     cpuWeak: .16, cpuAttack: .7, cpuAttackBase: .12, cpuAttackFlight: .7, playerSpeed: 10.2,  // su palle deboli la CPU attacca: angolo e ritmo
     cpuServe: Object.freeze({ flight: 1, wide: 0 }),     // servizio della CPU lento e al centro del quadrato (cpuServe)
   }),
   pro: Object.freeze({
     ...EXPERT_PLAYER,
     cpuReach: 1.5, cpuSpeed: 5.3, cpuReact: .2, cpuReadSd: .36, cpuReadFix: .3, cpuCenterBias: .22,
+    cpuWide: Object.freeze({ react: .19, from: 2.5, to: 4.5 }),    // B18.2 passo 2 (D9): lettura in ritardo della palla larga (planCpuRun)
+    cpuFatigue: Object.freeze({ near: 1.5, free: 6, span: 8, slow: .15 }),   // stanchezza dalle corse lunghe dello scambio (cpuTired)
     cpuAccel: 11, cpuDecel: 17,                         // 23/10: con l'inerzia la punta sale da 5,0 (corse lunghe)
     // 23/10: meno errori a caso (erano base .015, velocità .12, angolo .2): con la corsa che costa, i punti li decidono di più
     // il campo aperto e l'allungo (stretch), non il caso; Pro contro «medio» resta nel 70–85% dei game
-    // B18 (D9): rally .012 → .009. La risposta difensiva che ora scatta anche a Pro (CPU_DEFENSE) dà a chi gioca circa un
-    // punto su cento in più contro «medio» (24 semi × 300 punti: 66,2 → 67,4%); un po' meno errori «a dado» negli scambi
-    // lunghi lo riporta dov'era (66,1%), nella direzione del difetto 1 del rapporto B16 (la CPU sbaglia quando è in difficoltà)
-    cpuErr: Object.freeze({ base: .004, angle: .08, speed: .04, pressure: .035, stretch: .18, rally: .009, drop: .22, lob: .2, smash: .35, max: .5 }),
+    // B18.2 passo 2 (D1 e D9): niente più errore che cresce con la lunghezza dello scambio (rally era .009 a colpo oltre il
+    // quarto). A Pro la CPU sbaglia solo in allungo e in corsa (stretch, run), più una base piccola sulla palla comoda:
+    // palla veloce, angolata o profonda la mettono in difficoltà perché la fanno correre e allungare (speed, angle e
+    // pressure a 0: con quei termini «medio», che tira forte e angolato, usciva dalla fascia 70–85% dei game). La palla nel
+    // campo aperto la legge in ritardo (cpuWide, sopra): a 4–6 m da lei fa vincente il 19% delle volte («umano», prima
+    // 1,8%) invece di essere ripresa. Se chi gioca la fa correre si stanca (cpuFatigue, cpuTired: contano i metri oltre
+    // 1,5 m di ogni corsa verso la palla; niente fino a 6 m, piena a 14 m): corre fino al 15% più piano e in allungo o in
+    // corsa sbaglia fino a 3,5 volte tanto (tired 2,5); sulla palla comoda no. Taratura (i numeri vanno insieme: con più
+    // ritardo, più errori o più stanchezza «medio» esce dalla fascia; con meno «amatore» e «umano» perdono troppo) e
+    // tabelle: docs/b18/t2-2-cpu-pressione.md
+    cpuErr: Object.freeze({ base: .005, stretch: .045, run: .022, speed: 0, angle: 0, pressure: 0, soft: 1, net: .2, drop: .22, lob: .2, smash: .35, sup: .25, tired: 2.5, max: .5 }),
     cpuWeak: .1, cpuAttack: .7, cpuAttackBase: .24, cpuAttackFlight: .62,
     cpuServe: Object.freeze({ flight: .85, wide: .8 }),
   }),
@@ -69,7 +86,13 @@ export const SKILL_LEVELS = Object.freeze({
     streakGain: .045, streakMin: .82,
   }),
 });
-export const skillLevel = difficulty => SKILL_LEVELS[String(difficulty || 'casual').toLowerCase()] || SKILL_LEVELS.casual;
+// Solo per audit ed esperimenti (scripts/audit/cpu-pressione.mjs --prova=…): valori che sostituiscono quelli del livello,
+// es. cpuTuning.pro = { cpuSpeed: 4.6 }. Vuoto nel gioco
+export const cpuTuning = {};
+export const skillLevel = difficulty => {
+  const k = String(difficulty || 'casual').toLowerCase(), L = SKILL_LEVELS[k] || SKILL_LEVELS.casual, T = cpuTuning[k];
+  return T ? { ...L, ...T } : L;
+};
 
 // Servizio della CPU (23/10, sera): flight moltiplica il tempo di volo (sotto 1 più veloce), wide quanto va verso gli
 // angoli del quadrato (dirX del motore: ±1 l'angolo). A Pro e Leggenda il servizio è l'arma della CPU: fa correre di
@@ -86,9 +109,12 @@ export function cpuServeEvent(engine, rng = Math.random){
 
 // stato dello scambio sul motore: colpi perfetti consecutivi, pressione sulla CPU, piano di corsa della CPU
 export function skillState(engine){
-  return engine.natpfSkill || (engine.natpfSkill = { streak: 0, p2Streak: 0, pressure: 0, lastQuality: 1, cpuPlan: null, lastShot: null });
+  return engine.natpfSkill || (engine.natpfSkill = { streak: 0, p2Streak: 0, pressure: 0, lastQuality: 1, cpuPlan: null, lastShot: null, serve: null });
 }
-export function resetRally(engine){ const s = skillState(engine); s.streak = 0; s.p2Streak = 0; s.pressure = 0; s.cpuPlan = null; s.lastShot = null; return s; }
+// B18.2 (D11): a ogni punto ripartono anche la qualità dell'ultimo colpo (prima restava quella del punto prima e decideva
+// la risposta della CPU al servizio) e il servizio in gioco (serve, registerServe)
+// B18.2 passo 2: riparte anche la corsa fatta dalla CPU nello scambio (cpuRun, CPU_FATIGUE)
+export function resetRally(engine){ const s = skillState(engine); s.streak = 0; s.p2Streak = 0; s.pressure = 0; s.cpuPlan = null; s.lastShot = null; s.lastQuality = 1; s.serve = null; s.cpuRun = 0; return s; }
 
 /* ---------- assistenza del tempo ---------- */
 // Quanto manca allo sweet spot (s) quando parte lo swing: distanza palla–giocatore lungo il campo / velocità.
@@ -297,6 +323,104 @@ export function registerPlayerShot(engine, { grade, quality, power, landingX, la
   return s;
 }
 
+/* ---------- servizio di chi gioca contro la CPU: un servizio che conta (B18.2, D11 del rapporto B16) ---------- */
+// Prima la risposta della CPU non dipendeva dal servizio: la probabilità d'errore usava la qualità dell'ultimo colpo del
+// punto prima (lastQuality mai azzerata) e l'angolo misurato dal centro del campo (un servizio alla «T» valeva zero, uno
+// al centro del quadrato metà di uno sulla riga), la CPU partiva nell'istante del colpo (nessuna reazione, a tutti i
+// livelli) e gli unici ace nascevano dalla velocità rimasta dal punto prima (game_engine._natpfStandStill). Con la CPU
+// ferma: punto diretto 14–18% a Casual, 3–9% a Pro e 1–2% a Leggenda, quasi uguale per un servizio perfetto, forte e
+// sulla riga e per uno colpito in ritardo. Ora il servizio ha una minaccia sua (serveInfo):
+//   • velocità (fast): quella vera della palla alla partenza, sulla scala del tabellone (km/h = m/s × 6,8): 0 fino a
+//     160 km/h (il servizio insegnato a tempo parte a 157), 1 da 190 (forza 0,9 a tempo: 191–194). La velocità vera e
+//     non la forza del gesto: il kick di webcam, mouse e prove (natpf_stroke_outcome.SERVE.legacyFlight) è una palla lenta
+//     anche con un gesto forte;
+//   • strettezza (tight): distanza del rimbalzo dal centro del quadrato, verso l'esterno o verso la «T» (chi risponde
+//     aspetta al centro del quadrato): 0 fino al 45% della metà larghezza utile (il servizio insegnato cade al 42%), 1 dal 90%;
+//   • tempo del colpo (clean, da q di serveOutcome): 1 a tempo, 0 da 0,55 in giù (colpito 0,5 s fuori tempo);
+//   • threat = tempo × (mix.pace·velocità + mix.tight·strettezza + mix.both·velocità·strettezza): 1 solo per il servizio
+//     perfetto, forte e sulla riga; sharp = tempo × velocità × strettezza: il servizio forte E angolato, che la CPU legge
+//     in ritardo.
+// Effetti, per livello (SERVE_WEIGHT[livello]; Leggenda: natpf_legend.LEGEND.serveQ):
+//   • errore in risposta (Casual e Pro, cpuServeErrorChance): base × (lateBase … 1 con il tempo del colpo; a Casual
+//     lateBase 1: il servizio fuori tempo non perde la base) + threat × minaccia + l'allungo vero all'impatto (stretch × allungo²: il resto lo fa la
+//     lettura in ritardo); a Leggenda la qualità del colpo di risposta scende di serveQ × minaccia (stesse regole del
+//     giocatore, niente dado);
+//   • lettura in ritardo (registerServe → cpuPlan): la CPU resta ferma read × sharp secondi (± readSd, mai sotto zero)
+//     prima di partire verso la palla; sul servizio esterno non ci arriva (ace) o risponde in allungo;
+//   • pressione: il servizio mette pressione allo scambio (pressure × minaccia), quindi più risposte deboli.
+// Un servizio normale (velocità e strettezza 0) non cambia la corsa della CPU: minaccia 0, nessun ritardo. Vale solo
+// contro la CPU: nello stesso schermo e nella sfida tra due computer chi risponde è una persona
+// (game_engine._executeServeHit). Valori tarati con scripts/audit/servizio.mjs (docs/b18/t2-1-servizio.md).
+export const SERVE_WEIGHT = Object.freeze({
+  kmhFrom: 160, kmhSpan: 30, kmh: 6.8, tightFrom: .45, tightSpan: .45, qFrom: .55, boxCenter: 2.05, boxHalf: 1.77,
+  mix: Object.freeze({ pace: .7, tight: .1, both: .2 }),
+  lateBase: .6,                // un servizio colpito fuori tempo vale il 60% della base (Pro; un livello può avere il suo)
+  // Casual (revisione del B18.2): base 0,15 e nessuna penalità per il servizio fuori tempo (lateBase 1). Con i personaggi
+  // fermi spariscono gli ace «regalati», che con il servizio del telefono erano il 7–9% dei servizi anche per chi batte
+  // piano o tardi: con base 0,135 e lateBase 0,6 il profilo «bambino» scendeva da 52,4–52,6% a 49,6% (servizio insegnato)
+  // e 47,0% (in ritardo) dei punti al servizio, da 41% a 34–38% dei game. Casual è il livello di chi comincia: lì un
+  // servizio colpito tardi vale quanto uno normale. Limite: con base 0,17 il servizio perfetto, forte e stretto esce
+  // dalla fascia 20–25% (26,3%). Misure: scripts/audit/servizio.mjs --naturale --servizio=…, docs/b18/t2-1-servizio.md
+  // B18.2 passo 2: i numeri qui sotto sono quelli del passo 1 × 0,84 (base 0,15 → 0,125 a Casual, 0,045 → 0,038 a Pro;
+  // threat 0,05 → 0,042; allungo 0,125 → 0,105 e 0,09 → 0,076), con lo stesso risultato in campo: prima metà degli errori
+  // «di lato» della CPU cadeva dentro e non era un errore (game_engine._executeOpponentReturn), adesso ogni errore
+  // deciso esce davvero. stretch è la costante dell'allungo sul servizio (non più una quota di cpuErr.stretch: gli
+  // errori degli scambi si tarano senza spostare il servizio). A Casual read 0,075 → 0,037: la CPU ora corre più piano
+  // (4,4 m/s) e con il ritardo di prima il servizio perfetto sulla riga faceva il 27% di ace (obiettivo: punto diretto 20–25%)
+  casual: Object.freeze({ base: .125, lateBase: 1, threat: .042, stretch: .105, max: .6, read: .037, readSd: .35, pressure: 1 }),
+  pro: Object.freeze({ base: .038, threat: .042, stretch: .076, max: .45, read: .135, readSd: .35, pressure: 1 }),
+  leggenda: Object.freeze({ read: .15, readSd: .35 }),
+});
+// Un livello nuovo contro la CPU deve avere qui la sua riga: senza, il suo servizio non ha peso (la risposta torna alla
+// regola degli scambi, cpuErrorChance) e la CPU non legge in ritardo.
+// Solo per audit ed esperimenti (scripts/audit/servizio.mjs): valori che sostituiscono quelli del livello, es.
+// serveTuning.casual = { read: 0 }
+export const serveTuning = {};
+const serveLevel = difficulty => { const k = String(difficulty || 'casual').toLowerCase(), W = SERVE_WEIGHT[k]; return W ? (serveTuning[k] ? { ...W, ...serveTuning[k] } : W) : null; };
+// Minaccia del servizio. speed: velocità della palla alla partenza (m/s); q: tempo del colpo (serveOutcome, 1 a tempo);
+// x: rimbalzo laterale voluto; box: lato del quadrato (segno della x del suo centro)
+export function serveInfo({ speed = 23, q = 1, x = 0, box = -1 } = {}){
+  const W = SERVE_WEIGHT, xc = (box >= 0 ? 1 : -1)*W.boxCenter, kmh = finite(speed, 23)*W.kmh;
+  const P = clamp((kmh - W.kmhFrom)/W.kmhSpan), A = clamp((Math.abs(finite(x, xc) - xc)/W.boxHalf - W.tightFrom)/W.tightSpan);
+  const Q = clamp((finite(q, 1) - W.qFrom)/(1 - W.qFrom));
+  return { kmh: Math.round(kmh), q: +finite(q, 1).toFixed(3), x: +finite(x).toFixed(3), fast: +P.toFixed(3), tight: +A.toFixed(3), clean: +Q.toFixed(3),
+    threat: +(Q*(W.mix.pace*P + W.mix.tight*A + W.mix.both*P*A)).toFixed(3), sharp: +(Q*P*A).toFixed(3) };
+}
+// Dopo il servizio di chi gioca contro la CPU (il motore ha già messo il bersaglio della CPU sul punto d'incontro):
+// ricorda il servizio per la risposta e, se è forte e angolato, fa leggere la CPU in ritardo. Restituisce lo stato del
+// servizio (s.serve), con late = secondi di ritardo della lettura
+export function registerServe(engine, serve, { rng = Math.random } = {}){
+  const s = skillState(engine), W = serveLevel(engine?.matchConfig?.difficulty), cpu = engine?.opponent;
+  s.serve = null; s.lastQuality = 1;
+  if (!W || !serve || !cpu) return null;
+  const info = serveInfo(serve), late = info.sharp > 0 && W.read > 0 ? Math.max(0, W.read*info.sharp*(1 + gauss(rng)*finite(W.readSd))) : 0;
+  s.serve = { ...info, late: +late.toFixed(3) };
+  s.pressure = clamp(finite(W.pressure)*info.threat, 0, 3);
+  if (late > .01){
+    const now = finite(engine.elapsedTime), truth = cpu.targetPos.clone(), hold = cpu.pos.clone();
+    // stessa forma del piano di corsa dello scambio (planCpuRun, tickCpuRun): ferma fino a readAt, poi sul punto vero
+    s.cpuPlan = skillLevel(engine.matchConfig?.difficulty).cpuLegend
+      ? { legend: true, serve: true, hold, truth, err: 0, readAt: now + late, fixDur: .01 }
+      : { serve: true, hold, read: truth, truth, readAt: now + late, fixAt: now + late };
+    cpu.targetPos.copy(hold);
+  }
+  return s.serve;
+}
+// Il servizio in gioco per la risposta della CPU: solo sulla palla del servizio (un colpo, colpita da chi gioca)
+export function serveInPlay(engine){
+  const sv = engine?.natpfSkill?.serve, b = engine?.ball;
+  return sv && b && finite(b.rallyStrokeCount) <= 1 && b.lastHitter === 'player' && !b.natpfFeed ? sv : null;
+}
+// Probabilità che la CPU sbagli la risposta al servizio (Casual e Pro). stretch: allungo vero all'impatto (distanza
+// laterale / portata), come negli scambi
+export function cpuServeErrorChance({ serve = null, stretch = 0, level = SKILL_LEVELS.casual, difficulty = 'casual' } = {}){
+  const k = level.cpuErr, W = serveLevel(difficulty); if (!k || !W || !serve) return 0;
+  const late = clamp(finite(W.lateBase, SERVE_WEIGHT.lateBase));    // per livello (Casual: 1, nessuna penalità per chi colpisce tardi)
+  const p = W.base*(late + (1 - late)*clamp(finite(serve.clean, 1))) + W.threat*clamp(finite(serve.threat))
+    + finite(W.stretch)*(.3 + .7*clamp(finite(serve.q, 1)))*clamp(finite(stretch))**2;
+  return clamp(p, 0, W.max);
+}
+
 /* ---------- CPU ---------- */
 // Corsa della CPU: parte dopo il tempo di reazione verso dove crede che arrivi la palla, poi corregge.
 export function planCpuRun(engine, { rng = Math.random } = {}){
@@ -318,8 +442,14 @@ export function planCpuRun(engine, { rng = Math.random } = {}){
   // potente lo legge ancora peggio e in ritardo (sup.react, sup.misread)
   const misread = gauss(rng)*lv.cpuReadSd*(.5 + .5*clamp((speed - 18)/14))*(1 + angle)*(1 + .25*s.pressure)*(sup ? finite(sup.misread, 1) : 1);
   const read = truth.clone(); read.x = read.x*(1 - (lv.cpuCenterBias || 0)*angle) + misread;
-  const now = finite(engine.elapsedTime), late = sup ? finite(sup.react) : 0;
-  s.cpuPlan = { hold: cpu.pos.clone(), read, truth, readAt: now + lv.cpuReact*(1 + .15*s.pressure) + late, fixAt: now + lv.cpuReact + lv.cpuReadFix + late };
+  // B18.2 passo 2 (D9): la palla nel campo aperto la CPU la legge in ritardo. wide: secondi in più quando il punto
+  // d'incontro è lontano di lato almeno cpuWide.to metri (niente fino a cpuWide.from)
+  const W = lv.cpuWide, far = W ? finite(W.react)*clamp((Math.abs(truth.x - cpu.pos.x) - W.from)/Math.max(.1, W.to - W.from)) : 0;
+  const now = finite(engine.elapsedTime), late = (sup ? finite(sup.react) : 0) + far;
+  // stanchezza della CPU (cpuTired): ogni palla che la fa correre più di cpuFatigue.near metri aggiunge i metri in più
+  const F = lv.cpuFatigue;
+  if (F) s.cpuRun = finite(s.cpuRun) + Math.max(0, Math.hypot(truth.x - cpu.pos.x, truth.z - cpu.pos.z) - finite(F.near));
+  s.cpuPlan = { hold: cpu.pos.clone(), read, truth, readAt: now + lv.cpuReact*(1 + .15*s.pressure) + late, fixAt: now + lv.cpuReact + lv.cpuReadFix + late, far: +far.toFixed(3) };
   cpu.targetPos.copy(s.cpuPlan.hold);
   return s.cpuPlan;
 }
@@ -394,11 +524,28 @@ export function moveFactor(engine, actor){
   return (1 - FATIGUE.maxSlow*fatigueLevel(engine, actor))*(incoming ? clamp(finite(sup.reach, 1), .5, 1) : 1);
 }
 
+// B18.2 passo 2: a Pro la CPU si stanca se chi gioca la fa correre (come chi gioca: FATIGUE). Tolto l'errore
+// che cresceva con la sola lunghezza dello scambio, contro chi rimanda sempre la palla senza chiudere gli scambi non
+// finivano più (a Pro il 3% dei punti arrivava a 60 colpi, il 10% oltre i 40; prima 0% e 1,4%). Ora contano le corse
+// lunghe: ogni palla che la CPU deve andare a prendere a più di «near» metri da dov'è aggiunge i metri in più a cpuRun
+// (planCpuRun; azzerato a ogni punto). Niente fino a «free» metri, poi la stanchezza sale fino a 1 in «span» metri.
+// Stanca corre fino al «slow» più piano e, quando colpisce in allungo o in corsa, sbaglia di più (cpuErr.tired); sulla
+// palla comoda no. Non è la lunghezza dello scambio: uno scambio lungo giocato addosso alla CPU non la stanca (le palle
+// entro «near» metri non contano), due o tre palle negli angoli cominciano a stancarla e cinque la stancano del tutto.
+// Prima versione scartata: tutti i metri corsi (anche il rientro al centro): erano 4–6 m a colpo qualunque cosa facesse
+// chi gioca, cioè di nuovo il numero dei colpi.
+// Scartata anche la stanchezza che continua a salire oltre 1 negli scambi lunghissimi: accorcia gli scambi (a 60 colpi
+// dall'1,4 allo 0,3% dei punti di «umano») ma dà a «medio» due punti su cento in più e lo porta fuori dalla fascia 70–85%.
+// Valori in SKILL_LEVELS.pro.cpuFatigue. Casual e Leggenda non ce l'hanno: lì la CPU non si stanca, come prima
+export const cpuTired = engine => {
+  const F = skillLevel(engine?.matchConfig?.difficulty).cpuFatigue;
+  return F ? clamp((finite(engine?.natpfSkill?.cpuRun) - F.free)/Math.max(1, F.span)) : 0;
+};
 export function cpuStep(engine, actor, dt){
   if (actor !== engine.opponent || engine.isMultiplayer || !(dt > 0)) return false;
   const lv = skillLevel(engine.matchConfig?.difficulty);
   if (!lv.cpuAccel || lv.cpuLegend) return false;
-  const a = actor, dx = a.targetPos.x - a.pos.x, dz = a.targetPos.z - a.pos.z, d = Math.hypot(dx, dz), vmax = a.maxSpeed;
+  const a = actor, dx = a.targetPos.x - a.pos.x, dz = a.targetPos.z - a.pos.z, d = Math.hypot(dx, dz), vmax = a.maxSpeed*(1 - finite(lv.cpuFatigue?.slow)*cpuTired(engine));
   // velocità voluta: piena lontano dal bersaglio, poi quella che permette di fermarsi frenando
   const vDes = d > .05 ? Math.min(vmax, Math.sqrt(2*lv.cpuDecel*Math.max(0, d - .05))) : 0;
   const wx = d > 1e-6 ? dx/d*vDes : 0, wz = d > 1e-6 ? dz/d*vDes : 0;
@@ -414,18 +561,53 @@ export function cpuStep(engine, actor, dt){
 // quality: qualità del colpo in arrivo (un angolo preso fuori tempo mette meno in difficoltà)
 // threat: pericolosità del colpo in arrivo (forza e profondità): una palla lenta e corta non mette in difficoltà nessuno.
 export const shotThreat = ({ power = .6, depth = -9.5 } = {}) => clamp(.25 + .55*clamp(finite(power, .6)) + .35*clamp((-finite(depth, -9.5) - 7.6)/2.6), .25, 1.15);
-export function cpuErrorChance({ angle = 0, speed = 22, pressure = 0, stretch = 0, rally = 0, quality = 1, shot = 'TOPSPIN', cpuDeep = true, threat = 1, level = SKILL_LEVELS.casual } = {}){
+// B18.2 passo 2 (D1 del rapporto B16): la CPU sbaglia per la pressione, non a caso. Prima la probabilità aveva una base
+// fissa (3% a Casual) e cresceva con la sola lunghezza dello scambio (k.rally × colpi oltre il quarto): tra il 51 e il 70%
+// dei punti finiva con un errore della CPU, il 7–12% dei colpi anche sulle palle facili, e bastava rimandare la palla.
+// Ora conta quanto la palla la mette in difficoltà nell'istante in cui la colpisce (cpuStrain):
+//   • in allungo (reach): palla oltre stretchFrom della portata, al quadrato fino alla portata piena;
+//   • in corsa (run): CPU oltre runFrom della sua velocità massima quando colpisce;
+//   • palla veloce (pace): velocità della palla all'impatto oltre paceFrom m/s;
+//   • angolata (angle) e profonda/forte (threat, shotThreat): aggravano le prime tre, da sole non bastano;
+// e la pressione accumulata dai colpi buoni di chi gioca (registerPlayerShot) moltiplica la difficoltà invece di
+// sommarsi: su una palla comoda la CPU non sbaglia nemmeno dopo uno scambio duro. La lunghezza dello scambio da sola
+// non conta più. Il livello passa soprattutto dalla corsa (cpuSpeed, cpuAccel, cpuReact, cpuReach, cpuWide).
+// Misure: scripts/audit/cpu-pressione.mjs (npm run audit:cpu), docs/b18/t2-2-cpu-pressione.md
+export const CPU_STRAIN = Object.freeze({ stretchFrom: .4, runFrom: .3, paceFrom: 18, paceSpan: 10 });
+export function cpuStrain({ stretch = 0, running = 0, speed = 16, angle = 0 } = {}){
+  const K = CPU_STRAIN;
+  return { reach: clamp((finite(stretch) - K.stretchFrom)/(1 - K.stretchFrom))**2, run: clamp((finite(running) - K.runFrom)/(1 - K.runFrom)),
+    pace: clamp((finite(speed, 16) - K.paceFrom)/K.paceSpan), angle: clamp(finite(angle))**1.5 };
+}
+// rally: accettato per compatibilità, non conta (prima: k.rally × colpi oltre il quarto)
+export function cpuErrorChance({ angle = 0, speed = 16, pressure = 0, stretch = 0, running = 0, quality = 1, shot = 'TOPSPIN', cpuDeep = true, threat = 1, sup = false, tired = 0, level = SKILL_LEVELS.casual } = {}){
   const k = level.cpuErr; if (!k) return 0;
-  const S = String(shot).toUpperCase(), q = (.3 + .7*clamp(finite(quality, 1)))*clamp(finite(threat, 1), .25, 1.15);
-  let p = k.base + q*(k.angle*clamp(finite(angle))**1.5 + k.speed*clamp((finite(speed, 22) - 12)/16) + k.stretch*clamp(finite(stretch))**2)
-    + k.pressure*clamp(finite(pressure), 0, 3) + k.rally*Math.max(0, finite(rally) - 4);
+  const S = String(shot).toUpperCase(), D = cpuStrain({ stretch, running, speed, angle });
+  // una palla debole (fuori tempo, lenta e corta) mette meno in difficoltà; k.soft è il minimo del livello (a Casual la
+  // CPU è impacciata quando deve muoversi, anche su una palla lenta)
+  const q = Math.max(finite(k.soft), (.3 + .7*clamp(finite(quality, 1)))*clamp(finite(threat, 1), .25, 1.15));
+  // tired: quanto la CPU ha corso nello scambio (cpuTired, 0…1): stanca sbaglia di più le palle difficili, non quelle comode
+  let p = k.base + q*(k.stretch*D.reach + k.run*D.run + k.speed*D.pace)*(1 + k.angle*D.angle)*(1 + k.pressure*clamp(finite(pressure), 0, 3))*(1 + finite(k.tired)*clamp(finite(tired)));
   if (S === 'DROP' && cpuDeep) p += k.drop;
   if (S === 'LOB' && !cpuDeep) p += k.lob;
   if (S === 'SMASH') p += k.smash;
+  // colpo super potente (natpf_stroke_outcome.superShot): oltre a leggerlo in ritardo, la CPU che ci arriva lo controlla
+  // male. Prima questo veniva dall'allungo (peso .18 a Pro, ora .06): senza, a Pro lo rimandava 20 volte su 24 invece di 15
+  if (sup) p += finite(k.sup);
   return clamp(p, 0, k.max);
 }
+// Che errore fa la CPU: dipende dal motivo. In allungo o in corsa la palla esce di lato, la palla veloce o profonda
+// scappa lunga, in rete finiscono soprattutto le palle basse (tagliato, palla corta). Prima: 42% in rete, sempre
+// (un punto su tre finiva con la CPU in rete); obiettivo del rapporto: al massimo un punto su otto
+export function cpuErrorKind({ stretch = 0, running = 0, speed = 16, angle = 0, shot = 'TOPSPIN', depth = -9, level = SKILL_LEVELS.casual, rng = Math.random } = {}){
+  const D = cpuStrain({ stretch, running, speed, angle }), S = String(shot).toUpperCase(), low = S === 'SLICE' || S === 'DROP';
+  const net = finite(level.cpuErr?.net, .2) + (low ? .3 : 0);
+  const wide = .3 + .6*Math.max(D.reach, .6*D.run) + .3*D.angle, long = .3 + .6*D.pace + .3*clamp((-finite(depth, -9) - 8.5)/2.5);
+  const r = rng()*(net + wide + long);
+  return r < net ? 'net' : r < net + wide ? 'wide' : 'long';
+}
 // Cosa fa la CPU con questa palla: 'ok' (risposta normale), 'net' / 'wide' / 'long' (errore) o 'weak' (palla corta e
-// alta, da smash). Gli errori della CPU crescono con angolo, velocità, pressione, allungo e lunghezza dello scambio.
+// alta, da smash). Gli errori della CPU crescono con l'allungo, la corsa e la velocità della palla (cpuErrorChance).
 // Risposta difensiva della CPU in allungo (game_engine._executeOpponentReturn): con la palla lontana di lato più di «wide»
 // metri (o di «power» metri su un colpo potente) la CPU rimanda un tagliato o un pallonetto corto e lento, da attaccare.
 // B18 (D9 del rapporto B16): a Pro la soglia era 1,55 m, oltre la portata della CPU (cpuReach 1,5 m): la risposta difensiva
@@ -449,20 +631,28 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
     speed: finite(ball.vel?.length?.(), 22),
     pressure: s.pressure,
     stretch: Math.abs(finite(ball.pos?.x) - finite(actor.pos?.x))/reach,
+    running: finite(actor.vel?.length?.())/Math.max(1, finite(actor.maxSpeed, 5)),   // B18.2 passo 2: colpita in corsa
     rally: finite(ball.rallyStrokeCount),
     quality: finite(s.lastQuality, 1),
     shot: s.lastShot?.shot || ball.shotType,
     cpuDeep: finite(s.lastShot?.cpuZ, -11) < -8.5,
     threat: s.lastShot ? shotThreat({ power: s.lastShot.power, depth: s.lastShot.landingZ }) : 1,
+    sup: !!ball.natpfSuper,
+    tired: cpuTired(engine),
     level: lv,
   };
-  const chance = cpuErrorChance(info), roll = rng();
-  s.lastCpu = { chance, ...info, level: undefined };
+  // B18.2 (D11): sulla palla del servizio la risposta dipende dal servizio ricevuto (serveInfo), non dall'ultimo colpo
+  // del punto prima; per l'attacco della CPU conta il tempo del servizio (un servizio fuori tempo si attacca)
+  const sv = serveInPlay(engine);
+  if (sv){ info.quality = sv.q; info.threat = sv.threat; info.serve = true; }
+  const chance = sv ? cpuServeErrorChance({ serve: sv, stretch: info.stretch, level: lv, difficulty: engine.matchConfig?.difficulty }) : cpuErrorChance(info), roll = rng();
+  s.lastCpu = { chance, ...info, level: undefined, kind: 'ok' };
   if (roll < chance){
-    const r = rng();
-    return { kind: r < .42 ? 'net' : r < .74 ? 'wide' : 'long', chance, info };
+    const kind = cpuErrorKind({ ...info, depth: s.lastShot?.landingZ, rng });
+    s.lastCpu.kind = kind;
+    return { kind, chance, info };
   }
-  if (rng() < lv.cpuWeak*clamp(s.pressure, 0, 2)*.5 + (info.stretch > .8 ? .08 : 0)) return { kind: 'weak', chance, info };
+  if (rng() < lv.cpuWeak*clamp(s.pressure, 0, 2)*.5 + (info.stretch > .8 ? .08 : 0)){ s.lastCpu.kind = 'weak'; return { kind: 'weak', chance, info }; }
   s.pressure *= .6;
   // palla debole (fuori tempo, lenta e centrale): la CPU attacca con angolo e ritmo
   // palla corta (rimbalzo prima di 8 m dalla rete) e lenta: la CPU entra e attacca
