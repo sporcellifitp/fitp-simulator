@@ -6,7 +6,7 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## ADESSO (aggiornato l'11/11/2026 alle 18:10 UTC)
+## ADESSO (aggiornato l'11/11/2026 alle 20:55 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
 - [x] Tappa 2 passo 1 (servizio, personaggi fermi) con revisore · su GitHub (`0bdb83f`)
@@ -24,39 +24,25 @@ Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) 
       menu 28/28, rally 9/9, leggenda 7/7, training-flow 22/22, tutorial-phone 52/52, gesti-speciali 9/9, phone-keep 13/13)
 - [x] Detto all'utente come si attivano le opzioni nuove
 
-**In corso: B21 + B22 (video nel gioco, scia luminosa)** — stato alle 18:10 UTC dell'11/11:
-- [x] Implementazione finita nella worktree `/home/user/foro-italico-world/.claude/worktrees/wf_190d3d32-58d-1` (ramo `worktree-wf_190d3d32-58d-1` o quello indicato da
-      `git worktree list`), commit `31fcfac` (scia + opzione), `b721432` (trailer con ripiego), `05eeeb3` (sfondo del
-      tutorial), `69ae8b0`, `da4e827` (documento `docs/b21/video-e-scia.md`)
-- [~] **Revisore indipendente in corso** (workflow `b21-b22-video-scia`, run `wf_190d3d32-58d`; il risultato, se finito, è
-      l'ultima riga `result` di `/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/subagents/workflows/wf_190d3d32-58d/journal.jsonl`).
-      **Se il lavoro si è fermato per il limite d'uso**: rilanciare il workflow con
-      `Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b21-b22-video-scia-wf_190d3d32-58d.js', resumeFromRunId: 'wf_190d3d32-58d'})`
-      (riusa l'implementazione e, se c'è, la revisione). Se la sessione è nuova e quei file non ci sono più: fare la revisione
-      a mano sul diff `4dc6ae7..da4e827` del ramo (controlli elencati sotto) e correggere.
-      Controlli del revisore: ripiego dell'intro in tutti i casi (trailer 404, rete lenta, autoplay bloccato, ?intro=0);
-      zip Cloudflare sotto 25.000.000 byte e senza il trailer; trailer dentro l'installer; passo nuovo del workflow GitHub
-      (carica il trailer su R2 in `media/`, non blocca l'installer, niente segreti); sfondo del tutorial che non copre gesti
-      e testi e si ferma a tutorial chiuso; scia: con «No» gioco e disegno identici a prima, nessun calo di fotogrammi.
-- [ ] Correzioni dei punti trovati (stessa worktree)
-- [ ] Unire il ramo su `natpf-simulator` (`git merge --no-ff`), versione nuova (2026-11-11.2 o del giorno: `version.js`,
-      `build.json`, prima riga di `lan/LEGGIMI.txt`, riga in `natpf-desktop/novita.txt`), prove complete (script
-      `scratchpad/v1111/prove.sh` come modello: gioco, build, sito, LAN, Windows, `audit:legend`, prove nel browser comprese
-      le nuove `natpf-intro-trailer` e `natpf-scia-palla`), push
-- [ ] Installer su R2 verificato dal link fisso; controllare anche che il trailer sia su R2
-      (`https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev/media/…`, nome nel documento del ramo); zip Cloudflare
-      (`npm run build` prima) provato estratto e mandato all'utente
-- [ ] Dire all'utente come si spegne la scia (Opzioni → «Scia della palla: Sì · No») e come è venuto il resto
-
-File dei video: `/tmp/claude-0/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/scratchpad/video/` (se lo scratchpad è
-sparito: sono già committati nel ramo di lavoro, e nella libreria Higgsfield dell'utente).
+**Versione 2026-11-11.2** = B21 (trailer all'avvio con ripiego, sfondo sfocato del tutorial) + B22 (scia della palla con
+opzione), con revisore indipendente e correzioni (ramo `worktree-wf_190d3d32-58d-1`, fino a `9baff80`).
+- [x] Unione su `natpf-simulator`, versione 2026-11-11.2, controllo rapido: gioco 1158/1158, sito 205/205, Windows 29/29,
+      build ok → push
+- [~] Installer: aspettare `…r2.dev/windows/latest.json` con `"build": "2026-11-11.2"`, scaricare il link fisso, sha256;
+      controllare anche il trailer su R2: `https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev/media/trailer-aad6b9311db4.mp4`
+- [~] Zip Cloudflare (dopo `npm run build`), provato estratto, mandato all'utente (richiesta: mandarlo SUBITO, le prove
+      complete dopo)
+- [ ] Prove complete in parallelo: LAN, `audit:legend`, prove nel browser (script modello `scratchpad/v1111/prove.sh` +
+      `natpf-intro-trailer`, `natpf-scia-palla`, `natpf-modale-gesti`, `natpf-schermo`); se una è rossa: correggere e versione nuova
+- [ ] Scrivere sha e risultati in `docs/WORK_PROGRESS.md` e qui; dire all'utente «come si spegne» (Opzioni → «Scia della
+      palla»; `?trailer=0` per l'intro di prima)
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
-- [ ] **B21 Video nel gioco**: trailer come video d'avvio (senza titolo) con ripiego su `public/media/intro.mp4`; due clip
+- [x] **B21 Video nel gioco** (2026-11-11.2): trailer come video d'avvio (senza titolo) con ripiego su `public/media/intro.mp4`; due clip
       sfocate come sfondo del tutorial; trailer su R2 (`media/`), clip dentro lo zip. File in `scratchpad/video/` e nella
       libreria Higgsfield dell'utente (crediti spesi 86 su 120).
-- [ ] **B22 Scia luminosa della palla** nel gameplay (un po' meno luminosa del trailer) + voce nelle Opzioni per spegnerla
+- [x] **B22 Scia luminosa della palla** (2026-11-11.2) nel gameplay (un po' meno luminosa del trailer) + voce nelle Opzioni per spegnerla
 - [ ] **B25 Stesso schermo, decisioni dell'11/11** (PIANO, voce B25): lancio automatico dopo 30 s (opzione dello stand,
       spenta); campo aperto tra due persone (opzione dello stand, spenta: preparare e misurare); colpo super con la forza
       relativa al proprio colpo (solo il super); preparazione del colpo che non conta nel 1v1
