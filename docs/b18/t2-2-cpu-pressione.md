@@ -447,7 +447,7 @@ dal lavoro precedente su questo passo; io ho tolto la stanchezza (limite 5) e ri
 
 | prova | risultato |
 |---|---|
-| test del gioco (`npm test`) | **1103/1103** (prima del passo 1089) |
+| test del gioco (`npm test`) | **1103/1103** (prima del passo 1089). In una delle tre esecuzioni complete 1102/1103: vedi sotto «Un test instabile che c'era già» |
 | build (`npm run build`) | ok |
 | `npm run audit:legend` | **69/69** |
 | test del sito (`node --test tools/test/*.test.mjs`) | **201/201** |
@@ -485,6 +485,11 @@ Test che fissavano i numeri vecchi, aggiornati:
   media è la stessa (7,2% prima, 6,9% dopo; su 150 punti «amatore» 6,2 → 6,9%, «umano» 6,9 → 8,1%).
 - `natpf-b18-t2-servizio.test.mjs` (passo 1): il controllo «con i valori di prima della revisione» usava la base 0,135
   nella scala vecchia; nella scala nuova (× 0,84) è 0,113. Il test e le sue soglie sono gli stessi.
+
+Un test instabile che c'era già (non toccato): `natpf-formato-fiera.test.mjs`, «servizio della CPU: velocità vera sul
+tabellone (non 194 km/h fissi)». Il servizio della CPU ha una velocità a caso e il test chiede che non sia 194 km/h:
+ogni tanto lo è. Lanciato da solo 12 volte fallisce 1 volta con questo passo e 2 volte sul commit di prima (`1f170bb`):
+non dipende da questo lavoro (il servizio della CPU non è toccato). Si sistema fissando il caso nel test.
 
 ## Cosa non è verificato
 
