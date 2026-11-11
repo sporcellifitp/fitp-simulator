@@ -44,8 +44,13 @@ opzione), con revisore indipendente e correzioni (ramo `worktree-wf_190d3d32-58d
       Se la corsa risulta annullata o fallita: rilanciarla a mano (workflow_dispatch) dopo che l'utente ha sistemato la quota.
 - [x] Detto all'utente come si spegne la scia (Opzioni → «Scia della palla») e `?trailer=0`
 
-**Prossimo lavoro** (dopo l'installer): B25 (stesso schermo: lancio automatico, campo aperto, super relativo,
-preparazione, aiuto al più giovane) e B23 (prova delle movenze sul dritto); poi B24 e tappa 2 gruppi 2 e 3.
+**In corso dalle 22:26 UTC dell'11/11: B25** (workflow `b25-stesso-schermo-equilibrio`, run `wf_d8163833-9f8`: agente in
+worktree `wf_d8163833-9f8-1` → revisore indipendente → correzioni). Se si ferma per il limite d'uso: rilanciare con
+`Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b25-stesso-schermo-equilibrio-wf_d8163833-9f8.js', resumeFromRunId: 'wf_d8163833-9f8'})`;
+se quei file non ci sono più, continuare a mano nella worktree (compito: PIANO, voce B25). Quando finisce: mostrare
+all'utente la tabella delle varianti dell'aiuto al più giovane e farlo scegliere; poi unire, versione nuova, controllo
+rapido, mandare SUBITO zip (e installer se GitHub Actions è ripartito), prove complete dopo.
+Poi B23 (prova delle movenze sul dritto), B24 e tappa 2 gruppi 2 e 3.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
