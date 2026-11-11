@@ -504,5 +504,6 @@ test('Partita (B15): una scelta in vista; «Altre impostazioni» apre formato, d
   lobby.setFormat('doubles'); lobby.paint(); assert.match($('match-more-sum').textContent, /doppio/);
   lobby.setFormat('singles');
   // stesso schermo: solo singolare, il formato non compare nel riassunto
-  lobby.setMode('split'); lobby.go('match'); assert.equal($('match-more-sum').textContent, '1 game · 3ª persona');
+  // (B20: nello stesso schermo il formato in fiera vale di base, e il riassunto lo dice)
+  lobby.setMode('split'); lobby.go('match'); assert.equal($('match-more-sum').textContent, '1 game · formato fiera · 3ª persona');
 });

@@ -28,9 +28,10 @@ import {
   renderPixelRatio,
   watchPixelRatio,
 } from "./natpf/natpf_camera.js";
-import { resolveMatchFormat, firstServer } from "./natpf/match_format.js";
+import { resolveMatchFormat, firstServer, serveChoice } from "./natpf/match_format.js";
 // NATPF B18: formato in fiera (punto decisivo e servizio come nel tie-break), opzione dello staff spenta di base
 import * as NF from "./natpf/natpf_fair_format.js";
+import * as NH from "./natpf/natpf_hot_rally.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
 // NATPF: personaggio, racchetta e pallina procedurali (niente GLB esterni)
 import { createNatpfCast, finishNatpfActor, updateNatpfCharacters } from "./natpf/natpf_character.js";
@@ -822,6 +823,7 @@ export class NatpfTennisEngine {
   endSplit() {
     if (!this.natpfSplit?.active) return;
     this.natpfSplit.active = !1;
+    this.natpfHot = !1; // B20 (revisione): lo «scambio che si scalda» vale solo nello stesso schermo
     (this.versus = { active: !1, closing: !1 }), (this.isMultiplayer = !1), (this.pendingP2Swing = null);
     this._natpfClearP2Hand();
     typeof document < "u" && document.body.classList.remove("natpf-split");
@@ -1214,12 +1216,18 @@ export class NatpfTennisEngine {
       (this.score.playerGames = 0),
       (this.score.opponentGames = 0),
       // NATPF: chi batte per primo dalla scelta del menu (match_format.firstServer; prima sempre chi gioca qui)
-      (this.score.server = firstServer(this.natpfServeFirst)),
+      // B20: sorteggio riproducibile (natpfRng a mano nei test; altrimenti Math.random come prima)
+      (this.score.server = firstServer(this.natpfServeFirst, this.natpfRng || Math.random)),
       // NATPF B18: formato in fiera (natpf_fair_format.js), deciso a inizio partita dal pannello dello stand o
       // dall'indirizzo (natpfFair a mano per i test e le simulazioni); il primo game lo inizia chi batte per primo
       // (sul computer del P2 della sfida tra due computer decide l'host: score.fair e gamesToWin arrivano con lo snapshot)
-      (this.score.fair = this.playerRole === "p2" && this.isMultiplayer ? !1 : typeof this.natpfFair == "boolean" ? this.natpfFair : NF.readFairFormat()),
+      // B20: di base vale solo nello stesso schermo (tre valori: No · Solo stesso schermo · Sì); contro la CPU e nella
+      // sfida tra due computer resta il formato classico finché lo staff non sceglie «Sì»
+      (this.score.fair = this.playerRole === "p2" && this.isMultiplayer ? !1 : typeof this.natpfFair == "boolean" ? this.natpfFair : NF.readFairFormat({ split: !!this.natpfSplit?.active })),
       (this.score.gameServer = this.score.server),
+      // B20: «scambio che si scalda» (natpf_hot_rally.js), opzione dello staff spenta di base, decisa a inizio partita:
+      // solo tra due persone nello stesso schermo con i due telefoni (natpfHotRally a mano per i test e le simulazioni)
+      (this.natpfHot = NH.hotRallyFor({ split: !!this.natpfSplit?.active, webcam: !!this.natpfUi?.split?.webcam, forced: this.natpfHotRally })),
       // … e con l'opzione accesa «Al meglio di 5» vale «Al meglio di 3» (matchConfig.gamesToWin lo calcola da score.fair
       // senza toccare la scelta del menu, matchConfig.gamesToWinChosen; installGamesToWin è idempotente)
       NF.installGamesToWin(this.matchConfig, () => this.score?.fair),
@@ -1233,6 +1241,10 @@ export class NatpfTennisEngine {
         bannerText: "Start",
         bannerStyle: "style-start",
         persistentBanner: !1,
+        // B20: nello stesso schermo chi batte per primo si vede («Sorteggio: batte Giulia»)
+        bannerSub: this.natpfSplit?.active
+          ? NPC.firstServeText({ ...NPC.callContext(this), server: this.score.server, drawn: serveChoice(this.natpfServeFirst) === "random" })
+          : "",
       });
   }
   _setupPointServe({
@@ -1240,6 +1252,7 @@ export class NatpfTennisEngine {
     bannerText: t = null,
     bannerStyle: i = "style-gold",
     persistentBanner: a = !1,
+    bannerSub: bs = "",
   } = {}) {
     (this.phase = "SERVE_STANCE"),
       (this.phaseTimer = 0),
@@ -1275,6 +1288,7 @@ export class NatpfTennisEngine {
       (this.ball.bounceCountOnCurrentSide = 0),
       (this.ball.rallyStrokeCount = 0),
       (this.ball.natpfFeed = !1),
+      (this.natpfLastWhiff = null), // B20 (revisione): il colpo a vuoto vale solo per il suo punto
       (this.pendingUserSwing = null),
       (this.pendingP2Swing = null),
       (this.pendingServeSwing = null),
@@ -1302,14 +1316,15 @@ export class NatpfTennisEngine {
         // dice la stessa frase (call.voice; natpf_point_call.callFromBroadcast lascia il testo dell'host)
         pv = p === "Deciding Point" ? NF.decidingVoice(this.score, this.matchConfig.gamesToWin) : p;
       p &&
-        ((r = p),
+        // B20: nello stesso schermo «Palla match Giulia» (natpf_point_call.stakesText); la voce resta quella di prima
+        ((r = NPC.stakesText(p, { ...NPC.callContext(this), points: [this.score.playerPoints, this.score.opponentPoints] })),
         (l = "style-gold"),
         pv !== p && (vc = { voice: pv }),
         this.audioEngine && this.audioEngine.announceScore(pv, { delayMs: 180 }));
     }
     r && e
-      ? (this._recordBannerBroadcast(r, l, "", vc),
-        this.hud.showCenterBanner(r, { style: l, durationMs: 1800, persistent: a }))
+      ? (this._recordBannerBroadcast(r, l, bs, vc),
+        this.hud.showCenterBanner(r, { style: l, durationMs: bs ? 2600 : 1800, persistent: a, ...(bs ? { subText: bs } : {}) }))
       : a || this.hud.hideCenterBanner(),
       this.hud.updateTimingGauge({
         cursorNormalized: 0.5,
@@ -2038,6 +2053,7 @@ export class NatpfTennisEngine {
     if ((this.audioEngine && this.audioEngine.playSwingWhoosh(f), y > (l ? 4.05 : 4.85) && !t)) {
       if (g > 1.45) {
         p.swingCooldown = 0.16;
+        this.natpfLastWhiff = { side: "player", stroke: this.ball.rallyStrokeCount }; // B20: banner «Colpo a vuoto di …» nello stesso schermo
         const A = "TOO LATE! \u2022 WHIFF",
           G = this._projectToScreen(p.pos.clone().add(new o.Vector3(0, 2.35, 0)));
         this.hud.showTimingPopup({ grade: A, detail: "BALL PASSED", screenPos: G, durationMs: 750 }),
@@ -2184,7 +2200,7 @@ export class NatpfTennisEngine {
       (this.ball.rallyStrokeCount += 1),
       (this.ball.shotType = T),
       (this.ball.isPowerShot = M),
-      this.ballTrail.setStyle(T, M),
+      this.ballTrail.setStyle(T, M || NH.hotSteps(this.ball.rallyStrokeCount, this.natpfHot) > 0), // B20: scambio caldo → scia del colpo potente
       this.racketKinematics && this.racketKinematics.triggerImpactRecoil(p, M ? 1.4 : 1),
       this.swingVfx &&
         this.swingVfx.onRacketContact({
@@ -2299,6 +2315,9 @@ export class NatpfTennisEngine {
     // lenta o corta → in fondo, più piatto e molto più veloce; l'avversario lo legge in ritardo (ball.natpfSuper)
     const sup = NO.superShot({ intent, out, contact, ballSide: dx, contactY: b.pos.y, ballVz: b.vel.z, shortBall });
     if (sup.on) out = { ...out, depth: Math.max(out.depth, NO.SUPER.minDepth), clear: S.NET_HEIGHT_CENTER + NO.SUPER.netGap, topspin: out.shot === "SMASH" ? out.topspin : NO.SUPER.topspin };
+    // B20: «scambio che si scalda» (opzione dello staff, natpf_hot_rally.js): dal 10° colpo i colpi normali passano via via
+    // più bassi e più carichi, cioè più veloci, uguale per il P1 e per il P2. Spenta: lo stesso oggetto di prima
+    else out = NH.hotOutcome(out, b.rallyStrokeCount + 1, this.natpfHot, S.NET_HEIGHT_CENTER);
     // colpo fallito o debole: la causa che pesa di più, per il messaggio del colpo e la diagnostica
     const cause = out.failed ? (out.pressured ? "scambio lungo" : [["reach", running > 0.5 ? "in corsa" : "palla lontana"], ["prep", "senza preparazione"], ["stretch", "in allungo"], ["pace", "palla veloce"]].reduce((a, k) => (Q[k[0]] < Q[a[0]] ? k : a))[1]) : null;
     const R = p.pos.x >= 0 ? 1 : -1, N = toward * out.depth, X = out.x * mirror, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;
@@ -2317,7 +2336,9 @@ export class NatpfTennisEngine {
       // B15 (08/11): il tetto della velocità del motore base era 1,2 (forza da 0,56 in su: stesso volo base 0,70 s, la
       // palla più forte solo per l'altezza minore sulla rete; banco colpi.mjs: gesto 0,6× → 1,4× del proprio colpo
       // 82 → 119 km/h, ×1,45). Ora 1,5: a forza piena 0,58 s (il minimo di sempre), a 0,74 0,63 s (era 0,70)
-      const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015),
+      // B20: con lo «scambio che si scalda» acceso, dal 10° colpo il volo si accorcia ancora a ogni colpo, uguale per il
+      // P1 e per il P2 (NH.hotFlight; spento il fattore è 1 esatto)
+      const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015) * NH.hotFlight(b.rallyStrokeCount + 1, this.natpfHot),
         base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.5, (0.8 + intent.power * 0.85) * 0.94)) * K;
       I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) / (sup.on ? NO.SUPER.speedUp : 1) });
     }
@@ -2327,9 +2348,12 @@ export class NatpfTennisEngine {
     this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime, super: sup.on ? sup.ball : null, superWhy: sup.why, smashCalled: !!called,
       hand, source: (e.natpf && e.natpf.source) || e.source || null, aimFull: e.natpf && Number.isFinite(e.natpf.aimFull) ? e.natpf.aimFull : null };
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
-    const netClear = sup.on ? NO.SUPER.netGap : out.attack ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null;
+    const netClear = sup.on ? NO.SUPER.netGap : out.attack || out.hot ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null; // (B20: anche lo scambio caldo passa basso)
     return {
-      netClear, E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
+      // B20 (revisione): l'effetto laterale del tagliato e della palla corta è una spinta lungo x del campo (la fisica non
+      // guarda il verso della palla) e R è già il lato del campo di chi colpisce: verso il centro per tutti e due. Prima
+      // per il P2 era moltiplicato per «mirror» e curvava verso l'esterno (soli tagliati: il P1 vinceva il 51,5–52,1% dei punti)
+      netClear, E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out, contact,
       // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita e ogni colpo super potente. La forza
       // sulla scala di prima (NO.superStrength: typePower dal telefono, B15), così scatta dallo stesso gesto di prima (da 1,25 volte
@@ -2379,7 +2403,7 @@ export class NatpfTennisEngine {
       // palla sopra 1,78 m era una schiacciata: diagnostica del 29/10 (stesso schermo), risposte al servizio a fondo campo
       // con il gesto del pallonetto giocate come schiacciate
       d = e.natpf && e.natpf.aim === "swing" && !e.timing
-        ? NO.smashAt(e, this.ball.pos.y)
+        ? NO.smashAt(e, this.ball.pos.y, { serveReturn: Number(this.ball.rallyStrokeCount || 0) <= 1 }) // B20 (audit B19, punto 1): in risposta al servizio solo dal gesto, come il P1 (decisione del 31/10; la tappa 1 l'aveva dato solo al P1)
         : e.side === "overhead" ||
           ((m === "FLAT" || e.shotType === "smash") && this.ball.pos.y > 1.5) ||
           this.ball.pos.y > 1.78,
@@ -2408,6 +2432,7 @@ export class NatpfTennisEngine {
       return (
         p > 1.45 &&
           ((l.swingCooldown = 0.16),
+          (this.natpfLastWhiff = { side: "opponent", stroke: this.ball.rallyStrokeCount }), // B20: come per il P1
           this.motionController &&
             this.motionController.triggerHapticFeedback &&
             this.motionController.triggerHapticFeedback({
@@ -2509,7 +2534,7 @@ export class NatpfTennisEngine {
       }
     }
     const k = this.ball.pos.clone();
-    (k.y = Math.max(0.78, Math.min(1.92, k.y))),
+    (k.y = Math.max(0.78, Math.min(p2Racket && p2Racket.T === "FLAT" && d ? 3.1 : 1.92, k.y))), // B20: la schiacciata del P2 parte da dove si colpisce, come quella del P1 (prima al massimo da 1,92 m: sui pallonetti finiva in rete)
       this.ball.pos.copy(k),
       this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: natpfP2Net, ...(p2Racket?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight / (p2Racket.super ? NO.SUPER.smashUp : 1) } : {}), ...(p2Racket?.netClear != null ? { netClear: p2Racket.netClear } : {}) }),
       (this.ball.natpfSuper = p2Racket?.super || null),
@@ -2524,7 +2549,7 @@ export class NatpfTennisEngine {
       this.playerRole === "p2" && this.isMultiplayer && GV.markLocalHit((this.natpfGuestView ||= GV.createGuestView()), { count: this.ball.rallyStrokeCount, now: performance.now() }),
       (this.ball.shotType = m),
       (this.ball.isPowerShot = w),
-      this.ballTrail.setStyle(m, w),
+      this.ballTrail.setStyle(m, w || NH.hotSteps(this.ball.rallyStrokeCount, this.natpfHot) > 0), // B20: come per il P1
       this.racketKinematics && this.racketKinematics.triggerImpactRecoil(l, w ? 1.4 : 1),
       this.swingVfx &&
         this.swingVfx.onRacketContact({
@@ -3240,6 +3265,9 @@ export class NatpfTennisEngine {
   _natpfEarlyWhiff(ps) {
     const a = ps.actor || this.player, ev = ps.evt || {}, p2 = a === this.opponent || a === this.opponentPartner; // NATPF: anche il Player 2 (C2)
     a.userData && (a.userData.natpfPrep = null);
+    // B20 (audit B19, punto 18): chi ha fatto il gesto ed è andato a vuoto su questa palla, per il banner del punto.
+    // Non per la palla fuori portata (revisione): lì è un vincente dell'altro, il gesto non poteva prenderla
+    ps.natpfWhy !== "portata" && (this.natpfLastWhiff = { side: p2 ? "opponent" : "player", stroke: this.ball.rallyStrokeCount });
     this.racketKinematics &&
       this.racketKinematics.triggerSwing(a, { shotType: String(ev.shotType || "topspin").toLowerCase(), side: ev.side, speed: Number(ev.speed || 1.15), timing: "early", dirX: Number(ev.dirX || 0) });
     // NATPF racchetta virtuale: perché è a vuoto (troppo presto, troppo tardi, palla fuori portata)
@@ -3281,6 +3309,8 @@ export class NatpfTennisEngine {
       (this.ball.inPlay = !1), (this.pendingP2Swing = null), (this.pendingServeSwing = null);
       return;
     }
+    const wf = this.natpfLastWhiff; // B20: colpo a vuoto di questo punto (vale solo per questo punto)
+    this.natpfLastWhiff = null;
     NL.legendPointEnd(this, e); // NATPF Leggenda: il modello dell'avversario impara da come finisce il punto
     (this.phase = "POINT_OVER"),
       (this.phaseTimer = 0),
@@ -3383,7 +3413,9 @@ export class NatpfTennisEngine {
     // (natpf_point_call.js). Prima il punteggio con «Fuori» sotto: non si capiva chi avesse sbagliato
     const { bannerScoreText: n, playerScoreText: ps, opponentScoreText: os, deciding: dp } = this._formatCurrentScore(),
       sc = dp ? { player: ps, opponent: os, deciding: !0 } : { player: ps, opponent: os }, // NATPF B18: «Punto decisivo»
-      pc = NPC.pointCall({ winner: e, why: t, ...NPC.callContext(this), score: sc });
+      // B20: nello stesso schermo «Colpo a vuoto di Marco» se chi ha perso il punto ha fatto il gesto su questa palla
+      // (prima «Vincente di Giulia» anche così); la voce e il motivo del motore restano quelli di prima
+      pc = NPC.pointCall({ winner: e, why: t, ...NPC.callContext(this), score: sc, whiff: !!wf && wf.side !== e && wf.stroke === this.ball.rallyStrokeCount });
     this._recordBannerBroadcast(pc.text, pc.style, pc.subText, { kind: "point", winner: e, why: t, score: sc, voice: n }),
       this.hud.showCenterBanner(pc.text, { style: pc.style, subText: pc.subText, durationMs: 1800 }),
       this.audioEngine &&

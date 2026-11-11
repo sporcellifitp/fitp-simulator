@@ -53,11 +53,17 @@ try {
   await p.evaluate(() => { document.querySelector('#match-length-group [data-games="5"]').click(); });
   await p.waitForTimeout(400);
 
-  // 1. pannello dello stand: spenta di base, un clic la accende, resta salvata
+  // B20: di base l'opzione vale «Solo stesso schermo»: contro la CPU la pagina «Partita» resta quella classica
+  const base = await p.evaluate(() => { const L = __natpfTennis.natpfUi.lobby; L.setMode('cpu'); L.setFormat('singles'); L.go('match'); L.paint();
+    const out = { sum: document.getElementById('match-more-sum')?.textContent, five: getComputedStyle(document.querySelector('#match-length-group [data-games="5"]')).display, sel: document.querySelector('#match-length-group .selected')?.dataset.games };
+    L.go('menu'); return out; });
+  check('di base («Solo stesso schermo») contro la CPU niente formato in fiera: «Al meglio di 5» c\'è, il riassunto non lo nomina', !/formato fiera/.test(base.sum) && base.five !== 'none' && base.sel === '5', fmt(base));
+  await p.waitForTimeout(300);
+  // 1. pannello dello stand: di base «Solo stesso schermo» (B20: tre valori), un clic lo porta a «Sì», resta salvato
   await p.keyboard.press('Control+Shift+KeyK');
   await p.waitForSelector('#natpf-staff:not(.hidden) [data-staff="fair"]', { state: 'visible', timeout: 10000 });
   const off = await p.evaluate(() => document.querySelector('[data-staff="fair"] b').textContent);
-  check('pannello dello stand: «Formato in fiera» spento di base («No»)', off === 'No', off);
+  check('pannello dello stand: «Formato in fiera» di base «Solo stesso schermo» (B20; prima «No»)', off === 'Solo stesso schermo', off);
   await p.click('#natpf-staff [data-staff="fair"]');
   await p.waitForTimeout(250);
   const on = await p.evaluate(() => ({ b: document.querySelector('[data-staff="fair"] b').textContent, cls: document.querySelector('[data-staff="fair"]').classList.contains('on'), saved: localStorage.getItem('natpf-tennis.formatoFiera'), toast: document.body.innerText.match(/Formato in fiera acceso[^\n]*/)?.[0] || '' }));
@@ -76,7 +82,7 @@ try {
   // revisione R4: il 5 scelto prima è diventato 3 (al meglio di 3 sul motore); spenta l'opzione il 5 torna selezionato
   const sel = () => p.evaluate(() => ({ sel: document.querySelector('#match-length-group .selected')?.dataset.games, games: __natpfTennis.matchConfig.gamesToWin, five: getComputedStyle(document.querySelector('#match-length-group [data-games="5"]')).display }));
   const asThree = await sel();
-  await p.evaluate(() => localStorage.setItem('natpf-tennis.formatoFiera', '0'));
+  await p.evaluate(() => localStorage.setItem('natpf-tennis.formatoFiera', 'no'));   // «No» (B20: prima '0')
   const back = await until(p, () => document.querySelector('#match-length-group .selected')?.dataset.games === '5', null, 3000);
   const asFive = await sel();
   check('pagina «Partita»: il «Al meglio di 5» scelto prima diventa 3 con l\'opzione accesa e torna 5 quando si spegne', asThree.sel === '3' && asThree.games === 2 && back && asFive.sel === '5' && asFive.games === 3 && asFive.five !== 'none', fmt({ asThree, asFive }));

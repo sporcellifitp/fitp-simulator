@@ -4,9 +4,12 @@
 // visitatore successivo. Durante una partita o una sfida si aspetta il doppio, poi si chiude anche quella.
 // Pannello dell'addetto: Ctrl+Maiusc+K, oppure tenere premuto 3 secondi il marchio NATPF in alto a sinistra nel menu.
 // Ha anche la sensibilità della mira del telefono (B16, opzione dello staff: natpf_aim_level.js).
-// E il formato in fiera (B18: punto decisivo e servizio come nel tie-break, natpf_fair_format.js), spento di base.
+// E il formato in fiera (B18: punto decisivo e servizio come nel tie-break, natpf_fair_format.js): dal B20 tre valori,
+// «No · Solo stesso schermo · Sì», di base «Solo stesso schermo».
+// E lo «scambio che si scalda» (B20, natpf_hot_rally.js): No · Sì, spento di base.
 import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLevel } from './natpf_aim_level.js';
-import { readFairFormat, writeFairFormat, fairForcedByUrl } from './natpf_fair_format.js';
+import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './natpf_fair_format.js';
+import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -15,11 +18,18 @@ export const IDLE_STEPS = [30, 45, 60, 90];
 const AIM_HINT = { alta: 'più palle angolate', media: 'un po’ meno angolate dell’alta', bassa: 'meno angolate, com’era prima' };
 // cosa fare dopo `idle` secondi fermi (funzione pura): niente, tornare al menu, chiudere la partita in corso
 // formato in fiera: scritta del pulsante e avviso dopo il clic (funzioni pure). forced: l'indirizzo (?formato=…) comanda
-export const fairButton = (on, forced = false) => `${on ? 'Sì · punto decisivo' : 'No'}${forced ? ' (indirizzo)' : ''}`;
-export function fairToast(on, forced = false){
-  const t = on ? 'Formato in fiera acceso: punto decisivo sul 40-40 e servizio che passa ogni due punti (batte anche la CPU o il Player 2); al massimo al meglio di 3'
+// B20: tre valori, «No · Solo stesso schermo · Sì» (natpf_fair_format.FAIR_MODES: 'no' | 'split' | 'si'), di base «Solo
+// stesso schermo». Per compatibilità il modo può arrivare anche come vero/falso (Sì/No)
+const fairMode = m => (m === true ? 'si' : m === 'si' || m === 'split' ? m : 'no');
+const FAIR_LABEL = { no: 'No', split: 'Solo stesso schermo', si: 'Sì · punto decisivo' };
+const FAIR_SAVED = { no: 'spento', split: 'solo per lo stesso schermo', si: 'acceso' };
+export const fairButton = (mode, forced = false) => `${FAIR_LABEL[fairMode(mode)]}${forced ? ' (indirizzo)' : ''}`;
+export function fairToast(mode, forced = false){
+  const m = fairMode(mode);
+  const t = m === 'si' ? 'Formato in fiera acceso: punto decisivo sul 40-40 e servizio che passa ogni due punti (batte anche la CPU o il Player 2); al massimo al meglio di 3'
+    : m === 'split' ? 'Formato in fiera solo nello stesso schermo: tra due persone punto decisivo sul 40-40 e servizio che passa ogni due punti; contro la CPU formato classico'
     : 'Formato in fiera spento: un battitore per game, parità e vantaggi';
-  return forced ? `Formato in fiera salvato ${on ? 'acceso' : 'spento'}, ma in questa pagina comanda l’indirizzo (?formato=…)` : `${t}. Vale dalla prossima partita; resta salvata`;
+  return forced ? `Formato in fiera salvato ${FAIR_SAVED[m]}, ma in questa pagina comanda l’indirizzo (?formato=…)` : `${t}. Vale dalla prossima partita; resta salvata`;
 }
 export function kioskAction({ enabled, idle, limit, inGame, atRest }){
   if (!enabled) return null;
@@ -99,11 +109,18 @@ export class NatpfKiosk {
     // mira del telefono: alta → media → bassa → alta; vale dal colpo successivo (anche per il secondo telefono). L'avviso
     // dice anche cosa vuol dire (nel foglio non c'è posto per un paragrafo: a 1024 × 600 «Chiudi» finiva fuori vista)
     if (cmd === 'aim'){ const v = writeAimLevel(nextAimLevel(readAimLevel())); ui.toast?.(`Mira del telefono: ${aimLevelLabel(v)} · ${AIM_HINT[v]}; resta salvata`); }
-    // formato in fiera: sì ↔ no, salvato; vale dalla partita dopo (quella in corso resta con la sua regola)
+    // formato in fiera: no → solo stesso schermo → sì → no, salvato; vale dalla partita dopo (quella in corso resta con la
+    // sua regola)
     if (cmd === 'fair'){
-      const forced = fairForcedByUrl(), saved = readFairFormat({ search: '' }), on = writeFairFormat(!saved);
-      ui.toast?.(fairToast(on, forced));
-      ui.diag?.recorder?.log?.('stand.formatoFiera', { acceso: on, indirizzo: forced });
+      const forced = fairForcedByUrl(), mode = writeFairMode(nextFairMode(readFairMode({ search: '' })));
+      ui.toast?.(fairToast(mode, forced));
+      ui.diag?.recorder?.log?.('stand.formatoFiera', { acceso: mode === 'si', modo: mode, indirizzo: forced });
+    }
+    // B20: «scambio che si scalda» (natpf_hot_rally.js), no ↔ sì, salvato; vale dalla partita dopo, nello stesso schermo
+    if (cmd === 'hot'){
+      const on = writeHotRally(!readHotRally());
+      ui.toast?.(hotToast(on));
+      ui.diag?.recorder?.log?.('stand.scambioCaldo', { acceso: on });
     }
     this.paint();
   }
@@ -115,7 +132,8 @@ export class NatpfKiosk {
     const audio = this.engine.audioEngine; set('music', audio && audio.muted ? 'No' : 'Sì', !(audio && audio.muted));
     set('phone', this.ui.phone.connected ? 'Scollega' : 'Nessuno collegato');
     set('aim', aimLevelButton(readAimLevel()));
-    const fair = readFairFormat(); set('fair', fairButton(fair, fairForcedByUrl()), fair);
+    const fair = readFairMode(); set('fair', fairButton(fair, fairForcedByUrl()), fair !== 'no');
+    const hot = readHotRally(); set('hot', hotButton(hot), hot);
     const n = $('staff-note');
     if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
   }

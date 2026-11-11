@@ -132,7 +132,7 @@ test('pannello dello stand: scritte del pulsante e dell\'avviso', () => {
   assert.match(fairToast(false), /un battitore per game/);
   assert.match(fairToast(true, true), /comanda l’indirizzo/);
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(html, /data-staff="fair"[^>]*><span>Formato in fiera<\/span><b>No<\/b>/);
+  assert.match(html, /data-staff="fair"[^>]*><span>Formato in fiera<\/span><b>Solo stesso schermo<\/b>/);   // B20: valore di base
 });
 
 /* ---------- motore ---------- */

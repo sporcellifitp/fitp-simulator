@@ -1,5 +1,5 @@
 // Formato in fiera (B18, ramo R4; audit B16 miglioramento 1; decisione dell'utente del 10/11: «ok, dimmi come attivarlo
-// in caso» → opzione dello staff, SPENTA di default). Con l'opzione accesa:
+// in caso» → opzione dello staff; dal B20 tre valori, di base «Solo stesso schermo», vedi FAIR_MODES). Con l'opzione accesa:
 //   · punto decisivo sul 40-40: chi vince quel punto vince il game (niente vantaggi);
 //   · il servizio passa come nel tie-break: il primo punto del game lo batte uno, poi due punti a testa (A, B B, A A, B B…).
 //     Così contro la CPU batte anche la CPU e nello stesso schermo batte anche il Player 2, anche in una partita a 1 game.
@@ -18,20 +18,42 @@ export const FAIR_KEY = 'natpf-tennis.formatoFiera';
 const URL_ON = ['fiera', 'evento', 'event', 'fair'];
 const URL_OFF = ['classico', 'normale', 'classic'];
 
-// stato dell'opzione: prima l'indirizzo (se dice qualcosa), poi la scelta salvata; altrimenti spenta
+// B20 (decisione dell'utente del 10/11 sull'audit B19): l'opzione ha tre valori, «No · Solo stesso schermo · Sì», e di base
+// è «Solo stesso schermo» (prima: No/Sì, di base No). Con «Solo stesso schermo» il formato in fiera vale tra due persone
+// nello stesso schermo; contro la CPU e nella sfida tra due computer resta il formato classico.
+// Valore salvato (FAIR_KEY): '1' = Sì (come prima: chi aveva salvato «Sì» resta «Sì», e una versione di prima lo legge
+// ancora acceso), 'no' = No, 'split' = Solo stesso schermo. '0' era il «No» a due valori, cioè il valore di base di
+// allora rimesso a mano: come se non ci fosse niente di salvato, vale il valore di base di oggi
+export const FAIR_MODES = Object.freeze(['no', 'split', 'si']);
+export const FAIR_DEFAULT = 'split';
+export const fairModeOf = v => (v === '1' || v === 'si' ? 'si' : v === 'no' ? 'no' : v === 'split' ? 'split' : FAIR_DEFAULT);
+export const nextFairMode = m => FAIR_MODES[(Math.max(0, FAIR_MODES.indexOf(m)) + 1) % FAIR_MODES.length];
+// modo dell'opzione: prima l'indirizzo (?formato=fiera → Sì, ?formato=classico → No, per quella pagina), poi la scelta salvata
+export function readFairMode({ search = globalThis.location?.search || '', storage = globalThis.localStorage } = {}){
+  const forced = fairFromUrl(search);
+  if (forced !== null) return forced ? 'si' : 'no';
+  try { return fairModeOf(storage?.getItem(FAIR_KEY)); } catch { return FAIR_DEFAULT; }
+}
+export function writeFairMode(mode, { storage = globalThis.localStorage } = {}){
+  const m = FAIR_MODES.includes(mode) ? mode : FAIR_DEFAULT;
+  try { storage?.setItem(FAIR_KEY, m === 'si' ? '1' : m); } catch {}
+  return m;
+}
+
+// stato dell'opzione: prima l'indirizzo (se dice qualcosa), poi la scelta salvata; altrimenti il valore di base
 export function fairFromUrl(search = ''){
   let v = null; try { v = new URLSearchParams(search || '').get('formato'); } catch {}
   v = String(v || '').trim().toLowerCase();
   return URL_ON.includes(v) ? true : URL_OFF.includes(v) ? false : null;
 }
-export function readFairFormat({ search = globalThis.location?.search || '', storage = globalThis.localStorage } = {}){
-  const forced = fairFromUrl(search);
-  if (forced !== null) return forced;
-  try { return storage?.getItem(FAIR_KEY) === '1'; } catch { return false; }
+// il formato in fiera vale per questa partita? split: partita tra due persone nello stesso schermo
+export function readFairFormat({ search = globalThis.location?.search || '', storage = globalThis.localStorage, split = false } = {}){
+  const m = readFairMode({ search, storage });
+  return m === 'si' || (m === 'split' && !!split);
 }
+// (compatibile con prima: acceso = «Sì», spento = «No»)
 export function writeFairFormat(on, { storage = globalThis.localStorage } = {}){
-  try { storage?.setItem(FAIR_KEY, on ? '1' : '0'); } catch {}
-  return !!on;
+  return writeFairMode(on ? 'si' : 'no', { storage }) === 'si';
 }
 // l'indirizzo comanda: dal pannello si può cambiare la scelta salvata, ma per questa pagina vale l'indirizzo
 export const fairForcedByUrl = (search = globalThis.location?.search || '') => fairFromUrl(search) !== null;

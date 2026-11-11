@@ -1,0 +1,13 @@
+== Contro la CPU: impronta di 120 punti per riga (semi 7 e 11) ==
+casual    tennista     | punti 120 + 120 · vinti 98.3%, 97.5% · colpi a scambio 4.33, 4.88 · impronta 3294429549d0
+casual    amatore      | punti 120 + 120 · vinti 85%, 81.7% · colpi a scambio 9.93, 9.03 · impronta 8f7a0238ea91
+casual    bambino      | punti 120 + 120 · vinti 47.5%, 44.2% · colpi a scambio 7.87, 7.69 · impronta 8408a67c0a89
+casual    preciso      | punti 120 + 120 · vinti 100%, 100% · colpi a scambio 4.55, 4.34 · impronta 3499ed937929
+pro       tennista     | punti 120 + 120 · vinti 96.7%, 95.8% · colpi a scambio 8.13, 9.02 · impronta 53a00772974a
+pro       amatore      | punti 120 + 120 · vinti 56.7%, 60.8% · colpi a scambio 12.47, 13.29 · impronta 8585b47eb9fb
+pro       bambino      | punti 120 + 120 · vinti 15%, 20% · colpi a scambio 7.13, 6.62 · impronta 625c72f4dba0
+pro       preciso      | punti 120 + 120 · vinti 100%, 99.2% · colpi a scambio 8.22, 8.43 · impronta 34e6b1a6c24a
+leggenda  tennista     | punti 120 + 120 · vinti 29.2%, 33.3% · colpi a scambio 16.99, 16.41 · impronta 454464acc648
+leggenda  amatore      | punti 120 + 120 · vinti 15.8%, 8.3% · colpi a scambio 11.14, 10.59 · impronta c4ac80b41a33
+leggenda  bambino      | punti 120 + 120 · vinti 7.5%, 10% · colpi a scambio 5.49, 5.4 · impronta b7fb53e47631
+leggenda  preciso      | punti 120 + 120 · vinti 44.2%, 47.5% · colpi a scambio 20.27, 20.45 · impronta 3e70a43ea56c

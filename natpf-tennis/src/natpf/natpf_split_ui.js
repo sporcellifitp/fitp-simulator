@@ -15,7 +15,7 @@
 //     lo fermano. Prima la lobby saltava muta a «Partita» dopo 0,7 s, dove serviva comunque «Gioca».
 import { NatpfPhoneRacket } from './natpf_phone_racket.js';
 import { calPrompt } from './natpf_cal_view.js';
-import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText, WATCH } from './natpf_phone_watch.js';
+import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText, phoneOf, holdTitle, WATCH } from './natpf_phone_watch.js';
 import { splitVisible } from './natpf_split.js';
 import { webcamOpenError } from './natpf_webcam_watch.js';
 
@@ -90,9 +90,20 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = fals
   return { state: c.state === 'go' ? 'go' : 'on', title: c.title, sub: c.sub, detail: 'Calibrazione' };
 }
 
+// Rivincita dai telefoni (B20, decisione dell'utente del 10/11 sull'audit B19, miglioramento 5): a fine partita ogni
+// telefono mostra «Rivincita»; parte quando l'hanno toccata tutti e due, oppure dal pulsante del computer («Gioca
+// ancora», com'era). Sul grande schermo, nella scheda di fine partita, si vede chi è pronto. Funzione pura: la riga
+export function rematchLine(votes = {}, names = {}){
+  const a = !!votes.p1, b = !!votes.p2, n1 = names.p1 || 'Player 1', n2 = names.p2 || 'Player 2';
+  if (a && b) return 'Rivincita!';
+  if (a || b) return `${a ? n1 : n2} vuole la rivincita · manca ${a ? n2 : n1}`;
+  return 'Rivincita dai telefoni: toccate «Rivincita» tutti e due';
+}
+
 export class NatpfSplitUi {
   constructor(engine, ui){
     this.engine = engine; this.ui = ui;
+    this.rematch = { p1: false, p2: false }; this._rmSent = { p1: '', p2: '' }; this._rmOffer = false;
     this.fails = { p1: 0, p2: 0 };          // verifiche non riuscite di fila
     this.calAsked = { p1: false, p2: false }; // calibrazione già chiesta per questo collegamento
     this.watch = createPhoneWatch(); this.hold = null; this.resync = createResync();
@@ -148,10 +159,12 @@ export class NatpfSplitUi {
       p2.onCal(e => this._onCal('p2', e));
       p2.onTutorial?.(() => this._tutDone('p2'));
       p2.onTutorialNav?.(d => { if (this.tutOpen.p2) this.tut.p2?.step(d); });
+      p2.onRematch?.(() => this._onRematch('p2'));
     }
     if (!this.p1Bound){
       this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => { this._resetIfNew('p1'); this._repaint(); }); this.ui.phone.onTutorial?.(() => this._tutDone('p1'));
       this.ui.phone.onTutorialNav?.(d => { if (this.tutOpen.p1) this.tut.p1?.step(d); });
+      this.ui.phone.onRematch?.(() => this._onRematch('p1'));
     }
     for (const id of SPLIT_PLAYERS) this.phone(id).start().catch(err => this.ui.toast(`Collegamento del ${id.toUpperCase()} non disponibile (${err.message})`));
   }
@@ -487,11 +500,65 @@ export class NatpfSplitUi {
     if (!this.session && !this.hold) return;
     this.engine.endSplit?.(); if (this.hold){ this.hold = null; this.ui._paintHold?.(null, '', null, 'p2'); } show($('natpf-split-hud'), false);
   }
+  /* ---------- rivincita dai telefoni (B20) ---------- */
+  // si può chiedere: partita finita nello stesso schermo, con i due telefoni (non con la webcam per due)
+  get rematchOffer(){ const E = this.engine; return this.session && !this.webcam && E.phase === 'MATCH_OVER' && !E.autoPlayMode; }
+  _onRematch(id){
+    if (!this.rematchOffer || this.rematch[id]) return;
+    this.rematch[id] = true;
+    this.ui.diag?.recorder?.log?.('split.rivincita', { chi: id });
+    if (!(this.rematch.p1 && this.rematch.p2)) this.ui.toast?.(`${this.name(id)} vuole la rivincita`);
+    this._tickRematch();
+  }
+  // ogni 100 ms: l'offerta ai telefoni (anche a quello che si ricollega), la riga nella scheda finale, la partenza
+  _tickRematch(){
+    if (!this.rematchOffer){
+      if (this._rmOffer) this._rematchClear();
+      return;
+    }
+    this._rmOffer = true;
+    if (this.rematch.p1 && this.rematch.p2){ this._rematchGo(); return; }
+    for (const id of SPLIT_PLAYERS){
+      const p = this.phone(id), o = id === 'p1' ? 'p2' : 'p1';
+      if (!p?.connected){ this._rmSent[id] = ''; continue; }
+      const key = `${p.state.joins || 0}:${+this.rematch[id]}:${+this.rematch[o]}:${this.name(o)}`;
+      if (key !== this._rmSent[id] && p.offerRematch?.({ me: this.rematch[id], other: this.rematch[o], name: this.name(o) })) this._rmSent[id] = key;
+    }
+    this._paintRematch();
+  }
+  // la partita non è più finita lì (menu, «Gioca ancora», «Nuovo giocatore», rivincita partita): i telefoni tolgono il pulsante
+  _rematchClear(){
+    this._rmOffer = false; this.rematch = { p1: false, p2: false };
+    for (const id of SPLIT_PLAYERS){ if (this._rmSent[id]) this.phone(id)?.offerRematch?.(null); this._rmSent[id] = ''; }
+    this._paintRematch();
+  }
+  // tutti e due l'hanno chiesta: stessa partita da capo (stesse impostazioni; chi batte si sorteggia di nuovo)
+  _rematchGo(){
+    const E = this.engine;
+    this._rematchClear();
+    this.ui.diag?.recorder?.log?.('split.rivincita', { stato: 'si gioca' });
+    this.ui.wipe?.('Rivincita');
+    E.hud?.hideVictoryModal?.();
+    E.autoPlayMode = false; E.userHasInteracted = true; E.persistentStateLock = false;
+    E.startNewMatch({ showStartBanner: true });
+    this.ui._syncPause?.();
+  }
+  // riga nella scheda di fine partita: chi vuole la rivincita, chi manca
+  _paintRematch(){
+    const el = typeof document !== 'undefined' ? $('victory-rematch') : null; if (!el) return;
+    const on = this._rmOffer;
+    show(el, on);
+    if (!on) return;
+    const t = rematchLine(this.rematch, { p1: this.name('p1'), p2: this.name('p2') });
+    if (el.textContent !== t) el.textContent = t;
+    el.dataset.votes = `${+this.rematch.p1}${+this.rematch.p2}`;
+  }
   // ogni 100 ms (natpf_ui): conto alla rovescia nella pagina «Collega», telefono del P2 in campo e etichette delle metà.
   // L'etichetta dice chi gioca e il telefono in pausa; l'esito del colpo non più (B10): sta nella scritta dell'esito
   // nell'angolo della metà di chi ha colpito (natpf_shot_feedback.popupPlace), prima c'erano due scritte per colpo
   tick(){
     this._tickStart();
+    this._tickRematch();
     const E = this.engine, on = this.session && splitVisible(E);
     const hud = $('natpf-split-hud'); show(hud, on);
     if (on){
@@ -518,19 +585,22 @@ export class NatpfSplitUi {
     const R = this.ui.diag?.recorder;
     if (inField && this.resync.update(h, { paused: this.watch.state !== 'ok', busy: rally, now }) && p.relink()) R?.log?.('tel.ricollega', { chi: 'p2', motivo: h.why || h.degraded, auto: true });
     // schermo del telefono del P2 spento: il riquadro dice da quanto (ogni secondo)
-    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold('Telefono del Player 2 in pausa', text, this.ui.relinkAction?.(p, 'Player 2'), 'p2'); } }
+    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold(holdTitle(this.name('p2')), text, this.ui.relinkAction?.(p, this.name('p2')), 'p2', { phone: p }); } }
     if (!a) return;
     if (a.kind === 'pause' || a.kind === 'wait'){
       this.hold = { why: a.why };
-      this.ui._paintHold('Telefono del Player 2 in pausa', phoneHoldText(p, a.why), this.ui.relinkAction?.(p, 'Player 2'), 'p2');
+      // B20 (audit B19, punto 10): nome nei testi, QR del telefono scollegato dentro il riquadro, avviso all'altro telefono
+      this.ui._paintHold(holdTitle(this.name('p2')), phoneHoldText(p, a.why), this.ui.relinkAction?.(p, this.name('p2')), 'p2', { phone: p });
+      this.ui._tellOtherPhone?.('p2', true);
       R?.log?.('tel.pausa', { chi: 'p2', motivo: a.why, fase: E.phase, ...(h.gapMs ? { gapMs: h.gapMs } : {}), ...(Number.isFinite(p.state.sensorAge) ? { sensoriTelefonoMs: p.state.sensorAge } : {}) });
       if (p.connected){ p.link.send({ t: 'ph', ph: 'pause' }); p.lastPhase = 'pause'; }
     }
-    if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`, null, 'p2', { count: a.left });
+    if (a.kind === 'countdown') this.ui._paintHold(holdTitle(this.name('p2'), 'ready'), `Si riprende tra ${a.left}…`, null, 'p2', { count: a.left });
     if (a.kind === 'resume'){
       this.hold = null; this.ui._paintHold(null, '', null, 'p2'); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
+      this.ui._tellOtherPhone?.('p2', false);
       const replay = a.replay && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
-      if (replay){ E._setupPointServe({ showBanner: false }); this.ui.toast?.('Il telefono del Player 2 si era fermato: il punto si rigioca'); }
+      if (replay){ E._setupPointServe({ showBanner: false }); this.ui.toast?.(`Il telefono ${phoneOf(this.name('p2'))} si era fermato: il punto si rigioca`); }
       R?.log?.('tel.ripresa', { chi: 'p2', rigiocato: replay });
     }
     this.ui._syncPause();

@@ -14,8 +14,12 @@ import { viewScore } from './natpf_point_call.js';
 const POINTS = ['0', '15', '30', '40'];
 
 // formato della partita in parole: «Partita a 1 game», «Al meglio di 3 game» (vince chi arriva per primo a 2)
-export function formatText(gamesToWin = 1){
+// fair (B20, audit B19 punto 18): con il formato in fiera il sottotitolo dice la regola, «1 game · punto decisivo sul
+// 40-40» (prima restava «Partita a 1 game»); short: c'è già la scritta del momento accanto («Punto decisivo»), resta
+// solo la durata, così nelle metà strette dello stesso schermo ci stanno tutte e due
+export function formatText(gamesToWin = 1, { fair = false, short = false } = {}){
   const n = Math.max(1, Math.round(Number(gamesToWin) || 1));
+  if (fair){ const len = n > 1 ? `Al meglio di ${n*2 - 1}` : '1 game'; return short ? len : `${len} · punto decisivo sul 40-40`; }
   return n > 1 ? `Al meglio di ${n*2 - 1} game` : 'Partita a 1 game';
 }
 
@@ -120,7 +124,7 @@ export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', 
       label = viewScore({ player: pts.player === 'Vant.' ? 'Ad' : '40', opponent: pts.opponent === 'Vant.' ? 'Ad' : '40' }, viewer, rival);
     }
   }
-  return { rows, format: formatText(gamesToWin), label };
+  return { rows, format: formatText(gamesToWin, { fair: !!score.fair, short: !!label }), label };
 }
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

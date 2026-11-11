@@ -18,7 +18,7 @@
 // Dietro il menu gira una dimostrazione: nessun gesto la trasforma in partita (natpf_ui.js, _gateInput).
 // Pausa, «Torna al menu» e il «Menu» della schermata finale riportano al menu principale.
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
-import { FORMAT_KEY, SERVE_KEY, serveChoice } from './match_format.js';
+import { FORMAT_KEY, SERVE_KEY, SPLIT_SERVE_KEY, serveChoice, splitServeChoice } from './match_format.js';
 import { readFairFormat, FAIR_MAX_GAMES_LABEL } from './natpf_fair_format.js';
 import { CHALLENGES, challengeById, pickableChallenge, validNickname } from './natpf_events.js';
 import { MEDAL_LABEL, nextMedal, medalCount } from './natpf_arcade.js';
@@ -190,8 +190,8 @@ export class NatpfLobby {
     let fmt = 'singles'; try { fmt = localStorage.getItem(FORMAT_KEY) || 'singles'; } catch {}
     this.setFormat(fmt);
     // chi batte per primo (match_format.firstServer): si ricorda tra una partita e l'altra
-    let srv = 'player'; try { srv = localStorage.getItem(SERVE_KEY) || 'player'; } catch {}
-    this.setServe(srv);
+    // (B20: nello stesso schermo una scelta a parte, di base il sorteggio: _loadServe, anche a ogni cambio di modalità)
+    this._loadServe();
     $('btn-start-match')?.addEventListener('click', () => this.engine.setMatchFormat?.(this.mode === 'split' ? 'singles' : this.format), true);
     // partite brevi: in fiera si gioca un game
     document.querySelector('#match-length-group [data-games="1"]')?.click();
@@ -225,6 +225,7 @@ export class NatpfLobby {
     if (!MODES.includes(mode)) return;
     if (mode === 'friend' && this.mode !== 'friend') this.roomAskedAt = performance.now();
     this.mode = mode; this.el.dataset.flow = mode;
+    this._loadServe();
     for (const t of this.el.querySelectorAll('[data-mode]')){ const on = t.dataset.mode === mode; t.classList.toggle('selected', on); t.setAttribute('aria-checked', String(on)); }
     // la scelta della modalità decide gli avversari della pagina «Partita»: CPU (facile, esperta o Leggenda) o 1v1 con invito
     const diff = this.engine.hud?.selectedDifficulty, versus = mode === 'friend' || mode === 'split';
@@ -347,10 +348,20 @@ export class NatpfLobby {
     this._paintServe();
   }
   // chi batte per primo: chi gioca qui, l'avversario o sorteggio (lo usa engine.startNewMatch)
+  // B20: lo stesso schermo ha la sua scelta salvata (match_format.SPLIT_SERVE_KEY), di base «Sorteggio»; le altre partite
+  // la loro, di base chi gioca qui
   setServe(id){
     this.serve = serveChoice(id);
     this.engine.natpfServeFirst = this.serve;
-    try { localStorage.setItem(SERVE_KEY, this.serve); } catch {}
+    try { localStorage.setItem(this.mode === 'split' ? SPLIT_SERVE_KEY : SERVE_KEY, this.serve); } catch {}
+    this._paintServe();
+  }
+  // scelta salvata per la modalità di adesso (all'avvio e a ogni cambio di modalità), senza riscriverla
+  _loadServe(){
+    const split = this.mode === 'split';
+    let v = null; try { v = localStorage.getItem(split ? SPLIT_SERVE_KEY : SERVE_KEY); } catch {}
+    this.serve = split ? splitServeChoice(v) : serveChoice(v);
+    this.engine.natpfServeFirst = this.serve;
     this._paintServe();
   }
   _paintServe(){
@@ -512,7 +523,8 @@ export class NatpfLobby {
     // B18: con il formato in fiera la partita più lunga è al meglio di 3 (natpf_fair_format.fairGamesToWin): «Al meglio
     // di 5» sparisce e, se era scelto, si passa a «Al meglio di 3»; spento, il 5 ricompare e, se era stato lo staff a
     // sceglierlo e nessuno ha cambiato durata nel frattempo, torna selezionato (revisione R4: prima la scelta si perdeva)
-    const fair = readFairFormat(), five = document.querySelector('#match-length-group [data-games="5"]');
+    // (B20: di base il formato in fiera vale solo nello stesso schermo: si chiede per la modalità di questa pagina)
+    const fair = readFairFormat({ split: !!split }), five = document.querySelector('#match-length-group [data-games="5"]');
     if (five){
       if (five.classList.contains('hidden') !== fair){ five.classList.toggle('hidden', fair); five.title = fair ? FAIR_MAX_GAMES_LABEL : ''; }
       const sel = document.querySelector('#match-length-group .selected')?.dataset?.games;
