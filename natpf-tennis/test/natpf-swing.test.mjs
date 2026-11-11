@@ -75,11 +75,22 @@ test('dal telefono al motore: polso, latenza, forza e colpo nell’evento', () =
   assert.equal(natpfSwingToEngine({ dir: 1 }).natpf.latency, .06);
 });
 
-test('CPU: sbaglia sui colpi pericolosi, non sulle palle lente e corte', () => {
-  const lv = pro, base = { angle: .7, speed: 22, pressure: .5, stretch: .4, rally: 4, quality: 1, level: lv };
-  const strong = NS.cpuErrorChance({ ...base, threat: NS.shotThreat({ power: .9, depth: -10.8 }) });
-  const soft = NS.cpuErrorChance({ ...base, threat: NS.shotThreat({ power: .1, depth: -6.8 }) });
-  assert.ok(strong > soft*1.8, `${strong} ${soft}`);
+// B18.2 passo 2 (D1): la regola è cambiata. Prima la probabilità cresceva con angolo e velocità anche sulla palla comoda
+// (allungo 0,4) e la palla forte e profonda valeva più del doppio di quella lenta e corta a ogni livello. Ora conta se la
+// CPU la colpisce in allungo o in corsa: sulla palla comoda forte e debole danno la stessa base; in allungo a Casual la
+// palla lenta e corta mette meno in difficoltà (mai sotto il minimo del livello, soft), a Pro contano solo allungo e corsa
+test('CPU: sbaglia sulle palle che la mettono in difficoltà; la palla lenta e corta a Casual pesa meno', () => {
+  const forte = NS.shotThreat({ power: .9, depth: -10.8 }), debole = NS.shotThreat({ power: .1, depth: -6.8 });
+  for (const lv of [casual, pro]){
+    const comoda = { angle: .7, speed: 22, pressure: .5, stretch: .4, running: 0, quality: 1, level: lv };
+    assert.equal(NS.cpuErrorChance({ ...comoda, speed: 16, threat: forte }), NS.cpuErrorChance({ ...comoda, speed: 16, threat: debole }));
+    const dura = { ...comoda, stretch: 1, running: 1 };
+    assert.ok(NS.cpuErrorChance({ ...dura, threat: forte }) > 3*NS.cpuErrorChance({ ...comoda, speed: 16, threat: forte }));
+    assert.ok(NS.cpuErrorChance({ ...dura, threat: forte }) >= NS.cpuErrorChance({ ...dura, threat: debole }));
+  }
+  const dura = { angle: .7, speed: 22, pressure: .5, stretch: 1, running: 1, quality: 1, level: casual };
+  const strong = NS.cpuErrorChance({ ...dura, threat: forte }), soft = NS.cpuErrorChance({ ...dura, threat: debole });
+  assert.ok(strong > soft*1.3, `${strong} ${soft}`);
 });
 
 test('«Salta» la calibrazione: profilo semplice, il telefono è pronto, i gesti valgono tutti e il verso si misura', () => {

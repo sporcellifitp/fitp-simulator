@@ -2611,7 +2611,9 @@ export class NatpfTennisEngine {
     if (this.autoPlayMode && !this.userHasInteracted) (y = "TOPSPIN"), (f = 0.84);
     else if (natpfPlan.kind === "net") (m = !0), (c = 3.2 + Math.random() * 2.4), (f = 0.78);
     else if (natpfPlan.kind === "wide")
-      (g = (Math.random() < 0.5 ? 1 : -1) * (S.SINGLES_X + 0.45 + Math.random() * 0.7)),
+      // NATPF B18.2 passo 2: la palla esce dal lato da cui la CPU la colpisce (prima un lato a caso: attraversando il campo
+      // l'aria la frenava e metà di queste palle «larghe» cadeva dentro, cioè l'errore non c'era), un poco più larga
+      (g = (Math.abs(this.ball.pos.x) > 0.4 ? Math.sign(this.ball.pos.x) : Math.random() < 0.5 ? 1 : -1) * (S.SINGLES_X + 0.6 + Math.random() * 0.7)),
         (c = 8.4 + Math.random() * 2.6),
         (f = 0.92);
     else if (natpfPlan.kind === "long") (c = S.BASELINE_Z + 0.55 + Math.random() * 1.1), (f = 1.02);

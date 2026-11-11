@@ -345,7 +345,8 @@ test('D11 (revisione): a Casual chi batte tardi con il telefono non perde il ser
   // Il bloccante della revisione: tolti gli ace «regalati» dalla CPU in corsa, con il servizio del telefono il profilo
   // «bambino» a Casual scendeva da 52,6% a 47,0% dei punti al servizio se colpisce tardi (18,5 → 10,7% di punti diretti,
   // 25 semi × 300 punti), perché il servizio fuori tempo valeva il 60% della base anche al livello di chi comincia.
-  // Ora a Casual la base è 0,15 e il ritardo non la riduce: 4 semi × 300 punti (circa 620 servizi, ±1,4 punti)
+  // Ora a Casual la base è 0,15 (0,125 nella scala del passo 2, vedi sotto) e il ritardo non la riduce: 4 semi × 300
+  // punti (circa 620 servizi, ±1,4 punti)
   const opts = { difficulty: 'casual', profile: 'bambino', points: 300, seeds: [1001, 1038, 1075, 1112] };
   const late = natural({ ...opts, serveModel: 'tardi' }), taught = natural({ ...opts, serveModel: 'insegnato' });
   const msg = r => `${r.serveModel}: punti diretti ${r.puntoDiretto}%, punti al servizio ${r.puntiAlServizio}%, q ${r.q}`;
@@ -355,8 +356,10 @@ test('D11 (revisione): a Casual chi batte tardi con il telefono non perde il ser
   assert.ok(late.puntoDiretto >= taught.puntoDiretto - 3, `${msg(late)} · ${msg(taught)}`);
   assert.ok(late.puntiAlServizio >= 48 && taught.puntiAlServizio >= 48.5, `${msg(late)} · ${msg(taught)}`);
   for (const r of [late, taught]){ assert.equal(r.ace, 0); assert.equal(r.inCorsa, 0); }
-  // controllo al contrario: con i valori di prima della revisione (base 0,135, ritardo al 60%) la stessa misura è sotto
-  NS.serveTuning.casual = { base: .135, lateBase: .6 };
+  // controllo al contrario: con i valori di prima della revisione (base 0,135, ritardo al 60%) la stessa misura è sotto.
+  // B18.2 passo 2: la scala di SERVE_WEIGHT è cambiata (× 0,84: ogni errore deciso ora esce davvero, prima metà di
+  // quelli «di lato» cadeva dentro): la base di allora, 0,135, oggi vale 0,113 (quella di oggi, 0,15, vale 0,125)
+  NS.serveTuning.casual = { base: .113, lateBase: .6 };
   try {
     const old = natural({ ...opts, serveModel: 'tardi' });
     assert.ok(old.puntoDiretto < 11.5 && old.puntiAlServizio < 48, `con i valori di prima: ${msg(old)}`);

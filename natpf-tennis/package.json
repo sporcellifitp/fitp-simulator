@@ -21,7 +21,8 @@
     "audit:variety": "node --import ./test/register.mjs scripts/audit/variety.mjs",
     "audit:legend": "node --import ./test/register.mjs scripts/audit/legend.mjs",
     "audit:rhythm": "node --import ./test/register.mjs scripts/audit/rhythm.mjs",
-    "audit:serve": "node --import ./test/register.mjs scripts/audit/servizio.mjs"
+    "audit:serve": "node --import ./test/register.mjs scripts/audit/servizio.mjs",
+    "audit:cpu": "node --import ./test/register.mjs scripts/audit/cpu-pressione.mjs"
   },
   "dependencies": {
     "@mediapipe/hands": "0.4.1675469240",

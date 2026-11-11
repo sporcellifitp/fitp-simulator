@@ -164,14 +164,21 @@ test('skill gap: la mira decide la direzione; col piatto il tempo pesa meno; ris
   assert.ok(h > .35, 'un colpo troppo teso viene rallentato quanto basta per passare la rete');
 });
 
-test('skill gap: gli errori della CPU crescono con angolo, velocità, pressione e allungo; in Pro meno che in Casual', () => {
+// B18.2 passo 2 (D1 del rapporto B16): prima gli errori crescevano anche con la sola lunghezza dello scambio («gli scambi
+// lunghi finiscono») e con angolo, velocità e pressione su una palla comoda. Ora la CPU sbaglia quando è in allungo, in
+// corsa o sulla palla veloce; angolo e pressione aggravano solo la palla difficile; lo scambio lungo da solo non conta
+test('skill gap: gli errori della CPU crescono con allungo, corsa e velocità; in Pro meno che in Casual; lo scambio lungo da solo non conta', () => {
   const c = NS.skillLevel('casual'), p = NS.skillLevel('pro');
-  const e = (o, lv = c) => NS.cpuErrorChance({ angle: .2, speed: 18, pressure: 0, stretch: .2, rally: 3, quality: 1, level: lv, ...o });
-  assert.ok(e({ angle: .9 }) > e({}) && e({ speed: 30 }) > e({}) && e({ pressure: 2 }) > e({}) && e({ stretch: 1 }) > e({}));
-  assert.ok(e({ rally: 20 }) > e({}), 'gli scambi lunghi finiscono');
-  assert.ok(e({ angle: .9, quality: .3 }) < e({ angle: .9 }), 'un angolo fuori tempo mette meno in difficoltà');
+  const e = (o, lv = c) => NS.cpuErrorChance({ angle: .2, speed: 16, pressure: 0, stretch: .2, running: 0, rally: 3, quality: 1, level: lv, ...o });
+  assert.ok(e({ stretch: 1 }) > e({}) && e({ running: 1 }) > e({}) && e({ speed: 30 }) > e({}));
+  assert.equal(e({ rally: 20 }), e({}), 'lo scambio lungo da solo non fa sbagliare');
+  assert.equal(e({ angle: .9 }), e({}), 'l\'angolo da solo, con la CPU comoda sulla palla, non basta');
+  assert.equal(e({ pressure: 2 }), e({}), 'la pressione da sola nemmeno');
+  assert.ok(e({ stretch: 1, angle: .9 }) > e({ stretch: 1 }) && e({ stretch: 1, pressure: 2 }) > e({ stretch: 1 }));
+  assert.ok(e({ stretch: 1, angle: .9, quality: .3, threat: .4 }) < e({ stretch: 1, angle: .9, threat: 1.1 }), 'una palla debole e fuori tempo mette meno in difficoltà');
   assert.ok(e({ shot: 'DROP', cpuDeep: true }) > e({}) && e({ shot: 'SMASH' }) > e({}));
-  assert.ok(e({ angle: .8, speed: 28 }, p) < e({ angle: .8, speed: 28 }, c));
+  assert.ok(e({ stretch: 1, running: 1, speed: 28 }, p) < e({ stretch: 1, running: 1, speed: 28 }, c));
+  assert.ok(e({}, p) < e({}, c) && e({}, c) <= .03, 'sulla palla comoda al massimo il 3%');
 });
 
 test('motore: finestra d\'impatto — lo swing in anticipo aspetta la palla a ogni livello, troppo in anticipo è a vuoto; allargata sulla palla lenta solo a rete', () => {
