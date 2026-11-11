@@ -6,7 +6,7 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## ADESSO (aggiornato l'11/11/2026 alle 20:55 UTC)
+## ADESSO (aggiornato l'11/11/2026 alle 21:45 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
 - [x] Tappa 2 passo 1 (servizio, personaggi fermi) con revisore · su GitHub (`0bdb83f`)
@@ -28,14 +28,24 @@ Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) 
 opzione), con revisore indipendente e correzioni (ramo `worktree-wf_190d3d32-58d-1`, fino a `9baff80`).
 - [x] Unione su `natpf-simulator`, versione 2026-11-11.2, controllo rapido: gioco 1158/1158, sito 205/205, Windows 29/29,
       build ok → push
-- [~] Installer: aspettare `…r2.dev/windows/latest.json` con `"build": "2026-11-11.2"`, scaricare il link fisso, sha256;
-      controllare anche il trailer su R2: `https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev/media/trailer-aad6b9311db4.mp4`
-- [~] Zip Cloudflare (dopo `npm run build`), provato estratto, mandato all'utente (richiesta: mandarlo SUBITO, le prove
-      complete dopo)
-- [ ] Prove complete in parallelo: LAN, `audit:legend`, prove nel browser (script modello `scratchpad/v1111/prove.sh` +
-      `natpf-intro-trailer`, `natpf-scia-palla`, `natpf-modale-gesti`, `natpf-schermo`); se una è rossa: correggere e versione nuova
-- [ ] Scrivere sha e risultati in `docs/WORK_PROGRESS.md` e qui; dire all'utente «come si spegne» (Opzioni → «Scia della
-      palla»; `?trailer=0` per l'intro di prima)
+- [x] Zip Cloudflare 2026-11-11.2 consegnato: 23.292.883 B, sha256
+      `5b008704198515b051e7c91d89af3b319c8c622e771911ffff34f39527c164c5`, provato estratto
+- [x] Prove complete sul codice unito, tutte verdi: LAN 12/12, `audit:legend` 69/69, 20 prove nel browser (intro-trailer
+      71/71, scia-palla 39/39, modale-gesti 29/29, schermo 41/41, stesso-schermo-b20 52/52, split-ready 34/34,
+      formato-fiera 22/22 e p2p 9/9, 1v1-p2p 39/39, tabellone 42/42, nuovo-giocatore 28/28, servizio-lancio 12/12,
+      servizio-peso 8/8, menu 28/28, rally 9/9, leggenda 7/7, training-flow 22/22, tutorial-phone 52/52, gesti-speciali
+      9/9, phone-keep 13/13)
+- [~] **Installer 2026-11-11.2 NON ancora pubblicato**: la corsa 43098482940 di GitHub Actions («NATPF eseguibili
+      Windows») è **in coda dalle 20:51 UTC** insieme alle altre due del repository (nessun runner parte: probabile quota
+      dei minuti di Actions del profilo `sporcellifitp`, o ritardo di GitHub; detto all'utente: Settings → Billing and
+      plans). Quando parte: aspettare `…r2.dev/windows/latest.json` con `"build": "2026-11-11.2"`, scaricare il link
+      fisso, controllare lo sha256, controllare il trailer su R2
+      (`https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev/media/trailer-aad6b9311db4.mp4`, oggi 404) e mandare il link.
+      Se la corsa risulta annullata o fallita: rilanciarla a mano (workflow_dispatch) dopo che l'utente ha sistemato la quota.
+- [x] Detto all'utente come si spegne la scia (Opzioni → «Scia della palla») e `?trailer=0`
+
+**Prossimo lavoro** (dopo l'installer): B25 (stesso schermo: lancio automatico, campo aperto, super relativo,
+preparazione, aiuto al più giovane) e B23 (prova delle movenze sul dritto); poi B24 e tappa 2 gruppi 2 e 3.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 

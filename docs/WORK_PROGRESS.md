@@ -1355,3 +1355,30 @@ guida provato nel browser.
   `099bf51c71ec13f7462f2d099cb3d04a1df0d1eee94e8fa80f7f057343e093fb` (verificato dal link fisso); zip Cloudflare
   22.633.811 B, sha256 `78bb85e3206b0f8fd2adcbaa278fe5fbac8b0adac58dea8eeb55f44885c379cf`, provato estratto. Prove nel
   browser sul codice unito: vedi `docs/TRACCIA_PASSI.md` (in corso alla consegna; sui due rami erano tutte verdi).
+
+## B21 + B22 · Video nel gioco e scia della palla (11/11) · [x] versione 2026-11-11.2 (installer in attesa di GitHub)
+- Richieste dell'utente dell'11/11: trailer e clip «come si gioca» generati con Higgsfield/Seedance da fotogrammi veri del
+  gioco (86 crediti su 120 di tetto), trailer approvato senza titolo; scia luminosa nel gameplay con opzione.
+- Workflow `b21-b22-video-scia` (agente → revisore indipendente → correzioni), ramo `worktree-wf_190d3d32-58d-1`,
+  `31fcfac`…`9baff80`; documento `docs/b21/video-e-scia.md` con le schermate.
+  - B22: nastro giallo dietro la palla per tutti i colpi (`natpf_ball_glow.js`), opzione «Scia della palla: Sì · No» nelle
+    Opzioni (chiave `natpf-tennis.sciaPalla`); su «No» disegno identico pixel per pixel a `4dc6ae7` (6 scene); la scia non
+    tocca fisica né numeri casuali.
+  - B21 intro: trailer `natpf-desktop/media/trailer-aad6b9311db4.mp4` (2.258.622 B; non entra nello zip Cloudflare, sta
+    dentro l'installer, sul web da R2 `media/`); ripiego sul video di prima se il trailer dà errore, è rifiutato o non
+    può arrivare in fondo senza fermarsi (stima del browser + almeno 6 s su 10 scaricati entro l'attesa; 2,5 s sul web,
+    1,5 s nel programma); `?trailer=0` forza il video di prima. Il workflow `natpf-windows.yml` carica il trailer su R2
+    senza bloccare l'installer.
+  - B21 tutorial: due clip sfocate (`public/media/tutorial-sfondo-1/2.mp4`, 0,23 e 0,33 MB) dietro la scheda dei gesti,
+    con velo; spente con «riduci movimento» e nello stesso schermo (lì le animazioni scendevano a 30 fps).
+  - Revisione: bloccante «rete lenta → trailer a scatti» corretto (prima bastava il primo evento `playing`); minori
+    (errore a metà del trailer, controllo finale del workflow sull'indirizzo del gioco, `?lan=1`).
+- Unione e versione 2026-11-11.2 (`229167b`): gioco 1158/1158, sito 205/205, LAN 12/12, programma Windows 29/29, build
+  ok, `audit:legend` 69/69, 20 prove nel browser verdi (elenco in `docs/TRACCIA_PASSI.md`). Zip Cloudflare 23.292.883 B
+  (margine 1.707.117 B), sha256 `5b008704198515b051e7c91d89af3b319c8c622e771911ffff34f39527c164c5`, provato estratto.
+- **Installer non ancora pubblicato**: le azioni di GitHub del repository sono in coda dalle 20:51 UTC dell'11/11
+  (nessun runner; probabile quota dei minuti del profilo nuovo). Finché non girano manca anche il trailer su R2: sul web
+  si vede il video di prima (ripiego).
+- **Non verificato**: Windows vero, R2 vero, Safari/Firefox/telefoni (su iPhone il trailer può non scaricarsi da fermo:
+  si vedrebbe il video di prima), scheda grafica vera, ledwall.
+
