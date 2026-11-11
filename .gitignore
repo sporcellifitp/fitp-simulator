@@ -19,3 +19,9 @@ tools/lan/certs/
 *.key
 *-key.pem
 
+
+# PromptOps context snapshot
+.promptops/
+
+# PromptOps session assets
+.promptops-assets/
