@@ -19,9 +19,12 @@ e l'«impronta» (riassunto di tutti i punti giocati).
 | file | cosa c'è |
 |---|---|
 | `prima-dell-opzione.txt` | Opzione spenta, misurata **prima** di aggiungere l'opzione al motore (commit `ef4d32f`). |
-| `scambio-caldo.txt` | Spenta e accesa, con il motore di oggi. Le impronte di «spenta» sono uguali a quelle del file sopra: spenta, la partita è identica punto per punto. |
+| `scambio-caldo.txt` | Spenta e accesa, con il motore di oggi (dopo la revisione), anche tra «precisi» e con soli tagliati (`--coppie=…,medio+tagli`). Le impronte di «spenta» erano uguali a quelle del file sopra fino alla correzione del tagliato del Player 2 (revisione), che cambia le partite dello stesso schermo; rimettendo per prova il tagliato di prima tornano uguali. I bambini (nessun tagliato) hanno la stessa impronta. |
+| `impronta-cpu-prima-della-revisione.txt`, `impronta-cpu-dopo-la-revisione.txt` | `impronta-cpu.mjs`: contro la CPU (Casual, Pro, Leggenda; 4 profili; 240 punti per riga) le impronte sono identiche prima e dopo le correzioni della revisione. |
+| `risposta-dopo-revisione.txt` | `../b19/misure.mjs risposta` con semi nuovi dopo la correzione del tagliato: soli tagliati, Player 1 50,3% dei punti tra medi e tra amatori. |
+| `equilibrio-lati-medi-altri-semi.txt` | Tra adulti medi con l'opzione accesa, altri 5 semi e 1.200 partite: Player 1 49,7% dei punti. |
 | `risposta.txt`, `risposta-altri-semi.txt` | `../b19/misure.mjs risposta` dopo la correzione della risposta del Player 2 (B20, punto A1): nessuna risposta diventa più una schiacciata; con soli tagliati il Player 1 vince il 50,6–51,7% dei punti (prima 60–62%, `../b19/risultati/risposta.txt`). |
-| `equilibrio-lati.txt` | 720 partite per riga (4 semi) tra medi e tra amatori: Player 1 e Player 2 alla pari anche con l'opzione accesa. |
+| `equilibrio-lati.txt` | 720 partite per riga (4 semi) tra medi e tra amatori, spenta e accesa (dopo la revisione). |
 
 Limiti: i profili sono simulati (non si sa quale somigli al visitatore); il robot sbaglia il tempo sempre allo stesso
 modo, anche con la palla più veloce, mentre una persona vera sbaglia di più: con persone vere lo scambio caldo dovrebbe
