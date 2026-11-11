@@ -4,6 +4,11 @@ Difetti 1 e 9 del rapporto B16 (`docs/b16/rapporto-gameplay.md` §2, appendice D
 rivisto (`1f170bb`, `docs/b18/t2-1-servizio.md`). Lavoro fatto in una worktree, senza push e senza toccare
 `natpf-simulator` o `main`. I file di versione e i documenti di ripresa non sono toccati.
 
+**Rivisto dopo la revisione indipendente** (sezione «Revisione» in fondo): la taratura è confermata e non è cambiata;
+sono corretti alcuni punti del documento, la tabella degli obiettivi del banco e tre test. La revisione ha messo in
+evidenza una scelta, quanto deve essere difficile Pro per chi gioca piano: **l'utente ha deciso l'11/11/2026 che Pro
+resta com'è** (sezione «Revisione»).
+
 Tutti i numeri di questo documento vengono dal gioco simulato (il motore vero senza disegno, con giocatori simulati):
 non sono misure di persone vere. «Prima» è sempre il commit `1f170bb`.
 
@@ -122,6 +127,7 @@ codice: `npm run audit:cpu -- --prova=pro.cpuWide.react=.2,pro.cpuErr.stretch=.0
 | `natpf-tennis/test/natpf-b18-t2-cpu-pressione.test.mjs` | **nuovo**: 14 test |
 | `natpf-tennis/test/natpf-grip-skill.test.mjs`, `natpf-swing.test.mjs` | due test che fissavano la regola vecchia, riscritti (vedi «Test») |
 | `natpf-tennis/test/natpf-b18-stanchezza.test.mjs`, `natpf-b18-t2-servizio.test.mjs` | una soglia e un controllo aggiornati (vedi «Test») |
+| `natpf-tennis/test/natpf-formato-fiera.test.mjs` | revisione: il test instabile della velocità del servizio della CPU ha il caso fissato (vedi «Test») |
 | `docs/b18/t2-2-cpu-pressione.md` | questo documento |
 
 ## Misure prima e dopo
@@ -135,8 +141,20 @@ codice: `npm run audit:cpu -- --prova=pro.cpuWide.react=.2,pro.cpuErr.stretch=.0
 Il banco nuovo gioca partite intere (300 punti per seme) con i profili simulati: «umano» e «amatore» (telefono, gioco
 medio; «umano» fa il gesto dopo il rimbalzo come le persone riprese il 23/10), «medio» (tira più forte e angolato),
 «tennista» (preciso e forte), «bambino» (piano e a caso). Le tabelle 1–4 sono su 16 semi × 300 punti per casella
-(4800 punti). Errore di misura: circa ±0,5 punti sui punti vinti, **±2 sui game vinti**. I game si contano sulla
-sequenza dei punti (primo a 4 con 2 di scarto).
+(fino a 4800 punti: vedi sotto). Errore di misura: circa ±0,5 punti sui punti vinti, **±2 sui game vinti**. I game si
+contano sulla sequenza dei punti (primo a 4 con 2 di scarto).
+
+**Due distorsioni del banco, da sapere** (trovate dalla revisione; valgono anche per `audit:legend` e `audit:rally`,
+che usano la stessa simulazione):
+- **Lo scambio che arriva a 60 colpi è chiuso d'ufficio e il punto va alla CPU.** Prima del passo non succedeva mai;
+  adesso a Pro succede nell'1,4% dei punti di «umano» e nello 0,5% di quelli di «amatore» (tabella 8). Quei punti
+  contano come persi da chi gioca: a Pro le percentuali di punti e di game «dopo» di «umano» e «amatore» sono quindi un
+  poco più basse del vero (fino a circa un punto su cento). Nel gioco vero non c'è un tetto.
+- **Ogni simulazione si ferma a 4000 secondi di gioco**, anche se non ha finito i 300 punti. A Casual quasi tutte
+  finiscono; a Pro, dove i punti durano di più, no. Le caselle di Pro hanno quindi meno dei 4800 punti scritti sopra:
+  «umano» 3432 prima e 2888 dopo, «amatore» 3607 e 3218, «medio» 4113 e 3931, «tennista» 4795 e 4633, «bambino» 4800
+  e 4800 (a Casual da 4297 a 4800). L'errore di misura su quelle caselle è più grande in proporzione (circa ±0,7 punti
+  sui punti vinti invece di ±0,5), e il «dopo» ha meno punti del «prima».
 
 «Palla facile» ha una definizione fisica, che non usa la regola dell'errore: colpo normale dello scambio (non la
 risposta al servizio, non palla corta, pallonetto, schiacciata o super), caduto a meno di 2 m di lato dalla CPU e non
@@ -410,10 +428,14 @@ tutorial né battendo tardi.
    casella da 8 semi oscilla di ±2,5.
 7. **A Casual la palla comoda ma veloce conta come palla difficile.** La definizione di «palla facile» del banco non
    guarda la velocità; la regola a Casual sì. Contro «tennista», che tira forte, gli errori sulle palle facili sono al
-   2,5% (16 semi, 317 palle); con soli 8 semi (circa 160 palle, errore ±1,3) ho letto anche 3,2%. Per questo la tabella
-   degli obiettivi del banco lascia decidere solo le caselle con almeno 300 palle facili, e scrive le altre a parte.
+   2,5% (16 semi, 317 palle); con soli 8 semi (circa 160 palle, errore ±1,3) ho letto anche 3,2%. Nella tabella degli
+   obiettivi del banco una casella fallisce se il suo errore è sopra il 3% oltre il rumore della misura (errori meno
+   due volte l'errore standard): 3,2% su 160 palle passa ed è segnalato, 9% su 160 palle fallisce. La prima versione
+   («decidono solo le caselle con almeno 300 palle») era di comodo e la revisione l'ha fatta togliere.
 8. **L'errore «lungo» non esce sempre.** Quando la regola decide un errore «lungo», la palla cade dentro 14 volte su 100
-   a Casual e 7 a Pro (era già così). Gli errori in rete e di lato escono 98–100 volte su 100.
+   a Casual e 7 a Pro nella mia misura (6 semi), 16,8 su 100 a Casual in quella del revisore. Era già così prima del
+   passo e non è corretto: a Casual la CPU sbaglia quindi un poco meno di quanto dice la regola. Gli errori in rete e
+   di lato escono 98–100 volte su 100.
 9. **Servizio.** I punti diretti sono rimasti entro l'errore della misura, non identici: a Casual il servizio in
    ritardo 12,6 → 14,1%, a Pro quello forte in ritardo 3,6 → 2,3%. Il ritardo di lettura a Casual (0,075 → 0,037 s)
    l'ho controllato solo con il banco.
@@ -447,7 +469,7 @@ dal lavoro precedente su questo passo; io ho tolto la stanchezza (limite 5) e ri
 
 | prova | risultato |
 |---|---|
-| test del gioco (`npm test`) | **1103/1103** (prima del passo 1089). In una delle tre esecuzioni complete 1102/1103: vedi sotto «Un test instabile che c'era già» |
+| test del gioco (`npm test`) | **1103/1103** (prima del passo 1089), rifatto dopo le correzioni della revisione. Prima delle correzioni, in una delle tre esecuzioni complete 1102/1103: vedi sotto «Un test instabile che c'era già» |
 | build (`npm run build`) | ok |
 | `npm run audit:legend` | **69/69** |
 | test del sito (`node --test tools/test/*.test.mjs`) | **201/201** |
@@ -472,8 +494,11 @@ Test nuovi (`natpf-tennis/test/natpf-b18-t2-cpu-pressione.test.mjs`, 14):
 - la difficoltà del livello passa dalla corsa (Casual più lenta di Pro, Pro di Leggenda);
 - le costanti del servizio non dipendono più da quelle degli scambi;
 - il banco legge i valori di prova o dà errore; nel gioco non ce ne sono;
-- banco ridotto (5 semi × 300 punti, sei caselle): CPU in rete, palle facili, palle facili negli scambi lunghi,
-  vincenti, campo aperto a Pro, livelli.
+- banco ridotto (sei caselle; 5 semi × 300 punti, 16 semi per «Pro contro medio» e «Pro contro umano»): CPU in rete,
+  palle facili, palle facili negli scambi lunghi, vincenti, livelli. Dopo la revisione i due obiettivi stretti si
+  controllano con il loro valore vero su 16 semi: vincenti con la palla a 4–6 m contro «umano» almeno il 15% (prima il
+  test chiedeva 11%) e «Pro contro medio» tra 70 e 85% dei game (prima 70–90%). Nello stesso test la regola della
+  tabella degli obiettivi sulle palle facili (limite 7).
 
 Test che fissavano i numeri vecchi, aggiornati:
 - `natpf-grip-skill.test.mjs` («gli errori della CPU crescono con…»): chiedeva che l'errore crescesse con la lunghezza
@@ -481,15 +506,20 @@ Test che fissavano i numeri vecchi, aggiornati:
 - `natpf-swing.test.mjs` («CPU: sbaglia sui colpi pericolosi…»): la palla forte e profonda valeva più del doppio di
   quella lenta e corta anche con la CPU comoda. Ora conta se la CPU è in allungo o in corsa.
 - `natpf-b18-stanchezza.test.mjs` (stanchezza di chi gioca): soglia del tempo su «Stanco!» da 10 a 15%. Quella partita
-  (un seme, 40 punti) era già al 9,9% ed è al 10,3% perché gli scambi di Pro sono un poco più lunghi. Su 12 semi la
-  media è la stessa (7,2% prima, 6,9% dopo; su 150 punti «amatore» 6,2 → 6,9%, «umano» 6,9 → 8,1%).
+  (un seme, 40 punti) era già al 9,9% ed è al 10,3% perché gli scambi di Pro sono un poco più lunghi. **A Pro chi gioca
+  è su «Stanco!» un poco più spesso di prima**: nelle mie misure «amatore» passa da 6,2 a 6,9% del tempo e «umano» da
+  6,9 a 8,1% (12 semi × 150 punti; sulle partite da 40 punti del test 7,2 → 6,9%); il revisore, con altri 12 semi,
+  misura per «amatore» 5,8 → 8,1%, con una partita al 16,1%. La prima stesura diceva «la media non cambia»: era
+  sbagliato. Resta lontanissimo dal difetto corretto nel B18 (93–96% del tempo).
 - `natpf-b18-t2-servizio.test.mjs` (passo 1): il controllo «con i valori di prima della revisione» usava la base 0,135
   nella scala vecchia; nella scala nuova (× 0,84) è 0,113. Il test e le sue soglie sono gli stessi.
 
-Un test instabile che c'era già (non toccato): `natpf-formato-fiera.test.mjs`, «servizio della CPU: velocità vera sul
-tabellone (non 194 km/h fissi)». Il servizio della CPU ha una velocità a caso e il test chiede che non sia 194 km/h:
-ogni tanto lo è. Lanciato da solo 12 volte fallisce 1 volta con questo passo e 2 volte sul commit di prima (`1f170bb`):
-non dipende da questo lavoro (il servizio della CPU non è toccato). Si sistema fissando il caso nel test.
+Un test instabile che c'era già, sistemato dopo la revisione: `natpf-formato-fiera.test.mjs`, «servizio della CPU:
+velocità vera sul tabellone (non 194 km/h fissi)». Il servizio della CPU ha una velocità a caso e il test chiedeva che
+non fosse 194 km/h: ogni tanto lo è (4,3 volte su 100 secondo il revisore; lanciato da solo 12 volte falliva 1 volta
+con questo passo e 2 volte sul commit di prima, `1f170bb`). Non dipendeva da questo lavoro. Ora il caso nel test è
+fissato (sei servizi per livello, sempre gli stessi): il tabellone deve mostrare la velocità vera di ognuno e i sei
+servizi non devono avere tutti la stessa velocità (a Casual 193–198 km/h, a Pro 217–235).
 
 ## Cosa non è verificato
 
@@ -502,8 +532,92 @@ non dipende da questo lavoro (il servizio della CPU non è toccato). Si sistema 
   rifatto (i file di versione non si toccano in questo passo).
 - **Stesso schermo e due computer veri.** Provati nel codice e nei test (le regole nuove sono spente quando risponde
   una persona), non giocati da due persone.
-- **Doppio 2v2 contro la CPU e Allenamento.** Usano la stessa CPU (l'Allenamento quella di Casual): le regole nuove
-  valgono anche lì. Non sono misurati.
+- **Doppio 2v2 contro la CPU.** Usa la stessa CPU: le regole nuove valgono anche lì. Non è misurato.
+- **Allenamento.** Lì le regole nuove non valgono: l'avversario è fermo e la palla arriva dal lanciapalle (verifica del
+  revisore; la prima stesura diceva il contrario).
 - **Livelli «Evento» e «Bambini».** Non sono in questo passo e in questo ramo non esistono. Quando arrivano va
   controllato da quale livello prendono i valori della CPU.
 - **Webcam e mouse.** Il profilo «medio» simula un comando diretto; i colpi dalla webcam non sono misurati a parte.
+
+## Revisione
+
+Un revisore indipendente ha rifatto le misure con semi suoi (fino a 96) e ha riletto il codice. Ha confermato: il
+codice è corretto e la taratura regge. **La taratura di Pro non è stata cambiata.** Ha trovato alcuni punti minori,
+corretti qui sotto, e ha messo in evidenza una scelta che spettava all'utente: l'utente l'ha presa l'11/11/2026
+(**Pro resta com'è**, vedi sotto).
+
+### Le misure del revisore su Pro
+
+| Pro · profilo | game vinti prima | game vinti dopo | le mie misure (tabella 5) |
+|---|---|---|---|
+| amatore | 76,3% | **62,0%** su 32 semi, 63,1% su 96 | 74,9 → 64,2% |
+| umano | 94,4% | 85,9% | 93,5 → 84,6% |
+| medio | 84,7% | 82,7% (dentro la fascia 70–85%) | 83,9 → 83,6% |
+
+Le due serie di misure dicono la stessa cosa: «medio» resta dov'era, «amatore» perde 11–14 game su 100, «umano» 8–9.
+
+Cosa vuol dire per una partita di «amatore» a Pro:
+
+| partita di «amatore» a Pro | partite vinte prima → dopo | durata: 9 partite su 10 finiscono entro |
+|---|---|---|
+| formato fiera, 1 game (misura del revisore) | 75 → 60% | 137 → 163 secondi |
+| formato fiera, 1 game (mia misura, 8 semi) | 68 → 63% | 140 → 156 secondi (metà entro 100 → 105) |
+| formato classico, 1 game (mia misura, 8 semi) | 77 → 70% | 186 → 217 secondi (metà entro 108 → 121) |
+| formato classico, al meglio di 3 (mia misura) | 87 → 74% | 386 → 458 secondi |
+
+Le righe «mia misura» vengono da `scripts/audit/formato-fiera.mjs` (8 semi × 300 punti, circa 200 partite da 1 game
+per riga: le percentuali di partite vinte oscillano di ±3–4 punti). Le durate del formato classico misurate dal
+revisore non mi sono state passate: valgono le mie.
+
+Scambi lunghi contro «umano» a Pro: i punti con 40 colpi o più passano dall'1,3 al 6,9% nella misura del revisore
+(nella mia dall'1,4 al 7,8%, tabella 8).
+
+### La decisione dell'utente (11/11/2026): Pro resta com'è
+
+Con questo passo Pro è diventato più difficile per chi rimanda la palla senza angolarla, e le partite durano un poco di
+più. È la conseguenza diretta di ciò che il passo doveva fare (la CPU non regala più il punto), ma quanto è giusto lo
+decideva l'utente. Le strade erano:
+
+- **Opzione 1, lasciare com'è** (lo stato di questo ramo). «Medio» resta nella fascia 70–85% dei game; «amatore» vince
+  62–64 game su 100 a Pro e 60 partite su 100 da 1 game in fiera (prima 75).
+- **Opzione B del revisore**: la CPU di Pro si stanca prima e di più (`cpuFatigue.free` da 6 a 3 metri, `slow` da 0,15
+  a 0,25). Secondo le misure del revisore riporta «amatore» al 74% dei game, ma porta «medio» all'87%, **fuori dalla
+  fascia 70–85%**: voleva dire un Pro più facile per tutti.
+- **Opzione A del revisore**: il revisore la sconsigliava. I suoi dettagli sono nel resoconto della revisione e non mi
+  sono stati passati: non li riporto per non inventarli.
+
+**Decisione dell'utente dell'11/11/2026: opzione 1. Pro resta com'è, nessuna ritaratura.** I valori di Pro nel codice
+sono quelli di questo documento (ritardo sulla palla lontana 0,19 s; errore in allungo 4,5% e in corsa 2,2%;
+stanchezza da 6 a 14 metri di corse lunghe, fino a −15% di velocità).
+
+Se in fiera Pro risultasse troppo duro per la gente comune, le manopole restano quelle scritte nel limite 2 e
+nell'opzione B. Io non ho misurato l'opzione B: dalle mie prove (sezione «Taratura») so solo che ogni aiuto dato ad
+«amatore» con la stanchezza o con il ritardo sulla palla lontana alza anche «medio».
+
+### I minori, corretti
+
+- **«Stanco!» di chi gioca a Pro.** La frase «la media non cambia» era sbagliata: chi gioca è stanco un poco più
+  spesso (revisore: «amatore» 5,8 → 8,1% del tempo su 12 semi, una partita al 16,1%). Corretto in «Test».
+- **Allenamento.** Avevo scritto che le regole nuove valgono anche lì. Non è vero: l'avversario è fermo con il
+  lanciapalle. Corretto in «Cosa non è verificato».
+- **Le due distorsioni del banco** (scambio a 60 colpi dato alla CPU; simulazione ferma a 4000 secondi, quindi meno
+  punti nelle caselle di Pro) non erano dichiarate. Ora sono in «Misure prima e dopo», con i punti veri per casella.
+- **Errore «lungo» che cade dentro**: 16,8% a Casual nella misura del revisore (io 14%). Aggiunto al limite 8.
+- **Tabella degli obiettivi del banco, palle facili.** La soglia «decidono solo le caselle con almeno 300 palle
+  facili» era di comodo. Ora una casella fallisce se errori − 2 × errore standard supera il 3% (limite 7). Il test che
+  lasciava passare il 9% su 160 palle ora chiede che fallisca.
+- **Test del banco ridotto.** Controllava i vincenti a 4–6 m con soglia 11% (obiettivo 15%) e «Pro contro medio» con
+  70–90% (obiettivo 70–85%). Ora quelle due caselle si misurano su 16 semi e si controllano con l'obiettivo vero
+  (oggi 18,2% e 83,3%).
+- **Test instabile della velocità del servizio della CPU** (`natpf-formato-fiera.test.mjs`): il caso è fissato.
+
+### Verifiche dopo le correzioni
+
+| prova | risultato |
+|---|---|
+| test del gioco (`npm test`) | **1103/1103**, 0 saltati |
+| `npm run audit:legend` | **69/69** (Pro contro medio 83,0% dei game, Casual contro medio 100%) |
+| test del sito (`node --test tools/test/*.test.mjs`) | **201/201** |
+
+Il codice del gioco non è cambiato con la revisione (solo il banco, i test e questo documento): build e prove nel
+browser non sono state rifatte.
