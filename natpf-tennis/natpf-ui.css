@@ -371,6 +371,9 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 .natpf-intro.mode-short .intro-video, .natpf-intro.no-video .intro-video { display: none; }
 /* trailer partito: il video di prima, sotto, non si disegna */
 .natpf-intro.is-trailer .intro-video:not(.intro-trailer) { display: none; }
+/* il trailer non si vede finché l'intro non parte con lui (natpf_intro: aspetta di sapere se arriva in fondo; se no
+   resta il primo fotogramma del video di prima, che poi parte) */
+.natpf-intro:not(.is-trailer) .intro-trailer { opacity: 0; }
 /* scurisce in alto (titolo) e in basso (partner) senza coprire il campo */
 .intro-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4, 8, 24, 0.7) 0%, rgba(4, 8, 24, 0) 42%, rgba(4, 8, 24, 0) 70%, rgba(4, 8, 24, 0.8) 100%); }
 .intro-stage { position: relative; align-self: stretch; display: grid; grid-template-rows: auto auto 1fr auto; justify-items: center; text-align: center; gap: 12px; width: min(92cqw, 980px); padding: clamp(28px, 9cqh, 96px) 0 clamp(64px, 15cqh, 140px); }

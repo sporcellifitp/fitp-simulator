@@ -11,14 +11,22 @@
 //     bucket pubblico R2 degli aggiornamenti (TRAILER.base + TRAILER.file: nello zip Cloudflare non entra, pesa 2,26 MB
 //     e il margine sotto i 25 MB è poco); lo carica il workflow .github/workflows/natpf-windows.yml in media/.
 //     Il nome porta l'impronta sha256 del file: un trailer nuovo ha un nome nuovo (cache lunga, mai byte vecchi).
-//   • Ripiego: il trailer deve PARTIRE (evento «playing») entro TRAILER.waitMs (2,5 s di pagina libera: il tempo in cui
-//     il gioco che si avvia tiene occupata la pagina non conta); se dà errore (404, rete assente,
-//     decodifica), se il browser rifiuta la riproduzione o se il tempo scade, si toglie e parte il video di prima,
-//     esattamente come prima del B21. Se il trailer si ferma a metà per più di TRAILER.stallMs (rete caduta) resta
-//     l'immagine finale con il titolo. ?trailer=0 nell'indirizzo lo salta (prove, e per chi non lo vuole).
+//     Chi apre il gioco dal server del programma da un altro computer (?lan=1, senza window.natpfDesktop) prova prima
+//     il file dello stesso server e poi il bucket.
+//   • Ripiego: il trailer deve poter ARRIVARE IN FONDO SENZA FERMARSI, e saperlo entro TRAILER.waitMs (2,5 s di pagina
+//     libera: il tempo in cui il gioco che si avvia tiene occupata la pagina non conta). Vale quando il browser stima
+//     di sì (readyState 4, «canplaythrough») e in più il filmato è tutto scaricato, oppure ne sono arrivati almeno
+//     TRAILER.leadS secondi (6 su 10) entro TRAILER.leadMaxMs (trailerCanFinish; revisione dell'11/11: prima bastava
+//     l'evento «playing», che arriva con i primi 100 kB, e con una rete lenta il trailer andava a scatti per tutta
+//     l'intro). Finché non si sa, il trailer resta fermo all'inizio e non si vede (sotto c'è il primo fotogramma del
+//     video di prima). Se dà errore (404, rete assente, decodifica), se il browser rifiuta la riproduzione o se il
+//     tempo scade, si toglie e parte il video di prima, esattamente come prima del B21. Se il trailer si ferma a metà
+//     per più di TRAILER.stallMs (rete caduta) o dà errore a metà resta l'immagine finale con il titolo e «Premi un
+//     tasto». ?trailer=0 nell'indirizzo lo salta (prove, e per chi non lo vuole).
 //   • Tempi: il titolo entra sull'ultima inquadratura. Le animazioni dell'intro (natpf-ui.css) hanno i ritardi del video
 //     di prima più --intro-shift, che per il trailer vale TRAILER.shiftMs; partono quando il video parte davvero.
 const $ = id => document.getElementById(id);
+const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 export const INTRO_KEY = 'natpf-tennis.intro';
 // durata dell'animazione completa (ms) e di quella breve (sessione già vista): allineate alle animazioni dell'intro in natpf-ui.css
 export const INTRO_MS = { full: 7800, short: 1500 };
@@ -34,6 +42,12 @@ export const TRAILER = Object.freeze({
   waitMs: 2500,                                     // tempo per partire, sul web; nel programma (file locale) waitLocalMs
   waitLocalMs: 1500,
   tickMs: 250,                                      // il tempo per partire si conta a passi (pagina occupata all'avvio)
+  // «arriva in fondo»: tutto scaricato (a meno di tailS), oppure almeno leadS secondi di filmato arrivati entro
+  // leadMaxMs dalla creazione del video. Con 6 s su 10 già scaricati basta una rete da 125 kB/s per non fermarsi più
+  // (il trailer chiede in media 226 kB/s, fino a 430 verso la fine), e chi li scarica in 7 s ne ha almeno 150: il
+  // conto con il peso vero del file è in test/natpf-intro-trailer.test.mjs. In pratica, con i 2,5 s di attesa, il
+  // trailer parte con una rete da circa 3–4 Mbit/s in su; sotto parte il video di prima
+  tailS: 0.25, leadS: 6, leadMaxMs: 7000,
   stallMs: 2000,                                    // fermo a metà più di così: resta l'immagine finale
 });
 export const INTRO_STILL = './media/intro-fine.webp';
@@ -53,13 +67,35 @@ export function trailerUrl({ desktop = false } = {}){
 }
 // Video dell'intro completa, nell'ordine in cui si provano: prima il trailer (se non è escluso con ?trailer=0), poi il
 // video di prima. Ogni voce: { id, src (null: quello già nella pagina), waitMs (0: nessun limite, come prima), shiftMs }
+// Dal server del programma Windows aperto da un altro computer (?lan=1 senza window.natpfDesktop: il programma apre il
+// gioco con /?lan=1) il trailer è servito dallo stesso server: prima quello, poi il bucket (se il file non c'è, 404
+// subito e si passa al bucket)
 export function introPlan({ search = '', desktop = false } = {}){
-  const old = { id: 'intro', src: null, waitMs: 0, shiftMs: 0 };
-  if (new URLSearchParams(search).get('trailer') === '0') return [old];
-  return [{ id: 'trailer', src: trailerUrl({ desktop }), waitMs: desktop ? TRAILER.waitLocalMs : TRAILER.waitMs, shiftMs: TRAILER.shiftMs }, old];
+  const old = { id: 'intro', src: null, waitMs: 0, shiftMs: 0 }, q = new URLSearchParams(search);
+  if (q.get('trailer') === '0') return [old];
+  const local = { id: 'trailer', src: trailerUrl({ desktop: true }), waitMs: TRAILER.waitLocalMs, shiftMs: TRAILER.shiftMs };
+  const remote = { id: 'trailer', src: trailerUrl({ desktop: false }), waitMs: TRAILER.waitMs, shiftMs: TRAILER.shiftMs };
+  if (desktop) return [local, old];
+  return q.get('lan') === '1' ? [local, remote, old] : [remote, old];
 }
-// il video sta girando davvero? (non in pausa, senza errori, con fotogrammi pronti o già avanzato)
+// il video sta girando? (non in pausa, senza errori, con fotogrammi pronti o già avanzato). Per il trailer non basta
+// per far partire l'intro: serve trailerCanFinish
 export const trailerStarted = v => !!v && !v.error && !v.paused && (v.readyState >= 3 || v.currentTime > 0);
+// fine del tratto già scaricato, in secondi di filmato (null: il browser non lo dice)
+export function bufferedEnd(v){ try { const b = v?.buffered; return b ? (b.length ? b.end(b.length - 1) : 0) : null; } catch { return null; } }
+// Il trailer arriverà in fondo senza fermarsi? Il browser deve stimare di sì (readyState 4, «canplaythrough»); in più,
+// se dice quanto ha scaricato: tutto il filmato, oppure almeno TRAILER.leadS secondi arrivati entro TRAILER.leadMaxMs
+// (elapsedMs: tempo dalla creazione del video, cioè da prima della richiesta). La stima del browser da sola non basta:
+// misurato con Chromium, a 200 kB/s (il trailer ne chiede in media 226) dice di sì dopo 1,4 s e poi il trailer si
+// ferma due volte verso la fine. Chromium dà il tratto scaricato in proporzione ai byte, altri browser in tempo di
+// filmato: la regola regge in tutti e due i modi
+export function trailerCanFinish(v, elapsedMs = 0){
+  if (!v || v.error || !(v.readyState >= 4)) return false;
+  const end = bufferedEnd(v), d = v.duration;
+  if (end == null || !(d > 0) || !Number.isFinite(d)) return true;
+  if (end >= d - TRAILER.tailS) return true;
+  return end >= TRAILER.leadS && elapsedMs <= TRAILER.leadMaxMs;
+}
 // durata dell'animazione dell'intro con quel video (ms): quella di prima più lo spostamento del titolo
 export const introDuration = (mode, shiftMs = 0) => (INTRO_MS[mode] || INTRO_MS.full) + (mode === 'full' ? Math.max(0, shiftMs || 0) : 0);
 // immagine sotto il titolo nell'intro breve: l'ultima inquadratura del video visto nella sessione
@@ -108,7 +144,7 @@ export class NatpfIntro {
     let done = false;
     const next = () => { if (done) return; done = true; clearTimeout(this._w); off(); if (step.src) this._dropTrailer(); this._try(plan, i + 1, run); };
     const go = () => { if (done) return; done = true; clearTimeout(this._w); off(); this._begin('full', run, step); };
-    const off = () => { v.removeEventListener?.('playing', go); v.removeEventListener?.('error', next); };
+    let off = () => {};
     if (!step.src){
       // video di prima, come prima del B21: parte subito, senza limite di tempo; se la riproduzione è rifiutata o il
       // file manca resta l'immagine finale
@@ -117,16 +153,32 @@ export class NatpfIntro {
       const p = v.play?.(); if (p?.catch) p.catch(() => this._fail(run)); else if (!p) return this._begin('full', run, { fail: true });
       return this._begin('full', run, step);
     }
-    v.addEventListener('playing', go); v.addEventListener('error', next);
+    // Trailer. play() subito: il browser dice subito se rifiuta la riproduzione e comincia a scaricare (anche dove
+    // preload non basta). Ma l'intro parte solo se il trailer può ARRIVARE IN FONDO senza fermarsi (trailerCanFinish).
+    // Se il trailer comincia a girare prima di saperlo (rete lenta: bastano i primi 100 kB) si rimette fermo all'inizio
+    // e riparte quando la condizione è vera; se il tempo scade (step.waitMs) si toglie e parte il video di prima.
+    let held = false, cleared = false, left = Math.ceil(step.waitMs/TRAILER.tickMs); const t0 = clock();
+    const ok = () => trailerCanFinish(v, clock() - t0);
+    const refused = e => { if (held && e?.name === 'AbortError') return; next(); };   // la pausa qui sopra non è un rifiuto
+    const start = () => { try { const p = v.play?.(); if (p?.catch) p.catch(refused); else if (!p) next(); } catch { next(); } };
+    const look = () => {
+      if (done) return;
+      if (held){ if (ok()){ held = false; cleared = true; left = Math.max(left, 3); start(); } return; }   // due passi per ripartire
+      if (!trailerStarted(v)) return;
+      if (cleared || ok()) return go();
+      held = true; try { v.pause?.(); if (v.currentTime > 0) v.currentTime = 0; } catch {}
+    };
+    off = () => { for (const t of ['playing', 'canplaythrough', 'progress']) v.removeEventListener?.(t, look); v.removeEventListener?.('error', next); };
+    for (const t of ['playing', 'canplaythrough', 'progress']) v.addEventListener(t, look);
+    v.addEventListener('error', next);
     // Tempo per partire, contato a passi brevi (TRAILER.tickMs): all'avvio il gioco tiene occupata la pagina anche per
-    // qualche secondo (il video non può nemmeno cominciare a caricarsi) e un blocco lungo conta come un passo solo. Se a un
-    // passo il video sta già girando (evento «playing» ancora in coda) vale come partito
+    // qualche secondo (il video non può nemmeno cominciare a caricarsi) e un blocco lungo conta come un passo solo. A ogni
+    // passo si riguarda il video (un evento può essere ancora in coda)
     if (step.waitMs > 0){
-      let left = Math.ceil(step.waitMs/TRAILER.tickMs);
-      const tick = () => { if (done) return; if (trailerStarted(v)) return go(); if (--left <= 0) return next(); this._w = setTimeout(tick, TRAILER.tickMs); };
+      const tick = () => { if (done) return; look(); if (done) return; if (--left <= 0) return next(); this._w = setTimeout(tick, TRAILER.tickMs); };
       this._w = setTimeout(tick, TRAILER.tickMs);
     }
-    try { const p = v.play?.(); if (p?.catch) p.catch(next); else if (!p) next(); } catch { next(); }
+    start();
   }
   // il video è partito (o non c'è): partono le animazioni del titolo e il tempo dell'intro
   _begin(mode, run, { id = null, shiftMs = 0, fail = false } = {}){
@@ -140,11 +192,12 @@ export class NatpfIntro {
     this.el.classList.toggle('is-trailer', id === 'trailer' && !fail);
     if (id === 'trailer' && !fail){
       this._still(TRAILER.still);
-      // rete caduta a metà: il video resta fermo → immagine finale e titolo
+      // rete caduta a metà (il video resta fermo) o errore a metà (file tronco, decodifica) → immagine finale, titolo e
+      // subito «Premi un tasto»
       const v = this._trailer, stall = () => { clearTimeout(this._s); this._s = setTimeout(() => { if (run === this.run && this.active && !this.ready && !v.ended){ this._dropTrailer(); this._still(INTRO_STILL); this._fail(run); this.finishAnimation(); } }, TRAILER.stallMs); };
       v?.addEventListener?.('waiting', stall);
       v?.addEventListener?.('playing', () => clearTimeout(this._s)); v?.addEventListener?.('ended', () => clearTimeout(this._s));
-      v?.addEventListener?.('error', () => { if (run === this.run && this.active){ clearTimeout(this._s); this._dropTrailer(); this._still(INTRO_STILL); this._fail(run); } });
+      v?.addEventListener?.('error', () => { if (run === this.run && this.active){ clearTimeout(this._s); this._dropTrailer(); this._still(INTRO_STILL); this._fail(run); this.finishAnimation(); } });
     }
     clearTimeout(this._t); this._t = setTimeout(() => this.finishAnimation(), introDuration(mode, fail ? 0 : shiftMs));
   }

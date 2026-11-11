@@ -3,6 +3,8 @@
 // Sostituisce setTimeout e clearTimeout globali: va importato solo da file di test dedicati.
 let now = 0, tid = 0; export const timers = [];
 globalThis.setTimeout = (fn, ms = 0) => { timers.push({ id: ++tid, at: now + ms, fn }); return tid; };
+// anche performance.now() segue l'orologio finto (l'intro misura il passo dello scaricamento del trailer)
+Object.defineProperty(globalThis, 'performance', { value: { now: () => now }, configurable: true, writable: true });
 globalThis.clearTimeout = id => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); };
 export const advance = ms => { const end = now + ms; for (;;){ const t = timers.filter(x => x.at <= end).sort((a, b) => a.at - b.at || a.id - b.id)[0]; if (!t) break; timers.splice(timers.indexOf(t), 1); now = Math.max(now, t.at); t.fn(); } now = end; };
 export const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
@@ -19,16 +21,20 @@ export class Node {
   remove(){ if (this.parentNode){ this.parentNode.children = this.parentNode.children.filter(c => c !== this); this.parentNode = null; } }
   focus(){} get offsetWidth(){ return 1; }
 }
-// video finto: play() risponde come dice `behave` ('ok' parte, 'reject' rifiutato, 'error' errore di rete, 'hang' niente)
+// video finto: play() risponde come dice `behave` ('ok' parte, 'reject' rifiutato, 'error' errore di rete, 'hang' niente,
+// 'slow' rete lenta: gira con i primi dati ma il browser non stima di arrivare in fondo (readyState 3), 'slow-abort' lo
+// stesso senza evento «playing» e con play() che fallisce con AbortError se arriva una pausa, come nei browser)
 export class Video extends Node {
   constructor(behave = 'ok'){ super('video'); this.behave = behave; this.paused = true; this.readyState = 0; this.currentTime = 0; this.error = null; this.plays = 0; this.src = ''; }
   play(){ this.plays++;
     if (this.behave === 'reject') return Promise.reject(new Error('NotAllowedError'));
     this.paused = false;
     if (this.behave === 'ok') setTimeout(() => { if (!this.src && this.tag === 'video' && this.isTrailer) return; this.readyState = 4; this.emit('playing'); }, 120);
+    if (this.behave === 'slow') setTimeout(() => { if (this.paused || !this.src) return; this.readyState = Math.max(this.readyState, 3); if (this.readyState < 4) this.currentTime = Math.max(this.currentTime, .02); this.emit('playing'); }, 120);
+    if (this.behave === 'slow-abort'){ setTimeout(() => { this.readyState = Math.max(this.readyState, 3); }, 120); return new Promise((_, rej) => { this._rej = rej; }); }
     if (this.behave === 'error') setTimeout(() => { this.error = { code: 4 }; this.emit('error'); }, 80);
     return Promise.resolve(); }
-  pause(){ this.paused = true; } load(){}
+  pause(){ this.paused = true; const r = this._rej; this._rej = null; r?.({ name: 'AbortError' }); } load(){}
 }
 // orologio da capo (pagina nuova) e blocco della pagina (il tempo passa senza che giri nessun timer)
 export const resetClock = () => { now = 0; timers.length = 0; };

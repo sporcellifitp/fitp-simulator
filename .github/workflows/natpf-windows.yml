@@ -279,7 +279,9 @@ jobs:
             echo "::warning title=Manifesto pubblico non raggiungibile::$base/windows/latest.json (accesso pubblico del bucket attivo?)"
           fi
       # il trailer dell'intro come lo vede il gioco sul web (B21): indirizzo pubblico, tipo video/mp4, peso giusto.
-      # Solo avvisi: non ferma niente (il gioco ripiega sul video di prima)
+      # L'indirizzo è quello scritto nel gioco (TRAILER.base in natpf-tennis/src/natpf/natpf_intro.js): è lì che il
+      # gioco lo cerca, anche se la variabile NATPF_AGGIORNAMENTI_URL o aggiornamenti.json ne indicano un altro (in
+      # quel caso un avviso in più). Solo avvisi: non ferma niente (il gioco ripiega sul video di prima)
       - name: Trailer dell'intro dall'indirizzo pubblico
         if: always() && steps.r2.outputs.ok == 'true' && github.ref == 'refs/heads/natpf-simulator'
         continue-on-error: true
@@ -287,17 +289,21 @@ jobs:
         env:
           BASE: ${{ vars.NATPF_AGGIORNAMENTI_URL }}
         run: |
+          gioco="$(sed -n "s/^ *base: '\([^']*\)'.*/\1/p" ../natpf-tennis/src/natpf/natpf_intro.js | head -n 1)"
+          gioco="${gioco%/}"
+          [ -n "$gioco" ] || { echo "::warning title=Indirizzo del trailer non trovato::TRAILER.base non si legge da natpf-tennis/src/natpf/natpf_intro.js"; exit 0; }
           [ -n "$BASE" ] || BASE="$(node -p "require('./aggiornamenti.json').base")"
-          base="${BASE%/}"
-          [ -n "$base" ] || { echo "::warning title=Indirizzo pubblico mancante::natpf-desktop/aggiornamenti.json senza base"; exit 0; }
+          if [ "${BASE%/}" != "$gioco" ]; then
+            echo "::warning title=Indirizzi diversi per il trailer::Il gioco cerca il trailer su $gioco (TRAILER.base in natpf_intro.js), gli aggiornamenti usano ${BASE%/}: se il bucket pubblico è cambiato va aggiornato anche natpf_intro.js."
+          fi
           for f in media/trailer-*.mp4; do
             [ -s "$f" ] || { echo "Nessun trailer in natpf-desktop/media."; exit 0; }
             nome="$(basename "$f")"; peso="$(stat -c %s "$f")"
-            if testa="$(curl -fsSI "$base/media/$nome")" \
+            if testa="$(curl -fsSI "$gioco/media/$nome")" \
                && printf '%s' "$testa" | grep -qiE '^content-type: *video/mp4' \
                && printf '%s' "$testa" | tr -d '\r' | grep -qiE "^content-length: *$peso\$"; then
-              echo "Trailer pubblico: $base/media/$nome ($peso byte, video/mp4)"
+              echo "Trailer pubblico: $gioco/media/$nome ($peso byte, video/mp4)"
             else
-              echo "::warning title=Trailer dell'intro non raggiungibile::$base/media/$nome non risponde con video/mp4 e $peso byte: il gioco sul web usa il video di prima."
+              echo "::warning title=Trailer dell'intro non raggiungibile::$gioco/media/$nome non risponde con video/mp4 e $peso byte: il gioco sul web usa il video di prima."
             fi
           done
