@@ -1,0 +1,26 @@
+== Stesso schermo: impronta di 20 partite per seme (semi 7001, 7103, 7207), 1 game ==
+bambino contro bambino fiera    | punti 346 · colpi 1906 · del P1 173 · super 0 · impronta 909a097fe488
+bambino contro bambino classico | punti 358 · colpi 2226 · del P1 168 · super 0 · impronta f25564be9708
+medio contro medio     fiera    | punti 360 · colpi 3654 · del P1 162 · super 1 · impronta b557aa21ae9f
+medio contro medio     classico | punti 384 · colpi 3751 · del P1 191 · super 4 · impronta 9e831c6e8788
+amatore contro amatore fiera    | punti 347 · colpi 5755 · del P1 156 · super 3 · impronta 1cdb4dbc2a59
+amatore contro amatore classico | punti 379 · colpi 5942 · del P1 179 · super 3 · impronta af28d807b3e8
+bambino contro medio   fiera    | punti 323 · colpi 2384 · del P1 94 · super 2 · impronta 0ede368459ec
+bambino contro medio   classico | punti 325 · colpi 2229 · del P1 85 · super 1 · impronta bfd0d89438f7
+medio contro amatore   fiera    | punti 350 · colpi 4536 · del P1 159 · super 3 · impronta cebce4b7735a
+medio contro amatore   classico | punti 377 · colpi 4299 · del P1 150 · super 0 · impronta fd6e53993106
+preciso contro medio   fiera    | punti 272 · colpi 4248 · del P1 238 · super 0 · impronta 59fcf76852c2
+preciso contro medio   classico | punti 266 · colpi 4575 · del P1 238 · super 1 · impronta 292070d37e65
+== Contro la CPU: impronta di 120 punti per riga (semi 7 e 11) ==
+casual    tennista     | punti 120 + 120 · vinti 97.5%, 98.3% · colpi a scambio 5.28, 4.62 · impronta c2126282e5c8
+casual    amatore      | punti 120 + 120 · vinti 84.2%, 88.3% · colpi a scambio 9.4, 10.52 · impronta 9890d0879ded
+casual    bambino      | punti 120 + 120 · vinti 54.2%, 46.7% · colpi a scambio 7.26, 8.22 · impronta 248dce76cc8c
+casual    preciso      | punti 120 + 120 · vinti 100%, 100% · colpi a scambio 4.22, 3.8 · impronta 17ca52b5a3b2
+pro       tennista     | punti 120 + 120 · vinti 94.2%, 99.2% · colpi a scambio 9.73, 9.01 · impronta b89a6576e593
+pro       amatore      | punti 120 + 120 · vinti 54.2%, 56.7% · colpi a scambio 15.06, 14.53 · impronta 226f56d38a86
+pro       bambino      | punti 120 + 120 · vinti 13.3%, 13.3% · colpi a scambio 7.18, 8.18 · impronta e00f1966764c
+pro       preciso      | punti 120 + 120 · vinti 99.2%, 100% · colpi a scambio 7.55, 7.27 · impronta 81f04925e1d5
+leggenda  tennista     | punti 120 + 120 · vinti 25%, 26.7% · colpi a scambio 17.25, 18.16 · impronta 119bb63fba5e
+leggenda  amatore      | punti 120 + 120 · vinti 14.2%, 10% · colpi a scambio 11.68, 10.79 · impronta 6e6193eb488e
+leggenda  bambino      | punti 120 + 120 · vinti 7.5%, 10% · colpi a scambio 5.49, 5.4 · impronta 72cd0dcfd819
+leggenda  preciso      | punti 120 + 120 · vinti 39.2%, 48.3% · colpi a scambio 20.37, 20.18 · impronta c98eaf6eaa19

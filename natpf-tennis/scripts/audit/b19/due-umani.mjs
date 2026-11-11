@@ -33,7 +33,8 @@ function makeSwing(e, me, other, sgn, P, rng){
   const aims = tac === 'centro' ? false : tac === 'mira' ? true : rng() < P.intent;
   if (aims){
     const open = other.pos.x*sgn >= 0 ? -1 : 1;
-    const aim = NO.aimForLanding(open*(.7 + rng()*.3)*xMax, NO.neutralX(e.ball.targetLanding.x*sgn, xMax), xMax);
+    // P.aimLo, P.aimHi (B25): quanto vicino alla riga mira (frazione della mira piena); di base da 0,7 a 1, come sempre
+    const aim = NO.aimForLanding(open*(P.aimLo == null ? .7 + rng()*.3 : P.aimLo + rng()*(P.aimHi - P.aimLo))*xMax, NO.neutralX(e.ball.targetLanding.x*sgn, xMax), xMax);
     if (P.aimBy === 'polso'){ face = cl(aim/NO.OUTCOME.faceAim, -1, 1); }
     else {
       const u = cl(-aim*.85/(side*NO.OUTCOME.timingAim), -1, 1);
@@ -41,13 +42,19 @@ function makeSwing(e, me, other, sgn, P, rng){
       face = cl((aim + side*.9*u*NO.OUTCOME.timingAim + side*NO.OUTCOME.natural*(1 - Math.abs(.9*u)))/NO.OUTCOME.faceAim, -1, 1);
     }
   }
-  const typ = P.typical === undefined ? P.peak : P.typical;
+  // P.liveTyp (B25): il colpo abituale si impara giocando, come sul telefono (natpf_phone_racket.createTypicalModel:
+  // mediana degli ultimi 24 colpi normali, da 3 in su); senza, resta fisso (P.typical o P.peak), come sempre
+  const live = P.liveTyp ? (P._h || (P._h = [])) : null, med = live && live.length >= 3 ? [...live].sort((x, y) => x - y)[live.length >> 1] : null;
+  const typ = med ?? (P.typical === undefined ? P.peak : P.typical);
   let peak = Math.max(150, P.peak + gauss(rng)*P.pSd), shot = 'topspin', rise = .3, angle = 70;
   if (tac === 'forte'){ peak = Math.max(peak, P.peak*1.45 + gauss(rng)*P.pSd*.5); shot = 'flat'; rise = 0; }
+  // P.strongP (B25): ogni tanto un colpo fortissimo cercato (probabilità a colpo), come chi vuole il colpo super
+  else if (P.strongP && rng() < P.strongP){ peak = Math.max(peak, P.peak*1.45 + gauss(rng)*P.pSd*.5); shot = 'flat'; rise = 0; }
   else if (tac === 'corte'){ shot = 'drop'; rise = -.3; angle = 40; peak = Math.min(peak, (typ || P.peak)*.45); }
   else if (tac === 'pallonetti'){ shot = 'lob'; rise = .8; }
   else if (tac === 'tagli'){ shot = 'slice'; rise = -.4; }
   else if (tac !== 'solotop' && rng() < (P.spec || 0)){ shot = Math.abs(other.pos.z) < 9 ? 'lob' : 'slice'; rise = shot === 'lob' ? .8 : -.4; }
+  if (live && shot !== 'lob' && peak >= 200){ live.push(peak); if (live.length > 24) live.shift(); }
   const power = strokePower(peak, typ), typePower = strokePower(peak, typ, INTENT.classGain);
   const intent = { shot, power: +power.toFixed(3), typePower: +typePower.toFixed(3), depth: +(power*.91).toFixed(3), rise, conf: 1, face: cl(face + gauss(rng)*P.wSd, -1, 1) };
   return { lead: tau + gauss(rng)*P.tSd + (P.bias || 0) + (P.netLag || 0), after: P.after ? P.after - tau + gauss(rng)*(P.afterSd || 0) : null, sent: false,
