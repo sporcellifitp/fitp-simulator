@@ -94,6 +94,8 @@ export class NatpfIntro {
       return this._begin(mode, run, { fail: true });
     }
     this._still(INTRO_STILL);
+    // «Rivedi l'intro»: il video di prima torna all'inizio (sotto il trailer che sta per partire non resta la sua fine)
+    try { const old = $('intro-video'); if (old && old.currentTime > 0){ old.pause?.(); old.currentTime = 0; } } catch {}
     this._try(introPlan({ search: location.search, desktop: this.desktop }), 0, run);
   }
   // prova il video numero i del piano; se non parte, il successivo; finiti i video resta l'immagine finale
