@@ -19,11 +19,17 @@ Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) 
       `099bf51c71ec13f7462f2d099cb3d04a1df0d1eee94e8fa80f7f057343e093fb`
 - [x] Zip Cloudflare consegnato: 22.633.811 B, sha256
       `78bb85e3206b0f8fd2adcbaa278fe5fbac8b0adac58dea8eeb55f44885c379cf`, provato estratto
-- [~] Prove nel browser sul codice unito (16, in `scratchpad/v1111/prove.txt`): le prime verdi (stesso-schermo-b20 52/52,
-      split-ready 34/34); se una risulta rossa: rilanciarla da sola, correggere, versione nuova
+- [x] Prove nel browser sul codice unito: 16 su 16 verdi (stesso-schermo-b20 52/52, split-ready 34/34, formato-fiera
+      22/22 e p2p 9/9, 1v1-p2p 39/39, tabellone 42/42, nuovo-giocatore 28/28, servizio-lancio 12/12, servizio-peso 8/8,
+      menu 28/28, rally 9/9, leggenda 7/7, training-flow 22/22, tutorial-phone 52/52, gesti-speciali 9/9, phone-keep 13/13)
 - [x] Detto all'utente come si attivano le opzioni nuove
 
-**Prossimo lavoro: B21 + B22** (vedi sotto), poi B23, B24, tappa 2 gruppi 2 e 3.
+**In corso: B21 + B22** (workflow `b21-b22-video-scia`: un agente in worktree → revisore indipendente → correzioni).
+File dei video pronti in `/tmp/claude-0/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/scratchpad/video/`
+(`trailer-crf29.mp4` 2,26 MB per il gioco, `come-si-gioca-clip*-sfocato.mp4` 0,23 e 0,33 MB). Se lo scratchpad è sparito:
+i video sono nella libreria Higgsfield dell'utente (job nel PIANO, B21) e nei file mandati all'utente.
+Quando finisce: unire il ramo, prove complete, versione 2026-11-11.2 (o del giorno), installer e zip, «come si attiva».
+Poi B23, B24, tappa 2 gruppi 2 e 3.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
