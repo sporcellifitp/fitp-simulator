@@ -344,16 +344,18 @@ test('fasce: Bambino · Ragazzo · Adulto, di base Adulto; fasce uguali nessun a
   // dichiarato in modo sobrio
   const h = ND.helpFor({ p1: 'bambino', p2: 'adulto' }).p1;
   assert.equal(ND.helpLabel(h), 'Aiuto: Bambino'); assert.equal(ND.helpLabel(null), '');
-  assert.equal(ND.helpText(h), 'Aiuto: Bambino · parte da 15-0 a ogni game, ha più margine sul tempo del colpo');
-  assert.equal(ND.helpText(ND.helpFor({ p1: 'adulto', p2: 'ragazzo' }).p2), 'Aiuto: Ragazzo · ha più margine sul tempo del colpo');
-  assert.equal(ND.helpText(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'B').p1), 'Aiuto: Bambino · parte da 30-0 a ogni game');
+  assert.equal(ND.helpText(h), 'Aiuto: Bambino · parte da 15-0 e ha più margine sul tempo');
+  assert.equal(ND.helpText(ND.helpFor({ p1: 'adulto', p2: 'ragazzo' }).p2), 'Aiuto: Ragazzo · ha più margine sul tempo');
+  assert.equal(ND.helpText(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'B').p1), 'Aiuto: Bambino · parte da 30-0');
   assert.equal(ND.helpText(null), '');
+  assert.equal(ND.helpSentence(h, 'Giulia'), 'Aiuto a Giulia (Bambino): parte da 15-0 e ha più margine sul tempo.');
+  assert.equal(ND.helpSentence(ND.helpFor({ p1: 'adulto', p2: 'ragazzo' }).p2, 'Marco'), 'Aiuto a Marco (Ragazzo): ha più margine sul tempo.');
+  assert.equal(ND.helpSentence(null, 'Marco'), '');
 });
 
 test('fasce: sulla scheda di ciascun giocatore nella pagina dei telefoni; «Nuovo giocatore» e il chiosco le riportano ad Adulto; in campo «Aiuto: …» sotto il nome', () => {
   for (const id of ['p1', 'p2']){
     for (const b of ['bambino', 'ragazzo', 'adulto']) assert.match(html, new RegExp(`data-split-band="${id}:${b}"`));
-    assert.match(html, new RegExp(`data-split-help="${id}"`));
     // dentro la scheda del giocatore, accanto alla mano
     const card = html.slice(html.indexOf(`data-split-player="${id}"`), html.indexOf(`data-split-skip="${id}"`));
     assert.match(card, new RegExp(`data-split-hand="${id}:right"[\\s\\S]*data-split-band="${id}:adulto"`));
@@ -362,10 +364,11 @@ test('fasce: sulla scheda di ciascun giocatore nella pagina dei telefoni; «Nuov
   assert.match(ui, /engine\.natpfSplitBands = \{ p1: BAND_DEFAULT, p2: BAND_DEFAULT \};/);
   assert.match(ui, /resetNames\(\)\{[\s\S]*?this\.resetBands\(\);/, '«Nuovo giocatore» (resetNames) azzera anche le fasce');
   assert.match(ui, /helpLabel\(E\.natpfDuo\?\.help\?\.\[id\]\)/, 'targhetta in campo');
+  assert.match(ui, /const help = this\.helpNote\(\);\s*if \(help\) sub = `\$\{sub\} \$\{help\}`;/, 'dichiarato nella barra dell\'avvio e nel conto alla rovescia');
   assert.match(src('../src/natpf/natpf_kiosk.js'), /ui\.split\?\.resetBands\?\.\(\);/);
   assert.match(src('../src/natpf/natpf_new_player.js'), /E\.natpfSplitBands = \{ p1: 'adulto', p2: 'adulto' \}/);
   // misure legate allo schermo con cqw/cqh, non vw/vh
-  const css = src('../natpf-ui.css'), rules = css.split('\n').filter(l => /split-help|split-tag\.helped/.test(l)).join('\n');
+  const css = src('../natpf-ui.css'), rules = css.split('\n').filter(l => /split-band|split-tag\.helped/.test(l)).join('\n');
   assert.ok(rules.length > 0); assert.doesNotMatch(rules, /\d(vw|vh)\b/);
 });
 

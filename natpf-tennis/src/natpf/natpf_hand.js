@@ -42,7 +42,8 @@ export class NatpfHand {
     const mirrorBall = actor => { if (actor && this.handOf(actor) === 'left') engine.ball.pos.x = 2*actor.pos.x - engine.ball.pos.x; };
     const setup = engine._setupPointServe?.bind(engine), toss = engine._startServeToss?.bind(engine);
     if (setup) engine._setupPointServe = (o) => { const r = setup(o); const s = engine.score.server === 'player' ? engine.player : engine.opponent; mirrorBall(s); return r; };
-    if (toss) engine._startServeToss = (actor) => { const r = toss(actor); mirrorBall(actor); return r; };
+    // (gli altri argomenti passano: B25, il lancio automatico dice al motore che la palla la lancia il gioco)
+    if (toss) engine._startServeToss = (actor, ...more) => { const r = toss(actor, ...more); mirrorBall(actor); return r; };
     const mc = engine.motionController;
     // webcam: la mano che impugna (per scegliere quale seguire) e il lancio di palla solo quando il gioco lo accetta
     // (al proprio servizio): nello scambio la mano che sale di scatto segue le regole dei colpi, non diventa un pallonetto

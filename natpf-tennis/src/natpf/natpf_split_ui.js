@@ -21,7 +21,7 @@ import { webcamOpenError } from './natpf_webcam_watch.js';
 
 import { NatpfTutorial, tutorialCards } from './natpf_tutorial.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
-import { BAND_DEFAULT, bandOf, helpFor, helpText, helpLabel } from './natpf_duo_rules.js';
+import { BAND_DEFAULT, bandOf, helpFor, helpSentence, helpLabel } from './natpf_duo_rules.js';
 import { slotView, splitSlot, startGate, waitingText, bothNames, cancelText, createCountdown, paintSlot, paintBoard, defaultName, READY_COUNTDOWN_MS } from './natpf_ready.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -238,14 +238,16 @@ export class NatpfSplitUi {
   }
   // «Nuovo giocatore» e chiosco: le fasce tornano Adulto per tutti e due
   resetBands(){ this.engine.natpfSplitBands = { p1: BAND_DEFAULT, p2: BAND_DEFAULT }; if (typeof document !== 'undefined') this._paintBands(); }
-  // pulsanti delle fasce e riga dell'aiuto sulla scheda di chi è aiutato («Aiuto: Bambino · parte da 15-0 a ogni game…»)
+  // pulsanti delle fasce sulle due schede
   _paintBands(){
-    const help = this.webcam ? { p1: null, p2: null } : helpFor(this.engine.natpfSplitBands || {});
-    for (const id of SPLIT_PLAYERS){
-      for (const btn of document.querySelectorAll(`[data-split-band^="${id}:"]`)){ const on = btn.dataset.splitBand.endsWith(':' + this.band(id)); btn.classList.toggle('selected', on); btn.setAttribute('aria-pressed', String(on)); }
-      const note = document.querySelector(`[data-split-help="${id}"]`), text = helpText(help[id]);
-      if (note){ if (note.textContent !== text) note.textContent = text; show(note, !!text); }
-    }
+    for (const id of SPLIT_PLAYERS) for (const btn of document.querySelectorAll(`[data-split-band^="${id}:"]`)){ const on = btn.dataset.splitBand.endsWith(':' + this.band(id)); btn.classList.toggle('selected', on); btn.setAttribute('aria-pressed', String(on)); }
+  }
+  // aiuto al più giovane con le fasce di adesso, come lo dice la barra dell'avvio: «Aiuto a Giulia (Bambino): parte da
+  // 15-0 e ha più margine sul tempo.» ('' con le fasce uguali o con la webcam per due, dove l'aiuto non vale)
+  helpNote(){
+    if (this.webcam) return '';
+    const help = helpFor(this.engine.natpfSplitBands || {}), id = help.p1 ? 'p1' : help.p2 ? 'p2' : null;
+    return id ? helpSentence(help[id], this.name(id)) : '';
   }
   setHand(id, hand){
     // (natpfP2Hand: il piano d'intercetto del P2 sa da che lato è il suo dritto prima del primo colpo, natpf_impact.handOf).
@@ -481,6 +483,9 @@ export class NatpfSplitUi {
     else if (gate.both && this.typing){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte quando finisci di scrivere il nome.'; }
     else if (gate.both){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte appena si chiude il pannello aperto.'; }
     else if (cd.why && now < cd.whyUntil){ mode = 'cancel'; title = cd.why; sub = 'Il conto riparte da solo quando tutto è di nuovo pronto.'; }
+    // B25: l'aiuto al più giovane è dichiarato prima di giocare, nella barra e nel conto alla rovescia
+    const help = this.helpNote();
+    if (help) sub = `${sub} ${help}`;
     const set = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
     if (bar){
       if (bar.dataset.readyBar !== mode) bar.dataset.readyBar = mode;

@@ -162,10 +162,10 @@ export const helpLabel = h => (h ? `Aiuto: ${BAND_LABEL[h.band] || 'Sì'}` : '')
 export function helpText(h){
   if (!h) return '';
   const parts = [];
-  if (h.head) parts.push(`parte da ${h.head >= 2 ? '30' : '15'}-0 a ogni game`);
-  if (finite(h.span, 1) > 1 || h.late) parts.push('ha più margine sul tempo del colpo');
-  if (h.superRatio) parts.push('colpo super più facile');
-  return parts.length ? `${helpLabel(h)} · ${parts.join(', ')}` : helpLabel(h);
+  if (h.head) parts.push(`parte da ${h.head >= 2 ? '30' : '15'}-0`);
+  if (finite(h.span, 1) > 1 || h.late) parts.push('ha più margine sul tempo');
+  if (h.superRatio) parts.push('ha il colpo super più facile');
+  return parts.length ? `${helpLabel(h)} · ${parts.join(' e ')}` : helpLabel(h);
 }
 
 /* ---------- regole della partita ---------- */
@@ -196,6 +196,13 @@ export function openRun(engine){
   // risposta al servizio a velocità piena (la palla in gioco è il servizio: un colpo solo nello scambio)
   if (O.serveFull && finite(engine.ball?.rallyStrokeCount) <= 1) return null;
   return O;
+}
+// frase per la barra dell'avvio e il conto alla rovescia della pagina dei telefoni: «Aiuto a Giulia (Bambino): parte da
+// 15-0 e ha più margine sul tempo.» ('' senza aiuto)
+export function helpSentence(h, name = ''){
+  if (!h) return '';
+  const what = helpText(h).split(' · ')[1];
+  return `Aiuto a ${name || 'chi è più giovane'} (${BAND_LABEL[h.band] || h.band})${what ? ': ' + what : ''}.`;
 }
 // punti di vantaggio a inizio game: { player, opponent } (0 e 0 senza aiuto)
 export function headStart(engine){
