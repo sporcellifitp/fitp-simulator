@@ -32,6 +32,7 @@ import { resolveMatchFormat, firstServer, serveChoice } from "./natpf/match_form
 // NATPF B18: formato in fiera (punto decisivo e servizio come nel tie-break), opzione dello staff spenta di base
 import * as NF from "./natpf/natpf_fair_format.js";
 import * as NH from "./natpf/natpf_hot_rally.js";
+import { NatpfBallGlow } from "./natpf/natpf_ball_glow.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
 // NATPF: personaggio, racchetta e pallina procedurali (niente GLB esterni)
 import { createNatpfCast, finishNatpfActor, updateNatpfCharacters } from "./natpf/natpf_character.js";
@@ -88,7 +89,8 @@ class te {
       (this.points = []),
       (this.color = new o.Color(16777215)),
       (this.accentColor = new o.Color(16773494)),
-      (this.baseWidth = 0.28);
+      (this.baseWidth = 0.28),
+      (this.glow = null); // NATPF B22: scia luminosa (natpf_ball_glow.js), riceve gli stessi punti; null = come prima
     const i = t * 2;
     (this.positions = new Float32Array(i * 3)), (this.colors = new Float32Array(i * 4));
     const a = [];
@@ -118,6 +120,7 @@ class te {
   }
   setStyle(e = "TOPSPIN", t = !1) {
     const i = String(e || "TOPSPIN").toUpperCase();
+    this.power = !!(t || i === "SMASH" || i === "POWER"); // NATPF B22: per la scia luminosa (sotto quella del colpo potente)
     t || i === "SMASH" || i === "POWER"
       ? (this.color.setHex(16777215), this.accentColor.setHex(5432831), (this.baseWidth = 0.3))
       : i === "SLICE"
@@ -127,12 +130,13 @@ class te {
           : (this.color.setHex(16777215), this.accentColor.setHex(16771925), (this.baseWidth = 0.28));
   }
   clear() {
-    (this.points.length = 0), (this.mesh.visible = !1);
+    (this.points.length = 0), (this.mesh.visible = !1), this.glow && this.glow.clear();
   }
   pushPoint(e) {
-    this.points.unshift(e.clone()), this.points.length > this.maxPoints && this.points.pop();
+    this.points.unshift(e.clone()), this.points.length > this.maxPoints && this.points.pop(), this.glow && this.glow.sample(e);
   }
   seedArc(e, t, i = 0.85) {
+    this.glow && this.glow.clear();
     this.points.length = 0;
     for (let a = 0; a < this.maxPoints; a++) {
       const n = 1 - a / (this.maxPoints - 1),
@@ -360,6 +364,8 @@ export class NatpfTennisEngine {
       (this.crowdScene = null),
       (this.cheerEnergy = 0.25),
       (this.ballTrail = new te(this.scene, 45)),
+      // NATPF B22: scia luminosa della palla (Opzioni → «Scia della palla»; spenta il disegno è quello di prima)
+      (this.natpfBallGlow = this.ballTrail.glow = new NatpfBallGlow(this.scene)),
       (this.bounceRings = []),
       (this.starParticles = []),
       (this.racketKinematics = new Z()),
@@ -3879,6 +3885,11 @@ export class NatpfTennisEngine {
   _updateEffects(e) {
     // NATPF 1v1: palla e ombra dove si disegna la palla (sul P2 la fisica dell'host più lo scarto che decade)
     const bp = this._natpfBallDrawPos();
+    // NATPF B22: scia luminosa dietro la palla in gioco (solo disegno; nella moviola la palla non ha velocità: null)
+    if (this.natpfBallGlow) {
+      const rp = !!this.natpfReplay?.playing;
+      this.natpfBallGlow.frame(bp, rp ? null : this.ball.vel.length(), e, rp || (this.phase === "RALLY" && this.ball.inPlay), !!this.ballTrail.power);
+    }
     if ((this.ball.mesh && this.ball.mesh.position.copy(bp), this.ballShadowBlob)) {
       (this.ballShadowBlob.position.x = bp.x), (this.ballShadowBlob.position.z = bp.z);
       const t = o.MathUtils.clamp(1.15 - bp.y * 0.16, 0.45, 1.15);

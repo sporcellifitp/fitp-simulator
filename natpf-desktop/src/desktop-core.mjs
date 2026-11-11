@@ -160,4 +160,14 @@ export function windowsVersion(build){
   if (!m) throw new Error(`versione non riconosciuta: ${build}`);
   return `${Number(m[1])}.${Number(m[2] + m[3])}.${Number(m[4])}`;
 }
+// Trailer dell'intro (B21): natpf-desktop/media/trailer-<primi 12 caratteri dello sha256>.mp4. Sta qui, fuori da
+// natpf-tennis/public, perché nello zip Cloudflare non deve entrare (pesa 2,26 MB): prepara.mjs lo copia dentro il
+// programma (app/natpf-tennis/dist/media/), dove il gioco lo cerca (natpf-tennis/src/natpf/natpf_intro.js, TRAILER.file);
+// per il gioco sul web lo carica sul bucket R2 il workflow .github/workflows/natpf-windows.yml (media/)
+export const TRAILER_RE = /^trailer-([0-9a-f]{12})\.mp4$/;
+export function trailerFiles(dir){
+  try { return fs.readdirSync(dir).filter(f => TRAILER_RE.test(f)).sort(); } catch { return []; }
+}
+// il nome porta l'impronta del contenuto: true se i primi 12 caratteri dello sha256 (esadecimale) sono quelli del nome
+export const trailerNameMatches = (name, sha256) => TRAILER_RE.exec(String(name))?.[1] === String(sha256 || '').slice(0, 12).toLowerCase();
 export const readBuild = versionJs => /NATPF_BUILD\s*=\s*'([^']+)'/.exec(String(versionJs))?.[1] || null;

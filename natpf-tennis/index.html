@@ -177,9 +177,10 @@
         </div>
       </div>
     </div>
-    <!-- NATPF: intro all'avvio (src/natpf/natpf_intro.js): video dell'arena che si accende (public/media/intro.mp4,
-         Higgsfield, senza scritte né marchi), poi il titolo NATPF Simulator e «Premi un tasto». I partner sono una riga
-         piccola in basso. Un tasto o un tocco porta alla fine; il tocco finale sblocca anche l'audio. -->
+    <!-- NATPF: intro all'avvio (src/natpf/natpf_intro.js): il trailer (B21: il suo video lo aggiunge natpf_intro.js, dal
+         programma Windows o dal bucket R2) con il ripiego sul video dell'arena che si accende qui sotto
+         (public/media/intro.mp4, Higgsfield, senza scritte né marchi), poi il titolo NATPF Simulator e «Premi un tasto».
+         I partner sono una riga piccola in basso. Un tasto o un tocco porta alla fine; il tocco finale sblocca anche l'audio. -->
     <div id="natpf-intro" class="natpf-intro" aria-label="NATPF Simulator">
       <img class="intro-still" src="./media/intro-fine.webp" alt="" aria-hidden="true" />
       <video class="intro-video" id="intro-video" src="./media/intro.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
@@ -402,6 +403,14 @@
             <div class="lobby-seg" role="radiogroup" aria-label="Visuale">
               <button type="button" class="seg-btn" data-natpf-view="third">3ª persona</button
               ><button type="button" class="seg-btn" data-natpf-view="first">1ª persona</button>
+            </div>
+          </div>
+          <!-- scia luminosa della palla (B22, natpf_ball_glow.js): di base Sì; No = la palla com'era prima -->
+          <div class="lobby-row">
+            <span class="lobby-label">Scia della palla</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Scia della palla">
+              <button type="button" class="seg-btn" data-natpf-trail="1" role="radio">Sì</button
+              ><button type="button" class="seg-btn" data-natpf-trail="0" role="radio">No</button>
             </div>
           </div>
           <div class="lobby-row">

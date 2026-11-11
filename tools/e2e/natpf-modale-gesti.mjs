@@ -61,6 +61,14 @@ const info = p => p.evaluate(() => {
   return { canvas: !!c, w: c?.width, h: c?.height, css: c ? [c.clientWidth, c.clientHeight] : null, backdrop: cs.backdropFilter || cs.webkitBackdropFilter, bg: cs.backgroundColor, webgl: !!document.createElement('canvas').getContext('webgl2') };
 });
 
+// sfondo sfocato della modale (B21, natpf_tutorial_bg.js): due clip di gioco dietro la scheda, una alla volta
+const bg = (p, sel = '#natpf-tutorial') => p.evaluate(sel => {
+  const root = document.querySelector(sel), vs = [...root.querySelectorAll('.tut-bg-video')], box = root.querySelector('.tut-bg'), card = root.querySelector('.tut-card');
+  return { has: root.classList.contains('has-bg'), n: vs.length, playing: vs.map(v => !v.paused && v.readyState > 2), on: vs.map(v => v.classList.contains('on')), t: vs.map(v => +v.currentTime.toFixed(2)),
+    muted: vs.every(v => v.muted && v.playsInline && !v.loop), src: vs.map(v => v.currentSrc.replace(location.origin, '')), boxOpacity: box ? +getComputedStyle(box).opacity : null,
+    veil: box ? getComputedStyle(box.querySelector('.tut-bg-veil')).backgroundColor : null, card: getComputedStyle(card).backgroundColor, first: !!box && root.firstElementChild === box };
+}, sel);
+const CLIPS = ['/media/tutorial-sfondo-1.mp4', '/media/tutorial-sfondo-2.mp4'];
 const out = {};
 for (const [w, h] of [[1280, 720], [1920, 1080]]){
   const { ctx, p, errs } = await game(w, h);
@@ -71,6 +79,10 @@ for (const [w, h] of [[1280, 720], [1920, 1080]]){
   await p.waitForTimeout(1500);
   const i = await info(p);
   check(`${w}×${h}: modale aperta con l'animazione (canvas ${i.css?.join('×')} CSS, ${i.w}×${i.h} px), velo senza backdrop-filter`, i.canvas && (!i.backdrop || i.backdrop === 'none'), JSON.stringify(i));
+  // sfondo sfocato: una clip in riproduzione dietro la scheda, muta, con il velo; la scheda resta a fondo pieno
+  const b1 = await bg(p);
+  check(`${w}×${h}: sfondo sfocato: una clip di gioco in riproduzione dietro la scheda (muta, velo scuro, scheda a fondo pieno)`,
+    b1.has && b1.n === 2 && b1.playing.filter(Boolean).length === 1 && b1.on.filter(Boolean).length === 1 && b1.playing.indexOf(true) === b1.on.indexOf(true) && b1.muted && b1.first && b1.boxOpacity === 1 && /rgba\(4, 8, 24, 0\.5\)/.test(b1.veil) && !/rgba\(.*, 0(\.\d+)?\)$/.test(b1.card) && CLIPS.includes(b1.src[b1.on.indexOf(true)]), JSON.stringify(b1));
   const still = await fps(p);
   out[`${w}x${h}-menu`] = still;
   check(`${w}×${h}: modale sopra l'arena ferma ≥ 55 fps`, still.fps >= 55, `${still.fps.toFixed(1)} fps, fotogramma peggiore ${still.worst.toFixed(0)} ms, disegno ${still.drawMs} ms`);
@@ -98,6 +110,9 @@ for (const [w, h] of [[1280, 720], [1920, 1080]]){
   await p.waitForTimeout(800);
   const stop = await p.evaluate(() => { const D = __natpfTennis.natpfUi.training.tutorial.demo(); return { running: D.running, frames: D.frames - __fr0 }; });
   check(`${w}×${h}: modale chiusa: animazione ferma`, !stop.running && stop.frames === 0, JSON.stringify(stop));
+  // … e i video di sfondo sono fermi (nessuna decodifica in partita)
+  const b0 = await bg(p), t0 = b0.t.slice(); await p.waitForTimeout(600); const b00 = await bg(p);
+  check(`${w}×${h}: modale chiusa: video di sfondo fermi`, !b0.has && !b0.playing.some(Boolean) && b00.t.join() === t0.join(), JSON.stringify(b00));
   // revisione tecnica: si contano le requestAnimationFrame chieste DAL MODULO dell'animazione (pila della chiamata) per
   // 1 s a modale chiusa, anche dopo averla riaperta e richiusa su un'altra scheda: devono essere zero
   const rafs = await p.evaluate(async () => {
@@ -122,11 +137,15 @@ for (const [w, h] of [[1280, 720], [1920, 1080]]){
   const two = await p.evaluate(() => { const a = __natpfTennis.natpfUi.split.tut.p1.demo(), b = __natpfTennis.natpfUi.split.tut.p2.demo();
     return { distinct: a !== b, run: [a.running, b.running], ids: [a.id, b.id], hands: [a.hand, b.hand], css: [a.w, a.h, b.w, b.h] }; });
   check('stesso schermo: ogni metà ha la sua animazione che gira (dritto del P1, servizio mancino del P2)', two.distinct && two.run.every(Boolean) && two.ids.join() === 'forehand,serve' && two.hands.join() === 'right,left', JSON.stringify(two));
+  const hb = [await bg(p, '.natpf-tutorial.half:not([data-side="right"])'), await bg(p, '.natpf-tutorial.half[data-side="right"]')];
+  // B21: nelle due metà niente video di sfondo (misurato: con un video per metà le animazioni scendevano da 59,9 a 30,2 fps)
+  check('stesso schermo: nessun video di sfondo nelle due metà (sfondo di prima)', hb.every(b => !b.has && b.n === 0), JSON.stringify(hb.map(b => ({ has: b.has, n: b.n }))));
   const f = await fps(p);
   out.split = f;
   check('stesso schermo: due animazioni insieme ≥ 50 fps', f.fps >= 50, `${f.fps.toFixed(1)} fps, peggiore ${f.worst.toFixed(0)} ms, canvas ${f.demos}`);
   await p.evaluate(() => { const s = __natpfTennis.natpfUi.split; const a = s.tut.p1.demo(), b = s.tut.p2.demo(); a.stop(); b.stop(); a.show(a.hitTime(), { rate: 1 }); b.show(b.hitTime(), { rate: 1 }); });
   await p.screenshot({ path: path.join(SHOTS, 'C-modale-stesso-schermo-1280x720.png') });
+  out.splitBg = hb.map(b => b.has);
   // le due metà chiuse: nessuna requestAnimationFrame delle due animazioni
   const rafs = await p.evaluate(async () => {
     const s = __natpfTennis.natpfUi.split, raf = window.requestAnimationFrame;
@@ -138,6 +157,54 @@ for (const [w, h] of [[1280, 720], [1920, 1080]]){
   check('stesso schermo: metà chiuse: animazioni ferme, nessuna requestAnimationFrame in 1 s', rafs.n === 0 && !rafs.run.some(Boolean), JSON.stringify(rafs));
   check('stesso schermo: nessun errore', !errs.length, errs.join(' | ').slice(0, 300));
   await ctx.close();
+}
+
+// sfondo sfocato (B21): le due clip si alternano, area quadrata 720×720, ripiego e «riduci movimento»
+{
+  const { ctx, p, errs } = await game(720, 720);
+  await p.waitForTimeout(1500);
+  await openModal(p, 2); await p.waitForTimeout(1500);
+  const a = await bg(p), ia = a.on.indexOf(true);
+  await p.evaluate(() => { const T = __natpfTennis.natpfUi.training.tutorial, D = T.demo(); D.stop(); D.show(D.hitTime(), { rate: 1 }); });
+  await p.screenshot({ path: path.join(SHOTS, 'B21-modale-sfondo-720x720.png') });
+  // la clip finisce: parte l'altra (si porta la clip a 0,4 s dalla fine)
+  await p.evaluate(() => { const v = document.querySelector('#natpf-tutorial .tut-bg-video.on'); v.currentTime = v.duration - .4; });
+  const swapped = await p.waitForFunction(i => { const vs = [...document.querySelectorAll('#natpf-tutorial .tut-bg-video')]; return vs[1 - i].classList.contains('on') && !vs[1 - i].paused && vs[1 - i].currentTime > .2 && vs[i].paused; }, ia, { timeout: 8000 }).then(() => true, () => false);
+  const b = await bg(p);
+  check('720×720: finita una clip parte l\'altra (le due si alternano), la prima si ferma', a.has && swapped && b.has && b.on.indexOf(true) === 1 - ia && b.src.slice().sort().join() === CLIPS.join(), JSON.stringify({ prima: a.src[ia], poi: b.src[b.on.indexOf(true)], playing: b.playing }));
+  // chiusa e riaperta: riparte dall'altra clip (le due si alternano anche tra un'apertura e l'altra)
+  await p.evaluate(() => __natpfTennis.natpfUi.training.tutorial.close('review'));
+  await openModal(p, 3); await p.waitForTimeout(1200);
+  const c = await bg(p);
+  check('720×720: riaperta: sfondo di nuovo in riproduzione, con l\'altra clip', c.has && c.playing.filter(Boolean).length === 1 && c.on.indexOf(true) === ia, JSON.stringify({ on: c.on, playing: c.playing }));
+  await p.evaluate(() => __natpfTennis.natpfUi.training.tutorial.close('review'));
+  check('720×720: nessun errore', !errs.length, errs.join(' | ').slice(0, 300));
+  await ctx.close();
+}
+{
+  // ripiego: le clip non si caricano (404) → lo sfondo di prima (velo sul campo), nessun errore
+  const ctx = await B.newContext({ viewport: { width: 1280, height: 720 } }), p = await ctx.newPage(), errs = [];
+  p.on('pageerror', e => errs.push(e.message));
+  await p.route(/\/media\/tutorial-sfondo-\d\.mp4/, r => r.fulfill({ status: 404, body: 'Not Found', contentType: 'text/plain' }));
+  await p.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0`, { waitUntil: 'domcontentloaded' });
+  await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby?.visible, null, { timeout: 60000 });
+  await p.waitForTimeout(2500);
+  await openModal(p, 2); await p.waitForTimeout(1500);
+  const b = await bg(p), i = await info(p);
+  check('ripiego: clip mancanti → nessun video, sfondo di prima (velo al 72% sul campo), animazione dei gesti in funzione', !b.has && !b.playing.some(Boolean) && b.boxOpacity === 0 && i.bg === 'rgba(4, 8, 24, 0.72)' && i.canvas, JSON.stringify({ has: b.has, playing: b.playing, bg: i.bg }));
+  await p.screenshot({ path: path.join(SHOTS, 'B21-modale-senza-sfondo-1280x720.png') });
+  check('ripiego: nessun errore', !errs.length, errs.join(' | ').slice(0, 300));
+  await ctx.close();
+  // «riduci movimento» del sistema: niente video
+  const c2 = await B.newContext({ viewport: { width: 1280, height: 720 }, reducedMotion: 'reduce' }), q = await c2.newPage(); let asked = 0;
+  await q.route(/\/media\/tutorial-sfondo-\d\.mp4/, r => { asked++; return r.continue(); });
+  await q.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0`, { waitUntil: 'domcontentloaded' });
+  await q.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby?.visible, null, { timeout: 60000 });
+  await q.waitForTimeout(2500);
+  await openModal(q, 2); await q.waitForTimeout(1200);
+  const r = await q.evaluate(() => { const root = document.getElementById('natpf-tutorial'); return { has: root.classList.contains('has-bg'), videos: root.querySelectorAll('.tut-bg-video').length, open: !root.classList.contains('hidden') }; });
+  check('«riduci movimento»: modale aperta senza video di sfondo (nessuna clip scaricata)', r.open && !r.has && r.videos === 0 && asked === 0, `${JSON.stringify(r)}, richieste ${asked}`);
+  await c2.close();
 }
 
 // pagina del telefono 390×844: non toccata dal ramo (stessa schermata «Pronto» di prima)

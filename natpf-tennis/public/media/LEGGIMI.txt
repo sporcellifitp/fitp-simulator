@@ -1,6 +1,19 @@
 Foto e video di NATPF Simulator (tutorial e intro) — provenienza e diritti
 ==========================================================================
 
+Aggiornamento 11/11/2026 (B21): video nel gioco, richiesta dell'utente (docs/b21/video-e-scia.md).
+Tutti fatti con fotogrammi veri del gioco (1280×720, 24 fotogrammi al secondo, H.264, senza audio); nessuna persona
+reale; i marchi che si vedono sono quelli dell'arena del gioco (natpf/assets/brand/, site/assets/arena).
+- trailer-aad6b9311db4.mp4 (10 s, 2.258.622 byte): il TRAILER dell'intro, approvato dall'utente («va bene così»), senza
+  titolo aggiunto. NON sta in questa cartella (nello zip Cloudflare non entra): è in natpf-desktop/media/, il programma
+  Windows lo porta dentro, il gioco sul web lo scarica dal bucket R2 (media/). Il nome porta i primi 12 caratteri dello
+  sha256 del file. Ripiego: intro.mp4 qui sotto, come prima.
+- trailer-fine.webp (95.634 byte): ultima inquadratura del trailer (fotogramma 240), sotto il titolo quando il trailer è
+  finito e nell'intro breve della stessa sessione.
+- tutorial-sfondo-1.mp4 (8 s, 227.356 byte, uno scambio) e tutorial-sfondo-2.mp4 (8 s, 333.566 byte, un dritto): gioco
+  già SFOCATO, solo come sfondo dietro la scheda del tutorial «Come si gioca» (src/natpf/natpf_tutorial_bg.js). Non
+  mostrano i gesti: quelli restano l'animazione 3D e le foto (regola del 28/10).
+
 Aggiornamento 29/10/2026 sera: presa di riferimento a martello (pugno sulla base, telefono in avanti, bordo stretto in
 alto, display di lato), scelta dall'utente. presa-martello.webp: una di sei generate (quattro con il pugno sul lato lungo
 del telefono e una con la mano aperta, scartate), 9 crediti. Tolta presa-palmo.webp.

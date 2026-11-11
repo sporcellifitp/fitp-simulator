@@ -41,8 +41,18 @@ export function checkTurnUrl(raw){
 // _headers di Cloudflare: blocchi «percorso» + righe indentate «Nome: valore». Il json deve restare leggibile da fetch
 // (niente Content-Type diverso da JSON) e le due pagine devono poter chiamare il Worker (niente Content-Security-Policy
 // con un connect-src che non lo comprende). Oggi site/_headers ha solo X-Robots-Tag, nosniff e Referrer-Policy: va bene
+// B21 (11/11): il trailer dell'intro NON sta nel pacchetto (2,26 MB, il margine sotto i 25 MB è poco): la pagina del gioco
+// lo scarica dal bucket pubblico R2 (natpf-desktop/aggiornamenti.json, src/natpf/natpf_intro.js). Quindi: nessun file
+// trailer-<impronta>.mp4 nel pacchetto (TRAILER_FILE), e una Content-Security-Policy sulle pagine del gioco, se mai ci
+// fosse, deve permettere i video da quel bucket (media-src, o default-src se media-src non c'è): mediaUrl
 export const PAGES = ['/', '/index.html', '/natpf/tennis/racchetta.html'];
-export function headersProblems(text, { turnUrl = null } = {}){
+export const GAME_PAGES = ['/', '/index.html'];
+export const TRAILER_FILE = /(^|\/)trailer-[0-9a-f]{12}\.mp4$/;
+// origine del bucket pubblico dei video (null se il file non c'è o non ha un indirizzo)
+export function mediaOrigin(file = path.resolve(ROOT, '../natpf-desktop/aggiornamenti.json')){
+  try { return new URL(JSON.parse(fs.readFileSync(file, 'utf8')).base).origin; } catch { return null; }
+}
+export function headersProblems(text, { turnUrl = null, mediaUrl = null } = {}){
   const rules = [];
   let cur = null;
   for (const line of String(text).split(/\r?\n/)){
@@ -61,6 +71,12 @@ export function headersProblems(text, { turnUrl = null } = {}){
     if (connect != null && !/(^|\s)\*(\s|$)/.test(connect) && !/'self'/.test(connect)) out.push(`${page}: Content-Security-Policy senza 'self' per leggere /${TURN_JSON}`);
     if (connect != null && origin && !connect.includes(origin) && !/(^|\s)(\*|https:)(\s|$)/.test(connect)) out.push(`${page}: Content-Security-Policy che non permette ${origin}`);
   }
+  const mediaOrig = mediaUrl ? new URL(mediaUrl).origin : null;
+  if (mediaOrig) for (const page of GAME_PAGES) for (const [name, value] of on(page)){
+    if (name !== 'content-security-policy') continue;
+    const media = /(?:^|;)\s*media-src([^;]*)/i.exec(value)?.[1] ?? /(?:^|;)\s*default-src([^;]*)/i.exec(value)?.[1];
+    if (media != null && !media.includes(mediaOrig) && !/(^|\s)(\*|https:)(\s|$)/.test(media)) out.push(`${page}: Content-Security-Policy che non permette il video dell'intro da ${mediaOrig} (media-src)`);
+  }
   return out;
 }
 
@@ -70,7 +86,7 @@ const copyDir = (from, to) => {
   for (const name of fs.readdirSync(from)) fs.cpSync(path.join(from, name), path.join(to, name), { recursive: true, errorOnExist: true, force: false });
 };
 
-export function makePackage({ out, turnUrl = null, dist = path.join(ROOT, 'dist'), headers = path.resolve(ROOT, '../site/_headers') } = {}){
+export function makePackage({ out, turnUrl = null, dist = path.join(ROOT, 'dist'), headers = path.resolve(ROOT, '../site/_headers'), media = mediaOrigin() } = {}){
   if (!out) throw new Error('manca --out=cartella');
   const dest = path.resolve(out);
   if (!fs.existsSync(path.join(dist, 'index.html'))) throw new Error(`build mancante: ${dist}/index.html (prima npm run build)`);
@@ -82,8 +98,11 @@ export function makePackage({ out, turnUrl = null, dist = path.join(ROOT, 'dist'
   if (stale.length) throw new Error(`build vecchia, con file MediaPipe che il pacchetto non porta più (${stale.join(', ')}): rifare npm run build`);
   const url = turnUrl ? checkTurnUrl(turnUrl) : null;
   const headersText = fs.readFileSync(headers, 'utf8');
-  const problems = headersProblems(headersText, { turnUrl: url });
-  if (problems.length) throw new Error(`_headers impedirebbe di usare il TURN nostro: ${problems.join(' · ')}`);
+  const problems = headersProblems(headersText, { turnUrl: url, mediaUrl: media });
+  if (problems.length) throw new Error(`_headers impedirebbe di usare il TURN nostro o il video dell'intro: ${problems.join(' · ')}`);
+  // il trailer dell'intro si scarica dal bucket R2: nel pacchetto farebbe sforare i 25 MB
+  const trailers = listFiles(dist).filter(f => TRAILER_FILE.test(f));
+  if (trailers.length) throw new Error(`il trailer dell'intro non deve stare nel pacchetto Cloudflare (${trailers.join(', ')}): va in natpf-desktop/media, non in natpf-tennis/public`);
   fs.mkdirSync(dest, { recursive: true });
   copyDir(dist, dest);
   fs.writeFileSync(path.join(dest, '_headers'), headersText);

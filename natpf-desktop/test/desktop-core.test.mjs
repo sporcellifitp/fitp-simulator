@@ -6,7 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import { DESKTOP, UPDATE_ACTIONS, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings, windowsVersion, readBuild,
-  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode } from '../src/desktop-core.mjs';
+  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, TRAILER_RE, trailerFiles, trailerNameMatches } from '../src/desktop-core.mjs';
+import { createHash } from 'node:crypto';
 
 const d = (id, w, h, x = 0) => ({ id, bounds: { x, y: 0, width: w, height: h }, scaleFactor: 1 });
 
@@ -297,4 +298,25 @@ test('consegna a pezzi: UNISCI I PEZZI.cmd rimette insieme ogni eseguibile e con
   assert.ok(cmd.includes(`findstr /i /c:"${f.sha256}"`));
   assert.match(cmd, /goto salta1[\s\S]*:salta1[\s\S]*goto salta2[\s\S]*:salta2/);
   assert.throws(() => joinScript([{ name: 'a"b.exe', parts: ['x'], sha256: '0' }]));
+});
+
+test('trailer dell\'intro (B21): in natpf-desktop/media con il nome della sua impronta, copiato nel programma accanto al gioco', () => {
+  const dir = new URL('../media/', import.meta.url), files = trailerFiles(dir);
+  assert.equal(files.length, 1, files.join(', '));
+  const bytes = fs.readFileSync(new URL(files[0], dir)), sha = createHash('sha256').update(bytes).digest('hex');
+  assert.ok(trailerNameMatches(files[0], sha), `${files[0]} / ${sha.slice(0, 12)}`);
+  assert.ok(bytes.length > 500_000 && bytes.length < 4_000_000, `${bytes.length} byte`);
+  // nomi: solo trailer-<12 caratteri esadecimali>.mp4; cartella che manca: nessun file
+  assert.ok(TRAILER_RE.test('trailer-0123456789ab.mp4')); assert.ok(!TRAILER_RE.test('trailer.mp4')); assert.ok(!TRAILER_RE.test('trailer-0123456789AB.mp4')); assert.ok(!TRAILER_RE.test('x/trailer-0123456789ab.mp4'));
+  assert.equal(trailerNameMatches('trailer-0123456789ab.mp4', '0123456789abcdef'), true); assert.equal(trailerNameMatches('trailer-0123456789ab.mp4', '1123456789abcdef'), false); assert.equal(trailerNameMatches('altro.mp4', '0123456789ab'), false);
+  assert.deepEqual(trailerFiles(path.join(os.tmpdir(), 'natpf-cartella-che-non-esiste')), []);
+  // il gioco conosce quel nome e lo cerca in ./media/ nel programma; prepara.mjs lo copia lì e si ferma se il nome non torna
+  const intro = fs.readFileSync(new URL('../../natpf-tennis/src/natpf/natpf_intro.js', import.meta.url), 'utf8');
+  assert.ok(intro.includes(`file: '${files[0]}'`)); assert.ok(intro.includes(`sha256: '${sha}'`)); assert.match(intro, /desktop \? `\.\/\$\{TRAILER\.dir\}\$\{TRAILER\.file\}`/);
+  const prepara = fs.readFileSync(new URL('../scripts/prepara.mjs', import.meta.url), 'utf8');
+  assert.match(prepara, /trailerFiles\(path\.join\(HERE, 'media'\)\)/); assert.match(prepara, /if \(!trailerNameMatches\(f, sha\)\) fail\(/);
+  assert.match(prepara, /fs\.copyFileSync\(src, path\.join\(APP, 'natpf-tennis\/dist\/media', f\)\)/);
+  // il workflow parte anche quando cambia solo il trailer (natpf-desktop/**) e lo carica in media/ sul bucket
+  const wf = fs.readFileSync(new URL('../../.github/workflows/natpf-windows.yml', import.meta.url), 'utf8');
+  assert.match(wf, /- 'natpf-desktop\/\*\*'/); assert.match(wf, /for f in \.\.\/media\/trailer-\*\.mp4; do/); assert.match(wf, /"s3:\/\/\$R2_BUCKET\/media\/\$nome"/);
 });

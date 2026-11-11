@@ -344,9 +344,11 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 }
 
 /* =====================================================================================================================
-   Intro (natpf_intro.js): video dell'arena (public/media/intro.mp4) → titolo NATPF Simulator con la palla → «Premi un
-   tasto». Un solo titolo grande; i partner sono una riga piccola in basso. Classi: mode-full, mode-short, is-ready,
-   no-video, leaving. Durate allineate a INTRO_MS (7,8 s completa, 1,5 s breve).
+   Intro (natpf_intro.js): video (il trailer, B21; ripiego: public/media/intro.mp4, l'arena) → titolo NATPF Simulator
+   con la palla → «Premi un tasto». Un solo titolo grande; i partner sono una riga piccola in basso. Classi: mode-full,
+   mode-short, is-ready, no-video, is-trailer, leaving. Durate allineate a INTRO_MS (7,8 s completa, 1,5 s breve); con il
+   trailer (10 s) i ritardi si spostano di --intro-shift (natpf_intro.TRAILER.shiftMs): il titolo entra sull'ultima
+   inquadratura.
    ===================================================================================================================== */
 .natpf-intro {
   position: fixed;
@@ -367,6 +369,11 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 .intro-still { opacity: 0; transition: opacity 0.4s var(--ease); }
 .natpf-intro.mode-short .intro-still, .natpf-intro.no-video .intro-still, .natpf-intro.is-ready .intro-still { opacity: 1; }
 .natpf-intro.mode-short .intro-video, .natpf-intro.no-video .intro-video { display: none; }
+/* trailer partito: il video di prima, sotto, non si disegna */
+.natpf-intro.is-trailer .intro-video:not(.intro-trailer) { display: none; }
+/* il trailer non si vede finché l'intro non parte con lui (natpf_intro: aspetta di sapere se arriva in fondo; se no
+   resta il primo fotogramma del video di prima, che poi parte) */
+.natpf-intro:not(.is-trailer) .intro-trailer { opacity: 0; }
 /* scurisce in alto (titolo) e in basso (partner) senza coprire il campo */
 .intro-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4, 8, 24, 0.7) 0%, rgba(4, 8, 24, 0) 42%, rgba(4, 8, 24, 0) 70%, rgba(4, 8, 24, 0.8) 100%); }
 .intro-stage { position: relative; align-self: stretch; display: grid; grid-template-rows: auto auto 1fr auto; justify-items: center; text-align: center; gap: 12px; width: min(92cqw, 980px); padding: clamp(28px, 9cqh, 96px) 0 clamp(64px, 15cqh, 140px); }
@@ -398,11 +405,11 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 .intro-skip { position: absolute; right: 22px; bottom: 18px; height: 36px; padding: 0 16px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: rgba(4, 8, 24, 0.4); color: var(--text-2); font: 600 14px/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
 .natpf-intro.is-ready .intro-skip { display: none; }
 /* intro completa: il titolo entra quando la camera sale sopra il campo (≈5,7 s del video) */
-.natpf-intro.mode-full .intro-title { animation: intro-title 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) 5.7s both; }
-.natpf-intro.mode-full .intro-title b::after { animation: intro-line 0.5s var(--ease) 6.15s both; }
-.natpf-intro.mode-full .intro-ball { animation: intro-ball 0.9s cubic-bezier(0.3, 0.6, 0.5, 1) 5.6s both; }
-.natpf-intro.mode-full .intro-tag { animation: intro-up 0.6s var(--ease) 6.5s both; }
-.natpf-intro.mode-full .intro-partners { animation: intro-up 0.6s var(--ease) 7s both; }
+.natpf-intro.mode-full .intro-title { animation: intro-title 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) calc(5.7s + var(--intro-shift, 0ms)) both; }
+.natpf-intro.mode-full .intro-title b::after { animation: intro-line 0.5s var(--ease) calc(6.15s + var(--intro-shift, 0ms)) both; }
+.natpf-intro.mode-full .intro-ball { animation: intro-ball 0.9s cubic-bezier(0.3, 0.6, 0.5, 1) calc(5.6s + var(--intro-shift, 0ms)) both; }
+.natpf-intro.mode-full .intro-tag { animation: intro-up 0.6s var(--ease) calc(6.5s + var(--intro-shift, 0ms)) both; }
+.natpf-intro.mode-full .intro-partners { animation: intro-up 0.6s var(--ease) calc(7s + var(--intro-shift, 0ms)) both; }
 /* senza video il titolo non aspetta l'arena */
 .natpf-intro.mode-full.no-video .intro-title { animation-delay: 0.2s; }
 .natpf-intro.mode-full.no-video .intro-title b::after { animation-delay: 0.6s; }
@@ -1582,6 +1589,17 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .natpf-tutorial { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; padding: 2cqh 2cqw;
   background: rgba(4, 8, 24, 0.72); }
 .natpf-tutorial.hidden { display: none; }
+/* sfondo sfocato (B21, natpf_tutorial_bg.js): due clip di gioco già sfocate dietro la scheda, una alla volta, con un velo
+   scuro sopra; si vede solo quando un video sta girando davvero (.has-bg), altrimenti resta il velo sul campo di prima.
+   La scheda ha il suo fondo pieno: testi e animazione dei gesti non cambiano. Niente filtri dal vivo (le clip sono già
+   sfocate nel file) */
+.natpf-tutorial .tut-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity .5s var(--ease); background: var(--ink-950); }
+.natpf-tutorial.has-bg .tut-bg { opacity: 1; }
+.natpf-tutorial .tut-bg-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .6s var(--ease); }
+.natpf-tutorial .tut-bg-video.on { opacity: 1; }
+.natpf-tutorial .tut-bg-veil { position: absolute; inset: 0; background: rgba(4, 8, 24, 0.5); }
+.natpf-tutorial .tut-card { position: relative; }
+@media (prefers-reduced-motion: reduce) { .natpf-tutorial .tut-bg { display: none; } }
 /* B15 (08/11): con la modale aperta il pannello in basso a sinistra non ripete la riga della modale (resta la barra con
    «Salta» e la pausa); l'avviso «Telefono scollegato» (data-state="retry") resta in vista (verifica dell'integrazione B15,
    prova natpf-tutorial-relink T) */

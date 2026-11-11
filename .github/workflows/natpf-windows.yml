@@ -6,7 +6,10 @@ name: NATPF eseguibili Windows
 # - sul bucket pubblico di Cloudflare R2 degli aggiornamenti (richiesta del 07/11/2026: «un unico installer che poi
 #   deve potersi aggiornare direttamente dal gioco»; il repository è privato, quindi niente download da GitHub per il
 #   programma): windows/NATPF-Simulator-Setup-<versione>.exe, poi windows/latest.json (il manifesto che il programma
-#   legge), più una copia con il nome fisso windows/NATPF-Simulator-Setup.exe per la prima installazione.
+#   legge), più una copia con il nome fisso windows/NATPF-Simulator-Setup.exe per la prima installazione;
+#   e media/trailer-<impronta>.mp4, il trailer dell'intro per il gioco sul web (B21: natpf-desktop/media/, nello zip
+#   Cloudflare non entra; nel programma Windows è dentro l'installer). Se il caricamento del trailer fallisce
+#   l'installer si pubblica lo stesso (avviso).
 #   Solo con i segreti del repository R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ACCOUNT_ID, R2_BUCKET (guida:
 #   docs/GUIDA_AGGIORNAMENTI_R2.md); senza segreti il passo si salta con un avviso e resta l'Artifact.
 # L'indirizzo pubblico del bucket che il programma usa viene da natpf-desktop/aggiornamenti.json o dalla variabile del
@@ -186,6 +189,31 @@ jobs:
             exit 1
           fi
           echo "Accesso al bucket R2: ok ($lens)"
+          # Trailer dell'intro (B21): natpf-desktop/media/trailer-<impronta>.mp4 → media/ sul bucket, per il gioco sul web
+          # (Cloudflare), che lo scarica da lì (nel programma Windows sta dentro l'installer). Il nome porta i primi 12
+          # caratteri dello sha256: se sul bucket c'è già con lo stesso peso non si ricarica (cache lunga). Si fa prima
+          # del controllo «versione già pubblicata», così arriva anche quando l'installer non cambia. Un errore qui NON
+          # ferma la pubblicazione dell'installer: avviso, e il gioco sul web ripiega da solo sul video di prima
+          carica_trailer() {
+            local f nome peso remoto
+            for f in ../media/trailer-*.mp4; do
+              [ -s "$f" ] || { echo "Nessun trailer in natpf-desktop/media."; return 0; }
+              nome="$(basename "$f")"; peso="$(stat -c %s "$f")"
+              printf '%s' "$nome" | grep -qE '^trailer-[0-9a-f]{12}\.mp4$' || { echo "Nome non valido: $nome"; return 1; }
+              [ "trailer-$(sha256sum "$f" | cut -c1-12).mp4" = "$nome" ] || { echo "Il nome di $nome non corrisponde allo sha256 del file."; return 1; }
+              remoto="$(aws s3api head-object --endpoint-url "$ep" --bucket "$R2_BUCKET" --key "media/$nome" --query ContentLength --output text 2>/dev/null || true)"
+              if [ "$remoto" = "$peso" ]; then echo "Trailer già sul bucket: media/$nome ($peso byte), non si ricarica."; continue; fi
+              aws s3 cp --endpoint-url "$ep" "$f" "s3://$R2_BUCKET/media/$nome" --only-show-errors \
+                --content-type video/mp4 --cache-control "public, max-age=31536000, immutable" || return 1
+              remoto="$(aws s3api head-object --endpoint-url "$ep" --bucket "$R2_BUCKET" --key "media/$nome" --query ContentLength --output text 2>/dev/null || true)"
+              [ "$remoto" = "$peso" ] || { echo "Sul bucket media/$nome pesa «$remoto» byte invece di $peso."; return 1; }
+              echo "Trailer caricato: media/$nome ($peso byte)"
+              echo "Trailer dell'intro caricato su R2: media/$nome ($peso byte)" >> "$GITHUB_STEP_SUMMARY"
+            done
+          }
+          if ! carica_trailer; then
+            echo "::warning title=Trailer dell'intro non caricato su R2::Il video dell'intro per il gioco sul web non è sul bucket (media/): il gioco usa il video di prima. L'installer si pubblica lo stesso (docs/b21/video-e-scia.md)."
+          fi
           # mai tornare indietro e mai ripubblicare la stessa versione: se sul bucket c'è già questa versione o una più
           # nuova, non si carica niente (un installer già pubblicato non si riscrive: la cache lunga del suo nome darebbe
           # i byte vecchi con lo sha256 nuovo del manifesto, e il programma rifiuterebbe il file)
@@ -250,3 +278,32 @@ jobs:
           else
             echo "::warning title=Manifesto pubblico non raggiungibile::$base/windows/latest.json (accesso pubblico del bucket attivo?)"
           fi
+      # il trailer dell'intro come lo vede il gioco sul web (B21): indirizzo pubblico, tipo video/mp4, peso giusto.
+      # L'indirizzo è quello scritto nel gioco (TRAILER.base in natpf-tennis/src/natpf/natpf_intro.js): è lì che il
+      # gioco lo cerca, anche se la variabile NATPF_AGGIORNAMENTI_URL o aggiornamenti.json ne indicano un altro (in
+      # quel caso un avviso in più). Solo avvisi: non ferma niente (il gioco ripiega sul video di prima)
+      - name: Trailer dell'intro dall'indirizzo pubblico
+        if: always() && steps.r2.outputs.ok == 'true' && github.ref == 'refs/heads/natpf-simulator'
+        continue-on-error: true
+        working-directory: natpf-desktop
+        env:
+          BASE: ${{ vars.NATPF_AGGIORNAMENTI_URL }}
+        run: |
+          gioco="$(sed -n "s/^ *base: '\([^']*\)'.*/\1/p" ../natpf-tennis/src/natpf/natpf_intro.js | head -n 1)"
+          gioco="${gioco%/}"
+          [ -n "$gioco" ] || { echo "::warning title=Indirizzo del trailer non trovato::TRAILER.base non si legge da natpf-tennis/src/natpf/natpf_intro.js"; exit 0; }
+          [ -n "$BASE" ] || BASE="$(node -p "require('./aggiornamenti.json').base")"
+          if [ "${BASE%/}" != "$gioco" ]; then
+            echo "::warning title=Indirizzi diversi per il trailer::Il gioco cerca il trailer su $gioco (TRAILER.base in natpf_intro.js), gli aggiornamenti usano ${BASE%/}: se il bucket pubblico è cambiato va aggiornato anche natpf_intro.js."
+          fi
+          for f in media/trailer-*.mp4; do
+            [ -s "$f" ] || { echo "Nessun trailer in natpf-desktop/media."; exit 0; }
+            nome="$(basename "$f")"; peso="$(stat -c %s "$f")"
+            if testa="$(curl -fsSI "$gioco/media/$nome")" \
+               && printf '%s' "$testa" | grep -qiE '^content-type: *video/mp4' \
+               && printf '%s' "$testa" | tr -d '\r' | grep -qiE "^content-length: *$peso\$"; then
+              echo "Trailer pubblico: $gioco/media/$nome ($peso byte, video/mp4)"
+            else
+              echo "::warning title=Trailer dell'intro non raggiungibile::$gioco/media/$nome non risponde con video/mp4 e $peso byte: il gioco sul web usa il video di prima."
+            fi
+          done
