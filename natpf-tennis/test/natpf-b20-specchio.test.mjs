@@ -138,3 +138,63 @@ test('B20 A1: la schiacciata voluta su palla davvero alta, in risposta e nello s
     assert.ok(Math.abs(a.from - b.from) < .02, `altezza di partenza: P1 ${a.from} m, P2 ${b.from} m`);
   }
 });
+
+/* ---------- B20 (revisione, F1): il tagliato del Player 2 curva come quello del Player 1 ---------- */
+// L'effetto laterale del tagliato è una spinta lungo x del campo. Prima per il Player 2 aveva il segno sbagliato: il suo
+// tagliato curvava verso l'esterno, quello del Player 1 verso il centro (soli tagliati: il P1 vinceva il 51,5–52,1% dei
+// punti e il 53,6–54,4% delle partite). Stessa palla ai due lati, specchiata (x → −x, z → −z): la traiettoria del
+// tagliato deve essere la stessa, specchiata, fino al rimbalzo.
+import { ENGINE_SHOT } from '../src/natpf/natpf_gestures.js';
+function sliceFlight(who, { at = [.4, 11.7], to = [1.6, 8.5] } = {}){
+  const real = Math.random; Math.random = mulberry32(17);
+  try {
+    const e = createHeadlessEngine({ difficulty: '1v1' });
+    e.startSplit(); e.natpfFair = false; e.natpfP2Hand = 'right'; e.startNewMatch({ showStartBanner: false });
+    const m = who === 'p2' ? -1 : 1, A = actor(e, who);
+    e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = ROLE[other(who)]; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = 3;
+    A.pos.set(m*at[0], 0, m*at[1]); A.targetPos.copy(A.pos); A.vel.set(0, 0, 0);
+    e.pendingUserSwing = null; e.pendingP2Swing = null;
+    e.ball.pos.set(-m*.5, 1, -m*11); e.ball.spin.set(0, 0, 0);
+    e._launchBallToTarget(e.ball.pos, new THREE.Vector3(m*to[0], 0, m*to[1]), 1.05, { topspin: 14 });
+    who === 'p2' ? e._natpfPlanOpponent(e.opponent) : e._natpfPlanPlayer();
+    const intent = { shot: 'slice', power: .55, depth: .55, rise: -.4, face: 0 };
+    const swing = { source: 'natpf-phone', side: 'forehand', hand: 'right', shotType: ENGINE_SHOT.slice, speed: .8 + .55*.85, dirX: 0, natpf: { aim: 'swing', shot: 'slice', intent, power: .55, peak: 900, typical: 900, angle: 60, latency: 0, hand: 'right' } };
+    let sent = false;
+    for (let t = 0; t < 3; t += DT){
+      const ttc = NI.timeToContact(e, A);
+      if (!sent && ttc != null && ttc <= .02){ sent = true; send(e, who, swing); }
+      if (e.ball.lastHitter === ROLE[who] || e.phase !== 'RALLY') break;
+      e.step(DT);
+    }
+    assert.equal(e.ball.lastHitter, ROLE[who], `${who}: colpita`);
+    assert.equal(e.natpfLastRacket.out.shot, 'SLICE', `${who}: tagliato`);
+    // dal colpo al primo rimbalzo nell'altra metà: posizioni nel riferimento di chi colpisce (specchiate per il P2)
+    const start = { x: m*e.ball.pos.x, z: m*e.ball.pos.z }, side = m*e.ball.spin.y, vx0 = m*e.ball.vel.x, path = [], playerX = m*A.pos.x;   // (lato del campo di chi colpisce, al colpo)
+    let land = null;
+    for (let t = 0; t < 3 && e.phase === 'RALLY'; t += DT){
+      e.step(DT);
+      path.push({ x: m*e.ball.pos.x, y: e.ball.pos.y, z: m*e.ball.pos.z });
+      if (e.ball.bounceCountOnCurrentSide >= 1){ land = { x: m*e.ball.pos.x, z: m*e.ball.pos.z }; break; }
+    }
+    return { start, side, vx0, path, land, target: { x: m*e.ball.targetLanding.x, z: m*e.ball.targetLanding.z }, playerX };
+  } finally { Math.random = real; }
+}
+
+test('B20 F1: il tagliato del Player 2 ha la stessa traiettoria di quello del Player 1, specchiata (effetto laterale compreso)', () => {
+  for (const scene of [{ at: [.4, 11.7], to: [1.6, 8.5] }, { at: [-1.2, 11.5], to: [-2.2, 9] }, { at: [2.4, 11.9], to: [3, 8.2] }]){
+    const a = sliceFlight('p1', scene), b = sliceFlight('p2', scene), tag = JSON.stringify(scene);
+    assert.ok(a.land && b.land, `${tag}: la palla rimbalza nell'altra metà`);
+    // effetto laterale: stesso segno nel riferimento di chi colpisce (verso il centro dal suo lato del campo), non zero
+    assert.ok(Math.abs(a.side) > 1, `${tag}: effetto laterale del P1 ${a.side}`);
+    assert.ok(Math.abs(a.side - b.side) < 1e-6, `${tag}: effetto laterale P1 ${a.side}, P2 ${b.side} (nel suo riferimento)`);
+    assert.equal(Math.sign(a.side), -Math.sign(a.playerX), `${tag}: il tagliato del P1 curva verso il centro, come prima`);
+    assert.ok(Math.abs(a.vx0 - b.vx0) < .02, `${tag}: velocità laterale alla partenza P1 ${a.vx0}, P2 ${b.vx0}`);
+    // stessa traiettoria, punto per punto (specchiata), e stesso punto di rimbalzo
+    const n = Math.min(a.path.length, b.path.length);
+    assert.ok(Math.abs(a.path.length - b.path.length) <= 2, `${tag}: durata del volo ${a.path.length} e ${b.path.length} passi`);
+    let worst = 0;
+    for (let i = 0; i < n; i++) worst = Math.max(worst, Math.abs(a.path[i].x - b.path[i].x), Math.abs(a.path[i].z - b.path[i].z), Math.abs(a.path[i].y - b.path[i].y));
+    assert.ok(worst < .06, `${tag}: scarto massimo tra le due traiettorie ${worst.toFixed(3)} m`);
+    assert.ok(Math.abs(a.land.x - b.land.x) < .06 && Math.abs(a.land.z - b.land.z) < .06, `${tag}: rimbalzo P1 ${JSON.stringify(a.land)}, P2 ${JSON.stringify(b.land)}`);
+  }
+});

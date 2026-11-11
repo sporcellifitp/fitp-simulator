@@ -9,7 +9,9 @@
 // Dove si accende: pannello dello stand (Ctrl+Maiusc+K, o 3 s sul marchio NATPF del menu) → «Scambio che si scalda»:
 // No · Sì; resta salvata (localStorage, chiave natpf-tennis.scambioCaldo: '1' accesa). Vale dalla partita dopo.
 // Come: i colpi normali (dritto, rovescio, tagliato; non pallonetto, palla corta, schiacciata, che hanno il loro volo)
-// da `from` in poi passano ogni volta più bassi sulla rete e più carichi, fino al colpo `from + full − 1`: sono le due
+// da `from` in poi passano ogni volta più bassi sulla rete e più carichi (il tagliato solo più basso: resta un tagliato),
+// fino al massimo dell'altezza al colpo `from + full − lead − 1` (il 16°); il 10° colpo parte già da `lead + 1` passi su
+// `full`, così la palla accelera davvero da quando compare la scritta (revisione: prima al 10° colpo era +1%). Sono le due
 // cose che nel motore decidono la velocità della palla (il tempo di volo è quello che serve per passare la rete
 // all'altezza voluta, natpf_skill.flightForClear; accorciare solo il tempo non cambiava niente, misurato). In più il
 // tempo di volo di base si accorcia di `step` a colpo, fino a `min`. Chi riceve ha meno tempo e la finestra del colpo in
@@ -21,10 +23,11 @@ export const HOT_RALLY = Object.freeze({
   from: 10,     // dal 10° colpo dello scambio (il servizio è il 1°)
   step: .035,   // tempo di volo di base −3,5% a ogni colpo da lì in poi
   min: .58,     // al più −42%
-  full: 10,     // colpi per arrivare al massimo (dal 10° al 19°)
+  full: 10,     // passi per arrivare al massimo dell'altezza sulla rete
+  lead: 3,      // passi già fatti al 10° colpo (4 su 10: la palla è subito più veloce di circa il 10%; massimo al 16° colpo)
   netGap: .16,  // al massimo la palla passa a 16 cm dal nastro (come il colpo super, natpf_stroke_outcome.SUPER.netGap)
   spin: 10,     // … e con 10 di effetto in più (scende prima: può andare più forte e restare in campo)
-  maxHeat: 2,   // dopo il massimo dell'altezza l'effetto continua a salire fino al doppio (colpo from + 2·full − 1)
+  maxHeat: 2,   // dopo il massimo dell'altezza l'effetto continua a salire fino al doppio (26° colpo)
 });
 
 export function readHotRally({ storage = globalThis.localStorage } = {}){
@@ -43,7 +46,7 @@ export function hotFlight(n, on = false){
   return k ? Math.max(HOT_RALLY.min, 1 - HOT_RALLY.step*k) : 1;
 }
 // quanto è caldo lo scambio al colpo n: 0 (freddo) … 1 (massimo, dal colpo from + full − 1)
-export const hotHeat = (n, on = false) => Math.min(HOT_RALLY.maxHeat, hotSteps(n, on)/HOT_RALLY.full);
+export const hotHeat = (n, on = false) => { const k = hotSteps(n, on); return k ? Math.min(HOT_RALLY.maxHeat, (k + HOT_RALLY.lead)/HOT_RALLY.full) : 0; };
 // Esito del colpo numero n con lo scambio caldo: più basso sulla rete e più carico. out: esito di
 // natpf_stroke_outcome.strokeOutcome ({ shot, clear, topspin, … }); netY: altezza della rete al centro. Spenta, prima del
 // 10° colpo, o per pallonetto, palla corta, schiacciata e colpi falliti: l'esito resta lo stesso oggetto
@@ -51,7 +54,8 @@ export function hotOutcome(out, n, on = false, netY = .914){
   const h = hotHeat(n, on);
   if (!h || !out || out.netFault || out.failed || ['LOB', 'DROP', 'SMASH'].includes(out.shot)) return out;
   const low = netY + HOT_RALLY.netGap;
-  return { ...out, clear: out.clear > low ? out.clear + (low - out.clear)*Math.min(1, h) : out.clear, topspin: out.topspin + HOT_RALLY.spin*h, hot: h };
+  // il tagliato resta un tagliato (revisione): solo più basso sulla rete, l'effetto all'indietro non cambia
+  return { ...out, clear: out.clear > low ? out.clear + (low - out.clear)*Math.min(1, h) : out.clear, topspin: out.shot === 'SLICE' ? out.topspin : out.topspin + HOT_RALLY.spin*h, hot: h };
 }
 
 // l'opzione vale per questa partita? Solo tra due persone nello stesso schermo con i due telefoni; `forced` a mano
@@ -82,6 +86,8 @@ export class NatpfHotRallyHud {
     this.engine = engine; this.shown = '';
     this.el = typeof document !== 'undefined' ? document.getElementById('natpf-hot-rally') : null;
   }
+  // partita in pausa: la scritta si toglie (tick la rimette alla ripresa)
+  hide(){ if (this.el && this.shown){ this.shown = ''; this.el.classList.add('hidden'); } }
   tick(){
     const E = this.engine, el = this.el; if (!el) return;
     const v = hotRallyView({ on: !!E.natpfHot && !E.autoPlayMode, phase: E.phase, inPlay: !!E.ball?.inPlay, strokes: E.ball?.rallyStrokeCount });

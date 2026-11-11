@@ -221,10 +221,14 @@ test('B20 A3: telefono del Player 2 scollegato → riquadro con il nome e il suo
   const w = await splitMatch(), { E, ui, link, l2 } = w;
   E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' };
   w.advance(500);
+  // (revisione) al servizio ci sono le istruzioni sul grande schermo: durante la pausa spariscono, alla ripresa tornano
+  const coach = document.getElementById('natpf-serve-coach');
+  assert.equal(E.phase, 'SERVE_STANCE'); assert.equal(coach.classList.contains('hidden'), false, 'istruzioni del servizio in vista');
   link.sent.length = 0;
   l2.connected = false; l2.ready = false; l2.L.state = 'lost'; w.P2._changed();
   w.advance(1500);
   assert.ok(ui.split.hold, 'pausa per il P2'); assert.equal(E.natpfPaused, true);
+  assert.equal(coach.classList.contains('hidden'), true, 'in pausa niente istruzioni del servizio sotto il riquadro');
   const el = holdEl();
   assert.equal(el.querySelector('b').textContent, 'Telefono di Giulia in pausa');
   // QR del telefono caduto dentro il riquadro, con il nome; quello del P1 (collegato) resta nascosto
@@ -245,6 +249,7 @@ test('B20 A3: telefono del Player 2 scollegato → riquadro con il nome e il suo
   assert.equal(ui.split.hold, null); assert.equal(E.natpfPaused, false);
   assert.ok(el.classList.contains('hidden'));
   assert.ok(link.sent.some(m => m.t === 'ph' && m.ph !== 'pause'), 'fase vera di nuovo al telefono del P1');
+  assert.equal(coach.classList.contains('hidden'), false, 'alla ripresa le istruzioni del servizio tornano');
 });
 
 test('B20 A3: telefono del Player 1 scollegato nello stesso schermo → QR nel riquadro (non il pannello che veniva coperto), avviso al Player 2', async () => {

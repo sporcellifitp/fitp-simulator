@@ -190,6 +190,9 @@ export class NatpfUi {
   _syncPause(){
     const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold || !!this.split?.hold;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
+    // B20 (revisione): a partita ferma il gioco non ridisegna le scritte del campo; le istruzioni del servizio e «Scambio
+    // caldo» si tolgono subito (restavano sotto il riquadro della pausa) e tornano da sole alla ripresa
+    if (this.engine.natpfPaused){ this.serveCoach?.paint(null); this.hotRally?.hide(); }
   }
   tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); }
   // sfondo fermo dell'arena dietro il menu (motore: _natpfBackdropFrame). Il Player 2 dell'invito vede l'arena viva

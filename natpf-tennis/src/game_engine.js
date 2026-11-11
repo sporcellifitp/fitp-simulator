@@ -823,6 +823,7 @@ export class NatpfTennisEngine {
   endSplit() {
     if (!this.natpfSplit?.active) return;
     this.natpfSplit.active = !1;
+    this.natpfHot = !1; // B20 (revisione): lo «scambio che si scalda» vale solo nello stesso schermo
     (this.versus = { active: !1, closing: !1 }), (this.isMultiplayer = !1), (this.pendingP2Swing = null);
     this._natpfClearP2Hand();
     typeof document < "u" && document.body.classList.remove("natpf-split");
@@ -1286,6 +1287,7 @@ export class NatpfTennisEngine {
       (this.ball.bounceCountOnCurrentSide = 0),
       (this.ball.rallyStrokeCount = 0),
       (this.ball.natpfFeed = !1),
+      (this.natpfLastWhiff = null), // B20 (revisione): il colpo a vuoto vale solo per il suo punto
       (this.pendingUserSwing = null),
       (this.pendingP2Swing = null),
       (this.pendingServeSwing = null),
@@ -2320,7 +2322,10 @@ export class NatpfTennisEngine {
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
     const netClear = sup.on ? NO.SUPER.netGap : out.attack || out.hot ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null; // (B20: anche lo scambio caldo passa basso)
     return {
-      netClear, E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
+      // B20 (revisione): l'effetto laterale del tagliato e della palla corta è una spinta lungo x del campo (la fisica non
+      // guarda il verso della palla) e R è già il lato del campo di chi colpisce: verso il centro per tutti e due. Prima
+      // per il P2 era moltiplicato per «mirror» e curvava verso l'esterno (soli tagliati: il P1 vinceva il 51,5–52,1% dei punti)
+      netClear, E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out, contact,
       // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita e ogni colpo super potente. La forza
       // sulla scala di prima (NO.superStrength: typePower dal telefono, B15), così scatta dallo stesso gesto di prima (da 1,25 volte
@@ -3227,8 +3232,9 @@ export class NatpfTennisEngine {
   _natpfEarlyWhiff(ps) {
     const a = ps.actor || this.player, ev = ps.evt || {}, p2 = a === this.opponent || a === this.opponentPartner; // NATPF: anche il Player 2 (C2)
     a.userData && (a.userData.natpfPrep = null);
-    // B20 (audit B19, punto 18): chi ha fatto il gesto ed è andato a vuoto su questa palla, per il banner del punto
-    this.natpfLastWhiff = { side: p2 ? "opponent" : "player", stroke: this.ball.rallyStrokeCount };
+    // B20 (audit B19, punto 18): chi ha fatto il gesto ed è andato a vuoto su questa palla, per il banner del punto.
+    // Non per la palla fuori portata (revisione): lì è un vincente dell'altro, il gesto non poteva prenderla
+    ps.natpfWhy !== "portata" && (this.natpfLastWhiff = { side: p2 ? "opponent" : "player", stroke: this.ball.rallyStrokeCount });
     this.racketKinematics &&
       this.racketKinematics.triggerSwing(a, { shotType: String(ev.shotType || "topspin").toLowerCase(), side: ev.side, speed: Number(ev.speed || 1.15), timing: "early", dirX: Number(ev.dirX || 0) });
     // NATPF racchetta virtuale: perché è a vuoto (troppo presto, troppo tardi, palla fuori portata)

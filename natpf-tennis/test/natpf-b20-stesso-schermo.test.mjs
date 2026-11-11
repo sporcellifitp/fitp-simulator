@@ -230,6 +230,24 @@ test('A4: nel motore il gesto a vuoto di chi perde il punto arriva al banner, e 
   e._natpfEarlyWhiff({ actor: e.opponent, evt: {} });
   e._awardPoint('opponent', 'Nice Shot!');
   assert.match(banners.at(-1).subText, /^Vincente di Giulia/);
+  // (revisione) gesto su una palla fuori portata: è un vincente dell'altro, non un colpo a vuoto
+  e.score.playerPoints = 0; e.score.opponentPoints = 0;   // (game da capo: i punti di prima non devono chiuderlo)
+  e.phase = 'RALLY'; e.ball.rallyStrokeCount = 6; e.ball.lastHitter = 'opponent';
+  e._natpfEarlyWhiff({ actor: e.player, evt: {}, natpfWhy: 'portata' });
+  assert.equal(e.natpfLastWhiff, null);
+  e._awardPoint('opponent', 'Nice Shot!');
+  assert.match(banners.at(-1).subText, /^Vincente di Giulia/);
+  // … troppo tardi invece sì
+  e.phase = 'RALLY'; e.ball.rallyStrokeCount = 6; e.ball.lastHitter = 'opponent';
+  e._natpfEarlyWhiff({ actor: e.player, evt: {}, natpfWhy: 'tardi' });
+  e._awardPoint('opponent', 'Nice Shot!');
+  assert.match(banners.at(-1).subText, /^Colpo a vuoto di Marco/);
+  // (revisione) il colpo a vuoto vale solo per il suo punto: il servizio dopo lo azzera (per esempio un punto rigiocato)
+  e.phase = 'RALLY'; e.ball.rallyStrokeCount = 2; e.ball.lastHitter = 'opponent';
+  e._natpfEarlyWhiff({ actor: e.player, evt: {} });
+  assert.ok(e.natpfLastWhiff);
+  e._setupPointServe({ showBanner: false });
+  assert.equal(e.natpfLastWhiff, null);
 });
 
 /* ---------- A5: richiamo per nome ---------- */
@@ -285,6 +303,11 @@ test('D: vale solo tra due persone nello stesso schermo con i due telefoni', () 
   assert.equal(mk(true), false, 'stesso schermo, di base spenta');
   assert.equal(mk(true, true), true);
   assert.equal(mk(false, true), false, 'contro la CPU niente, anche forzata');
+  // (revisione) finito lo stesso schermo l'opzione non resta accesa nel motore
+  const e = createHeadlessEngine({ difficulty: '1v1' }); e.startSplit(); e.natpfHotRally = true; e.startNewMatch({ showStartBanner: false });
+  assert.equal(e.natpfHot, true);
+  e.endSplit();
+  assert.equal(e.natpfHot, false);
 });
 
 test('D: dal 10° colpo la palla passa via via più bassa e più carica; spenta o prima del 10° niente cambia', () => {
@@ -294,22 +317,34 @@ test('D: dal 10° colpo la palla passa via via più bassa e più carica; spenta 
   assert.equal(hotSteps(10, true), 1); assert.equal(hotSteps(19, true), 10);
   assert.ok(hotFlight(10, true) < 1 && hotFlight(15, true) < hotFlight(10, true));
   assert.equal(hotFlight(200, true), HOT_RALLY.min);
-  assert.ok(Math.abs(hotHeat(10, true) - .1) < 1e-9); assert.equal(hotHeat(19, true), 1); assert.equal(hotHeat(29, true), 2); assert.equal(hotHeat(100, true), HOT_RALLY.maxHeat);
+  // (revisione) il 10° colpo parte già da 4 passi su 10: la palla accelera davvero da quando compare la scritta
+  assert.ok(Math.abs(hotHeat(10, true) - .4) < 1e-9); assert.equal(hotHeat(16, true), 1); assert.equal(hotHeat(26, true), 2); assert.equal(hotHeat(100, true), HOT_RALLY.maxHeat);
   const out = { shot: 'TOPSPIN', clear: 1.8, topspin: 18, depth: 9 };
   assert.equal(hotOutcome(out, 15, false), out, 'spenta: lo stesso oggetto');
   assert.equal(hotOutcome(out, 9, true), out, 'prima del 10° colpo: lo stesso oggetto');
-  const h10 = hotOutcome(out, 10, true), h19 = hotOutcome(out, 19, true), h29 = hotOutcome(out, 29, true);
+  const h10 = hotOutcome(out, 10, true), h19 = hotOutcome(out, 16, true), h29 = hotOutcome(out, 26, true);
   assert.ok(h10.clear < out.clear && h19.clear < h10.clear, 'sempre più bassa sulla rete');
+  assert.ok(h10.clear < out.clear - .25, `già dal 10° colpo più bassa di un bel po' (${h10.clear})`);
   assert.ok(Math.abs(h19.clear - (.914 + HOT_RALLY.netGap)) < 1e-9, 'al massimo a 16 cm dal nastro');
   assert.equal(h29.clear, h19.clear);
   assert.ok(h10.topspin > out.topspin && h19.topspin > h10.topspin && h29.topspin > h19.topspin, 'sempre più carica');
   assert.equal(h19.depth, 9, 'la profondità non cambia');
+  // (revisione) il tagliato resta un tagliato: più basso sulla rete, ma l'effetto all'indietro non cambia mai
+  const slice = { shot: 'SLICE', clear: 1.5, topspin: -6.5 };
+  for (const n of [10, 16, 26, 60]){ const s = hotOutcome(slice, n, true); assert.equal(s.topspin, -6.5, `tagliato al colpo ${n}`); assert.ok(s.clear < slice.clear); assert.ok(s.hot > 0); }
   // pallonetto, palla corta, schiacciata e colpi sbagliati restano come sono
   for (const shot of ['LOB', 'DROP', 'SMASH']) { const o = { shot, clear: 2, topspin: 5 }; assert.equal(hotOutcome(o, 25, true), o); }
   const net = { shot: 'TOPSPIN', clear: 1.5, topspin: 15, netFault: true }; assert.equal(hotOutcome(net, 25, true), net);
   const fail = { shot: 'TOPSPIN', clear: 1.5, topspin: 15, failed: true }; assert.equal(hotOutcome(fail, 25, true), fail);
   // una palla già più bassa del minimo non si alza
   assert.equal(hotOutcome({ shot: 'FLAT', clear: 1.0, topspin: 12 }, 19, true).clear, 1.0);
+});
+
+test('D (revisione): nel motore la palla è più veloce già al 10° colpo, quando compare la scritta', () => {
+  const off = rallyFlight('p1', 9, false), on = rallyFlight('p1', 9, true), before = rallyFlight('p1', 8, true), beforeOff = rallyFlight('p1', 8, false);
+  assert.deepEqual(before, beforeOff, 'il 9° colpo è ancora quello di sempre');
+  assert.ok(on.hot > 0 && on.speed > off.speed*1.05, `10° colpo: ${off.speed.toFixed(1)} → ${on.speed.toFixed(1)} m/s`);
+  assert.equal(hotRallyView({ on: true, phase: 'RALLY', inPlay: true, strokes: 10 }).sub, 'Colpo 10 · palla sempre più veloce');
 });
 
 test('D: scritta «Scambio caldo» solo nello scambio, dal 10° colpo, con tre gradi', () => {
