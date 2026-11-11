@@ -10,6 +10,8 @@ con il telefono come racchetta (pagina in `site/tennis/racchetta.html` + `site/j
 
 ## Prima di iniziare (obbligatorio)
 
+0. Leggere **`docs/TRACCIA_PASSI.md`**: file breve con il punto esatto in cui si è arrivati e i prossimi passi; va
+   aggiornato a ogni passo (richiesta dell'utente dell'11/11: il lavoro si interrompe spesso).
 1. Leggere **`docs/PIANO_LAVORI.md`** (file di ripresa unico per tutti gli agenti): checkpoint con l'ultimo stato
    verificato e la **«Prossima azione esatta»**, regole di lavoro e decisioni dell'utente, e per ogni punto aperto
    stato, cosa fare, come e perché. Poi, se serve il dettaglio, `docs/WORK_PROGRESS.md` (registro dei passi) e

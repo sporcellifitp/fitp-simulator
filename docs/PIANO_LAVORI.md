@@ -17,6 +17,9 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+- **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a
+  ogni passo): leggerlo per primo.
+
 - Aggiornato: 11/11/2026 · agente: Claude · branch `natpf-simulator` (**versione 2026-11-11.1**: tappa 2 gruppo 1 + stesso schermo B20; prima 2026-11-10.2 tappa 1). Repository: `sporcellifitp/fitp-simulator`.
 - **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`** (lavoro dal 05/11, punti aperti §3, controlli §4) e, per i
   gesti del tutorial, `docs/b13/gesti-nuovi.md`. Checkpoint precedente (storia dal 04/11):
