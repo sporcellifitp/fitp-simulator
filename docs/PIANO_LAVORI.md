@@ -228,6 +228,24 @@ Come si aggiorna:
     (A1; B, C, A2, A4, A5; A3, D, E); mancano test della pagina del telefono, verifiche finali e `docs/b20/tappa-a.md`.
   - Poi: revisore indipendente per ciascuno dei due, correzioni, unione dei due rami su `natpf-simulator`, prove complete
     (gioco, sito, LAN, Windows, build, `audit:legend`, prove nel browser), versione nuova, installer e zip.
+- **B21–B24 · richieste dell'utente dell'11/11 (in coda, dopo la versione con tappa 2 passo 2 e B20; l'utente vuole
+  risposte sintetiche):**
+  - **B21 video nel gioco.** Generati con Higgsfield/Seedance da fotogrammi veri del gioco (86 crediti su 120 di tetto;
+    senza audio): trailer 10 s 720p (approvato «va bene così», **senza titolo**) da usare come video d'avvio **con
+    ripiego sul video attuale** (`public/media/intro.mp4`) se non si carica; due clip «come si gioca» da 8 s da usare
+    **sfocate** come sfondo del tutorial (le dimostrazioni dei gesti restano l'animazione 3D: regola del 28/10). I file
+    stanno nello scratchpad `video/` e nella libreria Higgsfield dell'utente (job trailer `76affc9c-…54c3b7eb8559`, clip
+    `a2e35211-…1904e015087b` e `6ca34199-…3420caef6bfc`). **Peso:** lo zip Cloudflare ha 25 MB di limite (margine ~2,4 MB):
+    le clip sfocate (0,2–0,3 MB) entrano nello zip; il trailer (9 MB) va su **R2** (bucket già usato per l'installer,
+    cartella `media/`, caricato dal workflow) e il gioco web lo prende da lì con ripiego; nell'installer Windows può stare
+    dentro (lì non c'è il limite).
+  - **B22 scia luminosa della palla** nel gameplay come nel trailer, un po' meno luminosa, con una voce nelle Opzioni per
+    spegnerla (spenta = com'è oggi). Dire all'utente dove si spegne.
+  - **B23 prova «movenze dal video» sul solo dritto**: clip in primo piano del personaggio, pose misurate con gli strumenti
+    di `natpf-tennis/scripts/video/`, animazione del gioco riscritta su quelle pose tenendo impatto e tempo legati alla
+    palla vera, confronto fianco a fianco. Se all'utente non piace si toglie; se piace si estende agli altri colpi.
+  - **B24 Lob & Drop** (mascotte Nitto ATP Finals, foto in `docs/riferimenti/lob-drop-2026-11-11.webp`: Drop blu con
+    fascia bianca, Lob giallo con visiera blu e occhiali) come due personaggi giocabili/in campo.
 - **Prossima azione esatta:** **B18.2 = tappa 2** del rapporto (`docs/b16/rapporto-gameplay.md` §4), una cosa alla volta con
   le prove simulate prima e dopo: (1) personaggi fermi a ogni servizio + peso del servizio (D11); (2) CPU che sbaglia per la
   pressione e campo aperto a Pro (D1, D9); (3) Leggenda stessa regola per chi gioca e per la CPU (D2); (4) palla corta che
