@@ -219,6 +219,15 @@ Come si aggiorna:
   base, pannello dello stand); (8) «chi vince resta» **no**, «Rivincita» dai telefoni **sì**. Le domande 4 e 9–16 non
   hanno risposta: resta tutto com'è. In lavorazione in una worktree `agent-*`/`wf_*` nuova (`git worktree list`),
   documento `docs/b20/tappa-a.md`; esce con la stessa versione del gruppo 1 della tappa 2.
+- **Stato all'11/11 10:20 UTC (dopo due fermi per il limite d'uso, 5 ore e settimanale):** l'utente ha chiesto di
+  riprendere «senza essere superficiale», con revisore indipendente dove serve, e un aggiornamento ogni ora.
+  - Tappa 2 passo 1 (D11) finito e rivisto: worktree `.claude/worktrees/wf_326755c7-755-1`, commit `1f170bb`
+    (`docs/b18/t2-1-servizio.md`; decisione da confermare con l'utente: compensazione del servizio a Casual).
+  - Tappa 2 passo 2 (D1, D9) in corso nella stessa worktree (modifiche non committate + `scripts/audit/cpu-pressione.mjs`).
+  - B20 (stesso schermo) in corso nella worktree `.claude/worktrees/agent-a2fd989d8dd719e89`, commit fino a `7c03b81`
+    (A1; B, C, A2, A4, A5; A3, D, E); mancano test della pagina del telefono, verifiche finali e `docs/b20/tappa-a.md`.
+  - Poi: revisore indipendente per ciascuno dei due, correzioni, unione dei due rami su `natpf-simulator`, prove complete
+    (gioco, sito, LAN, Windows, build, `audit:legend`, prove nel browser), versione nuova, installer e zip.
 - **Prossima azione esatta:** **B18.2 = tappa 2** del rapporto (`docs/b16/rapporto-gameplay.md` §4), una cosa alla volta con
   le prove simulate prima e dopo: (1) personaggi fermi a ogni servizio + peso del servizio (D11); (2) CPU che sbaglia per la
   pressione e campo aperto a Pro (D1, D9); (3) Leggenda stessa regola per chi gioca e per la CPU (D2); (4) palla corta che
