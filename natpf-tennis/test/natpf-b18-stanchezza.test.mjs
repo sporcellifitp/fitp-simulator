@@ -26,8 +26,9 @@ test('stanchezza nel motore: a Pro si ricarica tra i punti (quasi mai «Stanco!�
   } });
   assert.ok(maxF > .2, `lo scambio stanca ancora: massimo ${maxF.toFixed(2)}`);
   // B18.2 passo 2: soglia da 10 a 15%. Questa partita (seme 7, 40 punti) era già al 9,9% e con gli scambi di Pro un poco
-  // più lunghi (la CPU non regala più il punto) è al 10,3%; su 12 semi la media non cambia (7,2% prima, 6,9% dopo), ed è
-  // sempre lontanissima dal difetto (93–96%)
+  // più lunghi (la CPU non regala più il punto) è al 10,3%. A Pro chi gioca è su «Stanco!» un poco più spesso di prima
+  // («amatore» 6,2 → 6,9% del tempo su 12 semi × 150 punti; il revisore, con altri semi, 5,8 → 8,1% e una partita al
+  // 16,1%): resta lontanissimo dal difetto (93–96%). Questo test guarda una partita sola, sempre la stessa (seme 7)
   assert.ok(tired/steps < .15, `tempo su «Stanco!» ${(100*tired/steps).toFixed(1)}% (prima 93–96%)`);
   assert.ok(drops > 100, `recupero tra i punti: ${drops} passi in discesa`);
   assert.equal(rises, 0, 'fuori dallo scambio la stanchezza non sale');

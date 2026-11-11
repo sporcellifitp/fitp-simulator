@@ -14,7 +14,7 @@ import { matchSummary, fairLengthStep } from '../src/natpf/natpf_lobby.js';
 import { phoneGamePhase } from '../src/natpf/natpf_phone_racket.js';
 import { t as hudText } from '../src/natpf/natpf_i18n.js';
 import { callout } from '../src/natpf/natpf_voice.js';
-import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
+import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 
 const memory = (init = {}) => { const m = new Map(Object.entries(init)); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), m }; };
 
@@ -223,19 +223,30 @@ test('stesso schermo con l\'opzione accesa: il telefono del P2 è al servizio ne
 });
 
 test('servizio della CPU: velocità vera sul tabellone (non 194 km/h fissi) e niente tremolio della telecamera', () => {
+  // B18.2 passo 2 (revisione): il test era instabile. Il servizio della CPU ha una velocità a caso e con Math.random non
+  // seminato ogni tanto è proprio 194 km/h (circa 4 volte su 100): la riga «diverso da 194» falliva senza che ci fosse
+  // un difetto. Ora il caso è seminato (sei servizi per livello, sempre gli stessi) e «non 194 fissi» si prova così:
+  // il tabellone mostra la velocità vera di ogni servizio, e i sei servizi non hanno tutti la stessa velocità
   for (const difficulty of ['casual', 'pro']){
-    const e = createHeadlessEngine({ difficulty });
-    const speeds = [];
-    e.natpfArena = { setScore(){}, setSpeed: v => { if (v != null) speeds.push({ shown: v, real: Math.round(e.ball.vel.length()*6.8) }); }, update(){}, setPractice(){} };
-    e.natpfFair = false; e.natpfServeFirst = 'opponent';
-    e.startNewMatch({ showStartBanner: false });
-    let trauma = 0;
-    for (let i = 0; i < 600 && e.phase !== 'RALLY'; i++){ e.step(1/120); if (e.phase === 'RALLY') trauma = e.cameraTrauma; }
-    assert.equal(e.phase, 'RALLY', `${difficulty}: la CPU ha servito`);
-    assert.equal(speeds.length, 1);
-    assert.equal(speeds[0].shown, speeds[0].real, `${difficulty}: ${JSON.stringify(speeds)}`);
-    assert.notEqual(speeds[0].shown, 194);
-    assert.equal(trauma, 0, `${difficulty}: niente tremolio`);
+    const shown = [];
+    for (const seed of [1, 2, 3, 4, 5, 6]){
+      const real = Math.random; Math.random = mulberry32(seed);
+      try {
+        const e = createHeadlessEngine({ difficulty });
+        const speeds = [];
+        e.natpfArena = { setScore(){}, setSpeed: v => { if (v != null) speeds.push({ shown: v, real: Math.round(e.ball.vel.length()*6.8) }); }, update(){}, setPractice(){} };
+        e.natpfFair = false; e.natpfServeFirst = 'opponent';
+        e.startNewMatch({ showStartBanner: false });
+        let trauma = 0;
+        for (let i = 0; i < 600 && e.phase !== 'RALLY'; i++){ e.step(1/120); if (e.phase === 'RALLY') trauma = e.cameraTrauma; }
+        assert.equal(e.phase, 'RALLY', `${difficulty}: la CPU ha servito`);
+        assert.equal(speeds.length, 1);
+        assert.equal(speeds[0].shown, speeds[0].real, `${difficulty}: ${JSON.stringify(speeds)}`);
+        assert.equal(trauma, 0, `${difficulty}: niente tremolio`);
+        shown.push(speeds[0].shown);
+      } finally { Math.random = real; }
+    }
+    assert.ok(new Set(shown).size > 1 && shown.some(v => v !== 194), `${difficulty}: velocità dei sei servizi ${shown.join(', ')} km/h`);
   }
 });
 
