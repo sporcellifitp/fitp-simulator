@@ -40,6 +40,8 @@ Poi B23, B24, tappa 2 gruppi 2 e 3.
 - [ ] **B25 Stesso schermo, decisioni dell'11/11** (PIANO, voce B25): lancio automatico dopo 30 s (opzione dello stand,
       spenta); campo aperto tra due persone (opzione dello stand, spenta: preparare e misurare); colpo super con la forza
       relativa al proprio colpo (solo il super); preparazione del colpo che non conta nel 1v1
+      **+ aiuto al più giovane** (richiesta dell'11/11 sera): nello stesso schermo ogni giocatore sceglie Bambino · Ragazzo ·
+      Adulto e il più giovane è facilitato; preparare 2–3 varianti, misurarle e far scegliere all'utente con i numeri
 - [ ] **B23 Prova delle movenze dal video sul solo dritto** (se all'utente non piace si toglie)
 - [ ] **B24 Lob & Drop** come personaggi (foto `docs/riferimenti/lob-drop-2026-11-11.webp`)
 - [ ] **Tappa 2 gruppo 2**: Leggenda stessa regola (D2), palla corta che può sbagliare (D8)

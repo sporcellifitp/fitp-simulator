@@ -226,6 +226,12 @@ Come si aggiorna:
     dell'utente: il gioco non riconosce un bambino): Bambino → livello Bambini, Ragazzo → Casual, Adulto → livello Evento
     (adattivo); Pro e Leggenda in «Altre impostazioni». Si fa con i livelli Evento e Bambini (tappa 2 gruppo 3). Nello
     stesso schermo niente fasce né aiuti (decisione del 10/11).
+  - **Bambino contro adulto nello stesso schermo (riaperto dall'utente l'11/11 sera: «un bambino dovrebbe essere
+    facilitato in qualche modo»; sostituisce il «no» del 10/11 agli aiuti):** ogni giocatore sceglie la sua fascia
+    (Bambino · Ragazzo · Adulto); se le fasce sono diverse il più giovane riceve un aiuto. Da preparare e misurare con il
+    banco dei due umani (`scripts/audit/b19/`): tolleranza più larga sul tempo del colpo («Facile», +60 ms bastano solo tra
+    livelli vicini) e/o vantaggio di punti (bambino contro adulto: 7% → 16% con 15-0, 37% con 30-0, 66% con 40-0) e/o forza
+    relativa; obiettivo: bambino contro adulto vicino al 35–45% delle partite. Mostrare all'utente i numeri e far scegliere.
   - **Lancio automatico** dopo 30 s se chi batte resta fermo: sì, **opzione** del pannello dello stand, spenta di base.
   - **Campo aperto tra due persone** (la palla precisa e angolata fa punto contro chi rimanda solo al centro): sì,
     **prepararlo e misurarlo come opzione** del pannello dello stand, spenta di base.
