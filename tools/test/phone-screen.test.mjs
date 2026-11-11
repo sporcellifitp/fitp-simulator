@@ -285,7 +285,7 @@ test('B20: testi della rivincita sul telefono (chi l\'ha chiesta, chi manca)', (
 });
 
 test('B20: la pausa per il telefono dell\'altro giocatore dice perché; senza testo resta la frase di sempre', () => {
-  assert.equal(pauseNote({ t: 'ph', ph: 'pause', txt: 'Partita in pausa: telefono di Giulia da ricollegare. Aspetta, si riprende da soli.' }), 'Partita in pausa: telefono di Giulia da ricollegare. Aspetta, si riprende da soli.');
+  assert.equal(pauseNote({ t: 'ph', ph: 'pause', txt: 'Partita in pausa: aspetto il telefono di Giulia. Si riprende da soli.' }), 'Partita in pausa: aspetto il telefono di Giulia. Si riprende da soli.');
   assert.equal(pauseNote({ t: 'ph', ph: 'pause' }), '');
   assert.equal(pauseNote({ t: 'ph', ph: 'play', txt: 'x' }), '', 'solo per la pausa');
   assert.equal(pauseNote({ t: 'ph', ph: 'pause', txt: 'x'.repeat(400) }).length, 160);

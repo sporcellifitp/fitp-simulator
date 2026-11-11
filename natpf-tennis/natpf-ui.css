@@ -765,8 +765,11 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 .natpf-phone-hold button { margin-top: 12px; padding: 0.55em 1.2em; border: 0; border-radius: var(--r-pill); background: var(--ball); color: var(--ball-ink); font: 700 1em/1.2 system-ui, sans-serif; cursor: pointer; }
 .natpf-phone-hold button.hidden { display: none; }
 /* B20 (audit B19, punto 10): stesso schermo, QR del telefono scollegato dentro il riquadro della pausa (prima il riquadro
-   copriva un quarto del QR del pannello del Player 1, e per il Player 2 il QR non c'era). Uno per giocatore, con il nome */
-.natpf-phone-hold.with-qr { top: 12cqh; max-width: min(760px, 94cqw); }
+   copriva un quarto del QR del pannello del Player 1, e per il Player 2 il QR non c'era). Uno per giocatore, con il nome.
+   Con il QR il riquadro è più largo e comincia sotto i due tabelloni (stessa altezza delle istruzioni del servizio), così
+   non copre il punteggio nemmeno nelle aree larghe e basse */
+.natpf-phone-hold.with-qr { max-width: min(760px, 94cqw);
+  top: calc(clamp(12px, 6cqh, 64px) + 4.8 * clamp(17px, 3cqh, 40px) + 1.5 * max(12px, 0.6 * clamp(17px, 3cqh, 40px)) + 1cqh); }
 .natpf-phone-hold .hold-qrs { display: flex; justify-content: center; gap: 3cqw; margin-top: 10px; }
 .natpf-phone-hold .hold-qrs.hidden, .natpf-phone-hold .hold-qrs figure.hidden { display: none; }
 .natpf-phone-hold .hold-qrs figure { margin: 0; display: grid; justify-items: center; gap: 6px; }

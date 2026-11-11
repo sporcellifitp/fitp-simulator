@@ -1,0 +1,17 @@
+== Risposta al servizio: quante diventano «SMASH», per lato ==
+medio (gioco normale): 10743 punti, P1 50.1% dei punti e 50.5% delle partite
+   P1 in risposta: 5224 risposte, giocate come schiacciata 0 (0%), partite da - m dalla rete · punti in risposta vinti 47.6%, persi subito 5.8% (in rete 0)
+   P2 in risposta: 5218 risposte, giocate come schiacciata 0 (0%), partite da - m dalla rete · punti in risposta vinti 47.5%, persi subito 5.8% (in rete 0)
+tennista (gioco normale): 1086 punti, P1 47.6% dei punti e 43.1% delle partite
+   P1 in risposta: 564 risposte, giocate come schiacciata 0 (0%), partite da - m dalla rete · punti in risposta vinti 42.4%, persi subito 2.3% (in rete 0)
+   P2 in risposta: 522 risposte, giocate come schiacciata 0 (0%), partite da - m dalla rete · punti in risposta vinti 46.7%, persi subito 1.1% (in rete 0)
+medio, soli tagliati: 8748 punti, P1 51% dei punti e 52.6% delle partite
+   P1 in risposta: 4262 risposte, giocate come schiacciata 0 (0%), partite da - m dalla rete · punti in risposta vinti 49.1%, persi subito 5.5% (in rete 0)
+   P2 in risposta: 4240 risposte, giocate come schiacciata 0 (0%), partite da - m dalla rete · punti in risposta vinti 47.1%, persi subito 5.7% (in rete 0)
+amatore, soli tagliati: 8613 punti, P1 50.6% dei punti e 50.5% delle partite
+   P1 in risposta: 4294 risposte, giocate come schiacciata 0 (0%), partite da - m dalla rete · punti in risposta vinti 48.5%, persi subito 4.4% (in rete 0)
+   P2 in risposta: 4211 risposte, giocate come schiacciata 0 (0%), partite da - m dalla rete · punti in risposta vinti 47.3%, persi subito 3.7% (in rete 0)
+-- nello scambio (dal terzo colpo): un tagliato diventa schiacciata? --
+   P1: 39917 tagliati nello scambio, giocati come schiacciata 0
+   P2: 39981 tagliati nello scambio, giocati come schiacciata 0
+(semi 11, 22, 33, 44 · --partite=2 · 231 s)

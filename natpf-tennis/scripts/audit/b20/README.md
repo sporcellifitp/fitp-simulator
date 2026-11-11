@@ -20,6 +20,7 @@ e l'«impronta» (riassunto di tutti i punti giocati).
 |---|---|
 | `prima-dell-opzione.txt` | Opzione spenta, misurata **prima** di aggiungere l'opzione al motore (commit `ef4d32f`). |
 | `scambio-caldo.txt` | Spenta e accesa, con il motore di oggi. Le impronte di «spenta» sono uguali a quelle del file sopra: spenta, la partita è identica punto per punto. |
+| `risposta.txt`, `risposta-altri-semi.txt` | `../b19/misure.mjs risposta` dopo la correzione della risposta del Player 2 (B20, punto A1): nessuna risposta diventa più una schiacciata; con soli tagliati il Player 1 vince il 50,6–51,7% dei punti (prima 60–62%, `../b19/risultati/risposta.txt`). |
 | `equilibrio-lati.txt` | 720 partite per riga (4 semi) tra medi e tra amatori: Player 1 e Player 2 alla pari anche con l'opzione accesa. |
 
 Limiti: i profili sono simulati (non si sa quale somigli al visitatore); il robot sbaglia il tempo sempre allo stesso

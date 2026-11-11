@@ -214,7 +214,7 @@ test('B20 A3: nomi nei testi della pausa (funzioni pure)', () => {
   assert.equal(holdTitle(''), 'Telefono in pausa', 'fuori dallo stesso schermo come prima');
   assert.equal(holdTitle('Giulia', 'ready'), 'Telefono di Giulia di nuovo pronto');
   assert.equal(holdTitle('', 'ready'), 'Telefono di nuovo pronto');
-  assert.equal(otherPhoneNote('Giulia'), 'Partita in pausa: telefono di Giulia da ricollegare. Aspetta, si riprende da soli.');
+  assert.equal(otherPhoneNote('Giulia'), 'Partita in pausa: aspetto il telefono di Giulia. Si riprende da soli.');
 });
 
 test('B20 A3: telefono del Player 2 scollegato → riquadro con il nome e il suo QR, avviso al telefono del Player 1, niente pannello', async () => {
@@ -236,7 +236,7 @@ test('B20 A3: telefono del Player 2 scollegato → riquadro con il nome e il suo
   // il telefono del Player 1 sa che la partita è ferma e per chi
   const ph = link.sent.filter(m => m.t === 'ph' && m.ph === 'pause');
   assert.equal(ph.length, 1);
-  assert.equal(ph[0].txt, 'Partita in pausa: telefono di Giulia da ricollegare. Aspetta, si riprende da soli.');
+  assert.equal(ph[0].txt, 'Partita in pausa: aspetto il telefono di Giulia. Si riprende da soli.');
   assert.equal(E.natpfPhone.lastPhase, 'pause');
   // il telefono torna: QR via, ripresa, e al Player 1 torna la fase vera
   link.sent.length = 0;
@@ -260,7 +260,7 @@ test('B20 A3: telefono del Player 1 scollegato nello stesso schermo → QR nel r
   assert.equal(el.querySelector('[data-hold-qr="p1"]').classList.contains('hidden'), false);
   assert.equal(el.querySelector('[data-hold-qr="p2"]').classList.contains('hidden'), true);
   assert.ok(!ui.phoneDropOpened, 'il pannello del telefono non si apre sopra le due metà');
-  assert.equal(l2.sent.filter(m => m.t === 'ph' && m.ph === 'pause' && /telefono di Marco/.test(m.txt)).length, 1);
+  assert.equal(l2.sent.filter(m => m.t === 'ph' && m.ph === 'pause' && /aspetto il telefono di Marco/.test(m.txt)).length, 1);
 });
 
 /* ---------- B20: rivincita dai telefoni ---------- */
