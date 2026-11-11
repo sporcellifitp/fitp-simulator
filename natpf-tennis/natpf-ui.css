@@ -344,9 +344,11 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 }
 
 /* =====================================================================================================================
-   Intro (natpf_intro.js): video dell'arena (public/media/intro.mp4) → titolo NATPF Simulator con la palla → «Premi un
-   tasto». Un solo titolo grande; i partner sono una riga piccola in basso. Classi: mode-full, mode-short, is-ready,
-   no-video, leaving. Durate allineate a INTRO_MS (7,8 s completa, 1,5 s breve).
+   Intro (natpf_intro.js): video (il trailer, B21; ripiego: public/media/intro.mp4, l'arena) → titolo NATPF Simulator
+   con la palla → «Premi un tasto». Un solo titolo grande; i partner sono una riga piccola in basso. Classi: mode-full,
+   mode-short, is-ready, no-video, is-trailer, leaving. Durate allineate a INTRO_MS (7,8 s completa, 1,5 s breve); con il
+   trailer (10 s) i ritardi si spostano di --intro-shift (natpf_intro.TRAILER.shiftMs): il titolo entra sull'ultima
+   inquadratura.
    ===================================================================================================================== */
 .natpf-intro {
   position: fixed;
@@ -367,6 +369,8 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 .intro-still { opacity: 0; transition: opacity 0.4s var(--ease); }
 .natpf-intro.mode-short .intro-still, .natpf-intro.no-video .intro-still, .natpf-intro.is-ready .intro-still { opacity: 1; }
 .natpf-intro.mode-short .intro-video, .natpf-intro.no-video .intro-video { display: none; }
+/* trailer partito: il video di prima, sotto, non si disegna */
+.natpf-intro.is-trailer .intro-video:not(.intro-trailer) { display: none; }
 /* scurisce in alto (titolo) e in basso (partner) senza coprire il campo */
 .intro-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4, 8, 24, 0.7) 0%, rgba(4, 8, 24, 0) 42%, rgba(4, 8, 24, 0) 70%, rgba(4, 8, 24, 0.8) 100%); }
 .intro-stage { position: relative; align-self: stretch; display: grid; grid-template-rows: auto auto 1fr auto; justify-items: center; text-align: center; gap: 12px; width: min(92cqw, 980px); padding: clamp(28px, 9cqh, 96px) 0 clamp(64px, 15cqh, 140px); }
@@ -398,11 +402,11 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 .intro-skip { position: absolute; right: 22px; bottom: 18px; height: 36px; padding: 0 16px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: rgba(4, 8, 24, 0.4); color: var(--text-2); font: 600 14px/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
 .natpf-intro.is-ready .intro-skip { display: none; }
 /* intro completa: il titolo entra quando la camera sale sopra il campo (≈5,7 s del video) */
-.natpf-intro.mode-full .intro-title { animation: intro-title 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) 5.7s both; }
-.natpf-intro.mode-full .intro-title b::after { animation: intro-line 0.5s var(--ease) 6.15s both; }
-.natpf-intro.mode-full .intro-ball { animation: intro-ball 0.9s cubic-bezier(0.3, 0.6, 0.5, 1) 5.6s both; }
-.natpf-intro.mode-full .intro-tag { animation: intro-up 0.6s var(--ease) 6.5s both; }
-.natpf-intro.mode-full .intro-partners { animation: intro-up 0.6s var(--ease) 7s both; }
+.natpf-intro.mode-full .intro-title { animation: intro-title 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) calc(5.7s + var(--intro-shift, 0ms)) both; }
+.natpf-intro.mode-full .intro-title b::after { animation: intro-line 0.5s var(--ease) calc(6.15s + var(--intro-shift, 0ms)) both; }
+.natpf-intro.mode-full .intro-ball { animation: intro-ball 0.9s cubic-bezier(0.3, 0.6, 0.5, 1) calc(5.6s + var(--intro-shift, 0ms)) both; }
+.natpf-intro.mode-full .intro-tag { animation: intro-up 0.6s var(--ease) calc(6.5s + var(--intro-shift, 0ms)) both; }
+.natpf-intro.mode-full .intro-partners { animation: intro-up 0.6s var(--ease) calc(7s + var(--intro-shift, 0ms)) both; }
 /* senza video il titolo non aspetta l'arena */
 .natpf-intro.mode-full.no-video .intro-title { animation-delay: 0.2s; }
 .natpf-intro.mode-full.no-video .intro-title b::after { animation-delay: 0.6s; }

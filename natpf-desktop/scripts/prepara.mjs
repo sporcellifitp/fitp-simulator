@@ -7,7 +7,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { DESKTOP, readBuild, windowsVersion } from '../src/desktop-core.mjs';
+import { createHash } from 'node:crypto';
+import { DESKTOP, readBuild, windowsVersion, trailerFiles, trailerNameMatches } from '../src/desktop-core.mjs';
 import { UPDATES, normalizeBase } from '../src/aggiornamenti.mjs';
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,6 +27,18 @@ execFileSync(process.execPath, [path.join(REPO, 'natpf-tennis/lan/pacchetto.mjs'
 fs.rmSync(APP, { recursive: true, force: true }); fs.mkdirSync(APP, { recursive: true });
 for (const dir of ['natpf-tennis', 'site', 'tools']) fs.cpSync(path.join(tmp, dir), path.join(APP, dir), { recursive: true });
 fs.rmSync(tmp, { recursive: true, force: true });
+// trailer dell'intro (B21): dentro il programma, accanto al video di prima (il gioco lo cerca in ./media/, senza rete:
+// natpf-tennis/src/natpf/natpf_intro.js). Il nome deve essere l'impronta del file e quello che il gioco conosce
+const trailers = trailerFiles(path.join(HERE, 'media')), introJs = fs.readFileSync(path.join(REPO, 'natpf-tennis/src/natpf/natpf_intro.js'), 'utf8');
+if (!trailers.length) console.warn('ATTENZIONE: nessun trailer in natpf-desktop/media: nel programma l\'intro userà il video di prima');
+for (const f of trailers){
+  const src = path.join(HERE, 'media', f), sha = createHash('sha256').update(fs.readFileSync(src)).digest('hex');
+  if (!trailerNameMatches(f, sha)) fail(`Trailer ${f}: il nome non corrisponde allo sha256 del file (${sha.slice(0, 12)}).`);
+  if (!introJs.includes(`'${f}'`)) fail(`Trailer ${f}: il gioco non lo conosce (TRAILER.file in natpf-tennis/src/natpf/natpf_intro.js).`);
+  fs.mkdirSync(path.join(APP, 'natpf-tennis/dist/media'), { recursive: true });
+  fs.copyFileSync(src, path.join(APP, 'natpf-tennis/dist/media', f));
+  console.log(`trailer dell'intro nel programma: natpf-tennis/dist/media/${f} (${fs.statSync(src).size} byte)`);
+}
 // niente certificati o chiavi nel programma (si creano sul PC, in %LOCALAPPDATA%\NATPF)
 for (const p of ['tools/lan/certs']) fs.rmSync(path.join(APP, p), { recursive: true, force: true });
 // dipendenze del server anche alla radice dell'app (electron-builder le porta come dipendenze di produzione)

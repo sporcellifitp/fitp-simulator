@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import worker, { explain } from '../cloudflare/turn-worker.js';
-import { makePackage, checkTurnUrl, headersProblems, TURN_JSON } from '../scripts/pacchetto-cloudflare.mjs';
+import { makePackage, checkTurnUrl, headersProblems, mediaOrigin, TURN_JSON } from '../scripts/pacchetto-cloudflare.mjs';
 
 const ENV = { TURN_KEY_ID: 'chiave-id', TURN_KEY_API_TOKEN: 'segreto-123', ALLOWED_ORIGINS: 'https://gioco.example.workers.dev, https://altro.example/' };
 const GAME = 'https://gioco.example.workers.dev';
@@ -123,5 +123,20 @@ test('pacchetto Cloudflare: dist + _headers + natpf/turn.json; senza --turn-url 
     assert.deepEqual(headersProblems(fs.readFileSync(headers, 'utf8'), { turnUrl: 'https://turn.example.workers.dev/' }), []);
     assert.equal(headersProblems('/natpf/*\n  Content-Type: text/plain\n').length, 1);
     assert.equal(headersProblems("/*\n  Content-Security-Policy: default-src 'self'\n", { turnUrl: 'https://turn.example.workers.dev/' }).length, 3);
+    // B21: il trailer dell'intro si scarica dal bucket R2. _headers di oggi non lo impedisce; una Content-Security-Policy
+    // senza quel bucket in media-src (o default-src) sì; e il file del trailer non deve finire nel pacchetto
+    const r2 = mediaOrigin();
+    assert.equal(r2, 'https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev');
+    assert.deepEqual(headersProblems(fs.readFileSync(headers, 'utf8'), { mediaUrl: r2 }), []);
+    assert.equal(headersProblems("/*\n  Content-Security-Policy: default-src 'self'\n", { mediaUrl: r2 }).length, 2, 'le due pagine del gioco');
+    assert.equal(headersProblems("/*\n  Content-Security-Policy: default-src 'self'; media-src 'self' https://altro.example\n", { mediaUrl: r2 }).length, 2);
+    assert.deepEqual(headersProblems(`/*\n  Content-Security-Policy: default-src 'self'; media-src 'self' ${r2}\n`, { mediaUrl: r2 }), []);
+    assert.deepEqual(headersProblems("/*\n  Content-Security-Policy: default-src 'self'; media-src https:\n", { mediaUrl: r2 }), []);
+    assert.deepEqual(headersProblems("/natpf/tennis/*\n  Content-Security-Policy: default-src 'self'\n", { mediaUrl: r2 }), [], 'la pagina del telefono non ha il video');
+    const csp = path.join(tmp, '_headers-csp'); fs.writeFileSync(csp, "/*\n  Content-Security-Policy: default-src 'self' https:; media-src 'self'\n");
+    assert.throws(() => makePackage({ out: path.join(tmp, 'd'), dist, headers: csp }), /video dell'intro/);
+    fs.mkdirSync(path.join(dist, 'media')); fs.writeFileSync(path.join(dist, 'media/trailer-0123456789ab.mp4'), 'x');
+    assert.throws(() => makePackage({ out: path.join(tmp, 'e'), dist, headers }), /trailer dell'intro non deve stare nel pacchetto/);
+    assert.ok(!fs.existsSync(path.join(tmp, 'e')), 'niente cartella a metà');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
