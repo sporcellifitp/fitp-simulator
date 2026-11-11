@@ -17,7 +17,7 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 10/11/2026 pomeriggio · agente: Claude · branch `natpf-simulator` (**versione 2026-11-10.2**, B18.1 tappa 1; prima 2026-11-10.1 B17.1 gesti dal video `b55453b`).
+- Aggiornato: 11/11/2026 · agente: Claude · branch `natpf-simulator` (**versione 2026-11-11.1**: tappa 2 gruppo 1 + stesso schermo B20; prima 2026-11-10.2 tappa 1). Repository: `sporcellifitp/fitp-simulator`.
 - **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`** (lavoro dal 05/11, punti aperti §3, controlli §4) e, per i
   gesti del tutorial, `docs/b13/gesti-nuovi.md`. Checkpoint precedente (storia dal 04/11):
   `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`.
@@ -194,42 +194,13 @@ Come si aggiorna:
   `sergio4/foro-italico-world`). Push della 2026-11-10.2 fatto (`9e9ac3a`); i segreti R2 sono passati con il trasferimento:
   la corsa 22 di «NATPF eseguibili Windows» ha pubblicato l'installer **2026-11-10.2** su R2 (124.649.916 B, sha256
   `a546aae4…2505c8f`, verificato dal link fisso). Zip Cloudflare 2026-11-10.2: 22.626.641 B, sha256 `8459a7e0…3d41aa`.
-- **In corso dal 10/11 sera (richiesta dell'utente: «procedi con la tappa 2 e nel frattempo fai un nuovo audit delle
-  migliorie da apportare adesso sul gameplay nell'1v1 tra utenti»):**
-  - **B18.2 · tappa 2** a passi, ognuno in worktree con revisore e correzioni, una versione per gruppo di passi:
-    gruppo 1 = (1) personaggi fermi a ogni servizio + peso del servizio (D11) e (2) CPU che sbaglia per la pressione +
-    campo aperto a Pro (D1, D9); gruppo 2 = (3) Leggenda stessa regola (D2) e (4) palla corta che può sbagliare (D8);
-    gruppo 3 = (5) livelli Evento e Bambini (D3: dire all'utente come si attivano) e (6) segnale del momento giusto e
-    colpo super spiegato. Il ramo di lavoro è nella worktree `.claude/worktrees/wf_*` più recente (`git worktree list`).
-  - **B19 · audit dell'1v1 tra utenti: FATTO (10/11 notte)**, rapporto `docs/b19/audit-1v1-utenti.md` (tre angolazioni,
-    ognuna ricontrollata da un verificatore; script in `natpf-tennis/scripts/audit/b19/`). Non cambia il gioco: aspetta le
-    risposte dell'utente alle 16 domande del §5 (tappa A di correzioni piccole, chi batte per primo, formato in fiera di
-    base nello stesso schermo, tempo massimo, aiuti per giocatore, scambio che si scalda, chi vince resta…). Un difetto
-    certo rientra in una decisione già presa (31/10: in risposta schiacciata solo se voluta): al **Player 2** nello stesso
-    schermo la risposta al servizio diventa schiacciata (la tappa 1 l'ha corretto solo per il Player 1) → da correggere
-    con la prossima versione.
-  - Nota di ripresa: il primo workflow si è fermato per il limite d'uso (18:30 UTC); ripresa con
-    `workflows/scripts/b18-2-ripresa.js` (run `wf_ccb07fad-3b8`): correzioni del passo 1 fatte (`1f170bb` nella worktree
-    `wf_326755c7-755-1`), passo 2 in corso nella stessa worktree.
-- **B20 · Risposte dell'utente all'audit B19 (10/11 notte)** e regola nuova «mi stai costando troppo, accelera»: lavoro
-  leggero (un agente per blocco, niente revisori separati né aggiornamenti periodici; controlli con le prove automatiche).
-  Decisioni: (1) **tappa A sì**; (2) chi batte per primo nello stesso schermo: **sorteggio**; (3) **formato in fiera
-  acceso di base solo nello stesso schermo** (pannello dello stand: No · Solo stesso schermo · Sì); (5) tempo massimo
-  **no**; (6) aiuto per il giocatore più debole **no**; (7) «scambio che si scalda» **sì ma come opzione** (spenta di
-  base, pannello dello stand); (8) «chi vince resta» **no**, «Rivincita» dai telefoni **sì**. Le domande 4 e 9–16 non
-  hanno risposta: resta tutto com'è. In lavorazione in una worktree `agent-*`/`wf_*` nuova (`git worktree list`),
-  documento `docs/b20/tappa-a.md`; esce con la stessa versione del gruppo 1 della tappa 2.
-- **Stato all'11/11 10:20 UTC (dopo due fermi per il limite d'uso, 5 ore e settimanale):** l'utente ha chiesto di
-  riprendere «senza essere superficiale», con revisore indipendente dove serve, e un aggiornamento ogni ora.
-  - Tappa 2 passo 1 (D11) finito e rivisto: worktree `.claude/worktrees/wf_326755c7-755-1`, commit `1f170bb`
-    (`docs/b18/t2-1-servizio.md`; decisione da confermare con l'utente: compensazione del servizio a Casual).
-  - Tappa 2 passo 2 (D1, D9) in corso nella stessa worktree (modifiche non committate + `scripts/audit/cpu-pressione.mjs`).
-  - B20 (stesso schermo) in corso nella worktree `.claude/worktrees/agent-a2fd989d8dd719e89`, commit fino a `7c03b81`
-    (A1; B, C, A2, A4, A5; A3, D, E); mancano test della pagina del telefono, verifiche finali e `docs/b20/tappa-a.md`.
-  - Poi: revisore indipendente per ciascuno dei due, correzioni, unione dei due rami su `natpf-simulator`, prove complete
-    (gioco, sito, LAN, Windows, build, `audit:legend`, prove nel browser), versione nuova, installer e zip.
-- **B21–B24 · richieste dell'utente dell'11/11 (in coda, dopo la versione con tappa 2 passo 2 e B20; l'utente vuole
-  risposte sintetiche):**
+- **Fatto l'11/11, versione 2026-11-11.1:** tappa 2 gruppo 1 (B18.2: D11 servizio e personaggi fermi; D1+D9 CPU che
+  sbaglia per la pressione, Pro lasciato com'è per decisione dell'utente), audit B19 (`docs/b19/audit-1v1-utenti.md`) e
+  B20 stesso schermo (tappa A, sorteggio, formato in fiera a tre valori di base «Solo stesso schermo», scambio che si
+  scalda come opzione, rivincita dai telefoni), ognuno con revisore indipendente. Dettaglio in `docs/WORK_PROGRESS.md`
+  e `docs/PROJECT_MEMORY.md`. Domande dell'audit B19 senza risposta (4, 9–16): resta tutto com'è. Da confermare con
+  l'utente: compensazione del servizio a Casual (`docs/b18/t2-1-servizio.md`).
+- **B21–B24 · richieste dell'utente dell'11/11 (prossimi lavori, nell'ordine; l'utente vuole risposte sintetiche):**
   - **B21 video nel gioco.** Generati con Higgsfield/Seedance da fotogrammi veri del gioco (86 crediti su 120 di tetto;
     senza audio): trailer 10 s 720p (approvato «va bene così», **senza titolo**) da usare come video d'avvio **con
     ripiego sul video attuale** (`public/media/intro.mp4`) se non si carica; due clip «come si gioca» da 8 s da usare
@@ -246,13 +217,10 @@ Come si aggiorna:
     palla vera, confronto fianco a fianco. Se all'utente non piace si toglie; se piace si estende agli altri colpi.
   - **B24 Lob & Drop** (mascotte Nitto ATP Finals, foto in `docs/riferimenti/lob-drop-2026-11-11.webp`: Drop blu con
     fascia bianca, Lob giallo con visiera blu e occhiali) come due personaggi giocabili/in campo.
-- **Prossima azione esatta:** **B18.2 = tappa 2** del rapporto (`docs/b16/rapporto-gameplay.md` §4), una cosa alla volta con
-  le prove simulate prima e dopo: (1) personaggi fermi a ogni servizio + peso del servizio (D11); (2) CPU che sbaglia per la
-  pressione e campo aperto a Pro (D1, D9); (3) Leggenda stessa regola per chi gioca e per la CPU (D2); (4) palla corta che
-  può sbagliare (D8); (5) livelli **Evento** adattivo e **Bambini** (D3) — dire all'utente come si attivano; (6) segnale del
-  momento giusto e colpo super spiegato. In parallelo collaudo dell'utente (gesti del tutorial dal video: presa, dritto/rovescio, servizio,
-  tagliati; tabellone; X; colpi a rete con il telefono vero, anche la soglia bassa); decidere con l'utente pallonetto e
-  palla corta (dorso o schermo) e le letture con la calibrazione del braccio. Decisioni del B16 prese (B18 sopra).
+- **Prossima azione esatta:** B21 (video nel gioco con ripiego e R2) e B22 (scia luminosa con opzione), poi B23 (prova
+  delle movenze sul dritto) e B24 (Lob & Drop). Dopo: tappa 2 gruppi 2 e 3 (`docs/b16/rapporto-gameplay.md` §4: Leggenda
+  stessa regola D2, palla corta che può sbagliare D8, livelli Evento e Bambini D3 da spiegare all'utente, segnale del
+  momento giusto e colpo super spiegato). Collaudo dell'utente sempre aperto (telefoni veri, Windows, ledwall).
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 

@@ -1325,3 +1325,28 @@ guida provato nel browser.
   il trasferimento); zip Cloudflare 22.626.641 B, sha256 `8459a7e0bcfb2ff08c49ad42794ab09ece3557ff2973e18078c2b7f05e3d41aa`,
   provato estratto (l'unico errore è quello atteso del TURN da origine locale). Nota: prima di impacchettare lo zip serve
   `npm run build` (lo script prende `natpf-tennis/dist` così com'è: la prima prova aveva ridato lo zip della 10.1).
+
+## B18.2 gruppo 1 + B19 + B20 (10–11/11) · [x] versione 2026-11-11.1
+- **B18.2 passo 1 (D11)**, worktree `wf_326755c7-755-1`, `4f00c43`…`1f170bb`: personaggi fermi, peso del servizio per
+  livello, banco `audit:serve`, prove `natpf-servizio-peso`. Revisione: «un servizio normale vale come prima» era falso con
+  il servizio del telefono (il gioco regalava un ace ogni 11–15 servizi) → misure rifatte con il servizio del telefono,
+  compensazione a Casual. Punto diretto del servizio perfetto forte stretto: Casual 24,2%, Pro 13,4%, Leggenda 5,0%;
+  CPU «in corsa» al servizio dal 30–95% a 0%.
+- **B18.2 passo 2 (D1, D9)**, `fd5f252`…`a55ae31`: errori della CPU sulle palle facili Casual 9–14% → 1,5–2,5%, Pro
+  4–9% → 0,3–0,4%; CPU in rete Casual 21–37% → 4,8–8,0% dei punti; vincenti a 4–6 m a Pro 2% → 18%; Pro contro «medio»
+  83,0–83,6% dei game; Casual «bambino» 39 → 44–46%; Leggenda identica. Revisione (96 semi suoi): numeri confermati;
+  «amatore» a Pro 76,3 → 62–63% e scambi più lunghi → decisione dell'utente: resta com'è. Minori corretti (soglia delle
+  palle facili con l'errore standard, controlli del banco ridotto sugli obiettivi veri, test instabile del servizio della
+  CPU seminato).
+- **B19 audit dell'1v1 tra utenti**: `docs/b19/audit-1v1-utenti.md` (`0e8328e`), tre angolazioni verificate, script in
+  `natpf-tennis/scripts/audit/b19/`; 16 domande, risposte dell'utente nel PIANO (B20).
+- **B20 stesso schermo**, worktree `agent-a2fd989d8dd719e89`, `a7413d7`…`ac480fe`: A1–A5, sorteggio, formato in fiera a tre
+  valori, scambio che si scalda (opzione), rivincita dai telefoni. Revisione: pannello dello stand a 1920×540 (bloccante,
+  corretto con più colonne), effetto laterale del tagliato del Player 2 al contrario (preesistente: P1 51,5–52,1% dei punti
+  con soli tagliati → 50,3%), tagliato che resta tagliato nello scambio caldo, banner del colpo a vuoto, istruzioni nascoste
+  in pausa. Risposte del P2 lette schiacciata 114 su 1.955 → 0 su 1.971.
+- Unioni su `natpf-simulator`: `0bdb83f` (tappa 2), poi B20 (senza conflitti). Verifiche del codice unito e sha dei
+  pacchetti: vedi la voce «Consegna» qui sotto.
+- **Non verificato**: telefoni e persone vere, Windows, ledwall, due computer veri, webcam per due; tutte le misure sono
+  di profili simulati. Aperti dal B20: conto del chiosco con la rivincita, testo sul grande schermo al rientro con il QR,
+  effetto laterale del tagliato del P2 con la webcam per due.

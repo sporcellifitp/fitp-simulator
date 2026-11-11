@@ -679,3 +679,33 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   bersaglio), telefono = computer (anche il P2 nello stesso schermo), «Punto avversario» solo a punto finito; istruzioni del
   servizio sul grande schermo con conto per chi serve; Precision e Combo per principianti; due misure nuove in diagnostica
   (variazione del gesto, tempo dal rimbalzo) con `docs/b18/misure-con-persone.md`.
+
+### Tappa 2 gruppo 1 e stesso schermo (B18.2, B20; 11/11/2026, versione 2026-11-11.1)
+- **Lavoro e costi**: l'utente vuole risposte sintetiche e bada ai costi, ma non vuole lavoro superficiale: un agente per
+  blocco, **revisore indipendente** prima dell'unione, correzioni fatte dallo stesso agente (riprende il suo contesto).
+  I limiti d'uso (5 ore e settimanale) fermano gli agenti: le modifiche restano nelle worktree, si riprende con un messaggio
+  all'agente. Un workflow ripreso con `resumeFromRunId` riusa i risultati solo fino alla prima chiamata nuova: per
+  riprendere due tracce parallele conviene uno script nuovo che legge i risultati dal `journal.jsonl`.
+- **Servizio contro la CPU (D11)**: personaggi fermi a ogni servizio e a fine punto (`_natpfStandStill`); la risposta della
+  CPU dipende dal servizio ricevuto (velocità vera, strettezza, tempo), `natpf_skill.SERVE_WEIGHT` per livello (**ogni
+  livello nuovo contro la CPU deve avere la sua riga**); lettura in ritardo del servizio forte e angolato. Banco
+  `npm run audit:serve`. A Casual la base dell'errore in risposta è stata alzata (0,135 → 0,15, `lateBase` 1) per
+  compensare gli ace «regalati» spariti: scelta dell'agente, da confermare con l'utente.
+- **CPU che sbaglia per la pressione (D1, D9)**: l'errore dipende da allungo, corsa e (a Casual) palla veloce, non dalla
+  lunghezza dello scambio; a Pro la palla oltre 2,5 m è letta fino a 0,19 s in ritardo e le corse lunghe stancano la CPU
+  (`cpuErr`, `cpuWide`, `cpuFatigue` in `SKILL_LEVELS`); spente nel 1v1 tra persone. Banco
+  `scripts/audit/cpu-pressione.mjs`. **Decisione dell'utente (11/11): Pro resta com'è** anche se «amatore» scende dal 76 al
+  62–64% dei game e gli scambi si allungano (la partita tirata per tutti la darà il livello Evento); scartata l'opzione
+  della CPU che si stanca prima (medio all'87%, fuori dalla fascia 70–85).
+- **Stesso schermo (B20, decisioni dell'utente sull'audit B19)**: chi batte per primo = **Sorteggio** di base (pagina
+  «Partita» dello stesso schermo → «Altre impostazioni» → «Batte per primo»); **Formato in fiera** a tre valori nel
+  pannello dello stand (No · Solo stesso schermo · Sì), di base **Solo stesso schermo** (il vecchio `0` salvato diventa
+  «Solo stesso schermo»: chi vuole il classico sceglie «No» una volta); **Scambio che si scalda** = opzione dello stand,
+  spenta di base (dal 10° colpo la palla accelera per tutti e due; il tagliato resta tagliato); **Rivincita** dai telefoni
+  (parte quando l'hanno toccata tutti e due). Non voluti dall'utente: tempo massimo, aiuto per il più debole, «chi vince
+  resta». Il Player 2 ha risposta al servizio, schiacciata ed effetto laterale del tagliato come il Player 1 (vale anche per
+  il P2 della sfida tra due computer). `docs/b20/tappa-a.md`.
+- **Video generati (B21)**: l'utente ha accettato un trailer generato e clip di gameplay **sfocate** come sfondo del
+  tutorial; resta valida la regola del 28/10 per le dimostrazioni dei gesti (animazione 3D e foto). I video si generano da
+  fotogrammi veri del gioco (SHOTS=1 di `tools/e2e/natpf-rally.mjs`), senza audio. Tetto di spesa deciso dall'utente caso
+  per caso (120 crediti Higgsfield l'11/11, spesi 86).
