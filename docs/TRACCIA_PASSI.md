@@ -37,12 +37,15 @@ Poi B23, B24, tappa 2 gruppi 2 e 3.
       sfocate come sfondo del tutorial; trailer su R2 (`media/`), clip dentro lo zip. File in `scratchpad/video/` e nella
       libreria Higgsfield dell'utente (crediti spesi 86 su 120).
 - [ ] **B22 Scia luminosa della palla** nel gameplay (un po' meno luminosa del trailer) + voce nelle Opzioni per spegnerla
+- [ ] **B25 Stesso schermo, decisioni dell'11/11** (PIANO, voce B25): lancio automatico dopo 30 s (opzione dello stand,
+      spenta); campo aperto tra due persone (opzione dello stand, spenta: preparare e misurare); colpo super con la forza
+      relativa al proprio colpo (solo il super); preparazione del colpo che non conta nel 1v1
 - [ ] **B23 Prova delle movenze dal video sul solo dritto** (se all'utente non piace si toglie)
 - [ ] **B24 Lob & Drop** come personaggi (foto `docs/riferimenti/lob-drop-2026-11-11.webp`)
 - [ ] **Tappa 2 gruppo 2**: Leggenda stessa regola (D2), palla corta che può sbagliare (D8)
-- [ ] **Tappa 2 gruppo 3**: livelli Evento e Bambini (D3, dire come si attivano), segnale del momento giusto, super spiegato
-- [ ] Da chiedere all'utente: conferma della compensazione del servizio a Casual (`docs/b18/t2-1-servizio.md`); domande
-      4 e 9–16 dell'audit B19 ancora senza risposta
+- [ ] **Tappa 2 gruppo 3**: livelli Evento e Bambini (D3) con la scelta **«Chi gioca: Bambino · Ragazzo · Adulto»** al posto
+      del livello (Pro e Leggenda in «Altre impostazioni»); segnale del momento giusto; super spiegato
+- [ ] Dall'utente: prova di due minuti con un telefono vero agitato senza guardare (poi si decide la regola)
 
 ## COME SI LAVORA (regole dell'utente)
 

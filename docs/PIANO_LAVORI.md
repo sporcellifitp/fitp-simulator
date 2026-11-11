@@ -220,6 +220,21 @@ Come si aggiorna:
     palla vera, confronto fianco a fianco. Se all'utente non piace si toglie; se piace si estende agli altri colpi.
   - **B24 Lob & Drop** (mascotte Nitto ATP Finals, foto in `docs/riferimenti/lob-drop-2026-11-11.webp`: Drop blu con
     fascia bianca, Lob giallo con visiera blu e occhiali) come due personaggi giocabili/in campo.
+- **B25 · punti aperti chiusi dall'utente (11/11 pomeriggio, con domande a scelta):**
+  - Servizio a Casual contro la CPU: compensazione **confermata** (`SERVE_WEIGHT.casual`).
+  - **«Chi gioca: Bambino · Ragazzo · Adulto» al posto del livello** quando si crea la partita contro la CPU (idea
+    dell'utente: il gioco non riconosce un bambino): Bambino → livello Bambini, Ragazzo → Casual, Adulto → livello Evento
+    (adattivo); Pro e Leggenda in «Altre impostazioni». Si fa con i livelli Evento e Bambini (tappa 2 gruppo 3). Nello
+    stesso schermo niente fasce né aiuti (decisione del 10/11).
+  - **Lancio automatico** dopo 30 s se chi batte resta fermo: sì, **opzione** del pannello dello stand, spenta di base.
+  - **Campo aperto tra due persone** (la palla precisa e angolata fa punto contro chi rimanda solo al centro): sì,
+    **prepararlo e misurarlo come opzione** del pannello dello stand, spenta di base.
+  - **Colpo super tra due persone**: forza misurata sul colpo abituale di ciascuno, **solo per il super** (i colpi
+    normali restano come oggi).
+  - **Preparazione del colpo: nel 1v1 tra persone non conta.**
+  - Punto decisivo del formato in fiera: «come nel tennis: batte chi serve» = batte chi è di turno nella rotazione (è il
+    comportamento di oggi: niente da cambiare). Barra «Energia» nello stesso schermo: resta. Webcam per due: l'utente non
+    la usa, non si tocca. Sfida tra due computer: resta ferma. Telefono agitato: lo prova prima l'utente con un telefono vero.
 - **Prossima azione esatta:** B21 (video nel gioco con ripiego e R2) e B22 (scia luminosa con opzione), poi B23 (prova
   delle movenze sul dritto) e B24 (Lob & Drop). Dopo: tappa 2 gruppi 2 e 3 (`docs/b16/rapporto-gameplay.md` §4: Leggenda
   stessa regola D2, palla corta che può sbagliare D8, livelli Evento e Bambini D3 da spiegare all'utente, segnale del
