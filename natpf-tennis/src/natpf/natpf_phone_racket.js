@@ -430,6 +430,8 @@ export class NatpfPhoneRacket {
     // del telefono «so aspettare» (tut w) in questo abbinamento, da cui tutSupported e tutV2 (getter qui sotto)
     this.tutWait = false; this.tutAnswer = null; this.tutProgress = null;
     this.tutListeners = new Set(); this.tutNavListeners = new Set();
+    // «Rivincita» toccata sul telefono a fine partita (stesso schermo, B20): la decide natpf_split_ui
+    this.rematchListeners = new Set();
     // tutorial visto per questo abbinamento del telefono (link.L.pairs): si rivede solo con un abbinamento nuovo (QR), non
     // a ogni ricollegamento (pagina ricaricata, schermo spento, «Ricollega»); tutSaved = dove era arrivata la modale chiusa
     // prima della fine (stesso abbinamento: si riprende da lì). Uno per telefono: vale per Allenamento e stesso schermo.
@@ -508,6 +510,7 @@ export class NatpfPhoneRacket {
     link.on('toss', () => this._onToss());
     link.on('prep', p => this._onPrep(p));
     link.on('hand', e => this._onPhoneHand(e.hand));
+    link.on('rematch', () => { for (const fn of this.rematchListeners) try { fn(this); } catch (e){ console.error(e); } });
     link.on('raw', k => { for (const fn of this.rawListeners) try { fn(k); } catch (e){ console.error(e); } });
     link.on('dropped', d => { for (const fn of this.dropListeners) try { fn(d.reason, { seq: d.seq, path: d.path }); } catch (e){ console.error(e); } });
     link.on('discard', d => this._diag('scartato', d));
@@ -580,6 +583,15 @@ export class NatpfPhoneRacket {
   onTutorial(fn){ this.tutListeners.add(fn); return () => this.tutListeners.delete(fn); }
   // frecce ‹ › toccate sul telefono (-1 indietro, 1 avanti): chi mostra la modale cambia scheda
   onTutorialNav(fn){ this.tutNavListeners.add(fn); return () => this.tutNavListeners.delete(fn); }
+  // B20: rivincita dai telefoni nello stesso schermo. onRematch: il telefono ha toccato «Rivincita» (messaggio rm y);
+  // offerRematch: il computer dice al telefono se la rivincita si può chiedere e chi l'ha già chiesta (messaggio rm:
+  // on, me, ot, nm = nome dell'altro), null per toglierla. Le pagine del telefono di prima ignorano il messaggio
+  onRematch(fn){ this.rematchListeners.add(fn); return () => this.rematchListeners.delete(fn); }
+  offerRematch(st){
+    if (!this.connected) return false;
+    this.link.send(st ? { t: 'rm', on: 1, me: st.me ? 1 : 0, ot: st.other ? 1 : 0, nm: String(st.name || '').slice(0, 24) } : { t: 'rm', on: 0 });
+    return true;
+  }
   // avanzamento della modale { i, n, s, m, all, nm } (NatpfTutorial.progress), mandato al telefono finché aspetta
   tutorialProgress(p){ this.tutProgress = p ? { ...p } : null; this._sendTp(); }
   _sendTp(){

@@ -31,6 +31,7 @@ import {
 import { resolveMatchFormat, firstServer, serveChoice } from "./natpf/match_format.js";
 // NATPF B18: formato in fiera (punto decisivo e servizio come nel tie-break), opzione dello staff spenta di base
 import * as NF from "./natpf/natpf_fair_format.js";
+import * as NH from "./natpf/natpf_hot_rally.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
 // NATPF: personaggio, racchetta e pallina procedurali (niente GLB esterni)
 import { createNatpfCast, finishNatpfActor, updateNatpfCharacters } from "./natpf/natpf_character.js";
@@ -1223,6 +1224,9 @@ export class NatpfTennisEngine {
       // sfida tra due computer resta il formato classico finché lo staff non sceglie «Sì»
       (this.score.fair = this.playerRole === "p2" && this.isMultiplayer ? !1 : typeof this.natpfFair == "boolean" ? this.natpfFair : NF.readFairFormat({ split: !!this.natpfSplit?.active })),
       (this.score.gameServer = this.score.server),
+      // B20: «scambio che si scalda» (natpf_hot_rally.js), opzione dello staff spenta di base, decisa a inizio partita:
+      // solo tra due persone nello stesso schermo con i due telefoni (natpfHotRally a mano per i test e le simulazioni)
+      (this.natpfHot = NH.hotRallyFor({ split: !!this.natpfSplit?.active, webcam: !!this.natpfUi?.split?.webcam, forced: this.natpfHotRally })),
       // … e con l'opzione accesa «Al meglio di 5» vale «Al meglio di 3» (matchConfig.gamesToWin lo calcola da score.fair
       // senza toccare la scelta del menu, matchConfig.gamesToWinChosen; installGamesToWin è idempotente)
       NF.installGamesToWin(this.matchConfig, () => this.score?.fair),
@@ -2166,7 +2170,7 @@ export class NatpfTennisEngine {
       (this.ball.rallyStrokeCount += 1),
       (this.ball.shotType = T),
       (this.ball.isPowerShot = M),
-      this.ballTrail.setStyle(T, M),
+      this.ballTrail.setStyle(T, M || NH.hotSteps(this.ball.rallyStrokeCount, this.natpfHot) > 0), // B20: scambio caldo → scia del colpo potente
       this.racketKinematics && this.racketKinematics.triggerImpactRecoil(p, M ? 1.4 : 1),
       this.swingVfx &&
         this.swingVfx.onRacketContact({
@@ -2281,6 +2285,9 @@ export class NatpfTennisEngine {
     // lenta o corta → in fondo, più piatto e molto più veloce; l'avversario lo legge in ritardo (ball.natpfSuper)
     const sup = NO.superShot({ intent, out, contact, ballSide: dx, contactY: b.pos.y, ballVz: b.vel.z, shortBall });
     if (sup.on) out = { ...out, depth: Math.max(out.depth, NO.SUPER.minDepth), clear: S.NET_HEIGHT_CENTER + NO.SUPER.netGap, topspin: out.shot === "SMASH" ? out.topspin : NO.SUPER.topspin };
+    // B20: «scambio che si scalda» (opzione dello staff, natpf_hot_rally.js): dal 10° colpo i colpi normali passano via via
+    // più bassi e più carichi, cioè più veloci, uguale per il P1 e per il P2. Spenta: lo stesso oggetto di prima
+    else out = NH.hotOutcome(out, b.rallyStrokeCount + 1, this.natpfHot, S.NET_HEIGHT_CENTER);
     // colpo fallito o debole: la causa che pesa di più, per il messaggio del colpo e la diagnostica
     const cause = out.failed ? (out.pressured ? "scambio lungo" : [["reach", running > 0.5 ? "in corsa" : "palla lontana"], ["prep", "senza preparazione"], ["stretch", "in allungo"], ["pace", "palla veloce"]].reduce((a, k) => (Q[k[0]] < Q[a[0]] ? k : a))[1]) : null;
     const R = p.pos.x >= 0 ? 1 : -1, N = toward * out.depth, X = out.x * mirror, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;
@@ -2299,7 +2306,9 @@ export class NatpfTennisEngine {
       // B15 (08/11): il tetto della velocità del motore base era 1,2 (forza da 0,56 in su: stesso volo base 0,70 s, la
       // palla più forte solo per l'altezza minore sulla rete; banco colpi.mjs: gesto 0,6× → 1,4× del proprio colpo
       // 82 → 119 km/h, ×1,45). Ora 1,5: a forza piena 0,58 s (il minimo di sempre), a 0,74 0,63 s (era 0,70)
-      const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015),
+      // B20: con lo «scambio che si scalda» acceso, dal 10° colpo il volo si accorcia ancora a ogni colpo, uguale per il
+      // P1 e per il P2 (NH.hotFlight; spento il fattore è 1 esatto)
+      const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015) * NH.hotFlight(b.rallyStrokeCount + 1, this.natpfHot),
         base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.5, (0.8 + intent.power * 0.85) * 0.94)) * K;
       I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) / (sup.on ? NO.SUPER.speedUp : 1) });
     }
@@ -2309,7 +2318,7 @@ export class NatpfTennisEngine {
     this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime, super: sup.on ? sup.ball : null, superWhy: sup.why, smashCalled: !!called,
       hand, source: (e.natpf && e.natpf.source) || e.source || null, aimFull: e.natpf && Number.isFinite(e.natpf.aimFull) ? e.natpf.aimFull : null };
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
-    const netClear = sup.on ? NO.SUPER.netGap : out.attack ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null;
+    const netClear = sup.on ? NO.SUPER.netGap : out.attack || out.hot ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null; // (B20: anche lo scambio caldo passa basso)
     return {
       netClear, E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out, contact,
@@ -2507,7 +2516,7 @@ export class NatpfTennisEngine {
       this.playerRole === "p2" && this.isMultiplayer && GV.markLocalHit((this.natpfGuestView ||= GV.createGuestView()), { count: this.ball.rallyStrokeCount, now: performance.now() }),
       (this.ball.shotType = m),
       (this.ball.isPowerShot = w),
-      this.ballTrail.setStyle(m, w),
+      this.ballTrail.setStyle(m, w || NH.hotSteps(this.ball.rallyStrokeCount, this.natpfHot) > 0), // B20: come per il P1
       this.racketKinematics && this.racketKinematics.triggerImpactRecoil(l, w ? 1.4 : 1),
       this.swingVfx &&
         this.swingVfx.onRacketContact({

@@ -200,3 +200,131 @@ test('stesso schermo, due pause: conto del P2 con il P1 ancora in pausa → riga
   ui._paintHold(null, '', null, 'p1'); ui._paintHold(null, '', null, 'p2');
   assert.ok(el.classList.contains('hidden'));
 });
+
+/* ---------- B20 (audit B19, punto 10): telefono caduto nello stesso schermo ---------- */
+import { phoneOf, holdTitle, otherPhoneNote } from '../src/natpf/natpf_phone_watch.js';
+import { rematchLine } from '../src/natpf/natpf_split_ui.js';
+
+test('B20 A3: nomi nei testi della pausa (funzioni pure)', () => {
+  assert.equal(phoneOf('Giulia'), 'di Giulia');
+  assert.equal(phoneOf('Player 2'), 'del Player 2');
+  assert.equal(phoneOf(''), '');
+  assert.equal(holdTitle('Giulia'), 'Telefono di Giulia in pausa');
+  assert.equal(holdTitle('Player 1'), 'Telefono del Player 1 in pausa');
+  assert.equal(holdTitle(''), 'Telefono in pausa', 'fuori dallo stesso schermo come prima');
+  assert.equal(holdTitle('Giulia', 'ready'), 'Telefono di Giulia di nuovo pronto');
+  assert.equal(holdTitle('', 'ready'), 'Telefono di nuovo pronto');
+  assert.equal(otherPhoneNote('Giulia'), 'Partita in pausa: telefono di Giulia da ricollegare. Aspetta, si riprende da soli.');
+});
+
+test('B20 A3: telefono del Player 2 scollegato → riquadro con il nome e il suo QR, avviso al telefono del Player 1, niente pannello', async () => {
+  const w = await splitMatch(), { E, ui, link, l2 } = w;
+  E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' };
+  w.advance(500);
+  link.sent.length = 0;
+  l2.connected = false; l2.ready = false; l2.L.state = 'lost'; w.P2._changed();
+  w.advance(1500);
+  assert.ok(ui.split.hold, 'pausa per il P2'); assert.equal(E.natpfPaused, true);
+  const el = holdEl();
+  assert.equal(el.querySelector('b').textContent, 'Telefono di Giulia in pausa');
+  // QR del telefono caduto dentro il riquadro, con il nome; quello del P1 (collegato) resta nascosto
+  assert.equal(el.querySelector('[data-hold-qrs]').classList.contains('hidden'), false);
+  assert.equal(el.querySelector('[data-hold-qr="p2"]').classList.contains('hidden'), false);
+  assert.equal(el.querySelector('[data-hold-qr="p1"]').classList.contains('hidden'), true);
+  assert.equal(el.querySelector('[data-hold-qr="p2"]').querySelector('figcaption').textContent, 'Telefono di Giulia: inquadra questo QR');
+  assert.equal(el.classList.contains('with-qr'), true);
+  // il telefono del Player 1 sa che la partita è ferma e per chi
+  const ph = link.sent.filter(m => m.t === 'ph' && m.ph === 'pause');
+  assert.equal(ph.length, 1);
+  assert.equal(ph[0].txt, 'Partita in pausa: telefono di Giulia da ricollegare. Aspetta, si riprende da soli.');
+  assert.equal(E.natpfPhone.lastPhase, 'pause');
+  // il telefono torna: QR via, ripresa, e al Player 1 torna la fase vera
+  link.sent.length = 0;
+  l2.connected = true; l2.ready = true; l2.L.state = 'connected'; w.P2._changed();
+  w.advance(4500);
+  assert.equal(ui.split.hold, null); assert.equal(E.natpfPaused, false);
+  assert.ok(el.classList.contains('hidden'));
+  assert.ok(link.sent.some(m => m.t === 'ph' && m.ph !== 'pause'), 'fase vera di nuovo al telefono del P1');
+});
+
+test('B20 A3: telefono del Player 1 scollegato nello stesso schermo → QR nel riquadro (non il pannello che veniva coperto), avviso al Player 2', async () => {
+  const w = await splitMatch(), { E, ui, link, l2 } = w;
+  E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' };
+  w.advance(500);
+  l2.sent.length = 0;
+  link.connected = false; link.ready = false; link.L.state = 'lost'; E.natpfPhone._changed();
+  w.advance(1500);
+  assert.ok(ui.phoneHold, 'pausa per il P1');
+  const el = holdEl();
+  assert.equal(el.querySelector('b').textContent, 'Telefono di Marco in pausa');
+  assert.equal(el.querySelector('[data-hold-qr="p1"]').classList.contains('hidden'), false);
+  assert.equal(el.querySelector('[data-hold-qr="p2"]').classList.contains('hidden'), true);
+  assert.ok(!ui.phoneDropOpened, 'il pannello del telefono non si apre sopra le due metà');
+  assert.equal(l2.sent.filter(m => m.t === 'ph' && m.ph === 'pause' && /telefono di Marco/.test(m.txt)).length, 1);
+});
+
+/* ---------- B20: rivincita dai telefoni ---------- */
+test('B20 E: riga della rivincita sul grande schermo (funzione pura)', () => {
+  const n = { p1: 'Marco', p2: 'Giulia' };
+  assert.equal(rematchLine({}, n), 'Rivincita dai telefoni: toccate «Rivincita» tutti e due');
+  assert.equal(rematchLine({ p1: true }, n), 'Marco vuole la rivincita · manca Giulia');
+  assert.equal(rematchLine({ p2: true }, n), 'Giulia vuole la rivincita · manca Marco');
+  assert.equal(rematchLine({ p1: true, p2: true }, n), 'Rivincita!');
+});
+
+test('B20 E: a fine partita i due telefoni ricevono «Rivincita»; parte quando l\'hanno chiesta tutti e due', async () => {
+  const w = await splitMatch(), { E, ui, link, l2 } = w;
+  E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' };
+  w.advance(500);
+  const tap = p => { for (const fn of p.rematchListeners) fn(p); };
+  // in partita il tocco non vale e nessuno ha ricevuto l'offerta
+  tap(w.P2);
+  assert.deepEqual(ui.split.rematch, { p1: false, p2: false });
+  assert.equal(link.sent.filter(m => m.t === 'rm').length, 0);
+  // fine partita
+  const seq = E.natpfMatchSeq;
+  E.score.playerGames = 0; E.score.opponentGames = 1; E.phase = 'MATCH_OVER';
+  link.sent.length = 0; l2.sent.length = 0;
+  w.advance(300);
+  assert.deepEqual(link.sent.filter(m => m.t === 'rm'), [{ t: 'rm', on: 1, me: 0, ot: 0, nm: 'Giulia' }]);
+  assert.deepEqual(l2.sent.filter(m => m.t === 'rm'), [{ t: 'rm', on: 1, me: 0, ot: 0, nm: 'Marco' }]);
+  const line = document.getElementById('victory-rematch');
+  assert.equal(line.classList.contains('hidden'), false);
+  assert.equal(line.textContent, 'Rivincita dai telefoni: toccate «Rivincita» tutti e due');
+  // la chiede Giulia: si vede sul grande schermo e lo sa il telefono di Marco
+  tap(w.P2); w.advance(200);
+  assert.deepEqual(ui.split.rematch, { p1: false, p2: true });
+  assert.equal(line.textContent, 'Giulia vuole la rivincita · manca Marco');
+  assert.deepEqual(link.sent.filter(m => m.t === 'rm').at(-1), { t: 'rm', on: 1, me: 0, ot: 1, nm: 'Giulia' });
+  assert.deepEqual(l2.sent.filter(m => m.t === 'rm').at(-1), { t: 'rm', on: 1, me: 1, ot: 0, nm: 'Marco' });
+  assert.equal(E.phase, 'MATCH_OVER', 'con uno solo non parte');
+  tap(w.P2); w.advance(200);   // un secondo tocco non cambia niente
+  assert.equal(E.phase, 'MATCH_OVER');
+  // la chiede anche Marco: partita nuova, stesso schermo, punteggio da capo, pulsante tolto dai telefoni
+  tap(E.natpfPhone); w.advance(200);
+  assert.equal(E.natpfMatchSeq, seq + 1, 'partita nuova');
+  assert.ok(['SERVE_STANCE', 'SERVE_TOSS'].includes(E.phase), E.phase);
+  assert.equal(E.natpfSplit.active, true);
+  assert.deepEqual([E.score.playerGames, E.score.opponentGames, E.score.playerPoints, E.score.opponentPoints], [0, 0, 0, 0]);
+  assert.deepEqual(ui.split.rematch, { p1: false, p2: false });
+  assert.deepEqual(link.sent.filter(m => m.t === 'rm').at(-1), { t: 'rm', on: 0 });
+  assert.deepEqual(l2.sent.filter(m => m.t === 'rm').at(-1), { t: 'rm', on: 0 });
+  assert.equal(line.classList.contains('hidden'), true);
+});
+
+test('B20 E: «Gioca ancora» sul computer resta com\'era (pagina «Partita») e toglie la rivincita dai telefoni', async () => {
+  const w = await splitMatch(), { E, ui, link, l2 } = w;
+  w.advance(500);
+  E.score.playerGames = 1; E.phase = 'MATCH_OVER';
+  w.advance(300);
+  for (const fn of w.P2.rematchListeners) fn(w.P2);
+  w.advance(200);
+  assert.equal(ui.split.rematch.p2, true);
+  link.sent.length = 0; l2.sent.length = 0;
+  document.getElementById('btn-play-again').click();
+  w.advance(300);
+  assert.equal(E.natpfSplit.active, false, 'si torna al menu, pagina «Partita»');
+  assert.equal(ui.lobby.step, 'match');
+  assert.deepEqual(ui.split.rematch, { p1: false, p2: false });
+  assert.deepEqual(l2.sent.filter(m => m.t === 'rm').at(-1), { t: 'rm', on: 0 });
+});

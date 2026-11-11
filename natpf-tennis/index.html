@@ -94,6 +94,8 @@
       <div id="natpf-gesture" class="natpf-gesture hidden" aria-live="polite" data-state="read"><b data-g="arrow"></b><span><i data-g="title"></i><small data-g="sub"></small></span></div>
       <!-- NATPF B18: istruzioni del servizio sul grande schermo (src/natpf/natpf_serve_coach.js) -->
       <div id="natpf-serve-coach" class="natpf-serve-coach hidden" aria-live="polite" data-state="toss" data-side="center"><b data-c="big"></b><small data-c="sub"></small></div>
+      <!-- NATPF B20: «Scambio caldo» (opzione dello staff, src/natpf/natpf_hot_rally.js) -->
+      <div id="natpf-hot-rally" class="natpf-hot-rally hidden" aria-live="off" data-level="1"><b data-h="big">Scambio caldo</b><small data-h="sub"></small></div>
       <div id="center-banner-layer" class="center-banner-layer hidden">
         <div id="center-banner-streak" class="center-banner-streak"></div>
         <div id="center-banner-text" class="center-banner-text style-gold">Palla game</div>
@@ -233,6 +235,7 @@
           ><button type="button" data-staff="phone"><span>Telefono</span><b>Scollega</b></button
           ><button type="button" data-staff="music"><span>Musica</span><b>Sì</b></button
           ><button type="button" data-staff="fair" title="No · Solo stesso schermo · Sì. Punto decisivo sul 40-40 e servizio che passa ogni due punti: con «Solo stesso schermo» vale tra due persone nello stesso schermo, con «Sì» anche contro la CPU. Vale dalla prossima partita e resta salvata."><span>Formato in fiera</span><b>Solo stesso schermo</b></button
+          ><button type="button" data-staff="hot" title="Sì: nello stesso schermo, dal 10° colpo dello scambio la palla va sempre più veloce per tutti e due, finché uno sbaglia; compare la scritta «Scambio caldo». Vale dalla prossima partita e resta salvata."><span>Scambio che si scalda</span><b>No</b></button
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
@@ -683,6 +686,8 @@
         <div id="victory-result-banner" class="victory-result-banner">Hai vinto!</div>
         <ol class="victory-rows" id="victory-rows" aria-label="Game vinti"></ol>
         <div id="victory-match-score" class="victory-match-score">Game 1-0</div>
+        <!-- B20: stesso schermo, rivincita dai telefoni: chi l'ha chiesta e chi manca (natpf_split_ui._paintRematch) -->
+        <div id="victory-rematch" class="victory-rematch hidden" aria-live="polite"></div>
         <div class="skill-card-footer">
           <button id="btn-play-again" type="button" class="nt-footer-btn primary">Gioca ancora</button
           ><button id="btn-new-player" type="button" class="nt-footer-btn new-player">Nuovo giocatore</button

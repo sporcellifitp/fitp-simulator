@@ -20,6 +20,7 @@
 export const PHONE_SCREENS = Object.freeze(['link', 'error', 'enable', 'tutorial', 'cal', 'ready']);
 const ERRORS = new Set(['denied', 'nomotion', 'insecure']);
 const int = (v, d = 0) => (Number.isFinite(+v) ? Math.trunc(+v) : d);
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : '';
 
 export function screenOf({ linkState = 'off', sensor = 'off', gate = null } = {}){
   if (linkState !== 'on') return 'link';
@@ -33,7 +34,9 @@ export function screenOf({ linkState = 'off', sensor = 'off', gate = null } = {}
 export const tutConfirmable = gate => !!gate && (gate.v < 2 || !!gate.all);
 
 // cosa mostra la pagina: { screen, show: { selettore: visibile }, tutOk: { on, lit } } (lit: appena acceso)
-export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false } = {}){
+// phase, rematch (B20): a fine partita nello stesso schermo il computer offre la rivincita (rematchOn) e sotto «Pronto»
+// compare il pulsante «Rivincita»
+export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false, phase = null, rematch = null } = {}){
   const screen = screenOf({ linkState, sensor, gate });
   const S = s => screen === s, touch = inputMode === 'touch';
   const show = {
@@ -52,6 +55,7 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
     '#shotChoices': touch,
     // Ricalibra, Ricollega, Scollega: solo sotto «Pronto» (scelta del 05/11: nella calibrazione bloccata decide il computer)
     '#tools': S('ready'),
+    '#rematch': S('ready') && phase === 'over' && !!rematch,
     '#tutOk': S('tutorial'),
     '#tutBox': S('tutorial'),
     '#mark': linkState === 'on' && !!diag,
@@ -96,6 +100,26 @@ export const sensorForCal = gate => (gate ? 'idle' : 'cal');
 // come sono (un telefono pronto resta «ready» anche durante il tutorial: niente pausa del computer sopra la modale)
 export const reportedSensor = sensor => (sensor === 'off' ? 'sensors' : sensor === 'idle' ? 'tut' : sensor);
 
+/* ---------- stesso schermo: rivincita dai telefoni e pausa per il telefono dell'altro (B20) ---------- */
+// Rivincita (messaggio del computer { t:'rm', on, me, ot, nm }, natpf_split_ui._tickRematch): on 1 = partita finita nello
+// stesso schermo, si può chiedere la rivincita; me = questo telefono l'ha già chiesta; ot = l'ha chiesta l'altro; nm = il
+// nome dell'altro. La rivincita parte quando l'hanno chiesta tutti e due (o dal computer). on 0 (o un computer di prima,
+// che non manda niente) = nessun pulsante
+export function rematchOnMsg(d = {}){
+  if (!d || !d.on) return null;
+  return { me: d.me === 1 || d.me === true, other: d.ot === 1 || d.ot === true, name: typeof d.nm === 'string' ? d.nm.slice(0, 24) : '' };
+}
+// cosa dice il telefono a fine partita: pulsante (testo, spento dopo il tocco) e le due righe sotto l'anello
+export function rematchView(r){
+  if (!r) return null;
+  const who = r.name || 'l’altro giocatore';
+  if (r.me) return { label: 'Rivincita chiesta ✓', disabled: true, big: 'Rivincita chiesta', sub: r.other ? 'Si riparte…' : `Aspetto ${who}: deve toccare «Rivincita» sul suo telefono.` };
+  return { label: 'Rivincita', disabled: false, big: 'Partita finita', sub: r.other ? `${cap(who)} vuole la rivincita: tocca «Rivincita».` : 'Tocca «Rivincita» per rigiocare: si riparte quando la chiedete tutti e due.' };
+}
+// pausa con il motivo (messaggio { t:'ph', ph:'pause', txt }): la partita è ferma per il telefono dell'altro giocatore.
+// Senza testo (computer di prima, o pausa del proprio telefono) resta la frase di sempre
+export const pauseNote = d => (d && d.ph === 'pause' && typeof d.txt === 'string' ? d.txt.slice(0, 160) : '');
+
 // conto alla rovescia dello stesso schermo (messaggio del computer { t:'ev', k:'count' }, natpf_split_ui._announce):
 // n = 3, 2, 1 («Si gioca tra» con il numero, anello verde) e 0 («Si gioca!»); stop = conto fermato o annullato, con il
 // motivo. Anello rosso solo per un problema (un telefono non più pronto); soft = fermato sul computer («Aspetta», si
@@ -117,7 +141,6 @@ const LABEL_FLASH = { perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In a
 const MISS_FLASH = { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana', lancio: 'Lancio a vuoto' };
 // lancio a vuoto al servizio (B18): come il grande schermo, più a lungo perché c'è da leggere
 const MISS_SUB = { nessuno: 'Il movimento non è arrivato: riprova con un colpetto comodo.', lancio: 'Colpisci quando la palla è in alto. Alza il telefono e riprova.' };
-const cap = s => s ? s[0].toUpperCase() + s.slice(1) : '';
 export function eventFlash(d = {}){
   const why = typeof d.why === 'string' ? d.why.slice(0, 40) : '';
   if (d.k === 'contact'){

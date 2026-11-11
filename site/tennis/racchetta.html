@@ -31,6 +31,7 @@
   .btn{display:block;width:100%;border:0;border-radius:14px;padding:17px;font:inherit;font-size:19px;font-weight:700;background:var(--ball);color:#0b1433;margin-top:10px}
   .btn.alt{background:var(--panel);color:var(--ink);font-weight:600;font-size:16px;padding:14px}
   #tools{display:flex;gap:8px;margin-top:10px}
+  #rematch{font-size:22px;padding:20px} #rematch:disabled{background:#2f3a5c;color:#c9d3f0}
   #tools .btn{flex:1;margin:0}
   /* «Attiva i sensori» (B15, 2° giro): un pulsante grande; sopra la mano, sempre in vista (un mancino non deve giocare da
      destro per errore); Movimento e «solo mentre tengo premuto» sotto il link «Opzioni» */
@@ -153,6 +154,8 @@
   <label><span>Riconosci il gesto solo mentre tengo premuto</span><input id="intentGate" type="checkbox"></label>
   <small>Bastano due colpetti. Puoi giocare anche da seduto.</small>
 </div></details>
+<!-- stesso schermo, fine partita (B20): la rivincita parte quando la chiedono tutti e due i telefoni -->
+<button class="btn hidden" id="rematch">Rivincita</button>
 <div id="tools" class="hidden">
   <button class="btn alt" id="recal">Ricalibra</button>
   <button class="btn alt" id="relink">Ricollega</button>

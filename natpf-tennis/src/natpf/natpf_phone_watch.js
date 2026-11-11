@@ -124,6 +124,12 @@ export function holdText(why, { hiddenMs = null, wasHidden = false } = {}){
     'sensori fermi': 'Il telefono non manda più il movimento: sul telefono tocca «Riattiva i sensori».',
   }[why] || 'Telefono in pausa.';
 }
+// B20 (audit B19, punto 10): nello stesso schermo i testi della pausa dicono il nome scritto nella pagina dei telefoni
+// («Telefono di Giulia in pausa»; senza nome resta «Telefono del Player 2 in pausa»)
+export const phoneOf = name => { const n = String(name || '').trim(); return !n ? '' : /^player\s*\d+$/i.test(n) ? `del ${n}` : `di ${n}`; };
+export const holdTitle = (name = '', kind = 'pause') => `Telefono${name ? ' ' + phoneOf(name) : ''} ${kind === 'ready' ? 'di nuovo pronto' : 'in pausa'}`;
+// avviso al telefono dell'altro giocatore: la partita è ferma per il telefono di chi
+export const otherPhoneNote = name => `Partita in pausa: telefono ${phoneOf(name) || 'dell’altro giocatore'} da ricollegare. Aspetta, si riprende da soli.`;
 // testo della pausa per questo telefono adesso (da quanto è nascosto, se si è scollegato con lo schermo spento)
 export function phoneHoldText(p, why, now = globalThis.performance?.now?.() ?? 0){
   const L = p?.state || {}, hidden = L.vis === false;

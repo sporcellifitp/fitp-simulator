@@ -15,7 +15,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, eventFlash, veilText } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, veilText } from './phone-screen.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -68,6 +68,8 @@ let fast = null, fastOk = false, rawSeq = 0;
 
 /* ---------- interfaccia ---------- */
 let selectedShot = 'auto', inputMode = 'motion', shotsPaintKey = '';
+// stesso schermo (B20): rivincita offerta dal computer a fine partita (phone-screen.rematchOnMsg) e motivo della pausa
+let rematch = null, phaseNote = '';
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
 const ARROW = { L: '←', R: '→', '?': '?' };
 // mano scelta nel gioco (o qui, e confermata dal gioco): menu, calibrazione in corso e profilo salvato. Il verso del
@@ -100,7 +102,7 @@ function setGate(g){ gate = g; if (g) ss.set('gate', g); else ss.del('gate'); }
 // «Pronto». Prima ogni elemento aveva la sua condizione e «Tutto chiaro» compariva sopra «Pronto»
 function paint(){
   bar();
-  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate });
+  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch });
   if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
   for (const [sel, on] of Object.entries(v.show)) show(sel, on);
   if (v.show['#profileOptions']) paintHand();
@@ -117,7 +119,12 @@ function paint(){
   if (screen === 'enable') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la racchetta.');
   else if (screen === 'tutorial'){ const t = tutorialTexts(gate, { sensor }); ui(t.big, t.sub); }
   else if (screen === 'cal'){ if (sensor === 'cal') calUi(); else ui('Preparati', 'Tra un attimo si calibra.'); }
-  else if (screen === 'ready') ui(phase === 'serve' ? 'Al servizio' : 'Pronto', phaseText(), 'ready');
+  else if (screen === 'ready'){
+    // fine partita nello stesso schermo (B20): «Rivincita» e chi l'ha già chiesta
+    const rv = phase === 'over' ? rematchView(rematch) : null, rb = $('#rematch');
+    if (rv){ rb.textContent = rv.label; rb.disabled = rv.disabled; ui(rv.big, rv.sub, 'ready'); }
+    else ui(phase === 'serve' ? 'Al servizio' : phase === 'pause' && phaseNote ? 'Pausa' : 'Pronto', phaseText(), 'ready');
+  }
 }
 // schermata del tutorial: pulsante spento finché il computer non dice che sono state viste tutte le schede, scheda
 // attuale, puntini delle schede viste, frecce per sfogliarle anche da qui (solo con un computer che le capisce)
@@ -152,7 +159,7 @@ function calUi(){
 }
 function phaseText(){
   if (grip === 'flat' && phase === 'play') return 'Colpisci quando la palla arriva alla racchetta: gira il piatto verso dove vuoi mandarla, aprilo per il lob, chiudilo per il coperto.';
-  return { menu: 'Guarda il computer per iniziare.', toss: 'Colpisci quando la palla è in cima al lancio.', serve: 'Alza il telefono (o tocca lo schermo): lanci la palla. Poi colpisci quando è in alto.', play: 'Colpisci quando la palla arriva alla racchetta.', pause: 'Partita in pausa: guarda il computer. Se non riparte, tocca «Ricollega».', over: 'Partita finita: guarda il computer.' }[phase] || '';
+  return { menu: 'Guarda il computer per iniziare.', toss: 'Colpisci quando la palla è in cima al lancio.', serve: 'Alza il telefono (o tocca lo schermo): lanci la palla. Poi colpisci quando è in alto.', play: 'Colpisci quando la palla arriva alla racchetta.', pause: phaseNote || 'Partita in pausa: guarda il computer. Se non riparte, tocca «Ricollega».', over: 'Partita finita: guarda il computer.' }[phase] || '';
 }
 function flash(cls, big, sub, ms = 650, arrow = ''){ ui(big, sub, cls, arrow); clearTimeout(flashT); flashT = setTimeout(() => { flashT = null; paint(); }, ms); }
 
@@ -251,7 +258,10 @@ function onData(c, d){
     // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
     case 'ex': det.setExpect(d.d); break;
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
-    case 'ph': phase = d.ph; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
+    // rivincita offerta dal computer a fine partita nello stesso schermo (B20), o tolta (on 0)
+    case 'rm': rematch = rematchOnMsg(d); if (sensor === 'ready') paint(); break;
+    // (txt, B20: la partita è in pausa per il telefono dell'altro giocatore, e lo dice)
+    case 'ph': phase = d.ph; phaseNote = pauseNote(d); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
     case 'cmd': command(d.c); break;
     case 'ev': {
       const vib = Array.isArray(d.vib) && d.vib.length <= 6 && d.vib.every(v => Number.isFinite(v) && v >= 0 && v <= 400) ? d.vib : null;
@@ -524,6 +534,8 @@ $('#relink').addEventListener('click', e => { e.stopPropagation(); relink(); });
 // «qui è successo un problema»: un segno nel registro della diagnostica, con l'ora del computer
 $('#mark').addEventListener('click', e => { e.stopPropagation(); if (linkState !== 'on') return; send({ t: 'mk', x: 'segno dal telefono' }); buzz([30, 60, 30]); flash('hit', 'Segnato', 'Il momento è nella registrazione del computer.', 900); });
 $('#recal').addEventListener('click', () => command('cal'));
+// «Rivincita» (stesso schermo, fine partita): si chiede al computer, che parte quando l'hanno chiesta tutti e due
+$('#rematch').addEventListener('click', e => { e.stopPropagation(); if (!rematch || rematch.me || linkState !== 'on') return; rematch = { ...rematch, me: true }; send({ t: 'rm', y: 1 }); buzz([30]); paint(); });
 $('#tutOk').addEventListener('click', tutDone);
 // frecce del tutorial: il computer cambia scheda e rimanda l'avanzamento (tp)
 $('#tutPrev').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).prev) send({ t: 'tut', nav: -1 }); });

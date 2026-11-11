@@ -256,3 +256,49 @@ test('telefono: esito del colpo come il computer (Fuori/In rete con il perché),
   assert.equal(eventFlash({ k: 'count' }), null);
   assert.match(JS, /eventFlash\(d\)/, 'la pagina usa eventFlash');
 });
+
+/* ---------- B20: stesso schermo, «Rivincita» dai telefoni e pausa per il telefono dell'altro ---------- */
+import { rematchOnMsg, rematchView, pauseNote } from '../../site/js/tennis/phone-screen.js';
+
+test('B20: «Rivincita» solo a fine partita, sotto «Pronto», quando il computer la offre', () => {
+  const base = { linkState: 'on', sensor: 'ready', gate: null };
+  const r = rematchOnMsg({ t: 'rm', on: 1, me: 0, ot: 0, nm: 'Giulia' });
+  assert.deepEqual(r, { me: false, other: false, name: 'Giulia' });
+  assert.equal(phoneView({ ...base, phase: 'over', rematch: r }).show['#rematch'], true);
+  assert.equal(phoneView({ ...base, phase: 'over', rematch: null }).show['#rematch'], false, 'computer di prima o contro la CPU: niente pulsante');
+  assert.equal(phoneView({ ...base, phase: 'play', rematch: r }).show['#rematch'], false, 'in partita mai');
+  assert.equal(phoneView({ ...base }).show['#rematch'], false);
+  assert.equal(phoneView({ ...base, sensor: 'cal', phase: 'over', rematch: r }).show['#rematch'], false, 'solo sotto «Pronto»');
+  assert.equal(phoneView({ ...base, linkState: 'lost', phase: 'over', rematch: r }).show['#rematch'], false);
+  assert.equal(rematchOnMsg({ t: 'rm', on: 0 }), null);
+  assert.equal(rematchOnMsg({}), null);
+  assert.equal(rematchOnMsg({ on: 1, nm: 'x'.repeat(80) }).name.length, 24);
+});
+
+test('B20: testi della rivincita sul telefono (chi l\'ha chiesta, chi manca)', () => {
+  assert.deepEqual(rematchView({ me: false, other: false, name: 'Giulia' }), { label: 'Rivincita', disabled: false, big: 'Partita finita', sub: 'Tocca «Rivincita» per rigiocare: si riparte quando la chiedete tutti e due.' });
+  assert.deepEqual(rematchView({ me: false, other: true, name: 'Giulia' }), { label: 'Rivincita', disabled: false, big: 'Partita finita', sub: 'Giulia vuole la rivincita: tocca «Rivincita».' });
+  assert.deepEqual(rematchView({ me: true, other: false, name: 'Giulia' }), { label: 'Rivincita chiesta ✓', disabled: true, big: 'Rivincita chiesta', sub: 'Aspetto Giulia: deve toccare «Rivincita» sul suo telefono.' });
+  assert.equal(rematchView({ me: true, other: true, name: 'Giulia' }).sub, 'Si riparte…');
+  assert.match(rematchView({ me: true, other: false, name: '' }).sub, /Aspetto l’altro giocatore/);
+  assert.equal(rematchView(null), null);
+});
+
+test('B20: la pausa per il telefono dell\'altro giocatore dice perché; senza testo resta la frase di sempre', () => {
+  assert.equal(pauseNote({ t: 'ph', ph: 'pause', txt: 'Partita in pausa: telefono di Giulia da ricollegare. Aspetta, si riprende da soli.' }), 'Partita in pausa: telefono di Giulia da ricollegare. Aspetta, si riprende da soli.');
+  assert.equal(pauseNote({ t: 'ph', ph: 'pause' }), '');
+  assert.equal(pauseNote({ t: 'ph', ph: 'play', txt: 'x' }), '', 'solo per la pausa');
+  assert.equal(pauseNote({ t: 'ph', ph: 'pause', txt: 'x'.repeat(400) }).length, 160);
+});
+
+test('B20: pagina del telefono, pulsante «Rivincita» e messaggi (rm, ph con txt) collegati', () => {
+  assert.match(HTML, /<button class="btn hidden" id="rematch">Rivincita<\/button>/);
+  assert.match(JS, /case 'rm': rematch = rematchOnMsg\(d\)/);
+  assert.match(JS, /send\(\{ t: 'rm', y: 1 \}\)/);
+  assert.match(JS, /phaseNote = pauseNote\(d\)/);
+  assert.match(JS, /pause: phaseNote \|\| 'Partita in pausa: guarda il computer/);
+  // la fase che non è più «fine partita» toglie il pulsante
+  assert.match(JS, /if \(phase !== 'over'\) rematch = null/);
+  const link = readFileSync(new URL('../../site/js/tennis/link.js', import.meta.url), 'utf8');
+  assert.match(link, /case 'rm': if \(d\.y === 1\) emit\('rematch', \{\}\)/);
+});
