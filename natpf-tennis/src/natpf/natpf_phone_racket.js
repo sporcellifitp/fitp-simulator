@@ -681,6 +681,9 @@ export class NatpfPhoneRacket {
     ev.natpf.seq = Number.isFinite(s.seq) ? s.seq : null;
     // colpo tipico di chi gioca, prima di questo colpo: il motore decide così se il gesto è debole (natpf_impact.WEAK)
     ev.natpf.typical = this.typicalModel.value ?? profileTypical(this.profile);
+    // B25: il colpo tipico è già quello imparato giocando (almeno 3 colpi) e non ancora quello della calibrazione, spesso un
+    // colpetto: il colpo super sulla forza relativa (natpf_duo_rules.relStrong) vale solo da qui in poi
+    ev.natpf.typicalOwn = this.typicalModel.value != null;
     if (Number.isFinite(s.peak) && !Number.isFinite(ev.natpf.peak)) ev.natpf.peak = s.peak;
     if (Number.isFinite(s.angle)) ev.natpf.angle = s.angle;
     // gesto fatto a richiesta negli esercizi del pallonetto e della palla corta: non insegna niente del colpo normale

@@ -18,6 +18,7 @@
 import { bounceSpin, eventLatency, holdSwingPrep, COURT, moveFactor } from './natpf_skill.js';
 import { IMPACT, impactWindow, lateSpanOf, directionSpan, slowFactor, OUTCOME } from './natpf_stroke_outcome.js';
 import { skillLevel } from './natpf_skill.js';
+import { helpOf, helpLevel, openRun } from './natpf_duo_rules.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -132,7 +133,10 @@ export function planPlayerIntercept(engine, actor, { groundOnly = false } = {}){
   const fh = (handOf(engine, actor) === 'left' ? -1 : 1)*half;
   // dove stare per prendere la palla nel punto s: di lato (dal lato in cui arriva), poco dietro il punto d'impatto
   const stand = s => { const dx = s.x - actor.pos.x, side = Math.abs(dx) > .3 ? Math.sign(dx) : fh; return { side, x: clamp(s.x - side*PLAN.side, -COURT.SINGLES_X - 1.4, COURT.SINGLES_X + 1.4), z: half*clamp(Z(s.z) + IMPACT.contactAhead, 1.2, Math.max(back, Z(s.z) > back ? PLAN.deepBack + IMPACT.contactAhead : back)) }; };
-  const need = s => { const p = stand(s); return PLAN.react + Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z)/speed; };
+  // B25 (campo aperto, natpf_duo_rules.js): tra due persone, con l'opzione accesa, si parte un attimo dopo (la velocità
+  // ridotta è già in moveFactor). Spenta, o contro la CPU: react 0, come prima
+  const react = PLAN.react + (openRun(engine)?.react || 0);
+  const need = s => { const p = stand(s); return react + Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z)/speed; };
   const reachable = s => need(s) <= s.t;
   const before = path.filter(s => s.bounces === 0 && Z(s.z) > 0), after = path.filter(s => s.bounces === 1 && Z(s.z) <= back);
   const apex = before.reduce((m, s) => Math.max(m, s.y), 0);
@@ -216,7 +220,14 @@ export function missedPlan(engine, actor){
 }
 
 // Qualità che resta dopo la corsa sul piano in corso (1 se si è arrivati con calma)
-export const stretchQuality = (engine, actor = engine.player) => 1 - PLAN.stretchCost*clamp(finite(livePlan(engine, actor)?.stretch), 0, 1);
+// (B25: con il campo aperto l'allungo costa di più, natpf_duo_rules.OPEN_COURT.stretchCost)
+export const stretchQuality = (engine, actor = engine.player) => 1 - (openRun(engine)?.stretchCost ?? PLAN.stretchCost)*clamp(finite(livePlan(engine, actor)?.stretch), 0, 1);
+// B25 (campo aperto): chi arriva sulla palla di corsa o in allungo ha meno margine sul tempo: la finestra del tempo si
+// stringe fino a (1 − OPEN_COURT.tight) con l'allungo pieno. 1 esatto con l'opzione spenta o contro la CPU
+export const openTight = (engine, actor) => { const O = openRun(engine); return O && O.tight ? 1 - finite(O.tight)*clamp(finite(livePlan(engine, actor)?.stretch), 0, 1) : 1; };
+// Portata laterale della racchetta (m). B25: con il campo aperto la palla non raggiunta (piano «stretch») si tocca solo se
+// passa vicino (OPEN_COURT.reach); altrimenti IMPACT.reach, come prima
+export const reachOf = (engine, actor) => { const O = openRun(engine); return O && livePlan(engine, actor)?.kind === 'stretch' ? Math.min(IMPACT.reach, finite(O.reach, IMPACT.reach)) : IMPACT.reach; };
 
 // Dopo il colpo di chi gioca (nella propria metà, anche per il Player 2 del 1v1): verso il fondo, di lato dalla parte
 // opposta a dove va la palla, se si fa in tempo ad arrivare almeno a safeZ prima del colpo dell'avversario. Altrimenti
@@ -325,7 +336,8 @@ export const earlyWindow = (engine, actor = null) => impactWindow(engine?.matchC
 // quella del telefono collegato a questo computer. Sullo stesso schermo (versus.local) il suo telefono è collegato qui: niente
 export const P2_LATE_MARGIN = .03;
 const isP2 = (engine, actor) => !!actor && actor === engine.opponent;
-export const lateMargin = (engine, actor) => (isP2(engine, actor) && !engine.versus?.local ? P2_LATE_MARGIN : 0);
+// B25: il più giovane aiutato nello stesso schermo ha «late» secondi in più (natpf_duo_rules.HELP)
+export const lateMargin = (engine, actor) => (isP2(engine, actor) && !engine.versus?.local ? P2_LATE_MARGIN : 0) + (helpOf(engine, actor)?.late || 0);
 const pendKey = (engine, actor) => (isP2(engine, actor) ? 'pendingP2Swing' : 'pendingUserSwing');
 const strike = (engine, actor, evt) => (isP2(engine, actor) ? engine._attemptP2RallyStrike(evt) : engine._attemptPlayerRallyStrike(evt, !1));
 // palla corta o pallonetto confermati dalla forma del colpo (natpf_stroke_intent.js)
@@ -367,7 +379,9 @@ export function queueUserSwing(engine, e, actor){
   const W = impactWindow(engine.matchConfig?.difficulty), ttc = timeToContact(engine, actor);
   if (ttc == null) return null;
   const lat = eventLatency(e), lead = ttc + lat, now = finite(engine.elapsedTime);
-  const lateSpan = lateSpanOf(engine.ball.vel.z, skillLevel(engine.matchConfig?.difficulty)) + lateMargin(engine, actor), key = pendKey(engine, actor);
+  // (B25: per chi è aiutato la finestra del livello è più larga, helpLevel; senza aiuto è lo stesso oggetto di prima)
+  // … e con il campo aperto chi è in corsa o in allungo ha meno margine (openTight: 1 esatto se spento)
+  const lateSpan = (lateSpanOf(engine.ball.vel.z, helpLevel(skillLevel(engine.matchConfig?.difficulty), helpOf(engine, actor))) + lateMargin(engine, actor))*openTight(engine, actor), key = pendKey(engine, actor);
   const net = nearNetActor(actor), strength = swingStrength(e), weak = weakSwing(e, net);
   if (ttc < 0){
     if (weak) return 'ignored';
@@ -383,7 +397,7 @@ export function queueUserSwing(engine, e, actor){
     const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, { x: gx, z: gz } = ballAtGesture(b, lat);
     const behind = (gz - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
     const extra = W.lateExtra || IMPACT.lateExtra;
-    if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(gx - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4){
+    if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(gx - actor.pos.x) <= reachOf(engine, actor) && b.pos.y < 3.4){
       engine[key] = null;
       return strike(engine, actor, { ...e, natpfTau: lead, natpfLateSpan: lateSpan }) ? 'late' : 'whiff';
     }
@@ -440,7 +454,7 @@ export function resolvePending(engine, actor){
     if (ps.softDefer && now < ps.deferUntil) return false;
     engine[key] = null;
     if (ps.lead > early){ engine._natpfEarlyWhiff?.(ps); return true; }
-    if (Math.abs(b.pos.x - actor.pos.x) > IMPACT.reach || b.pos.y >= 3.4){ engine._natpfEarlyWhiff?.({ ...ps, natpfWhy: 'portata' }); return true; }
+    if (Math.abs(b.pos.x - actor.pos.x) > reachOf(engine, actor) || b.pos.y >= 3.4){ engine._natpfEarlyWhiff?.({ ...ps, natpfWhy: 'portata' }); return true; }
     strike(engine, actor, ps.evt);
     return true;
   }

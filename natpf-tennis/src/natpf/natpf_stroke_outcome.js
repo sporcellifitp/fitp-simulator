@@ -339,12 +339,14 @@ export const SUPER = Object.freeze({ power: .86, conf: .5, sideWrong: .35, timin
 // Solo un numero vale come typePower (null, registrazioni vecchie: si usa power)
 export const superStrength = (intent = {}, d = 0) => (Number.isFinite(intent?.typePower) ? clamp(intent.typePower) : clamp(finite(intent?.power, d)));
 // { on, why[], ball } — ball: 'alta' | 'lenta' | 'corta' | 'schiacciata'
-export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false } = {}){
+// strong (B25, solo tra due persone nello stesso schermo): true/false se il gesto è fortissimo rispetto al proprio colpo
+// abituale (natpf_duo_rules.relStrong) e decide lui al posto della soglia uguale per tutti; null: la soglia di sempre
+export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false, strong = null } = {}){
   const no = why => ({ on: false, why: [why], ball: null });
   if (!out || out.failed || out.weak || out.netFault) return no('colpo non riuscito');
   const shot = String(out.shot || '').toUpperCase();
   if (!['TOPSPIN', 'FLAT', 'SMASH'].includes(shot)) return no(`colpo ${shot.toLowerCase()}`);
-  if (superStrength(intent) < SUPER.power) return no('gesto non abbastanza forte');
+  if (typeof strong === 'boolean' ? !strong : superStrength(intent) < SUPER.power) return no('gesto non abbastanza forte');
   if (Number.isFinite(intent.conf) && intent.conf < SUPER.conf) return no('gesto poco chiaro');
   if (shot !== 'SMASH' && finite(ballSide)*(finite(contact, 1) >= 0 ? 1 : -1) < -SUPER.sideWrong) return no('colpo innaturale (palla dall\'altra parte)');
   if (finite(out.excess) > 0 || Math.abs(finite(out.t)) > SUPER.timing) return no('fuori tempo');
