@@ -23,3 +23,9 @@ export function firstServer(choice, rnd = Math.random){
   const c = serveChoice(choice);
   return c === 'random' ? (rnd() < .5 ? 'player' : 'opponent') : c;
 }
+// Stesso schermo (B20, decisione dell'utente del 10/11 sull'audit B19: «sorteggio»): la scelta ha la sua chiave e di base
+// è il sorteggio (prima valeva quella delle altre partite, di base il Player 1, che nel formato classico batteva tutto il
+// game). Resta modificabile nella pagina «Partita» → «Altre impostazioni» → «Batte per primo». Le altre partite (CPU,
+// sfida tra due computer) tengono la loro scelta, di base chi gioca qui
+export const SPLIT_SERVE_KEY = 'natpf-tennis.serve.split';
+export const splitServeChoice = v => (SERVE_CHOICES.includes(v) ? v : 'random');

@@ -36,10 +36,13 @@ const REASON = {
   Point: (mine, r) => (mine ? `${r.Who} non ci arriva` : 'Palla non presa'),
 };
 
-export function pointCall({ winner = 'player', why = '', viewer = 'player', rival = rivalOf({ viewer }), score = null, sharedNames = null } = {}){
+// whiff (B20, audit B19 punto 18): nello stesso schermo chi ha perso il punto ha fatto il gesto ed è andato a vuoto. Prima
+// il banner diceva «Vincente di Giulia» anche così (un punto su tre): ora «Colpo a vuoto di Marco»
+export function pointCall({ winner = 'player', why = '', viewer = 'player', rival = rivalOf({ viewer }), score = null, sharedNames = null, whiff = false } = {}){
   if (sharedNames){
     const win = sharedNames[winner], lose = sharedNames[winner === 'player' ? 'opponent' : 'player'];
-    const reason = why === 'Out' ? `Errore di ${lose}: palla fuori` : why === 'Net' ? `Errore di ${lose}: palla in rete` : why === 'Point' ? `${lose} non ci arriva` : why === 'Ace!' ? `Ace di ${win}` : why === 'Nice Shot!' ? `Vincente di ${win}` : '';
+    const reason = why === 'Out' ? `Errore di ${lose}: palla fuori` : why === 'Net' ? `Errore di ${lose}: palla in rete` : why === 'Point' ? `${lose} non ci arriva` : why === 'Ace!' ? `Ace di ${win}`
+      : why === 'Nice Shot!' ? (whiff ? `Colpo a vuoto di ${lose}` : `Vincente di ${win}`) : '';
     // stesso schermo (B18, difetto 4 del B16): «0» e non «00», «Parità» a 40-40 come contro la CPU; con il formato in
     // fiera (B18, natpf_fair_format.js) a 40-40 «Punto decisivo»
     const sc = !score ? '' : score.deciding ? 'Punto decisivo' : score.player === 'Ad' ? `Vantaggio ${sharedNames.player}` : score.opponent === 'Ad' ? `Vantaggio ${sharedNames.opponent}`
@@ -55,6 +58,24 @@ export function pointCall({ winner = 'player', why = '', viewer = 'player', riva
     subText: [reason, sc].filter(Boolean).join(' · '),
     style: mine ? 'style-won' : 'style-lost',
   };
+}
+
+// B20 (audit B19, miglioramento 3): nello stesso schermo l'inizio della partita dice chi batte per primo, e se è uscito
+// dal sorteggio («Sorteggio: batte Giulia»; con la scelta fissa «Batte Marco»). Fuori dallo stesso schermo niente
+export function firstServeText({ sharedNames = null, server = 'player', drawn = false } = {}){
+  const who = sharedNames?.[server === 'opponent' ? 'opponent' : 'player'];
+  return who ? `${drawn ? 'Sorteggio: batte' : 'Batte'} ${who}` : '';
+}
+
+// B20 (audit B19, punto 18): nello stesso schermo «Palla match», «Palla game» e «Palla break» dicono di chi sono
+// («Match Point Giulia», che l'HUD scrive «Palla match Giulia»). label: l'etichetta inglese del motore
+// (_getHighStakesPointLabel); points: [punti del player, punti dell'opponent]. Il punto decisivo è di tutti e due: resta
+// senza nome. Fuori dallo stesso schermo l'etichetta resta com'è
+export function stakesText(label, { sharedNames = null, points = [0, 0] } = {}){
+  if (!label || !sharedNames || label === 'Deciding Point') return label;
+  const [p, o] = points.map(v => Math.max(0, v | 0));
+  const who = p >= 3 && p - o >= 1 ? 'player' : o >= 3 && o - p >= 1 ? 'opponent' : null;
+  return who && sharedNames[who] ? `${label} ${sharedNames[who]}` : label;
 }
 
 // game e partita: games: { player, opponent } dopo il game

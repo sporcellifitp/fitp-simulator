@@ -1730,8 +1730,22 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .natpf-serve-coach[data-state="go"] { box-shadow: inset 0 0 0 max(3px, 0.5cqh) #3be37f, 0 0 3cqh rgba(59, 227, 127, 0.55); }
 .natpf-serve-coach[data-state="go"] b { font-size: 2.4em; color: #3be37f; }
 .natpf-serve-coach[data-state="miss"] { box-shadow: inset 0 0 0 max(2px, 0.35cqh) #ff4d5e, 0 0.4cqh 2cqh rgba(0, 0, 0, 0.45); }
-.natpf-serve-coach[data-side="left"] { left: 25cqw; max-width: 46cqw; font-size: clamp(12px, 2.4cqh, 48px); }
-.natpf-serve-coach[data-side="right"] { left: 75cqw; max-width: 46cqw; font-size: clamp(12px, 2.4cqh, 48px); }
+/* B20 (audit B19, punto 8): nello stesso schermo il riquadro sta SOTTO il tabellone della sua metà e non lo copre più
+   (prima a 15 cqh, sopra la seconda riga del tabellone: coperta per il 12–16% a 1280×720 e 1920×1080, per il 29–50% a
+   720×720). L'altezza è quella dell'avviso «In attesa di Player 2» (natpf-round.css: --sb-top + 4,8 × --sb + 1,5 × il
+   sottotitolo), più 1 cqh. Largo uguale nelle due metà: prima quella di destra partiva dal suo centro (left 75 cqw) e
+   restava stretta un quarto di schermo, con il testo su 2–3 righe; ora ogni riquadro è centrato nella sua metà con i due
+   bordi (left/right + margin auto). Nelle aree strette e alte il carattere segue anche la larghezza (1,45 cqw) */
+.natpf-serve-coach[data-side="left"],
+.natpf-serve-coach[data-side="right"],
+.natpf-serve-coach[data-call] {
+  top: calc(var(--sb-top, clamp(12px, 6cqh, 64px)) + 4.8 * var(--sb, clamp(17px, 3cqh, 40px)) + 1.5 * max(12px, 0.6 * var(--sb, clamp(17px, 3cqh, 40px))) + 1cqh);
+  transform: none; width: fit-content; margin-inline: auto; max-width: 46cqw; font-size: clamp(12px, min(2.4cqh, 1.45cqw), 48px);
+}
+.natpf-serve-coach[data-side="left"] { left: 0; right: 50cqw; }
+.natpf-serve-coach[data-side="right"] { left: 50cqw; right: 0; }
+/* richiamo per nome a chi deve battere («Marco, batti tu»): a tutta larghezza, sotto i due tabelloni */
+.natpf-serve-coach[data-call] { left: 0; right: 0; max-width: 86cqw; font-size: clamp(13px, min(3cqh, 2cqw), 60px); }
 
 /* B18: Combo, animazione del colpo chiesto (incrociato, lungolinea, colpi speciali già imparati) in alto a destra, sotto il
    pulsante della pausa: chi arriva per la prima volta vede il gesto mentre la palla arriva (natpf_events.paintDemo) */

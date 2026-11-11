@@ -15,6 +15,7 @@ export const SERVE_COACH = Object.freeze({
   apexBefore: .24,     // s prima del punto più alto: «Colpisci!»
   apexAfter: .32,      // s dopo il punto più alto: ancora «Colpisci!» (la battuta vale fino a ~0,4 s dopo)
   idleS: 6,            // s fermi al servizio senza lanciare: torna l'istruzione del lancio
+  callS: 9,            // s fermi al servizio nello stesso schermo: richiamo per nome a tutta larghezza (B20, audit B19 punto 9)
   missS: 4,            // s in cui resta la scritta del lancio a vuoto (poi di nuovo l'istruzione del lancio)
   gravity: 9.15,        // gravità del motore nel lancio (L.GRAVITY, natpf_impact.PHYS.GRAVITY; revisione B18: era 9,81)
   fallY: 1.6,           // m: senza il segnale del motore (Player 2 sull'altro computer) lancio a vuoto se la palla era sotto
@@ -36,6 +37,10 @@ export function serveCoachView(s = {}, g = {}){
   const learning = servedBy(s, g.server) < SERVE_COACH.firstServes, missed = s.missAt != null, toss = TOSS[g.controller] || TOSS.phone;
   if (g.phase === 'SERVE_STANCE'){
     if (missed && (g.now ?? 0) - s.missAt <= SERVE_COACH.missS) return { state: 'miss', big: 'Colpisci quando la palla è in alto', sub: `Lancio a vuoto: riprova. ${toss}` };
+    // B20 (audit B19, punto 9): nello stesso schermo chi deve battere e resta fermo viene chiamato per nome, a tutta
+    // larghezza, così l'altro e la fila capiscono chi sta aspettando il gioco (prima solo l'istruzione, senza nome, anche
+    // dopo 40 s). Solo testo: nessuna voce nuova
+    if (g.name && (g.idle ?? 0) >= SERVE_COACH.callS) return { state: 'toss', call: true, big: `${g.name}, batti tu`, sub: toss };
     if (learning || missed || (g.idle ?? 0) >= SERVE_COACH.idleS) return { state: 'toss', big: toss, sub: 'Poi colpisci quando la palla è in alto' };
     return null;
   }
@@ -85,6 +90,8 @@ export class NatpfServeCoach {
     // stesso schermo: due telefoni o una webcam per due (natpf_split_ui.input); revisione B18: prima sempre «telefono»
     const controller = split ? (U.split?.webcam ? 'webcam' : 'phone') : (U.controller || 'phone');
     return { phase: E.phase, mine, split, side: split ? (sc.server === 'opponent' ? 'right' : 'left') : 'center', server: sc.server,
+      // nome di chi batte, solo nello stesso schermo (richiamo per nome, B20)
+      name: split ? (E.natpfSplitNames?.[sc.server === 'opponent' ? 'p2' : 'p1'] || (sc.server === 'opponent' ? 'Player 2' : 'Player 1')) : '',
       controller, tossT: Number.isFinite(vy) ? vy/SERVE_COACH.gravity : null, now: E.elapsedTime || 0,
       ballY: E.ball?.pos?.y ?? null, ballVy: Number.isFinite(vy) ? vy : null,
       // segnali del motore; il computer del P2 nella sfida tra due computer non fa la fisica (riceve lo stato): null
@@ -105,12 +112,14 @@ export class NatpfServeCoach {
   }
   paint(v, g = {}){
     const el = this.el; if (!el) return;
-    const key = v ? `${v.state}|${v.big}|${v.sub}|${g.side}` : '';
+    const key = v ? `${v.state}|${v.big}|${v.sub}|${g.side}|${v.call ? 1 : 0}` : '';
     if (key === this.shown) return;
     this.shown = key;
     el.classList.toggle('hidden', !v);
     if (!v) return;
     el.dataset.state = v.state; el.dataset.side = g.side || 'center';
+    // richiamo per nome: a tutta larghezza, sotto i due tabelloni (natpf-ui.css)
+    if (v.call) el.dataset.call = '1'; else delete el.dataset.call;
     const big = el.querySelector?.('[data-c="big"]'), sub = el.querySelector?.('[data-c="sub"]');
     if (big) big.textContent = v.big;
     if (sub){ sub.textContent = v.sub; sub.hidden = !v.sub; }
