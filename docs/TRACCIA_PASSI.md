@@ -42,6 +42,16 @@ opzione), con revisore indipendente e correzioni (ramo `worktree-wf_190d3d32-58d
       blocked» sul budget resta ma non blocca i repository pubblici.
 - [x] Detto all'utente come si spegne la scia (Opzioni → «Scia della palla») e `?trailer=0`
 
+**Collaudo dell'utente sulla 2026-11-11.2 (programma Windows, 11/11 notte) → correzione B26 in corso:**
+- [~] **Trailer non visto**: all'avvio è partito il video di prima (ripiego). Nel programma il trailer è locale: l'attesa
+      di 1,5 s e la condizione «6 s su 10 già scaricati» sono troppo severe all'avvio vero (il gioco blocca la pagina mentre
+      carica). Da fare: nel programma Windows aspettare di più e bastare che il video possa partire; controllare che il file
+      sia davvero dentro l'installer e servito.
+- [~] **Scia «gialla ma poco diversa»** da quella bianca di prima: renderla più evidente (più larga, più lunga, giallo più
+      pieno, alone), restando un po' sotto il trailer; l'opzione «Scia della palla: No» deve continuare a dare il disegno di prima.
+- Agente in worktree `agent-*` nuova (`git worktree list`); poi schermate guardate, controllo rapido, versione 2026-11-11.3
+  (o del giorno), zip e installer SUBITO all'utente, prove complete dopo.
+
 **In corso dalle 22:26 UTC dell'11/11: B25** (workflow `b25-stesso-schermo-equilibrio`, run `wf_d8163833-9f8`: agente in
 worktree `wf_d8163833-9f8-1` → revisore indipendente → correzioni). Se si ferma per il limite d'uso: rilanciare con
 `Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b25-stesso-schermo-equilibrio-wf_d8163833-9f8.js', resumeFromRunId: 'wf_d8163833-9f8'})`;
