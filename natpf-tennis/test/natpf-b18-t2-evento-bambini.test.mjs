@@ -11,7 +11,7 @@ import { EVENTO, eventoStep, eventoPoint, eventoReset, eventoState, eventoK, eve
 import { ASSIST, assistOf, IMPACT, impactWindow, SUPER } from '../src/natpf/natpf_stroke_outcome.js';
 import { lateMargin } from '../src/natpf/natpf_impact.js';
 import { WHO, WHO_LEVEL, WHO_DEFAULT, CPU_LEVELS, whoOfLevel, urlLevel, baseLevel, levelSummary, whoNote } from '../src/natpf/natpf_who.js';
-import { CUE, cueOn, cueDefault, cueView, readCue, writeCue, CUE_KEY } from '../src/natpf/natpf_timing_cue.js';
+import { CUE, cueOn, cueDefault, cueView, cueHold, readCue, writeCue, CUE_KEY } from '../src/natpf/natpf_timing_cue.js';
 import { superHint, superReason, SUPER_RULE } from '../src/natpf/natpf_super_hint.js';
 import { matchSummary } from '../src/natpf/natpf_lobby.js';
 
@@ -260,12 +260,31 @@ test('segnale: l\'anello si stringe mentre la palla arriva, è verde nella fines
   assert.ok(NS.SKILL_LEVELS.bambini.timingSpan > span, 'a Bambini la finestra verde è più larga');
 });
 
+test('segnale: l\'anello non si riallarga mentre la stessa palla arriva; una palla nuova riparte larga', () => {
+  const span = NS.SKILL_LEVELS.casual.timingSpan;
+  let floor = Infinity; const shown = [];
+  // la stima del tempo torna indietro due volte (al rimbalzo): l'anello resta fermo, poi riprende a stringersi
+  for (const ttc of [.8, .7, .78, .6, .66, .5, .3, .1, 0, -.02]){ const r = cueHold(cueView(ttc, span), floor); floor = r.floor; shown.push(r.view.diameter); }
+  for (let i = 1; i < shown.length; i++) assert.ok(shown[i] <= shown[i - 1] + 1e-9, `passo ${i}: ${shown[i - 1]} → ${shown[i]}`);
+  assert.equal(shown[2], shown[1], 'stima tornata indietro: fermo al più stretto già visto'); assert.ok(shown[3] < shown[2]);
+  const held = cueHold(cueView(.78, span), cueView(.7, span).diameter).view;
+  assert.ok(near(held.size, (held.diameter - CUE.tight)/(CUE.wide - CUE.tight), 1e-3) && held.phase === 'wait');
+  // fase e istante del verde non cambiano: decide sempre il tempo vero
+  assert.equal(cueHold(cueView(0, span), 9).view.phase, 'now'); assert.deepEqual(cueHold(cueView(0, span), CUE.tight + .2).view, cueView(0, span));
+  const green = cueHold(cueView(.02, span), CUE.tight);
+  assert.equal(green.view.phase, 'now'); assert.equal(green.view.diameter, CUE.tight, 'anche da verde non si riallarga');
+  assert.deepEqual(cueHold(null, 1.2), { view: null, floor: Infinity }, 'anello sparito: la palla dopo riparte larga');
+});
+
 test('segnale: è solo disegno, la partita simulata è la stessa con il segnale acceso o spento (stessi semi)', async () => {
   const { NatpfTimingCue } = await import('../src/natpf/natpf_timing_cue.js');
-  let seen = 0;
+  let seen = 0, grown = 0, last = null, key = null;
   const run = on => simulate({ profile: 'amatore', difficulty: 'bambini', points: 25, seed: 11, setup: e => { e.natpfCueTest = new NatpfTimingCue(e); e.natpfCueTest.pref = on ? 'on' : 'off'; },
-    onStep: e => { e.natpfCueTest.update(1/120); if (e.natpfCueTest.view) seen++; } });
+    onStep: e => { e.natpfCueTest.update(1/120); const v = e.natpfCueTest.view, k = `${e.ball.rallyStrokeCount}|${e.ball.lastHitter}`;
+      if (k !== key || !v){ key = k; last = null; }
+      if (v){ seen++; if (last != null && v.diameter > last + 1e-9) grown++; last = v.diameter; } } });
   const acceso = run(true), visti = seen; seen = 0;
+  assert.equal(grown, 0, 'nel motore l\'anello non torna mai più largo mentre la stessa palla arriva');
   const spento = run(false);
   assert.ok(visti > 200, `acceso: l'anello è in vista mentre la palla arriva (${visti} passi)`); assert.equal(seen, 0, 'spento: mai');
   assert.deepEqual(acceso.rallies, spento.rallies); assert.equal(acceso.won, spento.won); assert.deepEqual(acceso.grades, spento.grades);

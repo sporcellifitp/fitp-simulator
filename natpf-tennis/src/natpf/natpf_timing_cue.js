@@ -56,6 +56,17 @@ export function cueView(ttc, span = SWING_AIM.timingSpan){
   return { size, diameter: +(CUE.tight + (CUE.wide - CUE.tight)*size).toFixed(3), phase: ttc > perfect ? 'wait' : ttc >= -perfect ? 'now' : 'late' };
 }
 
+// pura: l'anello non si riallarga mai mentre la stessa palla arriva. Il tempo che manca all'impatto è una stima che il
+// gioco corregge in volo (al rimbalzo, quando chi gioca si sposta): senza questo l'anello tornava più largo in una palla
+// su tre, fino a 0,6 m. floor: il diametro più stretto già mostrato per questa palla (Infinity: palla nuova).
+// Restituisce { view, floor }: l'anello resta fermo al più stretto già visto, poi riprende a stringersi. La fase (giallo,
+// verde, rosso) non cambia: la decide sempre il tempo vero
+export function cueHold(view, floor = Infinity){
+  if (!view) return { view: null, floor: Infinity };
+  if (view.diameter > floor) return { view: { ...view, diameter: floor, size: clamp01((floor - CUE.tight)/(CUE.wide - CUE.tight)) }, floor };
+  return { view, floor: view.diameter };
+}
+
 function ringTexture(){
   const c = typeof document != 'undefined' ? document.createElement('canvas') : null, g = c && c.getContext ? c.getContext('2d') : null;
   if (!g) return null;
@@ -71,6 +82,7 @@ export class NatpfTimingCue {
     this.engine = engine;
     this.pref = readCue();
     this.view = null;            // ultimo anello disegnato (per le prove)
+    this._flight = null; this._floor = Infinity;   // palla in arrivo di adesso e diametro più stretto già mostrato
     this.sprite = this._build();
   }
   _build(){
@@ -91,6 +103,10 @@ export class NatpfTimingCue {
     let v = null;
     if (this.enabled && E.phase === 'RALLY' && b?.inPlay && b.lastHitter !== 'player' && !E.autoPlayMode && !E.natpfReplay?.playing)
       v = cueView(timeToContact(E, E.player), skillLevel(E.matchConfig?.difficulty).timingSpan);
+    // una palla nuova (un altro colpo, o l'anello era sparito) riparte larga; la stessa palla non si riallarga (cueHold)
+    const flight = v ? `${b.rallyStrokeCount}|${b.lastHitter}` : null;
+    if (flight !== this._flight){ this._flight = flight; this._floor = Infinity; }
+    ({ view: v, floor: this._floor } = cueHold(v, this._floor));
     this.view = v;
     const s = this.sprite; if (!s) return;
     s.visible = !!v;
