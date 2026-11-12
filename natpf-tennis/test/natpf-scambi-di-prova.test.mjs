@@ -488,7 +488,7 @@ test('«Ricalibra» a partita in corso con «Giocando»: si rifanno gli scambi d
 });
 
 /* ---------- con il telefono simulato (sensori, rilevatore e messaggi veri): scripts/audit/scambi-di-prova.mjs ---------- */
-import { PEOPLE, runPath, passHand, trialPhone, simplePhone } from '../scripts/audit/scambi-di-prova.mjs';
+import { PEOPLE, runPath, passHand, trialPhone, simplePhone, gesturePhone } from '../scripts/audit/scambi-di-prova.mjs';
 import { STROKES } from './arm-sim.mjs';
 
 test('telefono simulato: dagli scambi di prova il profilo del proprio colpo (forza per verso, salita, mira), destro e mancino', () => {
@@ -540,6 +540,30 @@ test('telefono simulato: chi colpisce una volta per lato, solo da un lato o mai 
   const none = trialPhone({ seed: 2, hand: 'right', person: PEOPLE.adulto, hits: () => false });
   assert.equal(none.trialResult.level, 'none'); assert.ok(none.profile.simple, 'come «Salta»'); assert.equal(none.trialResult.balls, 6);
   const S = simplePhone({ seed: 2, hand: 'right' }); assert.ok(S.profile.simple);
+});
+
+// Revisione del B28, difetto 5 (limite scritto, codice lasciato com'è): chi colpisce pianissimo (0,2 volte il colpo di un
+// adulto, picco attorno a 130 °/s) resta sotto le soglie del profilo semplice (inizio 70, picco 120 °/s). Abbassare le
+// soglie durante gli scambi di prova è stato provato e scartato: con il profilo semplice (senza asse dei gesti) fa colpi
+// doppi a tutti (scratchpad b28/banco/giro2-colpi-deboli.txt). Per questo giocatore la via è «Calibra con i gesti»
+test('limite scritto (revisione 5): colpi pianissimi (0,2×) non si imparano dagli scambi di prova ma la partita parte lo stesso; con «Calibra con i gesti» si leggono', () => {
+  const person = { label: 'pianissimo', k: .2, kSd: .15, yawSd: 10, calK: .7 };
+  let p = 0, g = 0, learned = 0;
+  for (const seed of [1, 2, 3, 4]){
+    const P = trialPhone({ seed, hand: 'right', person }), G = gesturePhone({ seed, hand: 'right', kc: .2 });
+    assert.ok(['none', 'partial'].includes(P.trialResult.level), P.trialResult.level); assert.equal(P.trialResult.balls, 6, 'sei palle e si parte: nessun blocco');
+    if (P.trialResult.level !== 'none') learned++;
+    for (let i = 0; i < 10; i++){
+      const o = { side: i % 2 ? 'backhand' : 'forehand', k: .2, yaw: 0 };
+      if (gesture(P, { ...o, R: rng(300 + i) }).length === 1) p++;
+      if (gesture(G, { ...o, R: rng(300 + i) }).length === 1) g++;
+    }
+  }
+  assert.equal(g, 40, `con i due gesti: ${g}/40 colpi letti`);
+  assert.ok(learned <= 1 && p <= 10, `dopo gli scambi di prova: ${p}/40 colpi letti, ${learned}/4 telefoni che imparano (il limite: se cambia, aggiornare il documento)`);
+  // a 0,3× (picco attorno a 190 °/s) gli scambi di prova bastano
+  const Q = trialPhone({ seed: 3, hand: 'right', person: { ...person, k: .3 } });
+  assert.ok(['full', 'ok'].includes(Q.trialResult.level), Q.trialResult.level);
 });
 
 import { progressSteps } from '../src/natpf/natpf_lobby.js';
