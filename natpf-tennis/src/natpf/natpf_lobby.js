@@ -438,7 +438,7 @@ export class NatpfLobby {
     if (this.step === 'connect' && step !== 'connect'){ this.releaseTutorial(); this.wantWarmup = false; }
     // al menu principale: visitatore nuovo, niente riscaldamento chiesto né già fatto; il telefono che aspettava il tutorial
     // per chi non è entrato in campo («Nuovo giocatore» e poi «Menu») non aspetta più
-    if (step === 'menu'){ this.wantWarmup = false; this.warmupDone = false; this.trialPlayed = false; this.releaseTutorial(); }
+    if (step === 'menu'){ this.wantWarmup = false; this.warmupDone = false; this.trialPlayed = false; this.ui.trialSkipOnce = false; this.releaseTutorial(); }
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);

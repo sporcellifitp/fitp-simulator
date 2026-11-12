@@ -512,3 +512,19 @@ test('«Nuovo giocatore» con «Giocando»: nome, tutorial corto (si chiude subi
   playTrial(w, (id, n, want) => stroke({ dir: want, peak: 420 }));
   assert.equal(E.natpfMatchSeq, 2); assert.equal(P.profile.ref, 420);
 });
+
+test('«Riscaldati prima» con «Giocando»: il riscaldamento insegna il colpo; il «Gioca» che segue parte subito (una volta), quello dopo rifà gli scambi di prova', async () => {
+  const w = await playWorld(), { E, ui, lobby, link, P } = w, T = ui.training;
+  lobby.warmupFirst(); w.advance(300);
+  assert.ok(T.active && T.learn && P.trialOn, 'riscaldamento: dritto e rovescio insegnano il profilo');
+  let seen = -1;
+  for (let k = 0; k < 1500 && T.learn; k++){ w.advance(16); if (hot(E, 'p1') && seen !== P.trial.ball){ seen = P.trial.ball; P._onSwing(stroke({ dir: ballWant(E), peak: 610 })); w.advance(150); } }
+  assert.ok(!T.learn && P.profile.trial && P.profile.ref === 610); assert.equal(ui.trialSkipOnce, true);
+  T.skip(); w.advance(300);                                                  // «Salta tutto ›»: alla pagina «Partita»
+  assert.ok(!T.active && lobby.visible && lobby.step === 'match');
+  const c0 = link.cmds.length;
+  assert.equal(w.pressStart(), true, 'appena riscaldato: la partita parte subito'); assert.ok(!ui.trial.active && E.natpfMatchSeq === 1);
+  assert.deepEqual(link.cmds.slice(c0), [], 'il profilo del riscaldamento resta'); assert.equal(P.profile.ref, 610);
+  // partita dopo: di nuovo gli scambi di prova
+  ui.backToMenu('match'); assert.equal(w.pressStart(), false); assert.ok(ui.trial.active);
+});

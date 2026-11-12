@@ -633,7 +633,13 @@ export class NatpfTraining {
     E.hud.showTitleModal();
     this.ui.flow?.onTrainingEnd({ completed, skipped, calibrated, stats: this.stats });
   }
-  _endLearn(){ if (this.learn){ this.learn = false; this.ui.phone.endTrial?.(); } }
+  // (riscaldamento prima della partita con il profilo imparato: il «Gioca» che segue non rifà gli scambi di prova, una volta)
+  _endLearn(){
+    if (!this.learn) return;
+    this.learn = false;
+    const r = this.ui.phone.endTrial?.();
+    if (r && r.level !== 'none' && this.ui.flow?.mode !== 'training') this.ui.trialSkipOnce = true;
+  }
   // Pannello in campo: tappe in alto, in basso al centro il gesto da fare (titolo grande, freccia, stato) e l'esito
   paint(){
     if (!this.active || !this.coach) return;

@@ -234,7 +234,7 @@ export class NatpfUi {
   }
   // «Nuovo giocatore»: azzera nome, mano, tutorial, calibrazione e colpi imparati senza scollegare il telefono, e porta chi
   // arriva al passo giusto (natpf_new_player.js). Restituisce la strada presa ('match', 'challenge', 'split', 'versus', 'menu')
-  newPlayer(){ return resetVisitor(this); }
+  newPlayer(){ this.trialSkipOnce = false; return resetVisitor(this); }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer
   _paintVictory(){
     const versus = this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || !!this.versus?.hostActive;
@@ -411,8 +411,10 @@ export class NatpfUi {
       // sfida tra due computer: si parte solo con il Player 2 entrato e pronto
       if (mode === 'friend' && this.versus?.hostActive && !this.versus.canStart()){ e.stopImmediatePropagation(); this.toast(this.versus.state === 'waiting' ? 'Manda il link al Player 2: la partita parte quando è pronto' : 'Il Player 2 sta scegliendo la racchetta: aspetta «pronto»'); return; }
       if (this.controller === 'phone' && !this.phone.soonReady){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); return; }
-      if (mode !== 'friend' && this.trial.due({ split: false })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: false, then: () => this._startMatchNow() }); return; }
-      if (mode !== 'friend' && cal === 'none' && this.controller === 'phone') this.phone.freshPlayer?.();
+      // (appena finito «Riscaldati prima», che ha già insegnato il colpo di chi gioca: niente scambi di prova, una volta)
+      const warmed = !!this.trialSkipOnce && !!this.phone.profile?.trial; this.trialSkipOnce = false;
+      if (mode !== 'friend' && !warmed && this.trial.due({ split: false })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: false, then: () => this._startMatchNow() }); return; }
+      if (mode !== 'friend' && !warmed && cal === 'none' && this.controller === 'phone') this.phone.freshPlayer?.();
       this.wipe(mode === 'friend' ? 'Sfida 1v1' : 'Si gioca');
     }, true);
   }
