@@ -10,6 +10,8 @@
 // lato lungo tenuto in verticale, senza il percorso della testa della racchetta che il modello del colpo misura.
 // Prende il posto di natpf-flat-grip.mjs, che prova la presa orizzontale non più offerta dal gioco.
 // Eventi devicemotion sintetici: non sostituiscono la prova con un telefono vero.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn, execFileSync } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

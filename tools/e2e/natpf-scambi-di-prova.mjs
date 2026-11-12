@@ -78,7 +78,8 @@ const trialState = () => pages.pc.evaluate(async () => {
   const out = { active: T.active, phase: T.S?.phase || null, receiver: T.S?.receiver || null, seq: E.natpfMatchSeq || 0, enginePhase: E.phase, t: T.S?.t ?? null, ball: T.S ? Object.fromEntries(Object.entries(T.S.players).map(([k, v]) => [k, v.balls])) : null };
   for (const id of ['p1', 'p2']){
     const P = id === 'p2' ? E.natpfPlanP2 : E.natpfPlan, mine = id === 'p2' ? 'opponent' : 'player';
-    out[id] = { left: P && E.ball.inPlay && E.ball.lastHitter !== mine ? +(P.at + P.t - E.elapsedTime).toFixed(3) : null, at: P ? P.at : null, want: m.ballSideNow(E, id) };
+    const ph = id === 'p2' ? E.natpfPhone2 : E.natpfPhone;
+    out[id] = { left: P && E.ball.inPlay && E.ball.lastHitter !== mine ? +(P.at + P.t - E.elapsedTime).toFixed(3) : null, at: P ? P.at : null, want: m.ballSideNow(E, id, ph?.trial?.at ?? null) };
   }
   return out;
 });

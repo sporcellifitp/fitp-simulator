@@ -9,6 +9,8 @@
 // DIFF=casual|pro|leggenda: livello della CPU (B16: con le regole del livello, velocità della CPU compresa; prima cambiava
 // solo il nome del livello). CPU_SHOTS=n salva i primi n fotogrammi all'impatto della CPU (gioco fermo per lo scatto).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-rally.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

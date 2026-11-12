@@ -447,8 +447,9 @@ function tutDone(){
   clearTimeout(tutLitT); $('#tutOk').classList.remove('lit');
   sendState(); paint();
 }
-// «Tutto chiaro» appena acceso: un lampo breve e una vibrazione (chi guarda il computer lo sente nella mano)
-function lightTut(){ const b = $('#tutOk'); b.classList.remove('lit'); void b.offsetWidth; b.classList.add('lit'); clearTimeout(tutLitT); tutLitT = setTimeout(() => b.classList.remove('lit'), 1400); buzz([25, 40, 25]); }
+// «Tutto chiaro» quando compare (B28: acceso da subito): un lampo breve. Senza vibrazione: il tutorial può aprirsi prima
+// di un tocco sulla pagina, e lì il browser blocca la vibrazione e lo scrive come errore
+function lightTut(){ const b = $('#tutOk'); b.classList.remove('lit'); void b.offsetWidth; b.classList.add('lit'); clearTimeout(tutLitT); tutLitT = setTimeout(() => b.classList.remove('lit'), 1400); }
 // calibrazione da capo (con i tocchi: il profilo dei tocchi); chiesta con il tutorial aperto, aspetta la sua fine
 function startCal(){ sensor = 'cal'; if (inputMode === 'touch') cal.useTouch(); else cal.start(preferences(), { lead: CAL.lead }); }
 function needCal(){ if (sensorForCal(gate) === 'idle') sensor = 'idle'; else startCal(); }

@@ -875,7 +875,20 @@ body.natpf-trial-on #timing-popup { display: none !important; }
   .natpf-sheet-backdrop .natpf-sheet.staff-sheet { width: min(1500px, calc(100cqw - 2 * var(--gutter))); }
   .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(6, 1fr); }
 }
-@container natpf (max-width: 820px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(2, 1fr); } }
+/* B28: con «Calibrazione» i pulsanti sono 13 (e il telecomando dello staff, B27, ne aggiunge altri). Due colonne solo sotto
+   700 px (prima sotto 820): a 720 × 720 su due colonne sarebbero sette file e il foglio scorrerebbe; su tre sono cinque
+   file, con posto fino a 15 pulsanti */
+@container natpf (max-width: 700px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(2, 1fr); } }
+/* … e nelle aree basse (1024 × 600, 1366 × 657) su quattro colonne le file diventano quattro: foglio e pulsanti un poco
+   più stretti, così «Chiudi» resta in vista senza scorrere (prova natpf-menu; posto fino a 16 pulsanti) */
+@container natpf (min-width: 821px) and (max-height: 680px) {
+  .natpf-sheet-backdrop .natpf-sheet.staff-sheet { padding: 16px 24px 14px; }
+  .natpf-sheet.staff-sheet .sheet-title { margin-bottom: 6px; font-size: 30px; }
+  .natpf-sheet.staff-sheet .pause-grid { gap: 6px; }
+  .natpf-sheet.staff-sheet .pause-grid button { min-height: 56px; padding: 8px 12px; }
+  .natpf-sheet.staff-sheet .sheet-actions { margin-top: 10px; }
+  .natpf-sheet.staff-sheet .sheet-desc { margin-bottom: 6px; }
+}
 /* B25: a 720 × 720 i 12 pulsanti su due colonne fanno sei file e il foglio scorreva di 10 px: file un po' più strette
    (revisione: con il chiosco acceso la nota è su due righe e con le opzioni accese scorreva ancora di 6 px: altri 11 px) */
 @container natpf (max-width: 820px) and (max-height: 760px) {

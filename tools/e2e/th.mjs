@@ -26,6 +26,11 @@ export async function page(browser, url, { w = 1280, h = 760, mobile = false, in
   // Chromium recente (CI) ha DeviceMotionEvent.requestPermission come iPhone e in headless risponde «denied»: chi gioca
   // tocca «Consenti». Solo se esiste (resta il percorso Android); gli script che provano il rifiuto lo sovrascrivono dopo
   await p.addInitScript(() => { try { if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') DeviceMotionEvent.requestPermission = async () => 'granted'; } catch {} });
+  // B28: opzione dello stand «Calibrazione» per le prove (CAL=gesti | play | none). Nel gioco è di base «Giocando» (profilo
+  // semplice automatico e scambi di prova a ogni partita); le prove scritte prima del B28 provano la calibrazione con i
+  // gesti, che resta nel gioco: mettono CAL=gesti da sole (process.env.CAL ||= 'gesti' in cima allo script). Si scrive
+  // nell'archivio della pagina solo se non c'è già (una prova che cambia l'opzione dal pannello dello stand la tiene)
+  if (process.env.CAL) await p.addInitScript(v => { try { if (!localStorage.getItem('natpf-tennis.calibrazione')) localStorage.setItem('natpf-tennis.calibrazione', v); } catch {} }, process.env.CAL);
   if (init) await p.addInitScript(init);
   await p.goto(url.replace('http://127.0.0.1:8765', BASE), { waitUntil: 'domcontentloaded', timeout: 120000 });
   return { ctx, p, errs };

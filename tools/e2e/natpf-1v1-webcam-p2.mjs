@@ -18,6 +18,8 @@
 // rallenta tanto la pagina che il collegamento diretto può cadere per qualche secondo («collegamento perso») e l'host
 // può vedere il P2 fuori linea (niente letture per più di 4 s): prima di «Gioca» la prova aspetta che torni pronto.
 // Non sostituisce una webcam vera con una persona davanti: il riconoscimento della mano qui non si prova.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import http from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';

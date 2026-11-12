@@ -7,6 +7,8 @@
 //   C. durante gli esercizi: pausa con il pannello del telefono, poi si riprende da solo quando il telefono torna.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-phone-blackout.mjs
 // Eventi devicemotion sintetici e rete simulata nelle pagine: non sostituiscono la prova con un telefono e un Wi-Fi veri.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

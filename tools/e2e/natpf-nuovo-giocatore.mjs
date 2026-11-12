@@ -10,6 +10,8 @@
 //      sempre collegati.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-nuovo-giocatore.mjs     (OUT=cartella delle schermate)
 // Eventi devicemotion sintetici: non sostituiscono un telefono vero né persone vere.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

@@ -8,6 +8,8 @@
 // Schermate (OUT, predefinito la cartella temporanea) a 1280×720 e in una striscia da ledwall 1920×540.
 // Porte 3157 (gioco) e 9157 (PeerJS).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-servizio-lancio.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

@@ -20,4 +20,4 @@ export function hot(E, id = 'p1', lead = .1){
 // lato della palla in arrivo per chi gioca, come lo vede (e come lo usa il gioco): +1 alla sua destra, −1 alla sua sinistra
 export { ballSideNow } from '../src/natpf/natpf_phone_racket.js';
 import { ballSideNow } from '../src/natpf/natpf_phone_racket.js';
-export const ballWant = (E, id = 'p1') => ballSideNow(E, id);
+export const ballWant = (E, id = 'p1') => ballSideNow(E, id, (id === 'p2' ? E.natpfPhone2 : E.natpfPhone)?.trial?.at ?? null);

@@ -29,7 +29,7 @@ import { calReduce, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 import { readHand, readP2Hand, writeP2Hand, normalizeHand } from './natpf_hand.js';
 import { strokeIntent, shapeDistinct, strokePower, INTENT } from './natpf_stroke_intent.js';
 import { aimFullNow } from './natpf_aim_level.js';
-import { weakSwing, livePlan } from './natpf_impact.js';
+import { weakSwing, livePlan, planOf } from './natpf_impact.js';
 import { SMASH_FROM } from './natpf_stroke_outcome.js';
 import { createTrialLearner, readCalMode, phoneThresholds } from './natpf_trial_learn.js';
 
@@ -381,10 +381,13 @@ export function atNet(engine, role = engine.playerRole, was = false){
 // (uguale per destri e mancini: è il verso del gesto che ci si aspetta). Dal piano d'intercetto in corso, che decide da
 // che parte della palla si mette il personaggio (natpf_impact: a 0,72 m, dal lato plan.side) ed è quello che chi gioca
 // vede; senza piano, dalla posizione della palla (oltre 0,3 m di lato)
-export function ballSideNow(engine, role = engine.playerRole){
+// since: istante del motore (elapsedTime) in cui è partita questa palla (scambi di prova: trialBall). Il piano fatto da
+// allora è quello di questa palla anche quando, vicino all'impatto, non «combacia» più con la traccia prevista (livePlan:
+// nello stesso schermo, nel browser, il piano del Player 2 non combaciava più 0,2 s prima del colpo e il lato tornava 0)
+export function ballSideNow(engine, role = engine.playerRole, since = null){
   const me = actorOf(engine, role), b = engine.ball;
   if (!me?.pos || !b) return 0;
-  const plan = livePlan(engine, me);
+  const any = planOf(engine, me), plan = any && Number.isFinite(since) && any.at >= since - .05 && engine.elapsedTime - any.at < 4 ? any : livePlan(engine, me);
   if (plan && plan.kind !== 'letgo' && plan.side) return plan.side*(Math.sign(me.pos.z) || 1) >= 0 ? 1 : -1;
   const rel = ballRel(engine, role);
   return rel == null || Math.abs(rel) < .3 ? 0 : rel > 0 ? 1 : -1;
@@ -728,7 +731,7 @@ export class NatpfPhoneRacket {
     // Il lato che vota è quello che si vede al momento del colpo (ballSideNow: dove il personaggio si è messo rispetto alla
     // palla), non quello deciso al lancio: chi gioca intanto si è mosso
     const T = this.trial, probe = T && !T.keep && T.want && this._incoming() ? T.ball : null;
-    if (probe != null) this.learner.vote({ ball: probe, want: ballSideNow(this.engine, this.role), s });
+    if (probe != null) this.learner.vote({ ball: probe, want: ballSideNow(this.engine, this.role, T.at), s });
     if (this.learner.sign === -1) s = { ...s, dir: -s.dir, ...(Number.isFinite(s.aim) ? { aim: -s.aim } : {}), ...(Number.isFinite(s.twist) ? { twist: -s.twist } : {}) };
     // forza e profondità voluta rispetto al proprio colpo tipico imparato giocando (richiesta del 23/10, C4): un colpo più
     // forte del solito va più in fondo, uno più morbido più corto. Prima il riferimento era il gesto della calibrazione,
@@ -820,7 +823,7 @@ export class NatpfPhoneRacket {
     this._changed();
   }
   // palla nuova in arrivo: want = +1 alla destra di chi gioca, −1 alla sinistra (0: non si sa, il colpo non vota)
-  trialBall(want = 0){ if (this.trial){ this.trial.ball++; this.trial.want = want === 1 ? 1 : want === -1 ? -1 : 0; } }
+  trialBall(want = 0){ if (this.trial){ this.trial.ball++; this.trial.want = want === 1 ? 1 : want === -1 ? -1 : 0; this.trial.at = this.engine.elapsedTime; } }
   // palla finita (colpita o persa): fino alla prossima i gesti non votano
   trialIdle(){ if (this.trial) this.trial.want = 0; }
   get trialOn(){ return !!this.trial; }

@@ -9,6 +9,8 @@
 //   D. nessun punto assegnato per le pause, nessun errore JavaScript.
 // Non sostituisce la prova con un telefono vero: quando Android sospende i sensori o nega il blocco lo dice solo lui.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-phone-keep.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

@@ -15,6 +15,8 @@
 //   6. «Nuovo giocatore» dal pannello dello stand: le fasce tornano Adulto.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-stesso-schermo-b25.mjs     (OUT=cartella delle schermate)
 // Eventi devicemotion sintetici e due pagine del telefono sulla stessa macchina: non sostituiscono due telefoni veri.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
