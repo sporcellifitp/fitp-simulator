@@ -360,6 +360,17 @@ ottimizza i processi»)**, dal punto 4 in poi:
 Prima la regola era: impronte dei livelli e dello stesso schermo
 invariate dove non devono cambiare; regole dell'utente già prese (Pro com'è, nessun vantaggio di punti, ecc.).
 
+**Versione 2026-11-12.6 = B30 registro dello stand** (12/11, 23:45 UTC). Ramo `b30-registro-stand` (con revisore: 3
+bloccanti corretti, tra cui «senza chiave si potevano far cancellare i giorni veri»: ora il Worker oltre il tetto
+rifiuta e non cancella mai da solo), unito in `4efc6d8`. Controllo rapido: gioco 1336/1336, sito 226/226, Windows 42/42,
+build ok → push. Zip Cloudflare 23.371.976 B (margine 1.628.024 B), sha256
+`a8b106c2041c762610c0323619383eac69af7691cbdaafb3c99edf746dd31df6`, provato estratto; **senza `--registro-url`** (manca
+l'indirizzo del Worker: il registro resta in coda sul PC finché l'utente non crea il Worker). Mandati all'utente lo zip,
+il codice del Worker e la guida `docs/GUIDA_REGISTRO_CLOUDFLARE.md`. Installer: in attesa di GitHub Actions →
+`scratchpad/v1112f/attesa.sh`. **Da fare quando l'utente manda l'indirizzo del Worker**: zip con `--registro-url=<indirizzo>`
+e `natpf-desktop/registro.json` con `{"url": "<indirizzo>"}`, versione nuova, pacchetti. Mai la chiave in chat.
+Prove complete della 12.6: non ancora (si fanno sulla consegna finale della serie, processo nuovo).
+
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
 - [x] **B21 Video nel gioco** (2026-11-11.2): trailer come video d'avvio (senza titolo) con ripiego su `public/media/intro.mp4`; due clip
