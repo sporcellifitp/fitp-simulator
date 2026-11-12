@@ -553,7 +553,7 @@ export class NatpfPhoneRacket {
   }
   onCal(fn){ this.calListeners.add(fn); return () => this.calListeners.delete(fn); }
   // configurazione mandata al telefono (a ogni collegamento e quando cambia l'attesa del tutorial). tv 2: il computer manda
-  // l'avanzamento (tp) e il telefono tiene «Tutto chiaro» spento fino all'ultima scheda vista
+  // l'avanzamento (tp: scheda mostrata e schede viste; dal B28 «Tutto chiaro» è acceso da subito)
   // net (B17.4): chi gioca è a rete (entro NET_Z m), il telefono abbassa la soglia del picco per i tocchi morbidi (swing-detect
   // setNet); si rimanda cfg senza net al rientro
   _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}), ...(this.atNet ? { net: 1 } : {}) }; }
@@ -594,22 +594,21 @@ export class NatpfPhoneRacket {
   }
   // avanzamento della modale { i, n, s, m, all, nm } (NatpfTutorial.progress), mandato al telefono finché aspetta
   tutorialProgress(p){ this.tutProgress = p ? { ...p } : null; this._sendTp(); }
+  // B28 (12/11): il tutorial si chiude da qualunque scheda. «all» va al telefono sempre a 1: una pagina del telefono di
+  // prima (in cache) tiene «Tutto chiaro, ho capito» spento finché non lo riceve, e così lo accende subito; le schede viste
+  // davvero restano in s e m (puntini). av: tutte le schede viste davvero (solo informazione, pagine nuove)
   _sendTp(){
     const p = this.tutProgress;
     if (!this.tutWait || !p || !this.connected) return;
-    this.link.send({ t: 'tp', i: p.i, n: p.n, s: p.s, m: p.m || 0, all: p.all ? 1 : 0, ...(p.nm ? { nm: String(p.nm).slice(0, 40) } : {}) });
+    this.link.send({ t: 'tp', i: p.i, n: p.n, s: p.s, m: p.m || 0, all: 1, ...(p.all ? { av: 1 } : {}), ...(p.nm ? { nm: String(p.nm).slice(0, 40) } : {}) });
   }
-  // messaggi del tutorial dal telefono: w (sa aspettare; v 2 tiene il pulsante spento), nav (frecce), ok («ho capito»).
-  // Da un telefono v2 un «ok» prima di aver visto tutte le schede (messaggi incrociati, pagina con lo stato di prima) non
-  // chiude la modale: il telefono riceve di nuovo il cancello e l'avanzamento
+  // messaggi del tutorial dal telefono: w (sa aspettare; v 2 conosce l'avanzamento), nav (frecce), ok («ho capito»).
+  // B28: «ok» chiude sempre, da qualunque scheda (prima, da un telefono v2, solo dopo tutte le schede viste)
   _onTut(e){
     if (e.wait) this.tutAnswer = { pairs: this.state.pairs || 0, v: e.v === 2 ? 2 : 1 };
     if (e.nav && this.tutWait) for (const fn of this.tutNavListeners) try { fn(e.nav); } catch (err){ console.error(err); }
-    if (e.ok){
-      if (this.tutWait && this.tutV2 && this.tutProgress && !this.tutProgress.all){ if (this.connected){ this.link.send(this._cfg()); this._sendTp(); } }
-      // (chi mostra la modale la chiude e toglie l'attesa con waitTutorial(false), che pulisce anche l'avanzamento)
-      else { for (const fn of this.tutListeners) try { fn(e); } catch (err){ console.error(err); } this.tutWait = false; }
-    }
+    // (chi mostra la modale la chiude e toglie l'attesa con waitTutorial(false), che pulisce anche l'avanzamento)
+    if (e.ok){ for (const fn of this.tutListeners) try { fn(e); } catch (err){ console.error(err); } this.tutWait = false; }
     this._changed();
   }
   // tutorial già visto da chi tiene questo telefono (stesso abbinamento): uno qualunque, corto o completo

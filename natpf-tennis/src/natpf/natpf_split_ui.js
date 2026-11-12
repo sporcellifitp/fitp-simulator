@@ -80,7 +80,8 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = fals
   if (tut || p.tutWait){
     const n = Math.max(1, tp?.n || tut?.n || 1), i = Math.min(n, Math.max(1, tp ? (tp.i ?? 0) + 1 : tut?.i || 1));
     const seen = tp?.n ? `Schede viste ${tp.s} di ${tp.n}` : `Scheda ${i} di ${n}`;
-    return { state: 'tut', title: 'Guarda il tutorial', sub: tp?.all ? `${seen} · sul telefono «Tutto chiaro, ho capito»` : `${seen}, poi sul telefono «Tutto chiaro, ho capito»`, detail: `Tutorial ${i}/${n}` };
+    // (B28: si chiude quando si vuole, da qualunque scheda)
+    return { state: 'tut', title: 'Guarda il tutorial', sub: `${seen} · quando vuoi, sul telefono «Tutto chiaro, ho capito»`, detail: `Tutorial ${i}/${n}` };
   }
   if (unseen) return { state: 'tut', title: 'Tutorial da vedere', sub: 'Si apre nella pagina dei telefoni («Racchette»)', detail: 'Tutorial da vedere' };
   if (L.vis === false || health?.why === 'pagina nascosta') return { state: 'ko', title: 'Schermo del telefono spento', sub: 'Riaccendi lo schermo e tocca la pagina del gioco', detail: 'Schermo spento' };
@@ -193,9 +194,15 @@ export class NatpfSplitUi {
   // sinistra), ← → quello del P2 (metà destra); con una sola metà aperta tutti e due i tasti vanno a quella
   // Invio e Spazio sulla X o su una freccia a fuoco (Tab) attivano quella della metà che ha il fuoco, come il clic
   // (natpf_tutorial.keyActivate; senza, la lobby con Invio andrebbe alla pagina dopo)
+  // B28 (12/11): Invio (senza un pulsante a fuoco) chiude i tutorial aperti, da qualunque scheda, come «Tutto chiaro» dai
+  // telefoni o la X di ogni metà. Esc resta «indietro» (lascia la pagina, come sempre)
   key(e){
     if (!this.tutOpen.p1 && !this.tutOpen.p2) return false;
-    if (e.code === 'Enter' || e.code === 'Space') return ['p1', 'p2'].some(id => this.tutOpen[id] && !!this.tut[id]?.keyActivate(e));
+    if (e.code === 'Enter' || e.code === 'Space'){
+      if (['p1', 'p2'].some(id => this.tutOpen[id] && !!this.tut[id]?.keyActivate(e))) return true;
+      if (e.code !== 'Enter') return false;
+    }
+    if (e.code === 'Enter'){ if (!e.repeat){ for (const id of SPLIT_PLAYERS) this._tutDone(id); this.paint(); } return true; }
     const left = e.code === 'KeyA' || e.code === 'KeyD';
     const id = left ? (this.tutOpen.p1 ? 'p1' : 'p2') : (this.tutOpen.p2 ? 'p2' : 'p1');
     const code = e.code === 'KeyA' ? 'ArrowLeft' : e.code === 'KeyD' ? 'ArrowRight' : e.code;

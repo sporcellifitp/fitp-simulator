@@ -126,8 +126,8 @@ function paint(){
     else ui(phase === 'serve' ? 'Al servizio' : phase === 'pause' && phaseNote ? 'Pausa' : 'Pronto', phaseText(), 'ready');
   }
 }
-// schermata del tutorial: pulsante spento finché il computer non dice che sono state viste tutte le schede, scheda
-// attuale, puntini delle schede viste, frecce per sfogliarle anche da qui (solo con un computer che le capisce)
+// schermata del tutorial: pulsante acceso da subito (B28), scheda attuale, puntini delle schede viste, frecce per
+// sfogliarle anche da qui (solo con un computer che le capisce)
 function paintTut(v){
   const b = $('#tutOk');
   if (v.screen !== 'tutorial'){ b.classList.remove('lit'); return; }
@@ -248,13 +248,13 @@ function onData(c, d){
         // (w) con il pulsante spento fino all'ultima scheda (v 2). Calibrazione già partita (si entra in campo dalla pagina
         // «Collega»): si ferma e ripartirà dopo; un telefono già calibrato resta calibrato (dopo «ho capito» torna a «Pronto»)
         const was = gate; setGate(gateOnCfg(gate, d));
-        if (gate){ send({ t: 'tut', w: 1, v: 2 }); if (!was) sensor = sensorOnGateOpen(sensor); }
+        if (gate){ send({ t: 'tut', w: 1, v: 2 }); if (!was){ sensor = sensorOnGateOpen(sensor); lightTut(); } }
         // il computer ha chiuso il tutorial da solo (o non lo chiede più): chi aspettava calibra
         else if (was && sensor === 'idle') startCal();
       }
       sendState(); paint(); break;
-    // avanzamento del tutorial dal computer: scheda mostrata, schede viste; con l'ultima vista si accende «ho capito»
-    case 'tp': if (gate){ const was = tutConfirmable(gate); setGate(gateOnProgress(gate, d)); if (!was && tutConfirmable(gate)) lightTut(); paint(); } break;
+    // avanzamento del tutorial dal computer: scheda mostrata, schede viste (solo informazione: «ho capito» è acceso da subito, B28)
+    case 'tp': if (gate){ setGate(gateOnProgress(gate, d)); paint(); } break;
     // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
     case 'ex': det.setExpect(d.d); break;
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
@@ -426,10 +426,10 @@ function setGrip(value){
 }
 // Tutorial sul computer prima della calibrazione (richiesta del 04/11, B9 il 05/11): il computer lo chiede con cfg
 // { tut: 1, tv: 2 }; il telefono risponde che lo sa fare ({ t: 'tut', w: 1, v: 2 }), dopo «Attiva i sensori» non calibra
-// subito ma mostra la schermata del tutorial con «Tutto chiaro, ho capito» SPENTO finché il computer non dice (tp) che
-// tutte le schede sono state viste; le frecce ‹ › mandano { t: 'tut', nav: ±1 }. Al tocco manda { t: 'tut', ok: 1 } e
-// calibra (o torna a «Pronto» se era già calibrato). Un computer di prima (cfg senza tv) non manda l'avanzamento: il
-// pulsante è acceso subito, come prima; uno ancora più vecchio non manda tut: tutto come prima
+// subito ma mostra la schermata del tutorial con «Tutto chiaro, ho capito» acceso da subito (B28, 12/11: prima spento finché
+// il computer non diceva, tp, che tutte le schede erano state viste); le frecce ‹ › mandano { t: 'tut', nav: ±1 }. Al tocco
+// manda { t: 'tut', ok: 1 } e calibra (o torna a «Pronto» se era già calibrato; con la calibrazione «Giocando» il computer
+// chiede subito il profilo semplice). Un computer ancora più vecchio non manda tut: tutto come prima
 function tutDone(){
   if (!tutConfirmable(gate)) return;
   setGate(null); send({ t: 'tut', ok: 1 });

@@ -181,7 +181,8 @@ export class NatpfTraining {
     if (typeof window !== 'undefined') window.addEventListener('keydown', e => {
       if (!this.tutorial?.open) return;
       // ← → sfogliano le schede (prima del motore, che con le frecce muoverebbe il giocatore); Invio e Spazio sulla X,
-      // su una freccia o su «Chiudi» a fuoco (Tab) li attivano come il clic (natpf_tutorial.keyActivate)
+      // su una freccia o su «Chiudi» a fuoco (Tab) li attivano come il clic (natpf_tutorial.keyActivate); Invio senza un
+      // pulsante a fuoco chiude, come la X (B28)
       if (this.tutorial.key(e)){ e.preventDefault(); e.stopImmediatePropagation(); return; }
       // con la modale aperta Spazio e Invio non tirano colpi da tastiera (motion_controls._onKeyDown li fermerebbe
       // con preventDefault e tirerebbe un colpo mentre si legge il tutorial)

@@ -9,8 +9,7 @@
 //              (idle: sensori attivi, calibrazione non ancora partita perché il computer mostra il tutorial)
 //   gate       null (nessun tutorial) | { v, i, n, s, m, all, name }: il computer mostra il tutorial e aspetta «Tutto
 //              chiaro, ho capito». v 2: il computer manda l'avanzamento («tp»: scheda i di n, s viste, m maschera delle
-//              viste, all tutte viste) e il pulsante resta spento finché all è falso; v 1 (computer di prima): pulsante
-//              acceso subito
+//              viste, all tutte viste); il pulsante è acceso da subito (B28; prima con v 2 restava spento finché all era falso)
 //   inputMode  motion | touch
 //
 // Schermate (la prima condizione vera vince):
@@ -30,8 +29,9 @@ export function screenOf({ linkState = 'off', sensor = 'off', gate = null } = {}
   if (sensor === 'ready') return 'ready';
   return 'cal';
 }
-// «Tutto chiaro, ho capito» toccabile: con un computer che manda l'avanzamento solo dopo tutte le schede viste
-export const tutConfirmable = gate => !!gate && (gate.v < 2 || !!gate.all);
+// «Tutto chiaro, ho capito» toccabile: dal B28 (12/11, richiesta dell'utente allo stand) sempre, da qualunque scheda. Prima,
+// con un computer che manda l'avanzamento (v 2), solo dopo tutte le schede viste
+export const tutConfirmable = gate => !!gate;
 
 // cosa mostra la pagina: { screen, show: { selettore: visibile }, tutOk: { on, lit } } (lit: appena acceso)
 // phase, rematch (B20): a fine partita nello stesso schermo il computer offre la rivincita (rematchOn) e sotto «Pronto»
@@ -167,12 +167,12 @@ export function veilText({ linkState = 'on', sensor = 'off', gate = null } = {})
   return `${VEIL_LEAD} ${kept}`;
 }
 
-// testi della schermata del tutorial sul telefono
+// testi della schermata del tutorial sul telefono. B28: una sola frase, il pulsante è acceso da subito (niente «poi si
+// calibra»: di base la calibrazione si fa giocando); hint: schede viste, solo come informazione
 export function tutorialTexts(gate, { sensor = 'idle' } = {}){
-  const then = sensor === 'ready' ? 'poi si gioca' : 'poi si calibra';
+  void sensor;
   if (!gate) return null;
   const where = gate.n ? `Scheda ${gate.i + 1} di ${gate.n}${gate.name ? ` · ${gate.name}` : ''}` : '';
-  if (gate.v < 2) return { big: 'Guarda lo schermo', sub: `Presa e colpi sono sul computer. Quando hai capito tocca «Tutto chiaro, ho capito»: ${then}.`, where, hint: '' };
-  if (!gate.all) return { big: 'Guarda lo schermo', sub: 'Presa e colpi sono sul computer. Sfoglia le schede con ‹ ›.', where, hint: gate.n ? `Viste ${gate.s} di ${gate.n}: alla fine si accende «Tutto chiaro».` : '' };
-  return { big: 'Hai visto tutto', sub: `Tocca «Tutto chiaro, ho capito»: ${then}.`, where, hint: '' };
+  const hint = gate.v >= 2 && gate.n ? `Viste ${gate.s} di ${gate.n}` : '';
+  return { big: 'Guarda lo schermo', sub: gate.v >= 2 ? 'Presa e colpi sono sul computer: sfoglia con ‹ ›. Quando vuoi tocca «Tutto chiaro, ho capito».' : 'Presa e colpi sono sul computer. Quando vuoi tocca «Tutto chiaro, ho capito».', where, hint };
 }

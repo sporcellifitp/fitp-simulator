@@ -1,6 +1,7 @@
-// Pagina del telefono (B9, 05/11): una sola schermata alla volta (phone-screen.js), «Tutto chiaro, ho capito» spento finché
-// il computer non dice che si sono viste tutte le schede, mai sopra «Pronto»; Ricalibra/Ricollega/Scollega solo sotto
-// «Pronto». Più la correzione del CSS che mostrava la riga «Presa» nascosta.
+// Pagina del telefono (B9, 05/11): una sola schermata alla volta (phone-screen.js), «Tutto chiaro, ho capito» mai sopra
+// «Pronto»; Ricalibra/Ricollega/Scollega solo sotto «Pronto». Più la correzione del CSS che mostrava la riga «Presa»
+// nascosta. B28 (12/11, richiesta dell'utente allo stand): «Tutto chiaro, ho capito» è acceso DA SUBITO, da qualunque
+// scheda (prima restava spento finché il computer non diceva che si erano viste tutte le schede).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -44,17 +45,21 @@ test('schermate esclusive: in ogni combinazione una sola, «ho capito» solo nel
   assert.ok(n > 1000);
 });
 
-test('«Tutto chiaro, ho capito»: spento fino all\'ultima scheda vista (computer v2), acceso subito con un computer di prima', () => {
+test('«Tutto chiaro, ho capito»: acceso da subito, da qualunque scheda (B28); le schede viste restano come informazione', () => {
   const on = gate => phoneView({ linkState: 'on', sensor: 'idle', gate }).tutOk.on;
   let g = gateOnCfg(null, { tut: 1, tv: 2 });
   assert.deepEqual(g, { v: 2, i: 0, n: 0, s: 0, m: 0, all: false, name: '' });
-  assert.equal(on(g), false, 'appena aperto: spento');
-  for (let s = 1; s < 11; s++){ g = gateOnProgress(g, { i: s - 1, n: 11, s, m: (1 << s) - 1, all: 0, nm: 'X' }); assert.equal(on(g), false, `viste ${s}`); }
+  assert.equal(on(g), true, 'appena aperto: acceso'); assert.equal(tutConfirmable(g), true);
+  // anche con un computer di prima che manda all 0 finché non si sono viste tutte: il pulsante è acceso lo stesso
+  for (let s = 1; s < 11; s++){ g = gateOnProgress(g, { i: s - 1, n: 11, s, m: (1 << s) - 1, all: 0, nm: 'X' }); assert.equal(on(g), true, `viste ${s}`); assert.equal(g.s, s); }
+  assert.equal(g.all, false, 'schede non tutte viste (informazione)');
   g = gateOnProgress(g, { i: 10, n: 11, s: 11, m: 2047, all: 1, nm: 'Volée' });
-  assert.equal(on(g), true, 'tutte viste: acceso'); assert.equal(g.name, 'Volée');
-  // indietro: resta acceso (il computer è la fonte di verità, «all» non torna falso nella stessa apertura)
+  assert.equal(on(g), true); assert.equal(g.name, 'Volée'); assert.equal(g.all, true);
+  // indietro: «all» non torna falso nella stessa apertura
   g = gateOnProgress(g, { i: 2, n: 11, s: 11, m: 2047, all: 0 });
   assert.equal(on(g), true); assert.equal(g.i, 2);
+  // fuori dal tutorial il pulsante non c'è
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', gate: null }).tutOk.on, false);
   // cfg ripetuto (ricollegamento, cambio di mano) con il tutorial aperto: l'avanzamento resta
   assert.equal(gateOnCfg(g, { tut: 1, tv: 2 }).all, true); assert.equal(gateOnCfg(g, { tut: 1, tv: 2 }).i, 2);
   // il computer chiude il tutorial: niente cancello
@@ -101,12 +106,12 @@ test('macchina del telefono: tutorial → calibrazione → «Pronto»; mai «ho 
   p.cfg({ tut: 1, tv: 2 });                  // il computer apre il tutorial prima che si attivino i sensori
   assert.equal(p.screen, 'enable', 'prima «Attiva i sensori»');
   p.enable();
-  assert.equal(p.sensor, 'idle'); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, false);
+  assert.equal(p.sensor, 'idle'); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, true, 'acceso da subito (B28)');
   assert.equal(reportedSensor(p.sensor), 'tut', 'il computer legge «tut» (non pronto)');
-  assert.equal(p.ok(), false, 'spento: il tocco non fa niente');
-  p.tp({ i: 0, n: 11, s: 1, m: 1, all: 0 }); assert.equal(p.okOn, false);
-  p.tp(ALL); assert.equal(p.okOn, true);
+  p.tp({ i: 0, n: 11, s: 1, m: 1, all: 0 }); assert.equal(p.okOn, true);
+  // «ho capito» dalla prima scheda: il tutorial si chiude e il telefono va avanti
   assert.equal(p.ok(), true); assert.equal(p.sensor, 'cal'); assert.equal(p.screen, 'cal');
+  assert.deepEqual(p.sent.at(-1), { t: 'tut', ok: 1 });
   p.confirm(); assert.equal(p.screen, 'ready');
   // «Ricalibra» da «Pronto»: calibrazione, il tutorial non torna
   p.recal(); assert.equal(p.screen, 'cal'); p.confirm(); assert.equal(p.screen, 'ready');
@@ -120,8 +125,12 @@ test('macchina del telefono: già calibrato quando il computer apre il tutorial 
   assert.equal(reportedSensor(p.sensor), 'ready', 'per il computer resta pronto (niente pausa sopra la modale)');
   p.tp(ALL); p.ok();
   assert.equal(p.screen, 'ready', 'dopo «ho capito» niente calibrazione');
-  assert.match(tutorialTexts({ ...G2, all: true }, { sensor: 'ready' }).sub, /poi si gioca/);
-  assert.match(tutorialTexts({ ...G2, all: true }, { sensor: 'idle' }).sub, /poi si calibra/);
+  // testi (B28): una frase sola, «quando vuoi», senza «poi si calibra» (di base la calibrazione si fa giocando)
+  for (const g of [{ ...G2 }, { ...G2, all: true }, { v: 1, i: 0, n: 0, s: 0, m: 0, all: false, name: '' }]) for (const sensor of ['ready', 'idle']){
+    const t = tutorialTexts(g, { sensor });
+    assert.match(t.sub, /Quando vuoi tocca «Tutto chiaro, ho capito»/); assert.doesNotMatch(t.sub + t.hint, /si calibra|alla fine si accende/);
+  }
+  assert.equal(tutorialTexts({ ...G2 }).hint, 'Viste 4 di 11'); assert.equal(tutorialTexts({ ...G2 }).where, 'Scheda 4 di 11 · Rovescio');
 });
 
 test('macchina del telefono: calibrazione in corso interrotta dal tutorial riparte dopo; il computer che chiude il tutorial fa calibrare', () => {
@@ -143,7 +152,7 @@ test('macchina del telefono: ricollegamento e pagina ricaricata riprendono dalla
   p.cfg({ tut: 1, tv: 2 }); p.tp({ i: 6, n: 11, s: 7, m: 127, all: 0 }); assert.equal(p.gate.s, 7);
   // pagina ricaricata: il cancello torna dalla scheda (sessionStorage); dopo «Attiva i sensori» il tutorial, non «Pronto»
   p.reload(); assert.equal(p.gate.i, 6); assert.equal(p.gate.all, false); p.welcome();
-  assert.equal(p.screen, 'enable'); p.enable(true); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, false);
+  assert.equal(p.screen, 'enable'); p.enable(true); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, true);
   // il computer nel frattempo ha chiuso il tutorial (Esc): al primo cfg il cancello sparisce
   p.cfg({}); assert.equal(p.screen, 'ready');
   assert.equal(gateRestore(null), null); assert.equal(gateRestore({ v: 3 }), null); assert.equal(gateRestore('x'), null);
