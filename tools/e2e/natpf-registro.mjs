@@ -4,7 +4,7 @@
 //   1. niente di salvato: il registro è ACCESO da solo (decisione dell'utente del 12/11) e trova l'indirizzo dello
 //      spazio in /natpf/registro.json (qui servito dalla prova);
 //   2. una partita contro la CPU (chi gioca batte davvero, la CPU risponde, il nome scritto è «Mario Rossi») e una nello
-//      stesso schermo («Giulia Bianchi» contro «Luca Verdi», il Player 2 batte nei suoi punti): nello spazio arrivano le
+//      stesso schermo («Giulia Bianchi» contro «Luca Verdi», comincia a battere il Player 2; con il formato in fiera battono tutti e due; il Player 2 batte con mouse e tastiera, cioè senza il tempo del gesto: riga «servizio» con fonte «senza gesto»): nello spazio arrivano le
 //      righe attese (avvio, partita, punto, servizio, partita.fine), nessuna con un nome o un campo non previsto, e sul
 //      computer non resta niente in coda;
 //   3. pannello dello stand (Ctrl+Maiusc+K): «Registro di gioco: Sì», partite di oggi, ora dell'ultimo invio, coda
@@ -70,7 +70,10 @@ const run = (p, cond, sec = 8) => p.evaluate(({ cond, sec }) => { const E = __na
 const award = (p, who, why = 'Out') => p.evaluate(({ who, why }) => { __natpfTennis._awardPoint(who, why); }, { who, why });
 const pronto = async p => { await p.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby && window.__natpfTennis.player?.model, null, { timeout: 120000 }); await p.evaluate(() => __natpfTennis.natpfUi.intro?.skip?.()); await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('menu')); await p.waitForTimeout(300); };
 // righe in memoria → blocco → invio; poi lo stato del registro
-const scarica = p => p.evaluate(async () => { const R = __natpfTennis.natpfUi.registro; await R.rec.blocco(); await R.invio.invia({ forza: true }); return R.stato(); });
+// (il blocco di fine partita può essere ancora in scrittura nella coda: si riprova finché la coda è vuota, al più 4 volte)
+const scarica = p => p.evaluate(async () => { const R = __natpfTennis.natpfUi.registro; let s = null;
+  for (let i = 0; i < 4; i++){ await R.rec.blocco(); await new Promise(r => setTimeout(r, 200)); await R.invio.invia({ forza: true }); s = await R.stato(); if (!s.coda.blocchi && !s.inMemoria) break; }
+  return s; });
 const stato = p => p.evaluate(() => __natpfTennis.natpfUi.registro.stato());
 // servizio vero di chi gioca (lancio, colpo vicino al punto più alto) o del Player 2 nello stesso schermo
 async function batti(p, chi){
@@ -125,6 +128,7 @@ try {
   // 2a. partita contro la CPU, con un nome scritto
   await p.evaluate(() => { __natpfTennis.natpfUi.events.nickname = 'Mario Rossi'; });
   check('partita contro la CPU avviata da «Gioca»', await avviaCpu(p));
+  await p.waitForTimeout(4000);                                            // qualche secondo di gioco a tempo vero: fotogrammi contati
   const cpu = await partita(p, { vince: i => (i % 3 === 1 ? 'opponent' : 'player') });
   const finita = await p.evaluate(() => ({ phase: __natpfTennis.phase, g: [__natpfTennis.score.playerGames, __natpfTennis.score.opponentGames] }));
   check('partita contro la CPU giocata fino alla fine (1 game), con i servizi veri di chi gioca', finita.phase === 'MATCH_OVER' && cpu.servizi >= 1, fmt({ finita, cpu }));
@@ -138,13 +142,13 @@ try {
   check('riga della partita: modo CPU, livello, formato, controller, del nome solo «inserito: sì»', P1.n === 1 && P1.modo === 'cpu' && !!P1.livello && P1.ctrl === 'mouse' && P1.nomeInserito === true && P1.g === A1.g && typeof P1.stand === 'object', fmt(P1));
   check('una riga per punto, con chi batte, chi vince, come finisce e il punteggio', di('punto').length === cpu.punti && di('punto').every(r => ['g', 'a'].includes(r.batte) && ['g', 'a'].includes(r.vince) && typeof r.fine === 'string' && Array.isArray(r.pt) && r.n === 1), fmt(di('punto').slice(0, 2)));
   check('i servizi di chi gioca: tipo, tempo, velocità, voto', di('servizio').length === cpu.servizi && di('servizio').every(r => Number.isFinite(r.kmh) && Number.isFinite(r.ms)), fmt(di('servizio').slice(0, 2)));
-  check('fine partita: esito, game, punti, durata, costo del registro', F1.esito === 'finita' && F1.vince === 'g' && fmt(F1.game) === fmt(finita.g) && F1.punti === cpu.punti && F1.durS >= 0 && Number.isFinite(F1.costoMs), fmt(F1));
+  check('fine partita: esito, game, punti, durata, fotogrammi al secondo, costo del registro', F1.esito === 'finita' && F1.vince === 'g' && fmt(F1.game) === fmt(finita.g) && F1.punti === cpu.punti && F1.durS >= 0 && Number.isFinite(F1.costoMs) && F1.fps?.medi > 0 && F1.fps.n > 30, fmt(F1));
   check('dopo l\'invio sul computer non resta niente in coda', s1.coda.blocchi === 0 && s1.inMemoria === 0 && s1.invio.ultimoOk > 0 && !s1.invio.ultimoErrore, fmt({ coda: s1.coda, invio: s1.invio }));
   const byteCpu = Buffer.byteLength(righe.filter(r => r.n === 1).map(r => JSON.stringify(r)).join('\n')), r2Cpu = env.REGISTRO.byteBlocchi();
 
   // 2b. stesso schermo, due nomi scritti
   await alMenu(p);
-  await p.evaluate(() => { const E = __natpfTennis; E.natpfSplitNames = { p1: 'Giulia Bianchi', p2: 'Luca Verdi' }; E.startSplit(); E.matchConfig.gamesToWin = 1; E.autoPlayMode = false; E.userHasInteracted = true; E.natpfServeFirst = 'player'; E.startNewMatch({ showStartBanner: false }); });
+  await p.evaluate(() => { const E = __natpfTennis; E.natpfSplitNames = { p1: 'Giulia Bianchi', p2: 'Luca Verdi' }; E.startSplit(); E.matchConfig.gamesToWin = 1; E.autoPlayMode = false; E.userHasInteracted = true; E.natpfServeFirst = 'opponent'; E.startNewMatch({ showStartBanner: false }); });
   const duo = await partita(p, { split: true, vince: i => (i % 2 ? 'opponent' : 'player') });
   const finita2 = await p.evaluate(() => ({ phase: __natpfTennis.phase, g: [__natpfTennis.score.playerGames, __natpfTennis.score.opponentGames] }));
   await p.waitForTimeout(1500);
@@ -188,7 +192,7 @@ try {
   await p.screenshot({ path: `${OUT}/pannello-rete-assente.png` });
   const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.click('#natpf-staff [data-staff="registro-scarica"]')]);
   const zipFile = path.join(OUT, dl.suggestedFilename()); await dl.saveAs(zipFile);
-  const zip = readZip(new Uint8Array(readFileSync(zipFile))), nelloZip = zip.flatMap(e => new TextDecoder().decode(e.data).trim().split('\n').map(l => JSON.parse(l)));
+  const zip = [...readZip(new Uint8Array(readFileSync(zipFile)))].map(([name, data]) => ({ name, data })), nelloZip = zip.flatMap(e => new TextDecoder().decode(e.data).trim().split('\n').map(l => JSON.parse(l)));
   check('«Scarica la coda»: uno zip con i blocchi non ancora partiti (registro/<giorno>/<postazione>/<parte>.jsonl), senza nomi', /^natpf-registro-coda-\d{8}-\d{4}\.zip$/.test(dl.suggestedFilename()) && zip.length === s4.coda.blocchi && zip.every(e => /^registro\/\d{4}-\d{2}-\d{2}\/[a-z0-9]{8}\/\d{5}-[a-z0-9]{4}\.jsonl$/.test(e.name)) && nelloZip.some(r => r.k === 'partita' && r.n === 3) && !NOMI.some(n => JSON.stringify(nelloZip).includes(n)), fmt({ nome: dl.suggestedFilename(), file: zip.map(e => e.name) }));
   const F3z = nelloZip.find(r => r.k === 'partita.fine');
   check('partita lasciata a metà: «abbandonata», con dove', F3z?.esito === 'abbandonata' && F3z.dove === 'a metà partita' && F3z.punti === 2, fmt(F3z));
@@ -241,9 +245,10 @@ try {
     return { acceso: med(on), spento: med(off), costo: R.costo };
   });
   const msPartita = di('partita.fine', nelloSpazio()).map(r => r.costoMs);
-  check('costo del registro: meno di 5 ms di lavoro per partita in tutto (agganci e righe), nessun passo del gioco oltre 2 ms per il registro', msPartita.every(v => v < 5) && costo.costo.max < 2, fmt({ msPerPartita: msPartita, piuLungo: +costo.costo.max.toFixed(3) }));
+  const durate = di('partita.fine', nelloSpazio()).map(r => r.durS), perSec = msPartita.map((v, i) => v/Math.max(1, durate[i]));
+  check('costo del registro: meno di 20 ms di lavoro per partita in tutto (agganci e righe), meno di 0,25 ms per secondo di gioco, nessuna volta oltre 2 ms', msPartita.every(v => v < 20) && perSec.every(v => v < .25) && costo.costo.max < 2, fmt({ msPerPartita: msPartita, durateS: durate, piuLungo: +costo.costo.max.toFixed(3) }));
   check('costo del registro: un passo del gioco dura lo stesso con il registro acceso e spento (entro 0,05 ms)', Math.abs(costo.acceso - costo.spento) < .05, `acceso ${costo.acceso.toFixed(4)} ms · spento ${costo.spento.toFixed(4)} ms`);
-  console.log(`MISURE  partita contro la CPU: ${byteCpu} byte di righe, ${r2Cpu} byte compressi nello spazio (con l'avvio) · stesso schermo: ${byteDuo} byte, ${r2Duo} compressi · costo per partita ${msPartita.map(v => v.toFixed(1)).join(', ')} ms · passo del gioco acceso ${costo.acceso.toFixed(4)} ms, spento ${costo.spento.toFixed(4)} ms`);
+  console.log(`MISURE  partita contro la CPU: ${byteCpu} byte di righe, ${r2Cpu} byte compressi nello spazio (con l'avvio) · stesso schermo: ${byteDuo} byte, ${r2Duo} compressi · costo per partita ${msPartita.map(v => v.toFixed(1)).join(', ')} ms (durate ${durate.join(', ')} s) · passo del gioco acceso ${costo.acceso.toFixed(4)} ms, spento ${costo.spento.toFixed(4)} ms`);
   check('peso: una partita occupa pochi kB di righe (meno di 6 kB ognuna in questa prova)', byteCpu > 300 && byteCpu < 6000 && byteDuo > 300 && byteDuo < 6000, `${byteCpu} e ${byteDuo} byte`);
   check('nessun errore nella pagina in tutta la prova', !errs.length, errs.slice(0, 3).join(' | '));
 } finally { await B.close(); stop(); }

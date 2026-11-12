@@ -157,7 +157,7 @@ export class Riassunto {
     g.n++; piu(g.voti, r.voto || '—'); g.ms.metti(r.ms); piu(g.esiti, r.e || 'dentro'); g.forza.metti(r.f);
     if (r.sup){ this.sup.riusciti++; if (x.P) x.P.sup++; } else if (r.supNo) piu(this.sup.no, r.supNo);
   }
-  _servizio(r){ const S = this.servizio; S.righe++; piu(S.voti, r.voto || '—'); S.kmh.metti(r.kmh); S.ms.metti(r.ms); if (r.auto) S.auto++; }
+  _servizio(r){ const S = this.servizio; if (r.fonte === 'senza gesto'){ S.senzaGesto = (S.senzaGesto || 0) + 1; return; } S.righe++; piu(S.voti, r.voto || '—'); S.kmh.metti(r.kmh); S.ms.metti(r.ms); if (r.auto) S.auto++; }
   _vuoto(r){ if (!r.amb) piu(this.vuoti, r.perche || '—'); }
   _chiudi(x, r){
     const P = x.P; x.P = null; if (!P) return;
@@ -249,6 +249,7 @@ export function rapporto(R, L){
     `Punti: ${N(sv.punti)}. Lanci: ${N(sv.lanci)} (${N(sv.punti ? sv.lanci/sv.punti : null, 2)} a punto); lanci a vuoto: ${N(sv.lanciVuoti)} (${pc(sv.lanciVuoti, sv.lanci, 1)} dei lanci).`,
     `Servizio in rete o fuori (una palla sola: vale come un doppio fallo): ${N(sv.doppiFalli)} (${pc(sv.doppiFalli, sv.punti, 1)} dei punti). Ace: ${N(sv.ace)} (${pc(sv.ace, sv.punti, 1)}).`,
     `Lancio automatico: ${N(sv.lanciAuto)} lanci fatti dal gioco, ${N(sv.battutaAuto)} battute fatte dal gioco.`,
+    `Servizi di chi gioca senza il tempo del gesto (mouse, tastiera, webcam del Player 2): ${N(sv.senzaGesto || 0)}.`,
     `Servizi di chi gioca: ${N(sv.righe)}; velocità ${mis(sv.kmh, 0, ' km/h')}; errore di tempo medio ${N(sv.ms.media)} ms.`,
   ], [{ titolo: 'Voto del servizio', colonne: ['Voto', 'Volte', 'Quota'], righe: elenco(sv.voti, sv.righe) }]);
   const tu = R.tutorial, ca = R.cal;

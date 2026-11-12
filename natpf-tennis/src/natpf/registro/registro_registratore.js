@@ -158,8 +158,8 @@ export class RegistroStand {
     dopo(E, '_natpfRacketShot', out => { if (out) R._colpo(out); });
     dopo(E, '_startServeToss', (_o, _a, auto) => { const P = R.partita; if (P){ P.lanci++; if (auto) P.lanciAuto++; if (auto === 'serve') P.battuteAuto++; } });
     wrap(E, '_executeServeHit', function(orig, actor, ...rest){
-      const before = E.natpfLastServe, out = orig(actor, ...rest);
-      const t = R.now(); try { R._servizio(actor, before); } catch {} R._costo(t);
+      const before = E.natpfLastServe, giaInGioco = !!E.ball?.inPlay, out = orig(actor, ...rest);
+      const t = R.now(); try { R._servizio(actor, before, !giaInGioco && !!E.ball?.inPlay); } catch {} R._costo(t);
       return out;
     });
     const vuoto = perche => function(orig, ps = {}){ const t = R.now(); try { R._vuoto(ps, perche); } catch {} R._costo(t); return orig(ps); };
@@ -331,12 +331,16 @@ export class RegistroStand {
     if (P) P.colpi++;
     this._riga('colpo', { ...(P ? {} : { amb }), gesto: e.shotType ? String(e.shotType).toLowerCase() : null, voto: voto(e.grade), e: /fault/.test(e.kind) ? 'fuori' : undefined });
   }
-  _servizio(actor, before){
+  // battuto: la palla è partita adesso (con la palla troppo bassa il motore non batte)
+  _servizio(actor, before, battuto = true){
     const E = this.engine, P = this.partita, S = E.natpfLastServe;
     if (P && E.ball?.inPlay) P.inGiocoAt = this.now();
-    if (!P || !S || S === before) return;
+    if (!P) return;
     const umano = actor === E.player || E.isMultiplayer || E.versus?.active || E.natpfSplit?.active;
     if (!umano) return;
+    // servizio senza il tempo del gesto (mouse, tastiera, webcam del Player 2…): il motore non dà tipo né voto, si
+    // segna solo che c'è stato (i tentativi del servizio)
+    if (!S || S === before){ if (battuto) this._riga('servizio', { chi: actor === E.player ? undefined : 'a', fonte: 'senza gesto' }); return; }
     this._riga('servizio', { chi: actor === E.player ? undefined : 'a', tipo: S.kind || null, q: r(S.q, 2), ms: r(1000*S.tau, 0), kmh: S.kmh ?? null, voto: voto(S.grade), ...(E.natpfAutoLive === 'serve' ? { auto: true } : {}) });
   }
   _vuoto(ps, perche){

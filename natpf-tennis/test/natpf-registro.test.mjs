@@ -218,7 +218,7 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
     renderer: { getContext: () => ({ getExtension: () => ({ UNMASKED_RENDERER_WEBGL: 1 }), getParameter: () => 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0)' }) },
     startNewMatch(){ this.autoPlayMode = false; this.phase = 'SERVE'; Object.assign(this.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player' }); },
     _startServeToss(){ this.phase = 'SERVE_TOSS'; },
-    _executeServeHit(actor){ this.natpfLastServe = { kind: 'piatto', q: .8, tau: .02, kmh: 142, grade: 'Perfetto • 142 km/h' }; this.ball.inPlay = true; this.ball.rallyStrokeCount = 1; this.ball.lastHitter = actor === this.player ? 'player' : 'opponent'; this.phase = 'RALLY'; },
+    _executeServeHit(actor){ if (this.noGesto && this.ball.inPlay) return; if (!this.noGesto) this.natpfLastServe = { kind: 'piatto', q: .8, tau: .02, kmh: 142, grade: 'Perfetto • 142 km/h' }; this.ball.inPlay = true; this.ball.rallyStrokeCount = 1; this.ball.lastHitter = actor === this.player ? 'player' : 'opponent'; this.phase = 'RALLY'; },
     _natpfRacketShot(e){ this.ball.rallyStrokeCount++; this.ball.lastHitter = e.who === 'p2' ? 'opponent' : 'player';
       this.natpfLastRacket = { who: e.who || 'player', intent: { shot: e.shot || 'forehand', power: e.power ?? .6, typePower: e.power ?? .6 }, out: { shot: e.shot || 'forehand', grade: e.grade || 'Perfetto', aim: .2, failed: !!e.failed, netFault: !!e.net },
         timing: e.tau ?? .01, source: 'phone', ...(e.super ? { super: e.super } : { superWhy: ['palla troppo bassa'] }) };
@@ -288,6 +288,8 @@ test('registro, registratore: stesso schermo (fasce, aiuto, nomi mai scritti), p
   M.errori.error({ message: 'TypeError: Giulia Bianchi is not defined', filename: 'https://192.168.1.5:8443/assets/index-abc123.js?v=1', lineno: 42, colno: 7 });
   for (let i = 0; i < 12; i++) M.errori.error({ message: 'TypeError: Giulia Bianchi is not defined', filename: 'https://192.168.1.5:8443/assets/index-abc123.js?v=1', lineno: 42, colno: 7 });
   M.errori.unhandledrejection({ reason: new Error('rete giù per mario@example.com') });
+  // servizio del Player 2 senza il tempo del gesto (mouse, webcam): una riga senza tipo né voto; palla già in gioco: niente
+  M.E.noGesto = true; M.E.ball.inPlay = false; M.E._executeServeHit(M.E.opponent); M.E._executeServeHit(M.E.opponent); M.E.noGesto = false;
   // ritorno al menu a metà partita
   M.E.autoPlayMode = true; M.ui.lobby.visible = true; M.avanti(1000); M.R.secondo();
   await M.R.blocco();
@@ -297,6 +299,7 @@ test('registro, registratore: stesso schermo (fasce, aiuto, nomi mai scritti), p
   assert.equal(partita.nomeInserito, true); assert.equal(partita.nomeInserito2, false, '«Player 2» non è un nome scritto');
   assert.deepEqual(partita.stand, { chiosco: true, caldo: false, lancioAuto: true, campoAperto: false, ...(partita.stand.fiera != null ? { fiera: partita.stand.fiera } : {}), ...(partita.stand.mira != null ? { mira: partita.stand.mira } : {}) });
   assert.ok(di('colpo').some(c => c.chi === 'a'), 'i colpi del secondo giocatore');
+  assert.deepEqual(di('servizio').filter(r => r.fonte).map(r => [r.chi, r.fonte, r.voto]), [['a', 'senza gesto', undefined]], 'servizio senza gesto: uno solo, del Player 2');
   assert.equal(fine.esito, 'abbandonata'); assert.equal(fine.dove, 'a metà partita'); assert.equal(fine.come, 'menu'); assert.equal(fine.punti, 3); assert.equal(fine.errori, 14);
   const errori = di('errore');
   assert.deepEqual(errori.map(e => e.volte), [1, 10, 1], 'lo stesso errore si conta, non si ripete');
