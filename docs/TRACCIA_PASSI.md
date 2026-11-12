@@ -177,7 +177,18 @@ modello 3D con texture e scheletro avviato (job `9a8b3d4c-8f82-4171-8879-c22b112
 `Spine`, `LeftArm`, `RightForeArm`…); provato in three.js: si riconosce bene e lo scheletro piega pulito (braccio alzato,
 gamba avanti, busto ruotato). Immagine mostrata all'utente (`scratchpad/lobdrop3d/drop-3d-prova.jpg`). Proposto: fare anche
 Lob (35,25 crediti) e un blocco **B29** che carica i due GLB alleggeriti (obiettivo sotto 0,4 MB l'uno) e riporta le
-animazioni del gioco sulle 24 ossa, al posto delle mascotte costruite nel codice. **Aspetto il sì dell'utente.**
+animazioni del gioco sulle 24 ossa, al posto delle mascotte costruite nel codice. **L'utente ha detto «Sì» (12/11, 13:00 UTC).**
+- [~] Lob: immagine pulita fatta (job `b63b21a6-dcc8-4bbf-bee2-c0729798a25b`, logo scritto giusto), modello 3D con scheletro
+      avviato (job `20e496ac-412f-4ee8-9f2d-0f286ff0bb34`, 35 crediti; crediti spesi in tutto 156,5). Da scaricare in
+      `scratchpad/lobdrop3d/glb/lob.glb` e guardare come Drop (`scratchpad/lobdrop3d/vista/` + `shot.cjs`).
+- [ ] **B29 · Lob & Drop dai modelli 3D** (dopo l'unione del B24, sullo stesso ramo di partenza): copiare i due GLB nel
+      repository alleggeriti (texture 1024 px o meno, niente tangenti né clip, attributi compatti; obiettivo sotto 0,4 MB
+      l'uno, margine dello zip Cloudflare 1,7 MB), correggere «Nittto» nella texture di Drop, caricarli con GLTFLoader al
+      posto delle mascotte costruite nel codice quando l'opzione «Personaggi in campo» è su «Lob & Drop», riportare le
+      animazioni del gioco (corsa, colpi, servizio, esultanza, mancini) sulle 24 ossa (`Hips`, `Spine`, `Spine01`,
+      `Spine02`, `neck`, `Head`, `Left/RightShoulder`, `Arm`, `ForeArm`, `Hand`, `UpLeg`, `Leg`, `Foot`, `ToeBase`),
+      racchetta nella mano giusta e sulla palla all'impatto; se il modello non si carica, ripiego sulle mascotte nel
+      codice; fogli di confronto, prova nel browser, revisore indipendente.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
