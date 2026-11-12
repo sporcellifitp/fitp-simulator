@@ -39,7 +39,7 @@ node --import ./test/register.mjs scripts/audit/b25/misure.mjs <gruppo> [--parti
 | `misure-altre.txt` | `misure.mjs aiuto-altro`: l'aiuto con il campo aperto acceso (nessuno, A, B, C), i soli punti di vantaggio, l'adulto segnato «Bambino». Le righe «campo aperto · variante C» sono state misurate **prima** della correzione della variante C per il campo aperto (`HELP.C.open`): per il bambino contro l'adulto mostrano la C con il 15-0 (53,6%); la C di oggi lì è uguale alla riga della variante A (39,7%). |
 | `misure-battitore.txt` | Revisione (12/11): `misure.mjs battitore`, due serie di semi. |
 | `misure-aiuto-meglio-di-3.txt` | Revisione (12/11): `misure.mjs aiuto-prove --game=2`, bambino contro adulto medio al meglio di 3, formato classico e in fiera: nessun aiuto, A, B, C e due prove più forti. |
-| `legend.txt` | `npm run audit:legend` (contro la CPU): 69/69 (rifatto il 12/11 dopo la revisione). |
+| `legend.txt` | `npm run audit:legend` (contro la CPU): 69/69 (rifatto il 12/11 dopo la revisione: uscita identica). |
 
 Cambi al banco dell'audit B19 (`../b19/due-umani.mjs`), tutti spenti di base (le impronte dei profili di sempre non
 cambiano):
