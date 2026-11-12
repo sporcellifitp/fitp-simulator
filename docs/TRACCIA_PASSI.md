@@ -201,7 +201,7 @@ animazioni del gioco sulle 24 ossa, al posto delle mascotte costruite nel codice
       racchetta nella mano giusta e sulla palla all'impatto; se il modello non si carica, ripiego sulle mascotte nel
       codice; fogli di confronto, prova nel browser, revisore indipendente.
 
-## B27 e B28 (secondo agente, sessione parallela; aggiornato il 12/11/2026 alle 14:40 UTC)
+## B27 e B28 (secondo agente, sessione parallela; aggiornato il 12/11/2026 alle 17:35 UTC)
 
 Lavoro chiesto dall'utente allo stand, in rami locali separati e unito qui un blocco alla volta dopo `git fetch`.
 **Il prossimo numero di versione libero è 2026-11-12.4** (la 2026-11-12.3 è il B27).
@@ -215,7 +215,11 @@ Lavoro chiesto dall'utente allo stand, in rami locali separati e unito qui un bl
 - [x] Revisore indipendente: 12 difetti (2 bloccanti), tutti corretti e con test
 - [x] Unito sopra `b831973`, prove sul codice unito: gioco 1194/1194, sito 223/223, LAN 12/12, Windows 33/33, build ok;
       nel browser `natpf-telecomando` 80/80, `natpf-menu` 38/38, `natpf-training-flow` 22/22
-- [ ] Push, tre esecuzioni di GitHub, installer su R2, zip Cloudflare consegnato (questa riga si aggiorna dopo)
+- [x] Push `76c6ed3`; tre esecuzioni di GitHub verdi; **installer 2026-11-12.3 pubblicato su R2** e verificato dal link
+      fisso: 127.622.808 B, sha256 `7642dcc3724e17761156e4bc30c208c9c5424cd9b9f0d7446e9dfea6801fbbb2`; zip Cloudflare
+      consegnato: 23.330.733 B, sha256 `0d762b68e485de25b8e8396ba2f42fa2725e3d37759de7799215bb81bd658266`, provato
+      estratto (gioco, pagina della racchetta e pagina del telecomando; unico errore atteso: CORS del TURN)
+- [x] Detto all'utente come si attivano la domanda dello schermo, «Schermo del gioco» e «Telecomando dello staff»
 - **Attenzione per chi unisce altri rami**: il pannello dello stand (`#natpf-staff` in `natpf-tennis/index.html`) ha due
   voci nuove nella riga in basso («Telecomando dello staff», «Schermo del gioco») e deve restare senza scorrimento
   (`natpf-menu` lo controlla a 1024×600, 1366×657 e 1024×1024). Chi aggiunge una schermata o un `confirm()` deve
@@ -225,7 +229,12 @@ Lavoro chiesto dall'utente allo stand, in rami locali separati e unito qui un bl
 su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
 - [x] Sviluppo: scambi di prova di 10–15 s al posto della calibrazione con i gesti (opzione dello stand «Calibrazione:
       Giocando · Con i gesti · Nessuna», di base Giocando), tutorial chiudibile da ogni scheda, «Avanti ›» negli esercizi
-- [~] Revisore indipendente in corso (12/11, 14:15 UTC)
+- [x] Revisore indipendente (12/11, 14:40 UTC): nessun blocco sul percorso di base; 4 difetti da correggere (chi tira
+      solo di dritto e manca una palla si ritrova destra e sinistra invertite; il Player 2 che esce dagli scambi di prova
+      nella sfida tra due computer; pausa del telefono del Player 2 nello stesso schermo; profilo del visitatore prima
+      ereditato quando si cambia l'opzione) e 3 minori; il percorso di base ha poche prove
+- [~] Correzioni + unione sopra la 2026-11-12.3 nel ramo `b28-cal-giocando` (agente fermato dal limite d'uso alle 14:45
+      UTC a metà dell'unione, ripreso alle 17:32 UTC)
 - [ ] Correzioni, unione (tocca `natpf_lobby.js`, `natpf_training.js`, `natpf_ui.js`, `natpf_phone_racket.js`, tre righe
       di `game_engine.js`, `racchetta.js`, pannello dello stand), prove complete, versione, pacchetti
 - **Attenzione**: con il B28 chi aggiunge un controllo «siamo in partita?» deve escludere `ui.trial.active`; le prove
@@ -245,6 +254,16 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
 - [ ] Poi: unire i due rami sopra B27 (conflitti attesi su `natpf_kiosk.js`, menu, Opzioni: rifare i test), scelta
       «Personaggi: Classici · Lob & Drop» nelle impostazioni della partita (fatta direttamente), versione, controllo
       rapido, `git fetch`, push, zip e installer, prove complete. Dopo: B29 (modelli 3D), `ripresa-b23-t2g2.js`.
+
+**DIFETTO DI GAMEPLAY TROVATO DAL REVISORE DEL B28, ESISTEVA GIÀ, NON CORRETTO (per l'agente del gameplay).**
+`natpf-tennis/src/swing_vfx.js:916` dà a `timingClass` il valore di base `"PERFECT"` e nessuno glielo passa: ogni
+contatto con la racchetta fa partire il fermo di 34–48 ms del «colpo perfetto». Durante il fermo la fisica è ferma
+(`game_engine.js:2841`) ma `elapsedTime` e `plan.at` continuano, quindi il piano d'intercetto non combacia più con la
+palla (`livePlan` falso per tutto il volo, per P1 e P2): `timeToContact`, `ballIsHigh`, la penalità dell'allungo e il
+«lascia andare» usano il ripiego. Nei test senza grafica `swingVfx` è `null`, per questo non si vede. Verificato
+emulando il fermo nel motore senza grafica (con il fermo `livePlan` sempre falso, senza mai); **non verificato nel
+browser**. `natpf_impact.js` e `swing_vfx.js` sono uguali a `8b85a3c`: non dipende da B27 né da B28. Da decidere: passare
+la classe vera del tempo, o far avanzare `plan.at` con il tempo di gioco.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
