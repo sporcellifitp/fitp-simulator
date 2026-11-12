@@ -47,21 +47,18 @@ test('tutorial prima della calibrazione: modale con presa e gesti, il telefono a
   fromPhone(P, { w: 1, v: 2 }); assert.ok(P.tutSupported && P.tutV2);
   T._onCal({ kind: 'step', step: 'still' }); assert.ok(T.tutorialOpen, 'gli eventi del telefono non chiudono la modale');
   // l'avanzamento va al telefono: scheda 1 di 11, nessuna vista
-  assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 0, n: TUTORIAL_CARDS.length, s: 0, m: 0, all: 0, nm: undefined });
+  // (B28: «all» va sempre a 1, così anche una pagina del telefono di prima accende subito «Tutto chiaro»)
+  assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 0, n: TUTORIAL_CARDS.length, s: 0, m: 0, all: 1, nm: undefined });
   // niente scorrimento automatico: dopo 20 s la scheda è la stessa (e conta come vista)
   w.advance(20000); assert.equal(T.tutorial.state.idx, 0); assert.equal(lastTp(w.link).s, 1, 'la prima scheda è vista dopo ~1 s');
   // dietro la modale aperta a lungo il giocatore aspetta al centro: niente servizio preparato dal motore, niente
   // «Telefono scollegato» nel pannello (il telefono aspetta il tutorial)
   assert.equal(w.E.phase, 'POINT_OVER', 'nessun servizio dietro la modale'); assert.equal(w.E.player.pos.x, 0, 'giocatore al centro');
   w.link.L.phone = 'tut'; T.paint(); assert.equal(T.coach.querySelector('#coach-text').textContent, 'Come si gioca'); w.link.L.phone = 'cal';
-  // «ho capito» toccato prima di aver visto tutto (messaggi incrociati): non chiude, il telefono riceve di nuovo il cancello
-  const sentBefore = w.link.sent.length;
-  fromPhone(P, { ok: 1 });
-  assert.ok(T.tutorialOpen, 'non si chiude prima dell\'ultima scheda');
-  assert.ok(w.link.sent.slice(sentBefore).some(m => m.t === 'cfg' && m.tut === 1), 'cancello rimandato'); assert.ok(w.link.sent.slice(sentBefore).some(m => m.t === 'tp'));
+  assert.equal(lastTp(w.link).av, undefined, 'non ancora tutte viste');
   // frecce del telefono: avanti fino all'ultima scheda, ognuna vista
   seeAll(w, P, T);
-  assert.equal(T.tutorial.state.idx, TUTORIAL_CARDS.length - 1); assert.equal(lastTp(w.link).all, 1, 'tutte viste'); assert.equal(lastTp(w.link).s, TUTORIAL_CARDS.length);
+  assert.equal(T.tutorial.state.idx, TUTORIAL_CARDS.length - 1); assert.equal(lastTp(w.link).av, 1, 'tutte viste'); assert.equal(lastTp(w.link).s, TUTORIAL_CARDS.length);
   fromPhone(P, { nav: 1 }); assert.equal(T.tutorial.state.idx, TUTORIAL_CARDS.length - 1, 'dopo l\'ultima non si torna alla prima');
   fromPhone(P, { ok: 1 });
   assert.ok(!T.tutorialOpen && !T.tutorial.open, 'chiusa dal telefono'); assert.equal(recal, 0, 'la calibrazione la fa partire il telefono (una volta sola)');
@@ -95,14 +92,13 @@ test('tutorial corto prima della partita (5 schede), completo nell\'Allenamento 
   assert.ok(T.tutorialOpen); assert.equal(T.tutorial.set, 'short');
   assert.deepEqual(T.tutorial.cards.map(c => c.id), ['grip', 'ready', 'forehand', 'backhand', 'serve']);
   fromPhone(P, { w: 1, v: 2 });
-  assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 0, n: 5, s: 0, m: 0, all: 0, nm: undefined }, 'il telefono riceve 5 schede');
-  // dopo la quarta scheda non è ancora finito; «ho capito» prima della quinta non chiude
+  assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 0, n: 5, s: 0, m: 0, all: 1, nm: undefined }, 'il telefono riceve 5 schede');
+  // dopo la quarta scheda non sono ancora tutte viste (solo informazione: dal B28 si chiude quando si vuole)
   for (let i = 0; i < 4; i++){ w.advance(TUTORIAL.seenMs + 300); fromPhone(P, { nav: 1 }); }
-  assert.equal(T.tutorial.state.idx, 4); assert.equal(lastTp(w.link).all, 0); assert.equal(lastTp(w.link).nm, 'Servizio');
-  fromPhone(P, { ok: 1 }); assert.ok(T.tutorialOpen, 'prima di aver visto il servizio non si chiude');
+  assert.equal(T.tutorial.state.idx, 4); assert.equal(lastTp(w.link).av, undefined); assert.equal(lastTp(w.link).nm, 'Servizio');
   fromPhone(P, { nav: 1 }); assert.equal(T.tutorial.state.idx, 4, 'dopo il servizio non ci sono altre schede');
   w.advance(TUTORIAL.seenMs + 300);
-  assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 4, n: 5, s: 5, m: 31, all: 1, nm: undefined }, 'tutte e 5 viste: «Tutto chiaro» si accende');
+  assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 4, n: 5, s: 5, m: 31, all: 1, av: 1, nm: undefined }, 'tutte e 5 viste');
   fromPhone(P, { ok: 1 });
   assert.ok(!T.tutorialOpen); assert.ok(P.tutorialSeen && P.tutorialSeenFor('short') && !P.tutorialSeenFor('full'));
   // «Rivedi i gesti»: sempre tutte le schede
@@ -115,8 +111,8 @@ test('tutorial corto prima della partita (5 schede), completo nell\'Allenamento 
   T.start({ intro: true });
   assert.ok(T.tutorialOpen); assert.equal(T.tutorial.set, 'full'); assert.equal(T.tutorial.state.idx, 5); assert.equal(T.tutorial.state.visited.size, 5);
   assert.equal(T.tutorial.card.id, TUTORIAL_CARDS[5].id);
-  fromPhone(P, { w: 1, v: 2 }); assert.equal(lastTp(w.link).n, TUTORIAL_CARDS.length); assert.equal(lastTp(w.link).all, 0, 'il corto visto non accende il completo');
-  seeAll(w, P, T); assert.equal(lastTp(w.link).all, 1);
+  fromPhone(P, { w: 1, v: 2 }); assert.equal(lastTp(w.link).n, TUTORIAL_CARDS.length); assert.equal(lastTp(w.link).av, undefined, 'il corto visto non vale come completo visto');
+  seeAll(w, P, T); assert.equal(lastTp(w.link).av, 1);
   fromPhone(P, { ok: 1 }); assert.ok(!T.tutorialOpen && P.tutorialSeenFor('full'));
   T.stop({ completed: false, silent: true });
   // visto il completo, il corto non si rivede (prima della partita)
@@ -216,9 +212,9 @@ test('tutorial: telefono già pronto → dopo «ho capito» si va agli esercizi;
   w.link.ready = true; w.link.L.phone = 'ready';
   T.start({ intro: true });
   assert.ok(T.tutorialOpen && !T.cal, 'pronto: niente calibrazione dopo');
-  assert.match(T.tutorial.root.querySelector('.tut-wait').textContent, /Sfoglia le schede/);
+  assert.match(T.tutorial.root.querySelector('.tut-wait').textContent, /Sfoglia con ‹ ›.*quando vuoi.*poi si gioca/, 'il testo dice cosa succede dopo (prima «poi si calibra» anche da pronto)');
   fromPhone(P, { w: 1, v: 2 }); seeAll(w, P, T);
-  assert.match(T.tutorial.root.querySelector('.tut-wait').textContent, /poi si comincia/, 'il testo dice cosa succede dopo (prima «poi si calibra» anche da pronto)');
+  assert.match(T.tutorial.root.querySelector('.tut-wait').textContent, /poi si gioca/);
   fromPhone(P, { ok: 1 });
   assert.ok(!T.tutorialOpen && T.active && !T.cal);
   // «Ricalibra» (dal computer o dal telefono): la calibrazione, non il tutorial
@@ -275,8 +271,9 @@ test('tutorial, stato puro: frecce senza giro, scheda vista dopo seenMs, «tutte
   s = tutorialGo(s, 0, { now: 50000 }); assert.ok(s.all, 'indietro dopo aver visto tutto: resta tutto visto');
   const r = tutorialStart({ now: 0, from: { idx: 3, visited: [0, 1, 2, 99], all: false } });
   assert.equal(r.idx, 3); assert.deepEqual([...r.visited], [0, 1, 2]);
-  // testi in fondo: prima «sfoglia», poi cosa succede dopo
-  assert.match(tutorialWait({ all: false }), /Sfoglia le schede con ‹ ›/); assert.match(tutorialWait({ all: true }), /Tutto chiaro, ho capito.*si calibra/);
+  // testo in fondo (B28: uno solo, si chiude quando si vuole): come sfogliare, come chiudere e cosa succede dopo
+  assert.match(tutorialWait({}), /Sfoglia con ‹ ›.*quando vuoi.*«Tutto chiaro» sul telefono \(o la X\).*si calibra/); assert.equal(tutorialWait({ all: true }), tutorialWait({ all: false }), 'le schede viste non cambiano la frase');
+  assert.match(tutorialWait({ after: 'play' }), /poi si gioca/); assert.ok(tutorialWait({}).length <= 90, 'frase breve');
   assert.match(tutorialWait({ all: true, after: 'ready', half: true }), /tuo telefono.*sei pronto/); assert.equal(tutorialWait({ mode: 'review' }), '');
   // tutti i gesti del tutorial (presa e posizione comprese) hanno titolo e indicazioni
   for (const c of TUTORIAL_CARDS) assert.ok(c.title && (c.cues.length || c.text), c.id);
@@ -321,65 +318,66 @@ test('volée: il giocatore va a rete e il lanciapalle aspetta che arrivi', async
   T.stop({ completed: false, silent: true });
 });
 
-// B17.2 (08/11): X in alto a destra della scheda. In 'phone' è spenta («Sfoglia tutte le schede») finché non sono tutte
-// viste, poi accesa; cliccata fa la stessa cosa di «Tutto chiaro, ho capito» dal telefono (onDone di chi apre la modale):
-// tutorial visto per l'abbinamento, telefono liberato (cfg senza tut: calibra da solo, una volta), modale chiusa. In
-// «Rivedi i gesti» chiude sempre
+// B17.2 (08/11): X in alto a destra della scheda; cliccata fa la stessa cosa di «Tutto chiaro, ho capito» dal telefono
+// (onDone di chi apre la modale): tutorial visto per l'abbinamento, telefono liberato (cfg senza tut: calibra da solo, una
+// volta), modale chiusa. B28 (12/11, richiesta dell'utente allo stand: «togli il check… è molto fastidioso»): la X è accesa
+// DA SUBITO e chiude da qualunque scheda, come «Tutto chiaro» dal telefono e Invio sul computer; prima restava spenta
+// («Sfoglia tutte le schede») finché tutte le schede non erano rimaste a schermo. In «Rivedi i gesti» chiude sempre
 const xOf = t => t.root.querySelector('.tut-x');
-test('tutorial, X: spenta finché non sono tutte viste, poi accesa; cliccata nel gioco singolo = «Tutto chiaro» dal telefono', async () => {
+test('tutorial, X: accesa da subito (B28); cliccata dalla prima scheda nel gioco singolo = «Tutto chiaro» dal telefono', async () => {
   const w = await makeWorld({ controller: 'phone' });
   const T = w.ui.training, P = w.ui.phone;
   let recal = 0; const orig = P.recalibrate.bind(P); P.recalibrate = () => { recal++; return orig(); };
   T.start({ intro: true }); fromPhone(P, { w: 1, v: 2 });
   const x = xOf(T.tutorial);
-  assert.ok(x.classList.contains('off'), 'X spenta all\'inizio'); assert.equal(x.title, 'Sfoglia tutte le schede'); assert.equal(T.tutorial.xEnabled, false);
-  // spenta: il clic non fa niente, il telefono continua ad aspettare
-  x.click(); assert.ok(T.tutorialOpen && T.tutorial.open && P.tutWait && !P.tutorialSeen, 'X spenta: niente');
-  // a metà: ancora spenta
-  for (let i = 0; i < 4; i++){ w.advance(1300); fromPhone(P, { nav: 1 }); }
-  assert.ok(x.classList.contains('off'), 'a metà ancora spenta');
-  seeAll(w, P, T);
-  assert.ok(T.tutorial.state.all && !x.classList.contains('off'), 'tutte viste: X accesa'); assert.equal(x.title, 'Chiudi: tutto chiaro, ho capito'); assert.equal(T.tutorial.xEnabled, true);
-  // indietro di una scheda: resta accesa («all» non torna indietro)
-  fromPhone(P, { nav: -1 }); assert.ok(!x.classList.contains('off'));
+  assert.ok(!x.classList.contains('off'), 'X accesa all\'inizio'); assert.equal(x.title, 'Chiudi: tutto chiaro, ho capito'); assert.equal(T.tutorial.xEnabled, true);
+  assert.equal(T.tutorial.state.visited.size, 0, 'nessuna scheda vista');
   const cfgBefore = w.link.sent.filter(m => m.t === 'cfg').length;
   x.click();
-  assert.ok(!T.tutorialOpen && !T.tutorial.open, 'X: modale chiusa'); assert.ok(P.tutorialSeen, 'tutorial visto per questo abbinamento');
+  assert.ok(!T.tutorialOpen && !T.tutorial.open, 'X dalla prima scheda: modale chiusa'); assert.ok(P.tutorialSeen, 'tutorial visto per questo abbinamento');
   assert.equal(P.tutWait, false); const cfg = w.link.sent.filter(m => m.t === 'cfg'); assert.ok(cfg.length > cfgBefore && cfg.at(-1).tut === undefined, 'il telefono riceve il cfg senza tut: calibra da solo');
   assert.equal(recal, 0, 'il computer non chiede la calibrazione (il telefono che sa del tutorial la fa da solo: una volta)');
-  assert.ok(T.active && T.cal, 'si passa alla calibrazione');
+  assert.ok(T.active, 'si va avanti');
   // non si ripete con lo stesso telefono
   T.stop({ completed: false, silent: true }); T.start({ intro: true }); assert.ok(!T.tutorialOpen);
   T.stop({ completed: false, silent: true });
+  // «Tutto chiaro» dal telefono alla prima scheda (anche da un telefono v2): chiude
+  const w3 = await makeWorld({ controller: 'phone' }), T3 = w3.ui.training, P3 = w3.ui.phone;
+  T3.start({ intro: true }); fromPhone(P3, { w: 1, v: 2 });
+  assert.equal(lastTp(w3.link).all, 1, '«Tutto chiaro» acceso da subito sul telefono'); assert.equal(T3.tutorial.state.visited.size, 0);
+  fromPhone(P3, { ok: 1 });
+  assert.ok(!T3.tutorialOpen && !T3.tutorial.open && P3.tutorialSeen && !P3.tutWait, '«ho capito» dalla prima scheda chiude');
+  T3.stop({ completed: false, silent: true });
   // telefono con la pagina di prima (non sa del tutorial): dopo la X il computer chiede lui la calibrazione (come con Esc)
   const w2 = await makeWorld({ controller: 'phone' }), T2 = w2.ui.training, P2 = w2.ui.phone;
   let recal2 = 0; const o2 = P2.recalibrate.bind(P2); P2.recalibrate = () => { recal2++; return o2(); };
-  T2.start({ intro: true }); seeAll(w2, P2, T2); xOf(T2.tutorial).click();
-  assert.ok(!T2.tutorialOpen && P2.tutorialSeen); assert.equal(recal2, 1, 'pagina di prima: calibrazione chiesta dal computer, una volta');
+  T2.start({ intro: true }); xOf(T2.tutorial).click();
+  assert.ok(!T2.tutorialOpen && P2.tutorialSeen); assert.ok(recal2 >= 1, 'pagina di prima: il computer chiede lui il profilo al telefono');
   T2.stop({ completed: false, silent: true });
 });
 
-test('tutorial, X: in «Rivedi i gesti» sempre accesa e chiude come «Chiudi»; stesso schermo: chiude solo la propria metà', async () => {
+test('tutorial, X: in «Rivedi i gesti» chiude come «Chiudi»; stesso schermo: dalla prima scheda chiude solo la propria metà', async () => {
   const w = await makeWorld({ controller: 'phone' });
   const T = w.ui.training;
   T.reviewGestures();
   const x = xOf(T.tutorial);
   assert.ok(T.tutorial.open && !x.classList.contains('off') && T.tutorial.xEnabled, 'review: accesa subito'); assert.equal(x.title, 'Chiudi');
   x.click(); assert.ok(!T.tutorial.open, 'review: chiusa');
-  // modale da sola (DOM finto): onDone chiamata una volta, poi chiusa; senza onDone chiude con onClose('phone')
+  // modale da sola (DOM finto): onDone chiamata una volta dalla prima scheda, poi chiusa; senza onDone chiude con onClose('phone')
   const { NatpfTutorial } = await import('../src/natpf/natpf_tutorial.js');
   const { El } = await import('./ui-world.mjs');
   let now = 0, done = 0, closed = [];
   const t = new NatpfTutorial(new El('tut'), { clock: () => now });
+  assert.equal(t.xEnabled, false, 'modale chiusa: niente da chiudere');
   t.openFor({ mode: 'phone', onDone: () => { done++; closed.push('done'); }, onClose: r => closed.push(r) });
-  xOf(t).click(); assert.equal(done, 0, 'spenta: onDone non chiamata');
-  for (let i = 0; i < TUTORIAL_CARDS.length; i++){ now += 1300; t.step(1); } t.tick();
-  assert.ok(t.state.all && t.xEnabled);
+  assert.ok(t.xEnabled && !t.state.all, 'accesa con nessuna scheda vista');
   xOf(t).click(); assert.equal(done, 1); assert.deepEqual(closed, ['done', 'phone'], 'onDone, poi chiusa (chi apre di solito la chiude già lui)');
   xOf(t).click(); assert.equal(done, 1, 'chiusa: niente di nuovo');
   const t2 = new NatpfTutorial(new El('tut2'), { clock: () => now }); let r2 = null;
-  t2.openFor({ mode: 'phone', from: { idx: 0, visited: [], all: true }, onClose: r => { r2 = r; } });
-  assert.ok(t2.xEnabled, 'ripresa con tutte viste: accesa'); xOf(t2).click(); assert.equal(r2, 'phone'); assert.ok(!t2.open);
+  t2.openFor({ mode: 'phone', onClose: r => { r2 = r; } });
+  // Invio (senza un pulsante a fuoco) chiude come la X; Spazio no
+  assert.equal(t2.key({ code: 'Space' }), false); assert.ok(t2.open);
+  assert.equal(t2.key({ code: 'Enter' }), true); assert.equal(r2, 'phone'); assert.ok(!t2.open);
   // stesso schermo: la X della metà del P1 chiude solo la sua metà e libera solo il suo telefono
   const { NatpfPhoneRacket } = await import('../src/natpf/natpf_phone_racket.js');
   const ws = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = ws;
@@ -389,49 +387,43 @@ test('tutorial, X: in «Rivedi i gesti» sempre accesa e chiude come «Chiudi»;
   lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
   assert.ok(ui.split.tutOpen.p1 && ui.split.tutOpen.p2);
   const x1 = xOf(ui.split.tut.p1), x2 = xOf(ui.split.tut.p2);
-  assert.ok(x1.classList.contains('off') && x2.classList.contains('off'), 'tutte e due spente');
-  x1.click(); assert.ok(ui.split.tutOpen.p1, 'spenta: la metà resta aperta');
-  for (let i = 0; i < TUTORIAL_CARDS.length; i++){ ws.advance(1300); ui.split.tut.p1.step(1); } ui.split.tut.p1.tick();
-  assert.ok(!x1.classList.contains('off') && x2.classList.contains('off'), 'P1 ha visto tutto: solo la sua X è accesa');
+  assert.ok(!x1.classList.contains('off') && !x2.classList.contains('off'), 'tutte e due accese da subito');
   x1.click(); ui.split.paint();
   assert.ok(!ui.split.tutOpen.p1 && ui.split.tutOpen.p2, 'chiusa solo la metà del P1'); assert.ok(E.natpfPhone.tutorialSeen && !P2.tutorialSeen);
   assert.ok(!E.natpfPhone.tutWait && P2.tutWait, 'liberato solo il telefono del P1');
-  assert.ok(ws.link.cmds.includes('cal') && !l2.cmds.includes('cal'), 'calibrazione del P1 (telefono di prova senza tutorial), il P2 non è disturbato');
+  assert.ok(!l2.cmds.includes('cal') && !l2.cmds.includes('skip'), 'il P2 non è disturbato');
 });
 
 // B17.2 bis: Invio e Spazio sulla X (o su una freccia, o su «Chiudi») a fuoco con Tab la attivano come il clic. Prima
 // motion_controls._onKeyDown fermava Spazio e Invio (preventDefault: niente clic del pulsante) e tirava un colpo da
 // tastiera a modale aperta; adesso l'ascoltatore in cattura dell'allenamento (e la lobby nello stesso schermo) li
-// fermano prima del motore
-test('tutorial, tastiera: Invio e Spazio sulla X a fuoco = clic (spenta: niente), sulle frecce sfogliano, mai un colpo da tastiera a modale aperta', async () => {
+// fermano prima del motore. B28: Invio senza un pulsante a fuoco chiude la modale (come la X); Spazio no
+test('tutorial, tastiera: Invio chiude da qualunque scheda (B28), Invio e Spazio sui pulsanti a fuoco = clic, mai un colpo da tastiera a modale aperta', async () => {
   const w = await makeWorld({ controller: 'phone' });
   const T = w.ui.training, P = w.ui.phone;
   T.start({ intro: true }); fromPhone(P, { w: 1, v: 2 });
   const x = xOf(T.tutorial), prev = T.tutorial.root.querySelector('.tut-prev'), next = T.tutorial.root.querySelector('.tut-next');
   const press = (code, active) => { document.activeElement = active; try { return w.key(code); } finally { document.activeElement = null; } };
   const blocked = ev => ev.defaultPrevented && ev._stopImm;      // il motore (dopo, in bubbling) non lo vede
-  // fuoco altrove: Spazio e Invio fermati (niente colpo), modale com'era
-  assert.ok(blocked(press('Space', document.body)) && blocked(press('Enter', document.body)), 'Spazio e Invio fermati prima del motore');
+  // fuoco altrove: Spazio fermato (niente colpo), modale com'era
+  assert.ok(blocked(press('Space', document.body)), 'Spazio fermato prima del motore');
   assert.ok(T.tutorialOpen && T.tutorial.open && T.tutorial.state.idx === 0);
-  // X spenta: Invio e Spazio fermati, la modale resta aperta e il telefono aspetta
   assert.equal(T.tutorial.focusedControl(x), '.tut-x'); assert.equal(T.tutorial.focusedControl(next), '.tut-next'); assert.equal(T.tutorial.focusedControl(document.body), null);
-  assert.ok(blocked(press('Enter', x)) && blocked(press('Space', x)));
-  assert.ok(T.tutorialOpen && T.tutorial.open && P.tutWait && !P.tutorialSeen, 'X spenta: niente');
   // frecce a fuoco: Invio avanti, Spazio indietro; la freccia spenta (prima scheda) non fa niente
   assert.ok(blocked(press('Enter', next))); assert.equal(T.tutorial.state.idx, 1);
   assert.ok(blocked(press('Space', prev))); assert.equal(T.tutorial.state.idx, 0);
   assert.ok(prev.disabled); assert.ok(blocked(press('Enter', prev))); assert.equal(T.tutorial.state.idx, 0, 'freccia spenta: ferma');
-  // tutte viste: Invio sulla X chiude come il clic («Tutto chiaro» dal telefono): visto, telefono libero, calibrazione
-  seeAll(w, P, T); assert.ok(T.tutorial.xEnabled);
-  assert.ok(blocked(press('Enter', x)));
-  assert.ok(!T.tutorialOpen && !T.tutorial.open && P.tutorialSeen && !P.tutWait && T.active && T.cal, 'Invio sulla X accesa: chiusa come il clic');
+  assert.ok(T.tutorialOpen, 'ancora aperta');
+  // Invio con il fuoco altrove, alla prima scheda e senza averne vista nessuna: chiude come «Tutto chiaro» dal telefono
+  assert.ok(blocked(press('Enter', document.body)));
+  assert.ok(!T.tutorialOpen && !T.tutorial.open && P.tutorialSeen && !P.tutWait && T.active, 'Invio: chiusa da subito');
   // modale chiusa: la tastiera torna al motore (l'ascoltatore non ferma più niente)
   assert.ok(!blocked(press('Enter', document.body)) && !blocked(press('Space', x)));
   T.stop({ completed: false, silent: true });
   // «Rivedi i gesti»: Spazio sulla X e Invio su «Chiudi» chiudono
   T.reviewGestures(); assert.ok(blocked(press('Space', xOf(T.tutorial)))); assert.ok(!T.tutorial.open, 'review: Spazio sulla X chiude');
   T.reviewGestures(); assert.ok(blocked(press('Enter', T.tutorial.root.querySelector('.tut-close')))); assert.ok(!T.tutorial.open, 'review: Invio su «Chiudi» chiude');
-  // stesso schermo: Invio sulla X della metà del P2 chiude solo quella (la lobby non va alla pagina dopo), spenta ferma
+  // stesso schermo: Invio sulla freccia e sulla X della metà del P2 valgono solo per la sua metà (la lobby non va alla pagina dopo)
   const { NatpfPhoneRacket } = await import('../src/natpf/natpf_phone_racket.js');
   const ws = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = ws;
   const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
@@ -439,12 +431,21 @@ test('tutorial, tastiera: Invio e Spazio sulla X a fuoco = clic (spenta: niente)
     start(){}, send(m){ this.sent.push(m); }, cmd(c){ this.cmds.push(c); if (c === 'cal'){ this.ready = false; this.L.phone = 'cal'; } }, forget(){}, motion(){ return null; }, face(){ return null; }, on(){} };
   lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
   assert.ok(ui.split.tutOpen.p1 && ui.split.tutOpen.p2);
-  const x2 = xOf(ui.split.tut.p2), press2 = (code, active) => { document.activeElement = active; try { return ws.key(code); } finally { document.activeElement = null; } };
-  assert.ok(blocked(press2('Enter', x2))); assert.ok(ui.split.tutOpen.p1 && ui.split.tutOpen.p2 && lobby.step === 'connect', 'X del P2 spenta: niente, si resta in «Collega»');
+  const x2 = xOf(ui.split.tut.p2), press2 = (code, active) => { document.activeElement = active; try { return ws.key(code, code === 'Enter' ? 'Enter' : ''); } finally { document.activeElement = null; } };
   ws.advance(1300); assert.ok(blocked(press2('Enter', ui.split.tut.p2.root.querySelector('.tut-next')))); assert.equal(ui.split.tut.p2.state.idx, 1); assert.equal(ui.split.tut.p1.state.idx, 0, 'Invio sulla freccia del P2: solo la sua metà');
-  for (let i = 0; i < TUTORIAL_CARDS.length; i++){ ws.advance(1300); ui.split.tut.p2.step(1); } ui.split.tut.p2.tick();
-  assert.ok(ui.split.tut.p2.xEnabled && !ui.split.tut.p1.xEnabled);
+  assert.ok(ui.split.tut.p2.xEnabled && ui.split.tut.p1.xEnabled, 'le due X accese da subito');
   assert.ok(blocked(press2('Space', x2))); ui.split.paint();
-  assert.ok(!ui.split.tutOpen.p2 && ui.split.tutOpen.p1 && lobby.step === 'connect', 'Spazio sulla X accesa del P2: chiusa solo la sua metà');
+  assert.ok(!ui.split.tutOpen.p2 && ui.split.tutOpen.p1 && lobby.step === 'connect', 'Spazio sulla X del P2: chiusa solo la sua metà');
   assert.ok(P2.tutorialSeen && !P2.tutWait && !E.natpfPhone.tutorialSeen && E.natpfPhone.tutWait, 'liberato solo il telefono del P2');
+  // Invio senza un pulsante a fuoco: chiude la metà rimasta aperta, senza cambiare pagina
+  assert.ok(blocked(press2('Enter', document.body)));
+  assert.ok(!ui.split.tutOpen.p1 && E.natpfPhone.tutorialSeen && lobby.step === 'connect', 'Invio: chiusa anche la metà del P1');
+  // Spazio sulla X a fuoco (clic) ed Esc chiudono anche loro dalla prima scheda
+  for (const how of ['x', 'esc']){
+    const v = await makeWorld({ controller: 'phone' }), Tv = v.ui.training;
+    Tv.start({ intro: true });
+    if (how === 'x'){ document.activeElement = xOf(Tv.tutorial); try { v.key('Space'); } finally { document.activeElement = null; } } else v.key('Escape', 'Escape');
+    assert.ok(!Tv.tutorialOpen && !Tv.tutorial.open && v.ui.phone.tutorialSeen, `${how}: chiusa dalla prima scheda`);
+    Tv.stop({ completed: false, silent: true });
+  }
 });

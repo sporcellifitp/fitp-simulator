@@ -15,6 +15,8 @@ import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLeve
 import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './natpf_fair_format.js';
 import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
 import { readAutoToss, writeAutoToss, autoTossButton, autoTossToast, readOpenCourt, writeOpenCourt, openCourtButton, openCourtToast } from './natpf_duo_rules.js';
+// B28: «Calibrazione: Giocando · Con i gesti · Nessuna» (natpf_trial_learn.js), di base «Giocando»
+import { readSavedCalMode, writeCalMode, nextCalMode, calModeButton, calModeToast, calModeFromUrl } from './natpf_trial_learn.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -145,6 +147,23 @@ export class NatpfKiosk {
       ui.toast?.(autoTossToast(on));
       ui.diag?.recorder?.log?.('stand.lancioAuto', { acceso: on });
     }
+    // B28: calibrazione del telefono, giocando → con i gesti → nessuna → giocando; salvata, vale dalla partita dopo (il
+    // telefono già pronto resta com'è finché non si gioca o si ricalibra)
+    if (cmd === 'cal'){
+      const forced = !!calModeFromUrl(), mode = writeCalMode(nextCalMode(readSavedCalMode()));
+      ui.toast?.(calModeToast(mode, forced));
+      ui.diag?.recorder?.log?.('stand.calibrazione', { modo: mode, indirizzo: forced });
+      // (revisione del B28, difetto 4) l'opzione nuova vale dal prossimo «Gioca» senza rifare il QR e niente passa a chi
+      // arriva dopo: una calibrazione con i gesti fatta prima del cambio non vale più «per la prossima partita»; con
+      // «Con i gesti» un telefono rimasto con il profilo dato dal gioco torna a calibrare (subito se si è al menu,
+      // altrimenti al prossimo «Gioca»); con le altre un telefono fermo ai gesti riceve il profilo semplice
+      for (const p of [ui.phone, this.engine?.natpfPhone2]){
+        if (!p) continue;
+        p.gestureAt = null;
+        if (ui.lobby?.visible && !ui.training?.active && !ui.trial?.active) p.demoteIfStale?.();
+        p._autoProfile?.();
+      }
+    }
     if (cmd === 'open'){
       const on = writeOpenCourt(!readOpenCourt());
       ui.toast?.(openCourtToast(on));
@@ -164,6 +183,7 @@ export class NatpfKiosk {
     const hot = readHotRally(); set('hot', hotButton(hot), hot);
     const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);
     const open = readOpenCourt(); set('open', openCourtButton(open), open);
+    const cal = readSavedCalMode(); set('cal', calModeButton(cal, !!calModeFromUrl()), cal === 'play');
     // B27: telecomando dello staff e, nel programma Windows con più monitor, il monitor del gioco
     const remote = this.ui.remote; set('remote', remote ? remote.staffLabel : '—', !!remote?.link?.connected);
     const disp = this.el.querySelector('[data-staff="display"]'), d = remote?.displays;

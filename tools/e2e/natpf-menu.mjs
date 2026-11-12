@@ -1,5 +1,6 @@
 // NATPF motore base: menu principale al centro, sfondo fermo. Verifica a quattro risoluzioni (1366 × 657 di un portatile
-// con la barra del browser, 1024 × 600, 1280 × 720 e, dal B27, il ledwall quadrato 1024 × 1024 dello stand):
+// con la barra del browser, 1024 × 600, 1280 × 720 e, dal B27, il ledwall quadrato 1024 × 1024 dello stand; dal B28 il
+// pannello dello stand anche a 720 × 720):
 //   • tutte le voci visibili senza scorrere (anche le pagine «Modalità», «Racchetta», «Partita», «Opzioni», «Sfide»);
 //   • frecce come con un joypad: giù/su tra le voci, destra/sinistra nella fila delle due voci di servizio;
 //   • descrizione della voce scelta sotto il pannello;
@@ -65,6 +66,9 @@ try {
     await p.waitForTimeout(400);                                            // animazione d'entrata del foglio (0,28 s)
     const staff = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'), r = s.getBoundingClientRect(), c = s.querySelector('[data-staff="close"]').getBoundingClientRect(), t = s.querySelector('[data-staff="remote"]'), tr = t.getBoundingClientRect(); return { scroll: s.scrollHeight - s.clientHeight, sheet: [Math.round(r.top), Math.round(r.bottom)], close: [Math.round(c.top), Math.round(c.bottom)], inner: innerHeight, remote: tr.height > 0 && tr.bottom <= Math.min(r.bottom, innerHeight), display: s.querySelector('[data-staff="display"]').classList.contains('hidden') }; });
     check(`${tag}: pannello dello stand senza scorrere, «Chiudi» e «Telecomando dello staff» in vista (nel browser niente «Schermo del gioco»)`, staff.scroll <= 0 && staff.close[0] >= staff.sheet[0] && staff.close[1] <= Math.min(staff.sheet[1], staff.inner) && staff.remote && staff.display, JSON.stringify(staff));
+    // B28 insieme al B27: anche «Calibrazione» (opzione dello stand) è nel foglio, tutta in vista
+    const calBtn = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet').getBoundingClientRect(), b = document.querySelector('#natpf-staff [data-staff="cal"]'), r = b?.getBoundingClientRect(); return b ? { text: b.textContent.replace(/\s+/g, ' ').trim(), inside: r.top >= s.top && r.bottom <= Math.min(s.bottom, innerHeight) && r.height > 0, n: document.querySelectorAll('#natpf-staff [data-staff]').length } : null; });
+    check(`${tag}: «Calibrazione» nel pannello dello stand, in vista`, !!calBtn && calBtn.inside && /Calibrazione/.test(calBtn.text), JSON.stringify(calBtn));
     if (w === 1024) await p.screenshot({ path: `${SP}/stand-${w}x${h}.png` });
     if (h === 1024){ await p.click('#natpf-staff [data-staff="remote"]'); await p.waitForTimeout(800); await p.screenshot({ path: `${SP}/telecomando-pannello-${w}x${h}.png` }); const rs = await p.evaluate(() => { const s = document.querySelector('#natpf-remote .natpf-sheet'); return s.scrollHeight - s.clientHeight; }); check(`${tag}: foglio «Telecomando dello staff» senza scorrere`, rs <= 0, String(rs)); await p.click('#natpf-remote [data-remote="close"]'); await p.waitForTimeout(300); }
     await p.click('#natpf-staff [data-staff="close"]');
@@ -75,6 +79,29 @@ try {
     await p.focus('[data-menu="training"]'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
     check(`${tag}: Invio sulla voce la apre`, await p.evaluate(() => __natpfTennis.natpfUi.lobby.step) === 'controller');
     check(`${tag}: nessun errore JavaScript`, !errs.length, errs.join(' | ').slice(0, 300));
+    await ctx.close();
+  }
+  // B28 insieme al B27: il pannello dello stand (voci del B27 più «Calibrazione») anche in un'area quadrata piccola,
+  // 720 × 720: non scorre e «Chiudi» resta in vista (le altre verifiche del menu a questa misura non si fanno qui)
+  {
+    const ctx = await B.newContext({ viewport: { width: 720, height: 720 } }), p = await ctx.newPage(), errs = [];
+    p.on('pageerror', e => errs.push(e.message));
+    await p.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0`, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby?.visible, null, { timeout: 120000 });
+    await p.waitForTimeout(600);
+    await p.keyboard.press('Control+Shift+KeyK');
+    await p.waitForSelector('#natpf-staff:not(.hidden) [data-staff="close"]', { state: 'visible', timeout: 10000 });
+    await p.waitForTimeout(400);
+    const staff = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'), r = s.getBoundingClientRect(), box = e => { const q = e.getBoundingClientRect(); return [Math.round(q.top), Math.round(q.bottom)]; };
+      const inside = e => { const q = e.getBoundingClientRect(); return q.height > 0 && q.top >= r.top && q.bottom <= Math.min(r.bottom, innerHeight) && q.left >= r.left && q.right <= Math.min(r.right, innerWidth); };
+      return { scroll: s.scrollHeight - s.clientHeight, wide: s.scrollWidth - s.clientWidth, sheet: box(s), close: box(s.querySelector('[data-staff="close"]')), inner: innerHeight,
+        closeIn: inside(s.querySelector('[data-staff="close"]')), remote: inside(s.querySelector('[data-staff="remote"]')), cal: inside(s.querySelector('[data-staff="cal"]')), n: s.querySelectorAll('[data-staff]').length }; });
+    check('720 × 720: pannello dello stand senza scorrere, «Chiudi», «Telecomando dello staff» e «Calibrazione» in vista', staff.scroll <= 0 && staff.wide <= 0 && staff.closeIn && staff.remote && staff.cal, JSON.stringify(staff));
+    await p.screenshot({ path: `${SP}/stand-720x720.png` });
+    await p.click('#natpf-staff [data-staff="cal"]'); await p.waitForTimeout(300);
+    const after = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'); return { scroll: s.scrollHeight - s.clientHeight, text: s.querySelector('[data-staff="cal"]').textContent.replace(/\s+/g, ' ').trim(), saved: localStorage.getItem('natpf-tennis.calibrazione') }; });
+    check('720 × 720: «Calibrazione» gira (Giocando → Con i gesti) e il foglio continua a non scorrere', after.scroll <= 0 && /Con i gesti/.test(after.text) && after.saved === 'gesti', JSON.stringify(after));
+    check('720 × 720: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
     await ctx.close();
   }
 } finally {

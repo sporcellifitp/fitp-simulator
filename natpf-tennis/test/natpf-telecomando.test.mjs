@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { remoteScreen, remoteCommands, navPlan, confirmText, gameRunning, scoreLine, nextCpu, LAYERS } from '../src/natpf/natpf_remote_map.js';
+import { remoteScreen, remoteCommands, navPlan, confirmText, gameRunning, scoreLine, nextCpu, CPU_LEVELS, LAYERS } from '../src/natpf/natpf_remote_map.js';
 import { phoneFiles, ALLOWED } from '../scripts/natpf-site-plugin.mjs';
 import { PAGES } from '../scripts/pacchetto-cloudflare.mjs';
 import { REMOTE_COMMANDS } from '@natpf/tennis/remote-pairing.js';
@@ -33,6 +33,11 @@ const MATRIX = {
   'telefono scollegato in partita': field({ hold: true }), 'pannello del telefono': field({ phonePanel: true }),
   'fine partita': { ...base, lobby: { visible: false }, victory: true }, 'player 2 dell\'invito': { ...base, guest: true },
   'pannello dello stand in partita': field({ staff: true }),
+  // B28: scambi di prova (calibrazione giocando), anche nella sfida tra due computer (aperti con il menu ancora sotto)
+  'scambi di prova': field({ trial: true, skip: 'Salta gli scambi di prova', calMode: 'play' }),
+  'scambi di prova stesso schermo': field({ trial: true, split: true, skip: 'Salta gli scambi di prova', calMode: 'play' }),
+  'scambi di prova nella sfida': { ...lobby('connect', 'friend'), trial: true, skip: 'Salta gli scambi di prova', calMode: 'play' },
+  'pausa negli scambi di prova': field({ trial: true, pause: true, calMode: 'play' }),
 };
 
 test('ogni schermata ha un nome per il telefono e da ognuna si va avanti o si torna al menu senza toccare il PC', () => {
@@ -51,7 +56,7 @@ test('ogni schermata ha un nome per il telefono e da ognuna si va avanti o si to
 });
 
 test('in campo il telecomando non muove il giocatore e non tira colpi: frecce e OK spenti, Indietro = pausa', () => {
-  for (const name of ['partita', 'partita stesso schermo', 'sfida 1v1 in campo', 'minigioco', 'riscaldamento', 'allenamento', 'calibrazione del telefono']){
+  for (const name of ['partita', 'partita stesso schermo', 'sfida 1v1 in campo', 'minigioco', 'riscaldamento', 'allenamento', 'calibrazione del telefono', 'scambi di prova', 'scambi di prova stesso schermo', 'scambi di prova nella sfida']){
     const s = MATRIX[name], screen = remoteScreen(s), { cmds, labels } = remoteCommands(s, screen);
     assert.equal(screen.nav, 'field', name);
     for (const c of ['up', 'down', 'left', 'right', 'ok']){ assert.equal(navPlan(screen, c).kind, 'blocked', `${name}: ${c}`); assert.equal(typeof cmds[c], 'string'); }
@@ -99,8 +104,16 @@ test('pulsanti diretti: Gioca, Pausa, livello CPU, schermo, schermo intero, Salt
   assert.deepEqual([cmdsOf(MATRIX.pausa).labels.pause, cmdsOf(MATRIX.pausa).cmds.pause], ['Riprendi', 1]);
   assert.match(cmdsOf(MATRIX['menu principale']).cmds.pause, /solo in campo/);
   // CPU: Facile → Esperta → Leggenda → Facile; non nello stesso schermo né nella sfida tra due computer
-  assert.deepEqual([nextCpu('casual'), nextCpu('pro'), nextCpu('leggenda'), nextCpu(undefined)], ['pro', 'leggenda', 'casual', 'casual']);
+  assert.deepEqual([nextCpu('casual'), nextCpu('pro'), nextCpu('leggenda'), nextCpu(undefined)], ['evento', 'leggenda', 'bambini', 'pro']);
   assert.equal(cmdsOf(MATRIX['menu principale']).labels.cpu, 'CPU: Esperta');
+  // dal 2026-11-12.4: «Chi gioca» (Bambino · Ragazzo · Adulto) più Esperta e Leggenda, cinque livelli in ordine
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'evento' }).labels.cpu, 'Chi gioca: Adulto');
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'evento' }).hints.cpu, 'poi CPU Esperta');
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'bambini' }).labels.cpu, 'Chi gioca: Bambino');
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'leggenda' }).hints.cpu, 'poi Bambino');
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'sconosciuto' }).labels.cpu, 'Chi gioca: Adulto');
+  assert.deepEqual([...CPU_LEVELS], ['bambini', 'casual', 'evento', 'pro', 'leggenda']);
+  { let l = 'bambini'; const seen = []; for (let i = 0; i < 5; i++){ seen.push(l); l = nextCpu(l); } assert.equal(l, 'bambini'); assert.equal(new Set(seen).size, 5); }
   assert.match(cmdsOf(MATRIX['stesso schermo: telefoni']).cmds.cpu, /Non c’è la CPU/);
   assert.match(cmdsOf(MATRIX['sfida tra due computer (lobby)']).cmds.cpu, /Non c’è la CPU/);
   assert.equal(cmdsOf(MATRIX['fine partita']).cmds.cpu, 1, 'a fine partita sì (vale dalla prossima)');
@@ -120,6 +133,39 @@ test('pulsanti diretti: Gioca, Pausa, livello CPU, schermo, schermo intero, Salt
   assert.match(cmdsOf({ ...MATRIX.partita, controller: 'webcam' }).cmds.recal, /non usa il telefono/);
   assert.equal(cmdsOf({ ...MATRIX['pronto per la partita'], canReview: true }).cmds.gestures, 1);
   assert.match(cmdsOf(MATRIX.partita).cmds.gestures, /Pausa/);
+});
+
+// B28 insieme al B27: gli scambi di prova sono «in campo» (frecce e OK spenti, Indietro = pausa); «Salta» li salta e,
+// dove ci sono, preme «Avanti ›» dell'allenamento e «Salta la calibrazione»; «Ricalibra il telefono» fa quello che fa
+// «Ricalibra» del pannello (in partita con «Giocando»: scambi di prova, anche nello stesso schermo)
+test('B28: scambi di prova dal telecomando (pagina, Salta, Ricalibra) e «Avanti ›» dell\'allenamento', async () => {
+  const cmdsOf = s => remoteCommands(s, remoteScreen(s));
+  for (const name of ['scambi di prova', 'scambi di prova stesso schermo', 'scambi di prova nella sfida']){
+    const s = MATRIX[name], screen = remoteScreen(s), { cmds, labels } = cmdsOf(s);
+    assert.deepEqual([screen.id, screen.label, screen.nav], ['trial', 'Scambi di prova', 'field'], name);
+    assert.match(navPlan(screen, 'ok').why, /Scambi di prova.*Salta/);
+    assert.deepEqual([cmds.skip, labels.skip], [1, 'Salta gli scambi di prova'], name);
+    assert.match(cmds.recal, /stanno già calibrando/, name); assert.equal(cmds.play, 'La partita è già in corso');
+  }
+  const paused = remoteScreen(MATRIX['pausa negli scambi di prova']);
+  assert.deepEqual([paused.id, paused.under], ['pause', 'trial']); assert.ok(gameRunning(paused));
+  assert.match(cmdsOf(MATRIX['pausa negli scambi di prova']).cmds.recal, /stanno già calibrando/);
+  // Ricalibra: in partita con «Giocando» → scambi di prova (anche nello stesso schermo); con i gesti nello stesso schermo no
+  const play = { ...MATRIX.partita, calMode: 'play', recalTrial: true };
+  assert.deepEqual([cmdsOf(play).cmds.recal, cmdsOf(play).hints.recal], [1, 'scambi di prova, poi si rigioca il punto']);
+  assert.equal(cmdsOf({ ...MATRIX['partita stesso schermo'], calMode: 'play', recalTrial: true }).cmds.recal, 1);
+  assert.match(cmdsOf({ ...MATRIX['partita stesso schermo'], calMode: 'gesti' }).cmds.recal, /Racchette/);
+  assert.equal(cmdsOf({ ...MATRIX['pronto per la partita'], calMode: 'gesti' }).hints.recal, 'rifà i gesti');
+  assert.match(cmdsOf({ ...MATRIX['pronto per la partita'], calMode: 'play' }).hints.recal, /impara dai prossimi scambi/);
+  // la fotografia e i comandi veri (natpf_remote.js): nomi dei pulsanti che il gioco ha davvero
+  const remote = fs.readFileSync(new URL('../src/natpf/natpf_remote.js', import.meta.url), 'utf8');
+  assert.match(remote, /trial \? \(ui\.pause\?\.isOpen \? null : 'Salta gli scambi di prova'\)/);
+  assert.match(remote, /if \(ui\.trial\?\.active\)\{ ui\.trial\.skip\(\);/);
+  assert.match(remote, /visible\(\$\('coach-next'\)\)\)\{ \$\('coach-next'\)\.click\(\);/);
+  assert.match(remote, /visible\(\$\('natpf-phone-skip'\)\)\)\{ \$\('natpf-phone-skip'\)\.click\(\);/);
+  assert.match(remote, /if \(ui\.recalibrate\(\)\) return \{ ok: true, msg: 'Scambi di prova: poi si rigioca il punto' \}/);
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  for (const id of ['coach-next', 'coach-exit', 'natpf-phone-skip', 'trial-skip']) assert.match(html, new RegExp(`id="${id}"`), id);
 });
 
 // Revisione del B27 (12/11): pausa aperta sopra «telefono scollegato», ↑ ↓ con «Rivedi i gesti» o la lezione in campo,

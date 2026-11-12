@@ -11,6 +11,10 @@
 //                 «Sono pronto» → telefono → calibrazione; l'host «Gioca» → prima palla
 //   cd tools/e2e && GAME_PORT=… PEER_PORT=… FLOW=singolo CHROMIUM_PATH=… node natpf-flusso-tocchi.mjs   (schermate in $OUT)
 //   MAX_TAPS=n: verifica che il percorso non superi n tocchi (prova nel browser del flusso).
+//   CAL=gesti|play|none (B28, th.mjs): opzione dello stand «Calibrazione»; senza, quella del gioco («Giocando»: niente gesti
+//   di calibrazione, il tutorial si chiude dalla prima scheda, dopo «Gioca» gli scambi di prova e poi la partita). Si
+//   misurano anche i secondi da «Gioca» (o dalla fine del conto) al primo punto vero, senza colpire nessuna palla (il caso
+//   più lento: gli scambi di prova finiscono allo scadere).
 // Eventi devicemotion sintetici: non sostituiscono un telefono vero né il tempo di una persona.
 import { spawn } from 'node:child_process';
 import http from 'node:http';
@@ -131,7 +135,7 @@ async function intro(who){
 async function toMatch(who, { warmupShot = true } = {}){
   const p = pages[who];
   const where = async () => p.evaluate(() => { const T = __natpfTennis.natpfUi.training, L = __natpfTennis.natpfUi.lobby; return T.active && !T.cal && !T.tutorialOpen ? 'warmup' : L.visible && L.step === 'match' ? 'match' : null; });
-  let w = null; for (let i = 0; i < 200 && !(w = await where()); i++) await sleep(150);
+  let w = null; for (let i = 0; i < 260 && !(w = await where()); i++) await sleep(150);
   log(`${who}: dopo la calibrazione → ${w}`);
   if (w === 'warmup'){
     if (warmupShot){ await sleep(1500); await shot(who, 'riscaldamento'); }
@@ -183,13 +187,19 @@ try {
       res.tutorialGuest = tutGuest ? await tutorial('tel2') : { cards: 0, next: 0 };
       await sleep(800); await shot('pc2', 'calibrazione');
       check('telefono del Player 2 calibrato', await calibrate(ph2));
-      const ready = await until(pages.pc, () => !document.getElementById('btn-start-match').disabled, null, 30000);
+      const ready = await until(pages.pc, () => !document.getElementById('btn-start-match').disabled, null, 45000);
       check('l’host vede il Player 2 pronto', ready);
       await shot('pc2', 'pronto'); await shot('pc', 'partita-p2-pronto');
     }
     await tap('pc', 'Gioca', () => pages.pc.click('#btn-start-match'));
+    const tGo = Date.now();
     const first = await until(pages.pc, () => !__natpfTennis.natpfUi.lobby.visible && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY'].includes(__natpfTennis.phase), null, 20000);
-    check('prima palla: la partita parte', first);
+    check('prima palla: la partita (o gli scambi di prova) parte', first);
+    res.trial = await pages.pc.evaluate(() => !!__natpfTennis.natpfUi.trial?.active);
+    if (res.trial){ await sleep(1500); await shot('pc', 'scambi-di-prova'); await shot('tel1', 'scambi-di-prova'); }
+    const real = await until(pages.pc, () => __natpfTennis.natpfMatchSeq >= 1 && !__natpfTennis.natpfUi.trial?.active && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY'].includes(__natpfTennis.phase), null, 30000);
+    res.secondsToMatch = +((Date.now() - tGo)/1000).toFixed(1);
+    check(`primo punto vero ${res.secondsToMatch} s dopo «Gioca»${res.trial ? ' (scambi di prova senza colpire: tetto circa 20 s)' : ''}`, real && res.secondsToMatch <= 22);
     await sleep(1200); await shot('pc', 'prima-palla'); await shot('tel1', 'prima-palla');
     if (FLOW === '1v1') await shot('pc2', 'prima-palla');
     check('nessun errore nella pagina del gioco', !errs.length, errs.slice(0, 3).join(' | '));
@@ -210,7 +220,13 @@ try {
     res.tutorial2 = await tutorial('tel2');
     check('telefono 2 calibrato', await calibrate(ph2));
     const first = await until(pages.pc, () => !!__natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.lobby.visible && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY'].includes(__natpfTennis.phase), null, 20000);
-    check('prima palla: conto alla rovescia e partita senza toccare il computer', first);
+    const tGo = Date.now();
+    check('prima palla: conto alla rovescia e partita (o scambi di prova) senza toccare il computer', first);
+    res.trial = await pages.pc.evaluate(() => !!__natpfTennis.natpfUi.trial?.active);
+    if (res.trial){ await sleep(1500); await shot('pc', 'scambi-di-prova'); }
+    const real = await until(pages.pc, () => __natpfTennis.natpfMatchSeq >= 1 && !__natpfTennis.natpfUi.trial?.active && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY'].includes(__natpfTennis.phase), null, 30000);
+    res.secondsToMatch = +((Date.now() - tGo)/1000).toFixed(1);
+    check(`primo punto vero ${res.secondsToMatch} s dopo la fine del conto${res.trial ? ' (scambi di prova senza colpire: tetto circa 20 s)' : ''}`, real && res.secondsToMatch <= 22);
     await sleep(1200); await shot('pc', 'prima-palla');
     check('nessun errore nella pagina del gioco', !errs.length, errs.slice(0, 3).join(' | '));
   }

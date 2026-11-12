@@ -133,7 +133,8 @@ export function eventQuality(engine, { kind, grade = '', role = 'p1' } = {}){
 // Esito per il telefono del Player 2 nello stesso schermo (natpfPhone2): q è quello di chi gioca qui (natpf_ui.feedback,
 // null per i colpi del P2); per i colpi del P2 con lo stesso schermo attivo si calcola con eventQuality
 export function splitPhoneQuality(engine, e = {}, q = null){
-  if (q || (e.role || 'p1') !== 'p2' || !engine?.natpfSplit?.active || engine.playerRole === 'p2') return q;
+  // (B28: negli scambi di prova i colpi non si giudicano; nel palleggio assistito ogni colpo è rimandato in campo)
+  if (q || (e.role || 'p1') !== 'p2' || !engine?.natpfSplit?.active || engine.playerRole === 'p2' || engine.natpfUi?.trial?.active) return q;
   return eventQuality(engine, e);
 }
 // Giro dell'aptica verso i telefoni (game_engine._initNatpfPhone): l'esito di chi gioca qui (natpf_ui.feedback: anello,

@@ -9,8 +9,7 @@
 //              (idle: sensori attivi, calibrazione non ancora partita perché il computer mostra il tutorial)
 //   gate       null (nessun tutorial) | { v, i, n, s, m, all, name }: il computer mostra il tutorial e aspetta «Tutto
 //              chiaro, ho capito». v 2: il computer manda l'avanzamento («tp»: scheda i di n, s viste, m maschera delle
-//              viste, all tutte viste) e il pulsante resta spento finché all è falso; v 1 (computer di prima): pulsante
-//              acceso subito
+//              viste, all tutte viste); il pulsante è acceso da subito (B28; prima con v 2 restava spento finché all era falso)
 //   inputMode  motion | touch
 //
 // Schermate (la prima condizione vera vince):
@@ -30,13 +29,14 @@ export function screenOf({ linkState = 'off', sensor = 'off', gate = null } = {}
   if (sensor === 'ready') return 'ready';
   return 'cal';
 }
-// «Tutto chiaro, ho capito» toccabile: con un computer che manda l'avanzamento solo dopo tutte le schede viste
-export const tutConfirmable = gate => !!gate && (gate.v < 2 || !!gate.all);
+// «Tutto chiaro, ho capito» toccabile: dal B28 (12/11, richiesta dell'utente allo stand) sempre, da qualunque scheda. Prima,
+// con un computer che manda l'avanzamento (v 2), solo dopo tutte le schede viste
+export const tutConfirmable = gate => !!gate;
 
 // cosa mostra la pagina: { screen, show: { selettore: visibile }, tutOk: { on, lit } } (lit: appena acceso)
 // phase, rematch (B20): a fine partita nello stesso schermo il computer offre la rivincita (rematchOn) e sotto «Pronto»
 // compare il pulsante «Rivincita»
-export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false, phase = null, rematch = null } = {}){
+export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false, phase = null, rematch = null, next = null } = {}){
   const screen = screenOf({ linkState, sensor, gate });
   const S = s => screen === s, touch = inputMode === 'touch';
   const show = {
@@ -56,6 +56,10 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
     // Ricalibra, Ricollega, Scollega: solo sotto «Pronto» (scelta del 05/11: nella calibrazione bloccata decide il computer)
     '#tools': S('ready'),
     '#rematch': S('ready') && phase === 'over' && !!rematch,
+    // B28, niente blocchi: «Avanti ›» offerto dal computer dove chiede un gesto (esercizi, scambi di prova) e «Salta la
+    // calibrazione» durante la calibrazione con i gesti (profilo semplice: si gioca subito)
+    '#next': S('ready') && !!next && phase !== 'over',
+    '#calSkip': S('cal') && !touch && ['still', 'grip', 'swings', 'shots', 'review'].includes(calStep),
     '#tutOk': S('tutorial'),
     '#tutBox': S('tutorial'),
     '#mark': linkState === 'on' && !!diag,
@@ -120,6 +124,30 @@ export function rematchView(r){
 // Senza testo (computer di prima, o pausa del proprio telefono) resta la frase di sempre
 export const pauseNote = d => (d && d.ph === 'pause' && typeof d.txt === 'string' ? d.txt.slice(0, 160) : '');
 
+/* ---------- niente blocchi: «Avanti ›» dal telefono (B28, 12/11) ---------- */
+// Il computer offre di andare avanti senza fare il gesto chiesto (messaggio { t:'nx', on:1, lb }, NatpfPhoneRacket.offerNext:
+// esercizi dell'Allenamento e del riscaldamento, scambi di prova); on 0 lo toglie. Il tocco manda { t:'nx', y:1 }. Un
+// computer di prima non manda niente: nessun pulsante
+export function nextOnMsg(d = {}){
+  if (!d || !d.on) return null;
+  return { label: typeof d.lb === 'string' && d.lb.trim() ? d.lb.slice(0, 24) : 'Avanti ›' };
+}
+
+/* ---------- calibrazione giocando: scambi di prova (B28, 12/11) ---------- */
+// Il computer manda la fase con tr 1 ({ t:'ph', ph:'play', tr:1 }) mentre gioca gli scambi di prova (natpf_trial.js): il
+// telefono lo scrive al posto di «Pronto». Un computer di prima non manda tr: resta «Pronto»
+export const trialOnMsg = d => !!d && d.tr === 1 && d.ph === 'play';
+export const TRIAL_TEXT = Object.freeze({ big: 'Scambi di prova', sub: 'Colpisci la palla quando arriva: il gioco impara il tuo colpo. Poi si comincia.' });
+// Soglie dal colpo imparato negli scambi di prova (messaggio del computer { t:'pf', ref, refs: {1, -1}, on, minPeak },
+// natpf_trial_learn.phoneThresholds): colpo tipico per verso e soglie d'inizio e di picco, al posto di quelle fisse del
+// profilo semplice. Valori fuori misura: niente (restano le soglie di prima). Funzione pura
+export function trialThresholds(d = {}){
+  const num = (v, a, b) => (typeof v === 'number' && Number.isFinite(v) && v >= a && v <= b ? v : null);
+  const ref = num(d.ref, 60, 4000), a = num(d.refs?.[1], 60, 4000), b = num(d.refs?.[-1] ?? d.refs?.['-1'], 60, 4000), on = num(d.on, 12, 180), minPeak = num(d.minPeak, 15, 300);
+  if (ref == null || a == null || b == null || on == null || minPeak == null) return null;
+  return { ref, refs: { 1: a, '-1': b }, on, minPeak };
+}
+
 // conto alla rovescia dello stesso schermo (messaggio del computer { t:'ev', k:'count' }, natpf_split_ui._announce):
 // n = 3, 2, 1 («Si gioca tra» con il numero, anello verde) e 0 («Si gioca!»); stop = conto fermato o annullato, con il
 // motivo. Anello rosso solo per un problema (un telefono non più pronto); soft = fermato sul computer («Aspetta», si
@@ -167,12 +195,12 @@ export function veilText({ linkState = 'on', sensor = 'off', gate = null } = {})
   return `${VEIL_LEAD} ${kept}`;
 }
 
-// testi della schermata del tutorial sul telefono
+// testi della schermata del tutorial sul telefono. B28: una sola frase, il pulsante è acceso da subito (niente «poi si
+// calibra»: di base la calibrazione si fa giocando); hint: schede viste, solo come informazione
 export function tutorialTexts(gate, { sensor = 'idle' } = {}){
-  const then = sensor === 'ready' ? 'poi si gioca' : 'poi si calibra';
+  void sensor;
   if (!gate) return null;
   const where = gate.n ? `Scheda ${gate.i + 1} di ${gate.n}${gate.name ? ` · ${gate.name}` : ''}` : '';
-  if (gate.v < 2) return { big: 'Guarda lo schermo', sub: `Presa e colpi sono sul computer. Quando hai capito tocca «Tutto chiaro, ho capito»: ${then}.`, where, hint: '' };
-  if (!gate.all) return { big: 'Guarda lo schermo', sub: 'Presa e colpi sono sul computer. Sfoglia le schede con ‹ ›.', where, hint: gate.n ? `Viste ${gate.s} di ${gate.n}: alla fine si accende «Tutto chiaro».` : '' };
-  return { big: 'Hai visto tutto', sub: `Tocca «Tutto chiaro, ho capito»: ${then}.`, where, hint: '' };
+  const hint = gate.v >= 2 && gate.n ? `Viste ${gate.s} di ${gate.n}` : '';
+  return { big: 'Guarda lo schermo', sub: gate.v >= 2 ? 'Presa e colpi sono sul computer: sfoglia con ‹ ›. Quando vuoi tocca «Tutto chiaro, ho capito».' : 'Presa e colpi sono sul computer. Quando vuoi tocca «Tutto chiaro, ho capito».', where, hint };
 }

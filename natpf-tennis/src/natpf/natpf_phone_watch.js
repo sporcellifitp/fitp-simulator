@@ -45,7 +45,8 @@ export function phoneHealth({ connected = false, phone = null, vis = null, rates
 // ingressi di phoneHealth dal telefono (NatpfPhoneRacket) adesso
 export function phoneHealthOf(p, now = globalThis.performance?.now?.() ?? 0){
   const L = p?.state || {}, st = p?.link?.stats?.();
-  return phoneHealth({ connected: !!p?.connected, phone: L.phone, vis: L.vis, rates: st?.rates, touch: !!L.touch, sensorAge: L.sensorAge ?? null, beatAgeMs: Number.isFinite(L.beatAt) ? now - L.beatAt : null, rtt: st?.rtt ?? L.rtt ?? null });
+  // (profilo da capo chiesto dal gioco, in viaggio: NatpfPhoneRacket.resetting; per quel tratto il telefono vale «pronto»)
+  return phoneHealth({ connected: !!p?.connected, phone: p?.resetting ? 'ready' : L.phone, vis: L.vis, rates: st?.rates, touch: !!L.touch, sensorAge: L.sensorAge ?? null, beatAgeMs: Number.isFinite(L.beatAt) ? now - L.beatAt : null, rtt: st?.rtt ?? L.rtt ?? null });
 }
 
 // Ricollegamento automatico («resync») nei casi estremi: il telefono è collegato ma il movimento non arriva (pausa per

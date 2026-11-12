@@ -7,6 +7,8 @@
 // Serve iptables (root): misura, non sta nella matrice delle prove. Per la LAN prima `npm run build` in natpf-tennis.
 //   MODE=lan|internet N=150 LOSS=0,0.03,0.08 WARM=30 OUT=risultati.json node natpf-swing-loss.mjs
 //   ROOT=<altro checkout> per misurare un'altra versione (prima/dopo) con lo stesso banco di prova
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn, execFileSync } from 'node:child_process';
 import http from 'node:http';
 import os from 'node:os';

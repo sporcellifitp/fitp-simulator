@@ -20,7 +20,7 @@ Come si aggiorna:
 - **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a
   ogni passo): leggerlo per primo.
 
-- Aggiornato: 12/11/2026 · agente: Claude · branch `natpf-simulator` (**versione 2026-11-12.3**: B27 schermo del gioco all'avvio e telecomando dello staff, fatto da un secondo agente in parallelo, vedi `docs/TRACCIA_PASSI.md` sezione «B27 e B28»; prima 2026-11-12.2: B25 stesso schermo tra due persone con aiuto al più giovane solo di gioco; prima 2026-11-12.1 B26 trailer e scia, 2026-11-11.2 video e scia, 2026-11-11.1: tappa 2 gruppo 1 + stesso schermo B20; prima 2026-11-10.2 tappa 1). Repository: `sporcellifitp/fitp-simulator`.
+- Aggiornato: 12/11/2026 · agente: Claude · branch `natpf-simulator` (**versione 2026-11-12.5**: B28 calibrazione giocando (scambi di prova) e tutorial senza blocco, secondo agente, vedi `docs/TRACCIA_PASSI.md` sezione «B27 e B28»; prima 2026-11-12.4: Lob & Drop, livelli Evento e Bambini, «Chi gioca»; 2026-11-12.3: B27 schermo del gioco all'avvio e telecomando dello staff; prima 2026-11-12.2: B25 stesso schermo tra due persone con aiuto al più giovane solo di gioco; prima 2026-11-12.1 B26 trailer e scia, 2026-11-11.2 video e scia, 2026-11-11.1: tappa 2 gruppo 1 + stesso schermo B20; prima 2026-11-10.2 tappa 1). Repository: `sporcellifitp/fitp-simulator`.
 - **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`** (lavoro dal 05/11, punti aperti §3, controlli §4) e, per i
   gesti del tutorial, `docs/b13/gesti-nuovi.md`. Checkpoint precedente (storia dal 04/11):
   `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`.
@@ -326,7 +326,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B15 Colpi, mancini, flusso | [x] | palla che segue il gesto (forza, piatto); mancini a specchio in tutta la catena; testi brevi e meno scelte | vedi WORK_PROGRESS B15 | 2026-11-08.4 |
 | B16 Decisioni del B15 e audit del gameplay | [x] | Leggenda più dura; tutorial corto (5 schede) e riscaldamento facoltativo; mira scelta dall'addetto e misurata nella diagnostica; rapporto dell'audit `docs/b16/rapporto-gameplay.md` con 4 decisioni chieste | `70c85b3`…`84838f6` | 2026-11-08.5 |
 | B27 Postazione dello staff | [x] | programma Windows: domanda «Su quale schermo mostro il gioco?» all'avvio e voce «Schermo del gioco» nel pannello dello stand; telefono dello staff come telecomando (abbinamento confermato sul computer, ripresa da solo); revisione indipendente con 12 difetti corretti; guida `docs/GUIDA_TELECOMANDO.md`, matrice `docs/b27/telecomando.md` | vedi WORK_PROGRESS B27 | 2026-11-12.3 |
-| B28 Calibrazione giocando | [~] | scambi di prova al posto dei gesti, tutorial ed esercizi senza blocco, opzione dello stand «Calibrazione»; ramo locale `b28-cal-giocando` (non su GitHub) in revisione indipendente | — | — |
+| B28 Calibrazione giocando | [x] | scambi di prova di circa 10 s al posto dei gesti a ogni «Gioca» (profilo da capo a ogni partita), tutorial ed esercizi senza blocco, opzione dello stand «Calibrazione: Giocando · Con i gesti · Nessuna»; due revisioni indipendenti; punti aperti in WORK_PROGRESS B28; documento `docs/b28/calibrazione-giocando.md` | vedi WORK_PROGRESS B28 | 2026-11-12.5 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).

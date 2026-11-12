@@ -13,6 +13,8 @@
 //   quanto costano (consegna dei colpi, fotogrammi) sulla stessa macchina; PARTS=A per la sola sessione lunga (le parti
 //   girano nell'ordine A, D, E, B, C).
 // Sensori sintetici, webcam finta del browser e grafica software: non sostituiscono una sessione con telefono e webcam veri.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
