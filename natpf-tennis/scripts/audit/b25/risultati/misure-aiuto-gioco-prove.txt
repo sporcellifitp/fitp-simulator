@@ -1,0 +1,188 @@
+# B25, aiuto solo di gioco: le combinazioni provate per il bambino contro l'adulto medio (misure.mjs aiuto-prove, 900 partite per riga).
+# node --import ./test/register.mjs scripts/audit/b25/misure.mjs aiuto-prove --prove='{…}|{…}' [--semi=…] [--campo=aperto] [--game=2] [--formato=classico]
+# span × finestra del tempo · late s in più in ritardo · slow × volo della palla verso il più giovane · deep m più in fondo il suo colpo · {} nessun aiuto
+
+######## serie 1 (semi di base), 1 game in fiera
+{"span":1.5,"late":0.06,"slow":1.1,"deep":1}               | 900 part.: vince il primo 35.7% (da P1 37.3%, da P2 34%) · punti 43.3% · punti a game 5.7, game a zero 15.4% · colpi a punto 11.3 (metà entro 8, 9 su 10 entro 25, entro 2 colpi 16.1%) · partita: metà entro 94 s, 9 su 10 entro 148 s, la più lunga 266 s
+      a vuoto: tardi 55.2% · errore di tempo (fuori) 28.3% · a vuoto: nessun gesto 14.5% · errore di mira/forza 1.1% · fallito per regola 0.5% · a vuoto: presto 0.3% · vincente vero 0.1% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.7% · smash 0.3% · volley 0% · stretch 0%
+{"span":2,"late":0.1,"deep":2}                             | 900 part.: vince il primo 34% (da P1 34.9%, da P2 33.1%) · punti 42.4% · punti a game 5.8, game a zero 12.6% · colpi a punto 10 (metà entro 7, 9 su 10 entro 22, entro 2 colpi 17.4%) · partita: metà entro 83 s, 9 su 10 entro 127 s, la più lunga 196 s
+      a vuoto: tardi 52.2% · a vuoto: nessun gesto 24.3% · errore di tempo (fuori) 22.3% · errore di mira/forza 0.6% · fallito per regola 0.3% · a vuoto: presto 0.3% · a vuoto: non giocato 0% · vincente vero 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.9% · smash 0.1% · stretch 0%
+{"span":2,"late":0.1,"slow":1.15}                          | 900 part.: vince il primo 36.4% (da P1 36%, da P2 36.9%) · punti 43.8% · punti a game 5.8, game a zero 13.2% · colpi a punto 12.9 (metà entro 9, 9 su 10 entro 29, entro 2 colpi 14.6%) · partita: metà entro 108 s, 9 su 10 entro 173 s, la più lunga 278 s
+      a vuoto: tardi 58.2% · errore di tempo (fuori) 26.2% · a vuoto: nessun gesto 12.4% · errore di mira/forza 1.6% · fallito per regola 0.8% · a vuoto: presto 0.4% · vincente vero 0.4% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.1% · smash 0.7% · volley 0.1% · stretch 0% · letgo 0%
+{"span":2,"late":0.1,"deep":1.5}                           | 900 part.: vince il primo 31.4% (da P1 32.4%, da P2 30.4%) · punti 40.8% · punti a game 5.7, game a zero 14.7% · colpi a punto 10.2 (metà entro 7, 9 su 10 entro 23, entro 2 colpi 17%) · partita: metà entro 83 s, 9 su 10 entro 126 s, la più lunga 224 s
+      a vuoto: tardi 53% · a vuoto: nessun gesto 22.8% · errore di tempo (fuori) 22.7% · errore di mira/forza 0.9% · a vuoto: presto 0.3% · fallito per regola 0.2% · vincente vero 0.1% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.9% · smash 0.1% · stretch 0% · volley 0%
+{"span":1.5,"late":0.06,"slow":1.15,"deep":1}              | 900 part.: vince il primo 41% (da P1 41.1%, da P2 40.9%) · punti 45.6% · punti a game 5.8, game a zero 12.8% · colpi a punto 11.9 (metà entro 8, 9 su 10 entro 27, entro 2 colpi 15.4%) · partita: metà entro 99 s, 9 su 10 entro 156 s, la più lunga 252 s
+      a vuoto: tardi 55.3% · errore di tempo (fuori) 29.8% · a vuoto: nessun gesto 12.6% · errore di mira/forza 1.1% · fallito per regola 0.6% · a vuoto: presto 0.3% · vincente vero 0.3% · a vuoto: non giocato 0.1%
+      colpi del più giovane: ground 99.3% · smash 0.6% · volley 0.1% · stretch 0%
+{"span":1.5,"late":0.06,"slow":1.15,"deep":1.5}            | 900 part.: vince il primo 42.8% (da P1 42.7%, da P2 42.9%) · punti 46.3% · punti a game 5.8, game a zero 12.8% · colpi a punto 11.6 (metà entro 8, 9 su 10 entro 26, entro 2 colpi 15%) · partita: metà entro 97 s, 9 su 10 entro 151 s, la più lunga 219 s
+      a vuoto: tardi 55.4% · errore di tempo (fuori) 29.4% · a vuoto: nessun gesto 13.2% · errore di mira/forza 0.9% · fallito per regola 0.4% · vincente vero 0.3% · a vuoto: presto 0.3% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.3% · smash 0.6% · volley 0.1% · stretch 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":1}                  | 900 part.: vince il primo 39.6% (da P1 37.6%, da P2 41.6%) · punti 45.2% · punti a game 5.7, game a zero 15% · colpi a punto 11.6 (metà entro 8, 9 su 10 entro 26, entro 2 colpi 15.7%) · partita: metà entro 95 s, 9 su 10 entro 150 s, la più lunga 223 s
+      a vuoto: tardi 56.5% · errore di tempo (fuori) 26% · a vuoto: nessun gesto 15.7% · errore di mira/forza 1% · fallito per regola 0.3% · a vuoto: presto 0.3% · vincente vero 0.2% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.7% · smash 0.3% · stretch 0% · volley 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":1.5}                | 900 part.: vince il primo 40.7% (da P1 40.2%, da P2 41.1%) · punti 45.4% · punti a game 5.8, game a zero 13.4% · colpi a punto 11.3 (metà entro 8, 9 su 10 entro 26, entro 2 colpi 16.2%) · partita: metà entro 93 s, 9 su 10 entro 147 s, la più lunga 242 s
+      a vuoto: tardi 56.1% · errore di tempo (fuori) 25.5% · a vuoto: nessun gesto 16.6% · errore di mira/forza 1% · a vuoto: presto 0.4% · fallito per regola 0.3% · vincente vero 0.1% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.7% · smash 0.3% · stretch 0% · volley 0%
+{"span":2,"late":0.1,"slow":1.15,"deep":1}                 | 900 part.: vince il primo 43.9% (da P1 44.4%, da P2 43.3%) · punti 47.5% · punti a game 5.8, game a zero 11.8% · colpi a punto 12.3 (metà entro 9, 9 su 10 entro 27, entro 2 colpi 15%) · partita: metà entro 103 s, 9 su 10 entro 163 s, la più lunga 245 s
+      a vuoto: tardi 58.1% · errore di tempo (fuori) 27.4% · a vuoto: nessun gesto 11.8% · errore di mira/forza 1.4% · fallito per regola 0.6% · vincente vero 0.4% · a vuoto: presto 0.4% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.2% · smash 0.6% · volley 0.1% · stretch 0%
+{"span":2,"late":0.1,"slow":1.15,"deep":1.5}               | 900 part.: vince il primo 44.7% (da P1 45.3%, da P2 44%) · punti 47.7% · punti a game 5.8, game a zero 13.4% · colpi a punto 12.1 (metà entro 8, 9 su 10 entro 27, entro 2 colpi 15.3%) · partita: metà entro 99 s, 9 su 10 entro 159 s, la più lunga 277 s
+      a vuoto: tardi 57.8% · errore di tempo (fuori) 25.8% · a vuoto: nessun gesto 13.8% · errore di mira/forza 1.4% · fallito per regola 0.7% · vincente vero 0.3% · a vuoto: presto 0.3% · a vuoto: non giocato 0.1%
+      colpi del più giovane: ground 99.3% · smash 0.6% · volley 0.1% · stretch 0%
+{"span":1.5,"late":0.06,"slow":1.2}                        | 900 part.: vince il primo 35.2% (da P1 35.6%, da P2 34.9%) · punti 43.3% · punti a game 5.8, game a zero 14.1% · colpi a punto 13 (metà entro 9, 9 su 10 entro 29, entro 2 colpi 13.6%) · partita: metà entro 110 s, 9 su 10 entro 168 s, la più lunga 262 s
+      a vuoto: tardi 56.2% · errore di tempo (fuori) 29.5% · a vuoto: nessun gesto 9.3% · errore di mira/forza 1.9% · vincente vero 1.4% · fallito per regola 1.2% · a vuoto: presto 0.4% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 97.2% · smash 2.1% · volley 0.6% · stretch 0% · letgo 0%
+{"span":2,"late":0.1,"slow":1.2}                           | 900 part.: vince il primo 43.7% (da P1 45.6%, da P2 41.8%) · punti 46.9% · punti a game 5.8, game a zero 12.9% · colpi a punto 13.4 (metà entro 10, 9 su 10 entro 30, entro 2 colpi 13.5%) · partita: metà entro 114 s, 9 su 10 entro 178 s, la più lunga 323 s
+      a vuoto: tardi 57.1% · errore di tempo (fuori) 28.1% · a vuoto: nessun gesto 9.7% · errore di mira/forza 1.9% · vincente vero 1.5% · fallito per regola 1.4% · a vuoto: presto 0.4% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 97.2% · smash 2.1% · volley 0.6% · stretch 0.1% · letgo 0%
+(semi 7001, 7103, 7207 · --partite=1 · formato in fiera)
+{"span":2,"late":0.1,"slow":1.1}                           | 900 part.: vince il primo 35.9% (da P1 34.7%, da P2 37.1%) · punti 43.4% · punti a game 5.8, game a zero 13.1% · colpi a punto 12.1 (metà entro 9, 9 su 10 entro 27, entro 2 colpi 14.5%) · partita: metà entro 102 s, 9 su 10 entro 161 s, la più lunga 271 s
+      a vuoto: tardi 55.6% · errore di tempo (fuori) 26.6% · a vuoto: nessun gesto 15.3% · errore di mira/forza 1.7% · fallito per regola 0.4% · a vuoto: presto 0.3% · vincente vero 0.2% · a vuoto: non giocato 0.1%
+      colpi del più giovane: ground 99.7% · smash 0.3% · stretch 0% · volley 0%
+{"span":2,"late":0.1,"slow":1.25}                          | 900 part.: vince il primo 48.9% (da P1 48.4%, da P2 49.3%) · punti 48.8% · punti a game 5.8, game a zero 12.9% · colpi a punto 13.5 (metà entro 10, 9 su 10 entro 31, entro 2 colpi 12.9%) · partita: metà entro 114 s, 9 su 10 entro 178 s, la più lunga 323 s
+      a vuoto: tardi 54% · errore di tempo (fuori) 26.4% · a vuoto: nessun gesto 7.8% · vincente vero 6.8% · errore di mira/forza 2.5% · fallito per regola 2.2% · a vuoto: presto 0.3%
+      colpi del più giovane: ground 90.5% · smash 7.7% · volley 1.5% · stretch 0.2% · letgo 0%
+{"span":2,"late":0.1,"slow":1.3}                           | 900 part.: vince il primo 54.3% (da P1 56.2%, da P2 52.4%) · punti 51.9% · punti a game 5.8, game a zero 13.2% · colpi a punto 12.6 (metà entro 10, 9 su 10 entro 28, entro 2 colpi 12.2%) · partita: metà entro 106 s, 9 su 10 entro 162 s, la più lunga 240 s
+      a vuoto: tardi 47.9% · errore di tempo (fuori) 23% · vincente vero 16.1% · a vuoto: nessun gesto 6% · errore di mira/forza 3.4% · fallito per regola 3.2% · a vuoto: presto 0.3% · errore di tempo (rete) 0.1% · a vuoto: non giocato 0.1%
+      colpi del più giovane: ground 77% · smash 20.4% · volley 2.1% · stretch 0.5% · letgo 0%
+{"slow":1.2}                                               | 900 part.: vince il primo 14.9% (da P1 14.9%, da P2 14.9%) · punti 31.4% · punti a game 5.4, game a zero 25.6% · colpi a punto 9.5 (metà entro 7, 9 su 10 entro 21, entro 2 colpi 16.8%) · partita: metà entro 81 s, 9 su 10 entro 124 s, la più lunga 195 s
+      a vuoto: tardi 48.3% · errore di tempo (fuori) 42% · a vuoto: nessun gesto 6.8% · vincente vero 1.5% · errore di mira/forza 0.7% · a vuoto: presto 0.3% · fallito per regola 0.3% · errore di tempo (rete) 0.1% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 97.3% · smash 2.1% · volley 0.6% · stretch 0%
+(semi 7001, 7103, 7207 · --partite=1 · formato in fiera)
+
+######## serie 2 (--semi=8101,8203,8317), 1 game in fiera
+{}                                                         | 900 part.: vince il primo 9.6% (da P1 10%, da P2 9.1%) · punti 27.4% · punti a game 5.3, game a zero 27.6% · colpi a punto 7.9 (metà entro 6, 9 su 10 entro 17, entro 2 colpi 22.5%) · partita: metà entro 65 s, 9 su 10 entro 101 s, la più lunga 152 s
+      a vuoto: tardi 46.3% · errore di tempo (fuori) 37.4% · a vuoto: nessun gesto 15.2% · errore di mira/forza 0.4% · fallito per regola 0.2% · a vuoto: presto 0.2% · vincente vero 0.2% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.9% · smash 0.1% · stretch 0% · volley 0%
+{"span":2,"late":0.1}                                      | 900 part.: vince il primo 26.7% (da P1 26.4%, da P2 26.9%) · punti 38.6% · punti a game 5.7, game a zero 16.4% · colpi a punto 11.1 (metà entro 8, 9 su 10 entro 25, entro 2 colpi 16.5%) · partita: metà entro 91 s, 9 su 10 entro 145 s, la più lunga 223 s
+      a vuoto: tardi 54.3% · errore di tempo (fuori) 23.8% · a vuoto: nessun gesto 20.3% · errore di mira/forza 0.8% · a vuoto: presto 0.3% · fallito per regola 0.3% · vincente vero 0.1% · a vuoto: non giocato 0.1%
+      colpi del più giovane: ground 99.9% · smash 0.1% · stretch 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":1.5}                | 900 part.: vince il primo 43.3% (da P1 44.4%, da P2 42.2%) · punti 46.4% · punti a game 5.8, game a zero 14.4% · colpi a punto 11.5 (metà entro 8, 9 su 10 entro 26, entro 2 colpi 16.5%) · partita: metà entro 95 s, 9 su 10 entro 146 s, la più lunga 239 s
+      a vuoto: tardi 58.3% · errore di tempo (fuori) 24.3% · a vuoto: nessun gesto 15.5% · errore di mira/forza 0.9% · fallito per regola 0.5% · a vuoto: presto 0.3% · vincente vero 0% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.7% · smash 0.3% · stretch 0% · volley 0%
+{"span":1.5,"late":0.06,"slow":1.15,"deep":1.5}            | 900 part.: vince il primo 45.6% (da P1 46.2%, da P2 44.9%) · punti 47.9% · punti a game 5.8, game a zero 11.9% · colpi a punto 11.8 (metà entro 9, 9 su 10 entro 26, entro 2 colpi 15.2%) · partita: metà entro 100 s, 9 su 10 entro 151 s, la più lunga 244 s
+      a vuoto: tardi 56.1% · errore di tempo (fuori) 29.7% · a vuoto: nessun gesto 11.9% · errore di mira/forza 0.9% · fallito per regola 0.8% · a vuoto: presto 0.3% · vincente vero 0.3% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.3% · smash 0.6% · volley 0.1% · stretch 0%
+{"span":2,"late":0.1,"slow":1.15,"deep":1}                 | 900 part.: vince il primo 44.8% (da P1 44.4%, da P2 45.1%) · punti 47.2% · punti a game 5.7, game a zero 12.3% · colpi a punto 12.3 (metà entro 9, 9 su 10 entro 28, entro 2 colpi 15.6%) · partita: metà entro 101 s, 9 su 10 entro 160 s, la più lunga 244 s
+      a vuoto: tardi 58.6% · errore di tempo (fuori) 26.5% · a vuoto: nessun gesto 12.3% · errore di mira/forza 1.3% · fallito per regola 0.7% · a vuoto: presto 0.3% · vincente vero 0.3% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.3% · smash 0.6% · volley 0.1% · stretch 0% · letgo 0%
+{"span":2,"late":0.1,"slow":1.15,"deep":1.5}               | 900 part.: vince il primo 49% (da P1 49.6%, da P2 48.4%) · punti 48.7% · punti a game 5.8, game a zero 12.3% · colpi a punto 12.2 (metà entro 9, 9 su 10 entro 27, entro 2 colpi 15.7%) · partita: metà entro 103 s, 9 su 10 entro 156 s, la più lunga 251 s
+      a vuoto: tardi 59.3% · errore di tempo (fuori) 25% · a vuoto: nessun gesto 13% · errore di mira/forza 1.2% · fallito per regola 0.7% · vincente vero 0.4% · a vuoto: presto 0.3%
+      colpi del più giovane: ground 99.3% · smash 0.6% · volley 0.1% · stretch 0% · letgo 0%
+{"span":2,"late":0.1,"slow":1.2}                           | 900 part.: vince il primo 39% (da P1 38%, da P2 40%) · punti 45.9% · punti a game 5.9, game a zero 10.3% · colpi a punto 13.5 (metà entro 9, 9 su 10 entro 32, entro 2 colpi 14.3%) · partita: metà entro 117 s, 9 su 10 entro 180 s, la più lunga 340 s
+      a vuoto: tardi 58.2% · errore di tempo (fuori) 26.5% · a vuoto: nessun gesto 9.7% · errore di mira/forza 2% · vincente vero 2% · fallito per regola 1.3% · a vuoto: presto 0.2% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 97% · smash 2.2% · volley 0.7% · stretch 0.1% · letgo 0%
+{"span":2,"late":0.1,"slow":1.15,"deep":2}                 | 900 part.: vince il primo 44.6% (da P1 44.2%, da P2 44.9%) · punti 47.3% · punti a game 5.9, game a zero 12.7% · colpi a punto 11.8 (metà entro 8, 9 su 10 entro 27, entro 2 colpi 16.4%) · partita: metà entro 99 s, 9 su 10 entro 155 s, la più lunga 249 s
+      a vuoto: tardi 59.4% · errore di tempo (fuori) 24% · a vuoto: nessun gesto 14.5% · errore di mira/forza 0.9% · fallito per regola 0.7% · a vuoto: presto 0.3% · vincente vero 0.2% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.2% · smash 0.7% · volley 0.1% · stretch 0%
+(semi 8101, 8203, 8317 · --partite=1 · formato in fiera)
+{"span":2,"late":0.1,"slow":1.1,"deep":1}                  | 900 part.: vince il primo 41.9% (da P1 40.7%, da P2 43.1%) · punti 45.8% · punti a game 5.8, game a zero 12.9% · colpi a punto 12 (metà entro 8, 9 su 10 entro 27, entro 2 colpi 15.9%) · partita: metà entro 96 s, 9 su 10 entro 155 s, la più lunga 266 s
+      a vuoto: tardi 58% · errore di tempo (fuori) 25.5% · a vuoto: nessun gesto 14.3% · errore di mira/forza 1.1% · fallito per regola 0.7% · a vuoto: presto 0.2% · vincente vero 0.1% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.6% · smash 0.4% · stretch 0% · volley 0%
+{"span":1.5,"late":0.06,"slow":1.15,"deep":1}              | 900 part.: vince il primo 41.7% (da P1 40.7%, da P2 42.7%) · punti 46.2% · punti a game 5.9, game a zero 11.4% · colpi a punto 11.8 (metà entro 8, 9 su 10 entro 27, entro 2 colpi 15.9%) · partita: metà entro 102 s, 9 su 10 entro 153 s, la più lunga 267 s
+      a vuoto: tardi 55.5% · errore di tempo (fuori) 29.9% · a vuoto: nessun gesto 11.9% · errore di mira/forza 1.3% · fallito per regola 0.6% · a vuoto: presto 0.5% · vincente vero 0.3% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.2% · smash 0.7% · volley 0.1% · stretch 0% · letgo 0%
+{"span":1.5,"late":0.06,"slow":1.1,"deep":1.5}             | 900 part.: vince il primo 37% (da P1 37.1%, da P2 36.9%) · punti 43.7% · punti a game 5.7, game a zero 14.2% · colpi a punto 11.3 (metà entro 8, 9 su 10 entro 25, entro 2 colpi 16.4%) · partita: metà entro 92 s, 9 su 10 entro 144 s, la più lunga 273 s
+      a vuoto: tardi 57.5% · errore di tempo (fuori) 26.1% · a vuoto: nessun gesto 14.4% · errore di mira/forza 1.1% · fallito per regola 0.4% · a vuoto: presto 0.3% · vincente vero 0.1% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.7% · smash 0.3% · stretch 0% · volley 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":2}                  | 900 part.: vince il primo 42.3% (da P1 43.3%, da P2 41.3%) · punti 46.2% · punti a game 5.8, game a zero 12.9% · colpi a punto 11.1 (metà entro 8, 9 su 10 entro 25, entro 2 colpi 16.2%) · partita: metà entro 92 s, 9 su 10 entro 142 s, la più lunga 259 s
+      a vuoto: tardi 57.5% · errore di tempo (fuori) 24.1% · a vuoto: nessun gesto 17% · errore di mira/forza 0.7% · fallito per regola 0.4% · a vuoto: presto 0.3% · a vuoto: non giocato 0.1%
+      colpi del più giovane: ground 99.6% · smash 0.4% · volley 0% · stretch 0%
+(semi 8101, 8203, 8317 · --partite=1 · formato in fiera)
+
+######## serie 3 (--semi=9001,9103,9209), 1 game in fiera
+{"span":2,"late":0.1,"slow":1.1,"deep":1}                  | 900 part.: vince il primo 38.1% (da P1 37.8%, da P2 38.4%) · punti 44.3% · punti a game 5.7, game a zero 15.2% · colpi a punto 11.7 (metà entro 8, 9 su 10 entro 26, entro 2 colpi 15.8%) · partita: metà entro 94 s, 9 su 10 entro 152 s, la più lunga 262 s
+      a vuoto: tardi 58.1% · errore di tempo (fuori) 24.2% · a vuoto: nessun gesto 15.6% · errore di mira/forza 1.1% · a vuoto: presto 0.4% · fallito per regola 0.3% · vincente vero 0.1% · a vuoto: non giocato 0.1%
+      colpi del più giovane: ground 99.7% · smash 0.3% · volley 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":1.5}                | 900 part.: vince il primo 36.8% (da P1 38.2%, da P2 35.3%) · punti 44.1% · punti a game 5.8, game a zero 14% · colpi a punto 11.5 (metà entro 8, 9 su 10 entro 26, entro 2 colpi 15%) · partita: metà entro 95 s, 9 su 10 entro 149 s, la più lunga 273 s
+      a vuoto: tardi 57.8% · errore di tempo (fuori) 23.9% · a vuoto: nessun gesto 16.6% · errore di mira/forza 0.9% · a vuoto: presto 0.4% · fallito per regola 0.3% · vincente vero 0.1% · a vuoto: non giocato 0.1%
+      colpi del più giovane: ground 99.7% · smash 0.3% · volley 0%
+{"span":1.5,"late":0.06,"slow":1.15,"deep":1}              | 900 part.: vince il primo 38.6% (da P1 36.9%, da P2 40.2%) · punti 44.8% · punti a game 5.8, game a zero 14% · colpi a punto 11.7 (metà entro 9, 9 su 10 entro 26, entro 2 colpi 14.8%) · partita: metà entro 97 s, 9 su 10 entro 151 s, la più lunga 278 s
+      a vuoto: tardi 56.9% · errore di tempo (fuori) 28.8% · a vuoto: nessun gesto 11.9% · errore di mira/forza 1.2% · fallito per regola 0.5% · vincente vero 0.4% · a vuoto: presto 0.3% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.2% · smash 0.6% · volley 0.1% · stretch 0%
+{"span":2,"late":0.1,"slow":1.15,"deep":1}                 | 900 part.: vince il primo 44.4% (da P1 43.1%, da P2 45.8%) · punti 46.9% · punti a game 5.8, game a zero 12.3% · colpi a punto 12.3 (metà entro 9, 9 su 10 entro 28, entro 2 colpi 15.1%) · partita: metà entro 102 s, 9 su 10 entro 159 s, la più lunga 246 s
+      a vuoto: tardi 59% · errore di tempo (fuori) 26% · a vuoto: nessun gesto 12.3% · errore di mira/forza 1.3% · fallito per regola 0.5% · a vuoto: presto 0.5% · vincente vero 0.4% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.3% · smash 0.6% · volley 0.1% · stretch 0%
+{}                                                         | 900 part.: vince il primo 11% (da P1 11.8%, da P2 10.2%) · punti 27.5% · punti a game 5.2, game a zero 29% · colpi a punto 8.1 (metà entro 6, 9 su 10 entro 18, entro 2 colpi 21.2%) · partita: metà entro 65 s, 9 su 10 entro 104 s, la più lunga 191 s
+      a vuoto: tardi 46% · errore di tempo (fuori) 37.6% · a vuoto: nessun gesto 15.1% · errore di mira/forza 0.6% · fallito per regola 0.2% · a vuoto: presto 0.2% · vincente vero 0.1% · errore di tempo (rete) 0.1% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.9% · smash 0.1% · stretch 0%
+{"span":2,"late":0.1}                                      | 900 part.: vince il primo 26.9% (da P1 27.6%, da P2 26.2%) · punti 38.9% · punti a game 5.7, game a zero 15.7% · colpi a punto 10.8 (metà entro 8, 9 su 10 entro 24, entro 2 colpi 16.5%) · partita: metà entro 90 s, 9 su 10 entro 138 s, la più lunga 218 s
+      a vuoto: tardi 53.3% · errore di tempo (fuori) 24.1% · a vuoto: nessun gesto 21.1% · errore di mira/forza 0.8% · a vuoto: presto 0.4% · fallito per regola 0.3% · a vuoto: non giocato 0% · vincente vero 0%
+      colpi del più giovane: ground 99.9% · smash 0.1% · stretch 0%
+{"span":2,"late":0.1,"slow":1.2}                           | 900 part.: vince il primo 42.3% (da P1 43.3%, da P2 41.3%) · punti 46.6% · punti a game 5.8, game a zero 14.6% · colpi a punto 13.5 (metà entro 10, 9 su 10 entro 31, entro 2 colpi 13.4%) · partita: metà entro 114 s, 9 su 10 entro 180 s, la più lunga 291 s
+      a vuoto: tardi 56.9% · errore di tempo (fuori) 27.5% · a vuoto: nessun gesto 10.1% · errore di mira/forza 2.1% · vincente vero 1.7% · fallito per regola 1.3% · a vuoto: presto 0.4% · a vuoto: non giocato 0.1% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 97.1% · smash 2.3% · volley 0.6% · stretch 0.1% · letgo 0%
+{"span":1.5,"late":0.06,"slow":1.1,"deep":1.5}             | 900 part.: vince il primo 36% (da P1 37.8%, da P2 34.2%) · punti 43.5% · punti a game 5.8, game a zero 13.8% · colpi a punto 11.4 (metà entro 8, 9 su 10 entro 25, entro 2 colpi 16.2%) · partita: metà entro 94 s, 9 su 10 entro 145 s, la più lunga 258 s
+      a vuoto: tardi 56.3% · errore di tempo (fuori) 26.7% · a vuoto: nessun gesto 15.2% · errore di mira/forza 0.9% · fallito per regola 0.4% · a vuoto: presto 0.4% · vincente vero 0.1% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.7% · smash 0.3% · stretch 0% · volley 0%
+(semi 9001, 9103, 9209 · --partite=1 · formato in fiera)
+
+######## campo aperto acceso (--campo=aperto), serie 1
+{}                                                         | 900 part.: vince il primo 19.1% (da P1 19.1%, da P2 19.1%) · punti 35.2% · punti a game 5.6, game a zero 17.4% · colpi a punto 5.2 (metà entro 4, 9 su 10 entro 11, entro 2 colpi 27.8%) · partita: metà entro 53 s, 9 su 10 entro 75 s, la più lunga 110 s
+      a vuoto: tardi 43.6% · errore di tempo (fuori) 27.9% · fallito per regola 15.1% · a vuoto: nessun gesto 9.9% · vincente vero 2.4% · errore di mira/forza 0.9% · a vuoto: presto 0.2%
+      colpi del più giovane: ground 99.3% · stretch 0.6% · smash 0.1% · letgo 0%
+{"span":2,"late":0.1}                                      | 900 part.: vince il primo 39.7% (da P1 41.6%, da P2 37.8%) · punti 45.4% · punti a game 5.8, game a zero 13.1% · colpi a punto 7.3 (metà entro 5, 9 su 10 entro 16, entro 2 colpi 20.9%) · partita: metà entro 68 s, 9 su 10 entro 102 s, la più lunga 152 s
+      a vuoto: tardi 45.5% · errore di tempo (fuori) 23.7% · a vuoto: nessun gesto 13.6% · fallito per regola 12.2% · vincente vero 3.5% · errore di mira/forza 1.3% · a vuoto: presto 0.2% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.3% · stretch 0.6% · smash 0.1% · letgo 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":1}                  | 900 part.: vince il primo 49% (da P1 48.9%, da P2 49.1%) · punti 49.2% · punti a game 5.8, game a zero 15% · colpi a punto 8.9 (metà entro 6, 9 su 10 entro 20, entro 2 colpi 17.2%) · partita: metà entro 78 s, 9 su 10 entro 119 s, la più lunga 193 s
+      a vuoto: tardi 49.9% · errore di tempo (fuori) 25.3% · a vuoto: nessun gesto 11.6% · fallito per regola 9% · vincente vero 2.1% · errore di mira/forza 1.6% · a vuoto: presto 0.3% · a vuoto: non giocato 0.1% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.4% · smash 0.3% · stretch 0.2% · volley 0% · letgo 0%
+{"span":1.5,"late":0.06,"slow":1.1,"deep":1}               | 900 part.: vince il primo 42.8% (da P1 45.8%, da P2 39.8%) · punti 46.6% · punti a game 5.8, game a zero 14% · colpi a punto 7.8 (metà entro 5, 9 su 10 entro 17, entro 2 colpi 18.5%) · partita: metà entro 71 s, 9 su 10 entro 108 s, la più lunga 166 s
+      a vuoto: tardi 47.3% · errore di tempo (fuori) 28% · fallito per regola 11.1% · a vuoto: nessun gesto 9.8% · vincente vero 2.1% · errore di mira/forza 1.3% · a vuoto: presto 0.2% · a vuoto: non giocato 0.1% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.4% · stretch 0.3% · smash 0.2% · volley 0% · letgo 0%
+(semi 7001, 7103, 7207 · --partite=1 · formato in fiera)
+
+######## campo aperto acceso (--campo=aperto), serie 2
+{}                                                         | 900 part.: vince il primo 22.6% (da P1 22.2%, da P2 22.9%) · punti 36.3% · punti a game 5.6, game a zero 17.2% · colpi a punto 5 (metà entro 4, 9 su 10 entro 11, entro 2 colpi 28.4%) · partita: metà entro 51 s, 9 su 10 entro 74 s, la più lunga 114 s
+      a vuoto: tardi 44.7% · errore di tempo (fuori) 27.8% · fallito per regola 15.1% · a vuoto: nessun gesto 8.9% · vincente vero 2.7% · errore di mira/forza 0.6% · a vuoto: presto 0.2% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.4% · stretch 0.6% · smash 0.1% · letgo 0%
+{"span":2,"late":0.1}                                      | 900 part.: vince il primo 41.2% (da P1 40.7%, da P2 41.8%) · punti 45.8% · punti a game 5.8, game a zero 13.6% · colpi a punto 7.4 (metà entro 5, 9 su 10 entro 16, entro 2 colpi 20.7%) · partita: metà entro 69 s, 9 su 10 entro 102 s, la più lunga 160 s
+      a vuoto: tardi 43.8% · errore di tempo (fuori) 24.4% · a vuoto: nessun gesto 13.9% · fallito per regola 12.8% · vincente vero 3.7% · errore di mira/forza 1.1% · a vuoto: presto 0.2% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.3% · stretch 0.6% · smash 0.1% · letgo 0% · volley 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":1}                  | 900 part.: vince il primo 49.9% (da P1 47.8%, da P2 52%) · punti 49.9% · punti a game 5.8, game a zero 12.9% · colpi a punto 8.8 (metà entro 6, 9 su 10 entro 19, entro 2 colpi 17.4%) · partita: metà entro 79 s, 9 su 10 entro 120 s, la più lunga 170 s
+      a vuoto: tardi 51.1% · errore di tempo (fuori) 25.2% · a vuoto: nessun gesto 10.7% · fallito per regola 9.4% · vincente vero 2% · errore di mira/forza 1.5% · a vuoto: presto 0.2%
+      colpi del più giovane: ground 99.6% · stretch 0.3% · smash 0.1% · volley 0% · letgo 0%
+{"span":1.5,"late":0.06,"slow":1.1,"deep":1}               | 900 part.: vince il primo 43.1% (da P1 41.8%, da P2 44.4%) · punti 46.7% · punti a game 5.8, game a zero 13.3% · colpi a punto 7.9 (metà entro 5, 9 su 10 entro 17, entro 2 colpi 19.8%) · partita: metà entro 73 s, 9 su 10 entro 107 s, la più lunga 176 s
+      a vuoto: tardi 48.7% · errore di tempo (fuori) 27.9% · a vuoto: nessun gesto 9.9% · fallito per regola 9.9% · vincente vero 2% · errore di mira/forza 1.2% · a vuoto: presto 0.3% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.5% · smash 0.2% · stretch 0.2% · volley 0% · letgo 0%
+(semi 8101, 8203, 8317 · --partite=1 · formato in fiera)
+
+######## al meglio di 3 (--game=2), in fiera, serie 1
+{}                                                         | 900 part.: vince il primo 2% (da P1 1.3%, da P2 2.7%) · punti 27.8% · punti a game 5.3, game a zero 28.4% · colpi a punto 8.1 (metà entro 6, 9 su 10 entro 18, entro 2 colpi 21.5%) · partita: metà entro 145 s, 9 su 10 entro 228 s, la più lunga 342 s
+      a vuoto: tardi 45.5% · errore di tempo (fuori) 37.5% · a vuoto: nessun gesto 15.7% · errore di mira/forza 0.4% · fallito per regola 0.3% · vincente vero 0.3% · a vuoto: presto 0.3% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.8% · smash 0.1% · stretch 0%
+{"span":2,"late":0.1}                                      | 900 part.: vince il primo 18.8% (da P1 15.8%, da P2 21.8%) · punti 39.4% · punti a game 5.7, game a zero 15.9% · colpi a punto 10.9 (metà entro 8, 9 su 10 entro 24, entro 2 colpi 16.7%) · partita: metà entro 217 s, 9 su 10 entro 328 s, la più lunga 458 s
+      a vuoto: tardi 53.1% · errore di tempo (fuori) 23.9% · a vuoto: nessun gesto 21.4% · errore di mira/forza 0.8% · fallito per regola 0.3% · a vuoto: presto 0.3% · vincente vero 0.2% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.9% · smash 0.1% · stretch 0% · volley 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":1}                  | 900 part.: vince il primo 36% (da P1 33.3%, da P2 38.7%) · punti 45.4% · punti a game 5.8, game a zero 13.4% · colpi a punto 11.6 (metà entro 8, 9 su 10 entro 26, entro 2 colpi 15.5%) · partita: metà entro 245 s, 9 su 10 entro 357 s, la più lunga 549 s
+      a vuoto: tardi 57.1% · errore di tempo (fuori) 25.5% · a vuoto: nessun gesto 15.4% · errore di mira/forza 1.1% · fallito per regola 0.4% · a vuoto: presto 0.3% · vincente vero 0.1% · a vuoto: non giocato 0.1%
+      colpi del più giovane: ground 99.7% · smash 0.3% · stretch 0% · volley 0%
+(semi 7001, 7103, 7207 · --partite=1 · formato in fiera, 2 game per vincere)
+
+######## al meglio di 3 (--game=2), classico, serie 1
+{}                                                         | 900 part.: vince il primo 0.9% (da P1 0.4%, da P2 1.3%) · punti 26.2% · punti a game 5.5, game a zero 29.4% · colpi a punto 8 (metà entro 6, 9 su 10 entro 17, entro 2 colpi 21.5%) · partita: metà entro 143 s, 9 su 10 entro 222 s, la più lunga 523 s
+      a vuoto: tardi 45.7% · errore di tempo (fuori) 37.7% · a vuoto: nessun gesto 15.7% · errore di mira/forza 0.3% · vincente vero 0.2% · fallito per regola 0.2% · a vuoto: presto 0.1% · errore di tempo (rete) 0% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.9% · smash 0.1% · stretch 0%
+{"span":2,"late":0.1}                                      | 900 part.: vince il primo 13.7% (da P1 14%, da P2 13.3%) · punti 39.1% · punti a game 6.5, game a zero 15.2% · colpi a punto 11 (metà entro 8, 9 su 10 entro 24, entro 2 colpi 17%) · partita: metà entro 237 s, 9 su 10 entro 395 s, la più lunga 847 s
+      a vuoto: tardi 53.7% · errore di tempo (fuori) 23.3% · a vuoto: nessun gesto 21.1% · errore di mira/forza 1.1% · fallito per regola 0.4% · a vuoto: presto 0.3% · vincente vero 0.1% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.9% · smash 0.1% · stretch 0% · letgo 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":1}                  | 900 part.: vince il primo 31.9% (da P1 32.9%, da P2 30.9%) · punti 45.2% · punti a game 6.8, game a zero 13.6% · colpi a punto 11.6 (metà entro 8, 9 su 10 entro 26, entro 2 colpi 15.6%) · partita: metà entro 278 s, 9 su 10 entro 446 s, la più lunga 770 s
+      a vuoto: tardi 57.7% · errore di tempo (fuori) 25.1% · a vuoto: nessun gesto 15.3% · errore di mira/forza 1.1% · a vuoto: presto 0.3% · fallito per regola 0.3% · vincente vero 0.1% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.7% · smash 0.3% · stretch 0% · volley 0%
+(semi 7001, 7103, 7207 · --partite=1 · formato classico, 2 game per vincere)
+
+######## 1 game, classico, serie 1
+{}                                                         | 900 part.: vince il primo 6.2% (da P1 8.2%, da P2 4.2%) · punti 26.1% · punti a game 5.5, game a zero 30.7% · colpi a punto 8.1 (metà entro 6, 9 su 10 entro 18, entro 2 colpi 21%) · partita: metà entro 65 s, 9 su 10 entro 115 s, la più lunga 285 s
+      a vuoto: tardi 44.7% · errore di tempo (fuori) 37.9% · a vuoto: nessun gesto 16.3% · errore di mira/forza 0.4% · vincente vero 0.3% · fallito per regola 0.2% · a vuoto: presto 0.1% · errore di tempo (rete) 0% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.8% · smash 0.2% · stretch 0%
+{"span":2,"late":0.1}                                      | 900 part.: vince il primo 29.1% (da P1 28.9%, da P2 29.3%) · punti 41.2% · punti a game 6.6, game a zero 15.6% · colpi a punto 11 (metà entro 8, 9 su 10 entro 24, entro 2 colpi 15.7%) · partita: metà entro 98 s, 9 su 10 entro 185 s, la più lunga 351 s
+      a vuoto: tardi 52.8% · errore di tempo (fuori) 25.3% · a vuoto: nessun gesto 20.1% · errore di mira/forza 0.9% · fallito per regola 0.4% · a vuoto: presto 0.4% · vincente vero 0.1% · a vuoto: non giocato 0% · errore di tempo (rete) 0%
+      colpi del più giovane: ground 99.8% · smash 0.1% · stretch 0%
+{"span":2,"late":0.1,"slow":1.1,"deep":1}                  | 900 part.: vince il primo 36.9% (da P1 39.1%, da P2 34.7%) · punti 44.6% · punti a game 6.6, game a zero 13.7% · colpi a punto 12.1 (metà entro 9, 9 su 10 entro 27, entro 2 colpi 14.5%) · partita: metà entro 106 s, 9 su 10 entro 195 s, la più lunga 533 s
+      a vuoto: tardi 58.8% · errore di tempo (fuori) 24.4% · a vuoto: nessun gesto 14.7% · errore di mira/forza 1% · fallito per regola 0.5% · a vuoto: presto 0.4% · vincente vero 0.2% · errore di tempo (rete) 0% · a vuoto: non giocato 0%
+      colpi del più giovane: ground 99.6% · smash 0.3% · stretch 0% · volley 0%
+(semi 7001, 7103, 7207 · --partite=1 · formato classico)

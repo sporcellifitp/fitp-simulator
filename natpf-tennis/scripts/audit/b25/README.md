@@ -22,24 +22,31 @@ node --import ./test/register.mjs scripts/audit/b25/misure.mjs <gruppo> [--parti
 | `misure.mjs campo` | Campo aperto spento e acceso: vincenti, errori provocati, colpi a punto, durate, i due lati (5 semi), tattiche (piazza, mira le righe, al centro, sempre fortissimo, palle corte). |
 | `misure.mjs battitore` | Revisione: con il campo aperto quanto vale battere e battere per primo. Formato classico (1 game e al meglio di 3) e in fiera; campo aperto spento, acceso con un battitore per game (com'era prima della revisione, `openTuning.altServe = false`) e acceso con il servizio ogni due punti (in gioco). |
 | `misure.mjs campo-prove` | Altri valori del campo aperto: `--prove=speed:react:stretchCost:reach,…` `--profilo=medio`. |
-| `misure.mjs aiuto` | Aiuto al più giovane: varianti 0, A, B, C per bambino–adulto, ragazzo–adulto, bambino–ragazzo. |
-| `misure.mjs aiuto-altro` | L'aiuto con il campo aperto acceso; i soli punti di vantaggio (15-0, 30-0, 40-0); un adulto segnato «Bambino». |
-| `misure.mjs aiuto-prove` | Altri valori per una coppia: `--coppia=bambino:adulto --profili=bambino:medio --prove='{"span":2}|{"head":1,"late":0.06}'`. |
+| `misure.mjs aiuto` | Aiuto al più giovane (solo di gioco, decisione del 12/11): nessun aiuto, A (solo margine sul tempo, per confronto), G (in gioco) per bambino–adulto, ragazzo–adulto, bambino–ragazzo. |
+| `misure.mjs aiuto-altro` | L'aiuto con il campo aperto acceso (nessuno, A, G con i valori che ha lì); un adulto segnato «Bambino». |
+| `misure.mjs aiuto-prove` | Altri valori per una coppia: `--coppia=bambino:adulto --profili=bambino:medio --prove='{}|{"span":2,"late":0.1}|{"span":2,"late":0.1,"slow":1.1,"deep":1}'` (`{}` = nessun aiuto); `--campo=aperto` accende il campo aperto. Sotto ogni riga, come finiscono i punti e il piano del più giovane a ogni colpo («smash» e «volley» salgono se la palla dell'altro diventa un pallonetto). |
 | `misure.mjs tutti` | Tutti i gruppi di fila (circa un'ora con 4 processori condivisi). Meglio un gruppo per volta: di fila nello stesso processo la memoria non è bastata (`node --max-old-space-size=6144 …` se serve). |
 
 «prima» vuol dire le regole di `f08243a` rimesse a mano (`engine.natpfSuperRel = false`, `engine.natpfNoPrep = false`).
 
-`risultati/` (11/11/2026):
+Leve dell'aiuto (`natpf_duo_rules.HELP`): `span` × finestra del tempo, `late` secondi in più in ritardo, `slow` × tempo
+di volo della palla che va verso il più giovane, `deep` metri più in fondo il suo colpo riuscito. **Nessun punto di
+vantaggio**: il 15-0 e il 30-0 delle varianti B e C dell'11/11 sono tolti dal gioco e dal banco (decisione dell'utente
+del 12/11); i loro numeri restano nei file dell'11/11 qui sotto, che non si possono più rifare.
+
+`risultati/` (11/11/2026, con le aggiunte del 12/11):
 
 | file | cosa c'è |
 |---|---|
 | `impronte-prima-f08243a.txt` | `impronte.mjs` sul commit `f08243a`, **prima** di ogni modifica. |
-| `impronte-dopo.txt` | `impronte.mjs` con il motore di oggi: le righe «super e preparazione come prima» e quelle contro la CPU hanno le stesse impronte del file sopra; le righe «regole di oggi» cambiano solo per le due regole che valgono sempre. |
-| `misure-fiera.txt` | `misure.mjs` gruppi `pari`, `super`, `preparazione`, `campo`, `aiuto`, formato in fiera (quello di base nello stesso schermo). |
-| `misure-altre.txt` | `misure.mjs aiuto-altro`: l'aiuto con il campo aperto acceso (nessuno, A, B, C), i soli punti di vantaggio, l'adulto segnato «Bambino». Le righe «campo aperto · variante C» sono state misurate **prima** della correzione della variante C per il campo aperto (`HELP.C.open`): per il bambino contro l'adulto mostrano la C con il 15-0 (53,6%); la C di oggi lì è uguale alla riga della variante A (39,7%). |
+| `impronte-dopo.txt` | `impronte.mjs` con il motore di oggi (rifatto il 12/11 dopo l'aiuto solo di gioco: uscita identica): le righe «super e preparazione come prima» e quelle contro la CPU hanno le stesse impronte del file sopra; le righe «regole di oggi» cambiano solo per le due regole che valgono sempre. |
+| `misure-fiera.txt` | `misure.mjs` gruppi `pari`, `super`, `preparazione`, `campo`, `aiuto`, formato in fiera (quello di base nello stesso schermo). Il gruppo `aiuto` è quello dell'11/11, con le varianti B e C (punti di vantaggio) che non esistono più: vale `misure-aiuto-gioco.txt`. |
+| `misure-altre.txt` | Dell'11/11, superato da `misure-aiuto-gioco.txt`. `misure.mjs aiuto-altro` di allora: l'aiuto con il campo aperto acceso (nessuno, A, B, C), i soli punti di vantaggio, l'adulto segnato «Bambino». Le righe «campo aperto · variante C» sono state misurate **prima** della correzione della variante C per il campo aperto (`HELP.C.open`): per il bambino contro l'adulto mostrano la C con il 15-0 (53,6%); la C di oggi lì è uguale alla riga della variante A (39,7%). |
 | `misure-battitore.txt` | Revisione (12/11): `misure.mjs battitore`, due serie di semi. |
-| `misure-aiuto-meglio-di-3.txt` | Revisione (12/11): `misure.mjs aiuto-prove --game=2`, bambino contro adulto medio al meglio di 3, formato classico e in fiera: nessun aiuto, A, B, C e due prove più forti. |
-| `legend.txt` | `npm run audit:legend` (contro la CPU): 69/69 (rifatto il 12/11 dopo la revisione: uscita identica). |
+| `misure-aiuto-meglio-di-3.txt` | Revisione (12/11, prima della decisione sull'aiuto solo di gioco): `misure.mjs aiuto-prove --game=2`, bambino contro adulto medio al meglio di 3, formato classico e in fiera: nessun aiuto, A, B, C e due prove più forti. Le righe con i punti di vantaggio non si possono più rifare; quelle di oggi sono in fondo a `misure-aiuto-gioco-prove.txt`. |
+| `misure-aiuto-gioco.txt` | **Aiuto solo di gioco (12/11)**: `misure.mjs aiuto` e `aiuto-altro`, due serie di semi (di base e `--semi=8101,8203,8317`), 900 partite per riga: nessun aiuto, A, G per le cinque coppie; con il campo aperto acceso; l'adulto segnato «Bambino». |
+| `misure-aiuto-gioco-prove.txt` | **Le combinazioni provate (12/11)** per il bambino contro l'adulto medio, `misure.mjs aiuto-prove`, 900 partite per riga: tre serie di semi a 1 game in fiera, due con il campo aperto acceso, al meglio di 3 in fiera e classico, 1 game classico. |
+| `legend.txt` | `npm run audit:legend` (contro la CPU): 69/69 (rifatto il 12/11 dopo la revisione e dopo l'aiuto solo di gioco: uscita identica). |
 
 Cambi al banco dell'audit B19 (`../b19/due-umani.mjs`), tutti spenti di base (le impronte dei profili di sempre non
 cambiano):

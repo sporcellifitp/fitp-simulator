@@ -177,37 +177,44 @@ const groups = {
     }
     setObj(ND.openTuning, null);
   },
-  // parte 5: aiuto al più giovane. Varianti 0 (nessuno), A (tempo), B (punti), C (leggera) per coppia di fasce
+  // parte 5: aiuto al più giovane (solo di gioco: nessun punto regalato, decisione del 12/11). Varianti 0 (nessuno),
+  // A (solo margine sul tempo, per confronto), G (in gioco) per coppia di fasce
   aiuto(){
     say(`== Aiuto al più giovane, 1 game ${fair ? 'in fiera' : 'classico'}: vince il più giovane (media dei due lati). In gioco: variante ${ND.HELP_DEFAULT} ==`);
     const row = (lab, young, old, pa, pb, variant, tune = null) => { const d = duo(pa, pb, { matches: 150 }, bands(young, old, variant, tune)); line(lab, d); return d; };
     for (const [young, old, pa, pb] of [['bambino', 'adulto', 'bambino', 'medio'], ['bambino', 'adulto', 'bambino', 'amatore'], ['ragazzo', 'adulto', 'ragazzo', 'medio'], ['ragazzo', 'adulto', 'ragazzo', 'amatore'], ['bambino', 'ragazzo', 'bambino', 'ragazzo']]){
       const pair = `${young}:${old}`;
-      for (const v of ['0', 'A', 'B', 'C']){ const h = ND.HELP[v][pair]; row(`${pa} (${young}) contro ${pb} (${old}) · ${v === '0' ? 'nessun aiuto' : 'variante ' + v + ' ' + JSON.stringify(h)}`, young, old, pa, pb, v); }
+      for (const v of ['0', 'A', 'G']){ const h = ND.HELP[v][pair]; row(`${pa} (${young}) contro ${pb} (${old}) · ${v === '0' ? 'nessun aiuto' : 'variante ' + v + ' ' + JSON.stringify(h)}`, young, old, pa, pb, v); }
     }
     setObj(ND.helpTuning, null);
   },
-  // parte 5, il resto: l'aiuto con il campo aperto acceso, i soli punti di vantaggio, l'adulto segnato «Bambino»
+  // parte 5, il resto: l'aiuto con il campo aperto acceso, l'adulto segnato «Bambino»
   'aiuto-altro'(){
     const row = (lab, young, old, pa, pb, variant, tune = null) => { const d = duo(pa, pb, { matches: 150 }, bands(young, old, variant, tune)); line(lab, d); return d; };
     say(`== Aiuto al più giovane, 1 game ${fair ? 'in fiera' : 'classico'}: il resto ==`);
-    say('-- con il campo aperto acceso (opzione dello staff): vince il più giovane, senza aiuto e con le tre varianti --');
-    for (const [young, old, pa, pb] of [['bambino', 'adulto', 'bambino', 'medio'], ['ragazzo', 'adulto', 'ragazzo', 'medio'], ['bambino', 'ragazzo', 'bambino', 'ragazzo']]) for (const v of ['0', 'A', 'B', 'C'])
-      line(`${pa} contro ${pb} · campo aperto · ${v === '0' ? 'nessun aiuto' : 'variante ' + v}`, duo(pa, pb, { matches: 150 }, side => both(bands(young, old, v)(side), open(true))));
+    say('-- con il campo aperto acceso (opzione dello staff): vince il più giovane, senza aiuto e con le varianti (la G lì ha i suoi valori: HELP.G.open) --');
+    for (const [young, old, pa, pb] of [['bambino', 'adulto', 'bambino', 'medio'], ['bambino', 'adulto', 'bambino', 'amatore'], ['ragazzo', 'adulto', 'ragazzo', 'medio'], ['bambino', 'ragazzo', 'bambino', 'ragazzo']]) for (const v of ['0', 'A', 'G'])
+      line(`${pa} contro ${pb} · campo aperto · ${v === '0' ? 'nessun aiuto' : 'variante ' + v + ' ' + JSON.stringify(ND.HELP[v].open?.[`${young}:${old}`] || ND.HELP[v][`${young}:${old}`])}`, duo(pa, pb, { matches: 150 }, side => both(bands(young, old, v)(side), open(true))));
     setObj(ND.openTuning, null);
-    say('-- bambino contro adulto medio: solo i punti di vantaggio --');
-    for (const head of [1, 2, 3]) row(`bambino contro medio · parte da ${['', '15', '30', '40'][head]}-0`, 'bambino', 'adulto', 'bambino', 'medio', 'B', { head });
     say('-- due adulti medi, uno segnato «Bambino» per sbaglio o per furbizia: quanto pesa l\'aiuto --');
-    for (const v of ['A', 'B', 'C']) row(`medio (segnato bambino) contro medio (adulto) · variante ${v}`, 'bambino', 'adulto', 'medio', 'medio', v);
+    for (const v of ['A', 'G']) row(`medio (segnato bambino) contro medio (adulto) · variante ${v}`, 'bambino', 'adulto', 'medio', 'medio', v);
     setObj(ND.helpTuning, null); setObj(ND.openTuning, null);
   },
-  // parte 5, prove: altri valori per una coppia → --coppia=bambino:adulto --profili=bambino:medio --prove='{"span":2}|{"head":1,"span":1.5}'
+  // parte 5, prove: altri valori per una coppia → --coppia=bambino:adulto --profili=bambino:medio
+  // --prove='{"span":2}|{"span":2,"late":0.1,"slow":1.15}' [--campo=aperto] ({} = nessun aiuto)
   'aiuto-prove'(){
     const [young, old] = (arg('coppia') || 'bambino:adulto').split(':'), [pa, pb] = (arg('profili') || 'bambino:medio').split(':');
-    const list = (arg('prove') || '{"span":1.5}|{"span":2}|{"span":3}|{"late":0.06}|{"late":0.12}|{"early":1.5}|{"span":2,"late":0.09}').split('|').map(x => JSON.parse(x));
-    say(`== Aiuto, prove: ${pa} (${young}) contro ${pb} (${old}) ==`);
-    for (const tune of list){ const d = duo(pa, pb, { matches: 120 }, bands(young, old, 'A', tune)); line(JSON.stringify(tune), d); say(`      ${kindsLine(d.kinds)}`); }
-    setObj(ND.helpTuning, null);
+    const list = (arg('prove') || '{}|{"span":2,"late":0.1}|{"span":2,"late":0.1,"slow":1.15}|{"span":2,"late":0.1,"deep":1.5}|{"span":2,"late":0.1,"slow":1.15,"deep":1.5}').split('|').map(x => JSON.parse(x));
+    const aperto = arg('campo') === 'aperto';
+    say(`== Aiuto, prove: ${pa} (${young}) contro ${pb} (${old})${aperto ? ' · campo aperto acceso' : ''} ==`);
+    for (const tune of list){
+      const d = duo(pa, pb, { matches: 150 }, side => both(bands(young, old, 'A', tune)(side), aperto ? open(true) : null));
+      line(JSON.stringify(tune), d); say(`      ${kindsLine(d.kinds)}`);
+      // piano d'intercetto del più giovane a ogni suo colpo: se la palla dell'altro diventa un pallonetto salgono «smash» e «volley»
+      const mine = d.Sh.filter(x => x.a), plans = {}; for (const x of mine) plans[x.plan] = (plans[x.plan] || 0) + 1;
+      say(`      colpi del più giovane: ${Object.entries(plans).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${pc(v, mine.length)}%`).join(' · ')}`);
+    }
+    setObj(ND.helpTuning, null); setObj(ND.openTuning, null);
   },
 };
 
