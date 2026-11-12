@@ -128,9 +128,9 @@ tempi sono lunghi e servono solo per il confronto tra le due scelte.
 | fotogrammi al secondo con il gioco che gira, giro A (il migliore di 2) | 0,79 | 0,90 |
 | fotogrammi al secondo con il gioco che gira, giro B | 0,80 | 0,77 |
 
-Le mascotte hanno **meno** pezzi e meno triangoli dei personaggi di sempre. Sul tempo le due scelte sono pari: le
-differenze tra un giro e l'altro (da −14% a +5%) sono più grandi della differenza tra le due scelte e cambiano di
-segno. Quasi tutti i triangoli sono dell'arena e del pubblico, non dei personaggi. La prova accetta fino al 12% sul
+Le mascotte hanno **meno** pezzi e meno triangoli dei personaggi di sempre. Sul tempo le due scelte sono pari entro
+l'errore della misura: con le mascotte il tempo del disegno è +0,2% e +4,6% nei due giri, i fotogrammi al secondo +14%
+e −4% (il segno cambia da un giro all'altro). Quasi tutti i triangoli sono dell'arena e del pubblico, non dei personaggi. La prova accetta fino al 12% sul
 tempo e al 10% sui fotogrammi al secondo.
 
 Le misure di tempo sono state rifatte più volte perché la macchina era occupata da altri lavori. In due giri
