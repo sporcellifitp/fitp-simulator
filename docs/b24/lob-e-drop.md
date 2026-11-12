@@ -123,19 +123,31 @@ tempi sono lunghi e servono solo per il confronto tra le due scelte.
 |---|---|---|
 | chiamate di disegno | 248 | **219** |
 | triangoli | 1.454.220 | **1.443.812** |
-| tempo del disegno (il più breve di 14 disegni per 3 giri) | 1441,8 ms | 1444,8 ms |
-| fotogrammi al secondo con il gioco che gira (il migliore di 2 giri) | 0,79 | 0,90 |
+| tempo del disegno, giro A (il più breve di 14 disegni per 3 giri alternati) | 1441,8 ms | 1444,8 ms |
+| tempo del disegno, giro B (ultimo giro completo della prova) | 1099,5 ms | 1150,1 ms |
+| fotogrammi al secondo con il gioco che gira, giro A (il migliore di 2) | 0,79 | 0,90 |
+| fotogrammi al secondo con il gioco che gira, giro B | 0,80 | 0,77 |
 
-Le mascotte costano **meno** dei personaggi di sempre (meno pezzi e meno triangoli); il tempo è lo stesso. Quasi tutti
-i triangoli sono dell'arena e del pubblico, non dei personaggi.
+Le mascotte hanno **meno** pezzi e meno triangoli dei personaggi di sempre. Sul tempo le due scelte sono pari: le
+differenze tra un giro e l'altro (da −14% a +5%) sono più grandi della differenza tra le due scelte e cambiano di
+segno. Quasi tutti i triangoli sono dell'arena e del pubblico, non dei personaggi. La prova accetta fino al 12% sul
+tempo e al 10% sui fotogrammi al secondo.
 
-Le misure di tempo sono state rifatte: in due giri precedenti, a macchina molto carica, una volta il tempo del disegno
-è risultato peggiore per le mascotte (1212 → 1723 ms) e una volta migliore (1477 → 1220 ms), e i fotogrammi al secondo
-erano 0,7 e 0,6 contati su quattro fotogrammi. Per questo la prova ora prende il disegno più breve a giri alternati e
-misura i fotogrammi al secondo tra il primo e l'ultimo fotogramma. I conti di chiamate e triangoli non dipendono dal
-carico e sono sempre stati uguali.
+Le misure di tempo sono state rifatte più volte perché la macchina era occupata da altri lavori. In due giri
+precedenti, a macchina molto carica e con la misura di prima (mediana, fotogrammi contati in una finestra fissa), una
+volta il tempo del disegno è risultato peggiore per le mascotte (1212 → 1723 ms) e una volta migliore (1477 → 1220 ms),
+e i fotogrammi al secondo erano 0,7 e 0,6 contati su quattro fotogrammi: quella prova è **fallita una volta** per
+questo. Ora la prova prende il disegno più breve a giri alternati e misura i fotogrammi al secondo tra il primo e
+l'ultimo fotogramma. I conti di chiamate e triangoli non dipendono dal carico e sono sempre stati uguali.
+
+**Peso del pacchetto**: il programma del gioco cresce di 15,3 kB (5,2 kB compresso), da 1.720.572 a 1.735.885 byte.
+Nessun altro file.
 
 ## Prove
+
+Ultimo giro, il 12/11/2026: gioco 1196 test (1195 passati, 1 saltato come prima: vuole `npm ci` in `tools/lan`),
+sito 205 su 205, `npm run build` riuscito, `npm run audit:legend` «Tutti i criteri rispettati», prova nel browser
+72 verifiche su 72 con il confronto con `9b8f9cb`.
 
 - **Test di unità** (11, in `natpf-tennis/test/natpf-lob-drop.test.mjs` e `natpf-personaggi-opzione.test.mjs`):
   opzione e chiave salvata, parametro dell'indirizzo, chi è chi contro la CPU e tra due persone, pezzi e colori delle
