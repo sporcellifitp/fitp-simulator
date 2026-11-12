@@ -73,12 +73,18 @@ se serve, altre leve di gioco: palla che arriva un po' più lenta al più giovan
 Da fare dopo il revisore del B25: `HELP_DEFAULT` solo-gioco, misurare una variante solo-gioco più forte della A (A dà
 29% al bambino contro adulto medio; obiettivo circa 40%), testi «Aiuto» senza punti, test e documento aggiornati.
 
-**B25: implementazione finita (7 commit, `3679e51`), manca il REVISORE indipendente** (fermato due volte dal limite d'uso; workflow `b25-stesso-schermo-equilibrio`, run `wf_d8163833-9f8`: agente in
-worktree `wf_d8163833-9f8-1` → revisore indipendente → correzioni). Se si ferma per il limite d'uso: rilanciare con
-`Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b25-stesso-schermo-equilibrio-wf_d8163833-9f8.js', resumeFromRunId: 'wf_d8163833-9f8'})`;
-se quei file non ci sono più, continuare a mano nella worktree (compito: PIANO, voce B25). Quando finisce: mostrare
-all'utente la tabella delle varianti dell'aiuto al più giovane e farlo scegliere; poi unire, versione nuova, controllo
-rapido, mandare SUBITO zip (e installer se GitHub Actions è ripartito), prove complete dopo.
+**B25 (12/11, 08:35 UTC): implementazione + revisore indipendente + correzioni FATTI** nella worktree
+`.claude/worktrees/wf_d8163833-9f8-1` (ramo `worktree-wf_d8163833-9f8-1`, `a4e5bf4`, non ancora unito). Bloccante del
+revisore corretto: con il campo aperto il servizio passa ogni due punti anche nel classico (chi batte per primo tornato
+al 50%). Documento: `docs/b25/stesso-schermo-equilibrio.md` in quella worktree.
+- [~] **Aiuto solo nel gioco** (decisione qui sopra): agente in corso nella stessa worktree dalle 08:35 UTC. Toglie i punti
+      regalati, cerca una variante solo-gioco che porti il bambino a circa 40% contro un adulto medio, misura, aggiorna
+      testi, test e documento. Se si ferma per il limite d'uso: riprenderlo con un messaggio (le modifiche restano lì).
+- [ ] Poi: guardare diff e numeri, unire in `natpf-simulator`, versione 2026-11-12.2, controllo rapido, push, zip e
+      installer SUBITO, prove complete dopo; dire all'utente come si attivano Lancio automatico, Campo aperto e fasce.
+- Decisioni ancora da chiedere all'utente (dal documento B25): soglia del colpo super (1,3 volte; «qualche volta a
+  partita» non raggiunto), «tira sempre fortissimo» rende 65–69% con il campo aperto, chi batte parte sfavorito con il
+  campo aperto (44–48 punti su 100).
 Poi B23 (prova delle movenze sul dritto), B24 e tappa 2 gruppi 2 e 3.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
