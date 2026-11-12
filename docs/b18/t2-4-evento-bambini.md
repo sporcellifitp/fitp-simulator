@@ -536,28 +536,29 @@ Verifiche finali, tutte sull'ultimo codice del ramo:
 
 | Verifica | Esito |
 |---|---|
-| `cd natpf-tennis && npm test` | 1205 test: 1204 superati, 0 falliti, 1 saltato (quello del server LAN, che vuole `npm ci` in `tools/lan`) |
+| `cd natpf-tennis && npm test` | 1210 test: 1209 superati, 0 falliti, 1 saltato (quello del server LAN, che vuole `npm ci` in `tools/lan`) |
 | `npm run build` | riuscita |
 | `npm run audit:legend` | «Tutti i criteri rispettati» |
 | `node --test tools/test/*.test.mjs` (sito e pagina del telefono) | 205 su 205 |
-| `tools/e2e/natpf-chi-gioca.mjs` (nuova) | 51 su 51 |
+| `tools/e2e/natpf-chi-gioca.mjs` (nuova) | 55 su 55 |
 | `tools/e2e/natpf-menu.mjs` | 28 su 28 |
 | `tools/e2e/natpf-nuovo-giocatore.mjs` | 28 su 28 |
 | `tools/e2e/natpf-training-flow.mjs` | 22 su 22 |
 | `tools/e2e/natpf-rally.mjs` (livello Pro) | 9 su 9 |
 | `tools/e2e/natpf-leggenda.mjs` | 7 su 7 |
-| Impronte di Casual, Pro, Leggenda, 1v1 contro `9b8f9cb` | 32 su 32 identiche |
+| Impronte di Casual, Pro, Leggenda, 1v1 contro `9b8f9cb` | 32 su 32 identiche (semi 7 e 2001); dopo la revisione, 72 su 72 con semi nuovi (31, 977, 4243) |
 
-Le prove nel browser sono girate con il Chromium senza scheda grafica di questa macchina, mentre altri tre lavori
-usavano gli stessi quattro processori: nessuna è fallita e nessuna misura fotogrammi al secondo.
-`natpf-training-flow`, `natpf-rally` e `natpf-leggenda` sono girate prima dell'ultima modifica (il livello Evento che
-riparte tornando al menu principale, una riga in `natpf_ui.js`); dopo sono state rifatte `natpf-chi-gioca`,
-`natpf-menu` e `natpf-nuovo-giocatore`, le tre che passano dal menu, più tutti i test, la build e `audit:legend`.
+Le prove nel browser sono girate con il Chromium senza scheda grafica di questa macchina, una dopo l'altra, tutte e sei
+dopo l'ultima modifica al codice (revisione compresa). Un altro lavoro usava la stessa macchina, e il primo minuto di
+`natpf-chi-gioca` è girato insieme alla build e ad `audit:legend`: nessuna è fallita e nessuna misura fotogrammi al
+secondo.
 
 La prova `natpf-chi-gioca.mjs` controlla: la pagina con le tre tessere alle tre misure; ogni tessera e il suo livello;
 «Livello della CPU» con Esperta e Leggenda; «Gioca» con ogni scelta; il gradino del livello Evento nel gioco vero;
 «Gioca ancora» e menu principale; l'anello (largo, si stringe, verde, rosso, sparisce) e le schermate alle tre misure;
-Opzioni «No» e «Sì»; le scritte del super (prima volta, dopo, niente); chiosco; «Nuovo giocatore» dalla schermata
+Opzioni «No» e «Sì», con la riga del segnale in vista senza scorrere anche a 1024×600; «Altre impostazioni» aperte con
+Esperta senza righe tagliate; la scritta del super con la frase più lunga (tre righe al massimo, almeno 14 punti);
+le scritte del super (prima volta, dopo, niente); chiosco; «Nuovo giocatore» dalla schermata
 finale; gli indirizzi `?mode=pro`, `leggenda`, `casual`, `bambini`; nessun errore JavaScript.
 
 ## Revisione
@@ -601,7 +602,11 @@ nuovi (31, 977 e 4243; Casual, Pro, Leggenda e 1v1; 6 profili; 60 punti), **72 s
 
 ### Verifiche dopo le correzioni
 
-VERIFICHE_FINALI
+Rifatte tutte alla fine, sull'ultimo codice del ramo (i numeri sono nella tabella «Verifiche finali» del capitolo «Test e
+prove»): 1210 test del gioco (1209 superati, 0 falliti, 1 saltato), build, `audit:legend`, 205 test del sito, sei prove
+nel browser (`natpf-chi-gioca` 55 su 55, e le cinque del menu e dell'avvio partita), 72 impronte su 72 identiche a
+`9b8f9cb`. `natpf_stroke_outcome.js`, `natpf_duo_rules.js`, il riconoscimento dei gesti, `site/`, i file di versione e i
+documenti di ripresa sono identici a `9b8f9cb` (`git diff` vuoto).
 
 ## Cosa resta aperto
 
