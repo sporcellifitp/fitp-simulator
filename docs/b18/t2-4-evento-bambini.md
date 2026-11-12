@@ -447,7 +447,61 @@ che non entra nei pacchetti.
 
 ## Test e prove
 
-(Le verifiche finali sono in corso: questa sezione viene riscritta con i numeri alla fine del passo.)
+Test di unità nuovi: `natpf-tennis/test/natpf-b18-t2-evento-bambini.test.mjs`, **20 test**.
+
+| Regola | Test |
+|---|---|
+| Evento, gradini: su di poco, giù di più, fermo a 65 su 100 | «Evento, regola: punto vinto su di poco…» |
+| Evento, gradini doppi nei primi sei punti | «Evento, regola: nei primi sei punti…» |
+| Evento, limiti (mai sotto la CPU facile, mai sopra il tetto) | «Evento, limiti…» |
+| Evento, stato, ripartenza, valore fissato dalle prove | «Evento, stato…» |
+| Evento, stabilità con serie fisse di punti (65%, 90%, 30%) | «Evento, stabilità…» |
+| Media tra due livelli | «media tra due livelli…» |
+| Evento a 0 è Casual numero per numero; a 1 la CPU più brava; in mezzo in ordine | «Evento a k = 0 è Casual…» |
+| Evento fermo a 0: stessa partita di Casual, punto per punto | «Evento fermo a k = 0…» |
+| Evento nel motore: un gradino a fine punto, la velocità segue; niente negli altri livelli, nella demo, tra due persone | «Evento nel motore…» |
+| Peso del servizio di Bambini ed Evento | «servizio: Bambini ed Evento…» |
+| Bambini: margine sul tempo, palla lenta, CPU che non attacca; niente per la CPU e tra due persone | «Bambini: più margine sul tempo…» |
+| Bambini: colpi al centro; Casual e Pro scelgono come prima (stessi sorteggi) | «Bambini: la CPU tira quasi sempre al centro…» |
+| Banco ridotto: Evento 55–75 punti per l'adulto, Bambini ≥ 60 punti e ≥ 75 game per il bambino | «banco ridotto…» |
+| «Chi gioca», valore di base, indirizzi, scritte, riassunto | «Chi gioca: Bambino → Bambini…» |
+| Segnale: quando è acceso, scelta salvata | «segnale: di base acceso…» |
+| Segnale: fasi dell'anello uguali al voto «Perfetto» | «segnale: l'anello si stringe…» |
+| Segnale: non si riallarga | «segnale: l'anello non si riallarga…» |
+| Segnale: non cambia la partita (stessi semi, acceso e spento) | «segnale: è solo disegno…» |
+| Colpo super spiegato: frasi, quando sì e quando no; condizioni del super invariate | «colpo super spiegato…» |
+| Interfaccia: chiosco, «Nuovo giocatore», menu principale, «Gioca ancora», livello per nome | «interfaccia: chiosco…» |
+
+Un test del passo 2 (`natpf-b18-t2-cpu-pressione.test.mjs`) usava «evento» come esempio di livello che non esiste: adesso
+usa «inesistente».
+
+Verifiche finali, tutte sull'ultimo codice del ramo:
+
+| Verifica | Esito |
+|---|---|
+| `cd natpf-tennis && npm test` | 1205 test: 1204 superati, 0 falliti, 1 saltato (quello del server LAN, che vuole `npm ci` in `tools/lan`) |
+| `npm run build` | riuscita |
+| `npm run audit:legend` | «Tutti i criteri rispettati» |
+| `node --test tools/test/*.test.mjs` (sito e pagina del telefono) | 205 su 205 |
+| `tools/e2e/natpf-chi-gioca.mjs` (nuova) | 51 su 51 |
+| `tools/e2e/natpf-menu.mjs` | 28 su 28 |
+| `tools/e2e/natpf-nuovo-giocatore.mjs` | 28 su 28 |
+| `tools/e2e/natpf-training-flow.mjs` | 22 su 22 |
+| `tools/e2e/natpf-rally.mjs` (livello Pro) | 9 su 9 |
+| `tools/e2e/natpf-leggenda.mjs` | 7 su 7 |
+| Impronte di Casual, Pro, Leggenda, 1v1 contro `9b8f9cb` | 32 su 32 identiche |
+
+Le prove nel browser sono girate con il Chromium senza scheda grafica di questa macchina, mentre altri tre lavori
+usavano gli stessi quattro processori: nessuna è fallita e nessuna misura fotogrammi al secondo.
+`natpf-training-flow`, `natpf-rally` e `natpf-leggenda` sono girate prima dell'ultima modifica (il livello Evento che
+riparte tornando al menu principale, una riga in `natpf_ui.js`); dopo sono state rifatte `natpf-chi-gioca`,
+`natpf-menu` e `natpf-nuovo-giocatore`, le tre che passano dal menu, più tutti i test, la build e `audit:legend`.
+
+La prova `natpf-chi-gioca.mjs` controlla: la pagina con le tre tessere alle tre misure; ogni tessera e il suo livello;
+«Livello della CPU» con Esperta e Leggenda; «Gioca» con ogni scelta; il gradino del livello Evento nel gioco vero;
+«Gioca ancora» e menu principale; l'anello (largo, si stringe, verde, rosso, sparisce) e le schermate alle tre misure;
+Opzioni «No» e «Sì»; le scritte del super (prima volta, dopo, niente); chiosco; «Nuovo giocatore» dalla schermata
+finale; gli indirizzi `?mode=pro`, `leggenda`, `casual`, `bambini`; nessun errore JavaScript.
 
 ## Cosa resta aperto
 
