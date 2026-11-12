@@ -560,6 +560,49 @@ La prova `natpf-chi-gioca.mjs` controlla: la pagina con le tre tessere alle tre 
 Opzioni «No» e «Sì»; le scritte del super (prima volta, dopo, niente); chiosco; «Nuovo giocatore» dalla schermata
 finale; gli indirizzi `?mode=pro`, `leggenda`, `casual`, `bambini`; nessun errore JavaScript.
 
+## Revisione
+
+Un revisore indipendente ha rifatto le misure con semi suoi e ha guardato le schermate a quattro misure. Ha trovato due
+difetti seri e otto cose piccole. Qui c'è, punto per punto, che cosa ho corretto, che cosa no e perché. Le misure di
+questo capitolo le ho rifatte sul codice finale, con gli stessi semi del revisore.
+
+### Difetti seri (corretti tutti e due)
+
+| N. | Che cosa non andava | Che cosa ho fatto | Prova |
+|---|---|---|---|
+| 1 | **L'anello restava verde più a lungo del «Perfetto» vero.** Il verde era uguale prima e dopo il punto d'impatto; il voto vero dopo il punto d'impatto è molto più corto. Misura del revisore: con l'anello verde, 18–27 gesti su 100 ricevevano «Ritardo» (995 su 4526). | I due bordi del verde si calcolano con le stesse funzioni del voto (`cueEdges` in `natpf_timing_cue.js`). `natpf_stroke_outcome.js` non è cambiato: l'anello ne legge tre funzioni. | Stessa misura del revisore (semi 3301, 88, 6007; Bambini, Evento, Casual, Pro): **2708 gesti con l'anello verde, 2708 «Perfetto», 0 «Ritardo»**. Due test nuovi: i bordi contro `strokeOutcome` per livello e velocità della palla; il motore vero, gesto con il verde → «Perfetto». |
+| 2 | **«Super mancato: eri in corsa.» era quasi sempre falsa.** Usciva ogni volta che la qualità del colpo era sotto 0,8, ma la qualità ha sette voci e nel banco chi colpiva era sempre fermo. Era il 21–28% delle scritte. | Ho preso la strada più completa proposta dal revisore: il motore scrive le voci della situazione anche per i colpi riusciti (una riga in `game_engine.js`, solo lettura) e la scritta dice la voce che ha pesato di più. «Eri in corsa» esce solo se chi colpiva correva davvero. | Stessa misura del revisore (semi 4441 e 59, livello Evento): **«eri in corsa» 0 volte su 1540 scritte**; al suo posto «la palla era troppo profonda» (165), «non hai portato indietro la racchetta» (161), «lo scambio era lungo» (50), «eri in allungo» (26). In tutti i 6800 colpi il prodotto delle voci ridà la qualità del motore. Due test nuovi (regola pura e motore vero). |
+
+Il punto 2 tocca `game_engine.js` dentro `_natpfRacketShot`, vicino a dove lavora l'agente dell'animazione del dritto: è
+una riga sola, aggiunta dopo il calcolo dell'esito, e non cambia niente del colpo. All'unione dei rami va controllata
+quella riga. Le impronte dei livelli di prima restano identiche a `9b8f9cb`: le ho ricalcolate sul codice finale con semi
+nuovi (31, 977 e 4243; Casual, Pro, Leggenda e 1v1; 6 profili; 60 punti), **72 su 72 identiche**.
+
+### Cose piccole
+
+| N. | Che cosa diceva il revisore | Che cosa ho fatto |
+|---|---|---|
+| 1 | In 1 game l'adattamento quasi non conta; «In breve» diceva solo «si regola da solo». | **Corretto nel documento** («In breve» n. 3). Il valore di partenza **non l'ho cambiato**: è una decisione dell'utente, da prendere dopo le prime partite con persone vere («Cosa resta aperto» n. 1). |
+| 2 | Regola nascosta: a Evento con la CPU cambiano anche la finestra del tempo e la corsa di chi gioca; la tessera diceva «La CPU si regola su come giochi». | **Corretto a metà, apposta.** La tessera adesso dice «La partita si regola su come giochi». **Non ho** lasciato ferme le regole di chi gioca: con la sola CPU che si muove gli scambi diventavano di 25 colpi a punto per il profilo «umano» con la CPU più brava (misura del primo giro, scritta nel commento di `EVENTO_ENDS` in `natpf_skill.js`), e rifare tutte le misure non sta nel tempo di oggi. Resta aperto (n. 10). |
+| 3 | La partita al meglio di 3 più lunga non dura 9 minuti: con i suoi semi 10 e mezzo, 13 per chi gioca peggio. | **Corretto nel documento** («Cosa resta aperto» n. 2), con il consiglio di tenere 1 game quando c'è coda. |
+| 4 | Scritta del super: frase sgrammaticata con il motivo lungo; quattro righe da 12 punti a 720×720; esce troppo spesso (0,9–1,7 volte a punto a chi colpisce forte). | **Corretto.** Motivi corti («il colpo era tagliato», «era un pallonetto», «era una palla corta»); carattere minimo 14 punti e riquadro più largo sugli schermi stretti (tre righe al massimo, lo controlla la prova nel browser con la frase più lunga); **al massimo una scritta a punto**: 0,70–0,77 a punto (prima 1,3–2,1). Non ho messo il limite «solo le prime N volte per giocatore»: uno dei due bastava. |
+| 5 | L'anello verde si vede poco; il giallo «aspetta» si confonde con il giallo «buono» dell'anello a terra. | **Corretto.** Linea più spessa, verde pieno e un poco più largo (un lampo quando scatta), bianco mentre la palla arriva. Guardato a 1280×720, 1920×540 e 720×720. **Sul ledwall non è provato.** |
+| 6 | Opzioni: a 1024×600 la riga del segnale non si vedeva senza scorrere. | **Corretto.** La riga è la quarta, dopo «Giochi con la mano»: si vede intera a tutte e quattro le misure. |
+| 7 | «Altre impostazioni» aperte con Esperta o Leggenda: la riga gialla allungava la pagina e tagliava «Visuale». | **Corretto.** Con «Altre impostazioni» aperte la riga gialla non si mostra (il livello si vede già lì). |
+| 8 | La diagnostica non scriveva il valore del livello Evento né se il segnale era acceso. | **Corretto.** «partita» ha `segnale` e, a Evento, `eventoK`; «punto» ha `eventoK`. Un test nuovo. |
+
+### Che cosa resta diverso da quello che chiedeva il revisore
+
+- L'anello può essere **appena più severo** del voto: 27 «Perfetto» su 2735 (l'1%) sono arrivati con l'anello ancora
+  bianco, perché la palla rallenta al rimbalzo dopo il gesto. Mai il contrario.
+- Le regole di chi gioca a Evento cambiano ancora con il valore del livello (punto 2 qui sopra): adesso è scritto a
+  schermo, non è tolto.
+- Il valore di partenza del livello Evento è quello di prima (0,8).
+
+### Verifiche dopo le correzioni
+
+VERIFICHE_FINALI
+
 ## Cosa resta aperto
 
 1. **Chi gioca peggio dell'adulto medio e sceglie «Adulto» perde la prima partita.** Il profilo «ragazzo» con «Adulto»
@@ -591,6 +634,11 @@ finale; gli indirizzi `?mode=pro`, `leggenda`, `casual`, `bambini`; nessun error
 9. **La scritta «CPU» sopra il tabellone** resta «CPU» anche a Bambini ed Evento (come a Casual). Con `?mode=pro` nella
    pagina «Partita» la targhetta dell'avversario dice «CPU» e non «CPU Pro» finché non si tocca un livello: succedeva
    già prima, non l'ho toccato.
+10. **A Evento cambiano anche le regole di chi gioca**, non solo la CPU (revisione, cosa piccola n. 2): con il valore del
+    livello la finestra del «Perfetto» e della direzione si stringe (da 0,2 a 0,15 secondi) e il personaggio di chi gioca
+    corre un poco meno (da 10,2 a 8,8 metri al secondo). Adesso la tessera lo dice («La partita si regola su come
+    giochi»). L'altra strada, regole di chi gioca ferme a Casual e solo la CPU che si muove, va rimisurata da capo: nel
+    primo giro dava scambi da 25 colpi a punto con la CPU più brava.
 
 ## Cosa non è provato
 
