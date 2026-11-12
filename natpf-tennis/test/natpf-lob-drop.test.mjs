@@ -21,6 +21,7 @@ import { PlayerFacialFXController } from '../src/player_facial_fx.js';
 import { getRacketRimWorldPoints, RacketKinematicsController } from '../src/racket_kinematics.js';
 import { upgradePlayerCharacterMaterials, upgradeRacketMaterials } from '../src/player_materials.js';
 import { setFirstPersonBody } from '../src/natpf/natpf_camera.js';
+import { scoreboardView, scoreboardHtml } from '../src/natpf/natpf_scoreboard.js';
 import { keepRacketClear, racketInHead, CLEAR_MARGIN, maxShift, PUSH_RATE, RELEASE_RATE, NEAR_BALL } from '../src/natpf/natpf_racket_clear.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -459,6 +460,26 @@ test('ritratti: Drop e Lob nel tabellone, nella lobby e a fine partita quando l\
   assert.deepEqual(seen, ['drop/lob', 'p1/cpu', 'p1/p2', 'p1/cpu']);
   assert.match(getPlayerAvatarSVG('player1'), /data-look="p1"/);
   off();
+});
+
+test('tabellone: con Lob & Drop la linguetta della riga ha il colore del suo personaggio; con «Classici» niente cambia', () => {
+  const score = { playerPoints: 1, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player' };
+  const plain = scoreboardHtml(scoreboardView(score, { gamesToWin: 1 }));
+  for (const multi of [false, true]) assert.equal(scoreboardHtml(scoreboardView(score, { gamesToWin: 1, looks: castLooks('sempre', multi) })).replace(/Player 2|CPU/g, ''), plain.replace(/Player 2|CPU/g, ''), '«Classici»: tabellone di prima');
+  assert.ok(!/data-sb-look/.test(plain));
+  const look = (opt, side) => scoreboardView(score, { gamesToWin: 1, ...opt }).rows.find(r => r.side === side).look;
+  const L = castLooks('lobdrop', false), V = castLooks('lobdrop', true);
+  // contro la CPU: chi gioca (Tu) è Drop, la CPU è Lob
+  assert.deepEqual([look({ looks: L }, 'me'), look({ looks: L }, 'them')], ['drop', 'lob']);
+  // stesso schermo: Player 1 = Drop, Player 2 = Lob
+  assert.deepEqual([look({ looks: V, multiplayer: true, split: true }, 'me'), look({ looks: V, multiplayer: true, split: true }, 'them')], ['drop', 'lob']);
+  // tra due computer chi è entrato come Player 2 è Lob: la sua riga («Tu») è gialla, l'altra blu
+  assert.deepEqual([look({ looks: V, multiplayer: true, viewer: 'opponent' }, 'me'), look({ looks: V, multiplayer: true, viewer: 'opponent' }, 'them')], ['lob', 'drop']);
+  const html = scoreboardHtml(scoreboardView(score, { gamesToWin: 1, looks: L }));
+  assert.match(html, /data-sb-row="me" data-sb-look="drop"/); assert.match(html, /data-sb-row="them" data-sb-look="lob"/);
+  const css = fs.readFileSync(path.join(ROOT, 'natpf-round.css'), 'utf8');
+  assert.match(css, /\.sb-row\[data-sb-look="drop"\] \.sb-tab \{\s*background: #2b7fe6;/); assert.match(css, /\.sb-row\[data-sb-look="lob"\] \.sb-tab \{\s*background: #ffdd1f;/);
+  assert.equal(MASCOT_COLORS.drop.body, 0x2b7fe6); assert.equal(MASCOT_COLORS.lob.body, 0xffdd1f);
 });
 
 test('pagina e pacchetto: riga «Personaggi in campo» nelle Opzioni, nessun file nuovo da scaricare', () => {

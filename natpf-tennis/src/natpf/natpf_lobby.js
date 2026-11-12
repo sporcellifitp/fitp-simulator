@@ -398,6 +398,7 @@ export class NatpfLobby {
   setCast(value){
     const cast = setCast(value);
     this.engine.natpfBackdropDirty = true;        // lo sfondo fermo del menu si ridisegna con i personaggi scelti
+    this.ui.onScore?.(this.engine.score, this.engine.matchConfig?.gamesToWin);   // linguette del tabellone del colore dei personaggi
     this.ui.toast?.(castToast(cast)); this.paint();
   }
   _paintOptions(){
