@@ -21,6 +21,7 @@ import { NatpfGestureHud } from './natpf_gesture_hud.js';
 import { NatpfServeCoach } from './natpf_serve_coach.js';
 import { NatpfHotRallyHud } from './natpf_hot_rally.js';
 import { NatpfDiag } from './natpf_diag.js';
+import { NatpfRegistro } from './natpf_registro.js';
 import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
@@ -115,6 +116,9 @@ export class NatpfUi {
     // stesso schermo (split screen): due telefoni, pannelli della pagina «Collega» ed etichette in partita
     this.split = new NatpfSplitUi(engine, this);
     this.kiosk = new NatpfKiosk(engine, this);
+    // registro dello stand (B30): righe di gioco continue e leggere, sempre acceso di base; dopo menu, allenamento,
+    // minigiochi, stesso schermo e chiosco, perché ne avvolge le funzioni. Se non parte il gioco va avanti uguale
+    try { this.registro = new NatpfRegistro(engine, this); } catch (e){ this.registro = null; console.warn('[natpf-registro] non avviato', e?.message || e); }
     // telecomando dello staff (B27): telefono dello staff abbinato una volta, frecce, OK, Pausa, Menu… (natpf_remote.js)
     this.remote = new NatpfRemote(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
@@ -212,6 +216,7 @@ export class NatpfUi {
     if ((e.role || 'p1') !== this.engine.playerRole) return null;
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);
+    this.registro?.rec.onFeedback(e);
     this.gesture?.onFeedback(e, q);
     // colpo difensivo (molto fuori tempo, la palla resta in gioco: dal B18 arriva come «hit»): per l'allenamento e i
     // minigiochi resta un tentativo fuori tempo, come prima quando arrivava come «fault»

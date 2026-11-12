@@ -82,11 +82,11 @@ export class RegistroStand {
     });
     this._salvaGiornata();
   }
+  // nome della scheda grafica dal contesto WebGL del gioco (nessun contesto in più)
   _gpu(){
-    const c = this.win?.document?.createElement?.('canvas'), gl = c?.getContext?.('webgl2') || c?.getContext?.('webgl'); if (!gl) return null;
-    const ext = gl.getExtension('WEBGL_debug_renderer_info'), name = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
-    prova(() => gl.getExtension('WEBGL_lose_context')?.loseContext());
-    return name;
+    const gl = this.engine.renderer?.getContext?.(); if (!gl) return null;
+    const ext = gl.getExtension?.('WEBGL_debug_renderer_info');
+    return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter?.(gl.RENDERER) ?? null;
   }
   // pagina che si chiude (o si ricarica): partita in corso chiusa come interrotta, segno di chiusura pulita
   chiudi(motivo = 'chiusura'){

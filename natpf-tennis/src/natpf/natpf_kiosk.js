@@ -11,6 +11,8 @@
 // «Stesso schermo: campo aperto» (No · Sì).
 // B27: «Telecomando dello staff» (natpf_remote.js) e, nel programma Windows, «Schermo del gioco» (monitor successivo),
 // nella riga dei pulsanti in basso.
+// B30: «Registro di gioco» (natpf_registro.js): Sì · No (di base sempre Sì), stato in parole semplici, «Invia adesso» e
+// «Scarica la coda», in una riga sotto la nota.
 import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLevel } from './natpf_aim_level.js';
 import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './natpf_fair_format.js';
 import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
@@ -117,6 +119,8 @@ export class NatpfKiosk {
     // B27: telecomando dello staff (natpf_remote.js: QR dello staff, codice, «Scollega») e monitor del gioco (programma
     // Windows: window.natpfDesktop.displays, monitor successivo; la scelta resta salvata)
     if (cmd === 'remote'){ ui.remote?.open(); return; }
+    // B30: registro dello stand (acceso · spento, invio, scarico della coda): lo fa natpf_registro.js, che ridipinge
+    if (cmd.startsWith('registro')){ ui.registro?.comando(cmd); return; }
     if (cmd === 'display'){
       Promise.resolve(window.natpfDesktop?.displays?.next?.()).then(r => { if (r?.current?.label) ui.toast?.(`Gioco su ${r.current.label}; resta salvato`); return ui.remote?._refreshDisplays?.(true); }).then(() => this.paint(), () => this.paint());
       return;
@@ -170,6 +174,7 @@ export class NatpfKiosk {
     show(disp, !!window.natpfDesktop?.displays);
     if (disp && !d) remote?._refreshDisplays?.();
     set('display', d?.current ? `${d.current.label}${d.list?.length > 1 ? ' ›' : ''}` : '—', false);
+    show($('staff-registro'), !!this.ui.registro); this.ui.registro?.dipingi();
     const n = $('staff-note');
     if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
   }

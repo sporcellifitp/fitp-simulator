@@ -242,6 +242,16 @@
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
+        <!-- B30: registro dello stand (natpf_registro.js). Sempre acceso di base (decisione dell'utente del 12/11): il gioco
+             annota da solo come vanno le partite (solo gioco: niente nomi, video, audio) e lo manda allo spazio Cloudflare
+             dell'utente; sul PC resta solo la coda non ancora inviata. Qui: Sì · No (resta salvato), lo stato in parole
+             semplici, «Invia adesso» e, come riserva, «Scarica la coda» (zip: niente dal telecomando, apre un salvataggio) -->
+        <div class="staff-registro hidden" id="staff-registro">
+          <button type="button" class="staff-registro-toggle" data-staff="registro" title="Sì: il gioco annota da solo come vanno le partite (punti, colpi, errori), per migliorarlo. Solo dati di gioco: niente nomi, niente video, niente audio. Le righe vanno da sole nello spazio in rete di chi organizza; su questo computer resta solo quello che non è ancora partito. Resta salvato."><span>Registro di gioco</span><b>Sì</b></button>
+          <p class="staff-registro-stato" id="staff-registro-stato" role="status"></p>
+          <button type="button" class="lobby-ghost" data-staff="registro-invia">Invia adesso</button>
+          <button type="button" class="lobby-ghost" data-staff="registro-scarica" data-no-remote>Scarica la coda</button>
+        </div>
         <!-- «Nuovo giocatore» (B18): nome, tutorial, calibrazione e colpi imparati da capo, il telefono resta collegato.
              B27: a sinistra «Telecomando dello staff» (QR dello staff nel foglio #natpf-remote) e, solo nel programma
              Windows, «Schermo del gioco» (monitor successivo): nella riga dei pulsanti in basso, non nella griglia, così il

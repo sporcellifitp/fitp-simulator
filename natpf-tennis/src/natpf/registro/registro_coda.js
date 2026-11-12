@@ -121,3 +121,24 @@ export function creaCoda({ win = globalThis.window, idb = globalThis.indexedDB }
   if (idb && typeof idb.open === 'function') return codaBrowser({ idb });
   return codaMemoria();
 }
+
+// Coda con la riserva in memoria: se la coda sul disco non si scrive (disco pieno, permesso negato, spazio del browser
+// finito) il blocco resta in memoria (al massimo 8 MB) e parte lo stesso appena c'è rete; si perde solo se il gioco si
+// chiude prima. Stesse funzioni delle altre code
+export function conRiserva(coda, riserva = codaMemoria({ limiti: { ...REGISTRO, maxCoda: 8*1024*1024 } })){
+  const inRiserva = new Set();
+  return {
+    get tipo(){ return coda.tipo; },
+    async metti(id, testo){
+      let r = null; try { r = await coda.metti(id, testo); } catch { r = null; }
+      if (r?.ok || /non valid|troppo grande|non del registro/.test(r?.perche || '')) return r;
+      const m = await riserva.metti(id, testo); if (m.ok) inRiserva.add(id);
+      return m.ok ? { ok: true, riserva: true, perche: r?.perche || 'coda non scrivibile' } : (r || m);
+    },
+    async elenco(){ return ordina([...(await coda.elenco()), ...(await riserva.elenco())]); },
+    async leggi(id){ return inRiserva.has(id) ? riserva.leggi(id) : coda.leggi(id); },
+    async togli(id){ if (inRiserva.delete(id)) return riserva.togli(id); return coda.togli(id); },
+    async stato(){ const a = await coda.stato(), b = await riserva.stato(); return { ...a, blocchi: a.blocchi + b.blocchi, byte: a.byte + b.byte, righe: a.righe + b.righe, scartati: (a.scartati || 0) + (b.scartati || 0), inMemoria: b.blocchi }; },
+    ...(coda.apri ? { apri: () => coda.apri() } : {}),
+  };
+}
