@@ -428,6 +428,13 @@
 .natpf-scoreboard .sb-them .sb-tab {
   background: var(--lb-pink);
 }
+/* B24 · Lob & Drop in campo: la linguetta ha il colore del personaggio della riga (Drop blu, Lob giallo) */
+.natpf-scoreboard .sb-row[data-sb-look="drop"] .sb-tab {
+  background: #2b7fe6;
+}
+.natpf-scoreboard .sb-row[data-sb-look="lob"] .sb-tab {
+  background: #ffdd1f;
+}
 .natpf-scoreboard .sb-serve {
   justify-self: center;
   width: 0.42em;

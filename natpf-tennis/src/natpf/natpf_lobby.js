@@ -40,6 +40,7 @@ import { readBallTrail, writeBallTrail, trailToast } from './natpf_ball_glow.js'
 import { WHO_LEVEL, WHO_DEFAULT, baseLevel, urlLevel, isCpuLevel, whoOfLevel, levelSummary, whoNote } from './natpf_who.js'; // B18.2 gruppo 3: «Chi gioca»
 import { eventoRestart } from './natpf_skill.js';
 import { readCue, writeCue, cueToast } from './natpf_timing_cue.js';
+import { getCast, setCast, castToast } from './natpf_personaggi.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -150,6 +151,7 @@ export class NatpfLobby {
       const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go(this.mode === 'split' ? 'connect' : 'controller'), 160); return; }
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
       const tr = e.target.closest('[data-natpf-trail]'); if (tr){ e.stopPropagation(); this.setBallTrail(tr.dataset.natpfTrail === '1'); return; }
+      const ca = e.target.closest('[data-natpf-cast]'); if (ca){ e.stopPropagation(); this.setCast(ca.dataset.natpfCast); return; }
       const sc = e.target.closest('[data-natpf-screen]'); if (sc){ e.stopPropagation(); this.ui.screen?.set(sc.dataset.natpfScreen); this.paint(); return; }
       // schermo intero all'avvio (Opzioni → Schermo): «Schermo intero» (al primo tasto) o «Finestra»
       const fp = e.target.closest('[data-natpf-fs]'); if (fp){ e.stopPropagation(); if (this.ui.screen?.fullscreen) this.ui.screen.fullscreen.pref = fp.dataset.natpfFs; this.paint(); return; }
@@ -428,8 +430,17 @@ export class NatpfLobby {
     writeBallTrail(on); this.engine.natpfBallGlow?.setEnabled(on);
     this.ui.toast?.(trailToast(on)); this.paint();
   }
+  // personaggi in campo (natpf_personaggi.js, B24): «Classici» o «Lob & Drop»; vale subito e resta salvata
+  setCast(value){
+    const cast = setCast(value);
+    this.engine.natpfBackdropDirty = true;        // lo sfondo fermo del menu si ridisegna con i personaggi scelti
+    this.ui.onScore?.(this.engine.score, this.engine.matchConfig?.gamesToWin);   // linguette del tabellone del colore dei personaggi
+    this.ui.toast?.(castToast(cast)); this.paint();
+  }
   _paintOptions(){
     const audio = this.engine.audioEngine;
+    const cast = getCast();
+    for (const b of this.el.querySelectorAll('[data-natpf-cast]')){ const on = b.dataset.natpfCast === cast; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     const trail = this.engine.natpfBallGlow ? !!this.engine.natpfBallGlow.enabled : readBallTrail();
     for (const b of this.el.querySelectorAll('[data-natpf-trail]')){ const on = (b.dataset.natpfTrail === '1') === trail; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     const cue = this.ui.cue ? this.ui.cue.pref : readCue();
