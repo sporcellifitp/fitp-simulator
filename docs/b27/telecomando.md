@@ -53,7 +53,7 @@ sono quelli dopo la revisione.
   dell'abbinamento: le frecce li saltano e OK li rifiuta (`NO_REMOTE` in `natpf_remote.js`; un test controlla che ogni
   `confirm()` del gioco sia nell'elenco). «Scollega il telecomando» è in due passi nella pagina, senza `confirm()`.
 - **Comandi**: navigazione (↑ ↓ ← → OK Indietro) e diretti (Gioca / Pronto, Torna al menu, Pausa / Riprendi, Nuovo
-  giocatore, Salta, Ricalibra il telefono, Rivedi i gesti, Livello CPU, Schermo del gioco, Schermo intero, Pannello
+  giocatore, Salta, Ricalibra il telefono, Rivedi i gesti, Chi gioca / livello della CPU (dalla 2026-11-12.5 gira tra Bambino, Ragazzo, Adulto, Esperta, Leggenda), Schermo del gioco, Schermo intero, Pannello
   dell'addetto). Il telefono riceve lo stato appena cambia (il gioco controlla ogni 0,4 s): pagina, dettaglio (punteggio), telefono del giocatore
   (collegato, pronto, batteria dove il browser la dà) e per ogni pulsante «acceso» o il motivo per cui è spento.
   «Torna al menu» e «Nuovo giocatore» con una partita in corso chiedono conferma sul telefono.

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { remoteScreen, remoteCommands, navPlan, confirmText, gameRunning, scoreLine, nextCpu, LAYERS } from '../src/natpf/natpf_remote_map.js';
+import { remoteScreen, remoteCommands, navPlan, confirmText, gameRunning, scoreLine, nextCpu, CPU_LEVELS, LAYERS } from '../src/natpf/natpf_remote_map.js';
 import { phoneFiles, ALLOWED } from '../scripts/natpf-site-plugin.mjs';
 import { PAGES } from '../scripts/pacchetto-cloudflare.mjs';
 import { REMOTE_COMMANDS } from '@natpf/tennis/remote-pairing.js';
@@ -104,8 +104,16 @@ test('pulsanti diretti: Gioca, Pausa, livello CPU, schermo, schermo intero, Salt
   assert.deepEqual([cmdsOf(MATRIX.pausa).labels.pause, cmdsOf(MATRIX.pausa).cmds.pause], ['Riprendi', 1]);
   assert.match(cmdsOf(MATRIX['menu principale']).cmds.pause, /solo in campo/);
   // CPU: Facile → Esperta → Leggenda → Facile; non nello stesso schermo né nella sfida tra due computer
-  assert.deepEqual([nextCpu('casual'), nextCpu('pro'), nextCpu('leggenda'), nextCpu(undefined)], ['pro', 'leggenda', 'casual', 'casual']);
+  assert.deepEqual([nextCpu('casual'), nextCpu('pro'), nextCpu('leggenda'), nextCpu(undefined)], ['evento', 'leggenda', 'bambini', 'pro']);
   assert.equal(cmdsOf(MATRIX['menu principale']).labels.cpu, 'CPU: Esperta');
+  // dal 2026-11-12.4: «Chi gioca» (Bambino · Ragazzo · Adulto) più Esperta e Leggenda, cinque livelli in ordine
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'evento' }).labels.cpu, 'Chi gioca: Adulto');
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'evento' }).hints.cpu, 'poi CPU Esperta');
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'bambini' }).labels.cpu, 'Chi gioca: Bambino');
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'leggenda' }).hints.cpu, 'poi Bambino');
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'sconosciuto' }).labels.cpu, 'Chi gioca: Adulto');
+  assert.deepEqual([...CPU_LEVELS], ['bambini', 'casual', 'evento', 'pro', 'leggenda']);
+  { let l = 'bambini'; const seen = []; for (let i = 0; i < 5; i++){ seen.push(l); l = nextCpu(l); } assert.equal(l, 'bambini'); assert.equal(new Set(seen).size, 5); }
   assert.match(cmdsOf(MATRIX['stesso schermo: telefoni']).cmds.cpu, /Non c’è la CPU/);
   assert.match(cmdsOf(MATRIX['sfida tra due computer (lobby)']).cmds.cpu, /Non c’è la CPU/);
   assert.equal(cmdsOf(MATRIX['fine partita']).cmds.cpu, 1, 'a fine partita sì (vale dalla prossima)');

@@ -1501,7 +1501,7 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
 - **Non verificato**: persone e bambini veri, telefoni veri, Windows vero, ledwall, scheda grafica vera. Prove complete
   nel browser avviate dopo la consegna (esito in `docs/TRACCIA_PASSI.md`).
 
-## B28 · Calibrazione giocando e tutorial senza blocco (12/11) · [~] ramo `b28-cal-giocando`, da unire
+## B28 · Calibrazione giocando e tutorial senza blocco (12/11) · [x] integrato, versione 2026-11-12.5
 - Richiesta dell'utente allo stand: «togli il check che uno deve aver fatto quel gesto per ogni schermata… la
   calibrazione deve avvenire direttamente giocando… dopo circa 10-15 secondi di scambi, parte il match vero».
   Base `8b85a3c` (2026-11-12.2). Niente cambio di versione né push nel ramo. Documento: `docs/b28/calibrazione-giocando.md`.
@@ -1576,3 +1576,39 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
 - Da fare per chi integra: unire con il B27 (pannello dello stand: una riga inserita prima di «Mira del telefono»;
   `natpf_kiosk.js`: un import, un comando, una riga in `paint`) e con l'altra sessione (`natpf_lobby.js`,
   `natpf_training.js`, `index.html`); versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.
+
+### B28 · integrazione e seconda revisione (12/11, 19:15 UTC) · versione 2026-11-12.5
+- Ramo `b28-cal-giocando` (fino a `953eb34`, già unito alla 2026-11-12.3) unito in `natpf-simulator` e poi con
+  `origin/natpf-simulator` (2026-11-12.4 dell'altra sessione: Lob & Drop, livelli Evento e Bambini, «Chi gioca»).
+  Conflitti: `natpf_ui.js` (`tick`: scambi di prova + segnale del momento giusto + super spiegato) e questo file.
+- **Corretto all'unione, difetto della 2026-11-12.4 sul telecomando**: il pulsante «CPU» del telecomando girava tra
+  Facile · Esperta · Leggenda cliccando tessere che dalla 12.4 non ci sono più (ora «Chi gioca»). Ora gira tra i cinque
+  livelli di `natpf_who.js` con `lobby.setLevel` e dice «Chi gioca: Bambino / Ragazzo / Adulto» o «CPU: Esperta /
+  Leggenda» (`natpf_remote_map.js`, `natpf_remote.js`, test e `tools/e2e/natpf-telecomando.mjs`, guida).
+- **Seconda revisione indipendente** del giro di correzioni: via libera, nessun bloccante; le sette correzioni reggono
+  (verso: 0/24 scambi di prova girati e 0/192 dritti a specchio per chi tira da una parte sola). Corretto subito:
+  `det.setSignVote?.(…)` in `site/js/tennis/racchetta.js` (con `racchetta.js` nuovo e `swing-detect.js` vecchio in cache
+  ogni messaggio di fase andava in errore). **Aperti, da fare nella prossima versione**:
+  1. minigiochi e allenamento non rinnovano il profilo: una calibrazione con i gesti fatta dal menu in «Giocando» vale
+     per tutti i minigiochi successivi più la partita dopo; in «Nessuna» il minigioco dal menu non riparte dal profilo
+     semplice; passando a «Con i gesti» durante una partita, minigioco e allenamento successivi usano il profilo del
+     visitatore prima (`natpf_lobby.js` `startWarmup` e `_startChallenge`; `natpfMatchSeq` avanza solo in
+     `startNewMatch`);
+  2. sfida tra due computer con «Nessuna»: il profilo non riparte (`natpf_ui.js`, `mode === 'friend'` escluso);
+  3. stesso schermo con un giocatore calibrato con i gesti: alla fine degli scambi la scritta e i puntini di quel
+     giocatore sono fuorvianti (solo grafica);
+  4. `tools/e2e/natpf-phone-keep.mjs`, controllo «A · sensori fermi» entro 1500 ms: il gioco mette in pausa tra 1,0 e
+     2,0 s secondo la fase del battito del telefono (1 s) + 700 ms + 300 ms; nel modo di base è uscito 1508, 1663 e
+     1563 ms (12/13), con i gesti 1392 ms. Né B27 né B28 hanno cambiato quel percorso: il limite della prova va portato
+     a circa 2100 ms;
+  5. limiti accettati: telefono al contrario + giocatore che tira da una parte sola non viene più corretto dal voto
+     (resta la lettura dalla gravità); colpi a un quinto della forza di un adulto non vengono imparati dagli scambi di
+     prova (via d'uscita: pausa → Telefono → «Calibra con i gesti»); pagina del telefono ricaricata a metà partita in
+     «Giocando»: profilo semplice fino alla partita dopo.
+- Verifiche sul codice unito: gioco 1283/1283, sito 226/226, LAN 12/12, programma Windows 33/33, build ok. Nel browser:
+  `natpf-telecomando` 81/81, `natpf-menu` 45/45 (pannello dello stand senza scorrere a cinque misure),
+  `natpf-scambi-di-prova` destro a 1024×1024 24/24, mancino 25/25, stesso schermo 12/12, `natpf-flusso-tocchi` 5/5,
+  `natpf-training-flow` 21/21, `natpf-nuovo-giocatore` nel modo di base 30/30. Schermate a 1024×1024 guardate (pagina
+  «Partita» con «Chi gioca» e «Personaggi», scambi di prova).
+  Non rifatte dopo l'unione con la 12.4 (fatte sul ramo sopra la 12.3): `audit:legend`, banco degli scambi di prova, le
+  altre prove nel browser elencate nel giro 2. **Non verificato**: telefoni veri, persone vere, Windows, ledwall.

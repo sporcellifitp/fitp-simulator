@@ -15,6 +15,8 @@
 //   'field' in campo: frecce e OK non fanno niente (muoverebbero il giocatore e tirerebbero colpi: il telecomando non
 //           interferisce mai con la racchetta), Indietro apre la pausa.
 
+import { CPU_LEVELS as WHO_CPU_LEVELS, LEVEL_NAME, whoOfLevel } from './natpf_who.js';
+
 export const SCREEN_LABEL = Object.freeze({
   trial: 'Scambi di prova',
   intro: 'Intro', staff: 'Pannello dello stand', remote: 'Telecomando dello staff', dialog: 'Finestra di avviso', nick: 'Nome del giocatore',
@@ -28,9 +30,15 @@ export const LOBBY_LABEL = Object.freeze({
   match: 'Pronto per la partita', options: 'Opzioni', challenges: 'Minigiochi', ranking: 'Classifica del giorno',
   result: 'Risultato del minigioco', warmup: 'In campo',
 });
-export const CPU_LEVELS = Object.freeze(['casual', 'pro', 'leggenda']);
-export const CPU_LABEL = Object.freeze({ casual: 'Facile', pro: 'Esperta', leggenda: 'Leggenda' });
-export const nextCpu = level => CPU_LEVELS[(CPU_LEVELS.indexOf(level) + 1) % CPU_LEVELS.length];
+// Livello contro la CPU (dal 2026-11-12.4 la pagina «Partita» chiede «Chi gioca: Bambino · Ragazzo · Adulto», natpf_who.js;
+// Esperta e Leggenda stanno in «Altre impostazioni»). Il pulsante del telecomando gira tra tutti e cinque, in ordine di
+// difficoltà, e dice il nome che lo staff vede sullo schermo: «Chi gioca: Adulto», oppure «CPU: Esperta».
+export const CPU_LEVELS = WHO_CPU_LEVELS;
+const WHO_NAME = Object.freeze({ bambino: 'Bambino', ragazzo: 'Ragazzo', adulto: 'Adulto' });
+const cpuOk = level => (CPU_LEVELS.includes(level) ? level : 'evento');
+export const cpuName = level => { const l = cpuOk(level), w = whoOfLevel(l); return w ? WHO_NAME[w] : `CPU ${LEVEL_NAME[l]}`; };
+export const cpuLabel = level => { const l = cpuOk(level), w = whoOfLevel(l); return w ? `Chi gioca: ${WHO_NAME[w]}` : `CPU: ${LEVEL_NAME[l]}`; };
+export const nextCpu = level => CPU_LEVELS[(CPU_LEVELS.indexOf(cpuOk(level)) + 1) % CPU_LEVELS.length];
 // strati sopra il menu e il campo, dal più in alto
 export const LAYERS = Object.freeze(['intro', 'staff', 'remote', 'dialog', 'nick', 'diag', 'calibra', 'guide', 'tutorial', 'pause', 'hold', 'phonePanel', 'victory', 'guest']);
 const FIELD = new Set(['cal', 'trial', 'warmup', 'training', 'minigame', 'match']);
@@ -149,8 +157,8 @@ export function remoteCommands(s = {}, screen = remoteScreen(s)){
   // (in partita no: la CPU cambierebbe a metà; sopra il menu, nella pausa del menu o a fine partita sì)
   const atMenu = screen.id.startsWith('lobby:') || String(screen.under || '').startsWith('lobby:') || screen.id === 'victory';
   cmds.cpu = !cpuFree ? 'Non c’è la CPU in questa modalità' : !atMenu ? 'Si cambia dal menu, prima o dopo la partita' : on;
-  labels.cpu = `CPU: ${CPU_LABEL[s.cpu] || CPU_LABEL.casual}`;
-  if (cmds.cpu === on) hints.cpu = `poi ${CPU_LABEL[nextCpu(s.cpu || 'casual')]}`;
+  labels.cpu = cpuLabel(s.cpu);
+  if (cmds.cpu === on) hints.cpu = `poi ${cpuName(nextCpu(s.cpu))}`;
   // schermo del gioco (solo nel programma Windows) e schermo intero
   if (!s.desktop){ cmds.screen = 'Solo nel programma Windows'; }
   else if ((s.desktop.displays || 0) < 2){ cmds.screen = 'C’è un solo monitor collegato'; hints.screen = s.desktop.label || ''; }

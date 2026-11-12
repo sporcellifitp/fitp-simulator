@@ -226,10 +226,15 @@ try {
   check('«Pronto per la partita»: il pulsante dice «Gioca!»', await phone.evaluate(() => __telecomando.status.labels.play === 'Gioca!' && document.querySelector('[data-c="play"] b').textContent === 'Gioca!'));
   await game.screenshot({ path: `${SP}/telecomando-pronto-1024x1024.png` });
   // livello della CPU dal telefono
-  const cpu0 = await ui(() => document.querySelector('#difficulty-mode-group [data-difficulty].selected')?.dataset.difficulty);
-  await tap('cpu'); const cpu1 = await ui(() => document.querySelector('#difficulty-mode-group [data-difficulty].selected')?.dataset.difficulty);
-  await tap('cpu'); await tap('cpu'); const cpu3 = await ui(() => document.querySelector('#difficulty-mode-group [data-difficulty].selected')?.dataset.difficulty);
-  check('Livello CPU: Facile → Esperta → Leggenda → Facile', cpu0 === 'casual' && cpu1 === 'pro' && cpu3 === 'casual', [cpu0, cpu1, cpu3].join());
+  // dal 2026-11-12.4 i livelli sono cinque («Chi gioca» + Esperta e Leggenda): il pulsante li gira tutti in ordine
+  const cpuNow = () => ui(() => __natpfTennis.natpfUi.lobby.cpuLevel);
+  const cpuSeq = [await cpuNow()];
+  for (let i = 0; i < 5; i++){ await tap('cpu'); cpuSeq.push(await cpuNow()); }
+  const ORD = ['bambini', 'casual', 'evento', 'pro', 'leggenda'], i0 = ORD.indexOf(cpuSeq[0]);
+  check('Livello: cinque tocchi girano Bambino → Ragazzo → Adulto → Esperta → Leggenda e tornano al punto di partenza',
+    i0 >= 0 && cpuSeq.every((v, i) => v === ORD[(i0 + i) % 5]), cpuSeq.join());
+  const cpuLbl = await phone.evaluate(() => document.querySelector('[data-c="cpu"] b')?.textContent || '');
+  check('Livello: il pulsante del telefono dice chi gioca', /Chi gioca: (Bambino|Ragazzo|Adulto)|CPU: (Esperta|Leggenda)/.test(cpuLbl), cpuLbl);
   await tap('play');
   check('Gioca! → in partita', await waitPg('match', 25000));
   await sleep(2500);

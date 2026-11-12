@@ -201,10 +201,10 @@ animazioni del gioco sulle 24 ossa, al posto delle mascotte costruite nel codice
       racchetta nella mano giusta e sulla palla all'impatto; se il modello non si carica, ripiego sulle mascotte nel
       codice; fogli di confronto, prova nel browser, revisore indipendente.
 
-## B27 e B28 (secondo agente, sessione parallela; aggiornato il 12/11/2026 alle 17:35 UTC)
+## B27 e B28 (secondo agente, sessione parallela; aggiornato il 12/11/2026 alle 19:15 UTC)
 
 Lavoro chiesto dall'utente allo stand, in rami locali separati e unito qui un blocco alla volta dopo `git fetch`.
-**Il prossimo numero di versione libero è 2026-11-12.4** (la 2026-11-12.3 è il B27).
+**Il prossimo numero di versione libero è 2026-11-12.6** (2026-11-12.3 = B27, 2026-11-12.4 = Lob & Drop ed Evento/Bambini dell'altra sessione, 2026-11-12.5 = B28).
 
 **Versione 2026-11-12.3 = B27 · Postazione dello staff** (dettaglio: `docs/WORK_PROGRESS.md` B27, guida
 `docs/GUIDA_TELECOMANDO.md`, matrice delle schermate `docs/b27/telecomando.md`).
@@ -233,10 +233,16 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
       solo di dritto e manca una palla si ritrova destra e sinistra invertite; il Player 2 che esce dagli scambi di prova
       nella sfida tra due computer; pausa del telefono del Player 2 nello stesso schermo; profilo del visitatore prima
       ereditato quando si cambia l'opzione) e 3 minori; il percorso di base ha poche prove
-- [~] Correzioni + unione sopra la 2026-11-12.3 nel ramo `b28-cal-giocando` (agente fermato dal limite d'uso alle 14:45
-      UTC a metà dell'unione, ripreso alle 17:32 UTC)
-- [ ] Correzioni, unione (tocca `natpf_lobby.js`, `natpf_training.js`, `natpf_ui.js`, `natpf_phone_racket.js`, tre righe
-      di `game_engine.js`, `racchetta.js`, pannello dello stand), prove complete, versione, pacchetti
+- [x] Correzioni dei 7 difetti (ramo fino a `953eb34`), seconda revisione indipendente: via libera, nessun bloccante
+- [x] **Versione 2026-11-12.5**: unito sopra la 2026-11-12.4 (conflitti solo in `natpf_ui.js` `tick` e nel registro);
+      all'unione corretto il pulsante «CPU» del telecomando, rotto dalla 12.4 (ora gira tra i cinque livelli di
+      `natpf_who.js` e dice «Chi gioca: …»). Prove sul codice unito: gioco 1283/1283, sito 226/226, LAN 12/12, Windows
+      33/33, build ok; nel browser telecomando 81/81, menu 45/45, scambi-di-prova 24/24 · 25/25 · 12/12, flusso-tocchi
+      5/5, training-flow 21/21, nuovo-giocatore (modo di base) 30/30
+- [ ] Push, tre esecuzioni di GitHub, installer su R2, zip Cloudflare (questa riga si aggiorna dopo)
+- [ ] **Prossima versione (B28.1)**: i punti aperti della seconda revisione (`docs/WORK_PROGRESS.md`, «B28 · integrazione
+      e seconda revisione»): profilo che non si rinnova nei minigiochi e nell'allenamento, sfida tra due computer con
+      «Nessuna», scritta finale nello stesso schermo, limite di `natpf-phone-keep`
 - **Attenzione**: con il B28 chi aggiunge un controllo «siamo in partita?» deve escludere `ui.trial.active`; le prove
   `natpf-*` di prima girano con `CAL=gesti` (calibrazione con i gesti), il percorso nuovo lo provano i test nuovi.
 

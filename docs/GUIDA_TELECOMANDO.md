@@ -63,7 +63,7 @@ la dice (Android sì, iPhone no).
 | **Salta** | intro, nome, **scambi di prova** (la partita parte subito), riscaldamento, lezione, calibrazione con i gesti: quando c'è. Negli esercizi dell'allenamento è «Avanti»: passa all'esercizio dopo. |
 | **Ricalibra il telefono** | fa quello che fa «Ricalibra» sul computer. Con «Calibrazione: Giocando» (di base): **in partita** si rifanno gli scambi di prova e poi si rigioca il punto, con il punteggio com'era (anche nello stesso schermo: per tutti e due); fuori dalla partita il telefono riparte da capo e il gioco impara dagli scambi di prova della prossima partita. Con «Calibrazione: Con i gesti» il telefono del giocatore rifà i gesti. Durante gli scambi di prova è spento: stanno già calibrando. |
 | **Rivedi i gesti** | la modale del tutorial (Indietro la chiude). |
-| **CPU: Facile / Esperta / Leggenda** | livello della prossima partita (dal menu, prima o dopo la partita). |
+| **Chi gioca: Bambino / Ragazzo / Adulto** (poi CPU: Esperta, Leggenda) | chi gioca la prossima partita contro la CPU, cioè il livello; ogni tocco passa al successivo (dal menu, prima o dopo la partita). |
 | **Schermo intero** | sì/no (nel programma Windows). |
 | **Pannello dell'addetto** | apre e chiude il pannello dello stand. |
 

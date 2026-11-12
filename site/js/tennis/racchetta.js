@@ -271,7 +271,7 @@ function onData(c, d){
     // (txt, B20: la partita è in pausa per il telefono dell'altro giocatore, e lo dice)
     // soglie dal colpo imparato negli scambi di prova (B28): solo sopra il profilo semplice, che non ha un colpo tipico suo
     case 'pf': { const th = trialThresholds(d); if (th && sensor === 'ready' && inputMode === 'motion' && det.profile.simple) det.setThresholds(th); break; }
-    case 'ph': phase = d.ph; phaseNote = pauseNote(d); trial = trialOnMsg(d); det.setSignVote(d.tr !== 1); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
+    case 'ph': phase = d.ph; phaseNote = pauseNote(d); trial = trialOnMsg(d); det.setSignVote?.(d.tr !== 1); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
     case 'cmd': command(d.c); break;
     case 'ev': {
       const vib = Array.isArray(d.vib) && d.vib.length <= 6 && d.vib.every(v => Number.isFinite(v) && v >= 0 && v <= 400) ? d.vib : null;
