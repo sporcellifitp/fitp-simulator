@@ -262,10 +262,16 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
 - [x] **Installer 2026-11-12.4 pubblicato su R2** e verificato dal link fisso: 127.655.077 B, sha256
       `0dfce566752624e604dc5cd74f8ecf74c6a9f7441640521342d8bc5d75148f50`. Detto all'utente come si attiva tutto.
 - [~] Prove complete sul codice unito: `scratchpad/v1112d/prove.sh` → `prove.txt` (finisce con `== FINE`).
-- [ ] Poi, nell'ordine: **B29** (Lob & Drop dai modelli 3D; riusare `keepRacketClear` e `mascotHeadShape`), poi
-      `ripresa-b23-t2g2.js` (dritto dal video + tappa 2 gruppo 2; all'unione attenzione a `game_engine.js`
-      `_natpfRacketShot`, toccato dal gruppo 3). Aperti del gruppo 3 da chiedere all'utente dopo le prime partite vere:
-      valore di partenza del livello Evento (0,8); a Evento cambiano anche le regole di chi gioca, non solo la CPU.
+- [~] **B29 in corso dalle 18:10 UTC**: workflow `b29-lob-drop-modelli-3d` (run `wf_c1842a53-f0f`, base `fb6169e`; agente in
+      worktree `wf_c1842a53-f0f-1` → revisore indipendente → correzioni). Modelli in `scratchpad/lobdrop3d/glb/`. Se si ferma
+      nella fase «Lavoro»: rilanciare lo script SENZA `resumeFromRunId` dopo averlo modificato per continuare nella
+      worktree esistente (come `ripresa-b24-t2g3.js`: togliere `isolation: 'worktree'` e indicare il percorso); se si
+      ferma dopo: `resumeFromRunId: 'wf_c1842a53-f0f'`. Script:
+      `/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b29-lob-drop-modelli-3d-wf_c1842a53-f0f.js`.
+- [ ] Dopo le prove complete: `ripresa-b23-t2g2.js` (dritto dal video + tappa 2 gruppo 2, worktree `wf_26d95fdf-3ea-1` e
+      `-2`, base `9b8f9cb`; all'unione attenzione a `game_engine.js` `_natpfRacketShot`, toccato dal gruppo 3).
+- Aperti del gruppo 3 da chiedere all'utente dopo le prime partite vere: valore di partenza del livello Evento (0,8); a
+  Evento cambiano anche le regole di chi gioca, non solo la CPU.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
