@@ -38,10 +38,13 @@ export function mascotMaterial(key, map = null){
   m.name = `natpf-mascotte-${key}`;
   m.userData.natpfMaterial = true;
   const c = L.rimColor;
-  m.customProgramCacheKey = () => `natpf-mascotte-${L.rim}-${c.join('-')}`;
+  // forza del bordo: un numero che si può cambiare a programma già compilato (le prove lo spengono per il confronto)
+  m.userData.natpfRim = { value: L.rim };
+  m.customProgramCacheKey = () => `natpf-mascotte-${c.join('-')}`;
   m.onBeforeCompile = shader => {
-    shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
-      float natpfRim = pow( 1.0 - max( dot( normalize( vNormal ), normalize( vViewPosition ) ), 0.0 ), 2.5 ) * ${L.rim.toFixed(3)};
+    shader.uniforms.natpfRimK = m.userData.natpfRim;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', 'uniform float natpfRimK;\n#include <common>').replace('#include <opaque_fragment>', `
+      float natpfRim = pow( 1.0 - max( dot( normalize( vNormal ), normalize( vViewPosition ) ), 0.0 ), 2.5 ) * natpfRimK;
       outgoingLight += vec3( ${c[0].toFixed(3)}, ${c[1].toFixed(3)}, ${c[2].toFixed(3)} ) * natpfRim;
       #include <opaque_fragment>`);
   };

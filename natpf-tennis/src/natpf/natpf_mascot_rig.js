@@ -58,11 +58,14 @@ export const ENGINE_REST = Object.freeze({
 // Forma della testa nel sistema dell'osso Head (unità del modello): ciò che la racchetta non deve attraversare
 // (natpf_racket_clear.keepRacketClear). Il primo ellissoide è la testa; per Lob in più la punta e la tesa della visiera.
 export const MASCOT_HEAD_SHAPE = Object.freeze({
-  drop: Object.freeze({ rx: 0.268, ry: 0.222, rz: 0.27, cx: -0.008, cy: 0.178, cz: 0 }),
+  drop: Object.freeze([
+    Object.freeze({ rx: 0.272, ry: 0.235, rz: 0.275, cx: -0.008, cy: 0.165, cz: 0 }),
+    Object.freeze({ rx: 0.075, ry: 0.085, rz: 0.075, cx: -0.2, cy: 0.3, cz: 0.165 }),    // ciuffo sopra la fascia
+  ]),
   lob: Object.freeze([
-    Object.freeze({ rx: 0.272, ry: 0.228, rz: 0.272, cx: -0.012, cy: 0.19, cz: 0 }),
-    Object.freeze({ rx: 0.1, ry: 0.11, rz: 0.1, cx: 0.03, cy: 0.4, cz: -0.02 }),       // punta in cima
-    Object.freeze({ rx: 0.2, ry: 0.07, rz: 0.13, cx: -0.1, cy: 0.27, cz: 0.2 }),       // tesa della visiera
+    Object.freeze({ rx: 0.28, ry: 0.236, rz: 0.275, cx: -0.012, cy: 0.172, cz: 0 }),
+    Object.freeze({ rx: 0.1, ry: 0.11, rz: 0.1, cx: 0.03, cy: 0.4, cz: -0.03 }),         // punta in cima
+    Object.freeze({ rx: 0.2, ry: 0.095, rz: 0.15, cx: -0.14, cy: 0.17, cz: 0.19 }),      // tesa della visiera
   ]),
 });
 export const mascotModelHeadShape = key => MASCOT_HEAD_SHAPE[key] || null;
@@ -77,12 +80,26 @@ export const GRIP_LOCAL = Object.freeze([0, 0.055, 0.02]);
 // (lancio della palla al servizio, esultanza, rovescio) il palmo passa alla posizione vera, dove sta la palla.
 export const FREE_HAND_REST = Object.freeze([0.3, 0.41, 0.1]);
 export const FREE_HAND_BLEND = Object.freeze([0.06, 0.3]);       // metri dal riposo: sotto resta bassa, sopra è quella vera
+// La mano libera gira intorno alla testa: il tennista la alza dritta sopra la spalla (lancio della palla, esultanza),
+// ma lì la mascotte ha la testa. Il palmo non sale oltre FREE_HAND_TOP (frazione del semiasse verticale sopra il centro
+// della testa) e, all'altezza della testa, resta fuori dal suo contorno con FREE_HAND_GAP di margine.
+export const FREE_HAND_RATE = 12;          // 1/s: quanto in fretta la mano libera insegue il suo bersaglio
+export const FREE_HAND_TOP = 0.15, FREE_HAND_GAP = 0.075, FREE_HAND_MIN_REACH = 0.55;
+// Passo: i piedi del tennista si spostano di pochi centimetri; alle gambe corte e larghe delle mascotte serve di più
+export const LEG_TILT = 0.55;              // quanta dell'inclinazione verso il piede prende la gamba
+export const FOOT_EDGE = 0.07;             // di quanto si alza il piede per unità di inclinazione (unità del modello)
+export const FOOT_GAIN = 1.8, FOOT_LIFT_DEAD = 0.012;      // sotto 1,2 cm di alzata il piede resta a terra (il tennista fermo sposta il peso)
 // Verso del gomito a riposo e in movimento (sistema del modello, lato sinistro: per il destro la x cambia segno):
 // fuori, giù e dietro, come il polo dei gomiti del tennista (natpf_character.ELBOW_POLE)
-const ELBOW_POLE = Object.freeze([0.55, -0.45, -0.7]);
+const ELBOW_POLE = Object.freeze([0.25, -0.35, -0.9]), ELBOW_POLE2 = Object.freeze([0.85, -0.5, 0.1]);
+// quanto in fretta il verso della piega del gomito insegue quello voluto (1/s)
+const BEND_RATE = 12;
 // Quanto può allungarsi il braccio prima che la mano resti indietro (oltre, la mano non arriva alla racchetta: non
 // capita con le pose del gioco, serve da tetto contro posizioni impossibili)
-export const ARM_MAX_STRETCH = 2.6;
+export const ARM_MAX_STRETCH = 3.5;
+// Il braccio comincia ad allungarsi un po' prima di essere teso: resta sempre un poco piegato (un braccio a due ossa
+// quasi teso cambia angolo di colpo a ogni piccolo spostamento della mano)
+export const ARM_REACH = 0.93;
 
 const _m = new THREE.Matrix4(), _inv = new THREE.Matrix4();
 const _p = new THREE.Vector3(), _s = new THREE.Vector3(), _v = new THREE.Vector3(), _u = new THREE.Vector3(), _w = new THREE.Vector3();
@@ -91,17 +108,44 @@ const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _qi = new THREE
 const _b0 = new THREE.Matrix4(), _b1 = new THREE.Matrix4();
 const UP = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0);
 
-// Base con y = verso dell'osso e x = verso della piega (gomito), il più vicino possibile a «pole»
-function basis(out, dir, pole){
+// Base di un osso del braccio: y = verso dell'osso, z = perno del gomito (la normale al piano in cui il braccio si
+// piega). Braccio e avambraccio stanno tutti e due in quel piano, quindi la base è sempre ben definita, anche a
+// braccio tutto piegato o tutto teso: niente giri improvvisi intorno all'osso.
+function basis(out, dir, normal){
   _y.copy(dir).normalize();
-  _x.copy(pole).addScaledVector(_y, -pole.dot(_y));
-  if (_x.lengthSq() < 1e-10) _x.set(0, 0, 1).addScaledVector(_y, -_y.z);
-  if (_x.lengthSq() < 1e-10) _x.set(1, 0, 0);
-  _x.normalize(); _z.crossVectors(_x, _y);
+  _z.copy(normal).addScaledVector(_y, -normal.dot(_y));
+  if (_z.lengthSq() < 1e-10) _z.set(0, 0, 1).addScaledVector(_y, -_y.z);
+  if (_z.lengthSq() < 1e-10) _z.set(1, 0, 0);
+  _z.normalize(); _x.crossVectors(_y, _z);
   return out.makeBasis(_x, _y, _z);
 }
+// Verso in cui piega il gomito, perpendicolare all'asse spalla→palmo. Il gomito tira verso il polo (dietro, un po' giù
+// e in fuori); quando il braccio punta proprio lungo il polo quel verso non è definito e si usa un secondo polo.
+function restBend(out, ax, sx, torsoQ){
+  out.set(ELBOW_POLE[0]*sx, ELBOW_POLE[1], ELBOW_POLE[2]).normalize().applyQuaternion(torsoQ);
+  out.addScaledVector(ax, -out.dot(ax));                 // lungo quanto il seno dell'angolo tra braccio e polo
+  if (out.lengthSq() < 0.03){
+    out.set(ELBOW_POLE2[0]*sx, ELBOW_POLE2[1], ELBOW_POLE2[2]).normalize().applyQuaternion(torsoQ);
+    out.addScaledVector(ax, -out.dot(ax));
+  }
+  return out;
+}
+// In movimento il verso della piega insegue quello voluto partendo da quello del fotogramma prima (portato sul nuovo
+// asse): così non salta mai, neanche quando il braccio passa lungo il polo. Senza tempo (scene ferme, prove) o dopo
+// un salto di tempo va subito a quello voluto.
+function bendDir(out, ax, side, torsoQ, dt){
+  restBend(out, ax, side.sx, torsoQ);
+  if (side.bendSet && dt > 0 && dt <= 0.25){
+    _w.copy(side.bend).addScaledVector(ax, -side.bend.dot(ax));
+    if (_w.lengthSq() > 1e-8) out.multiplyScalar(1 - Math.exp(-dt*BEND_RATE)).add(_w.normalize());
+  }
+  if (out.lengthSq() < 1e-10) out.set(0, 0, -1).addScaledVector(ax, ax.z);
+  out.normalize();
+  side.bend.copy(out); side.bendSet = true;
+  return out;
+}
 
-const boneInfo = bone => ({ bone, t: bone.position.clone(), q: bone.quaternion.clone(), wp: new THREE.Vector3(), wq: new THREE.Quaternion() });
+const boneInfo = bone => ({ bone, t: bone.position.clone(), q: bone.quaternion.clone().normalize(), wp: new THREE.Vector3(), wq: new THREE.Quaternion() });
 
 // Prepara il rig di un modello (la scena del GLB o una sua copia, con le ossa a riposo). Restituisce null se manca
 // un osso. `group` è il contenitore da mettere nella radice dell'attore.
@@ -126,25 +170,28 @@ export function createMascotRig(model, key, scale = MASCOT_SCALE){
     const sx = name === 'Left' ? 1 : -1, arm = B[`${name}Arm`], fore = B[`${name}ForeArm`], hand = B[`${name}Hand`], leg = B[`${name}Leg`];
     // punto del palmo nel sistema dell'avambraccio (a riposo) e sua distanza dal gomito
     const grip = new THREE.Vector3().fromArray(GRIP_LOCAL).applyQuaternion(hand.q).add(hand.t);
-    const pole0 = new THREE.Vector3(ELBOW_POLE[0]*sx, ELBOW_POLE[1], ELBOW_POLE[2]).normalize();
+    const gripDir = grip.clone().normalize();                                      // dal gomito al palmo, nel sistema dell'avambraccio
     const armDir = fore.wp.clone().sub(arm.wp).normalize();
     const gripW = new THREE.Vector3().fromArray(GRIP_LOCAL).applyQuaternion(hand.wq).add(hand.wp);
     const foreDir = gripW.clone().sub(fore.wp).normalize();
+    // perno del gomito a riposo: come in movimento, dall'asse spalla→palmo e dal verso della piega
+    const ax0 = gripW.clone().sub(arm.wp).normalize(), ident = new THREE.Quaternion();
+    const normal0 = new THREE.Vector3().crossVectors(ax0, restBend(new THREE.Vector3(), ax0, sx, ident).normalize()).normalize();
     return {
       name, sx, shoulder: B[`${name}Shoulder`], arm, fore, hand, upleg: B[`${name}UpLeg`], leg,
-      a: fore.t.length(), b: grip.length(), handLen: hand.t.length(), grip,
+      a: fore.t.length(), b: grip.length(), grip, gripDir,
       // rotazioni di riposo riferite alla base «osso + piega»: basta moltiplicarle per la base di adesso
-      armFrom: new THREE.Quaternion().setFromRotationMatrix(basis(new THREE.Matrix4(), armDir, pole0)).invert().multiply(arm.wq),
-      foreFrom: new THREE.Quaternion().setFromRotationMatrix(basis(new THREE.Matrix4(), foreDir, pole0)).invert().multiply(fore.wq),
-      pole0,
+      armFrom: new THREE.Quaternion().setFromRotationMatrix(basis(new THREE.Matrix4(), armDir, normal0)).invert().multiply(arm.wq),
+      foreFrom: new THREE.Quaternion().setFromRotationMatrix(basis(new THREE.Matrix4(), foreDir, normal0)).invert().multiply(fore.wq),
       legLen: leg.wp.y, sole: new THREE.Vector3(leg.wp.x, 0, leg.wp.z),
-      elbow: new THREE.Vector3(), palm: new THREE.Vector3(), foot: new THREE.Vector3(), stretch: 1,
+      elbow: new THREE.Vector3(), palm: new THREE.Vector3(), foot: new THREE.Vector3(), stretch: 1, bend: new THREE.Vector3(), bendSet: false, free: new THREE.Vector3(), freeSet: false,
     };
   };
   return {
     key, scale, group, model, bones, B,
     hips: B.Hips, spine02: B.Spine02, spine01: B.Spine01, spine: B.Spine, neck: B.neck, head: B.Head,
     left: side('Left'), right: side('Right'),
+    headShape: (s => (Array.isArray(s) ? s[0] : s))(MASCOT_HEAD_SHAPE[key] || MASCOT_HEAD_SHAPE.drop),
     mirrored: false,
     // stato del fotogramma (sistema del modello)
     hipsP: new THREE.Vector3(), hipsQ: new THREE.Quaternion(), spineP: new THREE.Vector3(), spineQ: new THREE.Quaternion(), torsoQ: new THREE.Quaternion(),
@@ -207,7 +254,7 @@ function poseLeg(rig, side, foot, rest, k){
   readPart(rig, foot, _F, null);
   // spostamento del piede dal suo riposo (nel sistema del modello la x del riposo segue il lato)
   const rx = rig.mirrored ? -rest[0] : rest[0];
-  side.foot.set(_F.x*1 - rx, Math.max(0, _F.y - rest[1]), _F.z - rest[2]).multiplyScalar(k).add(side.sole);
+  side.foot.set(_F.x - rx, Math.max(0, _F.y - rest[1] - FOOT_LIFT_DEAD), _F.z - rest[2]).multiplyScalar(k*FOOT_GAIN).add(side.sole);
   // la coscia resta ferma con il bacino
   _pUp.copy(side.upleg.t).applyQuaternion(rig.hipsQ).add(rig.hipsP);
   _qUp.multiplyQuaternions(rig.hipsQ, side.upleg.q);
@@ -216,8 +263,13 @@ function poseLeg(rig, side, foot, rest, k){
   const len = _d.length();
   if (len < 1e-6) _d.copy(DOWN); else _d.multiplyScalar(1/len);
   // la gamba gira dal «giù» di riposo verso la pianta e scorre lungo il suo asse perché la pianta arrivi giusta
+  // (solo una parte dell'inclinazione: gamba e piede sono un pezzo solo, e un piede molto inclinato punta nel campo;
+  // quello che manca lo fa l'attacco della gamba, che scorre: è un peluche)
+  _d.lerp(DOWN, 1 - LEG_TILT).normalize();
   _q.setFromUnitVectors(DOWN, _d).multiply(side.leg.wq);
   _K.copy(side.foot).addScaledVector(_d, -side.legLen);
+  // il piede inclinato si alza un poco, perché punta o tallone non scendano sotto il campo
+  _K.y += FOOT_EDGE*Math.sqrt(_d.x*_d.x + _d.z*_d.z);
   _qi.copy(_qUp).invert();
   side.leg.bone.quaternion.copy(_qi).multiply(_q);
   side.leg.bone.position.copy(_K.sub(_pUp).applyQuaternion(_qi));
@@ -226,18 +278,18 @@ function poseLeg(rig, side, foot, rest, k){
 const _S = new THREE.Vector3(), _T = new THREE.Vector3(), _E = new THREE.Vector3(), _ax = new THREE.Vector3(), _bend = new THREE.Vector3(), _pole = new THREE.Vector3();
 const _qSh = new THREE.Quaternion(), _qArm = new THREE.Quaternion(), _qFore = new THREE.Quaternion();
 // Secondo tempo, dopo keepRacketClear (che può aver spostato la mano della racchetta): le braccia.
-export function poseMascotArms(rig, actor){
+export function poseMascotArms(rig, actor, dt){
   const P = actor.parts;
   if (!P) return false;
   const handA = P.handR, handB = P.handL;                 // A: lato della racchetta nel motore (x < 0)
   if (handA) handA.updateWorldMatrix(true, false);
   if (handB) handB.updateWorldMatrix(true, false);
   const sideA = rig.mirrored ? rig.left : rig.right, sideB = rig.mirrored ? rig.right : rig.left;
-  poseArm(rig, sideA, handA, false);
-  poseArm(rig, sideB, handB, true);
+  poseArm(rig, sideA, handA, false, dt);
+  poseArm(rig, sideB, handB, true, dt);
   return true;
 }
-function poseArm(rig, side, hand, free){
+function poseArm(rig, side, hand, free, dt){
   if (!hand) return;
   const k = 1/rig.scale;
   readPart(rig, hand, _T, null);                                                     // dove va il palmo (metri)
@@ -247,6 +299,21 @@ function poseArm(rig, side, hand, free){
     const far = Math.sqrt(dx*dx + dy*dy + dz*dz), t = Math.min(1, Math.max(0, (far - FREE_HAND_BLEND[0])/(FREE_HAND_BLEND[1] - FREE_HAND_BLEND[0]))), w = t*t*(3 - 2*t);
     _w.set(FREE_HAND_REST[0]*side.sx + dx*k, FREE_HAND_REST[1] + dy*k, FREE_HAND_REST[2] + dz*k);
     _T.multiplyScalar(k).lerp(_w, 1 - w);
+    // la mano libera insegue il suo bersaglio con un filo di ritardo: quando il tennista la sposta di colpo (inizio
+    // di un colpo, lancio) la mascotte non scatta. Senza tempo (scene ferme, prove) ci va subito.
+    if (side.freeSet && dt > 0 && dt <= 0.25) _T.copy(side.free.lerp(_T, 1 - Math.exp(-dt*FREE_HAND_RATE)));
+    else { side.free.copy(_T); side.freeSet = true; }
+    // fuori dalla testa (il suo centro segue il bacino)
+    const H = rig.headShape, cx = rig.head.wp.x + H.cx + rig.hipsP.x - rig.hips.wp.x, cy = rig.head.wp.y + H.cy + rig.hipsP.y - rig.hips.wp.y, cz = rig.head.wp.z + (H.cz || 0) + rig.hipsP.z - rig.hips.wp.z;
+    _T.y = Math.min(_T.y, cy + FREE_HAND_TOP*H.ry);
+    const v = (_T.y - cy)/(H.ry + FREE_HAND_GAP);
+    if (v > -1 && v < 1){
+      const f = Math.sqrt(1 - v*v), ex = (H.rx + FREE_HAND_GAP)*f, ez = (H.rz + FREE_HAND_GAP)*f;
+      let ox = _T.x - cx, oz = _T.z - cz;
+      if (ox*side.sx < 0.02) ox = 0.02*side.sx;                                     // sempre dal suo lato
+      const e = Math.sqrt((ox/ex)*(ox/ex) + (oz/ez)*(oz/ez));
+      if (e < 1){ _T.x = cx + ox/e; _T.z = cz + oz/e; }
+    }
   } else _T.multiplyScalar(k);
   side.palm.copy(_T);
   // spalla: segue la schiena, resta a riposo
@@ -256,27 +323,34 @@ function poseArm(rig, side, hand, free){
   // due ossa: braccio (a) e avambraccio fino al palmo (b); se il palmo è lontano si allungano insieme
   _ax.subVectors(_T, _S);
   let d = _ax.length();
+  if (free && d < FREE_HAND_MIN_REACH*(side.a + side.b)){
+    // mano libera addosso alla spalla: il verso del braccio cambierebbe di colpo; la si tiene un poco in fuori
+    _T.addScaledVector(_w.set(0.8*side.sx, -0.5, 0.33), FREE_HAND_MIN_REACH*(side.a + side.b) - d);
+    side.palm.copy(_T);
+    _ax.subVectors(_T, _S); d = _ax.length();
+  }
   if (d < 1e-6){ _ax.set(side.sx, 0, 0); d = 1e-6; } else _ax.multiplyScalar(1/d);
   const a0 = side.a, b0 = side.b, full = a0 + b0;
-  const stretch = Math.min(ARM_MAX_STRETCH, Math.max(1, d/(full*0.985)));
+  // lontano: si allunga (mai del tutto teso: resta un filo di piega); troppo vicino alla spalla: si accorcia, così le
+  // due ossa formano sempre un triangolo e il palmo arriva dove deve
+  const near = 1.3*Math.abs(a0 - b0);
+  const stretch = d > full*ARM_REACH ? Math.min(ARM_MAX_STRETCH, d/(full*ARM_REACH)) : d < near ? Math.max(0.2, d/near) : 1;
   side.stretch = stretch;
   const A = a0*stretch, Bl = b0*stretch, dd = Math.min(Math.max(d, Math.abs(A - Bl) + 1e-4), A + Bl);
   const x = (A*A - Bl*Bl + dd*dd)/(2*dd), h = Math.sqrt(Math.max(0, A*A - x*x));
-  _pole.set(ELBOW_POLE[0]*side.sx, ELBOW_POLE[1], ELBOW_POLE[2]).applyQuaternion(rig.torsoQ);
-  _bend.copy(_pole).addScaledVector(_ax, -_pole.dot(_ax));
-  if (_bend.lengthSq() < 1e-8) _bend.set(0, 0, -1).addScaledVector(_ax, _ax.z);
-  _bend.normalize();
+  bendDir(_bend, _ax, side, rig.torsoQ, dt);
+  _pole.crossVectors(_ax, _bend);                                                    // perno del gomito
   _E.copy(_S).addScaledVector(_ax, x).addScaledVector(_bend, h);
   side.elbow.copy(_E);
   // braccio: base «verso dell'osso + piega» di adesso per la rotazione di riposo riferita alla stessa base
-  _qArm.setFromRotationMatrix(basis(_b0, _u.subVectors(_E, _S), _bend)).multiply(side.armFrom);
+  _qArm.setFromRotationMatrix(basis(_b0, _u.subVectors(_E, _S), _pole)).multiply(side.armFrom);
   side.arm.bone.quaternion.copy(_qi.copy(_qSh).invert()).multiply(_qArm);
   // avambraccio: verso il palmo (se la mano è oltre il tetto dell'allungamento punta comunque verso di lei)
-  _qFore.setFromRotationMatrix(basis(_b1, _u.subVectors(_T, _E), _bend)).multiply(side.foreFrom);
+  _qFore.setFromRotationMatrix(basis(_b1, _u.subVectors(_T, _E), _pole)).multiply(side.foreFrom);
   side.fore.bone.quaternion.copy(_qi.copy(_qArm).invert()).multiply(_qFore);
   side.fore.bone.position.copy(side.fore.t).multiplyScalar(stretch);
   // mano: a riposo sull'avambraccio; si allontana dal gomito quanto serve perché il palmo arrivi
-  side.hand.bone.position.copy(side.hand.t).multiplyScalar(1 + (stretch - 1)*side.b/side.handLen);
+  side.hand.bone.position.copy(side.hand.t).addScaledVector(side.gripDir, side.b*(stretch - 1));
 }
 
 // Misure per le prove (sistema della radice dell'attore, metri): palmo e pianta delle due parti, allungamento

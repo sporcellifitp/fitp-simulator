@@ -430,7 +430,7 @@ export function updateNatpfCharacters(engine){
     if (rig3d){
       poseMascotBody(rig3d, actor);
       actor.natpfRacketPush = keepRacketClear(actor, mascotModelHeadShape(rig3d.key), dt, engine.ball, rig3d.head.bone);
-      poseMascotArms(rig3d, actor);
+      poseMascotArms(rig3d, actor, dt);
       continue;
     }
     actor.natpfRacketPush = keepRacketClear(actor, actor.natpfHeadShape || null, dt, engine.ball);
