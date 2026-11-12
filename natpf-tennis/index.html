@@ -242,8 +242,31 @@
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
-        <!-- «Nuovo giocatore» (B18): nome, tutorial, calibrazione e colpi imparati da capo, il telefono resta collegato -->
-        <div class="sheet-actions"><button type="button" class="lobby-secondary new-player" data-staff="newplayer">Nuovo giocatore</button><button type="button" class="lobby-primary" data-staff="close">Chiudi</button></div>
+        <!-- «Nuovo giocatore» (B18): nome, tutorial, calibrazione e colpi imparati da capo, il telefono resta collegato.
+             B27: a sinistra «Telecomando dello staff» (QR dello staff nel foglio #natpf-remote) e, solo nel programma
+             Windows, «Schermo del gioco» (monitor successivo): nella riga dei pulsanti in basso, non nella griglia, così il
+             foglio resta di tre file e «Chiudi» in vista a 1024 × 600 e 1366 × 657 (prova natpf-menu) -->
+        <div class="sheet-actions staff-actions"><button type="button" class="lobby-ghost staff-extra" data-staff="remote"><span>Telecomando dello staff</span><b>Collega</b></button
+          ><button type="button" class="lobby-ghost staff-extra hidden" data-staff="display"><span>Schermo del gioco</span><b>—</b></button
+          ><button type="button" class="lobby-secondary new-player" data-staff="newplayer">Nuovo giocatore</button><button type="button" class="lobby-primary" data-staff="close">Chiudi</button></div>
+      </div>
+    </div>
+    <!-- B27: telecomando dello staff (natpf_remote.js). QR diverso da quello dei giocatori (pagina /natpf/tennis/telecomando.html),
+         codice da scrivere a mano e «Scollega il telecomando». Abbinato una volta, il telefono si ricollega da solo -->
+    <div id="natpf-remote" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="remote-title">
+      <div class="natpf-sheet remote-sheet">
+        <p class="sheet-kicker">Riservato all’addetto · non per i giocatori</p>
+        <h2 class="sheet-title" id="remote-title">Telecomando dello staff</h2>
+        <div class="remote-body">
+          <div class="remote-qr-col"><div id="remote-qr" class="natpf-qr remote-qr"></div><a id="remote-link" class="sheet-link" target="_blank" rel="noopener">Link del telecomando ↗</a></div>
+          <div class="remote-info">
+            <p class="sheet-desc">Inquadra il QR con il <b>telefono dello staff</b> (non quello dei visitatori). Il telefono resta il telecomando: si ricollega da solo alla riapertura, dopo il riavvio del gioco o del PC.</p>
+            <p class="remote-code-line">Oppure, sulla pagina del telecomando, scrivi il codice <b id="remote-code">—</b></p>
+            <p class="sheet-desc remote-tip">Prima volta su un telefono: certificato della rete NATPF come per la racchetta (QR «Certificato» della pagina «Collega»). Poi «Aggiungi a schermata Home».</p>
+            <p id="remote-state" class="natpf-phone-status" aria-live="polite"></p>
+          </div>
+        </div>
+        <div class="sheet-actions"><button type="button" class="lobby-ghost hidden" data-remote="forget">Scollega il telecomando</button><button type="button" class="lobby-primary" data-remote="close">Indietro</button></div>
       </div>
     </div>
     <!-- passaggio dal menu al campo -->

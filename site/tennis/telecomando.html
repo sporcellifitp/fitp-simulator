@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#000000">
+<!-- telecomando dello staff (B27): icona sulla schermata Home, pagina senza la barra del browser -->
+<link rel="manifest" href="telecomando.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="NATPF Telecomando">
+<link rel="apple-touch-icon" href="telecomando-192.png">
+<link rel="icon" href="telecomando-192.png">
+<title>NATPF Telecomando</title>
+<style>
+  /* al buio e con una mano: nero, testo bianco, pulsanti grandi; il giallo è «acceso», il grigio «non adesso» */
+  :root{--bg:#000;--panel:#14161c;--line:#3a3f4d;--ink:#fff;--muted:#b9c0d0;--key:#ffd400;--ok:#3dff7a;--warn:#ffb020;--bad:#ff5a4f;--off:#5d6270}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    -webkit-user-select:none;user-select:none;touch-action:manipulation;overscroll-behavior:none}
+  body{display:flex;flex-direction:column;gap:10px;padding:max(10px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));max-width:520px;margin:0 auto}
+  .hidden,[hidden]{display:none!important}
+  button{font:inherit;color:inherit}
+  #bar{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}
+  #bar i{width:12px;height:12px;border-radius:50%;background:var(--warn);flex:none}
+  #bar.ok i{background:var(--ok)} #bar.bad i{background:var(--bad)}
+  #bar small{margin-left:auto;color:var(--muted);font-weight:600;font-size:13px}
+  #status{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:10px 14px}
+  #page{font-size:24px;font-weight:800;line-height:1.15}
+  #detail{font-size:17px;color:var(--muted);margin-top:2px;min-height:1.3em}
+  #player{font-size:15px;margin-top:6px;color:var(--muted)} #player b{color:var(--ink)} #player .ok{color:var(--ok)} #player .bad{color:var(--warn)}
+  #msg{min-height:44px;font-size:16px;line-height:1.3;padding:8px 12px;border-radius:12px;background:#1d2130;color:var(--ink)}
+  #msg.bad{background:#3a1512} #msg:empty{visibility:hidden}
+  /* conferma (Torna al menu o Nuovo giocatore a partita in corso) */
+  #confirm{display:flex;gap:8px;background:#3a2a00;border:2px solid var(--key);border-radius:14px;padding:10px;align-items:center}
+  #confirm span{flex:1;font-size:16px;font-weight:700}
+  #confirm button{min-height:56px;min-width:96px;border-radius:12px;border:0;font-size:18px;font-weight:800}
+  #confirm .yes{background:var(--key);color:#000} #confirm .no{background:#2a2e3a}
+  /* croce: tre file, OK al centro */
+  #pad{display:grid;grid-template-columns:1fr 1.15fr 1fr;grid-template-rows:repeat(3,minmax(64px,11vh));gap:8px;max-height:44vh}
+  #pad button{border:2px solid var(--line);border-radius:18px;background:var(--panel);font-size:34px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-direction:column}
+  #pad [data-c="up"]{grid-column:2;grid-row:1} #pad [data-c="left"]{grid-column:1;grid-row:2} #pad [data-c="ok"]{grid-column:2;grid-row:2;background:var(--key);color:#000;border-color:var(--key);font-size:28px}
+  #pad [data-c="right"]{grid-column:3;grid-row:2} #pad [data-c="down"]{grid-column:2;grid-row:3} #pad [data-c="back"]{grid-column:1;grid-row:3;font-size:17px}
+  #pad [data-c="pause"]{grid-column:3;grid-row:3;font-size:17px}
+  #pad [data-c="back"] small,#pad [data-c="pause"] small{font-size:12px;font-weight:600;color:var(--muted)}
+  #grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #grid button{min-height:64px;border:2px solid var(--line);border-radius:14px;background:var(--panel);text-align:left;padding:8px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+  #grid button b{font-size:17px;line-height:1.15} #grid button small{font-size:12.5px;color:var(--muted);line-height:1.2}
+  #grid button.main{background:var(--key);color:#000;border-color:var(--key)} #grid button.main small{color:#3a3000}
+  button.off{opacity:.55;border-style:dashed!important;background:#0c0d11!important;color:var(--off)!important}
+  button.off small{color:var(--off)!important}
+  button:active:not(.off){transform:scale(.97);filter:brightness(1.25)}
+  /* non abbinato: istruzioni e codice da scrivere */
+  #setup{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:14px;display:grid;gap:10px;font-size:16px;line-height:1.4}
+  #setup h1{margin:0;font-size:22px} #setup p{margin:0;color:var(--muted)} #setup ol{margin:0;padding-left:20px}
+  #setup input{font:inherit;font-size:26px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:12px;border-radius:12px;border:2px solid var(--line);background:#000;color:#fff;width:100%;-webkit-user-select:text;user-select:text}
+  .big{min-height:60px;border:0;border-radius:14px;background:var(--key);color:#000;font-size:19px;font-weight:800;width:100%}
+  .link{background:none;border:0;color:var(--muted);text-decoration:underline;font-size:15px;padding:10px}
+  #home{background:#0f1a10;border:2px solid #2c6b3a;border-radius:14px;padding:10px 12px;font-size:15px;line-height:1.35;display:flex;gap:8px;align-items:center}
+  #home span{flex:1} #home button{border:0;border-radius:10px;min-height:44px;padding:0 12px;font-weight:800}
+  #home .go{background:var(--ok);color:#000} #home .x{background:#26302a;color:#fff}
+  footer{display:flex;justify-content:space-between;color:var(--off);font-size:12px;margin-top:auto}
+</style>
+</head>
+<body>
+  <div id="bar"><i></i><span id="link">Avvio…</span><small id="ver"></small></div>
+  <section id="setup" class="hidden" aria-labelledby="setup-title">
+    <h1 id="setup-title">Telecomando dello staff</h1>
+    <p id="setup-why">Questo telefono non è ancora il telecomando.</p>
+    <ol>
+      <li>Sul gioco apri il <b>Pannello dello stand</b> (Ctrl+Maiusc+K, oppure tieni premuto 3 s il marchio NATPF nel menu).</li>
+      <li>Tocca <b>Telecomando dello staff</b>: compare un QR (diverso da quello dei giocatori).</li>
+      <li>Inquadralo con la fotocamera, oppure scrivi qui il codice sotto il QR.</li>
+    </ol>
+    <input id="code" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="10" placeholder="ABCD-EFGH" aria-label="Codice del telecomando">
+    <button type="button" class="big" id="codeGo">Collega con il codice</button>
+  </section>
+  <section id="remote" class="hidden">
+    <div id="status" aria-live="polite">
+      <div id="page">—</div>
+      <div id="detail"></div>
+      <div id="player"></div>
+    </div>
+    <div id="confirm" class="hidden" role="alertdialog" aria-labelledby="confirm-text"><span id="confirm-text"></span><button type="button" class="no" id="confirmNo">No</button><button type="button" class="yes" id="confirmYes">Sì</button></div>
+    <div id="msg" role="status"></div>
+    <div id="pad">
+      <button type="button" data-c="up" aria-label="Su">↑</button>
+      <button type="button" data-c="left" aria-label="Sinistra">←</button>
+      <button type="button" data-c="ok" aria-label="OK">OK</button>
+      <button type="button" data-c="right" aria-label="Destra">→</button>
+      <button type="button" data-c="down" aria-label="Giù">↓</button>
+      <button type="button" data-c="back"><span>Indietro</span><small>Esc</small></button>
+      <button type="button" data-c="pause"><span>Pausa</span><small></small></button>
+    </div>
+    <div id="grid">
+      <button type="button" data-c="play" class="main"><b>Gioca</b><small></small></button>
+      <button type="button" data-c="menu"><b>Torna al menu</b><small></small></button>
+      <button type="button" data-c="newplayer"><b>Nuovo giocatore</b><small></small></button>
+      <button type="button" data-c="skip"><b>Salta</b><small></small></button>
+      <button type="button" data-c="recal"><b>Ricalibra il telefono</b><small></small></button>
+      <button type="button" data-c="gestures"><b>Rivedi i gesti</b><small></small></button>
+      <button type="button" data-c="cpu"><b>Livello CPU</b><small></small></button>
+      <button type="button" data-c="screen"><b>Schermo del gioco</b><small></small></button>
+      <button type="button" data-c="fullscreen"><b>Schermo intero</b><small></small></button>
+      <button type="button" data-c="staff"><b>Pannello dell’addetto</b><small></small></button>
+    </div>
+    <div id="home" class="hidden"><span id="home-text"></span><button type="button" class="go hidden" id="homeGo">Installa</button><button type="button" class="x" id="homeX">Ok</button></div>
+  </section>
+  <footer><span id="where"></span><button type="button" class="link" id="unpair">Non usare più questo telefono</button></footer>
+  <script type="module" src="../js/tennis/telecomando.js"></script>
+</body>
+</html>
