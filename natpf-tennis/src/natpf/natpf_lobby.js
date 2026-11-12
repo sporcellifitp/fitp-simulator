@@ -397,6 +397,7 @@ export class NatpfLobby {
   // personaggi in campo (natpf_personaggi.js, B24): «Di sempre» o «Lob & Drop»; vale subito e resta salvata
   setCast(value){
     const cast = setCast(value);
+    this.engine.natpfBackdropDirty = true;        // lo sfondo fermo del menu si ridisegna con i personaggi scelti
     this.ui.toast?.(castToast(cast)); this.paint();
   }
   _paintOptions(){
