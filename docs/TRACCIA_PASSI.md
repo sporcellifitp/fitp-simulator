@@ -100,7 +100,18 @@ Se si ferma per il limite d'uso: `Workflow({scriptPath: '/root/.claude/projects/
 (attenzione: con due filoni in parallelo la ripresa può rifare un agente già finito; le worktree `wf_26d95fdf-3ea-*`
 tengono il lavoro: in quel caso continuare a mano o con un agente singolo sulla worktree). Quando finisce: guardare i
 fogli del dritto, unire i due rami, versione 2026-11-12.3, controllo rapido, push, zip e installer SUBITO, prove complete dopo.
-Poi B24 (Lob & Drop) e tappa 2 gruppo 3 (livelli Evento e Bambini, «Chi gioca»).
+**In corso dalle 09:20 UTC del 12/11 (richiesta dell'utente: «mi servono entro oggi»): workflow
+`b24-lob-drop-e-tappa2-gruppo3`** (run `wf_0782518b-44b`, base `9b8f9cb`), due filoni in parallelo con revisore e correzioni:
+- [~] **B24 Lob & Drop** come personaggi in campo: voce nelle Opzioni «Personaggi in campo: Di sempre · Lob & Drop»
+      (di base «Di sempre»), `?personaggi=lobdrop|sempre`; documento `docs/b24/lob-e-drop.md`.
+- [~] **Tappa 2 gruppo 3**: livelli Evento (adattivo) e Bambini, «Chi gioca: Bambino · Ragazzo · Adulto» al posto del
+      livello (Pro e Leggenda in «Altre impostazioni»), segnale del momento giusto, colpo super spiegato; documento
+      `docs/b18/t2-4-evento-bambini.md`.
+Ripresa: `Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b24-lob-drop-e-tappa2-gruppo3-wf_0782518b-44b.js', resumeFromRunId: 'wf_0782518b-44b'})`
+(stessa attenzione di sopra; worktree `wf_0782518b-44b-*`). Quattro filoni in tutto sulla macchina a 4 processori: le
+misure dei fotogrammi al secondo nelle prove possono fallire per il carico, rifarle a macchina libera.
+All'unione: i quattro rami toccano zone diverse ma `SKILL_LEVELS`, `natpf_stroke_outcome.js`, Opzioni e menu possono
+dare conflitti: unire uno alla volta e rifare i test. Consegna man mano che un filone è rivisto e corretto.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
@@ -114,9 +125,9 @@ Poi B24 (Lob & Drop) e tappa 2 gruppo 3 (livelli Evento e Bambini, «Chi gioca»
       **+ aiuto al più giovane** (richiesta dell'11/11 sera): nello stesso schermo ogni giocatore sceglie Bambino · Ragazzo ·
       Adulto e il più giovane è facilitato; preparare 2–3 varianti, misurarle e far scegliere all'utente con i numeri
 - [~] **B23 Prova delle movenze dal video sul solo dritto** (se all'utente non piace si toglie)
-- [ ] **B24 Lob & Drop** come personaggi (foto `docs/riferimenti/lob-drop-2026-11-11.webp`)
+- [~] **B24 Lob & Drop** come personaggi (foto `docs/riferimenti/lob-drop-2026-11-11.webp`)
 - [~] **Tappa 2 gruppo 2**: Leggenda stessa regola (D2), palla corta che può sbagliare (D8)
-- [ ] **Tappa 2 gruppo 3**: livelli Evento e Bambini (D3) con la scelta **«Chi gioca: Bambino · Ragazzo · Adulto»** al posto
+- [~] **Tappa 2 gruppo 3**: livelli Evento e Bambini (D3) con la scelta **«Chi gioca: Bambino · Ragazzo · Adulto»** al posto
       del livello (Pro e Leggenda in «Altre impostazioni»); segnale del momento giusto; super spiegato
 - [ ] Dall'utente: prova di due minuti con un telefono vero agitato senza guardare (poi si decide la regola)
 
