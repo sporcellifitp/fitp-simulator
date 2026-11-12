@@ -14,7 +14,7 @@
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-lob-drop.mjs
 //   SHOTS=cartella (schermate; predefinita nella cartella temporanea) · GAME_PORT (3164) · GAME=cartella del gioco
 //   BASELINE=file.json: solo la parte 1, scrive le impronte (da fare sul commit di prima) · CONFRONTA=file.json
-//   SOLO=1: solo la parte 1 · COSTO=1: solo la parte 5 · FOGLI=cartella: solo i fogli di immagini (docs/b24/img)
+//   SOLO=1: solo la parte 1 · TESTA=1: solo la parte 1b (racchetta e testa) · COSTO=1: solo la parte 5 · FOGLI=cartella: solo i fogli di immagini (docs/b24/img)
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -55,7 +55,7 @@ async function game({ cast = null, query = 'intro=0', w = 1280, h = 720, hand = 
     } catch {}
   }, { KEY, cast, hand });
   for (let k = 0; ; k++){
-    await p.goto(`http://127.0.0.1:${GAME_PORT}/?${query}`, { waitUntil: 'domcontentloaded' });
+    await p.goto(`http://127.0.0.1:${GAME_PORT}/?${query}`, { waitUntil: 'domcontentloaded', timeout: 120000 });   // a macchina carica il primo avvio è lento
     const ok = await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby, null, { timeout: 60000 }).then(() => true, () => false);
     if (ok) break;
     if (k >= 3) throw new Error('gioco non avviato');
@@ -114,6 +114,7 @@ const scene = (p, name, o = {}) => p.evaluate(({ name, o }) => {
   E.cameraMode = 'RALLY_CAM';
   E._snapCameraImmediate(); E._updateEffects(0);
   const multi0 = E.isMultiplayer; if (o.multi) E.isMultiplayer = true;       // tra due persone: l'altro è il Player 2
+  E.natpfDrawnAt = NaN;                                  // scena ferma: la racchetta scostata va subito al suo posto (natpf_racket_clear.js)
   const cam = o.cam || 'gioco';
   if (cam === 'split'){ E.phase = 'RALLY'; E.natpfSplit.active = true; E.render(); E.render(); }
   else {
@@ -157,6 +158,103 @@ const SCENES = {
   'due-persone': { pose: 'rovescio', who: 'opponent', steps: 6, multi: true },
 };
 
+// Partita senza persone (le due parti giocano da sole) a passi fissi e sorteggi fissi, un minuto di gioco: impronta di
+// palla, giocatori e punteggio. Deve essere la stessa con i due valori dell'opzione e sul commit di prima (niente cambia
+// nel gioco). Si confronta tra pagine appena aperte.
+// o.mode: 'demo' (le due parti giocano da sole; è la partita di sempre), 'cpu' (partita vera contro la CPU, un robot fa
+// i gesti di chi gioca), 'schermo' (stesso schermo: due robot). A ogni passo si fa anche il lavoro che il gioco fa prima
+// di disegnare (personaggi, racchetta fuori dalla testa grande), senza disegnare: la partita deve restare la stessa.
+// o.clip: misura a ogni passo di quante volte il telaio della racchetta è dentro la testa della mascotte, prima (dove
+// la mette il motore) e dopo lo scostamento di natpf_racket_clear.js; al colpo, distanza tra corde e palla prima e dopo.
+// o.stops: passi a cui fare una foto da vicino (prima e dopo).
+const play = (p, o = {}) => p.evaluate(o => {
+  const E = __natpfTennis, { steps = 3600, mode = 'demo', seed = 4242, clip = false, stops = [] } = o;
+  if (!E.__frame0){ E.__frame0 = E._natpfFrame; E._natpfFrame = () => 'paused'; }
+  E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.userHasInteracted = true; E.natpfPaused = false;
+  for (const a of [E.player, E.opponent]){
+    a.model.scale.setScalar(1.16); a.rig = null; E.bodyAnimator.setupArticulatedPlayerRig(a); a.racketKinematics = null; E.racketKinematics.initActor(a);
+    a.natpfReach = null; if (a.userData) a.userData.natpfPrep = null; a.stridePhase = 0; a.swingTimer = 0; a.vel?.set(0, 0, 0);
+  }
+  E._natpfBackdropPose();
+  // stesso schermo: un disegno «a vuoto» con il Player 2 PRIMA del seme. I pezzi e i materiali che nascono al primo
+  // cambio di aspetto chiedono un nome a three.js, che lo sorteggia con Math.random: senza questo passo la sequenza dei
+  // sorteggi si sposta e le partite a seme fisso non sono confrontabili (non cambia il gioco, solo la prova)
+  if (mode === 'schermo'){ const m0 = E.isMultiplayer; E.isMultiplayer = true; E.render(); E.isMultiplayer = m0; }
+  window.__seed(seed); E.elapsedTime = 0; E.physicsAccumulator = 0;
+  if (mode === 'demo'){ E.autoPlayMode = true; E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = true; }
+  else { E.autoPlayMode = false; if (mode === 'schermo') E.startSplit(); E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = false; }
+  // il lavoro di prima del disegno, senza disegnare
+  const draw = E.renderer.render, before = () => { E.renderer.render = () => {}; try { E.render(); } finally { E.renderer.render = draw; } };
+  let h = 0x811c9dc5, hits = 0, last = 0, pts = 0, score = '';
+  const eat = v => { const n = Math.round(v*1000) | 0; for (let k = 0; k < 4; k++){ h ^= (n >>> (k*8)) & 255; h = Math.imul(h, 0x01000193) >>> 0; } };
+  const evt = extra => ({ speed: 1.18, shotType: 'topspin', source: 'keyboard', ...extra });
+  // misura della racchetta nella testa (metodo della revisione: 24 punti del telaio contro l'ellissoide della testa)
+  const HEADS = { drop: { rx: .385, ry: .33, rz: .34, cy: .13 }, lob: { rx: .35, ry: .335, rz: .33, cy: .135 }, uomo: { rx: .27, ry: .245, rz: .235, cy: .18 } };
+  const v3 = E.player.pos.clone(), w3 = v3.clone(), actors = [['player', E.player], ['opponent', E.opponent]];
+  const C = { n: 0, prima: { player: 0, opponent: 0 }, dopo: { player: 0, opponent: 0 }, pose: {}, scostata: { player: 0, opponent: 0 }, max: { player: 0, opponent: 0 }, somma: { player: 0, opponent: 0 },
+    salto: { player: 0, opponent: 0 }, uomo: { player: 0, opponent: 0 }, colpi: [], foto: [], esempi: {} };
+  const depth = (a, M = HEADS[a.natpfMascot]) => {
+    if (!M) return 9;
+    a.root.updateMatrixWorld(true);
+    const inv = a.parts.head.matrixWorld.clone().invert(); let f = 9;
+    for (let q = 0; q < 24; q++){ const t = q/24*Math.PI*2; v3.set(.172*Math.cos(t), .545 + .215*Math.sin(t), 0); a.racketMesh.localToWorld(v3).applyMatrix4(inv); f = Math.min(f, (v3.x/M.rx)**2 + ((v3.y - M.cy)/M.ry)**2 + (v3.z/M.rz)**2); }
+    return Math.sqrt(f);
+  };
+  const strings = a => { a.root.updateMatrixWorld(true); return a.racketMesh.localToWorld(v3.set(0, .545, 0)).distanceTo(E.ball.pos); };
+  // foto da vicino della testa (il lavoro di prima del disegno è già stato fatto: qui solo il disegno, da un'altra camera)
+  const photo = (a, label) => {
+    const cam = E.camera.clone(), fz = a.sideSign > 0 ? -1 : 1, hp = a.parts.head.getWorldPosition(w3);
+    cam.fov = 24; cam.aspect = E.camera.aspect; cam.updateProjectionMatrix();
+    cam.position.set(hp.x + 2.6, hp.y + .9, hp.z + fz*2.4); cam.lookAt(hp.x, hp.y, hp.z); cam.updateMatrixWorld();
+    E.renderer.render(E.scene, cam);
+    return { label, src: E.renderer.domElement.toDataURL('image/jpeg', .9) };
+  };
+  // dove la racchetta la mette il motore (senza lo scostamento): profondità nella testa e distanza corde–palla
+  const rawOf = a => { const q = a.racketMesh.position, x = q.x, y = q.y, z = q.z; q.set(0, 0, 0); const r = [depth(a), strings(a), depth(a, HEADS.uomo)]; q.set(x, y, z); return r; };
+  const prev = { player: 0, opponent: 0 }, since = { player: 99, opponent: 99 };   // since: passi dalla fine dell'ultimo colpo
+  for (let i = 0; i < steps; i++){
+    if (mode !== 'demo'){
+      const s = E.score.server, b = E.ball;
+      if (E.phase === 'SERVE_STANCE' && E.phaseTimer > .9){ if (s === 'player') E._handleUserTossInput({}); else if (mode === 'schermo') E._handleP2TossInput({}); }
+      else if (E.phase === 'SERVE_TOSS' && b.vel.y < .6 && E.phaseTimer > .3 && i % 3 === 0){ if (s === 'player') E._handleUserSwingInput(evt({ shotType: 'flat', speed: 1.3 })); else if (mode === 'schermo') E._handleP2SwingInput(evt({ shotType: 'flat', speed: 1.3 })); }
+      else if (E.phase === 'RALLY' && i % 7 === 0){
+        if (b.lastHitter === 'opponent' && b.pos.z > 5) E._handleUserSwingInput(evt({ shotType: i % 3 ? 'topspin' : 'slice' }));
+        if (mode === 'schermo' && b.lastHitter === 'player' && b.pos.z < -5) E._handleP2SwingInput(evt({ shotType: i % 2 ? 'topspin' : 'lob' }));
+      }
+    }
+    E.update(1/60);
+    const b = E.ball, s = E.score, hit = b.rallyStrokeCount > last;
+    if (b.rallyStrokeCount !== last){ if (hit) hits++; last = b.rallyStrokeCount; }
+    if (o.noClear) for (const [, a] of actors) a.natpfHeadShape = null;      // senza la correzione (per le foto di «prima»)
+    const raw = clip ? actors.map(([, a]) => rawOf(a)) : null;
+    // una volta per passo, come nel gioco: ogni tanto disegnando davvero, le altre volte solo il lavoro di prima
+    if (i % 300 === 0) E.render(); else before();
+    if (clip){
+      C.n++;
+      actors.forEach(([k, a], n) => {
+        since[k] = a.swingTimer > 0 ? 0 : since[k] + 1;
+        const now = depth(a), push = a.natpfRacketPush || 0;
+        const kind = `${a.natpfMascot}:${a.swingTimer > 0 ? a.swingType : since[k] <= 20 ? 'ritorno dopo il colpo' : E.phase === 'RALLY' ? 'attesa nello scambio' : E.phase}`;
+        if (raw[n][2] < 1) C.uomo[k]++;
+        if (raw[n][0] < 1){ C.prima[k]++; (C.pose[kind] ||= [0, 0])[0]++; }
+        if (now < 1){ C.dopo[k]++; (C.pose[kind] ||= [0, 0])[1]++; }
+        if (push > 0){ C.scostata[k]++; C.somma[k] += push; C.max[k] = Math.max(C.max[k], push); }
+        C.salto[k] = Math.max(C.salto[k], Math.abs(push - prev[k])); prev[k] = push;
+        if (push > (C.esempi[kind]?.push || 0) && now >= 1) C.esempi[kind] = { passo: i, push };
+        if (hit && b.lastHitter === k) C.colpi.push({ passo: i, chi: a.natpfMascot, tipo: a.swingType, scostamento: +push.toFixed(4), prima: +raw[n][1].toFixed(3), dopo: +strings(a).toFixed(3) });
+      });
+    }
+    if (stops.includes(i)) for (const [, a] of actors) C.foto.push(photo(a, `${a.natpfMascot === 'drop' ? 'Drop' : 'Lob'}, passo ${i}`));
+    const sc = `${s.playerPoints}-${s.opponentPoints}/${s.playerGames}-${s.opponentGames}`;
+    if (sc !== score){ score = sc; pts++; }
+    if (i % 6 === 0) for (const v of [b.pos.x, b.pos.y, b.pos.z, E.player.pos.x, E.player.pos.z, E.opponent.pos.x, E.opponent.pos.z, s.playerPoints, s.opponentPoints, s.playerGames, s.opponentGames]) eat(v);
+  }
+  E.autoPlayMode = false;
+  return { hash: h.toString(16), hits, changes: pts - 1, score, looks: [E.player.natpfLook, E.opponent.natpfLook], clip: clip ? C : null, foto: C.foto };
+}, o);
+// partite a sorteggi fissi con i robot (parte 1b): contro la CPU e nello stesso schermo
+const RUNS = { cpu: { mode: 'cpu', seed: 31337, steps: 2600 }, schermo: { mode: 'schermo', seed: 555, steps: 2600 } };
+
 /* ---------- fogli di immagini (docs/b24/img): solo con FOGLI=cartella ---------- */
 if (FOGLI){
   mkdirSync(FOGLI, { recursive: true });
@@ -188,7 +286,23 @@ if (FOGLI){
     console.log(`foglio ${file}: ${out.W}×${out.H}, ${buf.length} B, qualità ${out.q.toFixed(2)}`);
     check(`foglio ${file} sotto i 300 kB`, buf.length < 300000, `${buf.length} B`);
   }
+  // FOGLIO=nome: solo un gruppo di fogli (racchetta, vicino, mancini, campo)
+  const want = n => !process.env.FOGLIO || process.env.FOGLIO === n;
+  // 0) racchetta e testa grande: gli stessi passi della stessa partita, prima e dopo la correzione
+  if (want('racchetta')){
+    const g0 = await game({ cast: 'lobdrop', w: 640, h: 480 }), m = await play(g0.p, { ...RUNS.cpu, clip: true }); await g0.ctx.close();
+    const kinds = ['drop:attesa nello scambio', 'lob:attesa nello scambio', 'drop:ritorno dopo il colpo', 'lob:backhand'].filter(k => m.clip.esempi[k]);
+    const stops = kinds.map(k => m.clip.esempi[k].passo), shots = {};
+    for (const noClear of [true, false]){ const g = await game({ cast: 'lobdrop', w: 640, h: 480 }); shots[noClear] = (await play(g.p, { ...RUNS.cpu, noClear, stops })).foto; await g.ctx.close(); }
+    const order = [...stops].sort((a, b) => a - b), tiles = [];
+    kinds.forEach((k, n) => {
+      const at = order.indexOf(stops[n])*2 + (k.startsWith('drop') ? 0 : 1), what = k.split(':')[1].replace('backhand', 'rovescio');
+      tiles.push({ src: shots.true[at].src, label: `${shots.true[at].label}, ${what}: prima` }, { src: shots.false[at].src, label: `Dopo: racchetta scostata di ${(m.clip.esempi[k].push*116).toFixed(0)} cm` });
+    });
+    await sheet('racchetta-e-testa.webp', tiles, { cols: 4, w: 400, h: 300, title: 'Racchetta e testa grande: gli stessi passi della stessa partita, prima e dopo la correzione' });
+  }
   // 1) da vicino: davanti, dietro, di lato, accanto alla foto
+  if (want('vicino')){
   const near = await game({ cast: 'lobdrop', w: 560, h: 640 });
   const closeUp = async (actor, view, extra = {}) => { await scene(near.p, `v-${actor}-${view}`, { pose: 'fermo', ...extra, cam: { actor, ...NEAR[view] } }); return png(near.p); };
   for (const [actor, nome] of [['player', 'Drop'], ['opponent', 'Lob']]){
@@ -203,7 +317,9 @@ if (FOGLI){
       gest.push({ src: await closeUp(actor, view, { pose, steps, who: actor }), label: `${nome}: ${l}${view === 'back' ? ' (da dietro)' : ''}` });
   await sheet('gesti-da-vicino.webp', gest, { cols: 4, w: 380, h: 430, title: 'Lob & Drop: stesse animazioni dei personaggi classici' });
   await near.ctx.close();
+  }
   // 3) mancini: lo specchio, la scritta resta leggibile
+  if (want('mancini')){
   const left = await game({ cast: 'lobdrop', w: 560, h: 640, hand: 'left' });
   await left.p.evaluate(() => { const E = __natpfTennis; E.natpfUi.hand?.update?.(null); E.opponent.root.scale.x = -Math.abs(E.opponent.root.scale.x); });
   const lt = [];
@@ -215,7 +331,9 @@ if (FOGLI){
     }
   await sheet('mancini.webp', lt, { cols: 4, w: 380, h: 430, title: 'Mancini: personaggio specchiato, racchetta nella mano sinistra, scritta leggibile' });
   await left.ctx.close();
+  }
   // 4) in campo dalla camera di gioco: fermo, dritto, servizio, esultanza; stesso schermo; «Classici» accanto
+  if (want('campo')){
   const court = await game({ cast: 'lobdrop', w: 1280, h: 720 });
   const ct = [];
   for (const [n, l] of [['fermo', 'In campo, camera di gioco'], ['dritto', 'Dritto di Drop'], ['servizio', 'Servizio di Drop'], ['esultanza', 'Esultanza di Drop'], ['avversario', 'Dritto di Lob'], ['split', 'Stesso schermo: Player 1 = Drop, Player 2 = Lob']]){
@@ -233,6 +351,7 @@ if (FOGLI){
   }
   await sheet('confronto-classici.webp', cmp, { cols: 2, w: 640, h: 360, title: 'Opzioni → Personaggi in campo: «Classici» e «Lob & Drop»' });
   await court.ctx.close();
+  }
   await B.close(); summary(); process.exit(process.exitCode || 0);
 }
 
@@ -240,37 +359,9 @@ const HUMAN = /^Natpf(Polo|Colletto|Abbottonatura|Bottoni|Pantaloncini|Collo|Tes
 const MASCOT = /^Natpf(Drop|Lob)|^NatpfOcchio|^NatpfBoccaAperta|^NatpfLingua/;
 
 /* ---------- 1) scene ferme: «Classici» identico a prima, «Lob & Drop» diverso, ritorno identico ---------- */
-// Partita senza persone (le due parti giocano da sole) a passi fissi e sorteggi fissi, un minuto di gioco: impronta di
-// palla, giocatori e punteggio. Deve essere la stessa con i due valori dell'opzione e sul commit di prima (niente cambia
-// nel gioco). Si confronta tra pagine appena aperte.
-const play = (p, steps = 3600) => p.evaluate(steps => {
-  const E = __natpfTennis;
-  if (!E.__frame0){ E.__frame0 = E._natpfFrame; E._natpfFrame = () => 'paused'; }
-  E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.userHasInteracted = true; E.natpfPaused = false;
-  for (const a of [E.player, E.opponent]){
-    a.model.scale.setScalar(1.16); a.rig = null; E.bodyAnimator.setupArticulatedPlayerRig(a); a.racketKinematics = null; E.racketKinematics.initActor(a);
-    a.natpfReach = null; if (a.userData) a.userData.natpfPrep = null; a.stridePhase = 0; a.swingTimer = 0; a.vel?.set(0, 0, 0);
-  }
-  E._natpfBackdropPose();
-  window.__seed(4242); E.elapsedTime = 0; E.physicsAccumulator = 0; E.autoPlayMode = true;
-  E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = true;
-  let h = 0x811c9dc5, hits = 0, last = 0, pts = 0, score = '';
-  const eat = v => { const n = Math.round(v*1000) | 0; for (let k = 0; k < 4; k++){ h ^= (n >>> (k*8)) & 255; h = Math.imul(h, 0x01000193) >>> 0; } };
-  for (let i = 0; i < steps; i++){
-    E.update(1/60);
-    if (i % 300 === 0) E.render();                      // si disegna ogni tanto: i personaggi scelti sono in scena
-    const b = E.ball, s = E.score;
-    if (b.rallyStrokeCount !== last){ if (b.rallyStrokeCount > last) hits++; last = b.rallyStrokeCount; }
-    const sc = `${s.playerPoints}-${s.opponentPoints}/${s.playerGames}-${s.opponentGames}`;
-    if (sc !== score){ score = sc; pts++; }
-    if (i % 6 === 0) for (const v of [b.pos.x, b.pos.y, b.pos.z, E.player.pos.x, E.player.pos.z, E.opponent.pos.x, E.opponent.pos.z, s.playerPoints, s.opponentPoints, s.playerGames, s.opponentGames]) eat(v);
-  }
-  E.autoPlayMode = false;
-  return { hash: h.toString(16), hits, changes: pts - 1, score, looks: [E.player.natpfLook, E.opponent.natpfLook] };
-}, steps);
 
 const prints = {};
-if (!process.env.COSTO){
+if (!process.env.COSTO && !process.env.TESTA){
   const g = await game({ cast: BASELINE ? null : 'sempre' }), p = g.p;
   // la partita si gioca per prima, a pagina appena aperta: una seconda partita nella stessa pagina parte da uno stato
   // diverso (resti della prima) e non è confrontabile; il confronto si fa tra pagine nuove (qui sotto, con Lob & Drop)
@@ -288,6 +379,7 @@ if (!process.env.COSTO){
   }
   check('«Classici»: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
   if (BASELINE){
+    for (const [name, run] of Object.entries(RUNS)){ const m = await game({ cast: null, w: 640, h: 360 }); prints[`partita-${name}`] = (await play(m.p, run)).hash; await m.ctx.close(); }
     writeFileSync(BASELINE, JSON.stringify(prints, null, 2));
     console.log(`impronte di riferimento scritte in ${BASELINE}`);
     await g.ctx.close(); await B.close(); summary(); process.exit(process.exitCode || 0);
@@ -326,6 +418,46 @@ if (!process.env.COSTO){
     await m.ctx.close();
   }
   if (process.env.SOLO){ await B.close(); summary(); process.exit(process.exitCode || 0); }
+}
+
+/* ---------- 1b) racchetta fuori dalla testa grande, partita vera contro la CPU e nello stesso schermo ---------- */
+// Revisione del 12/11: con la testa grande la racchetta entrava nella testa. Stessa partita della revisione (contro la
+// CPU, seme 31337, 2600 passi, un robot al posto di chi gioca): quanti passi con il telaio dentro la testa prima e dopo,
+// quanto si scosta la racchetta, e al colpo le corde sono dove erano. La partita è la stessa con i due valori
+// dell'opzione, contro la CPU e nello stesso schermo (con il disegno a vuoto prima del seme: vedi play).
+if (!process.env.COSTO){
+  const ref = CONFRONTA && existsSync(CONFRONTA) ? JSON.parse(readFileSync(CONFRONTA, 'utf8')) : {};
+  for (const [name, run] of Object.entries(RUNS)){
+    if (process.env.TESTA && process.env.TESTA !== '1' && process.env.TESTA !== name) continue;
+    const out = {};
+    for (const cast of ['sempre', 'lobdrop']){
+      const g = await game({ cast, w: 640, h: 360 });
+      out[cast] = await play(g.p, { ...run, clip: cast === 'lobdrop' });
+      check(`partita ${name} con «${cast === 'lobdrop' ? 'Lob & Drop' : 'Classici'}»: nessun errore`, !g.errs.length, g.errs.join(' | ').slice(0, 300));
+      await g.ctx.close();
+    }
+    const A = out.sempre, M = out.lobdrop, c = M.clip;
+    check(`partita ${name}, sorteggi fissi: giocata, stessa impronta con «Classici» e con «Lob & Drop» (niente cambia nel gioco)`, A.hits >= 6 && A.hash === M.hash && M.looks.join() === 'drop,lob', `${A.hash} / ${M.hash}, ${A.hits} colpi, ${M.looks}`);
+    if (ref[`partita-${name}`]) check(`partita ${name}: identica a prima del B24`, ref[`partita-${name}`] === A.hash, `${ref[`partita-${name}`]} / ${A.hash}`);
+    const pct = n => `${n} su ${c.n} (${(n*100/c.n).toFixed(1)}%)`;
+    console.log(`racchetta e testa, partita ${name}: telaio dentro la testa · Drop prima ${pct(c.prima.player)}, dopo ${pct(c.dopo.player)} · Lob prima ${pct(c.prima.opponent)}, dopo ${pct(c.dopo.opponent)}`);
+    console.log(`  per confronto, sugli stessi passi con la testa del tennista di sempre: ${pct(c.uomo.player)} e ${pct(c.uomo.opponent)}`);
+    console.log(`  dove (passi prima → dopo): ${Object.entries(c.pose).map(([k, v]) => `${k} ${v[0]} → ${v[1]}`).join(' · ')}`);
+    for (const [k, n] of [['player', 'Drop'], ['opponent', 'Lob']]) console.log(`  ${n}: racchetta scostata in ${pct(c.scostata[k])}, in media ${(c.somma[k]/Math.max(1, c.scostata[k])*116).toFixed(1)} cm, al massimo ${(c.max[k]*116).toFixed(1)} cm; salto più grande tra due passi ${(c.salto[k]*116).toFixed(1)} cm`);
+    const moved = c.colpi.filter(x => x.scostamento > 0);
+    console.log(`  colpi ${c.colpi.length}, con la racchetta scostata al colpo: ${moved.length}${moved.length ? ' → ' + JSON.stringify(moved) : ''}`);
+    check(`partita ${name}: prima il telaio entrava nella testa (la misura morde)`, c.prima.player + c.prima.opponent > 100, `${c.prima.player} + ${c.prima.opponent}`);
+    // nelle pose tenute (attesa nello scambio) la racchetta è fuori; restano i passaggi veloci (colpo e ritorno dopo
+    // il colpo), dove lo scostamento è morbido e parziale: meno di metà di prima e non più spesso di quanto capita al
+    // tennista di sempre con la sua testa piccola
+    const wait = Object.entries(c.pose).filter(([k]) => /attesa/.test(k)).reduce((t, [, v]) => [t[0] + v[0], t[1] + v[1]], [0, 0]);
+    check(`partita ${name}: nell'attesa dello scambio il telaio non resta più nella testa (al più un ottavo di prima: l'ingresso nella posa e la palla in arrivo)`, wait[0] > 100 && wait[1] <= wait[0]*.125, `${wait[0]} → ${wait[1]} passi`);
+    check(`partita ${name}: telaio dentro la testa in meno di metà dei passi di prima`, c.dopo.player <= c.prima.player*.5 && c.dopo.opponent <= c.prima.opponent*.5, `Drop ${c.prima.player} → ${c.dopo.player}, Lob ${c.prima.opponent} → ${c.dopo.opponent}`);
+    check(`partita ${name}: non più spesso che al tennista di sempre con la sua testa`, c.dopo.player + c.dopo.opponent <= c.uomo.player + c.uomo.opponent, `mascotte ${c.dopo.player} + ${c.dopo.opponent}, tennista ${c.uomo.player} + ${c.uomo.opponent}`);
+    check(`partita ${name}: la racchetta non fa scatti (al più 16 cm tra due passi, cioè la velocità di rientro con la palla in arrivo)`, Math.max(c.salto.player, c.salto.opponent)*116 <= 16, `${(c.salto.player*116).toFixed(1)} e ${(c.salto.opponent*116).toFixed(1)} cm`);
+    check(`partita ${name}: al colpo le corde sono dove erano (punto d'impatto non cambiato)`, c.colpi.length >= 6 && c.colpi.every(x => Math.abs(x.dopo - x.prima) < .001), JSON.stringify(moved).slice(0, 300));
+  }
+  if (process.env.TESTA){ await B.close(); summary(); process.exit(process.exitCode || 0); }
 }
 
 /* ---------- 2) opzione e parametro ---------- */

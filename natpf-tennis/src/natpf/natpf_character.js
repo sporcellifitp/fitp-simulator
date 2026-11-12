@@ -384,6 +384,9 @@ function restyleFace(actor, look){
 const ACTOR_KEYS = ['player', 'playerPartner', 'opponent', 'opponentPartner'];
 export function updateNatpfCharacters(engine){
   const looks = castLooks(getCast(), !!engine?.isMultiplayer);
+  // tempo di gioco dall'ultimo disegno (per lo scostamento morbido della racchetta: natpf_racket_clear.js)
+  const now = engine?.elapsedTime, dt = now - engine?.natpfDrawnAt;
+  if (engine && typeof now === 'number') engine.natpfDrawnAt = now;
   for (const k of ACTOR_KEYS){
     const actor = engine?.[k];
     if (!actor?.natpfLimbs) continue;
@@ -391,7 +394,7 @@ export function updateNatpfCharacters(engine){
     if (actor.natpfLook !== want) applyNatpfLook(actor, want);
     // testa grande (mascotte): la racchetta si scosta dalla testa quanto serve, la mano la segue; con il tennista
     // (natpfHeadShape assente) non si tocca niente. Unico punto in cui si chiama: vedi natpf_racket_clear.js
-    actor.natpfRacketPush = keepRacketClear(actor, actor.natpfHeadShape || null);
+    actor.natpfRacketPush = keepRacketClear(actor, actor.natpfHeadShape || null, dt, engine.ball);
     updateNatpfActorLimbs(actor);
     if (actor.natpfMascot) updateMascotLabels(actor);
   }

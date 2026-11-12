@@ -21,7 +21,7 @@ import { PlayerFacialFXController } from '../src/player_facial_fx.js';
 import { getRacketRimWorldPoints, RacketKinematicsController } from '../src/racket_kinematics.js';
 import { upgradePlayerCharacterMaterials, upgradeRacketMaterials } from '../src/player_materials.js';
 import { setFirstPersonBody } from '../src/natpf/natpf_camera.js';
-import { keepRacketClear, racketInHead, CLEAR_MARGIN } from '../src/natpf/natpf_racket_clear.js';
+import { keepRacketClear, racketInHead, CLEAR_MARGIN, maxShift, PUSH_RATE, RELEASE_RATE, NEAR_BALL } from '../src/natpf/natpf_racket_clear.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mem = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: k => { m.delete(k); } }; };
@@ -231,7 +231,10 @@ test('stesso scheletro e stesse animazioni: parti, racchetta e mano identiche al
 
 // Revisione del 12/11 (bloccante): con la testa grande la racchetta entrava nella testa. Giro di pose: attesa, corsa,
 // dritto, rovescio, servizio, schiacciata, esultanza e sconfitta, un passo alla volta come nel gioco.
-function poseTour(c, each){
+function poseTour(c, each, stoppable = false){
+  try { poseSteps(c, each); } catch (e){ if (!stoppable || e !== true) throw e; }
+}
+function poseSteps(c, each){
   const A = c.actor, swing = (o, type, dur = .36) => { A.swingType = type; A.swingDuration = A.swingTimer = dur; c.rk.triggerSwing(A, o); };
   const run = (n, label, extra) => { for (let i = 0; i < n; i++){ step(c, 1/60, extra); A.swingTimer = Math.max(0, A.swingTimer - 1/60); each(label, i); } };
   run(40, 'attesa');
@@ -269,7 +272,7 @@ test('racchetta e testa grande: il telaio non entra più nella testa di Drop e d
       if (t === 0){ assert.deepEqual(A.racketMesh.position.toArray(), [0, 0, 0]); assert.ok(rawAll >= 1, `${key} ${label}: dentro la testa ma non scostata`); }
       else assert.ok(rawAll < edge, `${key} ${label}: scostata senza motivo (tutta la racchetta era a ${rawAll.toFixed(3)})`);
       assert.ok(racketInHead(A, H, null, true) >= 1, `${key} ${label}: piatto o manico ancora dentro la testa`);
-      assert.ok(t < .75, `${key} ${label}: scostamento esagerato (${t.toFixed(3)})`);
+      assert.ok(t < maxShift(H), `${key} ${label}: al tetto (${t.toFixed(3)})`);
     });
     assert.ok(S.prima > 20, `${key}: senza la correzione il telaio entrava nella testa (${S.prima} passi su ${S.n})`);
     // tornando al tennista la racchetta e la mano sono di nuovo al loro posto
@@ -290,20 +293,67 @@ test('racchetta e testa grande: vale per qualunque testa (più grande, spostata,
   const big = { rx: .52, ry: .46, rz: .5, cy: .2 }, shapes = [big, { rx: .3, ry: .3, rz: .3, cx: -.2, cy: .1, cz: .2 }, [MASCOT.lob.head, { rx: .3, ry: .05, rz: .2, cy: .25, cz: .3 }]];
   for (const shape of shapes){
     const c = mountActor('p1'), A = c.actor;
-    let inside = 0;
+    let inside = 0, capped = 0, steps = 0;
     poseTour(c, label => {
       keepRacketClear(A, null);
       const list = Array.isArray(shape) ? shape : [shape];
       if (list.some(s => racketInHead(A, s) < 1)) inside++;
-      keepRacketClear(A, shape); updateNatpfActorLimbs(A);
+      const t = keepRacketClear(A, shape); updateNatpfActorLimbs(A);
+      steps++;
+      // al tetto (racchetta che passa per il centro di una testa enorme) può restare dentro: è il limite dichiarato
+      if (t >= maxShift(shape) - 1e-9){ capped++; return; }
       for (const s of list) assert.ok(racketInHead(A, s) >= 1, `${label}: telaio dentro la forma ${JSON.stringify(s)}`);
     });
     assert.ok(inside > 10, `forma ${JSON.stringify(shape)}: la prova non ha mai messo la racchetta nella testa`);
+    assert.ok(capped <= steps*.05, `forma ${JSON.stringify(shape)}: al tetto in ${capped} passi su ${steps}`);
   }
   // prima persona: la testa è nascosta, la racchetta resta dove la mette il motore (come con il tennista)
   const c = mountActor('p1'), A = c.actor;
   applyNatpfLook(A, 'drop'); setFirstPersonBody(A, true);
   poseTour(c, () => { assert.equal(keepRacketClear(A, A.natpfHeadShape), 0); assert.deepEqual(A.racketMesh.position.toArray(), [0, 0, 0]); });
+});
+
+test('racchetta e testa grande in gioco: scostamento morbido, con un tetto, spento con la palla in arrivo (impatto come prima)', () => {
+  const dt = 1/60, H = MASCOT.drop.head;
+  // 1) durante i gesti: mai uno scatto più grande della velocità ammessa, mai oltre il tetto, mano sul manico
+  const c = mountActor('p1'), A = c.actor; applyNatpfLook(A, 'drop');
+  let prev = 0, moved = 0;
+  poseTour(c, label => {
+    const t = keepRacketClear(A, A.natpfHeadShape, dt); updateNatpfActorLimbs(A);
+    assert.ok(Math.abs(t - prev) <= RELEASE_RATE*dt + 1e-9, `${label}: scatto di ${(Math.abs(t - prev)*116).toFixed(1)} cm in un fotogramma`);
+    assert.ok(t <= maxShift(H) + 1e-9, `${label}: oltre il tetto (${t})`);
+    assert.ok(gripGap(A) < .03, `${label}: mano staccata dal manico (${gripGap(A)})`);
+    prev = t; if (t > 0) moved++;
+  });
+  assert.ok(moved > 30, `la racchetta si è scostata in ${moved} passi`);
+  // 2) posa tenuta con il telaio dentro la testa: in pochi fotogrammi è fuori, salendo piano
+  const d = mountActor('p1'), B = d.actor; applyNatpfLook(B, 'drop');
+  let found = false;
+  poseTour(d, () => { if (!found){ keepRacketClear(B, null); if (racketInHead(B, H) < .8) found = true; } if (found) throw found; }, true);
+  assert.ok(found, 'una posa con il telaio ben dentro la testa');
+  const raw = racketInHead(B, H), grip0 = gripGap(B);
+  let t0 = 0, frames = 0;
+  for (; frames < 40 && racketInHead(B, H) < 1; frames++){
+    const t = keepRacketClear(B, B.natpfHeadShape, dt);
+    assert.ok(t >= t0 && t - t0 <= PUSH_RATE*dt + 1e-9, `fotogramma ${frames}: ${t0} → ${t}`); t0 = t;
+  }
+  assert.ok(racketInHead(B, H) >= 1 && frames >= 2 && frames <= 20, `telaio fuori dalla testa in ${frames} fotogrammi (era a ${raw.toFixed(2)})`);
+  for (let i = 0; i < 10; i++) keepRacketClear(B, B.natpfHeadShape, dt);
+  const held = keepRacketClear(B, B.natpfHeadShape, dt);
+  assert.ok(racketInHead(B, H, null, true) >= 1 && held > 0, 'posa tenuta: tutta la racchetta fuori dalla testa');
+  assert.ok(Math.abs(gripGap(B) - grip0) < 1e-9, 'la mano ha seguito il manico');
+  // 3) palla lenta o lontana: non cambia niente; palla veloce in arrivo vicino alle corde: lo scostamento si spegne
+  const strings = new THREE.Vector3(0, .545, 0).applyMatrix4(B.racketMesh.matrixWorld);
+  const ball = (dist, speed) => ({ pos: strings.clone().add(new THREE.Vector3(0, 0, dist)), vel: new THREE.Vector3(0, 0, -speed) });
+  assert.equal(keepRacketClear(B, B.natpfHeadShape, dt, ball(.5, 1)), held, 'palla lenta (in mano, a terra): resta scostata');
+  assert.equal(keepRacketClear(B, B.natpfHeadShape, dt, ball(NEAR_BALL + 1.2, 20)), held, 'palla veloce ma lontana: resta scostata');
+  let t1 = held, n = 0;
+  for (; n < 12 && t1 > 0; n++){ const t = keepRacketClear(B, B.natpfHeadShape, dt, ball(.9, 20)); assert.ok(t < t1 && t1 - t <= RELEASE_RATE*dt + 1e-9); t1 = t; }
+  assert.equal(t1, 0); assert.ok(n <= Math.ceil(maxShift(H)/(RELEASE_RATE*dt)), `spento in ${n} fotogrammi`);
+  assert.deepEqual(B.racketMesh.position.toArray(), [0, 0, 0], 'con la palla sulle corde la racchetta è dove la mette il motore');
+  assert.ok(Math.abs(gripGap(B) - grip0) < 1e-9);
+  // un salto di tempo (pausa, scena nuova): subito al bersaglio
+  assert.ok(Math.abs(keepRacketClear(B, B.natpfHeadShape, 3) - held) < 1e-9);
 });
 
 test('mancini: personaggio specchiato come il tennista, racchetta nella stessa mano, scritta leggibile', () => {
