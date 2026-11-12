@@ -241,14 +241,23 @@ export class NatpfSplitUi {
   // pulsanti delle fasce sulle due schede
   _paintBands(){
     for (const id of SPLIT_PLAYERS) for (const btn of document.querySelectorAll(`[data-split-band^="${id}:"]`)){ const on = btn.dataset.splitBand.endsWith(':' + this.band(id)); btn.classList.toggle('selected', on); btn.setAttribute('aria-pressed', String(on)); }
+    // revisione B25: «Aiuto» sulla scheda di chi è aiutato (la barra dell'avvio lo dice per esteso, ma nelle aree basse è
+    // sotto il bordo); con il passaggio del mouse, la frase intera
+    const helped = this.helpedId(), note = helped ? this.helpNote() : '';
+    for (const id of SPLIT_PLAYERS){ const tag = document.querySelector(`[data-band-help="${id}"]`); if (!tag) continue; tag.parentElement.classList.toggle('helped', id === helped); tag.title = id === helped ? note : ''; }
+  }
+  // chi è aiutato con le fasce di adesso ('p1' | 'p2' | null; null con le fasce uguali o con la webcam per due)
+  helpedId(){
+    if (this.webcam) return null;
+    const help = helpFor(this.engine.natpfSplitBands || {}, undefined, readOpenCourt());
+    return help.p1 ? 'p1' : help.p2 ? 'p2' : null;
   }
   // aiuto al più giovane con le fasce di adesso, come lo dice la barra dell'avvio: «Aiuto a Giulia (Bambino): parte da
   // 15-0 e ha più margine sul tempo.» ('' con le fasce uguali o con la webcam per due, dove l'aiuto non vale)
   helpNote(){
-    if (this.webcam) return '';
     // (con il campo aperto acceso l'aiuto può essere diverso: lo stesso che il motore userà nella partita)
-    const help = helpFor(this.engine.natpfSplitBands || {}, undefined, readOpenCourt()), id = help.p1 ? 'p1' : help.p2 ? 'p2' : null;
-    return id ? helpSentence(help[id], this.name(id)) : '';
+    const id = this.helpedId();
+    return id ? helpSentence(helpFor(this.engine.natpfSplitBands || {}, undefined, readOpenCourt())[id], this.name(id)) : '';
   }
   setHand(id, hand){
     // (natpfP2Hand: il piano d'intercetto del P2 sa da che lato è il suo dritto prima del primo colpo, natpf_impact.handOf).

@@ -841,11 +841,12 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
   .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(6, 1fr); }
 }
 @container natpf (max-width: 820px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(2, 1fr); } }
-/* B25: a 720 × 720 i 12 pulsanti su due colonne fanno sei file e il foglio scorreva di 10 px: file un po' più strette */
+/* B25: a 720 × 720 i 12 pulsanti su due colonne fanno sei file e il foglio scorreva di 10 px: file un po' più strette
+   (revisione: con il chiosco acceso la nota è su due righe e con le opzioni accese scorreva ancora di 6 px: altri 11 px) */
 @container natpf (max-width: 820px) and (max-height: 760px) {
-  .natpf-sheet.staff-sheet .pause-grid { gap: 6px; }
-  .natpf-sheet.staff-sheet .sheet-actions { margin-top: 10px; }
-  .natpf-sheet.staff-sheet .sheet-desc { margin-bottom: 8px; }
+  .natpf-sheet.staff-sheet .pause-grid { gap: 5px; }
+  .natpf-sheet.staff-sheet .sheet-actions { margin-top: 8px; }
+  .natpf-sheet.staff-sheet .sheet-desc { margin-bottom: 4px; }
 }
 @container natpf (max-width: 640px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: 1fr; } }
 .natpf-sheet .pause-grid button {
@@ -1197,6 +1198,12 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
    piè di pagina (a 1366 × 657 con i pulsanti da 38 px scendeva di 11 px) */
 #title-modal .split-actions .split-band .seg-btn { flex: 1 1 0; min-width: 0; height: 30px; padding-inline: 4px; font-size: 15px; }
 #title-modal .split-setup[data-input="webcam"] .split-band { display: none; }
+/* revisione B25: «Aiuto» sulla scheda di chi è aiutato, sull'angolo della riga delle fasce (sopra «Adulto», che non è mai
+   la fascia di chi è aiutato). A 1920 × 540 e 1024 × 600 la barra dell'avvio, che dichiara l'aiuto per esteso, è sotto
+   il piè di pagina: sulla scheda si vede senza scorrere. Non occupa spazio (la scheda resta alta uguale) */
+#title-modal .split-actions .split-band { position: relative; }
+#title-modal .split-band .band-help { display: none; position: absolute; right: 12px; top: -9px; padding: 0 7px; border-radius: var(--r-pill); background: var(--ball); color: var(--ink-900); font: 800 11px/16px var(--font-text); letter-spacing: 0.06em; text-transform: uppercase; pointer-events: none; }
+#title-modal .split-band.helped .band-help { display: block; }
 #title-modal .split-grip { grid-column: 1 / -1; margin: 0; font: 500 15px/1.4 var(--font-text); color: var(--text-2); }
 @container natpf (max-width: 860px) {
   #title-modal .split-setup { grid-template-columns: 1fr; }

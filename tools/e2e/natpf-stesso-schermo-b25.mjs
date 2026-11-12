@@ -88,6 +88,19 @@ try {
     const w = k === 'autotoss' ? [st.auto, st.autoOn] : [st.open, st.openOn];
     check('   un altro clic lo spegne («No», salvato 0)', w[0] === 'No' && !w[1] && st[key] === '0', fmt({ w, saved: st[key] }));
   }
+  // revisione: anche con le opzioni ACCESE (scritte più lunghe) e il chiosco acceso (nota su due righe): a 720×720 il
+  // foglio scorreva di 6 px
+  for (const k of ['hot', 'kiosk', 'autotoss', 'open']){ await g.click(`#natpf-staff [data-staff="${k}"]`); await sleep(120); }
+  for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720]]){
+    await g.setViewportSize({ width: w, height: h }); await sleep(450);
+    const s = await sheetAt();
+    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 12 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    if (h === 720 && w === 720 || h === 540) await shot(`1c-pannello-stand-accesi-${w}x${h}`);
+  }
+  await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
+  for (const k of ['hot', 'kiosk', 'autotoss', 'open']){ await g.click(`#natpf-staff [data-staff="${k}"]`); await sleep(120); }
+  st = await staff();
+  check('   rispente: tutto come di base', st.auto === 'No' && st.open === 'No' && st.savedAuto === '0' && st.savedOpen === '0' && await g.evaluate(() => !__natpfTennis.natpfUi.kiosk?.enabled), fmt(st));
   await g.click('#natpf-staff [data-staff="close"]');
 
   /* 2: pagina dei telefoni, fasce */
@@ -103,16 +116,21 @@ try {
     const inCard = id => [...document.querySelectorAll(`[data-split-band^="${id}:"]`)].every(b => b.closest(`[data-split-player="${id}"]`) && vis(b));
     const bar = barEl.getBoundingClientRect(), set = document.querySelector('[data-setup="split"]'), foot = document.getElementById('lobby-back').getBoundingClientRect();
     const cards = ['p1', 'p2'].map(id => { const r = document.querySelector(`[data-split-player="${id}"]`).getBoundingClientRect(), q = set.getBoundingClientRect(); return r.left >= q.left && r.right <= q.right; });
-    return { engine: __natpfTennis.natpfSplitBands, p1: sel('p1'), p2: sel('p2'), all: all('p1'), note, sub, inCard: [inCard('p1'), inCard('p2')], cards, overflowX: set.scrollWidth - set.clientWidth, bar: [Math.round(bar.top), Math.round(bar.bottom)], foot: Math.round(foot.top), H: innerHeight }; });
+    // revisione: «Aiuto» sulla scheda di chi è aiutato; in vista = intero nello schermo e sopra il piè di pagina
+    const badge = id => { const t = document.querySelector(`[data-band-help="${id}"]`), r = t.getBoundingClientRect(); return { on: t.parentElement.classList.contains('helped') && getComputedStyle(t).display !== 'none', text: t.textContent, title: t.title, seen: r.width > 0 && r.top >= 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= document.getElementById('lobby-back').getBoundingClientRect().top, inCard: !!t.closest(`[data-split-player="${id}"]`) }; };
+    return { badge: { p1: badge('p1'), p2: badge('p2') }, engine: __natpfTennis.natpfSplitBands, p1: sel('p1'), p2: sel('p2'), all: all('p1'), note, sub, inCard: [inCard('p1'), inCard('p2')], cards, overflowX: set.scrollWidth - set.clientWidth, bar: [Math.round(bar.top), Math.round(bar.bottom)], foot: Math.round(foot.top), H: innerHeight }; });
   let bd = await bands();
-  check('2. pagina dei telefoni: su ogni scheda «Bambino · Ragazzo · Adulto», di base Adulto per tutti e due, nessun aiuto', bd.all.join('|') === 'Bambino|Ragazzo|Adulto' && bd.p1.join() === 'Adulto' && bd.p2.join() === 'Adulto' && bd.engine.p1 === 'adulto' && bd.engine.p2 === 'adulto' && !bd.note && bd.inCard.every(Boolean) && bd.overflowX <= 0, fmt(bd));
+  check('2. pagina dei telefoni: su ogni scheda «Bambino · Ragazzo · Adulto», di base Adulto per tutti e due, nessun aiuto', bd.all.join('|') === 'Bambino|Ragazzo|Adulto' && bd.p1.join() === 'Adulto' && bd.p2.join() === 'Adulto' && bd.engine.p1 === 'adulto' && bd.engine.p2 === 'adulto' && !bd.note && !bd.badge.p1.on && !bd.badge.p2.on && bd.inCard.every(Boolean) && bd.overflowX <= 0, fmt(bd));
   await shot('2-telefoni-fasce-di-base');
   await g.click('[data-split-band="p2:bambino"]'); await sleep(200);
   bd = await bands();
   check('   Giulia «Bambino»: la barra dell\'avvio dichiara l\'aiuto, con il nome e cosa cambia', bd.p2.join() === 'Bambino' && bd.p1.join() === 'Adulto' && bd.engine.p2 === 'bambino' && bd.note === 'Aiuto a Giulia (Bambino): parte da 15-0 e ha più margine sul tempo.', fmt(bd));
+  check('   sulla scheda di Giulia compare «Aiuto» (con la frase intera al passaggio del mouse); su quella di Marco niente', bd.badge.p2.on && bd.badge.p2.text === 'Aiuto' && bd.badge.p2.inCard && bd.badge.p2.title === bd.note && !bd.badge.p1.on, fmt(bd.badge));
   for (const [w, h] of [[1280, 720], [1024, 600], [1920, 540], [1366, 657], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await bands();
+    // (a 720×720 la pagina dei telefoni scorre, come prima del B25: la riga delle fasce è più sotto)
+    if (!(w === 720 && h === 720)) check(`   pagina dei telefoni a ${w}×${h}: «Aiuto» sulla scheda di Giulia è in vista senza scorrere${h <= 600 ? ' (qui la barra dell\'avvio è sotto il piè di pagina)' : ''}`, s.badge.p2.on && s.badge.p2.seen && !s.badge.p1.on, fmt({ badge: s.badge.p2, bar: s.bar, foot: s.foot }));
     // le schede restano nel riquadro (niente scorrimento di lato); dove la barra dell'avvio si vedeva già tutta (1280×720 e
     // 1366×657; alle altre misure il riquadro scorre, come prima del B25) resta sopra il piè di pagina
     const full = (w === 1280 && h === 720) || (w === 1366 && h === 657);
@@ -125,7 +143,7 @@ try {
   check('   Giulia «Ragazzo»: aiuto più leggero (solo il margine sul tempo)', bd.note === 'Aiuto a Giulia (Ragazzo): ha più margine sul tempo.', fmt(bd));
   await g.click('[data-split-band="p1:ragazzo"]'); await sleep(150);
   bd = await bands();
-  check('   tutti e due «Ragazzo»: fasce uguali, nessun aiuto', !bd.note && bd.engine.p1 === 'ragazzo' && bd.engine.p2 === 'ragazzo', fmt(bd));
+  check('   tutti e due «Ragazzo»: fasce uguali, nessun aiuto', !bd.note && !bd.badge.p1.on && !bd.badge.p2.on && bd.engine.p1 === 'ragazzo' && bd.engine.p2 === 'ragazzo', fmt(bd));
   await g.click('[data-split-band="p1:adulto"]'); await g.click('[data-split-band="p2:bambino"]'); await sleep(150);
 
   /* 3: partita con l'aiuto dichiarato */
@@ -211,7 +229,17 @@ try {
   await g.evaluate(() => { localStorage.setItem('natpf-tennis.campoAperto', '1'); const E = __natpfTennis; E.startNewMatch({ showStartBanner: false }); E.hud.hideCenterBanner(); });
   const on = await run();
   check('   acceso (dalla partita dopo): verso la palla 5,88 m/s, al rientro 1,96 m/s', on.open === true && on.toBall === 5.88 && on.back === 1.96, fmt(on));
-  await g.evaluate(() => { localStorage.setItem('natpf-tennis.campoAperto', '0'); const E = __natpfTennis; E.startNewMatch({ showStartBanner: false }); E.hud.hideCenterBanner(); });
+  // revisione: con il campo aperto acceso il servizio passa ogni due punti anche nel formato classico (chi batte lì è
+  // sfavorito); spento, nel classico batte sempre lo stesso
+  const serveSeq = () => g.evaluate(() => { const E = __natpfTennis; E.natpfFair = false; E.startNewMatch({ showStartBanner: false });
+    const s = [E.score.server]; for (const w of ['player', 'opponent', 'player']){ E._awardPoint(w, 'Out'); s.push(E.score.server); }
+    const r = { fair: E.score.fair, open: !!E.natpfDuo?.open, s: s.map(x => (x === s[0] ? 'A' : 'B')).join(' ') }; E.natpfFair = undefined; E.hud.hideCenterBanner(); return r; });
+  const altOn = await serveSeq();
+  check('   acceso, formato classico: il servizio passa ogni due punti (A, B B, A…)', altOn.open === true && altOn.fair === false && altOn.s === 'A B B A', fmt(altOn));
+  await g.evaluate(() => { localStorage.setItem('natpf-tennis.campoAperto', '0'); });
+  const altOff = await serveSeq();
+  check('   spento, formato classico: batte sempre lo stesso per tutto il game, come sempre', altOff.open === false && altOff.fair === false && altOff.s === 'A A A A', fmt(altOff));
+  await g.evaluate(() => { const E = __natpfTennis; E.startNewMatch({ showStartBanner: false }); E.hud.hideCenterBanner(); });
   await sleep(300); await shot('5-partita-1280');
 
   /* 6: «Nuovo giocatore» */

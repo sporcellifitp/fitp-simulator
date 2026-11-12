@@ -458,11 +458,17 @@ test('fasce: sulla scheda di ciascun giocatore nella pagina dei telefoni; «Nuov
   assert.match(ui, /engine\.natpfSplitBands = \{ p1: BAND_DEFAULT, p2: BAND_DEFAULT \};/);
   assert.match(ui, /resetNames\(\)\{[\s\S]*?this\.resetBands\(\);/, '«Nuovo giocatore» (resetNames) azzera anche le fasce');
   assert.match(ui, /helpLabel\(E\.natpfDuo\?\.help\?\.\[id\]\)/, 'targhetta in campo');
+  // revisione: «Aiuto» sulla scheda di chi è aiutato (dove la barra dell'avvio è sotto il bordo si vede lo stesso)
+  for (const id of ['p1', 'p2']) assert.match(html, new RegExp(`data-split-band="${id}:adulto">Adulto</button><i class="band-help" data-band-help="${id}">Aiuto</i></div>`));
+  assert.match(ui, /tag\.parentElement\.classList\.toggle\('helped', id === helped\)/);
+  assert.match(ui, /helpedId\(\)\{\s*if \(this\.webcam\) return null;/, 'con la webcam per due niente aiuto dichiarato');
   assert.match(ui, /const help = this\.helpNote\(\);\s*if \(help\) sub = `\$\{sub\} \$\{help\}`;/, 'dichiarato nella barra dell\'avvio e nel conto alla rovescia');
   assert.match(src('../src/natpf/natpf_kiosk.js'), /ui\.split\?\.resetBands\?\.\(\);/);
   assert.match(src('../src/natpf/natpf_new_player.js'), /E\.natpfSplitBands = \{ p1: 'adulto', p2: 'adulto' \}/);
   // misure legate allo schermo con cqw/cqh, non vw/vh
-  const css = src('../natpf-ui.css'), rules = css.split('\n').filter(l => /split-band|split-tag\.helped/.test(l)).join('\n');
+  const css = src('../natpf-ui.css'), rules = css.split('\n').filter(l => /split-band|split-tag\.helped|band-help/.test(l)).join('\n');
+  assert.match(css, /\.split-band \.band-help \{ display: none; position: absolute;/, 'non occupa spazio sulla scheda');
+  assert.match(css, /\.split-band\.helped \.band-help \{ display: block; \}/);
   assert.ok(rules.length > 0); assert.doesNotMatch(rules, /\d(vw|vh)\b/);
 });
 
