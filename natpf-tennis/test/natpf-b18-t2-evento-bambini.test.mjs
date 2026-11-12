@@ -12,7 +12,7 @@ import { ASSIST, assistOf, IMPACT, impactWindow, SUPER, strokeOutcome, lateSpanO
 import { lateMargin } from '../src/natpf/natpf_impact.js';
 import { WHO, WHO_LEVEL, WHO_DEFAULT, CPU_LEVELS, whoOfLevel, urlLevel, baseLevel, levelSummary, whoNote } from '../src/natpf/natpf_who.js';
 import { CUE, cueOn, cueDefault, cueView, cueEdges, cueHold, readCue, writeCue, CUE_KEY, NatpfTimingCue } from '../src/natpf/natpf_timing_cue.js';
-import { superHint, superReason, SUPER_RULE } from '../src/natpf/natpf_super_hint.js';
+import { superHint, superReason, situationCause, SITUATION_WORDS, SUPER_RULE, NatpfSuperHint } from '../src/natpf/natpf_super_hint.js';
 import { matchSummary } from '../src/natpf/natpf_lobby.js';
 
 const near = (a, b, e = 1e-9) => Math.abs(a - b) <= e;
@@ -347,9 +347,11 @@ test('colpo super spiegato: la prima volta la regola e il motivo, poi solo il mo
   assert.ok(first.first && first.text.startsWith(SUPER_RULE) && /bassa e veloce/.test(first.text), first.text);
   const again = superHint(shot('fuori tempo'));
   assert.equal(again.text, 'Super mancato: eri fuori tempo.'); assert.ok(again.seconds < first.seconds);
-  assert.match(superHint(shot('in corsa o in allungo')).text, /in corsa/);
   assert.match(superHint(shot('colpo innaturale (palla dall\'altra parte)')).text, /lato sbagliato/);
-  assert.match(superHint(shot('colpo slice')).text, /dritto, rovescio o schiacciata/);
+  // tipo di colpo: frase che sta in piedi anche dopo «Questa volta» (revisione: prima «Questa volta vale solo con…»)
+  assert.equal(superHint(shot('colpo slice')).text, 'Super mancato: il colpo era tagliato.');
+  assert.equal(superHint(shot('colpo lob')).text, 'Super mancato: era un pallonetto.'); assert.equal(superHint(shot('colpo drop')).text, 'Super mancato: era una palla corta.');
+  assert.equal(superHint(shot('colpo slice'), { first: true }).text, `${SUPER_RULE} Questa volta il colpo era tagliato.`);
   // niente scritta: super riuscito, colpo fallito, gesto non fortissimo, motivo che non spiega niente
   assert.equal(superHint(shot('gesto fortissimo', { super: 'alta' })), null);
   assert.equal(superHint(shot('fuori tempo', { out: { failed: true } })), null);
@@ -359,8 +361,74 @@ test('colpo super spiegato: la prima volta la regola e il motivo, poi solo il mo
   for (const w of ['gesto non abbastanza forte', 'colpo non riuscito', '', undefined]) assert.equal(superReason(w), null);
   // le condizioni del super non sono toccate (decisione del 29/10)
   assert.deepEqual({ power: SUPER.power, timing: SUPER.timing, quality: SUPER.quality, highY: SUPER.highY, slowVz: SUPER.slowVz }, { power: .86, timing: .6, quality: .8, highY: 1.25, slowVz: 12.5 });
-  // le frasi sono corte: stanno in due righe sul grande schermo
+  // le frasi sono corte: stanno in due righe sul grande schermo (anche con il motivo più lungo)
   assert.ok(SUPER_RULE.length <= 80 && first.text.length <= 130 && again.text.length <= 60);
+  const longest = Object.values(SITUATION_WORDS).reduce((a, w) => (w.length > a.length ? w : a));
+  assert.ok(`${SUPER_RULE} Questa volta ${longest}.`.length <= 155 && `Super mancato: ${SITUATION_WORDS.prep}.`.length <= 60, longest);
+});
+
+// Revisione (bloccante 2): superShot risponde «in corsa o in allungo» ogni volta che la qualità è sotto 0,8; la scritta
+// diceva sempre «eri in corsa», quasi sempre falso (chi colpiva era fermo: palla profonda, niente preparazione, scambio lungo)
+test('colpo super spiegato: quando manca la qualità la scritta dice la voce vera della situazione, «in corsa» solo se correva', () => {
+  const strong = { power: 1, depth: 1, shot: 'topspin' }, ok = { reach: 1, prep: 1, stretch: 1, fast: 1, deep: 1, high: 1, pressure: 1, running: 0 };
+  const text = sit => superHint({ who: 'player', intent: strong, out: { shot: 'TOPSPIN' }, super: null, superWhy: ['in corsa o in allungo'], superRel: 1.1, sit }).text;
+  // una voce sola sotto 1
+  assert.equal(situationCause({ ...ok, deep: .85, pressure: .9 }), 'deep'); assert.equal(text({ ...ok, deep: .78 }), 'Super mancato: la palla era troppo profonda.');
+  assert.equal(text({ ...ok, fast: .76 }), 'Super mancato: la palla era troppo veloce.');
+  assert.equal(text({ ...ok, high: .88, pressure: .9 }), 'Super mancato: la palla era sopra la spalla.');
+  assert.equal(text({ ...ok, stretch: .7 }), 'Super mancato: eri in allungo.');
+  assert.equal(text({ ...ok, pressure: .7 }), 'Super mancato: lo scambio era lungo.');
+  // corsa e palla lontana sono la stessa voce (reach): «in corsa» solo se chi colpiva correva davvero
+  assert.equal(text({ ...ok, reach: .7, running: .2 }), 'Super mancato: la palla era lontana.');
+  assert.equal(text({ ...ok, reach: .7, running: .8 }), 'Super mancato: eri in corsa.');
+  // la preparazione mancante (0,86) da sola non basta mai a togliere il super; con un'altra voce: se bastava portare
+  // indietro la racchetta lo si dice (è l'unica voce che chi gioca può correggere), se non bastava si dice la voce più bassa
+  assert.equal(situationCause({ ...ok, prep: .86, deep: .9 }), 'prep', '0,86 × 0,9 = 0,77 < 0,8; con la preparazione 0,9: bastava');
+  assert.equal(text({ ...ok, prep: .86, deep: .9 }), 'Super mancato: non hai portato indietro la racchetta.');
+  assert.equal(situationCause({ ...ok, prep: .86, deep: .75 }), 'deep', 'anche con la preparazione 0,75 < 0,8: la causa è la palla');
+  assert.equal(situationCause({ ...ok, prep: .86, pressure: .9, stretch: .95 }), 'prep');
+  // senza le voci (registrazioni vecchie) una frase generica ma vera; mai «eri in corsa» a caso
+  assert.equal(text(undefined), `Super mancato: ${SITUATION_WORDS.unknown}.`); assert.equal(text(ok), `Super mancato: ${SITUATION_WORDS.unknown}.`);
+  assert.equal(situationCause(null), null); assert.equal(situationCause(ok), null);
+  assert.equal(superReason('in corsa o in allungo', { ...ok, deep: .7 }), SITUATION_WORDS.deep);
+  // le voci una per una sono quelle del motore (game_engine._natpfRacketShot)
+  const S = NS.situationParts({ reach: .9, prep: .86, stretch: 1 }, { speed: 30, z: 12.8, y: 1.8, smash: false, pressure: .97, running: .3 });
+  assert.deepEqual(S, { reach: .9, prep: .86, stretch: 1, fast: .875, deep: .925, high: .94, pressure: .97, running: .3 });
+  assert.equal(NS.situationParts({}, { speed: 40, z: -14, y: 2.4, smash: true }).high, 1, 'la schiacciata non paga la palla alta');
+  assert.deepEqual(NS.situationParts(), { reach: 1, prep: 1, stretch: 1, fast: 1, deep: 1, high: 1, pressure: 1, running: 0 });
+});
+
+test('colpo super spiegato nel motore vero: le voci scritte dal motore danno la qualità del colpo e la scritta dice quella giusta; una scritta a punto', () => {
+  // chi colpisce forte senza portare indietro la racchetta, a Evento: tante scritte, di tutti i tipi
+  const P = { ...PROFILES.tennista, prep: .3 };
+  const T = { shots: 0, quality: 0, said: {}, hints: 0 };
+  let seen = null, H = null, points = 0, hintPoint = -1, twice = 0, shownBefore = 0;
+  const out = simulate({ profile: P, difficulty: 'evento', points: 90, seed: 4441,
+    setup: e => { H = new NatpfSuperHint(e); const award = e._awardPoint.bind(e); e._awardPoint = (...a) => { points++; return award(...a); }; },
+    onStep: e => { H.update(1/120);
+      if (H.shown > shownBefore){ shownBefore = H.shown; if (hintPoint === points) twice++; hintPoint = points; }
+      const r = e.natpfLastRacket; if (!r || r === seen || r.who !== 'player') return; seen = r; T.shots++;
+      const s = r.sit, prod = s.reach*s.prep*s.stretch*s.fast*s.deep*s.high*s.pressure;
+      // le sette voci (a tre cifre) ridanno la qualità di situazione scritta dal motore (quality × pressure)
+      assert.ok(Math.abs(prod - r.quality) <= .006, `colpo ${T.shots}: voci ${prod.toFixed(3)}, motore ${r.quality}`);
+      if (r.superWhy?.[0] !== 'in corsa o in allungo') return;
+      const h = superHint(r); if (!h) return;
+      T.quality++; const cause = situationCause(s);
+      assert.ok(cause, 'una voce sotto 1 c\'è sempre quando la qualità è sotto 0,8');
+      assert.equal(h.text, `Super mancato: ${SITUATION_WORDS[cause]}.`);
+      T.said[cause] = (T.said[cause] || 0) + 1;
+      if (cause === 'running') assert.ok(s.running > .5 && s.reach < 1);
+      else {
+        const lowest = s[cause] < 1 && ['reach', 'prep', 'stretch', 'fast', 'deep', 'high', 'pressure'].every(k => s[cause] <= s[k]);
+        if (cause === 'prep') assert.ok(s.prep < 1 && (prod/s.prep >= SUPER.quality || lowest), 'bastava portare indietro la racchetta, o è la voce più bassa');
+        else assert.ok(lowest, `${cause} è la voce più bassa`);
+      }
+    } });
+  assert.ok(T.quality >= 30, `scritte per la qualità: ${T.quality}`);
+  assert.ok(T.said.prep >= 5 && T.said.deep >= 5, JSON.stringify(T.said));
+  assert.equal(T.said.running || 0, 0, 'nel banco chi colpisce è fermo: «eri in corsa» non esce mai');
+  // al massimo una scritta a punto
+  assert.equal(twice, 0); assert.ok(H.shown >= 20 && H.shown <= out.points, `${H.shown} scritte in ${out.points} punti`);
 });
 
 /* ---------- nell'interfaccia: chiosco, «Nuovo giocatore», menu principale ---------- */

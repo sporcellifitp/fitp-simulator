@@ -1455,7 +1455,9 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 /* stesso schermo: sopra le etichette dei giocatori (.natpf-split-hud), che occupano il fondo di ogni metà */
 .natpf-meters.split { padding-bottom: clamp(56px, 10cqh, 120px); }
 /* B18.2 gruppo 3: perché il colpo super non è scattato (natpf_super_hint.js), sopra le barre di potenza ed energia */
-.natpf-super-hint { position: fixed; left: clamp(10px, 2cqw, 28px); bottom: clamp(74px, 13cqh, 150px); z-index: 31; max-width: min(44cqw, 640px); margin: 0; padding: 0.4em 0.8em; border-radius: var(--r-m); border: 1px solid rgba(255, 176, 32, 0.65); background: rgba(5, 9, 28, 0.84); color: #ffd24a; font: 600 clamp(12px, min(2.8cqh, 1.5cqw), 24px)/1.25 var(--font-text); pointer-events: none; }
+/* revisione: carattere minimo 14 px (era 12: a 720×720 il motivo più lungo andava su quattro righe piccole) e, sugli
+   schermi stretti, riquadro largo almeno 350 px: la frase più lunga sta in tre righe */
+.natpf-super-hint { position: fixed; left: clamp(10px, 2cqw, 28px); bottom: clamp(74px, 13cqh, 150px); z-index: 31; max-width: min(max(44cqw, 350px), 640px, 94cqw); margin: 0; padding: 0.4em 0.8em; border-radius: var(--r-m); border: 1px solid rgba(255, 176, 32, 0.65); background: rgba(5, 9, 28, 0.84); color: #ffd24a; font: 600 clamp(14px, min(2.8cqh, 1.5cqw), 24px)/1.25 var(--font-text); pointer-events: none; }
 .natpf-super-hint.hidden { display: none; }
 /* B10, esito del colpo (natpf_shot_feedback.js popupPlace): nell'angolo in basso del proprio lato, sopra Potenza ed
    Energia (bottom dal JS), fuori dal campo. Prima si apriva sopra la testa di chi colpiva: nel doppio, con il compagno a

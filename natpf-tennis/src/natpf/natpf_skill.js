@@ -380,6 +380,19 @@ export function playerDepthZ(z, { quality = 1, power = .6, level = SKILL_LEVELS.
 }
 // Equilibrio al contatto: allungarsi o colpire in corsa toglie qualità (come executionQuality di NATPF).
 export function reachQuality(lateral, running = 0){ return clamp(1 - Math.max(0, finite(lateral) - 1.1)*.22 - clamp(finite(running))*.15, .35, 1); }
+// B18.2 gruppo 3 (revisione): le voci della situazione di un colpo di chi gioca, una per una, come le calcola il motore
+// (game_engine._natpfRacketShot: quality = reach × prep × stretch × pace; pace = fast × deep × high), più la pressione dello
+// scambio lungo e la corsa. Solo per chi spiega il colpo (natpf_super_hint.js: perché il super non è scattato) e per la
+// diagnostica: non entra nell'esito. Q: { reach, prep, stretch } già calcolate dal motore; speed: velocità della palla
+// (m/s); z: dove è chi colpisce lungo il campo; y: altezza della palla; smash: colpo da sopra la testa
+export function situationParts(Q = {}, { speed = 0, z = 0, y = 1, smash = false, pressure = 1, running = 0 } = {}){
+  const r3 = v => +finite(v, 1).toFixed(3);
+  return { reach: r3(Q.reach), prep: r3(Q.prep), stretch: r3(Q.stretch),
+    fast: r3(1 - .25*clamp((finite(speed) - 24)/12)),            // palla molto veloce (da 24 m/s, fino a −25% a 36 m/s)
+    deep: r3(1 - .15*clamp((Math.abs(finite(z)) - 12.2)/1.2)),   // colpita oltre 30 cm dietro la riga di fondo (fino a −15%)
+    high: r3(smash ? 1 : 1 - .12*clamp((finite(y, 1) - 1.5)/.6)), // rimbalzo alto sopra la spalla (fino a −12%, non la schiacciata)
+    pressure: r3(pressure), running: +clamp(finite(running)).toFixed(3) };
+}
 // Forza dello swing del motore base (0,8…1,68) → 0…1
 export const powerNorm = speed => clamp((finite(speed, 1.18) - .8)/.88);
 // Tempo di volo più corto con i colpi perfetti consecutivi
