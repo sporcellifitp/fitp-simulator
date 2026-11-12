@@ -10,6 +10,7 @@
 //   lanciare o dopo un lancio a vuoto, finché un servizio non parte.
 // Leggibile sul ledwall: misure in cqh (@container natpf), testo bianco su fondo scuro pieno, bordo colorato per lo stato.
 // Non nell'allenamento (la scheda dell'esercizio ha già il suo testo) né nelle sfide.
+import { autoTossNext } from './natpf_duo_rules.js';
 export const SERVE_COACH = Object.freeze({
   firstServes: 2,      // servizi riusciti con le istruzioni piene, a ogni partita nuova
   apexBefore: .24,     // s prima del punto più alto: «Colpisci!»
@@ -21,6 +22,11 @@ export const SERVE_COACH = Object.freeze({
   fallY: 1.6,           // m: senza il segnale del motore (Player 2 sull'altro computer) lancio a vuoto se la palla era sotto
 });
 const TOSS = { phone: 'Alza il telefono: lanci la palla', webcam: 'Alza la mano: lanci la palla', mouse: 'Premi ↑ o W: lanci la palla' };
+// B25, lancio automatico (opzione dello staff, natpf_duo_rules.js). g.auto: { left, what } secondi che mancano al lancio
+// automatico ('toss') o al servizio automatico ('serve'), null se l'opzione è spenta; g.autoLive: 'toss' | 'serve' se la
+// palla in aria l'ha lanciata il gioco. Negli ultimi AUTO_WARN secondi il richiamo lo annuncia
+export const AUTO_WARN = 10;
+const autoSub = (a, toss) => (a.what === 'serve' ? `Tra ${Math.max(1, Math.ceil(a.left))} s batte il gioco` : `${toss} · tra ${Math.max(1, Math.ceil(a.left))} s la lancia il gioco`);
 
 // Testo da mostrare (funzione pura, per i test). s: stato del coach; g: fotografia del gioco
 //   g.phase, g.mine (chi serve gioca da questo computer), g.controller, g.tossT (s al punto più alto, + in salita),
@@ -36,6 +42,8 @@ export function serveCoachView(s = {}, g = {}){
   if (!g.mine || !['SERVE_STANCE', 'SERVE_TOSS'].includes(g.phase)) return null;
   const learning = servedBy(s, g.server) < SERVE_COACH.firstServes, missed = s.missAt != null, toss = TOSS[g.controller] || TOSS.phone;
   if (g.phase === 'SERVE_STANCE'){
+    // B25: il gioco sta per lanciare (o per battere) al posto di chi è fermo: lo dice, con il nome e i secondi che mancano
+    if (g.auto && g.auto.left <= AUTO_WARN) return { state: 'toss', call: true, big: `${g.name || 'Al servizio'}, batti tu`, sub: autoSub(g.auto, toss) };
     if (missed && (g.now ?? 0) - s.missAt <= SERVE_COACH.missS) return { state: 'miss', big: 'Colpisci quando la palla è in alto', sub: `Lancio a vuoto: riprova. ${toss}` };
     // B20 (audit B19, punto 9): nello stesso schermo chi deve battere e resta fermo viene chiamato per nome, a tutta
     // larghezza, così l'altro e la fila capiscono chi sta aspettando il gioco (prima solo l'istruzione, senza nome, anche
@@ -44,11 +52,14 @@ export function serveCoachView(s = {}, g = {}){
     if (learning || missed || (g.idle ?? 0) >= SERVE_COACH.idleS) return { state: 'toss', big: toss, sub: 'Poi colpisci quando la palla è in alto' };
     return null;
   }
-  if (!learning && !missed) return null;
+  // B25: palla lanciata dal gioco. Servizio automatico: lo batte il gioco; lancio automatico: «Colpisci!» anche a chi non
+  // è più ai primi servizi
+  if (g.autoLive === 'serve') return { state: 'wait', call: true, big: 'Servizio automatico', sub: `Il gioco batte per ${g.name || 'chi è al servizio'}` };
+  if (!learning && !missed && !g.autoLive) return null;
   const t = Number(g.tossT);
   if (!Number.isFinite(t)) return null;
-  if (t <= SERVE_COACH.apexBefore && t >= -SERVE_COACH.apexAfter) return { state: 'go', big: 'Colpisci!', sub: '' };
-  if (t > SERVE_COACH.apexBefore) return { state: 'wait', big: 'Aspetta che salga…', sub: 'Colpisci quando la palla è in alto' };
+  if (t <= SERVE_COACH.apexBefore && t >= -SERVE_COACH.apexAfter) return { state: 'go', big: 'Colpisci!', sub: g.autoLive ? 'Lancio automatico' : '' };
+  if (t > SERVE_COACH.apexBefore) return { state: 'wait', big: g.autoLive ? 'Lancio automatico' : 'Aspetta che salga…', sub: 'Colpisci quando la palla è in alto' };
   return null;
 }
 
@@ -96,6 +107,9 @@ export class NatpfServeCoach {
       ballY: E.ball?.pos?.y ?? null, ballVy: Number.isFinite(vy) ? vy : null,
       // segnali del motore; il computer del P2 nella sfida tra due computer non fa la fisica (riceve lo stato): null
       tossMisses: guest ? null : E.natpfTossMisses || 0, match: guest ? null : E.natpfMatchSeq || 0,
+      // B25: lancio automatico (solo nello stesso schermo con l'opzione accesa): quanto manca e chi ha lanciato la palla
+      auto: split && E.natpfDuo?.autoToss && E.phase === 'SERVE_STANCE' ? autoTossNext({ idle: E.phaseTimer || 0, misses: E.natpfAutoMisses || 0 }) : null,
+      autoLive: split && E.phase === 'SERVE_TOSS' ? E.natpfAutoLive || null : null,
       paused: !!E.natpfPaused, fresh: !((sc.playerPoints || 0) + (sc.opponentPoints || 0) + (sc.playerGames || 0) + (sc.opponentGames || 0)) };
   }
   tick(dt = 1/60){

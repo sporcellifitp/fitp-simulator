@@ -834,11 +834,20 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
   .natpf-sheet-backdrop .natpf-sheet.staff-sheet { width: min(1000px, calc(100cqw - 2 * var(--gutter))); }
   .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(4, 1fr); }
 }
+/* B25: con «Lancio automatico» e «Stesso schermo: campo aperto» i pulsanti sono 12: su quattro colonne restano tre file;
+   nelle aree larghe e basse sei colonne (due file, prima cinque: con 12 pulsanti sarebbero state tre) */
 @container natpf (min-width: 1300px) and (max-height: 640px) {
-  .natpf-sheet-backdrop .natpf-sheet.staff-sheet { width: min(1260px, calc(100cqw - 2 * var(--gutter))); }
-  .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(5, 1fr); }
+  .natpf-sheet-backdrop .natpf-sheet.staff-sheet { width: min(1500px, calc(100cqw - 2 * var(--gutter))); }
+  .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(6, 1fr); }
 }
 @container natpf (max-width: 820px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(2, 1fr); } }
+/* B25: a 720 × 720 i 12 pulsanti su due colonne fanno sei file e il foglio scorreva di 10 px: file un po' più strette
+   (revisione: con il chiosco acceso la nota è su due righe e con le opzioni accese scorreva ancora di 6 px: altri 11 px) */
+@container natpf (max-width: 820px) and (max-height: 760px) {
+  .natpf-sheet.staff-sheet .pause-grid { gap: 5px; }
+  .natpf-sheet.staff-sheet .sheet-actions { margin-top: 8px; }
+  .natpf-sheet.staff-sheet .sheet-desc { margin-bottom: 4px; }
+}
 @container natpf (max-width: 640px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: 1fr; } }
 .natpf-sheet .pause-grid button {
   display: flex;
@@ -1181,6 +1190,20 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 #title-modal .split-status[data-state="go"] b { color: var(--ball); }
 #title-modal .split-status[data-state="ko"] b { color: var(--warn); }
 #title-modal .split-actions { grid-area: actions; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+/* B25: fascia del giocatore (Bambino · Ragazzo · Adulto, natpf_duo_rules.js): una riga larga quanto la colonna, i tre
+   pulsanti larghi uguali (a 1024 × 600 la colonna è di 248 px: con i pulsanti a misura del testo la scheda si allargava e
+   usciva dal riquadro). Con la webcam per due le fasce non valgono: nascoste */
+#title-modal .split-actions .split-band { display: flex; flex: 1 1 100%; min-width: 0; margin-top: -4px; }
+/* pulsanti bassi (30 px): con la riga in più la scheda resta alta quanto il QR e la barra dell'avvio non scende sotto il
+   piè di pagina (a 1366 × 657 con i pulsanti da 38 px scendeva di 11 px) */
+#title-modal .split-actions .split-band .seg-btn { flex: 1 1 0; min-width: 0; height: 30px; padding-inline: 4px; font-size: 15px; }
+#title-modal .split-setup[data-input="webcam"] .split-band { display: none; }
+/* revisione B25: «Aiuto» sulla scheda di chi è aiutato, sull'angolo della riga delle fasce (sopra «Adulto», che non è mai
+   la fascia di chi è aiutato). A 1920 × 540 e 1024 × 600 la barra dell'avvio, che dichiara l'aiuto per esteso, è sotto
+   il piè di pagina: sulla scheda si vede senza scorrere. Non occupa spazio (la scheda resta alta uguale) */
+#title-modal .split-actions .split-band { position: relative; }
+#title-modal .split-band .band-help { display: none; position: absolute; right: 12px; top: -9px; padding: 0 7px; border-radius: var(--r-pill); background: var(--ball); color: var(--ink-900); font: 800 11px/16px var(--font-text); letter-spacing: 0.06em; text-transform: uppercase; pointer-events: none; }
+#title-modal .split-band.helped .band-help { display: block; }
 #title-modal .split-grip { grid-column: 1 / -1; margin: 0; font: 500 15px/1.4 var(--font-text); color: var(--text-2); }
 @container natpf (max-width: 860px) {
   #title-modal .split-setup { grid-template-columns: 1fr; }
@@ -1273,6 +1296,8 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 .natpf-split-hud .split-tag span { font: 700 italic 1em/1 var(--font-display); text-transform: uppercase; }
 .natpf-split-hud .split-tag span:empty { display: none; }
 .natpf-split-hud .split-tag.warn span { color: var(--warn); }
+/* B25: «Aiuto: Bambino» sotto il nome di chi è aiutato, sobrio (più piccolo e più chiaro del nome) */
+.natpf-split-hud .split-tag.helped span { font-size: 0.78em; color: var(--ball); opacity: 0.92; }
 
 /* =====================================================================================================================
    Schermo di un ledwall (natpf_screen.js): tutto il gioco nell'area scelta, fuori nero. Il body è il riquadro dell'area

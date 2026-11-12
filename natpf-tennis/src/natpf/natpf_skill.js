@@ -10,6 +10,7 @@
 //    vicino alle righe si può uscire; la palla accelera con i colpi perfetti consecutivi;
 //  • la CPU: tempo di reazione, lettura imperfetta della traiettoria, portata limitata ed errori che crescono con
 //    angolo, velocità, pressione dello scambio e allungo; sotto pressione rimanda palle corte e alte da smash.
+import { openRun } from "./natpf_duo_rules.js"; // B25: campo aperto tra due persone nello stesso schermo (moveFactor)
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 export const gauss = (rng = Math.random) => { let u = 0, v = 0; while (!u) u = rng(); while (!v) v = rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
@@ -521,7 +522,12 @@ export function fatigueStep(engine, actor, { vx = 0, speed = 0, dt = 0, inPoint 
 export function moveFactor(engine, actor){
   const b = engine.ball, sup = b?.natpfSuper;
   const incoming = !!sup && !!b.inPlay && !!actor && Math.sign(finite(actor.pos?.z, 1)) === Math.sign(finite(b.vel?.z));   // va verso di lui
-  return (1 - FATIGUE.maxSlow*fatigueLevel(engine, actor))*(incoming ? clamp(finite(sup.reach, 1), .5, 1) : 1);
+  // B25 (campo aperto, natpf_duo_rules.js): tra due persone, con l'opzione accesa, i personaggi corrono come persone
+  // (OPEN_COURT.speed)
+  // … verso la palla (OPEN_COURT.speed) e, più piano, quando rientrano dopo il proprio colpo (OPEN_COURT.recover: la palla
+  // l'ha colpita lui e va via). Spenta, o contro la CPU: fattore 1 esatto
+  const open = openRun(engine), away = !!open && !!b?.inPlay && !!actor && (b.lastHitter === 'opponent') === (actor === engine.opponent);
+  return (1 - FATIGUE.maxSlow*fatigueLevel(engine, actor))*(incoming ? clamp(finite(sup.reach, 1), .5, 1) : 1)*(open ? finite(away ? open.recover ?? open.speed : open.speed, 1) : 1);
 }
 
 // B18.2 passo 2: a Pro la CPU si stanca se chi gioca la fa correre (come chi gioca: FATIGUE). Tolto l'errore

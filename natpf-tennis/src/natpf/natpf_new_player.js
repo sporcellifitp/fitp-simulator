@@ -13,7 +13,8 @@
 //     dalla strada 'menu' il passo del nome non c'è: la mano si cambia nella pagina «Collega» o nelle tessere del menu).
 //     Motivo: è del giocatore, non dello stand; un mancino dopo un destro (o il contrario) giocherebbe specchiato. Nove
 //     visitatori su dieci sono destri, quindi chi non sceglie gioca con la scelta giusta quasi sempre;
-//   - nello stesso schermo i nomi dei due giocatori (tornano Player 1 e Player 2).
+//   - nello stesso schermo i nomi dei due giocatori (tornano Player 1 e Player 2) e le loro fasce (B25: tornano «Adulto»,
+//     cioè nessun aiuto: natpf_duo_rules.js).
 // Cosa resta: il livello (Casual, Pro, Leggenda), la durata e il formato della partita, la mira del telefono, il chiosco e la
 // musica: sono scelte dello staff, non del visitatore.
 //
@@ -65,7 +66,7 @@ export function resetVisitor(ui){
     const S = ui.split;
     // nomi, caselle e targhette in campo (prima restavano le targhette di chi aveva giocato prima: revisione B18)
     if (S?.resetNames) S.resetNames();
-    else { E.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' }; for (const el of document.querySelectorAll('[data-split-name]')) el.value = ''; }
+    else { E.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' }; E.natpfSplitBands = { p1: 'adulto', p2: 'adulto' }; for (const el of document.querySelectorAll('[data-split-name]')) el.value = ''; }
     // (gate false: il tutorial lo apre la metà di ciascuno nella pagina «Collega», che fa aspettare il telefono; le verifiche
     // fallite del giocatore di prima non contano per chi arriva)
     for (const id of ['p1', 'p2']){ S?.setHand?.(id, 'right'); S?.phone?.(id)?.resetPlayer?.({ gate: false }); if (S?.fails) S.fails[id] = 0; }
