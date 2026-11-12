@@ -12,6 +12,8 @@ import { setPortraitLooks } from './natpf_portrait.js';
 import { castLooks, getCast } from './natpf_personaggi.js';
 import { applyMascot, updateMascotLabels, MASCOT_COLORS } from './natpf_lob_drop.js';
 import { keepRacketClear } from './natpf_racket_clear.js';
+import { getMascotMode, loadMascotModel, mascotModelStatus, mascotModelInstance } from './natpf_mascot_models.js';
+import { createMascotRig, poseMascotBody, poseMascotArms, mascotModelHeadShape } from './natpf_mascot_rig.js';
 
 // Varianti: P1 come l'immagine di riferimento, CPU con la polo blu NATPF, P2 con dettagli rosa.
 export const CHARACTER_LOOKS = Object.freeze({
@@ -379,6 +381,34 @@ function restyleFace(actor, look){
   for (const cheek of [rig.leftCheek, rig.rightCheek]) if (cheek) cheek.position.z = 0.21;
 }
 
+// B29 · Modello 3D della mascotte di un attore (Lob o Drop). Lo chiede la prima volta che serve (mai con «Classici»),
+// lo monta nella radice dell'attore quando è arrivato e decide se in questo fotogramma si disegna lui oppure la
+// mascotte costruita nel codice: quest'ultima resta finché il modello non è pronto, se il caricamento fallisce, con
+// ?mascotte=codice e in prima persona (dove del corpo si vedono solo avambracci, mani e racchetta).
+// Restituisce il rig da animare, oppure null. Niente allocazioni se non al montaggio.
+function mascotModelFor(actor, engine){
+  const key = actor.natpfMascot || null;
+  let rig = actor.natpfMascot3d || null;
+  const want = !!key && actor.root.visible && getMascotMode() === '3d' && engine?.fpBodyActor !== actor;
+  if (want && (!rig || rig.key !== key)){
+    const status = mascotModelStatus(key);
+    if (status === 'idle') loadMascotModel(key);
+    else if (status === 'ready'){
+      if (rig?.group) actor.root.remove(rig.group);
+      const copy = mascotModelInstance(key);
+      rig = (copy && createMascotRig(copy, key)) || { key, group: null };
+      if (rig.group) actor.root.add(rig.group);
+      else console.warn(`[natpf-mascotte] modello 3D di ${key} senza le ossa attese: in campo resta la mascotte costruita nel codice`);
+      actor.natpfMascot3d = rig;
+    }
+  }
+  const on = want && !!rig?.group && rig.key === key;
+  if (rig?.group && rig.group.visible !== on) rig.group.visible = on;
+  if (actor.model && actor.model.visible === on){ actor.model.visible = !on; actor.natpfLimbs.container.visible = !on; }
+  actor.natpfMascot3dOn = on;
+  return on ? rig : null;
+}
+
 // Ogni fotogramma, prima del render: varianti (l'avversario è P2 in 1v1 tra persone, altrimenti la CPU) e arti.
 // B24: con «Personaggi in campo: Lob & Drop» (natpf_personaggi.js) chi sta dalla parte del Player 1 è Drop, l'altro Lob.
 const ACTOR_KEYS = ['player', 'playerPartner', 'opponent', 'opponentPartner'];
@@ -394,6 +424,15 @@ export function updateNatpfCharacters(engine){
     if (actor.natpfLook !== want) applyNatpfLook(actor, want);
     // testa grande (mascotte): la racchetta si scosta dalla testa quanto serve, la mano la segue; con il tennista
     // (natpfHeadShape assente) non si tocca niente. Unico punto in cui si chiama: vedi natpf_racket_clear.js
+    // B29: se la mascotte ha il suo modello 3D pronto, le parti animate si riportano sulle sue ossa (natpf_mascot_rig.js)
+    // e i pezzi costruiti nel codice si nascondono; altrimenti tutto come prima
+    const rig3d = actor.natpfMascot || actor.natpfMascot3d ? mascotModelFor(actor, engine) : null;
+    if (rig3d){
+      poseMascotBody(rig3d, actor);
+      actor.natpfRacketPush = keepRacketClear(actor, mascotModelHeadShape(rig3d.key), dt, engine.ball, rig3d.head.bone);
+      poseMascotArms(rig3d, actor);
+      continue;
+    }
     actor.natpfRacketPush = keepRacketClear(actor, actor.natpfHeadShape || null, dt, engine.ball);
     updateNatpfActorLimbs(actor);
     if (actor.natpfMascot) updateMascotLabels(actor);

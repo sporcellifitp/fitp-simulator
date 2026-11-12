@@ -171,6 +171,29 @@ def pesi_a_8_bit(w):
     return np.clip(q, 0, 255).astype(np.uint8)
 
 
+# Pesi delle gambe. Il generatore ha messo lo scheletro di una persona dentro un peluche con le gambe cortissime: il
+# «ginocchio» (osso …Leg) cade dove la gamba esce dal corpo, la «coscia» (…UpLeg) resta dentro la pancia, e gamba e
+# piede sono legati un po' al ginocchio, un po' alla coscia e un po' a caviglia e punta. Così il piede non seguirebbe
+# mai del tutto un osso solo e non starebbe fermo sul campo. Qui, per ogni lato: sotto l'attacco della gamba tutto il
+# peso delle quattro ossa della gamba va all'osso …Leg (gamba e piede diventano un pezzo solo, che il gioco muove
+# intorno all'attacco); sopra resta alla coscia, che il gioco lascia ferma con il bacino; in mezzo si sfuma.
+# Gli altri pesi (testa, busto, braccia, mani) restano quelli del generatore.
+def ritocca_gambe(pos, ossa, pesi, nomi, dove):
+    n = len(pos); pieno = np.zeros((n, len(nomi)))
+    for c in range(4): np.add.at(pieno, (np.arange(n), ossa[:, c]), pesi[:, c])
+    for lato in ('Left', 'Right'):
+        k = [nomi.index(lato + x) for x in ('UpLeg', 'Leg', 'Foot', 'ToeBase')]
+        attacco = dove[lato + 'Leg'][1]                         # altezza dell'attacco della gamba
+        tot = pieno[:, k].sum(axis=1)
+        t = np.clip((pos[:, 1] - 0.55*attacco)/(1.05*attacco - 0.55*attacco), 0, 1); f = t*t*(3 - 2*t)
+        pieno[:, k] = 0
+        pieno[:, k[0]] = tot*f; pieno[:, k[1]] = tot*(1 - f)
+    ordine = np.argsort(-pieno, axis=1)[:, :4]
+    w = np.take_along_axis(pieno, ordine, axis=1)
+    w = w/np.maximum(1e-12, w.sum(axis=1))[:, None]
+    return ordine.astype(np.uint8), w
+
+
 def matrice(nodo):
     if 'matrix' in nodo: return np.array(nodo['matrix'], np.float64).reshape(4, 4).T
     t = nodo.get('translation', [0, 0, 0]); x, y, z, w = nodo.get('rotation', [0, 0, 0, 1]); s = nodo.get('scale', [1, 1, 1])
@@ -214,6 +237,26 @@ def alleggerisci(nome, sorgente, lato, formato, qualita, fogli=None):
     nor = nor/np.maximum(1e-12, np.linalg.norm(nor, axis=1))[:, None]
     qn = np.round(nor*127).astype(np.int8)
     qt = np.round(uv*65535).astype(np.uint16)
+    # scheletro in metri: la scala dell'armatura (0,01) va nelle traslazioni delle ossa e nelle matrici inverse
+    radice = next(i for i, n in enumerate(j['nodes']) if n.get('name') == 'Armature')
+    scala = j['nodes'][radice].get('scale', [1, 1, 1])
+    if abs(scala[0] - scala[1]) > 1e-9 or abs(scala[0] - scala[2]) > 1e-9: raise SystemExit(f'{nome}: scala dell\'armatura non uniforme')
+    s = scala[0]
+    mondo = {}
+    def visita(i, genitore):
+        n = j['nodes'][i]; m = matrice(n)
+        if i != radice: m[:3, 3] *= s
+        else: m = np.eye(4)
+        mondo[i] = genitore @ m
+        for c in n.get('children', []): visita(c, mondo[i])
+    visita(radice, np.eye(4))
+    dove = {n: mondo[skin['joints'][k]][:3, 3] for k, n in enumerate(nomi_ossa)}
+    ossa, pesi = ritocca_gambe(pos, ossa, pesi, nomi_ossa, dove)
+    # forma della testa nel sistema dell'osso Head (per natpf_mascot_rig.js: la racchetta non la deve attraversare)
+    kt = nomi_ossa.index('Head'); della_testa = ((ossa == kt)*pesi).sum(axis=1) > 0.9
+    loc = (np.linalg.inv(mondo[skin['joints'][kt]]) @ np.concatenate([pos[della_testa], np.ones((della_testa.sum(), 1))], axis=1).T).T[:, :3]
+    a1, a2 = np.percentile(loc, 1.5, axis=0), np.percentile(loc, 98.5, axis=0)
+    testa = dict(centro=arrotonda((a1 + a2)/2, 3), semiassi=arrotonda((a2 - a1)/2, 3), minimo=arrotonda(loc.min(axis=0), 3), massimo=arrotonda(loc.max(axis=0), 3))
     qw = pesi_a_8_bit(pesi)
     ossa = np.where(qw > 0, ossa, 0).astype(np.uint8)
     # un vertice = 24 byte: posizione (6 + 2), normale (3 + 1), texture (4), ossa (4), pesi (4)
@@ -228,23 +271,10 @@ def alleggerisci(nome, sorgente, lato, formato, qualita, fogli=None):
     if len(V) > 65535: raise SystemExit(f'{nome}: troppi vertici per indici a 16 bit')
     indici = tri.astype('<u2').tobytes()
 
-    # scheletro in metri: la scala dell'armatura (0,01) va nelle traslazioni delle ossa e nelle matrici inverse
-    radice = next(i for i, n in enumerate(j['nodes']) if n.get('name') == 'Armature')
-    scala = j['nodes'][radice].get('scale', [1, 1, 1])
-    if abs(scala[0] - scala[1]) > 1e-9 or abs(scala[0] - scala[2]) > 1e-9: raise SystemExit(f'{nome}: scala dell\'armatura non uniforme')
-    s = scala[0]
     D = np.eye(4); D[:3, :3] = np.diag(mezzo); D[:3, 3] = centro
     S = np.diag([s, s, s, 1.0])
     ibm2 = np.stack([S @ m @ D for m in ibm])
     # controllo: con le ossa a riposo ogni vertice deve tornare dov'era
-    mondo = {}
-    def visita(i, genitore):
-        n = j['nodes'][i]; m = matrice(n)
-        if i != radice: m[:3, 3] *= s
-        else: m = np.eye(4)
-        mondo[i] = genitore @ m
-        for c in n.get('children', []): visita(c, mondo[i])
-    visita(radice, np.eye(4))
     skinM = np.stack([mondo[b] @ ibm2[k] for k, b in enumerate(skin['joints'])])
     qh = np.concatenate([V['p'].astype(np.float64)/32767, np.ones((len(V), 1))], axis=1)
     w = V['w'].astype(np.float64)/255
@@ -312,7 +342,7 @@ def alleggerisci(nome, sorgente, lato, formato, qualita, fogli=None):
     testo = allinea(json.dumps(out, separators=(',', ':')).encode('utf-8'), b' ')
     corpo = b''.join(parti)
     glb = struct.pack('<III', 0x46546C67, 2, 12 + 8 + len(testo) + 8 + len(corpo)) + struct.pack('<II', len(testo), 0x4E4F534A) + testo + struct.pack('<II', len(corpo), 0x004E4942) + corpo
-    return glb, dict(nome=nome, vertici=nV, vertici_prima=len(pos), triangoli=len(tri), geometria=len(vertici) + len(indici), texture=len(img), byte=len(glb), prima=os.path.getsize(sorgente), errore_pelle_m=errore)
+    return glb, dict(nome=nome, vertici=nV, vertici_prima=len(pos), triangoli=len(tri), geometria=len(vertici) + len(indici), texture=len(img), byte=len(glb), prima=os.path.getsize(sorgente), errore_pelle_m=errore, testa=testa)
 
 
 def main():

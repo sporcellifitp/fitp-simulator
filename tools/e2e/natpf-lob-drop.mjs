@@ -107,6 +107,15 @@ const scene = (p, name, o = {}) => p.evaluate(({ name, o }) => {
     who.swingType = 'serve'; who.swingDuration = who.swingTimer = .38;
     E.racketKinematics.triggerSwing(who, { shotType: 'serve', side: 'overhead', speed: 1.2, timing: 'sweet', isServe: true, dirX: 0 });
     anim(steps);
+  } else if (o.pose === 'schiacciata'){
+    E.phase = 'RALLY';
+    who.swingType = 'smash'; who.swingDuration = who.swingTimer = .36;
+    E.racketKinematics.triggerSwing(who, { shotType: 'smash', side: 'overhead', speed: 1.2, timing: 'sweet', dirX: 0 });
+    anim(steps);
+  } else if (o.pose === 'corsa'){
+    // corsa di lato (o.vx) o in avanti (o.vz), metri al secondo nel campo
+    E.phase = 'RALLY'; who.vel.set(o.vx ?? 5, 0, o.vz ?? 0);
+    anim(steps);
   } else if (o.pose === 'esultanza'){
     E.bodyAnimator.triggerPointReaction(who, 'win'); E.facialFX.setExpression(who, 'happy_grin', 3);
     anim(steps);
