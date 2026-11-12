@@ -69,6 +69,11 @@ la dice (Android sì, iPhone no).
 
 Un pulsante grigio e tratteggiato non serve in quella pagina: sotto c'è scritto perché.
 
+**Pagina «Scambi di prova»** (con «Calibrazione: Giocando», dopo ogni «Gioca» e prima della partita vera, circa 10
+secondi): sul telefono in alto c'è scritto «Scambi di prova». È una pagina «in campo»: frecce e OK sono spenti (li gioca
+il giocatore), **Indietro** e **Pausa** mettono in pausa, **Salta gli scambi di prova** fa partire subito la partita,
+**Torna al menu** e **Nuovo giocatore** chiedono conferma. «Ricalibra il telefono» lì è spento: stanno già calibrando.
+
 ## 5. Se il telecomando non si collega
 
 | Cosa vedi | Cosa fare |

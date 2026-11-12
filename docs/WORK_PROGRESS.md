@@ -1536,7 +1536,22 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
     (`playWorld`, `playTrial`, `secondPhone`). Nel browser: `tools/e2e/prova.mjs` e `CAL=base`; adattati `natpf-rally`,
     `natpf-servizio-lancio`, `natpf-phone-keep`, `natpf-nuovo-giocatore`, `natpf-stesso-schermo-b25` (e il conto dei
     pulsanti del pannello, 13, anche in `b20`), `natpf-phone-blackout`; `natpf-menu` con «Calibrazione» e 720×720.
-  - Verifiche del giro 2: vedi `docs/b28/calibrazione-giocando.md` §6 (numeri e cosa non è stato rifatto).
+  - Verifiche del giro 2: gioco **1242/1242** (dopo l'unione 1223), sito **226/226**, LAN 12/12, programma Windows 33/33,
+    build ok, `audit:legend` tutti i criteri. Banco: uguale al giro 1 tranne «Salta, verso invertito» (38–49 colpi su 120
+    dal lato sbagliato al posto di 36–46: il voto del telefono aspetta i due versi); «da un lato solo»: 0 colpi su 96 dal
+    lato sbagliato con 0, 1, 2 palle perse, destro e mancino (prima 48 su 48). Nel browser, modalità di base:
+    `natpf-scambi-di-prova` 25/25 (11,4 s), 25/25 mancino, 18/18, 18/18, 12/12 stesso schermo (14,7 s), 11/11 a 1024×1024;
+    `natpf-flusso-tocchi` 5/5, 6/6, 8/8 (9, 11, 14 tocchi); `natpf-menu` 45/45 (pannello a 5 misure); `natpf-telecomando`
+    80/80 (di base, sulla build); con `CAL=base`: `natpf-nuovo-giocatore` 30/30, `natpf-formato-fiera` 22/22,
+    `natpf-stesso-schermo-b25` 55/55, `natpf-rally` 9/9, `natpf-servizio-lancio` 12/12, `natpf-phone-blackout` 6/6,
+    `natpf-diag-session` 24/24, **`natpf-phone-keep` 12/13 tre volte su tre** (la pausa per i sensori fermi arriva a
+    1508–1663 ms contro i 1500 chiesti; con `CAL=gesti` 13/13 a 1392 ms: dipende dal momento del segnale del telefono,
+    soglia non toccata). Con `CAL=gesti`: `natpf-training-flow` 21/21 ×2, `natpf-tutorial-phone` 46/46 ×2,
+    `natpf-tutorial-relink` 9/9, `natpf-split-ready` 34/34, `natpf-1v1-p2p` 39/39, `natpf-stesso-schermo-b20` 52/52,
+    `natpf-diag-session` 24/24, `natpf-mira-lato` 23/23, `natpf-modale-gesti` 29/29; `gesture-calibration` 20/20.
+  - **Non verificato nel giro 2**: telefoni e persone veri, Windows, ledwall; pagine del telefono di prima in cache (non
+    hanno la regola dei due versi); le prove nel browser non elencate; il telecomando dello staff negli scambi di prova
+    con un telefono vero (provato nel mondo di prova con il telecomando vero e la mappa, non nel browser).
 - Da fare per chi integra: unire con il B27 (pannello dello stand: una riga inserita prima di «Mira del telefono»;
   `natpf_kiosk.js`: un import, un comando, una riga in `paint`) e con l'altra sessione (`natpf_lobby.js`,
   `natpf_training.js`, `index.html`); versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.

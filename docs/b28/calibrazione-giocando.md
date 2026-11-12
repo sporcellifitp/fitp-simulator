@@ -306,6 +306,59 @@ Le prove scritte prima del B28 girano con `CAL=gesti` (lo mettono da sole: `proc
 Schermate guardate: 1280×720 e 1024×1024, contro la CPU e nello stesso schermo. A 1024×1024 il titolo è circa 61 px,
 l'occhiello 31 px, la riga sotto 25 px; misure in `cqw`/`cqh`.
 
+### Giro 2 (12/11, dopo la revisione indipendente e l'unione con il B27, versione di base 2026-11-12.3)
+
+Ogni difetto della revisione è stato prima riprodotto con lo script del revisore (`scratchpad b28/review/`), poi fissato
+in un test che fallisce senza la correzione (controllato togliendo la correzione), poi corretto.
+
+| Difetto della revisione | Esito | Test |
+|---|---|---|
+| 1 · chi colpisce da un lato solo resta specchiato | corretto: regola dei due versi, nel gioco e nel voto del telefono | `natpf-scambi-di-prova` «revisione 1» (2), `natpf-racchetta` (voto del telefono), banco |
+| 2 · Player 2 dell'invito che lascia gli scambi di prova: computer da ricaricare | corretto | `natpf-giocando-revisione` «revisione 2» |
+| 3 · pausa del telefono del Player 2 negli scambi di prova: 21 s fermi | corretto (17,7 s con 1 s di telefono fermo e il conto alla rovescia, tutti e due `full`) | «revisione 3» |
+| 4 · opzione cambiata, eredità tra visitatori | corretto: il profilo ricorda come è stato fatto | «revisione 4» (3) |
+| 5 · colpi pianissimi | **non corretto, limite scritto** (provato e scartato: colpi doppi) | `natpf-scambi-di-prova` «limite scritto (revisione 5)» |
+| 6 · pausa di 3 s all'inizio con la rete lenta | corretto: prima palla a 1,0 s con 0,5 s di rete, a 1,5 s con 1,5 s; nessuna pausa | «revisione 6» |
+| 7 · stesso schermo con un giocatore che tiene i gesti: sempre al tetto | corretto (13,1–13,7 s) | «revisione 7» |
+
+- Gioco `npm test`: **1242/1242** (dopo l'unione, prima delle correzioni: 1223/1223). Sito: **226/226**. LAN: **12/12**. Programma
+  Windows (`natpf-desktop`, `npm test`): **33/33**. `npm run build`: ok. `npm run audit:legend`: tutti i criteri rispettati (il motore della CPU non è toccato).
+- Banco (`scripts/audit/scambi-di-prova.mjs`, 12 telefoni × 10 colpi, uscita in `scratchpad b28/banco/giro2.txt`): tabelle
+  uguali al giro 1 tranne «Salta, verso invertito» (§5); nuova tabella «da un lato solo» (§5).
+- Prove della modalità di base nei test: `natpf-giocando-revisione.test.mjs` (15), con il mondo di prova in `cal: 'play'`.
+- Nel browser (Chromium, telefono simulato, una prova alla volta, dopo tutte le correzioni):
+
+| Prova | Modalità | Esito |
+|---|---|---|
+| `natpf-scambi-di-prova` singolo destro | di base | 25/25 · 11,4 s (con le schermate 24/24) |
+| … mancino · nessun colpo · una palla per lato | di base | 25/25 · 18/18 (16,2 s) · 18/18 (16,2 s) |
+| … stesso schermo · stesso schermo 1024×1024 con le schermate | di base | 12/12 (14,7 s) · 11/11 |
+| `natpf-flusso-tocchi` singolo · stesso · 1v1 | di base | 5/5 · 6/6 · 8/8 (9 · 11 · 14 tocchi; senza colpire 17,1 s e 18,8 s) |
+| `natpf-menu` (pannello dello stand a 5 misure, con «Calibrazione» e le voci del B27) | di base | 45/45 |
+| `natpf-telecomando` (sulla build, porte 4902/4903) | **di base** (senza `CAL`) | 80/80 |
+| `natpf-training-flow` destro · mancino | `CAL=gesti` | 21/21 · 21/21 |
+| `natpf-tutorial-phone` destro · mancino | `CAL=gesti` | 46/46 · 46/46 |
+| `natpf-tutorial-relink` · `natpf-split-ready` | `CAL=gesti` | 9/9 · 34/34 |
+| `natpf-1v1-p2p` (sulla build) | `CAL=gesti` | 39/39 |
+| `natpf-stesso-schermo-b20` (13 pulsanti nel pannello) | `CAL=gesti` | 52/52 |
+| `natpf-diag-session` | `CAL=gesti` · **di base** (`CAL=base`) | 24/24 · 24/24 |
+| `natpf-nuovo-giocatore` (adattata: scambi di prova giocati dopo «Gioca») | **di base** | 30/30 |
+| `natpf-formato-fiera` (senza modifiche) | **di base** | 22/22 |
+| `natpf-stesso-schermo-b25` (adattata: scambi di prova saltati con «Salta ›») | **di base** | 55/55 |
+| `natpf-rally` (adattata: telefono pronto senza gesti, scambi di prova, poi lo scambio sul profilo imparato) | **di base** | 9/9 |
+| `natpf-servizio-lancio` (adattata allo stesso modo) | **di base** | 12/12 |
+| `natpf-phone-blackout` (adattata: parti A e C; la B riguarda solo i gesti della calibrazione) | **di base** | 6/6 |
+| `natpf-phone-keep` (adattata) | `CAL=gesti` · **di base** | 13/13 · **12/13, tre volte su tre** |
+| `natpf-mira-lato` · `natpf-modale-gesti` | `CAL=gesti` | 23/23 · 29/29 |
+| `gesture-calibration` (run-local, pagina del telefono: il rilevatore dei gesti è cambiato nel voto sul segno) | — | 20/20 |
+
+**`natpf-phone-keep` nella modalità di base: una verifica di tempo non passa.** «A · sensori fermi: il computer va in
+pausa» chiede la pausa entro 1500 ms; nella modalità di base arriva a 1508, 1663 e 1563 ms (tre prove, l'ultima da sola),
+con `CAL=gesti` a 1392 ms. Le altre 12 verifiche passano. Spiegazione dalle costanti, non misurata: la pausa arriva quando
+un segnale del telefono (uno al secondo) dice «ultimo campione da più di 700 ms», più 300 ms di grazia, quindi tra 1,0 e
+2,0 s dopo lo stop dei sensori secondo il momento del segnale; nella modalità di base la prova arriva a quel punto in un
+altro momento (scambi di prova al posto della calibrazione). La soglia della prova non è stata toccata.
+
 ## 7. Limiti e cose non provate
 
 - **Non provato**: telefoni veri (iPhone e Android), persone vere, Windows, ledwall. Tutte le misure sono del telefono
@@ -341,7 +394,8 @@ l'occhiello 31 px, la riga sotto 25 px; misure in `cqw`/`cqh`.
   scambi di prova `ballSideNow(engine, ruolo, da)` accetta anche il piano fatto **da quando è partita quella palla**
   (`trial.at`), che dice lo stesso lato.
 - Le prove nel browser non rifatte dopo questo blocco: tutte le `natpf-*` non elencate al §6 (hanno solo ricevuto
-  `CAL=gesti`), `natpf-nuovo-giocatore`, `natpf-stesso-schermo-b20`/`b25`, `natpf-formato-fiera`.
+  `CAL=gesti`). Nel giro 1 `natpf-stesso-schermo-b20` e `b25` non erano state rifatte e contavano ancora 12 pulsanti nel
+  pannello dello stand (sono 13 dal B28): corrette e rifatte nel giro 2.
 
 ## 8. File toccati
 
@@ -355,3 +409,14 @@ Modificati (gioco): `natpf_phone_racket.js`, `natpf_tutorial.js`, `natpf_trainin
 `natpf-ui.css`. Telefono: `site/js/tennis/racchetta.js`, `phone-screen.js`, `link.js`, `site/tennis/racchetta.html`.
 Prove: `test/ui-world.mjs`, `test/phone-sim.mjs`, `scripts/audit/colpi.mjs` (una riga), `tools/e2e/th.mjs` e gli script
 `natpf-*`.
+
+Giro 2. Nuovi: `natpf-tennis/test/natpf-giocando-revisione.test.mjs`, `tools/e2e/prova.mjs`. Modificati (gioco):
+`natpf_trial_learn.js`, `natpf_trial.js`, `natpf_phone_racket.js`, `natpf_phone_watch.js`, `natpf_ui.js`,
+`natpf_split_ui.js`, `natpf_versus_ui.js`, `natpf_kiosk.js`, `natpf_training.js`, `natpf_remote.js`,
+`natpf_remote_map.js`. Telefono: `site/js/tennis/swing-detect.js`, `racchetta.js`. Prove: `test/trial-world.mjs`,
+`test/phone-sim.mjs`, `test/natpf-scambi-di-prova.test.mjs`, `test/natpf-racchetta.test.mjs`,
+`test/natpf-telecomando.test.mjs`, `tools/test/phone-screen.test.mjs`, `scripts/audit/scambi-di-prova.mjs`,
+`scripts/audit/colpi.mjs`, `tools/e2e/th.mjs`, `natpf-menu.mjs`, `natpf-rally.mjs`, `natpf-servizio-lancio.mjs`,
+`natpf-phone-keep.mjs`, `natpf-nuovo-giocatore.mjs`, `natpf-stesso-schermo-b20.mjs`, `natpf-stesso-schermo-b25.mjs`,
+`natpf-phone-blackout.mjs`. Documenti: questo, `docs/b27/telecomando.md`, `docs/GUIDA_TELECOMANDO.md`,
+`docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`, `tools/e2e/README.md`.
