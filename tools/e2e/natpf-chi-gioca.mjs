@@ -49,7 +49,8 @@ const toMatch = p => p.evaluate(() => { const L = __natpfTennis.natpfUi.lobby; L
 const view = p => p.evaluate(() => {
   const E = __natpfTennis, m = document.getElementById('title-modal');
   const vis = el => !!el && !el.classList.contains('hidden') && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().height > 0;
-  const inView = el => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + .5 && r.right <= innerWidth + .5; };
+  // in vista davvero: dentro la finestra e non coperto né tagliato dalla pagina che scorre (il punto al centro è suo)
+  const inView = el => { const r = el.getBoundingClientRect(); if (!(r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + .5 && r.right <= innerWidth + .5)) return false; const at = document.elementFromPoint((r.left + r.right)/2, (r.top + r.bottom)/2); return !!at && (at === el || el.contains(at)); };
   const tiles = [...document.querySelectorAll('#difficulty-mode-group [data-difficulty]')].filter(vis);
   const levels = [...document.querySelectorAll('[data-natpf-level]')];
   return {
@@ -225,12 +226,15 @@ try {
   /* ---------- 5 (seguito): Opzioni → Segnale del momento giusto ---------- */
   await p.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.backToMenu(); ui.lobby.go('options'); });
   await p.waitForTimeout(400);
-  const opt0 = await p.evaluate(() => { const m = document.getElementById('title-modal'); return { row: [...document.querySelectorAll('[data-natpf-cue]')].map(b => `${b.textContent.trim()}${b.classList.contains('selected') ? '*' : ''}`).join(' '), scroll: m.scrollHeight - m.clientHeight }; });
-  check('Opzioni: «Segnale del momento giusto: Di base · Sì · No», di base scelto «Di base», pagina senza scorrere', opt0.row === 'Di base* Sì No' && opt0.scroll <= 0, fmt(opt0));
+  const opt0 = await p.evaluate(() => { const b = [...document.querySelectorAll('[data-natpf-cue]')]; return { row: b.map(b => `${b.textContent.trim()}${b.classList.contains('selected') ? '*' : ''}`).join(' '), label: b[0].closest('.lobby-row').querySelector('.lobby-label').textContent, after: b[0].closest('.lobby-row').previousElementSibling?.querySelector('.lobby-label')?.textContent }; });
+  check('Opzioni: «Segnale del momento giusto: Di base · Sì · No» dopo «Scia della palla», di base scelto «Di base»', opt0.row === 'Di base* Sì No' && opt0.label === 'Segnale del momento giusto' && opt0.after === 'Scia della palla', fmt(opt0));
   for (const [w, h] of SIZES){
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(350);
-    const s = await p.evaluate(() => { const m = document.getElementById('title-modal'), r = document.querySelector('[data-natpf-cue="off"]').getBoundingClientRect(); return { scroll: m.scrollHeight - m.clientHeight, inView: r.top >= 0 && r.bottom <= innerHeight && r.right <= innerWidth }; });
-    check(`${w}×${h}: Opzioni con la riga del segnale, senza scorrere`, s.scroll <= 0 && s.inView, fmt(s));
+    // la pagina Opzioni ha dieci righe e scorre (già prima): la riga del segnale si porta in vista come fa chi scorre
+    const s = await p.evaluate(() => { const row = document.querySelector('[data-natpf-cue="off"]').closest('.lobby-row'); row.scrollIntoView({ block: 'center' });
+      const seen = el => { const r = el.getBoundingClientRect(); if (!(r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth)) return false; const at = document.elementFromPoint((r.left + r.right)/2, (r.top + r.bottom)/2); return !!at && (at === el || el.contains(at)); };
+      return { buttons: [...row.querySelectorAll('[data-natpf-cue]')].every(seen), label: seen(row.querySelector('.lobby-label')) }; });
+    check(`${w}×${h}: Opzioni, la riga del segnale si vede intera (etichetta e i tre pulsanti)`, s.buttons && s.label, fmt(s));
     await p.screenshot({ path: path.join(OUT, `opzioni-segnale-${w}x${h}.png`) });
   }
   await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(300);
