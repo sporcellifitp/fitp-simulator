@@ -17,7 +17,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { controllaRiga, eErrore, FINI } from '../../src/natpf/registro/registro_formato.js';
+import { controllaRiga, eErrore, FINI, REGISTRO } from '../../src/natpf/registro/registro_formato.js';
 import { readZip } from '../../src/natpf/diag/diag_zip.js';
 
 /* ---------- lettura: una riga alla volta ---------- */
@@ -64,6 +64,9 @@ export async function leggiRegistro(ingresso, onRiga){
       if (typeof line !== 'string'){ if (line.tronco) L.tronchi++; if (line.nuovoFile) nominato = daNome(line.nuovoFile); continue; }
       if (!line) continue;
       L.byte += line.length + 1;
+      // una riga molto più lunga di quelle del registro non è del registro: si conta e si salta senza leggerla
+      // (revisione: una riga di 30 MB fermava lo strumento per minuti dentro le espressioni del controllo)
+      if (line.length > 2*REGISTRO.maxRiga){ L.illeggibili++; continue; }
       let row = null; try { row = JSON.parse(line); } catch {}
       if (!row || typeof row !== 'object' || typeof row.k !== 'string'){ L.illeggibili++; continue; }
       // riga del blocco (la mette il Worker): se il blocco ha già un nome dal percorso è lo stesso, non un altro

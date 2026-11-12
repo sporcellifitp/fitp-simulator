@@ -80,7 +80,7 @@ export class NatpfRegistro {
     const b = el.querySelector('[data-staff="registro"]'), bb = b?.querySelector('b');
     if (bb){ bb.textContent = this.acceso ? 'Sì' : 'No'; b.classList.toggle('on', this.acceso); }
     const s = await this.stato(), p = document.getElementById('staff-registro-stato'), testo = testoStato(s);
-    if (p && p.textContent !== testo) p.textContent = testo;
+    if (p && p.textContent !== testo){ p.textContent = testo; p.title = testo; }      // nelle aree strette si vede su due righe: intero al passaggio
     const vuota = !((s.coda?.righe || 0) + (s.inMemoria || 0));
     const invia = el.querySelector('[data-staff="registro-invia"]'), scarica = el.querySelector('[data-staff="registro-scarica"]');
     if (invia) invia.disabled = !s.acceso && vuota;

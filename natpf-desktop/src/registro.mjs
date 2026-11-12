@@ -86,12 +86,15 @@ export function creaCodaRegistro({ dir, limiti = REGISTRO_PC, log = () => {}, no
       try {
         const c = controllaBlocco(id, testo, limiti); if (!c.ok) return c;
         const I = carica(); if (I.has(id)) return { ok: true, doppione: true };
-        // tetto: via i blocchi più vecchi finché quello nuovo ci sta
-        let tot = totale() + c.byte;
-        for (const b of ordinati()){ if (tot <= limiti.maxCoda) break; try { fs.rmSync(file(b.id), { force: true }); } catch {} I.delete(b.id); tot -= b.byte; scartati++; }
         fs.mkdirSync(dir, { recursive: true });
-        // prima in un file provvisorio: un blocco scritto a metà (PC spento) non resta nella coda
-        const tmp = `${file(id)}.part`; fs.writeFileSync(tmp, testo, 'utf8'); fs.renameSync(tmp, file(id));
+        // prima in un file provvisorio: un blocco scritto a metà (PC spento) non resta nella coda; se la scrittura non
+        // riesce (disco pieno) il provvisorio si toglie subito e nessun blocco vecchio è stato scartato per niente
+        const tmp = `${file(id)}.part`;
+        try { fs.writeFileSync(tmp, testo, 'utf8'); fs.renameSync(tmp, file(id)); }
+        catch (e){ try { fs.rmSync(tmp, { force: true }); } catch {} throw e; }
+        // tetto: solo dopo la scrittura riuscita, via i blocchi più vecchi (mai quello appena scritto) finché ci sta
+        let tot = totale() + c.byte;
+        for (const b of ordinati()){ if (tot <= limiti.maxCoda) break; if (b.id === id) continue; try { fs.rmSync(file(b.id), { force: true }); } catch {} I.delete(b.id); tot -= b.byte; scartati++; }
         I.set(id, { id, byte: c.byte, righe: c.righe });
         return { ok: true };
       } catch (e){ log('registro: blocco non scritto', e.code || e.message); return { ok: false, perche: String(e.code || e.message || 'errore').slice(0, 60) }; }

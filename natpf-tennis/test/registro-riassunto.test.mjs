@@ -84,6 +84,18 @@ test('riassunto: file tronchi (ultima riga a metà, gzip interrotto) e partite s
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('riassunto: una riga gigante (30 MB, una parola sola) si salta e si conta senza fermare lo strumento', async () => {
+  const dir = tmp();
+  try {
+    const { righe, verita } = giornoFinto({ partite: 20, seme: 4 });
+    const gigante = JSON.stringify({ k: 'errore', t: 1, msg: 'x'.repeat(30*1024*1024) });
+    fs.writeFileSync(path.join(dir, 'registro-2026-11-14.jsonl'), righe.slice(0, 10).join('\n') + '\n' + gigante + '\n' + righe.slice(10).join('\n') + '\n');
+    const t0 = Date.now(), r = await riassumi(dir);
+    assert.ok(Date.now() - t0 < 15000, `${Date.now() - t0} ms`);
+    assert.equal(r.R.partite.n, verita.partite); assert.equal(r.L.illeggibili, 1);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('riassunto: lo stesso blocco due volte si conta una volta; righe con nomi o campi vietati restano fuori e si dicono', async () => {
   const dir = tmp();
   try {

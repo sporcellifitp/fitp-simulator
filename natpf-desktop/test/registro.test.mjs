@@ -74,6 +74,16 @@ test('registro del programma: oltre il tetto si scartano i blocchi più vecchi',
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('registro del programma: se la scrittura non riesce (disco pieno) i blocchi vecchi non si scartano per niente', () => {
+  const dir = tmp(), uno = Buffer.byteLength(righe(4)), Q = creaCodaRegistro({ dir, limiti: { ...REGISTRO_PC, maxCoda: uno*3 + 5 } });
+  for (let i = 1; i <= 3; i++) assert.equal(Q.put(ID(i), righe(4)).ok, true);
+  // il file provvisorio del blocco nuovo non si può scrivere (al suo posto c'è una cartella: come un disco pieno)
+  fs.mkdirSync(path.join(dir, `${ID(4)}.jsonl.part`));
+  const r = Q.put(ID(4), righe(4));
+  assert.equal(r.ok, false); assert.deepEqual(Q.list().map(b => b.id), [ID(1), ID(2), ID(3)], 'i tre blocchi vecchi ci sono ancora'); assert.equal(Q.state().scartati, 0);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('registro del programma: cartella che non si può scrivere → { ok: false }, nessun errore lanciato', () => {
   const dir = tmp(), file = path.join(dir, 'occupato'); fs.writeFileSync(file, 'x');
   const visti = [], Q = creaCodaRegistro({ dir: path.join(file, 'registro'), log: (...a) => visti.push(a) });
