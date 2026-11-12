@@ -85,6 +85,11 @@ export const FREE_HAND_BLEND = Object.freeze([0.06, 0.3]);       // metri dal ri
 // della testa) e, all'altezza della testa, resta fuori dal suo contorno con FREE_HAND_GAP di margine.
 export const FREE_HAND_RATE = 12;          // 1/s: quanto in fretta la mano libera insegue il suo bersaglio
 export const FREE_HAND_TOP = 0.15, FREE_HAND_GAP = 0.075, FREE_HAND_MIN_REACH = 0.55;
+// Mano libera davanti alla faccia: scende fino a FREE_HAND_CHIN sotto il mento (unità del modello), tranne quando la
+// mano del tennista sale oltre FREE_HAND_UP (metri dal campo: da 1,5 comincia a salire, a 1,75 è libera)
+export const FREE_HAND_CHIN = 0.02, FREE_HAND_UP = Object.freeze([1.5, 1.75]);
+// 0 prima di a, 1 dopo b, morbida in mezzo (a > b va al contrario)
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a)/(b - a))); return t*t*(3 - 2*t); };
 // Passo: i piedi del tennista si spostano di pochi centimetri; alle gambe corte e larghe delle mascotte serve di più
 // Il piede insegue il suo bersaglio a velocità limitata (unità del modello al secondo): il passo di corsa (al più
 // 2,6 al secondo) passa intero, un salto del bersaglio (cambio di passo, punto nuovo) si spalma su qualche fotogramma
@@ -313,16 +318,24 @@ function poseArm(rig, side, hand, free, dt){
   readPart(rig, hand, _T, null);                                                     // dove va il palmo (metri)
   if (free){
     // mano libera: bassa a riposo, alla posizione vera quando la mano del tennista si allontana dal suo riposo
-    const R = ENGINE_REST.handFree, dx = _T.x - R[0]*side.sx, dy = _T.y - R[1], dz = _T.z - R[2];
+    const R = ENGINE_REST.handFree, dx = _T.x - R[0]*side.sx, dy = _T.y - R[1], dz = _T.z - R[2], high = _T.y;
     const far = Math.sqrt(dx*dx + dy*dy + dz*dz), t = Math.min(1, Math.max(0, (far - FREE_HAND_BLEND[0])/(FREE_HAND_BLEND[1] - FREE_HAND_BLEND[0]))), w = t*t*(3 - 2*t);
     _w.set(FREE_HAND_REST[0]*side.sx + dx*k, FREE_HAND_REST[1] + dy*k, FREE_HAND_REST[2] + dz*k);
     _T.multiplyScalar(k).lerp(_w, 1 - w);
+    // davanti alla faccia: il tennista porta la mano libera avanti all'altezza della spalla (dritto, rovescio), che
+    // nella mascotte è l'altezza degli occhi. Lì il palmo scende sotto il mento, davanti al petto; se il tennista
+    // alza la mano sopra la testa (esultanza, lancio alto) resta dov'è. Tutto continuo: niente scatti.
+    const H = rig.headShape, cx = rig.head.wp.x + H.cx + rig.hipsP.x - rig.hips.wp.x, cy = rig.head.wp.y + H.cy + rig.hipsP.y - rig.hips.wp.y, cz = rig.head.wp.z + (H.cz || 0) + rig.hipsP.z - rig.hips.wp.z;
+    const chin = cy - H.ry - FREE_HAND_CHIN;
+    if (_T.y > chin){
+      const front = smooth(H.rx, 0.4*H.rx, Math.abs(_T.x - cx))*smooth(0, 0.5*H.rz, _T.z - cz), up = smooth(FREE_HAND_UP[0], FREE_HAND_UP[1], high);
+      _T.y -= (_T.y - chin)*front*(1 - up);
+    }
     // la mano libera insegue il suo bersaglio con un filo di ritardo: quando il tennista la sposta di colpo (inizio
     // di un colpo, lancio) la mascotte non scatta. Senza tempo (scene ferme, prove) ci va subito.
     if (side.freeSet && dt > 0 && dt <= 0.25) _T.copy(side.free.lerp(_T, 1 - Math.exp(-dt*FREE_HAND_RATE)));
     else { side.free.copy(_T); side.freeSet = true; }
     // fuori dalla testa (il suo centro segue il bacino)
-    const H = rig.headShape, cx = rig.head.wp.x + H.cx + rig.hipsP.x - rig.hips.wp.x, cy = rig.head.wp.y + H.cy + rig.hipsP.y - rig.hips.wp.y, cz = rig.head.wp.z + (H.cz || 0) + rig.hipsP.z - rig.hips.wp.z;
     _T.y = Math.min(_T.y, cy + FREE_HAND_TOP*H.ry);
     const v = (_T.y - cy)/(H.ry + FREE_HAND_GAP);
     if (v > -1 && v < 1){
