@@ -75,14 +75,20 @@ export const autoTossToast = on => `${on
 //     arriva tardi; e l'allungo costa più qualità (`stretchCost` al posto di PLAN.stretchCost .4): risposta più corta e
 //     più lenta, al limite sbagliata (colpo fallito per regola);
 //   · palla non raggiunta (piano «stretch»): la racchetta arriva solo fino a `reach` m di lato (prima 2,4 m);
-//   · la risposta al servizio resta con la corsa di sempre (`serveFull`): il servizio largo non chiude il punto da solo.
-export const OPEN_COURT = Object.freeze({ speed: .6, recover: .2, react: .1, tight: .8, stretchCost: .6, reach: 1.7, serveFull: true });
+//   · la risposta al servizio resta con la corsa di sempre (`serveFull`): il servizio largo non chiude il punto da solo;
+//   · il servizio passa come nel formato in fiera (`altServe`: A, B B, A A…) anche con il formato classico. Revisione
+//     del B25: con la risposta a corsa piena il primo a colpire in allungo è sempre chi ha battuto, che vince solo 44–47
+//     punti su 100 (spento 51–52); con un battitore per game, nella partita classica a 1 game chi batteva per primo
+//     vinceva 37–44 partite su 100. Con il servizio che passa ogni due punti i due battono lo stesso numero di punti e
+//     il sorteggio non decide (misure: scripts/audit/b25/misure.mjs battitore). Parità e vantaggi restano quelli del
+//     formato scelto.
+export const OPEN_COURT = Object.freeze({ speed: .6, recover: .2, react: .1, tight: .8, stretchCost: .6, reach: 1.7, serveFull: true, altServe: true });
 // solo per le misure (scripts/audit/b25): valori che sostituiscono quelli sopra. Vuoto nel gioco
 export const openTuning = {};
 export const openCourt = () => ({ ...OPEN_COURT, ...openTuning });
 export const openCourtButton = on => (on ? 'Sì · il piazzamento conta' : 'No');
 export const openCourtToast = on => `${on
-  ? 'Campo aperto acceso: nello stesso schermo i personaggi corrono come persone; la palla angolata e lontana si prende in allungo o non si prende'
+  ? 'Campo aperto acceso: nello stesso schermo i personaggi corrono come persone; la palla angolata e lontana si prende in allungo o non si prende. Il servizio passa ogni due punti, come nel formato in fiera'
   : 'Campo aperto spento: i personaggi arrivano su ogni palla, come sempre'}. Vale dalla prossima partita; resta salvata`;
 
 /* ---------- 3 · colpo super sulla forza relativa ---------- */
@@ -203,6 +209,9 @@ const duoOf = engine => (engine?.natpfSplit?.active ? engine.natpfDuo || null : 
 export const helpOf = (engine, actor) => { const D = duoOf(engine); return D?.helped ? (actor && actor === engine.opponent ? D.help.p2 : D.help.p1) : null; };
 // campo aperto acceso per questa partita?
 export const openOn = engine => !!duoOf(engine)?.open;
+// il servizio passa ogni due punti (A, B B, A A…, natpf_fair_format.nextServe)? Con il formato in fiera sempre; con il
+// campo aperto acceso anche nel formato classico (OPEN_COURT.altServe: chi batte lì è sfavorito, vedi sopra)
+export const altServe = (engine, fair = false) => !!fair || (openOn(engine) && !!openCourt().altServe);
 // corsa di questo personaggio verso la palla di adesso (fattore sulla velocità) e ritardo in più alla partenza
 export function openRun(engine){
   if (!openOn(engine)) return null;

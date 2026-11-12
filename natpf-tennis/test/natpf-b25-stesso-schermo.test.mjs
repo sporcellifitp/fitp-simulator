@@ -306,7 +306,7 @@ test('preparazione: nello stesso schermo non conta più; con la regola di prima 
 
 /* ---------- 2 · campo aperto ---------- */
 test('campo aperto: spento il fattore della corsa è 1 esatto; acceso × 0,6 verso la palla, × 0,2 al rientro, piena sulla risposta al servizio', () => {
-  assert.deepEqual({ ...ND.OPEN_COURT }, { speed: .6, recover: .2, react: .1, tight: .8, stretchCost: .6, reach: 1.7, serveFull: true });
+  assert.deepEqual({ ...ND.OPEN_COURT }, { speed: .6, recover: .2, react: .1, tight: .8, stretchCost: .6, reach: 1.7, serveFull: true, altServe: true });
   const off = splitEngine(), on = splitEngine(x => { x.natpfOpenCourt = true; });
   assert.equal(ND.openOn(off), false); assert.equal(ND.openOn(on), true);
   for (const e of [off, on]){ e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.rallyStrokeCount = 4; e.ball.lastHitter = 'opponent'; e.ball.vel.set(0, 0, 18); }
@@ -321,6 +321,62 @@ test('campo aperto: spento il fattore della corsa è 1 esatto; acceso × 0,6 ver
   const cpu = createHeadlessEngine({ difficulty: 'pro' }); cpu.natpfOpenCourt = true; cpu.startNewMatch({ showStartBanner: false });
   cpu.phase = 'RALLY'; cpu.ball.inPlay = true; cpu.ball.rallyStrokeCount = 4;
   assert.equal(ND.openOn(cpu), false); assert.equal(NS.moveFactor(cpu, cpu.player), 1);
+});
+
+// Revisione del B25 (bloccante): con il campo aperto la risposta al servizio è a corsa piena e il primo in allungo è chi ha
+// battuto, che vince 44–47 punti su 100; con un battitore per game, nella partita classica a 1 game decideva il sorteggio
+// (chi batteva per primo vinceva 37–44 partite su 100). Con il campo aperto il servizio passa ogni due punti, sempre
+test('campo aperto e servizio: acceso, il servizio passa ogni due punti (A, B B, A A…) anche nel formato classico; parità e vantaggi restano; spento o contro la CPU un battitore per game', () => {
+  // punti dati a mano: sequenza dei battitori punto per punto
+  const servers = (e, wins) => { const s = [e.score.server]; for (const w of wins){ e._awardPoint(w, 'Out'); s.push(e.score.server); } return s; };
+  const alt = n => Array.from({ length: n }, (_, i) => pointServer('player', i));
+  const wins = ['player', 'opponent', 'player', 'opponent', 'player', 'opponent'];   // fino a 40-40
+  // classico, campo aperto spento: batte sempre il primo (com'era)
+  const off = splitEngine(null, { fair: false, first: 'player' });
+  assert.equal(ND.altServe(off, false), false);
+  assert.deepEqual(servers(off, wins), Array(7).fill('player'));
+  // classico, campo aperto acceso: A, B B, A A, B B…
+  const on = splitEngine(x => { x.natpfOpenCourt = true; x.matchConfig.gamesToWin = 2; }, { fair: false, first: 'player' });
+  assert.equal(on.score.fair, false, 'il formato resta classico'); assert.equal(ND.altServe(on, false), true);
+  assert.deepEqual(servers(on, wins), alt(7), 'servizio ogni due punti');
+  assert.deepEqual(alt(7), ['player', 'opponent', 'opponent', 'player', 'player', 'opponent', 'opponent']);
+  // … ma il game si vince come nel classico: sul 40-40 niente punto decisivo, servono due punti di scarto
+  assert.deepEqual([on.score.playerPoints, on.score.opponentPoints], [3, 3]);
+  on._awardPoint('player', 'Out');
+  assert.deepEqual([on.score.playerPoints, on.score.opponentPoints, on.score.playerGames], [4, 3, 0], 'vantaggio, il game continua');
+  assert.equal(on.score.server, pointServer('player', 7), 'e il servizio continua a passare');
+  // niente «Break Point»: il game non è di chi batte (qui batte il P1 ed è palla game del P2)
+  on._awardPoint('opponent', 'Out'); on._awardPoint('opponent', 'Out');
+  assert.deepEqual([on.score.playerPoints, on.score.opponentPoints], [4, 5]);
+  on.score.server = 'player';
+  assert.equal(on._getHighStakesPointLabel(), 'Game Point');
+  off.score.playerPoints = 2; off.score.opponentPoints = 3; off.score.server = 'player';
+  assert.equal(off._getHighStakesPointLabel(), 'Break Point', 'spento, nel classico resta la palla break');
+  // game finito: il game dopo lo inizia l'altro
+  on.score.server = pointServer('player', 9);
+  on._awardPoint('opponent', 'Out');
+  assert.deepEqual([on.score.opponentGames, on.score.playerPoints, on.score.opponentPoints], [1, 0, 0]);
+  assert.equal(on.score.server, 'opponent'); assert.equal(on.score.gameServer, 'opponent');
+  on._awardPoint('player', 'Out');
+  assert.equal(on.score.server, 'player', 'nel secondo game: B, A A…');
+  // formato in fiera: come sempre, con il campo aperto acceso o spento
+  for (const open of [false, true]){
+    const f = splitEngine(x => { x.natpfOpenCourt = open; }, { fair: true, first: 'opponent' });
+    assert.deepEqual(servers(f, wins.slice(0, 5)), Array.from({ length: 6 }, (_, i) => pointServer('opponent', i)));
+  }
+  // con i punti di vantaggio dell'aiuto (variante B, 30-0 al bambino) i battitori sono gli stessi
+  const helped = splitEngine(x => { x.natpfOpenCourt = true; x.natpfSplitBands = { p1: 'bambino', p2: 'adulto' }; x.natpfHelpVariant = 'B'; }, { fair: false, first: 'player' });
+  assert.equal(helped.natpfHead, 2);
+  assert.deepEqual(servers(helped, ['opponent', 'opponent', 'opponent']), alt(4));
+  // contro la CPU non esiste, nemmeno con il valore a mano; e il valore di prova lo spegne (misure «prima»)
+  const cpu = createHeadlessEngine({ difficulty: 'pro' }); cpu.natpfOpenCourt = true; cpu.natpfFair = false; cpu.natpfServeFirst = 'player'; cpu.startNewMatch({ showStartBanner: false });
+  assert.equal(ND.altServe(cpu, false), false); assert.equal(ND.altServe(cpu, true), true);
+  assert.deepEqual(servers(cpu, wins), Array(7).fill('player'));
+  ND.openTuning.altServe = false;
+  try { assert.equal(ND.altServe(on, false), false); } finally { delete ND.openTuning.altServe; }
+  // lo dicono l'avviso del pannello e il suggerimento del pulsante
+  assert.match(ND.openCourtToast(true), /Il servizio passa ogni due punti, come nel formato in fiera/);
+  assert.match(html, /data-staff="open" title="[^"]*Il servizio passa ogni due punti, come nel formato in fiera, anche con il formato classico/);
 });
 
 test('campo aperto: in allungo la finestra del tempo si stringe e l\'allungo costa di più; la palla non raggiunta si tocca solo da vicino', () => {

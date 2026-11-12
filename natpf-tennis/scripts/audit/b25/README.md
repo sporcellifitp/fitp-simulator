@@ -8,8 +8,10 @@ Da `natpf-tennis`, dopo `npm ci`:
 
 ```sh
 node --import ./test/register.mjs scripts/audit/b25/impronte.mjs [--partite=20] [--punti=120] [--regole=prima,oggi]
-node --import ./test/register.mjs scripts/audit/b25/misure.mjs <gruppo> [--partite=1] [--semi=7001,7103,7207] [--formato=fiera|classico]
+node --import ./test/register.mjs scripts/audit/b25/misure.mjs <gruppo> [--partite=1] [--semi=7001,7103,7207] [--formato=fiera|classico] [--game=1]
 ```
+
+`--game=2` vuol dire due game per vincere (al meglio di 3); vale per i gruppi dell'aiuto, delle tattiche e tra pari.
 
 | file | cosa fa |
 |---|---|
@@ -18,6 +20,7 @@ node --import ./test/register.mjs scripts/audit/b25/misure.mjs <gruppo> [--parti
 | `misure.mjs super` | Colpo super: gioco normale, «ogni tanto fortissimo» (un colpo su cinque), «sempre fortissimo»; prima e oggi; soglie da 1,2 a 1,5 volte; chi vince. |
 | `misure.mjs preparazione` | Chi porta sempre indietro il braccio contro chi non lo fa mai, prima e oggi. |
 | `misure.mjs campo` | Campo aperto spento e acceso: vincenti, errori provocati, colpi a punto, durate, i due lati (5 semi), tattiche (piazza, mira le righe, al centro, sempre fortissimo, palle corte). |
+| `misure.mjs battitore` | Revisione: con il campo aperto quanto vale battere e battere per primo. Formato classico (1 game e al meglio di 3) e in fiera; campo aperto spento, acceso con un battitore per game (com'era prima della revisione, `openTuning.altServe = false`) e acceso con il servizio ogni due punti (in gioco). |
 | `misure.mjs campo-prove` | Altri valori del campo aperto: `--prove=speed:react:stretchCost:reach,…` `--profilo=medio`. |
 | `misure.mjs aiuto` | Aiuto al più giovane: varianti 0, A, B, C per bambino–adulto, ragazzo–adulto, bambino–ragazzo. |
 | `misure.mjs aiuto-altro` | L'aiuto con il campo aperto acceso; i soli punti di vantaggio (15-0, 30-0, 40-0); un adulto segnato «Bambino». |
@@ -34,7 +37,9 @@ node --import ./test/register.mjs scripts/audit/b25/misure.mjs <gruppo> [--parti
 | `impronte-dopo.txt` | `impronte.mjs` con il motore di oggi: le righe «super e preparazione come prima» e quelle contro la CPU hanno le stesse impronte del file sopra; le righe «regole di oggi» cambiano solo per le due regole che valgono sempre. |
 | `misure-fiera.txt` | `misure.mjs` gruppi `pari`, `super`, `preparazione`, `campo`, `aiuto`, formato in fiera (quello di base nello stesso schermo). |
 | `misure-altre.txt` | `misure.mjs aiuto-altro`: l'aiuto con il campo aperto acceso (nessuno, A, B, C), i soli punti di vantaggio, l'adulto segnato «Bambino». Le righe «campo aperto · variante C» sono state misurate **prima** della correzione della variante C per il campo aperto (`HELP.C.open`): per il bambino contro l'adulto mostrano la C con il 15-0 (53,6%); la C di oggi lì è uguale alla riga della variante A (39,7%). |
-| `legend.txt` | `npm run audit:legend` (contro la CPU): 69/69. |
+| `misure-battitore.txt` | Revisione (12/11): `misure.mjs battitore`, due serie di semi. |
+| `misure-aiuto-meglio-di-3.txt` | Revisione (12/11): `misure.mjs aiuto-prove --game=2`, bambino contro adulto medio al meglio di 3, formato classico e in fiera: nessun aiuto, A, B, C e due prove più forti. |
+| `legend.txt` | `npm run audit:legend` (contro la CPU): 69/69 (rifatto il 12/11 dopo la revisione). |
 
 Cambi al banco dell'audit B19 (`../b19/due-umani.mjs`), tutti spenti di base (le impronte dei profili di sempre non
 cambiano):

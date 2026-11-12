@@ -3,8 +3,8 @@
 // prova si impostano solo in memoria (engine.natpfOpenCourt, natpfSplitBands, natpfHelpVariant, natpfSuperRel, natpfNoPrep,
 // natpf_duo_rules.openTuning / helpTuning / superTuning).
 // Uso, da natpf-tennis:
-//   node --import ./test/register.mjs scripts/audit/b25/misure.mjs <gruppo> [--partite=1] [--semi=7001,7103,7207] [--formato=fiera|classico]
-// Gruppi: pari · super · preparazione · campo · campo-prove · aiuto · aiuto-altro · aiuto-prove · tutti (pari, super,
+//   node --import ./test/register.mjs scripts/audit/b25/misure.mjs <gruppo> [--partite=1] [--semi=7001,7103,7207] [--formato=fiera|classico] [--game=1]
+// Gruppi: pari · super · preparazione · campo · battitore · campo-prove · aiuto · aiuto-altro · aiuto-prove · tutti (pari, super,
 // preparazione, campo, aiuto, aiuto-altro di fila: circa un'ora; meglio un gruppo per volta, ognuno nel suo processo)
 // «prima» = regole di f08243a (colpo super con la soglia uguale per tutti, preparazione che conta), rimesse a mano.
 import { many, sum, pc, qt } from '../b19/due-umani.mjs';
@@ -14,6 +14,8 @@ const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
 const G = process.argv[2] || 'tutti', K = +(arg('partite') || 1);
 const SEEDS = (arg('semi') || '7001,7103,7207').split(',').map(Number);
 const fair = (arg('formato') || 'fiera') !== 'classico';
+// game da vincere (1 di base; 2 = al meglio di 3): vale per i gruppi che usano duo()
+const GW = Math.max(1, +(arg('game') || 1));
 const M = n => Math.max(4, Math.round(n*K));
 const say = s => console.log(s);
 // profilo «ragazzo» (10–14 anni, ipotesi): tra il bambino e l'adulto medio del banco
@@ -27,7 +29,7 @@ const setObj = (o, v) => { for (const k of Object.keys(o)) delete o[k]; Object.a
 // due lati: a gioca da P1 e poi da P2; tw(lato di a) → modifica del motore solo in memoria. Ritorna le due serie e i conti
 function duo(a, b, o = {}, tw = null){
   const m = M(o.matches || 60);
-  const r1 = many({ a: P(a), b: P(b), fair, ...o, matches: m, tweak: tw ? tw('p1') : o.tweak }, SEEDS), r2 = many({ a: P(b), b: P(a), fair, ...o, matches: m, tweak: tw ? tw('p2') : o.tweak }, SEEDS);
+  const r1 = many({ a: P(a), b: P(b), fair, gamesToWin: GW, ...o, matches: m, tweak: tw ? tw('p1') : o.tweak }, SEEDS), r2 = many({ a: P(b), b: P(a), fair, gamesToWin: GW, ...o, matches: m, tweak: tw ? tw('p2') : o.tweak }, SEEDS);
   const Mt = [...r1.matches.map(x => ({ ...x, a: x.win === 'p1' })), ...r2.matches.map(x => ({ ...x, a: x.win === 'p2' }))];
   const Pt = [...r1.pts.map(x => ({ ...x, a: x.win === 'p1' })), ...r2.pts.map(x => ({ ...x, a: x.win === 'p2' }))];
   const Gm = [...r1.games, ...r2.games], Sh = [...r1.shots.map(s => ({ ...s, a: s.k === 'p1' })), ...r2.shots.map(s => ({ ...s, a: s.k === 'p2' }))];
@@ -143,6 +145,24 @@ const groups = {
     }
     setObj(ND.openTuning, null);
   },
+  // revisione, parte 2: con il campo aperto chi batte è sfavorito (la risposta al servizio è a corsa piena, il primo in
+  // allungo è chi ha battuto). «un battitore per game» = com'era prima della revisione (OPEN_COURT.altServe spento a mano);
+  // «servizio ogni due punti» = in gioco. Tra pari, formato classico (1 game e al meglio di 3) e in fiera
+  battitore(){
+    say('== Campo aperto e servizio: quanto vale battere, e battere per primo (stesso profilo dai due lati) ==');
+    const row = (name, o, tw) => { const r = many({ ...o, matches: M(o.matches) }, SEEDS), s = sum(r);
+      say(`${name.padEnd(70)} | ${s.matches} part., ${s.pts} punti · chi batte vince ${s.srvPt}% dei punti · chi inizia il game lo vince ${s.srvGame}% · chi batte per primo vince ${s.firstWins}% delle partite · punti del P1 ${s.p1Pts}%, partite del P1 ${s.p1Match}%`); };
+    for (const a of ['bambino', 'medio', 'amatore']){
+      row(`${a} · classico 1 game · campo aperto spento`, { a, b: a, fair: false, matches: 400, tweak: open(false) });
+      row(`${a} · classico 1 game · acceso, un battitore per game (prima)`, { a, b: a, fair: false, matches: 400, tweak: open(true, { altServe: false }) });
+      row(`${a} · classico 1 game · acceso, servizio ogni due punti (in gioco)`, { a, b: a, fair: false, matches: 400, tweak: open(true) });
+      row(`${a} · classico al meglio di 3 · acceso, un battitore per game (prima)`, { a, b: a, fair: false, gamesToWin: 2, matches: 200, tweak: open(true, { altServe: false }) });
+      row(`${a} · classico al meglio di 3 · acceso, servizio ogni due punti`, { a, b: a, fair: false, gamesToWin: 2, matches: 200, tweak: open(true) });
+      row(`${a} · in fiera 1 game · campo aperto spento`, { a, b: a, fair: true, matches: 400, tweak: open(false) });
+      row(`${a} · in fiera 1 game · acceso`, { a, b: a, fair: true, matches: 400, tweak: open(true) });
+    }
+    setObj(ND.openTuning, null);
+  },
   // parte 2, prove: altri valori del campo aperto (solo in memoria) → --prove=speed:react:stretchCost:reach,…
   'campo-prove'(){
     const list = (arg('prove') || '.6:.1:.6:1.7,.5:.1:.6:1.7,.45:.1:.6:1.7,.4:.1:.6:1.7,.36:.1:.6:1.7').split(',').map(x => x.split(':').map(Number));
@@ -195,4 +215,4 @@ const t0 = Date.now();
 if (G === 'tutti') for (const k of ['pari', 'super', 'preparazione', 'campo', 'aiuto', 'aiuto-altro']){ groups[k](); say(''); }
 else if (groups[G]) groups[G]();
 else { say(`Gruppo sconosciuto: ${G}. Gruppi: ${Object.keys(groups).join(' · ')} · tutti`); process.exitCode = 1; }
-say(`(semi ${SEEDS.join(', ')} · --partite=${K} · formato ${fair ? 'in fiera' : 'classico'} · ${Math.round((Date.now() - t0)/1000)} s)`);
+say(`(semi ${SEEDS.join(', ')} · --partite=${K} · formato ${fair ? 'in fiera' : 'classico'}${GW > 1 ? `, ${GW} game per vincere` : ''} · ${Math.round((Date.now() - t0)/1000)} s)`);

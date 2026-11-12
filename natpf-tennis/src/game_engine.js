@@ -3418,8 +3418,10 @@ export class NatpfTennisEngine {
       // il punto dopo (classico: cambia solo a fine game, come prima; fiera: A, B B, A A… come nel tie-break)
       fair = !!this.score.fair,
       gw = NF.gameWinner(a, s, { fair }),
-      // (B25: i punti di vantaggio a inizio game dell'aiuto al più giovane non sono punti giocati: natpfHead)
-      sv = NF.nextServe({ server: this.score.server, gameServer: this.score.gameServer ?? this.score.server, played: a + s - (this.natpfHead || 0), gameOver: !!gw, fair });
+      // (B25: i punti di vantaggio a inizio game dell'aiuto al più giovane non sono punti giocati: natpfHead; con il
+      // campo aperto acceso nello stesso schermo il servizio passa ogni due punti anche nel formato classico, ND.altServe:
+      // lì chi batte è sfavorito e con un battitore per game deciderebbe il sorteggio. Chi vince il game: regola di sempre)
+      sv = NF.nextServe({ server: this.score.server, gameServer: this.score.gameServer ?? this.score.server, played: a + s - (this.natpfHead || 0), gameOver: !!gw, fair: ND.altServe(this, fair) });
     (this.score.server = sv.server), (this.score.gameServer = sv.gameServer);
     if (gw) {
       if (
@@ -3779,7 +3781,7 @@ export class NatpfTennisEngine {
       : a
         ? this.score.opponentGames + 1 >= this.matchConfig.gamesToWin
           ? "Match Point"
-          : this.score.server === "player" && !fair
+          : this.score.server === "player" && !ND.altServe(this, fair)
             ? "Break Point"
             : "Game Point"
         : null;
