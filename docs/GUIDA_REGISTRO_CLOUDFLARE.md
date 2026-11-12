@@ -65,7 +65,8 @@ manca il collegamento al bucket R2».
       `https://<nome-del-gioco>.<vostro-sottodominio>.workers.dev`). `https://localhost:8443` è il programma Windows.
     - La **chiave** la scegliete e la tenete **solo voi**: non scrivetela in chat, in un'email, in un file del gioco o
       del repository. Il gioco non la conosce e non gli serve: può solo **aggiungere** righe. Senza la chiave nessuno
-      può leggere, elencare o cancellare niente.
+      può leggere, elencare o cancellare niente (il Worker non cancella mai niente da solo). Chi conosce l'indirizzo del
+      Worker (sta nel pacchetto web, che è pubblico) può però **riempire** lo spazio con righe finte: vedi il punto H.
 11. Premete **Deploy**: le variabili valgono solo dopo il Deploy. Controllo: nell'elenco `CHIAVE_LETTURA` deve avere il
     tipo **Secret** (non «Variable», che si legge in chiaro nella dashboard). Se è «Variable», cancellatela e
     aggiungetela di nuovo scegliendo **Secret**, poi Deploy.
@@ -120,9 +121,17 @@ partita**:
 In pratica, per le giornate dello stand, il registro occupa una piccola parte dei 10 GB dell'account (che contengono
 anche installer e trailer).
 
-- **Tetto totale** (`MAX_TOTALE_MB`, di base 2 GB): quando il registro lo supera, il Worker **cancella da solo i giorni
-  più vecchi** finché rientra, **mai il giorno in corso**. La pagina del Worker elenca i giorni già cancellati
-  («spazio pieno» o «a mano»). Scaricate prima i giorni che volete tenere.
+- **Tetto totale** (`MAX_TOTALE_MB`, di base 2 GB): quando il registro è pieno il Worker **non accetta altre righe**
+  (restano in coda sui PC dello stand e ripartono da sole quando c'è di nuovo posto). Il Worker **non cancella mai
+  niente da solo**: la pagina del Worker scrive in rosso «Spazio quasi pieno» o «Spazio PIENO»; voi scaricate i giorni
+  che volete tenere e li cancellate con **Cancella** (oppure alzate `MAX_TOTALE_MB`).
+  Perché così (revisione del 12/11): prima, oltre il tetto, il Worker cancellava da solo i giorni più vecchi; chi
+  conosceva l'indirizzo poteva mandare righe finte e far sparire i giorni veri dello stand. Adesso può al più riempire
+  lo spazio: se vedete giorni che non sono dello stand pieni di righe, cancellateli e avvisate chi sviluppa.
+- **Giorni accettati**: senza chiave il Worker accetta solo righe da **7 giorni fa a domani**. Un PC con l'orologio
+  sbagliato, o rimasto senza rete più di una settimana, tiene i suoi blocchi in coda (il pannello dello stand dice
+  «giorno non accettato (orologio del computer?)»): sistemate l'orologio, oppure portate via la coda con **Scarica la
+  coda**.
 - **Tetto di un giorno** (`MAX_GIORNO_MB`, di base 200 MB, ottanta volte una giornata da 1.000 partite): un giorno pieno
   non accetta altre righe; restano in coda sul PC (pannello: «invio non riuscito»).
 - **Costi**: il piano gratuito di R2 comprende 10 GB, un milione di scritture e dieci milioni di letture al mese. Un
@@ -137,8 +146,10 @@ anche installer e trailer).
 - Il bucket `natpf-registro` è **privato e separato**: mai «Public access», mai un dominio pubblico, mai il bucket
   dell'installer.
 - Il gioco (e chiunque conosca l'indirizzo del Worker) può solo **aggiungere** righe del registro, con limiti di
-  dimensione e di frequenza; le righe che non sono del registro e i campi non previsti si scartano.
-  `ALLOWED_ORIGINS` impedisce ad altri **siti** di scrivere.
+  dimensione e di frequenza, nei giorni da una settimana fa a domani; le righe che non sono del registro e i campi non
+  previsti si scartano. `ALLOWED_ORIGINS` impedisce ad altri **siti** di scrivere (non a un programma che finge di
+  essere il gioco). Chi conosce l'indirizzo può **riempire lo spazio** e bloccare le scritture finché non cancellate,
+  ma **non può leggere né cancellare niente**: senza la chiave nessuna scrittura fa cancellare qualcosa.
 - Leggere, elencare, scaricare e cancellare: **solo con la chiave**, che sta solo nelle variabili segrete del Worker e
   nella vostra testa. Dopo 10 chiavi sbagliate in 10 minuti il Worker si ferma per quell'indirizzo.
 
