@@ -449,3 +449,196 @@ test('di base · telecomando dello staff negli scambi di prova: pagina «Scambi 
   assert.equal((await cmd('recal')).ok, true); w.advance(300);
   assert.deepEqual(w.link.cmds.slice(c0), ['cal', 'skip']); assert.ok(ui.phone.ready && ui.phone.profile.simple);
 });
+
+/* ================= B28.1 (12/11/2026): punti aperti della seconda revisione ================= */
+import { trialOutro, outroCounts, trialDots } from '../src/natpf/natpf_trial.js';
+import { eventoK, eventoState, eventoRestart, eventoAfterPoint, isEvento, skillLevel } from '../src/natpf/natpf_skill.js';
+const toChallenge = (w, id = 'rush') => { w.ui.events.nickname = 'Marta'; w.lobby.challenge = id; w.lobby.setMode('challenge'); w.lobby.go('connect'); w.advance(300); w.lobby.next(); w.advance(300); };
+const toTraining = w => { w.lobby.setMode('training'); w.lobby.go('connect'); w.advance(300); w.lobby.next(); w.advance(300); };
+const toMatch = w => { w.lobby.go('mode'); w.lobby.setMode('cpu'); w.lobby.go('controller'); w.lobby.go('connect'); w.advance(300); w.lobby.next(); w.advance(300); };
+
+/* ---------- 1: il profilo non passa attraverso minigiochi e allenamenti ---------- */
+test('B28.1 · «Giocando»: «Calibra con i gesti» vale per l\'attività che segue, qualunque sia (minigioco, allenamento, partita), e basta', async () => {
+  // gesti al menu → un minigioco (li tiene) → il minigioco dopo è di un altro: scambi di prova da capo
+  const w = await playWorld({ mode: null }), { E, ui, lobby, link, P } = w;
+  P.recalibrate({ gestures: true }); w.advance(300); gestureDone(w);
+  assert.ok(P.keepsGesture && P.gestureAt === 0 && P.activitySeq === 0);
+  let c0 = link.cmds.length; toChallenge(w);
+  assert.ok(!ui.trial.active && ui.events.active, 'primo minigioco: subito, con il profilo dei gesti'); assert.deepEqual(link.cmds.slice(c0), []); assert.equal(P.profile.ref, 580);
+  assert.ok(!P.keepsGesture && P.activitySeq === 1, 'consumato: vale per questo minigioco');
+  // «Gioca ancora» (la stessa persona): resta
+  ui.events.abort?.(); lobby._resultAction('again'); w.advance(300);
+  assert.ok(ui.events.active && !ui.trial.active); assert.deepEqual(link.cmds.slice(c0), []); assert.equal(P.profile.ref, 580);
+  ui.backToMenu(); w.advance(300);
+  c0 = link.cmds.length; toChallenge(w);
+  assert.ok(ui.trial.active && !ui.events.active, 'secondo minigioco dal menu: scambi di prova'); assert.deepEqual(link.cmds.slice(c0), ['cal', 'skip'], 'da un profilo nuovo');
+  ui.backToMenu(); w.advance(300);
+  // … e la partita del visitatore dopo (prima partiva senza scambi di prova con il profilo dei gesti di due visitatori prima)
+  toMatch(w); assert.equal(w.pressStart(), false); assert.ok(ui.trial.active);
+
+  // gesti → Allenamento (li tiene: niente apprendimento dagli esercizi) → la partita dopo rifà gli scambi di prova
+  const a = await playWorld({ mode: null }); a.P.recalibrate({ gestures: true }); a.advance(300); gestureDone(a);
+  a.P.markTutorialSeen('training'); a.P.markTutorialSeen?.('full');
+  toTraining(a);
+  assert.ok(a.ui.training.active && !a.ui.training.learn && !a.P.trialOn, 'allenamento con il profilo dei gesti'); assert.equal(a.P.profile.ref, 580); assert.ok(!a.P.keepsGesture);
+  a.ui.backToMenu(); a.advance(300); toMatch(a);
+  assert.equal(a.pressStart(), false, 'la partita dopo: scambi di prova'); assert.ok(a.ui.trial.active);
+
+  // gesti → «Riscaldati prima» → «Gioca» (le stesse persone): la partita parte subito con i gesti; quella dopo no
+  // (B35: contro la CPU gli scambi di prova si fanno prima della pagina «Pronto per la partita»: con i gesti fatti apposta
+  // non si fanno e si arriva subito alla pagina; dopo il riscaldamento si torna lì, ancora senza)
+  const r = await playWorld({ mode: null }); r.P.recalibrate({ gestures: true }); r.advance(300); gestureDone(r);
+  toMatch(r); assert.ok(!r.ui.trial.active && r.lobby.visible && r.lobby.step === 'match', 'con i gesti: la pagina, senza scambi di prova');
+  r.lobby.warmupFirst(); r.advance(300); assert.ok(r.ui.training.active && !r.ui.training.learn); r.ui.training.skip(); r.advance(300);
+  assert.ok(!r.ui.trial.active && r.lobby.visible && r.lobby.step === 'match', 'dopo il riscaldamento di nuovo la pagina, senza scambi di prova');
+  c0 = r.link.cmds.length; assert.equal(r.pressStart(), true); assert.deepEqual(r.link.cmds.slice(c0), []); assert.equal(r.P.profile.ref, 580);
+  endMatch(r); assert.equal(r.pressStart(), false); assert.ok(r.ui.trial.active);
+
+  // gesti a minigioco in corso: valgono per quel minigioco e basta
+  const m = await playWorld({ mode: null }); toChallenge(m); playTrial(m); m.advance(300); assert.ok(m.ui.events.active && m.ui.activityLive());
+  m.P.recalibrate({ gestures: true }); m.advance(200); gestureDone(m);
+  assert.ok(m.P.gestureProfile && m.P.gestureAt == null && !m.P.keepsGesture);
+});
+
+test('B28.1 · «Nessuna»: profilo semplice da capo all\'inizio di ogni attività (minigioco, allenamento, riscaldamento), non con «Gioca ancora»', async () => {
+  const w = await playWorld({ cal: 'none' }), { E, ui, lobby, link, P } = w;
+  assert.equal(w.pressStart(), true); w.advance(300);
+  for (let i = 0; i < 5; i++) P.typicalModel.learn(900, { power: .6, kind: 'drive' });
+  assert.equal(P.typicalModel.value, 900, 'colpo tipico del primo visitatore');
+  endMatch(w); ui.backToMenu(); w.advance(300);
+  // il visitatore dopo sceglie un minigioco dal menu
+  let c0 = link.cmds.length; toChallenge(w);
+  assert.ok(ui.events.active && !ui.trial.active); assert.deepEqual(link.cmds.slice(c0), ['cal', 'skip']); assert.equal(P.typicalModel.value, null, 'niente colpo tipico di chi c\'era prima');
+  assert.ok(P.ready && P.profile.simple && !ui.phoneHold);
+  // «Gioca ancora»: la stessa persona, niente da capo
+  P.typicalModel.learn(700, { power: .6, kind: 'drive' }); P.typicalModel.learn(700, { power: .6, kind: 'drive' }); P.typicalModel.learn(700, { power: .6, kind: 'drive' });
+  c0 = link.cmds.length; ui.events.abort?.(); lobby._resultAction('again'); w.advance(300);
+  assert.ok(ui.events.active); assert.deepEqual(link.cmds.slice(c0), []);
+  ui.backToMenu(); w.advance(300);
+  // Allenamento dal menu e «Riscaldati prima»
+  P.markTutorialSeen('training'); c0 = link.cmds.length; toTraining(w);
+  assert.ok(ui.training.active && !ui.training.cal); assert.deepEqual(link.cmds.slice(c0), ['cal', 'skip'], 'una volta sola'); assert.equal(P.typicalModel.value, null);
+  ui.backToMenu(); w.advance(300); toMatch(w);
+  c0 = link.cmds.length; lobby.warmupFirst(); w.advance(300);
+  assert.ok(ui.training.active); assert.deepEqual(link.cmds.slice(c0), ['cal', 'skip']);
+});
+
+test('B28.1 · Giocando → «Con i gesti» durante una partita: il minigioco o l\'allenamento del visitatore dopo non usano il profilo imparato, il telefono rifà i gesti in campo', async () => {
+  for (const next of ['minigioco', 'allenamento']){
+    const w = await playWorld(), { E, ui, lobby, link, P } = w;
+    w.pressStart(); playTrial(w, (id, n, want) => stroke({ dir: want, peak: 900 })); w.advance(600);
+    assert.ok(ui.matchLive() && P.madeBy === 'prova' && P.profile.ref === 900);
+    setCal(w, 'gesti'); assert.ok(P.ready && P.calStale, 'a partita in corso niente');
+    endMatch(w); ui.backToMenu(); w.advance(300);
+    const c0 = link.cmds.length;
+    if (next === 'minigioco') toChallenge(w); else { P.markTutorialSeen('training'); toTraining(w); }
+    assert.ok(link.cmds.slice(c0).includes('cal') && !link.cmds.slice(c0).includes('skip'), `${next}: il telefono torna a calibrare con i gesti`);
+    assert.ok(!P.ready && ui.training.active && !!ui.training.cal && !ui.events.active, `${next}: in campo la calibrazione con i gesti, non l'attività sul profilo di prima`);
+    // finiti i gesti, l'attività parte con il profilo dei gesti
+    gestureDone(w); w.advance(900);
+    assert.deepEqual([P.madeBy, P.profile.ref, P.calStale], ['gesti', 580, false]);
+    if (next === 'minigioco'){ if (!ui.events.active){ ui.training.stop({ completed: true }); w.advance(300); } assert.ok(ui.events.active, 'poi il minigioco'); }
+    // «Gioca ancora» del minigioco con un profilo dei gesti: niente da rifare
+    if (next === 'minigioco'){ const c1 = link.cmds.length; ui.events.abort?.(); lobby._resultAction('again'); w.advance(300); assert.deepEqual(link.cmds.slice(c1), []); assert.ok(ui.events.active); }
+  }
+});
+
+/* ---------- 2: sfida tra due computer con «Nessuna» ---------- */
+test('B28.1 · sfida tra due computer con «Nessuna»: chi invita riparte dal profilo semplice a «Gioca», il Player 2 a «Sono pronto» (una volta); la rivincita no', async () => {
+  const w = await playWorld({ mode: null, cal: 'none' }), { E, ui, lobby, hud, link, P } = w;
+  for (let i = 0; i < 5; i++) P.typicalModel.learn(900, { power: .6, kind: 'drive' });
+  lobby.menu('play'); hud.selectedDifficulty = '1v1'; E._applyDifficultyTuning('1v1'); await E.createMultiplayerRoom(); await w.flush();
+  lobby.setMode('friend'); lobby.go('controller'); lobby.go('connect'); w.advance(300); lobby.next(); w.advance(300);
+  assert.ok(lobby.visible && lobby.step === 'match' && !ui.trial.active, 'niente scambi di prova con «Nessuna»');
+  E.roomStatus = { ...E.roomStatus, p2Online: true, p2Ready: true, guestName: 'Bea' }; w.advance(300);
+  let c0 = link.cmds.length;
+  assert.equal(w.pressStart(), true); w.advance(300);
+  assert.deepEqual(link.cmds.slice(c0), ['cal', 'skip'], 'chi invita: profilo da capo'); assert.equal(P.typicalModel.value, null); assert.ok(P.ready && !ui.phoneHold && E.natpfMatchSeq === 1);
+  for (let i = 0; i < 12 && E.phase !== 'MATCH_OVER'; i++) E._awardPoint('player', 'Nice Shot!');
+  w.advance(300); c0 = link.cmds.length; $('btn-play-again').click(); w.advance(300);
+  assert.deepEqual(link.cmds.slice(c0), [], 'rivincita: le stesse persone');
+  // il Player 2 sul suo computer
+  const g = await makeWorld({ controller: 'phone', role: 'p2', cal: 'none' }), G = g.ui.phone, V = g.ui.versus;
+  phoneLike(G, g.link); g.advance(300); G.markTutorialSeen('short');
+  for (let i = 0; i < 5; i++) G.typicalModel.learn(900, { power: .6, kind: 'drive' });
+  assert.ok(G.ready && !V.ready);
+  c0 = g.link.cmds.length; V.primary(); g.advance(300);
+  assert.deepEqual(g.link.cmds.slice(c0), ['cal', 'skip'], 'Player 2: profilo da capo a «Sono pronto»'); assert.ok(V.ready && G.ready && G.typicalModel.value == null);
+  // annulla e di nuovo pronto: non riparte un'altra volta
+  V.setReady(false); c0 = g.link.cmds.length; V.primary(); g.advance(200);
+  assert.deepEqual(g.link.cmds.slice(c0), []); assert.ok(V.ready);
+});
+
+/* ---------- 3: esito vero per chi ha tenuto la calibrazione con i gesti ---------- */
+test('B28.1 · fine degli scambi di prova con uno calibrato con i gesti: scritta e puntini veri', async () => {
+  assert.equal(trialOutro(['gesti', 'full']), 'Colpo imparato ✓'); assert.equal(trialOutro(['ok', 'gesti']), 'Colpo imparato ✓');
+  assert.equal(trialOutro(['gesti', 'none']), 'Il gioco impara dai tuoi primi colpi'); assert.equal(trialOutro(['gesti', 'partial']), 'Il gioco impara dai tuoi primi colpi');
+  assert.equal(trialOutro(['gesti', 'gesti']), 'Calibrazione con i gesti ✓'); assert.equal(trialOutro(['full', 'ok']), 'Colpo imparato ✓'); assert.equal(trialOutro([]), 'Il gioco impara dai tuoi primi colpi');
+  assert.deepEqual(trialDots(outroCounts({ level: 'gesti', keep: true, n: { forehand: 0, backhand: 0 } })), ['on', 'on', 'on', 'on']);
+  assert.deepEqual(trialDots(outroCounts({ level: 'ok', n: { forehand: 1, backhand: 1 } })), ['on', '', 'on', '']);
+  // nel gioco: stesso schermo, Player 1 con i gesti, Player 2 impara
+  const w = await splitWorld({ start: false }), { ui, P1, P2, link } = w;
+  P1.recalibrate({ gestures: true }); w.advance(100); gestureDone(w, P1, link);
+  ui.split.paint(); w.advance(3900); assert.ok(ui.trial.active && P1.trial.keep);
+  assert.deepEqual(trialDots(ui.trial.counts('p1')), ['on', 'on', 'on', 'on'], 'durante: puntini pieni per chi tiene i gesti');
+  const seen = { p1: -1, p2: -1 }; let outro = null;
+  for (let k = 0; k < 2500 && ui.trial.active && !outro; k++){
+    w.advance(16);
+    if (ui.trial.S?.phase === 'outro'){ outro = { text: ui.trial.S.outro, p1: ui.trial.S.result.p1, p2: ui.trial.S.result.p2 }; break; }
+    for (const [id, P] of [['p1', P1], ['p2', P2]]){ const ball = P.trial?.ball ?? -1; if (!hot(w.E, id) || seen[id] === ball) continue; seen[id] = ball; P._onSwing(stroke({ dir: ballWant(w.E, id), peak: 600 })); }
+  }
+  assert.ok(outro, 'arrivati a «Si comincia!»');
+  assert.equal(outro.text, 'Colpo imparato ✓', 'prima: «Il gioco impara dai tuoi primi colpi»');
+  assert.deepEqual([outro.p1.level, outro.p1.keep, outro.p2.level], ['gesti', true, 'full']);
+  assert.deepEqual(trialDots(outroCounts(outro.p1)), ['on', 'on', 'on', 'on'], 'alla fine i puntini di chi tiene i gesti restano pieni (prima si svuotavano)');
+  assert.deepEqual(trialDots(outroCounts(outro.p2)), ['on', 'on', 'on', 'on']);
+});
+
+/* ---------- 5: livelli Evento e Bambini (2026-11-12.4) e scambi di prova ---------- */
+test('B28.1 · livello Evento: gli scambi di prova non regolano la CPU (eventoK fermo: giocati, senza colpire, interrotti, stesso schermo); segnale del momento giusto e «Super mancato»', async () => {
+  const evento = async () => {
+    const w = await playWorld({ difficulty: 'evento', mode: null }), { E } = w;
+    w.hud.selectedDifficulty = 'evento'; E._applyDifficultyTuning('evento'); eventoRestart(E);
+    // qualche punto vero prima, per avere un k diverso da quello di base
+    E.autoPlayMode = false; E.userHasInteracted = true;
+    for (const who of ['player', 'player', 'opponent', 'player']) eventoAfterPoint(E, who);
+    return w;
+  };
+  for (const how of ['giocati', 'senza colpire', 'interrotti', 'saltati']){
+    const w = await evento(), { E, ui, P } = w, k0 = eventoK(), pts0 = eventoState().points;
+    assert.ok(isEvento(E) && pts0 === 4 && k0 !== eventoRestart.length, `${how}: livello Evento, k ${k0}`);
+    // (B35: contro la CPU gli scambi di prova partono prima della pagina «Pronto per la partita»)
+    toMatch(w); assert.ok(ui.trial.active);
+    w.advance(1500); assert.ok(!isEvento(E), 'negli scambi di prova il lanciapalle è al livello facile');
+    // il motore chiede punti durante gli scambi di prova (palla persa, palla fuori): niente per la CPU
+    E._awardPoint('opponent', 'Out'); w.advance(200);
+    if (how === 'giocati') playTrial(w, (id, n, want) => stroke({ dir: want, peak: 640 }));
+    else if (how === 'senza colpire') playTrial(w, () => null);
+    else if (how === 'saltati'){ $('trial-skip').click(); w.advance(700); assert.ok(!ui.trial.active && w.lobby.step === 'match'); w.pressStart(); w.advance(100); }
+    else { ui.trial.abort(); w.advance(200); }
+    assert.equal(eventoK(), k0, `${how}: k della CPU fermo`); assert.equal(eventoState().points, pts0, `${how}: nessun punto contato`);
+    assert.equal(E.matchConfig.difficulty, 'evento', `${how}: livello rimesso`); assert.ok(isEvento(E));
+    assert.equal(E.opponent.maxSpeed, skillLevel('evento').cpuSpeed, `${how}: la velocità della CPU è quella del livello (segue k)`);
+    if (how !== 'interrotti'){ assert.equal(E.natpfMatchSeq, 1); E._awardPoint('player', 'Nice Shot!'); assert.equal(eventoState().points, pts0 + 1, 'in partita i punti regolano la CPU, come sempre'); }
+  }
+  // livello Bambini: lo stesso giro senza errori, livello rimesso
+  const b = await playWorld({ difficulty: 'bambini', mode: null }); b.hud.selectedDifficulty = 'bambini'; b.E._applyDifficultyTuning('bambini');
+  toMatch(b); assert.ok(b.ui.trial.active); playTrial(b, (id, n, want) => stroke({ dir: want, peak: 300 }));
+  assert.equal(b.E.matchConfig.difficulty, 'bambini'); assert.equal(b.E.natpfMatchSeq, 1); assert.equal(b.P.profile.ref, 300);
+  // stesso schermo: k fermo
+  eventoRestart(null); const k1 = eventoK(), s = await splitWorld();
+  s.E._awardPoint('opponent', 'Out'); playTrial(s, (id, n, want) => stroke({ dir: want }), { phones: s.phones });
+  assert.equal(eventoK(), k1); assert.equal(eventoState().points, 0);
+
+  // segnale del momento giusto: negli scambi di prova contro la CPU c'è (livelli Evento e Bambini), sulla palla del
+  // lanciapalle, con la finestra del livello in uso lì (facile); nello stesso schermo no, come in partita
+  const w = await evento(), { E, ui } = w; toMatch(w); w.advance(1600);
+  assert.equal(ui.cue.enabled, true, 'acceso (livello scelto: Evento)'); assert.equal(s.ui.cue.enabled, false);
+  // «Super mancato»: negli scambi di prova non esce e non consuma la spiegazione lunga; in partita sì
+  const shot = () => ({ who: 'player', superRel: 1.3, superWhy: 'fuori tempo', out: {}, sit: null });
+  E.natpfLastRacket = shot(); ui.superHint.update(1/60);
+  assert.ok(!ui.superHint.text && !ui.superHint.seen && ui.superHint.shown === 0, 'niente scritta negli scambi di prova');
+  playTrial(w, (id, n, want) => stroke({ dir: want })); w.advance(300); E.phase = 'RALLY';
+  E.natpfLastRacket = shot(); ui.superHint.update(1/60);
+  assert.match(ui.superHint.text, /^Colpo super: .*fuori tempo/, 'in partita la spiegazione lunga, la prima volta'); assert.equal(ui.superHint.shown, 1);
+});

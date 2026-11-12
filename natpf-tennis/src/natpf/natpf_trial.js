@@ -55,10 +55,18 @@ export const TRIAL_TEXT = Object.freeze({ kicker: 'Scambi di prova', title: 'Col
   subPage: 'Il gioco impara il tuo colpo · poi scegli la partita', goPage: 'Pronto per la partita' });
 // B35: riga della pagina «Pronto per la partita» appena finiti gli scambi di prova (levels: livelli imparati)
 export function trialPageNote(levels = []){ return `${trialOutro(levels)} · scegli la partita e premi «Gioca»`; }
+// (levels: 'full' | 'ok' | 'partial' | 'none' di chi ha imparato, 'gesti' di chi ha tenuto la calibrazione con i gesti:
+// per lui non c'è niente da imparare e conta come fatto. B28.1: prima con uno dei due calibrato con i gesti la scritta
+// diceva «Il gioco impara dai tuoi primi colpi» anche se l'altro aveva imparato tutto)
 export function trialOutro(levels = []){
-  const good = levels.length > 0 && levels.every(l => l === 'full' || l === 'ok');
+  const learners = levels.filter(l => l !== 'gesti');
+  if (levels.length > 0 && !learners.length) return 'Calibrazione con i gesti ✓';
+  const good = learners.length > 0 && learners.every(l => l === 'full' || l === 'ok');
   return good ? 'Colpo imparato ✓' : 'Il gioco impara dai tuoi primi colpi';
 }
+// colpi per lato da mostrare alla fine per un giocatore (r: esito di NatpfPhoneRacket.endTrial): chi ha tenuto i gesti ha
+// i puntini pieni, come durante gli scambi di prova
+export const outroCounts = r => (r?.keep || r?.level === 'gesti' ? { forehand: TRIAL.perSide, backhand: TRIAL.perSide } : r?.n || null);
 // puntini dell'avanzamento di un giocatore: TRIAL.perSide per lato; pieni quelli imparati
 export function trialDots(counts = null){
   const f = Math.min(TRIAL.perSide, counts?.forehand || 0), b = Math.min(TRIAL.perSide, counts?.backhand || 0);
@@ -264,7 +272,7 @@ export class NatpfTrial {
     const rows = $q('[data-trial="rows"]');
     if (rows){
       const ids = Object.keys(S.players);
-      const data = ids.map(id => { const c = outro && S.result?.[id] ? S.result[id].n : this.counts(id); return { id, name: this._name(id), dots: trialDots(c) }; });
+      const data = ids.map(id => { const c = outro && S.result?.[id] ? outroCounts(S.result[id]) : this.counts(id); return { id, name: this._name(id), dots: trialDots(c) }; });
       const key = data.map(d => `${d.id}:${d.name}:${d.dots.join('')}`).join('|');
       if (rows.dataset.key !== key){
         rows.dataset.key = key;

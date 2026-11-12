@@ -601,7 +601,7 @@ export class NatpfLobby {
     // (B28: con la calibrazione «Giocando» si dice che la partita comincia con gli scambi di prova)
     // (B35: contro la CPU di solito sono già fatti, prima di questa pagina: niente riga. Se mancano, «Gioca» li fa e
     // riporta qui)
-    const warmed = !!this.ui.trialSkipOnce && !!this.ui.phone?.profile?.trial;
+    const warmed = this._warmedOnce();
     const trialNote = !split && this.mode !== 'friend' && !this.pageTrialFresh && !warmed && this.ui.trial?.due?.({ split: false }) ? 'Con «Gioca» prima qualche scambio di prova: il gioco impara il tuo colpo, poi torni qui e scegli la partita.' : split && st.splitReady && this.ui.trial?.due?.({ split: true }) ? ' Si comincia con qualche scambio di prova.' : '';
     if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.${trialNote}` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady && !this.ui.phone.soonReady ? 'Telefono da ricollegare: con «Gioca» compare il QR.' : trialNote;
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
@@ -752,6 +752,10 @@ export class NatpfLobby {
     // telefono non ancora collegato: prima il collegamento (il riscaldamento chiesto resta chiesto)
     if (ui.controller === 'phone' && !this.state().phoneLinked){ if (warmup) this.wantWarmup = true; this.go('connect'); return; }
     warmup = warmup || !!this.wantWarmup; this.wantWarmup = false;
+    // B28.1: opzione dello stand passata a «Con i gesti» con il telefono rimasto con il profilo dato dal gioco o imparato
+    // dagli scambi di prova (di chi c'era prima): non conta, il telefono rifà i gesti in campo prima del minigioco,
+    // dell'allenamento o della partita (non con «Gioca ancora»: è la stessa persona)
+    if (!again) ui.demoteStale?.();
     // B28: con la calibrazione «Giocando» o «Nessuna» il telefono non fa i gesti (profilo semplice automatico): in campo
     // prima della partita o della sfida si va solo per il tutorial corto, se è da vedere
     const P = ui.phone, court = ui.controller === 'phone' && ((!P.ready && !P.autoSimple) || this._tutorialDue());
@@ -778,8 +782,11 @@ export class NatpfLobby {
   }
   // B28, minigioco: prima gli scambi di prova (calibrazione «Giocando», telefono), poi il minigioco
   _startChallenge({ trial = true } = {}){
-    const ui = this.ui, go = () => ui.events.start(this.challenge);
-    if (trial && ui.trial?.due?.({ split: false })) ui.trial.start({ split: false, then: go }); else go();
+    // (B28.1: il minigioco è un'attività: consuma il «vale per la prossima» di una calibrazione con i gesti, e con
+    // «Nessuna» chi comincia riparte dal profilo semplice; trial falso = «Gioca ancora», la stessa persona)
+    const ui = this.ui, go = () => { ui.events.start(this.challenge); ui.activityStarted?.(); };
+    if (trial && ui.trial?.due?.({ split: false })) ui.trial.start({ split: false, then: go });
+    else { if (trial) ui.freshForActivity?.(); go(); }
   }
   // B28, sfida tra due computer (chi invita): gli scambi di prova in campo dopo «Collega», una volta, poi la pagina
   // «Partita» (alla partenza l'altro computer aspetta: lì non si possono fare). true se sono partiti
@@ -794,7 +801,7 @@ export class NatpfLobby {
     if (!friend && this.mode !== 'cpu') return false;
     if ((friend && skipped) || (this.trialPlayed && !force) || !ui.trial?.due?.({ split: false })) return false;
     // (appena finito «Riscaldati prima», che ha già insegnato il colpo: niente scambi di prova, una volta)
-    if (!friend && !force && ui.trialSkipOnce && ui.phone?.profile?.trial) return false;
+    if (!friend && !force && this._warmedOnce()) return false;
     this.trialPlayed = true; this.step = 'warmup'; this.el.dataset.step = 'warmup';
     ui.trial.start({ split: false, toPage: true, then: result => {
       this.engine.hud.showTitleModal(); this.engine._setupMidRallyShowcase?.({}); this.engine.autoPlayMode = true; this.engine.userHasInteracted = false;
@@ -807,6 +814,9 @@ export class NatpfLobby {
     return true;
   }
   _friendTrial(){ return this.mode === 'friend' && this._pageTrial(); }
+  // appena finito «Riscaldati prima», che ha già insegnato il colpo di chi gioca (o con il profilo dei gesti di chi ha
+  // calibrato apposta e poi si è riscaldato: le stesse persone, B28.1): niente scambi di prova, una volta
+  _warmedOnce(){ const ui = this.ui, P = ui.phone; return !!ui.trialSkipOnce && (!!P?.profile?.trial || !!P?.gestureProfile); }
   // B35: scambi di prova appena fatti per la partita che segue (contro la CPU: «Gioca» fa partire subito la partita)
   get pageTrialFresh(){ return this.mode === 'cpu' && !!this.trialPlayed; }
   // tutorial corto ancora da vedere con questo telefono (prima della partita: natpf_training lo apre in campo)

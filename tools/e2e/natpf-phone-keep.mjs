@@ -102,7 +102,13 @@ try {
   const tA = Date.now();
   const pausedA = await game.waitForFunction(() => __natpfTennis.natpfUi.phoneHold?.why === 'sensori fermi' && __natpfTennis.natpfPaused, null, { timeout: 4000, polling: 50 }).then(() => Date.now() - tA, () => null);
   const hA = await hold();
-  check('A · sensori fermi a collegamento vivo: il computer va in pausa e dice perché', pausedA != null && pausedA < 1500 && /Riattiva i sensori/.test(hA.text), `${pausedA} ms, ${JSON.stringify(hA)}`);
+  // Tempo fino alla pausa (B28.1): il computer si ferma quando un segnale del telefono (uno al secondo, sul canale
+  // affidabile) dice che l'ultimo campione dei sensori è più vecchio di 700 ms (WATCH.phoneSensorMs), e dopo 300 ms di
+  // grazia (WATCH.graceMs). Secondo il momento in cui i sensori si fermano rispetto al segnale sono da 1008 a 1968 ms
+  // (calcolato con le funzioni pure phoneHealth e createPhoneWatch su tutte le fasi del segnale); più il giro di
+  // controllo ogni 100 ms fa 2100. La soglia di prima (1500) passava o no secondo la fase del segnale, non secondo il
+  // gioco: 1392 ms con la calibrazione con i gesti, 1508–1663 ms con quella di base, stesso codice della guardia
+  check('A · sensori fermi a collegamento vivo: il computer va in pausa (entro 2,1 s) e dice perché', pausedA != null && pausedA < 2100 && /Riattiva i sensori/.test(hA.text), `${pausedA} ms, ${JSON.stringify(hA)}`);
   const alertA = await phone.waitForFunction(() => !document.getElementById('alert').classList.contains('hidden'), null, { timeout: 4000, polling: 100 }).then(() => Date.now() - tA, () => null);
   const aA = await alertOf();
   check('A · il telefono dice «Sensori fermi» con il pulsante per riattivarli', alertA != null && aA.title === 'Sensori fermi' && aA.btn === 'Riattiva i sensori', `${alertA} ms, ${JSON.stringify(aA)}`);

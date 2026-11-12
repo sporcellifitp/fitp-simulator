@@ -478,8 +478,10 @@ export class NatpfPhoneRacket {
     // (revisione del B28, difetto 4) il profilo ricorda come è stato fatto: madeBy = 'gesti' (calibrazione con i gesti),
     // 'salta' («Salta» premuto apposta con «Con i gesti»), 'auto' (profilo semplice dato dal gioco con «Giocando» o
     // «Nessuna»), 'prova' (imparato dagli scambi di prova o dal riscaldamento), null (non si sa: telefono appena tornato).
-    // gestureAt: numero della partita (engine.natpfMatchSeq) in cui è finita una calibrazione con i gesti fatta fuori
-    // da una partita: con «Giocando» e «Nessuna» quel profilo vale per la partita che segue e basta
+    // gestureAt: numero dell'attività (activitySeq: partite, minigiochi, allenamenti e riscaldamenti cominciati) in cui
+    // è finita una calibrazione con i gesti fatta fuori da un'attività: con «Giocando» e «Nessuna» quel profilo vale
+    // per l'attività che segue, qualunque sia, e basta (B28.1: prima contavano solo le partite, e due minigiochi dopo
+    // «Calibra con i gesti» lasciavano quel profilo anche alla partita del visitatore dopo)
     this.madeBy = null; this.gestureAt = null;
   }
   // B28: calibrazione dello stand (natpf_trial_learn.readCalMode: 'play' giocando, 'gesti', 'none') e profilo semplice
@@ -504,8 +506,10 @@ export class NatpfPhoneRacket {
   // apposta dopo la fine dell'ultima partita, e vale per quella che segue: niente passa da un visitatore al successivo
   get keepsGesture(){
     if (!this.gestureProfile) return false;
-    return this.calMode === 'gesti' || (this.gestureAt != null && this.gestureAt === (this.engine.natpfMatchSeq || 0));
+    return this.calMode === 'gesti' || (this.gestureAt != null && this.gestureAt === this.activitySeq);
   }
+  // attività cominciate finora: partite (motore) più minigiochi, allenamenti e riscaldamenti (NatpfUi.activityStarted)
+  get activitySeq(){ return (this.engine.natpfMatchSeq || 0) + (this.engine.natpfUi?.activitySeq || 0); }
   // Con «Con i gesti» conta come calibrato solo un profilo fatto con i gesti (o saltato apposta): un profilo dato dal
   // gioco o imparato dagli scambi di prova, rimasto da quando l'opzione era un'altra, no
   get calStale(){ return this.calMode === 'gesti' && this.connected && this.ready && !this.gestureCal && !!this.profile && (!!this.profile.trial || this.madeBy === 'auto' || this.madeBy === 'prova'); }
@@ -615,7 +619,8 @@ export class NatpfPhoneRacket {
       // gesti chiesta apposta è finita
       // (come è stato fatto: prima di spegnere gestureCal, che decide autoSimple)
       this.madeBy = !this.profile ? null : this.profile.simple ? (this.autoSimple ? 'auto' : 'salta') : 'gesti';
-      this.gestureAt = this.madeBy === 'gesti' && !this.engine.natpfUi?.matchLive?.() ? (this.engine.natpfMatchSeq || 0) : null;
+      // (fatta a metà di una partita, di un minigioco o di un allenamento vale per quell'attività e basta)
+      this.gestureAt = this.madeBy === 'gesti' && !this.engine.natpfUi?.activityLive?.() ? this.activitySeq : null;
       this.learner.reset(); this.gestureCal = false; this.simple = !!this.profile?.simple; this.lastExpect = null;
       this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline;
       this.liftModel.reset(this.liftBaseline); this.faceModel.reset();
@@ -882,7 +887,8 @@ export class NatpfPhoneRacket {
     if (!this.trial) return null;
     const keep = !!this.trial.keep;
     this.trial = null; this.lastPhase = null; this.lastExpect = null;
-    if (keep) return { level: 'gesti', n: { forehand: 0, backhand: 0 }, sign: 1, ref: this.profile?.ref ?? null, votes: { agree: 0, against: 0 } };
+    // (keep: ha tenuto il profilo dei gesti, niente da imparare: chi mostra l'esito lo dice e riempie i puntini)
+    if (keep) return { level: 'gesti', keep: true, n: { forehand: 0, backhand: 0 }, sign: 1, ref: this.profile?.ref ?? null, votes: { agree: 0, against: 0 } };
     const L = this.learner, level = L.level(), learned = L.profile(this.profile), counts = L.counts(this.hand);
     if (learned){
       this.profile = learned; this.simple = false; this.madeBy = 'prova'; this.gestureAt = null;

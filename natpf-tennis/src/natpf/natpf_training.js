@@ -252,6 +252,18 @@ export class NatpfTraining {
     // B28, calibrazione giocando: senza i gesti il gioco impara dai primi esercizi, il dritto e il rovescio (palle di cui
     // conosce il lato), come dagli scambi di prova prima della partita (NatpfPhoneRacket.beginTrial / trialBall / endTrial)
     this.learn = ctrl === 'phone' && !this.cal && !calOnly && !guest && !diag && !!P0?.autoSimple && !P0.keepsGesture && this.drills.some(d => LEARN_DRILLS.includes(d.id));
+    // B28.1: esercizi = un'attività nuova (non il campo aperto solo per il tutorial o la calibrazione, né il Player 2
+    // dell'invito e la prova guidata della diagnostica). Con «Nessuna» il telefono riparte dal profilo semplice; chi ha
+    // appena calibrato apposta con i gesti tiene quel profilo per questi esercizi e, se è un riscaldamento, per il
+    // «Gioca» che segue (le stesse persone); poi basta
+    if (this.drills.length > 0 && !guest && !diag){
+      const keeps = ctrl === 'phone' && !!P0?.keepsGesture;
+      // (se gli esercizi insegnano il profilo, learn, il telefono riparte già da capo: beginTrial; con il tutorial da
+      // vedere il visitatore è già nuovo)
+      if (!this.cal && !this.learn && !wantTutorial) this.ui.freshForActivity?.();
+      if (keeps && P0.calMode !== 'gesti' && this.ui.flow?.mode !== 'training') this.ui.trialSkipOnce = true;
+      this.ui.activityStarted?.();
+    }
     this.prevDifficulty = E.hud.selectedDifficulty || E.matchConfig.difficulty;
     this.prevFormat = E.matchFormat?.id || null;
     E._applyDifficultyTuning('casual'); E.isMultiplayer = false;
