@@ -15,7 +15,8 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings,
-  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, UPDATE_ACTIONS } from './desktop-core.mjs';
+  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, UPDATE_ACTIONS,
+  startupDisplayQuestion, displaysState, displayPixels } from './desktop-core.mjs';
 import { UPDATES, Updater, readUpdateConfig, updateEnv, installerLaunchArgs } from './aggiornamenti.mjs';
 
 const ROOT = app.getAppPath();
@@ -150,7 +151,8 @@ function afterWindowEvent(name, ms, fn){
 // nuovo → schermo intero (Windows lo mette sul monitor che contiene la finestra) → di nuovo visibile. Nessuna cornice.
 function placeOn(display, { remember = true, inPlaceTried = false } = {}){
   if (!win || !display) return;
-  if (remember){ settings.displayId = display.id; wantedDisplayId = display.id; writeSettings(DATA, settings); }
+  // (con la misura: se Windows cambia l'id dello stesso ledwall, all'avvio lo si ritrova senza chiedere, B27)
+  if (remember){ settings.displayId = display.id; settings.display = displayPixels(display); wantedDisplayId = display.id; writeSettings(DATA, settings); }
   if (placing){ pendingPlace = display; return; }
   const rect = windowedBounds(display);
   if (!rect) return;
@@ -289,6 +291,46 @@ async function updatesDialog(){
   if (!r.ok) await box({ type: 'warning', message: 'Aggiornamento non avviato.', detail: r.error || '' });
 }
 
+// monitor per la pagina del gioco (window.natpfDesktop.displays, B27): elenco, quello del gioco, quello voluto
+function displaysNow(){
+  const primaryId = screen.getPrimaryDisplay().id;
+  return displaysState(screen.getAllDisplays(), { primaryId, currentId: placing ? null : (win ? screen.getDisplayMatching(win.getBounds()).id : null), wantedId: wantedDisplayId });
+}
+function notifyDisplays(){
+  if (win && !placing && isOwnUrl(win.webContents.getURL(), addresses)) win.webContents.send(DESKTOP.ipcDisplaysChanged, displaysNow());
+}
+// risposta alla pagina quando lo spostamento è finito (al più tardi dopo 2 s)
+function afterPlaced(){
+  return new Promise(resolve => { const t0 = Date.now(); const check = () => (!placing || Date.now() - t0 > 2000) ? resolve(displaysNow()) : setTimeout(check, 50); setTimeout(check, 30); });
+}
+// Domanda all'avvio «Su quale schermo mostro il gioco?» (B27): sullo schermo principale (il portatile, dove guarda chi
+// avvia il programma), prima di aprire il gioco. Senza risposta entro DESKTOP.askDisplayMs vale la proposta (il ledwall
+// probabile), che si salva come una scelta: la domanda non torna, e il monitor si cambia dal pannello dello stand
+// («Schermo del gioco»), dal telecomando dello staff, dal menu Schermo o con Ctrl+Maiusc+M.
+// Nelle prove (programma non costruito) NATPF_SCHERMO_ATTESA_MS accorcia l'attesa
+async function askDisplay(){
+  const displays = screen.getAllDisplays(), primaryId = screen.getPrimaryDisplay().id;
+  const q = startupDisplayQuestion(displays, settings, primaryId);
+  log('scelta del monitor all\'avvio', { chiedo: q.ask, motivo: q.why, proposto: q.proposed, monitor: q.choices.map(c => c.label) });
+  if (q.remap != null){ settings.displayId = q.remap; writeSettings(DATA, settings); return; }
+  if (!q.ask) return;
+  const waitMs = (!app.isPackaged && Number(process.env.NATPF_SCHERMO_ATTESA_MS)) || DESKTOP.askDisplayMs;
+  const idx = Math.max(0, q.choices.findIndex(c => c.id === q.proposed));
+  const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), waitMs);
+  let chosen = q.choices[idx], how = 'proposta (nessuna risposta)';
+  try {
+    const r = await dialog.showMessageBox({ type: 'question', title: 'NATPF Simulator', noLink: false, signal: ctrl.signal,
+      buttons: q.choices.map(c => c.label), defaultId: idx, cancelId: idx,
+      message: 'Su quale schermo mostro il gioco?',
+      detail: `Ci sono ${q.choices.length} schermi collegati. Scegli quello dei visitatori (il ledwall).\n\nLa scelta resta salvata per i prossimi avvii; si cambia dal Pannello dello stand («Schermo del gioco»), dal telecomando dello staff o con Ctrl+Maiusc+M.\n\nSe nessuno risponde entro ${Math.round(waitMs/1000)} secondi uso «${q.choices[idx].label}».` });
+    if (!ctrl.signal.aborted && q.choices[r.response]){ chosen = q.choices[r.response]; how = 'scelta'; }
+  } catch (e){ log('domanda del monitor non riuscita', e.message); }
+  clearTimeout(timer);
+  const d = displays.find(x => x.id === chosen.id);
+  log('monitor del gioco', { monitor: chosen.label, come: how });
+  if (d){ settings.displayId = d.id; settings.display = displayPixels(d); writeSettings(DATA, settings); }
+}
+
 function buildMenu(){
   const displays = screen.getAllDisplays(), primaryId = screen.getPrimaryDisplay().id;
   const current = win ? screen.getDisplayMatching(win.getBounds()).id : null;
@@ -321,6 +363,8 @@ function buildMenu(){
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   // il menu nuovo non deve comparire sopra il gioco a schermo intero
   syncMenuBar();
+  // (il menu si rifà a ogni cambio di monitor: la pagina riceve lo stato nuovo)
+  notifyDisplays();
 }
 
 // Monitor cambiato con il gioco aperto (risoluzione, scala, ledwall riconfigurato): Windows non riadatta da solo lo
@@ -347,6 +391,8 @@ async function main(){
   const allowed = new Set(['media', 'fullscreen', 'wakeLock', 'window-management', 'clipboard-sanitized-write', 'notifications']);
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => cb(allowed.has(permission) && isOwnUrl(details?.requestingUrl || '', addresses)));
   session.defaultSession.setPermissionCheckHandler((_wc, permission, origin) => allowed.has(permission) && isOwnUrl(origin || '', addresses));
+  // due o più monitor e nessuno scelto: la domanda, prima di aprire il gioco (B27)
+  await askDisplay();
   const display = chooseDisplay(screen.getAllDisplays(), { savedId: settings.displayId, primaryId: screen.getPrimaryDisplay().id });
   // ledwall salvato ma ancora spento: il gioco parte su un altro monitor e ci va quando il ledwall compare (display-added)
   wantedDisplayId = initialWanted(settings, display);
@@ -385,6 +431,15 @@ async function main(){
     if (!win || event.sender?.id !== win.webContents.id || !isOwnUrl(event.senderFrame?.url || '', addresses)) throw new Error('richiesta non consentita');
     if (!UPDATE_ACTIONS.includes(action)) throw new Error('azione non valida');
     return updater[action]();
+  });
+  // window.natpfDesktop.displays (B27): monitor del gioco dal pannello dello stand e dal telecomando dello staff.
+  // list → stato; next → monitor successivo (salvato); choose(id) → quel monitor (salvato). Stesse regole degli altri
+  ipcMain.handle(DESKTOP.ipcDisplays, async (event, action, id) => {
+    if (!win || event.sender?.id !== win.webContents.id || !isOwnUrl(event.senderFrame?.url || '', addresses)) throw new Error('richiesta non consentita');
+    if (action === 'list') return displaysNow();
+    if (action === 'next'){ nextMonitor(); return afterPlaced(); }
+    if (action === 'choose'){ const d = screen.getAllDisplays().find(x => String(x.id) === String(id)); if (!d) throw new Error('monitor non trovato'); placeOn(d); return afterPlaced(); }
+    throw new Error('azione non valida');
   });
   updater.onChange(onUpdateState);
   await win.loadURL(loading('Avvio del gioco…'));

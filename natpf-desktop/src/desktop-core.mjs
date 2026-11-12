@@ -16,6 +16,11 @@ export const DESKTOP = Object.freeze({
   // aggiornamenti dal gioco (aggiornamenti.mjs, window.natpfDesktop.updates; richiesta del 07/11/2026)
   ipcUpdates: 'natpf:updates',
   ipcUpdatesChanged: 'natpf:updates-changed',
+  // monitor del gioco dalla pagina (pannello dello stand, telecomando dello staff; B27, 12/11): window.natpfDesktop.displays
+  ipcDisplays: 'natpf:displays',
+  ipcDisplaysChanged: 'natpf:displays-changed',
+  // domanda all'avvio «Su quale schermo mostro il gioco?»: senza risposta entro questo tempo vale la proposta
+  askDisplayMs: 30000,
   // disinstallazione scritta dall'installer accanto al programma: c'è solo nel programma installato
   uninstaller: 'Disinstalla NATPF Simulator.exe',
 });
@@ -43,6 +48,53 @@ export function nextDisplay(displays = [], currentId){
 // gioco ci va), altrimenti quello scelto da chooseDisplay. settings: desktop-app.json; chosen: il monitor di partenza
 export function initialWanted(settings = {}, chosen = null){
   return settings?.displayId ?? chosen?.id ?? null;
+}
+// Misura in pixel veri (Electron dà i bounds in punti: con la scala di Windows al 125% un 1920×1080 è 1536×864)
+export const displayPixels = d => ({ width: Math.round((d?.bounds?.width || 0)*(d?.scaleFactor || 1)), height: Math.round((d?.bounds?.height || 0)*(d?.scaleFactor || 1)) });
+// Monitor quadrato (il ledwall 2×2 dello stand è 1024×1024): lati uguali entro il 2%
+export const isSquare = d => { const { width: w, height: h } = displayPixels(d); return w > 0 && h > 0 && Math.abs(w - h) <= 0.02*Math.max(w, h); };
+// Il monitor che probabilmente è il ledwall: un monitor quadrato (il più grande, meglio se non è il principale), altrimenti
+// il più grande che non è il principale (lo schermo del portatile è il principale), altrimenti nessuno (null)
+export function ledwallGuess(displays = [], primaryId = null){
+  const area = d => { const p = displayPixels(d); return p.width*p.height; };
+  const by = list => [...list].sort((a, b) => area(b) - area(a))[0] || null;
+  const square = displays.filter(isSquare);
+  return by(square.filter(d => d.id !== primaryId)) || by(square) || by(displays.filter(d => d.id !== primaryId));
+}
+// Le voci della scelta del monitor: nome, misura, «principale» e «probabile ledwall»
+export function displayChoices(displays = [], primaryId = null){
+  const led = displays.length > 1 ? ledwallGuess(displays, primaryId) : null;
+  return displays.map((d, i) => {
+    const px = displayPixels(d);
+    return { id: d.id, index: i, ...px, primary: d.id === primaryId, ledwall: !!led && led.id === d.id,
+      label: `${displayLabel(d, i, primaryId)}${led && led.id === d.id ? ' · probabile ledwall' : ''}` };
+  });
+}
+// Domanda all'avvio (B27, richiesta dell'utente del 12/11: «a schermo intero la barra del menu non si vede»). Si chiede
+// solo con almeno due monitor collegati e:
+//   - nessun monitor mai scelto (niente displayId salvato), oppure
+//   - quello salvato non c'è e nessun altro monitor ha la sua misura. Con un solo monitor collegato non si chiede: il
+//     ledwall può accendersi dopo il programma e il gioco ci va da solo (initialWanted, displayToFollow). Con due monitor
+//     e il salvato assente, invece, quasi sempre Windows ha dato un id nuovo allo stesso ledwall (altra porta o adattatore):
+//     se un solo monitor non principale ha la misura salvata (settings.display) si usa quello senza chiedere (remap);
+//     altrimenti si chiede, perché decidere da soli potrebbe mettere il gioco sullo schermo del portatile.
+// → { ask, proposed (id), choices, why, remap (id, solo quando si usa la misura salvata) }
+export function startupDisplayQuestion(displays = [], settings = {}, primaryId = null){
+  const choices = displayChoices(displays, primaryId);
+  const proposed = (ledwallGuess(displays, primaryId) || displays.find(d => d.id === primaryId) || displays[0])?.id ?? null;
+  const saved = settings?.displayId;
+  if (displays.length < 2) return { ask: false, proposed, choices, why: 'un solo monitor' };
+  if (saved != null && displays.some(d => String(d.id) === String(saved))) return { ask: false, proposed: displays.find(d => String(d.id) === String(saved)).id, choices, why: 'monitor salvato presente' };
+  if (saved != null && settings.display?.width){
+    const same = displays.filter(d => d.id !== primaryId && displayPixels(d).width === settings.display.width && displayPixels(d).height === settings.display.height);
+    if (same.length === 1) return { ask: false, proposed: same[0].id, remap: same[0].id, choices, why: 'stessa misura del monitor salvato (id nuovo)' };
+  }
+  return { ask: true, proposed, choices, why: saved == null ? 'nessun monitor scelto' : 'monitor salvato assente' };
+}
+// Stato dei monitor per la pagina (window.natpfDesktop.displays): elenco, quello del gioco e quello voluto
+export function displaysState(displays = [], { primaryId = null, currentId = null, wantedId = null } = {}){
+  const list = displayChoices(displays, primaryId).map(c => ({ ...c, current: String(c.id) === String(currentId), wanted: String(c.id) === String(wantedId) }));
+  return { list, current: list.find(c => c.current) || null, wanted: wantedId };
 }
 export function displayLabel(d, i, primaryId){
   const b = d.bounds || {}, sf = d.scaleFactor && d.scaleFactor !== 1 ? ` · scala ${Math.round(d.scaleFactor*100)}%` : '';
