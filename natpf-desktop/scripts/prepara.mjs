@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { DESKTOP, readBuild, windowsVersion, trailerFiles, trailerNameMatches } from '../src/desktop-core.mjs';
 import { UPDATES, normalizeBase } from '../src/aggiornamenti.mjs';
+import { REGISTRO_PC, indirizzoRegistro } from '../src/registro.mjs';
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(HERE, '..');
@@ -46,7 +47,7 @@ fs.mkdirSync(path.join(APP, 'node_modules'), { recursive: true });
 for (const m of ['ws', 'node-forge']) fs.cpSync(path.join(REPO, 'tools/lan/node_modules', m), path.join(APP, 'node_modules', m), { recursive: true });
 const lanPkg = JSON.parse(fs.readFileSync(path.join(REPO, 'tools/lan/package.json'), 'utf8'));
 // processo principale, ponte con la pagina del gioco (preload) e icona
-for (const f of ['main.mjs', 'desktop-core.mjs', 'aggiornamenti.mjs', DESKTOP.preload]) fs.copyFileSync(path.join(HERE, 'src', f), path.join(APP, f));
+for (const f of ['main.mjs', 'desktop-core.mjs', 'aggiornamenti.mjs', 'registro.mjs', DESKTOP.preload]) fs.copyFileSync(path.join(HERE, 'src', f), path.join(APP, f));
 // indirizzo degli aggiornamenti (bucket pubblico di Cloudflare R2): da aggiornamenti.json del repository, oppure dalla
 // variabile NATPF_AGGIORNAMENTI_URL al momento della costruzione (il workflow la prende dalla variabile di GitHub
 // con lo stesso nome). Vuoto → aggiornamenti spenti nel programma
@@ -54,6 +55,14 @@ const updCfg = JSON.parse(fs.readFileSync(path.join(HERE, UPDATES.config), 'utf8
 const updBase = normalizeBase(process.env.NATPF_AGGIORNAMENTI_URL || updCfg.base || '');
 fs.writeFileSync(path.join(APP, UPDATES.config), `${JSON.stringify({ base: updBase, hosts: Array.isArray(updCfg.hosts) ? updCfg.hosts : [] }, null, 2)}\n`);
 console.log(`aggiornamenti: ${updBase || 'spenti (indirizzo non impostato)'}`);
+// indirizzo del Worker del registro dello stand (B30, docs/GUIDA_REGISTRO_CLOUDFLARE.md): da registro.json del
+// repository, oppure dalla variabile NATPF_REGISTRO_URL al momento della costruzione. Vuoto → il registro resta nella
+// coda sul PC (il pannello dello stand lo dice). Mai la chiave segreta: quella sta solo nel Worker
+const regRaw = process.env.NATPF_REGISTRO_URL || (() => { try { return JSON.parse(fs.readFileSync(path.join(HERE, REGISTRO_PC.config), 'utf8')).url || ''; } catch { return ''; } })();
+const regUrl = indirizzoRegistro(regRaw);
+if (regRaw && !regUrl) fail(`Indirizzo del registro non valido (serve https, senza utente né password): ${regRaw}`);
+fs.writeFileSync(path.join(APP, REGISTRO_PC.config), `${JSON.stringify({ url: regUrl }, null, 2)}\n`);
+console.log(`registro dello stand: ${regUrl || 'solo coda sul PC (indirizzo del Worker non impostato)'}`);
 fs.copyFileSync(path.join(HERE, 'build/icon.ico'), path.join(APP, 'icon.ico'));
 fs.writeFileSync(path.join(APP, 'package.json'), JSON.stringify({
   name: 'natpf-simulator', productName: 'NATPF Simulator', version: windowsVersion(build), natpfBuild: build,

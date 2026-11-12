@@ -222,8 +222,8 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   vm.runInNewContext(code, { require, console });
   const api = exposed.natpfDesktop;
   assert.ok(api, 'natpfDesktop esposto');
-  assert.deepEqual(Object.keys(api).sort(), ['displays', 'isFullScreen', 'onFullScreenChange', 'setFullScreen', 'shell', 'toggleFullScreen', 'updates', 'version']);
-  assert.equal(api.shell, 'electron'); assert.equal(api.version, 3);
+  assert.deepEqual(Object.keys(api).sort(), ['displays', 'isFullScreen', 'onFullScreenChange', 'registro', 'setFullScreen', 'shell', 'toggleFullScreen', 'updates', 'version']);
+  assert.equal(api.shell, 'electron'); assert.equal(api.version, 4);
   assert.equal(await api.isFullScreen(), true);
   assert.equal(await api.setFullScreen(false), false);
   await api.setFullScreen(true); await api.toggleFullScreen();
@@ -273,9 +273,9 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   assert.match(main, /isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) win\.webContents\.send\(DESKTOP\.ipcUpdatesChanged/);
   assert.match(main, /ipcMain\.handle\(DESKTOP\.ipcDisplays,[^\n]*\n[^\n]*isOwnUrl\(event\.senderFrame\?\.url/, 'monitor solo dalle pagine del gioco');
   assert.match(main, /isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) win\.webContents\.send\(DESKTOP\.ipcDisplaysChanged/);
-  for (const k of ['ipcFullscreen', 'ipcFullscreenChanged', 'ipcUpdates', 'ipcUpdatesChanged', 'ipcDisplays', 'ipcDisplaysChanged']) assert.ok(code.includes(`'${DESKTOP[k]}'`), `canale ${k} uguale nel preload`);
+  for (const k of ['ipcFullscreen', 'ipcFullscreenChanged', 'ipcUpdates', 'ipcUpdatesChanged', 'ipcDisplays', 'ipcDisplaysChanged', 'ipcRegistro']) assert.ok(code.includes(`'${DESKTOP[k]}'`), `canale ${k} uguale nel preload`);
   assert.match(main, /'fullscreen'/, 'permesso dello schermo intero ancora consentito');
-  assert.match(prepara, /'main\.mjs', 'desktop-core\.mjs', 'aggiornamenti\.mjs', DESKTOP\.preload/);
+  assert.match(prepara, /'main\.mjs', 'desktop-core\.mjs', 'aggiornamenti\.mjs', 'registro\.mjs', DESKTOP\.preload/);
   assert.match(prepara, /UPDATES\.config/, 'aggiornamenti.json nel pacchetto');
   assert.equal(DESKTOP.preload, 'preload.cjs');
 });

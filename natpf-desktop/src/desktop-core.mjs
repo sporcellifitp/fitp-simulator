@@ -19,6 +19,8 @@ export const DESKTOP = Object.freeze({
   // monitor del gioco dalla pagina (pannello dello stand, telecomando dello staff; B27, 12/11): window.natpfDesktop.displays
   ipcDisplays: 'natpf:displays',
   ipcDisplaysChanged: 'natpf:displays-changed',
+  // coda del registro dello stand (B30, 12/11): window.natpfDesktop.registro, solo blocchi del registro (src/registro.mjs)
+  ipcRegistro: 'natpf:registro',
   // domanda all'avvio «Su quale schermo mostro il gioco?»: senza risposta entro questo tempo vale la proposta
   askDisplayMs: 30000,
   // disinstallazione scritta dall'installer accanto al programma: c'è solo nel programma installato
