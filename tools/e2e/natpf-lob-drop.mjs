@@ -8,7 +8,8 @@
 //      resta dopo aver ricaricato; ?personaggi= vale per l'avvio senza toccare il valore salvato;
 //   3) in campo contro la CPU e nello stesso schermo: chi gioca è Drop, l'altro è Lob, ritratti compresi; i pezzi del
 //      tennista sono nascosti, la racchetta resta nella mano, anche per il mancino;
-//   4) partita vera contro la CPU con le mascotte (chi gioca colpisce dalla tastiera del gioco): colpi di tutti e due;
+//   4) partita senza persone a passi e sorteggi fissi (un game, colpi di tutti e due): stessa impronta di palla,
+//      giocatori e punteggio con i due valori dell'opzione, in pagine appena aperte, e sul commit di prima;
 //   5) costo: tempo del disegno dello stesso fotogramma con i due aspetti e fotogrammi al secondo (FPS_MS, DRAW_N).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-lob-drop.mjs
 //   SHOTS=cartella (schermate; predefinita nella cartella temporanea) · GAME_PORT (3164) · GAME=cartella del gioco
@@ -239,9 +240,10 @@ const HUMAN = /^Natpf(Polo|Colletto|Abbottonatura|Bottoni|Pantaloncini|Collo|Tes
 const MASCOT = /^Natpf(Drop|Lob)|^NatpfOcchio|^NatpfBoccaAperta|^NatpfLingua/;
 
 /* ---------- 1) scene ferme: «Di sempre» identico a prima, «Lob & Drop» diverso, ritorno identico ---------- */
-// Partita senza persone (le due parti giocano da sole) a passi fissi e sorteggi fissi: impronta di palla, giocatori e
-// punteggio. Deve essere la stessa con i due valori dell'opzione e sul commit di prima (niente cambia nel gioco).
-const play = (p, steps = 2400) => p.evaluate(steps => {
+// Partita senza persone (le due parti giocano da sole) a passi fissi e sorteggi fissi, un minuto di gioco: impronta di
+// palla, giocatori e punteggio. Deve essere la stessa con i due valori dell'opzione e sul commit di prima (niente cambia
+// nel gioco). Si confronta tra pagine appena aperte.
+const play = (p, steps = 3600) => p.evaluate(steps => {
   const E = __natpfTennis;
   if (!E.__frame0){ E.__frame0 = E._natpfFrame; E._natpfFrame = () => 'paused'; }
   E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.userHasInteracted = true; E.natpfPaused = false;
@@ -270,9 +272,11 @@ const play = (p, steps = 2400) => p.evaluate(steps => {
 const prints = {};
 if (!process.env.COSTO){
   const g = await game({ cast: BASELINE ? null : 'sempre' }), p = g.p;
-  const pa = await play(p), pb = await play(p);
+  // la partita si gioca per prima, a pagina appena aperta: una seconda partita nella stessa pagina parte da uno stato
+  // diverso (resti della prima) e non è confrontabile; il confronto si fa tra pagine nuove (qui sotto, con Lob & Drop)
+  const pa = await play(p);
   prints.partita = pa.hash;
-  check('partita senza persone, sorteggi fissi: ripetibile (stessa impronta due volte)', pa.hash === pb.hash && pa.hits >= 8, `${pa.hash} / ${pb.hash}, ${pa.hits} colpi, punteggio ${pa.score} (${pa.changes} cambi)`);
+  check('partita senza persone, sorteggi fissi: giocata (colpi e punti)', pa.hits >= 8 && pa.changes >= 3 && pa.looks.join() === 'p1,cpu', `${pa.hash}, ${pa.hits} colpi, punteggio ${pa.score} (${pa.changes} cambi)`);
   for (const [name, o] of Object.entries(SCENES)){
     const a = await scene(p, `${name}-a`, o), b = await scene(p, `${name}-b`, o);
     prints[name] = a.hash;
@@ -295,8 +299,6 @@ if (!process.env.COSTO){
 
   // stessa pagina, «Lob & Drop» al volo: il disegno cambia, il gioco no; di nuovo «Di sempre»: disegno di prima
   await setCast(p, 'lobdrop');
-  const pm = await play(p);
-  check('partita con Lob & Drop: stessa impronta della partita con i personaggi di sempre (niente cambia nel gioco)', pm.hash === prints.partita && pm.looks.join() === 'drop,lob', `${pm.hash} / ${prints.partita}, in campo ${pm.looks}`);
   for (const [name, o] of Object.entries(SCENES)){
     const a = await scene(p, `${name}-m`, o), d = await diff(p, `${name}-a`, `${name}-m`);
     await shot(p, `b24-${name}-lobdrop`);
@@ -316,6 +318,13 @@ if (!process.env.COSTO){
   }
   check('cambio al volo: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
   await g.ctx.close();
+  // la stessa partita in due pagine nuove, una con «Lob & Drop» e una con «Di sempre»: stessa impronta (niente cambia
+  // nel gioco, e la partita è ripetibile)
+  for (const [cast, looks] of [['lobdrop', 'drop,lob'], ['sempre', 'p1,cpu']]){
+    const m = await game({ cast }), pm = await play(m.p);
+    check(`pagina nuova con «${cast === 'lobdrop' ? 'Lob & Drop' : 'Di sempre'}»: partita con la stessa impronta (niente cambia nel gioco)`, pm.hash === prints.partita && pm.looks.join() === looks && !m.errs.length, `${pm.hash} / ${prints.partita}, in campo ${pm.looks}, ${pm.hits} colpi, punteggio ${pm.score}`);
+    await m.ctx.close();
+  }
   if (process.env.SOLO){ await B.close(); summary(); process.exit(process.exitCode || 0); }
 }
 
