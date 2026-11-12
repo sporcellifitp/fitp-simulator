@@ -1,7 +1,7 @@
 // Worker del registro dello stand (cloudflare/registro-worker.js) con uno spazio R2 finto (scripts/registro/r2-finto.mjs):
 // solo aggiunte senza la chiave, niente lettura né elenco né cancellazione, limiti, origine, CORS, righe e campi non
-// previsti scartati, niente doppioni, blocchi salvati compressi, indice dello spazio per giorno, tetto totale con
-// cancellazione dei giorni più vecchi (mai quello in corso), scarico a pezzi, cancellazione e ricalcolo con la chiave.
+// previsti scartati, niente doppioni, blocchi salvati compressi, indice dello spazio per giorno, tetto totale che
+// rifiuta (507) e non cancella mai niente senza la chiave, scarico a pezzi, cancellazione e ricalcolo con la chiave.
 // Nessuna chiave vera: quella delle prove è scritta qui e non serve a niente.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -47,6 +47,27 @@ test('Worker del registro: gli elenchi e i limiti sono la copia esatta di quelli
   assert.deepEqual(pulisci(sporca), F.pulisci(sporca));
   assert.equal(pulisci({ k: 'video', t: 1 }), null);
   assert.equal(pulisci({ k: 'colpo' }), null);
+  // testi tra virgolette nei messaggi d'errore: via, come nel gioco
+  const virg = { k: 'errore', t: 1, msg: "Cannot read properties of undefined (reading 'Zorbetta')", file: 'a.js' };
+  assert.deepEqual(pulisci(virg), F.pulisci(virg)); assert.equal(pulisci(virg).msg, 'Cannot read properties of undefined (reading [testo])');
+});
+
+test('Worker del registro: testi enormi costano pochi millisecondi (il testo si taglia prima delle espressioni)', () => {
+  for (const s of ['x'.repeat(1024*1024), 'a.'.repeat(500000)]){
+    const t0 = performance.now(), row = pulisci({ k: 'errore', t: 1, msg: s, file: s }), ms = performance.now() - t0;
+    assert.ok(row.msg.length <= LIMITI.maxMessaggio && row.file.length <= LIMITI.maxTesto); assert.ok(ms < 20, `${ms.toFixed(1)} ms`);
+  }
+  // un blocco di righe costruite apposta con parole di 2.000 caratteri: veloce
+  const body = Array.from({ length: 30 }, (_, i) => JSON.stringify({ k: 'errore', t: i, msg: 'z'.repeat(1990) })).join('\n');
+  const t0 = performance.now(); righeBuone(body); assert.ok(performance.now() - t0 < 30, `${(performance.now() - t0).toFixed(1)} ms`);
+});
+
+test('Worker del registro: un corpo senza Content-Length si legge a pezzi e si ferma al tetto', async () => {
+  const E = env(); let letti = 0;
+  const stream = new ReadableStream({ pull(c){ if (letti > 4*LIMITI.maxBlocco){ c.close(); return; } const pezzo = new TextEncoder().encode('x'.repeat(65536)); letti += pezzo.length; c.enqueue(pezzo); } });
+  const u = new URL(BASE + '/'); u.search = new URLSearchParams({ giorno: oggi, postazione: 'abcdefgh', parte: '00001-ab12' }).toString();
+  const res = await worker.fetch(new Request(u, { method: 'POST', headers: { Origin: GAME }, body: stream, duplex: 'half' }), E);
+  assert.equal(res.status, 413); assert.ok(letti <= LIMITI.maxBlocco + 2*65536, `letti ${letti} byte`);
 });
 
 test('Worker del registro: un blocco si scrive in R2 sotto registro/<giorno>/<postazione>/<parte>.jsonl.gz, compresso, con CORS per il gioco', async () => {
@@ -116,11 +137,15 @@ test('Worker del registro: lo stesso blocco mandato due volte non si riscrive (n
 
 test('Worker del registro: parametri sbagliati, giorno troppo lontano, blocco troppo grande, gzip', async () => {
   const E = env();
-  for (const bad of [{ giorno: '2026-13-40' }, { giorno: '../../x' }, { giorno: '2020-01-01' }, { giorno: '2099-01-01' }, { postazione: 'ABCDEFGH' }, { postazione: 'abc' }, { postazione: 'abc/defg' }, { parte: '1' }, { parte: '00001-ab12/../x' }])
+  for (const bad of [{ giorno: '2026-13-40' }, { giorno: '../../x' }, { postazione: 'ABCDEFGH' }, { postazione: 'abc' }, { postazione: 'abc/defg' }, { parte: '1' }, { parte: '00001-ab12/../x' }])
     assert.equal((await manda(E, bad)).res.status, 400, JSON.stringify(bad));
-  // un blocco di ieri o di un mese fa (stand senza rete) passa
-  const ieri = new Date(Date.now() - 30*86400000).toISOString().slice(0, 10);
-  assert.equal((await manda(E, { giorno: ieri })).res.status, 200);
+  // giorno fuori dalla finestra (più di 7 giorni fa, dopo domani: orologio del PC sbagliato): 409, il gioco lo tiene in coda
+  const giorno = d => new Date(Date.now() + d*86400000).toISOString().slice(0, 10);
+  for (const g of ['2020-01-01', '2099-01-01', giorno(-9), giorno(3)]){ const r = await manda(E, { giorno: g }); assert.equal(r.res.status, 409, g); assert.match(r.body.error, /orologio/); }
+  assert.equal(blocchi(E).length, 0);
+  // un blocco di ieri o di una settimana fa (stand senza rete) passa
+  assert.equal((await manda(E, { giorno: giorno(-1) })).res.status, 200);
+  assert.equal((await manda(E, { giorno: giorno(-7), parte: '00002-ab12' })).res.status, 200);
   const grande = await manda(E, { parte: '00009-big1', body: JSON.stringify({ k: 'nota', t: 1 }) + '\n' + 'x'.repeat(LIMITI.maxBlocco) });
   assert.equal(grande.res.status, 413);
   // compresso: si apre e si controlla come l'altro
@@ -258,40 +283,60 @@ test('Worker del registro: i blocchi si salvano compressi (gzip), circa un quint
   assert.equal((await leggi(E, '/giorni', { now: ORA })).body.byte, o.size);
 });
 
-test('Worker del registro: sopra il tetto totale cancella da solo i giorni più vecchi, mai il giorno in corso, e lo scrive nell’indice', async () => {
+test('Worker del registro: sopra il tetto totale non cancella niente (507, il gioco tiene in coda); i giorni già scritti restano', async () => {
   // misura di un blocco compresso, poi un tetto che ne tiene circa sei e mezzo
   const P = env(); await manda(P, { body: colpi(0), giorno: '2026-11-14', now: ORA });
   const uno = P.REGISTRO.byteBlocchi(), E = env({ MAX_TOTALE_MB: String(uno*6.5/1024/1024) });
   let i = 0;
-  for (const g of ['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13']) for (let k = 0; k < 2; k++)
+  for (const g of ['2026-11-10', '2026-11-11', '2026-11-12']) for (let k = 0; k < 2; k++)
     assert.equal((await manda(E, { giorno: g, parte: `${String(++i).padStart(5, '0')}-ab12`, body: colpi(i), now: Date.parse(`${g}T12:00:00Z`) })).res.status, 200, `${g} ${k}`);
-  // otto blocchi con un tetto di sei e mezzo: il giorno più vecchio è andato via, e solo quello
-  let s = (await leggi(E, '/giorni', { now: ORA })).body;
-  assert.deepEqual(s.giorni.map(g => g.giorno), ['2026-11-11', '2026-11-12', '2026-11-13']);
-  assert.deepEqual(s.cancellati.map(c => [c.giorno, c.perche]), [['2026-11-10', 'tetto']]);
-  assert.ok(s.cancellati[0].byte > 0 && /^2026-11-13T12:00/.test(s.cancellati[0].quando), JSON.stringify(s.cancellati));
-  assert.ok(s.byte <= s.maxByte, `${s.byte} > ${s.maxByte}`);
-  assert.equal(s.byte, E.REGISTRO.byteBlocchi(), 'l’indice dice lo spazio vero');
-  assert.ok(blocchi(E).every(k => !k.includes('/2026-11-10/')), blocchi(E).join(' '));
-  // il giorno in corso (oggi) riempie il registro: i giorni di prima vanno via uno alla volta, oggi non si tocca mai
-  for (let k = 0; k < 6; k++) assert.equal((await manda(E, { giorno: '2026-11-14', parte: `${String(++i).padStart(5, '0')}-ab12`, body: colpi(i), now: ORA })).res.status, 200, `oggi ${k}`);
-  s = (await leggi(E, '/giorni', { now: ORA })).body;
-  assert.deepEqual(s.giorni.map(g => [g.giorno, g.blocchi]), [['2026-11-14', 6]]);
-  assert.deepEqual(s.cancellati.map(c => c.giorno), ['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13']);
-  assert.equal(blocchi(E).length, 6); assert.equal(s.byte, E.REGISTRO.byteBlocchi()); assert.ok(s.byte <= s.maxByte);
-  // oggi da solo non può superare il tetto di tutto: il settimo blocco non entra (507) e il gioco lo tiene in coda;
-  // niente del giorno in corso è stato cancellato
+  const prima = blocchi(E).sort();
+  // il settimo blocco supererebbe il tetto: 507 «spazio pieno», niente scritto e niente cancellato
   const pieno = await manda(E, { giorno: '2026-11-14', parte: '00099-ab12', body: colpi(99), now: ORA });
-  assert.equal(pieno.res.status, 507); assert.equal(blocchi(E).length, 6);
-  // un blocco vecchio rimasto in coda su un PC senza rete arriva adesso: viene accettato (il gioco lo toglie dalla
-  // coda) ma, sopra il tetto, è lui il più vecchio e va via; oggi resta intero
-  assert.equal((await manda(E, { giorno: '2026-11-09', parte: '00001-old1', body: colpi(7), now: ORA })).res.status, 200);
-  s = (await leggi(E, '/giorni', { now: ORA })).body;
-  assert.deepEqual(s.giorni.map(g => [g.giorno, g.blocchi]), [['2026-11-14', 6]]); assert.equal(s.byte, E.REGISTRO.byteBlocchi());
+  assert.equal(pieno.res.status, 507); assert.match(pieno.body.error, /spazio pieno/);
+  assert.deepEqual(blocchi(E).sort(), prima); assert.equal(E.REGISTRO.ops.delete, 0);
+  const s = (await leggi(E, '/giorni', { now: ORA })).body;
+  assert.deepEqual(s.giorni.map(g => [g.giorno, g.blocchi]), [['2026-11-10', 2], ['2026-11-11', 2], ['2026-11-12', 2]]);
+  assert.deepEqual(s.cancellati, []); assert.equal(s.byte, E.REGISTRO.byteBlocchi()); assert.ok(s.byte <= s.maxByte);
+  // l'utente, con la chiave, cancella un giorno già scaricato: c'è di nuovo posto e il blocco rimasto in coda entra
+  assert.equal((await leggi(E, '/giorni?giorno=2026-11-10', { method: 'DELETE', now: ORA })).res.status, 200);
+  assert.equal((await manda(E, { giorno: '2026-11-14', parte: '00099-ab12', body: colpi(99), now: ORA })).res.status, 200);
   // senza superare il tetto non si elenca e non si cancella niente: lo spazio si conta dall'indice
   const C = env(); for (let k = 1; k <= 20; k++) await manda(C, { giorno: '2026-11-14', parte: `${String(k).padStart(5, '0')}-ab12`, body: colpi(k), now: ORA });
   assert.equal(C.REGISTRO.ops.list, 0); assert.equal(C.REGISTRO.ops.delete, 0);
   assert.ok(C.REGISTRO.ops.put + C.REGISTRO.ops.get + C.REGISTRO.ops.head <= 20*4, JSON.stringify(C.REGISTRO.ops));
+});
+
+// Revisione del 12/11 (bloccante): l'indirizzo del Worker sta nel pacchetto web pubblico. Chi lo conosce, senza chiave e
+// con un'origine finta, manda righe valide di giorni scelti da lui finché lo spazio è pieno: prima il Worker cancellava da
+// solo i giorni più vecchi, cioè quelli veri dello stand. Adesso può al più riempire lo spazio: i giorni veri restano.
+test('Worker del registro: scritture estranee senza chiave oltre il tetto lasciano intatti i giorni già scritti', async () => {
+  const P = env(); await manda(P, { body: colpi(0), giorno: '2026-11-14', now: ORA });
+  const uno = P.REGISTRO.byteBlocchi(), E = env({ MAX_TOTALE_MB: String(uno*8/1024/1024), MAX_GIORNO_MB: String(uno*2.5/1024/1024) });
+  // i blocchi veri dello stand, del 10 e dell'11
+  const veri = [];
+  for (const [g, parte] of [['2026-11-10', '00001-ver1'], ['2026-11-11', '00001-ver2']]){
+    assert.equal((await manda(E, { giorno: g, parte, body: colpi(+parte.slice(-1)), now: Date.parse(`${g}T12:00:00Z`) })).res.status, 200);
+    veri.push(`registro/${g}/abcdefgh/${parte}.jsonl.gz`);
+  }
+  const testi = veri.map(k => E.REGISTRO.oggetti.get(k).testo);
+  // l'attacco: tante richieste, origine finta (curl), giorni di tutta la finestra e oltre, testo poco comprimibile
+  const st = {}; let n = 0;
+  for (let d = -10; d <= 3; d++) for (let k = 0; k < 4; k++){
+    const g = new Date(ORA + d*86400000).toISOString().slice(0, 10);
+    const rumore = Array.from({ length: 60 }, (_, j) => JSON.stringify({ k: 'nota', t: j, msg: Math.random().toString(36).repeat(5) })).join('\n') + '\n';
+    const r = await manda(E, { giorno: g, postazione: 'zzzzzzzz', parte: `${String(++n).padStart(5, '0')}-evil`, body: rumore, origin: GAME, ip: `198.51.100.${n % 200}`, now: ORA });
+    st[r.res.status] = (st[r.res.status] || 0) + 1;
+  }
+  assert.ok(st[507] > 0, `lo spazio si è riempito: ${JSON.stringify(st)}`); assert.ok(st[409] > 0, 'giorni fuori dalla finestra rifiutati');
+  // i giorni veri ci sono ancora, intatti; il Worker non ha cancellato niente
+  for (const [i, k] of veri.entries()){ assert.ok(E.REGISTRO.oggetti.has(k), k); assert.equal(E.REGISTRO.oggetti.get(k).testo, testi[i]); }
+  assert.equal(E.REGISTRO.ops.delete, 0);
+  const s = (await leggi(E, '/giorni', { now: ORA })).body;
+  assert.deepEqual(s.cancellati, []); assert.ok(s.byte <= s.maxByte, `${s.byte} > ${s.maxByte}`);
+  // la pagina del Worker avvisa quando lo spazio è (quasi) pieno
+  const pagina = await leggi(E, '/', { chiave: null, accept: 'text/html' });
+  assert.match(pagina.text, /Spazio PIENO/); assert.match(pagina.text, /non cancella mai niente da solo/);
 });
 
 test('Worker del registro: il giorno in corso è quello in Italia; tetto di base 2 GB, variabile MAX_TOTALE_MB', async () => {
@@ -301,12 +346,6 @@ test('Worker del registro: il giorno in corso è quello in Italia; tetto di base
   assert.equal((await leggi(env({ MAX_TOTALE_MB: '500' }), '/giorni')).body.maxByte, 500*1024*1024);
   assert.equal((await leggi(env({ MAX_TOTALE_MB: 'boh' }), '/giorni')).body.maxByte, 2048*1024*1024);
   assert.equal((await leggi(env({ MAX_GIORNO_MB: '50' }), '/giorni')).body.maxGiorno, 50*1024*1024);
-  // dopo le 23 italiane del 14 (già 15 in Italia? no: 22:30 UTC = 23:30 del 14): il 14 è ancora «oggi» e non si cancella
-  const P = env(); await manda(P, { body: colpi(0), giorno: '2026-11-14', now: ORA });
-  const E = env({ MAX_TOTALE_MB: String(P.REGISTRO.byteBlocchi()*2.5/1024/1024) }), sera = Date.parse('2026-11-14T22:30:00Z');
-  for (const [g, parte] of [['2026-11-14', '00001-ab12'], ['2026-11-14', '00002-ab12'], ['2026-11-15', '00001-ab12']]) assert.equal((await manda(E, { giorno: g, parte, body: colpi(+parte.slice(0, 5)), now: sera })).res.status, 200);
-  // sopra il tetto, ma l'unico giorno più vecchio è quello in corso: resta
-  assert.deepEqual((await leggi(E, '/giorni', { now: sera })).body.giorni.map(g => g.giorno), ['2026-11-14', '2026-11-15']);
 });
 
 test('Worker del registro: con la chiave si cancella un giorno o tutto, a pezzi se i blocchi sono tanti', async () => {

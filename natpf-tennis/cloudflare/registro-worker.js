@@ -5,16 +5,21 @@
 // niente video, niente audio, niente indirizzi), e lo manda qui a blocchi. Questo Worker li scrive in R2, COMPRESSI, sotto
 //   registro/<giorno>/<postazione>/<parte>.jsonl.gz
 // Chi non ha la chiave segreta dell'utente può solo AGGIUNGERE righe del registro; non può leggere, elencare né
-// cancellare niente. La chiave sta nelle variabili segrete del Worker: mai nel gioco, mai nel repository.
+// cancellare niente, nemmeno indirettamente: le scritture senza chiave non fanno MAI cancellare niente (revisione del
+// 12/11: prima, oltre il tetto, il Worker toglieva da solo i giorni più vecchi, e chi conosceva l'indirizzo poteva far
+// sparire i giorni veri mandando righe finte). Chi conosce l'indirizzo (sta nel pacchetto web, che è pubblico) può al
+// più RIEMPIRE lo spazio: allora il Worker risponde 507, i blocchi restano in coda sul PC dello stand e la pagina del
+// Worker avvisa che lo spazio è pieno; l'utente, con la chiave, scarica e cancella i giorni che non servono più.
+// La chiave sta nelle variabili segrete del Worker: mai nel gioco, mai nel repository.
 //
 // LO SPAZIO NON È INFINITO («ok su Cloudflare ma non ho spazio infinito», 12/11: 10 GB in tutto, con dentro anche
 // l'installer e il trailer). Per questo:
 //   - i blocchi si salvano compressi (gzip: circa un quinto del testo);
 //   - il Worker tiene il conto dello spazio in un piccolo indice (conti.json: byte, blocchi, righe e partite per
 //     giorno), aggiornato a ogni blocco: non elenca il bucket a ogni invio;
-//   - TETTO TOTALE (variabile MAX_TOTALE_MB, di base 2048 = 2 GB): quando il registro lo supera il Worker cancella da
-//     solo i giorni più vecchi finché rientra, MAI il giorno in corso (oggi, ora italiana), e lo scrive nell'indice
-//     (cancellati: giorno, byte, quando, perché);
+//   - TETTO TOTALE (variabile MAX_TOTALE_MB, di base 2048 = 2 GB): un blocco che lo farebbe superare non si scrive
+//     (507 «spazio pieno»): il gioco lo tiene in coda sul PC e lo rimanda da solo quando c'è di nuovo posto. Il Worker
+//     non cancella mai niente da solo: si cancella solo con la chiave, dalla pagina del Worker (o dal pannello di R2);
 //   - TETTO DEL GIORNO (MAX_GIORNO_MB, di base 200): un giorno pieno non accetta altre righe (507) e il gioco le
 //     tiene in coda sul PC.
 //
@@ -47,12 +52,13 @@
 //   POST /?giorno=AAAA-MM-GG&postazione=xxxxxxxx&parte=00012-abcd   corpo: righe JSON Lines, in chiaro o gzip (il
 //        Worker lo riconosce dai primi due byte; «&z=gzip» è accettato ma non serve)
 //        → 200 { ok, righe, scartate } · 200 { ok, doppione } se quel blocco c'è già (non si riscrive: niente doppioni)
-//        → 400 parametri · 403 origine · 413 blocco troppo grande · 422 nessuna riga del registro · 429 troppi invii ·
-//          507 giorno pieno · 503 spazio R2 non collegato
+//        → 400 parametri · 403 origine · 409 giorno fuori dalla finestra accettata (da 7 giorni fa a domani: orologio
+//          del PC sbagliato o blocco troppo vecchio; il gioco lo tiene in coda) · 413 blocco troppo grande · 422 nessuna
+//          riga del registro · 429 troppi invii · 507 giorno pieno o spazio pieno · 503 spazio R2 non collegato
 //   GET  /            pagina per l'utente (stato, e con la chiave: spazio, giorni, scarico, cancellazione); a un
 //        programma (senza Accept: text/html) lo stato: 200 { ok, registro: 'pronto', spazio, chiave } · 503 non pronto
 //   GET  /giorni      (chiave)  { ok, byte, maxByte, maxGiorno, giorni: [{ giorno, blocchi, byte, righe, partite }],
-//        cancellati: [{ giorno, byte, quando, perche: 'tetto' | 'utente' }] }: lo spazio occupato dal registro
+//        cancellati: [{ giorno, byte, quando, perche: 'utente' (o 'tetto' nei conti scritti dalle versioni di prima) }] }: lo spazio occupato dal registro
 //   GET  /scarica?giorno=AAAA-MM-GG[&da=…][&a-pezzi=1]   (chiave)  un file .jsonl.gz: i blocchi compressi uno dopo
 //        l'altro (più gzip in fila sono un gzip valido: nessun calcolo). Ogni blocco comincia con la riga
 //        {"k":"blocco","giorno":…,"postazione":…,"parte":…}. Al massimo PAGINA blocchi per richiesta (limite di
@@ -81,7 +87,8 @@ export const LIMITI = Object.freeze({
   maxBlocchiGiorno: 20000,    // blocchi scritti in un giorno
   maxTotale: 2048*MB,         // tutto il registro, tutti i giorni: 2 GB dei 10 dell'account (variabile MAX_TOTALE_MB)
   invioAlMinuto: 120,         // richieste di scrittura al minuto da uno stesso indirizzo
-  giorniIndietro: 60,         // un blocco può arrivare in ritardo (stand senza rete) fino a 60 giorni
+  giorniIndietro: 7,          // un blocco può arrivare in ritardo (stand senza rete) fino a 7 giorni: una finestra
+                              // stretta perché chi conosce l'indirizzo non possa riempire molti giorni (8 × 200 MB < 2 GB)
   pagina: 40,                 // blocchi per richiesta di scarico
   operazioni: 40,             // operazioni sullo spazio per richiesta, al più (cancellazione e ricalcolo a pezzi)
   erroriChiave: 10,           // chiavi sbagliate in 10 minuti da uno stesso indirizzo, poi 429
@@ -95,7 +102,7 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'attesaS', 'pt', 'lanci', 'lanciVuoti', 'battutaAuto', 'esito', 'come', 'punti', 'puntiVinti', 'fps', 'medi', 'peggiori', 'maxMs', 'lunghi', 'cadute', 'riprese', 'rttMax', 'errori',
   'scartati', 'amb', 'gesto', 'voluto', 'ms', 'voto', 'f', 'd', 'e', 'x', 'z', 'sup', 'supNo', 'volee', 'lato', 'fonte', 'causa', 'aiutato', 'tipo', 'q', 'kmh', 'auto', 'perche',
   'serie', 'schede', 'viste', 'tutte', 'chiusura', 'finita', 'prove', 'fallite', 'passi', 'ripartenze', 'revisioni', 'revisioniNo', 'semplice', 'finito', 'saltato', 'perfetti', 'gioco',
-  'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro']);
+  'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in']);
 export const MAPPE = Object.freeze(['scartati', 'posti', 'passi', 'perche']);
 export const CAMPI_VIETATI = Object.freeze(['nome', 'name', 'nick', 'nickname', 'giocatore', 'player', 'ip', 'indirizzo', 'address', 'host', 'ua', 'useragent', 'token', 'sessione',
   'session', 'stanza', 'room', 'roomid', 'id', 'deviceid', 'telefonoid', 'video', 'audio', 'immagine', 'foto', 'frame', 'campioni', 'sensori', 'rot', 'acc', 'accg', 'email', 'mail',
@@ -107,10 +114,15 @@ const chiaveNorm = k => String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
 const IP_RE = /\b\d{1,3}(?:\.\d{1,3}){3}\b(?::\d+)?/g, IP6_RE = /\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b/gi;
 const MAIL_RE = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, URL_RE = /\b(?:https?|wss?|file|blob):\/\/[^\s'")]+/gi;
 // testo: senza indirizzi, e-mail, pagine con codici; accorciato
-export function pulisciTesto(s, max = LIMITI.maxTesto){
-  let out = String(s ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ');
+// Il testo si taglia PRIMA delle espressioni (revisione: l'espressione delle e-mail costa in modo quadratico su una
+// parola lunga senza «@»: 40.000 caratteri = 1 s di calcolo)
+const VIRGOLETTE_RE = /'[^'\n]{1,120}'|"[^"\n]{1,120}"|`[^`\n]{1,120}`|«[^»\n]{1,120}»|“[^”\n]{1,120}”|‘[^’\n]{1,120}’/g;
+// virgolette: anche senza i testi tra virgolette (messaggi d'errore: lì può finire una chiave che è un nome)
+export function pulisciTesto(s, max = LIMITI.maxTesto, virgolette = false){
+  let out = String(s ?? '').slice(0, 2*max).replace(/[\u0000-\u001f\u007f]+/g, ' ');
   out = out.replace(URL_RE, u => { const f = u.replace(/[?#].*$/, '').split('/').filter(Boolean).pop() || ''; return /\.[a-z0-9]{1,5}$/i.test(f) ? f : '[pagina]'; });
   out = out.replace(MAIL_RE, '[e-mail]').replace(IP_RE, '[indirizzo]').replace(IP6_RE, '[indirizzo]');
+  if (virgolette) out = out.replace(VIRGOLETTE_RE, '[testo]');
   return out.length > max ? out.slice(0, max - 1) + '…' : out;
 }
 // una riga buona da scrivere, o null se non è del registro (stessa regola del gioco: registro_formato.pulisci)
@@ -120,7 +132,7 @@ export function pulisci(row){
     if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
     if (mappa && !Array.isArray(v)) return undefined;
     if (typeof v === 'boolean') return v;
-    if (typeof v === 'string') return pulisciTesto(v, key === 'msg' ? LIMITI.maxMessaggio : LIMITI.maxTesto);
+    if (typeof v === 'string') return key === 'msg' ? pulisciTesto(v, LIMITI.maxMessaggio, true) : pulisciTesto(v, LIMITI.maxTesto);
     if (Array.isArray(v)) return depth > 3 ? undefined : v.slice(0, 16).map(x => (typeof x === 'object' && x !== null ? undefined : walk(x, key, depth + 1, mappa))).map(x => (x === undefined ? null : x));
     if (typeof v === 'object'){
       if (depth > 3) return undefined;
@@ -186,12 +198,14 @@ const chiE = request => request.headers.get('CF-Connecting-IP') || 'senza-indiri
 
 /* ---------- giorni ---------- */
 const GIORNO_RE = /^\d{4}-\d{2}-\d{2}$/, POSTAZIONE_RE = /^[a-z0-9]{8}$/, PARTE_RE = /^\d{5,7}-[a-z0-9]{4}$/;
+const giornoBuono = g => { if (!GIORNO_RE.test(g)) return false; const t = Date.parse(`${g}T12:00:00Z`); return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === g; };
+// finestra dei giorni accettati senza chiave: da giorniIndietro giorni fa a domani
 const giornoValido = (g, now, L) => {
-  if (!GIORNO_RE.test(g)) return false;
-  const t = Date.parse(`${g}T12:00:00Z`); if (!Number.isFinite(t) || new Date(t).toISOString().slice(0, 10) !== g) return false;
+  if (!giornoBuono(g)) return false;
+  const t = Date.parse(`${g}T12:00:00Z`);
   return t <= now + 36*3600*1000 && t >= now - (L.giorniIndietro + 1)*86400000;
 };
-// il giorno di oggi in Italia (la giornata dello stand), 'AAAA-MM-GG': è il giorno che non si cancella mai da solo
+// il giorno di oggi in Italia (la giornata dello stand), 'AAAA-MM-GG' (serve a chi legge lo scarico e alle prove)
 export function oggiItalia(now = Date.now()){
   try { return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now)); }
   catch { return new Date(now).toISOString().slice(0, 10); }
@@ -257,21 +271,18 @@ function dopoTolto(conti, giorno, r, perche, now){
   if (r.finito){ if (d || r.blocchi){ segna(conti, giorno, Math.max(+d?.byte || 0, r.byte), perche, now); } delete conti.giorni[giorno]; }
   else if (d){ d.byte = Math.max(0, (+d.byte || 0) - r.byte); d.blocchi = Math.max(0, (+d.blocchi || 0) - r.blocchi); d.inCancellazione = true; }
 }
-// sopra il tetto: via i giorni più vecchi finché si rientra. Mai il giorno in corso (né uno più nuovo: un PC con
-// l'orologio avanti)
-async function sfoltisci(bucket, conti, maxTotale, oggi, ops, now){
-  for (const giorno of Object.keys(conti.giorni).sort()){
-    if (totale(conti) <= maxTotale || ops.n < 2) break;
-    if (giorno >= oggi) break;
-    dopoTolto(conti, giorno, await togliGiorno(bucket, giorno, ops), 'tetto', now);
-  }
-}
 
 /* ---------- scrittura ---------- */
+// il corpo si legge a pezzi, con il tetto: un corpo senza Content-Length non si legge tutto prima del controllo
 async function corpo(request, gzip, L){
   const dichiarati = +request.headers.get('Content-Length') || 0;
   if (dichiarati > L.maxBlocco) return { troppo: true };
-  const buf = new Uint8Array(await request.arrayBuffer());
+  let buf;
+  if (request.body && typeof request.body.getReader === 'function'){
+    const reader = request.body.getReader(), parts = []; let n = 0;
+    for (;;){ const { done, value } = await reader.read(); if (done) break; n += value.length; if (n > L.maxBlocco){ try { await reader.cancel(); } catch {} return { troppo: true }; } parts.push(value); }
+    buf = new Uint8Array(n); let o = 0; for (const p of parts){ buf.set(p, o); o += p.length; }
+  } else buf = new Uint8Array(await request.arrayBuffer());
   if (buf.length > L.maxBlocco) return { troppo: true };
   if (!gzip && !eGzip(buf)) return { testo: new TextDecoder().decode(buf) };
   // gzip: si apre con un tetto (un blocco piccolo non deve diventare enorme)
@@ -285,7 +296,10 @@ async function scrivi(request, env, url, c, L, now){
   if (!c.ok) return reply(403, { ok: false, error: 'origine non permessa' }, c.headers);
   if (!frena(`w:${chiE(request)}`, L.invioAlMinuto, 60000, now)) return reply(429, { ok: false, error: 'troppi invii: riprova tra poco' }, { ...c.headers, 'Retry-After': '30' });
   const giorno = url.searchParams.get('giorno') || '', postazione = url.searchParams.get('postazione') || '', parte = url.searchParams.get('parte') || '';
-  if (!giornoValido(giorno, now, L) || !POSTAZIONE_RE.test(postazione) || !PARTE_RE.test(parte)) return reply(400, { ok: false, error: 'giorno, postazione o parte non validi' }, c.headers);
+  if (!giornoBuono(giorno) || !POSTAZIONE_RE.test(postazione) || !PARTE_RE.test(parte)) return reply(400, { ok: false, error: 'giorno, postazione o parte non validi' }, c.headers);
+  // un giorno fuori dalla finestra (orologio del PC sbagliato, blocco rimasto in coda più di una settimana): 409, il
+  // gioco lo tiene in coda (lo staff lo può scaricare con «Scarica la coda») e il pannello dello stand lo dice
+  if (!giornoValido(giorno, now, L)) return reply(409, { ok: false, error: 'giorno fuori dalla finestra accettata (orologio del computer?)' }, c.headers);
   const bucket = env.REGISTRO;
   if (!bucket || typeof bucket.put !== 'function') return reply(503, { ok: false, error: SENZA_SPAZIO }, c.headers);
   const b = await corpo(request, url.searchParams.get('z') === 'gzip', L);
@@ -299,18 +313,18 @@ async function scrivi(request, env, url, c, L, now){
   // nello spazio: compresso, con in testa la riga che dice di che blocco si tratta (serve a chi legge lo scarico)
   const gz = await comprimi(JSON.stringify({ k: 'blocco', giorno, postazione, parte }) + '\n' + righe.join('\n') + '\n'), byte = gz.length;
   const prima = await leggiConti(bucket), g = prima.conti.giorni[giorno] || { byte: 0, blocchi: 0 };
-  const maxGiorno = megabyte(env.MAX_GIORNO_MB, L.maxGiorno), maxTotale = megabyte(env.MAX_TOTALE_MB, L.maxTotale), oggi = oggiItalia(now);
-  // un giorno pieno, da solo o perché da solo riempirebbe tutto il registro, non accetta altro: il gioco tiene in coda
+  const maxGiorno = megabyte(env.MAX_GIORNO_MB, L.maxGiorno), maxTotale = megabyte(env.MAX_TOTALE_MB, L.maxTotale);
+  // un giorno pieno non accetta altro; uno spazio pieno nemmeno (e non si cancella niente per far posto): il gioco
+  // tiene in coda e riprova da solo
   if ((+g.byte || 0) + byte > Math.min(maxGiorno, maxTotale) || (+g.blocchi || 0) >= L.maxBlocchiGiorno) return reply(507, { ok: false, error: 'giorno pieno' }, c.headers);
+  if (totale(prima.conti) + byte > maxTotale) return reply(507, { ok: false, error: 'spazio pieno: cancella con la chiave i giorni già scaricati' }, c.headers);
   await bucket.put(key, gz, { httpMetadata: { contentType: 'application/gzip' }, customMetadata: { righe: String(righe.length), partite: String(partite) } });
-  // indice, e se il registro supera il tetto via i giorni più vecchi (mai oggi). Il blocco è già scritto: se l'indice
-  // resta conteso la risposta è buona lo stesso e il conto si rimette a posto con «Ricalcola lo spazio»
-  const ops = { n: operazioni(env) - 6 };
+  // indice (mai cancellazioni qui: senza la chiave non si cancella niente). Il blocco è già scritto: se l'indice resta
+  // conteso la risposta è buona lo stesso e il conto si rimette a posto con «Ricalcola lo spazio»
   try {
     await aggiornaConti(bucket, async conti => {
       const d = conti.giorni[giorno] || (conti.giorni[giorno] = { byte: 0, blocchi: 0, righe: 0, partite: 0 });
       d.byte = (+d.byte || 0) + byte; d.blocchi = (+d.blocchi || 0) + 1; d.righe = (+d.righe || 0) + righe.length; d.partite = (+d.partite || 0) + partite; delete d.inCancellazione;
-      if (totale(conti) > maxTotale) await sfoltisci(bucket, conti, maxTotale, oggi, ops, now);
     }, now, prima);
   } catch {}
   return reply(200, { ok: true, righe: righe.length, scartate }, c.headers);
@@ -421,7 +435,8 @@ ${spazio ? '' : '<p class="no"><b>Il registro NON è pronto:</b> manca il colleg
 <p class="dim"><small>Il bucket del registro deve restare <b>privato</b>: non accendere mai «Public access» né un dominio pubblico su quel bucket.</small></p>
 <table id="t" hidden><thead><tr><th>Giorno</th><th class="n">Blocchi</th><th class="n">Righe</th><th class="n">Peso</th><th></th></tr></thead><tbody></tbody></table>
 <p id="tutti" hidden><button id="tutto">Scarica tutti i giorni in un file</button> <button id="ricalcola">Ricalcola lo spazio</button> <button id="viatutto" class="via">Cancella tutto</button></p>
-<p><small>Il file scaricato (registro-….jsonl.gz, compresso) è quello da mandare così com'è a chi sviluppa il gioco: lo legge lo strumento «riassunto». Quando il registro supera il tetto, i giorni più vecchi si cancellano da soli (mai quello di oggi): scarica prima quelli che vuoi tenere.</small></p>
+<p id="pieno" class="no" hidden></p>
+<p><small>Il file scaricato (registro-….jsonl.gz, compresso) è quello da mandare così com'è a chi sviluppa il gioco: lo legge lo strumento «riassunto». Il Worker non cancella mai niente da solo: quando lo spazio è pieno non accetta altre righe (restano in coda sui PC dello stand) finché non cancelli qui i giorni già scaricati.</small></p>
 <script>
 const $=id=>document.getElementById(id),msg=t=>{$('msg').textContent=t};
 const peso=b=>b==null?'—':b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' kB';
@@ -433,7 +448,8 @@ function mostra(j){giorni=j.giorni||[];const tb=$('t').querySelector('tbody');tb
 for(const g of [...giorni].reverse()){const tr=tb.insertRow();tr.insertCell().textContent=g.giorno;for(const v of [g.blocchi??'—',g.righe??'—',peso(g.byte)]){const c=tr.insertCell();c.className='n';c.textContent=v}
 const b=document.createElement('button');b.textContent='Scarica';b.onclick=()=>uno(g.giorno,b);const x=document.createElement('button');x.textContent='Cancella';x.className='via';x.onclick=()=>via('giorno='+g.giorno,'Cancellare il giorno '+g.giorno+'? Non si può tornare indietro.',x);const c=tr.insertCell();c.appendChild(b);c.appendChild(document.createTextNode(' '));c.appendChild(x)}
 $('t').hidden=!giorni.length;$('tutti').hidden=!giorni.length;$('barra').hidden=$('spazio').hidden=false;$('barra').firstChild.style.width=Math.min(100,100*j.byte/j.maxByte)+'%';
-$('spazio').textContent='Spazio occupato dal registro: '+peso(j.byte)+' su '+peso(j.maxByte)+'. Oltre, i giorni più vecchi si cancellano da soli.'+((j.cancellati||[]).length?' Già cancellati: '+j.cancellati.slice(-6).map(c=>c.giorno+' ('+(c.perche==='tetto'?'spazio pieno':'a mano')+')').join(', ')+'.':'');
+$('spazio').textContent='Spazio occupato dal registro: '+peso(j.byte)+' su '+peso(j.maxByte)+'.'+((j.cancellati||[]).length?' Già cancellati: '+j.cancellati.slice(-6).map(c=>c.giorno+' ('+(c.perche==='tetto'?'spazio pieno':'a mano')+')').join(', ')+'.':'');
+const quasi=j.byte>=0.9*j.maxByte;$('pieno').hidden=!quasi;$('pieno').textContent=quasi?(j.byte>=j.maxByte?'Spazio PIENO: ':'Spazio quasi pieno: ')+'il registro non accetta più righe quando è pieno (restano in coda sui PC dello stand). Scarica i giorni che vuoi tenere e cancellali, oppure alza MAX_TOTALE_MB. Se lo spazio si riempie di giorni che non sono dello stand, qualcuno sta scrivendo righe finte: cancella quei giorni.':'';
 msg(giorni.length?giorni.length+' giorni registrati.':'Ancora nessun giorno registrato.')}
 async function elenco(){try{msg('Un momento…');mostra(await (await chiedi('/giorni')).json())}catch(e){msg('Non riuscito: '+e.message)}}
 async function uno(g,b){b.disabled=true;try{msg('Scarico '+g+'…');const p=[];await pezzi(g,p);salva(p,'registro-'+g+'.jsonl.gz');msg('Scaricato registro-'+g+'.jsonl.gz')}catch(e){msg('Non riuscito: '+e.message)}b.disabled=false}

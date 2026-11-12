@@ -11,7 +11,8 @@
 //     e poi al Worker per conto suo. Se la coda non si può scrivere o la rete non c'è il gioco non se ne accorge (righe
 //     perse contate, nessun avviso a schermo, nessuna attesa).
 //   - Niente dati di chi gioca: i campi sono scelti qui a mano e ogni riga passa da pulisci() (solo i campi previsti)
-//     con i nomi scritti in quel momento (soprannome, nomi dello stesso schermo), che nei testi diventano «[nome]».
+//     con TUTTI i nomi scritti nella giornata (soprannome, nomi dello stesso schermo, anche quelli di prima di «Nuovo
+//     giocatore» o del chiosco: tenuti solo in memoria, mai su disco), che nei testi liberi diventano «[nome]».
 // La modalità diagnostica resta com'era: i suoi agganci avvolgono questi (o viceversa) senza cambiarne il risultato.
 // Senza DOM: lo provano i test con un motore finto (natpf_registro.js lo collega al gioco e al pannello dello stand).
 import { REGISTRO, giornoDi, leggiGiornata, scriviGiornata, registroAcceso, scriviScelta, idBlocco, dispositivo, strada, gpuVera, gpuNome, finePunto, pulisci, testoRiga, r } from './registro_formato.js';
@@ -26,7 +27,8 @@ const prova = (fn, no = null) => { try { return fn(); } catch { return no; } };
 const NOMI_BASE = new Set(['player 1', 'player 2', 'ospite', '']);
 const voto = g => { const s = String(g || '').split('•')[0].trim().toLowerCase(); return s ? s.slice(0, 24) : null; };
 const CTRL = { phone: 'telefono', webcam: 'webcam', mouse: 'mouse' };
-const base = f => String(f || '').replace(/[?#].*$/, '').split(/[\\/]/).pop().slice(0, 60) || null;
+const base = f => String(f || '').slice(0, 2000).replace(/[?#].*$/, '').split(/[\\/]/).pop().slice(0, 60) || null;
+const MAX_NOMI = 300;                                    // nomi della giornata tenuti in memoria (i più vecchi escono)
 
 export class RegistroStand {
   constructor({ engine, ui = null, coda, invio = null, storage = globalThis.localStorage, now = () => performance.now(), wallNow = () => Date.now(), programma = false, win = null, raf = null, timers = true, area = null } = {}){
@@ -37,7 +39,7 @@ export class RegistroStand {
     this.conti = { righe: 0, scritte: 0, perse: 0, blocchi: 0 }; this._perseDette = 0; this.ultimoProblema = null;
     this.costo = { ms: 0, max: 0 };                      // ms spesi dal registro sul thread del gioco (agganci e scritture)
     this.partita = null; this.visita = null; this.cal = {}; this.tut = new Map(); this.tel = {}; this.scarti = {}; this.err = new Map();
-    this.att = null; this.mini = null; this._chiosco = -Infinity; this._telefoni = new Set();
+    this.att = null; this.mini = null; this._chiosco = -Infinity; this._telefoni = new Set(); this._nomi = new Set();
     this._installa();
     if (timers && typeof setInterval === 'function'){
       this._secT = setInterval(() => this.secondo(), 1000); this._flushT = setInterval(() => { this.blocco(); }, REGISTRO.bloccoMs);
@@ -47,11 +49,15 @@ export class RegistroStand {
   }
   get t(){ return Math.max(0, Math.round(this.now() - this.t0)); }
   get chiosco(){ return !!this.ui?.kiosk?.enabled; }
-  // nomi scritti da chi gioca adesso: non devono comparire in nessuna riga
+  // nomi scritti da chi gioca: quelli di adesso e quelli già visti nella giornata (revisione: dopo «Nuovo giocatore» il
+  // nome di prima non c'è più nel gioco, ma può ancora comparire in un errore). Solo in memoria, mai su disco
   nomi(){
-    const E = this.engine, out = [];
-    for (const n of [prova(() => this.ui?.events?.nickname), E?.natpfSplitNames?.p1, E?.natpfSplitNames?.p2]){ const v = String(n || '').trim(); if (v && !NOMI_BASE.has(v.toLowerCase())) out.push(v); }
-    return out;
+    const E = this.engine;
+    for (const n of [prova(() => this.ui?.events?.nickname), E?.natpfSplitNames?.p1, E?.natpfSplitNames?.p2]){
+      const v = String(n || '').trim().slice(0, 60); if (!v || NOMI_BASE.has(v.toLowerCase()) || this._nomi.has(v)) continue;
+      this._nomi.add(v); if (this._nomi.size > MAX_NOMI) this._nomi.delete(this._nomi.values().next().value);
+    }
+    return [...this._nomi];
   }
   /* ---------- acceso, spento ---------- */
   // salva: la scelta dello staff resta salvata (pannello dello stand); di base il registro è sempre acceso
@@ -63,10 +69,20 @@ export class RegistroStand {
     else { this.chiudi('spento'); this.on = false; }
     return on;
   }
+  // La giornata resta quella di quando è cominciata finché non la cambia _cambioGiorno() (controllo al secondo, o una
+  // partita nuova): una partita a cavallo della mezzanotte resta tutta nella giornata in cui è cominciata (revisione)
   _giornata(){
-    const giorno = giornoDi(new Date(this.wallNow()));
-    if (!this.giornata || this.giornata.giorno !== giorno) this.giornata = leggiGiornata(giorno, this.storage);
+    if (!this.giornata) this.giornata = leggiGiornata(giornoDi(new Date(this.wallNow())), this.storage);
     return this.giornata;
+  }
+  // giorno nuovo a gioco acceso (stand aperto oltre la mezzanotte), senza partita in corso: le righe in memoria partono
+  // con la giornata vecchia, poi giornata nuova con la sua riga «avvio»; gli errori si ricontano da zero, i nomi visti
+  // si dimenticano
+  _cambioGiorno(){
+    if (!this.giornata || this.partita || giornoDi(new Date(this.wallNow())) === this.giornata.giorno) return false;
+    this.blocco(); this.giornata = null; this.err = new Map(); this._nomi.clear();
+    if (this.on) this._avvio('giorno nuovo');
+    return true;
   }
   _salvaGiornata(extra = {}){ const G = this._giornata(); G.aperta = { pulita: false, partita: this.partita?.n || 0, ...extra }; scriviGiornata(G, this.storage); }
   _avvio(motivo){
@@ -155,7 +171,12 @@ export class RegistroStand {
       const t = R.now(); try { if (prima) R._punto(winner, why, prima); } catch {} R._costo(t);
       return out;
     });
-    dopo(E, '_natpfRacketShot', out => { if (out) R._colpo(out); });
+    // il colpo, con la palla che arrivava (velocità e altezza prese prima che il colpo la cambi)
+    wrap(E, '_natpfRacketShot', function(orig, ...a){
+      const b = E.ball, v = b?.vel, pre = v && b?.pos ? [Math.hypot(v.x || 0, v.y || 0, v.z || 0)*3.6, b.pos.y] : null, out = orig(...a);
+      const t = R.now(); try { if (out) R._colpo(out, pre); } catch {} R._costo(t);
+      return out;
+    });
     dopo(E, '_startServeToss', (_o, _a, auto) => { const P = R.partita; if (P){ P.lanci++; if (auto) P.lanciAuto++; if (auto === 'serve') P.battuteAuto++; } });
     wrap(E, '_executeServeHit', function(orig, actor, ...rest){
       const before = E.natpfLastServe, giaInGioco = !!E.ball?.inPlay, out = orig(actor, ...rest);
@@ -182,9 +203,9 @@ export class RegistroStand {
       wrap(ui.trial, '_close', function(orig, run){ const S = this.S, out = orig(run); const t = R.now(); try { if (S && R.prv?.S === S) R._fineProva(!!run); } catch {} R._costo(t); return out; });
     }
     // tutorial (modale prima della calibrazione; nello stesso schermo una per metà)
-    for (const [chi, T] of [['g', ui?.training?.tutorial], ['g', ui?.split?.tut?.p1], ['a', ui?.split?.tut?.p2]]){
+    for (const [chi, T, meta] of [['g', ui?.training?.tutorial, false], ['g', ui?.split?.tut?.p1, true], ['a', ui?.split?.tut?.p2, true]]){
       if (!T) continue;
-      dopo(T, 'openFor', function(_o, o = {}){ if (this.open) R._tutorial(this, chi, o); });
+      dopo(T, 'openFor', function(_o, o = {}){ if (this.open){ R._tutorial(this, chi, o); const s = R.tut.get(this); if (s) s.meta = meta; } });
       wrap(T, 'close', function(orig, reason = 'phone'){ const s = this.open ? R.tut.get(this) : null, stato = this.state; const out = orig(reason); if (s) R._fineTutorial(this, s, reason, stato); return out; });
     }
     // il chiosco che riparte (nessuno da un po'): la visita e la partita in corso finiscono «per inattività»
@@ -193,8 +214,9 @@ export class RegistroStand {
     // errori JavaScript e promesse rifiutate: messaggio e riga, senza dati di chi gioca
     const w = this.win;
     if (w?.addEventListener){
-      w.addEventListener('error', e => { if (R.on) try { R._errore('errore', e?.message || e?.error?.message, e?.filename, e?.lineno, e?.colno); } catch {} });
-      w.addEventListener('unhandledrejection', e => { if (R.on) try { const x = e?.reason, m = /(?:\(|\s|@)([^()\s@]+?):(\d+):(\d+)\)?\s*$/m.exec(String(x?.stack || '').split('\n').find(l => /:\d+:\d+/.test(l)) || ''); R._errore('promessa', x?.message || String(x), m?.[1], +m?.[2] || null, +m?.[3] || null); } catch {} });
+      w.addEventListener('error', e => { if (R.on) try { R._errore('errore', String(e?.message || e?.error?.message || '').slice(0, 1000), e?.filename, e?.lineno, e?.colno); } catch {} });
+      // (testi tagliati prima di ogni espressione: un errore enorme non deve fermare il gioco)
+      w.addEventListener('unhandledrejection', e => { if (R.on) try { const x = e?.reason, m = /(?:\(|\s|@)([^()\s@]+?):(\d+):(\d+)\)?\s*$/m.exec((String(x?.stack || '').slice(0, 4000).split('\n').find(l => /:\d+:\d+/.test(l)) || '').slice(0, 400)); R._errore('promessa', String(x?.message || prova(() => String(x), 'errore')).slice(0, 1000), m?.[1], +m?.[2] || null, +m?.[3] || null); } catch {} });
       w.addEventListener('pagehide', () => { try { R.chiudi('chiusura'); } catch {} });
     }
   }
@@ -222,6 +244,7 @@ export class RegistroStand {
     const E = this.engine, ui = this.ui;
     if (E.autoPlayMode) return;                                               // la partita dimostrativa dietro il menu non conta
     if (this.partita) this._finePartita(E.phase === 'MATCH_OVER' ? 'finita' : 'abbandonata', 'partita nuova');
+    this._cambioGiorno();
     const G = this._giornata(); G.n += 1;
     const modo = this._modo(), split = modo === 'stesso-schermo', duo = E.natpfDuo || null, liv = E.matchConfig?.difficulty || null;
     const ctrl = split ? (ui?.split?.webcam ? 'webcam' : 'telefono') : CTRL[ui?.controller] || ui?.controller || null;
@@ -304,7 +327,8 @@ export class RegistroStand {
   /* ---------- colpi ---------- */
   // colpi negli scambi di prova (anche a partita in corso, con «Ricalibra»): amb «prova», fuori dai conti della partita
   _ambiente(){ return this.ui?.trial?.active ? 'prova' : this.ui?.training?.active ? 'allenamento' : this.ui?.events?.active ? 'minigioco' : undefined; }
-  _colpo(out){
+  // pre: [velocità in km/h, altezza in m] della palla che arrivava
+  _colpo(out, pre = null){
     const E = this.engine, L = E.natpfLastRacket; if (!L) return;
     const I = L.intent || {}, O = L.out || {}, forza = Number.isFinite(I.typePower) ? I.typePower : I.power;
     const prv = !!this.ui?.trial?.active, P = prv ? null : this.partita, amb = P ? undefined : this._ambiente();
@@ -315,7 +339,11 @@ export class RegistroStand {
     // della riga «punto» che segue; chi: solo se è l'avversario umano ('a'); e: solo se non è «dentro»; fonte: solo se
     // non è il controller scritto nella riga della partita
     this._riga('colpo', {
-      ...(P ? {} : { amb }), chi: g === 'a' ? 'a' : undefined, gesto: O.shot || I.shot || null, ...(I.shot && O.shot && I.shot !== O.shot ? { voluto: I.shot } : {}),
+      // voluto: solo se il gesto è davvero diverso (revisione: 'TOPSPIN' contro 'topspin' finiva in tutti i colpi)
+      ...(P ? {} : { amb }), chi: g === 'a' ? 'a' : undefined, gesto: O.shot || I.shot || null, ...(I.shot && O.shot && String(I.shot).toLowerCase() !== String(O.shot).toLowerCase() ? { voluto: I.shot } : {}),
+      // la palla della CPU che arrivava: tipo di colpo (solo Leggenda: gli altri livelli non lo scelgono così),
+      // velocità in km/h, altezza in m (serve a capire se i ritardi e le palle non prese dipendono dalla palla)
+      ...(P && pre && this._modo() === 'cpu' ? { in: [E.matchConfig?.difficulty === 'leggenda' ? E.natpfLegend?.lastPick?.kind || null : null, r(pre[0], 0), r(pre[1], 2)] } : {}),
       // errore di tempo in ms (+ anticipo, − ritardo) e voto; forza 0…1; direzione −1…+1 tra le righe
       ms: r(1000*L.timing, 0), voto: voto(O.grade), f: r(I.power, 2), d: r(O.aim, 2),
       e: O.weak ? 'debole' : O.failed ? (O.netFault ? 'rete' : 'fuori') : undefined, x: r(out.E, 1), z: r(out.N, 1),
@@ -357,9 +385,12 @@ export class RegistroStand {
   _fineTutorial(T, s, reason, stato = T.state){
     this.tut.delete(T);
     const viste = stato?.visited?.size ?? null;
+    // nello stesso schermo il tutorial si chiude sempre come «dal telefono», anche lasciando la pagina o con il telefono
+    // caduto (natpf_split_ui._tutClose): lì è finito solo con tutte le schede viste (revisione)
+    const finito = reason === 'phone' && (!s.meta || !!stato?.all);
     this._riga('tutorial', { chi: s.chi, serie: s.serie, schede: s.schede, viste, tutte: !!stato?.all, durS: r((this.now() - s.t0)/1000, 1),
       // finito: chiuso dal telefono con «Tutto chiaro» (o dalla X accesa); saltato: Esc sul computer; altro: chiosco, menu
-      chiusura: reason === 'phone' ? 'finito' : reason === 'skip' ? 'saltato' : String(reason || 'altro') });
+      chiusura: finito ? 'finito' : reason === 'skip' ? 'saltato' : reason === 'phone' ? 'altro' : String(reason || 'altro') });
   }
   _cal(chi, e){
     let C = this.cal[chi];
@@ -377,6 +408,9 @@ export class RegistroStand {
   }
   _fineCal(chi, finita, semplice = false){
     const C = this.cal[chi]; if (!C) return; delete this.cal[chi];
+    // profilo automatico senza nessun gesto chiesto (calibrazione di base «Giocando», ogni collegamento del telefono):
+    // non è una calibrazione fatta da qualcuno, niente riga (revisione: gonfiava le calibrazioni «finite in 0 s»)
+    if (!C.prove && semplice) return;
     // passi: per ogni gesto chiesto [prove, fallite]; perche: motivi dei gesti non riusciti
     this._riga('calibrazione', { chi, finita, durS: r((this.now() - C.t0)/1000, 1), prove: C.prove, fallite: C.fallite, passi: C.passi, perche: Object.keys(C.perche).length ? C.perche : undefined,
       ripartenze: C.ripartenze || undefined, revisioni: C.revisioni || undefined, revisioniNo: C.revisioniNo || undefined, semplice: semplice || undefined });
@@ -447,7 +481,7 @@ export class RegistroStand {
     }
     e.volte++;
     // la prima volta, poi a 10, 100, 1000 ripetizioni: lo stesso errore non riempie il registro
-    if (e.volte === 1 || e.volte === 10 || e.volte === 100 || e.volte === 1000) this._riga('errore', { tipo, msg: String(msg || 'errore senza testo'), file: base(file), riga: Number.isFinite(riga) ? riga : null, col: Number.isFinite(col) ? col : null, volte: e.volte });
+    if (e.volte === 1 || e.volte === 10 || e.volte === 100 || e.volte === 1000) this._riga('errore', { tipo, msg: String(msg || 'errore senza testo').slice(0, 1000), file: base(file), riga: Number.isFinite(riga) ? riga : null, col: Number.isFinite(col) ? col : null, volte: e.volte });
   }
 
   /* ---------- controllo al secondo: dove si trova chi gioca, partita abbandonata, telefoni ---------- */
@@ -465,8 +499,8 @@ export class RegistroStand {
   secondo(){
     if (!this.on) return;
     const a = this.now(), E = this.engine, P = this.partita;
-    // giorno nuovo a gioco acceso (stand aperto oltre la mezzanotte): giornata nuova, righe nel file del giorno nuovo
-    if (this.giornata && giornoDi(new Date(this.wallNow())) !== this.giornata.giorno && !P){ this.blocco(); this.giornata = null; this._avvio('giorno nuovo'); }
+    // giorno nuovo a gioco acceso (stand aperto oltre la mezzanotte), a partita finita: giornata nuova
+    this._cambioGiorno();
     if (P){
       // partita chiusa senza un punto (ritorno al menu, chiosco) o finita sul computer del Player 2
       if (E.phase === 'MATCH_OVER') this._finePartita('finita', 'fine');

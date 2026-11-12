@@ -24,7 +24,7 @@ const righe = n => (n === 1 ? '1 riga' : `${n} righe`);
 export const nomeNelloZip = id => { const b = leggiIdBlocco(id); return b ? `registro/${b.giorno}/${b.postazione}/${b.parte}.jsonl` : null; };
 
 // Stato del registro in parole semplici, per il pannello dello stand. s: { acceso, partite, inMemoria, coda: { righe,
-// blocchi, byte, tipo, inMemoria? }, invio: { configurato, ultimoOk, ultimoErrore, inCorso, rifiutati }, cerca }
+// blocchi, byte, tipo, inMemoria? }, invio: { configurato, ultimoOk, ultimoErrore, inCorso, rifiutati, fuoriGiorno }, cerca }
 export function testoStato(s){
   if (!s) return '';
   if (!s.acceso) return 'Registro spento: non si annota niente. Per riaccenderlo premi qui a sinistra.';
@@ -37,6 +37,9 @@ export function testoStato(s){
     parti.push(inCoda ? `${righe(inCoda)} ancora in coda${s.coda?.byte ? ` (${byteLeggibili(s.coda.byte)})` : ''}` : 'niente in coda');
     if (s.invio.inCorso) parti.push('invio in corso…');
     else if (s.invio.ultimoErrore) parti.push(`invio non riuscito: ${s.invio.ultimoErrore}; si riprova da solo`);
+    const blocchi = n => (n === 1 ? '1 blocco' : `${n} blocchi`);
+    if (s.invio.fuoriGiorno) parti.push(`${blocchi(s.invio.fuoriGiorno)} con un giorno non accettato (orologio del computer?)`);
+    if (s.invio.rifiutati) parti.push(`${blocchi(s.invio.rifiutati)} rifiutati dallo spazio`);
   }
   if (s.coda?.tipo === 'memoria' || s.coda?.inMemoria) parti.push('la coda è solo in memoria: chiudendo il gioco si perde quello che non è partito');
   if (s.problema && !s.coda?.inMemoria) parti.push(`coda non scrivibile (${s.problema})`);

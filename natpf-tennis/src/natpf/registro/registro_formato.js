@@ -18,8 +18,11 @@
 //   - indirizzi di rete, indirizzi delle pagine con i codici del collegamento, e-mail;
 //   - identificativi stabili del telefono o del computer (al più «Android 14 · Chrome 126»).
 // Tre difese, tutte provate: (1) il registratore scrive solo campi scelti a mano; (2) ogni riga passa da pulisci(),
-// che tiene solo i campi previsti (CAMPI), toglie quelli vietati, accorcia i testi e copre nomi, indirizzi ed e-mail
-// nei testi liberi (gli errori JavaScript); (3) il Worker rifà lo stesso controllo prima di scrivere.
+// che tiene solo i campi previsti (CAMPI), toglie quelli vietati, accorcia i testi, copre indirizzi ed e-mail e, nei
+// testi liberi (testo e file degli errori JavaScript, voci degli elenchi di conti), i nomi scritti da chi gioca in
+// tutta la giornata (anche una parola sola di un nome e cognome, anche senza accenti) e ogni testo tra virgolette dei
+// messaggi d'errore (lì finirebbe una chiave della classifica, che è un nome); (3) il Worker rifà lo stesso controllo
+// prima di scrivere.
 // controllaRiga() è il controllo dei test: dice cosa non va in una riga.
 
 const MB = 1024*1024;
@@ -48,7 +51,7 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'attesaS', 'pt', 'lanci', 'lanciVuoti', 'battutaAuto', 'esito', 'come', 'punti', 'puntiVinti', 'fps', 'medi', 'peggiori', 'maxMs', 'lunghi', 'cadute', 'riprese', 'rttMax', 'errori',
   'scartati', 'amb', 'gesto', 'voluto', 'ms', 'voto', 'f', 'd', 'e', 'x', 'z', 'sup', 'supNo', 'volee', 'lato', 'fonte', 'causa', 'aiutato', 'tipo', 'q', 'kmh', 'auto', 'perche',
   'serie', 'schede', 'viste', 'tutte', 'chiusura', 'finita', 'prove', 'fallite', 'passi', 'ripartenze', 'revisioni', 'revisioniNo', 'semplice', 'finito', 'saltato', 'perfetti', 'gioco',
-  'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro']);
+  'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in']);
 // campi che sono un elenco «voce: quante volte» (motivi dei gesti scartati, posti della visita, passi della
 // calibrazione): le voci le decide il gioco, i valori sono solo numeri (o un elenco di numeri)
 export const MAPPE = Object.freeze(['scartati', 'posti', 'passi', 'perche']);
@@ -120,7 +123,16 @@ export function strada(route, transport = null){
 // scheda grafica: c'è (vera) o il disegno è fatto dal processore (SwiftShader, llvmpipe, Basic Render)
 export const gpuVera = name => !!name && !/swiftshader|llvmpipe|software|basic render|softpipe/i.test(String(name));
 // nome corto della scheda (è del computer dello stand, non di chi gioca)
-export const gpuNome = name => String(name || '').replace(/^ANGLE \(([^)]*)\)$/, '$1').replace(/\s*Direct3D.*$/i, '').replace(/\s*\(0x[0-9a-f]+\)/gi, '').replace(/,\s*$/, '').trim().slice(0, 60) || null;
+// (ANGLE (…) con parentesi annidate, revisione: «ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), …)»)
+export function gpuNome(name){
+  let s = String(name || '').trim();
+  if (/^ANGLE \(.*\)$/.test(s)) s = s.slice(7, -1);
+  s = s.replace(/\s*Direct3D.*$/i, '').replace(/\s*\(0x[0-9a-f]+\)/gi, '').slice(0, 60);
+  // parentesi che restano aperte (nome tagliato): via da quella aperta in poi; virgole in fondo: via
+  let d = 0, aperta = -1; for (let i = 0; i < s.length; i++){ if (s[i] === '('){ if (!d) aperta = i; d++; } else if (s[i] === ')' && d) d--; }
+  if (d && aperta >= 0) s = s.slice(0, aperta);
+  return s.replace(/[\s,]+$/, '').trim() || null;
+}
 
 /* ---------- come finisce un punto ---------- */
 // Dal motivo del motore (game_engine._awardPoint: «Net», «Out», «Nice Shot!», «Point») e da chi ha colpito per ultimo.
@@ -149,25 +161,61 @@ const VIETATI = new Set(CAMPI_VIETATI);
 const chiaveNorm = k => String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
 const IP_RE = /\b\d{1,3}(?:\.\d{1,3}){3}\b(?::\d+)?/g, IP6_RE = /\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b/gi;
 const MAIL_RE = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, URL_RE = /\b(?:https?|wss?|file|blob):\/\/[^\s'")]+/gi;
-// testo libero (errori): senza indirizzi, e-mail, pagine con codici, nomi di chi gioca; accorciato
-export function pulisciTesto(s, { nomi = [], max = REGISTRO.maxTesto } = {}){
-  let out = String(s ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ');
+/* nomi: si confrontano senza maiuscole e senza accenti, a parola intera ('Ste' non tocca «stesso-schermo») */
+const SEGNI = /[\u0300-\u036f]/g, LETTERA = /[\p{L}\p{N}]/u;
+const piano = ch => { const b = ch.normalize('NFD').replace(SEGNI, '').toLowerCase(); return b.length === 1 ? b : ch.toLowerCase(); };
+// pezzi da coprire di ogni nome: il nome intero (almeno 2 lettere) e ogni sua parola di almeno 3 lettere
+export function pezziDeiNomi(nomi = []){
+  const out = new Set();
+  for (const n of nomi){
+    const v = String(n || '').trim().replace(/\s+/g, ' '); if (v.length < 2) continue;
+    out.add([...v].map(piano).join(''));
+    for (const w of v.split(/[^\p{L}\p{N}]+/u)) if ([...w].length >= 3) out.add([...w].map(piano).join(''));
+  }
+  return [...out].map(t => [...t]).sort((a, b) => b.length - a.length);
+}
+// copre con «[nome]» ogni pezzo di nome che compare a parola intera
+export function copriNomi(testo, nomi = []){
+  const pezzi = pezziDeiNomi(nomi); if (!pezzi.length) return testo;
+  const chars = [...testo], flat = chars.map(piano), preso = new Array(chars.length).fill(0);
+  const lettera = i => i >= 0 && i < flat.length && LETTERA.test(flat[i]);
+  for (const p of pezzi){
+    for (let i = 0; i + p.length <= flat.length; i++){
+      if (preso[i] || lettera(i - 1) || lettera(i + p.length)) continue;
+      let ok = true; for (let j = 0; j < p.length; j++) if (flat[i + j] !== p[j] || preso[i + j]){ ok = false; break; }
+      if (!ok) continue;
+      preso[i] = p.length; for (let j = 1; j < p.length; j++) preso[i + j] = -1;
+      i += p.length - 1;
+    }
+  }
+  let out = '';
+  for (let i = 0; i < chars.length; i++){ if (preso[i] > 0){ out += '[nome]'; i += preso[i] - 1; } else out += chars[i]; }
+  return out;
+}
+// testi tra virgolette di un messaggio d'errore: via (lì il motore mette le chiavi, e una chiave può essere un nome)
+const VIRGOLETTE_RE = /'[^'\n]{1,120}'|"[^"\n]{1,120}"|`[^`\n]{1,120}`|«[^»\n]{1,120}»|“[^”\n]{1,120}”|‘[^’\n]{1,120}’/g;
+// Testo: senza indirizzi, e-mail, pagine con codici; accorciato. Nei testi liberi (nomi: i nomi della giornata) anche
+// senza i nomi di chi gioca; virgolette: anche senza i testi tra virgolette (messaggi d'errore).
+// Il testo si taglia PRIMA delle espressioni (revisione: l'espressione delle e-mail costa in modo quadratico su una
+// parola lunga senza «@»: 40.000 caratteri = 1 s fermo nel gioco, dentro l'ascolto degli errori)
+export function pulisciTesto(s, { nomi = [], max = REGISTRO.maxTesto, virgolette = false } = {}){
+  let out = String(s ?? '').slice(0, 2*max).replace(/[\u0000-\u001f\u007f]+/g, ' ');
   // di una pagina resta solo il nome del file (senza dominio, senza ?codici)
   out = out.replace(URL_RE, u => { const f = u.replace(/[?#].*$/, '').split('/').filter(Boolean).pop() || ''; return /\.[a-z0-9]{1,5}$/i.test(f) ? f : '[pagina]'; });
   out = out.replace(MAIL_RE, '[e-mail]').replace(IP_RE, '[indirizzo]').replace(IP6_RE, '[indirizzo]');
-  for (const n of nomi){
-    const v = String(n || '').trim(); if (v.length < 2) continue;
-    out = out.replace(new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '[nome]');
-  }
+  if (virgolette) out = out.replace(VIRGOLETTE_RE, '[testo]');
+  if (nomi.length) out = copriNomi(out, nomi);
   return out.length > max ? out.slice(0, max - 1) + '…' : out;
 }
 // una riga pronta da scrivere: restano solo i campi previsti (CAMPI) e non vietati, a ogni livello; via i valori non
 // semplici e quelli vuoti; testi puliti e accorciati (msg: testo di un errore, più lungo); numeri finiti. Dentro un
 // elenco «voce: quante volte» (MAPPE) le voci sono libere ma pulite, i valori solo numeri. nomi: i nomi scritti da chi
-// gioca adesso. null se non è una riga del registro. (La stessa funzione, senza i nomi, è copiata nel Worker.)
-const PREVISTI = new Set(CAMPI), LIBERE = new Set(MAPPE);
+// gioca nella giornata, coperti nei testi liberi (msg, file, voci delle MAPPE): gli altri campi hanno valori fissi
+// del gioco (un soprannome «Ace» non deve cambiare la fine di un punto «ace»). null se non è una riga del registro.
+// (La stessa funzione, senza i nomi, è copiata nel Worker.)
+const PREVISTI = new Set(CAMPI), LIBERE = new Set(MAPPE), TESTI_LIBERI = new Set(['msg', 'file']);
 export function pulisci(row, { nomi = [] } = {}){
-  const testo = (v, key) => pulisciTesto(v, { nomi, max: key === 'msg' ? REGISTRO.maxMessaggio : REGISTRO.maxTesto });
+  const testo = (v, key) => (key === 'msg' ? pulisciTesto(v, { nomi, max: REGISTRO.maxMessaggio, virgolette: true }) : pulisciTesto(v, { nomi: TESTI_LIBERI.has(key) ? nomi : [], max: REGISTRO.maxTesto }));
   const walk = (v, key, depth, mappa) => {
     if (v == null) return undefined;
     if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
@@ -191,8 +239,9 @@ export function pulisci(row, { nomi = [] } = {}){
   return walk(row, '', 0, false);
 }
 // controllo dei test (e dello strumento di riassunto): cosa non va in una riga del registro. [] = a posto
+// I nomi si cercano come in pulisci: a parola intera, senza maiuscole né accenti, anche una parola sola del nome.
 export function controllaRiga(row, { nomi = [] } = {}){
-  const bad = [];
+  const bad = [], pezzi = pezziDeiNomi(nomi);
   if (!row || typeof row !== 'object'){ return ['non è un oggetto']; }
   if (!TIPI.includes(row.k)) bad.push('tipo (k) non previsto');
   if (!Number.isInteger(row.t) || row.t < 0) bad.push('manca il tempo (t)');
@@ -203,14 +252,14 @@ export function controllaRiga(row, { nomi = [] } = {}){
       if (v.match(IP_RE) || v.match(IP6_RE)) bad.push(`${path}: indirizzo di rete`);
       if (v.match(MAIL_RE)) bad.push(`${path}: e-mail`);
       if (/\b(?:https?|wss?):\/\//i.test(v)) bad.push(`${path}: indirizzo di una pagina`);
-      for (const n of nomi){ const x = String(n || '').trim(); if (x.length >= 2 && v.toLowerCase().includes(x.toLowerCase())) bad.push(`${path}: nome di chi gioca`); }
+      if (pezzi.length && copriNomi(v, nomi) !== v) bad.push(`${path}: nome di chi gioca`);
     } else if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${path}[${i}]`));
     else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)){
       const libera = LIBERE.has(path.split('.').pop());
       if (VIETATI.has(chiaveNorm(k))) bad.push(`${path}.${k}: campo vietato`);
       else if (!libera && !PREVISTI.has(k)) bad.push(`${path}.${k}: campo non previsto`);
       if (libera && !(typeof x === 'number' || (Array.isArray(x) && x.every(y => typeof y === 'number' || y === null)))) bad.push(`${path}.${k}: in un elenco di conti solo numeri`);
-      for (const n of nomi){ const y = String(n || '').trim(); if (y.length >= 2 && k.toLowerCase().includes(y.toLowerCase())) bad.push(`${path}.${k}: nome di chi gioca`); }
+      if (pezzi.length && copriNomi(k, nomi) !== k) bad.push(`${path}.${k}: nome di chi gioca`);
       walk(x, `${path}.${k}`);
     }
   };

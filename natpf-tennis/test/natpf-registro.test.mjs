@@ -204,8 +204,31 @@ test('registro, invio: blocco rifiutato per sempre si toglie; giorno pieno resta
   assert.equal(new InvioRegistro({ coda: c, indirizzo: () => null, beacon: () => true }).allaChiusura(ID(9), righe(1)), false);
 });
 
+test('registro, invio: giorno non accettato (409, orologio del PC) e lettura della coda non riuscita per un attimo: il blocco resta; il pannello lo dice', async () => {
+  const rete = reteFinta(), coda = codaMemoria(); let ora = 1_000_000;
+  const I = new InvioRegistro({ coda, indirizzo: () => URL_R, fetch: rete.fetch, wallNow: () => ora });
+  await coda.metti(ID(1), righe()); await coda.metti(ID(2), righe());
+  rete.status = 409;
+  const r = await I.invia();
+  assert.equal(r.ok, false); assert.match(r.perche, /orologio/); assert.equal((await coda.elenco()).length, 2, 'niente tolto'); assert.equal(I.stato().fuoriGiorno, 2);
+  assert.match(testoStato({ acceso: true, partite: 1, inMemoria: 0, coda: { righe: 6, byte: 100 }, invio: { configurato: true, ultimoOk: null, fuoriGiorno: 2, rifiutati: 1 } }), /2 blocchi con un giorno non accettato \(orologio del computer\?\) · 1 blocco rifiutati dallo spazio/);
+  rete.status = null;
+  // la coda non riesce a leggere un blocco (errore passeggero): resta; si toglie solo se manca davvero (tre volte di fila)
+  const leggi = coda.leggi.bind(coda); let rotta = 2;
+  coda.leggi = async id => (id === ID(1) && rotta-- > 0 ? null : leggi(id));
+  ora += REGISTRO.riprovaMaxMs + 1; await I.invia();
+  assert.deepEqual((await coda.elenco()).map(b => b.id), [ID(1)], 'il blocco non letto resta in coda, l’altro parte');
+  ora += REGISTRO.riprovaMaxMs + 1; await I.invia();
+  ora += REGISTRO.riprovaMaxMs + 1; const fine = await I.invia();
+  assert.equal(fine.ok, true); assert.deepEqual(await coda.elenco(), []); assert.equal(rete.blocchi.get(ID(1)), righe(), 'alla fine è partito');
+  // un blocco che manca davvero (lettura sempre vuota) esce dalla coda alla terza volta
+  await coda.metti(ID(5), righe()); coda.leggi = async () => null;
+  for (let i = 0; i < 3; i++){ ora += REGISTRO.riprovaMaxMs + 1; await I.invia(); }
+  assert.deepEqual(await coda.elenco(), []);
+});
+
 /* ---------- registratore con un motore finto ---------- */
-function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, split = false, livello = 'adulto', nick = 'Mario Rossi', ctrl = 'phone', raf = null } = {}){
+function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, split = false, livello = 'adulto', nick = 'Mario Rossi', ctrl = 'phone', raf = null, tut = {} } = {}){
   let now = 0;
   const E = {
     phase: 'MENU', autoPlayMode: true, natpfPaused: false, isMultiplayer: false, playerRole: 'p1', player: { id: 'p' }, opponent: { id: 'o' },
@@ -220,7 +243,7 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
     _startServeToss(){ this.phase = 'SERVE_TOSS'; },
     _executeServeHit(actor){ if (this.noGesto && this.ball.inPlay) return; if (!this.noGesto) this.natpfLastServe = { kind: 'piatto', q: .8, tau: .02, kmh: 142, grade: 'Perfetto • 142 km/h' }; this.ball.inPlay = true; this.ball.rallyStrokeCount = 1; this.ball.lastHitter = actor === this.player ? 'player' : 'opponent'; this.phase = 'RALLY'; },
     _natpfRacketShot(e){ this.ball.rallyStrokeCount++; this.ball.lastHitter = e.who === 'p2' ? 'opponent' : 'player';
-      this.natpfLastRacket = { who: e.who || 'player', intent: { shot: e.shot || 'forehand', power: e.power ?? .6, typePower: e.power ?? .6 }, out: { shot: e.shot || 'forehand', grade: e.grade || 'Perfetto', aim: .2, failed: !!e.failed, netFault: !!e.net },
+      this.natpfLastRacket = { who: e.who || 'player', intent: { shot: e.intento || e.shot || 'forehand', power: e.power ?? .6, typePower: e.power ?? .6 }, out: { shot: e.shot || 'forehand', grade: e.grade || 'Perfetto', aim: .2, failed: !!e.failed, netFault: !!e.net },
         timing: e.tau ?? .01, source: 'phone', ...(e.super ? { super: e.super } : { superWhy: ['palla troppo bassa'] }) };
       return { E: 1.5, N: -8.2 }; },
     _natpfEarlyWhiff(){}, _natpfWeakDropped(){},
@@ -228,7 +251,7 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
       if (this.score[k] >= 4){ this.score[winner === 'player' ? 'playerGames' : 'opponentGames']++; this.score.playerPoints = this.score.opponentPoints = 0; if (this.score.playerGames >= 2 || this.score.opponentGames >= 2) this.phase = 'MATCH_OVER'; } },
   };
   const ui = { controller: ctrl, hand: { hand: 'right' }, cue: { enabled: true }, kiosk: { enabled: true, reset(){} }, lobby: { visible: true, step: 'menu' },
-    events: { nickname: nick, active: null, start(){}, finish(){}, abort(){} }, training: { active: false, start(){}, stop(){}, tutorial: null, stats: {} }, split: split ? { webcam: false, tut: {} } : null,
+    events: { nickname: nick, active: null, start(){}, finish(){}, abort(){} }, training: { active: false, start(){}, stop(){}, tutorial: null, stats: {} }, split: split ? { webcam: false, tut } : null,
     // B28: scambi di prova (natpf_trial.js) a grandi linee: start, «Salta ›», fine dell'apprendimento, chiusura
     trial: { S: null, get active(){ return !!this.S; }, start({ split: sp = false } = {}){ if (this.S) return false; this.S = { players: Object.fromEntries((sp ? ['p1', 'p2'] : ['p1']).map(id => [id, { balls: 0 }])), result: null }; return true; },
       skip(){ if (this.S && !this.S.result) this._outro(); }, _outro(){ this.S.result = Object.fromEntries(Object.keys(this.S.players).map(id => [id, { level: 'pieno', n: { forehand: 3, backhand: 2 } }])); }, _close(){ this.S = null; } } };
@@ -399,6 +422,104 @@ test('registro, registratore: con l\'invio le righe arrivano nello spazio (Worke
   // con la chiave: il giorno c'è, con tutte le righe (il Worker non ne ha scartata nessuna: stessi campi previsti)
   const g = await (await worker.fetch(new Request(`${URL_R}giorni`, { headers: { Authorization: `Bearer ${CHIAVE}`, Accept: 'application/json' } }), env)).json();
   assert.equal(g.ok, true); assert.equal(g.giorni.length, 1); assert.equal(g.giorni[0].righe, M.R.stato().righe); assert.ok(g.giorni[0].blocchi >= 1);
+});
+
+// Revisione del 12/11: un nome può finire in un messaggio d'errore. Coperti anche il nome di prima di «Nuovo giocatore»,
+// una parola sola di un nome e cognome, la forma senza accenti e i testi tra virgolette (chiavi della classifica)
+test('registro, riservatezza: i nomi di tutta la giornata, anche a pezzi o senza accenti, non finiscono negli errori', async () => {
+  const M = mondo({ nick: 'Zorbetta' }), { ui } = M;
+  M.R.nomi();                                                                // il gioco ha visto il nome
+  ui.events.nickname = '';                                                   // «Nuovo giocatore»: il nome di prima non c'è più
+  M.errori.error({ message: 'dopo il reset: Zorbetta ancora qui', filename: 'https://x.example/assets/index-1.js', lineno: 1, colno: 1 });
+  ui.events.nickname = 'Pippetta Ferràguti';  M.R.nomi(); ui.events.nickname = 'Gennarina Scoppola';
+  M.errori.error({ message: 'Pippetta contro Gennarina, poi Ferraguti e SCOPPOLA', filename: 'a.js', lineno: 2, colno: 1 });
+  M.errori.unhandledrejection({ reason: new TypeError("Cannot read properties of undefined (reading 'Zorbett')") });
+  M.errori.error({ message: 'Zorbetta', filename: 'https://x.example/Zorbetta/b.js', lineno: 3, colno: 1 });
+  await M.R.blocco();
+  const rows = await tutte(M.coda), testo = rows.map(r => JSON.stringify(r)).join('\n'), err = rows.filter(r => r.k === 'errore');
+  assert.equal(err.length, 4);
+  for (const no of ['Zorbett', 'Pippetta', 'Ferr', 'Gennarina', 'Scoppola', 'SCOPPOLA']) assert.ok(!testo.includes(no), `${no} nel registro: ${testo}`);
+  assert.equal(err[0].msg, 'dopo il reset: [nome] ancora qui'); assert.equal(err[1].msg, '[nome] contro [nome], poi [nome] e [nome]');
+  assert.match(err[2].msg, /reading \[testo\]/); assert.equal(err[3].file, 'b.js');
+  const nomi = ['Zorbetta', 'Pippetta Ferràguti', 'Gennarina Scoppola'];
+  for (const r of rows) assert.deepEqual(F.controllaRiga(r, { nomi }), [], JSON.stringify(r));
+  // il controllo dei test vede anche un pezzo di nome e la forma senza accenti
+  assert.ok(F.controllaRiga({ k: 'errore', t: 1, msg: 'ciao ferraguti' }, { nomi }).some(m => /nome di chi gioca/.test(m)));
+  // i nomi restano solo in memoria: nello spazio del browser non ci sono
+  assert.ok(![...M.storage.m.values()].some(v => /Zorbetta|Pippetta|Gennarina/.test(v)));
+});
+
+test('registro, riservatezza: un soprannome uguale a un valore del gioco non rovina le righe (nomi solo nei testi liberi, a parola intera)', async () => {
+  const M = mondo({ split: true, nick: 'Ace', livello: 'pro' }); M.E.natpfSplitNames = { p1: 'Ste', p2: 'an' };
+  gioca(M, { punti: 2 }); M.ui.events.nickname = 'Pro'; M.R.nomi();
+  M.errori.error({ message: 'Ace e Ste: stesso-schermo, anticipo', filename: 'a.js', lineno: 1, colno: 1 });
+  await M.R.blocco();
+  const rows = await tutte(M.coda), [partita] = rows.filter(r => r.k === 'partita'), colpi = rows.filter(r => r.k === 'colpo');
+  assert.equal(partita.modo, 'stesso-schermo'); assert.ok(colpi.some(c => c.voto === 'anticipo')); assert.ok(colpi.some(c => c.gesto === 'backhand'));
+  assert.equal(F.pulisci({ k: 'punto', t: 1, fine: 'ace', livello: 'pro' }, { nomi: ['Ace', 'Pro'] }).fine, 'ace');
+  assert.equal(rows.find(r => r.k === 'errore').msg, '[nome] e [nome]: stesso-schermo, anticipo');
+});
+
+test('registro, testi enormi: pulire un testo di 1 MB costa pochi millisecondi (prima: un secondo fermo per 40.000 caratteri)', () => {
+  const grande = 'x'.repeat(1024*1024), nomi = ['Mario Rossi'];
+  for (const s of [grande, 'a.'.repeat(500000), '1.'.repeat(500000)]){
+    const t0 = performance.now(); const out = F.pulisciTesto(s, { nomi, max: REGISTRO.maxMessaggio, virgolette: true }); const ms = performance.now() - t0;
+    assert.ok(out.length <= REGISTRO.maxMessaggio); assert.ok(ms < 20, `${ms.toFixed(1)} ms`);
+  }
+  // anche dentro l'ascolto degli errori del gioco
+  const M = mondo(), t0 = performance.now();
+  M.errori.error({ message: 'y'.repeat(2*1024*1024), filename: 'z'.repeat(100000), lineno: 1, colno: 1 });
+  M.errori.unhandledrejection({ reason: { message: 'w'.repeat(1024*1024), stack: ('at f (' + 'q'.repeat(300000) + ':1:2)\n').repeat(3) } });
+  assert.ok(performance.now() - t0 < 50, `${(performance.now() - t0).toFixed(1)} ms`);
+  assert.equal(M.R.buf.filter(l => l.includes('"k":"errore"')).length, 2);
+});
+
+test('registro, registratore: «voluto» solo se il gesto è davvero diverso; palla della CPU che arrivava; calibrazione automatica senza riga', async () => {
+  const M = mondo(), { E, ui } = M; ui.lobby.visible = false; E.startNewMatch();
+  E.ball.vel = { x: 1, y: -2, z: 20 }; E.ball.pos = { x: 0, y: 0.9, z: -11 };
+  E._natpfRacketShot({ shot: 'TOPSPIN', intento: 'topspin' }); E._natpfRacketShot({ shot: 'slice', intento: 'flat' });
+  // calibrazione: profilo automatico (nessun gesto chiesto) → niente; con i gesti → una riga
+  E.natpfPhone._cal({ kind: 'step', step: 'still' }); E.natpfPhone._cal({ kind: 'done', profile: { simple: true } });
+  E.natpfPhone._cal({ kind: 'step', step: 'still' }); E.natpfPhone._cal({ kind: 'attempt', want: 'dritto', ok: true }); E.natpfPhone._cal({ kind: 'done', profile: { simple: false } });
+  await M.R.blocco();
+  const rows = await tutte(M.coda), colpi = rows.filter(r => r.k === 'colpo');
+  assert.equal(colpi[0].voluto, undefined, 'stesso gesto con le maiuscole diverse: niente «voluto»'); assert.equal(colpi[1].voluto, 'flat');
+  assert.deepEqual(colpi[0].in, [null, 72, 0.9], 'palla che arrivava: tipo (solo Leggenda), km/h, altezza');
+  const cal = rows.filter(r => r.k === 'calibrazione'); assert.equal(cal.length, 1); assert.equal(cal[0].prove, 1);
+});
+
+test('registro, registratore: tutorial dello stesso schermo «finito» solo con tutte le schede viste', async () => {
+  const tut = (all) => ({ open: false, set: 'base', cards: [1, 2, 3], state: { visited: new Set(all ? [0, 1, 2] : []), all }, openFor(){ this.open = true; }, close(){ this.open = false; } });
+  const p1 = tut(false), p2 = tut(true), M = mondo({ split: true, nick: '', tut: { p1, p2 } });
+  p1.openFor({}); p2.openFor({}); M.avanti(500); p1.close('phone'); p2.close('phone');
+  await M.R.blocco();
+  const t = (await tutte(M.coda)).filter(r => r.k === 'tutorial');
+  assert.deepEqual(t.map(r => [r.chi, r.chiusura, r.viste]), [['g', 'altro', 0], ['a', 'finito', 3]]);
+});
+
+test('registro, registratore: una partita a cavallo della mezzanotte resta tutta nella sua giornata; poi «avvio» del giorno nuovo', async () => {
+  const M = mondo(); let wall = new Date(2026, 10, 14, 23, 59, 0).getTime(), t = 0;
+  M.R.wallNow = () => wall + t; M.R.now = () => t; M.R.giornata = null; M.R.t0 = 0;
+  const avanti = ms => { t += ms; M.avanti(ms); };
+  const { E, ui } = M; ui.lobby.visible = false; E.startNewMatch();
+  const g0 = M.R.stato().giorno;
+  M.errori.error({ message: 'errore di ieri', filename: 'a.js', lineno: 1, colno: 1 });
+  for (let i = 0; i < 6; i++){ avanti(15000); E._natpfRacketShot({}); E._awardPoint('player', 'Out'); M.R.secondo(); if (i === 2) await M.R.blocco(); }
+  assert.notEqual(new Date(wall + t).getDate(), 14, 'siamo dopo mezzanotte');
+  assert.equal(M.R.stato().giorno, g0, 'a partita in corso la giornata non cambia');
+  for (let i = 0; i < 20 && E.phase !== 'MATCH_OVER'; i++){ E._awardPoint('player', 'Out'); }
+  avanti(1000); M.R.secondo(); await M.R.blocco();
+  assert.equal(M.R.stato().giorno, '2026-11-15');
+  M.errori.error({ message: 'errore di ieri', filename: 'a.js', lineno: 1, colno: 1 });
+  await M.R.blocco();
+  const elenco = await M.coda.elenco(), per = {};
+  for (const b of elenco){ const { giorno, postazione } = F.leggiIdBlocco(b.id); for (const l of (await M.coda.leggi(b.id)).trim().split('\n')){ const r = JSON.parse(l); (per[giorno] ||= []).push({ ...r, _post: postazione }); } }
+  const [partita] = per['2026-11-14'].filter(r => r.k === 'partita');
+  assert.ok(per['2026-11-14'].some(r => r.k === 'partita.fine'), 'la fine della partita sta nel giorno in cui è cominciata');
+  for (const r of per['2026-11-14']) assert.equal(r._post, partita.g, 'stessa postazione della riga «partita»');
+  const nuovo = per['2026-11-15']; assert.equal(nuovo[0].k, 'avvio'); assert.equal(nuovo[0].motivo, 'giorno nuovo'); assert.notEqual(nuovo[0].g, partita.g);
+  assert.ok(!nuovo.some(r => ['punto', 'partita.fine'].includes(r.k)));
+  assert.equal(nuovo.filter(r => r.k === 'errore').length, 1, 'gli errori si ricontano da zero nel giorno nuovo');
 });
 
 /* ---------- pannello dello stand ---------- */
