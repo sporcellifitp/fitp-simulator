@@ -649,6 +649,16 @@
                impostazioni», chiuso a ogni visita della pagina (B15, 08/11: prima cinque righe e 18 pulsanti prima di
                «Gioca»). Il riassunto accanto dice che cosa è scelto; durata e visuale restano salvate -->
           <p class="lobby-note who-note hidden" id="who-note" role="status"></p>
+          <!-- personaggi di questa partita (richiesta dell'utente del 12/11): la stessa scelta delle Opzioni → «Personaggi in
+               campo» (natpf_personaggi.js), in vista dove si imposta la partita: contro la CPU, stesso schermo e sfida tra
+               due computer passano tutti da questa pagina. Vale subito e resta com'è finché non si cambia -->
+          <div class="lobby-row match-cast-row" id="match-cast-row">
+            <span class="lobby-label">Personaggi</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Personaggi di questa partita">
+              <button type="button" class="seg-btn" data-match-cast="sempre" role="radio">Classici</button
+              ><button type="button" class="seg-btn" data-match-cast="lobdrop" role="radio">Lob &amp; Drop</button>
+            </div>
+          </div>
           <button type="button" class="match-more-btn" id="match-more-btn" data-match-more aria-expanded="false" aria-controls="match-more"><b>Altre impostazioni</b><small id="match-more-sum"></small><i aria-hidden="true">›</i></button>
           <div id="match-more" class="match-more hidden">
             <!-- B18.2 gruppo 3: tutti i livelli per nome (i tre di «Chi gioca» e i due di prima, Esperta e Leggenda) -->

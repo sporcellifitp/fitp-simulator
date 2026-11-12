@@ -152,6 +152,8 @@ export class NatpfLobby {
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
       const tr = e.target.closest('[data-natpf-trail]'); if (tr){ e.stopPropagation(); this.setBallTrail(tr.dataset.natpfTrail === '1'); return; }
       const ca = e.target.closest('[data-natpf-cast]'); if (ca){ e.stopPropagation(); this.setCast(ca.dataset.natpfCast); return; }
+      // stessa scelta dalla pagina «Pronto per la partita» (richiesta dell'utente del 12/11: decidere i personaggi a ogni partita)
+      const mc = e.target.closest('[data-match-cast]'); if (mc){ e.stopPropagation(); this.setCast(mc.dataset.matchCast); return; }
       const sc = e.target.closest('[data-natpf-screen]'); if (sc){ e.stopPropagation(); this.ui.screen?.set(sc.dataset.natpfScreen); this.paint(); return; }
       // schermo intero all'avvio (Opzioni → Schermo): «Schermo intero» (al primo tasto) o «Finestra»
       const fp = e.target.closest('[data-natpf-fs]'); if (fp){ e.stopPropagation(); if (this.ui.screen?.fullscreen) this.ui.screen.fullscreen.pref = fp.dataset.natpfFs; this.paint(); return; }
@@ -549,6 +551,8 @@ export class NatpfLobby {
     else if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
     if (this.step === 'options') this._paintOptions();
     if (match) this._paintMatchMore(split);
+    // personaggi di questa partita: la riga della pagina «Pronto per la partita» mostra la scelta in uso (natpf_personaggi.js)
+    if (match){ const cast = getCast(); for (const b of this.el.querySelectorAll('[data-match-cast]') || []){ const on = b.dataset.matchCast === cast; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); } }
     // aggiornamento del programma Windows: avviso sotto la pagina (solo nel menu principale) e Opzioni
     this.ui.updates?.paint();
     this.ui.paintWebcamSetup?.();

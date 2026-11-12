@@ -33,3 +33,16 @@ test('Opzioni → «Personaggi in campo»: di base «Classici»; «Lob & Drop» 
   resetCast(); assert.equal(readCast({ search: '' }), 'lobdrop'); assert.equal(readCast({ search: '?personaggi=sempre' }), 'sempre');
   localStorage.removeItem(CAST_KEY); resetCast();
 });
+
+// Richiesta dell'utente del 12/11: scegliere i personaggi dove si imposta la partita (pagina «Pronto per la partita»)
+test('pagina della partita: riga «Personaggi» con Classici e Lob & Drop, stessa scelta delle Opzioni', async () => {
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const row = html.slice(html.indexOf('id="match-cast-row"'), html.indexOf('id="match-more-btn"'));
+  assert.ok(row.length > 0 && row.includes('>Personaggi<'), 'la riga sta prima di «Altre impostazioni», in vista');
+  assert.match(row, /data-match-cast="sempre"[^>]*>Classici</);
+  assert.match(row, /data-match-cast="lobdrop"[^>]*>Lob &amp; Drop</);
+  const js = readFileSync(new URL('../src/natpf/natpf_lobby.js', import.meta.url), 'utf8');
+  assert.match(js, /closest\('\[data-match-cast\]'\)[^\n]*this\.setCast\(mc\.dataset\.matchCast\)/, 'il clic usa la stessa setCast delle Opzioni');
+  assert.match(js, /querySelectorAll\('\[data-match-cast\]'\)/, 'la riga mostra la scelta in uso');
+});
