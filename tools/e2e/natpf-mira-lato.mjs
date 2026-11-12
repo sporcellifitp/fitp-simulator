@@ -12,6 +12,8 @@
 //   6. node scripts/audit/lato-palle.mjs sul pacchetto: le due partite con la loro sensibilità e il totale.
 // Porte: GAME_PORT (3191) per il gioco, PEER_PORT (9191) per PeerJS. OUT: cartella del pacchetto e delle schermate.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-mira-lato.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';

@@ -1,6 +1,7 @@
-// Pagina del telefono (B9, 05/11): una sola schermata alla volta (phone-screen.js), «Tutto chiaro, ho capito» spento finché
-// il computer non dice che si sono viste tutte le schede, mai sopra «Pronto»; Ricalibra/Ricollega/Scollega solo sotto
-// «Pronto». Più la correzione del CSS che mostrava la riga «Presa» nascosta.
+// Pagina del telefono (B9, 05/11): una sola schermata alla volta (phone-screen.js), «Tutto chiaro, ho capito» mai sopra
+// «Pronto»; Ricalibra/Ricollega/Scollega solo sotto «Pronto». Più la correzione del CSS che mostrava la riga «Presa»
+// nascosta. B28 (12/11, richiesta dell'utente allo stand): «Tutto chiaro, ho capito» è acceso DA SUBITO, da qualunque
+// scheda (prima restava spento finché il computer non diceva che si erano viste tutte le schede).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -44,17 +45,21 @@ test('schermate esclusive: in ogni combinazione una sola, «ho capito» solo nel
   assert.ok(n > 1000);
 });
 
-test('«Tutto chiaro, ho capito»: spento fino all\'ultima scheda vista (computer v2), acceso subito con un computer di prima', () => {
+test('«Tutto chiaro, ho capito»: acceso da subito, da qualunque scheda (B28); le schede viste restano come informazione', () => {
   const on = gate => phoneView({ linkState: 'on', sensor: 'idle', gate }).tutOk.on;
   let g = gateOnCfg(null, { tut: 1, tv: 2 });
   assert.deepEqual(g, { v: 2, i: 0, n: 0, s: 0, m: 0, all: false, name: '' });
-  assert.equal(on(g), false, 'appena aperto: spento');
-  for (let s = 1; s < 11; s++){ g = gateOnProgress(g, { i: s - 1, n: 11, s, m: (1 << s) - 1, all: 0, nm: 'X' }); assert.equal(on(g), false, `viste ${s}`); }
+  assert.equal(on(g), true, 'appena aperto: acceso'); assert.equal(tutConfirmable(g), true);
+  // anche con un computer di prima che manda all 0 finché non si sono viste tutte: il pulsante è acceso lo stesso
+  for (let s = 1; s < 11; s++){ g = gateOnProgress(g, { i: s - 1, n: 11, s, m: (1 << s) - 1, all: 0, nm: 'X' }); assert.equal(on(g), true, `viste ${s}`); assert.equal(g.s, s); }
+  assert.equal(g.all, false, 'schede non tutte viste (informazione)');
   g = gateOnProgress(g, { i: 10, n: 11, s: 11, m: 2047, all: 1, nm: 'Volée' });
-  assert.equal(on(g), true, 'tutte viste: acceso'); assert.equal(g.name, 'Volée');
-  // indietro: resta acceso (il computer è la fonte di verità, «all» non torna falso nella stessa apertura)
+  assert.equal(on(g), true); assert.equal(g.name, 'Volée'); assert.equal(g.all, true);
+  // indietro: «all» non torna falso nella stessa apertura
   g = gateOnProgress(g, { i: 2, n: 11, s: 11, m: 2047, all: 0 });
   assert.equal(on(g), true); assert.equal(g.i, 2);
+  // fuori dal tutorial il pulsante non c'è
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', gate: null }).tutOk.on, false);
   // cfg ripetuto (ricollegamento, cambio di mano) con il tutorial aperto: l'avanzamento resta
   assert.equal(gateOnCfg(g, { tut: 1, tv: 2 }).all, true); assert.equal(gateOnCfg(g, { tut: 1, tv: 2 }).i, 2);
   // il computer chiude il tutorial: niente cancello
@@ -101,12 +106,12 @@ test('macchina del telefono: tutorial → calibrazione → «Pronto»; mai «ho 
   p.cfg({ tut: 1, tv: 2 });                  // il computer apre il tutorial prima che si attivino i sensori
   assert.equal(p.screen, 'enable', 'prima «Attiva i sensori»');
   p.enable();
-  assert.equal(p.sensor, 'idle'); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, false);
+  assert.equal(p.sensor, 'idle'); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, true, 'acceso da subito (B28)');
   assert.equal(reportedSensor(p.sensor), 'tut', 'il computer legge «tut» (non pronto)');
-  assert.equal(p.ok(), false, 'spento: il tocco non fa niente');
-  p.tp({ i: 0, n: 11, s: 1, m: 1, all: 0 }); assert.equal(p.okOn, false);
-  p.tp(ALL); assert.equal(p.okOn, true);
+  p.tp({ i: 0, n: 11, s: 1, m: 1, all: 0 }); assert.equal(p.okOn, true);
+  // «ho capito» dalla prima scheda: il tutorial si chiude e il telefono va avanti
   assert.equal(p.ok(), true); assert.equal(p.sensor, 'cal'); assert.equal(p.screen, 'cal');
+  assert.deepEqual(p.sent.at(-1), { t: 'tut', ok: 1 });
   p.confirm(); assert.equal(p.screen, 'ready');
   // «Ricalibra» da «Pronto»: calibrazione, il tutorial non torna
   p.recal(); assert.equal(p.screen, 'cal'); p.confirm(); assert.equal(p.screen, 'ready');
@@ -120,8 +125,12 @@ test('macchina del telefono: già calibrato quando il computer apre il tutorial 
   assert.equal(reportedSensor(p.sensor), 'ready', 'per il computer resta pronto (niente pausa sopra la modale)');
   p.tp(ALL); p.ok();
   assert.equal(p.screen, 'ready', 'dopo «ho capito» niente calibrazione');
-  assert.match(tutorialTexts({ ...G2, all: true }, { sensor: 'ready' }).sub, /poi si gioca/);
-  assert.match(tutorialTexts({ ...G2, all: true }, { sensor: 'idle' }).sub, /poi si calibra/);
+  // testi (B28): una frase sola, «quando vuoi», senza «poi si calibra» (di base la calibrazione si fa giocando)
+  for (const g of [{ ...G2 }, { ...G2, all: true }, { v: 1, i: 0, n: 0, s: 0, m: 0, all: false, name: '' }]) for (const sensor of ['ready', 'idle']){
+    const t = tutorialTexts(g, { sensor });
+    assert.match(t.sub, /Quando vuoi tocca «Tutto chiaro, ho capito»/); assert.doesNotMatch(t.sub + t.hint, /si calibra|alla fine si accende/);
+  }
+  assert.equal(tutorialTexts({ ...G2 }).hint, 'Viste 4 di 11'); assert.equal(tutorialTexts({ ...G2 }).where, 'Scheda 4 di 11 · Rovescio');
 });
 
 test('macchina del telefono: calibrazione in corso interrotta dal tutorial riparte dopo; il computer che chiude il tutorial fa calibrare', () => {
@@ -143,7 +152,7 @@ test('macchina del telefono: ricollegamento e pagina ricaricata riprendono dalla
   p.cfg({ tut: 1, tv: 2 }); p.tp({ i: 6, n: 11, s: 7, m: 127, all: 0 }); assert.equal(p.gate.s, 7);
   // pagina ricaricata: il cancello torna dalla scheda (sessionStorage); dopo «Attiva i sensori» il tutorial, non «Pronto»
   p.reload(); assert.equal(p.gate.i, 6); assert.equal(p.gate.all, false); p.welcome();
-  assert.equal(p.screen, 'enable'); p.enable(true); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, false);
+  assert.equal(p.screen, 'enable'); p.enable(true); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, true);
   // il computer nel frattempo ha chiuso il tutorial (Esc): al primo cfg il cancello sparisce
   p.cfg({}); assert.equal(p.screen, 'ready');
   assert.equal(gateRestore(null), null); assert.equal(gateRestore({ v: 3 }), null); assert.equal(gateRestore('x'), null);
@@ -301,4 +310,47 @@ test('B20: pagina del telefono, pulsante «Rivincita» e messaggi (rm, ph con tx
   assert.match(JS, /if \(phase !== 'over'\) rematch = null/);
   const link = readFileSync(new URL('../../site/js/tennis/link.js', import.meta.url), 'utf8');
   assert.match(link, /case 'rm': if \(d\.y === 1\) emit\('rematch', \{\}\)/);
+});
+
+// B28 (12/11): calibrazione giocando e niente blocchi sul telefono
+import { trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg } from '../../site/js/tennis/phone-screen.js';
+import { readFileSync as readB28 } from 'node:fs';
+
+test('scambi di prova sul telefono: la fase con tr 1 scrive «Scambi di prova»; un computer di prima (senza tr) resta «Pronto»', () => {
+  assert.equal(trialOnMsg({ t: 'ph', ph: 'play', tr: 1 }), true);
+  assert.equal(trialOnMsg({ t: 'ph', ph: 'play' }), false); assert.equal(trialOnMsg({ t: 'ph', ph: 'serve', tr: 1 }), false); assert.equal(trialOnMsg(null), false);
+  assert.equal(TRIAL_TEXT.big, 'Scambi di prova'); assert.match(TRIAL_TEXT.sub, /Colpisci la palla.*impara il tuo colpo/);
+  const js = readB28(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  // (revisione del B28) negli scambi di prova il telefono non vota il segno dei sensori: lo decide il computer
+  assert.match(js, /trial = trialOnMsg\(d\); det\.setSignVote\(d\.tr !== 1\);/);
+  assert.match(js, /trial = trialOnMsg\(d\)/); assert.match(js, /if \(trial && phase === 'play'\) ui\(TRIAL_TEXT\.big, TRIAL_TEXT\.sub, 'ready'\)/);
+});
+
+test('soglie dal colpo imparato (messaggio pf): valide solo se complete e in misura', () => {
+  assert.deepEqual(trialThresholds({ t: 'pf', ref: 660, refs: { 1: 660, '-1': 620 }, on: 111.6, minPeak: 173.6 }), { ref: 660, refs: { 1: 660, '-1': 620 }, on: 111.6, minPeak: 173.6 });
+  assert.equal(trialThresholds({ ref: 660, refs: { 1: 660 }, on: 100, minPeak: 170 }), null, 'manca un verso');
+  assert.equal(trialThresholds({ ref: 20, refs: { 1: 660, '-1': 620 }, on: 100, minPeak: 170 }), null, 'colpo tipico fuori misura');
+  assert.equal(trialThresholds({ ref: 660, refs: { 1: 660, '-1': 620 }, on: 500, minPeak: 170 }), null); assert.equal(trialThresholds({ ref: 660, refs: { 1: 660, '-1': 620 }, on: 100, minPeak: 'x' }), null);
+  assert.equal(trialThresholds(), null);
+  // la pagina le applica solo sopra il profilo semplice (chi ha calibrato con i gesti tiene le sue)
+  const js = readB28(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  assert.match(js, /case 'pf':.*det\.profile\.simple\) det\.setThresholds\(th\)/);
+});
+
+test('niente blocchi: «Avanti ›» offerto dal computer solo sotto «Pronto»; «Salta la calibrazione» durante la calibrazione con i gesti', () => {
+  assert.equal(nextOnMsg({ t: 'nx', on: 0 }), null); assert.equal(nextOnMsg(null), null);
+  assert.deepEqual(nextOnMsg({ t: 'nx', on: 1, lb: 'Salta ›' }), { label: 'Salta ›' }); assert.deepEqual(nextOnMsg({ t: 'nx', on: 1 }), { label: 'Avanti ›' });
+  assert.equal(nextOnMsg({ on: 1, lb: 'x'.repeat(80) }).label.length, 24);
+  const next = { label: 'Avanti ›' };
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', phase: 'play', next }).show['#next'], true);
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', phase: 'play' }).show['#next'], false, 'senza offerta (computer di prima): nessun pulsante');
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', phase: 'over', next }).show['#next'], false);
+  assert.equal(phoneView({ linkState: 'on', sensor: 'cal', calStep: 'swings', next }).show['#next'], false);
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', gate: G2, next }).show['#next'], false, 'non nel tutorial');
+  for (const calStep of ['still', 'grip', 'swings', 'review']) assert.equal(phoneView({ linkState: 'on', sensor: 'cal', calStep }).show['#calSkip'], true, calStep);
+  assert.equal(phoneView({ linkState: 'on', sensor: 'cal', calStep: 'swings', inputMode: 'touch' }).show['#calSkip'], false, 'con i tocchi non c\'è niente da saltare');
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready' }).show['#calSkip'], false); assert.equal(phoneView({ linkState: 'on', sensor: 'idle', gate: G2 }).show['#calSkip'], false);
+  const html = readB28(new URL('../../site/tennis/racchetta.html', import.meta.url), 'utf8'), js = readB28(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  assert.match(html, /id="next">Avanti ›</); assert.match(html, /id="calSkip">Salta la calibrazione</);
+  assert.match(js, /send\(\{ t: 'nx', y: 1 \}\)/); assert.match(js, /\$\('#calSkip'\)\.addEventListener\('click', e => \{ e\.stopPropagation\(\); command\('skip'\); \}\)/);
 });

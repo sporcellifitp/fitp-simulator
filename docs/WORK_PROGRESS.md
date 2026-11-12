@@ -1424,7 +1424,6 @@ guida provato nel browser.
   ipotesi), Windows vero, ledwall. Aperti: colpo super sotto «qualche volta a partita»; con il campo aperto «tira sempre
   fortissimo» rende 65–69% e chi batte parte sfavorito (44–48 punti su 100).
 
-
 ## B27 · Postazione dello staff: telecomando e schermo del gioco (12/11) · [x] integrato, versione 2026-11-12.3
 Obiettivo (richiesta dell'utente allo stand): gioco sul ledwall 2×2 da 1024×1024 senza OBS e un telefono dello staff
 come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Documento con la matrice e le decisioni:
@@ -1480,3 +1479,79 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
   Non rifatte per questa versione: `audit:legend` e le altre prove nel browser (il B27 non tocca motore, CPU, colpi né
   la pagina della racchetta oltre alla batteria nello stato e al rifiuto di `role:'remote'`).
   **Non verificato**: telefoni veri, Windows vero, ledwall vero, due monitor veri, «Aggiungi a schermata Home».
+
+## B28 · Calibrazione giocando e tutorial senza blocco (12/11) · [~] ramo `b28-cal-giocando`, da unire
+- Richiesta dell'utente allo stand: «togli il check che uno deve aver fatto quel gesto per ogni schermata… la
+  calibrazione deve avvenire direttamente giocando… dopo circa 10-15 secondi di scambi, parte il match vero».
+  Base `8b85a3c` (2026-11-12.2). Niente cambio di versione né push nel ramo. Documento: `docs/b28/calibrazione-giocando.md`.
+- File nuovi: `natpf_trial_learn.js` (opzione dello stand e apprendimento), `natpf_trial.js` (scambi di prova),
+  `scripts/audit/scambi-di-prova.mjs` (banco), test `natpf-scambi-di-prova` (25) e `natpf-niente-blocchi` (4),
+  `test/trial-world.mjs`, prova nel browser `tools/e2e/natpf-scambi-di-prova.mjs`.
+- File toccati: `natpf_phone_racket.js`, `natpf_tutorial.js`, `natpf_training.js`, `natpf_lobby.js`, `natpf_ui.js`,
+  `natpf_split_ui.js`, `natpf_versus_ui.js`, `natpf_kiosk.js`, `natpf_pause.js`, `natpf_replay.js`,
+  `natpf_serve_coach.js`, `diag/diag_recorder.js`, `game_engine.js` (tre righe), `index.html`, `natpf-ui.css`;
+  `site/js/tennis/racchetta.js`, `phone-screen.js`, `link.js`, `site/tennis/racchetta.html`; `test/ui-world.mjs`,
+  `test/phone-sim.mjs`, `scripts/audit/colpi.mjs`, `tools/e2e/th.mjs` e gli script `natpf-*`.
+- Cosa c'è: tutorial chiudibile sempre (X, Invio, Esc, «Tutto chiaro»); «Avanti ›» negli esercizi dal computer e dal
+  telefono; «Salta la calibrazione»; opzione dello stand «Calibrazione: Giocando · Con i gesti · Nessuna» (di base
+  Giocando); profilo semplice automatico; scambi di prova prima di ogni partita (contro la CPU con il lanciapalle, stesso
+  schermo con il palleggio assistito, sfida e minigiochi prima, in campo); apprendimento di verso, forza, salita e centro
+  della mira; profilo da capo a ogni partita; «Ricalibra» che rifà gli scambi di prova.
+- Verifiche: gioco **1214/1214** (base 1185), sito **208/208** (base 205), LAN 12/12, build ok, `audit:legend` tutti i
+  criteri. Banco (12 telefoni × 10 colpi): forza 0,04 (primi tre 0,03) contro 0,07 (0,11) dei gesti a vuoto deboli e 0,04
+  (0,02) dei gesti da manuale; lato sbagliato 0; verso invertito 36–46 colpi su 120 con «Salta», 0 con gli scambi; telefono
+  che passa di mano errore 0,29 → 0,03 e 0,21 → 0,03; seme della mira ±4,7–5,5° (gesti da manuale ±1,6–1,8°, a vuoto con
+  il piatto variabile ±6,0–6,5°). Tocchi fino alla prima palla: singolo 13 → 9, stesso schermo 19 → 11, sfida 18 → 14.
+  Da «Gioca» al primo punto vero: 11,4–11,6 s colpendo, 16,3 s senza colpire; stesso schermo 14,7 s e 18,6 s (senza colpire, misurato con `natpf-flusso-tocchi`).
+  Nel browser: `natpf-scambi-di-prova` 25/25, 20/20 (mancino), 18/18, 18/18, 12/12 (stesso schermo); `natpf-flusso-tocchi`
+  5/5, 6/6, 8/8; `natpf-training-flow` 21/21 destro e mancino; `natpf-tutorial-phone` 46/46 destro e mancino;
+  `natpf-tutorial-relink` 9/9; `natpf-split-ready` 34/34; `natpf-menu` 28/28; `natpf-modale-gesti` 29/29;
+  `natpf-mira-lato` 23/23; `natpf-diag-session` 24/24; `natpf-1v1-p2p` 39/39 sulla build; `gesture-calibration` 20/20.
+- **Non verificato**: telefoni veri (iPhone e Android), persone vere, Windows, ledwall; una pagina del telefono vecchia
+  in cache (verificato solo il protocollo); le prove nel browser non elencate (hanno solo ricevuto `CAL=gesti`);
+  programma Windows (nessun file toccato, test non rifatti).
+- **Giro 2 (12/11, dopo la revisione indipendente e l'unione con il B27)**: `natpf-simulator` (`76c6ed3`,
+  2026-11-12.3) unito nel ramo (`8d884eb`: conflitti in `natpf_kiosk.js` e in questo file, tenuti i due lati).
+  - **B27 + B28**: il telecomando dello staff conosce la pagina «Scambi di prova» (in campo: frecce e OK spenti, Indietro
+    = pausa), «Salta» li salta e preme «Avanti ›» dell'allenamento e «Salta la calibrazione» dove ci sono, «Ricalibra il
+    telefono» = `ui.recalibrate()` (`natpf_remote_map.js`, `natpf_remote.js`, `docs/b27/telecomando.md`,
+    `docs/GUIDA_TELECOMANDO.md`). Pannello dello stand senza scorrere a 1366×657, 1024×600, 1280×720, 1024×1024, 720×720.
+  - **Difetti della revisione** (ognuno riprodotto con lo script del revisore, poi test, poi correzione):
+    1. chi colpisce da un lato solo restava specchiato → **regola dei due versi** nel gioco (`natpf_trial_learn.js`) e nel
+       voto del telefono (`site/js/tennis/swing-detect.js`: per lato, spento negli scambi di prova con `setSignVote`, gira
+       solo su un colpo al contrario); `racchetta.js`, `test/phone-sim.mjs`;
+    2. Player 2 dell'invito che lascia gli scambi di prova restava «p1» → `NatpfTrial.start({ cancel })`,
+       `versus.calDone({ interrupted })`;
+    3. pausa del telefono del Player 2 negli scambi di prova «rigiocava il punto» → escluso in `natpf_split_ui.js`;
+    4. opzione cambiata ed eredità tra visitatori → `madeBy`, `gestureAt`, `keepsGesture`, `calStale`, `demoteIfStale`
+       (`natpf_phone_racket.js`), `ui.matchLive()`, controllo a «Gioca» (`natpf_ui.js`), cambio dell'opzione
+       (`natpf_kiosk.js`), `natpf_versus_ui.js`, `natpf_training.js`, `natpf_trial.js`;
+    5. colpi pianissimi: **provato e scartato** (soglie basse = colpi doppi a tutti), limite scritto e fissato da un test;
+    6. pausa di 3 s all'inizio con la rete lenta → `resetting` e `RESET_GRACE_MS`, `phoneHealthOf`; la prima palla aspetta;
+    7. stesso schermo con un giocatore che tiene i gesti → conta come fatto (`trialCounts`).
+  - **Prove della modalità di base**: `test/natpf-giocando-revisione.test.mjs` (15: i difetti 2, 3, 4, 6, 7 e «Nuovo
+    giocatore», telefono che cade / si ricollega / ricarica / spegne lo schermo, chiosco, «Ricalibra» nello stesso schermo,
+    sfida tra due computer, minigioco, telecomando vero); `natpf-scambi-di-prova` 25 → 28 (difetto 1, limite 5);
+    `natpf-telecomando` 9 → 10; `natpf-racchetta` (voto del telefono). Aiuti in `test/trial-world.mjs`
+    (`playWorld`, `playTrial`, `secondPhone`). Nel browser: `tools/e2e/prova.mjs` e `CAL=base`; adattati `natpf-rally`,
+    `natpf-servizio-lancio`, `natpf-phone-keep`, `natpf-nuovo-giocatore`, `natpf-stesso-schermo-b25` (e il conto dei
+    pulsanti del pannello, 13, anche in `b20`), `natpf-phone-blackout`; `natpf-menu` con «Calibrazione» e 720×720.
+  - Verifiche del giro 2: gioco **1242/1242** (dopo l'unione 1223), sito **226/226**, LAN 12/12, programma Windows 33/33,
+    build ok, `audit:legend` tutti i criteri. Banco: uguale al giro 1 tranne «Salta, verso invertito» (38–49 colpi su 120
+    dal lato sbagliato al posto di 36–46: il voto del telefono aspetta i due versi); «da un lato solo»: 0 colpi su 96 dal
+    lato sbagliato con 0, 1, 2 palle perse, destro e mancino (prima 48 su 48). Nel browser, modalità di base:
+    `natpf-scambi-di-prova` 25/25 (11,4 s), 25/25 mancino, 18/18, 18/18, 12/12 stesso schermo (14,7 s), 11/11 a 1024×1024;
+    `natpf-flusso-tocchi` 5/5, 6/6, 8/8 (9, 11, 14 tocchi); `natpf-menu` 45/45 (pannello a 5 misure); `natpf-telecomando`
+    80/80 (di base, sulla build); con `CAL=base`: `natpf-nuovo-giocatore` 30/30, `natpf-formato-fiera` 22/22,
+    `natpf-stesso-schermo-b25` 55/55, `natpf-rally` 9/9, `natpf-servizio-lancio` 12/12, `natpf-phone-blackout` 6/6,
+    `natpf-diag-session` 24/24, **`natpf-phone-keep` 12/13 tre volte su tre** (la pausa per i sensori fermi arriva a
+    1508–1663 ms contro i 1500 chiesti; con `CAL=gesti` 13/13 a 1392 ms: dipende dal momento del segnale del telefono,
+    soglia non toccata). Con `CAL=gesti`: `natpf-training-flow` 21/21 ×2, `natpf-tutorial-phone` 46/46 ×2,
+    `natpf-tutorial-relink` 9/9, `natpf-split-ready` 34/34, `natpf-1v1-p2p` 39/39, `natpf-stesso-schermo-b20` 52/52,
+    `natpf-diag-session` 24/24, `natpf-mira-lato` 23/23, `natpf-modale-gesti` 29/29; `gesture-calibration` 20/20.
+  - **Non verificato nel giro 2**: telefoni e persone veri, Windows, ledwall; pagine del telefono di prima in cache (non
+    hanno la regola dei due versi); le prove nel browser non elencate; il telecomando dello staff negli scambi di prova
+    con un telefono vero (provato nel mondo di prova con il telecomando vero e la mappa, non nel browser).
+- Da fare per chi integra: unire con il B27 (pannello dello stand: una riga inserita prima di «Mira del telefono»;
+  `natpf_kiosk.js`: un import, un comando, una riga in `paint`) e con l'altra sessione (`natpf_lobby.js`,
+  `natpf_training.js`, `index.html`); versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.

@@ -239,6 +239,7 @@
           ><button type="button" data-staff="hot" title="Sì: nello stesso schermo, dal 10° colpo dello scambio la palla va sempre più veloce per tutti e due, finché uno sbaglia; compare la scritta «Scambio caldo». Vale dalla prossima partita e resta salvata."><span>Scambio che si scalda</span><b>No</b></button
           ><button type="button" data-staff="autotoss" title="Sì: nello stesso schermo, se chi deve battere resta fermo 30 secondi il gioco lancia la palla da solo; dopo due lanci automatici a vuoto batte il gioco un servizio morbido. Vale dalla prossima partita e resta salvata."><span>Lancio automatico</span><b>No</b></button
           ><button type="button" data-staff="open" title="Sì: nello stesso schermo i personaggi corrono come persone e non arrivano più su ogni palla: la palla angolata e lontana si prende in allungo o non si prende. Il servizio passa ogni due punti, come nel formato in fiera, anche con il formato classico: con il campo aperto chi batte è un po' sfavorito. Vale dalla prossima partita e resta salvata."><span>Stesso schermo: campo aperto</span><b>No</b></button
+          ><button type="button" data-staff="cal" title="Giocando: niente gesti a vuoto, ogni partita comincia con circa 10 secondi di scambi di prova in cui il gioco impara il colpo di chi gioca, poi il match da 0-0. Con i gesti: la calibrazione di prima (telefono fermo, un dritto e un rovescio). Nessuna: si gioca subito, il gioco impara dai primi colpi veri. Vale dalla prossima partita e resta salvata."><span>Calibrazione</span><b>Giocando</b></button
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
@@ -781,6 +782,8 @@
           ><button id="natpf-phone-invert" type="button" class="lobby-ghost hidden">Inverti direzioni</button
           ><button id="natpf-phone-skipgrip" type="button" class="lobby-ghost hidden">Salta l'impugnatura</button
           ><button id="natpf-phone-recal" type="button" class="lobby-ghost hidden">Ricalibra</button
+          ><button id="natpf-phone-gesti" type="button" class="lobby-ghost hidden" title="La calibrazione di prima: telefono fermo, poi un dritto e un rovescio a vuoto">Calibra con i gesti</button
+          ><button id="natpf-phone-skip" type="button" class="lobby-ghost hidden" title="Si gioca subito con il profilo semplice: il gioco impara dai colpi veri">Salta la calibrazione</button
           ><button id="natpf-phone-forget" type="button" class="lobby-ghost hidden">Scollega</button
           ><button id="natpf-phone-close" type="button" class="lobby-secondary">Torna al campo</button>
         </div>
@@ -883,6 +886,17 @@
     <!-- stesso schermo (1v1): tutorial di ciascun giocatore sulla sua metà dello schermo (natpf_split_ui.js) -->
     <div id="split-tut-p1" class="split-tut" data-side="left"></div>
     <div id="split-tut-p2" class="split-tut" data-side="right"></div>
+    <!-- scambi di prova (B28, natpf_trial.js): la calibrazione giocando, prima della partita. Scritta grande in alto al
+         centro con l'avanzamento (due puntini per il dritto e due per il rovescio, per giocatore), poi «Si comincia!» -->
+    <div id="natpf-trial" class="natpf-trial hidden" aria-live="polite" data-state="intro" data-split="false">
+      <div class="trial-card">
+        <span class="trial-kicker" data-trial="kicker">Scambi di prova</span>
+        <b class="trial-title" data-trial="title">Colpisci la palla</b>
+        <small class="trial-sub" data-trial="sub"></small>
+        <div class="trial-rows" data-trial="rows"></div>
+      </div>
+      <button type="button" id="trial-skip" class="btn btn-ghost btn-sm trial-skip" title="La partita parte subito con quello che il gioco ha imparato">Salta ›</button>
+    </div>
     <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite" data-mode="drill">
       <div class="coach-top">
         <span class="coach-kicker" id="coach-kicker">Riscaldamento</span>
@@ -890,7 +904,8 @@
         <div class="coach-actions">
           <button type="button" id="coach-review" class="btn btn-ghost btn-sm hidden">Rivedi i gesti</button
           ><button type="button" id="coach-simple" class="btn btn-ghost btn-sm hidden">Modalità semplice</button
-          ><button type="button" id="coach-exit" class="btn btn-ghost btn-sm">Salta ›</button>
+          ><button type="button" id="coach-next" class="btn btn-ghost btn-sm hidden" title="Passa all’esercizio dopo senza fare il gesto">Avanti ›</button
+          ><button type="button" id="coach-exit" class="btn btn-ghost btn-sm" title="Chiude l’allenamento o il riscaldamento">Salta tutto ›</button>
         </div>
       </div>
       <section class="coach-lesson hidden" id="coach-lesson" aria-labelledby="coach-lesson-title">

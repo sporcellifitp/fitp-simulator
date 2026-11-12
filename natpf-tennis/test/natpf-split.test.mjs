@@ -327,8 +327,9 @@ test('stesso schermo: tutorial indipendenti con le frecce, avanzamento a ciascun
   // tastiera: A/D per la metà sinistra, frecce per la destra
   w.key('KeyD'); assert.equal(ui.split.tut.p1.state.idx, 1); w.key('ArrowRight'); assert.equal(ui.split.tut.p2.state.idx, 3);
   w.key('KeyA'); assert.equal(ui.split.tut.p1.state.idx, 0);
-  // un «ok» prima dell'ultima scheda non chiude
-  ok(P2); assert.ok(ui.split.tutOpen.p2, 'prima dell\'ultima scheda non si chiude');
+  // B28 (12/11): «Tutto chiaro» è acceso da subito (al telefono «all» arriva sempre a 1, anche a una pagina di prima in
+  // cache); le schede viste davvero restano come informazione (av solo quando sono tutte viste)
+  assert.equal(tp(l2).all, 1); assert.equal(tp(l2).av, undefined);
   // il telefono del P2 cade a tutorial aperto: la metà torna al QR; ricollegato (stesso abbinamento) riparte dalla scheda 4
   w.advance(1200);
   l2.connected = false; l2.ready = false; l2.L = { state: 'lost', phone: null }; ui.split.paint();
@@ -336,11 +337,11 @@ test('stesso schermo: tutorial indipendenti con le frecce, avanzamento a ciascun
   l2.connected = true; l2.ready = true; l2.L = { state: 'connected', phone: 'ready', joins: 2 }; ui.split.paint();
   assert.ok(ui.split.tutOpen.p2); assert.equal(ui.split.tut.p2.state.idx, 3, 'riparte dalla scheda raggiunta'); assert.ok(ui.split.tut.p2.state.visited.has(3) && !ui.split.tut.p2.state.visited.has(2), 'schede viste ricordate (la 3 sì, la 2 passata di fila no)');
   for (let i = 3; i < N; i++){ w.advance(1200); if (i < N - 1) nav(P2, 1); }
-  assert.equal(tp(l2).all, 0, 'le schede 1 e 2 passate di fila non contano');
+  assert.equal(tp(l2).av, undefined, 'le schede 1 e 2 passate di fila non contano come viste');
   // indietro fino alla 2 e alla 1, guardate: tutte viste
   for (let i = 0; i < N - 3; i++) nav(P2, -1);
   w.advance(1200); nav(P2, -1); w.advance(1200);
-  assert.equal(ui.split.tut.p2.state.idx, 1); assert.equal(tp(l2).all, 1);
+  assert.equal(ui.split.tut.p2.state.idx, 1); assert.equal(tp(l2).av, 1);
   // P2 già pronto: «poi sei pronto», e dopo «ho capito» nessuna calibrazione
   assert.match(ui.split.tut.p2.root.querySelector('.tut-wait').textContent, /tuo telefono.*sei pronto/);
   const cmdsBefore = l2.cmds.length;
@@ -351,6 +352,14 @@ test('stesso schermo: tutorial indipendenti con le frecce, avanzamento a ciascun
   l2.L = { ...l2.L, joins: 3 }; ui.split.paint(); assert.ok(!ui.split.tutOpen.p2);
   // abbinamento nuovo del P2 (QR): di nuovo
   l2.L = { ...l2.L, pairs: 1, joins: 4 }; ui.split.paint(); assert.ok(ui.split.tutOpen.p2);
+  // B28: «ok» dalla prima scheda, senza averne vista nessuna, chiude la sua metà (prima un telefono v2 restava bloccato)
+  P2._onTut({ wait: true, v: 2 }); assert.equal(ui.split.tut.p2.state.visited.size, 0);
+  ok(P2); ui.split.paint(); assert.ok(!ui.split.tutOpen.p2 && P2.tutorialSeen && !P2.tutWait, 'chiuso dalla prima scheda');
+  // … e Invio sul computer chiude quelle aperte (Esc resta «indietro»)
+  P1.forgetTutorial(); P2.forgetTutorial(); ui.split.paint(); assert.ok(ui.split.tutOpen.p1 && ui.split.tutOpen.p2);
+  w.key('Enter', 'Enter'); assert.ok(!ui.split.tutOpen.p1 && !ui.split.tutOpen.p2 && P1.tutorialSeen && P2.tutorialSeen, 'Invio chiude le due metà');
+  assert.equal(lobby.step, 'connect', 'Invio non cambia pagina');
+  P1.forgetTutorial(); P2.forgetTutorial(); ui.split.paint();
   ui.split.closeTutorials();
   // P1 che ha già visto il tutorial (Allenamento, stesso abbinamento): non lo rivede nello stesso schermo
   P1.markTutorialSeen(); ui.split.paint(); assert.ok(!ui.split.tutOpen.p1);
@@ -362,6 +371,7 @@ test('stesso schermo: lo stato della metà dice che si sta guardando il tutorial
   const { splitPlayerStatus } = await import('../src/natpf/natpf_split_ui.js');
   const p = { link: {}, state: { state: 'connected', phone: 'tut' }, connected: true, ready: false, tutWait: true, tutProgress: { i: 3, n: 5, s: 4, all: false } };
   assert.match(splitPlayerStatus(p).title, /Guarda il tutorial/); assert.match(splitPlayerStatus(p).sub, /4 di 5/);
+  assert.match(splitPlayerStatus(p).sub, /quando vuoi.*Tutto chiaro/, 'B28: si chiude quando si vuole');
   p.tutProgress = { i: 4, n: 5, s: 5, all: true }; assert.match(splitPlayerStatus(p).sub, /Tutto chiaro/);
 });
 
@@ -657,7 +667,7 @@ for (const how of ['ricollegamento («Ricollega», stessa pagina)', 'collegament
     assert.ok(!l2.cmds.includes('cal'), 'nessuna calibrazione chiesta');
     const cfg = l2.sent.filter(m => m.t === 'cfg').at(-1), tp = l2.sent.filter(m => m.t === 'tp').at(-1);
     assert.equal(cfg.tut, 1, 'al telefono ricollegato il cfg con il tutorial'); assert.equal(tp.i, 3);
-    assert.equal(tp.all, 0, '«Tutto chiaro» ancora spento');
+    assert.equal(tp.all, 1, '«Tutto chiaro» acceso da subito (B28)'); assert.equal(tp.av, undefined, 'schede non ancora tutte viste');
     ui.split.closeTutorials();
     assert.ok(!P2.tutWait, 'uscendo dalla pagina il telefono non aspetta più');
   });

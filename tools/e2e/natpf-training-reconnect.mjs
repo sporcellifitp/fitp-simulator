@@ -4,6 +4,8 @@
 // fondo, con le palle dal lato giusto.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-training-reconnect.mjs
 // Eventi devicemotion sintetici: non sostituiscono la prova con un telefono vero.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

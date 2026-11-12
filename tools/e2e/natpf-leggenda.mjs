@@ -23,6 +23,8 @@
 // affondo, gli allunghi forzati e il punteggio alla fine. Porte: GAME_PORT (di base 3161). POINTS: punti da giocare (di
 // base 6, ~4 min: la partita va più o meno al ritmo vero). ALLUNGHI: allunghi forzati (di base 4; 0 per saltarli).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-leggenda.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

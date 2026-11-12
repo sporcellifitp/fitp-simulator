@@ -11,6 +11,8 @@
 // I punti si assegnano con la regola del motore (_awardPoint), non giocando gli scambi: la prova guarda il formato, non
 // il gioco. Schermate in OUT (o nella cartella temporanea).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-formato-fiera.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

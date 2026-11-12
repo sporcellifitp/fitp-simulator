@@ -23,6 +23,8 @@
 //   cd natpf-tennis && node node_modules/vite/bin/vite.js build
 //   cd tools/e2e && npm ci && CHROMIUM_PATH=/percorso/chrome node natpf-1v1-p2p.mjs
 // Giocatori automatici con gli eventi del mouse: non sostituiscono due persone su due computer e una rete vera.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import http from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';

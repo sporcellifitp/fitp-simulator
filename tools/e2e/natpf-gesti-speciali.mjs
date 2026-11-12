@@ -9,6 +9,8 @@
 //   C. in partita (Pro): pallonetti, palle corte e dritti dal gesto, letti giusti; pallonetto e palla corta in campo.
 // Porte 3184 (gioco) e 9184 (PeerJS). Eventi devicemotion sintetici: non sostituiscono la prova con un telefono vero.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-gesti-speciali.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

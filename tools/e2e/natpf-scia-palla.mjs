@@ -11,6 +11,8 @@
 //   SHOTS=cartella (schermate; predefinita nella cartella temporanea) · GAME_PORT (3162)
 //   BASELINE=file.json: solo la parte 1, scrive le impronte dei fotogrammi (da fare sul commit di prima)
 //   CONFRONTA=file.json: la parte 1 confronta le impronte con l'opzione spenta · SOLO=1: solo la parte 1 · COSTO=1: solo la parte 4
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

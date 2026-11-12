@@ -12,6 +12,8 @@
 // Mouse e tastiera in modalità prova (localStorage testInput=1): nessun telefono. Per misurare sempre la stessa posa, in
 // partita il gioco si ferma (update) e gira solo il ciclo della camera del motore. Schermate in $OUT (inquadratura-*.png).
 // Grafica software (swiftshader) e Chromium senza cornice della finestra: non sostituisce la prova su un monitor vero.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
