@@ -1,18 +1,19 @@
 // Tutorial prima della calibrazione (richiesta del 04/11/2026, rifatto in B9 il 05/11): una modale compatta al centro dello
 // schermo (nello stesso schermo al centro della propria metà) con la presa e i gesti. Si sfoglia con le frecce ‹ ›
 // in basso (mouse, tastiera ←/→, o dal telefono di chi gioca), niente scorrimento automatico; una scheda conta come
-// vista dopo TUTORIAL.seenMs che è a schermo. Si chiude dal telefono con «Tutto chiaro, ho capito», che sul telefono si
-// accende solo quando tutte le schede di quel tutorial sono state viste (l'avanzamento va al telefono con onProgress →
-// natpf_phone_racket.tutorialProgress, messaggio «tp»); sul computer solo Esc per chi gestisce la postazione.
+// vista dopo TUTORIAL.seenMs che è a schermo. Si chiude dal telefono con «Tutto chiaro, ho capito» o sul computer con la X,
+// Invio o Esc. Dal B28 (12/11, richiesta dell'utente allo stand: «togli il check che uno deve aver fatto quel gesto per ogni
+// schermata… è molto fastidioso») si chiude SEMPRE, da qualunque scheda: prima il pulsante del telefono e la X si accendevano
+// solo dopo che tutte le schede erano rimaste a schermo (B9/B16). Le schede viste restano come informazione (puntini, «tp»
+// al telefono con onProgress → natpf_phone_racket.tutorialProgress).
 // Due serie di schede (decisione dell'utente dell'08/11 sera, B16): prima della partita (gioco singolo, stesso schermo,
 // sfida, minigiochi) il tutorial corto, 5 schede (presa, posizione, dritto, rovescio, servizio); le altre (piatto,
 // pallonetto, palla corta, tagliato, schiacciata, volée) restano nell'Allenamento dal menu e in «Rivedi i gesti», che
 // mostrano tutte le 11. Le 5 schede corte sono le prime 5 di quelle complete, con gli stessi indici: l'avanzamento per il
 // telefono (i, n, s, m) non cambia significato (n è il numero delle schede di quel tutorial) e un telefono con la pagina
 // di prima lo legge uguale; l'Allenamento dopo il tutorial corto riprende dalla sesta scheda con le prime 5 già viste.
-// Dal B17.2 (08/11) anche una X in alto a destra della scheda: spenta («Sfoglia tutte le schede») finché non sono tutte
-// viste, poi accesa; cliccata fa la stessa cosa di «Tutto chiaro, ho capito» (onDone di chi apre la modale). In «Rivedi
-// i gesti» la X chiude sempre, come «Chiudi».
+// Dal B17.2 (08/11) anche una X in alto a destra della scheda; cliccata fa la stessa cosa di «Tutto chiaro, ho capito»
+// (onDone di chi apre la modale). Dal B28 è sempre accesa. In «Rivedi i gesti» la X chiude, come «Chiudi».
 // Più istanze possibili (una per metà dello schermo nel 1v1 sullo stesso schermo), ciascuna con la sua animazione dei
 // gesti (natpf_gesture_demo.js, Canvas 2D: niente WebGL, B9 ramo C). Senza canvas (test) foto e indicazioni.
 // L'animazione sta in un riquadro 16:10 (.tut-stage dentro .tut-frame): mount/setSize/play come prima, setSize di nuovo
@@ -80,20 +81,19 @@ export function tutorialProgress(st){
   let m = 0; for (const i of st.visited) m |= 1 << i;
   return { i: st.idx, n: st.cards, s: st.visited.size, m, all: !!st.all };
 }
-// riga in fondo alla modale: cosa fare adesso. after: cosa succede dopo «ho capito» ('cal' calibrazione, 'play' esercizi o
-// partita, 'ready' pronto nello stesso schermo); half: stesso schermo («il tuo telefono»)
-export function tutorialWait({ mode = 'phone', all = false, after = 'cal', half = false } = {}){
+// riga in fondo alla modale: cosa fare adesso. after: cosa succede dopo «ho capito» ('cal' calibrazione con i gesti, 'play'
+// esercizi o partita, 'ready' pronto nello stesso schermo); half: stesso schermo («il tuo telefono»). B28: la stessa frase
+// dall'inizio alla fine (si chiude quando si vuole); all (tutte le schede viste) non cambia più niente
+export function tutorialWait({ mode = 'phone', after = 'cal', half = false } = {}){
   if (mode !== 'phone') return '';
   const tel = half ? 'tuo telefono' : 'telefono';
-  if (!all) return `Sfoglia le schede con ‹ › (anche dal ${tel}): alla fine si accende «Tutto chiaro, ho capito».`;
-  const then = after === 'ready' ? 'sei pronto' : after === 'play' ? 'si comincia' : 'si calibra';
-  return `Sul ${tel} tocca «Tutto chiaro, ho capito» (o la X qui in alto): poi ${then}.`;
+  const then = after === 'ready' ? 'sei pronto' : after === 'play' ? 'si gioca' : 'si calibra';
+  return `Sfoglia con ‹ › · quando vuoi tocca «Tutto chiaro» sul ${tel} (o la X): poi ${then}.`;
 }
 
-// etichetta della X in alto a destra (tooltip e lettore di schermo): spenta dice perché, accesa cosa fa
-export function tutorialX({ mode = 'phone', all = false } = {}){
-  if (mode !== 'phone') return 'Chiudi';
-  return all ? 'Chiudi: tutto chiaro, ho capito' : 'Sfoglia tutte le schede';
+// etichetta della X in alto a destra (tooltip e lettore di schermo). B28: sempre accesa
+export function tutorialX({ mode = 'phone' } = {}){
+  return mode !== 'phone' ? 'Chiudi' : 'Chiudi: tutto chiaro, ho capito';
 }
 
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -140,7 +140,7 @@ export class NatpfTutorial {
   get progress(){ return this.state ? { ...tutorialProgress(this.state), nm: this.cards[this.state.idx]?.title || '' } : null; }
   // per riaprire più tardi dallo stesso punto (stesso abbinamento del telefono); n: schede di quella modale
   get snapshot(){ return this.state ? { idx: this.state.idx, visited: [...this.state.visited], all: this.state.all, n: this.state.cards } : null; }
-  // mode: 'phone' (si chiude con il telefono o con la X dopo tutte le schede: onDone), 'review' («Rivedi i gesti», si chiude con «Chiudi», sempre tutte le schede)
+  // mode: 'phone' (si chiude con il telefono, con la X o con Invio, da qualunque scheda: onDone), 'review' («Rivedi i gesti», si chiude con «Chiudi», sempre tutte le schede)
   // player: 'Player 1'…, hand: 'right' | 'left', onClose(reason): 'phone' | 'skip' | 'review'; onProgress(progress) a ogni
   // cambio di scheda o di schede viste (solo 'phone'); after: vedi tutorialWait; from: snapshot di prima; set: 'short'
   // (tutorial corto prima della partita) o 'full' (tutte le schede)
@@ -168,20 +168,23 @@ export class NatpfTutorial {
     this.state = next; this.paint(); this._progress();
   }
   step(d){ if (this.open) this.go(this.state.idx + (d < 0 ? -1 : 1)); }
-  // tastiera di chi gestisce la postazione: ← → (true se il tasto è della modale); Invio e Spazio sul pulsante a fuoco
+  // tastiera di chi gestisce la postazione: ← → (true se il tasto è della modale); Invio e Spazio sul pulsante a fuoco.
+  // B28: Invio senza un pulsante a fuoco chiude (come la X); Spazio no (è il tasto dei colpi da tastiera: un tocco per
+  // sbaglio non deve chiudere il tutorial)
   key(e){
     if (!this.open) return false;
     if (e.code === 'ArrowLeft' || e.code === 'PageUp'){ this.step(-1); return true; }
     if (e.code === 'ArrowRight' || e.code === 'PageDown'){ this.step(1); return true; }
-    return this.keyActivate(e);
+    if (this.keyActivate(e)) return true;
+    if (e.code === 'Enter' && !e.repeat){ this.closeX(); return true; }
+    return false;
   }
   // il pulsante della modale che ha il fuoco (Tab), come selettore: la X, una freccia o «Chiudi»; null se il fuoco è altrove
   focusedControl(active = typeof document !== 'undefined' ? document.activeElement : null){
     if (!this.open || !this.root || !active) return null;
     return ['.tut-x', '.tut-prev', '.tut-next', '.tut-close'].find(sel => this.root.querySelector(sel) === active) || null;
   }
-  // Invio o Spazio sul pulsante a fuoco: la stessa cosa del clic (la X solo se accesa: closeX; una freccia spenta
-  // non fa niente). Il motore con Spazio e Invio tira un colpo da tastiera (motion_controls._onKeyDown, con
+  // Invio o Spazio sul pulsante a fuoco: la stessa cosa del clic (una freccia spenta non fa niente). Il motore con Spazio e Invio tira un colpo da tastiera (motion_controls._onKeyDown, con
   // preventDefault che annullerebbe il clic del pulsante): chi chiama ferma l'evento prima (true = tasto della modale)
   keyActivate(e, active){
     if (!this.open || !(e.code === 'Enter' || e.code === 'Space')) return false;
@@ -199,10 +202,10 @@ export class NatpfTutorial {
     this.state = next; this.paintNav(); this._progress();
   }
   _progress(){ const p = this.progress; if (p) try { this.opts.onProgress?.(p); } catch (e){ console.error(e); } }
-  // la X è accesa quando cliccarla fa qualcosa: sempre in «Rivedi i gesti», in 'phone' dopo tutte le schede
-  get xEnabled(){ return this.open && (this.opts.mode === 'review' || !!this.state?.all); }
-  // X in alto a destra: in «Rivedi i gesti» chiude; in 'phone' con tutte le schede viste fa quello che fa «Tutto chiaro,
-  // ho capito» dal telefono (onDone); spenta non fa niente (il telefono non è toccato)
+  // la X è accesa quando cliccarla fa qualcosa: dal B28 sempre, a modale aperta (prima in 'phone' solo dopo tutte le schede)
+  get xEnabled(){ return !!this.open; }
+  // X in alto a destra (e Invio): in «Rivedi i gesti» chiude; in 'phone' fa quello che fa «Tutto chiaro, ho capito» dal
+  // telefono (onDone), da qualunque scheda
   closeX(){
     if (!this.xEnabled) return;
     if (this.opts.mode === 'review'){ this.close('review'); return; }
@@ -230,11 +233,11 @@ export class NatpfTutorial {
     if (next){ next.disabled = st.idx >= n - 1; next.classList.toggle('off', st.idx >= n - 1); }
     for (const dot of this.root.querySelectorAll('.tut-dot')){ const i = +dot.dataset.dot; dot.classList.toggle('on', i === st.idx); dot.classList.toggle('seen', st.visited.has(i)); }
     this.root.classList.toggle('all-seen', !!st.all);
-    const w = $('.tut-wait'); if (w) w.textContent = tutorialWait({ mode: this.opts.mode, all: st.all, after: this.opts.after, half: this.half });
-    // X in alto a destra: spenta finché non sono tutte viste (con la spiegazione), accesa poi; in «Rivedi» sempre accesa
+    const w = $('.tut-wait'); if (w) w.textContent = tutorialWait({ mode: this.opts.mode, after: this.opts.after, half: this.half });
+    // X in alto a destra: sempre accesa (B28)
     const x = $('.tut-x');
     if (x){
-      const on = this.xEnabled, tip = tutorialX({ mode: this.opts.mode, all: on });
+      const on = this.xEnabled, tip = tutorialX({ mode: this.opts.mode });
       x.classList.toggle('off', !on); x.setAttribute('aria-disabled', on ? 'false' : 'true');
       x.title = tip; x.setAttribute('aria-label', tip);
     }

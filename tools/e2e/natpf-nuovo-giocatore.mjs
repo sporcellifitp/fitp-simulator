@@ -10,6 +10,8 @@
 //      sempre collegati.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-nuovo-giocatore.mjs     (OUT=cartella delle schermate)
 // Eventi devicemotion sintetici: non sostituiscono un telefono vero né persone vere.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -18,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP, seeAllCards } from './th.mjs';
+import { GESTI, throughTrial } from './prova.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -104,11 +107,13 @@ try {
   await ph.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await seeAllCards(ph); await ph.click('#tutOk');
   // mancino (scelto prima): il primo gesto della calibrazione è il dritto del mancino
   const planL = (await import('../../site/js/tennis/calibration.js')).calibrationPlan({ quick: true, hand: 'left' });
-  check('   calibrazione del primo visitatore (mancino) fatta', await calibrate(ph, planL));
+  check(GESTI ? '   calibrazione del primo visitatore (mancino) fatta' : '   (calibrazione di base) telefono del primo visitatore pronto senza gesti', await calibrate(ph, planL));
   check('   poi la pagina «Partita»', await until(g, () => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'match', null, 20000));
   const before = await who(g);
   check('   primo visitatore: nome, mano sinistra, tutorial visto, calibrato', before.nick === 'Marco' && before.hand === 'left' && before.tutSeen && before.ready && before.profile, JSON.stringify(before));
   await g.click('#btn-start-match');
+  // B28, calibrazione di base («Giocando»): dopo «Gioca» gli scambi di prova (giocati dal telefono simulato), poi la partita
+  if (!GESTI){ const tr = await throughTrial(g, { p1: ph }); check('   (calibrazione di base) scambi di prova giocati dal mancino, poi la partita vera', tr.trial && tr.match && ['full', 'ok'].includes(tr.levels[0]), JSON.stringify(tr)); }
   await until(g, () => !__natpfTennis.natpfUi.lobby.visible && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY'].includes(__natpfTennis.phase), null, 15000);
   // qualche colpo vero per insegnare il colpo tipico (poi deve sparire con «Nuovo giocatore»)
   const typical = await g.evaluate(() => { const P = __natpfTennis.natpfPhone; for (const v of [700, 720, 710, 705]) P.typicalModel.learn(v, null); return P.typicalModel.value; });
@@ -151,7 +156,7 @@ try {
   check('A4. Bea: in campo di nuovo il tutorial corto (5 schede), il telefono lo aspetta', tut2 && cards2 === 5 && (await phoneState(ph)).screen === 'tutorial', `schede ${cards2}`);
   await shot('A4-tutorial-bea-1280');
   await ph.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await seeAllCards(ph); await ph.click('#tutOk');
-  check('   la calibrazione di Bea (destra) dal primo gesto', await calibrate(ph, QUICK_PLAN));
+  check(GESTI ? '   la calibrazione di Bea (destra) dal primo gesto' : '   (calibrazione di base) telefono di Bea pronto senza gesti', await calibrate(ph, QUICK_PLAN));
   check('   poi la pagina «Partita»', await until(g, () => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'match', null, 20000));
   const bea = await who(g);
   check('   Bea: nome, mano destra, tutorial visto, calibrata, sempre lo stesso abbinamento', bea.nick === 'Bea' && bea.hand === 'right' && bea.tutSeen && bea.ready && bea.profile && bea.pairs === pairs0, JSON.stringify(bea));
@@ -171,8 +176,9 @@ try {
   for (const p of [ph1, ph2]){ await p.waitForSelector('#enable:not(.hidden)', { timeout: 15000 }).catch(() => {}); await p.click('#enable'); }
   await until(g, () => { const S = __natpfTennis.natpfUi.split; return S.tutOpen.p1 && S.tutOpen.p2; });
   for (const p of [ph1, ph2]){ await p.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await seeAllCards(p); await p.click('#tutOk'); }
-  check('B1. due telefoni calibrati', (await calibrate(ph1)) && (await calibrate(ph2)));
+  check(GESTI ? 'B1. due telefoni calibrati' : 'B1. (calibrazione di base) due telefoni pronti senza gesti', (await calibrate(ph1)) && (await calibrate(ph2)));
   check('   conto alla rovescia e partita nello stesso schermo', await until(g, () => !!__natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.lobby.visible, null, 20000));
+  if (!GESTI){ const tr = await throughTrial(g, { p1: ph1, p2: ph2 }); check('   (calibrazione di base) scambi di prova per tutti e due, poi la partita vera', tr.trial && tr.match, JSON.stringify(tr)); }
   const splitPairs = [(await who(g, 'p1')).pairs, (await who(g, 'p2')).pairs];
   const tags = () => g.evaluate(() => ['p1', 'p2'].map(id => document.querySelector(`[data-split-tag="${id}"] b`)?.textContent));
   const tags0 = await tags();

@@ -226,7 +226,7 @@ export class DiagRecorder {
     wrap('_spawnBounceRing', function(orig, x, z){ R.log('rimbalzo', { x: r(x), z: r(z), da: E.ball?.lastHitter || null, n: E.ball?.bounceCountOnCurrentSide ?? null }); return orig(x, z); });
     wrap('_awardPoint', function(orig, winner, why = ''){
       const out = orig(winner, why);
-      R.log('punto', { vince: winner, motivo: String(why || ''), punteggio: [E.score?.playerPoints, E.score?.opponentPoints, E.score?.playerGames, E.score?.opponentGames], allenamento: !!R.ui?.training?.active, sfida: !!R.ui?.events?.active,
+      R.log('punto', { vince: winner, motivo: String(why || ''), punteggio: [E.score?.playerPoints, E.score?.opponentPoints, E.score?.playerGames, E.score?.opponentGames], allenamento: !!(R.ui?.training?.active || R.ui?.trial?.active), sfida: !!R.ui?.events?.active,
         // partita tra due persone (sfida tra due computer o stesso schermo); «sfida» è la modalità eventi (minigiochi)
         '1v1': !!(E.versus?.active || E.isMultiplayer),
         // B18.2 gruppo 3 (revisione): al livello Evento il valore della CPU dopo questo punto (0 facile … 1 esperta):
@@ -275,7 +275,7 @@ export class DiagRecorder {
         // webcam), gradi della mira piena con cui il telefono ha letto il piatto; colpi dell'allenamento (riscaldamento
         // compreso) e dei minigiochi segnati, perché non sono una partita
         mano: L.hand || null, fonte: L.source || null, ...(Number.isFinite(L.aimFull) ? { miraPiena: L.aimFull } : {}),
-        ...(R.ui?.training?.active ? { allenamento: true } : {}), ...(R.ui?.events?.active ? { minigioco: true } : {}) });
+        ...(R.ui?.training?.active || R.ui?.trial?.active ? { allenamento: true } : {}), ...(R.ui?.trial?.active ? { prova: true } : {}), ...(R.ui?.events?.active ? { minigioco: true } : {}) });
       return out;
     });
     // inizio di una partita (B16): il lato delle palle si giudica partita per partita. Modo (contro la CPU, stesso schermo,

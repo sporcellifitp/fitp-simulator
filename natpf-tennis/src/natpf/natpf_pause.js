@@ -60,8 +60,8 @@ export class NatpfPause {
     show(this.el.querySelector('[data-pause="phone"]'), this.ui.controller === 'phone');
     // niente moviola nel riscaldamento e nelle sfide (dopo il replay il lanciapalle non ripartiva), né prima di aver finito
     // un punto: la moviola rimette in scena l'ultimo punto giocato (natpf_replay.js)
-    show(this.el.querySelector('[data-pause="replay"]'), !this.ui.training?.active && !this.ui.events?.active && !!this.engine.natpfReplay?.available);
+    show(this.el.querySelector('[data-pause="replay"]'), !this.ui.training?.active && !this.ui.events?.active && !this.ui.trial?.active && !!this.engine.natpfReplay?.available);
     set('diag', this.ui.diag?.recorder?.active ? 'In registrazione' : 'Registra la sessione', !!this.ui.diag?.recorder?.active);
-    const kicker = this.el.querySelector('.sheet-kicker'); if (kicker) kicker.textContent = this.ui.training?.active ? 'Allenamento in pausa' : 'Partita in pausa';
+    const kicker = this.el.querySelector('.sheet-kicker'); if (kicker) kicker.textContent = this.ui.trial?.active ? 'Scambi di prova in pausa' : this.ui.training?.active ? 'Allenamento in pausa' : 'Partita in pausa';
   }
 }

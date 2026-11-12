@@ -201,10 +201,10 @@ animazioni del gioco sulle 24 ossa, al posto delle mascotte costruite nel codice
       racchetta nella mano giusta e sulla palla all'impatto; se il modello non si carica, ripiego sulle mascotte nel
       codice; fogli di confronto, prova nel browser, revisore indipendente.
 
-## B27 e B28 (secondo agente, sessione parallela; aggiornato il 12/11/2026 alle 17:35 UTC)
+## B27 e B28 (secondo agente, sessione parallela; aggiornato il 12/11/2026 alle 19:15 UTC)
 
 Lavoro chiesto dall'utente allo stand, in rami locali separati e unito qui un blocco alla volta dopo `git fetch`.
-**Il prossimo numero di versione libero è 2026-11-12.4** (la 2026-11-12.3 è il B27).
+**Il prossimo numero di versione libero è 2026-11-12.6** (2026-11-12.3 = B27, 2026-11-12.4 = Lob & Drop ed Evento/Bambini dell'altra sessione, 2026-11-12.5 = B28).
 
 **Versione 2026-11-12.3 = B27 · Postazione dello staff** (dettaglio: `docs/WORK_PROGRESS.md` B27, guida
 `docs/GUIDA_TELECOMANDO.md`, matrice delle schermate `docs/b27/telecomando.md`).
@@ -233,10 +233,20 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
       solo di dritto e manca una palla si ritrova destra e sinistra invertite; il Player 2 che esce dagli scambi di prova
       nella sfida tra due computer; pausa del telefono del Player 2 nello stesso schermo; profilo del visitatore prima
       ereditato quando si cambia l'opzione) e 3 minori; il percorso di base ha poche prove
-- [~] Correzioni + unione sopra la 2026-11-12.3 nel ramo `b28-cal-giocando` (agente fermato dal limite d'uso alle 14:45
-      UTC a metà dell'unione, ripreso alle 17:32 UTC)
-- [ ] Correzioni, unione (tocca `natpf_lobby.js`, `natpf_training.js`, `natpf_ui.js`, `natpf_phone_racket.js`, tre righe
-      di `game_engine.js`, `racchetta.js`, pannello dello stand), prove complete, versione, pacchetti
+- [x] Correzioni dei 7 difetti (ramo fino a `953eb34`), seconda revisione indipendente: via libera, nessun bloccante
+- [x] **Versione 2026-11-12.5**: unito sopra la 2026-11-12.4 (conflitti solo in `natpf_ui.js` `tick` e nel registro);
+      all'unione corretto il pulsante «CPU» del telecomando, rotto dalla 12.4 (ora gira tra i cinque livelli di
+      `natpf_who.js` e dice «Chi gioca: …»). Prove sul codice unito: gioco 1283/1283, sito 226/226, LAN 12/12, Windows
+      33/33, build ok; nel browser telecomando 81/81, menu 45/45, scambi-di-prova 24/24 · 25/25 · 12/12, flusso-tocchi
+      5/5, training-flow 21/21, nuovo-giocatore (modo di base) 30/30
+- [x] Push `3586020`; tre esecuzioni di GitHub verdi; **installer 2026-11-12.5 pubblicato su R2** e verificato dal link
+      fisso: 127.643.482 B, sha256 `ee207b7823c1c3533c4f82ddd7b92fb528ca8a6096e26e57539f770c09d8d26f`; zip Cloudflare
+      consegnato: 23.354.730 B, sha256 `72189697b9d1035d48677f9f90caa764e8e8fe86840b717d2e0f6112e77a0330`, provato
+      estratto (unico errore atteso: CORS del TURN)
+- [x] Detto all'utente come si attiva «Calibrazione» e cosa cambia; in corso il B28.1 nel ramo `b28-cal-giocando`
+- [ ] **Prossima versione (B28.1)**: i punti aperti della seconda revisione (`docs/WORK_PROGRESS.md`, «B28 · integrazione
+      e seconda revisione»): profilo che non si rinnova nei minigiochi e nell'allenamento, sfida tra due computer con
+      «Nessuna», scritta finale nello stesso schermo, limite di `natpf-phone-keep`
 - **Attenzione**: con il B28 chi aggiunge un controllo «siamo in partita?» deve escludere `ui.trial.active`; le prove
   `natpf-*` di prima girano con `CAL=gesti` (calibrazione con i gesti), il percorso nuovo lo provano i test nuovi.
 
@@ -268,6 +278,36 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
       worktree esistente (come `ripresa-b24-t2g3.js`: togliere `isolation: 'worktree'` e indicare il percorso); se si
       ferma dopo: `resumeFromRunId: 'wf_c1842a53-f0f'`. Script:
       `/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b29-lob-drop-modelli-3d-wf_c1842a53-f0f.js`.
+- [~] **B30 · Registro dello stand** (richiesta dell'utente del 12/11: «prevedi una raccolta di log continuativi (solo
+      gameplay) per quando aprirò lo stand alla gente»). **Due decisioni dell'utente (12/11, 18:25 UTC): «Non puoi salvare i
+      log su un drive? Il pc non è il mio, comunque vorrei avere questa modalità di default sempre attiva».** Quindi:
+      registro **acceso di base sempre**, in tutte le versioni; i dati **escono da soli dal PC** verso lo spazio
+      Cloudflare dell'utente (R2, con un Worker nuovo `natpf-tennis/cloudflare/registro-worker.js` che accetta solo
+      aggiunte; lettura e scarico solo con una chiave segreta che sceglie e tiene l'utente, mai nel repository); sul PC
+      resta solo la coda non ancora inviata; guida `docs/GUIDA_REGISTRO_CLOUDFLARE.md` (il Worker lo crea l'utente, come
+      per il TURN). Niente Google Drive/OneDrive: servirebbe mettere una chiave dell'account dentro un gioco pubblico.
+      **Terza indicazione dell'utente (18:35 UTC): «ok su Cloudflare ma non ho spazio infinito»** (R2 da 10 GB, con dentro
+      installer e trailer): il Worker deve avere un tetto totale configurabile (di base 2 GB) che cancella da solo i giorni
+      più vecchi, blocchi compressi e righe compatte, stima di partite e giorni che stanno in 2 e 10 GB scritta nella
+      guida, spazio occupato e cancellazione visibili con la chiave. Mandato come messaggio all'agente in corso
+      (`ab084c973d39c8426`); il testo del compito nello script v2 NON lo contiene: **controllare che sia stato fatto** e,
+      se no, chiederlo nelle correzioni.
+      **ATTENZIONE (12/11, 18:40 UTC): nella worktree del B30 lavorano DUE istanze dello stesso agente** (un mio
+      `SendMessage` all'agente del workflow lo ha «ripreso» in una seconda copia: lezione → NON mandare messaggi a un
+      agente di un workflow mentre gira; per cambiare il compito fermare il workflow e rilanciarlo). Divisione approvata:
+      istanza A (workflow) = Worker, strumenti di riassunto, guida, documento, verifiche finali e risultato; istanza B =
+      gioco, pannello dello stand, programma Windows, pacchetti, prova nel browser; protocollo = quello del commit
+      `020e7ab`; coordinamento nel file `scratchpad/b30-coordinamento.md`. Altra aggiunta mandata: **bucket R2 separato e
+      privato `natpf-registro`** (quello di installer e trailer è pubblico). All'unione controllare bene che le due metà
+      stiano insieme (stesso protocollo, test verdi) e che il revisore abbia visto tutto.
+      Il primo workflow (`wf_f20b2599-40d`) è stato fermato dopo pochi minuti e rilanciato con il compito aggiornato:
+      **`b30-registro-v2.js`, run `wf_0f562962-c56`**, che continua nella worktree `wf_f20b2599-40d-1` → revisore →
+      correzioni. Ripresa: rilanciare `b30-registro-v2.js` senza `resumeFromRunId` se la fase «Lavoro» non era finita,
+      con `resumeFromRunId: 'wf_0f562962-c56'` se era finita. Dopo: dire all'utente i passi della guida e chiedergli
+      l'indirizzo del Worker per metterlo nei pacchetti.
+- Nota dell'utente del 12/11 (18:10 UTC), con una schermata di Lob costruito nel codice in partita e le due immagini pulite
+  generate: vuole in campo i personaggi come nelle immagini → è il B29. Il GLB che ha allegato è lo stesso `drop.glb` già
+  in uso (stessa impronta sha256 `981fcbc1…`).
 - [ ] Dopo le prove complete: `ripresa-b23-t2g2.js` (dritto dal video + tappa 2 gruppo 2, worktree `wf_26d95fdf-3ea-1` e
       `-2`, base `9b8f9cb`; all'unione attenzione a `game_engine.js` `_natpfRacketShot`, toccato dal gruppo 3).
 - Aperti del gruppo 3 da chiedere all'utente dopo le prime partite vere: valore di partenza del livello Evento (0,8); a

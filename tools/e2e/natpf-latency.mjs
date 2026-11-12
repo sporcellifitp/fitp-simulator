@@ -7,6 +7,8 @@
 // e quante animazioni dello swing partono per un gesto solo (deve essere una: prima un gesto in anticipo ne faceva due).
 // Non misura il disegno (grafica software, fotogrammi lenti) né lo schermo: si aggiungono 1–2 fotogrammi (16–33 ms).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-latency.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

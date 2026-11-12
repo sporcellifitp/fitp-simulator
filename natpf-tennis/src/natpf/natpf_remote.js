@@ -11,7 +11,7 @@
 // di Windows (conferme, salvataggi) né link: quei controlli li salta (NO_REMOTE).
 import { createRemoteLink } from '@natpf/tennis/remote-link.js';
 import { showCode } from '@natpf/tennis/remote-pairing.js';
-import { remoteScreen, remoteCommands, navPlan, confirmText, scoreLine, nextCpu, CPU_LABEL } from './natpf_remote_map.js';
+import { remoteScreen, remoteCommands, navPlan, confirmText, scoreLine, nextCpu, cpuName } from './natpf_remote_map.js';
 import { nearestTile } from './natpf_lobby.js';
 import { phonePageUrl } from './natpf_phone_racket.js';
 import { lanOrigin } from './natpf_lan.js';
@@ -135,10 +135,16 @@ export class NatpfRemote {
   snapshot(){
     const ui = this.ui, E = this.engine, L = ui.lobby, T = ui.training, D = window.natpfDesktop;
     const tut = T?.tutorial;
-    const coach = $('coach-exit'), nickSkip = $('nick-cancel');
+    const coach = $('coach-exit'), next = $('coach-next'), nickSkip = $('nick-cancel');
+    const trial = !!ui.trial?.active;
+    // (B28) scambi di prova: «Salta» va alla partita; nell'allenamento «Avanti ›» passa all'esercizio dopo (nella
+    // calibrazione con i gesti salta solo quella); nel pannello del telefono «Salta la calibrazione»
     const skip = ui.intro?.active ? 'Salta l’intro'
       : visible($('natpf-nick')) && nickSkip && /salta/i.test(nickSkip.textContent) ? 'Salta il nome'
-      : T?.active && visible(coach) ? (T.cal ? 'Salta la calibrazione' : T.lesson ? 'Salta la lezione' : 'Salta il riscaldamento') : null;
+      : trial ? (ui.pause?.isOpen ? null : 'Salta gli scambi di prova')
+      : T?.active && visible(next) ? (T.cal ? 'Salta la calibrazione' : 'Avanti: esercizio dopo')
+      : T?.active && visible(coach) ? (T.cal ? 'Salta la calibrazione' : T.lesson ? 'Salta la lezione' : 'Salta il riscaldamento')
+      : visible($('natpf-phone-modal')) && visible($('natpf-phone-skip')) ? 'Salta la calibrazione' : null;
     const splitTut = !!ui.split && ['p1', 'p2'].some(id => ui.split.tut?.[id]?.open);
     const fs = ui.screen?.fullscreen;
     return {
@@ -160,10 +166,11 @@ export class NatpfRemote {
       training: { active: !!T?.active, lesson: !!T?.lesson, cal: !!T?.cal, mode: L?.mode },
       minigame: ui.events?.active ? (ui.events.active.c?.label || 'in corso') : null,
       inField: !!ui.pause?.inGame,
+      trial, recalTrial: !!ui.recalTrialDue?.(), calMode: ui.phone?.calMode || null,
       split: !!ui.split?.session, versus: !!ui.versus?.hostActive || E.playerRole === 'p2',
       controller: ui.controller,
       phone: { connected: !!ui.phone?.connected, ready: !!ui.phone?.ready },
-      cpu: document.querySelector('#difficulty-mode-group [data-difficulty].selected')?.dataset.difficulty || 'casual',
+      cpu: ui.lobby?.cpuLevel || document.querySelector('#difficulty-mode-group [data-difficulty].selected')?.dataset.difficulty || 'evento',
       desktop: D?.displays ? { displays: this.displays?.list?.length || 0, label: this.displays?.current?.label || '' } : null,
       fullscreen: { available: !!fs, on: !!fs?.frameless, gesture: !!fs && !D },
       skip,
@@ -325,16 +332,21 @@ export class NatpfRemote {
         return { ok: true, msg: route === 'menu' ? 'Nuovo giocatore: si riparte dal menu' : 'Nuovo giocatore: nome, tutorial e calibrazione da capo' };
       }
       case 'recal': {
-        if (s.inField || screen.id === 'pause'){ ui.pause.close(); ui.openPhone(); }
-        ui.phone.recalibrate();
-        return { ok: true, msg: 'Il telefono del giocatore ricalibra' };
+        // come «Ricalibra» del pannello del telefono (B28): in partita con «Calibrazione: Giocando» sono gli scambi
+        // di prova e poi si rigioca il punto; altrimenti il profilo riparte (o si rifanno i gesti) con il pannello aperto
+        const field = s.inField || screen.id === 'pause';
+        if (field) ui.pause.close();
+        if (ui.recalibrate()) return { ok: true, msg: 'Scambi di prova: poi si rigioca il punto' };
+        if (field) ui.openPhone();
+        return { ok: true, msg: ui.phone.autoSimple ? 'Profilo del telefono da capo: il gioco impara dai colpi' : 'Il telefono del giocatore ricalibra' };
       }
       case 'gestures': ui.training.reviewGestures(); return { ok: true, msg: 'Rivedi i gesti: Indietro per chiudere' };
       case 'cpu': {
         const next = nextCpu(s.cpu);
-        document.querySelector(`#difficulty-mode-group [data-difficulty="${next}"]`)?.click();
+        // come «Altre impostazioni» → «Livello della CPU»: vale per tutti e cinque i livelli, anche senza tessera
+        if (L.setLevel) L.setLevel(next); else document.querySelector(`#difficulty-mode-group [data-difficulty="${next}"]`)?.click();
         L.paint?.();
-        return { ok: true, msg: `CPU ${CPU_LABEL[next]}` };
+        return { ok: true, msg: cpuName(next) };
       }
       case 'screen': {
         const r = await window.natpfDesktop?.displays?.next?.();
@@ -346,7 +358,10 @@ export class NatpfRemote {
       case 'skip': {
         if (ui.intro?.active){ ui.intro.finishAnimation(); ui.intro.start(); return { ok: true, msg: 'Intro saltata' }; }
         if (visible($('natpf-nick'))){ $('nick-cancel')?.click(); return { ok: true }; }
+        if (ui.trial?.active){ ui.trial.skip(); return { ok: true, msg: 'Scambi di prova saltati: si gioca' }; }
+        if (ui.training?.active && visible($('coach-next'))){ $('coach-next').click(); return { ok: true, msg: ui.training.cal ? 'Calibrazione saltata' : 'Esercizio dopo' }; }
         if (visible($('coach-exit'))){ $('coach-exit').click(); return { ok: true, msg: 'Saltato' }; }
+        if (visible($('natpf-phone-modal')) && visible($('natpf-phone-skip'))){ $('natpf-phone-skip').click(); return { ok: true, msg: 'Calibrazione saltata' }; }
         return { ok: false, msg: 'Niente da saltare' };
       }
     }

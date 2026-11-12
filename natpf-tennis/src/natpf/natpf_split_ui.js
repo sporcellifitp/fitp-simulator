@@ -80,12 +80,14 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = fals
   if (tut || p.tutWait){
     const n = Math.max(1, tp?.n || tut?.n || 1), i = Math.min(n, Math.max(1, tp ? (tp.i ?? 0) + 1 : tut?.i || 1));
     const seen = tp?.n ? `Schede viste ${tp.s} di ${tp.n}` : `Scheda ${i} di ${n}`;
-    return { state: 'tut', title: 'Guarda il tutorial', sub: tp?.all ? `${seen} · sul telefono «Tutto chiaro, ho capito»` : `${seen}, poi sul telefono «Tutto chiaro, ho capito»`, detail: `Tutorial ${i}/${n}` };
+    // (B28: si chiude quando si vuole, da qualunque scheda)
+    return { state: 'tut', title: 'Guarda il tutorial', sub: `${seen} · quando vuoi, sul telefono «Tutto chiaro, ho capito»`, detail: `Tutorial ${i}/${n}` };
   }
   if (unseen) return { state: 'tut', title: 'Tutorial da vedere', sub: 'Si apre nella pagina dei telefoni («Racchette»)', detail: 'Tutorial da vedere' };
   if (L.vis === false || health?.why === 'pagina nascosta') return { state: 'ko', title: 'Schermo del telefono spento', sub: 'Riaccendi lo schermo e tocca la pagina del gioco', detail: 'Schermo spento' };
   if (p.ready && health?.why === 'sensori fermi' && !(health.gapMs < SPLIT_STALL_MS)) return { state: 'ko', title: 'Sensori del telefono fermi', sub: 'Sul telefono tocca «Riattiva i sensori»', detail: 'Sensori fermi' };
-  if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata', detail: p.simple ? 'Senza calibrazione' : 'Calibrato' };
+  // (B28: con la calibrazione «Giocando» il profilo semplice è voluto: si calibra con gli scambi di prova)
+  if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? (p.calMode === 'play' ? 'Si calibra giocando' : 'Senza calibrazione: si gioca lo stesso') : 'Racchetta calibrata', detail: p.simple ? (p.calMode === 'play' ? 'Si calibra giocando' : 'Senza calibrazione') : 'Calibrato' };
   if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»', detail: 'Attiva i sensori' };
   const c = calPrompt(p.calView, hand);
   return { state: c.state === 'go' ? 'go' : 'on', title: c.title, sub: c.sub, detail: 'Calibrazione' };
@@ -193,9 +195,15 @@ export class NatpfSplitUi {
   // sinistra), ← → quello del P2 (metà destra); con una sola metà aperta tutti e due i tasti vanno a quella
   // Invio e Spazio sulla X o su una freccia a fuoco (Tab) attivano quella della metà che ha il fuoco, come il clic
   // (natpf_tutorial.keyActivate; senza, la lobby con Invio andrebbe alla pagina dopo)
+  // B28 (12/11): Invio (senza un pulsante a fuoco) chiude i tutorial aperti, da qualunque scheda, come «Tutto chiaro» dai
+  // telefoni o la X di ogni metà. Esc resta «indietro» (lascia la pagina, come sempre)
   key(e){
     if (!this.tutOpen.p1 && !this.tutOpen.p2) return false;
-    if (e.code === 'Enter' || e.code === 'Space') return ['p1', 'p2'].some(id => this.tutOpen[id] && !!this.tut[id]?.keyActivate(e));
+    if (e.code === 'Enter' || e.code === 'Space'){
+      if (['p1', 'p2'].some(id => this.tutOpen[id] && !!this.tut[id]?.keyActivate(e))) return true;
+      if (e.code !== 'Enter') return false;
+    }
+    if (e.code === 'Enter'){ if (!e.repeat){ for (const id of SPLIT_PLAYERS) this._tutDone(id); this.paint(); } return true; }
     const left = e.code === 'KeyA' || e.code === 'KeyD';
     const id = left ? (this.tutOpen.p1 ? 'p1' : 'p2') : (this.tutOpen.p2 ? 'p2' : 'p1');
     const code = e.code === 'KeyA' ? 'ArrowLeft' : e.code === 'KeyD' ? 'ArrowRight' : e.code;
@@ -305,7 +313,8 @@ export class NatpfSplitUi {
     if (p.connected && !p.tutorialSeen && !this.tutOpen[id] && !this.webcam) this._tutOpen(id);
     if (!p.connected && this.tutOpen[id]) this._tutClose(id, { keep: true, hold: true });
     if (this.tutOpen[id]){ this.tut[id]?.setAfter(p.ready ? 'ready' : 'cal'); return; }
-    if (p.connected && L.phone === 'cal' && !p.ready && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
+    // (B28: senza i gesti il telefono riceve da solo il profilo semplice, NatpfPhoneRacket._autoProfile)
+    if (p.connected && L.phone === 'cal' && !p.ready && !p.autoSimple && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
   }
   _tutOpen(id){
     this.tutOpen[id] = true; this.tutHeld[id] = false;
@@ -643,7 +652,9 @@ export class NatpfSplitUi {
     if (a.kind === 'resume'){
       this.hold = null; this.ui._paintHold(null, '', null, 'p2'); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
       this.ui._tellOtherPhone?.('p2', false);
-      const replay = a.replay && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
+      // (negli scambi di prova niente da rigiocare: la palla dopo arriva da sola. Revisione del B28, difetto 3: il punto
+      // «rigiocato» lasciava il servizio pronto sotto il cartello e nessuna palla fino al tetto di tempo)
+      const replay = a.replay && !this.ui.trial?.active && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
       if (replay){ E._setupPointServe({ showBanner: false }); this.ui.toast?.(`Il telefono ${phoneOf(this.name('p2'))} si era fermato: il punto si rigioca`); }
       R?.log?.('tel.ripresa', { chi: 'p2', rigiocato: replay });
     }

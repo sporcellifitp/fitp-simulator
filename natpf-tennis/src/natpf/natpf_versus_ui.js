@@ -264,6 +264,10 @@ export class NatpfVersusUi {
     // già pronti: il pulsante non è un interruttore (per tornare indietro c'è «Annulla»)
     if (this.ready){ ui.toast('Sei pronto ✓ Per tornare indietro premi «Annulla»'); return; }
     if (ui.controller === 'webcam' && this._webcamSetup()){ this.openCam(); return; }
+    // (opzione dello stand passata a «Con i gesti» con il telefono rimasto con il profilo dato dal gioco: rifà i gesti)
+    if (ui.controller === 'phone') phone.demoteIfStale?.();
+    // B28: telefono già pronto con la calibrazione «Giocando»: prima gli scambi di prova in campo (una volta), poi pronto
+    if (ui.controller === 'phone' && phone.ready && !this.trialPlayed && ui.trial?.due?.({ split: false })){ this.startCal(); return; }
     if (ui.controller !== 'phone' || phone.ready){ this.setReady(true); return; }
     this.awaitPhone = true;
     show($('natpf-guest-modal'), false);
@@ -315,16 +319,23 @@ export class NatpfVersusUi {
   // natpf_training.warmupDrills), saltabile con «Salta»
   startCal(){
     const E = this.engine, ui = this.ui, mc = E.motionController;
-    if (!ui.training || ui.training.active) return;
+    if (!ui.training || ui.training.active || ui.trial?.active) return;
     const webcam = ui.controller === 'webcam';
     this.awaitPhone = false; this.closeCam();
     this.local = { role: E.playerRole, multi: E.isMultiplayer, auto: E.autoPlayMode, touched: E.userHasInteracted, webcam };
     E.playerRole = 'p1'; if (mc) mc.localPractice = true;
     show($('natpf-guest-modal'), false);
-    ui.training.start(webcam ? { drills: warmupDrills('webcam'), guest: true } : { calOnly: true, guest: true });
+    // B28, calibrazione «Giocando»: al posto dei due gesti gli scambi di prova con il lanciapalle, poi pronto da solo
+    // (interrotti dal menu o dal chiosco: il motore torna quello del Player 2, non pronto, e si rifanno dal pannello;
+    // revisione del B28, difetto 2: il ruolo restava «p1» e il computer del Player 2 era da ricaricare)
+    if (!webcam && ui.trial?.due?.({ split: false })){
+      this.trialPlayed = true;
+      ui.trial.start({ split: false, then: () => this.calDone({ completed: true, calibrated: true }), cancel: () => { this.trialPlayed = false; this.calDone({ interrupted: true }); } });
+    }
+    else ui.training.start(webcam ? { drills: warmupDrills('webcam'), guest: true } : { calOnly: true, guest: true });
     ui.diag?.recorder?.log?.('sfida.prova', { racchetta: ui.controller, stato: 'inizio' });
   }
-  calDone({ completed = false, skipped = false } = {}){
+  calDone({ completed = false, skipped = false, interrupted = false } = {}){
     const E = this.engine, mc = E.motionController, was = this.local; this.local = null;
     if (mc) mc.localPractice = false;
     if (was){ E.playerRole = was.role; E.isMultiplayer = was.multi; E.autoPlayMode = was.auto; E.userHasInteracted = was.touched; }
@@ -333,8 +344,8 @@ export class NatpfVersusUi {
     // attimo dopo la fine della calibrazione in campo: non lo si aspetta qui (prima il P2 restava non pronto). Con la
     // webcam: riscaldamento finito o saltato
     if (webcam && (completed || skipped)) this.camTried = true;
-    if (completed || skipped || (!webcam && this.ui.phone.ready)) this.setReady(true);
-    this.ui.toast(this.ready ? `${webcam ? 'Webcam pronta' : 'Racchetta pronta'} ✓ ora aspetta che l’host avvii la partita` : webcam ? 'Prova interrotta: rifalla dal pannello' : 'Calibrazione interrotta: rifalla dal pannello');
+    if (completed || skipped || (!webcam && this.ui.phone.ready && !interrupted)) this.setReady(true);
+    this.ui.toast(interrupted && !this.ready ? 'Scambi di prova interrotti: rifalli dal pannello' : this.ready ? `${webcam ? 'Webcam pronta' : 'Racchetta pronta'} ✓ ora aspetta che l’host avvii la partita` : webcam ? 'Prova interrotta: rifalla dal pannello' : 'Calibrazione interrotta: rifalla dal pannello');
     this.ui.diag?.recorder?.log?.('sfida.prova', { racchetta: webcam ? 'webcam' : 'phone', stato: completed ? 'finita' : skipped ? 'saltata' : 'interrotta', pronto: this.ready });
     this._tickGuest();
   }
@@ -389,7 +400,7 @@ export class NatpfVersusUi {
   // vede quando la partita è ferma (riquadro sopra il campo, con «Ricollega il telefono» o «Riconnetti»)
   _guestHold(st){
     const E = this.engine, ui = this.ui, mc = E.motionController, now = performance.now();
-    const playing = st === 'playing' && !this.local && !ui.training?.active;
+    const playing = st === 'playing' && !this.local && !ui.training?.active && !ui.trial?.active;
     const G = E.versusGuest || {}, p2p = E.natpfP2p, hold = st === 'playing' ? G.hold : null;
     // salute della racchetta: telefono, o webcam (spenta, ferma, mano persa a lungo: natpf_webcam_watch.webcamHealth, con
     // le soglie del Player 1; già in pausa per un motivo del P2, per riprendere la mano deve vedersi adesso)
@@ -436,7 +447,7 @@ export class NatpfVersusUi {
     // il pannello resta aperto finché non si gioca; torna se l'host chiude, si perde il collegamento o si torna in lobby.
     // Non sopra il pannello del telefono, la guida o la calibrazione in campo: prima, dopo «Sono pronto» con il telefono
     // da collegare, tornava ogni 250 ms sopra il QR e lo copriva
-    const pm = this.ui.modal, other = (!!pm && !pm.classList.contains('hidden')) || this.camOpen || !!this.ui.onboarding?.isOpen || !!this.ui.training?.active;
+    const pm = this.ui.modal, other = (!!pm && !pm.classList.contains('hidden')) || this.camOpen || !!this.ui.onboarding?.isOpen || !!this.ui.training?.active || !!this.ui.trial?.active;
     if (modal) show(modal, st !== 'playing' && !other);
     if (this._last !== st){
       if (st === 'playing' && this._last) this.ui.toast('Si gioca!');

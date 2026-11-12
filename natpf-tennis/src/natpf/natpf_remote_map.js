@@ -15,7 +15,10 @@
 //   'field' in campo: frecce e OK non fanno niente (muoverebbero il giocatore e tirerebbero colpi: il telecomando non
 //           interferisce mai con la racchetta), Indietro apre la pausa.
 
+import { CPU_LEVELS as WHO_CPU_LEVELS, LEVEL_NAME, whoOfLevel } from './natpf_who.js';
+
 export const SCREEN_LABEL = Object.freeze({
+  trial: 'Scambi di prova',
   intro: 'Intro', staff: 'Pannello dello stand', remote: 'Telecomando dello staff', dialog: 'Finestra di avviso', nick: 'Nome del giocatore',
   diag: 'Diagnostica', calibra: 'Calibrazione dello schermo', guide: 'Guida «Come si gioca»', tutorial: 'Tutorial dei gesti',
   hold: 'Partita ferma: telefono scollegato', phonePanel: 'Pannello del telefono', pause: 'Pausa', victory: 'Fine partita',
@@ -27,12 +30,18 @@ export const LOBBY_LABEL = Object.freeze({
   match: 'Pronto per la partita', options: 'Opzioni', challenges: 'Minigiochi', ranking: 'Classifica del giorno',
   result: 'Risultato del minigioco', warmup: 'In campo',
 });
-export const CPU_LEVELS = Object.freeze(['casual', 'pro', 'leggenda']);
-export const CPU_LABEL = Object.freeze({ casual: 'Facile', pro: 'Esperta', leggenda: 'Leggenda' });
-export const nextCpu = level => CPU_LEVELS[(CPU_LEVELS.indexOf(level) + 1) % CPU_LEVELS.length];
+// Livello contro la CPU (dal 2026-11-12.4 la pagina «Partita» chiede «Chi gioca: Bambino · Ragazzo · Adulto», natpf_who.js;
+// Esperta e Leggenda stanno in «Altre impostazioni»). Il pulsante del telecomando gira tra tutti e cinque, in ordine di
+// difficoltà, e dice il nome che lo staff vede sullo schermo: «Chi gioca: Adulto», oppure «CPU: Esperta».
+export const CPU_LEVELS = WHO_CPU_LEVELS;
+const WHO_NAME = Object.freeze({ bambino: 'Bambino', ragazzo: 'Ragazzo', adulto: 'Adulto' });
+const cpuOk = level => (CPU_LEVELS.includes(level) ? level : 'evento');
+export const cpuName = level => { const l = cpuOk(level), w = whoOfLevel(l); return w ? WHO_NAME[w] : `CPU ${LEVEL_NAME[l]}`; };
+export const cpuLabel = level => { const l = cpuOk(level), w = whoOfLevel(l); return w ? `Chi gioca: ${WHO_NAME[w]}` : `CPU: ${LEVEL_NAME[l]}`; };
+export const nextCpu = level => CPU_LEVELS[(CPU_LEVELS.indexOf(cpuOk(level)) + 1) % CPU_LEVELS.length];
 // strati sopra il menu e il campo, dal più in alto
 export const LAYERS = Object.freeze(['intro', 'staff', 'remote', 'dialog', 'nick', 'diag', 'calibra', 'guide', 'tutorial', 'pause', 'hold', 'phonePanel', 'victory', 'guest']);
-const FIELD = new Set(['cal', 'warmup', 'training', 'minigame', 'match']);
+const FIELD = new Set(['cal', 'trial', 'warmup', 'training', 'minigame', 'match']);
 // strati con i pulsanti in cui le frecce spostano il fuoco
 const FOCUS = new Set(['staff', 'remote', 'dialog', 'nick', 'diag', 'hold', 'phonePanel', 'pause', 'victory', 'guest']);
 
@@ -48,6 +57,8 @@ export function remoteScreen(s = {}){
     const label = top === 'tutorial' && s.tutorialReview ? 'Rivedi i gesti' : SCREEN_LABEL[top];
     return { id: top, label, nav: FOCUS.has(top) ? 'focus' : 'keys', under: underOf(s) };
   }
+  // scambi di prova (B28: la calibrazione giocando): in campo, anche nella sfida tra due computer che li apre dal menu
+  if (s.trial) return { id: 'trial', label: SCREEN_LABEL.trial, nav: 'field' };
   if (L.visible){
     const step = L.step || 'menu';
     let label = LOBBY_LABEL[step] || 'Menu';
@@ -84,7 +95,8 @@ export function navPlan(screen, cmd){
   if (!(cmd in KEYS)) return null;
   if (screen.nav === 'field'){
     if (cmd === 'back') return { kind: 'pause' };
-    return { kind: 'blocked', why: screen.id === 'cal' ? 'Calibrazione in corso: la fa il giocatore con il suo telefono. Indietro o Pausa per fermarla.' : 'In campo frecce e OK muoverebbero il giocatore: usa Pausa (o Indietro).' };
+    return { kind: 'blocked', why: screen.id === 'cal' ? 'Calibrazione in corso: la fa il giocatore con il suo telefono. Indietro o Pausa per fermarla.'
+      : screen.id === 'trial' ? 'Scambi di prova: li gioca il giocatore. Salta per andare subito alla partita, Indietro o Pausa per fermarli.' : 'In campo frecce e OK muoverebbero il giocatore: usa Pausa (o Indietro).' };
   }
   if (screen.nav === 'focus'){
     if (cmd === 'ok') return { kind: 'press' };
@@ -102,6 +114,7 @@ const on = 1;
 //   controller ('phone' | 'webcam' | 'mouse'), phone: { connected }, cpu (livello), desktop: { displays, label } | null,
 //   fullscreen: { available, on, gesture } (gesture: nel browser serve un tasto vero), skip (c'è un «Salta» in vista),
 //   canReview (si può aprire «Rivedi i gesti»), connectReady (la pagina «Collega» può andare avanti)
+//   trial (scambi di prova in corso), recalTrial («Ricalibra» adesso farebbe gli scambi di prova), calMode ('play' | 'gesti' | 'none')
 export function remoteCommands(s = {}, screen = remoteScreen(s)){
   const cmds = {}, labels = {}, hints = {};
   const field = screen.nav === 'field', running = gameRunning(screen), L = s.lobby || {};
@@ -131,15 +144,21 @@ export function remoteCommands(s = {}, screen = remoteScreen(s)){
   cmds.newplayer = screen.id === 'intro' ? 'Prima entra nel menu (OK)' : on;
   if (running) hints.newplayer = 'chiude la partita';
   // telefono del giocatore
-  cmds.recal = s.controller !== 'phone' ? 'Il giocatore non usa il telefono' : !s.phone?.connected ? 'Telefono del giocatore non collegato' : s.split ? 'Stesso schermo: ricalibra dalla pagina «Racchette»' : screen.id === 'intro' ? 'Prima entra nel menu (OK)' : on;
+  // (B28) con «Calibrazione: Giocando» in partita «Ricalibra» rifà gli scambi di prova e poi si rigioca il punto
+  // (s.recalTrial, anche nello stesso schermo: per tutti e due); altrimenti azzera il profilo o rifà i gesti
+  const underTrial = screen.id === 'trial' || screen.under === 'trial';
+  cmds.recal = s.controller !== 'phone' ? 'Il giocatore non usa il telefono' : !s.phone?.connected ? 'Telefono del giocatore non collegato'
+    : underTrial ? 'Gli scambi di prova stanno già calibrando' : s.split && !s.recalTrial ? 'Stesso schermo: ricalibra dalla pagina «Racchette»' : screen.id === 'intro' ? 'Prima entra nel menu (OK)' : on;
+  if (cmds.recal === on) hints.recal = s.recalTrial ? 'scambi di prova, poi si rigioca il punto' : s.calMode === 'gesti' ? 'rifà i gesti' : s.calMode === 'none' ? 'profilo da capo' : s.calMode === 'play' ? 'profilo da capo: impara dai prossimi scambi' : '';
+  if (!hints.recal) delete hints.recal;
   cmds.gestures = s.canReview ? on : screen.id === 'tutorial' ? 'Il tutorial è già aperto' : field || running ? 'In partita no: Pausa → Aiuto «Come si gioca»' : 'Qui non c’è il tutorial dei gesti';
   // livello della CPU (vale dalla prossima partita)
   const cpuFree = !s.split && !s.versus && L.mode !== 'split' && L.mode !== 'friend';
   // (in partita no: la CPU cambierebbe a metà; sopra il menu, nella pausa del menu o a fine partita sì)
   const atMenu = screen.id.startsWith('lobby:') || String(screen.under || '').startsWith('lobby:') || screen.id === 'victory';
   cmds.cpu = !cpuFree ? 'Non c’è la CPU in questa modalità' : !atMenu ? 'Si cambia dal menu, prima o dopo la partita' : on;
-  labels.cpu = `CPU: ${CPU_LABEL[s.cpu] || CPU_LABEL.casual}`;
-  if (cmds.cpu === on) hints.cpu = `poi ${CPU_LABEL[nextCpu(s.cpu || 'casual')]}`;
+  labels.cpu = cpuLabel(s.cpu);
+  if (cmds.cpu === on) hints.cpu = `poi ${cpuName(nextCpu(s.cpu))}`;
   // schermo del gioco (solo nel programma Windows) e schermo intero
   if (!s.desktop){ cmds.screen = 'Solo nel programma Windows'; }
   else if ((s.desktop.displays || 0) < 2){ cmds.screen = 'C’è un solo monitor collegato'; hints.screen = s.desktop.label || ''; }

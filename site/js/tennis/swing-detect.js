@@ -146,6 +146,8 @@ export function netTurn(turn, angle, min = .2){
   return r >= min ? 1 : r <= -min ? -1 : 0;
 }
 
+// voti sul segno dei sensori senza calibrazione, per lato atteso della palla (+1 destra, −1 sinistra)
+const newVotes = () => ({ 1: { agree: 0, against: 0 }, '-1': { agree: 0, against: 0 } });
 export function createSwingDetector(opts = {}){
   const C = { ...DEFAULTS, ...opts };
   let prof = defaultProfile();
@@ -157,7 +159,7 @@ export function createSwingDetector(opts = {}){
   // preparazione (evento 'prep'), altrimenti vale come colpo con il suo istante del picco (il tempo resta giusto).
   let prepMode = false, expectDir = 0, held = null, lastDir = 0, lastAxis = null, atNet = false;
   // verso assoluto (senza asse di calibrazione): segno dei sensori e voti dei colpi rispetto al verso atteso
-  let absSign = 1, votes = { agree: 0, against: 0 };
+  let absSign = 1, votes = newVotes(), voting = true;
   // ultimi tre campioni grezzi (tempo, modulo): l'istante vero del picco si ricava da una parabola sui tre attorno al
   // massimo, senza il ritardo della media mobile (che serve solo a decidere quando il colpo è partito)
   const raw = [];
@@ -402,11 +404,22 @@ export function createSwingDetector(opts = {}){
   }
   // segno dei sensori senza calibrazione: i colpi netti (forza almeno da colpo normale) con il verso atteso noto votano;
   // quasi tutti al contrario vuol dire sensori con il segno opposto (la calibrazione lo scopre con vsign)
+  // (B28, revisione) il lato della palla dice qualcosa sul segno solo se i colpi al contrario ci sono stati da tutti e
+  // due i lati: chi fa sempre lo stesso gesto (solo dritti, anche sulle palle di rovescio) non ha i sensori al contrario,
+  // e girare il segno gli specchierebbe destra e sinistra per tutta la partita. Senza i due versi resta la gravità
+  // Durante gli scambi di prova il telefono non vota (setSignVote(false)): lì il segno lo decide il computer, che vede il
+  // lato vero di ogni palla e gira il verso atteso che manda; due correzioni insieme si annullerebbero. E il segno si gira
+  // solo su un colpo al contrario, mai su uno d'accordo
   function vote(sw){
-    if (!expectDir || !sw.dir || (sw.features?.speed ?? 0) < .6) return;
-    if (sw.dir === expectDir) votes.agree++; else votes.against++;
-    const n = votes.agree + votes.against;
-    if (n >= C.signVotes && votes.agree/n <= C.signAgree){ absSign = -absSign; sw.dir = -sw.dir; votes = { agree: votes.against, against: votes.agree }; emit('status', { s: 'sign', sign: absSign }); }
+    if (!voting || !expectDir || !sw.dir || (sw.features?.speed ?? 0) < .6) return;
+    const side = votes[expectDir], cross = sw.dir !== expectDir;
+    if (cross) side.against++; else side.agree++;
+    const agree = votes[1].agree + votes[-1].agree, against = votes[1].against + votes[-1].against, n = agree + against;
+    if (cross && n >= C.signVotes && agree/n <= C.signAgree && votes[1].against > 0 && votes[-1].against > 0){
+      absSign = -absSign; sw.dir = -sw.dir;
+      votes = { 1: { agree: votes[1].against, against: votes[1].agree }, '-1': { agree: votes[-1].against, against: votes[-1].agree } };
+      emit('status', { s: 'sign', sign: absSign });
+    }
   }
   // gesto trattenuto senza il colpo opposto: se è lento era una preparazione rimasta a metà (nelle registrazioni questi
   // gesti partivano 250 ms dopo come colpi lenti e quasi mai prendevano la palla), altrimenti vale come colpo
@@ -438,6 +451,8 @@ export function createSwingDetector(opts = {}){
     // modalità preparazione e verso del colpo atteso (+1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa)
     setPrepMode(v){ prepMode = !!v; if (!prepMode){ expectDir = 0; held = null; } },
     setExpect(d){ expectDir = d === 1 ? 1 : d === -1 ? -1 : 0; },
+    // voto sul segno dei sensori acceso o spento (spento negli scambi di prova); a ogni cambio i voti ripartono
+    setSignVote(on){ on = !!on; if (on !== voting){ voting = on; votes = newVotes(); } },
     // a rete (dal gioco, cfg net): soglie basse per i tocchi morbidi (DEFAULTS.netOn, netMinPeak); false al rientro
     setNet(v){ atNet = !!v; },
     get atNet(){ return atNet; },
@@ -451,7 +466,7 @@ export function createSwingDetector(opts = {}){
     // che arriva). Prima il rilevatore restava ad aspettare il telefono fermo e nessun colpo partiva
     finishStill(){ if (mode !== 'still') return false; if (still?.length) settle(still, true); else finishAt = true; return true; },
     // deriva solo se plausibile anche dai profili salvati prima (alcuni avevano il movimento della mano come deriva)
-    setProfile(p){ const b = p.bias || prof.bias; prof = { ...defaultProfile(), ...p, bias: b && len(b) <= C.biasMax ? b : [0, 0, 0] }; armed = !prof.intentGate; absSign = 1; votes = { agree: 0, against: 0 }; played[1] = []; played[-1] = []; reset(); },
+    setProfile(p){ const b = p.bias || prof.bias; prof = { ...defaultProfile(), ...p, bias: b && len(b) <= C.biasMax ? b : [0, 0, 0] }; armed = !prof.intentGate; absSign = 1; votes = newVotes(); played[1] = []; played[-1] = []; reset(); },
     // colpo tipico per verso in uso (calibrazione o colpi veri), per la diagnostica e le prove
     typical(dir){ return effRef(dir); },
     get absSign(){ return absSign; },

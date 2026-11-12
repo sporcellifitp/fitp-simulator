@@ -13,6 +13,8 @@
 // Schermate a 1280×720, 1920×1080 e in un'area di ledwall 720×720 (come ?area=0,0,720,720), e dei telefoni (390×844).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-split-ready.mjs     (OUT=cartella delle schermate)
 // Eventi devicemotion sintetici e due pagine del telefono sulla stessa macchina: non sostituiscono due telefoni veri.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

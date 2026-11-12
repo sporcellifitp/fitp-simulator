@@ -11,6 +11,8 @@
 // a destra; stesso schermo: una copia in alto a sinistra della metà del Player 2 (#natpf-scoreboard-p2), ognuna nella sua
 // metà, e niente etichetta «Al servizio» (è di una sola vista). Misure in docs/b17/punteggio.md.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome GAME_PORT=3851 node natpf-tabellone.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

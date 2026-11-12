@@ -60,14 +60,19 @@ la dice (Android sì, iPhone no).
 | **Gioca** | dal menu verso la partita contro la CPU; nella pagina «Pronto per la partita» è **Gioca!**; a fine partita **Gioca ancora**. |
 | **Torna al menu** | dal punto in cui sei; con una partita in corso il telefono chiede conferma. |
 | **Nuovo giocatore** | azzera nome, tutorial e calibrazione per chi arriva (il telefono del giocatore resta collegato). |
-| **Salta** | intro, nome, riscaldamento, calibrazione, lezione: quando c'è. |
-| **Ricalibra il telefono** | il telefono del giocatore rifà i gesti. |
+| **Salta** | intro, nome, **scambi di prova** (la partita parte subito), riscaldamento, lezione, calibrazione con i gesti: quando c'è. Negli esercizi dell'allenamento è «Avanti»: passa all'esercizio dopo. |
+| **Ricalibra il telefono** | fa quello che fa «Ricalibra» sul computer. Con «Calibrazione: Giocando» (di base): **in partita** si rifanno gli scambi di prova e poi si rigioca il punto, con il punteggio com'era (anche nello stesso schermo: per tutti e due); fuori dalla partita il telefono riparte da capo e il gioco impara dagli scambi di prova della prossima partita. Con «Calibrazione: Con i gesti» il telefono del giocatore rifà i gesti. Durante gli scambi di prova è spento: stanno già calibrando. |
 | **Rivedi i gesti** | la modale del tutorial (Indietro la chiude). |
-| **CPU: Facile / Esperta / Leggenda** | livello della prossima partita (dal menu, prima o dopo la partita). |
+| **Chi gioca: Bambino / Ragazzo / Adulto** (poi CPU: Esperta, Leggenda) | chi gioca la prossima partita contro la CPU, cioè il livello; ogni tocco passa al successivo (dal menu, prima o dopo la partita). |
 | **Schermo intero** | sì/no (nel programma Windows). |
 | **Pannello dell'addetto** | apre e chiude il pannello dello stand. |
 
 Un pulsante grigio e tratteggiato non serve in quella pagina: sotto c'è scritto perché.
+
+**Pagina «Scambi di prova»** (con «Calibrazione: Giocando», dopo ogni «Gioca» e prima della partita vera, circa 10
+secondi): sul telefono in alto c'è scritto «Scambi di prova». È una pagina «in campo»: frecce e OK sono spenti (li gioca
+il giocatore), **Indietro** e **Pausa** mettono in pausa, **Salta gli scambi di prova** fa partire subito la partita,
+**Torna al menu** e **Nuovo giocatore** chiedono conferma. «Ricalibra il telefono» lì è spento: stanno già calibrando.
 
 ## 5. Se il telecomando non si collega
 

@@ -53,7 +53,7 @@ sono quelli dopo la revisione.
   dell'abbinamento: le frecce li saltano e OK li rifiuta (`NO_REMOTE` in `natpf_remote.js`; un test controlla che ogni
   `confirm()` del gioco sia nell'elenco). «Scollega il telecomando» è in due passi nella pagina, senza `confirm()`.
 - **Comandi**: navigazione (↑ ↓ ← → OK Indietro) e diretti (Gioca / Pronto, Torna al menu, Pausa / Riprendi, Nuovo
-  giocatore, Salta, Ricalibra il telefono, Rivedi i gesti, Livello CPU, Schermo del gioco, Schermo intero, Pannello
+  giocatore, Salta, Ricalibra il telefono, Rivedi i gesti, Chi gioca / livello della CPU (dalla 2026-11-12.5 gira tra Bambino, Ragazzo, Adulto, Esperta, Leggenda), Schermo del gioco, Schermo intero, Pannello
   dell'addetto). Il telefono riceve lo stato appena cambia (il gioco controlla ogni 0,4 s): pagina, dettaglio (punteggio), telefono del giocatore
   (collegato, pronto, batteria dove il browser la dà) e per ogni pulsante «acceso» o il motivo per cui è spento.
   «Torna al menu» e «Nuovo giocatore» con una partita in corso chiedono conferma sul telefono.
@@ -109,7 +109,8 @@ vero sul server LAN del programma a 1024 × 1024, telefono in un secondo contest
 | Tutorial prima della calibrazione (gioco singolo, in campo) | Tutorial dei gesti | ← → sfogliano; «Tutto chiaro» si tocca sul telefono del giocatore | Indietro = Esc (salta il tutorial, come lo staff da tastiera) | tastiera | U |
 | Lezione dell'allenamento (presa, mano, posizione) | Lezione: presa e posizione | → / OK avanti, ← indietro; **Salta la lezione** | Pausa; Torna al menu | tastiera | U (con mouse e tastiera la lezione non c'è: E solo per gli esercizi) |
 | Calibrazione del telefono in campo | Calibrazione del telefono | la fa il giocatore; **Salta la calibrazione** | Indietro = Pausa; Torna al menu (conferma) | spente (motivo) | U |
-| Riscaldamento / Allenamento (lanciapalle) | Riscaldamento / Allenamento | **Salta il riscaldamento** | Indietro = Pausa; Torna al menu (conferma) | spente | E (allenamento) |
+| Riscaldamento / Allenamento (lanciapalle) | Riscaldamento / Allenamento | **Salta il riscaldamento**; negli esercizi dell'allenamento (B28) **Avanti: esercizio dopo** (il pulsante «Avanti ›») | Indietro = Pausa; Torna al menu (conferma) | spente | E (allenamento) |
+| Scambi di prova (B28, «Calibrazione: Giocando»: dopo «Gioca», prima della partita; anche nello stesso schermo, prima di un minigioco, nella sfida tra due computer e con «Ricalibra» in partita) | Scambi di prova | li gioca il giocatore; **Salta gli scambi di prova** (la partita parte subito con quello che il gioco ha imparato) | Indietro = Pausa; Torna al menu (conferma); «Ricalibra il telefono» spento (stanno già calibrando) | spente (motivo) | U (mondo di prova con il telecomando vero: pagina, frecce spente, Indietro = pausa, Salta, Ricalibra) |
 | Partita contro la CPU | Partita contro la CPU + punteggio | — | Indietro = Pausa; Torna al menu (conferma); Nuovo giocatore (conferma) | **spente: il giocatore non si muove** | E |
 | Partita stesso schermo | Partita · stesso schermo | — | come sopra | spente | U |
 | Sfida tra due computer in campo | Sfida tra due computer | — | come sopra | spente | U |

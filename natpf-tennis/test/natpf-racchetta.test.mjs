@@ -174,19 +174,45 @@ test('verso senza calibrazione: dalla gravità, per destri e mancini; sensori co
       assert.equal(truth.dir, strokeDir(hand, side));
     }
   }
-  // segno invertito (alcuni browser): il rilevatore lo scopre dai colpi con il verso atteso noto
-  const det = createSwingDetector(), got = [];
-  det.on('swing', s => got.push(s));
-  let t = 0;
-  for (; t < 700; t += 10) det.feed({ t, rot: [0, 0, 0], acc: [0, 0, 0], accG: [0, -9.8, 0] });   // gravità al contrario
-  det.setProfile({ ...det.profile, axis: null, ref: 420, on: 70, minPeak: 120, minAngle: 6 }); det.run(); det.setPrepMode(true);
-  for (let i = 0; i < 6; i++){
-    det.setExpect(1);                                       // la palla arriva dal lato del colpo da destra a sinistra
-    for (let j = 0; j <= 22; j++, t += 10) det.feed({ t, rot: [0, 0, 650*Math.sin(Math.PI*j/22)**2], acc: [0, 0, 0], accG: [0, -9.8, 0] });
-    for (let j = 0; j < 90; j++, t += 10) det.feed({ t, rot: [0, 0, 0], acc: [0, 0, 0], accG: [0, -9.8, 0] });
-  }
-  assert.equal(det.absSign, -1);
-  assert.equal(got.at(-1).dir, 1);
+  // segno invertito (alcuni browser): il rilevatore lo scopre dai colpi con il verso atteso noto, ma solo se i colpi al
+  // contrario ci sono da tutti e due i lati (revisione del B28, difetto 1): chi fa sempre lo stesso gesto non ha i
+  // sensori al contrario, gioca da un lato solo, e girare il segno gli specchierebbe destra e sinistra
+  // sides: lato atteso di ogni palla; turn(i, want): verso del gesto (segno della rotazione attorno a z)
+  const run = (sides, turn, g = -9.8, vote = () => true) => {
+    const det = createSwingDetector(), got = [];
+    det.on('swing', s => got.push(s));
+    let t = 0;
+    for (; t < 700; t += 10) det.feed({ t, rot: [0, 0, 0], acc: [0, 0, 0], accG: [0, g, 0] });
+    det.setProfile({ ...det.profile, axis: null, ref: 420, on: 70, minPeak: 120, minAngle: 6 }); det.run(); det.setPrepMode(true);
+    sides.forEach((want, i) => {
+      det.setExpect(want);                                  // da che parte arriva la palla
+      det.setSignVote(vote(i));
+      for (let j = 0; j <= 22; j++, t += 10) det.feed({ t, rot: [0, 0, turn(i, want)*650*Math.sin(Math.PI*j/22)**2], acc: [0, 0, 0], accG: [0, g, 0] });
+      for (let j = 0; j < 90; j++, t += 10) det.feed({ t, rot: [0, 0, 0], acc: [0, 0, 0], accG: [0, g, 0] });
+    });
+    return { det, got };
+  };
+  // gravità al contrario e i due gesti, ognuno dal suo lato: tutti letti al contrario → il segno si gira
+  const both = run([1, -1, 1, -1, 1, -1], (i, want) => want);
+  assert.deepEqual(both.got.slice(0, 3).map(s => s.dir), [-1, 1, -1], 'i primi letti al contrario');
+  assert.equal(both.det.absSign, -1); assert.deepEqual(both.got.slice(-2).map(s => s.dir), [1, -1], 'dal quarto colpo letti giusti');
+  // gravità giusta, sempre lo stesso gesto (dritto) su palle quasi tutte di rovescio: prima si girava (1 d'accordo, 3 no)
+  const one = run([1, -1, -1, -1, -1, -1], () => 1, 9.8);
+  assert.deepEqual(one.got.map(s => s.dir), [1, 1, 1, 1, 1, 1], 'sempre il suo dritto'); assert.equal(one.det.absSign, 1, 'nessuna informazione: resta la gravità');
+  // gravità al contrario e un gesto solo, tutte le palle da quel lato: nessuna informazione, resta com'è (limite scritto)
+  const inv = run([1, 1, 1, 1, 1, 1], () => 1);
+  assert.equal(inv.det.absSign, 1); assert.deepEqual(inv.got.map(s => s.dir), [-1, -1, -1, -1, -1, -1]);
+  // … finché non arriva un colpo dall'altro lato, anche lui al contrario: allora si gira
+  const late = run([1, 1, 1, -1], (i, want) => want);
+  assert.equal(late.det.absSign, -1); assert.equal(late.got.at(-1).dir, -1, 'già il quarto è letto giusto');
+  // tre colpi al contrario dai due lati e poi uno d'accordo: 1 su 4, ma il segno si gira solo su un colpo al contrario
+  const agree = run([1, -1, 1, -1], (i, want) => (i === 3 ? -want : want));
+  assert.equal(agree.det.absSign, 1); assert.equal(agree.got.at(-1).dir, -1);
+  // negli scambi di prova (setSignVote(false)) il telefono non vota: il segno lo decide il computer; dopo, i voti ripartono da zero
+  const trial = run([1, -1, 1, -1, 1, -1, 1], (i, want) => want, -9.8, i => i >= 6);
+  assert.equal(trial.det.absSign, 1, 'sei colpi al contrario durante gli scambi di prova e uno dopo: nessun giro');
+  const after = run([1, -1, 1, -1, 1, -1, 1, -1, 1, -1], (i, want) => want, -9.8, i => i >= 6);
+  assert.equal(after.det.absSign, -1, 'dopo gli scambi di prova quattro colpi al contrario dai due lati: girato');
 });
 
 /* ---------- preparazione e colpo ---------- */
