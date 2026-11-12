@@ -14,8 +14,10 @@
 //   5. pagina ricaricata: il conto delle partite di oggi continua, la riga di avvio dice «reload»;
 //   6. registro spento dal pannello: resta salvato, una partita non lascia nessuna riga né in coda né nello spazio;
 //      ricaricando resta spento; riacceso riparte;
-//   7. costo: millisecondi spesi dal registro per partita (misurati dal registro stesso) e tempo di un passo del gioco
-//      con il registro acceso e spento.
+//   7. costo: millisecondi spesi dal registro per partita (misurati dal registro stesso, con gli agganci che scattano
+//      davvero), divisi per i fotogrammi della partita, e costo di una riga (filtro e testo) misurato su 2.000 righe.
+//      (Prima: un passo della fisica con il registro acceso e spento a partita finita, dove gli agganci non scattano: la
+//      revisione ha fatto notare che non provava niente.)
 // I punti si chiudono con la regola del motore (_awardPoint) dopo il servizio vero: la prova guarda il registro, non il
 // gioco. Chromium senza scheda grafica: i tempi del disegno non valgono per un PC vero.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-registro.mjs      (OUT=cartella delle schermate)
@@ -194,6 +196,13 @@ try {
   const st4 = await pannello(p);
   check('pannello: dice che l\'invio non è riuscito e quante righe sono in coda', /Oggi 3 partite registrate/.test(st4.testo) && /\d+ righe ancora in coda/.test(st4.testo) && /invio non riuscito: rete assente.*si riprova da solo/.test(st4.testo) && st4.scarica, st4.testo);
   await p.screenshot({ path: `${OUT}/pannello-rete-assente.png` });
+  // revisione: con il testo lungo dell'errore, nel quadrato 720 × 720 il foglio scorreva di 8 px
+  await p.setViewportSize({ width: 720, height: 720 }); await p.waitForTimeout(400);
+  await p.evaluate(() => __natpfTennis.natpfUi.registro.dipingi()); await p.waitForTimeout(300);   // (da solo ogni 2 s)
+  const st4q = await pannello(p);
+  check('pannello a 720 × 720 con la rete assente: testo corto con il problema, niente scorrimento, «Chiudi» in vista', /invio non riuscito: rete assente/.test(st4q.testo) && st4q.scroll <= 0 && st4q.chiudi && st4q.riga, fmt({ testo: st4q.testo, scroll: st4q.scroll, chiudi: st4q.chiudi, riga: st4q.riga }));
+  await p.screenshot({ path: `${OUT}/pannello-rete-assente-720x720.png` });
+  await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(400);
   const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.click('#natpf-staff [data-staff="registro-scarica"]')]);
   const zipFile = path.join(OUT, dl.suggestedFilename()); await dl.saveAs(zipFile);
   const zip = [...readZip(new Uint8Array(readFileSync(zipFile)))].map(([name, data]) => ({ name, data })), nelloZip = zip.flatMap(e => new TextDecoder().decode(e.data).trim().split('\n').map(l => JSON.parse(l)));
@@ -238,21 +247,22 @@ try {
   await scarica(p);
   check('riacceso dal pannello: «Sì», e nello spazio arriva la riga di avvio «acceso»', st8.acceso === 'Sì' && di('avvio', nelloSpazio()).at(-1)?.motivo === 'acceso', st8.testo);
 
-  // 7. costo: ms del registro per partita (misurati dal registro) e passo del gioco con il registro acceso e spento
-  const costo = await p.evaluate(async () => {
-    const E = __natpfTennis, R = E.natpfUi.registro.rec, passi = 3000;
-    const giro = () => { const t = performance.now(); for (let i = 0; i < passi; i++) E._stepPhysics(1/120); return (performance.now() - t)/passi; };
-    const med = a => [...a].sort((x, y) => x - y)[a.length >> 1];
-    const on = [], off = [];
-    for (let k = 0; k < 5; k++){ R.on = true; on.push(giro()); R.on = false; off.push(giro()); }
-    R.on = true;
-    return { acceso: med(on), spento: med(off), costo: R.costo };
+  // 7. costo: ms del registro per partita (misurati dal registro, agganci compresi), per fotogramma; costo di una riga
+  const costo = await p.evaluate(() => {
+    const R = __natpfTennis.natpfUi.registro.rec, n = 2000, prima = R.buf.length, righe0 = R.conti.righe;
+    const riga = { gesto: 'forehand', ms: -30, voto: 'perfetto', f: .5, d: .2, x: 1.5, z: -8.2, in: [null, 72, .9] };
+    const t = performance.now(); for (let i = 0; i < n; i++) R._riga('colpo', riga); const ms = (performance.now() - t)/n;
+    R.buf.splice(prima); R.conti.righe = righe0;                               // righe della misura: via
+    return { riga: ms, costo: R.costo };
   });
-  const msPartita = di('partita.fine', nelloSpazio()).map(r => r.costoMs);
-  const durate = di('partita.fine', nelloSpazio()).map(r => r.durS), perSec = msPartita.map((v, i) => v/Math.max(1, durate[i]));
+  const fini = di('partita.fine', nelloSpazio()).filter(r => r.esito === 'finita');
+  const msPartita = fini.map(r => r.costoMs), durate = fini.map(r => r.durS), perSec = msPartita.map((v, i) => v/Math.max(1, durate[i]));
+  // fotogrammi della partita: quelli contati dal registro, o (Chromium senza scheda grafica ne fa pochi) 60 al secondo
+  // (solo le partite giocate a tempo vero: quella dello stesso schermo qui è chiusa in un attimo dalla prova)
+  const perFotogramma = fini.filter(r => r.durS >= 20).map(r => r.costoMs/Math.max(1, r.fps?.n || 60*r.durS));
   check('costo del registro: meno di 20 ms di lavoro per partita in tutto (agganci e righe), meno di 0,25 ms per secondo di gioco (partite di almeno 20 s), nessuna volta oltre 2 ms', msPartita.every(v => v < 20) && perSec.every((v, i) => durate[i] < 20 || v < .25) && costo.costo.max < 2, fmt({ msPerPartita: msPartita, durateS: durate, piuLungo: +costo.costo.max.toFixed(3) }));
-  check('costo del registro: un passo del gioco dura lo stesso con il registro acceso e spento (entro 0,05 ms)', Math.abs(costo.acceso - costo.spento) < .05, `acceso ${costo.acceso.toFixed(4)} ms · spento ${costo.spento.toFixed(4)} ms`);
-  console.log(`MISURE  partita contro la CPU: ${byteCpu} byte di righe, ${r2Cpu} byte compressi nello spazio (con l'avvio) · stesso schermo: ${byteDuo} byte, ${r2Duo} compressi · costo per partita ${msPartita.map(v => v.toFixed(1)).join(', ')} ms (durate ${durate.join(', ')} s) · passo del gioco acceso ${costo.acceso.toFixed(4)} ms, spento ${costo.spento.toFixed(4)} ms`);
+  check('costo del registro per fotogramma: meno di 0,02 ms (su 16,7 ms di un fotogramma a 60 al secondo); una riga meno di 0,05 ms', perFotogramma.length >= 1 && perFotogramma.every(v => v < .02) && costo.riga < .05, fmt({ perFotogramma: perFotogramma.map(v => +v.toFixed(5)), riga: +costo.riga.toFixed(4) }));
+  console.log(`MISURE  partita contro la CPU: ${byteCpu} byte di righe, ${r2Cpu} byte compressi nello spazio (con l'avvio) · stesso schermo: ${byteDuo} byte, ${r2Duo} compressi · costo per partita ${msPartita.map(v => v.toFixed(1)).join(', ')} ms (durate ${durate.join(', ')} s) · per fotogramma ${perFotogramma.map(v => v.toFixed(5)).join(', ')} ms · una riga ${costo.riga.toFixed(4)} ms`);
   check('peso: una partita occupa pochi kB di righe (meno di 6 kB ognuna in questa prova)', byteCpu > 300 && byteCpu < 6000 && byteDuo > 300 && byteDuo < 6000, `${byteCpu} e ${byteDuo} byte`);
   check('nessun errore nella pagina in tutta la prova', !errs.length, errs.slice(0, 3).join(' | '));
 } finally { await B.close(); stop(); }

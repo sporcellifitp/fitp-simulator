@@ -532,5 +532,9 @@ test('registro, pannello: stato in parole semplici', () => {
   assert.match(testoStato({ ...base, coda: { righe: 3, tipo: 'memoria' } }), /solo in memoria/);
   assert.match(testoStato({ ...base, acceso: false }), /^Registro spento/);
   assert.match(testoStato({ ...base, cerca: true }), /cerco l’indirizzo/);
+  // area stretta: testo corto su una riga, con il problema
+  assert.equal(testoStato({ ...base, invio: { configurato: true, ultimoOk: 1, ultimoErrore: 'rete assente o Worker non raggiungibile' } }, { corto: true }), 'Oggi 12 partite · 34 righe in coda · invio non riuscito: rete assente o Worker non raggiungibile.');
+  assert.equal(testoStato({ ...base, invio: { configurato: false } }, { corto: true }), 'Oggi 12 partite · indirizzo non configurato · 34 righe in coda.');
+  assert.equal(testoStato({ ...base, acceso: false }, { corto: true }), 'Registro spento.');
   assert.equal(nomeNelloZip(ID(7)), 'registro/2026-11-14/abcdefgh/00007-ab12.jsonl'); assert.equal(nomeNelloZip('x'), null);
 });

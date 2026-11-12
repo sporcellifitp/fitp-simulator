@@ -25,8 +25,11 @@ export const nomeNelloZip = id => { const b = leggiIdBlocco(id); return b ? `reg
 
 // Stato del registro in parole semplici, per il pannello dello stand. s: { acceso, partite, inMemoria, coda: { righe,
 // blocchi, byte, tipo, inMemoria? }, invio: { configurato, ultimoOk, ultimoErrore, inCorso, rifiutati, fuoriGiorno }, cerca }
-export function testoStato(s){
+// corto: nelle aree strette (quadrato 720 × 720) solo il conto e il problema, su una riga (revisione: con il testo
+// lungo il foglio scorreva); il testo intero resta nel title
+export function testoStato(s, { corto = false } = {}){
   if (!s) return '';
+  if (corto) return testoCorto(s);
   if (!s.acceso) return 'Registro spento: non si annota niente. Per riaccenderlo premi qui a sinistra.';
   const inCoda = (s.coda?.righe || 0) + (s.inMemoria || 0);
   const parti = [`Oggi ${s.partite === 1 ? '1 partita registrata' : `${s.partite || 0} partite registrate`}`];
@@ -43,6 +46,17 @@ export function testoStato(s){
   }
   if (s.coda?.tipo === 'memoria' || s.coda?.inMemoria) parti.push('la coda è solo in memoria: chiudendo il gioco si perde quello che non è partito');
   if (s.problema && !s.coda?.inMemoria) parti.push(`coda non scrivibile (${s.problema})`);
+  return parti.join(' · ') + '.';
+}
+
+function testoCorto(s){
+  if (!s.acceso) return 'Registro spento.';
+  const inCoda = (s.coda?.righe || 0) + (s.inMemoria || 0), parti = [`Oggi ${s.partite || 0} ${s.partite === 1 ? 'partita' : 'partite'}`];
+  if (s.cerca) parti.push('cerco l’indirizzo…');
+  else if (!s.invio?.configurato) parti.push('indirizzo non configurato');
+  parti.push(inCoda ? `${righe(inCoda)} in coda` : 'niente in coda');
+  if (s.invio?.configurato && !s.invio.inCorso && s.invio.ultimoErrore) parti.push(`invio non riuscito: ${s.invio.ultimoErrore}`);
+  if (s.coda?.tipo === 'memoria' || s.coda?.inMemoria) parti.push('coda solo in memoria');
   return parti.join(' · ') + '.';
 }
 
@@ -79,8 +93,9 @@ export class NatpfRegistro {
     const el = document.getElementById('staff-registro'); if (!el) return;
     const b = el.querySelector('[data-staff="registro"]'), bb = b?.querySelector('b');
     if (bb){ bb.textContent = this.acceso ? 'Sì' : 'No'; b.classList.toggle('on', this.acceso); }
-    const s = await this.stato(), p = document.getElementById('staff-registro-stato'), testo = testoStato(s);
-    if (p && p.textContent !== testo){ p.textContent = testo; p.title = testo; }      // nelle aree strette si vede su due righe: intero al passaggio
+    const s = await this.stato(), p = document.getElementById('staff-registro-stato'), intero = testoStato(s);
+    const testo = viewport().w <= 820 ? testoStato(s, { corto: true }) : intero;       // area stretta: testo corto, intero nel title
+    if (p && p.textContent !== testo){ p.textContent = testo; p.title = intero; }
     const vuota = !((s.coda?.righe || 0) + (s.inMemoria || 0));
     const invia = el.querySelector('[data-staff="registro-invia"]'), scarica = el.querySelector('[data-staff="registro-scarica"]');
     if (invia) invia.disabled = !s.acceso && vuota;
