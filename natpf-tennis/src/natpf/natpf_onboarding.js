@@ -28,7 +28,7 @@ export const GUIDE = [
     phone: 'Mentre la palla arriva <b>porta indietro il telefono</b>, poi un <b>colpo deciso</b> quando la palla è vicina. Il verso del colpo decide dritto o rovescio.',
     webcam: 'Uno <b>swing della mano</b> verso sinistra o verso destra quando la palla arriva.',
     mouse: '<kbd>Spazio</kbd> quando la palla arriva alla racchetta.',
-  }, game: 'A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo.' },
+  }, game: 'A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo. Con il <b>segnale del momento giusto</b> un anello si stringe sulla palla: colpisci quando si chiude.' },
   { id: 'aim', title: 'Scegli dove va la palla', clip: 'aim', you: {
     phone: 'Colpisci <b>un attimo prima</b> del solito: palla <b>incrociata</b>. <b>Un attimo dopo</b>: <b>lungolinea</b>. Un colpo <b>più forte</b> va più in fondo.',
     webcam: 'Colpire <b>prima</b> incrocia la palla, colpire <b>dopo</b> la manda lungolinea. Swing più veloce: palla più in fondo.',
@@ -43,7 +43,7 @@ export const GUIDE = [
     phone: '<b>Dal basso verso l’alto</b>: pallonetto. <b>Dall’alto verso il basso</b>, lento: palla corta; deciso: tagliato (schiacciata se la palla è alta). Veloce e dritto: piatto.',
     webcam: 'Swing verso l’alto: pallonetto. Verso il basso: tagliato. Sulle palle alte la schiacciata parte da sola.',
     mouse: '<kbd>1</kbd> topspin · <kbd>2</kbd> tagliato · <kbd>3</kbd> pallonetto · <kbd>4</kbd> schiacciata.',
-  }, game: 'Il pallonetto scavalca chi è a rete, la palla corta sorprende chi sta in fondo.' },
+  }, game: 'Il pallonetto scavalca chi è a rete, la palla corta sorprende chi sta in fondo. <b>Colpo super</b>: gesto fortissimo, a tempo e da fermo, su una palla alta o lenta.' },
 ];
 // testo «Cosa fai tu» di un passo per una racchetta
 export const guideText = (step, controller) => step.you[controller] || step.you.all || step.you.phone;
