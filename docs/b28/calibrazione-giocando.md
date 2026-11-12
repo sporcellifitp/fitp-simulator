@@ -75,9 +75,16 @@ campo), `natpf_phone_racket.js` (`autoSimple`, `freshPlayer`, `beginTrial`/`tria
   prototipi dei colpi speciali. Chi gioca dopo non eredita niente (difetto 5 dell'audit B16).
 - **Verso** (destra e sinistra). Il gioco sa da che parte della palla si mette il personaggio (piano d'intercetto): una
   palla alla destra di chi gioca chiede un gesto antiorario visto dall'alto (+1), a sinistra −1, **uguale per destri e
-  mancini** (la mano decide solo quale dei due si chiama dritto). Se dopo almeno due colpi netti un quarto o meno
-  concordano, il segno si gira; il computer legge al contrario i colpi di quel telefono, anche quelli di prova già fatti, e
-  manda al telefono il verso atteso girato. Chi tira sempre lo stesso gesto (metà d'accordo) non fa girare niente.
+  mancini** (la mano decide solo quale dei due si chiama dritto). Il lato della palla vale come prova sul segno **solo se
+  chi gioca ha mostrato i due versi, uno per lato**: almeno un colpo letto «a sinistra» su una palla a destra *e* almeno uno
+  letto «a destra» su una palla a sinistra. Con i due versi al contrario e un quarto o meno dei colpi d'accordo (da due
+  colpi in su) il segno si gira; il computer legge al contrario i colpi di quel telefono, anche quelli di prova già fatti,
+  e manda al telefono il verso atteso girato. **Chi fa sempre lo stesso gesto non fa girare niente, mai**: non ha il
+  telefono al contrario, gioca da un lato solo; senza i due versi non c'è informazione e resta la lettura della gravità
+  (revisione, difetto 1: prima bastavano due dritti su due palle di rovescio, o un dritto mancato, per specchiare destra e
+  sinistra per tutta la partita, perché la quinta e la sesta palla vanno dal lato «che manca»). La stessa regola vale nel
+  voto del telefono (`swing-detect.js`, quattro colpi netti), che durante gli scambi di prova non vota (decide il
+  computer: `setSignVote`, messaggio `ph` con `tr`) e gira solo su un colpo al contrario.
 - **Forza** per verso (`refs`, mediana dei picchi), `ref`, `rawRef` sul picco vero; **salita** abituale per verso
   (`rises`); verso verticale del piatto (`heads`); **centro della mira** per verso (`faceRef[verso].heading`, che semina
   `aimModel`): gli stessi campi della calibrazione con i gesti. Il colpo tipico resta quello dei colpi di prova (come dopo
@@ -98,20 +105,47 @@ campo), `natpf_phone_racket.js` (`autoSimple`, `freshPlayer`, `beginTrial`/`tria
   l'errore sarebbe silenzioso (forza tarata sul braccio di un altro). Rifarli alla stessa persona costa 10 s e non fa danni.
   Si saltano solo dove è certo che sono le stesse persone: **rivincita dai telefoni** nello stesso schermo e «**Gioca
   ancora**» del risultato di un minigioco (lì chi cambia usa «Nuovo giocatore», che serve anche per il nome in classifica).
-- **Chi ha calibrato apposta con i gesti tiene il suo profilo** («Calibra con i gesti» nel pannello del telefono): niente
-  scambi di prova finché non si preme «Nuovo giocatore» o «Ricalibra».
+- **Niente passa da un visitatore al successivo: il profilo ricorda come è stato fatto** (revisione, difetto 4;
+  `NatpfPhoneRacket.madeBy`: `gesti`, `salta`, `auto`, `prova`).
+  - «**Giocando**»: ogni «Gioca» rifà gli scambi di prova da un profilo nuovo. Unica eccezione: una calibrazione con i
+    gesti fatta apposta («Calibra con i gesti» nel pannello del telefono) **dopo la fine dell'ultima partita** vale per la
+    partita che segue, e basta (`gestureAt`, `keepsGesture`); fatta a partita in corso vale per quella partita. Prima un
+    solo «Calibra con i gesti» spegneva gli scambi di prova per tutti i visitatori dopo.
+  - «**Con i gesti**»: conta come calibrato solo un profilo fatto con i gesti (o saltato apposta con «Salta»), con la
+    durata di prima del B28 (fino a «Nuovo giocatore» o «Ricalibra»). Un telefono rimasto con il profilo dato dal gioco o
+    imparato dagli scambi di prova (l'opzione era un'altra) **rifà i gesti, senza rifare il QR**: subito se si è nel menu,
+    altrimenti al prossimo «Gioca» (`calStale`, `demoteIfStale`).
+  - «**Nessuna**»: profilo semplice da capo a ogni partita (con la stessa eccezione di una partita per chi ha appena
+    calibrato apposta con i gesti: l'ha chiesto l'addetto, e non passa comunque a chi viene dopo).
+  - **Cambiare l'opzione** vale dal prossimo «Gioca» senza riabbinare il telefono, e annulla il «vale per la prossima
+    partita» di una calibrazione con i gesti fatta prima del cambio.
+  - Restano le eccezioni dove le persone sono di sicuro le stesse: rivincita dai telefoni nello stesso schermo, «Gioca
+    ancora» di un minigioco, il «Gioca» subito dopo «Riscaldati prima», la rivincita della sfida tra due computer.
 - **«Ricalibra»** (pausa → Telefono): a partita in corso contro la CPU o nello stesso schermo rifà gli scambi di prova e
   rigioca il punto, con il punteggio com'era; nel menu, nei minigiochi e nella sfida tra due computer il telefono riparte
   dal profilo semplice. «Ricalibra» sul telefono: profilo semplice da capo, senza scambi di prova.
 - **Stesso schermo: un palleggio assistito con una palla sola.** Il motore ha una palla: ogni colpo, comunque tirato, è
-  rimandato dal gioco sul lato giusto dell'altro; una palla persa riparte per l'altro.
+  rimandato dal gioco sul lato giusto dell'altro; una palla persa riparte per l'altro. Chi tiene il profilo dei gesti
+  (calibrato apposta prima di questa partita) gioca il palleggio ma conta come «fatto»: gli scambi di prova finiscono
+  quando ha imparato l'altro (revisione, difetto 7: prima arrivavano sempre al tetto di tempo). La pausa del telefono di
+  uno dei due durante uno scambio di prova non «rigioca il punto»: la palla dopo arriva da sola (difetto 3).
 - **Sfida tra due computer.** Alla partenza l'altro computer aspetta: gli scambi di prova si fanno prima, in campo, una
   volta. Chi invita dopo «Collega» (e dopo il tutorial), il Player 2 al posto della calibrazione in campo. Le rivincite
-  tengono il profilo.
+  tengono il profilo. Il Player 2 che li lascia a metà (pausa → «Torna al menu», chiosco) torna Player 2 non pronto nel suo
+  pannello e li rifà con «Sono pronto», come con la calibrazione con i gesti interrotta (revisione, difetto 2).
 - **Allenamento e «Riscaldati prima».** Niente tappa della calibrazione: i primi due esercizi (dritto e rovescio, palle dal
   lato noto) insegnano il profilo allo stesso modo; vale appena ci sono due colpi per lato. Dopo «Riscaldati prima» il
   «Gioca» che segue parte subito, senza scambi di prova (una volta: il colpo è appena stato imparato).
 - **«Nessuna».** Niente scambi di prova, ma a ogni «Gioca» il telefono riparte comunque dal profilo semplice.
+- **Rete lenta.** Il profilo da capo chiesto dal gioco all'inizio degli scambi di prova (o della partita con «Nessuna»)
+  fa dire al telefono «calibrazione» per un attimo: è previsto, e per 2,5 s la guardia del telefono non lo prende per
+  «Telefono non pronto» (`NatpfPhoneRacket.resetting`); la prima palla aspetta che il telefono sia pronto. Oltre 2,5 s
+  la pausa arriva come sempre; in partita la guardia non cambia (revisione, difetto 6: con 0,5 s di rete la prima palla
+  arrivava dopo 4,3 s invece di 1 s).
+- **Telecomando dello staff (B27).** Gli scambi di prova sono una pagina «in campo» («Scambi di prova»: frecce e OK
+  spenti, Indietro = pausa); «Salta» li salta, negli esercizi dell'allenamento è «Avanti ›», nel pannello del telefono
+  «Salta la calibrazione»; «Ricalibra il telefono» fa quello che fa «Ricalibra» (in partita con «Giocando»: scambi di
+  prova, anche nello stesso schermo). Matrice in `docs/b27/telecomando.md`.
 
 ## 4. Come si attiva
 
@@ -128,9 +162,9 @@ Voce «**Calibrazione**»: un clic passa a **Giocando → Con i gesti → Nessun
 Vale dalla prossima partita. Per le prove: `?cal=giocando|gesti|nessuna` nell'indirizzo comanda senza cambiare la scelta
 salvata. La calibrazione con i gesti resta raggiungibile anche con «Giocando»: pausa → Telefono → «**Calibra con i gesti**».
 
-Il pannello ora ha 13 pulsanti: tre colonne da 700 px di larghezza e file più strette sotto 680 px di altezza. Provato
-senza scorrere e con «Chiudi» in vista a 1024×600, 1366×657, 1280×720, 720×720, 1920×540, 1024×1024 e 1920×1080, **anche
-con 15 pulsanti** (i due del telecomando dello staff, B27, simulati).
+Il pannello ha 13 voci nella griglia (tre colonne da 700 px di larghezza, file più strette sotto 680 px di altezza) e,
+dal B27, «Telecomando dello staff» e «Schermo del gioco» nella riga in basso. Con le voci vere del B27 e «Calibrazione»
+`natpf-menu` lo prova senza scorrere e con «Chiudi» in vista a 1366×657, 1024×600, 1280×720, 1024×1024 e **720×720**.
 
 ## 5. Banco: i tre percorsi a confronto
 
@@ -178,6 +212,26 @@ bambino 0 / 0 / 0,04 (0,04) / 5,5°; impreciso 0 / 13 / 0,05 (0,05) / 9,6°). Ta
 | gesto impreciso | 42 su 120 | **0** |
 
 Mancino: 36, 36, 46, 42 → 0. I due gesti di prima gestivano questo caso con tre tentativi sul primo gesto (non simulato qui).
+(Dal giro 2, con la regola dei due versi anche nel voto del telefono, «Salta» con il verso invertito dà 38, 38, 48, 44
+colpi su 120 dal lato sbagliato per il destro e 38, 38, 49, 44 per il mancino: il telefono aspetta un colpo al contrario
+da tutti e due i lati prima di girarsi. Gli scambi di prova restano a 0.)
+
+### Chi colpisce da un lato solo (revisione, difetto 1)
+
+Scambi di prova con lo stesso gesto su ogni palla, poi in partita 4 dritti e 4 rovesci fatti bene; 12 telefoni, adulto.
+«Girati» = telefoni in cui il segno è stato girato (dal gioco o dal telefono).
+
+| Negli scambi di prova (destro e mancino uguali) | Girati | Colpi della partita letti dal lato sbagliato |
+|---|---|---|
+| solo dritti, nessuna palla persa | 0 su 12 | **0 su 96** |
+| solo dritti, la prima persa (prima della correzione: 48 su 48 dritti letti rovesci) | 0 su 12 | **0 su 96** |
+| solo dritti, due perse | 0 su 12 | **0 su 96** |
+| solo rovesci | 0 su 12 | **0 su 96** |
+| verso invertito, i due gesti | 12 su 12 | **0 su 96** |
+| verso invertito, solo dritti (limite scritto al §7) | 12 su 12, in partita, dal telefono | 37 su 96 (i primi colpi) |
+
+Le altre righe del banco (forza, tipo, persi, mira, telefono che passa di mano, lato delle palle) sono uguali al giro 1:
+cambiano solo le righe «Salta, verso invertito» dette sopra (confronto riga per riga delle due uscite).
 
 ### Telefono che passa di mano (senza «Nuovo giocatore»): forza dei primi 3 colpi del secondo
 
@@ -258,15 +312,34 @@ l'occhiello 31 px, la riga sotto 25 px; misure in `cqw`/`cqh`.
   simulato; i 10–15 s sono con colpi a tempo perfetto.
 - Con una **pagina del telefono vecchia in cache** il percorso funziona ma senza le scritte e i pulsanti nuovi (§2); non
   provato con una pagina vecchia vera.
-- **Verso sbagliato con un solo gesto**: chi tira sempre di dritto, anche sulle palle a sinistra, non dà al gioco modo di
-  capire un telefono al contrario (voti metà e metà): resta la lettura dalla gravità, come prima.
+- **Telefono al contrario e un gesto solo**: chi fa sempre lo stesso gesto non dà al gioco modo di capire un telefono
+  con il verso della gravità invertito: resta la lettura dalla gravità (i suoi dritti letti rovesci) finché non fa anche
+  l'altro gesto dall'altro lato; da lì il telefono si corregge con i suoi quattro voti (banco: 37 colpi su 96 dal lato
+  sbagliato nei primi colpi della partita, 12 telefoni su 12 poi corretti). È la scelta della revisione: meglio questo
+  che specchiare chi ha il telefono giusto e gioca da un lato solo.
+- **Colpi pianissimi** (revisione, difetto 5: 0,2 volte il colpo di un adulto, picco attorno a 130 °/s): restano sotto le
+  soglie del profilo semplice (inizio 70, picco 120 °/s). Gli scambi di prova non imparano in 6 telefoni su 8 e in partita
+  si leggono 20 colpi su 80 (con i due gesti 80 su 80); a 0,25× 74 su 80, da 0,3× tutti. **Provato e scartato**: abbassare
+  le soglie del telefono durante gli scambi di prova. Con il profilo semplice (senza l'asse dei gesti, che scarta i
+  movimenti nel verso sbagliato) le soglie basse fanno **colpi doppi a tutti**: 17 su 80 a chi colpisce pianissimo, 9–18 su
+  80 alle altre persone del banco se scattano per errore (`scratchpad b28/banco/giro2-colpi-deboli.txt`). Per questo
+  giocatore la via è pausa → Telefono → «**Calibra con i gesti**» (vale per la partita). Un test fissa il limite.
+- **Pagina del telefono ricaricata a metà partita** con «Giocando»: il telefono torna da calibrare, riceve il profilo
+  semplice e si gioca; il profilo imparato dagli scambi di prova è perso fino alla partita dopo (il gioco reimpara dai
+  colpi veri, come «Salta»). Caduta e ritorno del collegamento e schermo spento tengono profilo e verso.
+- **Pagine del telefono di prima in cache**: non hanno la regola dei due versi nel voto sul segno né `setSignVote`; lì
+  chi gioca da un lato solo può ancora essere specchiato dal voto del telefono durante la partita (non dal computer).
 - **Sfida tra due computer**: scambi di prova una volta sola per pagina aperta; un'altra persona sullo stesso computer
   deve usare «Nuovo giocatore» dal pannello dello stand (come prima).
 - **Stesso schermo**: nel palleggio assistito ogni colpo va in campo comunque; chi non colpisce mai allunga gli scambi di
   prova fino a 18,6 s dalla fine del conto.
-- **Trovato e non toccato**: il piano d'intercetto del Player 2 nello stesso schermo non «combacia» più con la palla circa
-  0,2 s prima dell'impatto (`natpf_impact.livePlan` falso nel browser). Per gli scambi di prova si usa il piano fatto da
-  quando è partita la palla; l'effetto sul resto del gioco non è stato indagato.
+- **Trovato e non toccato** (causa trovata dalla revisione, di prima del B28, del lavoro sul gameplay): a ogni contatto
+  il gioco fa un fermo di 34–48 ms (`swing_vfx.js`, la classe del tempismo vale «PERFECT» se manca) che ferma la fisica
+  (`game_engine.js`) mentre l'orologio del piano d'intercetto (`plan.at`) continua: dopo il primo colpo dello scambio il
+  piano non «combacia» più con la palla e `natpf_impact.livePlan` risulta falso vicino all'impatto (visto nel browser sul
+  Player 2 dello stesso schermo, che riceve dopo il colpo del Player 1). Qui non si tocca: per il lato della palla degli
+  scambi di prova `ballSideNow(engine, ruolo, da)` accetta anche il piano fatto **da quando è partita quella palla**
+  (`trial.at`), che dice lo stesso lato.
 - Le prove nel browser non rifatte dopo questo blocco: tutte le `natpf-*` non elencate al §6 (hanno solo ricevuto
   `CAL=gesti`), `natpf-nuovo-giocatore`, `natpf-stesso-schermo-b20`/`b25`, `natpf-formato-fiera`.
 

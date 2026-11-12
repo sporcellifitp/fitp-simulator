@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP } from './th.mjs';
+import { GESTI, throughTrial } from './prova.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9145), GAME_PORT = +(process.env.GAME_PORT || 3145);
@@ -76,7 +77,7 @@ try {
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720], [1920, 1080]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: dodici pulsanti, niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 12 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: tredici pulsanti (dal B28 anche «Calibrazione»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 13 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -98,7 +99,7 @@ try {
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 12 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 13 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     if (h === 720 && w === 720 || h === 540) await shot(`1c-pannello-stand-accesi-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -166,6 +167,9 @@ try {
   await until(g, () => { const S = __natpfTennis.natpfUi.split; return S.tutOpen.p1 && S.tutOpen.p2; });
   await g.evaluate(() => { __natpfTennis.natpfRng = () => .9; });   // sorteggio guidato: batte il Player 2
   await g.evaluate(() => { const S = __natpfTennis.natpfUi.split; for (const id of ['p1', 'p2']){ S._tutDone(id); S.phone(id).skipCalibration(); } S.paint(); });
+  // B28, calibrazione di base («Giocando»): dopo il conto alla rovescia gli scambi di prova per tutti e due; qui si
+  // saltano con «Salta ›» (i telefoni di questa prova non fanno gesti), poi la partita vera
+  if (!GESTI){ const tr = await throughTrial(g, {}, { skip: true, wait: 20000 }); check('   (calibrazione di base) scambi di prova partiti dopo il conto alla rovescia, saltati con «Salta ›», poi la partita', tr.trial && tr.match, JSON.stringify(tr)); }
   const started = await until(g, () => !!__natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.lobby.visible && ['SERVE_STANCE', 'SERVE_TOSS'].includes(__natpfTennis.phase), null, 30000);
   check('3. i due telefoni pronti: conto alla rovescia e partita', started);
   await sleep(400);

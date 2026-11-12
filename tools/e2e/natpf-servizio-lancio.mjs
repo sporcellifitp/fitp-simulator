@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP, quickCalibrate } from './th.mjs';
+import { GESTI, defaultPrep } from './prova.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -53,12 +54,18 @@ try {
   const { p: phone, errs: phoneErrs } = await page(B, url, { w: 390, h: 844, mobile: true, init: PHONE_INIT });
   await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
   await phone.click('#enable');
-  await phone.waitForFunction(() => __racchetta.state.step === 'still', null, { timeout: 5000 });
-  await phone.evaluate(() => __up.still(1200));
-  await quickCalibrate(phone, QUICK_PLAN);
-  await game.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 8000 }).catch(() => {});
-  await game.evaluate(() => __natpfTennis.natpfPhone.confirm());
-  check('telefono calibrato', await game.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 5000 }).then(() => true, () => false));
+  if (GESTI){
+    await phone.waitForFunction(() => __racchetta.state.step === 'still', null, { timeout: 5000 });
+    await phone.evaluate(() => __up.still(1200));
+    await quickCalibrate(phone, QUICK_PLAN);
+    await game.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 8000 }).catch(() => {});
+    await game.evaluate(() => __natpfTennis.natpfPhone.confirm());
+    check('telefono calibrato', await game.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 5000 }).then(() => true, () => false));
+  } else {
+    // B28, calibrazione di base («Giocando»): niente gesti, il telefono è pronto da solo; poi gli scambi di prova
+    const d = await defaultPrep(game, phone);
+    check('telefono pronto senza gesti e scambi di prova giocati (calibrazione di base)', d.ready && d.trial.ended && ['full', 'ok'].includes(d.level), JSON.stringify(d));
+  }
   // partita nuova contro la CPU, chi gioca al servizio (come dopo «Gioca» nel menu, senza il menu)
   await game.evaluate(() => {
     const E = __natpfTennis; E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.natpfUi.lobby.el.classList.add('hidden');

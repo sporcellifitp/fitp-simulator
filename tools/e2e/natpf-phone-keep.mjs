@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, quickCalibrate } from './th.mjs';
+import { GESTI, defaultPrep } from './prova.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -66,13 +67,19 @@ try {
   const { p: phone, errs: phoneErrs } = await page(B, url, { w: 390, h: 844, mobile: true, init: PHONE_INIT });
   await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
   await phone.click('#enable');
-  await phone.waitForFunction(() => __racchetta.state.step === 'still', null, { timeout: 5000 });
-  await phone.evaluate(() => __up.still(1200));
-  await quickCalibrate(phone, QUICK_PLAN);   // aspetta da sé la fine del «fermo» e il «pronto» di ogni gesto
-  await game.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 8000 }).catch(() => {});
-  await game.evaluate(() => __natpfTennis.natpfPhone.confirm());
-  check('telefono calibrato, blocco dello schermo preso all\'attivazione dei sensori', await game.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 5000 }).then(() => true, () => false)
-    && await phone.evaluate(() => __racchetta.state.wake === 1 && __wl.n >= 1));
+  if (GESTI){
+    await phone.waitForFunction(() => __racchetta.state.step === 'still', null, { timeout: 5000 });
+    await phone.evaluate(() => __up.still(1200));
+    await quickCalibrate(phone, QUICK_PLAN);   // aspetta da sé la fine del «fermo» e il «pronto» di ogni gesto
+    await game.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 8000 }).catch(() => {});
+    await game.evaluate(() => __natpfTennis.natpfPhone.confirm());
+    check('telefono calibrato, blocco dello schermo preso all\'attivazione dei sensori', await game.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 5000 }).then(() => true, () => false)
+      && await phone.evaluate(() => __racchetta.state.wake === 1 && __wl.n >= 1));
+  } else {
+    // B28, calibrazione di base («Giocando»): niente gesti, il telefono è pronto da solo; poi gli scambi di prova
+    const d = await defaultPrep(game, phone);
+    check('telefono pronto senza gesti e scambi di prova giocati (calibrazione di base)', d.ready && d.trial.ended && ['full', 'ok'].includes(d.level) && await phone.evaluate(() => __racchetta.state.wake === 1 && __wl.n >= 1), JSON.stringify(d));
+  }
 
   // scambio in corso: una palla della CPU verso chi gioca, il motore va avanti da solo
   const rally = () => game.evaluate(() => {

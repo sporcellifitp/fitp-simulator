@@ -88,7 +88,7 @@ try {
   for (const [w, h] of [[1280, 720], [1920, 540], [1024, 600], [1366, 657], [1920, 1080], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: dodici pulsanti (dal B25), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 12 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: tredici pulsanti (dodici dal B25, dal B28 anche «Calibrazione»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 13 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
     if (w === 1920 && h === 540 || w === 1024) await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);

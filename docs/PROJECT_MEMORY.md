@@ -145,24 +145,51 @@ e la calibrazione con i gesti come percorso di base.
   telefono senza gesti riceve da solo il profilo semplice (comando `skip`); a ogni «Gioca» circa 10 s di **scambi di prova**
   (`natpf_trial.js`: palle dal lato noto, due colpi per lato, al massimo 6 palle o 14 s), poi la partita da 0-0.
 - **A ogni partita si riparte da capo** (`NatpfPhoneRacket.freshPlayer`: `cal` + `skip`): chi gioca non eredita forza, mira
-  e verso di chi c'era prima. Niente eccezioni a tempo; si saltano solo con la rivincita dai telefoni nello stesso schermo,
-  con «Gioca ancora» di un minigioco e per chi ha un profilo fatto apposta con i gesti.
+  e verso di chi c'era prima. Niente eccezioni a tempo; si saltano solo dove le persone sono di sicuro le stesse: rivincita
+  dai telefoni nello stesso schermo, «Gioca ancora» di un minigioco, il «Gioca» subito dopo «Riscaldati prima», la
+  rivincita della sfida tra due computer.
+- **Il profilo ricorda come è stato fatto, e niente passa da un visitatore al successivo** (revisione del 12/11, giro 2):
+  `NatpfPhoneRacket.madeBy` = `gesti` | `salta` | `auto` | `prova`. «Giocando»: ogni «Gioca» rifà gli scambi di prova da
+  un profilo nuovo; una calibrazione con i gesti fatta apposta dopo la fine dell'ultima partita vale **per la partita che
+  segue e basta** (`gestureAt`, `keepsGesture`). «Con i gesti»: conta come calibrato solo un profilo `gesti` o `salta`,
+  con la durata di prima del B28; un telefono rimasto `auto` o `prova` rifà i gesti senza QR (`calStale`,
+  `demoteIfStale`: subito al menu, altrimenti al prossimo «Gioca»). «Nessuna»: profilo semplice da capo a ogni partita.
+  Cambiare l'opzione vale dal prossimo «Gioca» e annulla il «vale per la prossima partita». Chi aggiunge un modo di
+  fare o tenere un profilo deve dire come è stato fatto (`madeBy`) e passare da `keepsGesture`.
 - **Il verso si controlla con il lato della palla**, uguale per destri e mancini: palla alla destra di chi gioca = gesto
   +1. Il lato è quello del piano d'intercetto al momento del colpo (`ballSideNow`), non quello deciso al lancio. Il segno
-  corretto vive sul computer (`learner.sign`) e il verso atteso va al telefono girato.
+  corretto vive sul computer (`learner.sign`) e il verso atteso va al telefono girato. **Regola dei due versi**
+  (revisione, giro 2): il lato della palla è una prova sul segno solo se i colpi «al contrario» ci sono da tutti e due i
+  lati; chi fa sempre lo stesso gesto non fa girare niente, mai (prima un giocatore da un lato solo restava specchiato per
+  tutta la partita). Vale nel gioco (`createTrialLearner`) e nel voto del telefono (`swing-detect.js` `vote`), che negli
+  scambi di prova è spento (`setSignVote`, messaggio `ph` con `tr`: lì decide il computer, due correzioni insieme si
+  annullano) e gira solo su un colpo al contrario. Ogni modifica a queste due regole va provata con il banco
+  (`scripts/audit/scambi-di-prova.mjs`, tabella «da un lato solo») e con i test «revisione 1».
+- **Profilo da capo e guardia del telefono**: il `cal` + `skip` chiesto dal gioco fa dire al telefono «calibrazione» per
+  un attimo; per `RESET_GRACE_MS` (2,5 s) `phoneHealthOf` non lo prende per «non pronto» (`resetting`) e la prima palla
+  degli scambi di prova aspetta. In partita la guardia non cambia.
+- **Colpi pianissimi** (0,2× di un adulto): limite scritto, non si abbassano le soglie del profilo semplice durante gli
+  scambi di prova (provato: colpi doppi a tutti); la via è «Calibra con i gesti».
 - **I colpi di prova non contano**: `ui.trial.active` vale come `training.active` per punti, esito, moviola, stanchezza,
   sfida tra due computer e diagnostica (`allenamento: true`, `prova: true`). Chi aggiunge un controllo «siamo in partita?»
   deve escludere anche `ui.trial.active` (nello stesso schermo i colpi del Player 2 valgono: `versus.local`).
-- **Stesso schermo**: palleggio assistito con una palla (ogni colpo è rimandato sul lato giusto dell'altro). **Sfida tra
+- **Stesso schermo**: palleggio assistito con una palla (ogni colpo è rimandato sul lato giusto dell'altro); chi tiene il
+  profilo dei gesti conta come fatto; la pausa di un telefono non rigioca il punto negli scambi di prova. **Sfida tra
   due computer**: scambi di prova prima, in campo, una volta (chi invita dopo «Collega», il Player 2 al posto della
-  calibrazione). **Allenamento**: il profilo si impara dai primi due esercizi.
+  calibrazione); chi li apre passa a `NatpfTrial.start` anche `cancel`, che rimette a posto il suo stato se si chiudono
+  prima (il Player 2 torna Player 2). **Allenamento**: il profilo si impara dai primi due esercizi.
+- **Telecomando dello staff (B27) e scambi di prova**: pagina `trial` «in campo» in `natpf_remote_map.js`; «Salta» =
+  `trial.skip()`, «Avanti ›» dell'allenamento, «Salta la calibrazione»; «Ricalibra il telefono» = `ui.recalibrate()`.
 - **Test**: nel mondo di prova (`test/ui-world.mjs`) l'opzione è «Con i gesti» di base, perché i test di prima provano
-  quel percorso; i test del percorso nuovo passano `cal: 'play'`. Nelle prove nel browser lo stesso con `CAL` (`th.mjs`).
+  quel percorso; i test del percorso nuovo passano `cal: 'play'` (`natpf-scambi-di-prova`, `natpf-giocando-revisione`:
+  quest'ultimo copre i percorsi della modalità di base, aiuti in `test/trial-world.mjs`). Nelle prove nel browser lo
+  stesso con `CAL` (`th.mjs`); `CAL=base` non scrive niente (l'opzione vera di base) e gli script adattati usano
+  `tools/e2e/prova.mjs` (telefono pronto senza gesti, scambi di prova giocati o saltati).
 - **Misure** (telefono simulato): forza dei primi colpi 0,04 come i gesti fatti bene (gesti a vuoto deboli 0,07, primi tre
   0,11); lato mai sbagliato, anche con il verso invertito («Salta»: 36–46 colpi su 120 dal lato sbagliato); telefono che
   passa di mano: errore di forza 0,29 → 0,03. Peggio dei gesti fatti bene: centro della mira (±5° contro ±2°).
-- **Pannello dello stand**: 13 pulsanti; tre colonne da 700 px, file più strette sotto 680 px di altezza; c'è posto fino
-  a 15–16.
+- **Pannello dello stand**: 13 pulsanti nella griglia più le due voci del B27 nella riga in basso; tre colonne da 700 px,
+  file più strette sotto 680 px di altezza; provato fino a 720×720 (`natpf-menu`).
 
 ## Decisioni B16 (08/11/2026 sera: risposte dell'utente alle domande (a)–(d) del B15)
 

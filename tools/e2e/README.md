@@ -56,6 +56,12 @@ NATPF motore base (`natpf-tennis/`):
   prova a ogni «Gioca»). Le prove `natpf-*` scritte prima del B28 provano la calibrazione con i gesti, che resta nel gioco:
   mettono da sole `CAL=gesti` (`process.env.CAL ||= 'gesti'` in cima allo script; `th.mjs` lo scrive nell'archivio della
   pagina prima del caricamento). `CAL=play|none` per provarle con le altre opzioni (molte non passano: aspettano i gesti).
+  `CAL=base` non scrive niente nell'archivio della pagina: è l'opzione vera di base del gioco («Giocando»). Le prove
+  adattate a questa modalità (giro 2 del B28) usano `prova.mjs` (`GESTI`, `phoneReadyNoGestures`, `playTrial`,
+  `throughTrial`, `defaultPrep`: telefono pronto senza gesti, scambi di prova giocati dal telefono simulato o saltati con
+  «Salta ›») e con `CAL=base` passano: `natpf-nuovo-giocatore`, `natpf-formato-fiera`, `natpf-stesso-schermo-b25`,
+  `natpf-rally`, `natpf-phone-blackout` (la parte B, gesti della calibrazione a rete ferma, c'è solo con `CAL=gesti`),
+  `natpf-phone-keep`, `natpf-servizio-lancio`, `natpf-diag-session`. Senza `CAL` restano com'erano (con i gesti).
 - `node natpf-scambi-di-prova.mjs` (3195, 9195; `FLOW=singolo|stesso`, `HAND=left`, `HITS=all|none|one`,
   `VIEW=1280x720|1024x1024`, `SHOTS=1` per le schermate, `SHORT=1` senza la seconda partita, B28): la calibrazione
   giocando nel gioco vero con il telefono simulato. Tutorial chiuso dalla prima scheda, nessun gesto di calibrazione,
