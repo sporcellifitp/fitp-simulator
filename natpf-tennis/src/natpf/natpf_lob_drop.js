@@ -24,18 +24,23 @@ export const MASCOT = Object.freeze({
   drop: Object.freeze({
     name: 'Drop', label: 'DROP', head: Object.freeze({ rx: 0.385, ry: 0.33, rz: 0.34, cy: 0.13 }),
     band: Object.freeze({ y0: 0.125, y1: 0.23, tilt: [0.04, 0, -0.09] }),
-    eye: Object.freeze({ x: 0.142, y: -0.005, r: 0.1 }), mouthY: -0.155, wristBands: true,
+    eye: Object.freeze({ x: 0.128, y: -0.005, r: 0.095 }), mouthY: -0.155, wristBands: true,
   }),
   lob: Object.freeze({
     name: 'Lob', label: 'LOB', head: Object.freeze({ rx: 0.35, ry: 0.335, rz: 0.33, cy: 0.135 }),
     band: Object.freeze({ y0: 0.11, y1: 0.24, tilt: [0.06, -0.3, -0.1] }),
-    eye: Object.freeze({ x: 0.13, y: -0.05, r: 0.09 }), mouthY: -0.205, wristBands: false, glasses: true,
+    eye: Object.freeze({ x: 0.12, y: -0.05, r: 0.086 }), mouthY: -0.205, wristBands: false, glasses: true,
   }),
 });
 // Spessore di braccia e gambe rispetto al tennista (stessi segmenti, più grossi), scala del viso (occhi, bocca,
 // espressioni) rispetto a quello del tennista
 export const MASCOT_LIMBS = Object.freeze({ arm: 1.5, leg: 1.45 });
 export const MASCOT_FACE_SCALE = 1.45;
+// Contorno nero dell'occhio: una calotta curva come la testa (non un disco piatto), che sta EYE_RIM_LIFT sopra la
+// superficie: di tre quarti il bordo dell'occhio lontano gira dietro il profilo della testa invece di sporgere.
+// EYE_RIM_CAP: mezzo angolo della calotta (con il bordo largo quanto l'occhio dà un raggio di curvatura vicino a
+// quello della testa: 0,36 per Drop, 0,33 per Lob)
+export const EYE_RIM_CAP = 0.3, EYE_RIM_LIFT = 0.002, EYE_SINK = 0.008;
 export const mascotOf = lookKey => (MASCOT[lookKey] ? lookKey : null);
 // Ciò che la racchetta non deve attraversare (natpf_racket_clear.js), nel sistema della parte Head: l'ellissoide della
 // testa. Un personaggio nuovo con la testa grande dichiara qui la sua forma (o una lista: testa più accessori).
@@ -103,6 +108,8 @@ function geometries(){
     dropLabel: patch(D, 0.02), lobLabel: patch(L, 0.02, 0.03),   // quella di Lob sta sopra la tesa
     // viso: disco (sfera schiacciata) per contorno e iride, anello degli occhiali, ponte, bocca aperta e lingua
     disc: new THREE.SphereGeometry(1, 18, 12),
+    // calotta con il polo in avanti (z), la cima nell'origine e il bordo di raggio 1
+    rim: place(new THREE.SphereGeometry(1, 24, 5, 0, Math.PI*2, 0, EYE_RIM_CAP), { r: [Math.PI/2, 0, 0] }).translate(0, 0, -1).scale(1/Math.sin(EYE_RIM_CAP), 1/Math.sin(EYE_RIM_CAP), 1/Math.sin(EYE_RIM_CAP)),
     ring: new THREE.TorusGeometry(1, 0.085, 8, 28),
     bridge: place(new THREE.CylinderGeometry(0.0055, 0.0055, 1, 8), { r: [0, 0, Math.PI/2] }),
     smile: place(new THREE.SphereGeometry(1, 20, 8, 0, Math.PI*2, Math.PI/2, Math.PI/2), { s: [0.056, 0.05, 0.014] }),
@@ -119,6 +126,9 @@ function flat(hex){
   if (!FLAT.has(hex)) FLAT.set(hex, new THREE.MeshBasicMaterial({ color: hex }));
   return FLAT.get(hex);
 }
+// Contorno dell'occhio: sta a un paio di millimetri dalla testa, quindi vince sulla profondità (niente sfarfallio da lontano)
+let RIM = null;
+const rimMaterial = () => RIM || (RIM = Object.assign(new THREE.MeshBasicMaterial({ color: 0x12141a, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), { name: 'natpf-contorno-occhio' }));
 const LABELS = new Map();
 // Da dove viene la tela della scritta: la pagina, oppure (prove senza pagina) una funzione messa qui
 export const labelCanvas = { make: null };
@@ -198,10 +208,10 @@ function build(actor, material){
 function buildFace(actor){
   const rig = actor.facialRig, G = geometries();
   if (!rig?.faceGroup || !rig.leftEye || !rig.rightEye) return null;
-  const dark = flat(0x12141a), eyes = [];
+  const eyes = [];
   for (const eye of [rig.leftEye, rig.rightEye]){
     const item = { eye, outline: null, iris: null, ring: null };
-    if (eye.openEyeNode){ item.outline = mesh(eye.openEyeNode, G.disc, dark, 'NatpfOcchioContorno', 'tutte', false); item.outline.position.z = -0.002; }
+    if (eye.openEyeNode) item.outline = mesh(eye.openEyeNode, G.rim, rimMaterial(), 'NatpfOcchioContorno', 'tutte', false);
     if (eye.pupilGroup){ item.iris = mesh(eye.pupilGroup, G.disc, flat(MASCOT_COLORS.drop.iris), 'NatpfOcchioIride', 'tutte', false); item.iris.position.z = -0.002; }
     if (eye.root){ item.ring = mesh(eye.root, G.ring, flat(MASCOT_COLORS.lob.glasses), 'NatpfLobOcchiali', 'lob', false); item.ring.position.z = 0.012; }
     eyes.push(item);
@@ -236,7 +246,7 @@ function styleFace(actor, key, face, skinHex){
   for (const { eye, outline, iris, ring } of face.eyes){
     const side = Math.sign(eye.root.position.x) || 1;
     surface(H, side*M.eye.x, M.eye.y, _surf);
-    eye.root.position.set(side*M.eye.x/S, M.eye.y/S, (_surf.z - 0.008)/S);
+    eye.root.position.set(side*M.eye.x/S, M.eye.y/S, (_surf.z - EYE_SINK)/S);
     eye.root.rotation.set(_surf.pitch, _surf.yaw, 0);
     eye.scleraMesh?.scale.set(r/0.038, r*1.04/0.038, 0.34);
     eye.pupilMesh?.scale.set(r*0.52/0.026, r*0.55/0.026, 0.46);
@@ -246,7 +256,7 @@ function styleFace(actor, key, face, skinHex){
     eye.blinkBarMesh?.scale.set(r*2/0.072, 1.5, 1);
     eye.happyArcGroup?.scale.setScalar(r*0.9/0.03);
     eye.shockXGroup?.scale.setScalar(r*1.7/0.068);
-    if (outline){ outline.scale.set(r*1.13, r*1.17, 0.012); outline.visible = true; }
+    if (outline){ outline.scale.set(r*1.13, r*1.17, r*1.15); outline.position.z = (EYE_SINK + EYE_RIM_LIFT)/S; outline.visible = true; }
     if (iris){ iris.scale.set(r*0.8, r*0.84, 0.006); iris.material = flat(MASCOT_COLORS[key].iris); iris.visible = true; }
     if (ring){ ring.scale.set(r*1.3, r*1.34, r*1.3); ring.visible = !!M.glasses; }
   }

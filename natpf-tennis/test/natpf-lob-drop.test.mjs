@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import {
   CAST_KEY, CAST_PARAM, CASTS, CAST_LABEL, castFromSearch, readSavedCast, readCast, getCast, setCast, resetCast, onCastChange, castLooks, castToast,
 } from '../src/natpf/natpf_personaggi.js';
-import { MASCOT, MASCOT_COLORS, MASCOT_LIMBS, MASCOT_FACE_SCALE, mascotOf, applyMascot, updateMascotLabels, labelCanvas } from '../src/natpf/natpf_lob_drop.js';
+import { MASCOT, MASCOT_COLORS, MASCOT_LIMBS, MASCOT_FACE_SCALE, EYE_RIM_CAP, mascotOf, applyMascot, updateMascotLabels, labelCanvas } from '../src/natpf/natpf_lob_drop.js';
 import {
   createNatpfCharacter, createNatpfRacket, finishNatpfActor, updateNatpfActorLimbs, updateNatpfCharacters, applyNatpfLook, CHARACTER_LOOKS,
 } from '../src/natpf/natpf_character.js';
@@ -400,6 +400,19 @@ test('viso della mascotte: occhi grandi sulla testa nuova, niente sopracciglia; 
       const x = eye.root.position.x*MASCOT_FACE_SCALE, y = eye.root.position.y*MASCOT_FACE_SCALE, z = eye.root.position.z*MASCOT_FACE_SCALE;
       const k = (x/M.head.rx)**2 + (y/M.head.ry)**2 + (z/M.head.rz)**2;
       assert.ok(k > .9 && k < 1.001, `occhio di ${key} fuori dalla testa: ${k}`);
+      // revisione del 12/11: il contorno nero è una calotta curva come la testa, non un disco piatto. Il suo bordo
+      // sta a pochi millimetri dalla superficie tutto intorno (da piatto sporgeva di 8 mm e più, e di tre quarti
+      // l'occhio lontano usciva dal profilo della testa)
+      const rim = eye.openEyeNode.children.find(c => c.name === 'NatpfOcchioContorno'), inv = new THREE.Matrix4().copy(actor.parts.head.matrixWorld).invert();
+      actor.root.updateMatrixWorld(true);
+      inv.copy(actor.parts.head.matrixWorld).invert();
+      let lo = Infinity, hi = -Infinity;
+      for (let q = 0; q < 16; q++){
+        const t = q/16*Math.PI*2, edge = new THREE.Vector3(Math.cos(t), Math.sin(t), -(1 - Math.cos(EYE_RIM_CAP))/Math.sin(EYE_RIM_CAP)).applyMatrix4(rim.matrixWorld).applyMatrix4(inv);
+        const f = Math.sqrt((edge.x/M.head.rx)**2 + ((edge.y - M.head.cy)/M.head.ry)**2 + (edge.z/M.head.rz)**2), lift = (f - 1)*Math.hypot(edge.x, edge.y - M.head.cy, edge.z)/f;
+        lo = Math.min(lo, lift); hi = Math.max(hi, lift);
+      }
+      assert.ok(lo > -.004 && hi < .006, `contorno dell'occhio di ${key}: bordo tra ${(lo*1000).toFixed(1)} e ${(hi*1000).toFixed(1)} mm dalla testa`);
     }
     assert.equal(rig.leftBrow.children[0].visible, false); assert.equal(rig.conformalPatchMesh.visible, false); assert.equal(rig.leftCheek.visible, false);
     assert.equal(rig.neutralMouth.children[0].visible, false);

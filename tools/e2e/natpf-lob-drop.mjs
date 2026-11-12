@@ -145,7 +145,8 @@ const where = (p, a, b) => p.evaluate(({ a, b }) => { const A = __px[a], Bx = __
 const shot = (p, name) => p.locator('canvas').first().screenshot({ path: path.join(SHOTS, `${name}.png`) });
 const setCast = (p, v) => p.evaluate(v => __natpfTennis.natpfUi.lobby.setCast(v), v);
 
-const NEAR = { front: { from: [0, 1.35, 5.3], look: [0, 1.08, 0], fov: 28 }, back: { from: [0, 1.35, -5.3], look: [0, 1.08, 0], fov: 28 }, side: { from: [5.3, 1.35, 0], look: [0, 1.08, 0], fov: 28 } };
+const NEAR = { front: { from: [0, 1.35, 5.3], look: [0, 1.08, 0], fov: 28 }, back: { from: [0, 1.35, -5.3], look: [0, 1.08, 0], fov: 28 }, side: { from: [5.3, 1.35, 0], look: [0, 1.08, 0], fov: 28 },
+  quarter: { from: [3.9, 1.35, 3.6], look: [0, 1.08, 0], fov: 28 } };
 const SCENES = {
   fermo: { pose: 'fermo' },
   dritto: { pose: 'dritto', steps: 6 },
@@ -307,8 +308,8 @@ if (FOGLI){
   const closeUp = async (actor, view, extra = {}) => { await scene(near.p, `v-${actor}-${view}`, { pose: 'fermo', ...extra, cam: { actor, ...NEAR[view] } }); return png(near.p); };
   for (const [actor, nome] of [['player', 'Drop'], ['opponent', 'Lob']]){
     const tiles = [{ src: photo, label: 'Foto di riferimento', zoom: 1.5, dx: actor === 'player' ? -.2 : .257, dy: .05 }];
-    for (const [v, l] of [['front', 'davanti'], ['side', 'di lato'], ['back', 'dietro']]) tiles.push({ src: await closeUp(actor, v), label: `${nome} nel gioco, ${l}` });
-    await sheet(`${nome.toLowerCase()}-da-vicino.webp`, tiles, { cols: 4, w: 400, h: 460, title: `${nome}: foto di riferimento e personaggio nel gioco` });
+    for (const [v, l] of [['front', 'davanti'], ['quarter', 'di tre quarti'], ['side', 'di lato'], ['back', 'dietro']]) tiles.push({ src: await closeUp(actor, v), label: `${nome} nel gioco, ${l}` });
+    await sheet(`${nome.toLowerCase()}-da-vicino.webp`, tiles, { cols: 5, w: 340, h: 400, title: `${nome}: foto di riferimento e personaggio nel gioco` });
   }
   // 2) i gesti da vicino: dritto, rovescio, servizio, esultanza (stesse animazioni del tennista)
   const gest = [];
