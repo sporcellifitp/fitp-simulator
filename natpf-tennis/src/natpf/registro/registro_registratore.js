@@ -100,6 +100,7 @@ export class RegistroStand {
     for (const chi of Object.keys(this.cal)) this._fineCal(chi, false);
     for (const [T, s] of this.tut) this._fineTutorial(T, s, come);
     if (this.att) this._fineAllenamento({ completed: false }, come);
+    if (this.prv) this._fineProva(false);
     if (this.mini) this._fineMinigioco(false);
     if (this.visita) this._fineVisita(come);
   }
@@ -172,6 +173,13 @@ export class RegistroStand {
       dopo(ui.events, 'start', (_o, gioco) => { if (ui.events.active) R._minigioco(gioco); });
       wrap(ui.events, 'finish', function(orig, ...a){ const A = this.active, punti = A && !A.over ? A.score : null; const out = orig(...a); if (punti != null && R.mini) R._fineMinigioco(true, punti); return out; });
       wrap(ui.events, 'abort', function(orig, ...a){ const era = !!this.active; const out = orig(...a); if (era && R.mini) R._fineMinigioco(false); return out; });
+    }
+    // B28: calibrazione giocando («Scambi di prova», natpf_trial.js), di base prima della prima partita: una riga
+    // «calibrazione» con tipo «giocando» (palle tirate, dritti e rovesci imparati, livello, saltata con «Salta ›»)
+    if (ui?.trial){
+      dopo(ui.trial, 'start', function(){ if (this.S && R.prv?.S !== this.S) R.prv = { S: this.S, t0: R.now(), saltato: false }; });
+      dopo(ui.trial, 'skip', function(){ if (R.prv?.S === this.S) R.prv.saltato = true; });
+      wrap(ui.trial, '_close', function(orig, run){ const S = this.S, out = orig(run); const t = R.now(); try { if (S && R.prv?.S === S) R._fineProva(!!run); } catch {} R._costo(t); return out; });
     }
     // tutorial (modale prima della calibrazione; nello stesso schermo una per metà)
     for (const [chi, T] of [['g', ui?.training?.tutorial], ['g', ui?.split?.tut?.p1], ['a', ui?.split?.tut?.p2]]){
@@ -294,11 +302,12 @@ export class RegistroStand {
   }
 
   /* ---------- colpi ---------- */
-  _ambiente(){ return this.ui?.training?.active ? 'allenamento' : this.ui?.events?.active ? 'minigioco' : undefined; }
+  // colpi negli scambi di prova (anche a partita in corso, con «Ricalibra»): amb «prova», fuori dai conti della partita
+  _ambiente(){ return this.ui?.trial?.active ? 'prova' : this.ui?.training?.active ? 'allenamento' : this.ui?.events?.active ? 'minigioco' : undefined; }
   _colpo(out){
     const E = this.engine, L = E.natpfLastRacket; if (!L) return;
-    const I = L.intent || {}, O = L.out || {}, P = this.partita, forza = Number.isFinite(I.typePower) ? I.typePower : I.power;
-    const amb = P ? undefined : this._ambiente();
+    const I = L.intent || {}, O = L.out || {}, forza = Number.isFinite(I.typePower) ? I.typePower : I.power;
+    const prv = !!this.ui?.trial?.active, P = prv ? null : this.partita, amb = P ? undefined : this._ambiente();
     if (!P && !amb) return;                                                   // colpi fuori da partita, allenamento e minigiochi: niente
     const g = L.who === 'p2' ? 'a' : 'g';
     if (P){ if (g === 'g') P.colpi++; else P.colpiA++; }
@@ -331,7 +340,7 @@ export class RegistroStand {
     this._riga('servizio', { chi: actor === E.player ? undefined : 'a', tipo: S.kind || null, q: r(S.q, 2), ms: r(1000*S.tau, 0), kmh: S.kmh ?? null, voto: voto(S.grade), ...(E.natpfAutoLive === 'serve' ? { auto: true } : {}) });
   }
   _vuoto(ps, perche){
-    const E = this.engine, P = this.partita, amb = P ? undefined : this._ambiente(); if (!P && !amb) return;
+    const E = this.engine, P = this.ui?.trial?.active ? null : this.partita, amb = P ? undefined : this._ambiente(); if (!P && !amb) return;
     const a = ps?.actor && (ps.actor === E.opponent || ps.actor === E.opponentPartner);
     this._riga('vuoto', { ...(P ? {} : { amb }), chi: a ? 'a' : undefined, perche: perche || ps?.natpfWhy || 'presto', ms: r(1000*ps?.lead, 0), f: r(ps?.strength, 0) });
   }
@@ -367,6 +376,17 @@ export class RegistroStand {
     // passi: per ogni gesto chiesto [prove, fallite]; perche: motivi dei gesti non riusciti
     this._riga('calibrazione', { chi, finita, durS: r((this.now() - C.t0)/1000, 1), prove: C.prove, fallite: C.fallite, passi: C.passi, perche: Object.keys(C.perche).length ? C.perche : undefined,
       ripartenze: C.ripartenze || undefined, revisioni: C.revisioni || undefined, revisioniNo: C.revisioniNo || undefined, semplice: semplice || undefined });
+    if (finita && this.visita) this.visita.fatti++;
+  }
+  _fineProva(finita){
+    const V = this.prv; if (!V) return; this.prv = null;
+    const S = V.S, durS = r((this.now() - V.t0)/1000, 1);
+    for (const id of Object.keys(S.players || {})){
+      const res = S.result?.[id] || null, n = res?.n || {}, dr = n.forehand | 0, rv = n.backhand | 0;
+      // prove: palle tirate a quel giocatore; passi: gesti imparati per lato [quanti, 0]; livello: quanto ha imparato
+      this._riga('calibrazione', { chi: id === 'p2' ? 'a' : 'g', tipo: 'giocando', finita: finita && !!res, saltato: V.saltato || undefined, durS, prove: S.players[id]?.balls ?? null,
+        colpi: dr + rv, passi: res ? { dritto: [dr, 0], rovescio: [rv, 0] } : undefined, livello: res?.level ? String(res.level).slice(0, 16) : undefined });
+    }
     if (finita && this.visita) this.visita.fatti++;
   }
   _allenamento(o){
@@ -432,6 +452,7 @@ export class RegistroStand {
     if (this.partita) return 'partita';
     if (ui?.events?.active) return 'minigioco';
     if (this.tut.size || T?.tutorialOpen) return 'tutorial';
+    if (ui?.trial?.active) return 'calibrazione';
     if (T?.active) return T.cal || this.cal.g ? 'calibrazione' : T.lesson ? 'tutorial' : 'allenamento';
     if (this.cal.g || this.cal.a) return 'calibrazione';
     if (L?.visible) return L.step === 'menu' ? 'menu' : `menu.${L.step}`;

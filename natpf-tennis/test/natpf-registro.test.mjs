@@ -228,7 +228,10 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
       if (this.score[k] >= 4){ this.score[winner === 'player' ? 'playerGames' : 'opponentGames']++; this.score.playerPoints = this.score.opponentPoints = 0; if (this.score.playerGames >= 2 || this.score.opponentGames >= 2) this.phase = 'MATCH_OVER'; } },
   };
   const ui = { controller: ctrl, hand: { hand: 'right' }, cue: { enabled: true }, kiosk: { enabled: true, reset(){} }, lobby: { visible: true, step: 'menu' },
-    events: { nickname: nick, active: null, start(){}, finish(){}, abort(){} }, training: { active: false, start(){}, stop(){}, tutorial: null, stats: {} }, split: split ? { webcam: false, tut: {} } : null };
+    events: { nickname: nick, active: null, start(){}, finish(){}, abort(){} }, training: { active: false, start(){}, stop(){}, tutorial: null, stats: {} }, split: split ? { webcam: false, tut: {} } : null,
+    // B28: scambi di prova (natpf_trial.js) a grandi linee: start, «Salta ›», fine dell'apprendimento, chiusura
+    trial: { S: null, get active(){ return !!this.S; }, start({ split: sp = false } = {}){ if (this.S) return false; this.S = { players: Object.fromEntries((sp ? ['p1', 'p2'] : ['p1']).map(id => [id, { balls: 0 }])), result: null }; return true; },
+      skip(){ if (this.S && !this.S.result) this._outro(); }, _outro(){ this.S.result = Object.fromEntries(Object.keys(this.S.players).map(id => [id, { level: 'pieno', n: { forehand: 3, backhand: 2 } }])); }, _close(){ this.S = null; } } };
   const errori = {}, win = { addEventListener: (t, fn) => { errori[t] = fn; }, screen: { width: 1920, height: 1080 }, innerWidth: 1920, innerHeight: 1080, devicePixelRatio: 1, navigator: { hardwareConcurrency: 8 }, performance: { getEntriesByType: () => [{ type: 'reload' }] } };
   const R = new RegistroStand({ engine: E, ui, coda, invio, storage, now: () => now, wallNow: () => Date.UTC(2026, 10, 14, 10, 0, 0) + now, win, raf: null, timers: false, programma: true });
   return { E, ui, R, coda, storage, win, errori, avanti: ms => { now += ms; }, nomi: ['Mario Rossi', 'Giulia Bianchi', 'Mario', 'Giulia'] };
@@ -300,6 +303,29 @@ test('registro, registratore: stesso schermo (fasce, aiuto, nomi mai scritti), p
   assert.equal(errori[0].file, 'index-abc123.js'); assert.equal(errori[0].riga, 42); assert.match(errori[0].msg, /\[nome\] is not defined/); assert.match(errori[2].msg, /\[e-mail\]/);
   const testo = rows.map(r => JSON.stringify(r)).join('\n');
   for (const no of ['Giulia', 'Bianchi', '192.168', 'example.com']) assert.ok(!testo.includes(no), no);
+  for (const r of rows) assert.deepEqual(F.controllaRiga(r, { nomi: M.nomi }), [], JSON.stringify(r));
+});
+
+test('registro, registratore: calibrazione giocando (scambi di prova del B28): una riga per giocatore, colpi a parte, saltata o lasciata', async () => {
+  const M = mondo({ split: true, nick: '' }), { E, ui, R } = M;
+  ui.lobby.visible = false;
+  ui.trial.start({ split: true }); R.secondo();
+  for (const id of ['p1', 'p2']) ui.trial.S.players[id].balls = 4;
+  M.avanti(1500); E._natpfRacketShot({ who: 'player', shot: 'forehand', power: .5, tau: .02 });
+  M.avanti(1500); E._natpfRacketShot({ who: 'p2', shot: 'backhand', power: .5, tau: -.04 });
+  M.avanti(1000); R.secondo(); ui.trial.skip(); ui.trial._close(true);
+  // gli scambi di prova lasciati a metà (ritorno al menu)
+  ui.trial.start({ split: false }); ui.trial.S.players.p1.balls = 2; M.avanti(3000); ui.trial._close(false);
+  gioca(M, { punti: 2 });
+  M.E.autoPlayMode = true; ui.lobby.visible = true; M.avanti(1000); R.secondo();
+  await R.blocco();
+  const rows = await tutte(M.coda), cal = rows.filter(r => r.k === 'calibrazione');
+  assert.deepEqual(cal.map(c => [c.chi, c.tipo, c.finita, !!c.saltato, c.prove]), [['g', 'giocando', true, true, 4], ['a', 'giocando', true, true, 4], ['g', 'giocando', false, false, 2]]);
+  assert.deepEqual(cal[0].passi, { dritto: [3, 0], rovescio: [2, 0] }); assert.equal(cal[0].colpi, 5); assert.equal(cal[0].livello, 'pieno'); assert.equal(cal[0].durS, 4);
+  const prova = rows.filter(r => r.k === 'colpo' && r.amb === 'prova');
+  assert.deepEqual(prova.map(c => [c.chi || 'g', c.gesto, c.ms]), [['g', 'forehand', 20], ['a', 'backhand', -40]], 'i colpi degli scambi di prova si registrano a parte');
+  const [fine] = rows.filter(r => r.k === 'partita.fine'); assert.equal(fine.colpi + (fine.colpi2 || 0), rows.filter(r => r.k === 'colpo' && !r.amb).length, 'e non entrano nei conti della partita');
+  const [visita] = rows.filter(r => r.k === 'visita'); assert.ok(visita.posti.calibrazione >= 1, JSON.stringify(visita));
   for (const r of rows) assert.deepEqual(F.controllaRiga(r, { nomi: M.nomi }), [], JSON.stringify(r));
 });
 

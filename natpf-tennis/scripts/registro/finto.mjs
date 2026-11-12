@@ -51,6 +51,13 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
       riga('calibrazione', { chi: 'g', finita: fin, durS: r(tra(20, 80), 1), prove, fallite, passi: { dritto: [Math.ceil(prove/2), Math.ceil(fallite/2)], rovescio: [Math.floor(prove/2), Math.floor(fallite/2)] }, ...(fallite ? { perche: { 'troppo debole': fallite } } : {}), ...(prob(.1) ? { ripartenze: 1 } : {}) }); V.calibrazioni++;
       t += 60000;
     }
+    // B28: calibrazione giocando (scambi di prova) prima della partita, di base per chi ha il telefono
+    if (prob(.6)){
+      const palle = 4 + Math.floor(rnd()*6), salta = prob(.25), dr = Math.ceil(palle*.4), rv = Math.floor(palle*.3);
+      riga('calibrazione', { chi: 'g', tipo: 'giocando', finita: true, ...(salta ? { saltato: true } : {}), durS: r(tra(15, 45), 1), prove: palle, colpi: dr + rv, passi: { dritto: [dr, 0], rovescio: [rv, 0] }, livello: scegli(['pieno', 'parziale', 'nessuno']) });
+      riga('colpo', { amb: 'prova', gesto: 'forehand', ms: Math.round(tra(-90, 90)), voto: 'perfetto', f: .5 });
+      V.prove = (V.prove || 0) + 1; t += 30000;
+    }
     if (prob(.06)){ riga('visita', { durS: r(tra(10, 90), 0), partite: 0, posti: { menu: 12, calibrazione: 20 }, abbandono: scegli(['menu', 'tutorial', 'calibrazione']), come: prob(.6) ? 'chiosco' : 'menu' }); V.visite++; }
     if (prob(.03)){ riga('tel', { chi: 'g', stato: 'collegato', ...tel() }); }
     const split = prob(.35), evento = !split && prob(.5), chi = split ? null : evento ? 'adulto' : scegli(['bambino', 'ragazzo']);

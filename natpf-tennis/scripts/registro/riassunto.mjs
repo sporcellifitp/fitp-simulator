@@ -108,6 +108,8 @@ export class Riassunto {
     this.sup = { riusciti: 0, partite: 0, no: {}, perPartita: new Misura() };
     this.servizio = { righe: 0, voti: {}, kmh: new Misura(), ms: new Misura(), punti: 0, lanci: 0, lanciVuoti: 0, lanciAuto: 0, battutaAuto: 0, doppiFalli: 0, ace: 0, auto: 0 };
     this.tutorial = { n: 0, chiusura: {}, durata: new Misura(), tutte: 0 }; this.cal = { n: 0, finite: 0, durata: new Misura(), prove: 0, fallite: 0, passi: {}, perche: {}, ripartenze: 0 };
+    // B28: calibrazione giocando (scambi di prova), a parte da quella con i gesti
+    this.prova = { n: 0, finite: 0, saltate: 0, durata: new Misura(), palle: new Misura(), livelli: {}, colpi: 0, ms: new Misura() };
     this.split = { n: 0, fasce: {}, aiuto: { partite: 0, vinte: 0, punti: 0, puntiGiovane: 0 }, senzaAiuto: { partite: 0, vinteG: 0 }, campo: { aperto: null, chiuso: null }, caldo: 0, lancioAuto: 0 };
     this.evento = { n: 0, inizio: new Misura(), fine: new Misura(), delta: new Misura(), sale: 0, scende: 0, uguale: 0, perOrdine: [] };
     this.tel = { stati: {}, cadutePerOra: {}, strade: {}, rtt: new Misura(), rttMax: new Misura(), so: {}, browser: {}, cadutePartite: 0, dopoS: new Misura() };
@@ -149,6 +151,7 @@ export class Riassunto {
     if (P.r.modo === 'stesso-schermo'){ const k = P.r.stand?.campoAperto ? 'aperto' : 'chiuso', C = this.split.campo[k] || (this.split.campo[k] = { partite: 0, colpiAPunto: new Misura(), durataPunto: new Misura(), nonRaggiunte: 0, punti: 0 }); C.colpiAPunto.metti(r.colpi); C.durataPunto.metti(r.durS); C.punti++; if (r.fine === 'vincente' || r.fine === 'passata' || r.fine === 'ace') C.nonRaggiunte++; }
   }
   _colpo(r, x){
+    if (r.amb === 'prova'){ this.prova.colpi++; this.prova.ms.metti(r.ms); return; }
     if (r.amb) return;                                                       // colpi dell'allenamento e dei minigiochi: fuori dalle misure di partita
     const g = voce(this.gesti, r.gesto || '—', () => ({ n: 0, voti: {}, ms: new Misura(), esiti: {}, forza: new Misura() }));
     g.n++; piu(g.voti, r.voto || '—'); g.ms.metti(r.ms); piu(g.esiti, r.e || 'dentro'); g.forza.metti(r.f);
@@ -177,7 +180,9 @@ export class Riassunto {
   }
   _partita_fine(r, x){ this._chiudi(x, r); }
   _tutorial(r){ const T = this.tutorial; T.n++; piu(T.chiusura, r.chiusura || '—'); T.durata.metti(r.durS); if (r.tutte) T.tutte++; }
-  _calibrazione(r){ const C = this.cal; C.n++; if (r.finita) C.finite++; C.durata.metti(r.durS); C.prove += r.prove || 0; C.fallite += r.fallite || 0; C.ripartenze += r.ripartenze || 0; somma(C.perche, r.perche);
+  _calibrazione(r){
+    if (r.tipo === 'giocando'){ const Q = this.prova; Q.n++; if (r.finita) Q.finite++; if (r.saltato) Q.saltate++; Q.durata.metti(r.durS); Q.palle.metti(r.prove); piu(Q.livelli, r.livello || (r.finita ? '—' : 'non finita')); return; }
+    const C = this.cal; C.n++; if (r.finita) C.finite++; C.durata.metti(r.durS); C.prove += r.prove || 0; C.fallite += r.fallite || 0; C.ripartenze += r.ripartenze || 0; somma(C.perche, r.perche);
     for (const [k, v] of Object.entries(r.passi || {})) if (Array.isArray(v)){ const p = voce(C.passi, k, () => [0, 0]); p[0] += v[0] || 0; p[1] += v[1] || 0; } }
   _allenamento(r){ this.altro.allenamenti++; if (r.finito) this.altro.allenamentiFiniti++; somma(this.scartati, r.scartati); }
   _minigioco(r){ const m = voce(this.altro.minigiochi, r.gioco || '—', () => [0, 0]); m[0]++; if (r.finito) m[1]++; somma(this.scartati, r.scartati); }
@@ -250,9 +255,11 @@ export function rapporto(R, L){
   sez('Tutorial e calibrazione', [
     `Tutorial: ${N(tu.n)}; visto tutto ${pc(tu.tutte, tu.n)}; durata ${mis(tu.durata, 0, ' s')}.`,
     `Calibrazioni: ${N(ca.n)}; finite ${pc(ca.finite, ca.n)}; durata ${mis(ca.durata, 0, ' s')}; gesti provati ${N(ca.prove)}, non riusciti ${N(ca.fallite)} (${pc(ca.fallite, ca.prove, 1)}); ricominciate da capo ${N(ca.ripartenze)}.`,
+    `Calibrazione giocando (scambi di prova): ${N(R.prova.n)} giocatori; finite ${pc(R.prova.finite, R.prova.n)}, con «Salta ›» ${pc(R.prova.saltate, R.prova.n)}; durata ${mis(R.prova.durata, 0, ' s')}; palle ${mis(R.prova.palle, 1)}; colpi ${N(R.prova.colpi)}, errore di tempo medio ${N(R.prova.ms.media)} ms.`,
     `Allenamenti: ${N(R.altro.allenamenti)} (finiti ${pc(R.altro.allenamentiFiniti, R.altro.allenamenti)}).`,
   ], [
     { titolo: 'Come si chiude il tutorial', colonne: ['Chiusura', 'Volte', 'Quota'], righe: elenco(tu.chiusura, tu.n) },
+    { titolo: 'Calibrazione giocando: quanto ha imparato il gioco', colonne: ['Livello', 'Giocatori', 'Quota'], righe: elenco(R.prova.livelli, R.prova.n) },
     { titolo: 'Calibrazione: passi', colonne: ['Gesto chiesto', 'Prove', 'Non riuscite', 'Quota'], righe: Object.entries(ca.passi).sort((a, b) => b[1][1] - a[1][1]).map(([k, v]) => [k, N(v[0]), N(v[1]), pc(v[1], v[0])]) },
     { titolo: 'Calibrazione: perché un gesto non riesce', colonne: ['Motivo', 'Volte'], righe: elenco(ca.perche) },
     { titolo: 'Minigiochi', colonne: ['Gioco', 'Cominciati', 'Finiti'], righe: Object.entries(R.altro.minigiochi).map(([k, v]) => [k, N(v[0]), N(v[1])]) },
