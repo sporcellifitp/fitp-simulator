@@ -36,7 +36,7 @@ export const tutConfirmable = gate => !!gate;
 // cosa mostra la pagina: { screen, show: { selettore: visibile }, tutOk: { on, lit } } (lit: appena acceso)
 // phase, rematch (B20): a fine partita nello stesso schermo il computer offre la rivincita (rematchOn) e sotto «Pronto»
 // compare il pulsante «Rivincita»
-export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false, phase = null, rematch = null } = {}){
+export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false, phase = null, rematch = null, next = null } = {}){
   const screen = screenOf({ linkState, sensor, gate });
   const S = s => screen === s, touch = inputMode === 'touch';
   const show = {
@@ -56,6 +56,10 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
     // Ricalibra, Ricollega, Scollega: solo sotto «Pronto» (scelta del 05/11: nella calibrazione bloccata decide il computer)
     '#tools': S('ready'),
     '#rematch': S('ready') && phase === 'over' && !!rematch,
+    // B28, niente blocchi: «Avanti ›» offerto dal computer dove chiede un gesto (esercizi, scambi di prova) e «Salta la
+    // calibrazione» durante la calibrazione con i gesti (profilo semplice: si gioca subito)
+    '#next': S('ready') && !!next && phase !== 'over',
+    '#calSkip': S('cal') && !touch && ['still', 'grip', 'swings', 'shots', 'review'].includes(calStep),
     '#tutOk': S('tutorial'),
     '#tutBox': S('tutorial'),
     '#mark': linkState === 'on' && !!diag,
@@ -119,6 +123,15 @@ export function rematchView(r){
 // pausa con il motivo (messaggio { t:'ph', ph:'pause', txt }): la partita è ferma per il telefono dell'altro giocatore.
 // Senza testo (computer di prima, o pausa del proprio telefono) resta la frase di sempre
 export const pauseNote = d => (d && d.ph === 'pause' && typeof d.txt === 'string' ? d.txt.slice(0, 160) : '');
+
+/* ---------- niente blocchi: «Avanti ›» dal telefono (B28, 12/11) ---------- */
+// Il computer offre di andare avanti senza fare il gesto chiesto (messaggio { t:'nx', on:1, lb }, NatpfPhoneRacket.offerNext:
+// esercizi dell'Allenamento e del riscaldamento, scambi di prova); on 0 lo toglie. Il tocco manda { t:'nx', y:1 }. Un
+// computer di prima non manda niente: nessun pulsante
+export function nextOnMsg(d = {}){
+  if (!d || !d.on) return null;
+  return { label: typeof d.lb === 'string' && d.lb.trim() ? d.lb.slice(0, 24) : 'Avanti ›' };
+}
 
 /* ---------- calibrazione giocando: scambi di prova (B28, 12/11) ---------- */
 // Il computer manda la fase con tr 1 ({ t:'ph', ph:'play', tr:1 }) mentre gioca gli scambi di prova (natpf_trial.js): il

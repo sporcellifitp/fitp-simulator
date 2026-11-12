@@ -311,3 +311,44 @@ test('B20: pagina del telefono, pulsante «Rivincita» e messaggi (rm, ph con tx
   const link = readFileSync(new URL('../../site/js/tennis/link.js', import.meta.url), 'utf8');
   assert.match(link, /case 'rm': if \(d\.y === 1\) emit\('rematch', \{\}\)/);
 });
+
+// B28 (12/11): calibrazione giocando e niente blocchi sul telefono
+import { trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg } from '../../site/js/tennis/phone-screen.js';
+import { readFileSync as readB28 } from 'node:fs';
+
+test('scambi di prova sul telefono: la fase con tr 1 scrive «Scambi di prova»; un computer di prima (senza tr) resta «Pronto»', () => {
+  assert.equal(trialOnMsg({ t: 'ph', ph: 'play', tr: 1 }), true);
+  assert.equal(trialOnMsg({ t: 'ph', ph: 'play' }), false); assert.equal(trialOnMsg({ t: 'ph', ph: 'serve', tr: 1 }), false); assert.equal(trialOnMsg(null), false);
+  assert.equal(TRIAL_TEXT.big, 'Scambi di prova'); assert.match(TRIAL_TEXT.sub, /Colpisci la palla.*impara il tuo colpo/);
+  const js = readB28(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  assert.match(js, /trial = trialOnMsg\(d\)/); assert.match(js, /if \(trial && phase === 'play'\) ui\(TRIAL_TEXT\.big, TRIAL_TEXT\.sub, 'ready'\)/);
+});
+
+test('soglie dal colpo imparato (messaggio pf): valide solo se complete e in misura', () => {
+  assert.deepEqual(trialThresholds({ t: 'pf', ref: 660, refs: { 1: 660, '-1': 620 }, on: 111.6, minPeak: 173.6 }), { ref: 660, refs: { 1: 660, '-1': 620 }, on: 111.6, minPeak: 173.6 });
+  assert.equal(trialThresholds({ ref: 660, refs: { 1: 660 }, on: 100, minPeak: 170 }), null, 'manca un verso');
+  assert.equal(trialThresholds({ ref: 20, refs: { 1: 660, '-1': 620 }, on: 100, minPeak: 170 }), null, 'colpo tipico fuori misura');
+  assert.equal(trialThresholds({ ref: 660, refs: { 1: 660, '-1': 620 }, on: 500, minPeak: 170 }), null); assert.equal(trialThresholds({ ref: 660, refs: { 1: 660, '-1': 620 }, on: 100, minPeak: 'x' }), null);
+  assert.equal(trialThresholds(), null);
+  // la pagina le applica solo sopra il profilo semplice (chi ha calibrato con i gesti tiene le sue)
+  const js = readB28(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  assert.match(js, /case 'pf':.*det\.profile\.simple\) det\.setThresholds\(th\)/);
+});
+
+test('niente blocchi: «Avanti ›» offerto dal computer solo sotto «Pronto»; «Salta la calibrazione» durante la calibrazione con i gesti', () => {
+  assert.equal(nextOnMsg({ t: 'nx', on: 0 }), null); assert.equal(nextOnMsg(null), null);
+  assert.deepEqual(nextOnMsg({ t: 'nx', on: 1, lb: 'Salta ›' }), { label: 'Salta ›' }); assert.deepEqual(nextOnMsg({ t: 'nx', on: 1 }), { label: 'Avanti ›' });
+  assert.equal(nextOnMsg({ on: 1, lb: 'x'.repeat(80) }).label.length, 24);
+  const next = { label: 'Avanti ›' };
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', phase: 'play', next }).show['#next'], true);
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', phase: 'play' }).show['#next'], false, 'senza offerta (computer di prima): nessun pulsante');
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', phase: 'over', next }).show['#next'], false);
+  assert.equal(phoneView({ linkState: 'on', sensor: 'cal', calStep: 'swings', next }).show['#next'], false);
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready', gate: G2, next }).show['#next'], false, 'non nel tutorial');
+  for (const calStep of ['still', 'grip', 'swings', 'review']) assert.equal(phoneView({ linkState: 'on', sensor: 'cal', calStep }).show['#calSkip'], true, calStep);
+  assert.equal(phoneView({ linkState: 'on', sensor: 'cal', calStep: 'swings', inputMode: 'touch' }).show['#calSkip'], false, 'con i tocchi non c\'è niente da saltare');
+  assert.equal(phoneView({ linkState: 'on', sensor: 'ready' }).show['#calSkip'], false); assert.equal(phoneView({ linkState: 'on', sensor: 'idle', gate: G2 }).show['#calSkip'], false);
+  const html = readB28(new URL('../../site/tennis/racchetta.html', import.meta.url), 'utf8'), js = readB28(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  assert.match(html, /id="next">Avanti ›</); assert.match(html, /id="calSkip">Salta la calibrazione</);
+  assert.match(js, /send\(\{ t: 'nx', y: 1 \}\)/); assert.match(js, /\$\('#calSkip'\)\.addEventListener\('click', e => \{ e\.stopPropagation\(\); command\('skip'\); \}\)/);
+});

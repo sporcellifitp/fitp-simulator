@@ -445,6 +445,10 @@ export class NatpfPhoneRacket {
     this.tutListeners = new Set(); this.tutNavListeners = new Set();
     // «Rivincita» toccata sul telefono a fine partita (stesso schermo, B20): la decide natpf_split_ui
     this.rematchListeners = new Set();
+    // B28, niente blocchi: «Avanti ›» sul telefono. Dove il gioco chiede un gesto (esercizi dell'Allenamento e del
+    // riscaldamento, scambi di prova) il computer offre al telefono un pulsante per andare avanti senza farlo (messaggio
+    // nx: on, lb = scritta); il tocco torna come «next» (onNext). Le pagine del telefono di prima ignorano il messaggio
+    this.nextListeners = new Set(); this.nextOffer = null; this.nextSent = '';
     // tutorial visto per questo abbinamento del telefono (link.L.pairs): si rivede solo con un abbinamento nuovo (QR), non
     // a ogni ricollegamento (pagina ricaricata, schermo spento, «Ricollega»); tutSaved = dove era arrivata la modale chiusa
     // prima della fine (stesso abbinamento: si riprende da lì). Uno per telefono: vale per Allenamento e stesso schermo.
@@ -547,6 +551,7 @@ export class NatpfPhoneRacket {
     link.on('prep', p => this._onPrep(p));
     link.on('hand', e => this._onPhoneHand(e.hand));
     link.on('rematch', () => { for (const fn of this.rematchListeners) try { fn(this); } catch (e){ console.error(e); } });
+    link.on('next', () => { if (this.nextOffer) for (const fn of this.nextListeners) try { fn(this); } catch (e){ console.error(e); } });
     link.on('raw', k => { for (const fn of this.rawListeners) try { fn(k); } catch (e){ console.error(e); } });
     link.on('dropped', d => { for (const fn of this.dropListeners) try { fn(d.reason, { seq: d.seq, path: d.path }); } catch (e){ console.error(e); } });
     link.on('discard', d => this._diag('scartato', d));
@@ -634,6 +639,16 @@ export class NatpfPhoneRacket {
     if (!this.connected) return false;
     this.link.send(st ? { t: 'rm', on: 1, me: st.me ? 1 : 0, ot: st.other ? 1 : 0, nm: String(st.name || '').slice(0, 24) } : { t: 'rm', on: 0 });
     return true;
+  }
+  onNext(fn){ this.nextListeners.add(fn); return () => this.nextListeners.delete(fn); }
+  // label: scritta del pulsante («Avanti ›», «Salta ›»), null per toglierlo. Rimandato a ogni collegamento nuovo (update)
+  offerNext(label = null){ this.nextOffer = label ? String(label).slice(0, 24) : null; this._sendNext(); }
+  _sendNext(){
+    if (!this.connected){ this.nextSent = ''; return; }
+    const key = `${this.state.joins || 0}:${this.nextOffer || ''}`;
+    if (key === this.nextSent) return;
+    this.nextSent = key;
+    this.link.send(this.nextOffer ? { t: 'nx', on: 1, lb: this.nextOffer } : { t: 'nx', on: 0 });
   }
   // avanzamento della modale { i, n, s, m, all, nm } (NatpfTutorial.progress), mandato al telefono finché aspetta
   tutorialProgress(p){ this.tutProgress = p ? { ...p } : null; this._sendTp(); }
@@ -799,9 +814,8 @@ export class NatpfPhoneRacket {
   /* ---------- scambi di prova (B28): il gioco manda palle di cui conosce il lato ---------- */
   // inizio: profilo da capo e niente di imparato; il telefono mostra «Scambi di prova» (messaggio ph con tr)
   // (keep: chi ha un profilo fatto con i gesti lo tiene: gioca gli scambi di prova ma il gioco non ne impara niente)
-  beginTrial(){
-    const keep = this.gestureProfile;
-    if (!keep) this.freshPlayer();
+  beginTrial({ keep = this.gestureProfile } = {}){
+    if (!keep){ this.gestureCal = false; this.freshPlayer(); }
     this.learner.reset(); this.trial = { ball: 0, want: 0, keep }; this.lastPhase = null; this.lastExpect = null;
     this._changed();
   }
@@ -898,7 +912,7 @@ export class NatpfPhoneRacket {
     const phase = this.connected ? phoneGamePhase(this.engine, this.role) : null;
     // (tr, B28: scambi di prova in corso, il telefono lo scrive; le pagine di prima lo ignorano)
     if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase, ...(this.trial ? { tr: 1 } : {}) }); }
-    this._autoProfile();
+    this._autoProfile(); this._sendNext();
     // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo. Con il verso corretto
     // dagli scambi di prova (dirSign −1) va al telefono girato: per lui dritto e rovescio sono scambiati
     const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand, this.role)*this.learner.sign : 0;

@@ -668,10 +668,30 @@ export class NatpfUi {
     on('natpf-phone-retry', () => this.phone.retry());
     on('natpf-phone-invert', () => this.phone.invert());
     on('natpf-phone-skipgrip', () => this.phone.skipGrip());
-    on('natpf-phone-recal', () => this.phone.recalibrate());
+    on('natpf-phone-recal', () => this.recalibrate());
+    // B28: la calibrazione con i gesti resta raggiungibile anche con «Giocando» o «Nessuna»; e si può saltare (profilo semplice)
+    on('natpf-phone-gesti', () => this.phone.recalibrate({ gestures: true }));
+    on('natpf-phone-skip', () => this.phone.skipCalibration());
     on('natpf-phone-forget', () => { this.phone.forget(); this.qrToken = null; });
     // il pannello non deve far partire swing del mouse sotto
     this.modal?.addEventListener('pointerdown', e => e.stopPropagation());
+  }
+  // «Ricalibra» (pausa → Telefono, pannello del telefono). B28: con la calibrazione «Giocando», a partita in corso contro
+  // la CPU o nello stesso schermo, si rifanno gli scambi di prova (per tutti e due nello stesso schermo) e poi si rigioca
+  // il punto, con il punteggio com'era; altrove (menu, minigiochi, sfida tra due computer) il telefono riparte dal profilo
+  // semplice e il gioco reimpara dai colpi. Con «Con i gesti» la calibrazione di sempre. true se sono partiti gli scambi di prova
+  recalibrate(){
+    const E = this.engine, split = !!E.natpfSplit?.active;
+    const inMatch = !this.lobby?.visible && !E.autoPlayMode && !this.training?.active && !this.events?.active && !this.trial.active
+      && E.playerRole !== 'p2' && (split || !E.isMultiplayer) && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(E.phase);
+    if (readCalMode() === 'play' && this.controller === 'phone' && inMatch && this.phone.soonReady && !(split && this.split?.webcam)){
+      this.closePhone(); this.pause?.close?.();
+      this.trial.start({ split, resume: true, force: true, then: () => { E._setupPointServe({ showBanner: true }); this._syncPause(); } });
+      this.toast('Scambi di prova: poi si rigioca il punto');
+      return true;
+    }
+    this.phone.recalibrate();
+    return false;
   }
   _warn(text){ const w = $('natpf-phone-warn'); if (w){ w.textContent = text; show(w, !!text); } }
   step(){
@@ -715,6 +735,9 @@ export class NatpfUi {
     show($('natpf-phone-invert'), step === 'verifica');
     show($('natpf-phone-skipgrip'), step === 'impugna');
     show($('natpf-phone-recal'), step === 'pronto' || step === 'errore');
+    // B28: «Calibra con i gesti» da pronto (anche con «Giocando»); «Salta la calibrazione» mentre la si fa (mai bloccati)
+    show($('natpf-phone-gesti'), step === 'pronto');
+    show($('natpf-phone-skip'), step === 'impugna' || step === 'prova' || step === 'verifica');
     show($('natpf-phone-forget'), p.connected);
     $('natpf-phone-close').textContent = this.afterReady && step === 'pronto' ? 'Continua ›' : this.engine.autoPlayMode ? 'Torna alla lobby' : 'Torna al campo';
 

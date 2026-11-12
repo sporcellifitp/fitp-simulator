@@ -408,3 +408,86 @@ test('minigiochi e Allenamento: prima del minigioco gli scambi di prova (non con
   a.advance(3000); assert.ok(T.active && T.idx >= 2, 'l\'allenamento continua con gli altri esercizi');
   T.stop({ completed: false, silent: true });
 });
+
+test('pannello dello stand: «Calibrazione» gira Giocando → Con i gesti → Nessuna, resta salvata, avviso dopo il clic', async () => {
+  const w = await makeWorld({ controller: 'phone', cal: 'play' }), { ui } = w;
+  const toasts = []; const toast = ui.toast.bind(ui); ui.toast = t => { toasts.push(t); toast(t); };
+  ui.kiosk.open();
+  const b = $('natpf-staff').querySelector('[data-staff="cal"] b');
+  assert.equal(b.textContent, 'Giocando'); assert.ok(b.parentElement.classList.contains('on'));
+  ui.kiosk.run('cal'); assert.equal(b.textContent, 'Con i gesti'); assert.equal(localStorage.getItem(CAL_MODE_KEY), 'gesti'); assert.match(toasts.at(-1), /un dritto e un rovescio/);
+  assert.ok(!b.parentElement.classList.contains('on')); assert.ok(!ui.phone.autoSimple, 'vale subito per il telefono');
+  ui.kiosk.run('cal'); assert.equal(b.textContent, 'Nessuna'); assert.match(toasts.at(-1), /primi colpi veri/); assert.ok(ui.phone.autoSimple);
+  ui.kiosk.run('cal'); assert.equal(b.textContent, 'Giocando'); assert.match(toasts.at(-1), /scambi di prova/); assert.equal(readSavedCalMode(), 'play');
+});
+
+test('«Ricalibra» a partita in corso con «Giocando»: si rifanno gli scambi di prova e si rigioca il punto, con il punteggio com\'era', async () => {
+  const w = await playWorld(), { E, ui, link, P } = w;
+  w.pressStart(); playTrial(w, (id, n, want) => stroke({ dir: want, peak: 900 }));
+  assert.equal(E.natpfMatchSeq, 1); assert.equal(P.profile.ref, 900);
+  E.score.playerPoints = 2; E.score.opponentPoints = 1; E.score.playerGames = 0;
+  const cmds0 = link.cmds.length;
+  assert.equal(ui.recalibrate(), true); assert.ok(ui.trial.active && ui.trial.S.resume); assert.deepEqual(link.cmds.slice(cmds0), ['cal', 'skip']);
+  playTrial(w, (id, n, want) => stroke({ dir: want, peak: 500 }));
+  assert.ok(!ui.trial.active); assert.equal(E.natpfMatchSeq, 1, 'la stessa partita'); assert.equal(E.phase, 'SERVE_STANCE', 'il punto si rigioca');
+  assert.deepEqual([E.score.playerPoints, E.score.opponentPoints], [2, 1], 'punteggio com\'era'); assert.equal(P.profile.ref, 500, 'colpo reimparato');
+  // nel menu: «Ricalibra» è il profilo da capo (gli scambi di prova partiranno con «Gioca»)
+  ui.backToMenu('match'); const c1 = link.cmds.length;
+  assert.equal(ui.recalibrate(), false); assert.ok(!ui.trial.active); assert.deepEqual(link.cmds.slice(c1, c1 + 1), ['cal']);
+  w.advance(200); assert.ok(P.ready && P.profile.simple);
+});
+
+/* ---------- con il telefono simulato (sensori, rilevatore e messaggi veri): scripts/audit/scambi-di-prova.mjs ---------- */
+import { PEOPLE, runPath, passHand, trialPhone, simplePhone } from '../scripts/audit/scambi-di-prova.mjs';
+import { STROKES } from './arm-sim.mjs';
+
+test('telefono simulato: dagli scambi di prova il profilo del proprio colpo (forza per verso, salita, mira), destro e mancino', () => {
+  for (const hand of ['right', 'left']) for (const [who, lo, hi] of [['adulto', 450, 900], ['bambino', 200, 480], ['forte', 700, 1300]]){
+    const p = trialPhone({ seed: 3, hand, person: PEOPLE[who] }), r = p.trialResult, prof = p.profile;
+    assert.equal(r.level, 'full', `${who} ${hand}`); assert.equal(r.sign, 1); assert.ok(r.balls <= 5, `quattro palle bastano (cinque se un colpo era un colpetto e non conta): ${r.balls}`);
+    assert.ok(!prof.simple && prof.trial, 'profilo non più semplice');
+    for (const d of [1, -1]) assert.ok(prof.refs[d] > lo && prof.refs[d] < hi, `${who} ${hand} verso ${d}: ${prof.refs[d]} °/s`);
+    assert.ok(Number.isFinite(prof.rises[1]) && Number.isFinite(prof.rises[-1]) && Number.isFinite(prof.rawRef));
+    assert.ok(p.models.aims.center(1) != null && p.models.aims.center(-1) != null, 'centro della mira seminato per i due versi');
+    // soglie del telefono sul proprio colpo (il profilo semplice ha 120 °/s fissi)
+    assert.ok(p.det.profile.simple && p.det.profile.refs && Math.abs(p.det.profile.minPeak - .28*Math.min(prof.refs[1], prof.refs[-1], prof.ref)) < 1, JSON.stringify(p.det.profile.minPeak));
+  }
+  assert.ok(STROKES.dritto.peak > 0);
+});
+
+test('telefono simulato: forza dei primi colpi come con i due gesti fatti bene, meglio di «Salta» e dei gesti a vuoto deboli; nessun lato sbagliato', () => {
+  const o = { hand: 'right', seeds: 3, n: 10 };
+  const P = runPath('P', { ...o, person: PEOPLE.bambino }), S = runPath('S', { ...o, person: PEOPLE.bambino }), G = runPath('G', { ...o, person: PEOPLE.bambino });
+  assert.ok(P.dp3 < .06, `scambi di prova, primi 3 colpi: ${P.dp3.toFixed(3)}`); assert.ok(S.dp3 > .15, `«Salta»: ${S.dp3.toFixed(3)}`);
+  assert.ok(P.dp <= G.dp + .01, `scambi ${P.dp.toFixed(3)} · gesti a vuoto ${G.dp.toFixed(3)}`);
+  assert.equal(P.side, 0); assert.equal(P.lost, 0); assert.equal(P.noAim, 0, 'mira dal primo colpo');
+  const A = runPath('P', { ...o, person: PEOPLE.adulto }), GA = runPath('G', { ...o, person: PEOPLE.adulto });
+  assert.ok(A.dp3 <= GA.dp3 && A.dp < .06, `adulto: scambi ${A.dp3.toFixed(3)} · gesti ${GA.dp3.toFixed(3)}`); assert.equal(A.side, 0);
+});
+
+test('telefono simulato con il verso della gravità invertito: con «Salta» i lati sono sbagliati, con gli scambi di prova no (destro e mancino)', () => {
+  for (const hand of ['right', 'left']){
+    const S = runPath('Si', { hand, seeds: 2, n: 10, person: PEOPLE.adulto }), P = runPath('Pi', { hand, seeds: 2, n: 10, person: PEOPLE.adulto });
+    assert.ok(S.side >= 4, `${hand}: «Salta» legge ${S.side}/20 colpi dal lato sbagliato`);
+    assert.equal(P.side, 0, `${hand}: scambi di prova`); assert.equal(P.flips, 2, 'segno girato in tutti e due i telefoni'); assert.deepEqual(P.level, { full: 2 });
+  }
+});
+
+test('telefono che passa di mano senza «Nuovo giocatore» (difetto 5 dell\'audit B16): con gli scambi di prova a ogni partita il secondo non eredita la forza del primo', () => {
+  for (const [a, b] of [['forte', 'bambino'], ['bambino', 'forte']]){
+    const old = passHand('G', { first: PEOPLE[a], second: PEOPLE[b], seeds: 3 }), now = passHand('P', { first: PEOPLE[a], second: PEOPLE[b], seeds: 3 });
+    assert.ok(old.errore > .15, `${a} → ${b}, prima: letta ${old.letta.toFixed(2)} invece di ${old.assestata.toFixed(2)}`);
+    assert.ok(now.errore < .06, `${a} → ${b}, scambi di prova: letta ${now.letta.toFixed(2)}, assestata ${now.assestata.toFixed(2)}`);
+    assert.equal(now.persi, 0, 'nessun colpo perso');
+  }
+});
+
+test('telefono simulato: chi colpisce una volta per lato, solo da un lato o mai → il match parte comunque (profilo «ok», «partial», semplice)', () => {
+  const one = trialPhone({ seed: 2, hand: 'right', person: PEOPLE.adulto, hits: i => i < 2 });
+  assert.equal(one.trialResult.level, 'ok'); assert.equal(one.trialResult.balls, 6, 'fino a sei palle'); assert.ok(!one.profile.simple);
+  const fh = trialPhone({ seed: 2, hand: 'right', person: PEOPLE.adulto, hits: (i, side) => side === 'forehand' });
+  assert.equal(fh.trialResult.level, 'partial'); assert.deepEqual(fh.trialResult.n, { forehand: 2, backhand: 0 }); assert.ok(!fh.profile.simple && fh.models.aims.center(-1) == null);
+  const none = trialPhone({ seed: 2, hand: 'right', person: PEOPLE.adulto, hits: () => false });
+  assert.equal(none.trialResult.level, 'none'); assert.ok(none.profile.simple, 'come «Salta»'); assert.equal(none.trialResult.balls, 6);
+  const S = simplePhone({ seed: 2, hand: 'right' }); assert.ok(S.profile.simple);
+});

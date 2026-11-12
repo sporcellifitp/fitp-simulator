@@ -15,7 +15,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg } from './phone-screen.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -72,6 +72,8 @@ let selectedShot = 'auto', inputMode = 'motion', shotsPaintKey = '';
 let rematch = null, phaseNote = '';
 // calibrazione giocando (B28): il computer sta giocando gli scambi di prova (fase con tr 1)
 let trial = false;
+// niente blocchi (B28): «Avanti ›» offerto dal computer ({ label }) dove chiede un gesto
+let nextOffer = null;
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
 const ARROW = { L: '←', R: '→', '?': '?' };
 // mano scelta nel gioco (o qui, e confermata dal gioco): menu, calibrazione in corso e profilo salvato. Il verso del
@@ -104,7 +106,8 @@ function setGate(g){ gate = g; if (g) ss.set('gate', g); else ss.del('gate'); }
 // «Pronto». Prima ogni elemento aveva la sua condizione e «Tutto chiaro» compariva sopra «Pronto»
 function paint(){
   bar();
-  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch });
+  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch, next: nextOffer });
+  if (nextOffer && $('#next').textContent !== nextOffer.label) $('#next').textContent = nextOffer.label;
   if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
   for (const [sel, on] of Object.entries(v.show)) show(sel, on);
   if (v.show['#profileOptions']) paintHand();
@@ -233,7 +236,7 @@ function onData(c, d){
   switch (d.t){
     case 'welcome':
       clearTimeout(connect.t); clearTimeout(retryT); pendingConn = null;
-      conn = c; linkState = 'on'; tries = 0; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast(); sendDevice();
+      conn = c; linkState = 'on'; tries = 0; nextOffer = null; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast(); sendDevice();
       // ripresa a calibrazione in corso: gli eventi fatti mentre il collegamento era giù sono andati persi, il computer
       // riceve il passo attuale (prima restava al gesto di prima mentre il telefono era già alla verifica)
       if (sensor === 'cal') for (const e of cal.replay()) sendCal(e);
@@ -263,6 +266,8 @@ function onData(c, d){
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
     // rivincita offerta dal computer a fine partita nello stesso schermo (B20), o tolta (on 0)
     case 'rm': rematch = rematchOnMsg(d); if (sensor === 'ready') paint(); break;
+    // «Avanti ›» offerto (o tolto) dal computer: esercizi e scambi di prova si possono saltare anche da qui (B28)
+    case 'nx': nextOffer = nextOnMsg(d); if (sensor === 'ready') paint(); break;
     // (txt, B20: la partita è in pausa per il telefono dell'altro giocatore, e lo dice)
     // soglie dal colpo imparato negli scambi di prova (B28): solo sopra il profilo semplice, che non ha un colpo tipico suo
     case 'pf': { const th = trialThresholds(d); if (th && sensor === 'ready' && inputMode === 'motion' && det.profile.simple) det.setThresholds(th); break; }
@@ -541,6 +546,10 @@ $('#mark').addEventListener('click', e => { e.stopPropagation(); if (linkState !
 $('#recal').addEventListener('click', () => command('cal'));
 // «Rivincita» (stesso schermo, fine partita): si chiede al computer, che parte quando l'hanno chiesta tutti e due
 $('#rematch').addEventListener('click', e => { e.stopPropagation(); if (!rematch || rematch.me || linkState !== 'on') return; rematch = { ...rematch, me: true }; send({ t: 'rm', y: 1 }); buzz([30]); paint(); });
+// «Avanti ›»: il computer va avanti senza il gesto (un tocco alla volta: l'offerta dopo arriva dal computer)
+$('#next').addEventListener('click', e => { e.stopPropagation(); if (!nextOffer || linkState !== 'on') return; send({ t: 'nx', y: 1 }); buzz([30]); });
+// «Salta la calibrazione»: profilo semplice, si gioca subito (lo stesso di «Salta» sul computer)
+$('#calSkip').addEventListener('click', e => { e.stopPropagation(); command('skip'); });
 $('#tutOk').addEventListener('click', tutDone);
 // frecce del tutorial: il computer cambia scheda e rimanda l'avanzamento (tp)
 $('#tutPrev').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).prev) send({ t: 'tut', nav: -1 }); });

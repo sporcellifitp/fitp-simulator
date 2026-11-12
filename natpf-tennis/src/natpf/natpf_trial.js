@@ -58,6 +58,7 @@ export class NatpfTrial {
     this.el = $('natpf-trial');
     this.el?.addEventListener?.('pointerdown', e => e.stopPropagation());
     $('trial-skip')?.addEventListener?.('click', e => { e.stopPropagation(); this.skip(); });
+    this._nextBound = new WeakSet();
     // durante gli scambi di prova i punti non contano: il motore chiede un punto, qui la palla è solo finita
     const award = engine._awardPoint.bind(engine);
     engine._awardPoint = (winner, why = '') => (this.S ? this._ballOver() : award(winner, why));
@@ -68,26 +69,30 @@ export class NatpfTrial {
   _actor(id){ return id === 'p2' ? this.engine.opponent : this.engine.player; }
   _mine(id){ return id === 'p2' ? 'opponent' : 'player'; }
   _name(id){ return this.S?.split ? this.ui.split?.name?.(id) || (id === 'p2' ? 'Player 2' : 'Player 1') : ''; }
+  // «Salta ›» anche dal telefono (pagine dal B28): la partita parte subito con quello che il gioco ha imparato
+  _bindNext(phone){ if (phone?.onNext && !this._nextBound.has(phone)){ this._nextBound.add(phone); phone.onNext(() => { if (this.S) this.skip(); }); } }
   // Si fanno? (opzione dello stand, racchetta, telefoni pronti)
   due({ split = !!this.engine.natpfSplit?.active } = {}){
     return trialDue({ controller: this.ui.controller, split, webcamDuo: !!this.ui.split?.webcam, phones: split ? [this._phone('p1'), this._phone('p2')] : [this._phone('p1')] });
   }
   // then: cosa fare alla fine (far partire la partita, il minigioco…); split: stesso schermo (la sessione è già aperta)
-  start({ then = null, split = !!this.engine.natpfSplit?.active } = {}){
+  // resume: a partita in corso («Ricalibra»): il punteggio resta com'è; force: anche chi ha un profilo fatto con i gesti
+  // reimpara dagli scambi di prova (l'ha chiesto apposta)
+  start({ then = null, split = !!this.engine.natpfSplit?.active, resume = false, force = false } = {}){
     if (this.S) return false;
     const E = this.engine, ids = split ? ['p1', 'p2'] : ['p1'];
-    this.S = { split, then, phase: 'intro', wait: TRIAL.intro, t: 0, started: false, turn: 'p1', receiver: null, dead: false, flash: null,
+    this.S = { split, then, resume, phase: 'intro', wait: TRIAL.intro, t: 0, started: false, turn: 'p1', receiver: null, dead: false, flash: null,
       players: Object.fromEntries(ids.map(id => [id, { balls: 0, hits: 0 }])),
       prev: { difficulty: E.hud?.selectedDifficulty || E.matchConfig?.difficulty, format: E.matchFormat?.id || null, multi: !!E.isMultiplayer } };
     // come il riscaldamento: niente menu, niente dimostrazione, punteggio a zero
     if (!split){ E._applyDifficultyTuning?.('casual'); E.isMultiplayer = false; E.setMatchFormat?.('singles'); }
     E.hud?.hideTitleModal?.(); E.hud?.hideCenterBanner?.(); E.hud?.hideVictoryModal?.();
     E.autoPlayMode = false; E.userHasInteracted = true; E.persistentStateLock = false;
-    if (E.score) Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
+    if (E.score && !resume) Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD?.();
     this._stage(true);
     this._idle();
-    for (const id of ids){ const a = this._actor(id), z = id === 'p2' ? -TRIAL_FEED.z : TRIAL_FEED.z; if (a?.pos){ a.pos.set(0, 0, z); a.targetPos?.copy?.(a.pos); a.vel?.set?.(0, 0, 0); } this._phone(id)?.beginTrial?.(); }
+    for (const id of ids){ const a = this._actor(id), z = id === 'p2' ? -TRIAL_FEED.z : TRIAL_FEED.z; if (a?.pos){ a.pos.set(0, 0, z); a.targetPos?.copy?.(a.pos); a.vel?.set?.(0, 0, 0); } this._phone(id)?.beginTrial?.(force ? { keep: false } : {}); this._bindNext(this._phone(id)); this._phone(id)?.offerNext?.('Salta ›'); }
     this.ui.diag?.recorder?.log?.('prova.inizio', { stessoSchermo: split });
     this.paint(); this.ui._syncPause?.();
     return true;
@@ -212,7 +217,7 @@ export class NatpfTrial {
     const S = this.S; if (!S) return;
     const E = this.engine;
     // (chiusi prima della fine: il telefono tiene quello che ha imparato fin lì)
-    for (const id of Object.keys(S.players)) if (this._phone(id)?.trialOn) this._phone(id).endTrial();
+    for (const id of Object.keys(S.players)){ if (this._phone(id)?.trialOn) this._phone(id).endTrial(); this._phone(id)?.offerNext?.(null); }
     this._stage(false);
     this.S = null;
     if (!S.split){

@@ -157,6 +157,9 @@ export class NatpfTraining {
     this.active = false;
     this.coach = document.getElementById('natpf-coach');
     document.getElementById('coach-exit')?.addEventListener('click', e => { e.stopPropagation(); this.skip(); });
+    // B28, niente blocchi: «Avanti ›» passa all'esercizio dopo senza aver fatto il gesto (anche dal telefono)
+    document.getElementById('coach-next')?.addEventListener('click', e => { e.stopPropagation(); this.nextDrill(); });
+    ui.phone?.onNext?.(() => { if (this.active) this.nextDrill(); });
     document.getElementById('coach-simple')?.addEventListener('click', e => { e.stopPropagation(); this.simpleMode(); });
     this.coach?.addEventListener('pointerdown', e => e.stopPropagation());
     // lezione iniziale: avanti / indietro / mano, anche da tastiera (Invio, frecce)
@@ -570,6 +573,26 @@ export class NatpfTraining {
     if (this.wait > 0){ this.wait -= dt; if (this.wait <= 0) this._next(); }
     this.paint();
   }
+  // B28 (12/11, richiesta dell'utente: «togli il check che uno deve aver fatto quel gesto»): «Avanti ›», sul computer e sul
+  // telefono, va avanti senza fare il gesto chiesto. Tutorial e lezione: si chiudono; calibrazione con i gesti: profilo
+  // semplice e poi gli esercizi; esercizio: il successivo (dopo l'ultimo l'allenamento finisce come completato). Prima il
+  // dritto, il rovescio, il servizio e le direzioni non avevano un limite di tentativi: chi non ci riusciva restava lì
+  nextDrill(){
+    if (!this.active) return false;
+    if (this.tutorialOpen){ this._tutorialDone('skip'); return true; }
+    if (this.lesson){ this.lessonAction('skip'); return true; }
+    if (this.cal){ this.simpleMode(); this.paint(); return true; }
+    if (this.idx >= this.drills.length) return false;
+    const E = this.engine;
+    this.idx++; this.progress = { done: 0, tries: 0 }; this.message = null; this.live = null;
+    this.flash = this.idx < this.drills.length ? { text: `Ora: ${this.drill.label}`, ok: true, until: performance.now() + 1400 } : null;
+    if (this.learn && !this.drills.slice(this.idx).some(d => LEARN_DRILLS.includes(d.id))) this._endLearn();
+    this._idle(); E.hud.hideCenterBanner?.(); this.wait = .6;
+    this.paint();
+    return true;
+  }
+  // «Avanti ›» in vista (e offerto al telefono): durante gli esercizi e la calibrazione con i gesti
+  get nextLabel(){ return this.active && !this.tutorialOpen && !this.lesson && (this.cal || this.idx < this.drills.length) ? (this.cal ? 'Salta la calibrazione ›' : 'Avanti ›') : null; }
   // «Salta»: con il telefono non calibrato si passa alla modalità semplice
   skip(){
     if (!this.active) return;
@@ -584,6 +607,7 @@ export class NatpfTraining {
     // modale chiusa prima della fine: con lo stesso telefono si riprende dalla scheda raggiunta
     if (this.tutorialOpen){ this.tutorialOpen = false; this.ui.phone.saveTutorial?.(this.tutorial?.snapshot); this.ui.phone.waitTutorial?.(false); this.tutorial?.close('skip'); }
     this.active = false; this.cal = null; this.lesson = null; this.live = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
+    this.ui.phone?.offerNext?.(null);
     if (this.demoOn){ getGestureDemo('coach').stop(); this.demoOn = false; }
     if (E.audioEngine?.musicContext === 'training') E.audioEngine.musicContext = null;
     this.coach?.classList.add('hidden'); this._hideOpponent(false);
@@ -623,6 +647,10 @@ export class NatpfTraining {
     show(list, stages.length > 1);
     show($('#coach-simple'), !!this.cal && this.cal.fails >= 1);
     show($('#coach-review'), this.ui.controller === 'phone' && !this.lesson && !this.tutorialOpen);
+    // «Avanti ›» (B28): sul computer e, con il telefono, anche lì (le pagine di prima ignorano l'offerta)
+    const nl = this.nextLabel, nb = $('#coach-next');
+    if (nb){ show(nb, !!nl); if (nl && nb.textContent !== nl) nb.textContent = nl; }
+    if (c === 'phone' && this.ui.phone?.offerNext && this.ui.phone.nextOffer !== nl) this.ui.phone.offerNext(nl);
     // lezione iniziale: pannello a sinistra con l'animazione grande, il campo resta libero
     const L = this.lesson;
     if (this.coach.dataset.mode !== (L ? 'lesson' : 'drill')) this.coach.dataset.mode = L ? 'lesson' : 'drill';
