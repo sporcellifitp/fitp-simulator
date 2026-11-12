@@ -251,7 +251,7 @@ export class NatpfTraining {
     this.withCal = !!this.cal;
     // B28, calibrazione giocando: senza i gesti il gioco impara dai primi esercizi, il dritto e il rovescio (palle di cui
     // conosce il lato), come dagli scambi di prova prima della partita (NatpfPhoneRacket.beginTrial / trialBall / endTrial)
-    this.learn = ctrl === 'phone' && !this.cal && !calOnly && !guest && !diag && !!P0?.autoSimple && !P0.gestureProfile && this.drills.some(d => LEARN_DRILLS.includes(d.id));
+    this.learn = ctrl === 'phone' && !this.cal && !calOnly && !guest && !diag && !!P0?.autoSimple && !P0.keepsGesture && this.drills.some(d => LEARN_DRILLS.includes(d.id));
     this.prevDifficulty = E.hud.selectedDifficulty || E.matchConfig.difficulty;
     this.prevFormat = E.matchFormat?.id || null;
     E._applyDifficultyTuning('casual'); E.isMultiplayer = false;

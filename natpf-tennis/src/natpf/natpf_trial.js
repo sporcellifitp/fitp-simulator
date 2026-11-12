@@ -31,14 +31,17 @@ export const TRIAL_FEED = Object.freeze({ z: 11.4, side: 1.3, jitter: .5, depth:
 
 // profilo fatto con i gesti (non semplice e non imparato dagli scambi di prova): chi l'ha chiesto apposta lo tiene
 export const gestureProfile = p => !!p?.profile && !p.profile.simple && !p.profile.trial;
+// … e vale per chi gioca adesso (NatpfPhoneRacket.keepsGesture: con «Giocando» solo se la calibrazione con i gesti è
+// stata fatta apposta dopo l'ultima partita, per la partita che segue; un oggetto senza quel campo: basta il profilo)
+export const keepsGesture = p => (p && 'keepsGesture' in p ? !!p.keepsGesture : gestureProfile(p));
 // Gli scambi di prova si fanno adesso? (funzione pura) mode: opzione dello stand; phones: i telefoni di chi gioca (uno, o
 // due nello stesso schermo); webcamDuo: stesso schermo con una webcam per due (niente telefoni: niente scambi di prova)
 export function trialDue({ mode = readCalMode(), controller = 'phone', split = false, webcamDuo = false, phones = [] } = {}){
   if (mode !== 'play') return false;
   // (pronto, o lo sarà tra un attimo: il profilo semplice è già stato chiesto, NatpfPhoneRacket.soonReady)
   const ok = p => !!(p?.soonReady ?? p?.ready);
-  if (split) return !webcamDuo && phones.length === 2 && phones.every(ok) && phones.some(p => !gestureProfile(p));
-  return controller === 'phone' && ok(phones[0]) && !gestureProfile(phones[0]);
+  if (split) return !webcamDuo && phones.length === 2 && phones.every(ok) && phones.some(p => !keepsGesture(p));
+  return controller === 'phone' && ok(phones[0]) && !keepsGesture(phones[0]);
 }
 // testi della scritta grande (funzioni pure)
 export const TRIAL_TEXT = Object.freeze({ kicker: 'Scambi di prova', title: 'Colpisci la palla', sub: 'Il gioco impara il tuo colpo · poi si comincia da 0-0', go: 'Si comincia!' });
@@ -174,7 +177,9 @@ export class NatpfTrial {
       else if (S.dead || this._passed(id)) this._onMiss(id);
     } else {
       S.wait -= dt;
-      if (S.wait <= 0){ if (this._allDone()) this._outro(); else this._send(S.turn, {}); }
+      // (la prima palla aspetta che i telefoni abbiano il profilo da capo: con la rete lenta arriva un attimo dopo)
+      const waiting = !S.started && Object.keys(S.players).some(id => this._phone(id)?.resetting);
+      if (S.wait <= 0 && !waiting){ if (this._allDone()) this._outro(); else this._send(S.turn, {}); }
     }
     if (S.phase !== 'outro' && S.t >= TRIAL.maxS + 2) this._outro();   // sicurezza: mai fermi
     this.paint();

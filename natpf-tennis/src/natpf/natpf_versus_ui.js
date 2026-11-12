@@ -264,6 +264,8 @@ export class NatpfVersusUi {
     // già pronti: il pulsante non è un interruttore (per tornare indietro c'è «Annulla»)
     if (this.ready){ ui.toast('Sei pronto ✓ Per tornare indietro premi «Annulla»'); return; }
     if (ui.controller === 'webcam' && this._webcamSetup()){ this.openCam(); return; }
+    // (opzione dello stand passata a «Con i gesti» con il telefono rimasto con il profilo dato dal gioco: rifà i gesti)
+    if (ui.controller === 'phone') phone.demoteIfStale?.();
     // B28: telefono già pronto con la calibrazione «Giocando»: prima gli scambi di prova in campo (una volta), poi pronto
     if (ui.controller === 'phone' && phone.ready && !this.trialPlayed && ui.trial?.due?.({ split: false })){ this.startCal(); return; }
     if (ui.controller !== 'phone' || phone.ready){ this.setReady(true); return; }

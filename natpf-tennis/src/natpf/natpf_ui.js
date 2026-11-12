@@ -403,12 +403,15 @@ export class NatpfUi {
     $('btn-start-match')?.addEventListener('click', e => {
       if (this._trialPass){ this.wipe(this.lobby?.mode === 'split' ? 'Stesso schermo' : 'Si gioca'); return; }
       const mode = this.lobby?.mode, cal = readCalMode();
+      // (revisione del B28, difetto 4) opzione dello stand cambiata a «Con i gesti» con un telefono rimasto con il
+      // profilo dato dal gioco o imparato dagli scambi di prova: non conta come calibrato, rifà i gesti (senza QR)
+      if (cal === 'gesti' && this.controller === 'phone') for (const p of mode === 'split' ? (this.split.webcam ? [] : [this.split.phone('p1'), this.split.phone('p2')]) : [this.phone]) p?.demoteIfStale?.();
       // stesso schermo: si parte con i due telefoni pronti; la sessione split nasce qui (natpf_split_ui.js)
       if (mode === 'split'){
         if (!this.split.bothReady()){ e.stopImmediatePropagation(); this.toast(this.split.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.lobby.go('connect'); return; }
         this.split.start();
         if (this.trial.due({ split: true })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: true, then: () => this._startMatchNow() }); return; }
-        if (cal === 'none' && !this.split.webcam) for (const id of ['p1', 'p2']) this.split.phone(id)?.freshPlayer?.();
+        if (cal === 'none' && !this.split.webcam) for (const id of ['p1', 'p2']){ const p = this.split.phone(id); if (!p?.keepsGesture) p?.freshPlayer?.(); }
         this.wipe('Stesso schermo'); return;
       }
       // sfida tra due computer: si parte solo con il Player 2 entrato e pronto
@@ -417,7 +420,8 @@ export class NatpfUi {
       // (appena finito «Riscaldati prima», che ha già insegnato il colpo di chi gioca: niente scambi di prova, una volta)
       const warmed = !!this.trialSkipOnce && !!this.phone.profile?.trial; this.trialSkipOnce = false;
       if (mode !== 'friend' && !warmed && this.trial.due({ split: false })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: false, then: () => this._startMatchNow() }); return; }
-      if (mode !== 'friend' && !warmed && cal === 'none' && this.controller === 'phone') this.phone.freshPlayer?.();
+      // «Nessuna»: profilo semplice da capo a ogni partita (non chi ha appena calibrato apposta con i gesti: per questa partita)
+      if (mode !== 'friend' && !warmed && cal === 'none' && this.controller === 'phone' && !this.phone.keepsGesture) this.phone.freshPlayer?.();
       this.wipe(mode === 'friend' ? 'Sfida 1v1' : 'Si gioca');
     }, true);
   }
@@ -685,11 +689,16 @@ export class NatpfUi {
   // la CPU o nello stesso schermo, si rifanno gli scambi di prova (per tutti e due nello stesso schermo) e poi si rigioca
   // il punto, con il punteggio com'era; altrove (menu, minigiochi, sfida tra due computer) il telefono riparte dal profilo
   // semplice e il gioco reimpara dai colpi. Con «Con i gesti» la calibrazione di sempre. true se sono partiti gli scambi di prova
+  // una partita è in corso adesso (non il menu, l'allenamento, un minigioco, gli scambi di prova, la schermata finale)
+  matchLive(){
+    const E = this.engine;
+    return !this.lobby?.visible && !E.autoPlayMode && !this.training?.active && !this.events?.active && !this.trial?.active
+      && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(E.phase);
+  }
   // «Ricalibra» adesso farebbe gli scambi di prova? (in partita, con «Calibrazione: Giocando»: lo usa anche il telecomando)
   recalTrialDue(){
     const E = this.engine, split = !!E.natpfSplit?.active;
-    const inMatch = !this.lobby?.visible && !E.autoPlayMode && !this.training?.active && !this.events?.active && !this.trial.active
-      && E.playerRole !== 'p2' && (split || !E.isMultiplayer) && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(E.phase);
+    const inMatch = this.matchLive() && E.playerRole !== 'p2' && (split || !E.isMultiplayer);
     return readCalMode() === 'play' && this.controller === 'phone' && inMatch && !!this.phone.soonReady && !(split && this.split?.webcam);
   }
   recalibrate(){

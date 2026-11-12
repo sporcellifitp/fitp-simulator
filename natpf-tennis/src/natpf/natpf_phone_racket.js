@@ -31,7 +31,10 @@ import { strokeIntent, shapeDistinct, strokePower, INTENT } from './natpf_stroke
 import { aimFullNow } from './natpf_aim_level.js';
 import { weakSwing, livePlan, planOf } from './natpf_impact.js';
 import { SMASH_FROM } from './natpf_stroke_outcome.js';
-import { createTrialLearner, readCalMode, phoneThresholds } from './natpf_trial_learn.js';
+import { createTrialLearner, readCalMode, phoneThresholds, TRIAL } from './natpf_trial_learn.js';
+// tempo concesso al telefono per tornare «pronto» dopo il profilo da capo chiesto dal gioco (freshPlayer): tre richieste
+// del profilo semplice a 700 ms l'una. Oltre, vale la pausa «telefono non pronto» di sempre
+export const RESET_GRACE_MS = 2500;
 
 const NATPF_BASE = '/natpf/';
 // B18 (difetto 10): voto del colpo per il telefono dall'esito del computer (natpf_shot_feedback.shotQuality); senza esito
@@ -465,7 +468,13 @@ export class NatpfPhoneRacket {
     // B28, calibrazione giocando (natpf_trial_learn.js): cosa si impara dagli scambi di prova (verso, forza, salita, centro
     // della mira); trial = scambi di prova in corso { ball: numero della palla, want: verso atteso dal lato della palla };
     // gestureCal = calibrazione con i gesti chiesta apposta («Calibra con i gesti») anche se l'opzione dello stand è «Giocando»
-    this.learner = createTrialLearner(); this.trial = null; this.gestureCal = false; this.skipAskedAt = -1e9;
+    this.learner = createTrialLearner(); this.trial = null; this.gestureCal = false; this.skipAskedAt = -1e9; this.resetAt = null;
+    // (revisione del B28, difetto 4) il profilo ricorda come è stato fatto: madeBy = 'gesti' (calibrazione con i gesti),
+    // 'salta' («Salta» premuto apposta con «Con i gesti»), 'auto' (profilo semplice dato dal gioco con «Giocando» o
+    // «Nessuna»), 'prova' (imparato dagli scambi di prova o dal riscaldamento), null (non si sa: telefono appena tornato).
+    // gestureAt: numero della partita (engine.natpfMatchSeq) in cui è finita una calibrazione con i gesti fatta fuori
+    // da una partita: con «Giocando» e «Nessuna» quel profilo vale per la partita che segue e basta
+    this.madeBy = null; this.gestureAt = null;
   }
   // B28: calibrazione dello stand (natpf_trial_learn.readCalMode: 'play' giocando, 'gesti', 'none') e profilo semplice
   // automatico. Con «Giocando» e «Nessuna» il telefono non fa i gesti: appena ha i sensori attivi e comincia a calibrare il
@@ -484,6 +493,18 @@ export class NatpfPhoneRacket {
   get dirSign(){ return this.learner.sign; }
   // profilo fatto con i gesti (non semplice e non imparato dagli scambi di prova): chi l'ha chiesto apposta lo tiene
   get gestureProfile(){ return !!this.profile && !this.profile.simple && !this.profile.trial; }
+  // Il profilo fatto con i gesti vale per chi gioca adesso? Con «Con i gesti» sempre (finché «Nuovo giocatore» o
+  // «Ricalibra»: com'era prima del B28). Con «Giocando» e «Nessuna» solo se la calibrazione con i gesti è stata fatta
+  // apposta dopo la fine dell'ultima partita, e vale per quella che segue: niente passa da un visitatore al successivo
+  get keepsGesture(){
+    if (!this.gestureProfile) return false;
+    return this.calMode === 'gesti' || (this.gestureAt != null && this.gestureAt === (this.engine.natpfMatchSeq || 0));
+  }
+  // Con «Con i gesti» conta come calibrato solo un profilo fatto con i gesti (o saltato apposta): un profilo dato dal
+  // gioco o imparato dagli scambi di prova, rimasto da quando l'opzione era un'altra, no
+  get calStale(){ return this.calMode === 'gesti' && this.connected && this.ready && !this.gestureCal && !!this.profile && (!!this.profile.trial || this.madeBy === 'auto' || this.madeBy === 'prova'); }
+  // … e allora il telefono torna a calibrare con i gesti (senza rifare il QR). true se l'ha fatto
+  demoteIfStale(){ if (!this.calStale) return false; this.recalibrate(); return true; }
   // pronto, o lo sarà tra un attimo: sensori attivi e profilo semplice già chiesto o da chiedere (senza i gesti)
   get soonReady(){ return this.ready || (this.connected && this.autoSimple && !this.tutWait && ['cal', 'tut', 'ready'].includes(this.state.phone)); }
   // ruolo di chi tiene questo telefono ('p1' o 'p2') e P2 locale (split screen: colpi all'avversario su questo computer)
@@ -586,6 +607,9 @@ export class NatpfPhoneRacket {
       c.step = 'done'; this.profile = e.profile || null;
       // B28: profilo nuovo, niente di imparato dagli scambi di prova di prima (verso compreso); una calibrazione con i
       // gesti chiesta apposta è finita
+      // (come è stato fatto: prima di spegnere gestureCal, che decide autoSimple)
+      this.madeBy = !this.profile ? null : this.profile.simple ? (this.autoSimple ? 'auto' : 'salta') : 'gesti';
+      this.gestureAt = this.madeBy === 'gesti' && !this.engine.natpfUi?.matchLive?.() ? (this.engine.natpfMatchSeq || 0) : null;
       this.learner.reset(); this.gestureCal = false; this.simple = !!this.profile?.simple; this.lastExpect = null;
       this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline;
       this.liftModel.reset(this.liftBaseline); this.faceModel.reset();
@@ -811,13 +835,20 @@ export class NatpfPhoneRacket {
   // profilo dei gesti resta finché non si preme «Nuovo giocatore» o «Ricalibra». false se non si è fatto niente
   freshPlayer(){
     if (!this.autoSimple || !this.connected || this.tutWait) return false;
-    this.recalibrate(); this.skipAskedAt = performance.now(); this.skipCalibration();
+    this.recalibrate(); this.skipAskedAt = this.resetAt = performance.now(); this.skipCalibration();
     return true;
+  }
+  // Il profilo da capo chiesto dal gioco è in viaggio: per un attimo il telefono dice «calibrazione» e non «pronto», ed
+  // è previsto. Vale al massimo RESET_GRACE_MS dalla richiesta, solo con il telefono collegato in quello stato; chi
+  // guarda la salute del telefono (natpf_phone_watch.phoneHealthOf) in quel tratto non lo prende per «non pronto»
+  // (revisione del B28, difetto 6: con 500 ms di rete la partita andava in pausa 3 s all'inizio degli scambi di prova)
+  get resetting(){
+    return this.resetAt != null && this.connected && !this.ready && this.autoSimple && this.state.phone === 'cal' && performance.now() - this.resetAt < RESET_GRACE_MS;
   }
   /* ---------- scambi di prova (B28): il gioco manda palle di cui conosce il lato ---------- */
   // inizio: profilo da capo e niente di imparato; il telefono mostra «Scambi di prova» (messaggio ph con tr)
   // (keep: chi ha un profilo fatto con i gesti lo tiene: gioca gli scambi di prova ma il gioco non ne impara niente)
-  beginTrial({ keep = this.gestureProfile } = {}){
+  beginTrial({ keep = this.keepsGesture } = {}){
     if (!keep){ this.gestureCal = false; this.freshPlayer(); }
     this.learner.reset(); this.trial = { ball: 0, want: 0, keep }; this.lastPhase = null; this.lastExpect = null;
     this._changed();
@@ -828,7 +859,12 @@ export class NatpfPhoneRacket {
   trialIdle(){ if (this.trial) this.trial.want = 0; }
   get trialOn(){ return !!this.trial; }
   // colpi di prova imparati finora per lato di chi gioca: { forehand, backhand, total }
-  trialCounts(){ return this.learner.counts(this.hand); }
+  // (chi tiene il profilo dei gesti non ha niente da imparare: conta come fatto. Revisione del B28, difetto 7: nello
+  // stesso schermo con un giocatore calibrato con i gesti gli scambi di prova arrivavano sempre al tetto di tempo)
+  trialCounts(){
+    if (this.trial?.keep) return { 1: TRIAL.perSide, '-1': TRIAL.perSide, forehand: TRIAL.perSide, backhand: TRIAL.perSide, total: 2*TRIAL.perSide, keep: true };
+    return this.learner.counts(this.hand);
+  }
   // fine: il profilo imparato sostituisce quello semplice (se i colpi bastano) e semina i riferimenti come fa la
   // calibrazione con i gesti; colpo tipico e forma del colpo normale restano quelli imparati dai colpi di prova (come dopo
   // il riscaldamento). Restituisce il riassunto { level, n, sign, ref } per chi mostra l'esito e per la diagnostica
@@ -839,7 +875,7 @@ export class NatpfPhoneRacket {
     if (keep) return { level: 'gesti', n: { forehand: 0, backhand: 0 }, sign: 1, ref: this.profile?.ref ?? null, votes: { agree: 0, against: 0 } };
     const L = this.learner, level = L.level(), learned = L.profile(this.profile), counts = L.counts(this.hand);
     if (learned){
-      this.profile = learned; this.simple = false;
+      this.profile = learned; this.simple = false; this.madeBy = 'prova'; this.gestureAt = null;
       // i riferimenti per verso hanno visto i primi colpi con il verso di prima della correzione: da capo, dal profilo
       this.aimModel.reset(); for (const dir of [1, -1]) this.aimModel.seed(dir, learned.faceRef?.[dir]?.heading);
       this.riseModel.reset(); this.faceModel.reset();
@@ -871,7 +907,7 @@ export class NatpfPhoneRacket {
   // profilo di prima. La mano non si tocca qui: la decide il gioco (natpf_new_player)
   resetPlayer({ gate = true } = {}){
     this.forgetTutorial();
-    this.profile = null; this.liftBaseline = 0; this.lastExpect = null;
+    this.profile = null; this.madeBy = null; this.gestureAt = null; this.liftBaseline = 0; this.lastExpect = null;
     this.liftModel.reset(null); this.faceModel.reset(); this.aimModel.reset(); this.headModel.reset(0);
     this.riseModel.reset(); this.typicalModel.reset(); this.shapeModel.reset(); this.resetSpecials();
     this.learner.reset(); this.trial = null;
