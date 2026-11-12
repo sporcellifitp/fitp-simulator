@@ -50,8 +50,12 @@ il video di prima», scia «gialla ma poco diversa»). Ramo `b26-trailer-scia` (
 - [x] Scia: nastro 0,8 m pieno + alone, lunga fino a 10 m, piena da 14 m/s; «Scia della palla: No» = disegno di prima.
       Confronto guardato: `docs/b21/img/scia-confronto-b26.webp`.
 - [x] Controllo rapido sul codice unito: gioco 1159/1159, sito 205/205, Windows 29/29, build ok → push
-- [~] Zip Cloudflare e installer (GitHub Actions → R2): in consegna
-- [ ] Prove complete nel browser sul codice unito (dopo la consegna): `scratchpad/v1112b/`
+- [x] Zip Cloudflare consegnato: 23.293.679 B, sha256
+      `5edcdb12d20265359d34048550fab842c0728bd309853a99357e77cbd6fb6b4e`, provato estratto (unico errore atteso: CORS del TURN)
+- [x] **Installer 2026-11-12.1 pubblicato su R2** e verificato dal link fisso: 127.587.187 B, sha256
+      `9e4f8335393ff332430ee76ff23ed8fa30e87568bd6305c762409f5416400a26` (corsa 43171074879, partita da sola con il push)
+- [x] Detto all'utente cosa cambia e che, se parte ancora il video vecchio, serve `programma.log`
+- [~] Prove complete nel browser sul codice unito, avviate alle 06:55 UTC del 12/11: `scratchpad/v1112b/prove.sh` → `prove.txt` (finisce con `== FINE`)
 - L'agente B26 e il revisore del B25 si sono fermati due volte (limite delle 5 ore, poi «crediti finiti»): il B26 l'ha
   chiuso l'agente principale (mancava solo la sezione finale del documento e il commit).
 

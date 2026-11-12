@@ -1386,3 +1386,20 @@ guida provato nel browser.
   `media/trailer-aad6b9311db4.mp4` (2.258.622 B). Repository reso pubblico dall'utente per sbloccare le Actions (budget a
   0 $); controllo rapido di file e storia per chiavi o credenziali: niente trovato (solo asserzioni dei test).
 
+## B26 · Trailer nel programma Windows e scia più evidente (12/11) · [x] versione 2026-11-12.1
+- Collaudo dell'utente sulla 2026-11-11.2 nel programma Windows: all'avvio è partito il video di prima; scia «gialla ma
+  poco diversa». Ramo `b26-trailer-scia` (`2bd9017`), unito in `a3fc6e8`, versione in `e09dc40`.
+- File: `natpf-tennis/src/natpf/natpf_intro.js`, `natpf_ball_glow.js`, `natpf-desktop/src/main.mjs`, i test
+  `natpf-intro-trailer` e `natpf-scia-palla` (unità e browser), `docs/b21/video-e-scia.md` (sezione finale),
+  `docs/b21/img/scia-confronto-b26.webp`.
+- Trailer: nel programma (file locale) parte appena il primo fotogramma è pronto, attesa 8 s contata nei soli passi
+  puntuali (limite 4 volte), torna all'inizio se era già avanzato, ripiego solo per errore del file; cronaca in
+  `programma.log` (`[natpf-intro]`). Web e computer del Player 2 invariati.
+- Scia: nastro 0,8 m pieno con alone 2,2 volte, velocità × 0,42 s fino a 10 m, piena da 14 m/s, niente sotto 10 m/s,
+  opacità 0,92; sotto la scia bianca nei colpi potenti (0,5). Opzione su «No»: disegno di prima.
+- Verifiche: gioco 1159/1159, sito 205/205, programma Windows 29/29, build ok. Zip Cloudflare 23.293.679 B (margine
+  1.706.321 B), sha256 `5edcdb12d20265359d34048550fab842c0728bd309853a99357e77cbd6fb6b4e`, provato estratto. Installer
+  127.587.187 B, sha256 `9e4f8335393ff332430ee76ff23ed8fa30e87568bd6305c762409f5416400a26`, verificato dal link fisso.
+- **Non verificato**: PC Windows vero (la causa del trailer è la più probabile, non accertata); l'agente si è fermato
+  per il limite d'uso prima della verifica finale in Electron e della riesecuzione intera della prova della scia nel
+  browser: le prove complete girano dopo la consegna (esito in `docs/TRACCIA_PASSI.md`).
