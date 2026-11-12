@@ -81,8 +81,12 @@ al 50%). Documento: `docs/b25/stesso-schermo-equilibrio.md` in quella worktree.
       fasce vicine e campo aperto = solo margine. Bambino contro adulto medio: 10–11% → 38–42% (tre serie).
 - [x] Unito in `natpf-simulator` (`b3fd48d`), **versione 2026-11-12.2**.
 - [x] Controllo rapido: gioco 1185/1185, sito 205/205, Windows 29/29, build ok → push
-- [~] Zip e installer in consegna; prove
-      complete dopo (`scratchpad/v1112c/prove.sh`, da aggiungere `natpf-stesso-schermo-b25`).
+- [x] Zip Cloudflare 2026-11-12.2 consegnato: 23.297.434 B, sha256
+      `4308f1559e9fef7da38d994f80e9a672c62bc3f3623276d26486c87d12243e2a`, provato estratto
+- [x] **Installer 2026-11-12.2 pubblicato su R2** e verificato dal link fisso: 127.576.457 B, sha256
+      `ec66a7249b3432805fa69430297a00efbb437525f816209de6526fa129083ace`
+- [x] Detto all'utente come si attivano Lancio automatico, Campo aperto e fasce
+- [~] Prove complete avviate alle 09:25 UTC del 12/11: `scratchpad/v1112c/prove.sh` → `prove.txt` (finisce con `== FINE`)
 - Decisioni ancora da chiedere all'utente (dal documento B25): soglia del colpo super (1,3 volte; «qualche volta a
   partita» non raggiunto), «tira sempre fortissimo» rende 65–69% con il campo aperto, chi batte parte sfavorito con il
   campo aperto (44–48 punti su 100).

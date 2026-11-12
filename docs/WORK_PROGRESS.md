@@ -1403,3 +1403,24 @@ guida provato nel browser.
 - **Non verificato**: PC Windows vero (la causa del trailer è la più probabile, non accertata); l'agente si è fermato
   per il limite d'uso prima della verifica finale in Electron e della riesecuzione intera della prova della scia nel
   browser: le prove complete girano dopo la consegna (esito in `docs/TRACCIA_PASSI.md`).
+
+## B25 · Stesso schermo tra due persone (11–12/11) · [x] versione 2026-11-12.2
+- Workflow `b25-stesso-schermo-equilibrio` (agente → revisore indipendente → correzioni), poi un agente per la decisione
+  dell'utente del 12/11 («nessun vantaggio di punti, solo nel gameplay»). Ramo `worktree-wf_d8163833-9f8-1`
+  (`acc8e7a`…`3a3b9bc`), unito in `b3fd48d`. Documento `docs/b25/stesso-schermo-equilibrio.md`, misure in
+  `natpf-tennis/scripts/audit/b25/`.
+- Cosa c'è (solo nello stesso schermo tra due persone con i telefoni; contro la CPU impronte identiche, `audit:legend`
+  69/69): lancio automatico dopo 30 s (opzione dello stand, spenta); campo aperto (opzione, spenta; con l'opzione accesa
+  il servizio passa ogni due punti anche nel classico: correzione del revisore, chi batte per primo da 36–44% a 50%);
+  colpo super da 1,3 volte il proprio colpo abituale; preparazione che non conta; fasce Bambino · Ragazzo · Adulto.
+- Aiuto al più giovane, variante G, senza punti regalati: bambino contro adulto = margine sul tempo ×2 e +0,1 s, palla
+  verso di lui 10% più lenta, colpo 1 m più in fondo; fasce vicine e campo aperto = solo margine. Bambino contro adulto
+  medio 10–11% → 38–42% (tre serie di semi, 900 partite per riga); ragazzo contro adulto 22% → 42–45%; bambino contro
+  ragazzo 27–30% → 41–42%.
+- Verifiche: gioco 1185/1185, sito 205/205, programma Windows 29/29, build ok; nel browser `natpf-stesso-schermo-b25`
+  54/54 (nel ramo). Zip 23.297.434 B, sha256 `4308f1559e9fef7da38d994f80e9a672c62bc3f3623276d26486c87d12243e2a`, provato
+  estratto. Installer 127.576.457 B, sha256 `ec66a7249b3432805fa69430297a00efbb437525f816209de6526fa129083ace`.
+- **Non verificato**: persone e telefoni veri (tutte le misure sono di giocatori simulati; «bambino» e «ragazzo» sono
+  ipotesi), Windows vero, ledwall. Aperti: colpo super sotto «qualche volta a partita»; con il campo aperto «tira sempre
+  fortissimo» rende 65–69% e chi batte parte sfavorito (44–48 punti su 100).
+

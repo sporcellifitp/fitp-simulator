@@ -714,3 +714,9 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   indirizzi e-mail o dati personali nei file o nei messaggi di commit; i segreti di R2 restano solo nei Secrets di GitHub.
   Una corsa rimasta in coda non riparte da sola dopo lo sblocco: rilanciare con workflow_dispatch.
 
+
+## Aiuto al più giovane nello stesso schermo (decisione dell'utente del 12/11/2026)
+- «Non voglio che nessuno abbia un vantaggio di punti, anzi voglio solo che il vantaggio si traduca nel gameplay»: mai
+  punti regalati (niente 15-0 o 30-0); l'aiuto è solo di gioco e va dichiarato a schermo. Variante in gioco: `HELP.G` in
+  `natpf-tennis/src/natpf/natpf_duo_rules.js` (margine sul tempo, palla un po' più lenta verso il più giovane, colpo più
+  in fondo). Obiettivo di taratura: bambino contro adulto medio circa 40%, mai oltre il 50%.
