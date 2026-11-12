@@ -317,7 +317,7 @@ export class NatpfVersusUi {
   // natpf_training.warmupDrills), saltabile con «Salta»
   startCal(){
     const E = this.engine, ui = this.ui, mc = E.motionController;
-    if (!ui.training || ui.training.active) return;
+    if (!ui.training || ui.training.active || ui.trial?.active) return;
     const webcam = ui.controller === 'webcam';
     this.awaitPhone = false; this.closeCam();
     this.local = { role: E.playerRole, multi: E.isMultiplayer, auto: E.autoPlayMode, touched: E.userHasInteracted, webcam };
@@ -393,7 +393,7 @@ export class NatpfVersusUi {
   // vede quando la partita è ferma (riquadro sopra il campo, con «Ricollega il telefono» o «Riconnetti»)
   _guestHold(st){
     const E = this.engine, ui = this.ui, mc = E.motionController, now = performance.now();
-    const playing = st === 'playing' && !this.local && !ui.training?.active;
+    const playing = st === 'playing' && !this.local && !ui.training?.active && !ui.trial?.active;
     const G = E.versusGuest || {}, p2p = E.natpfP2p, hold = st === 'playing' ? G.hold : null;
     // salute della racchetta: telefono, o webcam (spenta, ferma, mano persa a lungo: natpf_webcam_watch.webcamHealth, con
     // le soglie del Player 1; già in pausa per un motivo del P2, per riprendere la mano deve vedersi adesso)
@@ -440,7 +440,7 @@ export class NatpfVersusUi {
     // il pannello resta aperto finché non si gioca; torna se l'host chiude, si perde il collegamento o si torna in lobby.
     // Non sopra il pannello del telefono, la guida o la calibrazione in campo: prima, dopo «Sono pronto» con il telefono
     // da collegare, tornava ogni 250 ms sopra il QR e lo copriva
-    const pm = this.ui.modal, other = (!!pm && !pm.classList.contains('hidden')) || this.camOpen || !!this.ui.onboarding?.isOpen || !!this.ui.training?.active;
+    const pm = this.ui.modal, other = (!!pm && !pm.classList.contains('hidden')) || this.camOpen || !!this.ui.onboarding?.isOpen || !!this.ui.training?.active || !!this.ui.trial?.active;
     if (modal) show(modal, st !== 'playing' && !other);
     if (this._last !== st){
       if (st === 'playing' && this._last) this.ui.toast('Si gioca!');

@@ -595,7 +595,7 @@ export class NatpfTennisEngine {
       onToggleReplay: () => {
         // NATPF: niente moviola nel riscaldamento e nelle sfide (dopo il replay il lanciapalle non ripartiva e la sfida
         // restava ferma al servizio)
-        if (this.natpfUi?.training?.active || this.natpfUi?.events?.active) return;
+        if (this.natpfUi?.training?.active || this.natpfUi?.events?.active || this.natpfUi?.trial?.active) return; // B28: né negli scambi di prova
         this.phase === "REPLAY"
           ? ((this.persistentStateLock = !1),
             this.hud.setReplayMode(!1),
@@ -791,7 +791,9 @@ export class NatpfTennisEngine {
   // prima il riscaldamento dell'host contava come partita, compariva «Il Player 2 si è scollegato» e la calibrazione
   // restava ferma)
   _versusInMatch() {
-    return !!this.versus?.active && !this.autoPlayMode && MATCH_PHASES.includes(this.phase) && !this.natpfUi?.training?.active && !this.natpfUi?.events?.active;
+    // (B28: nemmeno gli scambi di prova di chi invita, in campo dopo «Collega»: il Player 2 che entrava vedeva una partita.
+    // Nello stesso schermo, sessione locale, gli scambi di prova si giocano in due: lì i colpi del Player 2 valgono)
+    return !!this.versus?.active && !this.autoPlayMode && MATCH_PHASES.includes(this.phase) && !this.natpfUi?.training?.active && !this.natpfUi?.events?.active && !(this.natpfUi?.trial?.active && !this.versus.local);
   }
   // NATPF 1v1: l'host lascia la sfida (sceglie un'altra modalità): il P2 riceve «stanza chiusa», la stanza smette di
   // comandare il motore (prima un colpo del P2 trasformava una partita contro la CPU in un 1v1 senza avversario)
@@ -3344,7 +3346,7 @@ export class NatpfTennisEngine {
     // NATPF: stanchezza di chi gioca dopo tanta corsa laterale (solo in partita) e palla super potente in arrivo
     // (natpf_skill.moveFactor, fatigueStep)
     const natpfHuman = e === this.player || (e === this.opponent && (this.isMultiplayer || !!this.versus?.active)),
-      natpfMatch = natpfHuman && !this.autoPlayMode && !this.natpfUi?.training?.active && !this.natpfUi?.events?.active;
+      natpfMatch = natpfHuman && !this.autoPlayMode && !this.natpfUi?.training?.active && !this.natpfUi?.events?.active && !this.natpfUi?.trial?.active;
     natpfMatch && NS.fatigueStep(this, e, { vx: e.vel.x, speed: e.vel.length(), dt: t, inPoint: this.phase === "RALLY" || this.phase === "SERVE_TOSS" });
     if (s > 0.08) {
       const n = Math.min(s, e.maxSpeed * (natpfHuman ? NS.moveFactor(this, e) : 1) * t),

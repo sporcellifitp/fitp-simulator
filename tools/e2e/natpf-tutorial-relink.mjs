@@ -4,7 +4,7 @@
 // chiamava waitTutorial(false) alla caduta). Nell'Allenamento la calibrazione compariva ~0,76 s tra «Attiva i sensori» e
 // il tutorial. Percorsi:
 //   A. Allenamento: «Attiva i sensori» → direttamente la schermata del tutorial (nessuna calibrazione in mezzo);
-//   B1. stesso schermo, P2 alla scheda 4/5 (tutorial corto prima della partita, B16): «Ricollega» (relink) → resta nel tutorial alla scheda 4, «Tutto chiaro» spento;
+//   B1. stesso schermo, P2 alla scheda 4/5 (tutorial corto prima della partita, B16): «Ricollega» (relink) → resta nel tutorial alla scheda 4 («Tutto chiaro» acceso da subito dal B28);
 //   B2. stesso schermo, P2 alla scheda 4/5: collegamento perso davvero (RTCPeerConnection chiuse sul telefono, ripresa
 //       con la chiave) → la metà riprende dalla scheda 4, non vista, nessuna calibrazione;
 //   T. Allenamento, stessa caduta: stessa scheda (controllo).
@@ -102,7 +102,7 @@ try {
     await game.waitForTimeout(2500);
     const tlT = await phone.evaluate(() => window.__tl), sT = await snap(phone);
     const hT = await game.evaluate(() => { const T = __natpfTennis.natpfUi.training; return { open: T.tutorialOpen, idx: T.tutorial.state?.idx, seen: __natpfTennis.natpfPhone.tutorialSeen }; });
-    check('T. Allenamento, collegamento perso e ripreso a tutorial aperto: stessa scheda, nessuna calibrazione', hT.open && !hT.seen && hT.idx === 3 && sT.screen === 'tutorial' && !calSeen(tlT) && !sT.tutOn, JSON.stringify({ hT, screen: sT.screen, tl: keys(tlT) }));
+    check('T. Allenamento, collegamento perso e ripreso a tutorial aperto: stessa scheda, nessuna calibrazione', hT.open && !hT.seen && hT.idx === 3 && sT.screen === 'tutorial' && !calSeen(tlT) && sT.tutOn, JSON.stringify({ hT, screen: sT.screen, tl: keys(tlT) }));
     // T2 (verifica B15): pagina del telefono chiusa a tutorial aperto: il pannello del computer avvisa «Telefono
     // scollegato» anche sotto la modale (una regola CSS del B15 lo nascondeva insieme alla riga che ripeteva la modale)
     await phone.close();
@@ -131,7 +131,7 @@ try {
   await pc.waitForFunction(j => __natpfTennis.natpfPhone2.state.joins > j && __natpfTennis.natpfPhone2.connected, j0, { timeout: 20000 }).catch(() => {});
   await pc.waitForTimeout(2000);
   let tl = await ph2.evaluate(() => window.__tl), s2 = await snap(ph2), h = await split();
-  check('B1. stesso schermo, «Ricollega» a tutorial aperto: resta nel tutorial alla scheda 4, «Tutto chiaro» spento, nessuna calibrazione', rl && h.open && !h.seen && h.idx === 3 && s2.screen === 'tutorial' && s2.gate?.i === 3 && !s2.tutOn && !calSeen(tl), JSON.stringify({ h, gate: s2.gate, tl: keys(tl) }));
+  check('B1. stesso schermo, «Ricollega» a tutorial aperto: resta nel tutorial alla scheda 4, «Tutto chiaro» acceso (B28), nessuna calibrazione', rl && h.open && !h.seen && h.idx === 3 && s2.screen === 'tutorial' && s2.gate?.i === 3 && s2.tutOn && !calSeen(tl), JSON.stringify({ h, gate: s2.gate, tl: keys(tl) }));
   // B2: collegamento perso davvero (RTCPeerConnection chiuse sul telefono), ripreso con la chiave
   await ph2.evaluate(() => { window.__tl = []; });
   j0 = await pc.evaluate(() => __natpfTennis.natpfPhone2.state.joins);
@@ -143,7 +143,7 @@ try {
   tl = await ph2.evaluate(() => window.__tl); s2 = await snap(ph2); h = await split();
   await shot(pc, 'B2-stesso-schermo-dopo-caduta'); await ph2.screenshot({ path: `${OUT}/B2-telefono-p2-dopo-caduta.png` });
   check('B2. stesso schermo, P2 caduto davvero a tutorial aperto: il telefono aspetta ancora il tutorial mentre è perso', lost && hLost.wait && !hLost.open, JSON.stringify(hLost));
-  check('B2. ripreso con la chiave: tutorial dalla scheda 4, non visto, «Tutto chiaro» spento, nessuna calibrazione', h.open && !h.seen && h.idx === 3 && h.resumed && s2.screen === 'tutorial' && s2.gate?.i === 3 && !s2.tutOn && !calSeen(tl), JSON.stringify({ h, gate: s2.gate, tl: keys(tl) }));
+  check('B2. ripreso con la chiave: tutorial dalla scheda 4, non visto, «Tutto chiaro» acceso (B28), nessuna calibrazione', h.open && !h.seen && h.idx === 3 && h.resumed && s2.screen === 'tutorial' && s2.gate?.i === 3 && s2.tutOn && !calSeen(tl), JSON.stringify({ h, gate: s2.gate, tl: keys(tl) }));
   // il P1 non è stato disturbato
   const s1 = await snap(ph1);
   check('B. il P1 è ancora nel suo tutorial', s1.screen === 'tutorial', JSON.stringify(s1));

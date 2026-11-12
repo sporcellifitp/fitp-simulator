@@ -36,15 +36,15 @@ test('opzione dello stand «Calibrazione»: di base Giocando, tre valori in giro
 });
 
 /* ---------- palle, fine ---------- */
-test('scambi di prova: palle alternate dritto e rovescio, poi dal lato che manca; finiti a 2 colpi per lato, a 6 palle o a 16 s', () => {
+test('scambi di prova: palle alternate dritto e rovescio, poi dal lato che manca; finiti a 2 colpi per lato, a 6 palle o a 14 s', () => {
   assert.deepEqual([0, 1, 2, 3].map(i => trialSide(i)), ['forehand', 'backhand', 'forehand', 'backhand']);
   assert.equal(trialSide(4, { forehand: 2, backhand: 1 }), 'backhand', 'quinta palla dal lato che ha meno colpi'); assert.equal(trialSide(5, { forehand: 0, backhand: 2 }), 'forehand');
   assert.equal(trialSide(4, { forehand: 1, backhand: 1 }), 'forehand'); assert.equal(trialSide(5, { forehand: 1, backhand: 1 }), 'backhand');
   assert.equal(trialDone({ balls: 4, counts: { forehand: 2, backhand: 2 }, t: 9 }), 'imparato');
   assert.equal(trialDone({ balls: 3, counts: { forehand: 2, backhand: 1 }, t: 7 }), null); assert.equal(trialDone({ balls: 5, counts: { forehand: 2, backhand: 1 }, t: 12 }), null);
-  assert.equal(trialDone({ balls: 6, counts: { forehand: 2, backhand: 1 }, t: 14 }), 'palle'); assert.equal(trialDone({ balls: 2, counts: { forehand: 0, backhand: 0 }, t: 16 }), 'tempo', 'chi non colpisce non resta fermo');
+  assert.equal(trialDone({ balls: 6, counts: { forehand: 2, backhand: 1 }, t: 14 }), 'palle'); assert.equal(trialDone({ balls: 2, counts: { forehand: 0, backhand: 0 }, t: 14 }), 'tempo', 'chi non colpisce non resta fermo');
   assert.equal(trialDone({}), null);
-  assert.ok(TRIAL.perSide === 2 && TRIAL.balls === 4 && TRIAL.maxBalls === 6 && TRIAL.maxS <= 16, 'tetto di circa 16 s dalla prima palla');
+  assert.ok(TRIAL.perSide === 2 && TRIAL.balls === 4 && TRIAL.maxBalls === 6 && TRIAL.maxS <= 14, 'tetto di 14 s dalla prima palla');
   // verso atteso: dal lato della palla, uguale per destri e mancini; il nome del lato dipende dalla mano
   assert.equal(wantOfBallSide(true), 1); assert.equal(wantOfBallSide(false), -1);
   assert.equal(wantOfSide('forehand', 'right'), 1); assert.equal(wantOfSide('backhand', 'right'), -1); assert.equal(wantOfSide('forehand', 'left'), -1); assert.equal(wantOfSide('backhand', 'left'), 1);
