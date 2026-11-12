@@ -313,3 +313,40 @@ test('colpo super spiegato: la prima volta la regola e il motivo, poi solo il mo
   // le frasi sono corte: stanno in due righe sul grande schermo
   assert.ok(SUPER_RULE.length <= 80 && first.text.length <= 130 && again.text.length <= 60);
 });
+
+/* ---------- nell'interfaccia: chiosco, «Nuovo giocatore», menu principale ---------- */
+test('interfaccia: chiosco, «Nuovo giocatore» e menu principale riportano «Chi gioca» e il livello Evento al valore di base; «Gioca ancora» no', async () => {
+  const { makeWorld } = await import('./ui-world.mjs');      // interfaccia vera sul motore senza disegno
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const { ui, lobby } = w, E = ui.engine;
+  // l'HUD finto di ui-world non ha la scelta del livello: qui basta che la ricordi (quello vero la disegna anche)
+  E.hud._setDifficultySelection = d => { E.hud.selectedDifficulty = d; };
+  try {
+    assert.equal(lobby.base, 'evento', 'valore di base: Adulto');
+    // «Altre impostazioni» → «Livello della CPU»
+    lobby.setLevel('pro'); assert.equal(E.hud.selectedDifficulty, 'pro'); assert.equal(lobby.cpuLevel, 'pro');
+    lobby.setLevel('boh'); assert.equal(E.hud.selectedDifficulty, 'pro', 'un livello che non esiste non cambia niente');
+    // una tessera (l'HUD ha già scelto il livello) fa ripartire il livello Evento
+    eventoPoint(true); E.hud.selectedDifficulty = 'bambini'; lobby.pickWho('bambini');
+    assert.equal(lobby.cpuLevel, 'bambini'); assert.equal(eventoK(), EVENTO.start);
+    // chiosco che riparte
+    eventoPoint(true); eventoPoint(true); ui.superHint.seen = true;
+    ui.kiosk.reset();
+    assert.equal(E.hud.selectedDifficulty, 'evento'); assert.equal(lobby.cpuLevel, 'evento');
+    assert.equal(eventoK(), EVENTO.start); assert.equal(eventoState().points, 0); assert.equal(ui.superHint.seen, false);
+    // «Nuovo giocatore»
+    lobby.setLevel('leggenda'); eventoPoint(false); ui.superHint.seen = true;
+    ui.newPlayer();
+    assert.equal(E.hud.selectedDifficulty, 'evento'); assert.equal(eventoK(), EVENTO.start); assert.equal(ui.superHint.seen, false);
+    // stesso schermo o sfida tra due computer (livello 1v1): il livello resta 1v1, la scelta torna di base per dopo
+    E.hud.selectedDifficulty = '1v1'; lobby.cpuLevel = 'pro';
+    lobby.resetWho();
+    assert.equal(E.hud.selectedDifficulty, '1v1'); assert.equal(lobby.cpuLevel, 'evento');
+    E.hud.selectedDifficulty = 'evento';
+    // «Gioca ancora» (pagina «Partita») tiene il livello Evento; il menu principale lo fa ripartire
+    eventoPoint(true); const k = eventoK();
+    ui.backToMenu('match'); assert.equal(eventoK(), k); assert.equal(eventoState().points, 1);
+    ui.backToMenu(); assert.equal(eventoK(), EVENTO.start); assert.equal(eventoState().points, 0);
+    assert.equal(E.hud.selectedDifficulty, 'evento', 'la tessera scelta resta');
+  } finally { eventoReset(); }
+});

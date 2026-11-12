@@ -54,6 +54,9 @@ Che cosa fanno i valori:
   ripartire il livello Evento dal suo valore di partenza e fanno rivedere la spiegazione lunga del colpo super.
   Prima «Nuovo giocatore» lasciava il livello scelto da chi aveva giocato prima.
 - **«Gioca ancora»** (stesso giocatore): il livello Evento continua da dove era arrivato.
+- **«Menu»** a fine partita e **«Torna al menu»** dalla pausa: il livello Evento riparte dal valore di partenza (chi
+  arriva dopo non trova la CPU regolata su chi ha giocato prima). La tessera scelta resta: la cambia solo «Nuovo
+  giocatore» o il chiosco.
 
 Non c'è niente di nuovo nel pannello dello stand.
 
@@ -165,7 +168,8 @@ Una regola sola, uguale per tutti.
 7. **Non c'è nessun altro aiuto.** Nessun punto dato, nessun colpo sbagliato apposta, nessuna palla resa più facile
    durante lo scambio. Un punto perso abbassa la CPU, ma solo dal punto dopo, di un gradino, e mai sotto la CPU facile.
 8. Una partita nuova dello stesso giocatore («Gioca ancora») riparte da dove era arrivata. «Nuovo giocatore», il chiosco
-   che riparte, una tessera di «Chi gioca», la riga «Livello della CPU» e l'avvio del gioco la riportano a 0,8.
+   che riparte, il ritorno al menu principale, una tessera di «Chi gioca», la riga «Livello della CPU» e l'avvio del
+   gioco la riportano a 0,8.
 
 Non oscilla: un punto sposta la CPU al massimo di 0,13 su 1 (in corsa: 16 centimetri al secondo), e più la CPU è
 lontana dal punto giusto più i punti la riportano indietro. Sullo schermo non c'è nessuna scritta.
