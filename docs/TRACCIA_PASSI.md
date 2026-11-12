@@ -282,6 +282,14 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
       guida, spazio occupato e cancellazione visibili con la chiave. Mandato come messaggio all'agente in corso
       (`ab084c973d39c8426`); il testo del compito nello script v2 NON lo contiene: **controllare che sia stato fatto** e,
       se no, chiederlo nelle correzioni.
+      **ATTENZIONE (12/11, 18:40 UTC): nella worktree del B30 lavorano DUE istanze dello stesso agente** (un mio
+      `SendMessage` all'agente del workflow lo ha «ripreso» in una seconda copia: lezione → NON mandare messaggi a un
+      agente di un workflow mentre gira; per cambiare il compito fermare il workflow e rilanciarlo). Divisione approvata:
+      istanza A (workflow) = Worker, strumenti di riassunto, guida, documento, verifiche finali e risultato; istanza B =
+      gioco, pannello dello stand, programma Windows, pacchetti, prova nel browser; protocollo = quello del commit
+      `020e7ab`; coordinamento nel file `scratchpad/b30-coordinamento.md`. Altra aggiunta mandata: **bucket R2 separato e
+      privato `natpf-registro`** (quello di installer e trailer è pubblico). All'unione controllare bene che le due metà
+      stiano insieme (stesso protocollo, test verdi) e che il revisore abbia visto tutto.
       Il primo workflow (`wf_f20b2599-40d`) è stato fermato dopo pochi minuti e rilanciato con il compito aggiornato:
       **`b30-registro-v2.js`, run `wf_0f562962-c56`**, che continua nella worktree `wf_f20b2599-40d-1` → revisore →
       correzioni. Ripresa: rilanciare `b30-registro-v2.js` senza `resumeFromRunId` se la fase «Lavoro» non era finita,
