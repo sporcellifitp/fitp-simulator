@@ -14,6 +14,8 @@ import { WHO, WHO_LEVEL, WHO_DEFAULT, CPU_LEVELS, whoOfLevel, urlLevel, baseLeve
 import { CUE, cueOn, cueDefault, cueView, cueEdges, cueHold, readCue, writeCue, CUE_KEY, NatpfTimingCue } from '../src/natpf/natpf_timing_cue.js';
 import { superHint, superReason, situationCause, SITUATION_WORDS, SUPER_RULE, NatpfSuperHint } from '../src/natpf/natpf_super_hint.js';
 import { matchSummary } from '../src/natpf/natpf_lobby.js';
+import { DiagRecorder } from '../src/natpf/diag/diag_recorder.js';
+import { memoryStore } from '../src/natpf/diag/diag_store.js';
 
 const near = (a, b, e = 1e-9) => Math.abs(a - b) <= e;
 const storage = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
@@ -465,5 +467,49 @@ test('interfaccia: chiosco, «Nuovo giocatore» e menu principale riportano «Ch
     ui.backToMenu('match'); assert.equal(eventoK(), k); assert.equal(eventoState().points, 1);
     ui.backToMenu(); assert.equal(eventoK(), EVENTO.start); assert.equal(eventoState().points, 0);
     assert.equal(E.hud.selectedDifficulty, 'evento', 'la tessera scelta resta');
+  } finally { eventoReset(); }
+});
+
+/* ---------- diagnostica (revisione): il valore del livello Evento e lo stato del segnale ---------- */
+test('diagnostica: la partita registra il segnale acceso o spento e, a Evento, il valore della CPU all\'inizio e dopo ogni punto', async t => {
+  globalThis.requestAnimationFrame ??= cb => setTimeout(() => cb(performance.now()), 16);
+  globalThis.cancelAnimationFrame ??= id => clearTimeout(id);
+  const world = difficulty => {
+    const engine = {
+      phase: 'SERVE_STANCE', ball: { pos: { x: 0, y: 1, z: 5 }, vel: { x: 0, y: 0, z: -20 }, inPlay: false, lastHitter: null, bounceCountOnCurrentSide: 0 },
+      player: { pos: { x: 0, y: 0, z: 11 } }, score: { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0 }, matchConfig: { difficulty, gamesToWin: 1 },
+      update(){}, render(){}, startNewMatch(){}, _spawnBounceRing(){},
+      // come il motore: il punto muove il livello Evento (NS.eventoAfterPoint) prima che il registratore lo scriva
+      _awardPoint(w){ this.score[w === 'player' ? 'playerPoints' : 'opponentPoints']++; NS.eventoAfterPoint(this, w); },
+      opponent: { maxSpeed: 5 }, opponentPartner: { maxSpeed: 5 }, userHasInteracted: true,
+      motionController: { on(){}, emit(){} },
+    };
+    return engine;
+  };
+  const events = async (difficulty, cueOnNow, points) => {
+    let now = 1000;
+    const engine = world(difficulty), store = memoryStore();
+    const ui = { controller: 'mouse', hand: { hand: 'right' }, training: { active: false }, cue: { enabled: cueOnNow }, lobby: { mode: 'cpu' } };
+    const R = new DiagRecorder({ engine, ui, store, now: () => now, wallNow: () => Date.UTC(2026, 10, 12, 10, 0, 0) });
+    const id = await R.start({ webcamVideo: false, gameVideo: false });
+    t.after(() => { if (R.active) R.stop(); });
+    engine.startNewMatch();
+    for (const w of points){ now += 500; engine._awardPoint(w, 'Out'); }
+    await R.flush(); R.stop();
+    return (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l));
+  };
+  try {
+    eventoReset();
+    const ev = await events('evento', true, ['player', 'player', 'opponent']);
+    const m = ev.find(e => e.k === 'partita'), pts = ev.filter(e => e.k === 'punto');
+    assert.equal(m.difficolta, 'evento'); assert.equal(m.segnale, true); assert.equal(m.eventoK, EVENTO.start, 'valore di partenza');
+    assert.equal(pts.length, 3);
+    assert.ok(pts[0].eventoK > m.eventoK && pts[1].eventoK > pts[0].eventoK && pts[2].eventoK < pts[1].eventoK, pts.map(p => p.eventoK).join(' '));
+    assert.equal(pts[2].eventoK, +eventoK().toFixed(3), 'l\'ultimo punto dice il valore di fine partita');
+    // agli altri livelli niente valore di Evento; il segnale spento è scritto come spento
+    eventoReset();
+    const ev2 = await events('casual', false, ['player']);
+    const m2 = ev2.find(e => e.k === 'partita'), p2 = ev2.find(e => e.k === 'punto');
+    assert.equal(m2.segnale, false); assert.ok(!('eventoK' in m2) && !('eventoK' in p2));
   } finally { eventoReset(); }
 });
