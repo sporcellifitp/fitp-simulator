@@ -562,3 +562,4 @@ if (!process.env.COSTO){
   await g.ctx.close();
 }
 await B.close(); summary();
+process.exit(process.exitCode || 0);   // il server del gioco (vite) resta acceso: senza questo la prova non finisce mai
