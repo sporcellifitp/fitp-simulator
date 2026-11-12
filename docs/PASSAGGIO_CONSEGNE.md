@@ -161,6 +161,21 @@ verifiche indipendenti e correzioni, uniti nel ramo `b16-int` (dettaglio in `doc
   fallito a Leggenda) e B17.4 toccano la stessa regola `failQ` → `weak`; difetto 4 (fine partita nello stesso schermo,
   banner) e B17.3 (tabellone); tutorial corto e B17.2 (la X lavora con qualunque numero di schede).
 
+### B27 · Postazione dello staff (12/11/2026, versione 2026-11-12.3)
+Richiesta dell'utente allo stand delle Finals (portatile + ledwall 2×2 da 1024×1024 come schermo 2 in «Estendi»): gioco
+direttamente sullo schermo 2 senza OBS e un telefono dello staff come telecomando, abbinato una volta per tutte. Fatto
+da un secondo agente in parallelo all'altra sessione, in un ramo separato (`b25-staff`), con revisione indipendente.
+- **Schermo del gioco**: all'avvio, con due o più monitor e nessuno scelto, il programma chiede «Su quale schermo mostro
+  il gioco?» sul portatile (propone il monitor quadrato; senza risposta dopo 30 s vale la proposta) e lo ricorda. Voce
+  «Schermo del gioco» nel pannello dello stand; restano il menu «Schermo» e Ctrl+Maiusc+M.
+- **Telecomando dello staff**: pannello dello stand → «Telecomando dello staff» → QR o codice → numero di tre cifre
+  uguale su telefono e computer → «Conferma» sul computer. Poi il telefono si ricollega da solo. In campo frecce e OK
+  sono spente. Guida: `docs/GUIDA_TELECOMANDO.md`; tutte le schermate e i 12 difetti della revisione:
+  `docs/b27/telecomando.md`.
+- **Sicurezza**: il foglio dell'abbinamento si vede sul ledwall, quindi niente diventa telecomando senza la conferma sul
+  computer; QR e codice valgono solo a foglio aperto; la chiave non viaggia mai (prova HMAC nei due sensi).
+- **Non provato**: telefoni veri, Windows, ledwall, due monitor veri, il server PeerJS pubblico per il telecomando sul web.
+
 ### Versioni consegnate in questi giorni
 | Versione | Commit | Contenuto |
 |---|---|---|

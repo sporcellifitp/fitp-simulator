@@ -1425,7 +1425,7 @@ guida provato nel browser.
   fortissimo» rende 65–69% e chi batte parte sfavorito (44–48 punti su 100).
 
 
-## B27 · Postazione dello staff: telecomando e schermo del gioco (12/11) · [~] da integrare
+## B27 · Postazione dello staff: telecomando e schermo del gioco (12/11) · [x] integrato, versione 2026-11-12.3
 Obiettivo (richiesta dell'utente allo stand): gioco sul ledwall 2×2 da 1024×1024 senza OBS e un telefono dello staff
 come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Documento con la matrice e le decisioni:
 `docs/b27/telecomando.md`; guida per lo staff `docs/GUIDA_TELECOMANDO.md`. Lavoro in parallelo a B23–B26, nel worktree
@@ -1470,3 +1470,13 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
   programma: link del controller, link dell'invito, finestra della webcam).
   **Non verificato**: come sopra; in più la scelta per l'iPhone nella pagina del telefono (riconosciuto dal nome del
   browser) e la conferma con la tastiera vera di Windows.
+- [x] B27.5 · integrazione (12/11, 14:40 UTC): ramo `b25-staff` unito in `natpf-simulator` sopra `b831973` (l'altra
+  sessione aveva pubblicato solo `docs/TRACCIA_PASSI.md`: nessun conflitto), **versione 2026-11-12.3**
+  (`site/js/tennis/version.js`, `site/tennis/build.json`, `natpf-tennis/lan/LEGGIMI.txt`, riga in
+  `natpf-desktop/novita.txt`).
+  Verifiche sul codice unito: gioco 1194/1194, sito 223/223, LAN 12/12, programma Windows 33/33, build ok; nel browser
+  `natpf-telecomando` 80/80, `natpf-menu` 38/38 (anche a 1024 × 1024), `natpf-training-flow` 22/22.
+  Non rifatte dopo l'unione (fatte sul ramo, codice identico): `natpf-tutorial-phone` 52/52, `prova-linux` 69/69.
+  Non rifatte per questa versione: `audit:legend` e le altre prove nel browser (il B27 non tocca motore, CPU, colpi né
+  la pagina della racchetta oltre alla batteria nello stato e al rifiuto di `role:'remote'`).
+  **Non verificato**: telefoni veri, Windows vero, ledwall vero, due monitor veri, «Aggiungi a schermata Home».

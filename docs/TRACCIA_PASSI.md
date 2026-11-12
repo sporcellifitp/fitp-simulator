@@ -201,6 +201,36 @@ animazioni del gioco sulle 24 ossa, al posto delle mascotte costruite nel codice
       racchetta nella mano giusta e sulla palla all'impatto; se il modello non si carica, ripiego sulle mascotte nel
       codice; fogli di confronto, prova nel browser, revisore indipendente.
 
+## B27 e B28 (secondo agente, sessione parallela; aggiornato il 12/11/2026 alle 14:40 UTC)
+
+Lavoro chiesto dall'utente allo stand, in rami locali separati e unito qui un blocco alla volta dopo `git fetch`.
+**Il prossimo numero di versione libero è 2026-11-12.4** (la 2026-11-12.3 è il B27).
+
+**Versione 2026-11-12.3 = B27 · Postazione dello staff** (dettaglio: `docs/WORK_PROGRESS.md` B27, guida
+`docs/GUIDA_TELECOMANDO.md`, matrice delle schermate `docs/b27/telecomando.md`).
+- [x] Programma Windows: domanda «Su quale schermo mostro il gioco?» all'avvio (2+ monitor e nessuno scelto), voce
+      «Schermo del gioco» nel pannello dello stand, ponte `window.natpfDesktop.displays` (preload versione 3)
+- [x] Telecomando dello staff: `site/tennis/telecomando.html`, abbinamento dal pannello dello stand confermato sul
+      computer, ripresa da solo con prova della chiave; nel gioco `natpf_remote.js` e `natpf_remote_map.js`
+- [x] Revisore indipendente: 12 difetti (2 bloccanti), tutti corretti e con test
+- [x] Unito sopra `b831973`, prove sul codice unito: gioco 1194/1194, sito 223/223, LAN 12/12, Windows 33/33, build ok;
+      nel browser `natpf-telecomando` 80/80, `natpf-menu` 38/38, `natpf-training-flow` 22/22
+- [ ] Push, tre esecuzioni di GitHub, installer su R2, zip Cloudflare consegnato (questa riga si aggiorna dopo)
+- **Attenzione per chi unisce altri rami**: il pannello dello stand (`#natpf-staff` in `natpf-tennis/index.html`) ha due
+  voci nuove nella riga in basso («Telecomando dello staff», «Schermo del gioco») e deve restare senza scorrimento
+  (`natpf-menu` lo controlla a 1024×600, 1366×657 e 1024×1024). Chi aggiunge una schermata o un `confirm()` deve
+  aggiornare la mappa del telecomando (`natpf_remote_map.js`; un test fallisce se un `confirm()` non è nell'elenco).
+
+**B28 · Calibrazione giocando e tutorial senza blocco** (ramo locale `b28-cal-giocando`, base `8b85a3c`, 11 commit, non
+su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
+- [x] Sviluppo: scambi di prova di 10–15 s al posto della calibrazione con i gesti (opzione dello stand «Calibrazione:
+      Giocando · Con i gesti · Nessuna», di base Giocando), tutorial chiudibile da ogni scheda, «Avanti ›» negli esercizi
+- [~] Revisore indipendente in corso (12/11, 14:15 UTC)
+- [ ] Correzioni, unione (tocca `natpf_lobby.js`, `natpf_training.js`, `natpf_ui.js`, `natpf_phone_racket.js`, tre righe
+      di `game_engine.js`, `racchetta.js`, pannello dello stand), prove complete, versione, pacchetti
+- **Attenzione**: con il B28 chi aggiunge un controllo «siamo in partita?» deve escludere `ui.trial.active`; le prove
+  `natpf-*` di prima girano con `CAL=gesti` (calibrazione con i gesti), il percorso nuovo lo provano i test nuovi.
+
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
 - [x] **B21 Video nel gioco** (2026-11-11.2): trailer come video d'avvio (senza titolo) con ripiego su `public/media/intro.mp4`; due clip
