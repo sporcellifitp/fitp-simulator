@@ -45,8 +45,9 @@ export const racketSide = mirrored => (mirrored ? 'Left' : 'Right');
 export const racketHandBone = mirrored => `${racketSide(mirrored)}Hand`;
 
 // Altezza in campo (metri). Il tennista è alto 1,91 m e le mascotte nel codice 1,95 m, ma hanno la testa in cima a
-// un corpo lungo. Qui la testa è metà del pupazzo: a 1,6 m è larga 0,85 m (come quella delle mascotte nel codice),
-// sta sotto la zona dove passano mano e racchetta nei colpi e copre meno campo a chi gioca. Vedi docs/b29.
+// un corpo lungo. Qui la testa è metà del pupazzo: a 1,6 m è larga 0,85 m (come quella delle mascotte nel codice) e
+// copre meno campo a chi gioca. La testa (da 0,8 a 1,6 m) sta all'altezza della mano della racchetta, che passa
+// spesso davanti alla faccia; più in alto la copre lo stesso, in un altro punto (docs/b29, foglio scala.webp).
 export const MASCOT_SCALE = 1.6;
 // Riposo delle parti del tennista nel sistema della radice (metri, destro): natpf_character.PART_BASE passato per i
 // perni del rig (player_body_animation.MII_RIG_PIVOTS) e la scala 1,16. Il test di unità li confronta con il motore.
@@ -98,7 +99,8 @@ export const LEG_TILT = 0.55;              // quanta dell'inclinazione verso il 
 export const FOOT_EDGE = 0.07;             // di quanto si alza il piede per unità di inclinazione (unità del modello)
 export const FOOT_GAIN = 1.8, FOOT_LIFT_DEAD = 0.012;      // sotto 1,2 cm di alzata il piede resta a terra (il tennista fermo sposta il peso)
 export const FOOT_LIFT_GAIN = 2.4;         // l'alzata del piede si vede di più dell'avanti e indietro: gambe corte
-export const FOOT_LIFT_MAX = 0.11;         // ...ma si addolcisce verso questo tetto (unità del modello: 18 cm in campo)
+export const FOOT_LIFT_MAX = 0.11;         // ...ma si addolcisce verso questo tetto (unità del modello: 18 cm in campo;
+                                           // con il piede inclinato, FOOT_EDGE, la pianta arriva a circa 22 cm)
 // Verso del gomito a riposo e in movimento (sistema del modello, lato sinistro: per il destro la x cambia segno):
 // fuori, giù e dietro, come il polo dei gomiti del tennista (natpf_character.ELBOW_POLE)
 const ELBOW_POLE = Object.freeze([0.25, -0.35, -0.9]), ELBOW_POLE2 = Object.freeze([0.85, -0.5, 0.1]);

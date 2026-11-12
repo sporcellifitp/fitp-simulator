@@ -13,7 +13,8 @@ sono stati toccati: la versione nuova e i pacchetti si fanno all'unione.
 - I modelli si scaricano **solo quando servono** (la prima volta che in campo c'è una mascotte). Con «Classici» non si
   scarica niente e l'immagine è **identica** a prima.
 - Finché i modelli non sono arrivati, o se non arrivano (file mancante, rete, errore), restano **le mascotte costruite
-  nel codice** del B24: nessun buco, nessun avviso a schermo, una riga nella console.
+  nel codice** del B24: nessun buco, nessun avviso a schermo, una riga nella console (con un file rovinato, per esempio
+  troncato a metà, three.js può aggiungere nella console suoi errori, come «Couldn't load texture»).
 - È **solo disegno**: palla, colpi, punto d'impatto, punteggio, riconoscimento dei gesti, webcam e rete non cambiano
   (partite a sorteggi fissi identiche al commit di prima, anche con i modelli in campo).
 - I due file pesano **0,32 e 0,33 MB** (erano 2,9 e 3,0 MB). Nella texture di Drop il marchio sul petto, scritto dal
@@ -77,9 +78,15 @@ già il tipo `.glb`). Peso dello zip: vedi «Prestazioni e peso».
   sulla sagoma: più deciso per Drop (0,2), che è blu su un campo blu, appena accennato per Lob (0,1). Foglio
   `img/bordo-drop.webp` (senza e con il bordo).
 - **Ombra a terra** come gli altri personaggi (il modello proietta la sua ombra).
-- **Scala**: in campo le mascotte sono alte **1,6 m** (il tennista 1,91 m). La testa è metà del pupazzo: a 1,6 m è larga
-  0,85 m come quella delle mascotte del B24, sta sotto la zona dove passano mano e racchetta e copre meno campo. Dalla
-  camera di gioco si riconoscono bene e non coprono la palla (fogli `img/in-campo.webp`, `img/confronto-in-campo.webp`).
+- **Scala**: in campo le mascotte sono alte **1,6 m** (il tennista 1,91 m, le mascotte nel codice 1,95 m). La testa è
+  metà del pupazzo: a 1,6 m è larga 0,85 m come quella delle mascotte del B24 e copre meno campo. Dalla camera di gioco
+  si riconoscono e non coprono la palla, ma sono **più piccole** del tennista e delle mascotte nel codice (fogli
+  `img/in-campo.webp`, `img/confronto-in-campo.webp`). Attenzione: la testa va da circa 0,8 a 1,6 m dal campo, proprio
+  dove il motore tiene la mano della racchetta (circa 0,9-1,2 m, più in alto nell'attesa e nel servizio). Per questo
+  **la mano della racchetta passa spesso davanti alla faccia** (sulla visiera, sulla bocca, su un occhio), viste da
+  davanti, di lato o dal basso. Una scala più alta non lo risolve: sposta solo il punto della faccia che la mano copre
+  (foglio `img/scala.webp`, 1,6 · 1,75 · 1,9 m). La scala è una scelta di gusto da far vedere all'utente (vedi «Da far
+  vedere all'utente»); si cambia in un punto solo, `MASCOT_SCALE` in `natpf_mascot_rig.js`.
 
 ## Animazione: dalle parti del tennista alle 24 ossa
 
@@ -105,15 +112,23 @@ nell'osso `LeftHand`. Foglio `img/mancino.webp`.
 Cose curate:
 
 - **Racchetta e impatto**: la racchetta resta esattamente dove la mette il motore; è la mano della mascotte che va sul
-  manico (palmo a meno di 2 mm dal manico in tutte le partite di prova). Con le braccia corte, nei colpi lontani dal
+  manico (palmo al più 2,7 mm dal manico nelle partite di prova: 1,35 mm contro la CPU, 1,0 mm senza persone, 2,73 mm
+  nello stesso schermo con i sorteggi del revisore; il numero cambia un poco con i sorteggi). Con le braccia corte, nei colpi lontani dal
   corpo il braccio si allunga come quello di un peluche (fino a 3,5 volte nei casi più estremi).
 - **Testa grande**: la racchetta non resta dentro la testa nelle pose tenute. Si riusa `keepRacketClear`
   (`natpf_racket_clear.js`) con la forma della testa dei due modelli: per Drop la testa e il ciuffo sopra la fascia, per
-  Lob la testa, la punta in cima e la tesa della visiera. Al colpo la racchetta non è mai scostata.
+  Lob la testa, la punta in cima e la tesa della visiera. Al colpo la racchetta non è mai scostata. **Durante i colpi** il
+  telaio passa ancora dentro la testa per pochi fotogrammi a ogni colpo (lo scostamento è morbido e al colpo è zero).
+  Passi con il telaio nella testa, misurati dal revisore dopo la correzione: contro la CPU (sorteggi 777) dritto di Drop
+  31 (prima della correzione 47), rovescio di Drop 22 (31); nello stesso schermo (sorteggi 2024) dritto 14, rovescio 17;
+  nell'attesa 10 e 3 passi in tutta la partita (2600 passi).
 - **Mano libera davanti al petto**: il tennista nel dritto e nel rovescio porta la mano libera avanti all'altezza della
   spalla, che nella mascotte è l'altezza degli occhi (sembrava che si strofinasse un occhio). Ora lì il palmo scende
   sotto il mento, davanti al petto; se il tennista alza la mano sopra la testa (esultanza, lancio) resta libera.
-- **Piedi sul campo e passo**: le piante non scendono mai sotto il campo; il piede si alza al più di 22 cm nel passo.
+- **Piedi sul campo e passo**: le piante non scendono mai sotto il campo; il piede si alza di circa 18 cm al più
+  (`FOOT_LIFT_MAX`), più circa 4 cm quando è inclinato (`FOOT_EDGE`): **al più 22 cm** (misurati 21,4-21,8 cm). La prova
+  nel browser accetta fino a 23 cm. I passi con tutti e due i piedi alzati più di 5 cm sono la fase di volo della corsa:
+  dallo 0,4 % al 2,3 % dei passi secondo i sorteggi (la prova accetta fino al 3 %).
   Il piede insegue il suo bersaglio a velocità limitata: il passo di corsa resta intero (prima un ritardo lo accorciava
   di un terzo e le gambe sembravano ferme) e un salto del bersaglio non diventa uno scatto.
 - **Niente scatti** tra un'animazione e l'altra: ossa, mano libera e piedi controllati a ogni passo di tre partite.
@@ -172,6 +187,8 @@ CHROMIUM_PATH=/opt/pw-browsers/chromium CONFRONTA=impronte.json node tools/e2e/n
 # solo modelli 3D e costo · solo i fogli di questa pagina
 CHROMIUM_PATH=/opt/pw-browsers/chromium TRE_D=1 CONFRONTA=impronte.json node tools/e2e/natpf-lob-drop.mjs
 CHROMIUM_PATH=/opt/pw-browsers/chromium FOGLI3D=docs/b29/img TEXTURE512=<modelli a 512> node tools/e2e/natpf-lob-drop.mjs
+# partite della parte 6 con altri sorteggi (il confronto con il commit di prima si salta)
+CHROMIUM_PATH=/opt/pw-browsers/chromium TRE_D=1 SEMI=cpu:777,schermo:2024,demo:9090 node tools/e2e/natpf-lob-drop.mjs
 ```
 
 Ultimi giri (12/11, sera):
@@ -195,17 +212,31 @@ Ultimi giri (12/11, sera):
 | `in-campo.webp` | dalla camera di gioco (e ingrandito 3 volte): attesa, corsa, dritto, rovescio, servizio, esultanza, dritto di Lob, stesso schermo |
 | `confronto-in-campo.webp` | stessa scena con classici, mascotte nel codice, modelli 3D |
 | `bordo-drop.webp` | Drop senza e con il bordo di luce |
+| `scala.webp` | i modelli alti 1,6 m (nel gioco), 1,75 m e 1,9 m: dalla camera di gioco e da vicino, con la mano della racchetta davanti alla faccia |
 | `texture-1024-512.webp` | texture a 1024 (scelta) e a 512 punti |
 | `nitto-prima-dopo.webp` | il marchio sul petto di Drop prima e dopo la correzione |
+
+## Da far vedere all'utente
+
+Due scelte di gusto, fatte qui ma da confermare guardando i fogli:
+
+- **Altezza in campo** (`img/scala.webp`, `img/confronto-in-campo.webp`): 1,6 m, più piccoli del tennista e delle
+  mascotte nel codice. A 1,75 o 1,9 m si vedono meglio dalla camera di gioco ma coprono più campo; la mano della
+  racchetta passa davanti alla faccia a tutte e tre le altezze.
+- **Bordo di luce di Drop** (`img/bordo-drop.webp`): 0,2, leggero; il distacco dal campo blu c'è ma è poco.
 
 ## Cosa non è riuscito, e perché
 
 - **Braccia corte**: il tennista è alto 1,91 m, la mascotte 1,6 m con braccia corte. Perché la racchetta resti dove la
   vuole il motore (punto d'impatto invariato), nei colpi lontani dal corpo il braccio si allunga, fino a 3,5 volte nei
   casi estremi. Dalla camera di gioco si nota poco; da vicino sì.
-- **Racchetta davanti alla faccia** in qualche istante del servizio e del dritto, viste da davanti o di lato: è la
-  posizione della racchetta del motore, che non si sposta (cambierebbe il punto d'impatto). Dalla camera di gioco, da
-  dietro, non si vede. Nelle pose tenute la racchetta resta fuori dalla testa.
+- **Mano e racchetta davanti alla faccia**: la mano della racchetta sta all'altezza della faccia (vedi «Scala»). Casi
+  visti dal revisore: Lob nell'attesa di una partita, da davanti, con la mano sulla visiera sopra l'occhio sinistro;
+  Drop nel dritto al passo 5, di tre quarti, con il fondo del manico davanti alla bocca; Drop nel servizio al passo 7,
+  dal basso, con la mano su un occhio (gli ultimi due sono anche in `img/scala.webp`). È la posizione della racchetta
+  del motore, che non si sposta (cambierebbe il punto d'impatto). Dalla camera di gioco Drop si vede da dietro e Lob è
+  piccolo: si nota poco. Il telaio resta fuori dalla testa nelle pose tenute; nei colpi la attraversa per pochi
+  fotogrammi (numeri in «Cose curate»).
 - **Gamba e piede un pezzo solo**: il modello ha le ossa del piede, ma con le gambe così corte piegare caviglia e
   ginocchio dava piedi storti; la gamba gira tutta intera e scorre un poco (è un peluche).
 - La **mano libera** non segue sempre il tennista: in basso a riposo, davanti al petto nei colpi, vera solo quando si
@@ -220,3 +251,25 @@ Ultimi giri (12/11, sera):
 - Rete lenta: il ripiego con il file bloccato è provato; un file che arriva dopo molti secondi no (il modello prende il
   posto della mascotte nel codice quando arriva).
 - Partite tra due computer (P2P) con «Lob & Drop»: ogni computer disegna i suoi personaggi, come nel B24; non riprovate.
+- **Moviola dell'ultimo punto** (`natpfReplay.start`) con i modelli: non provata (nelle prove del revisore non è partita
+  e ha preso il suo posto la moviola di riserva, lo scambio a rete messo in scena, che con i modelli funziona: modelli
+  in campo, palmo sul manico, nessun errore). Il rig legge le stesse parti del tennista, quindi il rischio è basso.
+
+## Revisione
+
+Il revisore indipendente (sola lettura di `4743c53`) non ha trovato bloccanti. Ha rifatto con sorteggi suoi le
+impronte («Classici», mascotte nel codice e modelli 3D uguali tra loro e ad `a6188ba`), le 9 scene di «Classici»
+(identiche pixel per pixel), il ripiego (file in ritardo di 12 s, troncato, 404, HTML al posto del GLB, bloccato), il
+peso (zip 23.809.123 byte), il costo (143 chiamate di disegno contro 219 e 248) e le allocazioni (nessuna nuova).
+Minori, e cosa ne è stato fatto:
+
+| minore | fatto |
+|---|---|
+| la frase sulla scala («la testa sta sotto la zona di mano e racchetta») era vera solo in parte: la mano passa davanti alla faccia | frase corretta in «Scala» e in «Cosa non è riuscito»; foglio nuovo `img/scala.webp` con 1,6 · 1,75 · 1,9 m e due dei casi visti dal revisore. La scala resta 1,6: più in alto la mano copre comunque la faccia, in un altro punto |
+| «palmo a meno di 2 mm»: con altri sorteggi 2,73 mm | scritto «al più 2,7 mm», con i numeri per partita |
+| soglia «tutti e due i piedi in aria» al 2 %, superata con un altro sorteggio (2,27 %) | soglia al 3 % in `tools/e2e/natpf-lob-drop.mjs`; nuova variabile `SEMI=` per giocare le partite della parte 6 con altri sorteggi |
+| alzata del piede: 18 cm nel commento, 22 nel documento, 20 nella prova | allineati: circa 18 cm di alzata più circa 4 di inclinazione, al più 22 cm (commento in `natpf_mascot_rig.js`, documento); le due verifiche della prova accettano fino a 23 cm |
+| con un file troncato three.js scrive anche suoi errori nella console | scritto in «In breve» (il codice non cambia: a schermo niente, restano le mascotte nel codice) |
+| scala e bordo di luce di Drop sono scelte di gusto non segnalate | sezione nuova «Da far vedere all'utente» con `scala.webp` e `bordo-drop.webp` |
+| telaio nella testa durante i colpi senza numeri | numeri del revisore, per tipo di colpo, in «Cose curate» |
+| moviola dell'ultimo punto non provata | aggiunta a «Cosa non è provato» |

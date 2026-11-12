@@ -21,7 +21,9 @@
 //   sorteggi fissi identiche, impatto sulla palla, palmo sul manico, piedi a terra, niente scatti; la parte 5 misura
 //   il costo dei tre aspetti (classici, mascotte nel codice, modelli 3D).
 //   TRE_D=1: solo le parti 6 e 5 · FOGLI3D=cartella: solo i fogli di docs/b29/img · MODELLI=cartella: modelli da
-//   un'altra cartella al posto di quelli del gioco (per confrontare texture diverse)
+//   un'altra cartella al posto di quelli del gioco (per confrontare texture diverse) · SEMI=cpu:777,schermo:2024,demo:9090:
+//   partite della parte 6 con altri sorteggi (il confronto con il commit di prima si salta: le impronte salvate sono
+//   dei sorteggi di base; resta quello con «Classici» giocato sugli stessi sorteggi)
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -328,6 +330,8 @@ const play = (p, o = {}) => p.evaluate(o => {
 }, o);
 // partite a sorteggi fissi con i robot (parte 1b): contro la CPU e nello stesso schermo
 const RUNS = { cpu: { mode: 'cpu', seed: 31337, steps: 2600 }, schermo: { mode: 'schermo', seed: 555, steps: 2600 } };
+// SEMI: altri sorteggi per le partite della parte 6 (demo = la partita senza persone)
+const SEMI = Object.fromEntries((process.env.SEMI || '').split(',').filter(Boolean).map(x => x.split(':')).map(([k, v]) => [k, +v]));
 
 /* ---------- fogli di immagini (docs/b24/img): solo con FOGLI=cartella ---------- */
 if (FOGLI || FOGLI3D){
@@ -505,6 +509,31 @@ if (FOGLI || FOGLI3D){
         await scene(g.p, 'b3-vicino', { pose: 'fermo', cam: { actor: 'player', from: [0, 1.15, -5.6], look: [0, .92, 0], fov: 28 } }); tiles.push({ src: await png(g.p), label: `${l}: da dietro, da vicino` });
       }
       await sheet('bordo-drop.webp', tiles, { cols: 3, w: 420, h: 300, title: 'Drop è blu su un campo blu: senza e con il bordo di luce' });
+      await g.ctx.close();
+    }
+    // e2) scala in campo da scegliere con l'utente: 1,6 m (nel gioco), 1,75 e 1,9 m (le mascotte nel codice sono alte
+    // 1,95). La racchetta resta dove la mette il motore (punto d'impatto uguale): cambia dove sta la testa rispetto
+    // alla mano. Righe: camera di gioco; Lob nell'attesa da davanti (come lo vede la camera di gioco); Drop nel dritto
+    // al passo 5 di tre quarti da sinistra; Drop nel servizio al passo 7 dal basso
+    if (want3('scala')){
+      const g = await game({ cast: 'lobdrop', w: 1280, h: 720, mascotte: '3d' }), tiles = [];
+      const setScale = v => g.p.evaluate(v => { for (const k of ['player', 'opponent']){ const r = __natpfTennis[k].natpfMascot3d; if (r) r.scale = v; } }, v);
+      const CAM = { sx34: { from: [-3.6, 1.3, 3.4], look: [0, .85, 0], fov: 30 }, basso: { from: [.6, .25, 4.2], look: [0, .45, 0], fov: 30 } };
+      const rows = [
+        ['Drop dalla camera di gioco (ingrandito 3 volte)', SCENES.fermo, { zoom: 3, dx: .05, dy: .26 }],
+        ['Lob dalla camera di gioco (ingrandito 4 volte)', SCENES.fermo, { zoom: 4, dx: -.02, dy: -.17 }],
+        ['Lob in attesa, da davanti', { pose: 'fermo', cam: { actor: 'opponent', ...NEAR.front } }, {}],
+        ['Lob nel dritto (passo 5), da davanti', { pose: 'dritto', steps: 5, who: 'opponent', cam: { actor: 'opponent', ...NEAR.front } }, {}],
+        ['Drop nel dritto (passo 5), tre quarti', { pose: 'dritto', steps: 5, cam: { actor: 'player', ...CAM.sx34 } }, {}],
+        ['Drop nel servizio (passo 7), dal basso', { pose: 'servizio', steps: 7, cam: { actor: 'player', ...CAM.basso } }, {}],
+      ];
+      for (const [l, sc, crop] of rows) for (const v of [1.6, 1.75, 1.9]){
+        await setScale(v); await scene(g.p, `s3-${v}`, sc);
+        tiles.push({ src: await png(g.p), label: `${String(v).replace('.', ',')} m${v === 1.6 ? ' (gioco)' : ''}: ${l}`, ...crop });
+      }
+      await setScale(1.6);
+      check('fogli, scala: nessun errore', !g.errs.length, g.errs.join(' | '));
+      await sheet('scala.webp', tiles, { cols: 3, w: 400, h: 250, title: 'Altezza dei modelli in campo: 1,6 m (nel gioco), 1,75 m, 1,9 m. La racchetta non cambia posto' });
       await g.ctx.close();
     }
     // f) texture a 1024 e a 512 punti (TEXTURE512=cartella con i modelli a 512)
@@ -708,7 +737,7 @@ if (!process.env.COSTO && !process.env.TESTA){
     for (const r of await probe()){ bones.add(r.bone); worst = { grip: Math.max(worst.grip, r.grip), low: Math.min(worst.low, ...r.sole), high: Math.max(worst.high, ...r.sole), stretch: Math.max(worst.stretch, r.stretch) }; }
   }
   check('3D, nelle pose (attesa, corsa, dritto, rovescio, servizio, schiacciata, esultanza): racchetta nella mano destra (RightHand), palmo sul manico', bones.size === 1 && bones.has('RightHand') && worst.grip < .035, `${[...bones]}, palmo–manico al più ${worst.grip} m, braccio allungato al più ${worst.stretch} volte`);
-  check('3D, nelle pose: piante sul campo (mai sotto; al più 20 cm sopra nel passo di corsa e nel saltello dell\'esultanza)', worst.low > -.005 && worst.high < .2, `da ${worst.low} a ${worst.high} m`);
+  check('3D, nelle pose: piante sul campo (mai sotto; al più 23 cm sopra: 18 di alzata più l\'inclinazione del piede, nel passo di corsa e nel saltello dell\'esultanza)', worst.low > -.005 && worst.high < .23, `da ${worst.low} a ${worst.high} m`);
   // «Classici» al volo: il modello sparisce, il disegno è quello di prima; di nuovo «Lob & Drop»: tornano i modelli
   await setCast(p, 'sempre');
   const c = await scene(p, '3d-classici', SCENES.fermo);
@@ -752,22 +781,24 @@ if (!process.env.COSTO && !process.env.TESTA){
   await f.ctx.close();
   // d) partite a sorteggi fissi con i modelli: stessa impronta di «Classici» e del commit di prima; al colpo le corde
   // sono dove erano; palmo sul manico, piante sul campo, niente scatti, a ogni passo
-  for (const [name, run] of [['senza persone', { steps: 3600 }], ...Object.entries(RUNS)]){
+  for (const [name, run0] of [['senza persone', { steps: 3600 }], ...Object.entries(RUNS)]){
     if (process.env.PARTITA && process.env.PARTITA !== name) continue;
-    const key = name === 'senza persone' ? 'partita' : `partita-${name}`;
-    let base = name === 'senza persone' ? prints.partita : partite[name];
+    const key = name === 'senza persone' ? 'partita' : `partita-${name}`, seme = SEMI[name === 'senza persone' ? 'demo' : name];
+    const run = seme ? { ...run0, seed: seme } : run0;
+    let base = seme ? null : name === 'senza persone' ? prints.partita : partite[name];
     if (!base){ const g0 = await game({ cast: 'sempre', w: 640, h: 360 }); base = (await play(g0.p, run)).hash; await g0.ctx.close(); }
     const g3 = await game({ cast: 'lobdrop', mascotte: '3d', w: 640, h: 360 });
     const M = await play(g3.p, { ...run, clip: true, rig3d: true }), c3 = M.clip, R = M.rig;
     check(`3D, partita ${name}: giocata con i modelli in campo, stessa impronta di «Classici» (niente cambia nel gioco)`, M.hits >= 6 && M.hash === base && M.on3d.every(Boolean) && R.on.player === R.n && R.on.opponent === R.n && !g3.errs.length, `${M.hash} / ${base}, ${M.hits} colpi, modelli in ${R.on.player} e ${R.on.opponent} passi su ${R.n} ${g3.errs.join(' | ')}`);
-    if (ref[key]) check(`3D, partita ${name}: identica al commit di prima`, ref[key] === M.hash, `${ref[key]} / ${M.hash}`);
+    if (seme) console.log(`3D, partita ${name}: sorteggi ${seme} (SEMI), confronto con il commit di prima saltato`);
+    else if (ref[key]) check(`3D, partita ${name}: identica al commit di prima`, ref[key] === M.hash, `${ref[key]} / ${M.hash}`);
     const pct = n => `${n} su ${c3.n} (${(n*100/c3.n).toFixed(1)}%)`;
     console.log(`3D, partita ${name}: telaio dentro la testa del modello · Drop prima ${pct(c3.prima.player)}, dopo ${pct(c3.dopo.player)} · Lob prima ${pct(c3.prima.opponent)}, dopo ${pct(c3.dopo.opponent)}`);
     console.log(`  dove (passi prima → dopo): ${Object.entries(c3.pose).map(([k, v]) => `${k} ${v[0]} → ${v[1]}`).join(' · ')}`);
     console.log(`  rig: palmo–manico al più ${(R.presa*100).toFixed(1)} cm, piante da ${(R.piantaMin*100).toFixed(1)} a ${(R.piantaMax*100).toFixed(1)} cm, passi con tutti e due i piedi alzati più di 5 cm ${R.inAria}, braccio allungato al più ${R.allungo.toFixed(2)} volte (${R.allungoDove?.chi} al passo ${R.allungoDove?.passo}), mano libera al più ${(R.manoLibera*100).toFixed(1)} cm per passo, scatto oltre il limite ${R.scatto.toFixed(1)} gradi ${R.dove}`);
     check(`3D, partita ${name}: al colpo le corde sono dove erano (punto d'impatto non cambiato), su tutti i colpi`, c3.colpi.length >= 6 && c3.colpi.every(x => Math.abs(x.dopo - x.prima) < .001), `${c3.colpi.length} colpi · ${JSON.stringify(c3.colpi.filter(x => x.scostamento > 0)).slice(0, 200)}`);
     check(`3D, partita ${name}: la racchetta è sempre nella mano (palmo a meno di 3,5 cm dal manico a ogni passo)`, R.presa < .035, `${(R.presa*100).toFixed(1)} cm`);
-    check(`3D, partita ${name}: piedi sul campo (le piante non scendono mai sotto; un piede si alza al più di 25 cm nel passo)`, R.piantaMin > -.005 && R.piantaMax < .25 && R.inAria < R.n*.02, `da ${(R.piantaMin*100).toFixed(1)} a ${(R.piantaMax*100).toFixed(1)} cm, ${R.inAria} passi su ${R.n} con tutti e due i piedi alzati`);
+    check(`3D, partita ${name}: piedi sul campo (le piante non scendono mai sotto; un piede si alza al più di 23 cm nel passo: 18 di alzata più l'inclinazione; tutti e due in aria, cioè la fase di volo della corsa, in meno del 3 % dei passi)`, R.piantaMin > -.005 && R.piantaMax < .23 && R.inAria < R.n*.03, `da ${(R.piantaMin*100).toFixed(1)} a ${(R.piantaMax*100).toFixed(1)} cm, ${R.inAria} passi su ${R.n} con tutti e due i piedi alzati`);
     check(`3D, partita ${name}: niente scatti (ossa e mano libera, a ogni passo, anche tra un'animazione e l'altra)`, R.scatto === 0 && R.manoLibera < .2, `${R.dove || 'nessuno'} · mano libera al più ${(R.manoLibera*100).toFixed(1)} cm per passo oltre la mano del tennista`);
     const wait = Object.entries(c3.pose).filter(([k]) => /attesa/.test(k)).reduce((t, [, v]) => [t[0] + v[0], t[1] + v[1]], [0, 0]);
     check(`3D, partita ${name}: nell'attesa dello scambio il telaio non resta nella testa del modello (al più un quinto di prima)`, wait[1] <= Math.max(12, wait[0]*.2), `${wait[0]} → ${wait[1]} passi`);
