@@ -242,8 +242,44 @@
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
-        <!-- «Nuovo giocatore» (B18): nome, tutorial, calibrazione e colpi imparati da capo, il telefono resta collegato -->
-        <div class="sheet-actions"><button type="button" class="lobby-secondary new-player" data-staff="newplayer">Nuovo giocatore</button><button type="button" class="lobby-primary" data-staff="close">Chiudi</button></div>
+        <!-- «Nuovo giocatore» (B18): nome, tutorial, calibrazione e colpi imparati da capo, il telefono resta collegato.
+             B27: a sinistra «Telecomando dello staff» (QR dello staff nel foglio #natpf-remote) e, solo nel programma
+             Windows, «Schermo del gioco» (monitor successivo): nella riga dei pulsanti in basso, non nella griglia, così il
+             foglio resta di tre file e «Chiudi» in vista a 1024 × 600 e 1366 × 657 (prova natpf-menu) -->
+        <div class="sheet-actions staff-actions"><button type="button" class="lobby-ghost staff-extra" data-staff="remote"><span>Telecomando dello staff</span><b>Collega</b></button
+          ><button type="button" class="lobby-ghost staff-extra hidden" data-staff="display"><span>Schermo del gioco</span><b>—</b></button
+          ><button type="button" class="lobby-secondary new-player" data-staff="newplayer">Nuovo giocatore</button><button type="button" class="lobby-primary" data-staff="close">Chiudi</button></div>
+      </div>
+    </div>
+    <!-- B27: telecomando dello staff (natpf_remote.js). Il gioco è sul ledwall: questo foglio lo vede anche il pubblico.
+         QR e codice valgono solo a foglio aperto e non bastano: il telefono che li presenta diventa il telecomando solo
+         dopo «Conferma» qui sul computer (stesso numero di tre cifre sul telefono), con un tasto o un clic veri. Dopo
+         l'abbinamento niente più QR: «Abbina un altro telefono» ne apre uno nuovo. Quattro viste (data-remote-view) -->
+    <div id="natpf-remote" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="remote-title">
+      <div class="natpf-sheet remote-sheet">
+        <p class="sheet-kicker">Riservato all’addetto · non per i giocatori</p>
+        <h2 class="sheet-title" id="remote-title">Telecomando dello staff</h2>
+        <div class="remote-body" data-remote-view="pair">
+          <div class="remote-qr-col"><div id="remote-qr" class="natpf-qr remote-qr"></div></div>
+          <div class="remote-info">
+            <p class="sheet-desc">Inquadra il QR con il <b>telefono dello staff</b> (non quello dei visitatori), poi <b>conferma qui sul computer</b> il numero che compare sul telefono.</p>
+            <p class="remote-code-line">Oppure, sulla pagina del telecomando, scrivi il codice <b id="remote-code">—</b></p>
+            <p class="sheet-desc remote-tip">Prima volta su un telefono: certificato della rete NATPF come per la racchetta (QR «Certificato» della pagina «Collega»). QR e codice valgono solo con questo foglio aperto, per 5 minuti.</p>
+          </div>
+        </div>
+        <div class="remote-request hidden" data-remote-view="request" role="alert">
+          <p class="remote-ask">Un telefono chiede di diventare il telecomando · numero</p>
+          <p class="remote-num" id="remote-num">—</p>
+          <p class="sheet-desc">Conferma solo se sul <b>telefono dello staff</b> c’è lo stesso numero. Fino alla conferma quel telefono non comanda niente.</p>
+          <div class="remote-request-actions"><button type="button" class="lobby-ghost" data-remote="refuse">Rifiuta</button><button type="button" class="lobby-primary" data-remote="confirm" data-no-remote>Conferma</button></div>
+        </div>
+        <div class="remote-paired hidden" data-remote-view="paired">
+          <p class="remote-ok">Telecomando abbinato ✓</p>
+          <p class="sheet-desc">Il telefono dello staff si ricollega da solo alla riapertura, dopo il riavvio del gioco o del PC. Per un altro telefono: «Abbina un altro telefono» (quello di prima non sarà più il telecomando).</p>
+        </div>
+        <div class="remote-closed hidden" data-remote-view="closed"><p class="sheet-desc" id="remote-closed-text"></p></div>
+        <p id="remote-state" class="natpf-phone-status" aria-live="polite"></p>
+        <div class="sheet-actions"><button type="button" class="lobby-ghost hidden" data-remote="forget">Scollega il telecomando</button><button type="button" class="lobby-secondary hidden" data-remote="new">Abbina un altro telefono</button><button type="button" class="lobby-primary" data-remote="close">Indietro</button></div>
       </div>
     </div>
     <!-- passaggio dal menu al campo -->

@@ -160,6 +160,28 @@ pubblicata sul bucket (dimmelo e la pubblico).
       **prima** del primo avvio; il programma tiene la stessa autorità e rifà solo il certificato per i nuovi
       indirizzi.
 
+## 5a. Ledwall e telecomando dello staff (B27, 12/11)
+
+Guida per lo staff: `docs/GUIDA_TELECOMANDO.md`; matrice delle schermate: `docs/b27/telecomando.md`.
+1. Cancella `%LOCALAPPDATA%\NATPF\desktop-app.json`, collega il ledwall in «Estendi», avvia: sullo schermo del portatile
+   compare «Su quale schermo mostro il gioco?» con «Monitor 2 · 1024×1024 · probabile ledwall» già scelto. Scegli il
+   ledwall: il gioco va a schermo intero sul ledwall e lo copre tutto (nessun bordo, nessuna barra). Riavvia: niente
+   domanda, di nuovo sul ledwall. Rifai senza rispondere: dopo 30 s il gioco va sul ledwall da solo.
+2. Ctrl+Maiusc+K → «Schermo del gioco»: un clic porta il gioco sul portatile, un altro lo riporta sul ledwall.
+3. Telefono dello staff: certificato (pagina 8081) → «Telecomando dello staff» → QR → sul telefono e sul PC lo stesso
+   numero di tre cifre → **Conferma** sul PC (mouse o tastiera) → «Collegato al gioco», sul PC «Telecomando abbinato ✓»
+   senza QR. Guida dal telefono menu → partita → pausa → menu → nuovo giocatore; in partita le frecce non muovono il
+   giocatore. Dal telefono non si arriva a «Conferma», «Azzera oggi», «Scarica CSV» (nessuna finestra di Windows).
+4. Chiudi e riapri il programma, riavvia il PC, spegni e riaccendi lo schermo del telefono, togli e rimetti il Wi-Fi del
+   telefono: il telecomando si ricollega da solo ogni volta. Aggiornamento del programma: idem.
+5. «Aggiungi a schermata Home» su Android e su iPhone (sull'iPhone poi il codice): l'icona apre il telecomando senza la
+   barra del browser e si ricollega.
+6. Un secondo telefono con il QR dei giocatori, o con il QR dello staff fotografato e usato a foglio chiuso, non
+   diventa telecomando; con il foglio aperto («Abbina un altro telefono») chiede e aspetta: finché sul PC non si preme
+   «Conferma» il primo telefono comanda ancora; con «Rifiuta» resta fuori.
+7. Ledwall salvato ma spento all'avvio, con il portatile e un altro schermo accesi: la domanda torna; senza risposta il
+   gioco parte su un altro schermo e, acceso il ledwall, ci va (il file `desktop-app.json` ha ancora il ledwall).
+
 ## 5b. Versione browser (Cloudflare, B8)
 
 Lo zip LAN non si consegna più dal 07/11 (è lo stesso gioco e lo stesso server del programma Windows).

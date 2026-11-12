@@ -52,6 +52,8 @@ export const MIME = {
   '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.LICENSE': 'text/plain; charset=utf-8',
   // foto e clip del tutorial e video dell'intro (public/media/): il server LAN manda nosniff, il tipo deve essere giusto
   '.mp4': 'video/mp4',
+  // manifest del telecomando dello staff (B27, icona sulla schermata Home)
+  '.webmanifest': 'application/manifest+json',
 };
 export const mimeFor = file => MIME[path.extname(file)] || 'application/octet-stream';
 
