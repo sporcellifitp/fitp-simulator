@@ -27,6 +27,7 @@ const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(h
 const GAME_PORT = +(process.env.GAME_PORT || 3171);
 const OUT = path.join(SP, 'chi-gioca'); mkdirSync(OUT, { recursive: true });
 const SIZES = [[1280, 720], [1920, 540], [720, 720]];
+const OPT_SIZES = [...SIZES, [1024, 600]];   // revisione: a 1024×600 la riga del segnale non si vedeva senza scorrere
 const vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vite.js'), '--port', String(GAME_PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: GAME, env: { ...process.env, DISABLE_HMR: 'true' }, stdio: 'pipe' });
 process.on('exit', () => { try { vite.kill(); } catch {} });
 const up = async url => { for (let i = 0; i < 120; i++){ const ok = await new Promise(r => http.get(url, res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false))); if (ok) return true; await new Promise(r => setTimeout(r, 500)); } return false; };
@@ -61,6 +62,7 @@ const view = p => p.evaluate(() => {
     tilesInView: tiles.every(inView), play: inView(document.getElementById('btn-start-match')), more: inView(document.getElementById('match-more-btn')),
     note: vis(document.getElementById('who-note')) ? document.getElementById('who-note').textContent : '',
     sum: document.getElementById('match-more-sum')?.textContent || '',
+    lastRow: (() => { const l = document.getElementById('match-more')?.lastElementChild; return !!l && vis(l) && inView(l); })(),
     levelRow: vis(document.getElementById('level-row')), levelsInView: levels.every(b => !vis(b) || inView(b)),
     levels: levels.filter(vis).map(b => `${b.textContent.trim()}=${b.dataset.natpfLevel}${b.classList.contains('selected') ? '*' : ''}`),
     scroll: m.scrollHeight - m.clientHeight, hud: E.hud.selectedDifficulty, opp: document.getElementById('setup-opponent-label')?.textContent || '',
@@ -93,7 +95,7 @@ const incoming = (p, stopAt = null) => p.evaluate(stopAt => {
     if (v){
       if (seen[seen.length - 1] !== v.phase) seen.push(v.phase);
       diam.push(v.diameter);
-      if (stopAt && v.phase === stopAt && (stopAt !== 'wait' || v.size < .55)){ at = { phase: v.phase, diameter: v.diameter, visible: !!C.sprite?.visible, onBall: C.sprite ? +C.sprite.position.distanceTo(E.ball.pos).toFixed(3) : null, color: C.sprite ? '#' + C.sprite.material.color.getHexString() : null, scale: C.sprite ? +C.sprite.scale.x.toFixed(2) : null }; break; }
+      if (stopAt && v.phase === stopAt && (stopAt !== 'wait' || v.size < .55)){ at = { phase: v.phase, diameter: v.diameter, full: !!C.sprite && C.sprite.material.map === C._maps.full, visible: !!C.sprite?.visible, onBall: C.sprite ? +C.sprite.position.distanceTo(E.ball.pos).toFixed(3) : null, color: C.sprite ? '#' + C.sprite.material.color.getHexString() : null, scale: C.sprite ? +C.sprite.scale.x.toFixed(2) : null }; break; }
     } else if (seen.length && !stopAt) break;
   }
   const shrink = diam.every((d, i) => i === 0 || d <= diam[i - 1] + 1e-9);
@@ -105,7 +107,7 @@ const hint = p => p.evaluate(() => {
   const el = document.getElementById('natpf-super-hint'), on = !!el && !el.classList.contains('hidden');
   const r = el?.getBoundingClientRect(), m = document.querySelector('.natpf-meters')?.getBoundingClientRect();
   return { on, text: on ? el.textContent : '', inView: on ? r.top >= 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight : null,
-    aboveMeters: on && m && m.height > 0 ? r.bottom <= m.top + 1 || r.right <= m.left + 1 || r.left >= m.right - 1 : null, lines: on ? (() => { const c = getComputedStyle(el); return Math.round((r.height - parseFloat(c.paddingTop) - parseFloat(c.paddingBottom))/parseFloat(c.lineHeight)); })() : 0 };
+    px: on ? parseFloat(getComputedStyle(el).fontSize) : 0, aboveMeters: on && m && m.height > 0 ? r.bottom <= m.top + 1 || r.right <= m.left + 1 || r.left >= m.right - 1 : null, lines: on ? (() => { const c = getComputedStyle(el); return Math.round((r.height - parseFloat(c.paddingTop) - parseFloat(c.paddingBottom))/parseFloat(c.lineHeight)); })() : 0 };
 });
 // un colpo di chi gioca nel registro del motore (come lo scrive game_engine._natpfRacketShot), poi un giro della scritta
 const racket = (p, why, extra = {}) => p.evaluate(({ why, extra }) => {
@@ -113,6 +115,10 @@ const racket = (p, why, extra = {}) => p.evaluate(({ why, extra }) => {
   E.natpfLastRacket = { who: 'player', intent: { power: 1, typePower: 1, depth: 1, shot: 'topspin' }, out: { shot: 'TOPSPIN' }, super: null, superWhy: [why], at: E.elapsedTime, ...extra };
   E.natpfUi.superHint.update(1/60);
 }, { why, extra });
+// un punto nuovo: la scritta può uscire di nuovo (al massimo una a punto)
+const newPoint = p => p.evaluate(() => { const E = __natpfTennis, was = E.phase; E.phase = 'SERVE_STANCE'; E.natpfUi.superHint.update(1/60); E.phase = was; });
+// le voci della situazione come le scrive il motore (natpfLastRacket.sit)
+const SIT = { reach: 1, prep: 1, stretch: 1, fast: 1, deep: 1, high: 1, pressure: 1, running: 0 };
 
 const B = await launch();
 try {
@@ -146,12 +152,23 @@ try {
   await p.click('#match-more-btn'); await p.waitForTimeout(200);
   await p.click('[data-natpf-level="pro"]'); await p.waitForTimeout(200);
   v = await view(p);
-  check('«Livello della CPU» → Esperta: nessuna tessera scelta, la riga sotto lo dice, il riassunto comincia con «CPU Esperta»',
-    v.hud === 'pro' && !v.tiles.some(t => t.endsWith('*')) && /CPU Esperta.*Altre impostazioni/.test(v.note) && v.sum.startsWith('CPU Esperta') && v.levels.includes('Esperta=pro*') && v.opp === 'CPU Pro' && v.scroll <= 0, fmt(v));
+  // (revisione: con «Altre impostazioni» aperte la riga sotto le tessere non c'è: il livello scelto si vede già lì, e la
+  // riga in più tagliava a metà l'ultima riga sopra «Gioca»)
+  check('«Livello della CPU» → Esperta: nessuna tessera scelta, il livello è scelto nella riga, l\'ultima riga («Visuale») resta in vista intera',
+    v.hud === 'pro' && !v.tiles.some(t => t.endsWith('*')) && v.note === '' && v.levels.includes('Esperta=pro*') && v.opp === 'CPU Pro' && v.scroll <= 0 && v.lastRow && v.play, fmt(v));
+  await p.screenshot({ path: path.join(OUT, 'livello-esperta-aperte-1280x720.png') });
+  await p.click('#match-more-btn'); await p.waitForTimeout(200);
+  v = await view(p);
+  check('… chiuse «Altre impostazioni»: la riga sotto le tessere dice il livello, il riassunto comincia con «CPU Esperta»',
+    /CPU Esperta.*Altre impostazioni/.test(v.note) && v.sum.startsWith('CPU Esperta') && v.scroll <= 0 && v.play, fmt({ note: v.note, sum: v.sum, scroll: v.scroll }));
   await p.screenshot({ path: path.join(OUT, 'livello-esperta-1280x720.png') });
+  await p.click('#match-more-btn'); await p.waitForTimeout(200);
   await p.click('[data-natpf-level="leggenda"]'); await p.waitForTimeout(200);
   v = await view(p);
-  check('… → Leggenda: come prima si gioca contro la Leggenda', v.hud === 'leggenda' && /CPU Leggenda/.test(v.note) && v.sum.startsWith('CPU Leggenda'), fmt({ hud: v.hud, note: v.note, sum: v.sum }));
+  const legOpen = { hud: v.hud, note: v.note, lastRow: v.lastRow, levels: v.levels };
+  await p.click('#match-more-btn'); await p.waitForTimeout(200);
+  v = await view(p);
+  check('… → Leggenda: come prima si gioca contro la Leggenda', legOpen.hud === 'leggenda' && legOpen.note === '' && legOpen.lastRow && legOpen.levels.includes('Leggenda=leggenda*') && /CPU Leggenda/.test(v.note) && v.sum.startsWith('CPU Leggenda'), fmt({ legOpen, note: v.note, sum: v.sum }));
   const leg = await play(p);
   check('«Gioca» con Leggenda scelta: il motore gioca a Leggenda, senza segnale', leg.level === 'leggenda' && leg.cue === false, fmt(leg));
   await menu(p);
@@ -188,10 +205,10 @@ try {
   for (const [w, h] of SIZES){
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(400);
     const wait = await incoming(p, 'wait');
-    check(`${w}×${h}: anello giallo attorno alla palla mentre arriva`, wait.at?.phase === 'wait' && wait.at.visible && wait.at.onBall < .01 && wait.at.color === '#ffe14a', fmt(wait.at));
+    check(`${w}×${h}: anello bianco attorno alla palla mentre arriva`, wait.at?.phase === 'wait' && wait.at.visible && wait.at.onBall < .01 && wait.at.color === '#ffffff' && !wait.at.full, fmt(wait.at));
     await shotTo(p, `segnale-aspetta-${w}x${h}.png`);
     const now = await incoming(p, 'now');
-    check(`${w}×${h}: anello verde stretto sulla palla nell'istante giusto`, now.at?.phase === 'now' && now.at.visible && now.at.onBall < .01 && now.at.color === '#39e58c' && now.at.diameter < 1.2, fmt(now.at));
+    check(`${w}×${h}: anello verde, pieno e un poco più largo, stretto sulla palla nell'istante giusto`, now.at?.phase === 'now' && now.at.visible && now.at.onBall < .01 && now.at.color === '#39e58c' && now.at.diameter < 1.2 && now.at.full && now.at.scale >= now.at.diameter*1.25, fmt(now.at));
     await shotTo(p, `segnale-adesso-${w}x${h}.png`);
   }
   await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(300);
@@ -200,26 +217,39 @@ try {
   /* ---------- 6: colpo super spiegato ---------- */
   await p.evaluate(() => { const E = __natpfTennis; E.natpfUi.superHint.reset(); E.hud.hideCenterBanner?.(); });
   await incoming(p, 'now');                       // gioco fermo con la palla sulla racchetta: la scritta arriva dopo un colpo
-  await racket(p, 'palla né alta, né lenta, né corta');
+  // la qualità mancava (superShot: «in corsa o in allungo») ma chi gioca era fermo: bastava portare indietro la racchetta.
+  // È il motivo più lungo: le misure qui sotto valgono per tutte le frasi
+  await racket(p, 'in corsa o in allungo', { sit: { ...SIT, prep: .86, deep: .9 } });
   const h1 = await hint(p);
-  check('colpo super spiegato, prima volta: la regola in una riga e il motivo di questa volta',
-    h1.on && h1.text === 'Colpo super: gesto fortissimo, a tempo e da fermo, su una palla alta o lenta. Questa volta la palla era bassa e veloce.' && h1.inView && h1.aboveMeters !== false, fmt(h1));
+  check('colpo super spiegato, prima volta: la regola in una riga e il motivo vero di questa volta (non «eri in corsa»)',
+    h1.on && h1.text === 'Colpo super: gesto fortissimo, a tempo e da fermo, su una palla alta o lenta. Questa volta non hai portato indietro la racchetta.' && h1.inView && h1.aboveMeters !== false, fmt(h1));
   for (const [w, h] of SIZES){
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(400);
     const a = await hint(p);
-    check(`${w}×${h}: la scritta del super sta nello schermo, in al più tre righe, senza coprire potenza ed energia`, a.on && a.inView && a.lines <= 3 && a.aboveMeters !== false, fmt(a));
+    check(`${w}×${h}: la scritta del super (la frase più lunga) sta nello schermo, in al più tre righe da almeno 14 px, senza coprire potenza ed energia`, a.on && a.inView && a.lines <= 3 && a.px >= 14 && a.aboveMeters !== false, fmt(a));
     await shotTo(p, `super-spiegato-${w}x${h}.png`);
   }
   await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(300);
   await racket(p, 'fuori tempo');
+  const h1b = await hint(p);
+  check('… nello stesso punto un altro super mancato non cambia la scritta (al massimo una a punto)', h1b.on && h1b.text === h1.text, fmt(h1b));
+  await newPoint(p);
+  await racket(p, 'fuori tempo');
   const h2 = await hint(p);
-  check('… le volte dopo: «Super mancato: eri fuori tempo.»', h2.on && h2.text === 'Super mancato: eri fuori tempo.', fmt(h2));
+  check('… nei punti dopo: «Super mancato: eri fuori tempo.»', h2.on && h2.text === 'Super mancato: eri fuori tempo.', fmt(h2));
+  const reasons = [];
+  for (const [sit, want] of [[{ ...SIT, deep: .78 }, 'la palla era troppo profonda'], [{ ...SIT, pressure: .7 }, 'lo scambio era lungo'], [{ ...SIT, reach: .7, running: .1 }, 'la palla era lontana'], [{ ...SIT, reach: .7, running: .9 }, 'eri in corsa']]){
+    await newPoint(p); await racket(p, 'in corsa o in allungo', { sit });
+    const h = await hint(p); reasons.push(h.text === `Super mancato: ${want}.` ? 'ok' : h.text);
+  }
+  check('… quando manca la qualità dice la voce vera: palla profonda, scambio lungo, palla lontana; «eri in corsa» solo se correva', reasons.every(r => r === 'ok'), reasons.join(' | '));
+  await newPoint(p); await racket(p, 'fuori tempo');
   await shotTo(p, 'super-mancato-1280x720.png');
   await p.evaluate(() => { const E = __natpfTennis; E.elapsedTime += 4; E.natpfUi.superHint.update(1/60); });
   const h3 = await hint(p);
-  await racket(p, 'gesto fortissimo', { super: 'alta' });
+  await newPoint(p); await racket(p, 'gesto fortissimo', { super: 'alta' });
   const h4 = await hint(p);
-  await racket(p, 'gesto non abbastanza forte', { intent: { power: .5, typePower: .5 } });
+  await newPoint(p); await racket(p, 'gesto non abbastanza forte', { intent: { power: .5, typePower: .5 } });
   const h5 = await hint(p);
   check('… sparisce dopo pochi secondi; niente scritta se il super riesce o se il gesto non era fortissimo', !h3.on && !h4.on && !h5.on, fmt({ h3, h4, h5 }));
   await release(p);
@@ -237,14 +267,16 @@ try {
   await p.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.backToMenu(); ui.lobby.go('options'); });
   await p.waitForTimeout(400);
   const opt0 = await p.evaluate(() => { const b = [...document.querySelectorAll('[data-natpf-cue]')]; return { row: b.map(b => `${b.textContent.trim()}${b.classList.contains('selected') ? '*' : ''}`).join(' '), label: b[0].closest('.lobby-row').querySelector('.lobby-label').textContent, after: b[0].closest('.lobby-row').previousElementSibling?.querySelector('.lobby-label')?.textContent }; });
-  check('Opzioni: «Segnale del momento giusto: Di base · Sì · No» dopo «Scia della palla», di base scelto «Di base»', opt0.row === 'Di base* Sì No' && opt0.label === 'Segnale del momento giusto' && opt0.after === 'Scia della palla', fmt(opt0));
-  for (const [w, h] of SIZES){
+  check('Opzioni: «Segnale del momento giusto: Di base · Sì · No» dopo «Giochi con la mano», di base scelto «Di base»', opt0.row === 'Di base* Sì No' && opt0.label === 'Segnale del momento giusto' && opt0.after === 'Giochi con la mano', fmt(opt0));
+  for (const [w, h] of OPT_SIZES){
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(350);
-    // la pagina Opzioni ha dieci righe e scorre (già prima): la riga del segnale si porta in vista come fa chi scorre
-    const s = await p.evaluate(() => { const row = document.querySelector('[data-natpf-cue="off"]').closest('.lobby-row'); row.scrollIntoView({ block: 'center' });
+    // la pagina Opzioni ha dieci righe e scorre (già prima). Revisione: la riga del segnale è la quarta, dopo «Giochi con la
+    // mano»: si vede intera appena si apre la pagina, senza scorrere
+    const s = await p.evaluate(() => { const row = document.querySelector('[data-natpf-cue="off"]').closest('.lobby-row');
+      for (let el = row.parentElement; el; el = el.parentElement) if (el.scrollTop) el.scrollTop = 0;
       const seen = el => { const r = el.getBoundingClientRect(); if (!(r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth)) return false; const at = document.elementFromPoint((r.left + r.right)/2, (r.top + r.bottom)/2); return !!at && (at === el || el.contains(at)); };
       return { buttons: [...row.querySelectorAll('[data-natpf-cue]')].every(seen), label: seen(row.querySelector('.lobby-label')) }; });
-    check(`${w}×${h}: Opzioni, la riga del segnale si vede intera (etichetta e i tre pulsanti)`, s.buttons && s.label, fmt(s));
+    check(`${w}×${h}: Opzioni, la riga del segnale si vede intera senza scorrere (etichetta e i tre pulsanti)`, s.buttons && s.label, fmt(s));
     await p.screenshot({ path: path.join(OUT, `opzioni-segnale-${w}x${h}.png`) });
   }
   await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(300);
