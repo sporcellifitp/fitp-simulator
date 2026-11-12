@@ -4,9 +4,11 @@
 //      salvato), si accendono e si spengono con un clic e restano salvati; il foglio con i dodici pulsanti sta nello
 //      schermo, con «Chiudi» e «Nuovo giocatore» interi, a 1920×540, 1024×600, 1280×720, 1366×657, 720×720 e 1920×1080;
 //   2. pagina dei telefoni dello stesso schermo: su ogni scheda la fascia «Bambino · Ragazzo · Adulto», di base Adulto per
-//      tutti e due (nessun aiuto); con il Player 2 «Bambino» la barra dell'avvio dichiara l'aiuto; le schede restano nel
-//      riquadro e, dove si vedeva già tutta, la barra resta sopra il piè di pagina;
-//   3. partita: il bambino parte da 15-0, sotto il suo nome «Aiuto: Bambino», sotto l'altro niente;
+//      tutti e due (nessun aiuto); con il Player 2 «Bambino» la barra dell'avvio dichiara l'aiuto per quello che è (solo
+//      di gioco: margine sul tempo, palle più lente, colpi più in fondo; con il campo aperto acceso solo il margine); le
+//      schede restano nel riquadro e, dove si vedeva già tutta, la barra resta sopra il piè di pagina;
+//   3. partita: si parte da 0-0 (nessun punto regalato: decisione dell'utente del 12/11), l'aiuto è quello di gioco; sotto
+//      il nome del bambino «Aiuto: Bambino», sotto l'altro niente;
 //   4. lancio automatico spento: chi batte resta fermo e il gioco aspetta; acceso (dalla partita dopo): il richiamo dice
 //      i secondi che mancano, il gioco lancia, la palla ricade; al secondo lancio a vuoto il gioco batte lui;
 //   5. campo aperto spento e acceso: il personaggio corre verso la palla a 9,8 m/s oppure a 5,9, e rientra a 2;
@@ -124,7 +126,7 @@ try {
   await shot('2-telefoni-fasce-di-base');
   await g.click('[data-split-band="p2:bambino"]'); await sleep(200);
   bd = await bands();
-  check('   Giulia «Bambino»: la barra dell\'avvio dichiara l\'aiuto, con il nome e cosa cambia', bd.p2.join() === 'Bambino' && bd.p1.join() === 'Adulto' && bd.engine.p2 === 'bambino' && bd.note === 'Aiuto a Giulia (Bambino): parte da 15-0 e ha più margine sul tempo.', fmt(bd));
+  check('   Giulia «Bambino»: la barra dell\'avvio dichiara l\'aiuto, con il nome e cosa cambia', bd.p2.join() === 'Bambino' && bd.p1.join() === 'Adulto' && bd.engine.p2 === 'bambino' && bd.note === 'Aiuto a Giulia (Bambino): ha più margine sul tempo, riceve palle più lente e tira più in fondo.' && !/15-0|30-0|parte da/.test(bd.sub), fmt(bd));
   check('   sulla scheda di Giulia compare «Aiuto» (con la frase intera al passaggio del mouse); su quella di Marco niente', bd.badge.p2.on && bd.badge.p2.text === 'Aiuto' && bd.badge.p2.inCard && bd.badge.p2.title === bd.note && !bd.badge.p1.on, fmt(bd.badge));
   for (const [w, h] of [[1280, 720], [1024, 600], [1920, 540], [1366, 657], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
@@ -145,6 +147,13 @@ try {
   bd = await bands();
   check('   tutti e due «Ragazzo»: fasce uguali, nessun aiuto', !bd.note && !bd.badge.p1.on && !bd.badge.p2.on && bd.engine.p1 === 'ragazzo' && bd.engine.p2 === 'ragazzo', fmt(bd));
   await g.click('[data-split-band="p1:adulto"]'); await g.click('[data-split-band="p2:bambino"]'); await sleep(150);
+  // con il campo aperto acceso (opzione dello staff) il bambino ha solo il margine sul tempo, e la barra lo scrive giusto
+  await g.evaluate(() => { localStorage.setItem('natpf-tennis.campoAperto', '1'); const S = __natpfTennis.natpfUi.split; S._paintBands(); S.paint(); }); await sleep(150);
+  bd = await bands();
+  check('   Giulia «Bambino» con il campo aperto acceso: la barra dichiara il solo margine sul tempo', bd.note === 'Aiuto a Giulia (Bambino): ha più margine sul tempo.' && bd.badge.p2.title === bd.note, fmt({ note: bd.note, title: bd.badge.p2.title }));
+  await g.evaluate(() => { localStorage.setItem('natpf-tennis.campoAperto', '0'); const S = __natpfTennis.natpfUi.split; S._paintBands(); S.paint(); }); await sleep(150);
+  bd = await bands();
+  check('   campo aperto di nuovo spento: torna la frase intera', /riceve palle più lente e tira più in fondo\.$/.test(bd.note), fmt({ note: bd.note }));
 
   /* 3: partita con l'aiuto dichiarato */
   const [u1, u2] = await g.evaluate(() => [__natpfTennis.natpfPhone.pairingUrl, __natpfTennis.natpfPhone2.pairingUrl]);
@@ -159,9 +168,10 @@ try {
   check('3. i due telefoni pronti: conto alla rovescia e partita', started);
   await sleep(400);
   const match = () => g.evaluate(() => { const E = __natpfTennis, tag = id => { const t = document.querySelector(`[data-split-tag="${id}"]`); return { name: t.querySelector('b').textContent, sub: t.querySelector('span').textContent, helped: t.classList.contains('helped'), shown: !document.getElementById('natpf-split-hud').classList.contains('hidden') }; };
-    return { duo: E.natpfDuo, head: E.natpfHead, pts: [E.score.playerPoints, E.score.opponentPoints], server: E.score.server, phase: E.phase, p1: tag('p1'), p2: tag('p2'), board: [...document.querySelectorAll('#natpf-scoreboard .sb-pts, #natpf-scoreboard [data-sb-points]')].map(e => e.textContent) }; });
+    return { duo: E.natpfDuo, head: E.natpfHead, games: [E.score.playerGames, E.score.opponentGames], pts: [E.score.playerPoints, E.score.opponentPoints], server: E.score.server, phase: E.phase, p1: tag('p1'), p2: tag('p2'), board: [...document.querySelectorAll('#natpf-scoreboard .sb-pts, #natpf-scoreboard [data-sb-points]')].map(e => e.textContent) }; });
   let m = await match();
-  check('   il bambino parte da 15-0 (punti 0-1 per il Player 2), l\'aiuto è quello della variante in gioco', m.duo?.helped === true && m.duo.help.p1 === null && m.duo.help.p2?.band === 'bambino' && m.duo.help.p2.head === 1 && m.head === 1 && m.pts.join('-') === '0-1', fmt({ help: m.duo?.help, head: m.head, pts: m.pts }));
+  check('   si parte da 0-0: nessun punto regalato; l\'aiuto è solo di gioco (margine sul tempo, palla più lenta, colpo più in fondo)', m.duo?.helped === true && m.duo.help.p1 === null && m.duo.help.p2?.band === 'bambino' && !('head' in m.duo.help.p2) && m.head === undefined && m.pts.join('-') === '0-0' && m.games.join('-') === '0-0'
+    && m.duo.help.p2.span === 2 && m.duo.help.p2.late === .1 && m.duo.help.p2.slow === 1.1 && m.duo.help.p2.deep === 1 && !m.board.some(t => /15|30|40/.test(t)), fmt({ help: m.duo?.help, head: m.head, pts: m.pts, games: m.games, board: m.board }));
   check('   in campo, sotto il nome di Giulia «Aiuto: Bambino»; sotto quello di Marco niente', m.p2.shown && m.p2.name === 'Giulia' && m.p2.sub === 'Aiuto: Bambino' && m.p2.helped && m.p1.name === 'Marco' && m.p1.sub === '' && !m.p1.helped, fmt({ p1: m.p1, p2: m.p2 }));
   check('   lancio automatico e campo aperto spenti: questa partita non li usa', m.duo.autoToss === false && m.duo.open === false, fmt({ autoToss: m.duo.autoToss, open: m.duo.open }));
   await g.evaluate(() => __natpfTennis.hud.hideCenterBanner());
