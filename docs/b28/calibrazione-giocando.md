@@ -32,7 +32,8 @@ Con l'opzione dello stand di base («Calibrazione: Giocando») e il telefono com
 | Sfida tra due computer | 18 → **14** | 0 s: gli scambi di prova si fanno prima, in campo (vedi §4) |
 
 (`tools/e2e/natpf-flusso-tocchi.mjs` e `natpf-scambi-di-prova.mjs`, telefono simulato; i tocchi tolti sono le quattro
-frecce «Avanti» del tutorial per telefono. Il tempo di una persona vera non è misurato.)
+frecce «Avanti» del tutorial per telefono. Il tempo di una persona vera non è misurato. Chi colpisce una palla per lato e
+perde le altre: 16,1 s.)
 
 ## 2. Parte A · Niente più blocchi nelle schermate guidate
 
@@ -108,7 +109,8 @@ campo), `natpf_phone_racket.js` (`autoSimple`, `freshPlayer`, `beginTrial`/`tria
   volta. Chi invita dopo «Collega» (e dopo il tutorial), il Player 2 al posto della calibrazione in campo. Le rivincite
   tengono il profilo.
 - **Allenamento e «Riscaldati prima».** Niente tappa della calibrazione: i primi due esercizi (dritto e rovescio, palle dal
-  lato noto) insegnano il profilo allo stesso modo; vale appena ci sono due colpi per lato.
+  lato noto) insegnano il profilo allo stesso modo; vale appena ci sono due colpi per lato. Dopo «Riscaldati prima» il
+  «Gioca» che segue parte subito, senza scambi di prova (una volta: il colpo è appena stato imparato).
 - **«Nessuna».** Niente scambi di prova, ma a ogni «Gioca» il telefono riparte comunque dal profilo semplice.
 
 ## 4. Come si attiva
@@ -218,7 +220,7 @@ Mancino: 36, 36, 46, 42 → 0. I due gesti di prima gestivano questo caso con tr
 
 ## 6. Prove fatte (numeri)
 
-- Gioco `npm test`: **1213/1213** (base 1185/1185). Nuovi: `natpf-scambi-di-prova` (24), `natpf-niente-blocchi` (4);
+- Gioco `npm test`: **1214/1214** (base 1185/1185). Nuovi: `natpf-scambi-di-prova` (25), `natpf-niente-blocchi` (4);
   aggiornati `natpf-tutorial` (17), `natpf-split`. I test nuovi non esistono sulla base (i moduli non ci sono).
   **Nel mondo di prova dei test l'opzione è «Con i gesti» di base** (`makeWorld({ cal })`): i test di prima provano la
   calibrazione con i gesti, che resta; quelli nuovi passano `cal: 'play'`.
@@ -228,10 +230,10 @@ Mancino: 36, 36, 46, 42 → 0. I due gesti di prima gestivano questo caso con tr
 
 | Prova | Esito |
 |---|---|
-| `natpf-scambi-di-prova` (nuova) singolo destro, completa | 25/25 · 11,6 s |
-| … mancino (`HAND=left`) | 20/20 · 11,4 s · palle −1, +1, −1, +1 |
+| `natpf-scambi-di-prova` (nuova) singolo destro, completa | 25/25 · 11,4 s |
+| … mancino (`HAND=left`) | 20/20 · 11,6 s · palle −1, +1, −1, +1 |
 | … nessun colpo (`HITS=none`) | 18/18 · 16,3 s · profilo semplice |
-| … una palla per lato (`HITS=one`) | 18/18 · 16,3 s · profilo «ok» |
+| … una palla per lato (`HITS=one`) | 18/18 · 16,1 s · profilo «ok» |
 | … stesso schermo (`FLOW=stesso`) | 12/12 · 14,7 s · 4 colpi a testa |
 | … 1024×1024 con le schermate (singolo e stesso) | 19/19 e 11/11 |
 | `natpf-flusso-tocchi` singolo · stesso · 1v1 | 9 · 11 · 14 tocchi (5/5, 6/6, 8/8) |
