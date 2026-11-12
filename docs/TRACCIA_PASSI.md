@@ -66,6 +66,13 @@ il video di prima», scia «gialla ma poco diversa»). Ramo `b26-trailer-scia` (
 - L'agente B26 e il revisore del B25 si sono fermati due volte (limite delle 5 ore, poi «crediti finiti»): il B26 l'ha
   chiuso l'agente principale (mancava solo la sezione finale del documento e il commit).
 
+**DECISIONE DELL'UTENTE del 12/11 (07:50 UTC) sull'aiuto al più giovane: «Non voglio che nessuno abbia un vantaggio di
+punti, anzi voglio solo che il vantaggio si traduca nel gameplay».** Quindi: **niente punti regalati** (via il 15-0 della
+variante C e il 30-0 della B, anche come varianti selezionabili in gioco); l'aiuto è solo nel gioco (margine sul tempo e,
+se serve, altre leve di gioco: palla che arriva un po' più lenta al più giovane, più campo coperto, colpo più profondo).
+Da fare dopo il revisore del B25: `HELP_DEFAULT` solo-gioco, misurare una variante solo-gioco più forte della A (A dà
+29% al bambino contro adulto medio; obiettivo circa 40%), testi «Aiuto» senza punti, test e documento aggiornati.
+
 **B25: implementazione finita (7 commit, `3679e51`), manca il REVISORE indipendente** (fermato due volte dal limite d'uso; workflow `b25-stesso-schermo-equilibrio`, run `wf_d8163833-9f8`: agente in
 worktree `wf_d8163833-9f8-1` → revisore indipendente → correzioni). Se si ferma per il limite d'uso: rilanciare con
 `Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b25-stesso-schermo-equilibrio-wf_d8163833-9f8.js', resumeFromRunId: 'wf_d8163833-9f8'})`;
