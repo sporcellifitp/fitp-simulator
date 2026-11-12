@@ -18,12 +18,21 @@ ha provato il livello Bambini.**
 3. **Adulto** apre un livello nuovo, «Evento», che **si regola da solo**: tra un punto e l'altro la CPU diventa un poco
    più brava se chi gioca ha vinto il punto, un poco più facile se l'ha perso. Gli adulti medi simulati vincono 62–75
    punti su 100 (a Casual 84–95): l'obiettivo del rapporto era 60–70.
+   **Nella partita da 1 game (il formato della fiera) conta soprattutto il valore di partenza**: in 5–6 punti la CPU si
+   sposta poco, e il risultato è quasi quello di un livello fisso. L'adattamento si vede da «Gioca ancora» o nella
+   partita al meglio di 3. Il valore di partenza va deciso dopo le prime partite con persone vere («Cosa resta
+   aperto» n. 1). A Evento non si regola solo la CPU: con lo stesso valore cambiano anche la precisione chiesta a chi
+   gioca e la corsa del suo personaggio (per questo la tessera dice «La partita si regola su come giochi»).
 4. **Ragazzo** è la CPU facile di sempre (Casual), identica a prima.
 5. CPU Esperta (Pro) e Leggenda ci sono ancora, identiche: si scelgono in «Altre impostazioni» → «Livello della CPU».
-6. **Segnale del momento giusto**: un anello attorno alla palla che arriva si stringe e diventa verde quando è il momento
-   di colpire. Di base c'è con Bambino e Adulto. Non cambia l'esito dei colpi.
-7. **Colpo super spiegato**: dopo un gesto fortissimo che non diventa super compare una riga che dice perché.
+6. **Segnale del momento giusto**: un anello bianco attorno alla palla che arriva si stringe e diventa verde e pieno
+   quando è il momento di colpire. Il verde dura esattamente quanto il voto «Perfetto». Di base c'è con Bambino e
+   Adulto. Non cambia l'esito dei colpi.
+7. **Colpo super spiegato**: dopo un gesto fortissimo che non diventa super compare una riga che dice perché, con la
+   causa vera di quel colpo; al massimo una volta a punto.
 8. Nello stesso schermo e nella sfida tra due computer non cambia niente.
+9. Dopo la revisione indipendente ho corretto due difetti seri (il verde dell'anello durava più del «Perfetto»; la
+   scritta «eri in corsa» era quasi sempre falsa) e sei cose piccole: capitolo «Revisione».
 
 ## Come si attiva
 
@@ -31,7 +40,7 @@ ha provato il livello Bambini.**
 |---|---|---|
 | Chi gioca | Menu → **Gioca** → **Contro la CPU** → racchetta → pagina «Pronto per la partita»: le tre tessere **Bambino · Ragazzo · Adulto** sotto «Chi gioca?» | Adulto |
 | Livello per nome (anche Esperta e Leggenda) | stessa pagina → **Altre impostazioni** → prima riga **Livello della CPU: Bambini · Facile · Evento · Esperta · Leggenda** | Evento |
-| Segnale del momento giusto | Menu → **Opzioni** → **Segnale del momento giusto: Di base · Sì · No** (sesta riga, dopo «Scia della palla»: la pagina scorre) | Di base |
+| Segnale del momento giusto | Menu → **Opzioni** → **Segnale del momento giusto: Di base · Sì · No** (quarta riga, dopo «Giochi con la mano»: si vede senza scorrere) | Di base |
 | Colpo super spiegato | niente da accendere: vale in ogni partita contro la CPU | acceso |
 | Livello dall'indirizzo della pagina | `?mode=bambini`, `?mode=casual`, `?mode=evento`, `?mode=pro`, `?mode=leggenda` (anche `?difficulty=`) | nessuno |
 
@@ -39,8 +48,9 @@ Che cosa fanno i valori:
 
 - **Bambino** → livello Bambini. **Ragazzo** → Casual. **Adulto** → livello Evento.
 - **Livello della CPU**: «Facile» è Casual, «Esperta» è Pro. Se si sceglie Esperta o Leggenda nessuna tessera resta
-  scelta e sotto le tessere compare «Livello: CPU Esperta, scelto in «Altre impostazioni». Tocca chi gioca per
-  cambiarlo.»; lo dice anche il riassunto accanto ad «Altre impostazioni». Toccare una tessera riporta al livello di
+  scelta. Chiuse «Altre impostazioni», sotto le tessere compare «Livello: CPU Esperta, scelto in «Altre impostazioni».
+  Tocca chi gioca per cambiarlo.»; lo dice anche il riassunto accanto ad «Altre impostazioni». (Con «Altre
+  impostazioni» aperte la riga non c'è: il livello scelto si vede già lì.) Toccare una tessera riporta al livello di
   quella tessera.
 - **Segnale del momento giusto**:
   - «Di base»: acceso con Bambino e Adulto (livelli Bambini ed Evento), spento con gli altri livelli;
@@ -71,7 +81,7 @@ CPU ha tre tessere al posto delle tre di prima (CPU facile, CPU esperta, CPU Leg
 |---|---|---|
 | Bambino | Palla più lenta e più tempo per colpire | Bambini (nuovo) |
 | Ragazzo | CPU facile, per prendere confidenza | Casual (identico a prima) |
-| Adulto | La CPU si regola su come giochi | Evento (nuovo) |
+| Adulto | La partita si regola su come giochi | Evento (nuovo) |
 
 Riscaldamento e sfide (Precision, Combo e le altre) continuano a usare la CPU facile, come prima, qualunque tessera sia
 scelta.
@@ -116,20 +126,32 @@ falliti. Con la CPU più brava, quindi, Evento è ancora un poco più largo di P
 
 ### Segnale del momento giusto
 
-Attorno alla palla che arriva compare un anello giallo, largo. Si stringe mentre la palla si avvicina. Quando è il
-momento di colpire è stretto sulla palla e diventa **verde**. Se la palla passa diventa rosso e sparisce.
+Attorno alla palla che arriva compare un anello bianco, largo. Si stringe mentre la palla si avvicina. Quando è il
+momento di colpire è stretto sulla palla, diventa **verde**, si riempie e si allarga un poco di colpo (un lampo). Se
+la palla passa diventa rosso e sparisce.
 
-- Il verde dura quanto la finestra del voto «Perfetto» del livello (a Bambini è più larga).
-- L'istante è lo stesso con cui il gioco giudica il colpo: l'anello non inventa un tempo suo.
+- **Il verde dura quanto il voto «Perfetto» vero, né di più né di meno.** Il voto non è simmetrico: prima del punto
+  d'impatto il «Perfetto» dura 0,35 volte la finestra della direzione del livello (più larga sulle palle lente); dopo
+  il punto d'impatto dura 0,35 volte il tempo che la palla impiega a passare 1,4 metri dietro (più il margine del
+  livello Bambini), che con una palla normale è molto più corto. L'anello usa le stesse funzioni del voto. Esempio a
+  Casual con una palla a 18 metri al secondo: verde da 70 millesimi prima a 27 millesimi dopo il punto d'impatto.
+- Misura sul motore vero (giocatore con il telefono e 0,1 secondi di errore di tempo, semi 3301, 88 e 6007, 150 punti
+  ciascuno, livelli Bambini, Evento, Casual e Pro): **2708 gesti fatti con l'anello verde, 2708 «Perfetto»**. Dei 2735
+  «Perfetto», 27 (l'1%) sono arrivati con l'anello ancora bianco: la palla rallenta al rimbalzo e la finestra vera si
+  allarga un poco dopo il gesto. L'anello può quindi essere appena più severo del voto, mai più largo.
+- L'istante in cui si chiude è lo stesso con cui il gioco giudica il colpo: l'anello non inventa un tempo suo.
 - È solo disegno. Non legge i gesti e non cambia l'esito, il voto o la palla: la stessa partita simulata, con gli
   stessi semi, è identica con il segnale acceso e spento (c'è un test).
 - L'anello non torna mai più largo mentre la stessa palla arriva. Senza questa regola succedeva circa in una palla su
   cinque (fino a 60 centimetri in più), perché il gioco corregge in volo la stima del tempo.
+- Colori: bianco «aspetta», verde «adesso», rosso «tardi». Prima «aspetta» era giallo, ma nell'anello a terra del voto
+  il giallo vuol dire «buono».
 - Nel tutorial la scheda «Colpisci la palla» adesso dice: «Con il segnale del momento giusto un anello si stringe
   sulla palla: colpisci quando si chiude.»
 
 Il rapporto proponeva di misurare la quota di «Perfetto» prima e dopo. **Con il gioco simulato non si può**: i
-giocatori simulati non guardano l'anello. Serve la prova con persone (capitolo «Cosa non è provato»).
+giocatori simulati non guardano l'anello. Serve la prova con persone (capitolo «Cosa non è provato»). La diagnostica
+adesso scrive per ogni partita se il segnale era acceso: il confronto si può fare con i file di sempre.
 
 ### Colpo super spiegato
 
@@ -139,14 +161,35 @@ Le condizioni del colpo super **non cambiano** (decisione del 29/10). Cambia que
   scatta, in basso a sinistra, sopra le barre, compare per 5 secondi:
   «Colpo super: gesto fortissimo, a tempo e da fermo, su una palla alta o lenta. Questa volta la palla era bassa e
   veloce.» (l'ultima frase dice il motivo di quella volta).
-- **Le volte dopo**, per 2,6 secondi: «Super mancato: eri fuori tempo.»
-- I motivi che si possono leggere: «la palla era bassa e veloce», «eri fuori tempo», «eri in corsa», «la palla era dal
-  lato sbagliato», «il gesto era poco chiaro», «vale solo con dritto, rovescio o schiacciata, non con i colpi tagliati
-  o il pallonetto».
+- **Le volte dopo**, per 2,6 secondi: «Super mancato: eri fuori tempo.» **Al massimo una scritta a punto.**
+- I motivi che si possono leggere:
+
+  | Che cosa è mancato | Scritta |
+  |---|---|
+  | palla né alta, né lenta, né corta | «la palla era bassa e veloce» |
+  | tempo oltre 0,6 volte la finestra | «eri fuori tempo» |
+  | dritto su una palla dal lato del rovescio, o il contrario | «la palla era dal lato sbagliato» |
+  | gesto letto con poca sicurezza | «il gesto era poco chiaro» |
+  | colpo tagliato, pallonetto, palla corta | «il colpo era tagliato», «era un pallonetto», «era una palla corta» |
+  | qualità del colpo sotto 0,8, e bastava la preparazione | «non hai portato indietro la racchetta» |
+  | qualità sotto 0,8 per la palla colpita dietro la riga di fondo | «la palla era troppo profonda» |
+  | … per la palla molto veloce (oltre 24 metri al secondo) | «la palla era troppo veloce» |
+  | … per il rimbalzo sopra la spalla (oltre 1,5 metri) | «la palla era sopra la spalla» |
+  | … per l'allungo | «eri in allungo» |
+  | … per la palla lontana di lato | «la palla era lontana» |
+  | … per la corsa (solo se chi colpiva correva oltre metà della sua velocità) | «eri in corsa» |
+  | … per lo scambio lungo (dal 16° colpo la qualità cala per tutti e due) | «lo scambio era lungo» |
+
+  Quando manca la qualità la scritta dice **la voce che ha pesato di più**; se portare indietro la racchetta sarebbe
+  bastato, dice quello, perché è l'unica cosa che chi gioca può correggere (il personaggio si muove da solo).
 - Nessuna scritta se il gesto non era fortissimo, se il colpo è fallito (lo dice già l'esito) o se il super è riuscito
   («SUPER!» c'è già).
 - Nel tutorial la scheda «Cambia tipo di colpo» finisce con: «Colpo super: gesto fortissimo, a tempo e da fermo, su
   una palla alta o lenta.»
+
+Quante volte esce (gioco simulato, livello Evento, semi 4441 e 59, 150 punti ciascuno): a chi colpisce sempre
+fortissimo 0,70–0,77 volte a punto (prima del limite 1,3–2,1); all'adulto medio «amatore» 2 volte in 300 punti. A
+Casual 0,42–0,50 a punto per chi colpisce fortissimo.
 
 Non ho fatto l'alone attorno alla palla «da super» in arrivo, che il rapporto proponeva insieme alla scritta: vedi
 «Cosa resta aperto».
@@ -386,18 +429,20 @@ le ristampa con `npm run audit:evento -- --impronte`.
 
 ## Schermate
 
-Le ho guardate tutte a 1280×720, 1920×540 e 720×720 (in `docs/b18/img/`, prefisso `t2-4-`).
+Le ho guardate tutte a 1280×720, 1920×540 e 720×720 (in `docs/b18/img/`, prefisso `t2-4-`). Dopo la revisione le ho
+rifatte e riguardate tutte (più le Opzioni a 1024×600).
 
 | Cosa | 1280×720 | 1920×540 | 720×720 |
 |---|---|---|---|
 | «Chi gioca?» | `chi-gioca-1280x720.webp` | `chi-gioca-1920x540.webp` | `chi-gioca-720x720.webp` |
 | «Altre impostazioni» aperte | `altre-impostazioni-1280x720.webp` | `altre-impostazioni-1920x540.webp` | `altre-impostazioni-720x720.webp` |
-| Livello Esperta scelto per nome | `livello-esperta-1280x720.webp` | | |
-| Segnale: la palla arriva (giallo) | `segnale-aspetta-1280x720.webp` | `segnale-aspetta-1920x540.webp` | `segnale-aspetta-720x720.webp` |
+| Livello Esperta scelto per nome («Altre impostazioni» chiuse) | `livello-esperta-1280x720.webp` | | |
+| Livello Esperta scelto, «Altre impostazioni» aperte | `livello-esperta-aperte-1280x720.webp` | | |
+| Segnale: la palla arriva (bianco) | `segnale-aspetta-1280x720.webp` | `segnale-aspetta-1920x540.webp` | `segnale-aspetta-720x720.webp` |
 | Segnale: adesso (verde) | `segnale-adesso-1280x720.webp` | `segnale-adesso-1920x540.webp` | `segnale-adesso-720x720.webp` |
 | Colpo super spiegato, prima volta | `super-spiegato-1280x720.webp` | `super-spiegato-1920x540.webp` | `super-spiegato-720x720.webp` |
 | «Super mancato» | `super-mancato-1280x720.webp` | | |
-| Opzioni, riga del segnale | `opzioni-segnale-1280x720.webp` | `opzioni-segnale-1920x540.webp` | `opzioni-segnale-720x720.webp` |
+| Opzioni, riga del segnale (anche `opzioni-segnale-1024x600.webp`) | `opzioni-segnale-1280x720.webp` | `opzioni-segnale-1920x540.webp` | `opzioni-segnale-720x720.webp` |
 
 ![Chi gioca](img/t2-4-chi-gioca-1280x720.webp)
 ![Segnale: la palla arriva](img/t2-4-segnale-aspetta-1280x720.webp)
@@ -410,11 +455,15 @@ Che cosa ho visto:
 - Con «Altre impostazioni» aperte la pagina ha una riga in più di prima (cinque invece di quattro). Sugli schermi bassi
   la pagina scorre da sola fino all'ultima riga, come faceva già: a 1920×540 e a 720×720 il titolo e le tessere
   salgono fuori vista; i cinque livelli e «Gioca» si vedono sempre.
-- La pagina Opzioni ha dieci righe e scorreva già: la riga del segnale è la sesta e a 1920×540 e 1280×720 si vede
-  intera solo scorrendo un poco.
-- L'anello giallo si vede bene alle tre misure. L'anello verde è piccolo (è stretto sulla palla): a 1920×540 è largo
-  una trentina di punti dello schermo. Sul ledwall vero non è provato.
-- La scritta del super sta sopra le barre di potenza ed energia, in due righe (tre a 720×720), e non copre il campo.
+- La pagina Opzioni ha dieci righe e scorreva già: la riga del segnale adesso è la quarta e si vede intera appena si
+  apre la pagina, senza scorrere, a 1280×720, 1920×540, 720×720 e 1024×600.
+- Con «Altre impostazioni» aperte e il livello Esperta scelto, l'ultima riga («Visuale») si vede intera sopra «Gioca».
+- L'anello bianco si vede bene alle tre misure. L'anello verde adesso ha la linea spessa, è pieno e un poco più largo:
+  a 1280×720 è largo una sessantina di punti dello schermo, a 1920×540 e 720×720 una quarantina, e si distingue dalla
+  testa della racchetta. Il verde è chiaro (verde menta). Sul ledwall vero non è provato.
+- La scritta del super sta sopra le barre di potenza ed energia, in due righe (tre a 720×720, con la frase più lunga e
+  il carattere da 14 punti). A 720×720 il riquadro è largo metà schermo e copre l'angolo in basso a sinistra, fuori
+  dalle righe del campo.
 - Nelle schermate del campo la palla è stata messa in gioco dalla prova e il gioco è fermo sull'istante voluto.
 
 ## Come funziona (per chi mette le mani nel codice)
@@ -427,16 +476,19 @@ Che cosa ho visto:
   `SERVE_WEIGHT.evento` e `eventoServeAt(k)`; `CPU_PATTERNS.bambini`; `cpuShotChoice` (a Evento sceglie come Pro con
   probabilità `cpuPro`). Casual, Pro e Leggenda sono gli stessi oggetti di prima.
 - `natpf_impact.js`: `lateMargin` aggiunge il margine di Bambini, solo per chi gioca contro la CPU.
-- `game_engine.js` (3 righe): i due livelli nuovi tra quelli accettati dall'indirizzo; × tempo di volo dei colpi della
-  CPU; `eventoAfterPoint` a fine punto. `hud_ui.js` (2 righe): i due livelli tra quelli che si possono scegliere.
+- `game_engine.js` (4 righe): i due livelli nuovi tra quelli accettati dall'indirizzo; × tempo di volo dei colpi della
+  CPU; `eventoAfterPoint` a fine punto; dopo la revisione, una riga in `_natpfRacketShot` che scrive in
+  `natpfLastRacket.sit` le voci della situazione del colpo (`NS.situationParts`: solo lettura, niente nell'esito). `hud_ui.js` (2 righe): i due livelli tra quelli che si possono scegliere.
 - `natpf_who.js` (nuovo): «Chi gioca» → livello, valore di base, indirizzo, scritte. Funzioni pure.
 - `natpf_lobby.js`: tessere, «Livello della CPU», riga del segnale nelle Opzioni, `resetWho`, riassunto con il livello.
-- `natpf_timing_cue.js` (nuovo): `cueOn`, `cueView`, `cueHold` (pure) e l'anello (uno sprite, una texture disegnata
-  sul momento: nessun file in più).
-- `natpf_super_hint.js` (nuovo): `superReason`, `superHint` (pure) e la scritta.
+- `natpf_timing_cue.js` (nuovo): `cueOn`, `cueEdges` (i due bordi del verde, con `directionSpan`, `slowFactor`,
+  `lateSpanOf` dell'esito e `lateMargin`, `openTight` dell'impatto), `cueView`, `cueHold` (pure) e l'anello (uno
+  sprite, due texture disegnate sul momento: nessun file in più).
+- `natpf_super_hint.js` (nuovo): `superReason`, `situationCause`, `superHint` (pure) e la scritta (una a punto).
+- `diag/diag_recorder.js`: «partita» con `segnale` e, a Evento, `eventoK`; «punto» con `eventoK` a Evento.
 - `natpf_kiosk.js`, `natpf_new_player.js`: chiamano `resetWho` e `superHint.reset`.
 - `natpf_onboarding.js`: una frase in due schede del tutorial. `index.html`, `natpf-ui.css`: tessere, righe, scritta.
-- `natpf_stroke_outcome.js` **non è toccato** (né `ASSIST.leggenda` né l'esito della palla corta): i due livelli nuovi
+- `natpf_stroke_outcome.js` **non è toccato** (dopo la revisione l'anello ne importa tre funzioni, senza cambiarle) (né `ASSIST.leggenda` né l'esito della palla corta): i due livelli nuovi
   usano le righe di Casual di quelle tabelle. `natpf_duo_rules.js` e il riconoscimento dei gesti non sono toccati.
 
 Un livello nuovo contro la CPU usa le parti «facili» del motore di base dove il motore distingue solo tra Pro/Leggenda
@@ -447,7 +499,7 @@ che non entra nei pacchetti.
 
 ## Test e prove
 
-Test di unità nuovi: `natpf-tennis/test/natpf-b18-t2-evento-bambini.test.mjs`, **20 test**.
+Test di unità nuovi: `natpf-tennis/test/natpf-b18-t2-evento-bambini.test.mjs`, **25 test** (20 prima della revisione).
 
 | Regola | Test |
 |---|---|
@@ -466,10 +518,15 @@ Test di unità nuovi: `natpf-tennis/test/natpf-b18-t2-evento-bambini.test.mjs`, 
 | Banco ridotto: Evento 55–75 punti per l'adulto, Bambini ≥ 60 punti e ≥ 75 game per il bambino | «banco ridotto…» |
 | «Chi gioca», valore di base, indirizzi, scritte, riassunto | «Chi gioca: Bambino → Bambini…» |
 | Segnale: quando è acceso, scelta salvata | «segnale: di base acceso…» |
-| Segnale: fasi dell'anello uguali al voto «Perfetto» | «segnale: l'anello si stringe…» |
+| Segnale: fasi dell'anello (bianco, verde tra i due bordi, rosso, niente) | «segnale: l'anello si stringe…» |
+| Segnale: i due bordi del verde sono quelli del voto «Perfetto» del colpo vero (`strokeOutcome`), per livello e velocità della palla | «segnale: i bordi del verde…» |
+| Segnale nel motore vero: gesto con l'anello verde → «Perfetto», sempre | «segnale nel motore vero…» |
 | Segnale: non si riallarga | «segnale: l'anello non si riallarga…» |
 | Segnale: non cambia la partita (stessi semi, acceso e spento) | «segnale: è solo disegno…» |
-| Colpo super spiegato: frasi, quando sì e quando no; condizioni del super invariate | «colpo super spiegato…» |
+| Colpo super spiegato: frasi, quando sì e quando no; condizioni del super invariate | «colpo super spiegato: la prima volta…» |
+| Colpo super spiegato: la voce vera quando manca la qualità; «in corsa» solo se correva | «colpo super spiegato: quando manca la qualità…» |
+| Colpo super spiegato nel motore vero: le voci ridanno la qualità del motore, la frase è quella della voce giusta, una scritta a punto | «colpo super spiegato nel motore vero…» |
+| Diagnostica: segnale e valore del livello Evento nei file | «diagnostica: la partita registra…» |
 | Interfaccia: chiosco, «Nuovo giocatore», menu principale, «Gioca ancora», livello per nome | «interfaccia: chiosco…» |
 
 Un test del passo 2 (`natpf-b18-t2-cpu-pressione.test.mjs`) usava «evento» come esempio di livello che non esiste: adesso
@@ -513,8 +570,10 @@ finale; gli indirizzi `?mode=pro`, `leggenda`, `casual`, `bambini`; nessun error
    vincere 93–100 partite su 100). **È la decisione più importante da prendere dopo le prime partite con persone
    vere.**
 2. **A Evento le partite durano di più.** Scambi da 12–18 colpi invece di 7–10; 1 game dura 9 volte su 10 fino a 2–3
-   minuti (a Casual fino a 2), il meglio di 3 fino a 7 minuti (la più lunga misurata: 9). Con la coda allo stand conviene tenere 1
-   game. Se gli scambi risultano troppo lunghi con persone vere, la leva è far tirare la CPU più forte e meno a lungo
+   minuti (a Casual fino a 2), il meglio di 3 fino a 7 minuti. **La coda è più lunga**: con i miei semi la partita al
+   meglio di 3 più lunga dura 9 minuti (554 secondi); con i semi del revisore 10 minuti e mezzo per gli adulti (638
+   secondi) e **13 minuti per chi gioca peggio** (804 secondi, profilo «ragazzo»). Con la coda allo stand conviene
+   tenere 1 game. Se gli scambi risultano troppo lunghi con persone vere, la leva è far tirare la CPU più forte e meno a lungo
    (`cpuPro`, `cpuFlight` dell'estremo difficile).
 3. **Il bravo non trova una partita tirata a Evento** (96 punti su 100). Il tetto è la CPU di Pro con un poco di corsa
    in più; più su c'è solo la Leggenda, che ha regole sue e in questo passo non andava toccata. Un Evento che arriva
