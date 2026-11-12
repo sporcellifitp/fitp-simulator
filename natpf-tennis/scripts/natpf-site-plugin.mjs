@@ -9,11 +9,14 @@ import path from 'node:path';
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
-  '.txt': 'text/plain; charset=utf-8', '.LICENSE': 'text/plain; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8', '.LICENSE': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json',
 };
 // Solo ciò che serve al telefono e all'arena: niente mondo esplorabile, minigiochi o dati del Foro.
-const ENTRIES = ['tennis/racchetta.html', 'js/tennis/racchetta.js', 'js/vendor/peerjs.min.js', 'js/vendor/peerjs.LICENSE', 'js/vendor/qrcode.js'];
-export const ALLOWED = /^(tennis\/racchetta\.html|js\/tennis\/[\w.-]+\.js|js\/match\/[\w.-]+\.js|js\/vendor\/(peerjs\.min\.js|peerjs\.LICENSE|qrcode\.js)|assets\/(arena|brand)\/[\w.-]+\.png)$/;
+// B27: anche la pagina del telecomando dello staff (telecomando.html con il suo modulo, il manifest per l'icona sulla
+// schermata Home e le due icone)
+const ENTRIES = ['tennis/racchetta.html', 'js/tennis/racchetta.js', 'js/vendor/peerjs.min.js', 'js/vendor/peerjs.LICENSE', 'js/vendor/qrcode.js',
+  'tennis/telecomando.html', 'js/tennis/telecomando.js', 'tennis/telecomando.webmanifest', 'tennis/telecomando-192.png', 'tennis/telecomando-512.png'];
+export const ALLOWED = /^(tennis\/(racchetta|telecomando)\.html|tennis\/telecomando\.webmanifest|tennis\/telecomando-(192|512)\.png|js\/tennis\/[\w.-]+\.js|js\/match\/[\w.-]+\.js|js\/vendor\/(peerjs\.min\.js|peerjs\.LICENSE|qrcode\.js)|assets\/(arena|brand)\/[\w.-]+\.png)$/;
 
 // Dipendenze relative di un modulo ES, come tools/package-natpf.py.
 export function phoneFiles(siteDir){

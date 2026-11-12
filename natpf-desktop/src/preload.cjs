@@ -3,7 +3,9 @@
 // window.natpfDesktop; il processo principale accetta le richieste solo dalle pagine del proprio server (isOwnUrl).
 //   window.natpfDesktop = { shell: 'electron', version: 2,
 //     isFullScreen(), setFullScreen(on), toggleFullScreen(), onFullScreenChange(cb),     (schermo intero, B8, 04/11)
-//     updates: { state(), check(), download(), install(), onChange(cb) } }             (aggiornamenti, 07/11)
+//     updates: { state(), check(), download(), install(), onChange(cb) },             (aggiornamenti, 07/11)
+//     displays: { list(), next(), choose(id), onChange(cb) },                         (monitor del gioco, B27, 12/11)
+//     registro: { put(id, testo), list(), read(id), remove(id), state(), open() } }   (registro dello stand, B30, 12/11)
 // Schermo intero: le prime tre rispondono con lo stato nuovo (Promise<boolean>). Nel programma il gioco non usa
 // requestFullscreen di HTML: Electron consumerebbe il primo Esc per uscirne.
 // Aggiornamenti (src/aggiornamenti.mjs): state/check/download → Promise<S>, install → Promise<{ ok, error? }>,
@@ -11,6 +13,12 @@
 // 'ready'|'installing'|'error', current, latest?, notes?, size?, progress? (0..1), error?, checkedAt? }.
 // download() risponde a download finito (pronto o errore); l'avanzamento arriva con onChange. install() solo con
 // 'ready': il programma avvia l'installer (permesso di Windows) e si chiude; l'installer riapre il gioco.
+// Monitor (B27): list/next/choose → Promise<{ list: [{ id, label, width, height, primary, ledwall, current, wanted }],
+// current, wanted }>; next e choose salvano la scelta e rispondono a spostamento finito. onChange(cb) come sopra.
+// Registro dello stand (B30, src/registro.mjs): la coda sul disco dei blocchi di righe di gioco non ancora inviati allo
+// spazio Cloudflare dell'utente. put → Promise<{ ok, perche? }> (il processo principale accetta solo blocchi del
+// registro), list → Promise<[{ id, byte, righe }]>, read → Promise<testo | null>, remove → Promise<{ ok }>,
+// state → Promise<{ blocchi, byte, righe, scartati, cartella }>, open → apre la cartella in Esplora file.
 // Nomi dei canali uguali a DESKTOP.ipc* in desktop-core.mjs (provato).
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
@@ -19,12 +27,17 @@ const FULLSCREEN = 'natpf:fullscreen';
 const FULLSCREEN_CHANGED = 'natpf:fullscreen-changed';
 const UPDATES = 'natpf:updates';
 const UPDATES_CHANGED = 'natpf:updates-changed';
+const DISPLAYS = 'natpf:displays';
+const DISPLAYS_CHANGED = 'natpf:displays-changed';
+const REGISTRO = 'natpf:registro';
+const registro = (action, ...a) => ipcRenderer.invoke(REGISTRO, action, ...a).then(copy);
 const ask = action => ipcRenderer.invoke(FULLSCREEN, action);
+const copy = v => (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v);
 const update = action => ipcRenderer.invoke(UPDATES, action);
 
 contextBridge.exposeInMainWorld('natpfDesktop', {
   shell: 'electron',
-  version: 2,
+  version: 4,
   isFullScreen: () => ask('get'),
   setFullScreen: on => ask(on ? 'on' : 'off'),
   toggleFullScreen: () => ask('toggle'),
@@ -45,5 +58,25 @@ contextBridge.exposeInMainWorld('natpfDesktop', {
       ipcRenderer.on(UPDATES_CHANGED, listener);
       return () => { ipcRenderer.removeListener(UPDATES_CHANGED, listener); };
     },
+  },
+  displays: {
+    list: () => ipcRenderer.invoke(DISPLAYS, 'list').then(copy),
+    next: () => ipcRenderer.invoke(DISPLAYS, 'next').then(copy),
+    choose: id => ipcRenderer.invoke(DISPLAYS, 'choose', id).then(copy),
+    onChange: cb => {
+      if (typeof cb !== 'function') return () => {};
+      const listener = (_event, s) => { try { cb(copy(s)); } catch (e) { console.error(e); } };
+      ipcRenderer.on(DISPLAYS_CHANGED, listener);
+      return () => { ipcRenderer.removeListener(DISPLAYS_CHANGED, listener); };
+    },
+  },
+  registro: {
+    // solo testi: l'identificativo del blocco e le sue righe (il processo principale li controlla di nuovo)
+    put: (id, testo) => registro('put', String(id), String(testo)),
+    list: () => registro('list'),
+    read: id => registro('read', String(id)),
+    remove: id => registro('remove', String(id)),
+    state: () => registro('state'),
+    open: () => registro('open'),
   },
 });

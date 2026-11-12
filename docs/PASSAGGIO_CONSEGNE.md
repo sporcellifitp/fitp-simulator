@@ -161,6 +161,39 @@ verifiche indipendenti e correzioni, uniti nel ramo `b16-int` (dettaglio in `doc
   fallito a Leggenda) e B17.4 toccano la stessa regola `failQ` → `weak`; difetto 4 (fine partita nello stesso schermo,
   banner) e B17.3 (tabellone); tutorial corto e B17.2 (la X lavora con qualunque numero di schede).
 
+### B27 · Postazione dello staff (12/11/2026, versione 2026-11-12.3)
+Richiesta dell'utente allo stand delle Finals (portatile + ledwall 2×2 da 1024×1024 come schermo 2 in «Estendi»): gioco
+direttamente sullo schermo 2 senza OBS e un telefono dello staff come telecomando, abbinato una volta per tutte. Fatto
+da un secondo agente in parallelo all'altra sessione, in un ramo separato (`b25-staff`), con revisione indipendente.
+- **Schermo del gioco**: all'avvio, con due o più monitor e nessuno scelto, il programma chiede «Su quale schermo mostro
+  il gioco?» sul portatile (propone il monitor quadrato; senza risposta dopo 30 s vale la proposta) e lo ricorda. Voce
+  «Schermo del gioco» nel pannello dello stand; restano il menu «Schermo» e Ctrl+Maiusc+M.
+- **Telecomando dello staff**: pannello dello stand → «Telecomando dello staff» → QR o codice → numero di tre cifre
+  uguale su telefono e computer → «Conferma» sul computer. Poi il telefono si ricollega da solo. In campo frecce e OK
+  sono spente. Guida: `docs/GUIDA_TELECOMANDO.md`; tutte le schermate e i 12 difetti della revisione:
+  `docs/b27/telecomando.md`.
+- **Sicurezza**: il foglio dell'abbinamento si vede sul ledwall, quindi niente diventa telecomando senza la conferma sul
+  computer; QR e codice valgono solo a foglio aperto; la chiave non viaggia mai (prova HMAC nei due sensi).
+- **Non provato**: telefoni veri, Windows, ledwall, due monitor veri, il server PeerJS pubblico per il telecomando sul web.
+
+### B28 · Calibrazione giocando e tutorial senza blocco (12/11/2026, versione 2026-11-12.5)
+Richiesta dell'utente allo stand: «la calibrazione deve avvenire direttamente giocando: si parte con qualche scambio, il
+software deve capire destra e sinistra, velocità e i parametri necessari, e dopo circa 10-15 secondi parte il match
+vero» e «togli il check che uno deve aver fatto quel gesto per ogni schermata». Secondo agente, ramo
+`b28-cal-giocando`, due revisioni indipendenti. Documento: `docs/b28/calibrazione-giocando.md`.
+- **Scambi di prova**: dopo «Gioca» il lanciapalle manda palle alternate su dritto e rovescio; dopo due colpi per lato
+  (o 6 palle, o 14 s) «Si comincia!» e la partita parte da 0-0. A ogni partita il telefono riparte dal profilo semplice:
+  niente passa da un visitatore al successivo. Stesso schermo: palleggio assistito per i due. Sfida tra due computer:
+  scambi di prova in campo, una volta. Il verso (destra/sinistra) si corregge solo se la persona ha mostrato i due gesti.
+- **Opzione dello stand** «Calibrazione: Giocando · Con i gesti · Nessuna» (Ctrl+Maiusc+K), di base Giocando; i due
+  gesti restano in pausa → Telefono → «Calibra con i gesti».
+- **Niente blocchi**: tutorial chiudibile da qualunque scheda (computer e telefono), «Avanti ›» negli esercizi, «Salta
+  la calibrazione».
+- **Per chi tocca il codice**: gli scambi di prova non sono partita (`ui.trial.active` va escluso da ogni controllo
+  «siamo in partita?»); le prove `natpf-*` di prima girano con `CAL=gesti`, quelle nuove nel modo di base (`CAL=base`).
+- **Aperto** (prossima versione): profilo non rinnovato nei minigiochi e nell'allenamento e gli altri punti in
+  `docs/WORK_PROGRESS.md` («B28 · integrazione e seconda revisione»). **Non provato**: telefoni e persone veri.
+
 ### Versioni consegnate in questi giorni
 | Versione | Commit | Contenuto |
 |---|---|---|

@@ -55,8 +55,8 @@
   #shotHint,#phaseFeedback{font-size:14px;color:var(--muted);text-align:center;margin:6px 0}
   #manualAim{display:grid;gap:8px} #manualAim label:first-child{display:flex;align-items:center;justify-content:space-between}
   #power{width:100%;min-height:36px} #touchHit{touch-action:none}
-  /* tutorial sul computer (B9): «Tutto chiaro, ho capito» spento e grigio finché non si sono viste tutte le schede, poi
-     si accende con un lampo breve; frecce ‹ › per sfogliare le schede anche da qui */
+  /* tutorial sul computer (B9): «Tutto chiaro, ho capito» acceso da subito (B28), con un lampo breve quando compare;
+     frecce ‹ › per sfogliare le schede anche da qui */
   #tutOk{margin-top:10px;font-size:21px;padding:20px;transition:background .25s,color .25s,box-shadow .25s}
   #tutOk:disabled,#tutOk.off{background:#2f3a5c;color:#8d9ac0;box-shadow:none;cursor:default}
   #tutOk.lit{animation:tut-lit 1.3s ease-out}
@@ -99,9 +99,9 @@
 <body>
 <div id="bar"><i></i><span id="barTxt">Collegamento…</span><small id="lat"></small></div>
 <!-- sensori fermi o schermo che può spegnersi (phone-keep.js): cosa succede e cosa fare -->
-<!-- tutorial sul computer prima della calibrazione (richiesta del 04/11): il pulsante sta in alto, lontano dalle dita che
-     tengono la parte bassa del telefono (presa nel palmo). Spento finché il computer non dice che sono state viste tutte
-     le schede (B9); toccandolo parte la calibrazione, o si torna a «Pronto» se il telefono è già calibrato -->
+<!-- tutorial sul computer prima della partita (richiesta del 04/11): il pulsante sta in alto, lontano dalle dita che
+     tengono la parte bassa del telefono (presa nel palmo). Acceso da subito (B28, 12/11: prima spento finché non si erano
+     viste tutte le schede); toccandolo il tutorial si chiude e si torna a «Pronto» -->
 <button class="btn hidden off" id="tutOk" disabled aria-disabled="true">Tutto chiaro, ho capito</button>
 <div id="alert" class="hidden" role="alert"><b id="alertTitle"></b><p id="alertText"></p><button class="btn hidden" id="alertBtn"></button></div>
 <div id="stage">
@@ -156,6 +156,10 @@
 </div></details>
 <!-- stesso schermo, fine partita (B20): la rivincita parte quando la chiedono tutti e due i telefoni -->
 <button class="btn hidden" id="rematch">Rivincita</button>
+<!-- niente blocchi (B28): dove il computer chiede un gesto (esercizi, scambi di prova) si va avanti anche da qui; durante la
+     calibrazione con i gesti si può saltarla (profilo semplice: si gioca subito) -->
+<button class="btn alt hidden" id="next">Avanti ›</button>
+<button class="btn alt hidden" id="calSkip">Salta la calibrazione</button>
 <div id="tools" class="hidden">
   <button class="btn alt" id="recal">Ricalibra</button>
   <button class="btn alt" id="relink">Ricollega</button>

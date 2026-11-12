@@ -6,6 +6,8 @@
 //   • Precision: le zone corte sono a portata di un dritto morbido (5,2–5,4 m), con la scritta della zona.
 // Schermate in OUT (predefinito la cartella temporanea). Porta 3158.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-minigiochi-principianti.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

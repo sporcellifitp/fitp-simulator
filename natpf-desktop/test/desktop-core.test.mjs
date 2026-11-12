@@ -6,7 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import { DESKTOP, UPDATE_ACTIONS, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings, windowsVersion, readBuild,
-  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, TRAILER_RE, trailerFiles, trailerNameMatches } from '../src/desktop-core.mjs';
+  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, TRAILER_RE, trailerFiles, trailerNameMatches,
+  startupDisplayQuestion, displayAnswer, ledwallGuess, displayChoices, displaysState, isSquare, displayPixels } from '../src/desktop-core.mjs';
 import { createHash } from 'node:crypto';
 
 const d = (id, w, h, x = 0) => ({ id, bounds: { x, y: 0, width: w, height: h }, scaleFactor: 1 });
@@ -212,7 +213,7 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   const electron = {
     contextBridge: { exposeInMainWorld: (name, api) => { exposed[name] = api; } },
     ipcRenderer: {
-      invoke: (channel, action) => { invoked.push([channel, action]); return Promise.resolve(action === 'off' ? false : true); },
+      invoke: (channel, action, ...rest) => { invoked.push([channel, action, ...rest]); return Promise.resolve(channel === DESKTOP.ipcDisplays ? { list: [{ id: 2, label: 'Monitor 2' }], current: { id: 2 } } : action === 'off' ? false : true); },
       on: (channel, fn) => { (listeners[channel] ||= []).push(fn); },
       removeListener: (channel, fn) => { removed.push([channel, fn]); },
     },
@@ -221,8 +222,8 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   vm.runInNewContext(code, { require, console });
   const api = exposed.natpfDesktop;
   assert.ok(api, 'natpfDesktop esposto');
-  assert.deepEqual(Object.keys(api).sort(), ['isFullScreen', 'onFullScreenChange', 'setFullScreen', 'shell', 'toggleFullScreen', 'updates', 'version']);
-  assert.equal(api.shell, 'electron'); assert.equal(api.version, 2);
+  assert.deepEqual(Object.keys(api).sort(), ['displays', 'isFullScreen', 'onFullScreenChange', 'registro', 'setFullScreen', 'shell', 'toggleFullScreen', 'updates', 'version']);
+  assert.equal(api.shell, 'electron'); assert.equal(api.version, 4);
   assert.equal(await api.isFullScreen(), true);
   assert.equal(await api.setFullScreen(false), false);
   await api.setFullScreen(true); await api.toggleFullScreen();
@@ -250,6 +251,17 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   assert.equal(JSON.stringify(states), JSON.stringify([s1])); assert.notEqual(states[0], s1, 'una copia');
   off();
   assert.deepEqual(removed, [[DESKTOP.ipcUpdatesChanged, listeners[DESKTOP.ipcUpdatesChanged][0]]], 'ascolto tolto');
+  // monitor del gioco (B27): list, next, choose(id) e onChange, sempre copie
+  assert.deepEqual(Object.keys(api.displays).sort(), ['choose', 'list', 'next', 'onChange']);
+  invoked.length = 0;
+  const st = await api.displays.list(); await api.displays.next(); await api.displays.choose(7);
+  assert.deepEqual(invoked, [[DESKTOP.ipcDisplays, 'list'], [DESKTOP.ipcDisplays, 'next'], [DESKTOP.ipcDisplays, 'choose', 7]]);
+  assert.equal(st.current.id, 2);
+  const dseen = [], doff = api.displays.onChange(v => dseen.push(v));
+  listeners[DESKTOP.ipcDisplaysChanged][0]({ sender: 'evento di Electron' }, { list: [], current: null });
+  assert.equal(JSON.stringify(dseen), JSON.stringify([{ list: [], current: null }]));
+  doff(); assert.equal(removed.at(-1)[0], DESKTOP.ipcDisplaysChanged);
+  assert.equal(typeof api.displays.onChange(null), 'function');
   // il programma usa il preload e lo copia in app/; la richiesta passa dal controllo dei propri indirizzi
   const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
   const prepara = fs.readFileSync(new URL('../scripts/prepara.mjs', import.meta.url), 'utf8');
@@ -259,9 +271,11 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   assert.match(main, /webContents\.send\(DESKTOP\.ipcFullscreenChanged/);
   assert.match(main, /ipcMain\.handle\(DESKTOP\.ipcUpdates,[^\n]*\n[^\n]*isOwnUrl\(event\.senderFrame\?\.url[^\n]*\n[^\n]*UPDATE_ACTIONS\.includes\(action\)/, 'aggiornamenti solo dalle pagine del gioco');
   assert.match(main, /isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) win\.webContents\.send\(DESKTOP\.ipcUpdatesChanged/);
-  for (const k of ['ipcFullscreen', 'ipcFullscreenChanged', 'ipcUpdates', 'ipcUpdatesChanged']) assert.ok(code.includes(`'${DESKTOP[k]}'`), `canale ${k} uguale nel preload`);
+  assert.match(main, /ipcMain\.handle\(DESKTOP\.ipcDisplays,[^\n]*\n[^\n]*isOwnUrl\(event\.senderFrame\?\.url/, 'monitor solo dalle pagine del gioco');
+  assert.match(main, /isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) win\.webContents\.send\(DESKTOP\.ipcDisplaysChanged/);
+  for (const k of ['ipcFullscreen', 'ipcFullscreenChanged', 'ipcUpdates', 'ipcUpdatesChanged', 'ipcDisplays', 'ipcDisplaysChanged', 'ipcRegistro']) assert.ok(code.includes(`'${DESKTOP[k]}'`), `canale ${k} uguale nel preload`);
   assert.match(main, /'fullscreen'/, 'permesso dello schermo intero ancora consentito');
-  assert.match(prepara, /'main\.mjs', 'desktop-core\.mjs', 'aggiornamenti\.mjs', DESKTOP\.preload/);
+  assert.match(prepara, /'main\.mjs', 'desktop-core\.mjs', 'aggiornamenti\.mjs', 'registro\.mjs', DESKTOP\.preload/);
   assert.match(prepara, /UPDATES\.config/, 'aggiornamenti.json nel pacchetto');
   assert.equal(DESKTOP.preload, 'preload.cjs');
 });
@@ -319,4 +333,102 @@ test('trailer dell\'intro (B21): in natpf-desktop/media con il nome della sua im
   // il workflow parte anche quando cambia solo il trailer (natpf-desktop/**) e lo carica in media/ sul bucket
   const wf = fs.readFileSync(new URL('../../.github/workflows/natpf-windows.yml', import.meta.url), 'utf8');
   assert.match(wf, /- 'natpf-desktop\/\*\*'/); assert.match(wf, /for f in \.\.\/media\/trailer-\*\.mp4; do/); assert.match(wf, /"s3:\/\/\$R2_BUCKET\/media\/\$nome"/);
+});
+
+// B27 (12/11, allo stand): ledwall 2×2 da 1024×1024 su «Estendi»; a schermo intero la barra del menu non si vede, quindi
+// all'avvio il programma chiede su quale schermo mostrare il gioco
+test('domanda del monitor all\'avvio: quando chiedere e cosa proporre', () => {
+  const laptop = { id: 1, bounds: { x: 0, y: 0, width: 1536, height: 864 }, scaleFactor: 1.25 };   // 1920×1080 al 125%
+  const ledwall = { id: 2, bounds: { x: 1536, y: 0, width: 1024, height: 1024 }, scaleFactor: 1 };
+  const tv = { id: 3, bounds: { x: 2560, y: 0, width: 1920, height: 1080 }, scaleFactor: 1 };
+  assert.deepEqual(displayPixels(laptop), { width: 1920, height: 1080 });
+  assert.ok(isSquare(ledwall) && !isSquare(laptop) && isSquare({ bounds: { width: 1024, height: 1008 } }) && !isSquare({ bounds: { width: 1024, height: 960 } }));
+  // un solo monitor: niente domanda (il ledwall può accendersi dopo: ci si va da soli)
+  assert.equal(startupDisplayQuestion([laptop], {}, 1).ask, false);
+  assert.equal(startupDisplayQuestion([laptop], { displayId: 2 }, 1).ask, false, 'ledwall salvato e spento all\'avvio');
+  // due monitor, mai scelto: domanda, proposto il quadrato
+  const q = startupDisplayQuestion([laptop, ledwall], {}, 1);
+  assert.equal(q.ask, true); assert.equal(q.proposed, 2); assert.equal(q.why, 'nessun monitor scelto');
+  assert.deepEqual(q.choices.map(c => c.label), ['Monitor 1 · 1920×1080 (principale) · scala 125%', 'Monitor 2 · 1024×1024 · probabile ledwall']);
+  assert.deepEqual(q.choices.map(c => [c.primary, c.ledwall]), [[true, false], [false, true]]);
+  // il quadrato vince anche su un monitor più grande, e anche se è il principale
+  assert.equal(ledwallGuess([laptop, tv, ledwall], 1).id, 2);
+  assert.equal(ledwallGuess([{ ...ledwall, id: 9 }, laptop], 9).id, 9, 'ledwall come monitor principale');
+  // nessun quadrato: il più grande non principale (diverso dallo schermo del portatile)
+  assert.equal(ledwallGuess([laptop, tv], 1).id, 3);
+  assert.equal(ledwallGuess([laptop], 1), null);
+  assert.equal(displayChoices([laptop], 1)[0].ledwall, false, 'con un solo monitor nessuna etichetta');
+  // salvato e presente: niente domanda, vale quello
+  assert.deepEqual([startupDisplayQuestion([laptop, ledwall], { displayId: 1 }, 1).ask, startupDisplayQuestion([laptop, ledwall], { displayId: '1' }, 1).proposed], [false, 1]);
+  // salvato assente ma un altro monitor non principale con la stessa misura: id nuovo dello stesso ledwall, niente domanda
+  const moved = { ...ledwall, id: 22 };
+  const r = startupDisplayQuestion([laptop, moved], { displayId: 2, display: { width: 1024, height: 1024 } }, 1);
+  assert.deepEqual([r.ask, r.remap, r.proposed], [false, 22, 22]);
+  // salvato assente e nessuna misura che torna (o due candidati): si chiede
+  assert.equal(startupDisplayQuestion([laptop, moved], { displayId: 2 }, 1).ask, true);
+  assert.equal(startupDisplayQuestion([laptop, moved, { ...ledwall, id: 23, bounds: { ...ledwall.bounds, x: 3000 } }], { displayId: 2, display: { width: 1024, height: 1024 } }, 1).ask, true);
+  assert.equal(startupDisplayQuestion([laptop, tv], { displayId: 2, display: { width: 1024, height: 1024 } }, 1).why, 'monitor salvato assente');
+});
+test('stato dei monitor per la pagina: elenco, quello del gioco e quello voluto', () => {
+  const laptop = { id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 } }, ledwall = { id: 2, bounds: { x: 1920, y: 0, width: 1024, height: 1024 } };
+  const st = displaysState([laptop, ledwall], { primaryId: 1, currentId: 2, wantedId: 2 });
+  assert.equal(st.current.label, 'Monitor 2 · 1024×1024 · probabile ledwall');
+  assert.deepEqual(st.list.map(c => [c.id, c.current, c.wanted]), [[1, false, false], [2, true, true]]);
+  assert.equal(displaysState([laptop], { primaryId: 1, currentId: null }).current, null);
+  assert.ok(Number.isFinite(DESKTOP.askDisplayMs) && DESKTOP.askDisplayMs >= 10000, 'il tempo per rispondere');
+  const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
+  assert.match(main, /await askDisplay\(\);\n[^\n]*chooseDisplay\(/, 'la domanda prima di scegliere il monitor della finestra');
+  assert.match(main, /settings\.display = displayPixels\(display\)/, 'con la misura del monitor salvata');
+});
+
+// B27: il gioco sul ledwall 1024×1024 esteso a destra del portatile: finestra di partenza dentro il ledwall, schermo
+// intero che lo copre (needsRefit), cambio di monitor con il giro completo, ritorno quando il ledwall si riaccende
+test('ledwall 1024×1024 esteso: finestra dentro il monitor, schermo intero che lo copre, spostamenti', () => {
+  const laptop = { id: 1, bounds: { x: 0, y: 0, width: 1536, height: 864 }, workArea: { x: 0, y: 0, width: 1536, height: 824 }, scaleFactor: 1.25 };
+  const ledwall = { id: 2, bounds: { x: 1536, y: 0, width: 1024, height: 1024 }, workArea: { x: 1536, y: 0, width: 1024, height: 1024 }, scaleFactor: 1 };
+  const w = windowedBounds(ledwall);
+  assert.ok(w.x >= 1536 && w.x + w.width <= 2560 && w.y >= 0 && w.y + w.height <= 1024, JSON.stringify(w));
+  assert.deepEqual([w.width, w.height], [921, 720], 'al massimo il 90% del ledwall e 720 di altezza');
+  assert.equal(needsRefit({ x: 1536, y: 0, width: 1024, height: 1024 }, ledwall.bounds), false, 'schermo intero che copre il ledwall');
+  assert.equal(needsRefit({ x: 1536, y: 0, width: 1024, height: 1023 }, ledwall.bounds), false, 'il pixel che Chromium toglie in basso');
+  assert.equal(needsRefit({ x: 1536, y: 0, width: 1280, height: 720 }, ledwall.bounds), true, 'finestra rimasta della misura di prima');
+  assert.equal(placeMode({ currentId: 1, targetId: 2 }), 'giro', 'dal portatile al ledwall: giro completo');
+  assert.equal(placeMode({ currentId: 2, targetId: 2, bounds: { x: 1536, y: 0, width: 1024, height: 1024 }, displayBounds: ledwall.bounds }), 'fermo');
+  assert.equal(placeMode({ currentId: 2, targetId: 2, bounds: { x: 1536, y: 0, width: 1280, height: 1024 }, displayBounds: ledwall.bounds }), 'rettangolo');
+  assert.equal(chooseDisplay([laptop, ledwall], { primaryId: 1 }).id, 2);
+  assert.equal(nextDisplay([laptop, ledwall], 2).id, 1); assert.equal(nextDisplay([laptop, ledwall], 1).id, 2);
+  assert.equal(displayToFollow(ledwall, { wantedId: 2, currentId: 1 }), ledwall, 'ledwall riacceso: il gioco ci torna');
+});
+
+// Revisione del B27: ledwall salvato ma ancora spento, portatile e un altro monitor accesi, nessuno risponde alla
+// domanda. Prima la proposta sovrascriveva il monitor salvato e, acceso il ledwall, il gioco non ci andava più
+test('domanda del monitor senza risposta: non sovrascrive un ledwall salvato e spento; un clic salva sempre', () => {
+  const laptop = { id: 1, bounds: { x: 0, y: 0, width: 1536, height: 864 }, scaleFactor: 1.25 };
+  const staff = { id: 3, bounds: { x: 1536, y: 0, width: 1920, height: 1080 }, scaleFactor: 1 };
+  const ledwall = { id: 2, bounds: { x: 3456, y: 0, width: 1024, height: 1024 }, scaleFactor: 1 };
+  const saved = { displayId: 2, display: { width: 1024, height: 1024 } };
+  const q = startupDisplayQuestion([laptop, staff], saved, 1);
+  assert.deepEqual([q.ask, q.proposed, q.why], [true, 3, 'monitor salvato assente']);
+  // nessuna risposta: il monitor proposto solo per questa sessione, la scelta salvata resta
+  const timeout = displayAnswer(q, null, saved);
+  assert.deepEqual([timeout.use, timeout.save], [3, false]); assert.match(timeout.how, /solo per questa sessione/);
+  // … così quando il ledwall si accende il gioco ci va: il monitor voluto resta quello salvato
+  const start = chooseDisplay([laptop, staff], { savedId: timeout.use, primaryId: 1 });
+  assert.equal(start.id, 3);
+  assert.equal(initialWanted(saved, start), 2);
+  assert.equal(displayToFollow(ledwall, { wantedId: initialWanted(saved, start), currentId: start.id }), ledwall);
+  // un clic vero salva, anche sopra un monitor salvato
+  assert.deepEqual(displayAnswer(q, 3, saved), { use: 3, save: true, how: 'scelta' });
+  assert.deepEqual(displayAnswer(q, 1, saved), { use: 1, save: true, how: 'scelta' });
+  // mai scelto niente e nessuna risposta: la proposta si salva (la domanda non torna)
+  const first = startupDisplayQuestion([laptop, ledwall], {}, 1);
+  assert.deepEqual(displayAnswer(first, null, {}), { use: 2, save: true, how: 'proposta (nessuna risposta)' });
+  assert.deepEqual(displayAnswer({ proposed: null }, null, {}), { use: null, save: false, how: 'niente' });
+  // id del monitor come testo (salvato o arrivato dalla pagina): il monitor successivo è quello giusto
+  assert.equal(nextDisplay([laptop, ledwall], '1').id, 2); assert.equal(nextDisplay([laptop, ledwall], '2').id, 1);
+  assert.equal(nextDisplay([laptop], '1'), null);
+  const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
+  assert.match(main, /displayAnswer\(q, clicked, settings\)/);
+  assert.match(main, /savedId: sessionDisplayId \?\? settings\.displayId/, 'la proposta di questa sessione non tocca le impostazioni');
+  assert.match(main, /cancelId: q\.choices\.length/, 'Esc non è un clic su un monitor');
 });

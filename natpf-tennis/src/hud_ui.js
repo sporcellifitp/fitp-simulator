@@ -70,7 +70,7 @@ export class HudUI {
       ((this.playerRole = e),
       n && n !== "DEFAULT"
         ? ((this.currentRoomId = n), this._setDifficultySelection("1v1", { notify: !1 }))
-        : ["casual", "pro", "leggenda", "1v1"].includes(i) && this._setDifficultySelection(i, { notify: !1 }),
+        : ["casual", "pro", "leggenda", "1v1", "bambini", "evento"].includes(i) && this._setDifficultySelection(i, { notify: !1 }),
       e === "p2")
     ) {
       const o = document.querySelector(".you-tag");
@@ -85,7 +85,7 @@ export class HudUI {
     });
   }
   _setDifficultySelection(t, { notify: n = !0 } = {}) {
-    const e = ["casual", "pro", "leggenda", "1v1"].includes(t) ? t : "casual";
+    const e = ["casual", "pro", "leggenda", "1v1", "bambini", "evento"].includes(t) ? t : "casual"; // NATPF B18.2 gruppo 3: livelli Bambini ed Evento
     (this.selectedDifficulty = e),
       document.querySelectorAll("#difficulty-mode-group .nt-green-choice").forEach((a) => {
         a.classList.toggle("selected", a.dataset.difficulty === e);

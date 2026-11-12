@@ -8,7 +8,12 @@
 // Geometrie e materiali sono condivisi tra tutti gli attori: le varianti cambiano solo il materiale di ogni pezzo.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { setOpponentPortraitLook } from './natpf_portrait.js';
+import { setPortraitLooks } from './natpf_portrait.js';
+import { castLooks, getCast } from './natpf_personaggi.js';
+import { applyMascot, updateMascotLabels, MASCOT_COLORS } from './natpf_lob_drop.js';
+import { keepRacketClear } from './natpf_racket_clear.js';
+import { getMascotMode, setMascotMode, loadMascotModel, mascotModelStatus, mascotModelInstance } from './natpf_mascot_models.js';
+import { createMascotRig, poseMascotBody, poseMascotArms, mascotModelHeadShape } from './natpf_mascot_rig.js';
 
 // Varianti: P1 come l'immagine di riferimento, CPU con la polo blu NATPF, P2 con dettagli rosa.
 export const CHARACTER_LOOKS = Object.freeze({
@@ -18,7 +23,16 @@ export const CHARACTER_LOOKS = Object.freeze({
     button: 0xffffff, shorts: 0x0b1a45, band: 0xffffff, wristR: 0xffffff, wristL: 0xffffff, socks: 0xffffff, shoe: 0xfbfbf9, sole: 0x0b1a45 }),
   p2: Object.freeze({ skin: 0xe6b38c, hair: 0x7a3f22, brow: 0x2c160b, polo: 0xf5f6f2, collar: 0xff3d8b, placket: 0xff3d8b,
     button: 0xffffff, shorts: 0xdde1e8, band: 0xff3d8b, wristR: 0xff3d8b, wristL: 0xff3d8b, socks: 0xff3d8b, shoe: 0xfbfbf9, sole: 0xff3d8b }),
+  // B24 · Lob & Drop (natpf_lob_drop.js): peluche di un colore solo; i pezzi del tennista sono nascosti, restano
+  // braccia e gambe (stessi segmenti, più grossi) e, per Drop, i polsini bianchi
+  drop: plushLook(MASCOT_COLORS.drop.body, { wristR: MASCOT_COLORS.drop.band, wristL: MASCOT_COLORS.drop.band }),
+  lob: plushLook(MASCOT_COLORS.lob.body, { kind: 'plushBright' }),
 });
+function plushLook(body, extra = {}){
+  const look = { kind: 'plush' };
+  for (const slot of ['skin', 'hair', 'brow', 'polo', 'collar', 'placket', 'button', 'shorts', 'band', 'wristR', 'wristL', 'socks', 'shoe', 'sole']) look[slot] = body;
+  return Object.freeze(Object.assign(look, extra));
+}
 export const resolveLookKey = key => (CHARACTER_LOOKS[key] ? key : 'p1');
 
 // Posizioni di riposo delle parti, nel sistema del modello (prima della scala 1.16 del motore): sono quelle che il
@@ -42,17 +56,19 @@ export const BALL_RADIUS = 0.065;
 // Materiali: opachi, con un bordo di luce morbido e un po' di luce dall'alto (effetto vinile). Uno per colore e tipo.
 const MATERIALS = new Map();
 const KIND = { skin: 'Skin', hair: 'Hair' };
+// B24, peluche di Lob & Drop: luce propria del colore (il giallo sotto le luci fredde dell'arena ne vuole di più)
+const PLUSH = { plush: 0.2, plushBright: 0.44 };
 function toyMaterial(hex, kind = 'cloth'){
   const key = `${hex}|${kind}`;
   if (MATERIALS.has(key)) return MATERIALS.get(key);
-  const rough = kind === 'skin' ? 0.5 : kind === 'hair' ? 0.66 : kind === 'graphite' ? 0.42 : kind === 'felt' ? 0.92 : 0.6;
+  const rough = kind === 'skin' ? 0.5 : kind === 'hair' ? 0.66 : kind === 'graphite' ? 0.42 : kind === 'felt' ? 0.92 : PLUSH[kind] ? 0.9 : 0.6;
   // un po' di luce propria nel colore del pezzo: sotto le luci fredde dell'arena il vinile resta caldo e leggibile
-  const glow = kind === 'skin' ? 0.24 : kind === 'graphite' || kind === 'grip' ? 0.04 : kind === 'felt' ? 0.22 : 0.14;
+  const glow = kind === 'skin' ? 0.24 : kind === 'graphite' || kind === 'grip' ? 0.04 : kind === 'felt' ? 0.22 : PLUSH[kind] || 0.14;
   const m = new THREE.MeshStandardMaterial({ color: hex, roughness: rough, metalness: kind === 'graphite' ? 0.18 : 0, emissive: hex, emissiveIntensity: glow });
   // «Skin» e «Hair» nel nome servono al viso dinamico (colore della palpebra e delle sopracciglia)
   m.name = `natpf-${KIND[kind] || kind}`;
   m.userData.natpfMaterial = true;
-  const rim = kind === 'felt' ? 0.1 : 0.2, top = kind === 'skin' ? 0.08 : 0.06;
+  const rim = kind === 'felt' ? 0.1 : PLUSH[kind] ? 0.13 : 0.2, top = kind === 'skin' ? 0.08 : 0.06;
   m.customProgramCacheKey = () => `natpf-toy-${rim}-${top}`;
   m.onBeforeCompile = shader => {
     shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
@@ -67,7 +83,8 @@ function toyMaterial(hex, kind = 'cloth'){
 }
 // Tipo di materiale per ogni «slot» colorato del personaggio
 const SLOT_KIND = { skin: 'skin', hair: 'hair' };
-const slotMaterial = (look, slot) => toyMaterial(look[slot], SLOT_KIND[slot] || 'cloth');
+const slotMaterial = (look, slot) => toyMaterial(look[slot], look.kind || SLOT_KIND[slot] || 'cloth');
+const plushMaterial = (hex, bright = false) => toyMaterial(hex, bright ? 'plushBright' : 'plush');
 
 // ---------------------------------------------------------------------------------------------------------------
 // Geometrie condivise, costruite una volta sola.
@@ -210,7 +227,7 @@ function makeSegment(parent, geo, look, slot, name){
   group.name = name;
   const body = addMesh(group, geo, look, slot, `${name}Corpo`);
   parent.add(group);
-  return { group, body, extras: [] };
+  return { group, body, extras: [], thick: 1 };   // thick: spessore (1 = tennista; le mascotte hanno arti più grossi)
 }
 const UP = new THREE.Vector3(0, 1, 0);
 const _dir = new THREE.Vector3();
@@ -219,7 +236,7 @@ function poseSegment(seg, from, to){
   const len = Math.max(1e-4, _dir.length());
   seg.group.position.copy(from);
   seg.group.quaternion.setFromUnitVectors(UP, _dir.multiplyScalar(1/len));
-  seg.body.scale.set(1, len, 1);
+  seg.body.scale.set(seg.thick, len, seg.thick);
   for (const x of seg.extras) x.mesh.position.y = x.atEnd ? len - x.offset : x.offset;
   return len;
 }
@@ -286,6 +303,7 @@ export function finishNatpfActor(actor){
   // Prima persona: restano avambracci, polsini e mani (con la racchetta); il resto del corpo si nasconde
   actor.natpfFirstPersonHidden = [...limbs.arms.map(a => a.upper.group), ...limbs.legs.flatMap(l => [l.thigh.group, l.shin.group])];
   restyleFace(actor, look);
+  applyMascot(actor, info.look, plushMaterial);   // B24: solo se il modello è nato come Lob o Drop
   updateNatpfActorLimbs(actor);
   return limbs;
 }
@@ -333,7 +351,10 @@ export function applyNatpfLook(actor, lookKey){
   actor?.natpfLimbs?.container.traverse(swap);
   if (actor?.model?.userData?.natpfCharacter) actor.model.userData.natpfCharacter.look = key;
   if (actor) actor.natpfLook = key;
-  restyleFace(actor, look);
+  // B24: pezzi di Lob o di Drop al posto di quelli del tennista (o il contrario); con il tennista rimette il viso
+  // com'era, poi restyleFace lo rifà come sempre. Un attore mai stato mascotte non viene toccato.
+  const mascot = applyMascot(actor, key, plushMaterial);
+  if (!mascot) restyleFace(actor, look);
 }
 
 // Viso: il rig delle espressioni resta quello del motore, ma con occhi piccoli e scuri, sopracciglia decise e una
@@ -360,16 +381,65 @@ function restyleFace(actor, look){
   for (const cheek of [rig.leftCheek, rig.rightCheek]) if (cheek) cheek.position.z = 0.21;
 }
 
-// Ogni fotogramma, prima del render: varianti (l'avversario è P2 in 1v1 tra persone, altrimenti la CPU) e arti.
-export function updateNatpfCharacters(engine){
-  const opponentLook = engine?.isMultiplayer ? 'p2' : 'cpu';
-  for (const actor of [engine?.player, engine?.playerPartner, engine?.opponent, engine?.opponentPartner]){
-    if (!actor?.natpfLimbs) continue;
-    const want = actor.sideSign > 0 ? 'p1' : opponentLook;
-    if (actor.natpfLook !== want) applyNatpfLook(actor, want);
-    updateNatpfActorLimbs(actor);
+// B29 · Modello 3D della mascotte di un attore (Lob o Drop). Lo chiede la prima volta che serve (mai con «Classici»),
+// lo monta nella radice dell'attore quando è arrivato e decide se in questo fotogramma si disegna lui oppure la
+// mascotte costruita nel codice: quest'ultima resta finché il modello non è pronto, se il caricamento fallisce, con
+// ?mascotte=codice e in prima persona (dove del corpo si vedono solo avambracci, mani e racchetta).
+// Restituisce il rig da animare, oppure null. Niente allocazioni se non al montaggio.
+function mascotModelFor(actor, engine){
+  const key = actor.natpfMascot || null;
+  let rig = actor.natpfMascot3d || null;
+  const want = !!key && actor.root.visible && getMascotMode() === '3d' && engine?.fpBodyActor !== actor;
+  if (want && (!rig || rig.key !== key)){
+    const status = mascotModelStatus(key);
+    if (status === 'idle') loadMascotModel(key);
+    else if (status === 'ready'){
+      if (rig?.group) actor.root.remove(rig.group);
+      const copy = mascotModelInstance(key);
+      rig = (copy && createMascotRig(copy, key)) || { key, group: null };
+      if (rig.group) actor.root.add(rig.group);
+      else console.warn(`[natpf-mascotte] modello 3D di ${key} senza le ossa attese: in campo resta la mascotte costruita nel codice`);
+      actor.natpfMascot3d = rig;
+    }
   }
-  setOpponentPortraitLook(opponentLook);
+  const on = want && !!rig?.group && rig.key === key;
+  if (rig?.group && rig.group.visible !== on) rig.group.visible = on;
+  if (actor.model && actor.model.visible === on){ actor.model.visible = !on; actor.natpfLimbs.container.visible = !on; }
+  actor.natpfMascot3dOn = on;
+  return on ? rig : null;
+}
+
+// Ogni fotogramma, prima del render: varianti (l'avversario è P2 in 1v1 tra persone, altrimenti la CPU) e arti.
+// B24: con «Personaggi in campo: Lob & Drop» (natpf_personaggi.js) chi sta dalla parte del Player 1 è Drop, l'altro Lob.
+const ACTOR_KEYS = ['player', 'playerPartner', 'opponent', 'opponentPartner'];
+export function updateNatpfCharacters(engine){
+  const looks = castLooks(getCast(), !!engine?.isMultiplayer);
+  // per le prove nel browser: cambiare a gioco aperto tra modelli 3D e mascotte costruite nel codice (come ?mascotte=)
+  if (engine && engine.natpfMascotMode !== setMascotMode) engine.natpfMascotMode = setMascotMode;
+  // tempo di gioco dall'ultimo disegno (per lo scostamento morbido della racchetta: natpf_racket_clear.js)
+  const now = engine?.elapsedTime, dt = now - engine?.natpfDrawnAt;
+  if (engine && typeof now === 'number') engine.natpfDrawnAt = now;
+  for (const k of ACTOR_KEYS){
+    const actor = engine?.[k];
+    if (!actor?.natpfLimbs) continue;
+    const want = actor.sideSign > 0 ? looks.player : looks.opponent;
+    if (actor.natpfLook !== want) applyNatpfLook(actor, want);
+    // testa grande (mascotte): la racchetta si scosta dalla testa quanto serve, la mano la segue; con il tennista
+    // (natpfHeadShape assente) non si tocca niente. Unico punto in cui si chiama: vedi natpf_racket_clear.js
+    // B29: se la mascotte ha il suo modello 3D pronto, le parti animate si riportano sulle sue ossa (natpf_mascot_rig.js)
+    // e i pezzi costruiti nel codice si nascondono; altrimenti tutto come prima
+    const rig3d = actor.natpfMascot || actor.natpfMascot3d ? mascotModelFor(actor, engine) : null;
+    if (rig3d){
+      poseMascotBody(rig3d, actor, dt);
+      actor.natpfRacketPush = keepRacketClear(actor, mascotModelHeadShape(rig3d.key), dt, engine.ball, rig3d.head.bone);
+      poseMascotArms(rig3d, actor, dt);
+      continue;
+    }
+    actor.natpfRacketPush = keepRacketClear(actor, actor.natpfHeadShape || null, dt, engine.ball);
+    updateNatpfActorLimbs(actor);
+    if (actor.natpfMascot) updateMascotLabels(actor);
+  }
+  setPortraitLooks(looks.player, looks.opponent);
 }
 
 // ---------------------------------------------------------------------------------------------------------------

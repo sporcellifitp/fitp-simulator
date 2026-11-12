@@ -7,6 +7,8 @@
 //   C. durante gli esercizi: pausa con il pannello del telefono, poi si riprende da solo quando il telefono torna.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-phone-blackout.mjs
 // Eventi devicemotion sintetici e rete simulata nelle pagine: non sostituiscono la prova con un telefono e un Wi-Fi veri.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -14,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, finishLesson } from './th.mjs';
+import { GESTI, phoneReadyNoGestures } from './prova.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -59,34 +62,52 @@ try {
   await phone.click('#enable');
   await game.waitForFunction(() => __natpfTennis.natpfUi.training.active, null, { timeout: 8000 });
   await finishLesson(game, 8, phone);   // prima la modale del tutorial: «Tutto chiaro, ho capito» sul telefono
-  await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 8000 });
-  // gesto quando il computer dice «Ora» (o, a rete ferma, quando il telefono è pronto), poi il rientro lento della mano
-  const gesture = async (sign, fromPhone = false) => {
-    if (fromPhone) await phone.waitForFunction(() => __racchetta.cal.state.ready, null, { timeout: 10000, polling: 50 });
-    else await game.waitForFunction(() => document.getElementById('coach-main').dataset.state === 'go', null, { timeout: 12000, polling: 50 });
-    await phone.evaluate(s => { window.__busy = true; return __up.swing(s).then(() => __up.back(s)).then(() => { window.__busy = false; }); }, sign);
-    await phone.waitForTimeout(600);
-  };
-  await gesture(1);
-  check('primo gesto della calibrazione letto dal computer', await game.evaluate(() => __natpfTennis.natpfUi.training.view.idx === 1));
+  if (GESTI){
+    await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 8000 });
+    // gesto quando il computer dice «Ora» (o, a rete ferma, quando il telefono è pronto), poi il rientro lento della mano
+    const gesture = async (sign, fromPhone = false) => {
+      if (fromPhone) await phone.waitForFunction(() => __racchetta.cal.state.ready, null, { timeout: 10000, polling: 50 });
+      else await game.waitForFunction(() => document.getElementById('coach-main').dataset.state === 'go', null, { timeout: 12000, polling: 50 });
+      await phone.evaluate(s => { window.__busy = true; return __up.swing(s).then(() => __up.back(s)).then(() => { window.__busy = false; }); }, sign);
+      await phone.waitForTimeout(600);
+    };
+    await gesture(1);
+    check('primo gesto della calibrazione letto dal computer', await game.evaluate(() => __natpfTennis.natpfUi.training.view.idx === 1));
 
-  // A. rete ferma solo dal computer al telefono (il computer riceve ancora i ping del telefono)
-  await setDrop([game], true);
-  const tA = Date.now();
-  const lostAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'lost', null, { timeout: 15000, polling: 100 }).then(() => Date.now() - tA, () => null);
-  await setDrop([game], false);
-  const backAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'on', null, { timeout: 30000, polling: 100 }).then(() => Date.now() - tA, () => null);
-  check('A · il computer non arriva più al telefono: il telefono se ne accorge da solo e si ricollega', lostAt != null && lostAt <= 8000 && backAt != null, `perso dopo ${lostAt} ms, di nuovo collegato dopo ${backAt} ms`);
+    // A. rete ferma solo dal computer al telefono (il computer riceve ancora i ping del telefono)
+    await setDrop([game], true);
+    const tA = Date.now();
+    const lostAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'lost', null, { timeout: 15000, polling: 100 }).then(() => Date.now() - tA, () => null);
+    await setDrop([game], false);
+    const backAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'on', null, { timeout: 30000, polling: 100 }).then(() => Date.now() - tA, () => null);
+    check('A · il computer non arriva più al telefono: il telefono se ne accorge da solo e si ricollega', lostAt != null && lostAt <= 8000 && backAt != null, `perso dopo ${lostAt} ms, di nuovo collegato dopo ${backAt} ms`);
 
-  // B. rete ferma nei due sensi mentre chi gioca finisce i gesti sul telefono
-  await phone.waitForFunction(() => __racchetta.cal.state.step === 'swings' && __racchetta.cal.state.idx === 1, null, { timeout: 10000 });
-  await setDrop([game, phone], true);
-  for (const w of QUICK_PLAN.slice(1)) await gesture(w === 'L' ? 1 : -1, true);
-  const phoneStep = await phone.evaluate(() => __racchetta.cal.state.step);
-  const pcBefore = await game.evaluate(() => ({ stage: __natpfTennis.natpfUi.training.view.stage, idx: __natpfTennis.natpfUi.training.view.idx }));
-  await setDrop([game, phone], false);
-  const drills = await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal && __natpfTennis.natpfPhone.ready ? T.drill?.id : null; }, null, { timeout: 40000, polling: 100 }).then(h => h.jsonValue(), () => null);
-  check('B · gesti finiti sul telefono a rete ferma: alla ripresa il computer si riallinea e passa agli esercizi', /review|free/.test(phoneStep) && drills === 'forehand', `telefono ${phoneStep}, computer prima della ripresa ${JSON.stringify(pcBefore)}, poi ${drills}`);
+    // B. rete ferma nei due sensi mentre chi gioca finisce i gesti sul telefono
+    await phone.waitForFunction(() => __racchetta.cal.state.step === 'swings' && __racchetta.cal.state.idx === 1, null, { timeout: 10000 });
+    await setDrop([game, phone], true);
+    for (const w of QUICK_PLAN.slice(1)) await gesture(w === 'L' ? 1 : -1, true);
+    const phoneStep = await phone.evaluate(() => __racchetta.cal.state.step);
+    const pcBefore = await game.evaluate(() => ({ stage: __natpfTennis.natpfUi.training.view.stage, idx: __natpfTennis.natpfUi.training.view.idx }));
+    await setDrop([game, phone], false);
+    const drills = await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal && __natpfTennis.natpfPhone.ready ? T.drill?.id : null; }, null, { timeout: 40000, polling: 100 }).then(h => h.jsonValue(), () => null);
+    check('B · gesti finiti sul telefono a rete ferma: alla ripresa il computer si riallinea e passa agli esercizi', /review|free/.test(phoneStep) && drills === 'forehand', `telefono ${phoneStep}, computer prima della ripresa ${JSON.stringify(pcBefore)}, poi ${drills}`);
+  } else {
+    // B28, calibrazione di base («Giocando»): dopo il tutorial niente gesti di calibrazione, il telefono è pronto da solo e
+    // si va agli esercizi (dritto e rovescio insegnano il colpo). La parte B (gesti della calibrazione finiti a rete
+    // ferma) riguarda solo la calibrazione con i gesti: qui non c'è niente da riallineare
+    check('(calibrazione di base) dopo il tutorial il telefono è pronto senza gesti e partono gli esercizi', await phoneReadyNoGestures(game) && await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal && !T.tutorialOpen && T.drill?.id === 'forehand'; }, null, { timeout: 15000, polling: 100 }).then(() => true, () => false),
+      JSON.stringify(await game.evaluate(() => { const T = __natpfTennis.natpfUi.training; return { cal: !!T.cal, drill: T.drill?.id, learn: !!T.learn, ready: __natpfTennis.natpfPhone.ready }; })));
+    // A. rete ferma solo dal computer al telefono, durante gli esercizi
+    await setDrop([game], true);
+    const tA = Date.now();
+    const lostAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'lost', null, { timeout: 15000, polling: 100 }).then(() => Date.now() - tA, () => null);
+    await setDrop([game], false);
+    const backAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'on', null, { timeout: 30000, polling: 100 }).then(() => Date.now() - tA, () => null);
+    check('A · il computer non arriva più al telefono: il telefono se ne accorge da solo e si ricollega', lostAt != null && lostAt <= 8000 && backAt != null, `perso dopo ${lostAt} ms, di nuovo collegato dopo ${backAt} ms`);
+    const again = await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal && __natpfTennis.natpfPhone.ready && !__natpfTennis.natpfPaused; }, null, { timeout: 40000, polling: 100 }).then(() => true, () => false);
+    check('A · (calibrazione di base) dopo il ricollegamento il telefono è di nuovo pronto senza gesti e gli esercizi continuano', again, JSON.stringify(await game.evaluate(() => ({ ready: __natpfTennis.natpfPhone.ready, phone: __natpfTennis.natpfPhone.state.phone, paused: !!__natpfTennis.natpfPaused, cal: !!__natpfTennis.natpfUi.training.cal }))));
+    console.log('     B · non si applica alla calibrazione di base (riguarda i gesti della calibrazione finiti a rete ferma)');
+  }
 
   // C. rete ferma durante gli esercizi
   await setDrop([game, phone], true);

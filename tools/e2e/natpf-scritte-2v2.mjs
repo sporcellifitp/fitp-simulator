@@ -8,6 +8,8 @@
 // riquadro della scritta (#timing-popup) contro la proiezione del campo del doppio, della rete, della palla e dei
 // giocatori con la camera viva del motore, poi la schermata. Schermate in $OUT (scritte-*.png).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome GAME_PORT=3871 node natpf-scritte-2v2.mjs   (SIZES=720x720 per una sola)
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

@@ -239,11 +239,58 @@
           ><button type="button" data-staff="hot" title="Sì: nello stesso schermo, dal 10° colpo dello scambio la palla va sempre più veloce per tutti e due, finché uno sbaglia; compare la scritta «Scambio caldo». Vale dalla prossima partita e resta salvata."><span>Scambio che si scalda</span><b>No</b></button
           ><button type="button" data-staff="autotoss" title="Sì: nello stesso schermo, se chi deve battere resta fermo 30 secondi il gioco lancia la palla da solo; dopo due lanci automatici a vuoto batte il gioco un servizio morbido. Vale dalla prossima partita e resta salvata."><span>Lancio automatico</span><b>No</b></button
           ><button type="button" data-staff="open" title="Sì: nello stesso schermo i personaggi corrono come persone e non arrivano più su ogni palla: la palla angolata e lontana si prende in allungo o non si prende. Il servizio passa ogni due punti, come nel formato in fiera, anche con il formato classico: con il campo aperto chi batte è un po' sfavorito. Vale dalla prossima partita e resta salvata."><span>Stesso schermo: campo aperto</span><b>No</b></button
+          ><button type="button" data-staff="cal" title="Giocando: niente gesti a vuoto, ogni partita comincia con circa 10 secondi di scambi di prova in cui il gioco impara il colpo di chi gioca, poi il match da 0-0. Con i gesti: la calibrazione di prima (telefono fermo, un dritto e un rovescio). Nessuna: si gioca subito, il gioco impara dai primi colpi veri. Vale dalla prossima partita e resta salvata."><span>Calibrazione</span><b>Giocando</b></button
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
-        <!-- «Nuovo giocatore» (B18): nome, tutorial, calibrazione e colpi imparati da capo, il telefono resta collegato -->
-        <div class="sheet-actions"><button type="button" class="lobby-secondary new-player" data-staff="newplayer">Nuovo giocatore</button><button type="button" class="lobby-primary" data-staff="close">Chiudi</button></div>
+        <!-- B30: registro dello stand (natpf_registro.js). Sempre acceso di base (decisione dell'utente del 12/11): il gioco
+             annota da solo come vanno le partite (solo gioco: niente nomi, video, audio) e lo manda allo spazio Cloudflare
+             dell'utente; sul PC resta solo la coda non ancora inviata. Qui: Sì · No (resta salvato), lo stato in parole
+             semplici, «Invia adesso» e, come riserva, «Scarica la coda» (zip: niente dal telecomando, apre un salvataggio) -->
+        <div class="staff-registro hidden" id="staff-registro">
+          <button type="button" class="staff-registro-toggle" data-staff="registro" title="Sì: il gioco annota da solo come vanno le partite (punti, colpi, errori), per migliorarlo. Solo dati di gioco: niente nomi, niente video, niente audio. Le righe vanno da sole nello spazio in rete di chi organizza; su questo computer resta solo quello che non è ancora partito. Resta salvato."><span>Registro di gioco</span><b>Sì</b></button>
+          <p class="staff-registro-stato" id="staff-registro-stato" role="status"></p>
+          <button type="button" class="lobby-ghost" data-staff="registro-invia">Invia adesso</button>
+          <button type="button" class="lobby-ghost" data-staff="registro-scarica" data-no-remote>Scarica la coda</button>
+        </div>
+        <!-- «Nuovo giocatore» (B18): nome, tutorial, calibrazione e colpi imparati da capo, il telefono resta collegato.
+             B27: a sinistra «Telecomando dello staff» (QR dello staff nel foglio #natpf-remote) e, solo nel programma
+             Windows, «Schermo del gioco» (monitor successivo): nella riga dei pulsanti in basso, non nella griglia, così il
+             foglio resta di tre file e «Chiudi» in vista a 1024 × 600 e 1366 × 657 (prova natpf-menu) -->
+        <div class="sheet-actions staff-actions"><button type="button" class="lobby-ghost staff-extra" data-staff="remote"><span>Telecomando dello staff</span><b>Collega</b></button
+          ><button type="button" class="lobby-ghost staff-extra hidden" data-staff="display"><span>Schermo del gioco</span><b>—</b></button
+          ><button type="button" class="lobby-secondary new-player" data-staff="newplayer">Nuovo giocatore</button><button type="button" class="lobby-primary" data-staff="close">Chiudi</button></div>
+      </div>
+    </div>
+    <!-- B27: telecomando dello staff (natpf_remote.js). Il gioco è sul ledwall: questo foglio lo vede anche il pubblico.
+         QR e codice valgono solo a foglio aperto e non bastano: il telefono che li presenta diventa il telecomando solo
+         dopo «Conferma» qui sul computer (stesso numero di tre cifre sul telefono), con un tasto o un clic veri. Dopo
+         l'abbinamento niente più QR: «Abbina un altro telefono» ne apre uno nuovo. Quattro viste (data-remote-view) -->
+    <div id="natpf-remote" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="remote-title">
+      <div class="natpf-sheet remote-sheet">
+        <p class="sheet-kicker">Riservato all’addetto · non per i giocatori</p>
+        <h2 class="sheet-title" id="remote-title">Telecomando dello staff</h2>
+        <div class="remote-body" data-remote-view="pair">
+          <div class="remote-qr-col"><div id="remote-qr" class="natpf-qr remote-qr"></div></div>
+          <div class="remote-info">
+            <p class="sheet-desc">Inquadra il QR con il <b>telefono dello staff</b> (non quello dei visitatori), poi <b>conferma qui sul computer</b> il numero che compare sul telefono.</p>
+            <p class="remote-code-line">Oppure, sulla pagina del telecomando, scrivi il codice <b id="remote-code">—</b></p>
+            <p class="sheet-desc remote-tip">Prima volta su un telefono: certificato della rete NATPF come per la racchetta (QR «Certificato» della pagina «Collega»). QR e codice valgono solo con questo foglio aperto, per 5 minuti.</p>
+          </div>
+        </div>
+        <div class="remote-request hidden" data-remote-view="request" role="alert">
+          <p class="remote-ask">Un telefono chiede di diventare il telecomando · numero</p>
+          <p class="remote-num" id="remote-num">—</p>
+          <p class="sheet-desc">Conferma solo se sul <b>telefono dello staff</b> c’è lo stesso numero. Fino alla conferma quel telefono non comanda niente.</p>
+          <div class="remote-request-actions"><button type="button" class="lobby-ghost" data-remote="refuse">Rifiuta</button><button type="button" class="lobby-primary" data-remote="confirm" data-no-remote>Conferma</button></div>
+        </div>
+        <div class="remote-paired hidden" data-remote-view="paired">
+          <p class="remote-ok">Telecomando abbinato ✓</p>
+          <p class="sheet-desc">Il telefono dello staff si ricollega da solo alla riapertura, dopo il riavvio del gioco o del PC. Per un altro telefono: «Abbina un altro telefono» (quello di prima non sarà più il telecomando).</p>
+        </div>
+        <div class="remote-closed hidden" data-remote-view="closed"><p class="sheet-desc" id="remote-closed-text"></p></div>
+        <p id="remote-state" class="natpf-phone-status" aria-live="polite"></p>
+        <div class="sheet-actions"><button type="button" class="lobby-ghost hidden" data-remote="forget">Scollega il telecomando</button><button type="button" class="lobby-secondary hidden" data-remote="new">Abbina un altro telefono</button><button type="button" class="lobby-primary" data-remote="close">Indietro</button></div>
       </div>
     </div>
     <!-- passaggio dal menu al campo -->
@@ -400,6 +447,17 @@
               ><button type="button" class="seg-btn" data-natpf-hand="left">Sinistra</button>
             </div>
           </div>
+          <!-- segnale del momento giusto (B18.2 gruppo 3, natpf_timing_cue.js): un anello si chiude sulla palla quando è il
+               momento di colpire. Di base: acceso con «Bambino» e «Adulto», spento con gli altri livelli.
+               Revisione: subito dopo «Giochi con la mano» (in fondo alla pagina a 1024×600 non si vedeva senza scorrere) -->
+          <div class="lobby-row">
+            <span class="lobby-label">Segnale del momento giusto</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Segnale del momento giusto">
+              <button type="button" class="seg-btn" data-natpf-cue="auto" role="radio" title="Acceso con «Bambino» e «Adulto», spento con gli altri livelli">Di base</button
+              ><button type="button" class="seg-btn" data-natpf-cue="on" role="radio">Sì</button
+              ><button type="button" class="seg-btn" data-natpf-cue="off" role="radio">No</button>
+            </div>
+          </div>
           <div class="lobby-row">
             <span class="lobby-label">Visuale</span>
             <div class="lobby-seg" role="radiogroup" aria-label="Visuale">
@@ -421,6 +479,14 @@
             <div class="lobby-seg" role="radiogroup" aria-label="Dritto come nel video (prova)">
               <button type="button" class="seg-btn" data-natpf-dritto="1" role="radio">Sì</button
               ><button type="button" class="seg-btn" data-natpf-dritto="0" role="radio">No</button>
+            </div>
+          </div>
+          <!-- personaggi in campo (B24, natpf_personaggi.js): di base «Classici»; «Lob & Drop» = le due mascotte -->
+          <div class="lobby-row">
+            <span class="lobby-label">Personaggi in campo</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Personaggi in campo">
+              <button type="button" class="seg-btn" data-natpf-cast="sempre" role="radio">Classici</button
+              ><button type="button" class="seg-btn" data-natpf-cast="lobdrop" role="radio">Lob &amp; Drop</button>
             </div>
           </div>
           <div class="lobby-row">
@@ -576,18 +642,22 @@
           <!-- stesso schermo: le schede dei due giocatori, dal vivo (natpf_split_ui.paintMatch) -->
           <div id="split-ready-board" class="ready-board" aria-live="polite"></div>
           <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
-          <div class="lobby-tiles" id="difficulty-mode-group" role="radiogroup">
-            <button type="button" class="nt-green-choice lobby-tile selected" data-difficulty="casual" role="radio">
-              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg>
-              <span class="tile-name">CPU facile</span><span class="tile-desc">Per prendere confidenza</span>
+          <!-- B18.2 gruppo 3: contro la CPU, al posto del livello, «Chi gioca» (natpf_who.js): Bambino → livello Bambini,
+               Ragazzo → Casual, Adulto → livello Evento (si regola da solo). Le tessere restano quelle lette dall'HUD del
+               motore (data-difficulty). Esperta e Leggenda: «Altre impostazioni» → «Livello della CPU» -->
+          <p class="who-label" id="who-label">Chi gioca?</p>
+          <div class="lobby-tiles" id="difficulty-mode-group" role="radiogroup" aria-label="Chi gioca">
+            <button type="button" class="nt-green-choice lobby-tile" data-difficulty="bambini" data-who="bambino" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="15" r="6" /><path d="M14 40c1-9 5-13 10-13s9 4 10 13" /></svg>
+              <span class="tile-name">Bambino</span><span class="tile-desc">Palla più lenta e più tempo per colpire</span>
             </button
-            ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="pro" role="radio">
-              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M16 9h16v9a8 8 0 0 1-16 0zM16 13H9a6 6 0 0 0 7 8M32 13h7a6 6 0 0 1-7 8M24 26v8M17 39h14" /></svg>
-              <span class="tile-name">CPU esperta</span><span class="tile-desc">Veloce, angola e non regala nulla</span>
+            ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="casual" data-who="ragazzo" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="13" r="6.5" /><path d="M12 41c1-11 6-16 12-16s11 5 12 16" /></svg>
+              <span class="tile-name">Ragazzo</span><span class="tile-desc">CPU facile, per prendere confidenza</span>
             </button
-            ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="leggenda" role="radio">
-              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M9 36h30M11 36 8 16l9 8 7-13 7 13 9-8-3 20" /><circle cx="24" cy="28" r="3" /></svg>
-              <span class="tile-name">CPU Leggenda</span><span class="tile-desc">Varia i colpi, ti studia e sbaglia pochissimo</span>
+            ><button type="button" class="nt-green-choice lobby-tile selected" data-difficulty="evento" data-who="adulto" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="11" r="7" /><path d="M9 42c1-13 7-19 15-19s14 6 15 19" /></svg>
+              <span class="tile-name">Adulto</span><span class="tile-desc">La partita si regola su come giochi</span>
             </button
             ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="1v1" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="16" cy="16" r="6" /><circle cx="32" cy="16" r="6" /><path d="M6 38c1-8 6-12 10-12s9 4 10 12M22 38c1-8 6-12 10-12s9 4 10 12" /></svg>
@@ -597,8 +667,30 @@
           <!-- una scelta in vista (il livello della CPU), il resto (formato, durata, chi batte, visuale) sotto «Altre
                impostazioni», chiuso a ogni visita della pagina (B15, 08/11: prima cinque righe e 18 pulsanti prima di
                «Gioca»). Il riassunto accanto dice che cosa è scelto; durata e visuale restano salvate -->
+          <p class="lobby-note who-note hidden" id="who-note" role="status"></p>
+          <!-- personaggi di questa partita (richiesta dell'utente del 12/11): la stessa scelta delle Opzioni → «Personaggi in
+               campo» (natpf_personaggi.js), in vista dove si imposta la partita: contro la CPU, stesso schermo e sfida tra
+               due computer passano tutti da questa pagina. Vale subito e resta com'è finché non si cambia -->
+          <div class="lobby-row match-cast-row" id="match-cast-row">
+            <span class="lobby-label">Personaggi</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Personaggi di questa partita">
+              <button type="button" class="seg-btn" data-match-cast="sempre" role="radio">Classici</button
+              ><button type="button" class="seg-btn" data-match-cast="lobdrop" role="radio">Lob &amp; Drop</button>
+            </div>
+          </div>
           <button type="button" class="match-more-btn" id="match-more-btn" data-match-more aria-expanded="false" aria-controls="match-more"><b>Altre impostazioni</b><small id="match-more-sum"></small><i aria-hidden="true">›</i></button>
           <div id="match-more" class="match-more hidden">
+            <!-- B18.2 gruppo 3: tutti i livelli per nome (i tre di «Chi gioca» e i due di prima, Esperta e Leggenda) -->
+            <div class="lobby-row" id="level-row">
+              <span class="lobby-label">Livello della CPU</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Livello della CPU">
+                <button type="button" class="seg-btn" data-natpf-level="bambini" role="radio">Bambini</button
+                ><button type="button" class="seg-btn" data-natpf-level="casual" role="radio">Facile</button
+                ><button type="button" class="seg-btn" data-natpf-level="evento" role="radio">Evento</button
+                ><button type="button" class="seg-btn" data-natpf-level="pro" role="radio">Esperta</button
+                ><button type="button" class="seg-btn" data-natpf-level="leggenda" role="radio">Leggenda</button>
+              </div>
+            </div>
             <div class="lobby-row">
               <span class="lobby-label">Formato</span>
               <div class="lobby-seg" role="radiogroup" aria-label="Formato">
@@ -753,6 +845,8 @@
           ><button id="natpf-phone-invert" type="button" class="lobby-ghost hidden">Inverti direzioni</button
           ><button id="natpf-phone-skipgrip" type="button" class="lobby-ghost hidden">Salta l'impugnatura</button
           ><button id="natpf-phone-recal" type="button" class="lobby-ghost hidden">Ricalibra</button
+          ><button id="natpf-phone-gesti" type="button" class="lobby-ghost hidden" title="La calibrazione di prima: telefono fermo, poi un dritto e un rovescio a vuoto">Calibra con i gesti</button
+          ><button id="natpf-phone-skip" type="button" class="lobby-ghost hidden" title="Si gioca subito con il profilo semplice: il gioco impara dai colpi veri">Salta la calibrazione</button
           ><button id="natpf-phone-forget" type="button" class="lobby-ghost hidden">Scollega</button
           ><button id="natpf-phone-close" type="button" class="lobby-secondary">Torna al campo</button>
         </div>
@@ -855,6 +949,17 @@
     <!-- stesso schermo (1v1): tutorial di ciascun giocatore sulla sua metà dello schermo (natpf_split_ui.js) -->
     <div id="split-tut-p1" class="split-tut" data-side="left"></div>
     <div id="split-tut-p2" class="split-tut" data-side="right"></div>
+    <!-- scambi di prova (B28, natpf_trial.js): la calibrazione giocando, prima della partita. Scritta grande in alto al
+         centro con l'avanzamento (due puntini per il dritto e due per il rovescio, per giocatore), poi «Si comincia!» -->
+    <div id="natpf-trial" class="natpf-trial hidden" aria-live="polite" data-state="intro" data-split="false">
+      <div class="trial-card">
+        <span class="trial-kicker" data-trial="kicker">Scambi di prova</span>
+        <b class="trial-title" data-trial="title">Colpisci la palla</b>
+        <small class="trial-sub" data-trial="sub"></small>
+        <div class="trial-rows" data-trial="rows"></div>
+      </div>
+      <button type="button" id="trial-skip" class="btn btn-ghost btn-sm trial-skip" title="La partita parte subito con quello che il gioco ha imparato">Salta ›</button>
+    </div>
     <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite" data-mode="drill">
       <div class="coach-top">
         <span class="coach-kicker" id="coach-kicker">Riscaldamento</span>
@@ -862,7 +967,8 @@
         <div class="coach-actions">
           <button type="button" id="coach-review" class="btn btn-ghost btn-sm hidden">Rivedi i gesti</button
           ><button type="button" id="coach-simple" class="btn btn-ghost btn-sm hidden">Modalità semplice</button
-          ><button type="button" id="coach-exit" class="btn btn-ghost btn-sm">Salta ›</button>
+          ><button type="button" id="coach-next" class="btn btn-ghost btn-sm hidden" title="Passa all’esercizio dopo senza fare il gesto">Avanti ›</button
+          ><button type="button" id="coach-exit" class="btn btn-ghost btn-sm" title="Chiude l’allenamento o il riscaldamento">Salta tutto ›</button>
         </div>
       </div>
       <section class="coach-lesson hidden" id="coach-lesson" aria-labelledby="coach-lesson-title">

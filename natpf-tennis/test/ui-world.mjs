@@ -66,10 +66,14 @@ const THREE = await import('three');
 const { createHeadlessEngine } = await import('../scripts/audit/headless-engine.mjs');
 const { NatpfPhoneRacket } = await import('../src/natpf/natpf_phone_racket.js');
 const { NatpfUi } = await import('../src/natpf/natpf_ui.js');
+const { CAL_MODE_KEY, forgetCalMode } = await import('../src/natpf/natpf_trial_learn.js');
 
 // controller: 'phone' (telefono collegato con i sensori attivi, calibrazione da fare) o 'mouse' (modalità prova)
 // p2p: collegamento senza server finto ({ mode, status, error, active, onStatus }) per la sfida tra due computer
-export async function makeWorld({ controller = 'phone', difficulty = 'casual', role = 'p1', p2p = null } = {}){
+// cal: opzione dello stand «Calibrazione» (B28, natpf_trial_learn.js). Nel gioco è di base 'play' (giocando: profilo
+// semplice automatico e scambi di prova a ogni partita); QUI è di base 'gesti', perché i test scritti prima del B28 provano
+// la calibrazione con i gesti, che resta nel gioco. I test del percorso nuovo passano cal: 'play' (o 'none')
+export async function makeWorld({ controller = 'phone', difficulty = 'casual', role = 'p1', p2p = null, cal: calMode = 'gesti' } = {}){
   // mondo nuovo: DOM, timer, ascoltatori, archivio e indirizzo da capo
   els.clear(); for (const k of Object.keys(winLs)) delete winLs[k];
   timeouts.length = 0; intervals.length = 0; fetches.length = 0;
@@ -77,6 +81,7 @@ export async function makeWorld({ controller = 'phone', difficulty = 'casual', r
   document.documentElement = new El('html');
   for (const id of [...SHEETS, 'victory-modal', 'natpf-coach', 'natpf-challenge-hud', 'natpf-wipe', 'natpf-toast']) $(id).classList.add('hidden');
   localStorage.setItem('natpf-tennis.controller', controller);
+  localStorage.setItem(CAL_MODE_KEY, calMode); forgetCalMode();
   if (controller === 'mouse') localStorage.setItem('natpf-tennis.testInput', '1');
   const E = createHeadlessEngine({ difficulty });
   const title = $('title-modal');
@@ -128,16 +133,16 @@ export async function makeWorld({ controller = 'phone', difficulty = 'casual', r
       stats[frame(dt)]++;
     }
   }
-  // «Gioca» della pagina Partita: prima i listener NATPF (in cattura), poi quello del motore base (HUD → onStartMatch)
-  function pressStart(){
-    const ev = $('btn-start-match').click();
-    if (ev._stopImm) return false;
+  // «Gioca» della pagina Partita: prima i listener NATPF (in cattura), poi quello del motore base (HUD → onStartMatch),
+  // qui un ascoltatore in coda che fa quello che fa l'HUD vero. Così vale anche per il clic che il gioco fa da solo alla
+  // fine degli scambi di prova (B28, natpf_trial.js). pressStart: false se un listener NATPF ha fermato il clic
+  $('btn-start-match').addEventListener('click', () => {
     E.hud.hideTitleModal();
     Object.assign(E.matchConfig, { gamesToWin: hud.selectedGamesToWin, inputMode: hud.selectedInputMode });
     E._applyDifficultyTuning(hud.selectedDifficulty); E.autoPlayMode = false; E.userHasInteracted = true; E.persistentStateLock = false;
     E.startNewMatch({ showStartBanner: true });
-    return true;
-  }
+  });
+  function pressStart(){ return !$('btn-start-match').click()._stopImm; }
   const cal = e => E.natpfPhone._onCal(e);
   const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
   await flush();

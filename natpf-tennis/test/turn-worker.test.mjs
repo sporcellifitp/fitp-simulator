@@ -122,7 +122,8 @@ test('pacchetto Cloudflare: dist + _headers + natpf/turn.json; senza --turn-url 
     // _headers del sito: non impedisce di leggere il json né di chiamare il Worker
     assert.deepEqual(headersProblems(fs.readFileSync(headers, 'utf8'), { turnUrl: 'https://turn.example.workers.dev/' }), []);
     assert.equal(headersProblems('/natpf/*\n  Content-Type: text/plain\n').length, 1);
-    assert.equal(headersProblems("/*\n  Content-Security-Policy: default-src 'self'\n", { turnUrl: 'https://turn.example.workers.dev/' }).length, 3);
+    // (una per pagina: gioco, index.html, racchetta e, dal B27, telecomando dello staff)
+    assert.equal(headersProblems("/*\n  Content-Security-Policy: default-src 'self'\n", { turnUrl: 'https://turn.example.workers.dev/' }).length, 4);
     // B21: il trailer dell'intro si scarica dal bucket R2. _headers di oggi non lo impedisce; una Content-Security-Policy
     // senza quel bucket in media-src (o default-src) sì; e il file del trailer non deve finire nel pacchetto
     const r2 = mediaOrigin();

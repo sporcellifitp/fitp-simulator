@@ -6,7 +6,7 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## ADESSO (aggiornato il 12/11/2026 alle 07:00 UTC)
+## ADESSO (aggiornato il 12/11/2026 alle 22:05 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
 - [x] Tappa 2 passo 1 (servizio, personaggi fermi) con revisore · su GitHub (`0bdb83f`)
@@ -86,11 +86,304 @@ al 50%). Documento: `docs/b25/stesso-schermo-equilibrio.md` in quella worktree.
 - [x] **Installer 2026-11-12.2 pubblicato su R2** e verificato dal link fisso: 127.576.457 B, sha256
       `ec66a7249b3432805fa69430297a00efbb437525f816209de6526fa129083ace`
 - [x] Detto all'utente come si attivano Lancio automatico, Campo aperto e fasce
-- [~] Prove complete avviate alle 09:25 UTC del 12/11: `scratchpad/v1112c/prove.sh` → `prove.txt` (finisce con `== FINE`)
+- [x] Prove complete della 2026-11-12.2 (12/11, 09:30 UTC): LAN 12/12, `audit:legend` 69/69, nel browser 20 su 21 verdi
+      (stesso-schermo-b25 54/54, intro-trailer 78/78, scia-palla 39/39, schermo 41/41, stesso-schermo-b20 52/52,
+      split-ready 34/34, formato-fiera 22/22 e p2p 9/9, 1v1-p2p 39/39, tabellone 42/42, nuovo-giocatore 28/28,
+      servizio-lancio 12/12, servizio-peso 8/8, menu 28/28, rally 9/9, leggenda 7/7, training-flow 22/22, tutorial-phone
+      52/52, gesti-speciali 9/9, phone-keep 13/13)
+- [x] `natpf-modale-gesti` guardata (12/11, 11:50 UTC): falliscono solo le misure dei fotogrammi a 1920×1080. Su questa
+      macchina senza scheda grafica il campo da solo gira a 0,8–2 fps e la modale a 0,7–1,9: il confronto «≥ 85% del
+      campo da solo» è rumore (0,7 contro 0,8), e «arena ferma ≥ 55 fps» dà 52,7 quando partono altri processi. Non è un
+      difetto della 12.2 (le altre 27 verifiche sono verdi; da sola sulla 12.1 era 29/29). Resta da misurare su una
+      scheda grafica vera.
 - Decisioni ancora da chiedere all'utente (dal documento B25): soglia del colpo super (1,3 volte; «qualche volta a
   partita» non raggiunto), «tira sempre fortissimo» rende 65–69% con il campo aperto, chi batte parte sfavorito con il
   campo aperto (44–48 punti su 100).
-Poi B23 (prova delle movenze sul dritto), B24 e tappa 2 gruppi 2 e 3.
+**In corso dalle 09:10 UTC del 12/11: workflow `b23-dritto-video-e-tappa2-gruppo2`** (run `wf_26d95fdf-3ea`, base `9b8f9cb`), due
+filoni in parallelo, ciascuno agente in worktree → revisore indipendente → correzioni:
+- [~] **B23** prova delle movenze dal video sul solo dritto, con voce nelle Opzioni «Dritto come nel video (prova): Sì · No»
+      e `?dritto=video|prima`; documento `docs/b23/dritto-dal-video.md` con foglio PRIMA / DOPO / VIDEO.
+- [~] **Tappa 2 gruppo 2**: Leggenda con la stessa regola degli altri livelli (D2), palla corta che può sbagliare (D8);
+      documento `docs/b18/t2-3-leggenda-e-palla-corta.md`.
+Se si ferma per il limite d'uso: `Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b23-dritto-video-e-tappa2-gruppo2-wf_26d95fdf-3ea.js', resumeFromRunId: 'wf_26d95fdf-3ea'})`
+(attenzione: con due filoni in parallelo la ripresa può rifare un agente già finito; le worktree `wf_26d95fdf-3ea-*`
+tengono il lavoro: in quel caso continuare a mano o con un agente singolo sulla worktree). Quando finisce: guardare i
+fogli del dritto, unire i due rami, versione 2026-11-12.3, controllo rapido, push, zip e installer SUBITO, prove complete dopo.
+**In corso dalle 09:20 UTC del 12/11 (richiesta dell'utente: «mi servono entro oggi»): workflow
+`b24-lob-drop-e-tappa2-gruppo3`** (run `wf_0782518b-44b`, base `9b8f9cb`), due filoni in parallelo con revisore e correzioni:
+- [x] **B24 Lob & Drop** (2026-11-12.4, costruiti nel codice; i modelli 3D sono il B29) come personaggi in campo: voce nelle Opzioni «Personaggi in campo: Di sempre · Lob & Drop»
+      (di base «Di sempre»), `?personaggi=lobdrop|sempre`; documento `docs/b24/lob-e-drop.md`.
+- [x] **Tappa 2 gruppo 3** (2026-11-12.4): livelli Evento (adattivo) e Bambini, «Chi gioca: Bambino · Ragazzo · Adulto» al posto del
+      livello (Pro e Leggenda in «Altre impostazioni»), segnale del momento giusto, colpo super spiegato; documento
+      `docs/b18/t2-4-evento-bambini.md`.
+Ripresa: `Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b24-lob-drop-e-tappa2-gruppo3-wf_0782518b-44b.js', resumeFromRunId: 'wf_0782518b-44b'})`
+(stessa attenzione di sopra; worktree `wf_0782518b-44b-*`). Quattro filoni in tutto sulla macchina a 4 processori: le
+misure dei fotogrammi al secondo nelle prove possono fallire per il carico, rifarle a macchina libera.
+All'unione: i quattro rami toccano zone diverse ma `SKILL_LEVELS`, `natpf_stroke_outcome.js`, Opzioni e menu possono
+dare conflitti: unire uno alla volta e rifare i test. Consegna man mano che un filone è rivisto e corretto.
+
+**FOTOGRAFIA DELLO STATO alle 09:40 UTC del 12/11 (l'utente avvisa che il limite d'uso è vicino).** `natpf-simulator` su
+GitHub è pulito e aggiornato (2026-11-12.2 consegnata). I quattro filoni sono a metà della fase «Lavoro» (nessun revisore
+ancora partito); il lavoro, anche non committato, resta nelle worktree sotto `/home/user/foro-italico-world/.claude/worktrees/`:
+
+| filone | worktree | ramo | stato alle 09:40 |
+|---|---|---|---|
+| B23 dritto dal video | `wf_26d95fdf-3ea-1` | `b23-dritto-video` | 1 commit (`360b83a`: modulo del dritto) + 1 file modificato |
+| Tappa 2 gruppo 2 (Leggenda, palla corta) | `wf_26d95fdf-3ea-2` | `worktree-wf_26d95fdf-3ea-2` | nessun commit, 5 file modificati |
+| B24 Lob & Drop | `wf_0782518b-44b-1` | `b24-lob-drop` | 1 commit (`5452261`: mascotte nel codice) + 2 file modificati |
+| Tappa 2 gruppo 3 (Evento, Bambini, Chi gioca) | `wf_0782518b-44b-2` | `b18-t2-4-evento-bambini` | nessun commit, 19 file modificati |
+
+**Come ripartire dopo il limite:** (1) `git worktree list` e, per ogni worktree, `git status -s` e `git log --oneline -3`;
+(2) NON rilanciare i workflow con `resumeFromRunId` se un agente «Lavoro» non aveva finito (ripartirebbe da zero in una
+worktree nuova): lanciare invece **un agente per filone sulla worktree esistente**, con il compito preso dallo script del
+workflow (`TASKS.<chiave>.task` e `CONTEXT` nei due file in
+`/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/`: `b23-dritto-video-e-tappa2-gruppo2-wf_26d95fdf-3ea.js`
+e `b24-lob-drop-e-tappa2-gruppo3-wf_0782518b-44b.js`) e la frase «le modifiche non committate sono lavoro tuo già
+cominciato: riprendilo»; poi revisore indipendente (testo `TASKS.<chiave>.review`) e correzioni; (3) se quei file non ci
+sono più (contenitore nuovo), il compito è descritto qui sopra e in PIANO_LAVORI (voci B23, B24, B25 «Chi gioca») e nel
+rapporto `docs/b16/rapporto-gameplay.md` (D2, D3, D8, miglioramenti 3 e 4); **le worktree non sono su GitHub: se il
+contenitore è stato ricreato il lavoro a metà è perso e si riparte dal compito**; (4) priorità dell'utente: **Lob & Drop
+e livelli Evento e Bambini entro oggi**, quindi riprendere prima quei due; (5) unire un ramo alla volta, versione
+2026-11-12.3 e seguenti, controllo rapido, push, zip e installer subito, prove complete dopo.
+
+**RIPRESA delle 11:47 UTC del 12/11** (limite d'uso passato alle 11:40; la macchina è stata riavviata ma le worktree e
+il lavoro a metà ci sono tutti). Gli script dei workflow sono stati riscritti per CONTINUARE nelle worktree esistenti
+(senza worktree nuove): `ripresa-b24-t2g3.js` e `ripresa-b23-t2g2.js` nella cartella degli script.
+- [~] In corso: `ripresa-b24-t2g3.js` (run `wf_3af250f1-cd0`): Lob & Drop + Evento/Bambini, ciascuno lavoro → revisore →
+      correzioni. Sono i due che l'utente vuole entro oggi: per questo partono da soli (due agenti, non quattro).
+- [ ] Da lanciare quando questi passano al revisore o finiscono: `Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/ripresa-b23-t2g2.js'})`
+      (dritto dal video + tappa 2 gruppo 2, nelle worktree `wf_26d95fdf-3ea-1` e `-2`).
+- Se si fermano di nuovo: rilanciare lo stesso script di ripresa SENZA `resumeFromRunId` (riparte dall'agente «Lavoro»
+  che ritrova commit e modifiche nella worktree); se il «Lavoro» era finito, usare `resumeFromRunId` per non rifarlo.
+
+**AVVISO DELL'UTENTE del 12/11 (12:40 UTC): un altro agente sta per pubblicare su questo branch i blocchi B27 (telecomando e
+schermo del gioco) e B28 (calibrazione giocando e tutorial senza blocco).** Quindi: **`git fetch` e integrazione PRIMA di
+ogni push** (se il remoto è avanti: unire, rifare i test del gioco e del sito, poi pubblicare; mai `--force`); non usare
+i numeri B27 e B28 per altri lavori (i prossimi blocchi di questo agente partono da B29); all'unione dei rami in corso
+aspettarsi conflitti su telefono/telecomando, tutorial e calibrazione, e nei file di versione (prendere la versione più
+alta e aggiungere la propria riga in `novita.txt`).
+
+**RICHIESTA DELL'UTENTE del 12/11 (13:10 UTC): «dammi la possibilità, dalle impostazioni di un match, di decidere quali
+personaggi usare ogni volta (classici / Lob & Drop)».** Da fare DOPO l'unione di B24 e del gruppo 3 (toccano le stesse
+schermate), come passo piccolo con test e prova nel browser: nella schermata dove si imposta la partita (contro la CPU:
+la pagina «Chi gioca»; stesso schermo: la pagina «Collega i due telefoni»; sfida tra due computer: dove l'host imposta
+la partita) una scelta **«Personaggi: Classici · Lob & Drop»**, che vale per quella partita e parte dall'ultima scelta
+fatta; la voce nelle Opzioni resta come valore di base. Usare l'etichetta «Classici» (parola dell'utente) al posto di
+«Di sempre». Chiosco e «Nuovo giocatore»: tornare al valore di base delle Opzioni. Dire all'utente dove si trova.
+
+**Lob & Drop con Higgsfield (domanda dell'utente del 12/11, 12:00 UTC: «valuta se ha senso ricreare il personaggio tramite
+Higgsfield»).** Valutato, solo preventivo, niente speso: `generate_3d` modello `image_to_3d` (Meshy) da una foto dà un GLB
+con texture a **30 crediti** per mascotte, **35** con lo scheletro automatico; saldo 504, tetto dei 120 già usato per 86.
+Limiti: nella foto le mascotte si coprono a vicenda (serve prima un'immagine pulita di ciascuna, fronte e retro); lo
+scheletro è quello di Meshy, non quello del gioco (le animazioni del gioco vanno riportate su quelle ossa); peso da
+ridurre (zip Cloudflare: 1,7 MB di margine). Proposta fatta all'utente: oggi la versione costruita nel codice (in corso),
+poi una prova con il solo Drop; l'utente ha detto **«Sì procedi con la prova»** (12/11, 12:35 UTC). Fatto: immagine pulita di Drop (job
+`261684cd-a201-4cc8-922f-b840a0f2e188`, 0,25 crediti; nel logo generato c'è scritto «Nittto», da correggere se si adotta) e
+modello 3D con texture e scheletro avviato (job `9a8b3d4c-8f82-4171-8879-c22b112c6487`, 35 crediti; crediti spesi in tutto
+121,25). File in `scratchpad/lobdrop3d/`. **Esito (12/11, 12:55 UTC): riuscito.** GLB in `scratchpad/lobdrop3d/glb/drop.glb`
+(2.885.704 B: 8.268 triangoli, texture JPEG 2,1 MB da ridurre, scheletro umanoide di 24 ossa con nomi standard `Hips`,
+`Spine`, `LeftArm`, `RightForeArm`…); provato in three.js: si riconosce bene e lo scheletro piega pulito (braccio alzato,
+gamba avanti, busto ruotato). Immagine mostrata all'utente (`scratchpad/lobdrop3d/drop-3d-prova.jpg`). Proposto: fare anche
+Lob (35,25 crediti) e un blocco **B29** che carica i due GLB alleggeriti (obiettivo sotto 0,4 MB l'uno) e riporta le
+animazioni del gioco sulle 24 ossa, al posto delle mascotte costruite nel codice. **L'utente ha detto «Sì» (12/11, 13:00 UTC).**
+- [x] Lob fatto (12/11, 13:05 UTC): immagine pulita (job `b63b21a6-dcc8-4bbf-bee2-c0729798a25b`, logo scritto giusto) e
+      modello 3D con scheletro (job `20e496ac-412f-4ee8-9f2d-0f286ff0bb34`): 2.992.640 B, 8.210 triangoli, texture JPEG
+      2,26 MB, stesse 24 ossa di Drop; si riconosce (visiera blu con LOB, occhiali, punta in testa) e lo scheletro piega
+      pulito. Immagine mostrata all'utente. Crediti spesi in tutto: 156,5 (86 video + 70,5 mascotte). I due GLB stanno in
+      `scratchpad/lobdrop3d/glb/` (`drop.glb`, `lob.glb`); se lo scratchpad non c'è più si riscaricano dalla libreria
+      Higgsfield dell'utente con i job qui sopra (`jobs_wait` restituisce l'indirizzo).
+- [ ] **B29 · Lob & Drop dai modelli 3D** (dopo l'unione del B24, sullo stesso ramo di partenza): copiare i due GLB nel
+      repository alleggeriti (texture 1024 px o meno, niente tangenti né clip, attributi compatti; obiettivo sotto 0,4 MB
+      l'uno, margine dello zip Cloudflare 1,7 MB), correggere «Nittto» nella texture di Drop, caricarli con GLTFLoader al
+      posto delle mascotte costruite nel codice quando l'opzione «Personaggi in campo» è su «Lob & Drop», riportare le
+      animazioni del gioco (corsa, colpi, servizio, esultanza, mancini) sulle 24 ossa (`Hips`, `Spine`, `Spine01`,
+      `Spine02`, `neck`, `Head`, `Left/RightShoulder`, `Arm`, `ForeArm`, `Hand`, `UpLeg`, `Leg`, `Foot`, `ToeBase`),
+      racchetta nella mano giusta e sulla palla all'impatto; se il modello non si carica, ripiego sulle mascotte nel
+      codice; fogli di confronto, prova nel browser, revisore indipendente.
+
+## B27 e B28 (secondo agente, sessione parallela; aggiornato il 12/11/2026 alle 19:15 UTC)
+
+Lavoro chiesto dall'utente allo stand, in rami locali separati e unito qui un blocco alla volta dopo `git fetch`.
+**Il prossimo numero di versione libero è 2026-11-12.6** (2026-11-12.3 = B27, 2026-11-12.4 = Lob & Drop ed Evento/Bambini dell'altra sessione, 2026-11-12.5 = B28).
+
+**Versione 2026-11-12.3 = B27 · Postazione dello staff** (dettaglio: `docs/WORK_PROGRESS.md` B27, guida
+`docs/GUIDA_TELECOMANDO.md`, matrice delle schermate `docs/b27/telecomando.md`).
+- [x] Programma Windows: domanda «Su quale schermo mostro il gioco?» all'avvio (2+ monitor e nessuno scelto), voce
+      «Schermo del gioco» nel pannello dello stand, ponte `window.natpfDesktop.displays` (preload versione 3)
+- [x] Telecomando dello staff: `site/tennis/telecomando.html`, abbinamento dal pannello dello stand confermato sul
+      computer, ripresa da solo con prova della chiave; nel gioco `natpf_remote.js` e `natpf_remote_map.js`
+- [x] Revisore indipendente: 12 difetti (2 bloccanti), tutti corretti e con test
+- [x] Unito sopra `b831973`, prove sul codice unito: gioco 1194/1194, sito 223/223, LAN 12/12, Windows 33/33, build ok;
+      nel browser `natpf-telecomando` 80/80, `natpf-menu` 38/38, `natpf-training-flow` 22/22
+- [x] Push `76c6ed3`; tre esecuzioni di GitHub verdi; **installer 2026-11-12.3 pubblicato su R2** e verificato dal link
+      fisso: 127.622.808 B, sha256 `7642dcc3724e17761156e4bc30c208c9c5424cd9b9f0d7446e9dfea6801fbbb2`; zip Cloudflare
+      consegnato: 23.330.733 B, sha256 `0d762b68e485de25b8e8396ba2f42fa2725e3d37759de7799215bb81bd658266`, provato
+      estratto (gioco, pagina della racchetta e pagina del telecomando; unico errore atteso: CORS del TURN)
+- [x] Detto all'utente come si attivano la domanda dello schermo, «Schermo del gioco» e «Telecomando dello staff»
+- **Attenzione per chi unisce altri rami**: il pannello dello stand (`#natpf-staff` in `natpf-tennis/index.html`) ha due
+  voci nuove nella riga in basso («Telecomando dello staff», «Schermo del gioco») e deve restare senza scorrimento
+  (`natpf-menu` lo controlla a 1024×600, 1366×657 e 1024×1024). Chi aggiunge una schermata o un `confirm()` deve
+  aggiornare la mappa del telecomando (`natpf_remote_map.js`; un test fallisce se un `confirm()` non è nell'elenco).
+
+**B28 · Calibrazione giocando e tutorial senza blocco** (ramo locale `b28-cal-giocando`, base `8b85a3c`, 11 commit, non
+su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
+- [x] Sviluppo: scambi di prova di 10–15 s al posto della calibrazione con i gesti (opzione dello stand «Calibrazione:
+      Giocando · Con i gesti · Nessuna», di base Giocando), tutorial chiudibile da ogni scheda, «Avanti ›» negli esercizi
+- [x] Revisore indipendente (12/11, 14:40 UTC): nessun blocco sul percorso di base; 4 difetti da correggere (chi tira
+      solo di dritto e manca una palla si ritrova destra e sinistra invertite; il Player 2 che esce dagli scambi di prova
+      nella sfida tra due computer; pausa del telefono del Player 2 nello stesso schermo; profilo del visitatore prima
+      ereditato quando si cambia l'opzione) e 3 minori; il percorso di base ha poche prove
+- [x] Correzioni dei 7 difetti (ramo fino a `953eb34`), seconda revisione indipendente: via libera, nessun bloccante
+- [x] **Versione 2026-11-12.5**: unito sopra la 2026-11-12.4 (conflitti solo in `natpf_ui.js` `tick` e nel registro);
+      all'unione corretto il pulsante «CPU» del telecomando, rotto dalla 12.4 (ora gira tra i cinque livelli di
+      `natpf_who.js` e dice «Chi gioca: …»). Prove sul codice unito: gioco 1283/1283, sito 226/226, LAN 12/12, Windows
+      33/33, build ok; nel browser telecomando 81/81, menu 45/45, scambi-di-prova 24/24 · 25/25 · 12/12, flusso-tocchi
+      5/5, training-flow 21/21, nuovo-giocatore (modo di base) 30/30
+- [x] Push `3586020`; tre esecuzioni di GitHub verdi; **installer 2026-11-12.5 pubblicato su R2** e verificato dal link
+      fisso: 127.643.482 B, sha256 `ee207b7823c1c3533c4f82ddd7b92fb528ca8a6096e26e57539f770c09d8d26f`; zip Cloudflare
+      consegnato: 23.354.730 B, sha256 `72189697b9d1035d48677f9f90caa764e8e8fe86840b717d2e0f6112e77a0330`, provato
+      estratto (unico errore atteso: CORS del TURN)
+- [x] Detto all'utente come si attiva «Calibrazione» e cosa cambia; in corso il B28.1 nel ramo `b28-cal-giocando`
+- [ ] **Prossima versione (B28.1)**: i punti aperti della seconda revisione (`docs/WORK_PROGRESS.md`, «B28 · integrazione
+      e seconda revisione»): profilo che non si rinnova nei minigiochi e nell'allenamento, sfida tra due computer con
+      «Nessuna», scritta finale nello stesso schermo, limite di `natpf-phone-keep`
+- **Attenzione**: con il B28 chi aggiunge un controllo «siamo in partita?» deve escludere `ui.trial.active`; le prove
+  `natpf-*` di prima girano con `CAL=gesti` (calibrazione con i gesti), il percorso nuovo lo provano i test nuovi.
+
+**RIPRESA delle 16:45 UTC del 12/11** (secondo limite d'uso della giornata, passato alle 16:40). Stato:
+- L'altro agente ha pubblicato **B27 (schermo del gioco all'avvio e telecomando dello staff) come versione 2026-11-12.3**
+  (`76c6ed3`): integrato qui con avanzamento lineare. **La prossima versione di questo agente è la 2026-11-12.4** (o la
+  successiva alla più alta che c'è sul remoto al momento dell'unione).
+- B24 Lob & Drop: revisore finito (1 bloccante: la racchetta entra nella testa delle mascotte; 6 minori). Tappa 2 gruppo
+  3: revisore finito (2 bloccanti: anello verde più lungo della finestra vera; scritta «Super mancato: eri in corsa» quasi
+  sempre falsa; 8 minori), correzioni già a metà (6 commit). I punti del revisore sono salvati in
+  `scratchpad/revisioni/b24.json` e `t2g3.json`.
+- [x] Correzioni finite (workflow `correzioni-b24-t2g3`): B24 fino a `eed8772` (modulo `natpf_racket_clear.js`: la racchetta
+      si scosta dalla testa grande; etichetta «Classici»; linguette del tabellone blu/gialle), gruppo 3 fino a `a9ba5ed`
+      (anello verde uguale alla finestra vera del «Perfetto»; scritta del super con la causa vera).
+- [x] Uniti sopra il B27 (`f8d4bf6`, `662b0a7`; un conflitto sugli import di `natpf_lobby.js`, risolto tenendo tutti e due)
+      e integrato un altro commit dell'altro agente (`73cc7d4`).
+- [x] Scelta **«Personaggi: Classici · Lob & Drop»** nella pagina «Pronto per la partita» (riga sotto «Chi gioca»,
+      `data-match-cast`, stessa `setCast` delle Opzioni: una scelta sola, salvata). Guardata a 1280×720 e 1920×540.
+- [x] **Versione 2026-11-12.4**: controllo rapido gioco 1235/1235, sito 223/223, Windows 33/33, build ok; nel browser
+      chi-gioca 55/55, lob-drop 80/80 → push.
+- [x] Zip Cloudflare consegnato: 23.343.105 B (margine 1.656.895 B), sha256
+      `97d01104b52300ccf771ad3d0581cebe2e9787a017c9b00ffd262f248d2f4769`, provato estratto.
+- [x] **Installer 2026-11-12.4 pubblicato su R2** e verificato dal link fisso: 127.655.077 B, sha256
+      `0dfce566752624e604dc5cd74f8ecf74c6a9f7441640521342d8bc5d75148f50`. Detto all'utente come si attiva tutto.
+- [~] Prove complete sul codice unito: `scratchpad/v1112d/prove.sh` → `prove.txt` (finisce con `== FINE`).
+- [~] **B29 in corso dalle 18:10 UTC**: workflow `b29-lob-drop-modelli-3d` (run `wf_c1842a53-f0f`, base `fb6169e`; agente in
+      worktree `wf_c1842a53-f0f-1` → revisore indipendente → correzioni). Modelli in `scratchpad/lobdrop3d/glb/`. Se si ferma
+      nella fase «Lavoro»: rilanciare lo script SENZA `resumeFromRunId` dopo averlo modificato per continuare nella
+      worktree esistente (come `ripresa-b24-t2g3.js`: togliere `isolation: 'worktree'` e indicare il percorso); se si
+      ferma dopo: `resumeFromRunId: 'wf_c1842a53-f0f'`. Script:
+      `/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b29-lob-drop-modelli-3d-wf_c1842a53-f0f.js`.
+- [~] **B30 · Registro dello stand** (richiesta dell'utente del 12/11: «prevedi una raccolta di log continuativi (solo
+      gameplay) per quando aprirò lo stand alla gente»). **Due decisioni dell'utente (12/11, 18:25 UTC): «Non puoi salvare i
+      log su un drive? Il pc non è il mio, comunque vorrei avere questa modalità di default sempre attiva».** Quindi:
+      registro **acceso di base sempre**, in tutte le versioni; i dati **escono da soli dal PC** verso lo spazio
+      Cloudflare dell'utente (R2, con un Worker nuovo `natpf-tennis/cloudflare/registro-worker.js` che accetta solo
+      aggiunte; lettura e scarico solo con una chiave segreta che sceglie e tiene l'utente, mai nel repository); sul PC
+      resta solo la coda non ancora inviata; guida `docs/GUIDA_REGISTRO_CLOUDFLARE.md` (il Worker lo crea l'utente, come
+      per il TURN). Niente Google Drive/OneDrive: servirebbe mettere una chiave dell'account dentro un gioco pubblico.
+      **Terza indicazione dell'utente (18:35 UTC): «ok su Cloudflare ma non ho spazio infinito»** (R2 da 10 GB, con dentro
+      installer e trailer): il Worker deve avere un tetto totale configurabile (di base 2 GB) che cancella da solo i giorni
+      più vecchi, blocchi compressi e righe compatte, stima di partite e giorni che stanno in 2 e 10 GB scritta nella
+      guida, spazio occupato e cancellazione visibili con la chiave. Mandato come messaggio all'agente in corso
+      (`ab084c973d39c8426`); il testo del compito nello script v2 NON lo contiene: **controllare che sia stato fatto** e,
+      se no, chiederlo nelle correzioni.
+      **ATTENZIONE (12/11, 18:40 UTC): nella worktree del B30 lavorano DUE istanze dello stesso agente** (un mio
+      `SendMessage` all'agente del workflow lo ha «ripreso» in una seconda copia: lezione → NON mandare messaggi a un
+      agente di un workflow mentre gira; per cambiare il compito fermare il workflow e rilanciarlo). Divisione approvata:
+      istanza A (workflow) = Worker, strumenti di riassunto, guida, documento, verifiche finali e risultato; istanza B =
+      gioco, pannello dello stand, programma Windows, pacchetti, prova nel browser; protocollo = quello del commit
+      `020e7ab`; coordinamento nel file `scratchpad/b30-coordinamento.md`. Altra aggiunta mandata: **bucket R2 separato e
+      privato `natpf-registro`** (quello di installer e trailer è pubblico). All'unione controllare bene che le due metà
+      stiano insieme (stesso protocollo, test verdi) e che il revisore abbia visto tutto.
+      Il primo workflow (`wf_f20b2599-40d`) è stato fermato dopo pochi minuti e rilanciato con il compito aggiornato:
+      **`b30-registro-v2.js`, run `wf_0f562962-c56`**, che continua nella worktree `wf_f20b2599-40d-1` → revisore →
+      correzioni. Ripresa: rilanciare `b30-registro-v2.js` senza `resumeFromRunId` se la fase «Lavoro» non era finita,
+      con `resumeFromRunId: 'wf_0f562962-c56'` se era finita. Dopo: dire all'utente i passi della guida e chiedergli
+      l'indirizzo del Worker per metterlo nei pacchetti.
+- Nota dell'utente del 12/11 (18:10 UTC), con una schermata di Lob costruito nel codice in partita e le due immagini pulite
+  generate: vuole in campo i personaggi come nelle immagini → è il B29. Il GLB che ha allegato è lo stesso `drop.glb` già
+  in uso (stessa impronta sha256 `981fcbc1…`).
+- [ ] Dopo le prove complete: `ripresa-b23-t2g2.js` (dritto dal video + tappa 2 gruppo 2, worktree `wf_26d95fdf-3ea-1` e
+      `-2`, base `9b8f9cb`; all'unione attenzione a `game_engine.js` `_natpfRacketShot`, toccato dal gruppo 3).
+- Aperti del gruppo 3 da chiedere all'utente dopo le prime partite vere: valore di partenza del livello Evento (0,8); a
+  Evento cambiano anche le regole di chi gioca, non solo la CPU.
+
+**RIPRESA delle 21:55 UTC del 12/11 (questo agente; terzo limite d'uso della giornata, passato alle 21:40).**
+- L'altro agente ha pubblicato **2026-11-12.5** (B28 calibrazione giocando e tutorial senza blocco; telecomando con
+  «Chi gioca»): integrato con avanzamento lineare (`a6188ba`). Una mia correzione del pulsante «CPU» del telecomando
+  (non pubblicata) era doppia rispetto alla sua: tolta, vale la sua. **La prossima versione di questo agente è la
+  2026-11-12.6** (o la successiva alla più alta sul remoto).
+- Prove complete della 2026-11-12.4 (finite alle 18:37 UTC): 18 su 21 al primo giro; rifatte: scia-palla 39/39,
+  intro-trailer 77/78 (fallisce solo «M: CPU rallentata 6 volte → parte il trailer» con la macchina a carico 10: è il
+  ripiego voluto quando la pagina è lentissima; da sola la parte A è verde), telecomando 79/80 per il pulsante «CPU» con
+  i livelli nuovi → corretto dall'altro agente nella 12.5. Da rifare la prova del trailer a macchina libera.
+- B29 e B30 fermati dal limite nella fase «Lavoro». Rilanciati con script di ripresa che continuano nelle worktree
+  esistenti e **prima uniscono il ramo principale aggiornato** (base dei confronti `a6188ba`):
+  - [~] B29: `ripresa-b29.js`, run `wf_44a8ed48-acc` (worktree `wf_c1842a53-f0f-1`, ramo `b29-lob-drop-3d`).
+  - [~] B30: `ripresa-b30.js`, run `wf_55a0047e-b27` (worktree `wf_f20b2599-40d-1`, ramo `b30-registro-stand`; UNA sola
+        istanza ora, con tutte le aggiunte dell'utente nel testo del compito).
+  Se si fermano di nuovo nella fase «Lavoro»: rilanciare lo stesso script senza `resumeFromRunId`.
+- Dopo: unire B29 e B30, versione, controllo rapido, push, zip e installer; poi `ripresa-b23-t2g2.js` (dritto dal video
+  e tappa 2 gruppo 2; anche lì far unire prima il ramo principale aggiornato).
+
+**DECISIONE DELL'UTENTE del 12/11 (23:10 UTC) sulla roadmap: «Dopo la consegna fino al punto 3, poi vai avanti e tira
+dritto fino alla tappa 3 (6, 7, 8)».** Ordine di lavoro deciso (senza fermarsi a chiedere tra un blocco e l'altro; si
+consegna dopo ogni blocco come sempre, con «come si attiva»):
+1. B29 Lob & Drop dai modelli 3D → consegna (in corso, al revisore)
+2. B30 Registro dello stand → consegna + passi Cloudflare all'utente (in corso, al revisore)
+3. B28.1 dell'altro agente (suo; qui solo integrarlo quando lo pubblica)
+4. B23 dritto con le movenze del trailer (prova con interruttore) e 5. tappa 2 gruppo 2 (Leggenda stessa regola D2,
+   palla corta che può sbagliare D8): `ripresa-b23-t2g2.js`, worktree `wf_26d95fdf-3ea-1` e `-2`, **prima unire il ramo
+   principale aggiornato** (le worktree partono da `9b8f9cb`)
+6. **B31 · Tappa 3.1**: gioco a rete per tutti e due, la CPU schiaccia e fa qualche rara palla corta, il tagliato
+   diventa utile; insieme i difetti della rete (rapporto `docs/b16/rapporto-gameplay.md` §4 tappa 3, miglioramento 6 e
+   punto 22)
+7. **B32 · Tappa 3.2**: movimento con accelerazione e colpi in corsa (miglioramento 7)
+8. **B33 · Tappa 3.3**: fine partita con dati veri e classifica delle partite (miglioramento 5)
+Restano fuori per ora (non chiesti): tappa 3 punti 4 (doppio 2v2) e 5 (ledwall, servizio con scelte, Leggenda campione).
+**PROCESSO NUOVO (decisione dell'utente del 12/11, 23:20 UTC: «Il revisore indipendente magari serve alla fine,
+ottimizza i processi»)**, dal punto 4 in poi:
+- un solo agente per blocco, senza revisore per blocco; l'agente fa le sue verifiche (test, impronte, prove nel browser
+  del blocco, schermate guardate) e scrive nel documento cosa non è provato;
+- al più due agenti insieme (la macchina ha 4 processori: con tre o quattro le prove nel browser falliscono per il carico
+  e vanno rifatte, lavoro sprecato);
+- consegna dopo ogni blocco come sempre (controllo rapido, push, zip, installer, «come si attiva»), prove complete solo
+  sulla consegna finale;
+- **un revisore indipendente solo alla fine della serie** (B23, tappa 2 gruppo 2, B31, B32, B33 insieme, sul codice
+  unito), poi correzioni e versione finale;
+- B29 e B30 hanno già il revisore in corso: si lasciano finire (il costo è già speso).
+Prima la regola era: impronte dei livelli e dello stesso schermo
+invariate dove non devono cambiare; regole dell'utente già prese (Pro com'è, nessun vantaggio di punti, ecc.).
+
+**Versione 2026-11-12.6 = B30 registro dello stand** (12/11, 23:45 UTC). Ramo `b30-registro-stand` (con revisore: 3
+bloccanti corretti, tra cui «senza chiave si potevano far cancellare i giorni veri»: ora il Worker oltre il tetto
+rifiuta e non cancella mai da solo), unito in `4efc6d8`. Controllo rapido: gioco 1336/1336, sito 226/226, Windows 42/42,
+build ok → push. Zip Cloudflare 23.371.976 B (margine 1.628.024 B), sha256
+`a8b106c2041c762610c0323619383eac69af7691cbdaafb3c99edf746dd31df6`, provato estratto; **senza `--registro-url`** (manca
+l'indirizzo del Worker: il registro resta in coda sul PC finché l'utente non crea il Worker). Mandati all'utente lo zip,
+il codice del Worker e la guida `docs/GUIDA_REGISTRO_CLOUDFLARE.md`. Installer: in attesa di GitHub Actions →
+`scratchpad/v1112f/attesa.sh`. **Da fare quando l'utente manda l'indirizzo del Worker**: zip con `--registro-url=<indirizzo>`
+e `natpf-desktop/registro.json` con `{"url": "<indirizzo>"}`, versione nuova, pacchetti. Mai la chiave in chat.
+Prove complete della 12.6: non ancora (si fanno sulla consegna finale della serie, processo nuovo).
+
+**Installer 2026-11-12.6 pubblicato su R2** e verificato: 127.664.077 B, sha256
+`797d8ce6fcc48918e91b7e7162f1922aa3a0e2aff0c34869f87bedbb5763da4f`.
+
+**Versione 2026-11-12.7 = B29 Lob & Drop dai modelli 3D** (13/11, 00:10 UTC). Ramo `b29-lob-drop-3d` (revisore: 0
+bloccanti, 8 minori sistemati), unito in `06511fb`. Controllo rapido: gioco 1349/1349, sito 226/226, Windows 42/42, build
+ok → push. Zip 23.826.443 B (**margine solo 1.173.557 B**: i due modelli pesano 0,65 MB), sha256
+`8717eda1ad755e747f9388e40e340f7c5ef4006b00ad58500fa0cbe3f614802a`. Installer: `scratchpad/v1112g/attesa.sh`. Scelte di
+gusto da far vedere all'utente: scala 1,6 m (`docs/b29/img/scala.webp`) e bordo chiaro di Drop (`bordo-drop.webp`).
+
+**In corso dalle 00:10 UTC del 13/11: punto 4 e 5 della roadmap** — workflow `b23-t2g2-senza-revisore` (script
+`ripresa-b23-t2g2.js`, run `wf_20200b80-a34`): due agenti nelle worktree `wf_26d95fdf-3ea-1` (dritto dal video) e `-2`
+(tappa 2 gruppo 2), prima uniscono il ramo principale, **senza revisore** (processo nuovo). Se si fermano: rilanciare lo
+script senza `resumeFromRunId`. Poi B31, B32, B33 (tappa 3).
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
@@ -98,15 +391,15 @@ Poi B23 (prova delle movenze sul dritto), B24 e tappa 2 gruppi 2 e 3.
       sfocate come sfondo del tutorial; trailer su R2 (`media/`), clip dentro lo zip. File in `scratchpad/video/` e nella
       libreria Higgsfield dell'utente (crediti spesi 86 su 120).
 - [x] **B22 Scia luminosa della palla** (2026-11-11.2) nel gameplay (un po' meno luminosa del trailer) + voce nelle Opzioni per spegnerla
-- [ ] **B25 Stesso schermo, decisioni dell'11/11** (PIANO, voce B25): lancio automatico dopo 30 s (opzione dello stand,
+- [x] **B25 Stesso schermo, decisioni dell'11/11** (2026-11-12.2; aiuto solo di gioco, senza punti) (PIANO, voce B25): lancio automatico dopo 30 s (opzione dello stand,
       spenta); campo aperto tra due persone (opzione dello stand, spenta: preparare e misurare); colpo super con la forza
       relativa al proprio colpo (solo il super); preparazione del colpo che non conta nel 1v1
       **+ aiuto al più giovane** (richiesta dell'11/11 sera): nello stesso schermo ogni giocatore sceglie Bambino · Ragazzo ·
       Adulto e il più giovane è facilitato; preparare 2–3 varianti, misurarle e far scegliere all'utente con i numeri
-- [ ] **B23 Prova delle movenze dal video sul solo dritto** (se all'utente non piace si toglie)
-- [ ] **B24 Lob & Drop** come personaggi (foto `docs/riferimenti/lob-drop-2026-11-11.webp`)
-- [ ] **Tappa 2 gruppo 2**: Leggenda stessa regola (D2), palla corta che può sbagliare (D8)
-- [ ] **Tappa 2 gruppo 3**: livelli Evento e Bambini (D3) con la scelta **«Chi gioca: Bambino · Ragazzo · Adulto»** al posto
+- [~] **B23 Prova delle movenze dal video sul solo dritto** (se all'utente non piace si toglie)
+- [x] **B24 Lob & Drop** (2026-11-12.4, costruiti nel codice; i modelli 3D sono il B29) come personaggi (foto `docs/riferimenti/lob-drop-2026-11-11.webp`)
+- [~] **Tappa 2 gruppo 2**: Leggenda stessa regola (D2), palla corta che può sbagliare (D8)
+- [x] **Tappa 2 gruppo 3** (2026-11-12.4): livelli Evento e Bambini (D3) con la scelta **«Chi gioca: Bambino · Ragazzo · Adulto»** al posto
       del livello (Pro e Leggenda in «Altre impostazioni»); segnale del momento giusto; super spiegato
 - [ ] Dall'utente: prova di due minuti con un telefono vero agitato senza guardare (poi si decide la regola)
 
