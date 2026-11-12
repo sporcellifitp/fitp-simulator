@@ -86,7 +86,15 @@ al 50%). Documento: `docs/b25/stesso-schermo-equilibrio.md` in quella worktree.
 - [x] **Installer 2026-11-12.2 pubblicato su R2** e verificato dal link fisso: 127.576.457 B, sha256
       `ec66a7249b3432805fa69430297a00efbb437525f816209de6526fa129083ace`
 - [x] Detto all'utente come si attivano Lancio automatico, Campo aperto e fasce
-- [~] Prove complete avviate alle 09:25 UTC del 12/11: `scratchpad/v1112c/prove.sh` → `prove.txt` (finisce con `== FINE`)
+- [x] Prove complete della 2026-11-12.2 (12/11, 09:30 UTC): LAN 12/12, `audit:legend` 69/69, nel browser 20 su 21 verdi
+      (stesso-schermo-b25 54/54, intro-trailer 78/78, scia-palla 39/39, schermo 41/41, stesso-schermo-b20 52/52,
+      split-ready 34/34, formato-fiera 22/22 e p2p 9/9, 1v1-p2p 39/39, tabellone 42/42, nuovo-giocatore 28/28,
+      servizio-lancio 12/12, servizio-peso 8/8, menu 28/28, rally 9/9, leggenda 7/7, training-flow 22/22, tutorial-phone
+      52/52, gesti-speciali 9/9, phone-keep 13/13)
+- [~] `natpf-modale-gesti` 28/29 **da rifare a macchina libera guardando QUALE verifica fallisce** (sulla 12.1 era la
+      misura dei fotogrammi a 1920×1080, 29/29 da sola). Questa volta è fallita verso le 09:00 UTC, quando gli agenti non
+      erano ancora partiti: può essere una misura instabile oppure un calo vero dei fotogrammi con la scia nuova del
+      B26. Non è stato possibile rifarla subito: quattro agenti occupano la macchina (carico 7 su 4 processori).
 - Decisioni ancora da chiedere all'utente (dal documento B25): soglia del colpo super (1,3 volte; «qualche volta a
   partita» non raggiunto), «tira sempre fortissimo» rende 65–69% con il campo aperto, chi batte parte sfavorito con il
   campo aperto (44–48 punti su 100).
