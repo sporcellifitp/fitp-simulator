@@ -268,14 +268,19 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
       worktree esistente (come `ripresa-b24-t2g3.js`: togliere `isolation: 'worktree'` e indicare il percorso); se si
       ferma dopo: `resumeFromRunId: 'wf_c1842a53-f0f'`. Script:
       `/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b29-lob-drop-modelli-3d-wf_c1842a53-f0f.js`.
-- [~] **B30 · Registro dello stand, in corso dalle 18:15 UTC** (richiesta dell'utente del 12/11: «prevedi una raccolta di log
-      continuativi (solo gameplay) per quando aprirò lo stand alla gente»): workflow `b30-registro-dello-stand` (run
-      `wf_f20b2599-40d`, base `ccb2f43`; worktree `wf_f20b2599-40d-1` → revisore → correzioni). Registro continuo e leggero,
-      solo di gioco, senza dati personali; file JSON Lines per giorno sul PC dello stand (programma Windows) e nel
-      browser; pannello dello stand «Registro di gioco: Sì · No», scarico e cancellazione; strumento
-      `natpf-tennis/scripts/registro/riassunto.mjs`; documento `docs/b30/registro-dello-stand.md`. Invio automatico a
-      Cloudflare: solo descritto, da decidere con l'utente. Ripresa: come per il B29 (script
-      `b30-registro-dello-stand-wf_f20b2599-40d.js` nella stessa cartella).
+- [~] **B30 · Registro dello stand** (richiesta dell'utente del 12/11: «prevedi una raccolta di log continuativi (solo
+      gameplay) per quando aprirò lo stand alla gente»). **Due decisioni dell'utente (12/11, 18:25 UTC): «Non puoi salvare i
+      log su un drive? Il pc non è il mio, comunque vorrei avere questa modalità di default sempre attiva».** Quindi:
+      registro **acceso di base sempre**, in tutte le versioni; i dati **escono da soli dal PC** verso lo spazio
+      Cloudflare dell'utente (R2, con un Worker nuovo `natpf-tennis/cloudflare/registro-worker.js` che accetta solo
+      aggiunte; lettura e scarico solo con una chiave segreta che sceglie e tiene l'utente, mai nel repository); sul PC
+      resta solo la coda non ancora inviata; guida `docs/GUIDA_REGISTRO_CLOUDFLARE.md` (il Worker lo crea l'utente, come
+      per il TURN). Niente Google Drive/OneDrive: servirebbe mettere una chiave dell'account dentro un gioco pubblico.
+      Il primo workflow (`wf_f20b2599-40d`) è stato fermato dopo pochi minuti e rilanciato con il compito aggiornato:
+      **`b30-registro-v2.js`, run `wf_0f562962-c56`**, che continua nella worktree `wf_f20b2599-40d-1` → revisore →
+      correzioni. Ripresa: rilanciare `b30-registro-v2.js` senza `resumeFromRunId` se la fase «Lavoro» non era finita,
+      con `resumeFromRunId: 'wf_0f562962-c56'` se era finita. Dopo: dire all'utente i passi della guida e chiedergli
+      l'indirizzo del Worker per metterlo nei pacchetti.
 - Nota dell'utente del 12/11 (18:10 UTC), con una schermata di Lob costruito nel codice in partita e le due immagini pulite
   generate: vuole in campo i personaggi come nelle immagini → è il B29. Il GLB che ha allegato è lo stesso `drop.glb` già
   in uso (stessa impronta sha256 `981fcbc1…`).
