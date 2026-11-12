@@ -67,8 +67,8 @@ function geometries(){
   const head = H => sphere({ p: [0, H.cy, 0], s: [H.rx, H.ry, H.rz] }, 32, 22);
   const tilted = (g, H, tilt) => place(g, { r: tilt }).translate(0, H.cy, 0);
   // Corpo a pera, un po' schiacciato davanti-dietro; il collo entra nella testa
-  const body = place(lathe([[0.001, -0.25], [0.1, -0.243], [0.17, -0.205], [0.21, -0.12], [0.222, 0.0], [0.214, 0.11], [0.19, 0.23],
-    [0.158, 0.34], [0.128, 0.43], [0.1, 0.5], [0.001, 0.54]]), { s: [1, 1, 0.9] });
+  const body = place(lathe([[0.001, -0.25], [0.11, -0.243], [0.185, -0.205], [0.228, -0.12], [0.24, 0.0], [0.235, 0.11], [0.22, 0.23],
+    [0.2, 0.34], [0.175, 0.43], [0.13, 0.5], [0.001, 0.54]]), { s: [1, 1, 0.9] });
   // Mano a manopola: palmo tondo, tre dita corte e il pollice (stessa forma per la mano della racchetta e l'altra)
   const hand = merge([
     sphere({ s: [0.09, 0.094, 0.088] }, 16, 12),

@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { launch, check, summary } from './th.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = process.env.GAME || path.resolve(here, '../../natpf-tennis');
-const GAME_PORT = +(process.env.GAME_PORT || 3164), FPS_MS = +(process.env.FPS_MS || 6000), DRAW_N = +(process.env.DRAW_N || 40);
+const GAME_PORT = +(process.env.GAME_PORT || 3164), FPS_MS = +(process.env.FPS_MS || 6000), DRAW_N = +(process.env.DRAW_N || 14);
 const SHOTS = process.env.SHOTS || path.join(tmpdir(), 'natpf-lob-drop'); mkdirSync(SHOTS, { recursive: true });
 const BASELINE = process.env.BASELINE || '', CONFRONTA = process.env.CONFRONTA || '', FOGLI = process.env.FOGLI || '';
 const KEY = 'natpf-tennis.personaggi';
@@ -192,7 +192,7 @@ if (FOGLI){
   const near = await game({ cast: 'lobdrop', w: 560, h: 640 });
   const closeUp = async (actor, view, extra = {}) => { await scene(near.p, `v-${actor}-${view}`, { pose: 'fermo', ...extra, cam: { actor, ...NEAR[view] } }); return png(near.p); };
   for (const [actor, nome] of [['player', 'Drop'], ['opponent', 'Lob']]){
-    const tiles = [{ src: photo, label: 'Foto di riferimento', dx: actor === 'player' ? -.2 : .2, dy: .06 }];
+    const tiles = [{ src: photo, label: 'Foto di riferimento', zoom: 1.5, dx: actor === 'player' ? -.2 : .257, dy: .05 }];
     for (const [v, l] of [['front', 'davanti'], ['side', 'di lato'], ['back', 'dietro']]) tiles.push({ src: await closeUp(actor, v), label: `${nome} nel gioco, ${l}` });
     await sheet(`${nome.toLowerCase()}-da-vicino.webp`, tiles, { cols: 4, w: 400, h: 460, title: `${nome}: foto di riferimento e personaggio nel gioco` });
   }
@@ -384,26 +384,26 @@ if (!process.env.COSTO){
 
 /* ---------- 5) costo: stesso fotogramma disegnato con i due aspetti, fotogrammi al secondo ---------- */
 {
-  const g = await game({ cast: 'sempre' }), p = g.p;
-  // tempo del disegno (con la grafica in software del banco di prova: conta il confronto, non il valore) e conti del
-  // disegno: chiamate e triangoli per fotogramma
+  // finestra piccola: con la grafica in software del banco di prova il disegno è lento, e qui conta il confronto
+  const g = await game({ cast: 'sempre', w: 640, h: 360 }), p = g.p;
+  // conti del disegno (chiamate e triangoli per fotogramma: non dipendono dal carico della macchina) e tempo del
+  // disegno: il più breve di tanti disegni a giri alternati (il più breve risente meno degli altri lavori in corso)
   const draw = () => p.evaluate(async N => {
     const E = __natpfTennis, gl = E.renderer.getContext(), px = new Uint8Array(4);
     const one = () => { const t = performance.now(); E.render(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return performance.now() - t; };
     for (let i = 0; i < 4; i++) one();
     const t = []; for (let i = 0; i < N; i++) t.push(one());
-    t.sort((a, b) => a - b);
     const info = E.renderer.info.render;
-    return { ms: +t[t.length >> 1].toFixed(2), calls: info.calls, tris: info.triangles };
+    return { ms: +Math.min(...t).toFixed(2), calls: info.calls, tris: info.triangles };
   }, DRAW_N);
   const cost = {};
-  for (const round of [1, 2]) for (const cast of ['sempre', 'lobdrop']){
+  for (const round of [1, 2, 3]) for (const cast of ['sempre', 'lobdrop']){
     await setCast(p, cast); await scene(p, `costo-${cast}-${round}`, SCENES.dritto);
     const d = await draw();
     cost[cast] = cost[cast] ? { ...d, ms: Math.min(d.ms, cost[cast].ms) } : d;
   }
   const A = cost.sempre, M = cost.lobdrop;
-  console.log(`disegno dello stesso fotogramma (mediana di ${DRAW_N}, il migliore di 2 giri): di sempre ${A.ms} ms, ${A.calls} chiamate, ${A.tris} triangoli · Lob & Drop ${M.ms} ms, ${M.calls} chiamate, ${M.tris} triangoli`);
+  console.log(`disegno dello stesso fotogramma (il più breve di ${DRAW_N} disegni per 3 giri alternati): di sempre ${A.ms} ms, ${A.calls} chiamate, ${A.tris} triangoli · Lob & Drop ${M.ms} ms, ${M.calls} chiamate, ${M.tris} triangoli`);
   check('costo del disegno: chiamate e triangoli non più del 10% sopra i personaggi di sempre', M.calls <= A.calls*1.1 + 2 && M.tris <= A.tris*1.1, `chiamate ${A.calls} → ${M.calls}, triangoli ${A.tris} → ${M.tris}`);
   check('costo del disegno: tempo non peggiorato (entro il 12%, misura a macchina condivisa)', M.ms <= A.ms*1.12 + .5, `${A.ms} ms → ${M.ms} ms`);
   // fotogrammi al secondo con il gioco che gira (scambio senza persone), due giri alternati
@@ -413,17 +413,18 @@ if (!process.env.COSTO){
     E.natpfSplit.active = false; E.natpfPaused = false; E.autoPlayMode = true; window.__seed(99); E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = true;
     E._natpfFrame = E.__frame0;
     await new Promise(r => setTimeout(r, 800));
-    let n = 0; const t0 = performance.now();
-    await new Promise(done => { const f = () => { n++; if (performance.now() - t0 >= ms) done(); else requestAnimationFrame(f); }; requestAnimationFrame(f); });
-    const dt = performance.now() - t0;
+    // tempo tra il primo e l'ultimo fotogramma diviso per i fotogrammi in mezzo (almeno 8): con la grafica in software
+    // i fotogrammi sono pochi, e contarli in una finestra fissa sbaglierebbe di uno su pochi
+    let n = 0, first = 0, last = 0; const t0 = performance.now();
+    await new Promise(done => { const f = () => { last = performance.now(); if (!n++) first = last; if (last - t0 >= ms && n >= 9) done(); else requestAnimationFrame(f); }; requestAnimationFrame(f); });
     E._natpfFrame = () => 'paused';
-    return { fps: +(n*1000/dt).toFixed(1), looks: [E.player.natpfLook, E.opponent.natpfLook] };
+    return { fps: +((n - 1)*1000/(last - first)).toFixed(2), frames: n, looks: [E.player.natpfLook, E.opponent.natpfLook] };
   }, { cast, ms: FPS_MS });
   const f = { sempre: [], lobdrop: [] };
   for (const round of [1, 2]) for (const cast of ['sempre', 'lobdrop']){ const r = await fps(cast); f[cast].push(r.fps); if (cast === 'lobdrop') check(`giro ${round}: in partita ci sono Drop e Lob`, r.looks.join() === 'drop,lob', r.looks.join()); }
   const best = k => Math.max(...f[k]);
   console.log(`fotogrammi al secondo (grafica in software, ${FPS_MS} ms per misura): di sempre ${f.sempre.join(' e ')} · Lob & Drop ${f.lobdrop.join(' e ')}`);
-  check('fotogrammi al secondo non peggiorati (entro il 10% dei personaggi di sempre)', best('lobdrop') >= best('sempre')*.9, `di sempre ${best('sempre')}, Lob & Drop ${best('lobdrop')}`);
+  check('fotogrammi al secondo non peggiorati (il migliore dei due giri entro il 10% dei personaggi di sempre)', best('lobdrop') >= best('sempre')*.9, `di sempre ${best('sempre')}, Lob & Drop ${best('lobdrop')}`);
   check('costo: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
   await g.ctx.close();
 }
