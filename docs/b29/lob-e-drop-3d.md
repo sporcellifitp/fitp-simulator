@@ -273,3 +273,18 @@ Minori, e cosa ne è stato fatto:
 | scala e bordo di luce di Drop sono scelte di gusto non segnalate | sezione nuova «Da far vedere all'utente» con `scala.webp` e `bordo-drop.webp` |
 | telaio nella testa durante i colpi senza numeri | numeri del revisore, per tipo di colpo, in «Cose curate» |
 | moviola dell'ultimo punto non provata | aggiunta a «Cosa non è provato» |
+
+Verifiche dopo le correzioni (12/11, notte, macchina condivisa con altre prove):
+
+- `TRE_D=1 SEMI=cpu:777,schermo:2024,demo:9090` (i sorteggi del revisore): **51 su 51**. Impronte uguali a quelle di
+  «Classici» con gli stessi sorteggi (d2a173f5 con 40 colpi, 4bebec56 con 35, 8081aff4 con 8), corde al colpo dove
+  erano su tutti i colpi, palmo sul manico al più 0,3 cm, piante da 0 a 21,8 cm, passi con i due piedi in aria 11, 59 e
+  14 (0,4 %, 2,3 %, 0,4 %), nessuno scatto. Telaio nella testa in tutta la partita, prima → dopo la correzione: Drop 422
+  → 64 (CPU), 380 → 34 (stesso schermo), 69 → 4 (senza persone); Lob 102 → 5, 97 → 4, 70 → 8. Costo: chiamate 248 /
+  219 / 143, fotogrammi al secondo 0,78 / 0,79 / 0,84 (classici / nel codice / 3D).
+- Foglio `img/scala.webp` (`FOGLI3D=… FOGLIO=scala`): 258 kB, guardato. Drop nel dritto ha la mano davanti alla bocca
+  a tutte e tre le altezze; nel servizio, dal basso, la mano copre un occhio a 1,6 e 1,75 m e il mento a 1,9 m.
+- `npm test` 1296 test (1295 superati, 1 saltato, 0 falliti), `npm run build` riuscita (i due modelli in `dist/media`),
+  `npm run audit:legend` tutti i criteri rispettati, `node --test tools/test/*.test.mjs` 226 su 226.
+- Non rifatti: la prova nel browser completa con `CONFRONTA` (le parti 1-5 non sono cambiate), gli altri fogli (non
+  toccati), lo zip Cloudflare (nessun file del gioco cambiato, solo un commento).
