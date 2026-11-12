@@ -242,3 +242,183 @@ test('revisione 6: con la rete lenta (risposta dopo 0,5 e 1,5 s) niente pausa «
   let hold = false; for (let k = 0; k < 120; k++){ n.step(); hold ||= !!n.ui.phoneHold; }
   assert.ok(!hold && n.P.ready, '«Nessuna»: partita senza pausa');
 });
+
+/* ---------- modalità di base («Giocando»): percorsi che le altre prove fanno con «Con i gesti» ---------- */
+test('di base · «Nuovo giocatore» durante gli scambi di prova e durante la partita sul profilo imparato: tutto da capo, poi di nuovo scambi di prova', async () => {
+  const w = await playWorld(), { E, ui, lobby, link, P } = w;
+  w.pressStart(); w.advance(2600); assert.ok(ui.trial.active && P.trialOn);
+  P._onSwing(stroke({ dir: 1, peak: 900 }));
+  // durante gli scambi di prova
+  ui.newPlayer(); w.advance(300);
+  assert.ok(!ui.trial.active && !P.trialOn && hidden('natpf-trial') && !document.body.classList.contains('natpf-trial-on'));
+  assert.equal(E.natpfMatchSeq || 0, 0, 'nessuna partita'); assert.equal(P.learner.samples.length, 0); assert.ok(P.profile == null || P.profile.simple);
+  assert.ok(!P.tutorialSeen && P.typicalModel.value == null);
+  $('nick-cancel').click(); w.advance(300);
+  assert.ok(ui.training.active && ui.training.tutorialOpen && !ui.training.cal, 'tutorial corto in campo, senza calibrazione con i gesti');
+  w.key('Enter', 'Enter'); w.advance(600); link.L.phone = 'ready'; w.advance(300);
+  assert.ok(lobby.visible && lobby.step === 'match' && P.ready);
+  assert.equal(w.pressStart(), false); playTrial(w, (id, n, want) => stroke({ dir: want, peak: 500 }));
+  assert.deepEqual([E.natpfMatchSeq, P.profile.ref, P.madeBy], [1, 500, 'prova']);
+  // in partita, sul profilo imparato
+  w.advance(800); assert.ok(ui.matchLive());
+  ui.newPlayer(); w.advance(300);
+  assert.ok(P.profile == null || P.profile.simple, 'niente del giocatore di prima'); assert.equal(P.madeBy === 'prova', false); assert.equal(P.aimModel.center(1), null);
+  $('nick-cancel').click(); w.advance(300); w.key('Enter', 'Enter'); w.advance(600); link.L.phone = 'ready'; w.advance(300);
+  assert.equal(w.pressStart(), false); assert.ok(ui.trial.active, 'scambi di prova per chi arriva');
+  playTrial(w, (id, n, want) => stroke({ dir: want, peak: 820 })); assert.deepEqual([E.natpfMatchSeq, P.profile.ref], [2, 820]);
+});
+
+// il telefono cade (collegamento perso) e torna: relink = stessa pagina, ancora pronto; reload = pagina ricaricata, da calibrare
+const drop = (w, P = w.P, link = w.link) => { link.connected = false; link.ready = false; link.L = { state: 'waiting', phone: null }; P._changed?.(); };
+const comeBack = (w, how, P = w.P, link = w.link) => {
+  link.connected = true;
+  if (how === 'relink'){ link.ready = true; link.L = { state: 'connected', phone: 'ready', joins: 2, relinked: true }; }
+  else link.L = { state: 'connected', phone: 'cal', joins: 2 };
+  P._sendGrip(); P._autoProfile(); P._changed?.();
+};
+test('di base · il telefono cade, si ricollega o spegne lo schermo durante gli scambi di prova: pausa, si riprende, si impara lo stesso; se non torna si esce dal menu', async () => {
+  for (const how of ['relink', 'reload', 'schermo']){
+    const w = await playWorld(), { E, ui, link, P } = w, t0 = performance.now(); let out = null, back = null, seen = -1, held = null, stance = 0;
+    w.pressStart();
+    while (ui.trial.active && performance.now() - t0 < 45000){
+      w.advance(16); const t = performance.now() - t0;
+      if (out == null && E.phase === 'RALLY' && P.trial?.ball === 2){ out = t; if (how === 'schermo') link.L.vis = false; else drop(w); }
+      if (out != null && back == null && t - out > 2000){ back = t; if (how === 'schermo') link.L.vis = true; else comeBack(w, how); }
+      if (ui.phoneHold) held = ui.phoneHold.why;
+      if (ui.trial.active && E.phase === 'SERVE_STANCE') stance++;
+      const ball = P.trial?.ball ?? -1;
+      if (P.ready && link.L.vis !== false && hot(E) && seen !== ball){ seen = ball; P._onSwing(stroke({ dir: ballWant(E), peak: 600 })); }
+    }
+    const seconds = (performance.now() - t0)/1000;
+    assert.equal(held, how === 'schermo' ? 'pagina nascosta' : 'scollegato', how); assert.equal(stance, 0, `${how}: nessun punto «rigiocato» negli scambi di prova`);
+    assert.ok(!ui.trial.active && E.natpfMatchSeq === 1 && E.phase === 'SERVE_STANCE', `${how}: la partita parte`);
+    assert.ok(seconds < 21, `${how}: ${seconds.toFixed(1)} s con 2 s di telefono fermo e il conto alla rovescia`);
+    assert.ok(['full', 'ok'].includes(P.profile.trialLevel), `${how}: livello ${P.profile.trialLevel}`); assert.ok(P.ready && !ui.phoneHold);
+  }
+  // non torna: la partita resta ferma con il riquadro; dal menu si chiude tutto
+  const w = await playWorld(), { E, ui, P } = w; w.pressStart();
+  for (let k = 0; k < 400 && !(E.phase === 'RALLY' && P.trial?.ball === 2); k++) w.advance(16);
+  drop(w); w.advance(6000);
+  assert.ok(ui.trial.active && E.natpfPaused && ui.phoneHold?.why === 'scollegato', 'fermi ad aspettare il telefono');
+  ui.backToMenu(); w.advance(300);
+  assert.ok(!ui.trial.active && ui.lobby.visible && !E.natpfPaused && (E.natpfMatchSeq || 0) === 0);
+});
+
+test('di base · in partita sul profilo imparato: caduta e ricollegamento, schermo spento → pausa, punto rigiocato, profilo e verso restano; pagina ricaricata → profilo semplice e si gioca', async () => {
+  const w = await playWorld(), { E, ui, link, P } = w;
+  w.pressStart(); playTrial(w, (id, n, want) => stroke({ dir: -want, peak: 700 }));           // telefono al contrario: verso girato
+  assert.deepEqual([P.profile.ref, P.learner.sign, P.madeBy], [700, -1, 'prova']);
+  for (const how of ['relink', 'schermo']){
+    w.advance(600); E.phase = 'RALLY'; const c0 = link.cmds.length;
+    if (how === 'schermo') link.L.vis = false; else drop(w);
+    w.advance(900); assert.equal(ui.phoneHold?.why, how === 'schermo' ? 'pagina nascosta' : 'scollegato'); assert.ok(E.natpfPaused);
+    if (how === 'schermo') link.L.vis = true; else comeBack(w, 'relink');
+    w.advance(4500);
+    assert.ok(!ui.phoneHold && !E.natpfPaused, `${how}: si riprende`); assert.equal(E.phase, 'SERVE_STANCE', `${how}: punto rigiocato`);
+    assert.deepEqual([P.profile.ref, P.learner.sign, P.madeBy, E.natpfMatchSeq], [700, -1, 'prova', 1], `${how}: profilo imparato e verso restano`);
+    assert.deepEqual(link.cmds.slice(c0), [], `${how}: nessuna ricalibrazione`);
+  }
+  // pagina del telefono ricaricata a metà partita: torna da calibrare, riceve il profilo semplice e si gioca (il gioco
+  // reimpara dai colpi veri; il verso lo corregge il voto del telefono). Niente gesti, niente blocco
+  w.advance(600); E.phase = 'RALLY'; drop(w); w.advance(900); comeBack(w, 'reload'); w.advance(4500);
+  assert.ok(P.ready && P.profile.simple && P.madeBy === 'auto' && !ui.phoneHold && !E.natpfPaused); assert.equal(E.natpfMatchSeq, 1);
+  // la partita dopo rifà gli scambi di prova
+  for (let i = 0; i < 12 && E.phase !== 'MATCH_OVER'; i++) E._awardPoint('player', 'Nice Shot!');
+  w.advance(300); ui.backToMenu('match'); w.advance(300);
+  assert.equal(w.pressStart(), false); assert.ok(ui.trial.active);
+});
+
+test('di base · chiosco: stand fermo durante gli scambi di prova → menu, telefono dimenticato, niente partita; il visitatore dopo riparte da capo', async () => {
+  const w = await playWorld(), { E, ui, lobby, P } = w;
+  ui.kiosk.close(); ui.remote?.close?.({ toStaff: false });
+  ui.kiosk.enabled = true; ui.kiosk.limit = 30;
+  w.pressStart(); w.advance(2600); assert.ok(ui.trial.active);
+  P._onSwing(stroke({ dir: 1, peak: 900 }));
+  ui.kiosk.last = performance.now() - 61000; ui.kiosk.check(); w.advance(300);
+  assert.ok(!ui.trial.active && !P.trialOn && lobby.visible && lobby.step === 'menu', 'tornati al menu');
+  assert.equal(E.natpfMatchSeq || 0, 0); assert.ok(hidden('natpf-trial') && !E.natpfPaused);
+  assert.ok(!P.connected, 'telefono scollegato: il prossimo visitatore inquadra il QR');
+});
+
+test('di base · stesso schermo: «Ricalibra» a partita in corso rifà gli scambi di prova per tutti e due e si rigioca il punto con il punteggio com\'era', async () => {
+  const w = await splitWorld(), { E, ui, P1, P2, l2 } = w;
+  playTrial(w, (id, n, want) => stroke({ dir: want, peak: id === 'p2' ? 400 : 800 }), { phones: w.phones });
+  assert.ok(E.natpfSplit.active && E.natpfMatchSeq === 1);
+  E._awardPoint('player', 'Nice Shot!'); w.advance(2500);
+  const score = JSON.stringify(E.score), c1 = w.link.cmds.length, c2 = l2.cmds.length;
+  assert.ok(ui.recalTrialDue(), 'in partita «Ricalibra» farebbe gli scambi di prova');
+  assert.equal(ui.recalibrate(), true); assert.ok(ui.trial.active && ui.trial.S.split && ui.trial.S.resume);
+  assert.deepEqual([w.link.cmds.slice(c1), l2.cmds.slice(c2)], [['cal', 'skip'], ['cal', 'skip']], 'tutti e due da capo');
+  playTrial(w, (id, n, want) => stroke({ dir: want, peak: 500 }), { phones: w.phones }); w.advance(300);
+  assert.equal(JSON.stringify(E.score), score, 'punteggio com\'era'); assert.equal(E.natpfMatchSeq, 1, 'la stessa partita'); assert.equal(E.phase, 'SERVE_STANCE');
+  assert.deepEqual([P1.profile.ref, P2.profile.ref], [500, 500]); assert.ok(E.natpfSplit.active);
+});
+
+test('di base · sfida tra due computer (chi invita): gli scambi di prova dopo «Collega», il Player 2 che entra intanto non li disturba; «Gioca» e la rivincita partono senza rifarli', async () => {
+  const w = await playWorld({ mode: null }), { E, ui, lobby, hud, link, P } = w;
+  lobby.menu('play'); hud.selectedDifficulty = '1v1'; E._applyDifficultyTuning('1v1'); await E.createMultiplayerRoom(); await w.flush();
+  lobby.setMode('friend'); lobby.go('controller'); lobby.go('connect'); w.advance(300);
+  assert.ok(ui.versus.hostActive && E.isMultiplayer);
+  lobby.next(); w.advance(300);
+  assert.ok(ui.trial.active && !lobby.visible && lobby.trialPlayed, 'scambi di prova in campo, prima della pagina «Partita»'); assert.ok(!E._versusInMatch());
+  // il Player 2 entra ed è pronto durante gli scambi di prova; un suo colpo arriva: niente
+  w.advance(1500); E.roomStatus = { ...E.roomStatus, p2Online: true, p2Ready: true, guestName: 'Bea' };
+  const phase = E.phase; E._handleP2SwingInput({ role: 'p2', shotType: 'topspin', speed: 1, natpf: {} });
+  assert.equal(E.phase, phase); assert.ok(ui.trial.active && !E._versusInMatch());
+  playTrial(w, (id, n, want) => stroke({ dir: want, peak: 640 })); w.advance(400);
+  assert.ok(!ui.trial.active && lobby.visible && lobby.step === 'match' && E.isMultiplayer && E.autoPlayMode, 'pagina «Partita», stanza ancora aperta');
+  assert.deepEqual([P.profile.ref, E.natpfMatchSeq || 0], [640, 0]);
+  const c0 = link.cmds.length;
+  assert.equal(w.pressStart(), true, '«Gioca»: la sfida parte subito'); w.advance(500);
+  assert.ok(!ui.trial.active && E.natpfMatchSeq === 1 && E._versusInMatch()); assert.deepEqual(link.cmds.slice(c0), [], 'il profilo imparato resta');
+  // rivincita (le stesse due persone): niente scambi di prova, niente profilo da capo
+  for (let i = 0; i < 12 && E.phase !== 'MATCH_OVER'; i++) E._awardPoint('player', 'Nice Shot!');
+  w.advance(300);
+  const ev = $('btn-play-again').click();
+  assert.ok(!ev._stopImm, 'rivincita immediata (il motore la fa partire)'); assert.ok(!ui.trial.active); assert.deepEqual(link.cmds.slice(c0), []); assert.equal(P.profile.ref, 640);
+});
+
+test('di base · minigioco: scambi di prova prima; chiusi dal menu non parte niente; «Gioca ancora» senza rifarli e con il profilo imparato', async () => {
+  const w = await playWorld({ mode: null }), { E, ui, lobby, link, P } = w;
+  const toChallenge = () => { ui.events.nickname = 'Marta'; lobby.challenge = 'rush'; lobby.setMode('challenge'); lobby.go('connect'); w.advance(300); lobby.next(); w.advance(300); };
+  toChallenge();
+  assert.ok(ui.trial.active && !ui.events.active, 'prima gli scambi di prova');
+  ui.backToMenu(); w.advance(300);
+  assert.ok(!ui.trial.active && !ui.events.active && lobby.visible, 'chiusi dal menu: nessun minigioco'); assert.ok(!P.trialOn);
+  toChallenge(); assert.ok(ui.trial.active);
+  playTrial(w, (id, n, want) => stroke({ dir: want, peak: 560 })); w.advance(300);
+  assert.ok(!ui.trial.active && ui.events.active, 'poi il minigioco'); assert.equal(P.profile.ref, 560);
+  const c0 = link.cmds.length;
+  ui.events.abort?.(); lobby._resultAction('again'); w.advance(300);
+  assert.ok(!ui.trial.active && ui.events.active, '«Gioca ancora»: subito'); assert.deepEqual(link.cmds.slice(c0), []); assert.equal(P.profile.ref, 560);
+  // dal menu un altro minigioco (un'altra persona, per quel che ne sa il gioco): scambi di prova da capo
+  ui.backToMenu(); w.advance(300); toChallenge();
+  assert.ok(ui.trial.active); assert.deepEqual(link.cmds.slice(c0), ['cal', 'skip']);
+});
+
+test('di base · telecomando dello staff negli scambi di prova: pagina «Scambi di prova», frecce spente, Indietro = pausa, «Salta» fa partire la partita, «Ricalibra il telefono» in partita li rifà', async () => {
+  const w = await playWorld(), { E, ui } = w;
+  ui.kiosk.close(); ui.remote.close({ toStaff: false }); $('natpf-phone-hold').classList.add('hidden');     // (nel mondo di prova i riquadri nascono in vista)
+  const cmd = async c => { let out; await ui.remote._onCmd({ c, y: 1, reply: r => { out = r; } }); return out; };
+  const now = () => { const s = ui.remote.snapshot(); return { s, screen: remoteScreen(s), ...remoteCommands(s) }; };
+  w.pressStart(); w.advance(1500);
+  let n = now();
+  assert.deepEqual([n.screen.id, n.screen.label, n.screen.nav], ['trial', 'Scambi di prova', 'field']);
+  assert.deepEqual([n.cmds.skip, n.labels.skip], [1, 'Salta gli scambi di prova']); assert.match(n.cmds.recal, /già calibrando/); assert.match(n.cmds.up, /Scambi di prova/);
+  assert.equal((await cmd('up')).ok, false); assert.equal((await cmd('ok')).ok, false); assert.ok(ui.trial.active);
+  assert.deepEqual(await cmd('back'), { ok: true, msg: 'Pausa' }); assert.ok(ui.pause.isOpen && ui.trial.active);
+  n = now(); assert.deepEqual([n.screen.id, n.screen.under], ['pause', 'trial']); assert.match(n.cmds.skip, /niente da saltare/);
+  assert.equal((await cmd('pause')).ok, true); assert.ok(!ui.pause.isOpen);
+  assert.deepEqual(await cmd('skip'), { ok: true, msg: 'Scambi di prova saltati: si gioca' }); w.advance(800);
+  assert.ok(!ui.trial.active && E.natpfMatchSeq === 1 && E.phase === 'SERVE_STANCE', 'partita partita');
+  // in partita: «Ricalibra il telefono» rifà gli scambi di prova e poi si rigioca il punto
+  n = now(); assert.equal(n.screen.id, 'match'); assert.deepEqual([n.cmds.recal, n.hints.recal], [1, 'scambi di prova, poi si rigioca il punto']);
+  assert.deepEqual(await cmd('recal'), { ok: true, msg: 'Scambi di prova: poi si rigioca il punto' }); assert.ok(ui.trial.active && ui.trial.S.resume);
+  playTrial(w, (id, k, want) => stroke({ dir: want, peak: 610 })); w.advance(300);
+  assert.equal(E.natpfMatchSeq, 1); assert.equal(ui.phone.profile.ref, 610);
+  // al menu: «Ricalibra il telefono» fa ripartire il profilo, senza gesti
+  ui.backToMenu('match'); w.advance(300); const c0 = w.link.cmds.length;
+  n = now(); assert.match(n.hints.recal, /impara dai prossimi scambi/);
+  assert.equal((await cmd('recal')).ok, true); w.advance(300);
+  assert.deepEqual(w.link.cmds.slice(c0), ['cal', 'skip']); assert.ok(ui.phone.ready && ui.phone.profile.simple);
+});
