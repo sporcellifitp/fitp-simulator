@@ -8,12 +8,18 @@
 //   F) ?intro=0: niente intro e nessuna richiesta del trailer · G) ?trailer=0: il video di prima, nessuna richiesta;
 //   H) programma Windows (window.natpfDesktop): il trailer è il file locale ./media/…, nessuna richiesta al bucket;
 //   I) riproduzione rifiutata dal browser: resta l'immagine finale con il titolo, come prima;
-//   J) rete lenta (revisione dell'11/11; un server locale che manda il trailer a velocità fissa, nel programma Windows
-//      finto): a 100 kB/s il trailer non arriverebbe in fondo → resta fermo e nascosto, parte il video di prima; a
-//      1,5 MB/s parte e non si ferma mai; a 800 kB/s (al limite del tempo concesso) parte senza fermate oppure lascia
-//      il posto al video di prima;
+//   J) rete lenta (revisione dell'11/11; un server locale che manda il trailer a velocità fissa, da un altro computer
+//      che apre il gioco dal server del programma, ?lan=1: lì vale la regola del web; fino al B26 la prova usava il
+//      programma Windows finto, che ora non ha più la regola della rete lenta): a 100 kB/s il trailer non arriverebbe
+//      in fondo → resta fermo e nascosto, parte il video di prima; a 1,5 MB/s parte e non si ferma mai; a 800 kB/s (al
+//      limite del tempo concesso) parte senza fermate oppure lascia il posto al video di prima;
 //   K) trailer tronco (errore a metà): immagine finale, titolo e subito «Premi un tasto»;
-//   L) gioco aperto da un altro computer dal server del programma (?lan=1): trailer dello stesso server, e se manca il bucket.
+//   L) gioco aperto da un altro computer dal server del programma (?lan=1): trailer dello stesso server, e se manca il bucket;
+//   M) programma Windows con avvio lento (B26, collaudo dell'utente dell'11/11: «è partito il video di prima»): con la
+//      CPU rallentata 6 volte parte il trailer; con il primo dato del file che arriva dopo 14 passi della pagina (3,5 s
+//      di pagina libera: con l'attesa di prima, 1,5 s, partiva il video di prima) parte il trailer; con il file che
+//      non risponde mai il video di prima parte solo dopo 8 s; sul web con la CPU rallentata e il bucket veloce parte
+//      il trailer.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-intro-trailer.mjs     (GAME_PORT 3163, +1 per il server lento; SHOTS=cartella; ONLY=AE)
 import { spawn } from 'node:child_process';
 import http from 'node:http';
@@ -65,9 +71,11 @@ const TIMELINE = () => {
   }, 100);
 };
 // r2: 'ok' | '404' | 'abort' | 'hang' | 'trunc' — cosa risponde il bucket; local: come risponde ./media/trailer-… dello
-// stesso server ('ok', '404', 'slow': dal server lento)
-async function open({ query = '', r2 = 'ok', local = null, init = null, ctx = null } = {}){
+// stesso server ('ok', '404', 'slow': dal server lento, 'late:N': risponde dopo N passi da 250 ms della pagina, contati
+// come li conta l'intro (un blocco della pagina vale un passo), 'hang': non risponde mai); cpu: CPU rallentata N volte
+async function open({ query = '', r2 = 'ok', local = null, init = null, ctx = null, cpu = 0 } = {}){
   const c = ctx || await B.newContext({ viewport: { width: 1280, height: 720 } }), p = await c.newPage(), errs = [], reqs = { r2: 0, local: 0 };
+  if (cpu > 1){ const cdp = await c.newCDPSession(p); await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu }); }
   p.on('pageerror', e => errs.push(e.message));
   await p.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ body: '', contentType: 'text/css' }));
   await p.route(u => u.href.startsWith(R2), r => {
@@ -81,6 +89,9 @@ async function open({ query = '', r2 = 'ok', local = null, init = null, ctx = nu
   await p.route(u => u.host === `127.0.0.1:${GAME_PORT}` && /\/media\/trailer-[0-9a-f]{12}\.mp4$/.test(u.pathname), r => {
     reqs.local++;
     if (local === 'slow') return r.continue({ url: `http://127.0.0.1:${GAME_PORT + 1}/${FILE}` });
+    if (local === 'hang') return undefined;
+    if (/^late:/.test(local || '')) return p.evaluate(n => new Promise(res => { let k = 0; const t = () => (++k >= n ? res() : setTimeout(t, 250)); setTimeout(t, 250); }), +local.slice(5))
+      .then(() => r.fulfill({ status: 200, body: TRAILER, contentType: 'video/mp4' })).catch(() => {});
     return local === 'ok' ? r.fulfill({ status: 200, body: TRAILER, contentType: 'video/mp4' }) : r.fulfill({ status: 404, body: 'Not Found', contentType: 'text/plain' });
   });
   await p.addInitScript(() => { try { localStorage.setItem('natpf-tennis.controller', 'mouse'); } catch {} });
@@ -230,10 +241,11 @@ if (want('I')){
 
 /* ---------- J) rete lenta verso il trailer (revisione): parte solo se arriva in fondo senza fermarsi ---------- */
 if (want('J')){
-  const DESKTOP = () => { window.natpfDesktop = { shell: 'electron', version: 2, isFullScreen: async () => false, setFullScreen: async () => false, toggleFullScreen: async () => false, onFullScreenChange: () => () => {} }; };
+  // da un altro computer (?lan=1 senza il programma): il file dello stesso server con la regola del web, poi il bucket
+  // (qui la rete è bloccata: errore subito), poi il video di prima
   const run = async (kbps, shot = null) => {
     RATE = kbps*1000;
-    const g = await open({ r2: 'abort', local: 'slow', init: DESKTOP }), p = g.p;
+    const g = await open({ query: '?lan=1', r2: 'abort', local: 'slow' }), p = g.p;
     // schermata mentre il trailer è fermo in attesa (si vede il primo fotogramma del video di prima)
     if (shot && await until(p, () => { const v = document.getElementById('intro-trailer'); return v && v.paused && v.readyState >= 2; }, 8000)) await p.screenshot({ path: path.join(SHOTS, shot) });
     await until(p, () => __natpfTennis.natpfUi.intro.ready, 30000); await p.waitForTimeout(400);
@@ -246,7 +258,10 @@ if (want('J')){
   const a = await run(100, 'intro-rete-lenta-attesa.png');
   check('J: a 100 kB/s il trailer non parte: parte il video di prima', a.go == null && a.old != null && a.end.video === 'intro' && !/is-trailer|no-video/.test(a.end.cls), JSON.stringify({ go: a.go, old: a.old, end: a.end.cls, video: a.end.video }));
   check('J: a 100 kB/s il trailer ha cominciato a girare con i primi dati, è stato rimesso fermo all\'inizio e non si è mai visto', a.held && a.before.length > 3 && a.before.every(x => x.tr <= .15 && x.trOp === 0), `eventi ${JSON.stringify(a.ev.slice(0, 8))}; massimo ${Math.max(0, ...a.before.map(x => x.tr))} s, opacità massima ${Math.max(0, ...a.before.map(x => x.trOp))}`);
-  check('J: a 100 kB/s il video di prima parte entro 3,5 s dall\'inizio dell\'intro, con i tempi di prima', a.old <= 3500 && Math.abs((a.ready - a.old) - 7800) < 900 && a.end.still === './media/intro-fine.webp' && a.end.shift === '0ms', `video di prima a ${a.old} ms, «Premi un tasto» ${a.ready - a.old} ms dopo`);
+  // 2,5 s di pagina libera: il tempo in cui il gioco che si avvia tiene occupata la pagina non conta (su una macchina
+  // carica l'avvio dura anche 3 s), quindi il tempo si misura da quando il trailer è stato rimesso fermo (pagina libera)
+  const heldAt = a.ev.find(e => e[1] === 'pause')?.[0] ?? 0;
+  check('J: a 100 kB/s il video di prima parte entro 3,3 s da quando il trailer è fermo in attesa (2,5 s di pagina libera) e 8 s dall\'inizio, con i tempi di prima', a.old - heldAt <= 3300 && a.old <= 8000 && Math.abs((a.ready - a.old) - 7800) < 900 && a.end.still === './media/intro-fine.webp' && a.end.shift === '0ms', `video di prima a ${a.old} ms (${a.old - heldAt} ms dopo che il trailer è stato fermato), «Premi un tasto» ${a.ready - a.old} ms dopo`);
   await a.p.keyboard.press('Enter'); await a.p.waitForTimeout(1200);
   const la = await lobby(a.p);
   check('J: a 100 kB/s un tasto → menu principale', !la.intro && la.menu === 'menu' && la.video === 'intro', JSON.stringify(la));
@@ -258,7 +273,7 @@ if (want('J')){
   const atTitle = b.T.find(x => x.t === b.title);
   check('J: a 1,5 MB/s il titolo entra sull\'ultima inquadratura e «Premi un tasto» 10,6 s dopo la partenza', atTitle && atTitle.tr >= 8.2 && atTitle.tr <= 9.6 && Math.abs((b.ready - b.go) - 10600) < 900 && b.before.every(x => x.trOp === 0), `titolo a ${atTitle?.tr} s del trailer, pronto ${b.ready - b.go} ms dopo la partenza`);
   await b.g.ctx.close();
-  // 800 kB/s: al limite del tempo concesso nel programma (1,5 s: servono 6 s di filmato scaricati, 1,35 MB): parte dopo
+  // 800 kB/s: vicino al limite del tempo concesso (2,5 s: servono 6 s di filmato scaricati, 1,35 MB): parte dopo
   // un'attesa oppure lascia il posto al video di prima; in tutti e due i casi nessuna fermata
   const c = await run(800);
   check('J: a 800 kB/s il trailer parte senza fermate, oppure parte il video di prima', c.go != null ? (c.stops === 0 && c.end.video === 'trailer' && c.end.tr > 9.9) : (c.old != null && c.end.video === 'intro'), c.go != null ? `trailer partito a ${c.go} ms (rimesso fermo prima: ${c.held}), fermate ${c.stops}` : `video di prima a ${c.old} ms`);
@@ -295,6 +310,36 @@ if (want('L')){
   const k = await open({ query: '?lan=1', r2: 'abort', local: '404' });
   check('L3: né il server né il bucket → video di prima', await until(k.p, () => { const v = document.getElementById('intro-video'); return v && !v.paused && v.currentTime > .5 && !document.getElementById('intro-trailer'); }, 20000), JSON.stringify(k.reqs));
   await k.ctx.close();
+}
+/* ---------- M) programma Windows con avvio lento (B26): parte il trailer ---------- */
+if (want('M')){
+  const DESKTOP = () => { window.natpfDesktop = { shell: 'electron', version: 2, isFullScreen: async () => false, setFullScreen: async () => false, toggleFullScreen: async () => false, onFullScreenChange: () => () => {} }; };
+  const run = async (o, wait = 60000) => {
+    const g = await open(o), p = g.p;
+    await until(p, () => /mode-full/.test(document.getElementById('natpf-intro').className), wait); await p.waitForTimeout(1200);
+    const T = await tl(p), trace = await p.evaluate(() => __natpfTennis.natpfUi.intro.trace);
+    return { g, p, T, trace, go: first(T, x => /is-trailer/.test(x.cls)), old: first(T, x => x.oldPlaying), end: T.at(-1), asked: trace.find(r => r[1] === 'trailer richiesto'), started: trace.find(r => r[1] === 'trailer partito'), dropped: trace.find(r => /^trailer scartato/.test(r[1])) };
+  };
+  // CPU rallentata 6 volte (il gioco che si avvia blocca la pagina per secondi), file locale pronto
+  const a = await run({ r2: 'abort', local: 'ok', init: DESKTOP, cpu: 6 });
+  check('M: programma Windows, CPU rallentata 6 volte → parte il trailer, il video di prima non parte mai', a.go != null && a.old == null && a.end.video === 'trailer' && a.started && !a.dropped && a.g.reqs.r2 === 0, JSON.stringify({ go: a.go, old: a.old, cronaca: a.trace.map(r => [r[0], r[1]]) }));
+  check('M: nel programma l\'attesa è di 8 s e il file è «locale» (parte appena può partire)', a.asked?.[2]?.attesa === 8000 && a.asked[2].locale === true && a.asked[2].src === `./media/${FILE}`, JSON.stringify(a.asked));
+  await a.g.ctx.close();
+  // il primo dato del file arriva dopo 14 passi della pagina (3,5 s liberi: scheda grafica occupata, disco lento): con
+  // l'attesa di prima (1,5 s, 6 passi) partiva il video di prima
+  const b = await run({ r2: 'abort', local: 'late:14', init: DESKTOP, cpu: 4 });
+  check('M: programma Windows, primo fotogramma in ritardo di 3,5 s di pagina libera → parte lo stesso il trailer', b.go != null && b.old == null && b.end.video === 'trailer' && b.started && !b.dropped && b.started[0] >= 3400, JSON.stringify({ go: b.go, old: b.old, cronaca: b.trace.map(r => [r[0], r[1]]) }));
+  check('M: trailer in riproduzione, titolo spostato sull\'ultima inquadratura', await b.p.evaluate(() => { const v = document.getElementById('intro-trailer'); return !!v && !v.paused && v.currentTime > .3 && document.getElementById('natpf-intro').style.getPropertyValue('--intro-shift') === '2800ms'; }));
+  check('M: nessun errore', !a.g.errs.length && !b.g.errs.length, [...a.g.errs, ...b.g.errs].join(' | ').slice(0, 300));
+  await b.g.ctx.close();
+  // il file non risponde mai: il video di prima parte lo stesso, ma solo dopo 8 s di pagina libera
+  const c = await run({ r2: 'abort', local: 'hang', init: DESKTOP }, 40000);
+  check('M: programma Windows, file che non risponde mai → video di prima solo dopo 8 s', c.go == null && c.old != null && c.end.video === 'intro' && c.dropped && /tempo scaduto/.test(c.dropped[1]) && c.dropped[0] >= 8000 && c.dropped[0] < 20000, JSON.stringify({ old: c.old, cronaca: c.trace.map(r => [r[0], r[1]]) }));
+  await c.g.ctx.close();
+  // sul web: CPU rallentata 6 volte, bucket veloce → il blocco della pagina all'avvio non consuma l'attesa
+  const d = await run({ r2: 'ok', cpu: 6 });
+  check('M: web, CPU rallentata 6 volte e bucket veloce → parte il trailer', d.go != null && d.old == null && d.end.video === 'trailer' && d.asked?.[2]?.attesa === 2500 && d.asked[2].locale === false && !d.dropped, JSON.stringify({ go: d.go, old: d.old, cronaca: d.trace.map(r => [r[0], r[1]]) }));
+  await d.g.ctx.close();
 }
 await B.close(); slow.close();
 summary();

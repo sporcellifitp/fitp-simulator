@@ -19,6 +19,10 @@ versione**: i pacchetti con il numero nuovo li fa chi integra il ramo.
 
 ### Cosa cambia
 
+> **Aggiornato dal B26** (collaudo dell'utente dell'11/11: la scia era «gialla ma poco diversa» da quella bianca): ora
+> è più larga, più lunga, gialla piena con l'alone, e piena già alle velocità normali di scambio. I numeri di questo
+> paragrafo sono quelli di prima; quelli di adesso sono in fondo, in «Dopo il collaudo dell'utente dell'11/11».
+
 Dietro la palla in gioco c'è un nastro giallo luminoso, come nel trailer ma un po' meno forte (opacità massima 0,8
 al centro, bordi sfumati; nel trailer è piena e più larga).
 
@@ -133,6 +137,11 @@ impronta (sha256): un trailer nuovo ha un nome nuovo, quindi nessuno riceve mai 
 
 #### Come funziona il ripiego
 
+> **Aggiornato dal B26** (collaudo dell'utente dell'11/11: nel programma Windows è partito il video di prima). Quello
+> che segue vale **sul web**. **Nel programma Windows** il file è locale: il trailer parte appena può partire, senza
+> la regola dei «6 secondi scaricati», e ha 8 s (non più 1,5) per farlo; il video di prima resta solo per un errore
+> vero del file. Dettagli in fondo, in «Dopo il collaudo dell'utente dell'11/11».
+
 1. Il gioco prova il trailer. L'intro parte con il trailer **solo se è sicuro che arrivi in fondo senza fermarsi**
    (corretto dopo la revisione, vedi «Revisione» in fondo). Vuol dire tutte e due le cose:
    - il browser stima di poterlo mostrare tutto di fila;
@@ -143,9 +152,10 @@ impronta (sha256): un trailer nuovo ha un nome nuovo, quindi nessuno riceve mai 
 2. Parte il **video di prima** (`intro.mp4`, l'arena che si accende), esattamente come prima, se:
    - il trailer dà errore (404, rete assente, file rovinato): **subito**;
    - il browser rifiuta di farlo partire: subito;
-   - dopo **2,5 s** (1,5 s nel programma Windows) non è ancora sicuro che arrivi in fondo: **rete lenta**, o risposta
-     che non arriva. Il tempo si conta a passi di un quarto di secondo: quando il gioco che si avvia tiene occupata la
-     pagina il tempo non scorre (senza questo il trailer veniva scartato per colpa dell'avvio, misurato).
+   - dopo **2,5 s** (nel programma Windows 8 s, dal B26; prima 1,5 s) non è ancora sicuro che arrivi in fondo: **rete
+     lenta**, o risposta che non arriva. Il tempo si conta a passi di un quarto di secondo: quando il gioco che si
+     avvia tiene occupata la pagina il tempo non scorre (senza questo il trailer veniva scartato per colpa dell'avvio,
+     misurato). Dal B26 un passo arrivato in ritardo non conta affatto (prima contava come un passo).
 3. Se nemmeno il video di prima parte resta l'**immagine finale** con il titolo, come prima.
 4. Se il trailer si ferma a metà per più di 2 s (rete caduta) o dà errore a metà (file tronco): immagine finale, titolo
    e **subito** «Premi un tasto».
@@ -472,3 +482,37 @@ il revisore ha trovato identiche tra `4dc6ae7` e il ramo.
 Una nota sulla prova `natpf-modale-gesti`: se si passa `OUT=` con una cartella che non esiste, la prova supera le 29
 verifiche e poi esce con errore perché non riesce a scrivere il file delle misure (era così anche prima di questo ramo).
 Con la cartella esistente, o senza `OUT=`, esce pulita.
+
+## Dopo il collaudo dell'utente dell'11/11 (B26)
+
+Collaudo sulla 2026-11-11.2 nel programma Windows: all'avvio è partito il video di prima, e la scia era «gialla ma
+poco diversa» da quella bianca.
+
+**Trailer nel programma Windows.** La causa non è stata vista su un PC Windows vero (qui non c'è): è la più
+probabile letta dal codice e dall'avvio del programma su Linux. Il trailer aveva 1,5 s per partire e doveva anche
+risultare scaricato per 6 s su 10; con il gioco che si avvia e tiene occupata la pagina poteva non bastare, e
+scattava il ripiego. Ora, solo nel programma (file locale):
+
+- parte appena il primo fotogramma è pronto, senza la regola della rete lenta;
+- ha 8 s di pagina libera (`TRAILER.waitLocalMs`), contati solo nei passi arrivati puntuali, con limite assoluto 4 volte;
+- se era già avanzato mentre la pagina era occupata, torna all'inizio (`TRAILER.lateS`);
+- il ripiego sul video di prima resta solo per un errore vero del file;
+- la cronaca dell'intro finisce in `programma.log` (righe `[natpf-intro]`): se su un PC parte ancora il video di
+  prima, lì c'è scritto perché.
+
+Sul web e dal computer del Player 2 non cambia niente.
+
+**Scia.** Rifatta sul modello del trailer (`BALL_GLOW` in `natpf_ball_glow.js`):
+
+| | prima | ora |
+|---|---|---|
+| larghezza del nastro alla testa | 0,42 m con i bordi sfumati | 0,8 m pieno, più l'alone (2,2 volte) |
+| lunghezza | velocità × 0,22 s, al più 6 m | velocità × 0,42 s, al più 10 m |
+| intensità piena | da 24 m/s | da 14 m/s (scambio normale) |
+| sotto questa velocità niente scia | 7 m/s | 10 m/s |
+| opacità massima | 0,8 | 0,92 |
+
+Nei colpi potenti, super e nello scambio caldo sta sotto la scia bianca e azzurra, attenuata (`powerAlpha` 0,5).
+Con l'opzione «Scia della palla» su «No» il disegno è quello di prima. Confronto: `img/scia-confronto-b26.webp`.
+
+Verifiche: test del gioco 1159 su 1159, del sito 205 su 205. Non provato: PC Windows vero.

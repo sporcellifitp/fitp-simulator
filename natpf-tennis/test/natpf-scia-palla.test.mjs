@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TRAIL_KEY, BALL_GLOW, GLOW_ORDER, readBallTrail, writeBallTrail, trailToast, glowLevel, glowLength, NatpfBallGlow } from '../src/natpf/natpf_ball_glow.js';
+import { TRAIL_KEY, BALL_GLOW, GLOW_ORDER, GLOW_COLORS, readBallTrail, writeBallTrail, trailToast, glowLevel, glowLength, NatpfBallGlow } from '../src/natpf/natpf_ball_glow.js';
 
 const mem = (init = {}) => { const m = new Map(Object.entries(init)); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; };
 const scene = () => ({ items: [], add(o){ this.items.push(o); } });
@@ -38,11 +38,23 @@ test('intensità e lunghezza crescono con la velocità della palla', () => {
   assert.equal(glowLevel(BALL_GLOW.fullSpeed), 1); assert.equal(glowLevel(60), 1); assert.equal(glowLevel(NaN), 0);
   let prev = -1;
   for (let v = 0; v <= 40; v += .5){ const l = glowLevel(v); assert.ok(l >= prev && l >= 0 && l <= 1, `v ${v}`); prev = l; }
-  assert.ok(glowLevel(15) > .2 && glowLevel(15) < .8, 'a metà velocità a metà intensità');
+  // B26: piena già alle velocità normali di scambio (15–20 m/s; prima del B26 solo da 24 m/s e la scia risultava tenue)
+  assert.ok(BALL_GLOW.fullSpeed <= 15 && BALL_GLOW.minSpeed >= 7); assert.equal(glowLevel(15), 1); assert.equal(glowLevel(20), 1);
+  assert.ok(glowLevel(12) > .2 && glowLevel(12) < .8, 'a metà tra niente e piena: a metà intensità');
+  assert.equal(glowLevel(9.5), 0, 'pallonetto lento: niente');
   assert.equal(glowLength(0), 0); assert.ok(Math.abs(glowLength(20) - 20*BALL_GLOW.seconds) < 1e-9);
   assert.equal(glowLength(200), BALL_GLOW.maxLen); assert.ok(glowLength(12) < glowLength(24));
-  // «leggermente meno luminosa» del trailer: mai piena, e più larga della scia bianca di prima ma non un muro
-  assert.ok(BALL_GLOW.alpha > .5 && BALL_GLOW.alpha < .9); assert.ok(BALL_GLOW.width <= .5); assert.ok(BALL_GLOW.head >= .2, 'la palla non è coperta');
+  // B26 (collaudo dell'utente: «gialla ma poco diversa»): nastro pieno largo almeno il doppio della scia bianca di prima
+  // (.28 m, game_engine.js) e del nastro di prima del B26 (pieno per meno di .3 m), più lungo (prima .22 s e 6 m), con
+  // l'alone intorno; «leggermente meno luminosa» del trailer: mai del tutto opaca; non un muro
+  assert.ok(BALL_GLOW.alpha >= .85 && BALL_GLOW.alpha < 1); assert.ok(BALL_GLOW.width >= .56 && BALL_GLOW.width <= .9);
+  assert.ok(BALL_GLOW.halo >= 2 && BALL_GLOW.halo <= 3 && BALL_GLOW.haloAlpha > .2 && BALL_GLOW.haloAlpha < .7, 'alone largo e tenue');
+  assert.ok(BALL_GLOW.seconds >= .3 && BALL_GLOW.maxLen >= 8 && BALL_GLOW.maxLen <= 12); assert.ok(BALL_GLOW.points*BALL_GLOW.step >= BALL_GLOW.maxLen, 'la storia basta per la scia più lunga');
+  assert.ok(BALL_GLOW.head >= .15, 'la palla non è coperta');
+  // giallo pieno e saturo (poco blu), il centro più chiaro
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const [r, g, b] = rgb(GLOW_COLORS.body); assert.ok(r >= 240 && g >= 200 && b <= 40, `nastro ${GLOW_COLORS.body}`);
+  assert.ok(rgb(GLOW_COLORS.core)[2] > b && rgb(GLOW_COLORS.core)[2] < 200, 'centro più chiaro ma non bianco'); assert.ok(rgb(GLOW_COLORS.halo)[2] <= 40);
 });
 
 test('crearla non prende numeri da Math.random (three.js li userebbe per gli uuid): sequenza casuale intatta', () => {
@@ -74,7 +86,7 @@ test('accesa: nastro dietro la palla veloce, lungo velocità × tempo, dal più 
   assert.ok(Math.abs(G.dir[last*6 + 2] + 1) < 1e-5 && Math.abs(G.dir[last*6]) < 1e-5);
   assert.ok(G.material.uniforms.uAlpha.value > 0 && G.material.uniforms.uAlpha.value <= BALL_GLOW.alpha);
   // palla più lenta: scia più corta e più tenue; lentissima: niente
-  const slow = new NatpfBallGlow(scene(), { enabled: true }); fly(slow, { speed: 14 });
+  const slow = new NatpfBallGlow(scene(), { enabled: true }); fly(slow, { speed: 12 });
   assert.ok(slow.mesh.visible && slow.level < G.level && slow.length < G.length, `${slow.level} / ${slow.length}`);
   const toss = new NatpfBallGlow(scene(), { enabled: true }); fly(toss, { speed: 5, dir: [0, 1, 0] });
   assert.equal(toss.mesh.visible, false, 'lancio del servizio: nessuna scia');
@@ -144,8 +156,11 @@ test('spenta: niente nella scena e nessun calcolo; riaccesa riparte da vuota', (
 
 test('colpo potente, colpo super, scambio caldo: la scia di prima (bianca e azzurra) resta sopra', () => {
   const G = new NatpfBallGlow(scene(), { enabled: true });
-  fly(G, { speed: 26 }); assert.equal(G.mesh.renderOrder, GLOW_ORDER.over);
+  fly(G, { speed: 26 }); assert.equal(G.mesh.renderOrder, GLOW_ORDER.over); const normal = G.material.uniforms.uAlpha.value;
   fly(G, { speed: 30, power: true }); assert.equal(G.mesh.renderOrder, GLOW_ORDER.under);
+  // B26: sotto la scia bianca e azzurra la scia gialla (ora piena e larga) è attenuata: i colpi potenti si riconoscono
+  assert.ok(BALL_GLOW.powerAlpha > .3 && BALL_GLOW.powerAlpha < .8); assert.ok(Math.abs(G.material.uniforms.uAlpha.value - normal*BALL_GLOW.powerAlpha) < .02, `${G.material.uniforms.uAlpha.value} / ${normal}`);
+  fly(G, { speed: 26 }); assert.ok(Math.abs(G.material.uniforms.uAlpha.value - normal) < .02, 'colpo normale dopo: di nuovo piena');
   assert.ok(GLOW_ORDER.under < 6 && GLOW_ORDER.over > 6, 'la scia di prima ha renderOrder 6 (game_engine.js, classe te)');
   const eng = readFileSync(new URL('../src/game_engine.js', import.meta.url), 'utf8');
   assert.match(eng, /this\.mesh\.renderOrder = 6\)/); assert.match(eng, /this\.glow && this\.glow\.sample\(e\)/); assert.match(eng, /this\.glow && this\.glow\.clear\(\)/);

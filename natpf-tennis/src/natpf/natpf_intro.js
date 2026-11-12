@@ -13,8 +13,14 @@
 //     Il nome porta l'impronta sha256 del file: un trailer nuovo ha un nome nuovo (cache lunga, mai byte vecchi).
 //     Chi apre il gioco dal server del programma da un altro computer (?lan=1, senza window.natpfDesktop) prova prima
 //     il file dello stesso server e poi il bucket.
-//   • Ripiego: il trailer deve poter ARRIVARE IN FONDO SENZA FERMARSI, e saperlo entro TRAILER.waitMs (2,5 s di pagina
-//     libera: il tempo in cui il gioco che si avvia tiene occupata la pagina non conta). Vale quando il browser stima
+//   • Nel programma Windows (B26, dopo il collaudo dell'utente dell'11/11: «è partito il video di prima») il file è
+//     locale: il trailer parte APPENA PUÒ PARTIRE (primo fotogramma pronto), senza la regola della rete lenta, e ha
+//     TRAILER.waitLocalMs (8 s di pagina libera) per farlo: prima aveva 1,5 s e doveva anche risultare scaricato per
+//     6 s su 10, e su un PC vero, con il gioco che si avvia e la scheda grafica occupata, poteva non bastare. Lì il
+//     ripiego resta solo per un errore vero del file (manca, non si decodifica, riproduzione rifiutata). La cronaca
+//     dell'intro (quale video è partito, quando e perché) finisce nel registro del programma (programma.log).
+//   • Ripiego sul web: il trailer deve poter ARRIVARE IN FONDO SENZA FERMARSI, e saperlo entro TRAILER.waitMs (2,5 s di
+//     pagina libera: il tempo in cui il gioco che si avvia tiene occupata la pagina non conta). Vale quando il browser stima
 //     di sì (readyState 4, «canplaythrough») e in più il filmato è tutto scaricato, oppure ne sono arrivati almeno
 //     TRAILER.leadS secondi (6 su 10) entro TRAILER.leadMaxMs (trailerCanFinish; revisione dell'11/11: prima bastava
 //     l'evento «playing», che arriva con i primi 100 kB, e con una rete lenta il trailer andava a scatti per tutta
@@ -40,8 +46,11 @@ export const TRAILER = Object.freeze({
   still: './media/trailer-fine.webp',               // ultima inquadratura del trailer
   shiftMs: 2800,                                    // il titolo entra 2,8 s dopo rispetto al video di prima (a 8,5 s su 10)
   waitMs: 2500,                                     // tempo per partire, sul web; nel programma (file locale) waitLocalMs
-  waitLocalMs: 1500,
-  tickMs: 250,                                      // il tempo per partire si conta a passi (pagina occupata all'avvio)
+  waitLocalMs: 8000,                                // programma Windows: il file è locale, si aspetta il primo fotogramma
+  // il tempo per partire si conta a passi, e solo quelli arrivati puntuali: un passo in ritardo (oltre lateK volte il
+  // passo) vuol dire pagina occupata dal gioco che si avvia, e quel tempo non conta. Limite assoluto: capK volte l'attesa
+  tickMs: 250, lateK: 1.6, capK: 4,
+  lateS: .25,                                       // trailer già oltre questo secondo quando l'intro parte: torna all'inizio
   // «arriva in fondo»: tutto scaricato (a meno di tailS), oppure almeno leadS secondi di filmato arrivati entro
   // leadMaxMs dalla creazione del video. Con 6 s su 10 già scaricati basta una rete da 125 kB/s per non fermarsi più
   // (il trailer chiede in media 226 kB/s, fino a 430 verso la fine), e chi li scarica in 7 s ne ha almeno 150: il
@@ -66,17 +75,19 @@ export function trailerUrl({ desktop = false } = {}){
   return desktop ? `./${TRAILER.dir}${TRAILER.file}` : `${TRAILER.base.replace(/\/+$/, '')}/${TRAILER.dir}${TRAILER.file}`;
 }
 // Video dell'intro completa, nell'ordine in cui si provano: prima il trailer (se non è escluso con ?trailer=0), poi il
-// video di prima. Ogni voce: { id, src (null: quello già nella pagina), waitMs (0: nessun limite, come prima), shiftMs }
+// video di prima. Ogni voce: { id, src (null: quello già nella pagina), waitMs (0: nessun limite, come prima), shiftMs,
+// sure (file locale del programma Windows: parte appena può partire, senza la regola della rete lenta) }
 // Dal server del programma Windows aperto da un altro computer (?lan=1 senza window.natpfDesktop: il programma apre il
 // gioco con /?lan=1) il trailer è servito dallo stesso server: prima quello, poi il bucket (se il file non c'è, 404
 // subito e si passa al bucket)
 export function introPlan({ search = '', desktop = false } = {}){
   const old = { id: 'intro', src: null, waitMs: 0, shiftMs: 0 }, q = new URLSearchParams(search);
   if (q.get('trailer') === '0') return [old];
-  const local = { id: 'trailer', src: trailerUrl({ desktop: true }), waitMs: TRAILER.waitLocalMs, shiftMs: TRAILER.shiftMs };
+  const local = { id: 'trailer', src: trailerUrl({ desktop: true }), waitMs: TRAILER.waitLocalMs, shiftMs: TRAILER.shiftMs, sure: true };
   const remote = { id: 'trailer', src: trailerUrl({ desktop: false }), waitMs: TRAILER.waitMs, shiftMs: TRAILER.shiftMs };
   if (desktop) return [local, old];
-  return q.get('lan') === '1' ? [local, remote, old] : [remote, old];
+  // da un altro computer il file dello stesso server passa dalla rete (Wi-Fi): vale la regola del web
+  return q.get('lan') === '1' ? [{ ...remote, src: local.src }, remote, old] : [remote, old];
 }
 // il video sta girando? (non in pausa, senza errori, con fotogrammi pronti o già avanzato). Per il trailer non basta
 // per far partire l'intro: serve trailerCanFinish
@@ -100,6 +111,8 @@ export function trailerCanFinish(v, elapsedMs = 0){
 export const introDuration = (mode, shiftMs = 0) => (INTRO_MS[mode] || INTRO_MS.full) + (mode === 'full' ? Math.max(0, shiftMs || 0) : 0);
 // immagine sotto il titolo nell'intro breve: l'ultima inquadratura del video visto nella sessione
 export const introStill = seenVideo => (seenVideo === 'trailer' ? TRAILER.still : INTRO_STILL);
+// stato di un video per la cronaca: readyState, networkState, secondi scaricati, secondo corrente, errore
+const videoState = v => ({ rs: v?.readyState ?? null, net: v?.networkState ?? null, buf: bufferedEnd(v), t: v?.currentTime ?? null, err: v?.error ? `${v.error.code ?? ''} ${v.error.message || ''}`.trim() : null });
 
 export class NatpfIntro {
   constructor({ onDone } = {}){
@@ -119,6 +132,7 @@ export class NatpfIntro {
   play(mode = 'full'){
     if (!this.el) return;
     this.active = true; this.ready = false; this.video = null; const run = ++this.run;
+    this.trace = []; this._t0 = clock();
     this.el.classList.remove('hidden', 'leaving', 'is-ready', 'mode-full', 'mode-short', 'no-video', 'is-trailer');
     this._dropTrailer();
     window.addEventListener('keydown', this._key, true);
@@ -142,25 +156,30 @@ export class NatpfIntro {
     const v = step.src ? this._trailerEl(step.src) : $('intro-video');
     if (!v) return this._try(plan, i + 1, run);
     let done = false;
-    const next = () => { if (done) return; done = true; clearTimeout(this._w); off(); if (step.src) this._dropTrailer(); this._try(plan, i + 1, run); };
-    const go = () => { if (done) return; done = true; clearTimeout(this._w); off(); this._begin('full', run, step); };
+    const next = why => { if (done) return; done = true; clearTimeout(this._w); off(); this._note(`trailer scartato: ${typeof why === 'string' ? why : 'errore del file'}`, videoState(v)); if (step.src) this._dropTrailer(); this._try(plan, i + 1, run); };
+    // Il trailer può aver già girato mentre la pagina era occupata dall'avvio del gioco (il video va avanti da solo, e
+    // finché l'intro non parte non si vede): se è già oltre TRAILER.lateS torna all'inizio, così si vede tutto e il
+    // titolo entra sull'ultima inquadratura (misurato nel programma avviato su Linux: 1,5 s già passati)
+    const go = () => { if (done) return; done = true; clearTimeout(this._w); off(); this._note('trailer partito', videoState(v)); try { if (v.currentTime > TRAILER.lateS) v.currentTime = 0; } catch {} this._begin('full', run, step); };
     let off = () => {};
     if (!step.src){
       // video di prima, come prima del B21: parte subito, senza limite di tempo; se la riproduzione è rifiutata o il
       // file manca resta l'immagine finale
-      done = true; v.onerror = () => this._fail(run);
+      done = true; v.onerror = () => this._fail(run); this._note('video di prima', videoState(v));
       try { v.currentTime = 0; } catch {}
       const p = v.play?.(); if (p?.catch) p.catch(() => this._fail(run)); else if (!p) return this._begin('full', run, { fail: true });
       return this._begin('full', run, step);
     }
     // Trailer. play() subito: il browser dice subito se rifiuta la riproduzione e comincia a scaricare (anche dove
-    // preload non basta). Ma l'intro parte solo se il trailer può ARRIVARE IN FONDO senza fermarsi (trailerCanFinish).
+    // preload non basta). Nel programma Windows (step.sure: file locale) l'intro parte appena il trailer gira. Sul web
+    // l'intro parte solo se il trailer può ARRIVARE IN FONDO senza fermarsi (trailerCanFinish).
     // Se il trailer comincia a girare prima di saperlo (rete lenta: bastano i primi 100 kB) si rimette fermo all'inizio
     // e riparte quando la condizione è vera; se il tempo scade (step.waitMs) si toglie e parte il video di prima.
     let held = false, cleared = false, left = Math.ceil(step.waitMs/TRAILER.tickMs); const t0 = clock();
-    const ok = () => trailerCanFinish(v, clock() - t0);
-    const refused = e => { if (held && e?.name === 'AbortError') return; next(); };   // la pausa qui sopra non è un rifiuto
-    const start = () => { try { const p = v.play?.(); if (p?.catch) p.catch(refused); else if (!p) next(); } catch { next(); } };
+    const ok = () => !!step.sure || trailerCanFinish(v, clock() - t0);
+    const refused = e => { if (held && e?.name === 'AbortError') return; next(`riproduzione rifiutata (${e?.name || e?.message || '?'})`); };   // la pausa qui sopra non è un rifiuto
+    const start = () => { try { const p = v.play?.(); if (p?.catch) p.catch(refused); else if (!p) next('riproduzione rifiutata'); } catch { next('riproduzione rifiutata'); } };
+    this._note('trailer richiesto', { src: step.src, attesa: step.waitMs, locale: !!step.sure });
     const look = () => {
       if (done) return;
       if (held){ if (ok()){ held = false; cleared = true; left = Math.max(left, 3); start(); } return; }   // due passi per ripartire
@@ -168,14 +187,23 @@ export class NatpfIntro {
       if (cleared || ok()) return go();
       held = true; try { v.pause?.(); if (v.currentTime > 0) v.currentTime = 0; } catch {}
     };
-    off = () => { for (const t of ['playing', 'canplaythrough', 'progress']) v.removeEventListener?.(t, look); v.removeEventListener?.('error', next); };
-    for (const t of ['playing', 'canplaythrough', 'progress']) v.addEventListener(t, look);
-    v.addEventListener('error', next);
-    // Tempo per partire, contato a passi brevi (TRAILER.tickMs): all'avvio il gioco tiene occupata la pagina anche per
-    // qualche secondo (il video non può nemmeno cominciare a caricarsi) e un blocco lungo conta come un passo solo. A ogni
-    // passo si riguarda il video (un evento può essere ancora in coda)
+    const failed = () => next('errore del file');
+    off = () => { for (const t of ['playing', 'canplay', 'canplaythrough', 'progress']) v.removeEventListener?.(t, look); v.removeEventListener?.('error', failed); };
+    for (const t of ['playing', 'canplay', 'canplaythrough', 'progress']) v.addEventListener(t, look);
+    v.addEventListener('error', failed);
+    // Tempo per partire, contato a passi brevi (TRAILER.tickMs), e solo quelli arrivati puntuali: all'avvio il gioco
+    // tiene occupata la pagina anche per qualche secondo (il video non può nemmeno cominciare a caricarsi) e un passo
+    // arrivato in ritardo non conta (prima del B26 un blocco contava come un passo: tanti blocchi medi di fila
+    // consumavano l'attesa). Limite assoluto TRAILER.capK volte l'attesa: una pagina sempre occupata non aspetta per
+    // sempre. A ogni passo si riguarda il video (un evento può essere ancora in coda)
     if (step.waitMs > 0){
-      const tick = () => { if (done) return; look(); if (done) return; if (--left <= 0) return next(); this._w = setTimeout(tick, TRAILER.tickMs); };
+      let last = t0, late = 0; const cap = t0 + step.waitMs*TRAILER.capK;
+      const tick = () => {
+        if (done) return; look(); if (done) return;
+        const now = clock(); if (now - last > TRAILER.tickMs*TRAILER.lateK) late++; else left--; last = now;
+        if (left <= 0 || now >= cap) return next(`tempo scaduto (${Math.round(now - t0)} ms, passi in ritardo ${late})`);
+        this._w = setTimeout(tick, TRAILER.tickMs);
+      };
       this._w = setTimeout(tick, TRAILER.tickMs);
     }
     start();
@@ -194,15 +222,22 @@ export class NatpfIntro {
       this._still(TRAILER.still);
       // rete caduta a metà (il video resta fermo) o errore a metà (file tronco, decodifica) → immagine finale, titolo e
       // subito «Premi un tasto»
-      const v = this._trailer, stall = () => { clearTimeout(this._s); this._s = setTimeout(() => { if (run === this.run && this.active && !this.ready && !v.ended){ this._dropTrailer(); this._still(INTRO_STILL); this._fail(run); this.finishAnimation(); } }, TRAILER.stallMs); };
+      const v = this._trailer, stall = () => { clearTimeout(this._s); this._s = setTimeout(() => { if (run === this.run && this.active && !this.ready && !v.ended){ this._note('trailer fermo a metà', videoState(v)); this._dropTrailer(); this._still(INTRO_STILL); this._fail(run); this.finishAnimation(); } }, TRAILER.stallMs); };
       v?.addEventListener?.('waiting', stall);
       v?.addEventListener?.('playing', () => clearTimeout(this._s)); v?.addEventListener?.('ended', () => clearTimeout(this._s));
-      v?.addEventListener?.('error', () => { if (run === this.run && this.active){ clearTimeout(this._s); this._dropTrailer(); this._still(INTRO_STILL); this._fail(run); this.finishAnimation(); } });
+      v?.addEventListener?.('error', () => { if (run === this.run && this.active){ clearTimeout(this._s); this._note('trailer: errore a metà', videoState(v)); this._dropTrailer(); this._still(INTRO_STILL); this._fail(run); this.finishAnimation(); } });
     }
     clearTimeout(this._t); this._t = setTimeout(() => this.finishAnimation(), introDuration(mode, fail ? 0 : shiftMs));
   }
   // video di prima non partito dopo l'avvio delle animazioni (riproduzione rifiutata): resta l'immagine finale
-  _fail(run){ if (run === this.run && this.el){ this.el.classList.add('no-video'); this.el.classList.remove('is-trailer'); this.video = null; } }
+  _fail(run){ if (run === this.run && this.el){ this._note('immagine finale (nessun video)'); this.el.classList.add('no-video'); this.el.classList.remove('is-trailer'); this.video = null; } }
+  // Cronaca dell'intro: [ms dall'inizio, cosa, dettagli]. Serve alle prove e, nel programma Windows, finisce nel registro
+  // (natpf-desktop/src/main.mjs copia in programma.log le righe della console che cominciano con [natpf-intro]): se su
+  // un PC parte ancora il video di prima, lì c'è scritto perché
+  _note(what, info = null){
+    const row = [Math.round(clock() - (this._t0 || 0)), what, info]; (this.trace ||= []).push(row);
+    if (this.desktop) try { console.info(`[natpf-intro] ${row[0]} ms · ${what}${info ? ` · ${JSON.stringify(info)}` : ''}`); } catch {}
+  }
   _still(src){ const img = this.el?.querySelector?.('.intro-still'); if (img && src && img.getAttribute?.('src') !== src) img.setAttribute?.('src', src); }
   // elemento video del trailer, creato solo quando serve (sopra il video di prima, sotto il velo)
   _trailerEl(src){
