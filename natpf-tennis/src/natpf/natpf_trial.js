@@ -78,10 +78,11 @@ export class NatpfTrial {
   // then: cosa fare alla fine (far partire la partita, il minigioco…); split: stesso schermo (la sessione è già aperta)
   // resume: a partita in corso («Ricalibra»): il punteggio resta com'è; force: anche chi ha un profilo fatto con i gesti
   // reimpara dagli scambi di prova (l'ha chiesto apposta)
-  start({ then = null, split = !!this.engine.natpfSplit?.active, resume = false, force = false } = {}){
+  // cancel: cosa fare se si chiudono prima della fine (menu, chiosco): chi li ha aperti rimette a posto il suo stato
+  start({ then = null, cancel = null, split = !!this.engine.natpfSplit?.active, resume = false, force = false } = {}){
     if (this.S) return false;
     const E = this.engine, ids = split ? ['p1', 'p2'] : ['p1'];
-    this.S = { split, then, resume, phase: 'intro', wait: TRIAL.intro, t: 0, started: false, turn: 'p1', receiver: null, dead: false, flash: null,
+    this.S = { split, then, cancel, resume, phase: 'intro', wait: TRIAL.intro, t: 0, started: false, turn: 'p1', receiver: null, dead: false, flash: null,
       players: Object.fromEntries(ids.map(id => [id, { balls: 0, hits: 0 }])),
       prev: { difficulty: E.hud?.selectedDifficulty || E.matchConfig?.difficulty, format: E.matchFormat?.id || null, multi: !!E.isMultiplayer } };
     // come il riscaldamento: niente menu, niente dimostrazione, punteggio a zero
@@ -230,7 +231,8 @@ export class NatpfTrial {
   }
   _finish(){ this._close(true); }
   // ritorno al menu, chiosco: niente partita
-  abort(){ if (this.S){ this._idle(); this._close(false); } }
+  // (cancel: la sfida tra due computer rimette il ruolo del Player 2, come faceva la calibrazione con i gesti interrotta)
+  abort(){ const S = this.S; if (S){ this._idle(); this._close(false); try { S.cancel?.(); } catch (e){ console.error(e); } } }
   paint(){
     const el = this.el, S = this.S; if (!el) return;
     if (!S){ show(el, false); return; }

@@ -324,11 +324,16 @@ export class NatpfVersusUi {
     E.playerRole = 'p1'; if (mc) mc.localPractice = true;
     show($('natpf-guest-modal'), false);
     // B28, calibrazione «Giocando»: al posto dei due gesti gli scambi di prova con il lanciapalle, poi pronto da solo
-    if (!webcam && ui.trial?.due?.({ split: false })){ this.trialPlayed = true; ui.trial.start({ split: false, then: () => this.calDone({ completed: true, calibrated: true }) }); }
+    // (interrotti dal menu o dal chiosco: il motore torna quello del Player 2, non pronto, e si rifanno dal pannello;
+    // revisione del B28, difetto 2: il ruolo restava «p1» e il computer del Player 2 era da ricaricare)
+    if (!webcam && ui.trial?.due?.({ split: false })){
+      this.trialPlayed = true;
+      ui.trial.start({ split: false, then: () => this.calDone({ completed: true, calibrated: true }), cancel: () => { this.trialPlayed = false; this.calDone({ interrupted: true }); } });
+    }
     else ui.training.start(webcam ? { drills: warmupDrills('webcam'), guest: true } : { calOnly: true, guest: true });
     ui.diag?.recorder?.log?.('sfida.prova', { racchetta: ui.controller, stato: 'inizio' });
   }
-  calDone({ completed = false, skipped = false } = {}){
+  calDone({ completed = false, skipped = false, interrupted = false } = {}){
     const E = this.engine, mc = E.motionController, was = this.local; this.local = null;
     if (mc) mc.localPractice = false;
     if (was){ E.playerRole = was.role; E.isMultiplayer = was.multi; E.autoPlayMode = was.auto; E.userHasInteracted = was.touched; }
@@ -337,8 +342,8 @@ export class NatpfVersusUi {
     // attimo dopo la fine della calibrazione in campo: non lo si aspetta qui (prima il P2 restava non pronto). Con la
     // webcam: riscaldamento finito o saltato
     if (webcam && (completed || skipped)) this.camTried = true;
-    if (completed || skipped || (!webcam && this.ui.phone.ready)) this.setReady(true);
-    this.ui.toast(this.ready ? `${webcam ? 'Webcam pronta' : 'Racchetta pronta'} ✓ ora aspetta che l’host avvii la partita` : webcam ? 'Prova interrotta: rifalla dal pannello' : 'Calibrazione interrotta: rifalla dal pannello');
+    if (completed || skipped || (!webcam && this.ui.phone.ready && !interrupted)) this.setReady(true);
+    this.ui.toast(interrupted && !this.ready ? 'Scambi di prova interrotti: rifalli dal pannello' : this.ready ? `${webcam ? 'Webcam pronta' : 'Racchetta pronta'} ✓ ora aspetta che l’host avvii la partita` : webcam ? 'Prova interrotta: rifalla dal pannello' : 'Calibrazione interrotta: rifalla dal pannello');
     this.ui.diag?.recorder?.log?.('sfida.prova', { racchetta: webcam ? 'webcam' : 'phone', stato: completed ? 'finita' : skipped ? 'saltata' : 'interrotta', pronto: this.ready });
     this._tickGuest();
   }

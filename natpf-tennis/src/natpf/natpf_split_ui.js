@@ -652,7 +652,9 @@ export class NatpfSplitUi {
     if (a.kind === 'resume'){
       this.hold = null; this.ui._paintHold(null, '', null, 'p2'); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
       this.ui._tellOtherPhone?.('p2', false);
-      const replay = a.replay && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
+      // (negli scambi di prova niente da rigiocare: la palla dopo arriva da sola. Revisione del B28, difetto 3: il punto
+      // «rigiocato» lasciava il servizio pronto sotto il cartello e nessuna palla fino al tetto di tempo)
+      const replay = a.replay && !this.ui.trial?.active && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
       if (replay){ E._setupPointServe({ showBanner: false }); this.ui.toast?.(`Il telefono ${phoneOf(this.name('p2'))} si era fermato: il punto si rigioca`); }
       R?.log?.('tel.ripresa', { chi: 'p2', rigiocato: replay });
     }
