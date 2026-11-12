@@ -10,7 +10,7 @@
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-scia-palla.mjs
 //   SHOTS=cartella (schermate; predefinita nella cartella temporanea) · GAME_PORT (3162)
 //   BASELINE=file.json: solo la parte 1, scrive le impronte dei fotogrammi (da fare sul commit di prima)
-//   CONFRONTA=file.json: la parte 1 confronta le impronte con l'opzione spenta · SOLO=1: solo la parte 1
+//   CONFRONTA=file.json: la parte 1 confronta le impronte con l'opzione spenta · SOLO=1: solo la parte 1 · COSTO=1: solo la parte 4
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -110,7 +110,7 @@ const SCENES = {
 
 /* ---------- 1) scena ferma: accesa, spenta, confronto con il disegno di prima ---------- */
 const prints = {};
-{
+if (!process.env.COSTO){
   const off = await game({ trail: '0' });
   for (const [name, o] of Object.entries(SCENES)){
     const a = await scene(off.p, `${name}-a`, o), b = await scene(off.p, `${name}-b`, o);
@@ -179,7 +179,7 @@ const prints = {};
 // Una palla della CPU verso chi gioca, poi il motore va avanti da solo (CPU compresa); chi gioca colpisce dalla tastiera
 // del gioco (motion_controls._emitSwing, come il tasto 1) quando la palla gli arriva. Senza disegno: con la grafica in
 // software la partita andrebbe al rallentatore. Per ogni fotogramma con la palla in gioco: chi l'ha colpita, se la scia si vede.
-{
+if (!process.env.COSTO){
   const g = await game({ trail: '1' }), p = g.p;
   await p.evaluate(() => {
     const E = __natpfTennis, U = E.natpfUi, G = E.natpfBallGlow;

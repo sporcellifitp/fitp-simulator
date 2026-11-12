@@ -44,14 +44,18 @@ test('sorgente del trailer: nel programma Windows il file locale, sul web il buc
   const web = introPlan({ search: '' }), desk = introPlan({ search: '', desktop: true });
   assert.deepEqual(web.map(s => s.id), ['trailer', 'intro']); assert.deepEqual(desk.map(s => s.id), ['trailer', 'intro']);
   assert.equal(web[0].src, `${R2}/media/${TRAILER.file}`); assert.equal(desk[0].src, `./media/${TRAILER.file}`);
-  assert.equal(web[0].waitMs, TRAILER.waitMs); assert.equal(desk[0].waitMs, TRAILER.waitLocalMs); assert.ok(TRAILER.waitLocalMs <= TRAILER.waitMs && TRAILER.waitMs <= 3000, 'un tempo breve');
+  assert.equal(web[0].waitMs, TRAILER.waitMs); assert.equal(desk[0].waitMs, TRAILER.waitLocalMs); assert.ok(TRAILER.waitMs <= 3000, 'sul web un tempo breve');
+  // B26 (collaudo dell'utente dell'11/11: nel programma è partito il video di prima): nel programma il file è locale,
+  // l'attesa è lunga (8 s di pagina libera) e il trailer parte appena può partire (sure), senza la regola della rete lenta
+  assert.ok(TRAILER.waitLocalMs >= 8000, 'nel programma Windows un tempo lungo'); assert.equal(desk[0].sure, true); assert.ok(!web[0].sure);
   assert.deepEqual(web[1], { id: 'intro', src: null, waitMs: 0, shiftMs: 0 }, 'il video di prima: quello già nella pagina, senza limiti e con i tempi di prima');
   assert.deepEqual(introPlan({ search: '?trailer=0' }).map(s => s.id), ['intro']);
   assert.deepEqual(introPlan({ search: '?trailer=0', desktop: true }), [{ id: 'intro', src: null, waitMs: 0, shiftMs: 0 }]);
   assert.deepEqual(introPlan({ search: '?trailer=1&intro=1' }).map(s => s.id), ['trailer', 'intro']);
   // dal server del programma, da un altro computer (?lan=1 senza window.natpfDesktop): prima il file dello stesso server, poi il bucket
   const lan = introPlan({ search: '?lan=1' });
-  assert.deepEqual(lan.map(s => [s.id, s.src, s.waitMs]), [['trailer', `./media/${TRAILER.file}`, TRAILER.waitLocalMs], ['trailer', `${R2}/media/${TRAILER.file}`, TRAILER.waitMs], ['intro', null, 0]]);
+  assert.deepEqual(lan.map(s => [s.id, s.src, s.waitMs]), [['trailer', `./media/${TRAILER.file}`, TRAILER.waitMs], ['trailer', `${R2}/media/${TRAILER.file}`, TRAILER.waitMs], ['intro', null, 0]]);
+  assert.ok(lan.every(s => !s.sure), 'da un altro computer il file passa dalla rete: regola del web');
   assert.deepEqual(introPlan({ search: '?lan=1', desktop: true }), desk, 'nel programma: solo il file locale, come senza ?lan=1');
   assert.deepEqual(introPlan({ search: '?lan=1&trailer=0' }).map(s => s.id), ['intro']);
   // tempi: con il trailer il titolo entra 2,8 s dopo (ultima inquadratura), il resto come prima
@@ -113,7 +117,7 @@ test('intro: il trailer parte → classe is-trailer, titolo spostato di 2,8 s, �
   advance(20); assert.equal(I.ready, true); assert.ok(P.el.cls.has('is-ready'));
   key(); assert.deepEqual(done, { skipped: false }); assert.equal(sessionStorage.getItem('natpf-tennis.intro'), '1'); assert.equal(sessionStorage.getItem(INTRO_VIDEO_KEY), 'trailer');
   advance(700); assert.ok(P.el.cls.has('hidden')); assert.equal(tr.parentNode, null, 'trailer tolto dalla pagina'); assert.ok(tr.paused);
-  // nel programma Windows: file locale, attesa più corta
+  // nel programma Windows: file locale
   const D = makePage({ desktop: true }); new NatpfIntro({});
   assert.equal(D.created[0].src, `./media/${TRAILER.file}`); advance(120); assert.equal(cls(D), 'is-trailer mode-full');
   delete globalThis.natpfDesktop;
@@ -135,6 +139,51 @@ test('intro: trailer con errore (404, rete assente) o fermo → il video di prim
   advance(TRAILER.tickMs); assert.equal(P.old.plays, 0, 'dopo il blocco il trailer ha ancora il suo tempo');
   P.created[0].paused = false; P.created[0].readyState = 4;          // partito, ma l'evento «playing» non è ancora arrivato
   advance(TRAILER.tickMs); assert.equal(cls(P), 'is-trailer mode-full'); assert.equal(P.old.plays, 0);
+});
+
+// B26 · collaudo dell'utente dell'11/11 sul programma Windows installato: «è partito il video di prima»
+test('intro nel programma Windows: il trailer (file locale) parte appena può partire, anche tardi; il video di prima solo per un errore vero o dopo 8 s di pagina libera', async () => {
+  // il primo fotogramma arriva 6 s dopo (scheda grafica occupata dal gioco che si avvia): prima del B26 a 1,5 s partiva
+  // il video di prima; ora il trailer aspetta e parte
+  const P = makePage({ trailer: 'hang', desktop: true }); const I = new NatpfIntro({}); const tr = P.created[0];
+  advance(6000); await flush();
+  assert.equal(P.old.plays, 0, 'dopo 6 s il video di prima non è partito'); assert.equal(tr.parentNode, P.el); assert.ok(!P.el.cls.has('mode-full'));
+  // gira con i primi dati: readyState 3, poco filmato scaricato → sul web resterebbe fermo, nel programma parte subito
+  // …e aveva già girato per 1,5 s mentre la pagina era occupata (non si vedeva): riparte dall'inizio
+  tr.readyState = 3; tr.duration = 10.04; tr.buffered = { length: 1, end: () => 1.2 }; tr.currentTime = 1.5; tr.emit('canplay');
+  assert.equal(tr.currentTime, 0, 'il trailer si vede dall\'inizio'); assert.equal(I.trace[1][2].t, 1.5, 'nella cronaca il secondo a cui era arrivato');
+  assert.equal(cls(P), 'is-trailer mode-full'); assert.equal(I.video, 'trailer'); assert.equal(tr.plays, 1, 'mai rimesso fermo'); assert.ok(!tr.paused);
+  assert.equal(P.el.style.props['--intro-shift'], '2800ms'); assert.equal(P.old.plays, 0);
+  assert.deepEqual(I.trace.map(r => r[1]), ['trailer richiesto', 'trailer partito'], 'cronaca dell\'intro'); assert.equal(I.trace[1][0], 6000);
+  advance(INTRO_MS.full + TRAILER.shiftMs + 10); assert.equal(I.ready, true);
+  // pagina occupata a blocchi medi di fila (ogni passo arriva in ritardo): quel tempo non conta, il trailer resta in attesa
+  const Q = makePage({ trailer: 'hang', desktop: true }); const J = new NatpfIntro({}); const t2 = Q.created[0];
+  for (let k = 0; k < 40; k++){ block(450); advance(TRAILER.tickMs - 10); }             // 28 s con la pagina sempre occupata
+  assert.equal(Q.old.plays, 0, 'i passi in ritardo non consumano l\'attesa'); assert.equal(t2.parentNode, Q.el);
+  t2.readyState = 4; t2.emit('playing'); assert.equal(cls(Q), 'is-trailer mode-full'); assert.equal(J.video, 'trailer');
+  // …ma non per sempre: oltre il limite assoluto (capK volte l'attesa) parte il video di prima
+  const C = makePage({ trailer: 'hang', desktop: true }); const N = new NatpfIntro({});
+  for (let k = 0; k < 60 && !C.old.plays; k++){ block(450); advance(TRAILER.tickMs - 10); }
+  await flush(); assert.equal(C.old.plays, 1); assert.equal(N.video, 'intro'); assert.match(N.trace.at(-2)[1], /^trailer scartato: tempo scaduto \(\d+ ms, passi in ritardo \d+\)$/);
+  assert.ok(N.trace.at(-2)[0] >= TRAILER.waitLocalMs*TRAILER.capK && N.trace.at(-2)[0] < TRAILER.waitLocalMs*TRAILER.capK + 1000, `limite assoluto: ${N.trace.at(-2)[0]} ms`);
+  // file che non parte mai, pagina libera: il video di prima dopo 8 s (non prima)
+  const S = makePage({ trailer: 'hang', desktop: true }); const K = new NatpfIntro({});
+  advance(TRAILER.waitLocalMs - 1); assert.equal(S.old.plays, 0, 'ancora in attesa a 8 s meno un attimo');
+  advance(1); await flush(); assert.equal(S.old.plays, 1); assert.equal(K.video, 'intro'); assert.equal(cls(S), 'mode-full'); assert.equal(S.created[0].parentNode, null);
+  assert.deepEqual(K.trace.map(r => r[1]), ['trailer richiesto', `trailer scartato: tempo scaduto (${TRAILER.waitLocalMs} ms, passi in ritardo 0)`, 'video di prima']);
+  // errore vero del file (manca, non si decodifica): subito il video di prima
+  const E = makePage({ trailer: 'error', desktop: true }); const L = new NatpfIntro({});
+  advance(80); await flush(); assert.equal(E.old.plays, 1); assert.equal(L.video, 'intro'); assert.equal(L.trace[1][1], 'trailer scartato: errore del file'); assert.equal(L.trace[1][0], 80);
+  // riproduzione rifiutata: subito il video di prima
+  const R = makePage({ trailer: 'reject', desktop: true }); const M = new NatpfIntro({});
+  await flush(); assert.equal(R.old.plays, 1); assert.equal(M.video, 'intro'); assert.match(M.trace[1][1], /^trailer scartato: riproduzione rifiutata/);
+  delete globalThis.natpfDesktop;
+  // sul web la stessa pagina occupata a blocchi medi non consuma l'attesa, e la regola della rete lenta resta
+  const W = makePage({ trailer: 'slow' }); new NatpfIntro({}); const t3 = W.created[0];
+  for (let k = 0; k < 12; k++){ block(450); advance(TRAILER.tickMs - 10); }             // 8,4 s occupati: prima del B26 dopo 10 passi partiva il video di prima
+  assert.equal(W.old.plays, 0, 'web: i passi in ritardo non consumano l\'attesa'); assert.ok(t3.paused, 'web: fermo finché non è sicuro di arrivare in fondo');
+  t3.readyState = 4; t3.duration = 10.04; t3.buffered = { length: 1, end: () => 10.04 }; t3.emit('progress'); advance(120); await flush();
+  assert.equal(cls(W), 'is-trailer mode-full');
 });
 
 test('intro: riproduzione rifiutata dal browser → video di prima, e se nemmeno quello parte l\'immagine finale', async () => {

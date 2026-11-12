@@ -413,7 +413,13 @@ async function main(){
     if (win && !screen.getAllDisplays().some(d => String(d.id) === String(placedDisplayId))) placeOn(screen.getPrimaryDisplay(), { remember: false });
   });
   screen.on('display-metrics-changed', onDisplayMetricsChanged);
-  win.webContents.on('render-process-gone', (_e, d) => { log('pagina del gioco chiusa', d); if (d.reason !== 'clean-exit') setTimeout(() => win?.webContents.reload(), 1000); });
+  // cronaca dell'intro nel registro (B26): quale video è partito all'avvio, quando e perché. La scrive il gioco nella
+  // console della pagina (natpf-tennis/src/natpf/natpf_intro.js, righe «[natpf-intro] …»); qui solo quelle righe
+  win.webContents.on('console-message', (event, _level, message) => {
+    const text = String(event?.message ?? message ?? '');
+    if (text.startsWith('[natpf-intro]')) log(text.slice(0, 600));
+  });
+  win.webContents.on('render-process-gone',(_e, d) => { log('pagina del gioco chiusa', d); if (d.reason !== 'clean-exit') setTimeout(() => win?.webContents.reload(), 1000); });
   await win.loadURL(`https://localhost:${DESKTOP.port}${DESKTOP.gamePath}`);
   // aggiornamenti: un controllo qualche secondo dopo l'avvio, senza bloccare niente (senza internet: stato 'error', il
   // gioco va avanti). Scaricare e installare solo con il clic dell'utente

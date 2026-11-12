@@ -14,25 +14,36 @@
 // nel vertex shader: vale per ogni vista (le due metà dello stesso schermo, la moviola, il computer del Player 2).
 // La storia arriva dalla scia di prima (te.pushPoint a ogni passo della fisica, te.clear al servizio e ai cambi di
 // scena): sul computer del Player 2 e nella moviola è la palla disegnata, senza fisica in più.
+// B26 (collaudo dell'utente dell'11/11 sulla 2026-11-11.2: «gialla ma poco diversa» da quella bianca di prima): scia
+// rifatta sul modello del trailer. Nastro giallo PIENO e largo (il doppio alla testa), più lungo, con il centro più
+// chiaro e un ALONE largo e tenue intorno (stesso oggetto, stesso disegno: il nastro è largo quanto l'alone e il
+// profilo lo fa il fragment shader); intensità piena già alle velocità normali di scambio (da 14 m/s, prima da 24).
+// Resta un po' meno luminosa del trailer: non è mai del tutto opaca e non ha il bagliore bianco. Nei colpi potenti,
+// super e nello scambio caldo sta sotto la scia bianca e azzurra ed è attenuata (powerAlpha): si riconoscono ancora.
 import * as THREE from 'three';
 
 export const TRAIL_KEY = 'natpf-tennis.sciaPalla';
 export const BALL_GLOW = Object.freeze({
-  points: 44,        // campioni della storia (anello)
-  step: .15,         // m tra due campioni (i passi della fisica più fitti si saltano)
-  seconds: .22,      // lunghezza della scia = velocità × seconds …
-  maxLen: 6,         // … al più 6 m (nel trailer attraversa mezzo campo)
-  minSpeed: 7,       // m/s: sotto, niente scia (lancio del servizio, palla che rotola)
-  fullSpeed: 24,     // m/s: da qui l'intensità è piena
-  width: .42,        // m alla testa (più larga della scia bianca di prima, .28), si stringe verso la coda
-  tailWidth: .45,    // larghezza della coda rispetto alla testa
-  alpha: .8,         // opacità massima al centro (il trailer è pieno e più largo: qui «leggermente meno luminosa»)
-  head: .28,         // m dietro la palla in cui la scia sfuma da zero: la palla non è mai coperta
+  points: 60,        // campioni della storia (anello)
+  step: .18,         // m tra due campioni (i passi della fisica più fitti si saltano)
+  seconds: .42,      // lunghezza della scia = velocità × seconds (prima del B26 .22) …
+  maxLen: 10,        // … al più 10 m (nel trailer attraversa mezzo campo; prima 6)
+  minSpeed: 10,      // m/s: sotto, niente scia (lancio del servizio, palla che rotola, pallonetto lento; prima 7)
+  fullSpeed: 14,     // m/s: da qui l'intensità è piena (prima 24: nello scambio medio, 15–20 m/s, la scia era tenue)
+  width: .8,         // m del nastro pieno alla testa (prima .42 con i bordi sfumati: pieno per meno della metà)
+  halo: 2.2,         // l'alone è largo halo volte il nastro pieno
+  haloAlpha: .5,     // intensità dell'alone rispetto al nastro
+  tailWidth: .4,     // larghezza della coda rispetto alla testa
+  alpha: .92,        // opacità massima del nastro (il trailer è pieno, con il bagliore: qui «leggermente meno luminosa»)
+  powerAlpha: .5,    // nei colpi potenti, super e nello scambio caldo: sotto la scia bianca e azzurra, attenuata
+  head: .2,          // m dietro la palla in cui la scia sfuma da zero: la palla non è mai coperta
   follow: 14,        // 1/s: prontezza con cui l'intensità segue la velocità
   back: .3,          // m all'indietro (lungo il campo) oltre i quali la palla è stata colpita: la storia riparte
   jump: 1.2,         // m: un salto più lungo di così (oltre lo spazio di un passo) è un cambio di scena, non un volo
   replaySpeed: 18,   // m/s presi per buoni nella moviola (lì la palla non ha velocità)
 });
+// colori (sRGB): centro giallo chiaro, nastro giallo pieno e saturo, alone giallo caldo
+export const GLOW_COLORS = Object.freeze({ core: '#fff38a', body: '#ffdd00', halo: '#ffb400' });
 
 export function readBallTrail({ storage = globalThis.localStorage } = {}){
   try { return storage?.getItem(TRAIL_KEY) !== '0'; } catch { return true; }
@@ -70,18 +81,29 @@ void main(){
   vUv = aSide;
   gl_Position = projectionMatrix * mv;
 }`;
+// Profilo attraverso il nastro (vUv.x da −1 a 1, larghezza = nastro pieno × halo): al centro il nastro pieno (fino a
+// uBand, con il bordo morbido) con il cuore più chiaro, intorno l'alone che sfuma fino al bordo. Lungo la scia (vUv.y
+// da 0 sulla palla a 1 in coda): parte da zero dietro la palla e si apre, poi sfuma verso la coda
 const FRAG = `
 uniform vec3 uCore;
-uniform vec3 uEdge;
+uniform vec3 uBody;
+uniform vec3 uHalo;
 uniform float uAlpha;
 uniform float uHead;
+uniform float uBand;
+uniform float uHaloAlpha;
 varying vec2 vUv;
 void main(){
-  float across = 1.0 - abs(vUv.x);
-  float a = smoothstep(0.0, 0.75, across) * smoothstep(0.0, uHead, vUv.y) * pow(1.0 - vUv.y, 1.1) * uAlpha;
-  vec3 col = mix(uEdge, uCore, pow(across, 3.0) * (1.0 - 0.7 * vUv.y));
-  // colore già moltiplicato per l'opacità; il fondo resta in parte anche al centro: righe e campo si vedono sotto
-  gl_FragColor = vec4(col * a, a * 0.85);
+  // dietro la palla il nastro si apre da poco più della palla alla sua larghezza piena (testa a cometa, non tronca)
+  float y = vUv.y, x = abs(vUv.x) / mix(0.5, 1.0, smoothstep(0.0, uHead * 4.0, y));
+  float along = smoothstep(0.0, uHead, y) * (1.0 - y * y);
+  float band = (1.0 - smoothstep(uBand * 0.62, uBand, x)) * along * uAlpha;
+  float hot = 1.0 - smoothstep(0.0, uBand * 0.7, x);
+  float glow = pow(1.0 - smoothstep(uBand * 0.5, 1.0, x), 2.0) * along * uAlpha * uHaloAlpha;
+  vec3 col = mix(uBody, uCore, hot * hot * (1.0 - 0.55 * y));
+  // colore già moltiplicato per l'opacità. Il nastro copre quasi tutto il fondo (pieno, come nel trailer); l'alone lo
+  // copre poco e si somma: sul blu del campo e sull'azzurro intorno resta giallo e luminoso, e righe e campo si vedono
+  gl_FragColor = vec4(col * band + uHalo * glow * (1.0 - band), band * 0.93 + glow * (1.0 - band) * 0.55);
   #include <colorspace_fragment>
 }`;
 
@@ -98,7 +120,7 @@ export class NatpfBallGlow {
   constructor(scene, { enabled = readBallTrail(), config = BALL_GLOW } = {}){
     const G = this.cfg = config, n = this.n = G.points;
     this.enabled = !!enabled;
-    this.level = 0; this.length = 0; this.segments = 0;
+    this.level = 0; this.length = 0; this.segments = 0; this.power = false;
     // storia: anello di n punti, hist[(first + k) % n] dal più nuovo (k = 0) al più vecchio
     this.hist = new Float32Array(n*3); this.count = 0; this.first = 0;
     this.last = new Float32Array(3); this.hasLast = false;       // ultima posizione arrivata (anche se non campionata)
@@ -120,8 +142,9 @@ export class NatpfBallGlow {
     geo.setIndex(new THREE.BufferAttribute(idx, 1)); geo.setDrawRange(0, 0);
     this.material = new THREE.ShaderMaterial({
       uniforms: {
-        uWidth: { value: G.width }, uTail: { value: G.tailWidth }, uAlpha: { value: 0 }, uHead: { value: .1 },
-        uCore: { value: new THREE.Color('#fff6a8') }, uEdge: { value: new THREE.Color('#ffd400') },
+        uWidth: { value: G.width*G.halo }, uTail: { value: G.tailWidth }, uAlpha: { value: 0 }, uHead: { value: .1 },
+        uBand: { value: 1/G.halo }, uHaloAlpha: { value: G.haloAlpha },
+        uCore: { value: new THREE.Color(GLOW_COLORS.core) }, uBody: { value: new THREE.Color(GLOW_COLORS.body) }, uHalo: { value: new THREE.Color(GLOW_COLORS.halo) },
       },
       vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
       blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
@@ -168,13 +191,14 @@ export class NatpfBallGlow {
   frame(head, speed, dt = 0, active = true, power = false){
     const order = power ? GLOW_ORDER.under : GLOW_ORDER.over;
     if (this.mesh.renderOrder !== order) this.mesh.renderOrder = order;
+    this.power = !!power;
     const fresh = this.fresh; this.fresh = 0;
     if (!this.enabled){ if (this.mesh.visible) this.mesh.visible = false; return; }
     const G = this.cfg;
     if (speed == null){ speed = G.replaySpeed; active = active && (fresh > 0 || !(dt > 0)); }
     const want = active && this.count ? glowLevel(speed, G) : 0;
     if (dt > 0) this.level += (want - this.level)*(1 - Math.exp(-G.follow*dt));
-    if (this.level < .004 && !want) this.level = 0;
+    if (this.level < .02 && !want) this.level = 0;
     if (active) this.length = glowLength(speed, G);
     if (!(this.level > 0) || !this.count || !(this.length > .05)){ if (this.mesh.visible){ this.mesh.visible = false; this.segments = 0; } return; }
     this._build(head.x, head.y, head.z);
@@ -205,7 +229,7 @@ export class NatpfBallGlow {
     if (acc < len){ const b = (v - 1)*4; S[b + 1] = S[b + 3] = 1; for (let i = 1; i < v - 1; i++){ const c = i*4; S[c + 1] = S[c + 3] = S[c + 1]*len/acc; } }
     this.segments = v - 1;
     const U = this.material.uniforms;
-    U.uAlpha.value = this.level*this.cfg.alpha;
+    U.uAlpha.value = this.level*this.cfg.alpha*(this.power ? this.cfg.powerAlpha : 1);
     U.uHead.value = Math.min(.6, this.cfg.head/Math.max(acc, .05));
     this.geometry.setDrawRange(0, this.segments*6);
     this.aPos.needsUpdate = this.aDir.needsUpdate = this.aSide.needsUpdate = true;
