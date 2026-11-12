@@ -491,3 +491,24 @@ test('telefono simulato: chi colpisce una volta per lato, solo da un lato o mai 
   assert.equal(none.trialResult.level, 'none'); assert.ok(none.profile.simple, 'come «Salta»'); assert.equal(none.trialResult.balls, 6);
   const S = simplePhone({ seed: 2, hand: 'right' }); assert.ok(S.profile.simple);
 });
+
+import { progressSteps } from '../src/natpf/natpf_lobby.js';
+test('«Nuovo giocatore» con «Giocando»: nome, tutorial corto (si chiude subito), pagina «Partita», poi gli scambi di prova da capo; niente tappa «Calibrazione»', async () => {
+  assert.deepEqual(progressSteps('cpu', { controller: 'phone', autoSimple: true }).map(([id]) => id), ['mode', 'controller', 'connect', 'match']);
+  assert.ok(progressSteps('cpu', { controller: 'phone' }).some(([, label]) => label === 'Calibrazione'), 'con i gesti la tappa resta');
+  const w = await playWorld(), { E, ui, lobby, link, P } = w;
+  w.pressStart(); playTrial(w, (id, n, want) => stroke({ dir: want, peak: 1000 }));
+  assert.equal(E.natpfMatchSeq, 1); assert.equal(P.profile.ref, 1000);
+  for (let i = 0; i < 8 && E.phase !== 'MATCH_OVER'; i++) E._awardPoint('player', 'Nice Shot!');
+  // «Nuovo giocatore» dalla schermata finale: il telefono resta collegato, niente del giocatore di prima
+  assert.equal(ui.newPlayer(), 'match'); w.advance(200);
+  assert.ok(P.profile == null || P.profile.simple, 'profilo azzerato'); assert.ok(!P.tutorialSeen && P.typicalModel.value == null);
+  $('nick-cancel').click(); w.advance(300);                                  // «Salta» il nome
+  assert.ok(ui.training.active && ui.training.tutorialOpen, 'in campo il tutorial corto'); assert.ok(!ui.training.cal, 'nessuna calibrazione con i gesti');
+  w.key('Enter', 'Enter'); w.advance(600);
+  assert.ok(!ui.training.active && lobby.visible && lobby.step === 'match', 'chiuso il tutorial: pagina «Partita»');
+  w.link.L.phone = 'ready'; w.advance(300); assert.ok(P.ready && P.profile.simple);
+  assert.equal(w.pressStart(), false); assert.ok(ui.trial.active, 'scambi di prova per chi è arrivato');
+  playTrial(w, (id, n, want) => stroke({ dir: want, peak: 420 }));
+  assert.equal(E.natpfMatchSeq, 2); assert.equal(P.profile.ref, 420);
+});

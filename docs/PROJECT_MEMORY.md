@@ -129,15 +129,50 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   strade di sempre. Il canale «fast» del telefono via internet è affidabile ma non ordinato (PeerJS imposta solo
   ordered:false): lasciato così per decisione dell'utente.
 
+## Decisioni B28 (12/11/2026, richiesta dell'utente allo stand: calibrazione giocando, niente blocchi)
+
+Documento: `docs/b28/calibrazione-giocando.md`. Sostituiscono la regola B9/B16 «"Tutto chiaro" solo dopo tutte le schede»
+e la calibrazione con i gesti come percorso di base.
+
+- **Nessuna schermata guidata chiede un gesto per andare avanti.** Tutorial: X, Invio, Esc e «Tutto chiaro, ho capito»
+  chiudono da qualunque scheda (al telefono `tp` porta `all: 1` sempre, per le pagine vecchie in cache; `av` dice se sono
+  viste davvero). Esercizi dell'Allenamento e del riscaldamento: «Avanti ›» sul computer (`#coach-next`,
+  `NatpfTraining.nextDrill`) e sul telefono (messaggio `nx`: il computer offre, il telefono risponde). Calibrazione con i
+  gesti: «Salta la calibrazione» in campo, nel pannello del telefono e sulla pagina del telefono. Chi aggiunge una
+  schermata guidata deve dare un «Avanti ›» o un «Salta» sul computer **e** sul telefono.
+- **Calibrazione di base: giocando.** Opzione dello stand «Calibrazione: Giocando · Con i gesti · Nessuna»
+  (`natpf_trial_learn.js`, `localStorage` `natpf-tennis.calibrazione`, `?cal=` per le prove), di base **Giocando**. Il
+  telefono senza gesti riceve da solo il profilo semplice (comando `skip`); a ogni «Gioca» circa 10 s di **scambi di prova**
+  (`natpf_trial.js`: palle dal lato noto, due colpi per lato, al massimo 6 palle o 14 s), poi la partita da 0-0.
+- **A ogni partita si riparte da capo** (`NatpfPhoneRacket.freshPlayer`: `cal` + `skip`): chi gioca non eredita forza, mira
+  e verso di chi c'era prima. Niente eccezioni a tempo; si saltano solo con la rivincita dai telefoni nello stesso schermo,
+  con «Gioca ancora» di un minigioco e per chi ha un profilo fatto apposta con i gesti.
+- **Il verso si controlla con il lato della palla**, uguale per destri e mancini: palla alla destra di chi gioca = gesto
+  +1. Il lato è quello del piano d'intercetto al momento del colpo (`ballSideNow`), non quello deciso al lancio. Il segno
+  corretto vive sul computer (`learner.sign`) e il verso atteso va al telefono girato.
+- **I colpi di prova non contano**: `ui.trial.active` vale come `training.active` per punti, esito, moviola, stanchezza,
+  sfida tra due computer e diagnostica (`allenamento: true`, `prova: true`). Chi aggiunge un controllo «siamo in partita?»
+  deve escludere anche `ui.trial.active` (nello stesso schermo i colpi del Player 2 valgono: `versus.local`).
+- **Stesso schermo**: palleggio assistito con una palla (ogni colpo è rimandato sul lato giusto dell'altro). **Sfida tra
+  due computer**: scambi di prova prima, in campo, una volta (chi invita dopo «Collega», il Player 2 al posto della
+  calibrazione). **Allenamento**: il profilo si impara dai primi due esercizi.
+- **Test**: nel mondo di prova (`test/ui-world.mjs`) l'opzione è «Con i gesti» di base, perché i test di prima provano
+  quel percorso; i test del percorso nuovo passano `cal: 'play'`. Nelle prove nel browser lo stesso con `CAL` (`th.mjs`).
+- **Misure** (telefono simulato): forza dei primi colpi 0,04 come i gesti fatti bene (gesti a vuoto deboli 0,07, primi tre
+  0,11); lato mai sbagliato, anche con il verso invertito («Salta»: 36–46 colpi su 120 dal lato sbagliato); telefono che
+  passa di mano: errore di forza 0,29 → 0,03. Peggio dei gesti fatti bene: centro della mira (±5° contro ±2°).
+- **Pannello dello stand**: 13 pulsanti; tre colonne da 700 px, file più strette sotto 680 px di altezza; c'è posto fino
+  a 15–16.
+
 ## Decisioni B16 (08/11/2026 sera: risposte dell'utente alle domande (a)–(d) del B15)
 
 - **(a) Leggenda più dura**: la forza viene dalla CPU (primo passo, pressione dal 20° colpo, chiusura, controllo dei colpi
   forti), non da regole più severe per chi gioca; criteri sempre controllati (`audit:legend` in CI, torneo ridotto in
   `npm test`). Dettaglio in §CPU Leggenda.
-- **(b) Tutorial corto prima della partita**: cambia la regola B9 «tutte le schede viste prima di "Tutto chiaro"». Prima
+- **(b) Tutorial corto prima della partita** (dal B28, 12/11: nessuna scheda è obbligatoria, vedi §Decisioni B28): cambia la regola B9 «tutte le schede viste prima di "Tutto chiaro"». Prima
   della partita 5 schede: presa, posizione di partenza (pronto), dritto, rovescio, servizio; le altre 6 (piatto,
   pallonetto, palla corta, tagliato, schiacciata, volée) nell'Allenamento e in «Rivedi i gesti». Dettaglio in §Decisioni B9.
-- **(c) Riscaldamento facoltativo**: dopo tutorial corto e calibrazione si va alla pagina «Partita»; il riscaldamento
+- **(c) Riscaldamento facoltativo** (dal B28 di base non c'è nemmeno la calibrazione con i gesti): dopo tutorial corto e calibrazione si va alla pagina «Partita»; il riscaldamento
   (dritto, rovescio, servizio) parte solo con «Riscaldati prima» (o dall'Allenamento). Dettaglio in §Decisioni B9.
 - **(d) Mira del telefono**: sensibilità scelta dall'**addetto** nel **pannello dello stand** (alta 17° di base, media 20°,
   bassa 23°), non nelle Opzioni dei visitatori; misura per partita nella diagnostica e comando `lato-palle.mjs`. Dettaglio
@@ -163,8 +198,10 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   stesso schermo; modalità compatta sotto 320 px; niente `backdrop-filter` sotto la modale aperta. Giudizio e brief:
   `docs/b9/giudizio-animazione.md`; nota del ramo: `docs/b9/animazione-c.md`; API della posa: `docs/b9/posa-gesti.md`.
 - **Tutorial e telefono**: frecce ‹ › (niente scorrimento automatico), scheda vista dopo ~1 s, avanzamento `tp` al
-  telefono, «Tutto chiaro, ho capito» acceso solo con tutte le schede **di quel tutorial** viste; schermate del telefono
-  esclusive (`site/js/tennis/phone-screen.js`); Ricalibra/Ricollega/Scollega solo sotto «Pronto».
+  telefono; schermate del telefono esclusive (`site/js/tennis/phone-screen.js`); Ricalibra/Ricollega/Scollega solo sotto
+  «Pronto». **Regola cambiata dall'utente il 12/11 (B28)**: «Tutto chiaro, ho capito» e la X **non** aspettano più che
+  tutte le schede siano viste; il tutorial si chiude sempre, da qualunque scheda (vedi §Decisioni B28). Le schede viste
+  restano solo come informazione (puntini, `tp`).
 - **Tutorial corto prima della partita (decisione cambiata dall'utente l'08/11 sera, B16; prima: «tutte le 11 schede viste
   prima di "Tutto chiaro"» anche prima della partita)**: prima della partita contro la CPU, della sfida tra due computer
   (host), dei minigiochi e nello stesso schermo (ognuno il suo tutorial e il suo «Tutto chiaro») 5 schede: presa,

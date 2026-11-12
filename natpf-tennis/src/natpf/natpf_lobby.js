@@ -43,13 +43,15 @@ const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 export const LOBBY_STEPS = ['menu', 'mode', 'options', 'challenges', 'ranking', 'result', 'controller', 'connect', 'warmup', 'match'];
 export const MODES = ['cpu', 'friend', 'training', 'challenge', 'split'];
 // tappe mostrate nella barra di avanzamento, per modalità (e racchetta: la calibrazione c'è solo con il telefono)
-export function progressSteps(mode, { controller = 'phone' } = {}){
+// (B28: con la calibrazione «Giocando» o «Nessuna», autoSimple, la tappa «Calibrazione» non c'è: in campo prima della
+// partita si va solo per il tutorial corto, e gli scambi di prova partono con «Gioca»)
+export function progressSteps(mode, { controller = 'phone', autoSimple = false } = {}){
   if (mode === 'challenge') return [['challenges', 'Sfida'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'In campo']];
   if (mode === 'split') return [['mode', 'Modalità'], ['connect', 'Racchette'], ['match', 'Partita']];
   if (mode === 'training') return [['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Allenamento']];
   // (in campo prima della partita dal B16 solo il tutorial corto e la calibrazione del telefono: il riscaldamento è
   // facoltativo; con mouse e tastiera o la webcam dalla pagina «Collega» subito la pagina «Partita», revisione del B16)
-  return controller === 'phone' ? [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Calibrazione'], ['match', 'Partita']]
+  return controller === 'phone' && !autoSimple ? [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Calibrazione'], ['match', 'Partita']]
     : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['match', 'Partita']];
 }
 // Dove porta la pagina «Collega» («Avanti», Invio, o da sola con il controller pronto), dal B16: 'match' la pagina
