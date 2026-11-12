@@ -60,9 +60,8 @@ il video di prima», scia «gialla ma poco diversa»). Ramo `b26-trailer-scia` (
       22/22 e p2p 9/9, 1v1-p2p 39/39, tabellone 42/42, nuovo-giocatore 28/28 al secondo giro (27/28 al primo), servizio-lancio
       12/12, servizio-peso 8/8, menu 28/28, rally 9/9, leggenda 7/7, training-flow 22/22, tutorial-phone 52/52,
       gesti-speciali 9/9, phone-keep 13/13)
-- [~] `natpf-modale-gesti` 28/29: resta rossa solo la misura dei fotogrammi a 1920×1080 (0,8 fps, con il campo da solo a
-      1,0 fps: macchina satura, carico 6 su 4 processori per il revisore del B25 in parallelo). Il B26 non tocca la
-      modale. **Da rifare a macchina libera** (`CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-modale-gesti.mjs`)
+- [x] `natpf-modale-gesti` 29/29 rifatta a macchina libera (al primo giro 27/29 e 28/29 per la macchina satura dal
+      revisore del B25 in parallelo: 0,8 fps). **Prove complete della 2026-11-12.1: tutte verdi, 20 su 20 nel browser.**
 - L'agente B26 e il revisore del B25 si sono fermati due volte (limite delle 5 ore, poi «crediti finiti»): il B26 l'ha
   chiuso l'agente principale (mancava solo la sezione finale del documento e il commit).
 
