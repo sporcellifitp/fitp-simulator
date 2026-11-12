@@ -6,7 +6,7 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## ADESSO (aggiornato il 12/11/2026 alle 18:05 UTC)
+## ADESSO (aggiornato il 12/11/2026 alle 22:05 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
 - [x] Tappa 2 passo 1 (servizio, personaggi fermi) con revisore · su GitHub (`0bdb83f`)
@@ -312,6 +312,24 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
       `-2`, base `9b8f9cb`; all'unione attenzione a `game_engine.js` `_natpfRacketShot`, toccato dal gruppo 3).
 - Aperti del gruppo 3 da chiedere all'utente dopo le prime partite vere: valore di partenza del livello Evento (0,8); a
   Evento cambiano anche le regole di chi gioca, non solo la CPU.
+
+**RIPRESA delle 21:55 UTC del 12/11 (questo agente; terzo limite d'uso della giornata, passato alle 21:40).**
+- L'altro agente ha pubblicato **2026-11-12.5** (B28 calibrazione giocando e tutorial senza blocco; telecomando con
+  «Chi gioca»): integrato con avanzamento lineare (`a6188ba`). Una mia correzione del pulsante «CPU» del telecomando
+  (non pubblicata) era doppia rispetto alla sua: tolta, vale la sua. **La prossima versione di questo agente è la
+  2026-11-12.6** (o la successiva alla più alta sul remoto).
+- Prove complete della 2026-11-12.4 (finite alle 18:37 UTC): 18 su 21 al primo giro; rifatte: scia-palla 39/39,
+  intro-trailer 77/78 (fallisce solo «M: CPU rallentata 6 volte → parte il trailer» con la macchina a carico 10: è il
+  ripiego voluto quando la pagina è lentissima; da sola la parte A è verde), telecomando 79/80 per il pulsante «CPU» con
+  i livelli nuovi → corretto dall'altro agente nella 12.5. Da rifare la prova del trailer a macchina libera.
+- B29 e B30 fermati dal limite nella fase «Lavoro». Rilanciati con script di ripresa che continuano nelle worktree
+  esistenti e **prima uniscono il ramo principale aggiornato** (base dei confronti `a6188ba`):
+  - [~] B29: `ripresa-b29.js`, run `wf_44a8ed48-acc` (worktree `wf_c1842a53-f0f-1`, ramo `b29-lob-drop-3d`).
+  - [~] B30: `ripresa-b30.js`, run `wf_55a0047e-b27` (worktree `wf_f20b2599-40d-1`, ramo `b30-registro-stand`; UNA sola
+        istanza ora, con tutte le aggiunte dell'utente nel testo del compito).
+  Se si fermano di nuovo nella fase «Lavoro»: rilanciare lo stesso script senza `resumeFromRunId`.
+- Dopo: unire B29 e B30, versione, controllo rapido, push, zip e installer; poi `ripresa-b23-t2g2.js` (dritto dal video
+  e tappa 2 gruppo 2; anche lì far unire prima il ramo principale aggiornato).
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
