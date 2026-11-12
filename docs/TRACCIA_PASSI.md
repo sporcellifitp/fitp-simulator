@@ -268,6 +268,17 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
       worktree esistente (come `ripresa-b24-t2g3.js`: togliere `isolation: 'worktree'` e indicare il percorso); se si
       ferma dopo: `resumeFromRunId: 'wf_c1842a53-f0f'`. Script:
       `/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b29-lob-drop-modelli-3d-wf_c1842a53-f0f.js`.
+- [~] **B30 · Registro dello stand, in corso dalle 18:15 UTC** (richiesta dell'utente del 12/11: «prevedi una raccolta di log
+      continuativi (solo gameplay) per quando aprirò lo stand alla gente»): workflow `b30-registro-dello-stand` (run
+      `wf_f20b2599-40d`, base `ccb2f43`; worktree `wf_f20b2599-40d-1` → revisore → correzioni). Registro continuo e leggero,
+      solo di gioco, senza dati personali; file JSON Lines per giorno sul PC dello stand (programma Windows) e nel
+      browser; pannello dello stand «Registro di gioco: Sì · No», scarico e cancellazione; strumento
+      `natpf-tennis/scripts/registro/riassunto.mjs`; documento `docs/b30/registro-dello-stand.md`. Invio automatico a
+      Cloudflare: solo descritto, da decidere con l'utente. Ripresa: come per il B29 (script
+      `b30-registro-dello-stand-wf_f20b2599-40d.js` nella stessa cartella).
+- Nota dell'utente del 12/11 (18:10 UTC), con una schermata di Lob costruito nel codice in partita e le due immagini pulite
+  generate: vuole in campo i personaggi come nelle immagini → è il B29. Il GLB che ha allegato è lo stesso `drop.glb` già
+  in uso (stessa impronta sha256 `981fcbc1…`).
 - [ ] Dopo le prove complete: `ripresa-b23-t2g2.js` (dritto dal video + tappa 2 gruppo 2, worktree `wf_26d95fdf-3ea-1` e
       `-2`, base `9b8f9cb`; all'unione attenzione a `game_engine.js` `_natpfRacketShot`, toccato dal gruppo 3).
 - Aperti del gruppo 3 da chiedere all'utente dopo le prime partite vere: valore di partenza del livello Evento (0,8); a
