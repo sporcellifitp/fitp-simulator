@@ -264,6 +264,8 @@ export class NatpfVersusUi {
     // già pronti: il pulsante non è un interruttore (per tornare indietro c'è «Annulla»)
     if (this.ready){ ui.toast('Sei pronto ✓ Per tornare indietro premi «Annulla»'); return; }
     if (ui.controller === 'webcam' && this._webcamSetup()){ this.openCam(); return; }
+    // B28: telefono già pronto con la calibrazione «Giocando»: prima gli scambi di prova in campo (una volta), poi pronto
+    if (ui.controller === 'phone' && phone.ready && !this.trialPlayed && ui.trial?.due?.({ split: false })){ this.startCal(); return; }
     if (ui.controller !== 'phone' || phone.ready){ this.setReady(true); return; }
     this.awaitPhone = true;
     show($('natpf-guest-modal'), false);
@@ -321,7 +323,9 @@ export class NatpfVersusUi {
     this.local = { role: E.playerRole, multi: E.isMultiplayer, auto: E.autoPlayMode, touched: E.userHasInteracted, webcam };
     E.playerRole = 'p1'; if (mc) mc.localPractice = true;
     show($('natpf-guest-modal'), false);
-    ui.training.start(webcam ? { drills: warmupDrills('webcam'), guest: true } : { calOnly: true, guest: true });
+    // B28, calibrazione «Giocando»: al posto dei due gesti gli scambi di prova con il lanciapalle, poi pronto da solo
+    if (!webcam && ui.trial?.due?.({ split: false })){ this.trialPlayed = true; ui.trial.start({ split: false, then: () => this.calDone({ completed: true, calibrated: true }) }); }
+    else ui.training.start(webcam ? { drills: warmupDrills('webcam'), guest: true } : { calOnly: true, guest: true });
     ui.diag?.recorder?.log?.('sfida.prova', { racchetta: ui.controller, stato: 'inizio' });
   }
   calDone({ completed = false, skipped = false } = {}){

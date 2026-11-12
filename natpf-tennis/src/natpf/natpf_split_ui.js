@@ -86,7 +86,8 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = fals
   if (unseen) return { state: 'tut', title: 'Tutorial da vedere', sub: 'Si apre nella pagina dei telefoni («Racchette»)', detail: 'Tutorial da vedere' };
   if (L.vis === false || health?.why === 'pagina nascosta') return { state: 'ko', title: 'Schermo del telefono spento', sub: 'Riaccendi lo schermo e tocca la pagina del gioco', detail: 'Schermo spento' };
   if (p.ready && health?.why === 'sensori fermi' && !(health.gapMs < SPLIT_STALL_MS)) return { state: 'ko', title: 'Sensori del telefono fermi', sub: 'Sul telefono tocca «Riattiva i sensori»', detail: 'Sensori fermi' };
-  if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata', detail: p.simple ? 'Senza calibrazione' : 'Calibrato' };
+  // (B28: con la calibrazione «Giocando» il profilo semplice è voluto: si calibra con gli scambi di prova)
+  if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? (p.calMode === 'play' ? 'Si calibra giocando' : 'Senza calibrazione: si gioca lo stesso') : 'Racchetta calibrata', detail: p.simple ? (p.calMode === 'play' ? 'Si calibra giocando' : 'Senza calibrazione') : 'Calibrato' };
   if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»', detail: 'Attiva i sensori' };
   const c = calPrompt(p.calView, hand);
   return { state: c.state === 'go' ? 'go' : 'on', title: c.title, sub: c.sub, detail: 'Calibrazione' };
@@ -312,7 +313,8 @@ export class NatpfSplitUi {
     if (p.connected && !p.tutorialSeen && !this.tutOpen[id] && !this.webcam) this._tutOpen(id);
     if (!p.connected && this.tutOpen[id]) this._tutClose(id, { keep: true, hold: true });
     if (this.tutOpen[id]){ this.tut[id]?.setAfter(p.ready ? 'ready' : 'cal'); return; }
-    if (p.connected && L.phone === 'cal' && !p.ready && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
+    // (B28: senza i gesti il telefono riceve da solo il profilo semplice, NatpfPhoneRacket._autoProfile)
+    if (p.connected && L.phone === 'cal' && !p.ready && !p.autoSimple && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
   }
   _tutOpen(id){
     this.tutOpen[id] = true; this.tutHeld[id] = false;

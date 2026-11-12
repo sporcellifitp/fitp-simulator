@@ -15,7 +15,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, veilText } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds } from './phone-screen.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -70,6 +70,8 @@ let fast = null, fastOk = false, rawSeq = 0;
 let selectedShot = 'auto', inputMode = 'motion', shotsPaintKey = '';
 // stesso schermo (B20): rivincita offerta dal computer a fine partita (phone-screen.rematchOnMsg) e motivo della pausa
 let rematch = null, phaseNote = '';
+// calibrazione giocando (B28): il computer sta giocando gli scambi di prova (fase con tr 1)
+let trial = false;
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
 const ARROW = { L: '←', R: '→', '?': '?' };
 // mano scelta nel gioco (o qui, e confermata dal gioco): menu, calibrazione in corso e profilo salvato. Il verso del
@@ -123,6 +125,7 @@ function paint(){
     // fine partita nello stesso schermo (B20): «Rivincita» e chi l'ha già chiesta
     const rv = phase === 'over' ? rematchView(rematch) : null, rb = $('#rematch');
     if (rv){ rb.textContent = rv.label; rb.disabled = rv.disabled; ui(rv.big, rv.sub, 'ready'); }
+    else if (trial && phase === 'play') ui(TRIAL_TEXT.big, TRIAL_TEXT.sub, 'ready');
     else ui(phase === 'serve' ? 'Al servizio' : phase === 'pause' && phaseNote ? 'Pausa' : 'Pronto', phaseText(), 'ready');
   }
 }
@@ -261,7 +264,9 @@ function onData(c, d){
     // rivincita offerta dal computer a fine partita nello stesso schermo (B20), o tolta (on 0)
     case 'rm': rematch = rematchOnMsg(d); if (sensor === 'ready') paint(); break;
     // (txt, B20: la partita è in pausa per il telefono dell'altro giocatore, e lo dice)
-    case 'ph': phase = d.ph; phaseNote = pauseNote(d); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
+    // soglie dal colpo imparato negli scambi di prova (B28): solo sopra il profilo semplice, che non ha un colpo tipico suo
+    case 'pf': { const th = trialThresholds(d); if (th && sensor === 'ready' && inputMode === 'motion' && det.profile.simple) det.setThresholds(th); break; }
+    case 'ph': phase = d.ph; phaseNote = pauseNote(d); trial = trialOnMsg(d); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
     case 'cmd': command(d.c); break;
     case 'ev': {
       const vib = Array.isArray(d.vib) && d.vib.length <= 6 && d.vib.every(v => Number.isFinite(v) && v >= 0 && v <= 400) ? d.vib : null;

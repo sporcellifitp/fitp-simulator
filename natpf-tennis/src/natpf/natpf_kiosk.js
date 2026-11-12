@@ -13,6 +13,8 @@ import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLeve
 import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './natpf_fair_format.js';
 import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
 import { readAutoToss, writeAutoToss, autoTossButton, autoTossToast, readOpenCourt, writeOpenCourt, openCourtButton, openCourtToast } from './natpf_duo_rules.js';
+// B28: «Calibrazione: Giocando · Con i gesti · Nessuna» (natpf_trial_learn.js), di base «Giocando»
+import { readSavedCalMode, writeCalMode, nextCalMode, calModeButton, calModeToast, calModeFromUrl } from './natpf_trial_learn.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -134,6 +136,13 @@ export class NatpfKiosk {
       ui.toast?.(autoTossToast(on));
       ui.diag?.recorder?.log?.('stand.lancioAuto', { acceso: on });
     }
+    // B28: calibrazione del telefono, giocando → con i gesti → nessuna → giocando; salvata, vale dalla partita dopo (il
+    // telefono già pronto resta com'è finché non si gioca o si ricalibra)
+    if (cmd === 'cal'){
+      const forced = !!calModeFromUrl(), mode = writeCalMode(nextCalMode(readSavedCalMode()));
+      ui.toast?.(calModeToast(mode, forced));
+      ui.diag?.recorder?.log?.('stand.calibrazione', { modo: mode, indirizzo: forced });
+    }
     if (cmd === 'open'){
       const on = writeOpenCourt(!readOpenCourt());
       ui.toast?.(openCourtToast(on));
@@ -153,6 +162,7 @@ export class NatpfKiosk {
     const hot = readHotRally(); set('hot', hotButton(hot), hot);
     const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);
     const open = readOpenCourt(); set('open', openCourtButton(open), open);
+    const cal = readSavedCalMode(); set('cal', calModeButton(cal, !!calModeFromUrl()), cal === 'play');
     const n = $('staff-note');
     if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
   }

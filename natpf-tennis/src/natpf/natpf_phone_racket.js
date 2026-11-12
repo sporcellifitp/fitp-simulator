@@ -31,6 +31,7 @@ import { strokeIntent, shapeDistinct, strokePower, INTENT } from './natpf_stroke
 import { aimFullNow } from './natpf_aim_level.js';
 import { weakSwing, livePlan } from './natpf_impact.js';
 import { SMASH_FROM } from './natpf_stroke_outcome.js';
+import { createTrialLearner, readCalMode, phoneThresholds } from './natpf_trial_learn.js';
 
 const NATPF_BASE = '/natpf/';
 // B18 (difetto 10): voto del colpo per il telefono dall'esito del computer (natpf_shot_feedback.shotQuality); senza esito
@@ -442,7 +443,30 @@ export class NatpfPhoneRacket {
     // passo della calibrazione come lo vede il computer (natpf_cal_view.js): si aggiorna con ogni evento del telefono,
     // anche prima di entrare in campo, così il riscaldamento parte sempre dal passo vero
     this.calView = CAL_VIEW_EMPTY;
+    // B28, calibrazione giocando (natpf_trial_learn.js): cosa si impara dagli scambi di prova (verso, forza, salita, centro
+    // della mira); trial = scambi di prova in corso { ball: numero della palla, want: verso atteso dal lato della palla };
+    // gestureCal = calibrazione con i gesti chiesta apposta («Calibra con i gesti») anche se l'opzione dello stand è «Giocando»
+    this.learner = createTrialLearner(); this.trial = null; this.gestureCal = false; this.skipAskedAt = -1e9;
   }
+  // B28: calibrazione dello stand (natpf_trial_learn.readCalMode: 'play' giocando, 'gesti', 'none') e profilo semplice
+  // automatico. Con «Giocando» e «Nessuna» il telefono non fa i gesti: appena ha i sensori attivi e comincia a calibrare il
+  // computer gli chiede il profilo semplice (lo stesso comando di «Salta», che ogni pagina del telefono conosce, anche una
+  // di prima rimasta in cache); con il tutorial aperto il telefono aspetta e lo si chiede dopo
+  get calMode(){ return readCalMode(); }
+  get autoSimple(){ return this.calMode !== 'gesti' && !this.gestureCal; }
+  _autoProfile(){
+    if (!this.connected || this.ready || !this.autoSimple || this.tutWait || this.state.phone !== 'cal') return false;
+    const now = performance.now();
+    if (now - this.skipAskedAt < 700) return false;         // già chiesto: la risposta è in viaggio (si richiede se si perde)
+    this.skipAskedAt = now; this.skipCalibration();
+    return true;
+  }
+  // verso del telefono corretto dagli scambi di prova (+1 com'è, −1 al contrario)
+  get dirSign(){ return this.learner.sign; }
+  // profilo fatto con i gesti (non semplice e non imparato dagli scambi di prova): chi l'ha chiesto apposta lo tiene
+  get gestureProfile(){ return !!this.profile && !this.profile.simple && !this.profile.trial; }
+  // pronto, o lo sarà tra un attimo: sensori attivi e profilo semplice già chiesto o da chiedere (senza i gesti)
+  get soonReady(){ return this.ready || (this.connected && this.autoSimple && !this.tutWait && ['cal', 'tut', 'ready'].includes(this.state.phone)); }
   // ruolo di chi tiene questo telefono ('p1' o 'p2') e P2 locale (split screen: colpi all'avversario su questo computer)
   get role(){ return this.fixedRole || this.engine.playerRole || 'p1'; }
   get localP2(){ return this.fixedRole === 'p2' && this.engine.playerRole !== 'p2'; }
@@ -503,7 +527,7 @@ export class NatpfPhoneRacket {
     // server LAN aperto da localhost: nel QR va l'indirizzo di rete del computer
     this.lanOrigin = await lanOrigin();
     const link = this.link = createPhoneLink();
-    link.on('change', () => { this._sendGrip(); this._syncPhoneState(); this._changed(); });
+    link.on('change', () => { this._sendGrip(); this._autoProfile(); this._syncPhoneState(); this._changed(); });
     link.on('cal', e => this._onCal(e));
     link.on('tut', e => this._onTut(e));
     link.on('swing', s => this._onSwing(s));
@@ -533,9 +557,16 @@ export class NatpfPhoneRacket {
     }
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
+    // B28: senza i gesti («Giocando», «Nessuna») il profilo dei tocchi si conferma da solo (prima lo faceva la calibrazione in campo)
+    if (e.kind === 'review' && e.touch && e.pass && this.autoSimple) this.link.cmd('confirm');
+    // … e un telefono che comincia a calibrare riceve subito la richiesta del profilo semplice
+    if (e.kind === 'step') this._autoProfile();
     if (e.kind === 'free' && e.ok) c.freeOk = true;
     if (e.kind === 'done'){
       c.step = 'done'; this.profile = e.profile || null;
+      // B28: profilo nuovo, niente di imparato dagli scambi di prova di prima (verso compreso); una calibrazione con i
+      // gesti chiesta apposta è finita
+      this.learner.reset(); this.gestureCal = false; this.simple = !!this.profile?.simple; this.lastExpect = null;
       this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline;
       this.liftModel.reset(this.liftBaseline); this.faceModel.reset();
       // Allinea prima il collegamento: _sendGrip azzera i riferimenti di un eventuale frame precedente.
@@ -665,6 +696,11 @@ export class NatpfPhoneRacket {
       for (const fn of this.swingListeners) try { fn({ ignored: 'palla che si allontana', natpf: {} }, s); } catch (e){ console.error(e); }
       return;
     }
+    // B28, scambi di prova: il gioco sa da che parte ha mandato la palla. Prima di leggere il colpo il suo verso vota (il
+    // segno può girarsi con questo stesso colpo), poi il colpo si legge con il verso corretto
+    const T = this.trial, probe = T && !T.keep && T.want && this._incoming() ? T.ball : null;
+    if (probe != null) this.learner.vote({ ball: probe, want: T.want, s });
+    if (this.learner.sign === -1) s = { ...s, dir: -s.dir, ...(Number.isFinite(s.aim) ? { aim: -s.aim } : {}), ...(Number.isFinite(s.twist) ? { twist: -s.twist } : {}) };
     // forza e profondità voluta rispetto al proprio colpo tipico imparato giocando (richiesta del 23/10, C4): un colpo più
     // forte del solito va più in fondo, uno più morbido più corto. Prima il riferimento era il gesto della calibrazione,
     // spesso un colpetto (il 23/10 143 °/s): la parte relativa della forza era sempre piena e la profondità non seguiva
@@ -698,6 +734,9 @@ export class NatpfPhoneRacket {
     if (teachesNormal(ev, { rally, expect })){ this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading); }
     if (rally && !expect) this.riseModel.learn(s.dir, s.shape?.rise, ev.natpf.intent);
     if (ev.natpf.intent && teachesNormal(ev, { rally, expect })) this.shapeModel.add(ev.natpf.intent.plane, ev.natpf.intent.shapePower);
+    // colpo di prova: insegna i riferimenti solo se è un colpo normale e non debole; marcato per la diagnostica
+    if (probe != null){ this.learner.mark(probe, teachesNormal(ev, { rally, expect })); ev.natpf.prova = true; }
+    else if (T) ev.natpf.prova = true;
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // P2 locale dello split screen: come un colpo del Player 2 arrivato dalla rete (natpf_split.js); altrimenti
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
@@ -708,6 +747,7 @@ export class NatpfPhoneRacket {
   // da quella parte e il colpo che segue vale come «preparato» (natpfSwingToEngine → prep).
   _onPrep(p){
     if (!this.ready) return;
+    if (this.learner.sign === -1) p = { ...p, dir: -p.dir };
     this.lastPrep = { ...p };
     this._diag('prep', p);
     const side = strokeSide(-p.dir, this.hand), actor = this.fixedRole ? this.actor : this.engine.localActor || this.engine.player;
@@ -726,7 +766,64 @@ export class NatpfPhoneRacket {
   }
 
   // comandi della calibrazione (vedi racchetta.js → command)
-  recalibrate(){ this.simple = false; this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false }; this.calView = CAL_VIEW_EMPTY; this.link?.cmd('cal'); this._changed(); }
+  // gestures (B28): calibrazione con i gesti anche se l'opzione dello stand è «Giocando» o «Nessuna» («Calibra con i gesti»
+  // nel pannello del telefono); senza, con quelle opzioni il telefono riceve subito il profilo semplice (_autoProfile)
+  recalibrate({ gestures = false } = {}){
+    this.simple = false; this.gestureCal = !!gestures; this.skipAskedAt = -1e9;
+    this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false }; this.calView = CAL_VIEW_EMPTY; this.link?.cmd('cal'); this._changed();
+  }
+  // B28, «molte persone, un telefono»: chi gioca adesso non eredita niente da chi c'era prima. Il telefono riparte dal
+  // profilo semplice (cal + skip: azzera sul telefono i colpi giocati e il segno imparato, swing-detect setProfile; lo
+  // capisce anche una pagina di prima) e sul computer la fine della «calibrazione» azzera colpo tipico, salita, piatto,
+  // mira, verso e prototipi dei colpi speciali (_onCal done). Con la calibrazione «Con i gesti» non si tocca niente: il
+  // profilo dei gesti resta finché non si preme «Nuovo giocatore» o «Ricalibra». false se non si è fatto niente
+  freshPlayer(){
+    if (!this.autoSimple || !this.connected || this.tutWait) return false;
+    this.recalibrate(); this.skipAskedAt = performance.now(); this.skipCalibration();
+    return true;
+  }
+  /* ---------- scambi di prova (B28): il gioco manda palle di cui conosce il lato ---------- */
+  // inizio: profilo da capo e niente di imparato; il telefono mostra «Scambi di prova» (messaggio ph con tr)
+  // (keep: chi ha un profilo fatto con i gesti lo tiene: gioca gli scambi di prova ma il gioco non ne impara niente)
+  beginTrial(){
+    const keep = this.gestureProfile;
+    if (!keep) this.freshPlayer();
+    this.learner.reset(); this.trial = { ball: 0, want: 0, keep }; this.lastPhase = null; this.lastExpect = null;
+    this._changed();
+  }
+  // palla nuova in arrivo: want = +1 alla destra di chi gioca, −1 alla sinistra (0: non si sa, il colpo non vota)
+  trialBall(want = 0){ if (this.trial){ this.trial.ball++; this.trial.want = want === 1 ? 1 : want === -1 ? -1 : 0; } }
+  // palla finita (colpita o persa): fino alla prossima i gesti non votano
+  trialIdle(){ if (this.trial) this.trial.want = 0; }
+  get trialOn(){ return !!this.trial; }
+  // colpi di prova imparati finora per lato di chi gioca: { forehand, backhand, total }
+  trialCounts(){ return this.learner.counts(this.hand); }
+  // fine: il profilo imparato sostituisce quello semplice (se i colpi bastano) e semina i riferimenti come fa la
+  // calibrazione con i gesti; colpo tipico e forma del colpo normale restano quelli imparati dai colpi di prova (come dopo
+  // il riscaldamento). Restituisce il riassunto { level, n, sign, ref } per chi mostra l'esito e per la diagnostica
+  endTrial(){
+    if (!this.trial) return null;
+    const keep = !!this.trial.keep;
+    this.trial = null; this.lastPhase = null; this.lastExpect = null;
+    if (keep) return { level: 'gesti', n: { forehand: 0, backhand: 0 }, sign: 1, ref: this.profile?.ref ?? null, votes: { agree: 0, against: 0 } };
+    const L = this.learner, level = L.level(), learned = L.profile(this.profile), counts = L.counts(this.hand);
+    if (learned){
+      this.profile = learned; this.simple = false;
+      // i riferimenti per verso hanno visto i primi colpi con il verso di prima della correzione: da capo, dal profilo
+      this.aimModel.reset(); for (const dir of [1, -1]) this.aimModel.seed(dir, learned.faceRef?.[dir]?.heading);
+      this.riseModel.reset(); this.faceModel.reset();
+      this.liftModel.reset(this.liftBaseline); this.headModel.reset(headBaselineFromProfile(learned, this.hand) ?? 0);
+      this.shapeModel.seed(profileShapePower(learned));
+      // soglie del telefono sul colpo di chi gioca (pagine dal B28; quelle di prima ignorano il messaggio)
+      const th = phoneThresholds(learned, learned.noise);
+      if (th && this.connected) this.link.send({ t: 'pf', ...th });
+    } else if (L.flips){ this.aimModel.reset(); this.riseModel.reset(); this.faceModel.reset(); }
+    const out = { level, n: { forehand: counts.forehand, backhand: counts.backhand }, sign: L.sign, ref: learned?.ref ?? null, votes: L.votes };
+    this._changed();
+    return out;
+  }
+  // palla in arrivo verso chi tiene questo telefono (l'ha mandata l'altro, o il lanciapalle)
+  _incoming(){ const b = this.engine.ball; return this.engine.phase === 'RALLY' && !!b?.inPlay && b.lastHitter !== mineOf(this.engine, this.role); }
   retry(){ this.cal.attempts = []; this.link?.cmd('retry'); }
   confirm(){ this.link?.cmd('confirm'); }
   invert(){ this.link?.cmd('invert'); }
@@ -746,6 +843,7 @@ export class NatpfPhoneRacket {
     this.profile = null; this.liftBaseline = 0; this.lastExpect = null;
     this.liftModel.reset(null); this.faceModel.reset(); this.aimModel.reset(); this.headModel.reset(0);
     this.riseModel.reset(); this.typicalModel.reset(); this.shapeModel.reset(); this.resetSpecials();
+    this.learner.reset(); this.trial = null;
     this.recalPending = !this.connected;
     if (this.connected && gate) this.waitTutorial(true);
     this.recalibrate();
@@ -784,9 +882,12 @@ export class NatpfPhoneRacket {
   update(){
     if (!this.link) return;
     const phase = this.connected ? phoneGamePhase(this.engine, this.role) : null;
-    if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase }); }
-    // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo
-    const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand, this.role) : 0;
+    // (tr, B28: scambi di prova in corso, il telefono lo scrive; le pagine di prima lo ignorano)
+    if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase, ...(this.trial ? { tr: 1 } : {}) }); }
+    this._autoProfile();
+    // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo. Con il verso corretto
+    // dagli scambi di prova (dirSign −1) va al telefono girato: per lui dritto e rovescio sono scambiati
+    const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand, this.role)*this.learner.sign : 0;
     if (this.connected && ex !== this.lastExpect){ this.lastExpect = ex; this.link.send({ t: 'ex', d: ex }); }
     // a rete (B17.4): soglie basse sul telefono per i tocchi morbidi, finché si resta entro NET_Z dalla rete nello scambio
     this.setNet(phase === 'play' && this.ready && atNet(this.engine, this.role, !!this.atNet));

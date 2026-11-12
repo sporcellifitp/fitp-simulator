@@ -120,6 +120,21 @@ export function rematchView(r){
 // Senza testo (computer di prima, o pausa del proprio telefono) resta la frase di sempre
 export const pauseNote = d => (d && d.ph === 'pause' && typeof d.txt === 'string' ? d.txt.slice(0, 160) : '');
 
+/* ---------- calibrazione giocando: scambi di prova (B28, 12/11) ---------- */
+// Il computer manda la fase con tr 1 ({ t:'ph', ph:'play', tr:1 }) mentre gioca gli scambi di prova (natpf_trial.js): il
+// telefono lo scrive al posto di «Pronto». Un computer di prima non manda tr: resta «Pronto»
+export const trialOnMsg = d => !!d && d.tr === 1 && d.ph === 'play';
+export const TRIAL_TEXT = Object.freeze({ big: 'Scambi di prova', sub: 'Colpisci la palla quando arriva: il gioco impara il tuo colpo. Poi si comincia.' });
+// Soglie dal colpo imparato negli scambi di prova (messaggio del computer { t:'pf', ref, refs: {1, -1}, on, minPeak },
+// natpf_trial_learn.phoneThresholds): colpo tipico per verso e soglie d'inizio e di picco, al posto di quelle fisse del
+// profilo semplice. Valori fuori misura: niente (restano le soglie di prima). Funzione pura
+export function trialThresholds(d = {}){
+  const num = (v, a, b) => (typeof v === 'number' && Number.isFinite(v) && v >= a && v <= b ? v : null);
+  const ref = num(d.ref, 60, 4000), a = num(d.refs?.[1], 60, 4000), b = num(d.refs?.[-1] ?? d.refs?.['-1'], 60, 4000), on = num(d.on, 12, 180), minPeak = num(d.minPeak, 15, 300);
+  if (ref == null || a == null || b == null || on == null || minPeak == null) return null;
+  return { ref, refs: { 1: a, '-1': b }, on, minPeak };
+}
+
 // conto alla rovescia dello stesso schermo (messaggio del computer { t:'ev', k:'count' }, natpf_split_ui._announce):
 // n = 3, 2, 1 («Si gioca tra» con il numero, anello verde) e 0 («Si gioca!»); stop = conto fermato o annullato, con il
 // motivo. Anello rosso solo per un problema (un telefono non più pronto); soft = fermato sul computer («Aspetta», si

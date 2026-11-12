@@ -86,6 +86,8 @@ export function liveFeedback(drill, natpf, { side = null, hand = 'right' } = {})
   }
   return out(true);
 }
+// B28: esercizi da cui il gioco impara il colpo di chi gioca quando non si calibra con i gesti (palle dal lato noto)
+export const LEARN_DRILLS = Object.freeze(['forehand', 'backhand']);
 // Calibrazione dentro il riscaldamento (solo smartphone)
 export const CAL_STAGE = Object.freeze({ id: 'cal', label: 'Calibrazione' });
 // posizione del giocatore (centro della riga di fondo) e della palla che aspetta il gesto: di lato quanto il braccio
@@ -215,7 +217,9 @@ export class NatpfTraining {
     const fb = liveFeedback(d, ev.natpf, { side: ev.side ?? ev.natpf.side ?? null, hand: this.ui.hand?.hand || 'right' });
     if (fb){ this.live = { ...fb, until: performance.now() + 2600 }; this.paint(); }
   }
-  get phoneCal(){ return this.ui.controller === 'phone' && !this.ui.phone.ready; }
+  // (B28: con la calibrazione «Giocando» o «Nessuna» il telefono non fa i gesti: riceve da solo il profilo semplice,
+  // NatpfPhoneRacket.autoSimple, e in campo non c'è la tappa della calibrazione)
+  get phoneCal(){ return this.ui.controller === 'phone' && !this.ui.phone.ready && !this.ui.phone.autoSimple; }
   // calOnly: solo la calibrazione del telefono in campo (prima di una sfida), poi si torna a chi l'ha chiesta
   // drills/diag: esercizi su misura e richiami della prova guidata della diagnostica (onFeed a ogni palla, onEnd)
   // guest: calibrazione del Player 2 di una sfida tra due computer: alla fine si torna alla stanza (natpf_versus_ui.js)
@@ -242,6 +246,9 @@ export class NatpfTraining {
     this.active = true; this.idx = 0; this.progress = { done: 0, tries: 0 }; this.stats = { shots: 0, perfect: 0, out: 0 }; this.wait = 0; this.message = null; this.flash = null;
     this.cal = this.phoneCal ? { ballFor: -1, hitFor: -1, flightT: 0, fails: 0 } : null;
     this.withCal = !!this.cal;
+    // B28, calibrazione giocando: senza i gesti il gioco impara dai primi esercizi, il dritto e il rovescio (palle di cui
+    // conosce il lato), come dagli scambi di prova prima della partita (NatpfPhoneRacket.beginTrial / trialBall / endTrial)
+    this.learn = ctrl === 'phone' && !this.cal && !calOnly && !guest && !diag && !!P0?.autoSimple && !P0.gestureProfile && this.drills.some(d => LEARN_DRILLS.includes(d.id));
     this.prevDifficulty = E.hud.selectedDifficulty || E.matchConfig.difficulty;
     this.prevFormat = E.matchFormat?.id || null;
     E._applyDifficultyTuning('casual'); E.isMultiplayer = false;
@@ -297,6 +304,7 @@ export class NatpfTraining {
   // dopo la lezione (o subito): calibrazione del telefono o primo esercizio
   _begin({ phoneCalibrates = false } = {}){
     const E = this.engine;
+    if (this.learn) this.ui.phone.beginTrial?.();
     if (this.cal){
       // calibrazione: niente servizio e niente corse, il giocatore aspetta fermo al centro
       this._idle(); this._centerPlayer();
@@ -428,7 +436,8 @@ export class NatpfTraining {
   // Prima gli eventi erano ignorati, nessuno confermava la verifica e i colpi venivano scartati («Palla persa» senza fine)
   _phoneRecalibrating(){
     const P = this.ui.phone;
-    return this.ui.controller === 'phone' && !!P?.connected && !P.ready && P.state?.phone === 'cal' && !!this.ui.modal?.classList.contains('hidden');
+    // (B28: non il telefono che riceve da solo il profilo semplice, per un attimo «in calibrazione»)
+    return this.ui.controller === 'phone' && !!P?.connected && !P.ready && !P.autoSimple && P.state?.phone === 'cal' && !!this.ui.modal?.classList.contains('hidden');
   }
   _recal(){
     this.cal = { ballFor: -1, hitFor: -1, flightT: 0, fails: 0, resume: this.idx };
@@ -496,6 +505,8 @@ export class NatpfTraining {
     if (this.cal){ this.paint(); return; }                       // calibrazione: la palla del gesto dopo la mette _calTick
     if (winner !== 'player' && E.ball.lastHitter === 'opponent'){ this.progress = { ...this.progress, tries: this.progress.tries + 1 }; this.message = 'Palla persa: colpisci quando arriva alla racchetta'; this.flash = { text: this.message, ok: false, until: performance.now() + 1200 }; }
     if (this.drill && (this.progress.done >= this.drill.need || (this.drill.maxTries && this.progress.tries >= this.drill.maxTries))){ this.idx++; this.progress = { done: 0, tries: 0 }; if (this.idx < this.drills.length){ this.message = null; this.flash = { text: `Bravo! Ora: ${this.drill.label}`, ok: true, until: performance.now() + 1400 }; } }
+    // B28: finiti il dritto e il rovescio, quello che il gioco ha imparato diventa il profilo
+    if (this.learn && !this.drills.slice(this.idx).some(d => LEARN_DRILLS.includes(d.id))) this._endLearn();
     this.wait = 1.1;
     this.paint();
   }
@@ -533,6 +544,8 @@ export class NatpfTraining {
     E._natpfPlanPlayer ? E._natpfPlanPlayer() : E._predictBallIntercept(p);
     if (!machine) E.audioEngine?.playRacketHit?.('topspin', 'good');
     this.fedSide = side;
+    // B28: palla di un esercizio del dritto o del rovescio, il gioco ne conosce il lato (+1 alla destra di chi gioca)
+    if (this.learn){ if (LEARN_DRILLS.includes(this.drill?.id)) this.ui.phone.trialBall?.(toRight ? 1 : -1); else this.ui.phone.trialIdle?.(); }
     this.diagRun?.onFeed?.(this.drill, side);
   }
   tick(dt){
@@ -562,6 +575,7 @@ export class NatpfTraining {
   stop({ completed, skipped = false, calibrated = false, silent = false }){
     if (!this.active) return;
     const E = this.engine;
+    this._endLearn();
     // modale chiusa prima della fine: con lo stesso telefono si riprende dalla scheda raggiunta
     if (this.tutorialOpen){ this.tutorialOpen = false; this.ui.phone.saveTutorial?.(this.tutorial?.snapshot); this.ui.phone.waitTutorial?.(false); this.tutorial?.close('skip'); }
     this.active = false; this.cal = null; this.lesson = null; this.live = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
@@ -590,6 +604,7 @@ export class NatpfTraining {
     E.hud.showTitleModal();
     this.ui.flow?.onTrainingEnd({ completed, skipped, calibrated, stats: this.stats });
   }
+  _endLearn(){ if (this.learn){ this.learn = false; this.ui.phone.endTrial?.(); } }
   // Pannello in campo: tappe in alto, in basso al centro il gesto da fare (titolo grande, freccia, stato) e l'esito
   paint(){
     if (!this.active || !this.coach) return;
