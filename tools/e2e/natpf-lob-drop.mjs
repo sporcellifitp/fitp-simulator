@@ -414,7 +414,7 @@ if (FOGLI || FOGLI3D){
     await scene(court.p, `c-${n}`, SCENES[n]); const src = await png(court.p);
     ct.push({ src, label: l });
     // ingrandimento della stessa immagine su chi fa il gesto (3 volte)
-    if (n !== 'split') ct.push({ src, label: `${l} (ingrandito 3 volte)`, zoom: 3, dx: n === 'avversario' ? -.005 : .05, dy: n === 'avversario' ? -.1 : .26 });
+    if (n !== 'split') ct.push({ src, label: `${l} (ingrandito 3 volte)`, zoom: 3, dx: n === 'avversario' ? -.02 : .05, dy: n === 'avversario' ? -.17 : .26 });
   }
   await sheet('in-campo.webp', ct, { cols: 4, w: 480, h: 270, title: 'Lob & Drop in campo dalla camera di gioco' });
   await setCast(court.p, 'sempre');
@@ -479,7 +479,7 @@ if (FOGLI || FOGLI3D){
       const S3 = { ...SCENES, corsa: { pose: 'corsa', steps: 12 }, rovescio: { pose: 'rovescio', steps: 6 } }, tiles = [];
       for (const [n, l] of [['fermo', 'Attesa'], ['corsa', 'Corsa di Drop'], ['dritto', 'Dritto di Drop'], ['rovescio', 'Rovescio di Drop'], ['servizio', 'Servizio di Drop'], ['esultanza', 'Esultanza di Drop'], ['avversario', 'Dritto di Lob']]){
         await scene(g.p, `c3-${n}`, S3[n]); const src = await png(g.p);
-        tiles.push({ src, label: `${l}, camera di gioco` }, { src, label: `${l} (ingrandito 3 volte)`, zoom: 3, dx: n === 'avversario' ? -.005 : .05, dy: n === 'avversario' ? -.1 : .26 });
+        tiles.push({ src, label: `${l}, camera di gioco` }, { src, label: `${l} (ingrandito 3 volte)`, zoom: 3, dx: n === 'avversario' ? -.02 : .05, dy: n === 'avversario' ? -.17 : .26 });
       }
       await scene(g.p, 'c3-split', SCENES.split); tiles.push({ src: await png(g.p), label: 'Stesso schermo: Drop a sinistra, Lob a destra' });
       await scene(g.p, 'c3-split2', { pose: 'dritto', steps: 6, cam: 'split', multi: true }); tiles.push({ src: await png(g.p), label: 'Stesso schermo: dritto di Drop' });
@@ -499,10 +499,10 @@ if (FOGLI || FOGLI3D){
       const g = await game({ cast: 'lobdrop', w: 1280, h: 720, mascotte: '3d' }), tiles = [];
       const rim = v => g.p.evaluate(v => { let m = null; __natpfTennis.player.natpfMascot3d.group.traverse(o => { if (o.isSkinnedMesh) m = o.material; }); const was = m.userData.natpfRim.value; if (v != null) m.userData.natpfRim.value = v; return was; }, v);
       const full = await rim(null);
-      for (const [v, l] of [[0, 'senza bordo di luce'], [full, `con il bordo di luce (${full}), come nel gioco`]]){
+      for (const [v, l] of [[0, 'senza bordo'], [full, `bordo ${String(full).replace('.', ',')} (gioco)`]]){
         await rim(v);
-        for (const [n, what] of [['fermo', 'attesa'], ['dritto', 'dritto']]){ await scene(g.p, `b3-${n}`, SCENES[n]); tiles.push({ src: await png(g.p), label: `Drop ${l}: ${what} (ingrandito 3 volte)`, zoom: 3, dx: .05, dy: .26 }); }
-        await scene(g.p, 'b3-vicino', { pose: 'fermo', cam: { actor: 'player', from: [0, 1.15, -5.6], look: [0, .92, 0], fov: 28 } }); tiles.push({ src: await png(g.p), label: `Drop ${l}: da dietro, da vicino` });
+        for (const [n, what] of [['fermo', 'attesa'], ['dritto', 'dritto']]){ await scene(g.p, `b3-${n}`, SCENES[n]); tiles.push({ src: await png(g.p), label: `${l}: ${what}, ingrandito 3 volte`, zoom: 3, dx: .05, dy: .26 }); }
+        await scene(g.p, 'b3-vicino', { pose: 'fermo', cam: { actor: 'player', from: [0, 1.15, -5.6], look: [0, .92, 0], fov: 28 } }); tiles.push({ src: await png(g.p), label: `${l}: da dietro, da vicino` });
       }
       await sheet('bordo-drop.webp', tiles, { cols: 3, w: 420, h: 300, title: 'Drop è blu su un campo blu: senza e con il bordo di luce' });
       await g.ctx.close();

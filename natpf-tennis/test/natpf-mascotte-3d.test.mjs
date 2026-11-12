@@ -315,6 +315,27 @@ test('mano libera: bassa a riposo, fuori dalla testa quando il tennista la alza 
   assert.ok(worst > 1.02, `esultanza: palmo libero a ${worst.toFixed(2)} raggi dal centro della testa`);
 });
 
+test('mano libera nel dritto e nel rovescio: davanti al petto, mai davanti agli occhi', () => {
+  for (const key of ['drop', 'lob']){
+    useModels();
+    const E = engineOf(), who = key === 'drop' ? 'player' : 'opponent', a = E[who];
+    for (let i = 0; i < 40; i++) E.step();
+    const rig = a.natpfMascot3d, shape = MASCOT_HEAD_SHAPE[key][0], inv = new THREE.Matrix4();
+    for (const type of ['forehand', 'backhand']){
+      for (let i = 0; i < 30; i++) E.step();
+      swing(E, who, type);
+      let face = 0;
+      for (let i = 0; i < 50; i++){
+        E.step();
+        const p = mascotRigProbe(rig, a).palmB.applyMatrix4(inv.copy(rig.head.bone.matrixWorld).invert());
+        // davanti alla faccia (in avanti e al centro) e più in alto di metà testa sotto il centro: la mano copre gli occhi
+        if (p.z > shape.cz + 0.1 && Math.abs(p.x - shape.cx) < 0.9*shape.rx && p.y > shape.cy - 0.5*shape.ry) face++;
+      }
+      assert.equal(face, 0, `${key}, ${type}: ${face} fotogrammi con la mano libera davanti agli occhi`);
+    }
+  }
+});
+
 test('niente allocazioni per fotogramma nel rig: nelle funzioni di posa non nasce nessun oggetto', () => {
   const src = fs.readFileSync(path.join(ROOT, 'src/natpf/natpf_mascot_rig.js'), 'utf8');
   for (const name of ['readPart', 'poseMascotBody', 'poseLeg', 'poseMascotArms', 'poseArm', 'basis']){
