@@ -57,8 +57,8 @@ export function cueView(ttc, span = SWING_AIM.timingSpan){
 }
 
 // pura: l'anello non si riallarga mai mentre la stessa palla arriva. Il tempo che manca all'impatto è una stima che il
-// gioco corregge in volo (al rimbalzo, quando chi gioca si sposta): senza questo l'anello tornava più largo in una palla
-// su tre, fino a 0,6 m. floor: il diametro più stretto già mostrato per questa palla (Infinity: palla nuova).
+// gioco corregge in volo (al rimbalzo, quando chi gioca si sposta): senza questo l'anello tornava più largo circa in una
+// palla su cinque, fino a 0,6 m. floor: il diametro più stretto già mostrato per questa palla (Infinity: palla nuova).
 // Restituisce { view, floor }: l'anello resta fermo al più stretto già visto, poi riprende a stringersi. La fase (giallo,
 // verde, rosso) non cambia: la decide sempre il tempo vero
 export function cueHold(view, floor = Infinity){
