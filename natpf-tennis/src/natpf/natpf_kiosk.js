@@ -89,6 +89,8 @@ export class NatpfKiosk {
     ui.events.forgetLearned?.();
     // B25: le fasce dei due giocatori dello stesso schermo tornano «Adulto» (sono di chi gioca, non dello stand)
     ui.split?.resetBands?.();
+    // B18.2 gruppo 3: «Chi gioca» al valore di base, livello Evento da capo, spiegazione del colpo super da rivedere
+    ui.lobby?.resetWho?.(); ui.superHint?.reset?.();
     // il visitatore successivo rivede il tutorial prima di calibrare (gioco singolo e stesso schermo)
     // (il tutorial visto è segnato sul telefono, per abbinamento: si dimentica anche con lo stesso telefono)
     if (ui.split) ui.split.closeTutorials?.();

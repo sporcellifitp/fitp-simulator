@@ -415,6 +415,16 @@
               ><button type="button" class="seg-btn" data-natpf-trail="0" role="radio">No</button>
             </div>
           </div>
+          <!-- segnale del momento giusto (B18.2 gruppo 3, natpf_timing_cue.js): un anello si chiude sulla palla quando è il
+               momento di colpire. Di base: acceso con «Bambino» e «Adulto», spento con gli altri livelli -->
+          <div class="lobby-row">
+            <span class="lobby-label">Segnale del momento giusto</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Segnale del momento giusto">
+              <button type="button" class="seg-btn" data-natpf-cue="auto" role="radio" title="Acceso con «Bambino» e «Adulto», spento con gli altri livelli">Di base</button
+              ><button type="button" class="seg-btn" data-natpf-cue="on" role="radio">Sì</button
+              ><button type="button" class="seg-btn" data-natpf-cue="off" role="radio">No</button>
+            </div>
+          </div>
           <div class="lobby-row">
             <span class="lobby-label">Audio</span>
             <div class="lobby-seg">
@@ -568,18 +578,22 @@
           <!-- stesso schermo: le schede dei due giocatori, dal vivo (natpf_split_ui.paintMatch) -->
           <div id="split-ready-board" class="ready-board" aria-live="polite"></div>
           <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
-          <div class="lobby-tiles" id="difficulty-mode-group" role="radiogroup">
-            <button type="button" class="nt-green-choice lobby-tile selected" data-difficulty="casual" role="radio">
-              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg>
-              <span class="tile-name">CPU facile</span><span class="tile-desc">Per prendere confidenza</span>
+          <!-- B18.2 gruppo 3: contro la CPU, al posto del livello, «Chi gioca» (natpf_who.js): Bambino → livello Bambini,
+               Ragazzo → Casual, Adulto → livello Evento (si regola da solo). Le tessere restano quelle lette dall'HUD del
+               motore (data-difficulty). Esperta e Leggenda: «Altre impostazioni» → «Livello della CPU» -->
+          <p class="who-label" id="who-label">Chi gioca?</p>
+          <div class="lobby-tiles" id="difficulty-mode-group" role="radiogroup" aria-label="Chi gioca">
+            <button type="button" class="nt-green-choice lobby-tile" data-difficulty="bambini" data-who="bambino" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="15" r="6" /><path d="M14 40c1-9 5-13 10-13s9 4 10 13" /></svg>
+              <span class="tile-name">Bambino</span><span class="tile-desc">Palla più lenta e più tempo per colpire</span>
             </button
-            ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="pro" role="radio">
-              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M16 9h16v9a8 8 0 0 1-16 0zM16 13H9a6 6 0 0 0 7 8M32 13h7a6 6 0 0 1-7 8M24 26v8M17 39h14" /></svg>
-              <span class="tile-name">CPU esperta</span><span class="tile-desc">Veloce, angola e non regala nulla</span>
+            ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="casual" data-who="ragazzo" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="13" r="6.5" /><path d="M12 41c1-11 6-16 12-16s11 5 12 16" /></svg>
+              <span class="tile-name">Ragazzo</span><span class="tile-desc">CPU facile, per prendere confidenza</span>
             </button
-            ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="leggenda" role="radio">
-              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M9 36h30M11 36 8 16l9 8 7-13 7 13 9-8-3 20" /><circle cx="24" cy="28" r="3" /></svg>
-              <span class="tile-name">CPU Leggenda</span><span class="tile-desc">Varia i colpi, ti studia e sbaglia pochissimo</span>
+            ><button type="button" class="nt-green-choice lobby-tile selected" data-difficulty="evento" data-who="adulto" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="11" r="7" /><path d="M9 42c1-13 7-19 15-19s14 6 15 19" /></svg>
+              <span class="tile-name">Adulto</span><span class="tile-desc">La CPU si regola su come giochi</span>
             </button
             ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="1v1" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="16" cy="16" r="6" /><circle cx="32" cy="16" r="6" /><path d="M6 38c1-8 6-12 10-12s9 4 10 12M22 38c1-8 6-12 10-12s9 4 10 12" /></svg>
@@ -589,8 +603,20 @@
           <!-- una scelta in vista (il livello della CPU), il resto (formato, durata, chi batte, visuale) sotto «Altre
                impostazioni», chiuso a ogni visita della pagina (B15, 08/11: prima cinque righe e 18 pulsanti prima di
                «Gioca»). Il riassunto accanto dice che cosa è scelto; durata e visuale restano salvate -->
+          <p class="lobby-note who-note hidden" id="who-note" role="status"></p>
           <button type="button" class="match-more-btn" id="match-more-btn" data-match-more aria-expanded="false" aria-controls="match-more"><b>Altre impostazioni</b><small id="match-more-sum"></small><i aria-hidden="true">›</i></button>
           <div id="match-more" class="match-more hidden">
+            <!-- B18.2 gruppo 3: tutti i livelli per nome (i tre di «Chi gioca» e i due di prima, Esperta e Leggenda) -->
+            <div class="lobby-row" id="level-row">
+              <span class="lobby-label">Livello della CPU</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Livello della CPU">
+                <button type="button" class="seg-btn" data-natpf-level="bambini" role="radio">Bambini</button
+                ><button type="button" class="seg-btn" data-natpf-level="casual" role="radio">Facile</button
+                ><button type="button" class="seg-btn" data-natpf-level="evento" role="radio">Evento</button
+                ><button type="button" class="seg-btn" data-natpf-level="pro" role="radio">Esperta</button
+                ><button type="button" class="seg-btn" data-natpf-level="leggenda" role="radio">Leggenda</button>
+              </div>
+            </div>
             <div class="lobby-row">
               <span class="lobby-label">Formato</span>
               <div class="lobby-seg" role="radiogroup" aria-label="Formato">

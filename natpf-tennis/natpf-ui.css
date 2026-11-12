@@ -620,6 +620,11 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 #title-modal[data-flow="friend"] #difficulty-mode-group { display: none; }
 /* stesso schermo: niente da scegliere tra gli avversari (l'unica tessera ripeteva il titolo «Stesso schermo», B15) */
 #title-modal[data-flow="split"] #difficulty-mode-group { display: none; }
+/* B18.2 gruppo 3: «Chi gioca?» sopra le tre tessere (solo contro la CPU) e la riga che dice il livello scelto per nome */
+#title-modal [data-page="match"] .who-label { margin: 0 0 -4px; font: 700 italic 20px/1.1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ball); text-align: left; }
+#title-modal [data-page="match"] .who-label.hidden, #title-modal[data-flow="friend"] .who-label, #title-modal[data-flow="split"] .who-label { display: none; }
+#title-modal [data-page="match"] .who-note { margin-top: -4px; color: var(--ball); }
+#title-modal [data-page="match"] .who-note.hidden { display: none; }
 /* «Altre impostazioni» (B15): una riga che apre formato, durata, chi batte e visuale; aperte, le righe stanno nella
    pagina come prima (display: contents), chiuse c'è solo il riassunto */
 #title-modal .match-more { display: contents; }
@@ -1449,6 +1454,9 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .nt-timing-popup:has(.q-super) { box-shadow: inset 0 0 0 2px #ffb020, 0 0 1.2em rgba(255, 150, 20, 0.7) !important; }
 /* stesso schermo: sopra le etichette dei giocatori (.natpf-split-hud), che occupano il fondo di ogni metà */
 .natpf-meters.split { padding-bottom: clamp(56px, 10cqh, 120px); }
+/* B18.2 gruppo 3: perché il colpo super non è scattato (natpf_super_hint.js), sopra le barre di potenza ed energia */
+.natpf-super-hint { position: fixed; left: clamp(10px, 2cqw, 28px); bottom: clamp(74px, 13cqh, 150px); z-index: 31; max-width: min(44cqw, 640px); margin: 0; padding: 0.4em 0.8em; border-radius: var(--r-m); border: 1px solid rgba(255, 176, 32, 0.65); background: rgba(5, 9, 28, 0.84); color: #ffd24a; font: 600 clamp(12px, min(2.4cqh, 1.5cqw), 24px)/1.25 var(--font-text); pointer-events: none; }
+.natpf-super-hint.hidden { display: none; }
 /* B10, esito del colpo (natpf_shot_feedback.js popupPlace): nell'angolo in basso del proprio lato, sopra Potenza ed
    Energia (bottom dal JS), fuori dal campo. Prima si apriva sopra la testa di chi colpiva: nel doppio, con il compagno a
    rete, in mezzo al campo. Più piccolo e stretto: cresce verso l'alto, dove lo spazio accanto al campo si allarga */
