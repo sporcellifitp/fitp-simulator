@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld, $ } from './ui-world.mjs';
-import { phoneLike, stroke, hot, ballWant, SIMPLE } from './trial-world.mjs';
+import { phoneLike, stroke, hot, ballWant, SIMPLE, playWorld, playTrial } from './trial-world.mjs';
 import { CAL_MODE_KEY, CAL_MODES, CAL_MODE_DEFAULT, calModeOf, calModeFromUrl, readCalMode, readSavedCalMode, writeCalMode, nextCalMode, forgetCalMode, calModeButton, calModeToast,
   TRIAL, trialSide, trialDone, wantOfSide, wantOfBallSide, createTrialLearner, phoneThresholds } from '../src/natpf/natpf_trial_learn.js';
 import { trialDue, trialDots, trialOutro, gestureProfile, TRIAL_TEXT } from '../src/natpf/natpf_trial.js';
@@ -154,33 +154,6 @@ test('si fanno? Solo con «Giocando» e il telefono pronto; chi ha calibrato app
 });
 
 /* ---------- nel gioco ---------- */
-// mondo con la calibrazione «Giocando», telefono collegato che risponde come la pagina vera; tutorial corto già visto
-async function playWorld({ cal = 'play', tutorial = true, mode = 'cpu' } = {}){
-  const w = await makeWorld({ controller: 'phone', cal }), P = w.ui.phone;
-  phoneLike(P, w.link); w.advance(200);
-  if (tutorial) P.markTutorialSeen('short');
-  // (telefono già collegato arrivando alla pagina «Collega»: si va avanti con «Alla partita ›»)
-  if (mode){ w.lobby.go('mode'); w.lobby.setMode(mode); w.lobby.go('controller'); w.lobby.go('connect'); w.advance(300); w.lobby.next(); w.advance(300); }
-  return { ...w, P };
-}
-// gioca gli scambi di prova: hit(id, n, want, side) → il colpo (o null: non colpisce); want è il lato che si vede (palla a
-// destra +1 o a sinistra −1 di chi gioca), side il lato deciso dal gioco al lancio. Restituisce i colpi fatti
-function playTrial(w, hit = (id, n, want) => stroke({ dir: want }), { phones = { p1: w.ui.phone }, max = 30000 } = {}){
-  const { E, ui } = w, log = [], sides = [], n = { p1: 0, p2: 0 }, seen = { p1: -1, p2: -1 }, t0 = performance.now();
-  while (ui.trial.active && performance.now() - t0 < max){
-    w.advance(16);
-    for (const id of Object.keys(phones)){
-      const ball = phones[id].trial?.ball ?? -1;
-      if (!hot(E, id) || seen[id] === ball) continue;
-      seen[id] = ball; n[id]++;
-      const want = ballWant(E, id), side = ui.trial.S?.side, s = hit(id, n[id], want, side);
-      sides.push(side);
-      if (s){ phones[id]._onSwing(s); log.push({ id, want, at: +((performance.now() - t0)/1000).toFixed(2) }); }
-    }
-  }
-  return { log, sides, seconds: (performance.now() - t0)/1000 };
-}
-
 test('telefono senza gesti: appena comincia a calibrare riceve il profilo semplice; con «Con i gesti» no; con il tutorial aperto dopo', async () => {
   const w = await makeWorld({ controller: 'phone', cal: 'play' }), P = w.ui.phone;
   phoneLike(P, w.link);

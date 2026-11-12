@@ -21,3 +21,40 @@ export function hot(E, id = 'p1', lead = .1){
 export { ballSideNow } from '../src/natpf/natpf_phone_racket.js';
 import { ballSideNow } from '../src/natpf/natpf_phone_racket.js';
 export const ballWant = (E, id = 'p1') => ballSideNow(E, id, (id === 'p2' ? E.natpfPhone2 : E.natpfPhone)?.trial?.at ?? null);
+
+// mondo con la calibrazione «Giocando» (o un'altra), telefono collegato che risponde come la pagina vera; tutorial corto
+// già visto; mode: fino alla pagina «Partita» di quella modalità (null: si resta al menu)
+import { makeWorld } from './ui-world.mjs';
+export async function playWorld({ cal = 'play', tutorial = true, mode = 'cpu', ...rest } = {}){
+  const w = await makeWorld({ controller: 'phone', cal, ...rest }), P = w.ui.phone;
+  phoneLike(P, w.link); w.advance(200);
+  if (tutorial) P.markTutorialSeen('short');
+  // (telefono già collegato arrivando alla pagina «Collega»: si va avanti con «Alla partita ›»)
+  if (mode){ w.lobby.go('mode'); w.lobby.setMode(mode); w.lobby.go('controller'); w.lobby.go('connect'); w.advance(300); w.lobby.next(); w.advance(300); }
+  return { ...w, P };
+}
+// gioca gli scambi di prova: hit(id, n, want, side) → il colpo (o null: non colpisce); want è il lato che si vede (palla a
+// destra +1 o a sinistra −1 di chi gioca), side il lato deciso dal gioco al lancio. Restituisce i colpi fatti
+export function playTrial(w, hit = (id, n, want) => stroke({ dir: want }), { phones = { p1: w.ui.phone }, max = 30000 } = {}){
+  const { E, ui } = w, log = [], sides = [], n = { p1: 0, p2: 0 }, seen = { p1: -1, p2: -1 }, t0 = performance.now();
+  while (ui.trial.active && performance.now() - t0 < max){
+    w.advance(16);
+    for (const id of Object.keys(phones)){
+      const ball = phones[id].trial?.ball ?? -1;
+      if (!hot(E, id) || seen[id] === ball) continue;
+      seen[id] = ball; n[id]++;
+      const want = ballWant(E, id), side = ui.trial.S?.side, s = hit(id, n[id], want, side);
+      sides.push(side);
+      if (s){ phones[id]._onSwing(s); log.push({ id, want, side, at: +((performance.now() - t0)/1000).toFixed(2) }); }
+    }
+  }
+  return { log, sides, seconds: (performance.now() - t0)/1000 };
+}
+// secondo telefono (Player 2 dello stesso schermo) che risponde come la pagina vera
+export function secondPhone(E, NatpfPhoneRacket){
+  const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+  const l2 = P2.link = { connected: true, ready: false, L: { state: 'connected', phone: 'cal' }, session: 's2', token: 't2', sent: [], cmds: [],
+    start(){}, send(m){ this.sent.push(m); }, cmd(c){ this.cmds.push(c); if (c === 'skip' || c === 'confirm'){ this.ready = true; this.L.phone = 'ready'; } if (c === 'cal'){ this.ready = false; this.L.phone = 'cal'; } }, forget(){}, motion(){ return null; }, face(){ return null; }, on(){} };
+  phoneLike(P2, l2);
+  return { P2, l2 };
+}

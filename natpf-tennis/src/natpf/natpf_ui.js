@@ -685,11 +685,16 @@ export class NatpfUi {
   // la CPU o nello stesso schermo, si rifanno gli scambi di prova (per tutti e due nello stesso schermo) e poi si rigioca
   // il punto, con il punteggio com'era; altrove (menu, minigiochi, sfida tra due computer) il telefono riparte dal profilo
   // semplice e il gioco reimpara dai colpi. Con «Con i gesti» la calibrazione di sempre. true se sono partiti gli scambi di prova
-  recalibrate(){
+  // «Ricalibra» adesso farebbe gli scambi di prova? (in partita, con «Calibrazione: Giocando»: lo usa anche il telecomando)
+  recalTrialDue(){
     const E = this.engine, split = !!E.natpfSplit?.active;
     const inMatch = !this.lobby?.visible && !E.autoPlayMode && !this.training?.active && !this.events?.active && !this.trial.active
       && E.playerRole !== 'p2' && (split || !E.isMultiplayer) && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(E.phase);
-    if (readCalMode() === 'play' && this.controller === 'phone' && inMatch && this.phone.soonReady && !(split && this.split?.webcam)){
+    return readCalMode() === 'play' && this.controller === 'phone' && inMatch && !!this.phone.soonReady && !(split && this.split?.webcam);
+  }
+  recalibrate(){
+    const E = this.engine, split = !!E.natpfSplit?.active;
+    if (this.recalTrialDue()){
       this.closePhone(); this.pause?.close?.();
       this.trial.start({ split, resume: true, force: true, then: () => { E._setupPointServe({ showBanner: true }); this._syncPause(); } });
       this.toast('Scambi di prova: poi si rigioca il punto');
