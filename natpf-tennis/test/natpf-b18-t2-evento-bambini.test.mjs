@@ -1,0 +1,515 @@
+// B18.2 · tappa 2, gruppo 3 (difetto 3 / D3 e miglioramenti 3 e 4 di docs/b16/rapporto-gameplay.md): livelli «Bambini» ed
+// «Evento» (che si regola da solo), «Chi gioca», segnale del momento giusto, colpo super spiegato.
+// Documento: docs/b18/t2-4-evento-bambini.md
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
+import { simulate, PROFILES } from '../scripts/audit/rally-balance.mjs';
+import { measure, SERIE } from '../scripts/audit/evento-bambini.mjs';
+import * as NS from '../src/natpf/natpf_skill.js';
+import { EVENTO, eventoStep, eventoPoint, eventoReset, eventoState, eventoK, eventoTuning, blend } from '../src/natpf/natpf_evento.js';
+import { ASSIST, assistOf, IMPACT, impactWindow, SUPER, strokeOutcome, lateSpanOf, directionSpan, slowFactor } from '../src/natpf/natpf_stroke_outcome.js';
+import { lateMargin } from '../src/natpf/natpf_impact.js';
+import { WHO, WHO_LEVEL, WHO_DEFAULT, CPU_LEVELS, whoOfLevel, urlLevel, baseLevel, levelSummary, whoNote } from '../src/natpf/natpf_who.js';
+import { CUE, cueOn, cueDefault, cueView, cueEdges, cueHold, readCue, writeCue, CUE_KEY, NatpfTimingCue } from '../src/natpf/natpf_timing_cue.js';
+import { superHint, superReason, situationCause, SITUATION_WORDS, SUPER_RULE, NatpfSuperHint } from '../src/natpf/natpf_super_hint.js';
+import { matchSummary } from '../src/natpf/natpf_lobby.js';
+import { DiagRecorder } from '../src/natpf/diag/diag_recorder.js';
+import { memoryStore } from '../src/natpf/diag/diag_store.js';
+
+const near = (a, b, e = 1e-9) => Math.abs(a - b) <= e;
+const storage = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
+
+/* ---------- Evento: la regola ---------- */
+test('Evento, regola: punto vinto su di poco, punto perso giù di più, fermo in media a 65 punti su 100', () => {
+  const up = eventoStep(.5, true) - .5, down = .5 - eventoStep(.5, false);
+  assert.ok(near(up, EVENTO.gain*(1 - EVENTO.target)) && near(down, EVENTO.gain*EVENTO.target), `${up} ${down}`);
+  assert.ok(up > 0 && down > up, 'il punto perso pesa di più');
+  // a 65 punti vinti su 100 lo spostamento medio è zero; sopra sale, sotto scende
+  const drift = p => p*up - (1 - p)*down;
+  assert.ok(near(drift(EVENTO.target), 0)); assert.ok(drift(.8) > 0 && drift(.5) < 0);
+  // gradini piccoli: un punto non sposta la CPU di più di un decimo della scala (il doppio nei primi punti)
+  assert.ok(down <= .1 && up <= .05);
+});
+
+test('Evento, regola: nei primi sei punti di un giocatore i gradini sono doppi, poi normali', () => {
+  for (let n = 0; n < EVENTO.fastPoints; n++) assert.ok(near(eventoStep(.5, true, EVENTO, n) - .5, 2*EVENTO.gain*(1 - EVENTO.target)), `punto ${n + 1}`);
+  assert.ok(near(eventoStep(.5, true, EVENTO, EVENTO.fastPoints) - .5, EVENTO.gain*(1 - EVENTO.target)));
+  assert.ok(near(.5 - eventoStep(.5, false, EVENTO, 2), 2*EVENTO.gain*EVENTO.target));
+  assert.equal(EVENTO.fast, 2); assert.equal(EVENTO.fastPoints, 6);
+});
+
+test('Evento, limiti: la CPU non scende sotto quella facile e non sale sopra il tetto, qualunque serie di punti', () => {
+  let k = EVENTO.start;
+  for (let i = 0; i < 60; i++) k = eventoStep(k, false, EVENTO, i);
+  assert.equal(k, 0, 'sessanta punti persi di fila: CPU facile, non meno');
+  for (let i = 0; i < 80; i++) k = eventoStep(k, true, EVENTO, 60 + i);
+  assert.equal(k, 1, 'ottanta punti vinti di fila: tetto');
+  assert.equal(eventoStep(NaN, true), eventoStep(EVENTO.start, true), 'valore non valido: si riparte dalla base');
+});
+
+test('Evento, stato: un punto muove k di un gradino, «riparti» torna alla base, il valore fissato dalle prove non si muove', () => {
+  try {
+    assert.equal(eventoReset().k, EVENTO.start); assert.equal(eventoK(), EVENTO.start);
+    const k1 = eventoPoint(true);
+    assert.ok(near(k1, EVENTO.start + 2*EVENTO.gain*(1 - EVENTO.target)));
+    const k2 = eventoPoint(false);
+    assert.ok(near(k2, k1 - 2*EVENTO.gain*EVENTO.target));
+    assert.deepEqual({ points: eventoState().points, won: eventoState().won, trail: eventoState().trail.length }, { points: 2, won: 1, trail: 2 });
+    assert.equal(eventoReset().k, EVENTO.start); assert.equal(eventoState().points, 0);
+    eventoTuning.fixed = .3;
+    assert.equal(eventoK(), .3); eventoPoint(true); eventoPoint(true);
+    assert.equal(eventoK(), .3, 'fissato: la regola non lo muove');
+  } finally { delete eventoTuning.fixed; eventoReset(); }
+  assert.deepEqual({ ...eventoTuning }, {}, 'nel gioco nessun valore di prova');
+});
+
+test('Evento, stabilità: chi vince 65 punti su 100 resta dov\'è; chi ne vince 90 arriva al tetto; chi ne vince 30 alla CPU facile', () => {
+  // sequenze fisse (niente caso): 13 vinti ogni 20 = 65%
+  const run = (pattern, n) => { let k = EVENTO.start, min = k, max = k; for (let i = 0; i < n; i++){ k = eventoStep(k, pattern[i % pattern.length] === 'V', EVENTO, i); min = Math.min(min, k); max = Math.max(max, k); } return { k, min, max }; };
+  const pari = run('VVPVVPVVPVVPVPVVPVVP'.split(''), 200);
+  assert.ok(Math.abs(pari.k - EVENTO.start) < .15, `a 65% k resta vicino a dov'era: ${pari.k}`);
+  assert.ok(pari.max - pari.min < .35, `… senza oscillare: ${pari.min}–${pari.max}`);
+  assert.ok(run('VVVVVVVVVP'.split(''), 120).k > .9);
+  assert.ok(run('VPPVPPPVPP'.split(''), 120).k < .1);
+});
+
+/* ---------- Evento: il livello ---------- */
+test('media tra due livelli: numeri, gruppi di numeri, voci che mancano da una parte, voci non numeriche', () => {
+  assert.deepEqual(blend({ a: 1, g: { x: 0, y: 2 }, s: 'no' }, { a: 3, g: { x: 1, y: 2, z: 5 }, b: 7 }, .5), { a: 2, g: { x: .5, y: 2, z: 5 }, s: 'no', b: 7 });
+  assert.equal(blend({ a: 1 }, { a: 3 }, 0).a, 1); assert.equal(blend({ a: 1 }, { a: 3 }, 1).a, 3);
+  assert.equal(blend({ a: 1 }, { a: 3 }, 7).a, 3, 'peso oltre 1: resta al secondo');
+  assert.equal(blend({ n: null }, { n: Object.freeze({ q: 1 }) }, .5).n.q, 1);
+});
+
+test('Evento a k = 0 è Casual numero per numero; a k = 1 ha la CPU dell\'estremo difficile; in mezzo cambia con ordine', () => {
+  const c = NS.SKILL_LEVELS.casual, e0 = NS.eventoLevelAt(0), e1 = NS.eventoLevelAt(1), H = NS.EVENTO_ENDS.hard;
+  for (const key of Object.keys(c)) assert.deepEqual(e0[key], typeof c[key] === 'object' && key === 'cpuErr' ? { ...c[key], tired: 0 } : c[key], `k = 0, ${key}`);
+  assert.equal(e0.cpuFlight, 1); assert.equal(e0.cpuPro, 0); assert.equal(e0.cpuFatigue.slow, 0);
+  for (const key of ['cpuSpeed', 'cpuReach', 'cpuReact', 'cpuReadSd', 'timingSpan', 'perfectLead', 'playerSpeed', 'cpuFlight', 'cpuPro']) assert.equal(e1[key], H[key], `k = 1, ${key}`);
+  assert.deepEqual(e1.cpuErr, H.cpuErr); assert.deepEqual(e1.cpuFatigue, NS.SKILL_LEVELS.pro.cpuFatigue);
+  // l'estremo difficile è la CPU di Pro con un poco di corsa in più; Pro non è toccato
+  assert.ok(H.cpuSpeed > NS.SKILL_LEVELS.pro.cpuSpeed && H.cpuSpeed <= NS.SKILL_LEVELS.pro.cpuSpeed + .5);
+  assert.deepEqual(H.cpuErr, NS.SKILL_LEVELS.pro.cpuErr);
+  // con k la CPU corre di più e sbaglia di meno, la palla arriva più veloce, a chi gioca è chiesta più precisione
+  let prev = e0;
+  for (const k of [.25, .5, .75, 1]){
+    const L = NS.eventoLevelAt(k);
+    assert.ok(L.cpuSpeed > prev.cpuSpeed && L.cpuErr.base < prev.cpuErr.base && L.cpuFlight < prev.cpuFlight && L.timingSpan < prev.timingSpan && L.cpuPro > prev.cpuPro, `k = ${k}`);
+    assert.equal(L.adaptive, true); assert.equal(L.cpuLegend, undefined);
+    // finestra d'impatto e assistenza restano quelle di Casual a ogni k (natpf_stroke_outcome.js non è toccato)
+    assert.equal(assistOf(L), ASSIST.casual, `k = ${k}: assistenza di Casual`);
+    prev = L;
+  }
+  assert.equal(impactWindow('evento'), IMPACT.casual); assert.equal(impactWindow('bambini'), IMPACT.casual);
+  assert.equal(NS.SKILL_LEVELS.evento.cpuSpeed, NS.eventoLevelAt(EVENTO.start).cpuSpeed, 'SKILL_LEVELS.evento è il livello alla partenza');
+});
+
+test('Evento fermo a k = 0: la partita simulata è quella di Casual, punto per punto (stessi semi)', () => {
+  const casual = simulate({ profile: 'amatore', difficulty: 'casual', points: 40, seed: 7 });
+  let evento;
+  try { eventoTuning.fixed = 0; evento = simulate({ profile: 'amatore', difficulty: 'evento', points: 40, seed: 7 }); } finally { delete eventoTuning.fixed; eventoReset(); }
+  assert.deepEqual(evento.rallies, casual.rallies); assert.equal(evento.won, casual.won); assert.deepEqual(evento.reasons, casual.reasons);
+});
+
+test('Evento nel motore: a fine punto la CPU cambia di un gradino e la sua velocità segue; negli altri livelli niente', () => {
+  try {
+    const e = createHeadlessEngine({ difficulty: 'evento' });
+    NS.eventoRestart(e);
+    assert.equal(NS.isEvento(e), true);
+    assert.ok(near(e.opponent.maxSpeed, NS.eventoLevelAt(EVENTO.start).cpuSpeed), 'alla partenza la CPU corre come il livello di base');
+    e.startNewMatch({ showStartBanner: false });
+    const k0 = NS.eventoK(); e._awardPoint('player', 'Out');
+    const k1 = NS.eventoK();
+    assert.ok(k1 > k0, 'punto vinto: CPU un gradino più brava');
+    assert.ok(near(e.opponent.maxSpeed, NS.skillLevel('evento').cpuSpeed) && near(e.player.maxSpeed, NS.skillLevel('evento').playerSpeed));
+    assert.ok(e.opponent.maxSpeed > NS.eventoLevelAt(k0).cpuSpeed);
+    e._awardPoint('opponent', 'Out');
+    assert.ok(NS.eventoK() < k1, 'punto perso: CPU più facile');
+    // la partita nuova dello stesso giocatore («Gioca ancora») non riporta k alla base; «riparti» sì
+    const kept = NS.eventoK(); e.startNewMatch({ showStartBanner: false });
+    assert.equal(NS.eventoK(), kept);
+    NS.eventoRestart(e); assert.equal(NS.eventoK(), EVENTO.start);
+    // demo dietro il menu: non si adatta
+    e.autoPlayMode = true; e.userHasInteracted = false; assert.equal(NS.eventoAfterPoint(e, 'player'), null); assert.equal(NS.eventoK(), EVENTO.start);
+    // altri livelli e partita tra due persone: niente
+    for (const difficulty of ['casual', 'pro', 'leggenda', 'bambini', '1v1']){
+      const o = createHeadlessEngine({ difficulty }); o.startNewMatch({ showStartBanner: false });
+      const speed = o.opponent.maxSpeed; o._awardPoint('player', 'Out');
+      assert.equal(NS.eventoK(), EVENTO.start, difficulty); assert.equal(o.opponent.maxSpeed, speed, difficulty);
+    }
+    const m = createHeadlessEngine({ difficulty: 'evento' }); m.isMultiplayer = true;
+    assert.equal(NS.isEvento(m), false); assert.equal(NS.eventoAfterPoint(m, 'player'), null);
+  } finally { NS.eventoRestart(null); }
+});
+
+test('servizio: Bambini ed Evento hanno il loro peso; quello di Evento è la media tra Casual e Pro pesata da k', () => {
+  const W = NS.SERVE_WEIGHT;
+  for (const key of ['base', 'threat', 'stretch', 'max', 'read', 'readSd', 'pressure']) assert.equal(NS.eventoServeAt(0)[key], W.casual[key], key);
+  for (const key of ['base', 'threat', 'stretch', 'max', 'read']) assert.equal(NS.eventoServeAt(1)[key], W.pro[key], key);
+  assert.equal(NS.eventoServeAt(1).lateBase, W.lateBase); assert.equal(NS.eventoServeAt(0).lateBase, 1);
+  const s = NS.eventoServeAt(EVENTO.start);
+  for (const key of Object.keys(W.evento)) assert.ok(near(W.evento[key], s[key], 1e-3), `riga di Evento alla partenza, ${key}: ${W.evento[key]} e ${s[key]}`);
+  assert.ok(W.bambini.base > W.casual.base && W.bambini.lateBase === 1, 'Bambini: la CPU sbaglia più spesso la risposta, anche sul servizio fuori tempo');
+});
+
+/* ---------- Bambini ---------- */
+test('Bambini: più margine sul tempo per chi gioca, palla della CPU più lenta e al centro, CPU che non attacca', () => {
+  const b = NS.SKILL_LEVELS.bambini, c = NS.SKILL_LEVELS.casual;
+  assert.ok(b.timingSpan > c.timingSpan && b.perfectLead > c.perfectLead && b.scatter < c.scatter && b.lineRisk < c.lineRisk && b.playerErr.timing < c.playerErr.timing);
+  assert.ok(b.lateMargin > 0 && b.lateMargin <= .1 && b.cpuFlight > 1 && b.cpuFlight <= 1.2 && b.cpuServe.flight > c.cpuServe.flight);
+  assert.equal(b.cpuAttack, 0); assert.equal(b.cpuAttackBase, 0);
+  assert.equal(assistOf(b), ASSIST.casual, 'assistenza di Casual (natpf_stroke_outcome.js non è toccato)');
+  assert.equal(b.cpuSpeed, c.cpuSpeed, 'la CPU corre come a Casual: gli scambi ci sono');
+  // margine in ritardo: solo per chi gioca contro la CPU a Bambini
+  const e = createHeadlessEngine({ difficulty: 'bambini' });
+  const cz = createHeadlessEngine({ difficulty: 'casual' });
+  assert.equal(lateMargin(e, e.player), b.lateMargin); assert.equal(lateMargin(e, e.opponent), lateMargin(cz, cz.opponent), 'per la CPU niente in più');
+  for (const difficulty of ['casual', 'pro', 'leggenda', 'evento']){ const o = createHeadlessEngine({ difficulty }); assert.equal(lateMargin(o, o.player), 0, difficulty); }
+  e.isMultiplayer = true; assert.equal(lateMargin(e, e.player), 0, 'tra due persone niente');
+  // tempo di volo dei colpi della CPU: × 1 esatto negli altri livelli e per il pallonetto
+  const f = createHeadlessEngine({ difficulty: 'bambini' });
+  assert.equal(NS.cpuFlightFactor(f, 'TOPSPIN'), b.cpuFlight); assert.equal(NS.cpuFlightFactor(f, 'LOB'), 1);
+  for (const difficulty of ['casual', 'pro', 'leggenda', '1v1']) assert.equal(NS.cpuFlightFactor(createHeadlessEngine({ difficulty }), 'TOPSPIN'), 1, difficulty);
+  assert.equal(NS.cpuFlightFactor(createHeadlessEngine({ difficulty: 'evento' }), 'TOPSPIN'), NS.skillLevel('evento').cpuFlight);
+});
+
+test('Bambini: la CPU tira quasi sempre al centro, mai il contropiede o l\'angolo stretto; Casual e Pro scelgono come prima', () => {
+  let s = 1; const rng = () => { s = (s*16807) % 2147483647; return s/2147483647; };
+  const kinds = {}; let central = 0;
+  for (let i = 0; i < 800; i++){ const c = NS.cpuShotChoice({ difficulty: 'bambini', playerX: i % 2 ? 2 : -2, rally: 6, rng }); kinds[c.kind] = (kinds[c.kind] || 0) + 1; if (Math.abs(c.x) <= 1.3) central++; }
+  assert.equal(kinds.behind, undefined); assert.equal(kinds.angle, undefined);
+  assert.ok(kinds.rally/800 > .6, `scambio al centro: ${kinds.rally}`); assert.ok(central/800 > .6, `palle entro 1,3 m dal centro: ${central}`);
+  assert.deepEqual(Object.keys(NS.CPU_PATTERNS).sort(), ['bambini', 'casual', 'pro']);
+  // stessi sorteggi, stessi colpi di prima per Casual e Pro (la scelta non consuma numeri in più)
+  const seq = difficulty => { let t = 5; const r = () => { t = (t*48271) % 2147483647; return t/2147483647; }; const out = []; for (let i = 0; i < 30; i++){ const c = NS.cpuShotChoice({ difficulty, playerX: 1.5, rally: 5, rng: r }); out.push(c.kind + c.x.toFixed(3) + c.z.toFixed(3)); } return { out, calls: t }; };
+  assert.notDeepEqual(seq('casual').out, seq('pro').out);
+  assert.deepEqual(seq('casual'), seq('sconosciuto'), 'un livello sconosciuto sceglie come Casual');
+  assert.deepEqual(seq('leggenda'), seq('pro'));
+});
+
+/* ---------- banco ridotto ---------- */
+test('banco ridotto: Evento porta l\'adulto medio verso 60–70 punti su 100; Bambini fa vincere game al bambino; k resta nei limiti', { timeout: 240000 }, () => {
+  try {
+    const seeds = SERIE.A(3), points = 200;
+    const ev = measure({ profile: 'amatore', difficulty: 'evento', fair: true, gamesToWin: 1, points, seeds });
+    assert.ok(ev.puntiG >= 55 && ev.puntiG <= 75, `Evento, amatore: ${ev.puntiG}% dei punti`);
+    assert.ok(ev.k.p10 >= 0 && ev.k.p90 <= 1 && ev.k.escursioneMax <= .55, `k: ${JSON.stringify(ev.k)}`);
+    const cas = measure({ profile: 'amatore', difficulty: 'casual', fair: true, gamesToWin: 1, points, seeds });
+    assert.ok(cas.puntiG > ev.puntiG + 10, `a Casual lo stesso profilo vince molto di più: ${cas.puntiG}% contro ${ev.puntiG}%`);
+    const bb = measure({ profile: 'bambino', difficulty: 'bambini', fair: true, gamesToWin: 1, points, seeds });
+    const bc = measure({ profile: 'bambino', difficulty: 'casual', fair: true, gamesToWin: 1, points, seeds });
+    assert.ok(bb.puntiG >= 60 && bb.gameG >= 75, `Bambini, bambino: ${bb.puntiG}% dei punti, ${bb.gameG}% dei game`);
+    assert.ok(bb.puntiG > bc.puntiG + 15 && bb.colpi.media > bc.colpi.media, `più punti e scambi più lunghi che a Casual: ${bb.puntiG}% e ${bb.colpi.media} colpi contro ${bc.puntiG}% e ${bc.colpi.media}`);
+  } finally { NS.eventoRestart(null); }
+});
+
+/* ---------- «Chi gioca» ---------- */
+test('«Chi gioca»: Bambino → Bambini, Ragazzo → Casual, Adulto → Evento; di base Adulto, o il livello dell\'indirizzo', () => {
+  assert.deepEqual(WHO, ['bambino', 'ragazzo', 'adulto']);
+  assert.deepEqual(WHO_LEVEL, { bambino: 'bambini', ragazzo: 'casual', adulto: 'evento' });
+  assert.equal(WHO_DEFAULT, 'adulto');
+  for (const lv of CPU_LEVELS) assert.ok(NS.SKILL_LEVELS[lv], `${lv}: livello del motore`);
+  assert.equal(whoOfLevel('evento'), 'adulto'); assert.equal(whoOfLevel('casual'), 'ragazzo'); assert.equal(whoOfLevel('pro'), null);
+  assert.equal(baseLevel(''), 'evento'); assert.equal(baseLevel('?foo=1'), 'evento');
+  // gli indirizzi di sempre continuano a valere, e valgono anche per i due livelli nuovi
+  assert.equal(urlLevel('?mode=pro'), 'pro'); assert.equal(urlLevel('?difficulty=LEGGENDA'), 'leggenda'); assert.equal(urlLevel('?mode=casual'), 'casual');
+  assert.equal(urlLevel('?mode=bambini'), 'bambini'); assert.equal(baseLevel('?mode=evento&x=1'), 'evento');
+  assert.equal(urlLevel('?mode=1v1'), null); assert.equal(urlLevel('?mode=boh'), null);
+  assert.equal(baseLevel('?mode=leggenda'), 'leggenda');
+  // Esperta e Leggenda non corrispondono a una tessera: lo dice la riga sotto le tessere e il riassunto
+  assert.equal(levelSummary('pro'), 'CPU Esperta'); assert.equal(levelSummary('leggenda'), 'CPU Leggenda');
+  for (const lv of ['bambini', 'casual', 'evento', '1v1', undefined]){ assert.equal(levelSummary(lv), null, String(lv)); assert.equal(whoNote(lv), ''); }
+  assert.match(whoNote('pro'), /CPU Esperta.*Altre impostazioni/);
+  assert.equal(matchSummary({ games: 1, level: 'CPU Esperta' }), 'CPU Esperta · 1 game · singolare · 3ª persona');
+  assert.equal(matchSummary({ games: 3 }), 'Al meglio di 3 · singolare · 3ª persona', 'senza livello il riassunto è quello di prima');
+  assert.equal(matchSummary({ games: 1, split: true, level: 'CPU Esperta' }), '1 game · 3ª persona', 'nello stesso schermo niente livello');
+});
+
+/* ---------- segnale del momento giusto ---------- */
+test('segnale: di base acceso a Bambini ed Evento, spento agli altri; «Sì» e «No» valgono per tutti; mai tra due persone', () => {
+  assert.equal(cueDefault('bambini'), true); assert.equal(cueDefault('evento'), true);
+  for (const lv of ['casual', 'pro', 'leggenda']) assert.equal(cueDefault(lv), false, lv);
+  for (const lv of CPU_LEVELS){
+    assert.equal(cueOn({ level: lv, pref: 'auto' }), cueDefault(lv), lv);
+    assert.equal(cueOn({ level: lv, pref: 'on' }), true, lv); assert.equal(cueOn({ level: lv, pref: 'off' }), false, lv);
+    assert.equal(cueOn({ level: lv, pref: 'on', versus: true }), false, `${lv}, stesso schermo o sfida tra due computer`);
+  }
+  assert.equal(cueOn({ level: '1v1', pref: 'on' }), false);
+  const st = storage();
+  assert.equal(readCue({ storage: st }), 'auto');
+  assert.equal(writeCue('on', { storage: st }), 'on'); assert.equal(st.getItem(CUE_KEY), '1'); assert.equal(readCue({ storage: st }), 'on');
+  assert.equal(writeCue('off', { storage: st }), 'off'); assert.equal(readCue({ storage: st }), 'off');
+  assert.equal(writeCue('auto', { storage: st }), 'auto'); assert.equal(st.getItem(CUE_KEY), null);
+  assert.equal(writeCue('boh', { storage: st }), 'auto');
+  assert.equal(readCue({ storage: { getItem(){ throw new Error('no'); } } }), 'auto');
+});
+
+test('segnale: l\'anello si stringe mentre la palla arriva, è verde tra i due bordi, poi rosso e sparisce', () => {
+  const span = NS.SKILL_LEVELS.casual.timingSpan, perfect = NS.SWING_AIM.centre*span;
+  assert.equal(cueView(null), null); assert.equal(cueView(CUE.lead + .01, span), null, 'palla ancora lontana');
+  const far = cueView(CUE.lead, span), mid = cueView(CUE.lead/2, span), now = cueView(0, span);
+  assert.equal(far.phase, 'wait'); assert.ok(near(far.diameter, CUE.wide));
+  assert.ok(mid.diameter < far.diameter && mid.diameter > now.diameter); assert.ok(near(now.diameter, CUE.tight));
+  assert.equal(now.phase, 'now'); assert.equal(cueView(perfect*.9, span).phase, 'now'); assert.equal(cueView(-perfect*.9, span).phase, 'now');
+  assert.equal(cueView(perfect*1.2, span).phase, 'wait'); assert.equal(cueView(-perfect*1.2, span).phase, 'late');
+  assert.equal(cueView(-(perfect + CUE.after + .01), span), null, 'palla passata');
+  // con i due bordi (cueEdges): verde da «early» prima a «late» dopo il punto d'impatto, rosso per CUE.after, poi niente
+  const W = { early: .07, late: .03 };
+  assert.equal(cueView(.071, W).phase, 'wait'); assert.equal(cueView(.069, W).phase, 'now'); assert.equal(cueView(-.029, W).phase, 'now');
+  assert.equal(cueView(-.031, W).phase, 'late'); assert.equal(cueView(-(.03 + CUE.after + .01), W), null);
+  assert.equal(cueView(.01, {}).phase, 'wait', 'bordi mancanti: mai verde per sbaglio'); assert.equal(cueView(0, {}).phase, 'now');
+});
+
+// Revisione (bloccante 1): prima il verde era simmetrico (± 0,35 × timingSpan) e durava 20–55 ms più del «Perfetto» vero
+// dopo il punto d'impatto: un gesto su cinque fatto con l'anello verde riceveva «Ritardo»
+test('segnale: i bordi del verde sono quelli del voto «Perfetto» del colpo vero (strokeOutcome), diversi prima e dopo l\'impatto', () => {
+  for (const name of ['bambini', 'casual', 'evento', 'pro', 'leggenda']){
+    const L = NS.skillLevel(name), margin = L.lateMargin || 0;
+    for (const vz of [9, 14, 18, 24, 32]){
+      const E = cueEdges({ level: L, vz, margin }), span = directionSpan(L)*slowFactor(vz), lateSpan = lateSpanOf(vz, L) + margin;
+      assert.ok(near(E.early, NS.SWING_AIM.centre*span), `${name} ${vz}: bordo in anticipo`);
+      assert.ok(near(E.late, NS.SWING_AIM.centre*Math.max(.04, Math.min(span, lateSpan))), `${name} ${vz}: bordo in ritardo`);
+      assert.ok(E.late <= E.early + 1e-12, `${name} ${vz}: dopo l'impatto il verde non dura più che prima`);
+      // lo stesso tempo: anello verde ⇔ voto «Perfetto» dell'esito
+      for (const f of [-1.6, -1.05, -.95, -.5, 0, .5, .95, 1.05, 1.6]){
+        const timing = f >= 0 ? f*E.early : f*E.late, grade = strokeOutcome({ intent: { shot: 'topspin', power: .5 }, timing, lateSpan, ballVz: vz, level: L }).grade;
+        assert.equal(cueView(timing, E).phase === 'now', grade === 'PERFECT', `${name} ${vz} m/s, tempo ${timing.toFixed(3)} s: ${grade}`);
+      }
+    }
+  }
+  // palla normale (18 m/s) a Casual: il verde dopo l'impatto è meno della metà di quello prima (1,4 m / 18 m/s = 78 ms pieni)
+  const C = cueEdges({ level: NS.skillLevel('casual'), vz: 18 });
+  assert.ok(C.late < .5*C.early && near(C.late, NS.SWING_AIM.centre*1.4/18), `${C.early} ${C.late}`);
+  // a Bambini il margine in ritardo allarga il verde dopo l'impatto; il campo aperto (tight) lo stringe
+  const B = NS.skillLevel('bambini');
+  assert.ok(cueEdges({ level: B, vz: 18, margin: B.lateMargin }).late > cueEdges({ level: B, vz: 18 }).late);
+  assert.ok(cueEdges({ level: B, vz: 18, tight: .7 }).late < cueEdges({ level: B, vz: 18 }).late);
+  // senza dati non rompe
+  const D = cueEdges(); assert.ok(D.early > 0 && D.late > 0 && D.late <= D.early);
+});
+
+test('segnale nel motore vero: ogni gesto fatto con l\'anello verde riceve «Perfetto»; quasi ogni «Perfetto» era con il verde', () => {
+  // giocatore con il telefono e 0,1 s di errore di tempo: gesti prima, dentro e dopo la finestra
+  const P = { ...PROFILES.amatore, timingSd: .1 };
+  for (const difficulty of ['bambini', 'evento', 'casual']){
+    const T = { green: 0, greenPerfect: 0, greenAfter: 0, perfect: 0, perfectNotGreen: 0 };
+    let phase = null, seen = null;
+    simulate({ profile: P, difficulty, points: 70, seed: 3301,
+      setup: e => { e.cue = new NatpfTimingCue(e); e.cue.pref = 'on'; const h = e._handleUserSwingInput.bind(e);
+        e._handleUserSwingInput = ev => { if (e.phase === 'RALLY'){ e.cue.update(); phase = e.cue.view?.phase ?? 'none'; } return h(ev); }; },
+      onStep: e => { e.cue.update(1/120); const r = e.natpfLastRacket;
+        if (!r || r === seen || r.who !== 'player') return;
+        seen = r; if (!phase) return;
+        const g = r.out.grade;   // il voto della scritta (racketShot.u)
+        if (g === 'PERFECT'){ T.perfect++; if (phase !== 'now') T.perfectNotGreen++; }
+        if (phase === 'now'){ T.green++; if (g === 'PERFECT') T.greenPerfect++; if (r.timing < 0) T.greenAfter++; }
+        phase = null; } });
+    assert.ok(T.green >= 60 && T.greenAfter >= 15, `${difficulty}: gesti con il verde ${T.green}, di cui dopo l'impatto ${T.greenAfter}`);
+    assert.equal(T.greenPerfect, T.green, `${difficulty}: ${T.green - T.greenPerfect} gesti con l'anello verde senza «Perfetto»`);
+    // il contrario può mancare di poco: la palla rallenta al rimbalzo e la finestra vera in anticipo si allarga dopo il gesto
+    assert.ok(T.perfectNotGreen <= .06*T.perfect, `${difficulty}: «Perfetto» senza verde ${T.perfectNotGreen} su ${T.perfect}`);
+  }
+});
+
+test('segnale: l\'anello non si riallarga mentre la stessa palla arriva; una palla nuova riparte larga', () => {
+  const span = NS.SKILL_LEVELS.casual.timingSpan;
+  let floor = Infinity; const shown = [];
+  // la stima del tempo torna indietro due volte (al rimbalzo): l'anello resta fermo, poi riprende a stringersi
+  for (const ttc of [.8, .7, .78, .6, .66, .5, .3, .1, 0, -.02]){ const r = cueHold(cueView(ttc, span), floor); floor = r.floor; shown.push(r.view.diameter); }
+  for (let i = 1; i < shown.length; i++) assert.ok(shown[i] <= shown[i - 1] + 1e-9, `passo ${i}: ${shown[i - 1]} → ${shown[i]}`);
+  assert.equal(shown[2], shown[1], 'stima tornata indietro: fermo al più stretto già visto'); assert.ok(shown[3] < shown[2]);
+  const held = cueHold(cueView(.78, span), cueView(.7, span).diameter).view;
+  assert.ok(near(held.size, (held.diameter - CUE.tight)/(CUE.wide - CUE.tight), 1e-3) && held.phase === 'wait');
+  // fase e istante del verde non cambiano: decide sempre il tempo vero
+  assert.equal(cueHold(cueView(0, span), 9).view.phase, 'now'); assert.deepEqual(cueHold(cueView(0, span), CUE.tight + .2).view, cueView(0, span));
+  const green = cueHold(cueView(.02, span), CUE.tight);
+  assert.equal(green.view.phase, 'now'); assert.equal(green.view.diameter, CUE.tight, 'anche da verde non si riallarga');
+  assert.deepEqual(cueHold(null, 1.2), { view: null, floor: Infinity }, 'anello sparito: la palla dopo riparte larga');
+});
+
+test('segnale: è solo disegno, la partita simulata è la stessa con il segnale acceso o spento (stessi semi)', async () => {
+  let seen = 0, grown = 0, last = null, key = null;
+  const run = on => simulate({ profile: 'amatore', difficulty: 'bambini', points: 25, seed: 11, setup: e => { e.natpfCueTest = new NatpfTimingCue(e); e.natpfCueTest.pref = on ? 'on' : 'off'; },
+    onStep: e => { e.natpfCueTest.update(1/120); const v = e.natpfCueTest.view, k = `${e.ball.rallyStrokeCount}|${e.ball.lastHitter}`;
+      if (k !== key || !v){ key = k; last = null; }
+      if (v){ seen++; if (last != null && v.diameter > last + 1e-9) grown++; last = v.diameter; } } });
+  const acceso = run(true), visti = seen; seen = 0;
+  assert.equal(grown, 0, 'nel motore l\'anello non torna mai più largo mentre la stessa palla arriva');
+  const spento = run(false);
+  assert.ok(visti > 200, `acceso: l'anello è in vista mentre la palla arriva (${visti} passi)`); assert.equal(seen, 0, 'spento: mai');
+  assert.deepEqual(acceso.rallies, spento.rallies); assert.equal(acceso.won, spento.won); assert.deepEqual(acceso.grades, spento.grades);
+});
+
+/* ---------- colpo super spiegato ---------- */
+test('colpo super spiegato: la prima volta la regola e il motivo, poi solo il motivo; niente se il gesto non era fortissimo', () => {
+  const strong = { power: 1, depth: 1, shot: 'topspin' };
+  const shot = (why, o = {}) => ({ who: 'player', intent: strong, out: { shot: 'TOPSPIN' }, super: null, superWhy: [why], superRel: 1.1, ...o });
+  const first = superHint(shot('palla né alta, né lenta, né corta'), { first: true });
+  assert.ok(first.first && first.text.startsWith(SUPER_RULE) && /bassa e veloce/.test(first.text), first.text);
+  const again = superHint(shot('fuori tempo'));
+  assert.equal(again.text, 'Super mancato: eri fuori tempo.'); assert.ok(again.seconds < first.seconds);
+  assert.match(superHint(shot('colpo innaturale (palla dall\'altra parte)')).text, /lato sbagliato/);
+  // tipo di colpo: frase che sta in piedi anche dopo «Questa volta» (revisione: prima «Questa volta vale solo con…»)
+  assert.equal(superHint(shot('colpo slice')).text, 'Super mancato: il colpo era tagliato.');
+  assert.equal(superHint(shot('colpo lob')).text, 'Super mancato: era un pallonetto.'); assert.equal(superHint(shot('colpo drop')).text, 'Super mancato: era una palla corta.');
+  assert.equal(superHint(shot('colpo slice'), { first: true }).text, `${SUPER_RULE} Questa volta il colpo era tagliato.`);
+  // niente scritta: super riuscito, colpo fallito, gesto non fortissimo, motivo che non spiega niente
+  assert.equal(superHint(shot('gesto fortissimo', { super: 'alta' })), null);
+  assert.equal(superHint(shot('fuori tempo', { out: { failed: true } })), null);
+  assert.equal(superHint(shot('fuori tempo', { superRel: .8 })), null);
+  assert.equal(superHint(shot('gesto non abbastanza forte')), null); assert.equal(superHint(shot('colpo non riuscito')), null);
+  assert.equal(superHint(null), null);
+  for (const w of ['gesto non abbastanza forte', 'colpo non riuscito', '', undefined]) assert.equal(superReason(w), null);
+  // le condizioni del super non sono toccate (decisione del 29/10)
+  assert.deepEqual({ power: SUPER.power, timing: SUPER.timing, quality: SUPER.quality, highY: SUPER.highY, slowVz: SUPER.slowVz }, { power: .86, timing: .6, quality: .8, highY: 1.25, slowVz: 12.5 });
+  // le frasi sono corte: stanno in due righe sul grande schermo (anche con il motivo più lungo)
+  assert.ok(SUPER_RULE.length <= 80 && first.text.length <= 130 && again.text.length <= 60);
+  const longest = Object.values(SITUATION_WORDS).reduce((a, w) => (w.length > a.length ? w : a));
+  assert.ok(`${SUPER_RULE} Questa volta ${longest}.`.length <= 155 && `Super mancato: ${SITUATION_WORDS.prep}.`.length <= 60, longest);
+});
+
+// Revisione (bloccante 2): superShot risponde «in corsa o in allungo» ogni volta che la qualità è sotto 0,8; la scritta
+// diceva sempre «eri in corsa», quasi sempre falso (chi colpiva era fermo: palla profonda, niente preparazione, scambio lungo)
+test('colpo super spiegato: quando manca la qualità la scritta dice la voce vera della situazione, «in corsa» solo se correva', () => {
+  const strong = { power: 1, depth: 1, shot: 'topspin' }, ok = { reach: 1, prep: 1, stretch: 1, fast: 1, deep: 1, high: 1, pressure: 1, running: 0 };
+  const text = sit => superHint({ who: 'player', intent: strong, out: { shot: 'TOPSPIN' }, super: null, superWhy: ['in corsa o in allungo'], superRel: 1.1, sit }).text;
+  // una voce sola sotto 1
+  assert.equal(situationCause({ ...ok, deep: .85, pressure: .9 }), 'deep'); assert.equal(text({ ...ok, deep: .78 }), 'Super mancato: la palla era troppo profonda.');
+  assert.equal(text({ ...ok, fast: .76 }), 'Super mancato: la palla era troppo veloce.');
+  assert.equal(text({ ...ok, high: .88, pressure: .9 }), 'Super mancato: la palla era sopra la spalla.');
+  assert.equal(text({ ...ok, stretch: .7 }), 'Super mancato: eri in allungo.');
+  assert.equal(text({ ...ok, pressure: .7 }), 'Super mancato: lo scambio era lungo.');
+  // corsa e palla lontana sono la stessa voce (reach): «in corsa» solo se chi colpiva correva davvero
+  assert.equal(text({ ...ok, reach: .7, running: .2 }), 'Super mancato: la palla era lontana.');
+  assert.equal(text({ ...ok, reach: .7, running: .8 }), 'Super mancato: eri in corsa.');
+  // la preparazione mancante (0,86) da sola non basta mai a togliere il super; con un'altra voce: se bastava portare
+  // indietro la racchetta lo si dice (è l'unica voce che chi gioca può correggere), se non bastava si dice la voce più bassa
+  assert.equal(situationCause({ ...ok, prep: .86, deep: .9 }), 'prep', '0,86 × 0,9 = 0,77 < 0,8; con la preparazione 0,9: bastava');
+  assert.equal(text({ ...ok, prep: .86, deep: .9 }), 'Super mancato: non hai portato indietro la racchetta.');
+  assert.equal(situationCause({ ...ok, prep: .86, deep: .75 }), 'deep', 'anche con la preparazione 0,75 < 0,8: la causa è la palla');
+  assert.equal(situationCause({ ...ok, prep: .86, pressure: .9, stretch: .95 }), 'prep');
+  // senza le voci (registrazioni vecchie) una frase generica ma vera; mai «eri in corsa» a caso
+  assert.equal(text(undefined), `Super mancato: ${SITUATION_WORDS.unknown}.`); assert.equal(text(ok), `Super mancato: ${SITUATION_WORDS.unknown}.`);
+  assert.equal(situationCause(null), null); assert.equal(situationCause(ok), null);
+  assert.equal(superReason('in corsa o in allungo', { ...ok, deep: .7 }), SITUATION_WORDS.deep);
+  // le voci una per una sono quelle del motore (game_engine._natpfRacketShot)
+  const S = NS.situationParts({ reach: .9, prep: .86, stretch: 1 }, { speed: 30, z: 12.8, y: 1.8, smash: false, pressure: .97, running: .3 });
+  assert.deepEqual(S, { reach: .9, prep: .86, stretch: 1, fast: .875, deep: .925, high: .94, pressure: .97, running: .3 });
+  assert.equal(NS.situationParts({}, { speed: 40, z: -14, y: 2.4, smash: true }).high, 1, 'la schiacciata non paga la palla alta');
+  assert.deepEqual(NS.situationParts(), { reach: 1, prep: 1, stretch: 1, fast: 1, deep: 1, high: 1, pressure: 1, running: 0 });
+});
+
+test('colpo super spiegato nel motore vero: le voci scritte dal motore danno la qualità del colpo e la scritta dice quella giusta; una scritta a punto', () => {
+  // chi colpisce forte senza portare indietro la racchetta, a Evento: tante scritte, di tutti i tipi
+  const P = { ...PROFILES.tennista, prep: .3 };
+  const T = { shots: 0, quality: 0, said: {}, hints: 0 };
+  let seen = null, H = null, points = 0, hintPoint = -1, twice = 0, shownBefore = 0;
+  const out = simulate({ profile: P, difficulty: 'evento', points: 90, seed: 4441,
+    setup: e => { H = new NatpfSuperHint(e); const award = e._awardPoint.bind(e); e._awardPoint = (...a) => { points++; return award(...a); }; },
+    onStep: e => { H.update(1/120);
+      if (H.shown > shownBefore){ shownBefore = H.shown; if (hintPoint === points) twice++; hintPoint = points; }
+      const r = e.natpfLastRacket; if (!r || r === seen || r.who !== 'player') return; seen = r; T.shots++;
+      const s = r.sit, prod = s.reach*s.prep*s.stretch*s.fast*s.deep*s.high*s.pressure;
+      // le sette voci (a tre cifre) ridanno la qualità di situazione scritta dal motore (quality × pressure)
+      assert.ok(Math.abs(prod - r.quality) <= .006, `colpo ${T.shots}: voci ${prod.toFixed(3)}, motore ${r.quality}`);
+      if (r.superWhy?.[0] !== 'in corsa o in allungo') return;
+      const h = superHint(r); if (!h) return;
+      T.quality++; const cause = situationCause(s);
+      assert.ok(cause, 'una voce sotto 1 c\'è sempre quando la qualità è sotto 0,8');
+      assert.equal(h.text, `Super mancato: ${SITUATION_WORDS[cause]}.`);
+      T.said[cause] = (T.said[cause] || 0) + 1;
+      if (cause === 'running') assert.ok(s.running > .5 && s.reach < 1);
+      else {
+        const lowest = s[cause] < 1 && ['reach', 'prep', 'stretch', 'fast', 'deep', 'high', 'pressure'].every(k => s[cause] <= s[k]);
+        if (cause === 'prep') assert.ok(s.prep < 1 && (prod/s.prep >= SUPER.quality || lowest), 'bastava portare indietro la racchetta, o è la voce più bassa');
+        else assert.ok(lowest, `${cause} è la voce più bassa`);
+      }
+    } });
+  assert.ok(T.quality >= 30, `scritte per la qualità: ${T.quality}`);
+  assert.ok(T.said.prep >= 5 && T.said.deep >= 5, JSON.stringify(T.said));
+  assert.equal(T.said.running || 0, 0, 'nel banco chi colpisce è fermo: «eri in corsa» non esce mai');
+  // al massimo una scritta a punto
+  assert.equal(twice, 0); assert.ok(H.shown >= 20 && H.shown <= out.points, `${H.shown} scritte in ${out.points} punti`);
+});
+
+/* ---------- nell'interfaccia: chiosco, «Nuovo giocatore», menu principale ---------- */
+test('interfaccia: chiosco, «Nuovo giocatore» e menu principale riportano «Chi gioca» e il livello Evento al valore di base; «Gioca ancora» no', async () => {
+  const { makeWorld } = await import('./ui-world.mjs');      // interfaccia vera sul motore senza disegno
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const { ui, lobby } = w, E = ui.engine;
+  // l'HUD finto di ui-world non ha la scelta del livello: qui basta che la ricordi (quello vero la disegna anche)
+  E.hud._setDifficultySelection = d => { E.hud.selectedDifficulty = d; };
+  try {
+    assert.equal(lobby.base, 'evento', 'valore di base: Adulto');
+    // «Altre impostazioni» → «Livello della CPU»
+    lobby.setLevel('pro'); assert.equal(E.hud.selectedDifficulty, 'pro'); assert.equal(lobby.cpuLevel, 'pro');
+    lobby.setLevel('boh'); assert.equal(E.hud.selectedDifficulty, 'pro', 'un livello che non esiste non cambia niente');
+    // una tessera (l'HUD ha già scelto il livello) fa ripartire il livello Evento
+    eventoPoint(true); E.hud.selectedDifficulty = 'bambini'; lobby.pickWho('bambini');
+    assert.equal(lobby.cpuLevel, 'bambini'); assert.equal(eventoK(), EVENTO.start);
+    // chiosco che riparte
+    eventoPoint(true); eventoPoint(true); ui.superHint.seen = true;
+    ui.kiosk.reset();
+    assert.equal(E.hud.selectedDifficulty, 'evento'); assert.equal(lobby.cpuLevel, 'evento');
+    assert.equal(eventoK(), EVENTO.start); assert.equal(eventoState().points, 0); assert.equal(ui.superHint.seen, false);
+    // «Nuovo giocatore»
+    lobby.setLevel('leggenda'); eventoPoint(false); ui.superHint.seen = true;
+    ui.newPlayer();
+    assert.equal(E.hud.selectedDifficulty, 'evento'); assert.equal(eventoK(), EVENTO.start); assert.equal(ui.superHint.seen, false);
+    // stesso schermo o sfida tra due computer (livello 1v1): il livello resta 1v1, la scelta torna di base per dopo
+    E.hud.selectedDifficulty = '1v1'; lobby.cpuLevel = 'pro';
+    lobby.resetWho();
+    assert.equal(E.hud.selectedDifficulty, '1v1'); assert.equal(lobby.cpuLevel, 'evento');
+    E.hud.selectedDifficulty = 'evento';
+    // «Gioca ancora» (pagina «Partita») tiene il livello Evento; il menu principale lo fa ripartire
+    eventoPoint(true); const k = eventoK();
+    ui.backToMenu('match'); assert.equal(eventoK(), k); assert.equal(eventoState().points, 1);
+    ui.backToMenu(); assert.equal(eventoK(), EVENTO.start); assert.equal(eventoState().points, 0);
+    assert.equal(E.hud.selectedDifficulty, 'evento', 'la tessera scelta resta');
+  } finally { eventoReset(); }
+});
+
+/* ---------- diagnostica (revisione): il valore del livello Evento e lo stato del segnale ---------- */
+test('diagnostica: la partita registra il segnale acceso o spento e, a Evento, il valore della CPU all\'inizio e dopo ogni punto', async t => {
+  globalThis.requestAnimationFrame ??= cb => setTimeout(() => cb(performance.now()), 16);
+  globalThis.cancelAnimationFrame ??= id => clearTimeout(id);
+  const world = difficulty => {
+    const engine = {
+      phase: 'SERVE_STANCE', ball: { pos: { x: 0, y: 1, z: 5 }, vel: { x: 0, y: 0, z: -20 }, inPlay: false, lastHitter: null, bounceCountOnCurrentSide: 0 },
+      player: { pos: { x: 0, y: 0, z: 11 } }, score: { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0 }, matchConfig: { difficulty, gamesToWin: 1 },
+      update(){}, render(){}, startNewMatch(){}, _spawnBounceRing(){},
+      // come il motore: il punto muove il livello Evento (NS.eventoAfterPoint) prima che il registratore lo scriva
+      _awardPoint(w){ this.score[w === 'player' ? 'playerPoints' : 'opponentPoints']++; NS.eventoAfterPoint(this, w); },
+      opponent: { maxSpeed: 5 }, opponentPartner: { maxSpeed: 5 }, userHasInteracted: true,
+      motionController: { on(){}, emit(){} },
+    };
+    return engine;
+  };
+  const events = async (difficulty, cueOnNow, points) => {
+    let now = 1000;
+    const engine = world(difficulty), store = memoryStore();
+    const ui = { controller: 'mouse', hand: { hand: 'right' }, training: { active: false }, cue: { enabled: cueOnNow }, lobby: { mode: 'cpu' } };
+    const R = new DiagRecorder({ engine, ui, store, now: () => now, wallNow: () => Date.UTC(2026, 10, 12, 10, 0, 0) });
+    const id = await R.start({ webcamVideo: false, gameVideo: false });
+    t.after(() => { if (R.active) R.stop(); });
+    engine.startNewMatch();
+    for (const w of points){ now += 500; engine._awardPoint(w, 'Out'); }
+    await R.flush(); R.stop();
+    return (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l));
+  };
+  try {
+    eventoReset();
+    const ev = await events('evento', true, ['player', 'player', 'opponent']);
+    const m = ev.find(e => e.k === 'partita'), pts = ev.filter(e => e.k === 'punto');
+    assert.equal(m.difficolta, 'evento'); assert.equal(m.segnale, true); assert.equal(m.eventoK, EVENTO.start, 'valore di partenza');
+    assert.equal(pts.length, 3);
+    assert.ok(pts[0].eventoK > m.eventoK && pts[1].eventoK > pts[0].eventoK && pts[2].eventoK < pts[1].eventoK, pts.map(p => p.eventoK).join(' '));
+    assert.equal(pts[2].eventoK, +eventoK().toFixed(3), 'l\'ultimo punto dice il valore di fine partita');
+    // agli altri livelli niente valore di Evento; il segnale spento è scritto come spento
+    eventoReset();
+    const ev2 = await events('casual', false, ['player']);
+    const m2 = ev2.find(e => e.k === 'partita'), p2 = ev2.find(e => e.k === 'punto');
+    assert.equal(m2.segnale, false); assert.ok(!('eventoK' in m2) && !('eventoK' in p2));
+  } finally { eventoReset(); }
+});

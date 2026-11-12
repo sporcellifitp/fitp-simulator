@@ -318,7 +318,7 @@ export class NatpfTennisEngine {
       (this.cameraTrauma = 0);
     const e = this.isMultiplayer
       ? "1v1"
-      : ["casual", "pro", "leggenda", "1v1"].includes(this.urlMode)
+      : ["casual", "pro", "leggenda", "1v1", "bambini", "evento"].includes(this.urlMode) // NATPF B18.2 gruppo 3: livelli Bambini ed Evento
         ? this.urlMode
         : "casual";
     (this.matchConfig = { gamesToWin: e === "1v1" ? 1 : 2, inputMode: "mouse", difficulty: e }),
@@ -2385,6 +2385,9 @@ export class NatpfTennisEngine {
       hand, source: (e.natpf && e.natpf.source) || e.source || null, aimFull: e.natpf && Number.isFinite(e.natpf.aimFull) ? e.natpf.aimFull : null,
       // B25: forza del gesto rispetto alla soglia del proprio super (1 = alla soglia), per la barra della potenza tra due persone
       superRel: duo?.superRel ? ND.relLevel(e, help?.superRatio) : null };
+    // NATPF B18.2 gruppo 3 (revisione): le voci della situazione anche per i colpi riusciti («cause» c'è solo per i falliti),
+    // per dire la causa vera di un colpo super mancato (natpf_super_hint.js). Solo lettura: niente nell'esito
+    this.natpfLastRacket.sit = NS.situationParts(Q, { speed: b.vel.length(), z: p.pos.z, y: b.pos.y, smash, pressure, running });
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
     const netClear = sup.on ? NO.SUPER.netGap : out.attack || out.hot ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null; // (B20: anche lo scambio caldo passa basso)
     return {
@@ -2718,6 +2721,7 @@ export class NatpfTennisEngine {
       (f = A.flight), (natpfSpin = A.topspin);
     }
 
+    f *= NS.cpuFlightFactor(this, y); // NATPF B18.2 gruppo 3: al livello Bambini la palla della CPU arriva più lenta (× 1 esatto negli altri)
     this._launchBallToTarget(d, new o.Vector3(g, 0, c), f, {
         topspin: natpfSpin,
         sidespin: 0,
@@ -3365,6 +3369,7 @@ export class NatpfTennisEngine {
     const wf = this.natpfLastWhiff; // B20: colpo a vuoto di questo punto (vale solo per questo punto)
     this.natpfLastWhiff = null;
     NL.legendPointEnd(this, e); // NATPF Leggenda: il modello dell'avversario impara da come finisce il punto
+    NS.eventoAfterPoint(this, e); // NATPF B18.2 gruppo 3: al livello Evento la CPU si regola di un gradino tra un punto e l'altro (natpf_evento.js)
     (this.phase = "POINT_OVER"),
       (this.phaseTimer = 0),
       (this.ball.inPlay = !1),

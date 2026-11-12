@@ -10,6 +10,9 @@ import { NatpfVersusUi } from './natpf_versus_ui.js';
 import { NatpfPause } from './natpf_pause.js';
 import { NatpfShotFeedback } from './natpf_shot_feedback.js';
 import { NatpfPowerHud } from './natpf_power_hud.js';
+import { NatpfTimingCue } from './natpf_timing_cue.js';
+import { NatpfSuperHint } from './natpf_super_hint.js';
+import { eventoRestart } from './natpf_skill.js';
 import { NatpfHand } from './natpf_hand.js';
 import { NatpfTraining } from './natpf_training.js';
 import { NatpfBallMachine } from './natpf_ball_machine.js';
@@ -31,6 +34,7 @@ import { NatpfSplitUi } from './natpf_split_ui.js';
 import { NatpfScreen } from './natpf_screen.js';
 import { NatpfCalibra } from './natpf_calibra.js';
 import { scoreboardView, scoreboardHtml } from './natpf_scoreboard.js';
+import { castLooks, getCast } from './natpf_personaggi.js';
 import { NatpfUpdates } from './natpf_updates.js';
 import { resetVisitor } from './natpf_new_player.js';
 import { NatpfTrial } from './natpf_trial.js';
@@ -82,6 +86,8 @@ export class NatpfUi {
     this.hand = new NatpfHand(engine);
     this.shot = new NatpfShotFeedback(engine);
     this.power = new NatpfPowerHud(engine);          // potenza del colpo, colpo super ed energia (stanchezza)
+    this.cue = new NatpfTimingCue(engine);           // B18.2 gruppo 3: segnale del momento giusto (anello sulla palla)
+    this.superHint = new NatpfSuperHint(engine);     // B18.2 gruppo 3: perché il colpo super non è scattato
     this.machine = new NatpfBallMachine(engine);      // lanciapalle 3D del riscaldamento e dei minigiochi
     this.training = new NatpfTraining(engine, this);
     this.gesture = new NatpfGestureHud(engine, this);   // etichetta del gesto: rilevato, letto, applicato
@@ -203,7 +209,7 @@ export class NatpfUi {
     // caldo» si tolgono subito (restavano sotto il riquadro della pausa) e tornano da sole alla ripresa
     if (this.engine.natpfPaused){ this.serveCoach?.paint(null); this.hotRally?.hide(); }
   }
-  tick(dt = 1/60){ this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); }
+  tick(dt = 1/60){ this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.cue.update(dt); this.superHint.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); }
   // sfondo fermo dell'arena dietro il menu (motore: _natpfBackdropFrame). Il Player 2 dell'invito vede l'arena viva
   // (riceve lo stato dell'host), e in campo (riscaldamento, sfide) il gioco gira
   menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && !this.trial?.active && this.engine.playerRole !== 'p2'; }
@@ -228,7 +234,8 @@ export class NatpfUi {
     const el = $('natpf-scoreboard'); if (!el || !score) return;
     const E = this.engine, rs = E.roomStatus || {};
     const v = scoreboardView(score, { gamesToWin, viewer: E.playerRole === 'p2' ? 'opponent' : 'player', multiplayer: !!E.isMultiplayer,
-      split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName });
+      split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName,
+      looks: castLooks(getCast(), !!E.isMultiplayer) });   // B24: linguette del colore di Drop e di Lob
     const html = scoreboardHtml(v);
     if (this._sbHtml !== html || !el.firstChild){ this._sbHtml = html; el.innerHTML = html; }
     // stesso schermo (B17.3): la stessa tabella anche in alto a sinistra della metà del Player 2; vuota altrimenti
@@ -260,6 +267,10 @@ export class NatpfUi {
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
     E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go(step); this._syncPause();
+    // B18.2 gruppo 3: tornare al menu principale chiude la serie di partite di un giocatore: il livello Evento riparte
+    // dal valore di base (senza, il visitatore dopo trovava la CPU regolata su quello di prima). «Gioca ancora» porta
+    // alla pagina «Partita» (step 'match') e il livello continua da dove era arrivato
+    if (step === 'menu') eventoRestart(E);
   }
   /* ---------- webcam nella tappa di preparazione ---------- */
   async startWebcam(){

@@ -11,6 +11,7 @@
 //  • la CPU: tempo di reazione, lettura imperfetta della traiettoria, portata limitata ed errori che crescono con
 //    angolo, velocità, pressione dello scambio e allungo; sotto pressione rimanda palle corte e alte da smash.
 import { openRun } from "./natpf_duo_rules.js"; // B25: campo aperto tra due persone nello stesso schermo (moveFactor)
+import { EVENTO, eventoK, eventoPoint, eventoReset, eventoState, blend } from "./natpf_evento.js"; // B18.2: livello «Evento» adattivo
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 export const gauss = (rng = Math.random) => { let u = 0, v = 0; while (!u) u = rng(); while (!v) v = rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
@@ -25,7 +26,8 @@ const EXPERT_PLAYER = Object.freeze({
   streakGain: .05, streakMin: .8, playerSpeed: 8.8,
 });
 // Parametri per difficoltà. «1v1» (due persone) usa solo la parte del giocatore.
-export const SKILL_LEVELS = Object.freeze({
+// (B18.2 gruppo 3: i livelli «Bambini» ed «Evento» si aggiungono qui sotto, dopo questi quattro, che restano identici)
+const LEVELS = {
   casual: Object.freeze({
     assistWindow: .3, perfectLead: .17, timingSpan: .2,  // s: lo swing anticipato resta in attesa al massimo così; «perfetto» entro perfectLead
     autoAim: .55,                                       // uno swing al centro va comunque un po' verso il campo libero
@@ -86,14 +88,99 @@ export const SKILL_LEVELS = Object.freeze({
     playerErr: Object.freeze({ base: .01, power: .12, timing: .3, max: .5 }),
     streakGain: .045, streakMin: .82,
   }),
+};
+
+/* ---------- B18.2 gruppo 3: livelli «Bambini» ed «Evento» (difetto 3 / D3 del rapporto B16) ---------- */
+// «Bambini» (nel menu: Chi gioca → Bambino): un bambino deve poter fare scambi e vincere game. A Casual il profilo
+// «bambino» del banco vince 46–48 punti e 39–46 game su 100 e perde 37 punti su 100 senza toccare la palla. Qui:
+//   • chi gioca ha più margine sul tempo: finestra della direzione più larga (timingSpan: lo stesso errore di tempo sposta
+//     meno la palla verso le righe), si colpisce ancora un poco più in ritardo (lateMargin, natpf_impact.lateMargin),
+//     «Perfetto» più largo (perfectLead), meno dispersione e meno rischio vicino alle righe;
+//   • la palla della CPU arriva più lenta e un poco più alta (cpuFlight × tempo di volo dei suoi colpi, cpuServe.flight
+//     per il servizio), quasi sempre al centro e mai negli angoli (CPU_PATTERNS.bambini), e la CPU non attacca la palla
+//     debole (cpuAttack 0);
+//   • la CPU corre piano, parte tardi e sbaglia di più quando deve muoversi (cpuErr), anche sul servizio (SERVE_WEIGHT).
+// Le condizioni del colpo super e il riconoscimento dei gesti non cambiano. Taratura e misure:
+// scripts/audit/evento-bambini.mjs, docs/b18/t2-4-evento-bambini.md
+LEVELS.bambini = Object.freeze({
+  ...LEVELS.casual,
+  assistWindow: .34, perfectLead: .22, timingSpan: .28, autoAim: .6,
+  scatter: .35, lineRisk: .35, depthRisk: .4,
+  playerErr: Object.freeze({ base: .004, power: .06, timing: .2, max: .35 }),
+  lateMargin: .06, cpuFlight: 1.08,
+  cpuErr: Object.freeze({ ...LEVELS.casual.cpuErr, base: .012, stretch: .2, run: .08 }),
+  cpuAttack: 0, cpuAttackBase: 0,
+  cpuServe: Object.freeze({ flight: 1.15, wide: 0 }),
 });
+// «Evento» (nel menu: Chi gioca → Adulto): il livello si regola da solo su chi gioca (natpf_evento.js). È una media,
+// pesata da k (0…1, natpf_evento.eventoK), tra due livelli che esistono già e sono tarati:
+//   easy  Casual, identico (a k = 0 la partita è quella di Casual, numero per numero);
+//   hard  Pro: la lettura, gli errori e la stanchezza della CPU, e le regole di Pro per chi gioca (finestra della
+//         direzione, «Perfetto», dispersione, rischio vicino alle righe, corsa del personaggio); la CPU corre un poco più
+//         di quella di Pro (5,6 m/s invece di 5,3, portata 1,55 m invece di 1,5, reazione 0,19 s invece di 0,2). Con la
+//         CPU di Pro esatta «umano» e «medio» del banco vincevano 70 e 68 punti su 100 già a k = 1: il livello restava
+//         fermo al suo tetto proprio per l'adulto medio. Così il loro punto di equilibrio (65 su 100) sta a k ≈ 0,9.
+// Tra i due cambiano insieme, un poco a ogni gradino: quanto corre e legge la CPU, quanto sbaglia, quanto forte e
+// profonda tira (cpuFlight × tempo di volo dei suoi colpi; cpuPro: probabilità che il colpo sia scelto come a Pro,
+// cpuShotChoice) e quanta precisione è chiesta a chi gioca. Con la sola CPU che migliora (prima prova) gli scambi
+// diventavano lunghissimi (25 colpi a punto per «umano» vicino a k = 1): chi gioca con le regole larghe di Casual non
+// sbaglia quasi mai e il punto lo chiude solo un errore della CPU.
+// Restano quelle di Casual a ogni k (tabelle per livello di natpf_stroke_outcome.js, che ricadono su Casual): la finestra
+// d'impatto (IMPACT) e l'assistenza (ASSIST: mira piena, qualità sotto cui il colpo fallisce). A k = 1 Evento è quindi
+// un poco più largo di Pro per chi gioca.
+const { tired: _proTired, ...PRO_ERR } = LEVELS.pro.cpuErr;
+export const EVENTO_ENDS = Object.freeze({
+  easy: Object.freeze({ ...LEVELS.casual, cpuErr: Object.freeze({ ...LEVELS.casual.cpuErr, tired: 0 }), cpuFatigue: Object.freeze({ ...LEVELS.pro.cpuFatigue, slow: 0 }), cpuFlight: 1, cpuPro: 0 }),
+  hard: Object.freeze({ ...LEVELS.pro, assistWindow: LEVELS.casual.assistWindow, cpuErr: Object.freeze({ ...PRO_ERR, tired: _proTired }), cpuFlight: .8, cpuPro: 1,
+    cpuSpeed: 5.6, cpuReach: 1.55, cpuReact: .19 }),
+});
+// solo per le misure (scripts/audit/evento-bambini.mjs --prova): valori che sostituiscono quelli dell'estremo «hard»
+export const eventoHardTuning = {};
+// livello Evento a k (pura)
+export const eventoLevelAt = k => Object.freeze({ ...blend(EVENTO_ENDS.easy, { ...EVENTO_ENDS.hard, ...eventoHardTuning }, k), adaptive: true });
+LEVELS.evento = eventoLevelAt(EVENTO.start);   // il livello alla partenza (in partita: skillLevel('evento'), che segue k)
+export const SKILL_LEVELS = Object.freeze(LEVELS);
 // Solo per audit ed esperimenti (scripts/audit/cpu-pressione.mjs --prova=…): valori che sostituiscono quelli del livello,
 // es. cpuTuning.pro = { cpuSpeed: 4.6 }. Vuoto nel gioco
 export const cpuTuning = {};
+let eventoCache = { k: NaN, tune: null, level: null };
+function eventoLevel(){
+  const k = eventoK(), T = cpuTuning.evento || null;
+  if (eventoCache.k !== k || eventoCache.tune !== T){ const L = eventoLevelAt(k); eventoCache = { k, tune: T, level: T ? { ...L, ...T } : L }; }
+  return eventoCache.level;
+}
 export const skillLevel = difficulty => {
-  const k = String(difficulty || 'casual').toLowerCase(), L = SKILL_LEVELS[k] || SKILL_LEVELS.casual, T = cpuTuning[k];
+  const k = String(difficulty || 'casual').toLowerCase();
+  if (k === 'evento') return eventoLevel();
+  const L = SKILL_LEVELS[k] || SKILL_LEVELS.casual, T = cpuTuning[k];
   return T ? { ...L, ...T } : L;
 };
+// la partita di adesso è al livello Evento contro la CPU?
+export const isEvento = engine => String(engine?.matchConfig?.difficulty || '') === 'evento' && !engine?.isMultiplayer;
+// le due velocità che il motore tiene sui personaggi (game_engine._applyDifficultyTuning) seguono k
+function eventoSpeeds(engine){
+  const L = skillLevel('evento');
+  if (engine.opponent) engine.opponent.maxSpeed = L.cpuSpeed;
+  if (engine.player) engine.player.maxSpeed = L.playerSpeed;
+}
+// Evento: a fine punto la CPU si regola di un gradino (natpf_evento.eventoPoint) e la sua velocità segue subito
+// (game_engine._awardPoint). who: 'player' | 'opponent'. Niente negli altri livelli, nella demo e nell'allenamento
+export function eventoAfterPoint(engine, who){
+  if (!isEvento(engine) || (engine.autoPlayMode && !engine.userHasInteracted)) return null;
+  const k = eventoPoint(who === 'player');
+  eventoSpeeds(engine);
+  return k;
+}
+// Evento: si riparte dal valore di base (giocatore nuovo, chiosco, scelta di «Chi gioca»); la velocità della CPU segue
+export function eventoRestart(engine){
+  const s = eventoReset();
+  if (isEvento(engine)) eventoSpeeds(engine);
+  return s;
+}
+export { eventoState, eventoK };
+// × tempo di volo dei colpi della CPU nello scambio (Bambini: palla più lenta e un poco più alta); 1 esatto negli altri
+// livelli. Non vale per il pallonetto, già lento
+export const cpuFlightFactor = (engine, shot = '') => (shot === 'LOB' || engine?.isMultiplayer ? 1 : finite(skillLevel(engine?.matchConfig?.difficulty).cpuFlight, 1) || 1);
 
 // Servizio della CPU (23/10, sera): flight moltiplica il tempo di volo (sotto 1 più veloce), wide quanto va verso gli
 // angoli del quadrato (dirX del motore: ±1 l'angolo). A Pro e Leggenda il servizio è l'arma della CPU: fa correre di
@@ -293,6 +380,19 @@ export function playerDepthZ(z, { quality = 1, power = .6, level = SKILL_LEVELS.
 }
 // Equilibrio al contatto: allungarsi o colpire in corsa toglie qualità (come executionQuality di NATPF).
 export function reachQuality(lateral, running = 0){ return clamp(1 - Math.max(0, finite(lateral) - 1.1)*.22 - clamp(finite(running))*.15, .35, 1); }
+// B18.2 gruppo 3 (revisione): le voci della situazione di un colpo di chi gioca, una per una, come le calcola il motore
+// (game_engine._natpfRacketShot: quality = reach × prep × stretch × pace; pace = fast × deep × high), più la pressione dello
+// scambio lungo e la corsa. Solo per chi spiega il colpo (natpf_super_hint.js: perché il super non è scattato) e per la
+// diagnostica: non entra nell'esito. Q: { reach, prep, stretch } già calcolate dal motore; speed: velocità della palla
+// (m/s); z: dove è chi colpisce lungo il campo; y: altezza della palla; smash: colpo da sopra la testa
+export function situationParts(Q = {}, { speed = 0, z = 0, y = 1, smash = false, pressure = 1, running = 0 } = {}){
+  const r3 = v => +finite(v, 1).toFixed(3);
+  return { reach: r3(Q.reach), prep: r3(Q.prep), stretch: r3(Q.stretch),
+    fast: r3(1 - .25*clamp((finite(speed) - 24)/12)),            // palla molto veloce (da 24 m/s, fino a −25% a 36 m/s)
+    deep: r3(1 - .15*clamp((Math.abs(finite(z)) - 12.2)/1.2)),   // colpita oltre 30 cm dietro la riga di fondo (fino a −15%)
+    high: r3(smash ? 1 : 1 - .12*clamp((finite(y, 1) - 1.5)/.6)), // rimbalzo alto sopra la spalla (fino a −12%, non la schiacciata)
+    pressure: r3(pressure), running: +clamp(finite(running)).toFixed(3) };
+}
 // Forza dello swing del motore base (0,8…1,68) → 0…1
 export const powerNorm = speed => clamp((finite(speed, 1.18) - .8)/.88);
 // Tempo di volo più corto con i colpi perfetti consecutivi
@@ -371,13 +471,23 @@ export const SERVE_WEIGHT = Object.freeze({
   casual: Object.freeze({ base: .125, lateBase: 1, threat: .042, stretch: .105, max: .6, read: .037, readSd: .35, pressure: 1 }),
   pro: Object.freeze({ base: .038, threat: .042, stretch: .076, max: .45, read: .135, readSd: .35, pressure: 1 }),
   leggenda: Object.freeze({ read: .15, readSd: .35 }),
+  // B18.2 gruppo 3. Bambini: come Casual, con la CPU che sbaglia più spesso la risposta (un bambino batte piano e al
+  // centro: il suo servizio non mette in difficoltà nessuno per velocità). Evento: questa è la riga alla partenza; in
+  // partita vale la media tra Casual e Pro pesata da k (serveLevel, eventoServeAt)
+  bambini: Object.freeze({ base: .2, lateBase: 1, threat: .042, stretch: .105, max: .6, read: .037, readSd: .35, pressure: 1 }),
+  evento: Object.freeze({ base: .0554, lateBase: .68, threat: .042, stretch: .0818, max: .48, read: .1154, readSd: .35, pressure: 1 }),
 });
 // Un livello nuovo contro la CPU deve avere qui la sua riga: senza, il suo servizio non ha peso (la risposta torna alla
 // regola degli scambi, cpuErrorChance) e la CPU non legge in ritardo.
 // Solo per audit ed esperimenti (scripts/audit/servizio.mjs): valori che sostituiscono quelli del livello, es.
 // serveTuning.casual = { read: 0 }
 export const serveTuning = {};
-const serveLevel = difficulty => { const k = String(difficulty || 'casual').toLowerCase(), W = SERVE_WEIGHT[k]; return W ? (serveTuning[k] ? { ...W, ...serveTuning[k] } : W) : null; };
+// Evento: media tra Casual e Pro pesata da k (lateBase di Pro è quello comune, SERVE_WEIGHT.lateBase)
+export const eventoServeAt = k => blend(SERVE_WEIGHT.casual, { lateBase: SERVE_WEIGHT.lateBase, ...SERVE_WEIGHT.pro }, k);
+const serveLevel = difficulty => {
+  const k = String(difficulty || 'casual').toLowerCase(), W = k === 'evento' ? eventoServeAt(eventoK()) : SERVE_WEIGHT[k];
+  return W ? (serveTuning[k] ? { ...W, ...serveTuning[k] } : W) : null;
+};
 // Minaccia del servizio. speed: velocità della palla alla partenza (m/s); q: tempo del colpo (serveOutcome, 1 a tempo);
 // x: rimbalzo laterale voluto; box: lato del quadrato (segno della x del suo centro)
 export function serveInfo({ speed = 23, q = 1, x = 0, box = -1 } = {}){
@@ -781,10 +891,13 @@ export const bounceSpin = spin => { const s = finite(spin, 14); return { up: cla
 export const CPU_PATTERNS = Object.freeze({
   casual: Object.freeze({ rally: .32, open: .3, behind: .08, deep: .1, angle: .04, slice: .1, moon: .06 }),
   pro: Object.freeze({ rally: .2, open: .26, behind: .12, deep: .18, angle: .1, slice: .09, moon: .05 }),
+  // B18.2 gruppo 3, Bambini: quasi sempre al centro, niente contropiede né angoli stretti, qualche parabola alta
+  bambini: Object.freeze({ rally: .7, open: .1, behind: 0, deep: .04, angle: 0, slice: .06, moon: .1 }),
 });
 export function cpuShotChoice({ difficulty = 'casual', playerX = 0, playerZ = 11.5, ballX = 0, rally = 0, rng = Math.random } = {}){
   // Leggenda non usa questi schemi (natpf_legend.js), ma se ci arrivasse varrebbero quelli di Esperto
-  const pro = ['pro', 'leggenda'].includes(String(difficulty).toLowerCase()), W = { ...CPU_PATTERNS[pro ? 'pro' : 'casual'] };
+  // (Evento: con probabilità cpuPro, che segue k, il colpo è scelto come a Pro: più profondo, più angolato, più forte)
+  const key = String(difficulty).toLowerCase(), pro = ['pro', 'leggenda'].includes(key) || (key === 'evento' && finite(skillLevel(key).cpuPro) > 0 && rng() < skillLevel(key).cpuPro), W = { ...(key === 'bambini' ? CPU_PATTERNS.bambini : CPU_PATTERNS[pro ? 'pro' : 'casual']) };
   const open = finite(playerX) >= 0 ? -1 : 1, nearNet = finite(playerZ, 11.5) < 7.5;
   if (nearNet){ W.moon = 0; W.lob = .35; W.angle *= 1.6; }    // giocatore a rete: pallonetto o passante angolato
   if (finite(rally) < 2){ W.angle *= .3; W.behind *= .3; }     // sulla risposta al servizio niente colpi rischiosi
