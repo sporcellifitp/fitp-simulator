@@ -9,6 +9,8 @@
 // E lo «scambio che si scalda» (B20, natpf_hot_rally.js): No · Sì, spento di base.
 // E le due opzioni dello stesso schermo del B25 (natpf_duo_rules.js), spente di base: «Lancio automatico» (No · 30 s) e
 // «Stesso schermo: campo aperto» (No · Sì).
+// B27: «Telecomando dello staff» (natpf_remote.js) e, nel programma Windows, «Schermo del gioco» (monitor successivo),
+// nella riga dei pulsanti in basso.
 import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLevel } from './natpf_aim_level.js';
 import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './natpf_fair_format.js';
 import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
@@ -112,6 +114,13 @@ export class NatpfKiosk {
     if (cmd === 'export') ui.events.exportCsv();
     if (cmd === 'reset'){ if (confirm('Azzerare la classifica di oggi?')) ui.events.resetBoard(); }
     if (cmd === 'phone'){ ui.phone.forget?.(); }
+    // B27: telecomando dello staff (natpf_remote.js: QR dello staff, codice, «Scollega») e monitor del gioco (programma
+    // Windows: window.natpfDesktop.displays, monitor successivo; la scelta resta salvata)
+    if (cmd === 'remote'){ ui.remote?.open(); return; }
+    if (cmd === 'display'){
+      Promise.resolve(window.natpfDesktop?.displays?.next?.()).then(r => { if (r?.current?.label) ui.toast?.(`Gioco su ${r.current.label}; resta salvato`); return ui.remote?._refreshDisplays?.(true); }).then(() => this.paint(), () => this.paint());
+      return;
+    }
     if (cmd === 'music') $('btn-audio-toggle')?.click();
     // mira del telefono: alta → media → bassa → alta; vale dal colpo successivo (anche per il secondo telefono). L'avviso
     // dice anche cosa vuol dire (nel foglio non c'è posto per un paragrafo: a 1024 × 600 «Chiudi» finiva fuori vista)
@@ -163,6 +172,12 @@ export class NatpfKiosk {
     const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);
     const open = readOpenCourt(); set('open', openCourtButton(open), open);
     const cal = readSavedCalMode(); set('cal', calModeButton(cal, !!calModeFromUrl()), cal === 'play');
+    // B27: telecomando dello staff e, nel programma Windows con più monitor, il monitor del gioco
+    const remote = this.ui.remote; set('remote', remote ? remote.staffLabel : '—', !!remote?.link?.connected);
+    const disp = this.el.querySelector('[data-staff="display"]'), d = remote?.displays;
+    show(disp, !!window.natpfDesktop?.displays);
+    if (disp && !d) remote?._refreshDisplays?.();
+    set('display', d?.current ? `${d.current.label}${d.list?.length > 1 ? ' ›' : ''}` : '—', false);
     const n = $('staff-note');
     if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
   }

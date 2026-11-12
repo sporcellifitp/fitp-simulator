@@ -45,7 +45,8 @@ export function checkTurnUrl(raw){
 // lo scarica dal bucket pubblico R2 (natpf-desktop/aggiornamenti.json, src/natpf/natpf_intro.js). Quindi: nessun file
 // trailer-<impronta>.mp4 nel pacchetto (TRAILER_FILE), e una Content-Security-Policy sulle pagine del gioco, se mai ci
 // fosse, deve permettere i video da quel bucket (media-src, o default-src se media-src non c'è): mediaUrl
-export const PAGES = ['/', '/index.html', '/natpf/tennis/racchetta.html'];
+// (B27: anche la pagina del telecomando dello staff, che usa la stessa segnalazione e le stesse credenziali TURN)
+export const PAGES = ['/', '/index.html', '/natpf/tennis/racchetta.html', '/natpf/tennis/telecomando.html'];
 export const GAME_PAGES = ['/', '/index.html'];
 export const TRAILER_FILE = /(^|\/)trailer-[0-9a-f]{12}\.mp4$/;
 // origine del bucket pubblico dei video (null se il file non c'è o non ha un indirizzo)

@@ -328,7 +328,11 @@ const wakeState = () => awake.state;
 // quando il canale veloce non glielo porta
 // s: sensori come li deve leggere il computer (phone-screen.reportedSensor: «tut» in attesa del tutorial senza calibrazione,
 // «ready» resta «ready» anche durante il tutorial); tu: la schermata è quella del tutorial
-const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
+// batteria del telefono (B27: la mostra il telecomando dello staff), dove il browser la dà (Chrome su Android; Safari no)
+let battery = null;
+try { navigator.getBattery?.().then(b => { battery = b; }, () => {}); } catch (e){}
+const batteryState = () => battery && Number.isFinite(battery.level) ? { bt: Math.round(battery.level*100), bc: battery.charging ? 1 : 0 } : {};
+const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batteryState(), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign });
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al

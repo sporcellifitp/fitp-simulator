@@ -1424,6 +1424,62 @@ guida provato nel browser.
   ipotesi), Windows vero, ledwall. Aperti: colpo super sotto «qualche volta a partita»; con il campo aperto «tira sempre
   fortissimo» rende 65–69% e chi batte parte sfavorito (44–48 punti su 100).
 
+## B27 · Postazione dello staff: telecomando e schermo del gioco (12/11) · [x] integrato, versione 2026-11-12.3
+Obiettivo (richiesta dell'utente allo stand): gioco sul ledwall 2×2 da 1024×1024 senza OBS e un telefono dello staff
+come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Documento con la matrice e le decisioni:
+`docs/b27/telecomando.md`; guida per lo staff `docs/GUIDA_TELECOMANDO.md`. Lavoro in parallelo a B23–B26, nel worktree
+`b25-staff` (base `8b85a3c`), da integrare (versione e `docs/PIANO_LAVORI.md` le aggiorna chi integra).
+- [x] B27.1 · programma Windows (commit `5633db6`): domanda «Su quale schermo mostro il gioco?» all'avvio (≥2 monitor e
+  nessuno scelto, o salvato assente senza un monitor della stessa misura; proposta il quadrato «probabile ledwall»; 30 s
+  poi vale la proposta, salvata con la misura), `window.natpfDesktop.displays` (preload v3: list, next, choose, onChange).
+  File: `natpf-desktop/src/{desktop-core,main}.mjs`, `preload.cjs`, `test/desktop-core.test.mjs`.
+- [x] B27.2 · telecomando (commit `e736d0f`): `site/js/tennis/remote-pairing.js`, `remote-link.js`, `telecomando.js`,
+  `site/tennis/telecomando.html` + manifest e icone (`tools/icone-telecomando.mjs`); nel gioco `natpf_remote_map.js`,
+  `natpf_remote.js`, voci nel pannello dello stand (`natpf_kiosk.js`, `index.html`, `natpf-ui.css`); `link.js` (la
+  racchetta rifiuta `role:'remote'`, batteria `bt`/`bc` nello stato) e `racchetta.js` (manda la batteria dove c'è);
+  build e pacchetto (`natpf-site-plugin.mjs`, `offline-assets.mjs`, `pacchetto-cloudflare.mjs`).
+- [x] B27.3 · prove e documenti (commit «B27 · Prove e documenti…»): `tools/e2e/natpf-telecomando.mjs`, 1024 × 1024 in `natpf-menu.mjs`,
+  scenario `domanda-monitor` e controlli del ponte in `natpf-desktop/scripts/prova-linux.mjs` (con `NATPF_PROVA_MONITOR`,
+  solo nel programma non costruito), test del ledwall esteso; `docs/b27/telecomando.md`, `docs/GUIDA_TELECOMANDO.md`,
+  `natpf-desktop/LEGGIMI.md`, `tools/e2e/README.md`, `docs/PROJECT_MEMORY.md`.
+  Verifiche: gioco 1191/1191, sito 213/213, LAN 12/12, programma Windows 32/32, build ok; nel browser
+  `natpf-telecomando` 69/69 (server LAN del programma, gioco a 1024 × 1024), `natpf-menu` 38/38, `natpf-training-flow`
+  22/22, `natpf-tutorial-phone` 52/52; `prova-linux` 67/67 (sei scenari, `domanda-monitor` compreso; al primo giro 66/67: il controllo del contratto voleva
+  ancora la versione 2 del ponte, aggiornato).
+  **Non verificato**: telefoni veri, «Aggiungi a schermata Home» (Android e iPhone), certificato sul telefono dello staff,
+  Windows vero, ledwall vero, due monitor veri (in Xvfb Electron ne vede sempre uno: provati Xinerama e monitor RandR),
+  la finestra della domanda vista a occhio, il percorso PeerJS pubblico (web) del telecomando (solo con un Peer finto).
+- [x] B27.4 · revisione indipendente (commit `2959848` e quello dei documenti dopo): 12 difetti, tutti riprodotti con
+  gli script del revisore e corretti; tabella in `docs/b27/telecomando.md` §5. In breve: l'abbinamento si conferma sul
+  computer (numero di tre cifre, clic o tasto veri), QR e codice solo a foglio aperto su indirizzi temporanei, dopo
+  l'abbinamento niente QR; ripresa con prova reciproca HMAC-SHA-256 senza mandare la chiave, indirizzo fisso e chiave
+  nuovi a ogni abbinamento e con «Scollega»; tolto il filtro delle copie dei comandi; il telecomando salta finestre di
+  Windows, link e «Conferma»; ↑ ↓ spente nel tutorial e nella lezione; la pausa vince su «telefono scollegato»;
+  domanda del monitor senza risposta che non sovrascrive un ledwall salvato e spento; due pagine con la stessa chiave
+  che non si scalzano; un tentativo per collegamento; esito anche per i comandi che vanno in errore; `buildIsStale`.
+  File: `site/js/tennis/remote-pairing.js`, `remote-link.js`, `remote-client.js` (nuovo: lato telefono senza DOM),
+  `telecomando.js`, `site/tennis/telecomando.html`; `natpf-tennis/src/natpf/natpf_remote.js`, `natpf_remote_map.js`,
+  `index.html`, `natpf-ui.css`, `lan/prepare.mjs`; `natpf-desktop/src/{desktop-core,main}.mjs`,
+  `scripts/prova-linux.mjs`; test e prove (`tools/test/remote-pairing.test.mjs`, `natpf-telecomando.test.mjs`,
+  `desktop-core.test.mjs`, `tools/e2e/natpf-telecomando.mjs`); documenti.
+  Verifiche: gioco 1194/1194, sito 223/223, LAN 12/12, programma Windows 33/33, build ok; nel browser
+  `natpf-telecomando` 80/80, `natpf-menu` 38/38, `natpf-training-flow` 22/22, `natpf-tutorial-phone` 52/52;
+  `prova-linux` 69/69.
+  Non cambiato e detto: `main.mjs` senza `setWindowOpenHandler` (il gioco usa `target=_blank` e `window.open` anche nel
+  programma: link del controller, link dell'invito, finestra della webcam).
+  **Non verificato**: come sopra; in più la scelta per l'iPhone nella pagina del telefono (riconosciuto dal nome del
+  browser) e la conferma con la tastiera vera di Windows.
+- [x] B27.5 · integrazione (12/11, 14:40 UTC): ramo `b25-staff` unito in `natpf-simulator` sopra `b831973` (l'altra
+  sessione aveva pubblicato solo `docs/TRACCIA_PASSI.md`: nessun conflitto), **versione 2026-11-12.3**
+  (`site/js/tennis/version.js`, `site/tennis/build.json`, `natpf-tennis/lan/LEGGIMI.txt`, riga in
+  `natpf-desktop/novita.txt`).
+  Verifiche sul codice unito: gioco 1194/1194, sito 223/223, LAN 12/12, programma Windows 33/33, build ok; nel browser
+  `natpf-telecomando` 80/80, `natpf-menu` 38/38 (anche a 1024 × 1024), `natpf-training-flow` 22/22.
+  Non rifatte dopo l'unione (fatte sul ramo, codice identico): `natpf-tutorial-phone` 52/52, `prova-linux` 69/69.
+  Non rifatte per questa versione: `audit:legend` e le altre prove nel browser (il B27 non tocca motore, CPU, colpi né
+  la pagina della racchetta oltre alla batteria nello stato e al rifiuto di `role:'remote'`).
+  **Non verificato**: telefoni veri, Windows vero, ledwall vero, due monitor veri, «Aggiungi a schermata Home».
+
 ## B28 · Calibrazione giocando e tutorial senza blocco (12/11) · [~] ramo `b28-cal-giocando`, da unire
 - Richiesta dell'utente allo stand: «togli il check che uno deve aver fatto quel gesto per ogni schermata… la
   calibrazione deve avvenire direttamente giocando… dopo circa 10-15 secondi di scambi, parte il match vero».

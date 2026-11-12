@@ -21,6 +21,7 @@ import { NatpfDiag } from './natpf_diag.js';
 import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
+import { NatpfRemote } from './natpf_remote.js';
 import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText, phoneOf, holdTitle, otherPhoneNote } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
@@ -112,6 +113,8 @@ export class NatpfUi {
     // stesso schermo (split screen): due telefoni, pannelli della pagina «Collega» ed etichette in partita
     this.split = new NatpfSplitUi(engine, this);
     this.kiosk = new NatpfKiosk(engine, this);
+    // telecomando dello staff (B27): telefono dello staff abbinato una volta, frecce, OK, Pausa, Menu… (natpf_remote.js)
+    this.remote = new NatpfRemote(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
     // aggiornamenti del programma Windows (window.natpfDesktop.updates, 07/11): avviso nel menu e sezione in Opzioni;
