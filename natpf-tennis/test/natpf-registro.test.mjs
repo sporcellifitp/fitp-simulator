@@ -205,7 +205,7 @@ test('registro, invio: blocco rifiutato per sempre si toglie; giorno pieno resta
 });
 
 /* ---------- registratore con un motore finto ---------- */
-function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, split = false, livello = 'adulto', nick = 'Mario Rossi', ctrl = 'phone' } = {}){
+function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, split = false, livello = 'adulto', nick = 'Mario Rossi', ctrl = 'phone', raf = null } = {}){
   let now = 0;
   const E = {
     phase: 'MENU', autoPlayMode: true, natpfPaused: false, isMultiplayer: false, playerRole: 'p1', player: { id: 'p' }, opponent: { id: 'o' },
@@ -233,7 +233,7 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
     trial: { S: null, get active(){ return !!this.S; }, start({ split: sp = false } = {}){ if (this.S) return false; this.S = { players: Object.fromEntries((sp ? ['p1', 'p2'] : ['p1']).map(id => [id, { balls: 0 }])), result: null }; return true; },
       skip(){ if (this.S && !this.S.result) this._outro(); }, _outro(){ this.S.result = Object.fromEntries(Object.keys(this.S.players).map(id => [id, { level: 'pieno', n: { forehand: 3, backhand: 2 } }])); }, _close(){ this.S = null; } } };
   const errori = {}, win = { addEventListener: (t, fn) => { errori[t] = fn; }, screen: { width: 1920, height: 1080 }, innerWidth: 1920, innerHeight: 1080, devicePixelRatio: 1, navigator: { hardwareConcurrency: 8 }, performance: { getEntriesByType: () => [{ type: 'reload' }] } };
-  const R = new RegistroStand({ engine: E, ui, coda, invio, storage, now: () => now, wallNow: () => Date.UTC(2026, 10, 14, 10, 0, 0) + now, win, raf: null, timers: false, programma: true });
+  const R = new RegistroStand({ engine: E, ui, coda, invio, storage, now: () => now, wallNow: () => Date.UTC(2026, 10, 14, 10, 0, 0) + now, win, raf, timers: false, programma: true });
   return { E, ui, R, coda, storage, win, errori, avanti: ms => { now += ms; }, nomi: ['Mario Rossi', 'Giulia Bianchi', 'Mario', 'Giulia'] };
 }
 // una partita: chi gioca batte, n colpi, il punto finisce; fino alla fine della partita
@@ -330,6 +330,25 @@ test('registro, registratore: calibrazione giocando (scambi di prova del B28): u
   const [fine] = rows.filter(r => r.k === 'partita.fine'); assert.equal(fine.colpi + (fine.colpi2 || 0), rows.filter(r => r.k === 'colpo' && !r.amb).length, 'e non entrano nei conti della partita');
   const [visita] = rows.filter(r => r.k === 'visita'); assert.ok(visita.posti.calibrazione >= 1, JSON.stringify(visita));
   for (const r of rows) assert.deepEqual(F.controllaRiga(r, { nomi: M.nomi }), [], JSON.stringify(r));
+});
+
+test('registro, registratore: fotogrammi al secondo della partita (medi, secondo peggiore, più lungo, lenti); a gioco in pausa non contano', async () => {
+  let cb = null; const raf = f => { cb = f; };
+  const M = mondo({ raf }), { E, ui, R } = M;
+  ui.lobby.visible = false; E.startNewMatch();
+  let t = 1000; const frame = dt => { t += dt; const f = cb; cb = null; f(t); };
+  frame(16);                                                               // il primo dà solo il tempo di partenza
+  for (let i = 0; i < 120; i++) frame(1000/60);                            // 2 s a 60
+  for (let i = 0; i < 30; i++) frame(1000/30);                             // 1 s a 30
+  frame(80);                                                               // un fotogramma lento
+  E.natpfPaused = true; for (let i = 0; i < 50; i++) frame(5); E.natpfPaused = false;   // in pausa: non conta
+  frame(1500);                                                             // pagina nascosta: non conta
+  for (let i = 0; i < 10; i++) frame(1000/60);
+  E.phase = 'MATCH_OVER'; M.avanti(1000); R.secondo(); await R.blocco();
+  const [fine] = (await tutte(M.coda)).filter(r => r.k === 'partita.fine');
+  assert.equal(fine.fps.n, 161); assert.equal(fine.fps.maxMs, 80); assert.equal(fine.fps.lunghi, 1);
+  assert.ok(fine.fps.medi > 48 && fine.fps.medi < 51, JSON.stringify(fine.fps)); assert.ok(fine.fps.peggiori >= 27 && fine.fps.peggiori <= 31, JSON.stringify(fine.fps));
+  frame(16); assert.equal(cb, null, 'a partita finita il conto si ferma al fotogramma dopo (nessun altro fotogramma chiesto)');
 });
 
 test('registro, registratore: spento = nessuna riga; la scelta resta salvata; riacceso riparte', async () => {

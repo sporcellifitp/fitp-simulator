@@ -90,7 +90,14 @@ ha un identificativo: se arriva due volte (rete che cade a metà invio) si scriv
 Misure (prova nel browser `tools/e2e/natpf-registro.mjs`, partite vere del gioco, e registri finti verosimili di
 `scripts/registro/finto.mjs`):
 
-MISURE_DA_COMPLETARE
+| Partita (prova nel browser del 12/11) | Righe in chiaro | Nello spazio (compresso) |
+|---|---|---|
+| contro la CPU, 1 game, 6 punti, circa 90 s | 2,6 kB | 1,1–1,3 kB (con la riga di avvio della giornata) |
+| stesso schermo, 1 game, 7 punti | 2,7 kB | 0,75 kB |
+| registri finti: 1.000 partite verosimili (2–4 minuti, circa 47 righe a partita) | 6,3 kB a partita | 1,6 kB a partita |
+
+Le partite vere allo stand saranno più lunghe di quelle della prova: per le stime si usano **2,5 kB a partita**
+nello spazio (con margine).
 
 | Partite al giorno | Spazio al giorno | Giorni in 2 GB (tetto di base) | Giorni in 10 GB |
 |---|---|---|---|
@@ -108,7 +115,15 @@ servizio, e a ogni fotogramma di partita aggiorna solo tre numeri (per le presta
 senza mai fermare il ciclo di gioco. Il registro misura da solo quanto tempo usa e lo scrive a fine partita
 (`costoMs`).
 
-COSTO_DA_COMPLETARE
+Misure della prova nel browser (12/11, Chromium senza scheda grafica, computer carico):
+
+- lavoro del registro per partita, in tutto: **1–9 ms** in partite da 30–90 secondi, cioè meno di **0,1 ms per secondo
+  di gioco** (a 60 fotogrammi al secondo: meno di 0,002 ms per fotogramma, su 16,7 ms disponibili);
+- il lavoro più lungo in una volta sola: **0,2 ms**;
+- un passo del gioco dura uguale con il registro acceso e spento (**0,0024–0,0027 ms** in tutti e due i casi);
+- l'invio dei blocchi avviene a parte (rete del browser), mai dentro il ciclo di gioco.
+
+Nessun effetto misurabile sui fotogrammi al secondo.
 
 ## Senza rete, senza indirizzo, senza spazio
 

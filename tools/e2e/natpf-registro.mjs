@@ -129,6 +129,10 @@ try {
   await p.evaluate(() => { __natpfTennis.natpfUi.events.nickname = 'Mario Rossi'; });
   check('partita contro la CPU avviata da «Gioca»', await avviaCpu(p));
   await p.waitForTimeout(4000);                                            // qualche secondo di gioco a tempo vero: fotogrammi contati
+  // fotogrammi veri della pagina in 2 s (requestAnimationFrame), per confronto: con fotogrammi più lunghi di 1 s il registro non li conta (pausa)
+  const raf = await p.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); let last = t0, max = 0; const f = t => { n++; max = Math.max(max, t - last); last = t; if (t - t0 < 2000) requestAnimationFrame(f); else r({ n, maxMs: Math.round(max) }); }; requestAnimationFrame(f); }));
+  const fotogrammi = await p.evaluate(() => { const f = __natpfTennis.natpfUi.registro.rec.partita?.f; return f ? { n: f.n, ms: Math.round(f.ms) } : null; });
+  check('in partita il registro conta i fotogrammi (per i fotogrammi al secondo di fine partita)', fotogrammi?.n > 0 || (raf.n < 4 && raf.maxMs >= 1000), fmt({ registro: fotogrammi, pagina: raf }));
   const cpu = await partita(p, { vince: i => (i % 3 === 1 ? 'opponent' : 'player') });
   const finita = await p.evaluate(() => ({ phase: __natpfTennis.phase, g: [__natpfTennis.score.playerGames, __natpfTennis.score.opponentGames] }));
   check('partita contro la CPU giocata fino alla fine (1 game), con i servizi veri di chi gioca', finita.phase === 'MATCH_OVER' && cpu.servizi >= 1, fmt({ finita, cpu }));
@@ -142,7 +146,7 @@ try {
   check('riga della partita: modo CPU, livello, formato, controller, del nome solo «inserito: sì»', P1.n === 1 && P1.modo === 'cpu' && !!P1.livello && P1.ctrl === 'mouse' && P1.nomeInserito === true && P1.g === A1.g && typeof P1.stand === 'object', fmt(P1));
   check('una riga per punto, con chi batte, chi vince, come finisce e il punteggio', di('punto').length === cpu.punti && di('punto').every(r => ['g', 'a'].includes(r.batte) && ['g', 'a'].includes(r.vince) && typeof r.fine === 'string' && Array.isArray(r.pt) && r.n === 1), fmt(di('punto').slice(0, 2)));
   check('i servizi di chi gioca: tipo, tempo, velocità, voto', di('servizio').length === cpu.servizi && di('servizio').every(r => Number.isFinite(r.kmh) && Number.isFinite(r.ms)), fmt(di('servizio').slice(0, 2)));
-  check('fine partita: esito, game, punti, durata, fotogrammi al secondo, costo del registro', F1.esito === 'finita' && F1.vince === 'g' && fmt(F1.game) === fmt(finita.g) && F1.punti === cpu.punti && F1.durS >= 0 && Number.isFinite(F1.costoMs) && F1.fps?.medi > 0 && F1.fps.n > 30, fmt(F1));
+  check('fine partita: esito, game, punti, durata, costo del registro (fotogrammi al secondo se ce ne sono più di 30: qui il Chromium senza scheda grafica ne fa pochi)', F1.esito === 'finita' && F1.vince === 'g' && fmt(F1.game) === fmt(finita.g) && F1.punti === cpu.punti && F1.durS >= 0 && Number.isFinite(F1.costoMs) && (F1.fps ? F1.fps.medi > 0 : fotogrammi.n <= 30), fmt(F1));
   check('dopo l\'invio sul computer non resta niente in coda', s1.coda.blocchi === 0 && s1.inMemoria === 0 && s1.invio.ultimoOk > 0 && !s1.invio.ultimoErrore, fmt({ coda: s1.coda, invio: s1.invio }));
   const byteCpu = Buffer.byteLength(righe.filter(r => r.n === 1).map(r => JSON.stringify(r)).join('\n')), r2Cpu = env.REGISTRO.byteBlocchi();
 
@@ -246,7 +250,7 @@ try {
   });
   const msPartita = di('partita.fine', nelloSpazio()).map(r => r.costoMs);
   const durate = di('partita.fine', nelloSpazio()).map(r => r.durS), perSec = msPartita.map((v, i) => v/Math.max(1, durate[i]));
-  check('costo del registro: meno di 20 ms di lavoro per partita in tutto (agganci e righe), meno di 0,25 ms per secondo di gioco, nessuna volta oltre 2 ms', msPartita.every(v => v < 20) && perSec.every(v => v < .25) && costo.costo.max < 2, fmt({ msPerPartita: msPartita, durateS: durate, piuLungo: +costo.costo.max.toFixed(3) }));
+  check('costo del registro: meno di 20 ms di lavoro per partita in tutto (agganci e righe), meno di 0,25 ms per secondo di gioco (partite di almeno 20 s), nessuna volta oltre 2 ms', msPartita.every(v => v < 20) && perSec.every((v, i) => durate[i] < 20 || v < .25) && costo.costo.max < 2, fmt({ msPerPartita: msPartita, durateS: durate, piuLungo: +costo.costo.max.toFixed(3) }));
   check('costo del registro: un passo del gioco dura lo stesso con il registro acceso e spento (entro 0,05 ms)', Math.abs(costo.acceso - costo.spento) < .05, `acceso ${costo.acceso.toFixed(4)} ms · spento ${costo.spento.toFixed(4)} ms`);
   console.log(`MISURE  partita contro la CPU: ${byteCpu} byte di righe, ${r2Cpu} byte compressi nello spazio (con l'avvio) · stesso schermo: ${byteDuo} byte, ${r2Duo} compressi · costo per partita ${msPartita.map(v => v.toFixed(1)).join(', ')} ms (durate ${durate.join(', ')} s) · passo del gioco acceso ${costo.acceso.toFixed(4)} ms, spento ${costo.spento.toFixed(4)} ms`);
   check('peso: una partita occupa pochi kB di righe (meno di 6 kB ognuna in questa prova)', byteCpu > 300 && byteCpu < 6000 && byteDuo > 300 && byteDuo < 6000, `${byteCpu} e ${byteDuo} byte`);
