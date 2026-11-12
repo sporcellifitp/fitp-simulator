@@ -713,8 +713,12 @@ if (!process.env.COSTO && !process.env.TESTA){
   await setCast(p, 'sempre');
   const c = await scene(p, '3d-classici', SCENES.fermo);
   check('3D → «Classici» al volo: i personaggi di prima, nessun modello in scena', c.looks.join() === 'p1,cpu' && !c.on3d.some(Boolean) && !c.seen.flat().some(n => /Mascotte3d/.test(n)) && c.seen[0].some(n => HUMAN.test(n)), `${c.looks}`);
-  if (prints.fermo) check('3D → «Classici» al volo: disegno identico a «Classici»', c.hash === prints.fermo, `${c.hash} / ${prints.fermo}`);
-  else if (ref.fermo) check('3D → «Classici» al volo: disegno identico a prima (impronta del commit di prima)', c.hash === ref.fermo, `${c.hash} / ${ref.fermo}`);
+  // confronto con «Classici» in una pagina appena aperta con la stessa storia (solo scene, nessuna partita: una partita
+  // giocata prima lascia resti nel disegno, per questo non si confronta con le impronte della parte 1)
+  { const k = await game({ cast: 'sempre', mascotte: '3d' }), f = await scene(k.p, '3d-classici-nuova', SCENES.fermo);
+    check('3D → «Classici» al volo: disegno identico a «Classici» in una pagina appena aperta', c.hash === f.hash && f.looks.join() === 'p1,cpu', `${c.hash} / ${f.hash}`);
+    check('«Classici» con ?mascotte=3d: nessun modello chiesto', !k.glb.length, `${k.glb}`);
+    await k.ctx.close(); }
   await setCast(p, 'lobdrop');
   const d = await scene(p, '3d-fermo-c', SCENES.fermo);
   check('«Classici» → «Lob & Drop»: tornano i modelli, stesso disegno', d.on3d.every(Boolean) && d.hash === a.hash, `${d.hash} / ${a.hash}`);

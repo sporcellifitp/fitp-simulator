@@ -93,6 +93,7 @@ export const LEG_TILT = 0.55;              // quanta dell'inclinazione verso il 
 export const FOOT_EDGE = 0.07;             // di quanto si alza il piede per unità di inclinazione (unità del modello)
 export const FOOT_GAIN = 1.8, FOOT_LIFT_DEAD = 0.012;      // sotto 1,2 cm di alzata il piede resta a terra (il tennista fermo sposta il peso)
 export const FOOT_LIFT_GAIN = 2.4;         // l'alzata del piede si vede di più dell'avanti e indietro: gambe corte
+export const FOOT_LIFT_MAX = 0.11;         // ...ma si addolcisce verso questo tetto (unità del modello: 18 cm in campo)
 // Verso del gomito a riposo e in movimento (sistema del modello, lato sinistro: per il destro la x cambia segno):
 // fuori, giù e dietro, come il polo dei gomiti del tennista (natpf_character.ELBOW_POLE)
 const ELBOW_POLE = Object.freeze([0.25, -0.35, -0.9]), ELBOW_POLE2 = Object.freeze([0.85, -0.5, 0.1]);
@@ -262,7 +263,8 @@ function poseLeg(rig, side, foot, rest, k, dt){
   readPart(rig, foot, _F, null);
   // spostamento del piede dal suo riposo (nel sistema del modello la x del riposo segue il lato)
   const rx = rig.mirrored ? -rest[0] : rest[0];
-  _F.set((_F.x - rx)*FOOT_GAIN, Math.max(0, _F.y - rest[1] - FOOT_LIFT_DEAD)*FOOT_LIFT_GAIN, (_F.z - rest[2])*FOOT_GAIN).multiplyScalar(k).add(side.sole);
+  const lift = Math.max(0, _F.y - rest[1] - FOOT_LIFT_DEAD)*FOOT_LIFT_GAIN*k;
+  _F.set((_F.x - rx)*FOOT_GAIN*k, FOOT_LIFT_MAX*Math.tanh(lift/FOOT_LIFT_MAX), (_F.z - rest[2])*FOOT_GAIN*k).add(side.sole);
   // il piede insegue il suo bersaglio a velocità limitata: quando il tennista cambia passo di colpo (cambio di
   // direzione, punto nuovo) la gamba della mascotte non scatta, e il passo normale non si accorcia. Senza tempo
   // (scene ferme, prove) ci va subito.
