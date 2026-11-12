@@ -380,3 +380,22 @@ test('stato dei monitor per la pagina: elenco, quello del gioco e quello voluto'
   assert.match(main, /await askDisplay\(\);\n[^\n]*chooseDisplay\(/, 'la domanda prima di scegliere il monitor della finestra');
   assert.match(main, /settings\.display = displayPixels\(display\)/, 'con la misura del monitor salvata');
 });
+
+// B27: il gioco sul ledwall 1024×1024 esteso a destra del portatile: finestra di partenza dentro il ledwall, schermo
+// intero che lo copre (needsRefit), cambio di monitor con il giro completo, ritorno quando il ledwall si riaccende
+test('ledwall 1024×1024 esteso: finestra dentro il monitor, schermo intero che lo copre, spostamenti', () => {
+  const laptop = { id: 1, bounds: { x: 0, y: 0, width: 1536, height: 864 }, workArea: { x: 0, y: 0, width: 1536, height: 824 }, scaleFactor: 1.25 };
+  const ledwall = { id: 2, bounds: { x: 1536, y: 0, width: 1024, height: 1024 }, workArea: { x: 1536, y: 0, width: 1024, height: 1024 }, scaleFactor: 1 };
+  const w = windowedBounds(ledwall);
+  assert.ok(w.x >= 1536 && w.x + w.width <= 2560 && w.y >= 0 && w.y + w.height <= 1024, JSON.stringify(w));
+  assert.deepEqual([w.width, w.height], [921, 720], 'al massimo il 90% del ledwall e 720 di altezza');
+  assert.equal(needsRefit({ x: 1536, y: 0, width: 1024, height: 1024 }, ledwall.bounds), false, 'schermo intero che copre il ledwall');
+  assert.equal(needsRefit({ x: 1536, y: 0, width: 1024, height: 1023 }, ledwall.bounds), false, 'il pixel che Chromium toglie in basso');
+  assert.equal(needsRefit({ x: 1536, y: 0, width: 1280, height: 720 }, ledwall.bounds), true, 'finestra rimasta della misura di prima');
+  assert.equal(placeMode({ currentId: 1, targetId: 2 }), 'giro', 'dal portatile al ledwall: giro completo');
+  assert.equal(placeMode({ currentId: 2, targetId: 2, bounds: { x: 1536, y: 0, width: 1024, height: 1024 }, displayBounds: ledwall.bounds }), 'fermo');
+  assert.equal(placeMode({ currentId: 2, targetId: 2, bounds: { x: 1536, y: 0, width: 1280, height: 1024 }, displayBounds: ledwall.bounds }), 'rettangolo');
+  assert.equal(chooseDisplay([laptop, ledwall], { primaryId: 1 }).id, 2);
+  assert.equal(nextDisplay([laptop, ledwall], 2).id, 1); assert.equal(nextDisplay([laptop, ledwall], 1).id, 2);
+  assert.equal(displayToFollow(ledwall, { wantedId: 2, currentId: 1 }), ledwall, 'ledwall riacceso: il gioco ci torna');
+});

@@ -308,8 +308,14 @@ function afterPlaced(){
 // probabile), che si salva come una scelta: la domanda non torna, e il monitor si cambia dal pannello dello stand
 // («Schermo del gioco»), dal telecomando dello staff, dal menu Schermo o con Ctrl+Maiusc+M.
 // Nelle prove (programma non costruito) NATPF_SCHERMO_ATTESA_MS accorcia l'attesa
+// (prova-linux, solo nel programma non costruito: NATPF_PROVA_MONITOR con un elenco di monitor finti per la sola domanda,
+// perché lo schermo virtuale di Linux ha un monitor solo)
+function displaysForQuestion(){
+  if (!app.isPackaged && process.env.NATPF_PROVA_MONITOR){ try { const d = JSON.parse(process.env.NATPF_PROVA_MONITOR); if (Array.isArray(d) && d.length) return { displays: d, primaryId: d[0].id }; } catch {} }
+  return { displays: screen.getAllDisplays(), primaryId: screen.getPrimaryDisplay().id };
+}
 async function askDisplay(){
-  const displays = screen.getAllDisplays(), primaryId = screen.getPrimaryDisplay().id;
+  const { displays, primaryId } = displaysForQuestion();
   const q = startupDisplayQuestion(displays, settings, primaryId);
   log('scelta del monitor all\'avvio', { chiedo: q.ask, motivo: q.why, proposto: q.proposed, monitor: q.choices.map(c => c.label) });
   if (q.remap != null){ settings.displayId = q.remap; writeSettings(DATA, settings); return; }

@@ -133,6 +133,8 @@ export class NatpfRemote {
   _connectReady(){ try { const L = this.ui.lobby, st = L.state(); return L.mode === 'split' ? !!st.splitReady : this.ui.controller === 'phone' ? !!st.phoneLinked : this.ui.controller === 'webcam' ? !!st.webcamActive : true; } catch { return false; } }
   // stato per il telefono (mandato solo quando cambia)
   publish(){
+    // foglio chiuso da altri (chiosco che azzera lo stand, «Nuovo giocatore»): niente più ascolto sul codice
+    if (this.link.S.pairing && !this.isOpen) this.link.pairing(false);
     if (!this.link.connected) return;
     this._refreshDisplays();
     const s = this.snapshot();
@@ -167,6 +169,8 @@ export class NatpfRemote {
     const ask = confirmText(c, screen);
     if (ask && !y){ reply({ ok: true, ask, cmd: c }); return; }
     document.documentElement.classList.add('remote-nav');
+    // il telecomando in uso è qualcuno allo stand: il chiosco non azzera lo stand sotto le mani dello staff
+    if (this.ui.kiosk) this.ui.kiosk.last = performance.now();
     this.ui.diag?.recorder?.log?.('telecomando', { comando: c, pagina: screen.id });
     let out = null;
     try { out = navPlan(screen, c) ? this._nav(screen, navPlan(screen, c)) : this._direct(c, s, screen); }
@@ -239,7 +243,7 @@ export class NatpfRemote {
     ui.kiosk?.close();
     for (const d of document.querySelectorAll('dialog[open]')) try { d.close(); } catch {}
     if (ui.onboarding?.isOpen) ui.onboarding.close();
-    if (ui.calibra?.isOpen) ui.calibra.cancel?.() ?? ui.calibra.close?.();
+    if (ui.calibra?.isOpen) ui.calibra.cancel();
     if (ui.training?.tutorial?.open && !ui.training.tutorialOpen) ui.training.tutorial.close('review');
     if (visible($('natpf-phone-modal'))) ui.closePhone?.();
     if (visible($('natpf-nick'))) $('natpf-nick').classList.add('hidden');

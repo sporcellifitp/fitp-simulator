@@ -305,6 +305,39 @@ try {
   check('intro riconosciuta', await waitPg('intro'));
   await tap('skip'); check('Salta l’intro → menu', await waitPg('lobby:menu'));
 
+  // altre pagine del menu: Modalità (OK su «Gioca»), Classifica, Minigiochi, stesso schermo
+  await ui(() => { __natpfTennis.natpfUi.lobby.go('menu'); document.querySelector('[data-menu="play"]').focus(); });
+  await tap('ok'); check('OK su «Gioca» → Modalità', await waitPg('lobby:mode'));
+  await tap('back'); check('Modalità: Indietro → menu', await waitPg('lobby:menu'));
+  for (const [step, label] of [['ranking', 'Classifica del giorno'], ['challenges', 'Minigiochi']]){
+    await ui(s => __natpfTennis.natpfUi.lobby.go(s), step);
+    const seen = await waitPg(`lobby:${step}`) && await phone.evaluate(l => __telecomando.status.label === l, label);
+    await tap('back');
+    check(`${label}: riconosciuta, Indietro → menu`, seen && await waitPg('lobby:menu'));
+  }
+  await ui(() => { const L = __natpfTennis.natpfUi.lobby; L.setMode('split'); L.go('connect'); });
+  const split = await waitPg('lobby:connect') && await phone.evaluate(() => /Stesso schermo/.test(__telecomando.status.label) && /due telefoni/.test(__telecomando.status.cmds.play) && typeof __telecomando.status.cmds.cpu === 'string');
+  await tap('back');
+  check('stesso schermo, pagina dei due telefoni: «Avanti» spento con il motivo, niente CPU; Indietro → Modalità', split && await waitPg('lobby:mode'));
+  await tap('menu'); await waitPg('lobby:menu');
+  // Allenamento dal menu (mouse e tastiera): lezione in campo con frecce e OK, Salta, Indietro = pausa, Menu
+  // (lo stesso schermo ha scelto i telefoni: si torna a mouse e tastiera come all'inizio)
+  await ui(() => { const ui = __natpfTennis.natpfUi; ui.lobby.setMode('cpu'); ui.selectController('mouse', { open: false }); ui.lobby.menu('training'); });
+  await waitPg('lobby:controller'); await tap('play'); await waitPg('lobby:connect'); await tap('play');
+  const inTraining = await waitPg(['lesson', 'training'], 20000);
+  const where = await pg();
+  check('Allenamento: in campo (lezione o esercizi)', inTraining, where);
+  if (where === 'lesson'){
+    const i0 = await ui(() => __natpfTennis.natpfUi.training.lesson?.idx);
+    await tap('right'); const i1 = await ui(() => __natpfTennis.natpfUi.training.lesson?.idx);
+    check('lezione: → del telefono = scheda successiva', i1 === i0 + 1, `${i0} → ${i1}`);
+  }
+  check('in campo: «Salta» acceso', await phone.evaluate(() => __telecomando.status.cmds.skip === 1));
+  await tap('back'); check('in campo: Indietro = pausa', await waitPg('pause'));
+  const tm = await tap('menu', { confirm: true });
+  check('Allenamento: Torna al menu con conferma', !!tm.asked && await waitPg('lobby:menu'));
+  await ui(() => __natpfTennis.natpfUi.lobby.setMode('cpu'));
+
   // 10) «Scollega il telecomando» e abbinamento con il codice
   await ui(() => __natpfTennis.natpfUi.remote.open()); await sleep(500);
   await game.evaluate(() => { window.confirm = () => true; });

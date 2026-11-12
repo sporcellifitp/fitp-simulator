@@ -720,3 +720,26 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   punti regalati (niente 15-0 o 30-0); l'aiuto è solo di gioco e va dichiarato a schermo. Variante in gioco: `HELP.G` in
   `natpf-tennis/src/natpf/natpf_duo_rules.js` (margine sul tempo, palla un po' più lenta verso il più giovane, colpo più
   in fondo). Obiettivo di taratura: bambino contro adulto medio circa 40%, mai oltre il 50%.
+
+## Telecomando dello staff e schermo del gioco (B27, 12/11/2026)
+
+Richiesta dell'utente allo stand: gioco sul ledwall 2×2 (1024×1024, «Estendi») senza OBS; un telefono dello staff
+come telecomando, «installato una volta per tutte», che copra tutti i casi. Dettagli e matrice: `docs/b27/telecomando.md`.
+- **Ruolo separato dalla racchetta**: sessione `telecomando-…` (la racchetta `racchetta-tel-…`), chiave del QR `tc` (la
+  racchetta `s`), hello con `role:'remote'` preteso dal gioco e rifiutato dalla racchetta (`link.js`). Il telecomando non
+  manda mai sensori né colpi (`REMOTE_COMMANDS` non ha comandi di gioco).
+- **Abbinamento persistente**: id della sessione e chiave di ripresa in `localStorage` del gioco
+  (`natpf-tennis.telecomando`) e del telefono (`natpf-telecomando`); il gioco si rimette in ascolto all'avvio solo se
+  abbinato (senza abbinamento nessun collegamento: nessun effetto sul web). Un solo telefono: l'ultimo abbinamento
+  vince. Codice di 8 caratteri per l'iPhone (l'icona della schermata Home ha una memoria sua), ascoltato su
+  `telecomando-codice-<codice>` solo con il foglio aperto.
+- **In campo frecce e OK spenti** (la tastiera muove il giocatore e ↑ lancia la palla); Indietro = pausa. Fuori dal campo
+  i comandi sono gli stessi tasti della tastiera (menu, guida, tutorial, calibrazione dello schermo, lezione) o il fuoco
+  tra i pulsanti dello strato aperto (pausa, pannelli, fine partita, nome). Strati e regole: `natpf_remote_map.js`
+  (puro, provato); ogni schermata nuova del gioco va aggiunta lì e nella matrice.
+- **Monitor del gioco**: domanda all'avvio con ≥2 monitor e nessuno scelto (o salvato assente e nessun monitor con la sua
+  misura); proposta il monitor quadrato, poi il più grande non principale; 30 s e vale la proposta (si salva: la domanda
+  non torna). La misura del monitor si salva con la scelta (`desktop-app.json`: `display`). Dalla pagina:
+  `window.natpfDesktop.displays` (preload v3). Il pannello dello stand mostra «Schermo del gioco» solo con il ponte.
+- **Pannello dello stand senza posto**: le voci nuove vanno nella riga in basso (`staff-actions`), non nella griglia
+  (tre file: «Chiudi» in vista a 1024 × 600, 1366 × 657 e 1024 × 1024).

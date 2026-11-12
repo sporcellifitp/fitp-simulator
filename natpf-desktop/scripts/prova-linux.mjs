@@ -10,6 +10,10 @@
 //                  c'è e ci va quando compare (evento display-added simulato), un altro monitor non lo sposta
 //   finestra       avvio in finestra (scelta salvata): Alt mostra e nasconde il menu, F11 va a schermo intero
 //   gioco          il gioco vero con il ponte (schermo intero della finestra, mai quello di HTML)
+//   domanda-monitor  (B27) due monitor finti (NATPF_PROVA_MONITOR: lo schermo virtuale ne ha uno solo, e Xvfb non
+//                  ne fa due che Chromium veda, provato anche con Xinerama e con i monitor RandR): la domanda «Su quale
+//                  schermo mostro il gioco?» compare, senza risposta vale il ledwall proposto (1024×1024) e si salva con
+//                  la misura; al riavvio con lo stesso monitor non si chiede più
 //   aggiornamenti  server degli aggiornamenti finto: controllo all'avvio senza download, check → available,
 //                  download → ready con l'avanzamento e lo sha256, install() simulata (07/11/2026); in predefinito
 //                  lo stato 'off' senza indirizzo e fuori dall'installazione
@@ -21,7 +25,7 @@
 //   ELECTRON_SKIP_BINARY_DOWNLOAD= node node_modules/electron/install.js   (se manca Electron per Linux)
 //   npm ci --prefix ../tools/e2e                      (se manca playwright-core)
 //   node scripts/prova-linux.mjs [--display=:91] [--dati=cartella] [--senza-xvfb] [--tieni-dati]
-//                                [--scenari=predefinito,ledwall-spento,finestra,gioco,aggiornamenti]
+//                                [--scenari=predefinito,ledwall-spento,finestra,gioco,domanda-monitor,aggiornamenti]
 // Usa le porte del programma (8443, 8081, 8080): devono essere libere. Dati (certificati, impostazioni, registro) in
 // --dati (predefinita: una cartella temporanea nuova), mai in quelli veri.
 import fs from 'node:fs';
@@ -41,7 +45,7 @@ const APP = path.join(HERE, 'app');
 const args = Object.fromEntries(process.argv.slice(2).map(v => { const i = v.indexOf('='); return i < 0 ? [v.replace(/^--/, ''), true] : [v.slice(0, i).replace(/^--/, ''), v.slice(i + 1)]; }));
 const DISPLAY = args['senza-xvfb'] ? process.env.DISPLAY : String(args.display || ':91');
 const GAME = `https://localhost:${DESKTOP.port}${DESKTOP.gamePath}`;
-const SCENARI = ['predefinito', 'ledwall-spento', 'finestra', 'gioco', 'aggiornamenti'];
+const SCENARI = ['predefinito', 'ledwall-spento', 'finestra', 'gioco', 'domanda-monitor', 'aggiornamenti'];
 const chosen = typeof args.scenari === 'string' ? args.scenari.split(',').map(s => s.trim()).filter(Boolean) : SCENARI;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fail = m => { console.error(m); process.exit(2); };
@@ -204,7 +208,8 @@ async function predefinito(){
 
   // 6. window.natpfDesktop
   const api = await page(`(() => { const d = window.natpfDesktop; return d ? { type: typeof d, shell: d.shell, version: d.version, keys: Object.keys(d).sort(), updates: d.updates ? Object.keys(d.updates).sort() : null } : null; })()`);
-  check('window.natpfDesktop presente come da contratto', api && api.shell === 'electron' && api.version === 2 && ['isFullScreen', 'onFullScreenChange', 'setFullScreen', 'toggleFullScreen', 'updates'].every(k => api.keys.includes(k))
+  // (versione 3 dal B27: anche displays, il monitor del gioco)
+  check('window.natpfDesktop presente come da contratto', api && api.shell === 'electron' && api.version === 3 && ['isFullScreen', 'onFullScreenChange', 'setFullScreen', 'toggleFullScreen', 'updates', 'displays'].every(k => api.keys.includes(k))
     && JSON.stringify(api.updates) === JSON.stringify(['check', 'download', 'install', 'onChange', 'state']), api);
   // aggiornamenti spenti: programma non installato (Linux) e nessun indirizzo
   const upd = await page('Promise.all([window.natpfDesktop.updates.state(), window.natpfDesktop.updates.check(), window.natpfDesktop.updates.install()])');
@@ -344,6 +349,35 @@ async function gioco(){
   check('scelta salvata: schermo intero', readSaved().fullscreen === true, readSaved());
   const startRow = await page(`(() => { const el = document.getElementById('natpf-fs-start'); return el ? el.classList.contains('hidden') : 'manca'; })()`);
   check("«All'avvio» nascosto nel programma", startRow === true, startRow);
+  // B27: monitor del gioco dalla pagina (ponte displays) e voce «Schermo del gioco» del pannello dello stand. Con un solo
+  // monitor: niente domanda all'avvio, elenco di uno, «monitor successivo» che non sposta niente
+  check('un solo monitor: nessuna domanda all\'avvio', /scelta del monitor all'avvio[^\n]*"chiedo":false[^\n]*un solo monitor/.test(readLog()));
+  const disp = await page(`window.natpfDesktop.displays.list().then(s => ({ n: s.list.length, current: s.current && s.current.label, primary: s.list[0].primary }))`);
+  check('window.natpfDesktop.displays.list(): il monitor del gioco', disp?.n === 1 && /^Monitor 1 · 1920×1080 \(principale\)$/.test(disp.current) && disp.primary, disp);
+  const nx = await page(`window.natpfDesktop.displays.next().then(s => s.current && s.current.label)`);
+  check('displays.next() con un solo monitor: resta dov\'è', /^Monitor 1/.test(nx || ''), nx);
+  const bad = await page(`window.natpfDesktop.displays.choose(999).then(() => 'accettato', e => 'rifiutato: ' + e.message)`);
+  check('displays.choose() di un monitor che non c\'è: rifiutato', /^rifiutato/.test(bad), bad);
+  const staff = await page(`(async () => { const ui = window.__natpfTennis.natpfUi; ui.kiosk.open(); await new Promise(r => setTimeout(r, 1500)); ui.kiosk.paint(); const b = document.querySelector('[data-staff="display"]'); const out = { shown: !b.classList.contains('hidden'), text: b.textContent.trim() }; ui.kiosk.close(); return out; })()`);
+  check('pannello dello stand: «Schermo del gioco» con il monitor attuale', staff?.shown && /Schermo del gioco\s*Monitor 1 · 1920×1080/.test(staff.text), staff);
+}
+
+// --- domanda-monitor: due monitor finti per la domanda all'avvio (B27) ----------------------------------------------
+async function domandaMonitor(){
+  const FINTI = JSON.stringify([{ id: 1, bounds: { x: 0, y: 0, width: 1536, height: 864 }, scaleFactor: 1.25 }, { id: 2, bounds: { x: 1536, y: 0, width: 1024, height: 1024 }, scaleFactor: 1 }]);
+  const env = { NATPF_PROVA_MONITOR: FINTI, NATPF_SCHERMO_ATTESA_MS: '2500' };
+  const t0 = Date.now();
+  const { first, newLog } = await launch(null, env);
+  const waited = Date.now() - t0;
+  check('finestra del gioco dopo la domanda', first?.visible && first.fullscreen, first);
+  const log = newLog();
+  const q = log.split('\n').find(l => l.includes("scelta del monitor all'avvio")) || '';
+  check('due monitor e nessuno scelto: si chiede, proposto il 1024×1024 «probabile ledwall»', /"chiedo":true/.test(q) && /"proposto":2/.test(q) && q.includes('Monitor 2 · 1024×1024 · probabile ledwall') && q.includes('Monitor 1 · 1920×1080 (principale) · scala 125%'), q.slice(25, 300));
+  check('senza risposta vale la proposta, salvata con la misura', /monitor del gioco[^\n]*probabile ledwall[^\n]*proposta \(nessuna risposta\)/.test(log) && readSaved().displayId === 2 && readSaved().display?.width === 1024 && readSaved().display?.height === 1024, { salvato: readSaved(), attesa: waited });
+  await closeApp();
+  const again = await launch(readSaved(), env);
+  const log2 = again.newLog();
+  check('riavvio con il monitor scelto: nessuna domanda', /scelta del monitor all'avvio[^\n]*"chiedo":false[^\n]*monitor salvato presente/.test(log2) && !/proposta \(nessuna risposta\)/.test(log2), log2.split('\n').find(l => l.includes('scelta del monitor')));
 }
 
 // --- aggiornamenti: server degli aggiornamenti finto (127.0.0.1), installazione simulata (richiesta del 07/11) --------
@@ -406,7 +440,7 @@ async function aggiornamenti(){
   } finally { srv.closeAllConnections?.(); srv.close(); }
 }
 
-const RUN = { predefinito, 'ledwall-spento': ledwallSpento, finestra, gioco, aggiornamenti };
+const RUN = { predefinito, 'ledwall-spento': ledwallSpento, finestra, gioco, 'domanda-monitor': domandaMonitor, aggiornamenti };
 try {
   if (!args['senza-xvfb']) await startXvfb();
   for (const name of chosen){

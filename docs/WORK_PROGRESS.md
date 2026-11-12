@@ -1424,3 +1424,29 @@ guida provato nel browser.
   ipotesi), Windows vero, ledwall. Aperti: colpo super sotto «qualche volta a partita»; con il campo aperto «tira sempre
   fortissimo» rende 65–69% e chi batte parte sfavorito (44–48 punti su 100).
 
+
+## B27 · Postazione dello staff: telecomando e schermo del gioco (12/11) · [~] da integrare
+Obiettivo (richiesta dell'utente allo stand): gioco sul ledwall 2×2 da 1024×1024 senza OBS e un telefono dello staff
+come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Documento con la matrice e le decisioni:
+`docs/b27/telecomando.md`; guida per lo staff `docs/GUIDA_TELECOMANDO.md`. Lavoro in parallelo a B23–B26, nel worktree
+`b25-staff` (base `8b85a3c`), da integrare (versione e `docs/PIANO_LAVORI.md` le aggiorna chi integra).
+- [x] B27.1 · programma Windows (commit `5633db6`): domanda «Su quale schermo mostro il gioco?» all'avvio (≥2 monitor e
+  nessuno scelto, o salvato assente senza un monitor della stessa misura; proposta il quadrato «probabile ledwall»; 30 s
+  poi vale la proposta, salvata con la misura), `window.natpfDesktop.displays` (preload v3: list, next, choose, onChange).
+  File: `natpf-desktop/src/{desktop-core,main}.mjs`, `preload.cjs`, `test/desktop-core.test.mjs`.
+- [x] B27.2 · telecomando (commit `e736d0f`): `site/js/tennis/remote-pairing.js`, `remote-link.js`, `telecomando.js`,
+  `site/tennis/telecomando.html` + manifest e icone (`tools/icone-telecomando.mjs`); nel gioco `natpf_remote_map.js`,
+  `natpf_remote.js`, voci nel pannello dello stand (`natpf_kiosk.js`, `index.html`, `natpf-ui.css`); `link.js` (la
+  racchetta rifiuta `role:'remote'`, batteria `bt`/`bc` nello stato) e `racchetta.js` (manda la batteria dove c'è);
+  build e pacchetto (`natpf-site-plugin.mjs`, `offline-assets.mjs`, `pacchetto-cloudflare.mjs`).
+- [x] B27.3 · prove e documenti (commit «B27 · Prove e documenti…»): `tools/e2e/natpf-telecomando.mjs`, 1024 × 1024 in `natpf-menu.mjs`,
+  scenario `domanda-monitor` e controlli del ponte in `natpf-desktop/scripts/prova-linux.mjs` (con `NATPF_PROVA_MONITOR`,
+  solo nel programma non costruito), test del ledwall esteso; `docs/b27/telecomando.md`, `docs/GUIDA_TELECOMANDO.md`,
+  `natpf-desktop/LEGGIMI.md`, `tools/e2e/README.md`, `docs/PROJECT_MEMORY.md`.
+  Verifiche: gioco 1191/1191, sito 213/213, LAN 12/12, programma Windows 32/32, build ok; nel browser
+  `natpf-telecomando` 69/69 (server LAN del programma, gioco a 1024 × 1024), `natpf-menu` 38/38, `natpf-training-flow`
+  22/22, `natpf-tutorial-phone` 52/52; `prova-linux` 67/67 (sei scenari, `domanda-monitor` compreso; al primo giro 66/67: il controllo del contratto voleva
+  ancora la versione 2 del ponte, aggiornato).
+  **Non verificato**: telefoni veri, «Aggiungi a schermata Home» (Android e iPhone), certificato sul telefono dello staff,
+  Windows vero, ledwall vero, due monitor veri (in Xvfb Electron ne vede sempre uno: provati Xinerama e monitor RandR),
+  la finestra della domanda vista a occhio, il percorso PeerJS pubblico (web) del telecomando (solo con un Peer finto).

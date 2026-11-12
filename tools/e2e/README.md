@@ -64,3 +64,10 @@ NATPF motore base (`natpf-tennis/`):
   - una sessione interrotta da una ricarica, poi recuperata;
   - la prova guidata con il riferimento nelle metriche.
 - `node natpf-swing-loss.mjs` (3140, 3141; `MODE=lan|internet`, `N=150`, `LOSS=0,0.03,0.08`, `ROOT` per misurare un altro checkout): consegna dei colpi con perdita di pacchetti simulata (prima/dopo le copie sul percorso veloce). Criteri: nessun colpo perso, p99 ≤ 50 ms con il 3% e ≤ 80 ms con l'8%. Serve iptables (root), quindi è uno script di misura e non sta nella matrice; per la LAN prima `npm run build`.
+- `node natpf-telecomando.mjs` (dopo la build di `natpf-tennis`; porte 4902 e 4903, `GAME_PORT`): telecomando dello staff
+  (B27) sul server LAN del programma (certificato creato come nel programma, in una cartella temporanea) con il gioco a
+  1024 × 1024 e un `window.natpfDesktop` finto con due monitor: abbinamento dal pannello dello stand (QR letto con jsQR),
+  percorso menu → partita → pausa → menu → nuovo giocatore guidato solo dal telefono, frecce spente in partita, ripresa
+  dopo la ricarica del gioco e del telefono e dopo il «PC riavviato», rifiuti (secondo telefono, codice sbagliato,
+  racchetta come telecomando e viceversa), schermate della matrice `docs/b27/telecomando.md`, «Scollega» e codice a mano.
+  Schermate `telecomando-*.png` in `OUT`.
