@@ -27,7 +27,9 @@ function newest(target){
 }
 export function buildIsStale(root = ROOT){
   const built = fs.statSync(path.join(root, 'dist/index.html'), { throwIfNoEntry: false })?.mtimeMs || 0;
-  const sources = ['src', 'index.html', 'index.css', 'styles.css', 'vite.config.ts', 'package.json', 'scripts', '../site/js', '../site/tennis/racchetta.html', '../site/assets/arena']
+  const sources = ['src', 'index.html', 'index.css', 'styles.css', 'vite.config.ts', 'package.json', 'scripts', '../site/js', '../site/tennis/racchetta.html', '../site/assets/arena',
+    // B27: pagina del telecomando dello staff, manifest e icone (copiati nella build come la pagina della racchetta)
+    '../site/tennis/telecomando.html', '../site/tennis/telecomando.webmanifest', '../site/tennis/telecomando-192.png', '../site/tennis/telecomando-512.png']
     .map(p => newest(path.resolve(root, p)));
   return !built || Math.max(...sources) > built;
 }

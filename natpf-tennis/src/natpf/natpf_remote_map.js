@@ -3,9 +3,10 @@
 // (test/natpf-telecomando.test.mjs); la matrice di tutte le schermate è in docs/b27/telecomando.md.
 //
 // Strati, dal più in alto: intro → pannello dello stand → finestre <dialog> → nome del giocatore → diagnostica →
-// calibrazione dello schermo → guida → tutorial dei gesti → partita ferma per il telefono → pannello del telefono →
-// pausa → fine partita → Player 2 dell'invito → menu (lobby) → in campo (lezione, calibrazione, riscaldamento,
-// minigioco, partita).
+// calibrazione dello schermo → guida → tutorial dei gesti → pausa → partita ferma per il telefono → pannello del
+// telefono → fine partita → Player 2 dell'invito → menu (lobby) → in campo (lezione, calibrazione, riscaldamento,
+// minigioco, partita). La pausa sta sopra «partita ferma per il telefono»: il suo foglio si apre sopra quel riquadro
+// (prima le frecce comandavano il riquadro dietro e Indietro non chiudeva la pausa).
 // Come si naviga (navPlan):
 //   'keys'  il modulo dello strato gestisce già frecce, Invio ed Esc (menu, guida, tutorial, calibrazione dello schermo,
 //           lezione, intro): il telefono manda gli stessi tasti della tastiera;
@@ -30,7 +31,7 @@ export const CPU_LEVELS = Object.freeze(['casual', 'pro', 'leggenda']);
 export const CPU_LABEL = Object.freeze({ casual: 'Facile', pro: 'Esperta', leggenda: 'Leggenda' });
 export const nextCpu = level => CPU_LEVELS[(CPU_LEVELS.indexOf(level) + 1) % CPU_LEVELS.length];
 // strati sopra il menu e il campo, dal più in alto
-export const LAYERS = Object.freeze(['intro', 'staff', 'remote', 'dialog', 'nick', 'diag', 'calibra', 'guide', 'tutorial', 'hold', 'phonePanel', 'pause', 'victory', 'guest']);
+export const LAYERS = Object.freeze(['intro', 'staff', 'remote', 'dialog', 'nick', 'diag', 'calibra', 'guide', 'tutorial', 'pause', 'hold', 'phonePanel', 'victory', 'guest']);
 const FIELD = new Set(['cal', 'warmup', 'training', 'minigame', 'match']);
 // strati con i pulsanti in cui le frecce spostano il fuoco
 const FOCUS = new Set(['staff', 'remote', 'dialog', 'nick', 'diag', 'hold', 'phonePanel', 'pause', 'victory', 'guest']);
@@ -61,13 +62,15 @@ export function remoteScreen(s = {}){
   }
   if (s.minigame) return { id: 'minigame', label: `Minigioco: ${s.minigame}`, nav: 'field' };
   if (s.inField) return { id: 'match', label: s.split ? 'Partita · stesso schermo' : s.versus ? 'Sfida tra due computer' : 'Partita contro la CPU', nav: 'field' };
-  return { id: 'other', label: SCREEN_LABEL.other, nav: 'keys' };
+  // menu nascosto senza una partita (passaggio al campo, dimostrazione): i tasti arriverebbero al motore, come in campo
+  return { id: 'other', label: SCREEN_LABEL.other, nav: 'field' };
 }
 // cosa c'è sotto uno strato aperto (pausa sopra la partita…): per dire se una partita è in corso
 function underOf(s){ const rest = { ...s }; for (const k of LAYERS) delete rest[k]; return remoteScreen(rest).id; }
 // una partita (o minigioco, riscaldamento…) è in corso, anche sotto la pausa o un pannello: Menu e Nuovo giocatore la
 // chiudono, quindi il telefono chiede conferma
-export function gameRunning(screen){ return FIELD.has(screen.id) || FIELD.has(screen.under) || screen.id === 'pause' || screen.id === 'hold'; }
+// (a fine partita no: la partita è finita, Menu e Nuovo giocatore non chiudono niente)
+export function gameRunning(screen){ return screen.id !== 'victory' && (FIELD.has(screen.id) || FIELD.has(screen.under) || screen.id === 'pause' || screen.id === 'hold'); }
 
 // Navigazione: cosa fa il comando nella schermata (null se non è un comando di navigazione)
 //   { kind: 'key', code }           tasto della tastiera (stesso effetto)
@@ -88,6 +91,9 @@ export function navPlan(screen, cmd){
     if (cmd === 'back') return { kind: 'back' };
     return { kind: 'focus', dir: KEYS[cmd] };
   }
+  // Tutorial dei gesti («Rivedi i gesti» compreso) e lezione: i loro tasti sono ← → OK e Indietro. ↑ e ↓ non li usa
+  // nessuno dei due e arriverebbero al motore: in campo ↑ lancia la palla (motion_controls) e ↓ muove il giocatore
+  if ((screen.id === 'tutorial' || screen.id === 'lesson') && (cmd === 'up' || cmd === 'down')) return { kind: 'blocked', why: 'Qui si sfoglia con ← e →' };
   return { kind: 'key', code: KEYS[cmd] };
 }
 

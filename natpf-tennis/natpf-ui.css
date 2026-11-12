@@ -1860,5 +1860,10 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .remote-sheet .remote-code-line b { display: inline-block; margin-left: 4px; font: 800 26px/1 var(--font-display); letter-spacing: 0.08em; color: var(--ball); }
 .remote-sheet .remote-tip { font-size: 14px; margin-bottom: 8px; }
 @container natpf (max-width: 640px) { .remote-sheet .remote-body { flex-direction: column; align-items: center; } }
+.remote-sheet .remote-request, .remote-sheet .remote-paired { text-align: center; }
+.remote-sheet .remote-ask { margin: 0; font: 700 clamp(18px, 2.6cqh, 26px)/1.25 var(--font-text); color: var(--text); }
+.remote-sheet .remote-num { margin: 4px 0 8px; font: 800 italic clamp(72px, 16cqh, 150px)/1 var(--font-display); letter-spacing: 0.08em; color: var(--ball); }
+.remote-sheet .remote-request-actions { display: flex; justify-content: center; gap: 14px; margin-bottom: 8px; }
+.remote-sheet .remote-ok { margin: 6px 0 10px; font: 800 italic clamp(28px, 5cqh, 44px)/1 var(--font-display); text-transform: uppercase; color: var(--ball); }
 /* fuoco spostato dal telecomando (frecce del telefono): sempre visibile, anche dopo un clic del mouse sul computer */
 html.remote-nav :is(button, a, input, [tabindex]):focus { outline: 3px solid var(--ball); outline-offset: 3px; }

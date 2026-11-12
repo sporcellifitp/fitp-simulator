@@ -61,11 +61,30 @@
   #home{background:#0f1a10;border:2px solid #2c6b3a;border-radius:14px;padding:10px 12px;font-size:15px;line-height:1.35;display:flex;gap:8px;align-items:center}
   #home span{flex:1} #home button{border:0;border-radius:10px;min-height:44px;padding:0 12px;font-weight:800}
   #home .go{background:var(--ok);color:#000} #home .x{background:#26302a;color:#fff}
+  #wait{background:#3a2a00;border:2px solid var(--key);border-radius:16px;padding:16px;text-align:center;font-size:17px;line-height:1.4}
+  #wait p{margin:0} #wait-num{font-size:96px;font-weight:800;letter-spacing:.08em;color:var(--key);line-height:1.1;margin:6px 0}
+  #parked{background:#2a2e3a;color:#fff;border:2px solid var(--key);padding:14px;line-height:1.3}
+  #ios{background:var(--panel);border:2px solid var(--key);border-radius:16px;padding:12px 14px;font-size:16px;line-height:1.4} #ios p{margin:0}
+  #stale{background:#3a1512;border-radius:14px;padding:10px 12px;font-size:15px;line-height:1.35;display:flex;gap:8px;align-items:center}
+  #stale span{flex:1} #stale button{border:0;border-radius:10px;min-height:44px;padding:0 12px;font-weight:800;background:var(--key);color:#000}
   footer{display:flex;justify-content:space-between;color:var(--off);font-size:12px;margin-top:auto}
 </style>
 </head>
 <body>
   <div id="bar"><i></i><span id="link">Avvio…</span><small id="ver"></small></div>
+  <!-- abbinamento chiesto: vale solo dopo «Conferma» sul computer, con lo stesso numero -->
+  <section id="wait" class="hidden" aria-live="assertive">
+    <p>Sul computer compare questo numero:</p>
+    <div id="wait-num">—</div>
+    <p>Premi <b>Conferma</b> sul computer (tastiera o mouse). Se il numero sul computer è diverso, premi «Rifiuta».</p>
+  </section>
+  <!-- la stessa chiave è stata aperta in un'altra pagina di questo telefono (o del telefono di riserva) -->
+  <button type="button" id="parked" class="hidden big">Telecomando aperto in un’altra pagina · tocca per riprendere qui</button>
+  <!-- iPhone in Safari con il QR: l'icona della schermata Home ha una memoria sua -->
+  <section id="ios" class="hidden">
+    <p><b>iPhone:</b> per avere l’icona, non abbinare questa scheda. Tocca Condividi ⬆︎ → «Aggiungi alla schermata Home», apri l’icona <b>NATPF Telecomando</b> e scrivi lì il codice mostrato sotto il QR.</p>
+    <button type="button" class="link" id="iosHere">Abbina questa scheda di Safari lo stesso</button>
+  </section>
   <section id="setup" class="hidden" aria-labelledby="setup-title">
     <h1 id="setup-title">Telecomando dello staff</h1>
     <p id="setup-why">Questo telefono non è ancora il telecomando.</p>
@@ -73,6 +92,7 @@
       <li>Sul gioco apri il <b>Pannello dello stand</b> (Ctrl+Maiusc+K, oppure tieni premuto 3 s il marchio NATPF nel menu).</li>
       <li>Tocca <b>Telecomando dello staff</b>: compare un QR (diverso da quello dei giocatori).</li>
       <li>Inquadralo con la fotocamera, oppure scrivi qui il codice sotto il QR.</li>
+      <li>Sul computer premi <b>Conferma</b> quando compare il numero che vedi su questo telefono.</li>
     </ol>
     <input id="code" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="10" placeholder="ABCD-EFGH" aria-label="Codice del telecomando">
     <button type="button" class="big" id="codeGo">Collega con il codice</button>
@@ -108,6 +128,8 @@
     </div>
     <div id="home" class="hidden"><span id="home-text"></span><button type="button" class="go hidden" id="homeGo">Installa</button><button type="button" class="x" id="homeX">Ok</button></div>
   </section>
+  <!-- il gioco non risponde da un po': spento, oppure questo telefono non è più il telecomando -->
+  <div id="stale" class="hidden"><span>Il gioco non si trova. Se è acceso e sulla stessa Wi-Fi, questo telefono non è più il telecomando (scollegato o sostituito): va abbinato di nuovo.</span><button type="button" id="staleGo">Abbina di nuovo</button></div>
   <footer><span id="where"></span><button type="button" class="link" id="unpair">Non usare più questo telefono</button></footer>
   <script type="module" src="../js/tennis/telecomando.js"></script>
 </body>

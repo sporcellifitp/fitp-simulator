@@ -107,27 +107,45 @@ try {
   await game.waitForFunction(() => document.querySelector('#remote-qr svg') && !document.getElementById('natpf-remote').classList.contains('hidden'));
   await sleep(300);
   await game.screenshot({ path: `${SP}/telecomando-qr-1024x1024.png` });
-  // il QR letto come lo legge la fotocamera
+  // il QR letto come lo legge la fotocamera (nel foglio non c'è nessun link da cliccare)
   await game.addScriptTag({ path: JSQR });
-  const qr = await game.evaluate(async () => {
+  const readQr = () => game.evaluate(async () => {
     const svg = document.querySelector('#remote-qr svg'), xml = new XMLSerializer().serializeToString(svg);
     const img = new Image(); img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml))); await img.decode();
     const c = document.createElement('canvas'); c.width = c.height = 400; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 400); g.drawImage(img, 0, 0, 400, 400);
-    return { text: window.jsQR(g.getImageData(0, 0, 400, 400).data, 400, 400)?.data || null, href: document.getElementById('remote-link').href, code: document.getElementById('remote-code').textContent, session: __natpfTennis.natpfUi.remote.link.session };
+    return { text: window.jsQR(g.getImageData(0, 0, 400, 400).data, 400, 400)?.data || null, code: document.getElementById('remote-code').textContent, links: document.querySelectorAll('#natpf-remote a').length, view: document.getElementById('natpf-remote').dataset.view };
   });
-  check('QR dello staff: pagina /natpf/tennis/telecomando.html?lan=1 con la sessione «telecomando-…», diverso da quello dei giocatori', qr.text === qr.href && /\/natpf\/tennis\/telecomando\.html\?lan=1#tc=telecomando-[a-z0-9]{26}&k=/.test(qr.text || '') && /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(qr.code), JSON.stringify(qr));
-  const qrUrl = qr.text.replace(/^https:\/\/[^/]+/, `https://127.0.0.1:${PORT}`);
+  const local = url => url.replace(/^https:\/\/[^/]+/, `https://127.0.0.1:${PORT}`);
+  const qr = await readQr();
+  check('QR dello staff: pagina /natpf/tennis/telecomando.html?lan=1 con un indirizzo che vale solo per l\'abbinamento («telecomando-abbina-…»), codice da scrivere, nessun link nel foglio', /\/natpf\/tennis\/telecomando\.html\?lan=1#tc=telecomando-abbina-[a-z0-9]{26}&k=/.test(qr.text || '') && /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(qr.code) && qr.links === 0 && qr.view === 'pair', JSON.stringify(qr));
+  const qrUrl = local(qr.text);
 
-  // 2) telefono dello staff
+  // 2) telefono dello staff: chiede l'abbinamento, che vale solo dopo «Conferma» sul computer
   const pctx = await B.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, ignoreHTTPSErrors: true, userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36' });
   const phone = await pctx.newPage(), phoneErr = [];
   phone.on('pageerror', e => phoneErr.push(e.message));
+  let dialogs = 0; game.on('dialog', d => { dialogs++; d.dismiss().catch(() => {}); });
   await phone.goto(qrUrl, { waitUntil: 'domcontentloaded' });
+  await phone.waitForFunction(() => window.__telecomando?.state === 'waiting', null, { timeout: 30000 });
+  await game.waitForFunction(() => document.getElementById('natpf-remote').dataset.view === 'request');
+  const ask = { phone: await phone.evaluate(() => ({ num: __telecomando.number, shown: document.getElementById('wait-num').textContent, hash: location.hash, paired: __telecomando.paired, sent: __telecomando.send('menu') })),
+    game: await ui(() => ({ num: document.getElementById('remote-num').textContent, qr: !!document.querySelector('#remote-qr svg'), paired: __natpfTennis.natpfUi.remote.link.paired, connected: __natpfTennis.natpfUi.remote.link.connected, step: __natpfTennis.natpfUi.lobby.step, focus: document.activeElement?.dataset?.remote })) };
+  await phone.screenshot({ path: `${SP}/telecomando-telefono-numero.png` });
+  await game.screenshot({ path: `${SP}/telecomando-richiesta-1024x1024.png` });
+  check('telefono con il QR giusto: non è ancora il telecomando; stesso numero di tre cifre sul telefono e sul gioco, QR tolto, fuoco su «Rifiuta»', /^\d{3}$/.test(ask.game.num) && String(ask.phone.num) === ask.game.num && ask.phone.shown === ask.game.num && !ask.phone.hash && !ask.phone.paired && ask.phone.sent === false && !ask.game.qr && !ask.game.paired && !ask.game.connected && ask.game.focus === 'refuse', JSON.stringify(ask));
+  // «Conferma» fatta dal codice (uno script, il telecomando): niente. Serve un clic vero sul computer
+  await ui(() => document.querySelector('[data-remote="confirm"]').click());
+  await sleep(600);
+  check('«Conferma» premuta dal codice (clic non vero): il telefono resta in attesa', await phone.evaluate(() => __telecomando.state === 'waiting') && await ui(() => !__natpfTennis.natpfUi.remote.link.paired));
+  await game.click('[data-remote="confirm"]');
   await phone.waitForFunction(() => window.__telecomando?.state === 'on', null, { timeout: 30000 });
   const paired = await phone.evaluate(() => ({ hash: location.hash, search: location.search, saved: JSON.parse(localStorage.getItem('natpf-telecomando')) }));
-  check('telefono abbinato: chiave salvata sul telefono, QR tolto dalla barra degli indirizzi', !paired.hash && paired.search === '?lan=1' && paired.saved?.session === qr.session && /^[a-z0-9]{26}$/.test(paired.saved?.resume || ''), JSON.stringify(paired));
+  const fixed = await ui(() => __natpfTennis.natpfUi.remote.link.session);
+  check('«Conferma» con un clic vero: telefono abbinato, indirizzo fisso e chiave salvati sul telefono (l\'indirizzo non era nel QR)', !paired.hash && paired.search === '?lan=1' && paired.saved?.session === fixed && /^telecomando-[a-z0-9]{26}$/.test(fixed) && /^[a-z0-9]{26}$/.test(paired.saved?.key || '') && !qr.text.includes(fixed.slice(12)), JSON.stringify({ ...paired, saved: { ...paired.saved, key: '…' } }));
   await game.waitForFunction(() => /collegato ✓/i.test(document.getElementById('remote-state').textContent));
-  check('gioco: «Telecomando collegato ✓» e chiave salvata nel gioco', await ui(() => { const v = JSON.parse(localStorage.getItem('natpf-tennis.telecomando')); return __natpfTennis.natpfUi.remote.link.connected && !!v.resume && v.session.startsWith('telecomando-'); }));
+  await game.screenshot({ path: `${SP}/telecomando-abbinato-1024x1024.png` });
+  check('gioco: «Telecomando abbinato ✓», nessun QR né codice in vista, «Abbina un altro telefono»', await ui(() => { const v = JSON.parse(localStorage.getItem('natpf-tennis.telecomando')), el = document.getElementById('natpf-remote'); return __natpfTennis.natpfUi.remote.link.connected && !!v.key && v.session.startsWith('telecomando-') && el.dataset.view === 'paired' && !document.querySelector('#remote-qr svg') && document.getElementById('remote-code').textContent === '—' && /Abbina un altro telefono/.test(el.querySelector('[data-remote="new"]').textContent) && !el.querySelector('[data-remote="new"]').classList.contains('hidden'); }));
+
   const acks = () => phone.evaluate(() => __telecomando.ackCount || 0);
   const tap = async (c, { confirm = false } = {}) => {
     const n = await acks();
@@ -143,6 +161,42 @@ try {
   await waitPg('remote');
   check('stato sul telefono: «Telecomando dello staff», con i comandi accesi e spenti con il motivo', await phone.evaluate(() => { const s = __telecomando.status; return s.label === 'Telecomando dello staff' && s.cmds.back === 1 && typeof s.cmds.pause === 'string'; }));
   await phone.screenshot({ path: `${SP}/telecomando-telefono-pannello.png` });
+
+  // 2b) il foglio lo vede anche il pubblico: un visitatore con un telefono non deve poter diventare il telecomando
+  // QR e codice fotografati dal ledwall con il foglio aperto, usati a foglio chiuso
+  await game.click('[data-remote="new"]');
+  await game.waitForFunction(() => document.querySelector('#remote-qr svg'));
+  const photo = await readQr();
+  await game.click('[data-remote="close"]');
+  await game.waitForSelector('#natpf-staff:not(.hidden) [data-staff="remote"]', { state: 'visible' });
+  const vctx = await B.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, ignoreHTTPSErrors: true });
+  const visitor = await vctx.newPage();
+  await visitor.goto(local(photo.text), { waitUntil: 'domcontentloaded' });
+  const dead = await visitor.waitForFunction(() => __telecomando.state === 'unpaired', null, { timeout: 30000 }).then(() => true, () => false);
+  check('QR fotografato dal ledwall e usato a foglio chiuso: non vale più, il telecomando dello staff resta in carica', dead && await visitor.evaluate(() => __telecomando.why === 'closed' && /chiuso/.test(document.getElementById('setup-why').textContent) && !localStorage.getItem('natpf-telecomando')) && await phone.evaluate(() => __telecomando.state === 'on'), await visitor.evaluate(() => __telecomando.why));
+  await visitor.fill('#code', photo.code); await visitor.click('#codeGo');
+  check('codice fotografato e scritto a foglio chiuso: «Codice non trovato»', await visitor.waitForFunction(() => __telecomando.state === 'unpaired' && /non trovato/.test(document.getElementById('setup-why').textContent), null, { timeout: 30000 }).then(() => true, () => false) && await ui(f => __natpfTennis.natpfUi.remote.link.session === f && __natpfTennis.natpfUi.remote.link.connected, fixed));
+  // un secondo telefono con il foglio aperto: deve essere confermato sul computer, e fino ad allora comanda il primo
+  await game.click('[data-staff="remote"]');
+  await game.waitForFunction(() => document.getElementById('natpf-remote').dataset.view === 'paired' && !document.getElementById('natpf-remote').classList.contains('hidden'));
+  await game.click('[data-remote="new"]');
+  await game.waitForFunction(() => document.querySelector('#remote-qr svg'));
+  const q2 = await readQr();
+  await visitor.goto(local(q2.text), { waitUntil: 'domcontentloaded' });
+  await visitor.waitForFunction(() => __telecomando.state === 'waiting', null, { timeout: 30000 });
+  await game.waitForFunction(() => document.getElementById('natpf-remote').dataset.view === 'request');
+  const down = await tap('down');
+  check('secondo telefono in attesa della conferma: il primo comanda ancora, il secondo no', down.ok === true && await visitor.evaluate(() => __telecomando.send('menu') === false && __telecomando.state === 'waiting') && await ui(f => __natpfTennis.natpfUi.remote.link.session === f, fixed), JSON.stringify(down));
+  // il telecomando in carica non può confermare il nuovo: le frecce non arrivano a «Conferma» e OK lo rifiuta
+  const reach = [];
+  for (const c of ['right', 'down', 'right', 'up', 'left', 'down', 'right', 'right']){ await tap(c); reach.push(await ui(() => document.activeElement?.dataset?.remote || '?')); }
+  await ui(() => document.querySelector('[data-remote="confirm"]').focus());
+  const okConfirm = await tap('ok');
+  check('«Conferma» non si raggiunge né si preme dal telecomando (solo dal computer)', !reach.includes('confirm') && reach.includes('refuse') && okConfirm.ok === false && /computer/.test(okConfirm.msg) && await visitor.evaluate(() => __telecomando.state === 'waiting') && await ui(f => __natpfTennis.natpfUi.remote.link.session === f, fixed), JSON.stringify({ reach, okConfirm }));
+  await game.click('[data-remote="refuse"]');
+  const refused = await visitor.waitForFunction(() => __telecomando.state === 'unpaired' && __telecomando.why === 'refused', null, { timeout: 15000 }).then(() => true, () => false);
+  check('«Rifiuta» sul computer: il secondo telefono resta fuori, il primo resta il telecomando, il foglio torna a un QR nuovo', refused && await phone.evaluate(() => __telecomando.state === 'on') && await ui(f => __natpfTennis.natpfUi.remote.link.session === f && document.getElementById('natpf-remote').dataset.view === 'pair' && !!document.querySelector('#remote-qr svg'), fixed) && (await readQr()).text !== q2.text);
+  await vctx.close();
   // Indietro → pannello dello stand; Indietro → menu
   await tap('back'); check('Indietro: dal foglio del telecomando al pannello dello stand', await waitPg('staff'));
   await tap('back'); check('Indietro: pannello chiuso, menu principale', await waitPg('lobby:menu'));
@@ -217,7 +271,7 @@ try {
   await game.reload({ waitUntil: 'domcontentloaded' }); await ready();
   await ui(() => { const I = __natpfTennis.natpfUi.intro; if (I.active){ I.finishAnimation(); I.start(); } });
   const back1 = await phone.waitForFunction(() => __telecomando.state === 'on' && __telecomando.status?.pg?.startsWith('lobby:'), null, { timeout: 40000 }).then(() => true, () => false);
-  check('gioco ricaricato: il telefono si ricollega da solo, stesso id di sessione', back1 && await ui(s => __natpfTennis.natpfUi.remote.link.session === s && __natpfTennis.natpfUi.remote.link.connected, qr.session));
+  check('gioco ricaricato: il telefono si ricollega da solo, stesso id di sessione', back1 && await ui(s => __natpfTennis.natpfUi.remote.link.session === s && __natpfTennis.natpfUi.remote.link.connected, fixed));
   await phone.reload({ waitUntil: 'domcontentloaded' });
   check('pagina del telefono ricaricata (senza QR): si ricollega da sola', await phone.waitForFunction(() => __telecomando.state === 'on', null, { timeout: 30000 }).then(() => true, () => false));
   // PC spento: server e gioco chiusi (il canale WebRTC è diretto tra i due: con il solo server spento il telecomando
@@ -236,9 +290,9 @@ try {
   const other = await p2ctx.newPage();
   await other.goto(qrUrl, { waitUntil: 'domcontentloaded' });
   await other.waitForFunction(() => __telecomando.state === 'unpaired', null, { timeout: 20000 });
-  check('secondo telefono con il QR già usato: rifiutato, il telecomando vero resta collegato', await other.evaluate(() => !document.getElementById('setup').classList.contains('hidden') && /Codice/.test(document.getElementById('setup-why').textContent)) && await phone.evaluate(() => __telecomando.state === 'on'));
+  check('secondo telefono con il QR già usato: rifiutato, il telecomando vero resta collegato', await other.evaluate(() => !document.getElementById('setup').classList.contains('hidden') && /chiuso/.test(document.getElementById('setup-why').textContent)) && await phone.evaluate(() => __telecomando.state === 'on'));
   await other.fill('#code', 'ABCD-EFGH'); await other.click('#codeGo');
-  check('codice sbagliato: «Codice non trovato»', await other.waitForFunction(() => /non trovato/.test(document.getElementById('msg').textContent), null, { timeout: 20000 }).then(() => true, () => false));
+  check('codice sbagliato: «Codice non trovato»', await other.waitForFunction(() => /non trovato/.test(document.getElementById('setup-why').textContent), null, { timeout: 30000 }).then(() => true, () => false));
   // racchetta: QR dei giocatori aperto nella pagina del telecomando, e hello della racchetta all'indirizzo del telecomando
   const playerQr = await ui(async () => { await __natpfTennis.natpfPhone.start(); return __natpfTennis.natpfPhone.pairingUrl; });
   const hashOnly = playerQr.slice(playerQr.indexOf('#'));
@@ -247,9 +301,11 @@ try {
   const roles = await other.evaluate(async ({ remote, racket }) => {
     const { LanPeer } = await import('/natpf/js/tennis/lan-transport.js');
     const ask = (to, hello) => new Promise(res => { const p = new LanPeer(); const t = setTimeout(() => { p.destroy(); res('nessuna risposta'); }, 8000); p.on('open', () => { const c = p.connect(to); c.on('open', () => c.send(hello)); c.on('data', d => { clearTimeout(t); p.destroy(); res(d); }); }); });
-    return { asRacket: await ask(remote.session, { t: 'hello', v: 2, k: remote.token }), asRemote: await ask(racket.session, { t: 'hello', role: 'remote', v: 1, k: racket.token }) };
-  }, { remote: await ui(() => ({ session: __natpfTennis.natpfUi.remote.link.session, token: __natpfTennis.natpfUi.remote.link.token })), racket: await ui(() => ({ session: __natpfTennis.natpfPhone.link.session, token: __natpfTennis.natpfPhone.link.token })) });
-  check('la racchetta non diventa telecomando e il telecomando non diventa racchetta (anche con il codice giusto)', roles.asRacket?.why === 'role' && roles.asRemote?.why === 'role' && await ui(() => !__natpfTennis.natpfPhone.connected), JSON.stringify(roles));
+    return { asRacket: await ask(remote.session, { t: 'hello', v: 2, k: racket.token }), asRemote: await ask(racket.session, { t: 'hello', role: 'remote', v: 2, k: racket.token }),
+      // sull'indirizzo fisso del telecomando un codice (anche giusto) non vale: lì entra solo chi prova la chiave
+      withCode: await ask(remote.session, { t: 'hello', role: 'remote', v: 2, k: racket.token }), wrongProof: await new Promise(res => { const p = new LanPeer(); const t = setTimeout(() => { p.destroy(); res('nessuna risposta'); }, 8000); p.on('open', () => { const c = p.connect(remote.session); let n = 0; c.on('open', () => c.send({ t: 'hello', role: 'remote', v: 2, n: 'abcdefghijkmnpqrstuvwxyz23' })); c.on('data', d => { if (++n === 1){ c.send({ t: 'proof', m: 'f'.repeat(64) }); return; } clearTimeout(t); p.destroy(); res(d); }); }); }) };
+  }, { remote: await ui(() => ({ session: __natpfTennis.natpfUi.remote.link.session })), racket: await ui(() => ({ session: __natpfTennis.natpfPhone.link.session, token: __natpfTennis.natpfPhone.link.token })) });
+  check('la racchetta non diventa telecomando e il telecomando non diventa racchetta (anche con il codice giusto); sull\'indirizzo fisso niente codici e niente prove sbagliate', roles.asRacket?.why === 'role' && roles.asRemote?.why === 'role' && roles.withCode?.why === 'unpaired' && roles.wrongProof?.why === 'unpaired' && await ui(() => !__natpfTennis.natpfPhone.connected) && await phone.evaluate(() => __telecomando.state === 'on'), JSON.stringify(roles));
   // racchetta vera collegata: lo stato del telefono del giocatore arriva al telecomando
   const rctx = await B.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, ignoreHTTPSErrors: true });
   const racket = await rctx.newPage();
@@ -272,11 +328,23 @@ try {
   await layer('pannello del telefono', () => __natpfTennis.natpfUi.openPhone(), 'phonePanel');
   await layer('finestra del certificato', () => document.getElementById('connect-certificate-dialog').showModal(), 'dialog');
   await tap('staff'); check('Pannello dell’addetto dal telefono: si apre', await waitPg('staff'));
+  // i controlli che aprono una finestra di Windows («Azzera oggi», «Scarica CSV») il telecomando non li raggiunge né li preme
+  const walked = new Set();
+  for (let i = 0; i < 30; i++){ await tap(i % 6 === 5 ? 'down' : 'right'); walked.add(await ui(() => document.activeElement?.dataset?.staff || '?')); }
+  await ui(() => document.querySelector('[data-staff="reset"]').focus());
+  const okReset = await tap('ok');
+  check('pannello dello stand dal telefono: le frecce saltano «Azzera oggi» e «Scarica CSV», OK su «Azzera» è rifiutato, nessuna finestra di Windows', walked.size >= 8 && !walked.has('reset') && !walked.has('export') && okReset.ok === false && dialogs === 0, JSON.stringify({ walked: [...walked], okReset, dialogs }));
   await tap('staff'); check('… e si chiude', await waitPg('lobby:menu'));
   // rivedi i gesti dal menu
   await tap('gestures'); check('Rivedi i gesti: la modale del tutorial', await waitPg('tutorial'));
   const tutKeys = await ui(() => __natpfTennis.natpfUi.training.tutorial.state?.idx ?? null);
   await tap('right'); const tutKeys2 = await ui(() => __natpfTennis.natpfUi.training.tutorial.state?.idx ?? null);
+  // (sul telefono il pulsante è spento con il motivo; mandato lo stesso, il gioco lo rifiuta)
+  const upOff = await phone.evaluate(() => { const b = document.querySelector('[data-c="up"]'); return b.classList.contains('off') && /←/.test(b.title); });
+  const nUp = await acks(); await phone.evaluate(() => __telecomando.send('up'));
+  await phone.waitForFunction(n => (__telecomando.ackCount || 0) > n, nUp, { timeout: 15000 });
+  const tutUp = await phone.evaluate(() => __telecomando.acks.at(-1));
+  check('nel tutorial ↑ è spenta (in campo lancerebbe la palla)', upOff && tutUp.ok === false && /←/.test(tutUp.msg), JSON.stringify(tutUp));
   await game.screenshot({ path: `${SP}/telecomando-gesti-1024x1024.png` });
   await tap('back');
   check('nel tutorial → sfoglia le schede, Indietro chiude', tutKeys2 === tutKeys + 1 && await waitPg('lobby:menu'), `${tutKeys} → ${tutKeys2}`);
@@ -338,17 +406,26 @@ try {
   check('Allenamento: Torna al menu con conferma', !!tm.asked && await waitPg('lobby:menu'));
   await ui(() => __natpfTennis.natpfUi.lobby.setMode('cpu'));
 
-  // 10) «Scollega il telecomando» e abbinamento con il codice
+  // 10) «Scollega il telecomando» (due passi nella pagina, niente finestre di Windows) e abbinamento con il codice
   await ui(() => __natpfTennis.natpfUi.remote.open()); await sleep(500);
-  await game.evaluate(() => { window.confirm = () => true; });
+  await game.click('[data-remote="forget"]'); await sleep(300);
+  const armed = await ui(() => ({ text: document.querySelector('[data-remote="forget"]').textContent, paired: __natpfTennis.natpfUi.remote.link.paired }));
   await game.click('[data-remote="forget"]');
-  check('«Scollega il telecomando»: il telefono lo sa e chiede di abbinarsi di nuovo', await phone.waitForFunction(() => __telecomando.state === 'unpaired' && !localStorage.getItem('natpf-telecomando'), null, { timeout: 10000 }).then(() => true, () => false));
+  check('«Scollega il telecomando» in due passi: il telefono lo sa e chiede di abbinarsi di nuovo; indirizzo e chiave del gioco buttati', /ancora/.test(armed.text) && armed.paired && await phone.waitForFunction(() => __telecomando.state === 'unpaired' && !localStorage.getItem('natpf-telecomando'), null, { timeout: 10000 }).then(() => true, () => false) && await ui(() => { const v = JSON.parse(localStorage.getItem('natpf-tennis.telecomando')); return !__natpfTennis.natpfUi.remote.link.paired && v.session === null && v.key === null; }), JSON.stringify(armed));
   await phone.screenshot({ path: `${SP}/telecomando-telefono-non-abbinato.png` });
+  await game.click('[data-remote="new"]');
+  await game.waitForFunction(() => /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(document.getElementById('remote-code').textContent));
   const code = await ui(() => document.getElementById('remote-code').textContent);
   await phone.fill('#code', code.toLowerCase()); await phone.click('#codeGo');
-  const byCode = await phone.waitForFunction(s => __telecomando.state === 'on' && __telecomando.saved?.session === s, qr.session, { timeout: 30000 }).then(() => true, () => false);
-  check('abbinato di nuovo con il codice scritto a mano (indirizzo fisso salvato)', byCode, byCode ? code : JSON.stringify({ code, phone: await phone.evaluate(() => ({ st: __telecomando.state, why: __telecomando.why, msg: document.getElementById('msg').textContent, link: document.getElementById('link').textContent, saved: __telecomando.saved })), game: await ui(() => ({ S: __natpfTennis.natpfUi.remote.link.S, code: __natpfTennis.natpfUi.remote.link.code })) }));
+  const codeAsk = await phone.waitForFunction(() => __telecomando.state === 'waiting', null, { timeout: 30000 }).then(() => true, () => false);
+  check('codice scritto a mano: anche questo va confermato sul computer (stesso numero)', codeAsk && await ui(() => document.getElementById('remote-num').textContent) === String(await phone.evaluate(() => __telecomando.number)),
+    codeAsk ? code : JSON.stringify({ code, phone: await phone.evaluate(() => ({ st: __telecomando.state, why: __telecomando.why, link: document.getElementById('link').textContent, text: document.getElementById('setup-why').textContent, val: document.getElementById('code').value })), game: await ui(() => ({ S: __natpfTennis.natpfUi.remote.link.S, code: __natpfTennis.natpfUi.remote.link.code, view: document.getElementById('natpf-remote').dataset.view })) }));
+  await game.click('[data-remote="confirm"]');
+  const byCode = await phone.waitForFunction(() => __telecomando.state === 'on', null, { timeout: 30000 }).then(() => true, () => false);
+  const fixed2 = await ui(() => __natpfTennis.natpfUi.remote.link.session);
+  check('abbinato di nuovo con il codice: indirizzo fisso NUOVO (quello di prima non vale più)', byCode && fixed2 !== fixed && /^telecomando-[a-z0-9]{26}$/.test(fixed2) && await phone.evaluate(s => __telecomando.saved?.session === s, fixed2), JSON.stringify({ code, fixed2: fixed2?.slice(0, 16), phone: await phone.evaluate(() => ({ st: __telecomando.state, why: __telecomando.why })) }));
   await tap('back'); await waitPg(['staff', 'lobby:menu']);
+  check('nessuna finestra di Windows (confirm, alert) aperta in tutta la prova', dialogs === 0, String(dialogs));
 
   check('nessun errore JavaScript nel gioco e nel telefono', !gameErr.length && !phoneErr.length, [...gameErr, ...phoneErr].join(' | ').slice(0, 400));
   await p2ctx.close(); await pctx.close(); await gctx.close();

@@ -16,7 +16,7 @@ import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings,
   windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, UPDATE_ACTIONS,
-  startupDisplayQuestion, displaysState, displayPixels } from './desktop-core.mjs';
+  startupDisplayQuestion, displayAnswer, displaysState, displayPixels } from './desktop-core.mjs';
 import { UPDATES, Updater, readUpdateConfig, updateEnv, installerLaunchArgs } from './aggiornamenti.mjs';
 
 const ROOT = app.getAppPath();
@@ -84,6 +84,8 @@ let win = null, lan = null, ca = null, certPath = null, addresses = [], settings
 // dal menu o Ctrl+Maiusc+M) e monitor su cui il gioco è a schermo intero adesso (diverso dal voluto se quello è
 // scollegato o non ancora acceso)
 let wantedDisplayId = null, placedDisplayId = null;
+// monitor di partenza valido solo per questo avvio (domanda del monitor senza risposta con un ledwall salvato e spento)
+let sessionDisplayId = null;
 let placing = false, pendingPlace = null;
 
 const FIRST = app.requestSingleInstanceLock();
@@ -323,18 +325,22 @@ async function askDisplay(){
   const waitMs = (!app.isPackaged && Number(process.env.NATPF_SCHERMO_ATTESA_MS)) || DESKTOP.askDisplayMs;
   const idx = Math.max(0, q.choices.findIndex(c => c.id === q.proposed));
   const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), waitMs);
-  let chosen = q.choices[idx], how = 'proposta (nessuna risposta)';
+  let clicked = null;
   try {
     const r = await dialog.showMessageBox({ type: 'question', title: 'NATPF Simulator', noLink: false, signal: ctrl.signal,
-      buttons: q.choices.map(c => c.label), defaultId: idx, cancelId: idx,
+      // ultimo pulsante (ed Esc o la finestra chiusa): «decidi tu», come nessuna risposta
+      buttons: [...q.choices.map(c => c.label), 'Decidi tu'], defaultId: idx, cancelId: q.choices.length,
       message: 'Su quale schermo mostro il gioco?',
-      detail: `Ci sono ${q.choices.length} schermi collegati. Scegli quello dei visitatori (il ledwall).\n\nLa scelta resta salvata per i prossimi avvii; si cambia dal Pannello dello stand («Schermo del gioco»), dal telecomando dello staff o con Ctrl+Maiusc+M.\n\nSe nessuno risponde entro ${Math.round(waitMs/1000)} secondi uso «${q.choices[idx].label}».` });
-    if (!ctrl.signal.aborted && q.choices[r.response]){ chosen = q.choices[r.response]; how = 'scelta'; }
+      detail: `Ci sono ${q.choices.length} schermi collegati. Scegli quello dei visitatori (il ledwall).\n\nLa scelta resta salvata per i prossimi avvii; si cambia dal Pannello dello stand («Schermo del gioco»), dal telecomando dello staff o con Ctrl+Maiusc+M.\n\nCon «Decidi tu», o se nessuno risponde entro ${Math.round(waitMs/1000)} secondi, uso «${q.choices[idx].label}».` });
+    if (!ctrl.signal.aborted && q.choices[r.response]) clicked = q.choices[r.response].id;
   } catch (e){ log('domanda del monitor non riuscita', e.message); }
   clearTimeout(timer);
-  const d = displays.find(x => x.id === chosen.id);
-  log('monitor del gioco', { monitor: chosen.label, come: how });
-  if (d){ settings.displayId = d.id; settings.display = displayPixels(d); writeSettings(DATA, settings); }
+  // senza risposta e con un monitor salvato che adesso manca: la proposta vale solo per questa sessione (displayAnswer)
+  const a = displayAnswer(q, clicked, settings);
+  const chosen = q.choices.find(c => c.id === a.use), d = displays.find(x => x.id === a.use);
+  log('monitor del gioco', { monitor: chosen?.label, come: a.how, salvato: a.save });
+  if (d && a.save){ settings.displayId = d.id; settings.display = displayPixels(d); writeSettings(DATA, settings); }
+  else if (d) sessionDisplayId = d.id;
 }
 
 function buildMenu(){
@@ -399,7 +405,7 @@ async function main(){
   session.defaultSession.setPermissionCheckHandler((_wc, permission, origin) => allowed.has(permission) && isOwnUrl(origin || '', addresses));
   // due o più monitor e nessuno scelto: la domanda, prima di aprire il gioco (B27)
   await askDisplay();
-  const display = chooseDisplay(screen.getAllDisplays(), { savedId: settings.displayId, primaryId: screen.getPrimaryDisplay().id });
+  const display = chooseDisplay(screen.getAllDisplays(), { savedId: sessionDisplayId ?? settings.displayId, primaryId: screen.getPrimaryDisplay().id });
   // ledwall salvato ma ancora spento: il gioco parte su un altro monitor e ci va quando il ledwall compare (display-added)
   wantedDisplayId = initialWanted(settings, display);
   placedDisplayId = display?.id ?? null;

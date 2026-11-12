@@ -7,7 +7,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { DESKTOP, UPDATE_ACTIONS, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings, windowsVersion, readBuild,
   windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, TRAILER_RE, trailerFiles, trailerNameMatches,
-  startupDisplayQuestion, ledwallGuess, displayChoices, displaysState, isSquare, displayPixels } from '../src/desktop-core.mjs';
+  startupDisplayQuestion, displayAnswer, ledwallGuess, displayChoices, displaysState, isSquare, displayPixels } from '../src/desktop-core.mjs';
 import { createHash } from 'node:crypto';
 
 const d = (id, w, h, x = 0) => ({ id, bounds: { x, y: 0, width: w, height: h }, scaleFactor: 1 });
@@ -398,4 +398,37 @@ test('ledwall 1024×1024 esteso: finestra dentro il monitor, schermo intero che 
   assert.equal(chooseDisplay([laptop, ledwall], { primaryId: 1 }).id, 2);
   assert.equal(nextDisplay([laptop, ledwall], 2).id, 1); assert.equal(nextDisplay([laptop, ledwall], 1).id, 2);
   assert.equal(displayToFollow(ledwall, { wantedId: 2, currentId: 1 }), ledwall, 'ledwall riacceso: il gioco ci torna');
+});
+
+// Revisione del B27: ledwall salvato ma ancora spento, portatile e un altro monitor accesi, nessuno risponde alla
+// domanda. Prima la proposta sovrascriveva il monitor salvato e, acceso il ledwall, il gioco non ci andava più
+test('domanda del monitor senza risposta: non sovrascrive un ledwall salvato e spento; un clic salva sempre', () => {
+  const laptop = { id: 1, bounds: { x: 0, y: 0, width: 1536, height: 864 }, scaleFactor: 1.25 };
+  const staff = { id: 3, bounds: { x: 1536, y: 0, width: 1920, height: 1080 }, scaleFactor: 1 };
+  const ledwall = { id: 2, bounds: { x: 3456, y: 0, width: 1024, height: 1024 }, scaleFactor: 1 };
+  const saved = { displayId: 2, display: { width: 1024, height: 1024 } };
+  const q = startupDisplayQuestion([laptop, staff], saved, 1);
+  assert.deepEqual([q.ask, q.proposed, q.why], [true, 3, 'monitor salvato assente']);
+  // nessuna risposta: il monitor proposto solo per questa sessione, la scelta salvata resta
+  const timeout = displayAnswer(q, null, saved);
+  assert.deepEqual([timeout.use, timeout.save], [3, false]); assert.match(timeout.how, /solo per questa sessione/);
+  // … così quando il ledwall si accende il gioco ci va: il monitor voluto resta quello salvato
+  const start = chooseDisplay([laptop, staff], { savedId: timeout.use, primaryId: 1 });
+  assert.equal(start.id, 3);
+  assert.equal(initialWanted(saved, start), 2);
+  assert.equal(displayToFollow(ledwall, { wantedId: initialWanted(saved, start), currentId: start.id }), ledwall);
+  // un clic vero salva, anche sopra un monitor salvato
+  assert.deepEqual(displayAnswer(q, 3, saved), { use: 3, save: true, how: 'scelta' });
+  assert.deepEqual(displayAnswer(q, 1, saved), { use: 1, save: true, how: 'scelta' });
+  // mai scelto niente e nessuna risposta: la proposta si salva (la domanda non torna)
+  const first = startupDisplayQuestion([laptop, ledwall], {}, 1);
+  assert.deepEqual(displayAnswer(first, null, {}), { use: 2, save: true, how: 'proposta (nessuna risposta)' });
+  assert.deepEqual(displayAnswer({ proposed: null }, null, {}), { use: null, save: false, how: 'niente' });
+  // id del monitor come testo (salvato o arrivato dalla pagina): il monitor successivo è quello giusto
+  assert.equal(nextDisplay([laptop, ledwall], '1').id, 2); assert.equal(nextDisplay([laptop, ledwall], '2').id, 1);
+  assert.equal(nextDisplay([laptop], '1'), null);
+  const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
+  assert.match(main, /displayAnswer\(q, clicked, settings\)/);
+  assert.match(main, /savedId: sessionDisplayId \?\? settings\.displayId/, 'la proposta di questa sessione non tocca le impostazioni');
+  assert.match(main, /cancelId: q\.choices\.length/, 'Esc non è un clic su un monitor');
 });

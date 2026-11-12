@@ -71,7 +71,9 @@ test('menu, guida, tutorial e calibrazione dello schermo: gli stessi tasti della
   for (const name of keys){
     const screen = remoteScreen(MATRIX[name]);
     assert.equal(screen.nav, 'keys', name);
-    assert.deepEqual([navPlan(screen, 'up'), navPlan(screen, 'ok'), navPlan(screen, 'back')], [{ kind: 'key', code: 'ArrowUp' }, { kind: 'key', code: 'Enter' }, { kind: 'key', code: 'Escape' }], name);
+    // (↑ ↓ nel tutorial no: revisione, prova sotto)
+    assert.deepEqual([navPlan(screen, 'left'), navPlan(screen, 'ok'), navPlan(screen, 'back')], [{ kind: 'key', code: 'ArrowLeft' }, { kind: 'key', code: 'Enter' }, { kind: 'key', code: 'Escape' }], name);
+    if (screen.id !== 'tutorial') assert.deepEqual(navPlan(screen, 'up'), { kind: 'key', code: 'ArrowUp' }, name);
   }
   for (const name of ['pannello dello stand', 'pannello del telecomando', 'finestra del certificato', 'nome del giocatore', 'diagnostica', 'pausa', 'telefono scollegato in partita', 'pannello del telefono', 'fine partita', 'player 2 dell\'invito']){
     const screen = remoteScreen(MATRIX[name]);
@@ -120,6 +122,87 @@ test('pulsanti diretti: Gioca, Pausa, livello CPU, schermo, schermo intero, Salt
   assert.match(cmdsOf(MATRIX.partita).cmds.gestures, /Pausa/);
 });
 
+// Revisione del B27 (12/11): pausa aperta sopra «telefono scollegato», ↑ ↓ con «Rivedi i gesti» o la lezione in campo,
+// conferma inutile a fine partita, menu nascosto senza partita
+test('revisione: la pausa vince su «telefono scollegato»; ↑ ↓ spente nel tutorial e nella lezione; fine partita senza conferma', () => {
+  const both = remoteScreen(field({ hold: true, pause: true }));
+  assert.deepEqual([both.id, both.nav], ['pause', 'focus']);
+  assert.deepEqual(navPlan(both, 'back'), { kind: 'back' });
+  assert.equal(remoteCommands(field({ hold: true, pause: true }), both).labels.pause, 'Riprendi');
+  assert.ok(LAYERS.indexOf('pause') < LAYERS.indexOf('hold'));
+  // «Rivedi i gesti» in campo (riscaldamento, servizio) e tutorial prima della calibrazione: ↑ lancerebbe la palla
+  for (const s of [field({ tutorial: true, tutorialReview: true, training: { active: true } }), MATRIX['tutorial gioco singolo'], MATRIX['rivedi i gesti'], MATRIX.lezione]){
+    const screen = remoteScreen(s), { cmds } = remoteCommands(s, screen);
+    for (const c of ['up', 'down']){ assert.equal(navPlan(screen, c).kind, 'blocked', `${screen.id}: ${c}`); assert.match(cmds[c], /← e →/); }
+    assert.deepEqual([navPlan(screen, 'left'), navPlan(screen, 'right'), navPlan(screen, 'ok'), navPlan(screen, 'back')],
+      [{ kind: 'key', code: 'ArrowLeft' }, { kind: 'key', code: 'ArrowRight' }, { kind: 'key', code: 'Enter' }, { kind: 'key', code: 'Escape' }]);
+  }
+  // fine partita, anche se il motore è ancora «in campo»: la partita è finita, Menu e Nuovo giocatore senza conferma
+  const end = remoteScreen({ ...base, lobby: { visible: false }, inField: true, victory: true });
+  assert.deepEqual([end.id, gameRunning(end), confirmText('menu', end), confirmText('newplayer', end)], ['victory', false, null, null]);
+  // menu nascosto e nessuna partita (passaggio al campo, dimostrazione): i tasti non vanno al motore
+  const other = remoteScreen({ ...base, lobby: { visible: false } });
+  assert.deepEqual([other.id, other.nav, navPlan(other, 'up').kind, navPlan(other, 'ok').kind], ['other', 'field', 'blocked', 'blocked']);
+});
+
+// Il telecomando non apre finestre di Windows (confirm, salvataggi), non segue link e non preme «Conferma» dell'abbinamento
+test('revisione: controlli che il telecomando salta (finestre di Windows, link, «Conferma»); nessun confirm() nuovo senza dirlo', async () => {
+  const { NO_REMOTE } = await import('../src/natpf/natpf_remote.js');
+  for (const sel of ['[data-staff="reset"]', '[data-staff="export"]', '[data-diag="del"]', '[data-diag="save"]', '[data-remote="confirm"]', '[data-no-remote]', 'a', '[target="_blank"]', '[href]']) assert.ok(NO_REMOTE.split(',').map(x => x.trim()).includes(sel), sel);
+  // ogni confirm() del gioco è di un controllo dell'elenco: chi ne aggiunge uno lo aggiunge anche a NO_REMOTE
+  const dir = new URL('../src/natpf/', import.meta.url);
+  const native = fs.readdirSync(dir).filter(f => f.endsWith('.js')).flatMap(f => [...fs.readFileSync(new URL(f, dir), 'utf8').matchAll(/(?<![\w.])(confirm|alert|prompt)\(\s*['"`]/g)].map(() => f)).sort();
+  assert.deepEqual(native, ['natpf_diag.js', 'natpf_kiosk.js'], 'finestre native: solo «Elimina» della diagnostica e «Azzera oggi» (saltati dal telecomando)');
+  const remote = fs.readFileSync(new URL('../src/natpf/natpf_remote.js', import.meta.url), 'utf8');
+  assert.ok(!/(?<![\w.])confirm\(\s*['"`]/.test(remote), '«Scollega» senza finestra di Windows');
+  assert.match(remote, /cmd === 'confirm'\)\{ if \(e\.isTrusted && this\.link\.confirm\(\)\)/, '«Conferma» solo con un clic o un tasto veri');
+  assert.match(remote, /out = plan \? this\._nav\(screen, plan\) : await this\._direct\(c, s, screen\)/, 'i comandi diretti si aspettano: l\'errore arriva al telefono');
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const sheet = html.slice(html.indexOf('id="natpf-remote"'), html.indexOf('<!-- passaggio dal menu al campo -->'));
+  assert.ok(!/<a\b|target="_blank"/.test(sheet), 'nel foglio del telecomando nessun link');
+  assert.match(sheet, /data-remote="confirm" data-no-remote/);
+  for (const v of ['pair', 'request', 'paired', 'closed']) assert.match(sheet, new RegExp(`data-remote-view="${v}"`));
+  assert.match(sheet, /data-remote="new"[^>]*>Abbina un altro telefono</);
+  assert.match(sheet, /Un telefono chiede di diventare il telecomando · numero/);
+  const prep = fs.readFileSync(new URL('../lan/prepare.mjs', import.meta.url), 'utf8');
+  for (const f of ['telecomando.html', 'telecomando.webmanifest', 'telecomando-192.png', 'telecomando-512.png']) assert.ok(prep.includes(`../site/tennis/${f}`), `build vecchia se cambia ${f}`);
+});
+
+test('revisione: «Conferma» dell\'abbinamento solo da un clic vero sul computer; OK del telecomando rifiutato; «Scollega» in due passi', async () => {
+  const { makeWorld, $, mkEvent } = await import('./ui-world.mjs');
+  const w = await makeWorld({ controller: 'mouse' });
+  const R = w.ui.remote, sheet = $('natpf-remote');
+  let confirmed = 0, refused = 0, forgot = 0;
+  R.link.confirm = () => { confirmed++; return true; }; R.link.refuse = () => { refused++; return true; }; R.link.forget = () => { forgot++; };
+  const fire = (cmd, extra) => { const btn = { dataset: { remote: cmd }, textContent: '' }; const ev = mkEvent('click', { closest: () => btn }, extra); for (const l of sheet.ls.click) l.fn(ev); return btn; };
+  // clic fatto dal codice (el.click() del telecomando o di uno script): isTrusted falso o assente → niente
+  fire('confirm', { isTrusted: false }); fire('confirm', {});
+  assert.equal(confirmed, 0);
+  fire('confirm', { isTrusted: true });
+  assert.equal(confirmed, 1);
+  fire('refuse', { isTrusted: false }); assert.equal(refused, 1, '«Rifiuta» può farlo anche il telecomando in carica');
+  // OK del telecomando con il fuoco su «Conferma» (lasciato lì da un clic sul computer): rifiutato, e le frecce non ci arrivano
+  sheet.contains = () => true;
+  const focused = { matches: sel => sel.includes('[data-remote="confirm"]'), click(){ confirmed += 100; } };
+  document.activeElement = focused;
+  const out = R._nav({ id: 'remote', nav: 'focus' }, { kind: 'press' });
+  assert.deepEqual([out.ok, confirmed], [false, 1]); assert.match(out.msg, /dal computer/);
+  document.activeElement = undefined;
+  // «Scollega»: il primo clic arma, il secondo scollega (niente confirm() di Windows)
+  sheet._q.set('[data-remote="forget"]', { dataset: { remote: 'forget' }, textContent: 'Scollega il telecomando', classList: { toggle(){} } });
+  const b = sheet.querySelector('[data-remote="forget"]');
+  const press = () => { const ev = mkEvent('click', { closest: () => b }, { isTrusted: true }); for (const l of sheet.ls.click) l.fn(ev); };
+  press(); assert.deepEqual([forgot, b.dataset.armed], [0, '1']); assert.match(b.textContent, /ancora/);
+  press(); assert.deepEqual([forgot, b.dataset.armed], [1, '']);
+  // comando diretto che va in errore: il telefono riceve l'esito con il motivo (prima niente)
+  const acks = [];
+  R.snapshot = () => ({ controller: 'mouse', phone: {}, lobby: { visible: true, step: 'menu', mode: 'cpu' }, desktop: { displays: 2, label: 'x' }, fullscreen: {} });
+  globalThis.natpfDesktop = { displays: { next: async () => { throw new Error('monitor sparito'); } } };
+  await R._onCmd({ c: 'screen', y: false, reply: m => acks.push(m) });
+  delete globalThis.natpfDesktop;
+  assert.equal(acks.length, 1); assert.equal(acks[0].ok, false); assert.match(acks[0].msg, /Comando non riuscito: monitor sparito/);
+});
+
 test('riga del punteggio per il telefono', () => {
   assert.equal(scoreLine({ playerPoints: 2, opponentPoints: 1, playerGames: 1, opponentGames: 0 }), 'Tu 1 · CPU 0 (game) · 30-15');
   assert.equal(scoreLine({ playerPoints: 3, opponentPoints: 3, playerGames: 0, opponentGames: 0 }), 'Tu 0 · CPU 0 (game) · Parità');
@@ -134,11 +217,11 @@ test('pannello dello stand e pagina del telefono: voci del telecomando, foglio c
   assert.ok(!/data-staff="(remote|display)"/.test(grid), 'non nella griglia: il foglio resta di tre file');
   assert.match(staff, /class="sheet-actions staff-actions"><button[^>]*data-staff="remote"/);
   assert.match(staff, /data-staff="display"/);
-  assert.match(html, /id="natpf-remote"[\s\S]*id="remote-qr"[\s\S]*id="remote-code"[\s\S]*data-remote="forget"[\s\S]*data-remote="close"/);
+  assert.match(html, /id="natpf-remote"[\s\S]*id="remote-qr"[\s\S]*id="remote-code"[\s\S]*id="remote-num"[\s\S]*data-remote="forget"[\s\S]*data-remote="close"/);
   const kiosk = fs.readFileSync(new URL('../src/natpf/natpf_kiosk.js', import.meta.url), 'utf8');
   assert.match(kiosk, /cmd === 'remote'/); assert.match(kiosk, /cmd === 'display'/);
   const files = phoneFiles(SITE);
-  for (const f of ['tennis/telecomando.html', 'js/tennis/telecomando.js', 'js/tennis/remote-pairing.js', 'tennis/telecomando.webmanifest', 'tennis/telecomando-192.png', 'tennis/telecomando-512.png']){
+  for (const f of ['tennis/telecomando.html', 'js/tennis/telecomando.js', 'js/tennis/remote-pairing.js', 'js/tennis/remote-client.js', 'tennis/telecomando.webmanifest', 'tennis/telecomando-192.png', 'tennis/telecomando-512.png']){
     assert.ok(files.includes(f), `nella build: ${f}`);
     assert.ok(ALLOWED.test(f), `servito sotto /natpf/: ${f}`);
   }

@@ -1,10 +1,14 @@
 // Telecomando dello staff (B27), lato gioco: il collegamento con il telefono dello staff (site/js/tennis/remote-link.js),
 // la fotografia del gioco per il telefono (natpf_remote_map.js: dove siamo, cosa può fare ogni pulsante) e i comandi.
-// Pannello: Pannello dello stand → «Telecomando dello staff» (#natpf-remote: QR dello staff, codice da scrivere, stato,
-// «Scollega il telecomando»). Abbinato una volta, il gioco si rimette in ascolto da solo a ogni avvio (id e chiave in
-// localStorage); senza abbinamento non si collega a niente (nessun effetto sulla versione web finché nessuno lo usa).
+// Foglio: Pannello dello stand → «Telecomando dello staff» (#natpf-remote). Il gioco è sul ledwall, quindi il foglio lo
+// vede anche il pubblico (regole in site/js/tennis/remote-pairing.js): QR e codice valgono solo a foglio aperto; chi li
+// presenta deve essere confermato QUI sul computer («Conferma», solo con un tasto o un clic veri: event.isTrusted; mai
+// dal telecomando, che quel pulsante non lo raggiunge né lo preme); dopo l'abbinamento niente più QR («Abbina un altro
+// telefono» ne apre uno nuovo). Abbinato una volta, il gioco si rimette in ascolto da solo a ogni avvio (indirizzo e
+// chiave in localStorage); senza abbinamento non si collega a niente (nessun effetto sulla versione web).
 // Il telecomando non tira colpi e non tocca la racchetta del giocatore: in campo frecce e OK non fanno niente
-// (natpf_remote_map.navPlan), i tasti mandati alla pagina sono solo quelli del menu e delle finestre.
+// (natpf_remote_map.navPlan), i tasti mandati alla pagina sono solo quelli del menu e delle finestre. Non apre finestre
+// di Windows (conferme, salvataggi) né link: quei controlli li salta (NO_REMOTE).
 import { createRemoteLink } from '@natpf/tennis/remote-link.js';
 import { showCode } from '@natpf/tennis/remote-pairing.js';
 import { remoteScreen, remoteCommands, navPlan, confirmText, scoreLine, nextCpu, CPU_LABEL } from './natpf_remote_map.js';
@@ -20,7 +24,13 @@ const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 // in vista: non nascosto e con un rettangolo sullo schermo (nelle prove senza disegno basta la classe)
 const visible = el => !!el && !el.classList.contains('hidden') && (typeof el.getClientRects !== 'function' || el.getClientRects().length > 0) && (typeof getComputedStyle !== 'function' || getComputedStyle(el).visibility !== 'hidden');
-const FOCUSABLE = 'button, [href], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE = 'button, input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
+// Controlli che il telecomando non raggiunge con le frecce e non preme con OK: aprono una finestra di Windows che dal
+// telefono non si chiude e ferma il gioco (confirm() di «Azzera oggi» e di «Elimina» nella diagnostica, il salvataggio
+// del CSV e delle sessioni), aprono un'altra finestra (link, target=_blank: nel programma Windows una finestra nuova) o
+// sono riservati al computer («Conferma» dell'abbinamento, data-no-remote). Chi aggiunge un confirm() nel gioco lo
+// aggiunge qui (lo controlla test/natpf-telecomando.test.mjs)
+export const NO_REMOTE = 'a, [href], [target="_blank"], [data-no-remote], [data-remote="confirm"], [data-staff="reset"], [data-staff="export"], [data-diag="del"], [data-diag="save"], input[type="file"]';
 // strato aperto → elemento (per il fuoco) e azione «indietro»
 const LAYER_EL = { staff: () => $('natpf-staff'), remote: () => $('natpf-remote'), dialog: () => document.querySelector('dialog[open]'), nick: () => $('natpf-nick'),
   diag: () => document.querySelector('.natpf-diag:not(.hidden)'), hold: () => $('natpf-phone-hold'), phonePanel: () => $('natpf-phone-modal'), pause: () => $('natpf-pause'),
@@ -43,9 +53,18 @@ export class NatpfRemote {
     this.el?.addEventListener('click', e => {
       const b = e.target.closest('[data-remote]'); if (!b) return;
       e.stopPropagation();
-      if (b.dataset.remote === 'close') this.close();
-      if (b.dataset.remote === 'forget'){ if (!this.link.paired || confirm('Scollegare il telecomando dello staff? Per usarlo di nuovo servirà il QR.')) { this.link.forget(); this.ui.toast?.('Telecomando scollegato: il telefono dello staff dovrà inquadrare di nuovo il QR'); } }
-      if (b.dataset.remote === 'new'){ this.link.pairing(true); this.paint(); }
+      const cmd = b.dataset.remote;
+      if (cmd === 'close') this.close();
+      // «Conferma»: solo un clic o un tasto veri sul computer (mai un clic fatto dal codice: il telecomando, uno script)
+      if (cmd === 'confirm'){ if (e.isTrusted && this.link.confirm()) this.ui.toast?.('Telecomando abbinato: quel telefono ora comanda il gioco'); }
+      if (cmd === 'refuse') this.link.refuse();
+      // «Scollega»: due passi nella pagina (niente finestre di Windows: dal telefono non si chiuderebbero)
+      if (cmd === 'forget'){
+        if (b.dataset.armed === '1'){ this._disarm(); this.link.forget(); this.ui.toast?.('Telecomando scollegato: per usarlo di nuovo va abbinato da capo'); }
+        else { b.dataset.armed = '1'; b.textContent = 'Sicuro? Premi ancora per scollegare'; clearTimeout(this._armT); this._armT = setTimeout(() => this._disarm(), 5000); }
+      } else this._disarm();
+      if (cmd === 'new') this._libs().then(() => { this.link.pairing(true); this.paint(); });
+      this.paint();
     });
     // Esc nel pannello del telecomando: indietro al pannello dello stand (il menu sotto non lo riceve)
     window.addEventListener('keydown', e => { if (this.isOpen && e.code === 'Escape' && !e.repeat){ e.preventDefault(); e.stopImmediatePropagation(); this.close(); } }, true);
@@ -54,12 +73,14 @@ export class NatpfRemote {
     this._t = setInterval(() => { try { this.publish(); } catch (e){ console.error(e); } }, 400);
   }
   get isOpen(){ return !!this.el && !this.el.classList.contains('hidden'); }
-  // dal pannello dello stand: QR e codice nuovi a ogni apertura
+  _disarm(){ clearTimeout(this._armT); const b = this.el?.querySelector('[data-remote="forget"]'); if (b && b.dataset.armed === '1'){ b.dataset.armed = ''; b.textContent = 'Scollega il telecomando'; } }
+  // dal pannello dello stand. Senza un telecomando abbinato parte l'abbinamento (QR e codice nuovi, 5 minuti); con un
+  // telecomando abbinato il foglio dice solo «abbinato»: per un altro telefono serve «Abbina un altro telefono»
   async open(){
     if (!this.el) return;
     this.ui.kiosk?.close();
     await this._libs();
-    this.link.pairing(true);
+    if (!this.link.paired && this.link.secure) this.link.pairing(true);
     show(this.el);
     this.paint();
     this.el.querySelector('[data-remote="close"]')?.focus({ preventScroll: true });
@@ -71,22 +92,43 @@ export class NatpfRemote {
       if (!window.qrcode) await loadScript(`${NATPF_BASE}js/vendor/qrcode.js`).catch(() => {});
     })().finally(() => { if (!window.qrcode || (!isLanMode() && !window.Peer)) this._libsP = null; }));
   }
-  close({ toStaff = true } = {}){ if (!this.isOpen) return; show(this.el, false); this.link.pairing(false); if (toStaff) this.ui.kiosk?.open(); }
+  // foglio chiuso: QR e codice non valgono più da subito, chi stava chiedendo è rifiutato
+  close({ toStaff = true } = {}){ if (!this.isOpen) return; this._disarm(); show(this.el, false); this.link.pairing(false); if (toStaff) this.ui.kiosk?.open(); }
   // scritta del pulsante nel pannello dello stand
-  get staffLabel(){ return this.link.connected ? 'Collegato ✓' : this.link.paired ? 'Abbinato, non collegato' : 'Collega'; }
+  get staffLabel(){ return this.link.connected ? 'Collegato ✓' : this.link.paired ? 'Abbinato, non collegato' : 'Abbina'; }
+  // vista del foglio: 'request' un telefono chiede (numero, Conferma/Rifiuta) · 'pair' QR e codice · 'paired' abbinato,
+  // niente QR · 'closed' niente QR (tempo scaduto, troppi tentativi, pagina non in https)
+  get view(){ const L = this.link; return L.S.request ? 'request' : L.S.pairing ? 'pair' : L.paired ? 'paired' : 'closed'; }
   paint(){
     this.ui.kiosk?.paint?.();
     if (!this.isOpen) return;
-    const L = this.link, url = L.url();
+    const L = this.link, view = this.view, url = view === 'pair' ? L.url() : null;
+    const was = this.el.dataset.view;
+    this.el.dataset.view = view;
+    for (const v of this.el.querySelectorAll('[data-remote-view]')) show(v, v.dataset.remoteView === view);
     const box = $('remote-qr');
-    if (box && window.qrcode && box.dataset.url !== url){ const q = window.qrcode(0, 'M'); q.addData(url); q.make(); box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); box.dataset.url = url; }
-    const code = $('remote-code'); if (code) code.textContent = showCode(L.code);
+    if (box){
+      // fuori dalla vista dell'abbinamento il QR si toglie dalla pagina (non resta dietro, nemmeno nascosto)
+      if (!url){ if (box.dataset.url){ box.innerHTML = ''; box.dataset.url = ''; } }
+      else if (window.qrcode && box.dataset.url !== url){ const q = window.qrcode(0, 'M'); q.addData(url); q.make(); box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); box.dataset.url = url; }
+    }
+    const code = $('remote-code'); if (code) code.textContent = view === 'pair' && L.code ? showCode(L.code) : '—';
+    const num = $('remote-num'); if (num) num.textContent = L.S.request ? String(L.S.request.num) : '—';
+    // un telefono chiede: il fuoco va su «Rifiuta» (un Invio distratto non conferma nessuno)
+    if (view === 'request' && was !== 'request') this.el.querySelector('[data-remote="refuse"]')?.focus({ preventScroll: true });
+    const closed = $('remote-closed-text');
+    if (closed) closed.textContent = !L.secure ? 'Il telecomando vuole il gioco aperto in https (programma Windows o indirizzo https): qui non si può abbinare.'
+      : L.S.closedWhy === 'expired' ? 'Tempo scaduto (5 minuti): il QR di prima non vale più. «Nuovo QR» per riprovare.'
+      : L.S.closedWhy === 'attempts' ? 'Troppi tentativi sbagliati: abbinamento chiuso. «Nuovo QR» per riprovare.'
+      : 'Nessun telecomando abbinato. «Nuovo QR» per abbinare il telefono dello staff.';
     const state = $('remote-state');
-    if (state) state.textContent = L.connected ? 'Telecomando collegato ✓ (un abbinamento nuovo sostituisce questo telefono)'
+    if (state) state.textContent = view === 'request' ? ''
+      : L.connected ? 'Telecomando collegato ✓'
       : L.paired ? 'Telecomando abbinato, adesso non collegato: si ricollega da solo appena il telefono apre la pagina.'
-      : L.S.state === 'error' ? `Collegamento non disponibile (${L.S.error}): controlla la rete.` : 'Nessun telecomando abbinato: inquadra il QR con il telefono dello staff.';
-    const link = $('remote-link'); if (link){ link.href = url; }
-    show(this.el.querySelector('[data-remote="forget"]'), L.paired);
+      : L.S.state === 'error' ? `Collegamento non disponibile (${L.S.error}): controlla la rete.` : view === 'pair' ? 'Nessun telecomando abbinato.' : '';
+    show(this.el.querySelector('[data-remote="forget"]'), L.paired && view !== 'request');
+    const fresh = this.el.querySelector('[data-remote="new"]');
+    if (fresh){ show(fresh, (view === 'paired' || view === 'closed') && L.secure); const t = L.paired ? 'Abbina un altro telefono' : 'Nuovo QR'; if (fresh.textContent !== t) fresh.textContent = t; }
   }
 
   /* ---------- fotografia del gioco ---------- */
@@ -133,8 +175,8 @@ export class NatpfRemote {
   _connectReady(){ try { const L = this.ui.lobby, st = L.state(); return L.mode === 'split' ? !!st.splitReady : this.ui.controller === 'phone' ? !!st.phoneLinked : this.ui.controller === 'webcam' ? !!st.webcamActive : true; } catch { return false; } }
   // stato per il telefono (mandato solo quando cambia)
   publish(){
-    // foglio chiuso da altri (chiosco che azzera lo stand, «Nuovo giocatore»): niente più ascolto sul codice
-    if (this.link.S.pairing && !this.isOpen) this.link.pairing(false);
+    // foglio chiuso da altri (chiosco che azzera lo stand, «Nuovo giocatore»): QR e codice non valgono più
+    if ((this.link.S.pairing || this.link.S.request) && !this.isOpen) this.link.pairing(false);
     if (!this.link.connected) return;
     this._refreshDisplays();
     const s = this.snapshot();
@@ -162,20 +204,27 @@ export class NatpfRemote {
   }
 
   /* ---------- comandi ---------- */
-  _onCmd({ c, y, reply }){
-    const s = this.snapshot();
-    const screen = remoteScreen(s), { cmds } = remoteCommands(s, screen);
-    if (cmds[c] !== 1){ reply({ ok: false, msg: typeof cmds[c] === 'string' ? cmds[c] : 'Non adesso' }); return; }
-    const ask = confirmText(c, screen);
-    if (ask && !y){ reply({ ok: true, ask, cmd: c }); return; }
-    document.documentElement.classList.add('remote-nav');
-    // il telecomando in uso è qualcuno allo stand: il chiosco non azzera lo stand sotto le mani dello staff
-    if (this.ui.kiosk) this.ui.kiosk.last = performance.now();
-    this.ui.diag?.recorder?.log?.('telecomando', { comando: c, pagina: screen.id });
+  async _onCmd({ c, y, reply }){
     let out = null;
-    try { out = navPlan(screen, c) ? this._nav(screen, navPlan(screen, c)) : this._direct(c, s, screen); }
-    catch (e){ console.error(e); out = { ok: false, msg: 'Comando non riuscito' }; }
-    Promise.resolve(out).then(r => { reply(r || { ok: true }); setTimeout(() => this.publish(), 60); });
+    try {
+      const s = this.snapshot();
+      const screen = remoteScreen(s), { cmds } = remoteCommands(s, screen);
+      if (cmds[c] !== 1){ reply({ ok: false, msg: typeof cmds[c] === 'string' ? cmds[c] : 'Non adesso' }); return; }
+      const ask = confirmText(c, screen);
+      if (ask && !y){ reply({ ok: true, ask, cmd: c }); return; }
+      document.documentElement.classList.add('remote-nav');
+      // il telecomando in uso è qualcuno allo stand: il chiosco non azzera lo stand sotto le mani dello staff
+      if (this.ui.kiosk) this.ui.kiosk.last = performance.now();
+      this.ui.diag?.recorder?.log?.('telecomando', { comando: c, pagina: screen.id });
+      const plan = navPlan(screen, c);
+      // (i comandi diretti sono asincroni: si aspettano qui, così un errore arriva al telefono con il motivo)
+      out = plan ? this._nav(screen, plan) : await this._direct(c, s, screen);
+    } catch (e){
+      console.error(e);
+      out = { ok: false, msg: `Comando non riuscito: ${String(e?.message || e).slice(0, 80)}` };
+    }
+    reply(out || { ok: true });
+    setTimeout(() => { try { this.publish(); } catch (e){ console.error(e); } }, 60);
   }
   // tasto della tastiera alla pagina (stessi gestori di frecce, Invio ed Esc): sull'elemento a fuoco, come un tasto vero
   _key(code){
@@ -187,7 +236,7 @@ export class NatpfRemote {
     return down.defaultPrevented;
   }
   _layer(screen){ return LAYER_EL[screen.id]?.() || null; }
-  _focusables(layer){ return [...layer.querySelectorAll(FOCUSABLE)].filter(el => !el.disabled && visible(el) && el.getAttribute('aria-hidden') !== 'true'); }
+  _focusables(layer){ return [...layer.querySelectorAll(FOCUSABLE)].filter(el => !el.disabled && visible(el) && el.getAttribute('aria-hidden') !== 'true' && !el.matches(NO_REMOTE)); }
   _nav(screen, plan){
     if (plan.kind === 'blocked') return { ok: false, msg: plan.why };
     if (plan.kind === 'pause'){ this.ui.pause?.open(); return { ok: true, msg: 'Pausa' }; }
@@ -196,7 +245,7 @@ export class NatpfRemote {
       if (screen.id === 'intro'){ this._key(plan.code); return { ok: true }; }
       const handled = this._key(plan.code);
       // nessun modulo l'ha usato: OK preme il pulsante a fuoco (i fogli sopra il menu, la lobby senza voce scelta)
-      if (!handled && plan.code === 'Enter'){ const a = document.activeElement; if (a && a !== document.body && a.matches?.('button, [href], [role="button"]')) a.click(); }
+      if (!handled && plan.code === 'Enter'){ const a = document.activeElement; if (a && a !== document.body && a.matches?.('button, [role="button"]') && !a.matches(NO_REMOTE)) a.click(); }
       return { ok: true };
     }
     const layer = this._layer(screen);
@@ -212,6 +261,9 @@ export class NatpfRemote {
       return { ok: true, msg: (next.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60) };
     }
     if (plan.kind === 'press'){
+      // (un controllo che il telecomando non deve premere può avere il fuoco per un clic fatto sul computer: OK lo rifiuta)
+      const focused = document.activeElement;
+      if (focused && focused !== document.body && layer.contains(focused) && focused.matches?.(NO_REMOTE)) return { ok: false, msg: 'Questo si fa dal computer (tastiera o mouse)' };
       const el = cur || items.find(x => x.matches('.lobby-primary, .primary, .btn-primary')) || null;
       if (!el) return { ok: false, msg: 'Scegli prima un pulsante con le frecce' };
       if (el.matches('input, textarea') && el.form){ el.form.requestSubmit?.(); return { ok: true }; }

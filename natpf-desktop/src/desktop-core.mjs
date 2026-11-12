@@ -40,9 +40,10 @@ export function chooseDisplay(displays = [], { savedId = null, primaryId = null 
 // Monitor successivo (Ctrl+Maiusc+M); null se non ce n'è un altro (un solo monitor: niente da spostare)
 export function nextDisplay(displays = [], currentId){
   if (!displays.length) return null;
-  const i = displays.findIndex(d => d.id === currentId);
+  // (id confrontati come testo: quello salvato o arrivato dalla pagina può essere una stringa)
+  const i = displays.findIndex(d => String(d.id) === String(currentId));
   const next = displays[(i + 1) % displays.length];
-  return next.id === currentId ? null : next;
+  return String(next.id) === String(currentId) ? null : next;
 }
 // Monitor voluto all'avvio: quello salvato anche se adesso manca (ledwall acceso dopo il programma: quando compare, il
 // gioco ci va), altrimenti quello scelto da chooseDisplay. settings: desktop-app.json; chosen: il monitor di partenza
@@ -90,6 +91,19 @@ export function startupDisplayQuestion(displays = [], settings = {}, primaryId =
     if (same.length === 1) return { ask: false, proposed: same[0].id, remap: same[0].id, choices, why: 'stessa misura del monitor salvato (id nuovo)' };
   }
   return { ask: true, proposed, choices, why: saved == null ? 'nessun monitor scelto' : 'monitor salvato assente' };
+}
+// Dopo la domanda: quale monitor usare e se salvarlo. chosenId: il pulsante premuto (null se nessuno ha risposto entro
+// il tempo). Un clic si salva sempre. Senza risposta: se non era mai stato scelto niente la proposta si salva (la
+// domanda non torna: il programma può partire senza nessuno davanti); se invece c'è un monitor salvato che adesso
+// manca (ledwall ancora spento, con il portatile e un altro monitor accesi) la proposta vale SOLO per questa sessione e
+// la scelta salvata resta: quando il ledwall si accende il gioco ci va (initialWanted, displayToFollow). Prima la
+// proposta la sovrascriveva e il gioco non seguiva più il ledwall (revisione del B27)
+export function displayAnswer(question, chosenId = null, settings = {}){
+  const use = chosenId ?? question?.proposed ?? null;
+  if (use == null) return { use: null, save: false, how: 'niente' };
+  if (chosenId != null) return { use, save: true, how: 'scelta' };
+  const keep = settings?.displayId != null;
+  return { use, save: !keep, how: keep ? 'proposta solo per questa sessione (resta il monitor salvato)' : 'proposta (nessuna risposta)' };
 }
 // Stato dei monitor per la pagina (window.natpfDesktop.displays): elenco, quello del gioco e quello voluto
 export function displaysState(displays = [], { primaryId = null, currentId = null, wantedId = null } = {}){
