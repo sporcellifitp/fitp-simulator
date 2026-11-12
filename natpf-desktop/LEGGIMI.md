@@ -64,8 +64,10 @@ Bucket degli aggiornamenti (Cloudflare R2), passi per l'utente: `docs/GUIDA_AGGI
   gioco) quando ci sono almeno due monitor e nessuno è mai stato scelto, o quello salvato manca e nessun altro monitor ha
   la sua misura (se uno solo non principale ce l'ha, è lo stesso ledwall con un id nuovo: si usa senza chiedere). Un
   pulsante per monitor con nome, misura, «principale» e **«probabile ledwall»** (il monitor quadrato, come il 1024×1024
-  dello stand, altrimenti il più grande non principale). Senza risposta entro 30 s vale la proposta. La scelta si salva
-  (`displayId` e `display` con la misura in `desktop-app.json`) e la domanda non torna.
+  dello stand, altrimenti il più grande non principale) e «Decidi tu» (anche Esc). Un clic su un monitor si salva
+  (`displayId` e `display` con la misura in `desktop-app.json`) e la domanda non torna. Senza risposta entro 30 s vale
+  la proposta: salvata se non era mai stato scelto niente; solo per quell'avvio se c'è un monitor salvato che adesso
+  manca (ledwall ancora spento: resta la scelta, e acceso il ledwall il gioco ci va; `displayAnswer`).
 - **Dalla pagina**: `window.natpfDesktop.displays = { list(), next(), choose(id), onChange(cb) }` (preload versione 3),
   solo dalla finestra del gioco e dalle pagine del proprio server. Lo usano la voce **«Schermo del gioco»** del pannello
   dello stand (monitor successivo, salvato) e il **telecomando dello staff** (`docs/GUIDA_TELECOMANDO.md`).

@@ -42,7 +42,7 @@ const makePeer = async () => {
   const Peer = isLanMode() ? LanPeer : (await Promise.all([loadPeer(), iceReady().catch(() => null)]))[0];
   return new Peer(peerConfig());
 };
-let confirmCmd = null, lastAck = null;
+let confirmCmd = null, lastAck = null, forceSetup = false;
 const acks = [];
 const C = createRemoteClient({ store, makePeer, onChange: () => paintLink(), onStatus: st => paint(st), onAck: a => { lastAck = a; acks.push(a); if (acks.length > 20) acks.shift(); onAck(a); } });
 // per le prove nel browser: stato, ultimo stato del gioco, esiti dei comandi
@@ -58,15 +58,16 @@ function paintLink(){
   show($('#wait'), s === 'waiting');
   if (s === 'waiting') $('#wait-num').textContent = String(C.number);
   show($('#parked'), s === 'parked');
-  const setup = s === 'unpaired' || s === 'insecure' || (!C.paired && s !== 'waiting');
+  if (s === 'on' || s === 'waiting') forceSetup = false;
+  const setup = s === 'unpaired' || s === 'insecure' || (!C.paired && s !== 'waiting') || (forceSetup && s !== 'waiting' && s !== 'parked');
   show($('#setup'), setup);
   show($('#remote'), C.paired && !setup && s !== 'waiting' && s !== 'parked');
   show($('#unpair'), C.paired);
-  if (s === 'unpaired' && C.why) $('#setup-why').textContent = C.why === 'bye' ? 'Il gioco ha scollegato questo telecomando (pannello dello stand, o un altro telefono abbinato al suo posto).'
+  if ((s === 'unpaired' || forceSetup) && ['bye', 'code', 'closed', 'refused', 'busy', 'expired', 'denied', 'unpaired', 'role'].includes(C.why)) $('#setup-why').textContent = C.why === 'bye' ? 'Il gioco ha scollegato questo telecomando (pannello dello stand, o un altro telefono abbinato al suo posto).'
     : C.why === 'code' ? 'Codice non trovato: controlla di averlo scritto bene, con il foglio «Telecomando dello staff» aperto sul gioco.' : denyText(C.why);
   if (s === 'insecure') $('#setup-why').textContent = 'Questa pagina non è aperta in https: il telecomando non può riprendere il collegamento in sicurezza. Inquadra di nuovo il QR dello staff.';
   // il gioco non si trova da un po': forse è spento, forse questo telefono è stato sostituito (l'indirizzo è cambiato)
-  show($('#stale'), C.paired && s !== 'on' && C.tries >= 5);
+  show($('#stale'), C.paired && s !== 'on' && s !== 'waiting' && C.tries >= 5 && !forceSetup);
   $('#where').textContent = location.host;
   if (s === 'on') offerHome(); else show($('#home'), false);
 }
@@ -139,8 +140,9 @@ $('#unpair').addEventListener('click', e => {
 });
 // la stessa chiave aperta in un'altra pagina: si riprende qui con un tocco (l'altra si ferma)
 $('#parked').addEventListener('click', () => C.start());
-// telefono forse sostituito: si torna alla schermata dell'abbinamento (la chiave vecchia si butta)
-$('#staleGo').addEventListener('click', () => C.forget());
+// telefono forse sostituito: si mostra l'abbinamento (QR o codice). La chiave di prima resta finché un abbinamento nuovo
+// non è confermato: se il gioco era solo spento, alla riaccensione il telefono rientra da solo
+$('#staleGo').addEventListener('click', () => { forceSetup = true; $('#setup-why').textContent = 'Inquadra il QR dello staff, oppure scrivi qui il codice sotto il QR. Vale dopo «Conferma» sul computer.'; paintLink(); });
 // iPhone in Safari con il QR: conviene abbinare l'icona della schermata Home (ha una memoria sua), non questa scheda
 $('#iosHere').addEventListener('click', () => { show($('#ios'), false); if (fromQr) C.pair(fromQr); });
 

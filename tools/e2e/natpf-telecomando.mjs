@@ -2,7 +2,11 @@
 // con il certificato creato come fa il programma, HTTPS, segnalazione /lan-signal, WebRTC diretto), con un ponte
 // window.natpfDesktop finto (due monitor: portatile 1920×1080 e ledwall 1024×1024) e il gioco a 1024 × 1024.
 //   • abbinamento dal pannello dello stand («Telecomando dello staff»): il QR (letto con jsQR) apre la pagina del
-//     telecomando, che si collega; il gioco dice «Collegato ✓»;
+//     telecomando, che chiede l'abbinamento: stesso numero di tre cifre sul telefono e sul gioco, e vale solo dopo
+//     «Conferma» sul computer con un clic vero (un clic fatto dal codice e l'OK del telecomando non confermano);
+//   • il foglio lo vede il pubblico: QR e codice fotografati e usati a foglio chiuso non valgono; un secondo telefono a
+//     foglio aperto aspetta la conferma mentre il primo comanda, «Rifiuta» lo lascia fuori; il telecomando non raggiunge
+//     «Conferma», «Azzera oggi» e «Scarica CSV» (nessuna finestra di Windows in tutta la prova);
 //   • percorso guidato solo dal telefono: menu → Gioca → racchetta → collega → «Pronto per la partita» → Gioca! → in
 //     partita frecce e OK spenti (il giocatore non si muove) → Pausa → frecce nella pausa → Riprendi → Pausa → Torna al
 //     menu (con conferma) → «Pronto per la partita» → Nuovo giocatore → Salta il nome → di nuovo «Pronto»;
@@ -13,7 +17,8 @@
 //     guida, calibrazione dello schermo, rivedi i gesti, finestra del certificato, diagnostica, pannello del telefono, fine
 //     partita (Gioca ancora, Menu), minigioco (Indietro = pausa, Menu), chiosco che azzera lo stand; schermo del gioco e
 //     schermo intero dal telefono (ponte finto), livello della CPU;
-//   • «Scollega il telecomando» e abbinamento con il codice scritto a mano.
+//   • «Scollega il telecomando» in due passi (indirizzo e chiave buttati) e abbinamento con il codice scritto a mano,
+//     confermato sul computer, con un indirizzo fisso nuovo.
 // Schermate in OUT (telecomando-*.png). Porte: 4902 (HTTPS del gioco), 4903 (guida LAN, solo 127.0.0.1).
 //   npm ci --prefix tools/e2e; (cd natpf-tennis && npm run build)
 //   CHROMIUM_PATH=/opt/pw-browsers/chromium OUT=/tmp/telecomando node tools/e2e/natpf-telecomando.mjs

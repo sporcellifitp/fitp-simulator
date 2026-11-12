@@ -1450,3 +1450,23 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
   **Non verificato**: telefoni veri, «Aggiungi a schermata Home» (Android e iPhone), certificato sul telefono dello staff,
   Windows vero, ledwall vero, due monitor veri (in Xvfb Electron ne vede sempre uno: provati Xinerama e monitor RandR),
   la finestra della domanda vista a occhio, il percorso PeerJS pubblico (web) del telecomando (solo con un Peer finto).
+- [x] B27.4 · revisione indipendente (commit `2959848` e quello dei documenti dopo): 12 difetti, tutti riprodotti con
+  gli script del revisore e corretti; tabella in `docs/b27/telecomando.md` §5. In breve: l'abbinamento si conferma sul
+  computer (numero di tre cifre, clic o tasto veri), QR e codice solo a foglio aperto su indirizzi temporanei, dopo
+  l'abbinamento niente QR; ripresa con prova reciproca HMAC-SHA-256 senza mandare la chiave, indirizzo fisso e chiave
+  nuovi a ogni abbinamento e con «Scollega»; tolto il filtro delle copie dei comandi; il telecomando salta finestre di
+  Windows, link e «Conferma»; ↑ ↓ spente nel tutorial e nella lezione; la pausa vince su «telefono scollegato»;
+  domanda del monitor senza risposta che non sovrascrive un ledwall salvato e spento; due pagine con la stessa chiave
+  che non si scalzano; un tentativo per collegamento; esito anche per i comandi che vanno in errore; `buildIsStale`.
+  File: `site/js/tennis/remote-pairing.js`, `remote-link.js`, `remote-client.js` (nuovo: lato telefono senza DOM),
+  `telecomando.js`, `site/tennis/telecomando.html`; `natpf-tennis/src/natpf/natpf_remote.js`, `natpf_remote_map.js`,
+  `index.html`, `natpf-ui.css`, `lan/prepare.mjs`; `natpf-desktop/src/{desktop-core,main}.mjs`,
+  `scripts/prova-linux.mjs`; test e prove (`tools/test/remote-pairing.test.mjs`, `natpf-telecomando.test.mjs`,
+  `desktop-core.test.mjs`, `tools/e2e/natpf-telecomando.mjs`); documenti.
+  Verifiche: gioco 1194/1194, sito 223/223, LAN 12/12, programma Windows 33/33, build ok; nel browser
+  `natpf-telecomando` 80/80, `natpf-menu` 38/38, `natpf-training-flow` 22/22, `natpf-tutorial-phone` 52/52;
+  `prova-linux` 69/69.
+  Non cambiato e detto: `main.mjs` senza `setWindowOpenHandler` (il gioco usa `target=_blank` e `window.open` anche nel
+  programma: link del controller, link dell'invito, finestra della webcam).
+  **Non verificato**: come sopra; in più la scelta per l'iPhone nella pagina del telefono (riconosciuto dal nome del
+  browser) e la conferma con la tastiera vera di Windows.

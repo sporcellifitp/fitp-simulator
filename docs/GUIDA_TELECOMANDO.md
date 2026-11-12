@@ -13,16 +13,24 @@ ospiti). Android con Chrome o iPhone con Safari.
    sul gioco, pagina «Collega» → «Certificato», oppure dal menu del programma (F11 per uscire dallo schermo intero, poi
    Alt) **Rete → Indirizzi e certificato per i telefoni**: sul telefono apri l'indirizzo `http://<indirizzo del PC>:8081` e installa il certificato della rete
    NATPF. Senza, il telefono vede «connessione non sicura» e il telecomando non si apre.
-2. **Abbinamento**: sul PC premi **Ctrl+Maiusc+K** (oppure tieni premuto 3 secondi il marchio NATPF in alto a sinistra
-   nel menu) → **Telecomando dello staff**. Compare un QR (diverso da quello dei giocatori) e un codice come `K3ZQ-7M2P`.
-   Inquadra il QR con la fotocamera del telefono dello staff: si apre «NATPF Telecomando» e in alto c'è
-   **Collegato al gioco** (pallino verde). Sul PC: «Telecomando collegato ✓».
-3. **Icona sulla schermata Home**:
-   - **Android**: tocca «Installa» nel riquadro verde della pagina, oppure menu ⋮ → «Aggiungi a schermata Home».
-   - **iPhone**: Condividi ⬆︎ → «Aggiungi alla schermata Home». Poi **apri l'icona** e scrivi il codice sotto il QR
-     (sull'iPhone l'icona ha una memoria sua e non sa dell'abbinamento fatto in Safari; il codice vale 5 minuti con il
-     foglio del telecomando aperto sul PC).
-4. Fatto. Il QR dello staff non va mostrato ai visitatori (se qualcuno lo inquadra diventa lui il telecomando: vedi §5).
+2. **Abbinamento, confermato sul PC**: sul PC premi **Ctrl+Maiusc+K** (oppure tieni premuto 3 secondi il marchio NATPF
+   in alto a sinistra nel menu) → **Telecomando dello staff**. Compare un QR (diverso da quello dei giocatori) e un
+   codice come `K3ZQ-7M2P`. Valgono solo finché questo foglio è aperto, per 5 minuti.
+   - **Android**: inquadra il QR con la fotocamera. Sul telefono compare un **numero di tre cifre**; lo stesso numero
+     compare sul PC («Un telefono chiede di diventare il telecomando · numero 417»). Se è lo stesso, sul PC premi
+     **Conferma** con il mouse o la tastiera (se è diverso: **Rifiuta**). Sul telefono: **Collegato al gioco** (pallino
+     verde); sul PC: «Telecomando abbinato ✓». Poi l'icona: «Installa» nel riquadro verde della pagina, oppure menu ⋮ →
+     «Aggiungi a schermata Home».
+   - **iPhone**: l'icona della schermata Home ha una memoria sua, quindi si abbina l'icona, non Safari. Inquadra il QR:
+     la pagina dice di non abbinare quella scheda. Tocca Condividi ⬆︎ → «Aggiungi alla schermata Home», **apri l'icona
+     NATPF Telecomando**, scrivi il **codice** che è sotto il QR sul PC e tocca «Collega con il codice». Compare il
+     numero di tre cifre: sul PC premi **Conferma** se è lo stesso. (Se nel frattempo sono passati i 5 minuti, sul PC
+     premi «Nuovo QR» e usa il codice nuovo.)
+3. Fatto: sul PC il foglio non mostra più né QR né codice. Il foglio si vede anche sul ledwall, ma il QR da solo non
+   basta: senza «Conferma» sul PC nessun telefono diventa il telecomando, e chiuso il foglio QR e codice non valgono
+   più. **Non confermare mai un numero che non è quello del telefono dello staff.**
+4. **Cambiare telefono** (o aggiungere quello di riserva al posto del primo): Telecomando dello staff → **Abbina un
+   altro telefono** → come al punto 2. Il telefono di prima non è più il telecomando.
 
 ## 2. Ogni giorno
 
@@ -35,7 +43,9 @@ la dice (Android sì, iPhone no).
 
 - **Primo avvio con il ledwall collegato** («Estendi» in Windows): il PC chiede **«Su quale schermo mostro il gioco?»**
   sullo schermo del portatile. Scegli quello con scritto **«probabile ledwall»** (il ledwall 2×2 è 1024×1024). Se nessuno
-  risponde entro 30 secondi il programma usa proprio quello. La scelta resta per i prossimi avvii: niente più OBS.
+  risponde entro 30 secondi (o con «Decidi tu») il programma usa proprio quello. La scelta resta per i prossimi avvii:
+  niente più OBS. Se un giorno il ledwall è ancora spento all'avvio e ci sono altri due schermi accesi, la domanda
+  torna: senza risposta il gioco parte su un altro schermo solo per quella volta, e appena il ledwall si accende ci va.
 - **Cambiare schermo**: dal telefono **Schermo del gioco** (passa al monitor successivo), oppure Pannello dello stand →
   **Schermo del gioco**, oppure **Ctrl+Maiusc+M** sul PC.
 - Ledwall acceso dopo il programma: il gioco ci va da solo appena Windows lo vede.
@@ -66,12 +76,16 @@ Un pulsante grigio e tratteggiato non serve in quella pagina: sotto c'è scritto
 | «Mi ricollego…» che non finisce | Il gioco è aperto? Telefono e PC sulla stessa Wi-Fi? Sul PC (F11, poi Alt) menu **Rete → Apri la rete ai telefoni** (firewall). |
 | «Mi ricollego…» dopo che il PC ha cambiato rete o indirizzo | L'icona ricorda l'indirizzo del PC: rifai l'abbinamento (§1.2, il QR ha l'indirizzo nuovo). Consiglio: nel router dai al PC un indirizzo fisso (prenotazione DHCP). |
 | Pagina «connessione non sicura» | Manca il certificato sul telefono (§1.1), o il certificato è stato rifatto: installalo di nuovo. |
-| «Questo telefono non è più il telecomando» | Qualcuno ha abbinato un altro telefono o ha premuto «Scollega il telecomando»: rifai l'abbinamento (§1.2). |
-| «Codice non trovato» / «Codice scaduto» | Il foglio «Telecomando dello staff» deve essere aperto sul PC; il codice cambia a ogni apertura e dura 5 minuti. |
+| «Il gioco non si trova… questo telefono non è più il telecomando» | Se il gioco è acceso: qualcuno ha abbinato un altro telefono o ha premuto «Scollega il telecomando». Rifai l'abbinamento (§1.2). Se il gioco era solo spento, alla riaccensione il telefono rientra da solo. |
+| Sul telefono un numero di tre cifre che non passa | Sul PC, nel foglio «Telecomando dello staff», premi **Conferma** (se il numero è lo stesso). Dal telefono non si può confermare. |
+| «Rifiutato sul computer» / «Un altro telefono sta già chiedendo» | Qualcun altro ha inquadrato il QR prima di te: sul PC «Rifiuta», poi inquadra il QR nuovo. |
+| «Codice non trovato» / «Tempo scaduto» / «Il foglio è chiuso» | Il foglio «Telecomando dello staff» deve essere aperto sul PC con il QR in vista; QR e codice cambiano a ogni apertura e durano 5 minuti («Nuovo QR»). |
+| «Telecomando aperto in un'altra pagina» | Il telecomando è aperto due volte sullo stesso telefono (Safari e icona, o due schede): tocca la scritta per usare questa pagina. |
 | Il telefono è collegato ma il gioco non risponde a un tasto | Il pulsante è spento in quella pagina (leggi il motivo), oppure c'è una finestra aperta sopra: **Indietro**. |
 | Telefono perso o rubato | Sul PC: Pannello dello stand → Telecomando dello staff → **Scollega il telecomando**. Poi abbina il telefono nuovo. |
 
-Solo **un** telefono alla volta è il telecomando: abbinarne un altro (QR o codice) scollega il precedente.
+Solo **un** telefono alla volta è il telecomando: abbinarne un altro (QR o codice, confermato sul PC) scollega il
+precedente. Dal telecomando non si possono premere «Conferma», «Azzera oggi» e «Scarica CSV»: si fanno dal PC.
 
 ## 6. Cosa non è stato provato
 

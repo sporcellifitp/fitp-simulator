@@ -13,7 +13,8 @@
 //   domanda-monitor  (B27) due monitor finti (NATPF_PROVA_MONITOR: lo schermo virtuale ne ha uno solo, e Xvfb non
 //                  ne fa due che Chromium veda, provato anche con Xinerama e con i monitor RandR): la domanda «Su quale
 //                  schermo mostro il gioco?» compare, senza risposta vale il ledwall proposto (1024×1024) e si salva con
-//                  la misura; al riavvio con lo stesso monitor non si chiede più
+//                  la misura; al riavvio con lo stesso monitor non si chiede più; con un ledwall salvato e spento la
+//                  proposta senza risposta vale solo per quell'avvio (il monitor salvato resta)
 //   aggiornamenti  server degli aggiornamenti finto: controllo all'avvio senza download, check → available,
 //                  download → ready con l'avanzamento e lo sha256, install() simulata (07/11/2026); in predefinito
 //                  lo stato 'off' senza indirizzo e fuori dall'installazione
@@ -378,6 +379,14 @@ async function domandaMonitor(){
   const again = await launch(readSaved(), env);
   const log2 = again.newLog();
   check('riavvio con il monitor scelto: nessuna domanda', /scelta del monitor all'avvio[^\n]*"chiedo":false[^\n]*monitor salvato presente/.test(log2) && !/proposta \(nessuna risposta\)/.test(log2), log2.split('\n').find(l => l.includes('scelta del monitor')));
+  // ledwall salvato ma spento (id che non c'è), portatile e un altro monitor accesi, nessuno risponde: la proposta vale
+  // solo per questo avvio, il monitor salvato resta (revisione del B27: prima veniva sovrascritto)
+  await closeApp();
+  const LEDWALL = 424242;
+  const off = await launch({ displayId: LEDWALL, display: { width: 3840, height: 2160 } }, env);
+  const log3 = off.newLog();
+  check('ledwall salvato e spento, due monitor accesi: si chiede', /scelta del monitor all'avvio[^\n]*"chiedo":true[^\n]*monitor salvato assente/.test(log3), log3.split('\n').find(l => l.includes('scelta del monitor')));
+  check('senza risposta: proposta solo per questa sessione, il ledwall salvato resta', /monitor del gioco[^\n]*solo per questa sessione[^\n]*"salvato":false/.test(log3) && readSaved().displayId === LEDWALL && readSaved().display?.width === 3840, { salvato: readSaved() });
 }
 
 // --- aggiornamenti: server degli aggiornamenti finto (127.0.0.1), installazione simulata (richiesta del 07/11) --------
