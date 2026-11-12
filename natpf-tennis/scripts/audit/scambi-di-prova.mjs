@@ -58,7 +58,8 @@ export function gesturePhone({ seed, hand, kc, yawSd = 0 }){
 }
 // S: «Salta» / «Nessuna»
 export function simplePhone({ seed, hand, ios = false }){ const p = base({ seed, hand, ios }); p.skip(); return p; }
-// P: scambi di prova. hits(i, side): la persona colpisce la palla i (da 0) dal lato side? Restituisce il telefono e l'esito
+// P: scambi di prova. hits(i, side): la persona colpisce la palla i (da 0) dal lato side? (true: con il gesto di quel
+// lato; 'forehand' | 'backhand': con quel gesto, da qualunque lato arrivi la palla). Restituisce il telefono e l'esito
 export function trialPhone({ seed, hand, person, ios = false, hits = () => true }){
   const p = base({ seed, hand, ios }); p.skip();
   const out = runTrial(p, { seed, person, hits });
@@ -71,7 +72,8 @@ export function runTrial(p, { seed = 1, person, hits = () => true } = {}){
   while (!trialDone({ balls, counts: p.learner.counts(hand), t: 0 })){
     const side = trialSide(balls, p.learner.counts(hand));
     p.trialBall(wantOfSide(side, hand));
-    if (hits(balls, side)) play(p, { side, ...draw(person, R) }, R); else p.rest(900, 4);
+    const h = hits(balls, side);
+    if (h) play(p, { side: typeof h === 'string' ? h : side, ballSide: side, ...draw(person, R) }, R); else p.rest(900, 4);
     balls++;
   }
   return { ...p.endTrial(), balls };
@@ -147,6 +149,21 @@ export function passHand(how, { first, second, hand = 'right', seeds = 12 } = {}
   return { how, letta: mean(got), assestata: mean(want), errore: mean(got.map((v, i) => Math.abs(v - want[i]))), persi: lost.reduce((a, b) => a + b, 0), colpi: lost.length };
 }
 
+// Chi colpisce da un lato solo (revisione del B28, difetto 1): scambi di prova con lo stesso gesto su ogni palla (miss:
+// palle non colpite), poi in partita n dritti e n rovesci fatti bene. Conta i segni girati (dal gioco o dal telefono) e i
+// colpi della partita letti dal lato sbagliato. ios: verso della gravità invertito; only: 'forehand' | 'backhand' | null (i due gesti)
+export function oneSided({ hand = 'right', seeds = 12, n = 4, person = PEOPLE.adulto, only = 'forehand', miss = [], ios = false } = {}){
+  let girati = 0, sbagliati = 0, letti = 0;
+  for (let seed = 1; seed <= seeds; seed++){
+    const p = trialPhone({ seed, hand, person, ios, hits: i => (miss.includes(i) ? null : only || true) }), R = rng(seed*17 + 3);
+    for (let i = 0; i < 2*n; i++){
+      const side = i % 2 ? 'backhand' : 'forehand', r = play(p, { side, ...draw(person, R) }, R);
+      if (r){ letti++; if (r.ev.side !== side) sbagliati++; }
+    }
+    if (p.trialResult.sign*p.det.absSign === -1) girati++;
+  }
+  return { telefoni: seeds, girati, sbagliati, letti };
+}
 function main(){
   const seeds = +(arg('seeds') || (QUICK ? 4 : 12)), n = +(arg('n') || 10), hands = arg('hand') === 'both' || !arg('hand') ? ['right', 'left'] : [arg('hand')];
   const out = { seeds, n, hands, persone: {}, mano: {}, lato: {} };
@@ -167,6 +184,14 @@ function main(){
       (out.mano[`${hand}/${a}→${b}`] ||= {})[how] = r;
       console.log(`${PEOPLE[a].label} → ${PEOPLE[b].label} · ${{ G: 'gesti del primo (prima)', S: '«Salta» (prima)', P: 'scambi di prova a ogni partita' }[how].padEnd(32)} letta ${f(r.letta)} · assestata ${f(r.assestata)} · errore ${f(r.errore)} · persi ${r.persi}/${r.colpi}`);
     }
+  }
+  console.log('\n== chi colpisce da un lato solo negli scambi di prova (poi in partita 4 dritti e 4 rovesci fatti bene) · segni girati · colpi della partita letti dal lato sbagliato');
+  out.unLato = {};
+  for (const hand of hands) for (const [label, o] of [['solo dritti, nessuna persa', { only: 'forehand' }], ['solo dritti, la prima persa', { only: 'forehand', miss: [0] }], ['solo dritti, due perse', { only: 'forehand', miss: [0, 2] }],
+    ['solo rovesci', { only: 'backhand' }], ['verso invertito, i due gesti', { only: null, ios: true }], ['verso invertito, solo dritti (limite)', { only: 'forehand', ios: true }]]){
+    const r = oneSided({ hand, seeds, ...o });
+    out.unLato[`${hand}/${label}`] = r;
+    console.log(`${(hand === 'left' ? 'mancino · ' : 'destro · ').padEnd(10)}${label.padEnd(40)} girati ${String(r.girati).padStart(2)}/${r.telefoni} · lato sbagliato ${String(r.sbagliati).padStart(3)}/${r.letti}`);
   }
   // lato delle palle (colpi.mjs --mode=lato, persona vera): partite sbilanciate con l'errore del seme misurato qui sopra
   const seedsOf = key => mean(Object.values(out.persone).map(v => v[key]?.seed).filter(Number.isFinite));

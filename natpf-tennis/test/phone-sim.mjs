@@ -141,12 +141,13 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   // freshPlayer: il telefono riparte dal profilo semplice (cal + skip senza pausa: azzera i colpi giocati e il segno sul
   // telefono; la fine della calibrazione azzera i riferimenti sul computer)
   const fresh = ({ tremor = 0 } = {}) => { cal.start({ quick: true, hand }); const p = cal.skip(); ready = true; rest(600, tremor); return p; };
-  const beginTrial = o => { fresh(o); learner.reset(); trial = { ball: 0, want: 0 }; };
+  // (negli scambi di prova il telefono non vota il segno: racchetta.js, messaggio ph con tr)
+  const beginTrial = o => { fresh(o); learner.reset(); trial = { ball: 0, want: 0 }; det.setSignVote(false); };
   // palla nuova: want = +1 alla destra di chi gioca, −1 alla sinistra
   const trialBall = (want = 0) => { if (trial){ trial.ball++; trial.want = want; } };
   const endTrial = () => {
     if (!trial) return null;
-    trial = null;
+    trial = null; det.setSignVote(true);
     const level = learner.level(), L = learner.profile(det.profile), counts = learner.counts(hand);
     if (L){
       learned = L;

@@ -110,11 +110,22 @@ export function createTrialLearner(){
   // un campione per palla: { ball, raw (verso grezzo del telefono), want (verso atteso dal lato della palla), peak, rawPeak,
   // rise, heading, head, normal }
   let samples = [], sign = 1, flips = 0;
-  const votes = () => { let agree = 0, against = 0; for (const x of samples) if (x.raw && x.want){ if (x.raw === x.want) agree++; else against++; } return { agree, against }; };
+  // voti sul segno: agree = verso letto uguale al lato della palla, against = al contrario; both = i colpi al contrario
+  // ci sono stati da tutti e due i lati (palle a destra colpite «a sinistra» e palle a sinistra colpite «a destra»)
+  const votes = () => {
+    let agree = 0, against = 0; const cross = { 1: 0, '-1': 0 };
+    for (const x of samples) if (x.raw && x.want){ if (x.raw === x.want) agree++; else { against++; cross[x.want]++; } }
+    return { agree, against, both: cross[1] > 0 && cross[-1] > 0 };
+  };
+  // Il lato della palla dice qualcosa sul segno solo se chi gioca ha mostrato i due versi, uno per lato: chi fa sempre
+  // lo stesso gesto (solo dritti, anche sulle palle di rovescio) non ha il telefono al contrario, gioca da un lato solo.
+  // Senza i due versi al contrario non c'è informazione: non si gira mai, resta la lettura della gravità (revisione del
+  // B28, difetto 1: bastavano due dritti su due palle di rovescio per specchiare destra e sinistra per tutta la partita)
   const decide = () => {
-    const { agree, against } = votes(), n = agree + against;
-    if (n < TRIAL.signMin) return sign;
-    const share = agree/n, next = share <= TRIAL.signFlip ? -1 : share >= TRIAL.signKeep ? 1 : sign;
+    const { agree, against, both } = votes(), n = agree + against;
+    let next = sign;
+    if (!both) next = 1;
+    else if (n >= TRIAL.signMin){ const share = agree/n; next = share <= TRIAL.signFlip ? -1 : share >= TRIAL.signKeep ? 1 : sign; }
     if (next !== sign){ sign = next; flips++; }
     return sign;
   };

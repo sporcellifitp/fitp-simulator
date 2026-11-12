@@ -13,6 +13,8 @@ import { CAL_MODE_KEY, CAL_MODES, CAL_MODE_DEFAULT, calModeOf, calModeFromUrl, r
 import { trialDue, trialDots, trialOutro, gestureProfile, TRIAL_TEXT } from '../src/natpf/natpf_trial.js';
 import { NatpfPhoneRacket } from '../src/natpf/natpf_phone_racket.js';
 import { connectTarget } from '../src/natpf/natpf_lobby.js';
+import { gesture } from '../scripts/audit/colpi.mjs';
+import { rng } from './phone-sim.mjs';
 
 /* ---------- opzione dello stand ---------- */
 test('opzione dello stand «Calibrazione»: di base Giocando, tre valori in giro, salvata; l\'indirizzo comanda senza cambiarla', () => {
@@ -110,7 +112,7 @@ test('correzione del verso: se il verso letto dal telefono non concorda con il l
   assert.deepEqual(B.counts('right'), { 1: 2, '-1': 2, forehand: 2, backhand: 2, total: 4 });
   // chi tira sempre lo stesso gesto (dritto su tutte le palle) non fa girare niente: metà d'accordo, metà no
   const C = createTrialLearner(); learn(C, [[1, S(1, 700)], [-1, S(1, 700)], [1, S(1, 700)], [-1, S(1, 700)]]);
-  assert.equal(C.sign, 1); assert.deepEqual(C.votes, { agree: 2, against: 2 });
+  assert.equal(C.sign, 1); assert.deepEqual(C.votes, { agree: 2, against: 2, both: false });
   // tre contro uno: girato; poi se i colpi tornano d'accordo (quota oltre il 75 %) si rigira
   const D = createTrialLearner(); learn(D, [[1, S(-1, 700)], [-1, S(-1, 700)], [1, S(-1, 700)], [-1, S(1, 700)]]);
   assert.equal(D.sign, -1, '3 su 4 al contrario');
@@ -118,6 +120,81 @@ test('correzione del verso: se il verso letto dal telefono non concorda con il l
   learn2(E2, [[1, S(1, 700)], [-1, S(-1, 700)], [1, S(1, 700)], [-1, S(-1, 700)], [1, S(1, 700)], [-1, S(-1, 700)]], 3);
   assert.equal(E2.sign, 1, '6 su 8 d\'accordo: di nuovo com\'era'); assert.equal(E2.flips, 2);
 });
+// Revisione del B28, difetto 1 (alto): chi colpisce da un lato solo restava specchiato per tutta la partita. Bastavano
+// due dritti su due palle di rovescio (2 voti contro) o un dritto mancato (1 d'accordo, 3 contro), perché la quinta e la
+// sesta palla vanno dal lato «che manca». Ora il lato della palla vale come prova solo con i due versi, uno per lato
+test('revisione 1: chi fa sempre lo stesso gesto non gira il segno (0, 1, 2 palle perse, destro e mancino, solo rovesci); telefono al contrario con i due gesti: girato', () => {
+  // gli scambi di prova come li fa il gioco (trialSide/trialDone); dir(want, i): verso letto dal telefono per quel colpo
+  const run = ({ hand = 'right', dir, miss = [] }) => {
+    const L = createTrialLearner(), sides = []; let balls = 0;
+    while (!trialDone({ balls, counts: L.counts(hand), t: 0 })){
+      const side = trialSide(balls, L.counts(hand)), want = wantOfSide(side, hand);
+      sides.push(side);
+      if (!miss.includes(balls)){ L.vote({ ball: balls + 1, want, s: S(dir(want, balls), 700) }); L.mark(balls + 1, true); }
+      balls++;
+    }
+    return { L, sides };
+  };
+  for (const hand of ['right', 'left']){
+    const fh = hand === 'left' ? -1 : 1;
+    for (const miss of [[], [0], [0, 2], [2]]){
+      const { L, sides } = run({ hand, dir: () => fh, miss }), tag = `${hand}, solo dritti, perse ${JSON.stringify(miss)}`;
+      assert.equal(L.sign, 1, tag); assert.equal(L.flips, 0, tag); assert.equal(L.votes.both, false, tag);
+      assert.equal(sides.length, 6, tag); assert.deepEqual(sides.slice(4), ['backhand', 'backhand'], `${tag}: le ultime dal lato che manca`);
+      assert.equal(L.counts(hand).backhand, 0, tag); assert.equal(L.counts(hand).forehand, 6 - miss.length, `${tag}: tutti dritti, come li ha fatti`);
+    }
+    const bh = run({ hand, dir: () => -fh });
+    assert.equal(bh.L.sign, 1, `${hand}, solo rovesci`); assert.equal(bh.L.counts(hand).forehand, 0);
+    // tre dritti su palle di rovescio e poi un rovescio vero: 1 d'accordo e 3 contro, ma i «contro» sono da un lato solo
+    const mix = createTrialLearner(); learn(mix, [[-fh, S(fh, 700)], [-fh, S(fh, 700)], [-fh, S(fh, 700)], [-fh, S(-fh, 700)]]);
+    assert.deepEqual(mix.votes, { agree: 1, against: 3, both: false }); assert.equal(mix.sign, 1, `${hand}: non basta`);
+    // telefono davvero al contrario e i due gesti: girato alla seconda palla, colpi contati dal lato giusto
+    const inv = run({ hand, dir: want => -want });
+    assert.equal(inv.L.sign, -1, `${hand}, al contrario`); assert.equal(inv.sides.length, 4); assert.deepEqual([inv.L.counts(hand).forehand, inv.L.counts(hand).backhand], [2, 2]);
+    // … anche con una palla persa o un gesto sbagliato in mezzo
+    assert.equal(run({ hand, dir: want => -want, miss: [1] }).L.sign, -1); assert.equal(run({ hand, dir: (want, i) => (i === 2 ? want : -want) }).L.sign, -1);
+    // telefono al contrario e un gesto solo: nessuna informazione, resta la lettura della gravità (i suoi dritti si
+    // leggono rovesci finché non fa anche l'altro gesto: limite scritto in docs/b28/calibrazione-giocando.md)
+    const one = run({ hand, dir: () => -fh });
+    assert.equal(one.L.sign, 1, `${hand}, al contrario e solo dritti`); assert.equal(one.L.counts(hand).forehand, 0);
+  }
+  // due dritti su due palle di rovescio non bastano più
+  const two = createTrialLearner(); learn(two, [[-1, S(1, 700)], [-1, S(1, 700)]]); assert.equal(two.sign, 1);
+  // se il gesto più forte di una palla sostituisce quello che aveva fatto girare, il segno torna com'era
+  const back = createTrialLearner(); learn(back, [[1, S(-1, 500)], [-1, S(1, 500)]]); assert.equal(back.sign, -1);
+  back.vote({ ball: 2, want: -1, s: S(-1, 900) }); assert.equal(back.sign, 1, 'il colpo vero della palla 2 era un rovescio letto giusto');
+});
+
+test('revisione 1 nel gioco e con il telefono simulato: solo dritti con una palla persa → in partita il dritto resta dritto; al contrario con i due gesti → corretto', async () => {
+  // nel gioco (mondo di prova): destro, telefono giusto, dritto su ogni palla, la prima persa
+  const w = await playWorld(), { E, P, link } = w;
+  w.pressStart();
+  const r = playTrial(w, (id, n) => (n === 1 ? null : stroke({ dir: 1, peak: 700 })));
+  assert.deepEqual(r.sides, ['forehand', 'backhand', 'forehand', 'backhand', 'backhand', 'backhand']); assert.equal(r.log.length, 5);
+  assert.equal(P.learner.sign, 1); assert.equal(P.profile.trialSign, 1); assert.equal(E.phase, 'SERVE_STANCE');
+  const seen = []; P.onSwing(ev => seen.push(ev.side)); P._onSwing(stroke({ dir: 1, peak: 700 }));
+  assert.deepEqual(seen, ['forehand'], 'in partita il dritto è un dritto');
+  assert.ok(link.sent.filter(m => m.t === 'ex').every(m => m.d !== undefined), 'il verso atteso va al telefono');
+  // telefono simulato (rilevatore vero): solo dritti, 0 / 1 / 2 palle perse, destro e mancino: né il gioco né il telefono girano
+  for (const hand of ['right', 'left']) for (const miss of [[], [0], [0, 2]]){
+    const p = trialPhone({ seed: 3, hand, person: PEOPLE.adulto, hits: i => (miss.includes(i) ? null : 'forehand') }), tag = `${hand}, perse ${JSON.stringify(miss)}`;
+    assert.equal(p.trialResult.sign, 1, tag); assert.equal(p.det.absSign, 1, `${tag}: il telefono non gira il suo segno`);
+    assert.equal(p.trialResult.n.backhand, 0, tag);
+    const R = rng(77); let wrong = 0, n = 0;
+    for (let i = 0; i < 8; i++){ const m = gesture(p, { side: 'forehand', k: 1, R }); if (m.length === 1){ n++; if (p.game(m[0]).ev.side !== 'forehand') wrong++; } }
+    assert.ok(n >= 7, `${tag}: ${n} dritti letti`); assert.equal(wrong, 0, `${tag}: dritti letti come rovesci in partita`); assert.equal(p.det.absSign, 1, tag);
+  }
+  // solo rovesci
+  const bh = trialPhone({ seed: 3, hand: 'right', person: PEOPLE.adulto, hits: () => 'backhand' });
+  assert.equal(bh.trialResult.sign, 1); assert.equal(bh.det.absSign, 1); assert.equal(bh.trialResult.n.forehand, 0);
+  // verso della gravità invertito e i due gesti: corretto (una volta sola, dal gioco o dal telefono)
+  const inv = trialPhone({ seed: 3, hand: 'right', person: PEOPLE.adulto, ios: true });
+  assert.equal(inv.trialResult.sign*inv.det.absSign, -1, 'girato una volta'); assert.equal(inv.trialResult.level, 'full');
+  // invertito e solo dritti: resta la gravità (limite scritto): né il gioco né il telefono girano
+  const one = trialPhone({ seed: 3, hand: 'right', person: PEOPLE.adulto, ios: true, hits: () => 'forehand' });
+  assert.equal(one.trialResult.sign, 1); assert.equal(one.det.absSign, 1); assert.equal(one.trialResult.n.forehand, 0, 'i suoi dritti letti rovesci');
+});
+
 function learn2(L, list, from){ list.forEach(([want, s], i) => { L.vote({ ball: from + i, want, s }); L.mark(from + i, true); }); }
 
 test('soglie per il telefono dal profilo imparato: come la calibrazione rapida, mai sopra il colpo tipico di tutti i colpi', () => {

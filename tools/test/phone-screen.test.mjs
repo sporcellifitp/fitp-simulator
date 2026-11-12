@@ -321,6 +321,8 @@ test('scambi di prova sul telefono: la fase con tr 1 scrive «Scambi di prova»;
   assert.equal(trialOnMsg({ t: 'ph', ph: 'play' }), false); assert.equal(trialOnMsg({ t: 'ph', ph: 'serve', tr: 1 }), false); assert.equal(trialOnMsg(null), false);
   assert.equal(TRIAL_TEXT.big, 'Scambi di prova'); assert.match(TRIAL_TEXT.sub, /Colpisci la palla.*impara il tuo colpo/);
   const js = readB28(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  // (revisione del B28) negli scambi di prova il telefono non vota il segno dei sensori: lo decide il computer
+  assert.match(js, /trial = trialOnMsg\(d\); det\.setSignVote\(d\.tr !== 1\);/);
   assert.match(js, /trial = trialOnMsg\(d\)/); assert.match(js, /if \(trial && phase === 'play'\) ui\(TRIAL_TEXT\.big, TRIAL_TEXT\.sub, 'ready'\)/);
 });
 

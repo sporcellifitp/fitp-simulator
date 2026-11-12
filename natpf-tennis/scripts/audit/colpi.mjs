@@ -46,11 +46,12 @@ export function makePhone({ seed = 7, hand = 'right', makeAim = createAimModel }
 // un gesto variato: k = velocità rispetto al colpo del braccio (STROKES), yaw = piatto girato a destra (gradi, prima del
 // colpo, poi si torna), side = dritto o rovescio. Restituisce i messaggi «sw» mandati (di norma uno)
 // stroke (B17.4): un gesto di test/arm-sim.STROKES al posto del dritto o del rovescio (tagliato, corta, pallonetto)
-export function gesture(p, { side = 'forehand', k = 1, yaw = 0, R = Math.random, stroke = null } = {}){
+export function gesture(p, { side = 'forehand', k = 1, yaw = 0, R = Math.random, stroke = null, ballSide = side } = {}){
   const hand = p.hand || 'right', S = stroke ? STROKES[stroke] : strokesOf(hand)[side === 'forehand' ? 'forehand' : 'backhand'], fh = hand === 'left' ? -1 : 1;
   // come in partita: il telefono sa da che parte arriva la palla (verso atteso) e la modalità preparazione è attiva
   // (B28: con il verso corretto dagli scambi di prova il gioco manda al telefono il verso atteso girato, come NatpfPhoneRacket.update)
-  p.det.setPrepMode(true); p.det.setExpect((side === 'forehand' ? fh : -fh)*(p.learner?.sign ?? 1));
+  // (ballSide: lato da cui arriva la palla, se chi gioca fa il gesto dell'altro lato)
+  p.det.setPrepMode(true); p.det.setExpect((ballSide === 'forehand' ? fh : -fh)*(p.learner?.sign ?? 1));
   p.rest(450, 4);
   if (yaw) p.pose([0, 1, 0], -yaw, 80);          // pose(+) = antiorario visto dall'alto = piatto a sinistra
   p.rest(250, 4);
