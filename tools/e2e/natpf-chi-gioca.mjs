@@ -6,7 +6,8 @@
 //   2. «Altre impostazioni» → «Livello della CPU»: cinque livelli per nome; Esperta e Leggenda si scelgono lì, e la pagina
 //      lo dice sotto le tessere e nel riassunto;
 //   3. «Gioca» con ognuna delle tre tessere: il motore gioca al livello giusto;
-//   4. livello Evento: la CPU cambia di un gradino tra un punto e l'altro e la sua velocità segue;
+//   4. livello Evento: la CPU cambia di un gradino tra un punto e l'altro e la sua velocità segue; «Gioca ancora» continua
+//      da lì, il ritorno al menu principale riparte dal valore di base;
 //   5. segnale del momento giusto: l'anello compare largo, si stringe e diventa verde sulla palla; di base acceso con
 //      Bambino e Adulto e spento con Ragazzo; Opzioni → «No» lo spegne, «Sì» lo accende anche a Ragazzo;
 //   6. colpo super spiegato: la scritta lunga la prima volta, quella corta dopo, niente quando il super riesce. Il colpo è
@@ -222,6 +223,15 @@ try {
   const h5 = await hint(p);
   check('… sparisce dopo pochi secondi; niente scritta se il super riesce o se il gesto non era fortissimo', !h3.on && !h4.on && !h5.on, fmt({ h3, h4, h5 }));
   await release(p);
+
+  /* ---------- 4 (seguito): «Gioca ancora» tiene il livello Evento, il menu principale lo fa ripartire ---------- */
+  const kPlayed = await evento(p);
+  await p.evaluate(() => __natpfTennis.natpfUi.backToMenu('match'));       // «Gioca ancora»: pagina «Partita»
+  const kAgain = await evento(p);
+  await p.evaluate(() => __natpfTennis.natpfUi.backToMenu());              // «Menu» a fine partita, «Torna al menu» dalla pausa
+  const kMenu = await evento(p);
+  check('livello Evento: «Gioca ancora» continua da dove era arrivato; tornare al menu principale lo riporta al valore di base',
+    kPlayed.k !== kPlayed.start && kPlayed.points === 2 && kAgain.k === kPlayed.k && kAgain.points === 2 && kMenu.k === kMenu.start && kMenu.points === 0, fmt({ kPlayed, kAgain, kMenu }));
 
   /* ---------- 5 (seguito): Opzioni → Segnale del momento giusto ---------- */
   await p.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.backToMenu(); ui.lobby.go('options'); });

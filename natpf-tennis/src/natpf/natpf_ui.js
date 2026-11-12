@@ -12,6 +12,7 @@ import { NatpfShotFeedback } from './natpf_shot_feedback.js';
 import { NatpfPowerHud } from './natpf_power_hud.js';
 import { NatpfTimingCue } from './natpf_timing_cue.js';
 import { NatpfSuperHint } from './natpf_super_hint.js';
+import { eventoRestart } from './natpf_skill.js';
 import { NatpfHand } from './natpf_hand.js';
 import { NatpfTraining } from './natpf_training.js';
 import { NatpfBallMachine } from './natpf_ball_machine.js';
@@ -252,6 +253,10 @@ export class NatpfUi {
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
     E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go(step); this._syncPause();
+    // B18.2 gruppo 3: tornare al menu principale chiude la serie di partite di un giocatore: il livello Evento riparte
+    // dal valore di base (senza, il visitatore dopo trovava la CPU regolata su quello di prima). «Gioca ancora» porta
+    // alla pagina «Partita» (step 'match') e il livello continua da dove era arrivato
+    if (step === 'menu') eventoRestart(E);
   }
   /* ---------- webcam nella tappa di preparazione ---------- */
   async startWebcam(){

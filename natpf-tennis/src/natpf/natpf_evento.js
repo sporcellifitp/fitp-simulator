@@ -12,7 +12,8 @@
 //     sotto quella facile e non regala punti. Non c'è nessun altro aiuto: nessun punto dato, nessun colpo sbagliato
 //     apposta, le regole dei colpi di chi gioca sono sempre quelle di «Ragazzo»;
 //   • una partita nuova dello stesso giocatore («Gioca ancora») riparte da dove k era arrivato; «Nuovo giocatore», il
-//     chiosco che riparte, la scelta di «Chi gioca» e l'avvio del gioco lo riportano a `start`.
+//     chiosco che riparte, il ritorno al menu principale («Menu» a fine partita, «Torna al menu» dalla pausa), la scelta
+//     di «Chi gioca» e l'avvio del gioco lo riportano a `start`.
 // Non oscilla: i gradini sono piccoli (un punto sposta k di 0,035–0,065 su 1, il doppio nei primi sei punti) e più k si allontana dal punto giusto più i
 // punti lo riportano indietro. Non «fa vincere apposta»: un punto perso abbassa la CPU, ma solo dal punto dopo, di poco
 // e fino alla CPU facile, mai oltre.
