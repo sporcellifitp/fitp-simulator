@@ -587,7 +587,9 @@ export class NatpfLobby {
     show($('who-label'), !versus); show($('level-row'), !versus);
     for (const b of this.el.querySelectorAll('[data-natpf-level]')){ const on = b.dataset.natpfLevel === diff; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     const wn = $('who-note'), wt = versus ? '' : whoNote(diff);
-    if (wn){ if (wn.textContent !== wt) wn.textContent = wt; show(wn, !!wt); }
+    // (revisione: con «Altre impostazioni» aperte la riga non si mostra: lì il livello scelto si vede già, e la riga in più
+    // allungava la pagina e tagliava a metà l'ultima riga sopra «Gioca»)
+    if (wn){ if (wn.textContent !== wt) wn.textContent = wt; show(wn, !!wt && !this.matchMore); }
     const t = matchSummary({ games, format: this.format, view, split, fair, level: versus ? null : levelSummary(diff) });
     if (sum && sum.textContent !== t) sum.textContent = t;
   }
