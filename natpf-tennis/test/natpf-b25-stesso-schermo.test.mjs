@@ -72,9 +72,9 @@ test('regole della partita: solo nello stesso schermo; opzioni e aiuto solo con 
   assert.equal(on.autoToss, true); assert.equal(on.open, true); assert.equal(on.helped, true); assert.equal(on.help.p1.band, 'bambino');
   const cam = ND.duoFor({ split: true, webcam: true, storage: st, bands: { p1: 'bambino', p2: 'adulto' } });
   assert.equal(cam.autoToss, false); assert.equal(cam.open, false); assert.equal(cam.helped, false, 'webcam per due: opzioni e aiuto spenti');
-  const f = ND.duoFor({ split: true, storage: memory(), forced: { autoToss: true, openCourt: true, superRel: false, noPrep: false, helpVariant: 'B' }, bands: { p1: 'adulto', p2: 'bambino' } });
+  const f = ND.duoFor({ split: true, storage: memory(), forced: { autoToss: true, openCourt: true, superRel: false, noPrep: false, helpVariant: 'A' }, bands: { p1: 'adulto', p2: 'bambino' } });
   assert.equal(f.autoToss, true); assert.equal(f.open, true); assert.equal(f.superRel, false); assert.equal(f.noPrep, false);
-  assert.deepEqual(f.help.p2, { head: 2, band: 'bambino', vs: 'adulto' });
+  assert.deepEqual(f.help.p2, { span: 2, late: .1, band: 'bambino', vs: 'adulto' });
   // nel motore: null contro la CPU, regole nello stesso schermo, null di nuovo quando lo stesso schermo finisce
   const cpu = createHeadlessEngine({ difficulty: 'pro' }); cpu.startNewMatch({ showStartBanner: false });
   assert.equal(cpu.natpfDuo, null);
@@ -364,10 +364,11 @@ test('campo aperto e servizio: acceso, il servizio passa ogni due punti (A, B B,
     const f = splitEngine(x => { x.natpfOpenCourt = open; }, { fair: true, first: 'opponent' });
     assert.deepEqual(servers(f, wins.slice(0, 5)), Array.from({ length: 6 }, (_, i) => pointServer('opponent', i)));
   }
-  // con i punti di vantaggio dell'aiuto (variante B, 30-0 al bambino) i battitori sono gli stessi
-  const helped = splitEngine(x => { x.natpfOpenCourt = true; x.natpfSplitBands = { p1: 'bambino', p2: 'adulto' }; x.natpfHelpVariant = 'B'; }, { fair: false, first: 'player' });
-  assert.equal(helped.natpfHead, 2);
+  // con l'aiuto al più giovane (solo di gioco: nessun punto regalato) si parte da 0-0 e i battitori sono gli stessi
+  const helped = splitEngine(x => { x.natpfOpenCourt = true; x.natpfSplitBands = { p1: 'bambino', p2: 'adulto' }; }, { fair: false, first: 'player' });
+  assert.equal(helped.natpfDuo.helped, true); assert.deepEqual([helped.score.playerPoints, helped.score.opponentPoints], [0, 0]);
   assert.deepEqual(servers(helped, ['opponent', 'opponent', 'opponent']), alt(4));
+  assert.deepEqual([helped.score.playerPoints, helped.score.opponentPoints], [0, 3]);
   // contro la CPU non esiste, nemmeno con il valore a mano; e il valore di prova lo spegne (misure «prima»)
   const cpu = createHeadlessEngine({ difficulty: 'pro' }); cpu.natpfOpenCourt = true; cpu.natpfFair = false; cpu.natpfServeFirst = 'player'; cpu.startNewMatch({ showStartBanner: false });
   assert.equal(ND.altServe(cpu, false), false); assert.equal(ND.altServe(cpu, true), true);
@@ -410,41 +411,74 @@ test('campo aperto nel motore: la palla nell\'angolo lontano si prende comoda da
   }
 });
 
+// come strike, da P1, con il gesto del pallonetto (forma chiara)
+function strikeLob(set = null){
+  return withSeed(17, () => {
+    const e = splitEngine(set, { fair: false }), A = e.player;
+    e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = 4;
+    A.pos.set(.4, 0, 11.7); A.targetPos.copy(A.pos); A.vel.set(0, 0, 0); e.pendingUserSwing = null; e.pendingP2Swing = null;
+    e.ball.pos.set(-.5, 1, -11); e.ball.spin.set(0, 0, 0);
+    e._launchBallToTarget(e.ball.pos, new THREE.Vector3(1.2, 0, 9.2), 1.2, { topspin: 10 });
+    e._natpfPlanPlayer();
+    const intent = { shot: 'lob', power: .45, typePower: .45, depth: .45, rise: .8, face: 0, conf: 1 };
+    const swing = { source: 'natpf-phone', side: 'forehand', hand: 'right', shotType: ENGINE_SHOT.lob, speed: 1.1, dirX: 0, natpf: { aim: 'swing', shot: 'lob', intent, power: .45, peak: 400, typical: 380, angle: 60, latency: 0, hand: 'right' } };
+    let sent = false;
+    for (let t = 0; t < 4; t += DT){
+      const ttc = NI.timeToContact(e, A);
+      if (!sent && ttc != null && ttc <= 0){ sent = true; e._handleUserSwingInput(swing); }
+      if (e.ball.lastHitter === 'player' || e.phase !== 'RALLY') break;
+      e.step(DT);
+    }
+    return { hit: e.ball.lastHitter === 'player', L: e.natpfLastRacket, e };
+  });
+}
+
 /* ---------- 5 · fasce e aiuto al più giovane ---------- */
 test('fasce: Bambino · Ragazzo · Adulto, di base Adulto; fasce uguali nessun aiuto; fasce diverse aiuto solo al più giovane', () => {
   assert.deepEqual([...ND.BANDS], ['bambino', 'ragazzo', 'adulto']);
   assert.equal(ND.BAND_DEFAULT, 'adulto'); assert.equal(ND.bandOf('boh'), 'adulto'); assert.equal(ND.bandOf(undefined), 'adulto'); assert.equal(ND.bandOf('ragazzo'), 'ragazzo');
   for (const b of ND.BANDS) assert.deepEqual(ND.helpFor({ p1: b, p2: b }), { p1: null, p2: null }, `${b} contro ${b}: nessun aiuto`);
   assert.deepEqual(ND.helpFor({}), { p1: null, p2: null });
-  assert.equal(ND.HELP_DEFAULT, 'C');
-  // variante in gioco (C)
-  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }), { p1: { head: 1, span: 1.5, late: .06, band: 'bambino', vs: 'adulto' }, p2: null });
-  assert.deepEqual(ND.helpFor({ p1: 'adulto', p2: 'bambino' }), { p1: null, p2: { head: 1, span: 1.5, late: .06, band: 'bambino', vs: 'adulto' } });
+  assert.equal(ND.HELP_DEFAULT, 'G');
+  // variante in gioco (G): solo di gioco. Bambino contro adulto: margine sul tempo, palla verso di lui più lenta, il suo
+  // colpo più in fondo; tra fasce vicine solo il margine sul tempo
+  const G = { span: 2, late: .1, slow: 1.1, deep: 1, band: 'bambino', vs: 'adulto' };
+  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }), { p1: G, p2: null });
+  assert.deepEqual(ND.helpFor({ p1: 'adulto', p2: 'bambino' }), { p1: null, p2: G });
   assert.deepEqual(ND.helpFor({ p1: 'ragazzo', p2: 'adulto' }).p1, { span: 1.3, late: .03, band: 'ragazzo', vs: 'adulto' });
   assert.deepEqual(ND.helpFor({ p1: 'ragazzo', p2: 'bambino' }).p2, { late: .03, band: 'bambino', vs: 'ragazzo' });
-  // le altre varianti restano selezionabili: A solo tempo, B solo punti, 0 niente
+  // per le prove e le misure: A solo margine sul tempo, 0 niente. Le varianti con i punti (B, C dell'11/11) non esistono più
+  assert.deepEqual(Object.keys(ND.HELP), ['0', 'A', 'G']);
   assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'A').p1, { span: 2, late: .1, band: 'bambino', vs: 'adulto' });
-  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'B').p1, { head: 2, band: 'bambino', vs: 'adulto' });
   assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, '0'), { p1: null, p2: null });
-  for (const v of ['A', 'B', 'C']) for (const pair of ['bambino:adulto', 'ragazzo:adulto', 'bambino:ragazzo']) assert.ok(Object.keys(ND.HELP[v][pair]).length, `${v} ${pair}`);
-  for (const pair of Object.keys(ND.HELP.A)) assert.ok(!('head' in ND.HELP.A[pair]), 'A: solo tolleranza sul tempo');
-  // con il campo aperto acceso la variante C non dà il 15-0 al bambino (lo farebbe vincere più dell'adulto: misurato)
-  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'C', true).p1, { span: 2, late: .1, band: 'bambino', vs: 'adulto' });
-  assert.deepEqual(ND.helpFor({ p1: 'ragazzo', p2: 'adulto' }, 'C', true).p1, ND.helpFor({ p1: 'ragazzo', p2: 'adulto' }, 'C', false).p1, 'le altre coppie non cambiano');
-  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'B', true).p1, { head: 2, band: 'bambino', vs: 'adulto' }, 'le altre varianti non cambiano');
-  assert.equal(ND.duoFor({ split: true, storage: memory(), bands: { p1: 'bambino', p2: 'adulto' }, forced: { openCourt: true } }).help.p1.head, undefined);
-  assert.equal(ND.duoFor({ split: true, storage: memory(), bands: { p1: 'bambino', p2: 'adulto' } }).help.p1.head, 1);
-  for (const pair of Object.keys(ND.HELP.B)) assert.deepEqual(Object.keys(ND.HELP.B[pair]), ['head'], 'B: solo punti');
-  // dichiarato in modo sobrio
+  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'B'), ND.helpFor({ p1: 'bambino', p2: 'adulto' }), 'una variante che non esiste: quella in gioco');
+  for (const v of ['A', 'G']) for (const pair of ['bambino:adulto', 'ragazzo:adulto', 'bambino:ragazzo']) assert.ok(Object.keys(ND.HELP[v][pair]).length, `${v} ${pair}`);
+  // valori moderati: la palla dell'altro non diventa un pallonetto (misurato: sopra 1,2 sì), il colpo allungato resta in campo
+  for (const v of ['A', 'G']) for (const P of [...Object.values(ND.HELP[v]).filter(x => !x['bambino:adulto']), ...Object.values(ND.HELP[v].open || {})]){
+    assert.ok((P.slow ?? 1) >= 1 && (P.slow ?? 1) <= 1.15, `${v}: palla più lenta al massimo del 15% (${P.slow})`);
+    assert.ok((P.deep ?? 0) >= 0 && (P.deep ?? 0) <= 1.5, `${v}: colpo più in fondo al massimo di 1,5 m (${P.deep})`);
+    assert.ok((P.late ?? 0) <= .1 && (P.span ?? 1) <= 2);
+  }
+  assert.ok(ND.HELP_DEEP_MAX < 11.89 - .5, 'il colpo allungato cade almeno mezzo metro dentro la riga di fondo');
+  // con il campo aperto acceso il bambino contro l'adulto ha solo il margine sul tempo (con le tre leve farebbe pari: misurato)
+  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'G', true).p1, { span: 2, late: .1, band: 'bambino', vs: 'adulto' });
+  assert.deepEqual(ND.helpFor({ p1: 'ragazzo', p2: 'adulto' }, 'G', true).p1, ND.helpFor({ p1: 'ragazzo', p2: 'adulto' }, 'G', false).p1, 'le altre coppie non cambiano');
+  assert.deepEqual(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'A', true).p1, { span: 2, late: .1, band: 'bambino', vs: 'adulto' }, 'la A non cambia');
+  assert.deepEqual(ND.duoFor({ split: true, storage: memory(), bands: { p1: 'bambino', p2: 'adulto' }, forced: { openCourt: true } }).help.p1, { span: 2, late: .1, band: 'bambino', vs: 'adulto' });
+  assert.deepEqual(ND.duoFor({ split: true, storage: memory(), bands: { p1: 'bambino', p2: 'adulto' } }).help.p1, G);
+  // dichiarato in modo sobrio, per quello che è, senza genere
   const h = ND.helpFor({ p1: 'bambino', p2: 'adulto' }).p1;
   assert.equal(ND.helpLabel(h), 'Aiuto: Bambino'); assert.equal(ND.helpLabel(null), '');
-  assert.equal(ND.helpText(h), 'Aiuto: Bambino · parte da 15-0 e ha più margine sul tempo');
+  assert.deepEqual(ND.helpParts(h), ['ha più margine sul tempo', 'riceve palle più lente', 'tira più in fondo']);
+  assert.equal(ND.helpText(h), 'Aiuto: Bambino · ha più margine sul tempo, riceve palle più lente e tira più in fondo');
   assert.equal(ND.helpText(ND.helpFor({ p1: 'adulto', p2: 'ragazzo' }).p2), 'Aiuto: Ragazzo · ha più margine sul tempo');
-  assert.equal(ND.helpText(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'B').p1), 'Aiuto: Bambino · parte da 30-0');
-  assert.equal(ND.helpText(null), '');
-  assert.equal(ND.helpSentence(h, 'Giulia'), 'Aiuto a Giulia (Bambino): parte da 15-0 e ha più margine sul tempo.');
+  assert.equal(ND.helpText({ band: 'bambino', span: 2, slow: 1.1 }), 'Aiuto: Bambino · ha più margine sul tempo e riceve palle più lente');
+  assert.equal(ND.helpText({ band: 'bambino' }), 'Aiuto: Bambino'); assert.deepEqual(ND.helpParts(null), []);
+  assert.equal(ND.helpSentence(h, 'Giulia'), 'Aiuto a Giulia (Bambino): ha più margine sul tempo, riceve palle più lente e tira più in fondo.');
+  assert.equal(ND.helpSentence(ND.helpFor({ p1: 'bambino', p2: 'adulto' }, 'G', true).p1, 'Giulia'), 'Aiuto a Giulia (Bambino): ha più margine sul tempo.', 'con il campo aperto acceso');
   assert.equal(ND.helpSentence(ND.helpFor({ p1: 'adulto', p2: 'ragazzo' }).p2, 'Marco'), 'Aiuto a Marco (Ragazzo): ha più margine sul tempo.');
-  assert.equal(ND.helpSentence(null, 'Marco'), '');
+  assert.equal(ND.helpSentence(h), 'Aiuto a chi è più giovane (Bambino): ha più margine sul tempo, riceve palle più lente e tira più in fondo.');
+  assert.equal(ND.helpText(null), ''); assert.equal(ND.helpSentence(null, 'Marco'), '');
 });
 
 test('fasce: sulla scheda di ciascun giocatore nella pagina dei telefoni; «Nuovo giocatore» e il chiosco le riportano ad Adulto; in campo «Aiuto: …» sotto il nome', () => {
@@ -472,40 +506,146 @@ test('fasce: sulla scheda di ciascun giocatore nella pagina dei telefoni; «Nuov
   assert.ok(rules.length > 0); assert.doesNotMatch(rules, /\d(vw|vh)\b/);
 });
 
-test('aiuto nel motore: fasce uguali o Adulto per tutti e due, niente; bambino contro adulto parte da 15-0 a ogni game e ha più margine in ritardo', () => withSeed(21, () => {
-  const none = splitEngine(e => { e.natpfSplitBands = { p1: 'ragazzo', p2: 'ragazzo' }; });
-  assert.equal(none.natpfDuo.helped, false); assert.equal(none.natpfHead, 0);
-  assert.deepEqual([none.score.playerPoints, none.score.opponentPoints], [0, 0]);
-  assert.equal(NI.lateMargin(none, none.player), 0); assert.equal(NI.lateMargin(none, none.opponent), 0);
-  assert.equal(ND.helpLevel(NS.skillLevel('1v1'), null), NS.skillLevel('1v1'), 'senza aiuto il livello è lo stesso oggetto');
-  for (const [bands, young, old] of [[{ p1: 'bambino', p2: 'adulto' }, 'player', 'opponent'], [{ p1: 'adulto', p2: 'bambino' }, 'opponent', 'player']]){
-    const e = splitEngine(x => { x.natpfSplitBands = bands; x.matchConfig.gamesToWin = 2; }, { fair: false });
-    assert.equal(e.natpfDuo.helped, true); assert.equal(e.natpfHead, 1);
-    assert.equal(e.score[young + 'Points'], 1, 'parte da 15-0'); assert.equal(e.score[old + 'Points'], 0);
-    assert.equal(NI.lateMargin(e, e[young]), .06); assert.equal(NI.lateMargin(e, e[old]), 0);
-    assert.equal(ND.helpLevel(NS.skillLevel('1v1'), ND.helpOf(e, e[young])).timingSpan, NS.skillLevel('1v1').timingSpan*1.5);
-    assert.equal(ND.helpOf(e, e[old]), null);
-    // tre punti al più giovane chiudono il game (da 15-0); il game dopo riparte da 15-0
-    for (let i = 0; i < 3; i++) e._awardPoint(young, 'Out');
-    assert.equal(e.score[young + 'Games'], 1);
-    assert.equal(e.score[young + 'Points'], 1, 'anche il secondo game parte da 15-0'); assert.equal(e.score[old + 'Points'], 0);
-    assert.equal(e.phase, 'POINT_OVER');
-    // a fine partita il tabellone resta sul risultato (niente 15-0 dopo l'ultimo game)
-    for (let i = 0; i < 3; i++) e._awardPoint(young, 'Out');
-    assert.equal(e.phase, 'MATCH_OVER'); assert.deepEqual([e.score.playerPoints, e.score.opponentPoints], [0, 0]);
+// Decisione dell'utente del 12/11: «non voglio che nessuno abbia un vantaggio di punti, voglio solo che il vantaggio si
+// traduca nel gameplay». Il 15-0 e il 30-0 dell'11/11 sono tolti: nessuna variante, nessuna coppia, nessun caso li dà
+test('nessun punto regalato, mai: ogni game parte da 0-0 con ogni coppia di fasce, con il campo aperto acceso o spento, nel formato in fiera e classico', () => withSeed(21, () => {
+  const scan = (o, path = 'HELP') => { for (const [k, v] of Object.entries(o)){ assert.notEqual(k, 'head', `${path}.${k}`); if (v && typeof v === 'object') scan(v, `${path}.${k}`); } };
+  scan(ND.HELP);
+  assert.equal(ND.headStart, undefined, 'la regola dei punti di vantaggio non esiste più');
+  const engineSrc = src('../src/game_engine.js'), rules = src('../src/natpf/natpf_duo_rules.js'), ui = src('../src/natpf/natpf_split_ui.js');
+  assert.doesNotMatch(engineSrc, /natpfHead|headStart|_natpfHeadStart/);
+  assert.doesNotMatch(rules, /export function headStart|parte da \$\{|\bhead:/);
+  for (const [name, text] of [['regole', rules], ['pagina dei telefoni', ui], ['index.html', html]]) assert.doesNotMatch(text.replace(/\/\/.*|<!--[\s\S]*?-->/g, ''), /parte da (15|30)-0/, name);
+  for (const v of Object.keys(ND.HELP)) for (const young of ND.BANDS) for (const old of ND.BANDS) for (const open of [false, true]){
+    const h = ND.helpFor({ p1: young, p2: old }, v, open);
+    for (const x of [h.p1, h.p2]){ assert.ok(!x || !('head' in x)); assert.doesNotMatch(ND.helpSentence(x, 'Giulia'), /parte da|15-0|30-0|punt/); }
+  }
+  for (const bands of [{ p1: 'bambino', p2: 'adulto' }, { p1: 'adulto', p2: 'bambino' }, { p1: 'ragazzo', p2: 'adulto' }, { p1: 'bambino', p2: 'ragazzo' }]) for (const fair of [true, false]) for (const open of [false, true]){
+    const e = splitEngine(x => { x.natpfSplitBands = bands; x.natpfOpenCourt = open; x.matchConfig.gamesToWin = 2; }, { fair });
+    const tag = `${bands.p1}-${bands.p2} ${fair ? 'fiera' : 'classico'} ${open ? 'campo aperto' : ''}`;
+    assert.equal(e.natpfDuo.helped, true, tag);
+    assert.deepEqual([e.score.playerPoints, e.score.opponentPoints], [0, 0], `${tag}: la partita parte da 0-0`);
+    // un punto vale un punto; quattro punti chiudono il game e il game dopo riparte da 0-0
+    e._awardPoint('player', 'Out');
+    assert.deepEqual([e.score.playerPoints, e.score.opponentPoints], [1, 0], tag);
+    for (let i = 0; i < 3; i++) e._awardPoint('player', 'Out');
+    assert.deepEqual([e.score.playerGames, e.score.playerPoints, e.score.opponentPoints], [1, 0, 0], `${tag}: il secondo game parte da 0-0`);
+    for (let i = 0; i < 4; i++) e._awardPoint('opponent', 'Out');
+    assert.deepEqual([e.score.opponentGames, e.score.playerPoints, e.score.opponentPoints], [1, 0, 0], tag);
   }
 }));
 
-test('aiuto nel motore: con il formato in fiera i punti di vantaggio non spostano chi batte (A, B B, A A…)', () => withSeed(4, () => {
-  const servers = bands => { const e = splitEngine(x => { x.natpfSplitBands = bands; x.natpfHelpVariant = 'B'; }, { fair: true, first: 'player' });
-    const s = [e.score.server]; e._awardPoint('opponent', 'Out'); s.push(e.score.server); e._awardPoint('opponent', 'Out'); s.push(e.score.server); e._awardPoint('opponent', 'Out'); s.push(e.score.server);
-    return { s, pts: [e.score.playerPoints, e.score.opponentPoints], head: e.natpfHead }; };
-  const plain = servers({ p1: 'adulto', p2: 'adulto' }), helped = servers({ p1: 'bambino', p2: 'adulto' });
-  assert.deepEqual(plain.s, [0, 1, 2, 3].map(n => pointServer('player', n)));
-  assert.deepEqual(helped.s, plain.s, 'stessi battitori con e senza i punti di vantaggio');
-  assert.equal(helped.head, 2); assert.deepEqual(helped.pts, [2, 3], 'il bambino è partito da 30-0');
-  assert.deepEqual(plain.pts, [0, 3]);
+test('aiuto nel motore: fasce uguali o Adulto per tutti e due, niente; il più giovane ha più margine sul tempo, l\'altro no; chi batte non cambia', () => withSeed(21, () => {
+  const none = splitEngine(e => { e.natpfSplitBands = { p1: 'ragazzo', p2: 'ragazzo' }; });
+  assert.equal(none.natpfDuo.helped, false);
+  assert.equal(NI.lateMargin(none, none.player), 0); assert.equal(NI.lateMargin(none, none.opponent), 0);
+  assert.equal(ND.helpLevel(NS.skillLevel('1v1'), null), NS.skillLevel('1v1'), 'senza aiuto il livello è lo stesso oggetto');
+  for (const a of [none.player, none.opponent]) for (const shot of ['', 'TOPSPIN', 'LOB']) assert.equal(ND.slowFor(none, a, shot), 1);
+  const out = { depth: 9, shot: 'TOPSPIN' };
+  assert.equal(ND.helpOutcome(out, ND.helpOf(none, none.player)), out, 'senza aiuto l\'esito è lo stesso oggetto');
+  for (const [bands, young, old] of [[{ p1: 'bambino', p2: 'adulto' }, 'player', 'opponent'], [{ p1: 'adulto', p2: 'bambino' }, 'opponent', 'player']]){
+    const e = splitEngine(x => { x.natpfSplitBands = bands; x.matchConfig.gamesToWin = 2; }, { fair: false });
+    assert.equal(e.natpfDuo.helped, true);
+    assert.equal(NI.lateMargin(e, e[young]), .1); assert.equal(NI.lateMargin(e, e[old]), 0);
+    assert.equal(ND.helpLevel(NS.skillLevel('1v1'), ND.helpOf(e, e[young])).timingSpan, NS.skillLevel('1v1').timingSpan*2);
+    assert.equal(ND.helpOf(e, e[old]), null);
+    // la palla colpita dal più grande va verso il più giovane: più lenta; quella del più giovane no
+    assert.equal(ND.slowFor(e, e[old], 'TOPSPIN'), 1.1); assert.equal(ND.slowFor(e, e[old]), 1.1, 'anche il servizio');
+    assert.equal(ND.slowFor(e, e[young], 'TOPSPIN'), 1); assert.equal(ND.slowFor(e, e[young]), 1);
+    for (const shot of ['LOB', 'DROP']) assert.equal(ND.slowFor(e, e[old], shot), 1, 'pallonetto e palla corta sono già lenti');
+  }
+  // tra fasce vicine solo il margine sul tempo
+  const near = splitEngine(x => { x.natpfSplitBands = { p1: 'ragazzo', p2: 'adulto' }; });
+  assert.equal(NI.lateMargin(near, near.player), .03); assert.equal(ND.slowFor(near, near.opponent, 'TOPSPIN'), 1);
+  assert.equal(ND.helpOutcome(out, ND.helpOf(near, near.player)), out);
+  // contro la CPU e tra due computer niente, nemmeno con le fasce a mano
+  const cpu = createHeadlessEngine({ difficulty: 'pro' }); cpu.natpfSplitBands = { p1: 'bambino', p2: 'adulto' }; cpu.startNewMatch({ showStartBanner: false });
+  assert.equal(cpu.natpfDuo, null); assert.equal(ND.helpOf(cpu, cpu.player), null);
+  for (const a of [cpu.player, cpu.opponent]) assert.equal(ND.slowFor(cpu, a, 'TOPSPIN'), 1);
 }));
+
+test('aiuto nel motore: con il formato in fiera chi batte e il punteggio sono gli stessi con e senza aiuto (A, B B, A A…)', () => withSeed(4, () => {
+  const servers = (bands, variant) => { const e = splitEngine(x => { x.natpfSplitBands = bands; x.natpfHelpVariant = variant; }, { fair: true, first: 'player' });
+    const s = [e.score.server]; e._awardPoint('opponent', 'Out'); s.push(e.score.server); e._awardPoint('opponent', 'Out'); s.push(e.score.server); e._awardPoint('opponent', 'Out'); s.push(e.score.server);
+    return { s, pts: [e.score.playerPoints, e.score.opponentPoints] }; };
+  const plain = servers({ p1: 'adulto', p2: 'adulto' });
+  assert.deepEqual(plain.s, [0, 1, 2, 3].map(n => pointServer('player', n)));
+  assert.deepEqual(plain.pts, [0, 3]);
+  for (const v of [undefined, 'A', 'G']) assert.deepEqual(servers({ p1: 'bambino', p2: 'adulto' }, v), plain, `variante ${v || 'in gioco'}`);
+}));
+
+test('aiuto nel motore: il colpo riuscito del più giovane cade più in fondo ma resta in campo; fallito, debole, in rete, pallonetto e palla corta non cambiano', () => {
+  const h = ND.helpFor({ p1: 'bambino', p2: 'adulto' }).p1, ok = { x: 1.2, depth: 8.4, shot: 'TOPSPIN', failed: false, weak: false, netFault: false };
+  assert.deepEqual(ND.helpOutcome(ok, h), { ...ok, depth: 9.4 });
+  assert.deepEqual(ND.helpOutcome({ ...ok, depth: 10.9 }, h), { ...ok, depth: ND.HELP_DEEP_MAX }, 'mai oltre il limite');
+  for (const same of [{ ...ok, depth: 11.5 }, { ...ok, depth: 12.9, failed: true }, { ...ok, failed: true }, { ...ok, weak: true }, { ...ok, netFault: true }, { ...ok, shot: 'LOB' }, { ...ok, shot: 'DROP' }])
+    assert.equal(ND.helpOutcome(same, h), same, JSON.stringify(same));
+  assert.equal(ND.helpOutcome(ok, null), ok); assert.equal(ND.helpOutcome(ok, { span: 2, late: .1 }), ok, 'senza «deep» lo stesso oggetto');
+  assert.deepEqual(ND.helpOutcome({ ...ok, shot: 'SMASH', depth: 7 }, h).depth, 8);
+  // nel motore: lo stesso colpo a tempo, da P1 e da P2
+  const good = { lead: 0, peak: 400, flight: 1.2, to: { x: 1.2, z: 9.2 }, at: { x: .4, z: 11.7 } };
+  for (const who of ['p1', 'p2']){
+    const young = who === 'p1' ? { p1: 'bambino', p2: 'adulto' } : { p1: 'adulto', p2: 'bambino' }, other = who === 'p1' ? { p1: 'adulto', p2: 'bambino' } : { p1: 'bambino', p2: 'adulto' };
+    // «time»: lo stesso bambino con il solo margine sul tempo (variante A), per isolare la leva del colpo più in fondo
+    const plain = strike({ who, ...good }), helped = strike({ who, ...good, set: e => { e.natpfSplitBands = young; } }), adult = strike({ who, ...good, set: e => { e.natpfSplitBands = other; } });
+    const time = strike({ who, ...good, set: e => { e.natpfSplitBands = young; e.natpfHelpVariant = 'A'; } });
+    assert.ok(plain.hit && helped.hit && adult.hit && time.hit, `${who}: colpita`);
+    assert.ok(!time.L.out.failed && time.L.out.depth < ND.HELP_DEEP_MAX - 1, `${who}: colpo riuscito (${time.L.out.depth} m)`);
+    assert.ok(Math.abs(helped.L.out.depth - (time.L.out.depth + 1)) < 1e-9, `${who}: 1 m più in fondo (${time.L.out.depth} → ${helped.L.out.depth})`);
+    assert.equal(helped.L.out.x, time.L.out.x, 'la direzione non cambia'); assert.equal(helped.L.out.grade, plain.L.out.grade, 'il voto resta quello del tempo vero');
+    const land = Math.abs(helped.e.ball.targetLanding.z);
+    assert.ok(Math.abs(land - helped.L.out.depth) < 1e-6 && land < 11.89, `${who}: la palla è lanciata lì, in campo (${land})`);
+    // il colpo del più giovane non è rallentato (va verso l'altro) …
+    assert.equal(ND.slowFor(helped.e, who === 'p1' ? helped.e.player : helped.e.opponent, helped.L.out.shot), 1);
+    // … e quello del più grande cade dove cadeva (non è allungato), ma vola il 10% in più
+    assert.equal(adult.L.out.depth, plain.L.out.depth); assert.equal(adult.L.out.x, plain.L.out.x);
+    assert.ok(Math.abs(adult.L.flight - plain.L.flight*1.1) < .002, `${who}: volo ${plain.L.flight} → ${adult.L.flight} s`);
+    assert.equal(helped.L.flight > 0, true);
+  }
+});
+
+test('aiuto nel motore: la palla verso il più giovane vola più lenta e cade nello stesso punto (colpi dello scambio e servizio); il pallonetto no; senza aiuto niente', () => {
+  const speed = e => Math.hypot(e.ball.vel.x, e.ball.vel.z);
+  const good = { lead: 0, peak: 400, flight: 1.2, to: { x: 1.2, z: 9.2 }, at: { x: .4, z: 11.7 } };
+  try {
+    for (const who of ['p1', 'p2']){
+      // solo la leva «palla più lenta», per isolarla: chi colpisce è l'adulto, l'altro è il bambino
+      const bands = who === 'p1' ? { p1: 'adulto', p2: 'bambino' } : { p1: 'bambino', p2: 'adulto' };
+      const plain = strike({ who, ...good });
+      ND.helpTuning['bambino:adulto'] = { slow: 1.1 };
+      const slow = strike({ who, ...good, set: e => { e.natpfSplitBands = bands; } });
+      // … e il colpo del bambino con la sola leva «palla più lenta» è identico a quello senza aiuto
+      const child = strike({ who, ...good, set: e => { e.natpfSplitBands = who === 'p1' ? { p1: 'bambino', p2: 'adulto' } : { p1: 'adulto', p2: 'bambino' }; } });
+      delete ND.helpTuning['bambino:adulto'];
+      assert.ok(plain.hit && slow.hit && child.hit);
+      assert.deepEqual([slow.L.out.x, slow.L.out.depth, slow.L.out.grade, slow.L.out.clear], [plain.L.out.x, plain.L.out.depth, plain.L.out.grade, plain.L.out.clear], `${who}: stesso esito`);
+      assert.ok(Math.abs(slow.L.flight/plain.L.flight - 1.1) < .003, `${who}: volo × 1,1 (${plain.L.flight} → ${slow.L.flight})`);
+      assert.ok(Math.abs(speed(slow.e)/speed(plain.e) - 1/1.1) < .02, `${who}: velocità lungo il campo ÷ 1,1 (${speed(plain.e).toFixed(1)} → ${speed(slow.e).toFixed(1)} m/s)`);
+      assert.deepEqual([slow.e.ball.targetLanding.x, slow.e.ball.targetLanding.z], [plain.e.ball.targetLanding.x, plain.e.ball.targetLanding.z], 'cade nello stesso punto');
+      assert.deepEqual([child.L.out.x, child.L.out.depth, child.L.flight], [plain.L.out.x, plain.L.out.depth, plain.L.flight], `${who}: il colpo del bambino non cambia`);
+    }
+  } finally { delete ND.helpTuning['bambino:adulto']; }
+  // servizio: lo stesso servizio (quello morbido del lancio automatico) dell'adulto verso il bambino, e verso un adulto
+  const serve = (bands, who) => withSeed(9, () => {
+    const e = splitEngine(x => { x.natpfSplitBands = bands; }, { fair: false, first: who === 'p2' ? 'opponent' : 'player' }), sv = who === 'p2' ? e.opponent : e.player;
+    e.ball.pos.set(sv.pos.x, 2.4, sv.pos.z); e._executeServeHit(sv, ND.autoServeEvent('right'));
+    const v0 = speed(e), z0 = e.ball.pos.z; let t = 0;
+    while (e.ball.pos.y > .1 && t < 3){ e.step(DT); t += DT; }
+    return { v0, t, land: Math.abs(e.ball.pos.z), phase: e.phase, z0 };
+  });
+  for (const who of ['p1', 'p2']){
+    const toChild = who === 'p1' ? { p1: 'adulto', p2: 'bambino' } : { p1: 'bambino', p2: 'adulto' }, fromChild = who === 'p1' ? { p1: 'bambino', p2: 'adulto' } : { p1: 'adulto', p2: 'bambino' };
+    const plain = serve({ p1: 'adulto', p2: 'adulto' }, who), slow = serve(toChild, who), child = serve(fromChild, who);
+    assert.ok(slow.v0 < plain.v0*.95, `${who}: servizio verso il bambino più lento (${plain.v0.toFixed(1)} → ${slow.v0.toFixed(1)} m/s)`);
+    assert.ok(slow.t > plain.t*1.05, `${who}: arriva dopo (${plain.t.toFixed(2)} → ${slow.t.toFixed(2)} s)`);
+    assert.ok(Math.abs(slow.land - plain.land) < .35, `${who}: cade nello stesso quadrato, alla stessa profondità (${plain.land.toFixed(2)} → ${slow.land.toFixed(2)} m)`);
+    assert.deepEqual([child.v0, child.t, child.land], [plain.v0, plain.t, plain.land], `${who}: il servizio del bambino non cambia`);
+  }
+  // pallonetto dell'adulto verso il bambino: non rallentato
+  const lob = set => strikeLob(set);
+  const a = lob(null), b = lob(e => { e.natpfSplitBands = { p1: 'adulto', p2: 'bambino' }; });
+  assert.equal(a.L.out.shot, 'LOB'); assert.equal(b.L.flight, a.L.flight, 'il pallonetto vola come sempre');
+});
 
 test('aiuto nel motore: lo stesso colpo in ritardo va fuori per l\'adulto e resta in campo per il bambino aiutato; il voto del colpo non cambia', () => {
   const late = { lead: -.15, peak: 400, flight: 1.2, to: { x: 1.2, z: 9.2 }, at: { x: .4, z: 11.7 } };

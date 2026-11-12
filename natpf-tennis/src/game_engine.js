@@ -831,7 +831,7 @@ export class NatpfTennisEngine {
     if (!this.natpfSplit?.active) return;
     this.natpfSplit.active = !1;
     this.natpfHot = !1; // B20 (revisione): lo «scambio che si scalda» vale solo nello stesso schermo
-    (this.natpfDuo = null), (this.natpfHead = 0); // B25: anche le regole dello stesso schermo (natpf_duo_rules.js)
+    this.natpfDuo = null; // B25: anche le regole dello stesso schermo (natpf_duo_rules.js)
     (this.versus = { active: !1, closing: !1 }), (this.isMultiplayer = !1), (this.pendingP2Swing = null);
     this._natpfClearP2Hand();
     typeof document < "u" && document.body.classList.remove("natpf-split");
@@ -1243,7 +1243,6 @@ export class NatpfTennisEngine {
       // natpfHelpVariant) servono a test e simulazioni
       (this.natpfDuo = ND.duoFor({ split: !!this.natpfSplit?.active, webcam: !!this.natpfUi?.split?.webcam, bands: this.natpfSplitBands,
         forced: { autoToss: this.natpfAutoToss, openCourt: this.natpfOpenCourt, superRel: this.natpfSuperRel, noPrep: this.natpfNoPrep, helpVariant: this.natpfHelpVariant } })),
-      this._natpfHeadStart(),
       // … e con l'opzione accesa «Al meglio di 5» vale «Al meglio di 3» (matchConfig.gamesToWin lo calcola da score.fair
       // senza toccare la scelta del menu, matchConfig.gamesToWinChosen; installGamesToWin è idempotente)
       NF.installGamesToWin(this.matchConfig, () => this.score?.fair),
@@ -1262,16 +1261,6 @@ export class NatpfTennisEngine {
           ? NPC.firstServeText({ ...NPC.callContext(this), server: this.score.server, drawn: serveChoice(this.natpfServeFirst) === "random" })
           : "",
       });
-  }
-  // B25: aiuto al più giovane nello stesso schermo (natpf_duo_rules.HELP, «head»): a inizio game chi è aiutato parte con
-  // dei punti (15-0 o 30-0), che si vedono sul tabellone. natpfHead: quanti sono (non contano come punti giocati per chi
-  // batte nel formato in fiera). Senza aiuto non tocca il punteggio. true se ha dato punti
-  _natpfHeadStart() {
-    const h = ND.headStart(this);
-    this.natpfHead = h.player + h.opponent;
-    if (!this.natpfHead) return !1;
-    (this.score.playerPoints = h.player), (this.score.opponentPoints = h.opponent);
-    return !0;
   }
   _setupPointServe({
     showBanner: e = !0,
@@ -1912,7 +1901,8 @@ export class NatpfTennisEngine {
       f = s ? Math.max(0.58, 0.66 / Math.min(1.18, a * 0.92)) * c : n ? 0.94 * c : 0.8 * c,
       m = s ? 22 : n ? 8 : 15,
       d = Number(t.dirX || 0) * -8;
-    natpfServe && ((y = -e.sideSign * natpfServe.depth), (f = natpfServe.flight), (m = natpfServe.topspin), (d = natpfServe.sidespin));
+    // (B25: anche il servizio verso il più giovane aiutato vola più lento, ND.slowFor: × 1 esatto senza aiuto)
+    natpfServe && ((y = -e.sideSign * natpfServe.depth), (f = natpfServe.flight * ND.slowFor(this, e)), (m = natpfServe.topspin), (d = natpfServe.sidespin));
     const b = !1,
       u = this.ball.pos.clone();
     this._launchBallToTarget(this.ball.pos, new o.Vector3(natpfServe ? natpfServe.x : p, 0, y), f, {
@@ -2318,7 +2308,8 @@ export class NatpfTennisEngine {
   // called: schiacciata chiamata per nome (NO.smashCalled: gesto della schiacciata), per chi legge l'esito (allenamento)
   _natpfRacketShot(e, p, { lateral = 0, smash = !1, called = smash, running = 0 } = {}) {
     // B25 (natpf_duo_rules.js, solo tra due persone nello stesso schermo): duo sono le regole della partita, help l'aiuto
-    // di chi colpisce se è il più giovane (finestra del tempo più larga: lo stesso errore sposta meno la palla)
+    // di chi colpisce se è il più giovane (finestra del tempo più larga: lo stesso errore sposta meno la palla; il suo
+    // colpo riuscito cade più in fondo, ND.helpOutcome; e la palla dell'altro verso di lui vola più lenta, ND.slowFor)
     const duo = this.natpfSplit?.active ? this.natpfDuo : null, help = ND.helpOf(this, p);
     // … e con il campo aperto chi arriva di corsa o in allungo ha meno margine sul tempo (NI.openTight; 1 esatto se spento)
     const tight = duo?.open ? NI.openTight(this, p) : 1, lv0 = ND.helpLevel(NS.skillLevel(this.matchConfig.difficulty), help);
@@ -2349,6 +2340,7 @@ export class NatpfTennisEngine {
     const rhythms = (this.natpfRhythm ||= { player: NO.createRhythm(), p2: NO.createRhythm() }), rhythm = rhythms[toward === 1 ? "p2" : "player"];
     let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, ballVz: b.vel.z, contact, hitX, hitZ: Math.abs(b.pos.z), quality, pressure, rhythm: rhythm.value, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
     rhythm.add(out.t);
+    out = ND.helpOutcome(out, help); // B25: lo stesso oggetto senza aiuto
     // NATPF: colpo super potente (natpf_stroke_outcome.superShot): gesto fortissimo, naturale, a tempo, su una palla alta,
     // lenta o corta → in fondo, più piatto e molto più veloce; l'avversario lo legge in ritardo (ball.natpfSuper)
     // B25: tra due persone «gesto fortissimo» è rispetto al proprio colpo abituale (ND.relStrong; null: regola di sempre);
@@ -2382,6 +2374,8 @@ export class NatpfTennisEngine {
         base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.5, (0.8 + intent.power * 0.85) * 0.94)) * K;
       I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) / (sup.on ? NO.SUPER.speedUp : 1) });
     }
+    // B25: la palla che va verso il più giovane aiutato vola più lenta (pallonetto e palla corta no; × 1 esatto senza aiuto)
+    I *= ND.slowFor(this, p, out.shot);
     // seq: numero del colpo del telefono (diagnostica); at: istante del motore, per riconoscere un esito nuovo
     // hand, source, aimFull (B16, diagnostica: lato delle palle per partita): mano di chi colpisce, da dove arriva il colpo
     // (telefono o webcam) e gradi della mira piena con cui il telefono ha letto il piatto (sensibilità della mira)
@@ -3418,10 +3412,10 @@ export class NatpfTennisEngine {
       // il punto dopo (classico: cambia solo a fine game, come prima; fiera: A, B B, A A… come nel tie-break)
       fair = !!this.score.fair,
       gw = NF.gameWinner(a, s, { fair }),
-      // (B25: i punti di vantaggio a inizio game dell'aiuto al più giovane non sono punti giocati: natpfHead; con il
-      // campo aperto acceso nello stesso schermo il servizio passa ogni due punti anche nel formato classico, ND.altServe:
-      // lì chi batte è sfavorito e con un battitore per game deciderebbe il sorteggio. Chi vince il game: regola di sempre)
-      sv = NF.nextServe({ server: this.score.server, gameServer: this.score.gameServer ?? this.score.server, played: a + s - (this.natpfHead || 0), gameOver: !!gw, fair: ND.altServe(this, fair) });
+      // (B25: con il campo aperto acceso nello stesso schermo il servizio passa ogni due punti anche nel formato classico,
+      // ND.altServe: lì chi batte è sfavorito e con un battitore per game deciderebbe il sorteggio. Chi vince il game:
+      // regola di sempre. Nessun punto di vantaggio a inizio game, mai: decisione dell'utente del 12/11)
+      sv = NF.nextServe({ server: this.score.server, gameServer: this.score.gameServer ?? this.score.server, played: a + s, gameOver: !!gw, fair: ND.altServe(this, fair) });
     (this.score.server = sv.server), (this.score.gameServer = sv.gameServer);
     if (gw) {
       if (
@@ -3458,7 +3452,6 @@ export class NatpfTennisEngine {
           }, 1800);
         return;
       }
-      this._natpfHeadStart() && this._syncScoreboardHUD(); // B25: il game dopo parte con il vantaggio del più giovane
       // NATPF: di chi è il game, dal lato di chi guarda (natpf_point_call.js)
       const gg = { player: this.score.playerGames, opponent: this.score.opponentGames },
         gl = NPC.gameCall({ winner: gw, ...NPC.callContext(this), games: gg });

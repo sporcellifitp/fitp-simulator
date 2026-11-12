@@ -10,6 +10,8 @@
 //      (`SUPER_REL.ratio` volte), non una soglia uguale per tutti. Le altre condizioni del super restano quelle del 29/10.
 //   4. PREPARAZIONE: tra due persone non conta più (dava un vantaggio che nessuna scritta spiegava).
 //   5. FASCE «Bambino · Ragazzo · Adulto» per giocatore e AIUTO AL PIÙ GIOVANE quando le fasce sono diverse (`HELP`).
+//      Decisione dell'utente del 12/11: l'aiuto è solo di gioco (margine sul tempo, palla verso di lui più lenta, il suo
+//      colpo più in fondo). Nessun punto regalato, mai: ogni game parte da 0-0.
 // Dove si accendono: pannello dello stand (Ctrl+Maiusc+K, o 3 s sul marchio NATPF del menu) → «Lancio automatico» e
 // «Stesso schermo: campo aperto»; restano salvate (localStorage). Le fasce: pagina dei telefoni dello stesso schermo,
 // sulla scheda di ciascun giocatore. Tutto vale dalla partita dopo.
@@ -124,17 +126,25 @@ export const BANDS = Object.freeze(['bambino', 'ragazzo', 'adulto']);
 export const BAND_LABEL = Object.freeze({ bambino: 'Bambino', ragazzo: 'Ragazzo', adulto: 'Adulto' });
 export const BAND_DEFAULT = 'adulto';
 export const bandOf = v => (BANDS.includes(v) ? v : BAND_DEFAULT);
-// Aiuto per coppia di fasce (il più giovane : il più grande). Parametri, tutti e solo per il più giovane:
+// Aiuto per coppia di fasce (il più giovane : il più grande). Decisione dell'utente del 12/11: «non voglio che nessuno
+// abbia un vantaggio di punti, voglio solo che il vantaggio si traduca nel gameplay». Quindi NESSUN PUNTO REGALATO, mai
+// (il 15-0 e il 30-0 delle varianti B e C dell'11/11 sono tolti dal gioco: il motore non ha più modo di darli) e l'aiuto
+// è solo di gioco. Parametri, tutti e solo per il più giovane:
 //   span   × finestra del tempo: lo stesso errore di tempo (soprattutto in anticipo) sposta meno la palla verso le righe;
 //   late   s in più per colpire in ritardo: meno palle fuori per il ritardo e meno colpi a vuoto. Oltre 0,1 s non serve
 //          (misurato): la palla è ormai passata oltre il punto in cui si può ancora colpire (natpf_impact.IMPACT.lateBehind);
-//   head   punti di vantaggio a ogni game (1 = parte da 15-0, 2 = da 30-0), visibili sul tabellone;
+//   slow   × tempo di volo della palla che va verso di lui (colpi dello scambio e servizio dell'altro): arriva più lenta e
+//          un po' più alta, e lui ha più tempo. Non vale per pallonetto e palla corta, già lenti (`slowFor`). Sopra 1,2 la
+//          palla dell'altro diventa un pallonetto (misurato: a 1,25 otto palle su cento si prendono al volo da sopra la
+//          testa, a 1,3 una su cinque): il valore resta lontano da lì;
+//   deep   m più in fondo per il suo colpo riuscito (mai oltre `HELP_DEEP_MAX` dalla rete: resta in campo), `helpOutcome`:
+//          l'altro colpisce da più lontano e ha un po' meno margine;
 //   superRatio  colpo super da questo multiplo del proprio colpo abituale (più facile di SUPER_REL.ratio; non usato nelle
 //          varianti di oggi: il super relativo vale già per tutti).
 // Varianti misurate con il banco dei due umani (scripts/audit/b25/misure.mjs aiuto, tabella nel documento):
-//   A solo tolleranza sul tempo · B solo vantaggio di punti · C combinazione leggera · 0 nessun aiuto.
-// HELP_DEFAULT è la variante in gioco; le altre si scelgono cambiando questa costante (o engine.natpfHelpVariant nelle
-// prove e nelle misure). L'utente sceglie dalla tabella del documento.
+//   0 nessun aiuto · A solo margine sul tempo (per confronto) · G aiuto di gioco (in partita).
+// HELP_DEFAULT è la variante in gioco; engine.natpfHelpVariant la cambia solo nelle prove e nelle misure.
+export const HELP_DEEP_MAX = 11.3;   // m dalla rete: il colpo allungato dall'aiuto cade almeno 0,6 m dentro la riga di fondo
 export const HELP = Object.freeze({
   0: Object.freeze({}),
   A: Object.freeze({
@@ -142,29 +152,27 @@ export const HELP = Object.freeze({
     'ragazzo:adulto': Object.freeze({ span: 1.3, late: .03 }),
     'bambino:ragazzo': Object.freeze({ late: .03 }),
   }),
-  B: Object.freeze({
-    'bambino:adulto': Object.freeze({ head: 2 }),
-    'ragazzo:adulto': Object.freeze({ head: 1 }),
-    'bambino:ragazzo': Object.freeze({ head: 1 }),
-  }),
-  // C: per il bambino contro l'adulto 15-0 e un po' di margine sul tempo; tra fasce vicine basta il margine (già 0,03 s
-  // spostano molto: con 0,06 s il ragazzo batteva l'adulto medio 55 volte su 100).
+  // G: per il bambino contro l'adulto tre leve moderate insieme: margine sul tempo (quello della A), palla verso di lui
+  // il 10% più lenta, il suo colpo 1 m più in fondo. Banco, 1 game in fiera, tre serie da 900 partite: il bambino vince
+  // 38–42 partite su 100 contro l'adulto medio (senza aiuto 10–11, con la sola A 27–29), scambi lunghi come tra due adulti
+  // medi (11,6–12 colpi a punto). Tra fasce vicine basta il margine sul tempo (già 0,03 s spostano molto: con 0,06 s il
+  // ragazzo batteva l'adulto medio 55 volte su 100).
   // open: con il campo aperto acceso (opzione dello staff) gli scambi sono più corti e il bambino è già più vicino
-  // all'adulto (19 partite su 100 senza aiuto, invece di 11): con il 15-0 lo batterebbe (54 su 100, misurato), quindi lì
-  // la variante C dà solo il margine sul tempo, più largo (40 su 100)
-  C: Object.freeze({
-    'bambino:adulto': Object.freeze({ head: 1, span: 1.5, late: .06 }),
+  // all'adulto (19–23 partite su 100 senza aiuto): con le tre leve farebbe pari (49–50 su 100, misurato), quindi lì resta
+  // il solo margine sul tempo (40–41 su 100)
+  G: Object.freeze({
+    'bambino:adulto': Object.freeze({ span: 2, late: .1, slow: 1.1, deep: 1 }),
     'ragazzo:adulto': Object.freeze({ span: 1.3, late: .03 }),
     'bambino:ragazzo': Object.freeze({ late: .03 }),
     open: Object.freeze({ 'bambino:adulto': Object.freeze({ span: 2, late: .1 }) }),
   }),
 });
-export const HELP_DEFAULT = 'C';
+export const HELP_DEFAULT = 'G';
 // solo per le misure: coppia → parametri che sostituiscono quelli della variante. Vuoto nel gioco
 export const helpTuning = {};
 // aiuto per i due giocatori dalle loro fasce: { p1, p2 } con i parametri (e band, vs) per chi è aiutato, null per l'altro.
 // Fasce uguali (o sconosciute: Adulto): nessun aiuto. open: la partita è con il campo aperto acceso (la variante può
-// avere valori suoi per quel caso: HELP.C.open)
+// avere valori suoi per quel caso: HELP.G.open)
 export function helpFor(bands = {}, variant = HELP_DEFAULT, open = false){
   const b1 = bandOf(bands?.p1), b2 = bandOf(bands?.p2), i1 = BANDS.indexOf(b1), i2 = BANDS.indexOf(b2);
   const out = { p1: null, p2: null };
@@ -177,21 +185,30 @@ export function helpFor(bands = {}, variant = HELP_DEFAULT, open = false){
 }
 // scritta sobria sotto il nome di chi è aiutato («Aiuto: Bambino»), '' per l'altro
 export const helpLabel = h => (h ? `Aiuto: ${BAND_LABEL[h.band] || 'Sì'}` : '');
+// cosa cambia per chi è aiutato, a parole semplici e senza genere: ['ha più margine sul tempo', 'riceve palle più lente', …]
+export function helpParts(h){
+  if (!h) return [];
+  const parts = [];
+  if (finite(h.span, 1) > 1 || finite(h.late) > 0) parts.push('ha più margine sul tempo');
+  if (finite(h.slow, 1) > 1) parts.push('riceve palle più lente');
+  if (finite(h.deep) > 0) parts.push('tira più in fondo');
+  if (h.superRatio) parts.push('ha il colpo super più facile');
+  return parts;
+}
+// «a, b e c»
+const listText = a => (a.length > 1 ? `${a.slice(0, -1).join(', ')} e ${a[a.length - 1]}` : a[0] || '');
 // spiegazione in una riga per la pagina dei telefoni (cosa cambia per chi è aiutato)
 export function helpText(h){
   if (!h) return '';
-  const parts = [];
-  if (h.head) parts.push(`parte da ${h.head >= 2 ? '30' : '15'}-0`);
-  if (finite(h.span, 1) > 1 || h.late) parts.push('ha più margine sul tempo');
-  if (h.superRatio) parts.push('ha il colpo super più facile');
-  return parts.length ? `${helpLabel(h)} · ${parts.join(' e ')}` : helpLabel(h);
+  const what = listText(helpParts(h));
+  return what ? `${helpLabel(h)} · ${what}` : helpLabel(h);
 }
 
 /* ---------- regole della partita ---------- */
 // Regole per questa partita (game_engine.startNewMatch → engine.natpfDuo), o null se non è una partita tra due persone
 // nello stesso schermo. `forced`: valori a mano del motore (test e simulazioni), che comandano sulle scelte salvate:
 //   autoToss, openCourt (true/false), superRel, noPrep (false le spegne: solo per mostrare che il resto non cambia),
-//   helpVariant ('0' | 'A' | 'B' | 'C').
+//   helpVariant ('0' | 'A' | 'G').
 // Le due opzioni e l'aiuto valgono con i due telefoni; con la webcam per due (non sviluppata) restano spente.
 export function duoFor({ split = false, webcam = false, bands = null, forced = {}, storage = globalThis.localStorage } = {}){
   if (!split) return null;
@@ -220,20 +237,32 @@ export function openRun(engine){
   if (O.serveFull && finite(engine.ball?.rallyStrokeCount) <= 1) return null;
   return O;
 }
-// frase per la barra dell'avvio e il conto alla rovescia della pagina dei telefoni: «Aiuto a Giulia (Bambino): parte da
-// 15-0 e ha più margine sul tempo.» ('' senza aiuto)
+// frase per la barra dell'avvio e il conto alla rovescia della pagina dei telefoni: «Aiuto a Giulia (Bambino): ha più
+// margine sul tempo, riceve palle più lente e tira più in fondo.» ('' senza aiuto)
 export function helpSentence(h, name = ''){
   if (!h) return '';
-  const what = helpText(h).split(' · ')[1];
+  const what = listText(helpParts(h));
   return `Aiuto a ${name || 'chi è più giovane'} (${BAND_LABEL[h.band] || h.band})${what ? ': ' + what : ''}.`;
-}
-// punti di vantaggio a inizio game: { player, opponent } (0 e 0 senza aiuto)
-export function headStart(engine){
-  const D = duoOf(engine);
-  return { player: Math.max(0, Math.min(3, D?.help?.p1?.head | 0)), opponent: Math.max(0, Math.min(3, D?.help?.p2?.head | 0)) };
 }
 // livello (natpf_skill.skillLevel) con la finestra del tempo allargata per chi è aiutato; lo stesso oggetto per gli altri
 export function helpLevel(level, h){
   const k = finite(h?.span, 1);
   return h && k !== 1 ? { ...level, timingSpan: finite(level?.timingSpan, .17)*k } : level;
+}
+// fattore sul tempo di volo della palla colpita da `hitter` (personaggio del motore): più di 1 se va verso chi è aiutato
+// (`slow`); 1 esatto senza aiuto, contro la CPU e per pallonetto e palla corta (già lenti). shot: tipo dell'esito
+// ('LOB', 'DROP', …; niente per il servizio)
+export function slowFor(engine, hitter, shot = ''){
+  const D = duoOf(engine);
+  if (!D?.helped || shot === 'LOB' || shot === 'DROP') return 1;
+  const h = hitter && hitter === engine.opponent ? D.help.p1 : D.help.p2;
+  return Math.max(1, finite(h?.slow, 1));
+}
+// esito del colpo (natpf_stroke_outcome.strokeOutcome) di chi è aiutato: cade `deep` metri più in fondo, mai oltre
+// HELP_DEEP_MAX. Non tocca il colpo fallito, debole o in rete, il pallonetto, la palla corta e la palla già più lunga di
+// così (se andava fuori, va fuori lo stesso). Lo stesso oggetto senza aiuto
+export function helpOutcome(out, h){
+  const d = finite(h?.deep);
+  if (!(d > 0) || !out || out.failed || out.weak || out.netFault || out.shot === 'LOB' || out.shot === 'DROP' || !(out.depth < HELP_DEEP_MAX)) return out;
+  return { ...out, depth: +Math.min(HELP_DEEP_MAX, out.depth + d).toFixed(3) };
 }

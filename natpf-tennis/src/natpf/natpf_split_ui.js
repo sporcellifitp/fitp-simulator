@@ -252,8 +252,9 @@ export class NatpfSplitUi {
     const help = helpFor(this.engine.natpfSplitBands || {}, undefined, readOpenCourt());
     return help.p1 ? 'p1' : help.p2 ? 'p2' : null;
   }
-  // aiuto al più giovane con le fasce di adesso, come lo dice la barra dell'avvio: «Aiuto a Giulia (Bambino): parte da
-  // 15-0 e ha più margine sul tempo.» ('' con le fasce uguali o con la webcam per due, dove l'aiuto non vale)
+  // aiuto al più giovane con le fasce di adesso, come lo dice la barra dell'avvio: «Aiuto a Giulia (Bambino): ha più
+  // margine sul tempo, riceve palle più lente e tira più in fondo.» ('' con le fasce uguali o con la webcam
+  // per due, dove l'aiuto non vale). Solo di gioco: nessun punto regalato (decisione dell'utente del 12/11)
   helpNote(){
     // (con il campo aperto acceso l'aiuto può essere diverso: lo stesso che il motore userà nella partita)
     const id = this.helpedId();
