@@ -361,7 +361,7 @@ export class NatpfEvents {
     E.natpfTimeScale = 1; E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null;
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
     // la CPU scelta nel menu (anche Leggenda); il 1v1 qui non c'è, i minigiochi sono contro la CPU o il lanciapalle
-    E._applyDifficultyTuning(['pro', 'leggenda'].includes(E.hud.selectedDifficulty) ? E.hud.selectedDifficulty : 'casual');
+    E._applyDifficultyTuning(['pro', 'leggenda', 'bambini', 'evento'].includes(E.hud.selectedDifficulty) ? E.hud.selectedDifficulty : 'casual');
     if (Number.isFinite(E.hud.selectedGamesToWin)) E.matchConfig.gamesToWin = E.hud.selectedGamesToWin;
   }
   paint(){

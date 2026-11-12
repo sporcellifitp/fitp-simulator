@@ -318,7 +318,7 @@ export class NatpfTennisEngine {
       (this.cameraTrauma = 0);
     const e = this.isMultiplayer
       ? "1v1"
-      : ["casual", "pro", "leggenda", "1v1"].includes(this.urlMode)
+      : ["casual", "pro", "leggenda", "1v1", "bambini", "evento"].includes(this.urlMode) // NATPF B18.2 gruppo 3: livelli Bambini ed Evento
         ? this.urlMode
         : "casual";
     (this.matchConfig = { gamesToWin: e === "1v1" ? 1 : 2, inputMode: "mouse", difficulty: e }),
@@ -2716,6 +2716,7 @@ export class NatpfTennisEngine {
       (f = A.flight), (natpfSpin = A.topspin);
     }
 
+    f *= NS.cpuFlightFactor(this, y); // NATPF B18.2 gruppo 3: al livello Bambini la palla della CPU arriva più lenta (× 1 esatto negli altri)
     this._launchBallToTarget(d, new o.Vector3(g, 0, c), f, {
         topspin: natpfSpin,
         sidespin: 0,
@@ -3363,6 +3364,7 @@ export class NatpfTennisEngine {
     const wf = this.natpfLastWhiff; // B20: colpo a vuoto di questo punto (vale solo per questo punto)
     this.natpfLastWhiff = null;
     NL.legendPointEnd(this, e); // NATPF Leggenda: il modello dell'avversario impara da come finisce il punto
+    NS.eventoAfterPoint(this, e); // NATPF B18.2 gruppo 3: al livello Evento la CPU si regola di un gradino tra un punto e l'altro (natpf_evento.js)
     (this.phase = "POINT_OVER"),
       (this.phaseTimer = 0),
       (this.ball.inPlay = !1),

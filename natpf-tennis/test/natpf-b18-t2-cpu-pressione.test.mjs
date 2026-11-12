@@ -274,7 +274,8 @@ test('banco: valori di prova (--prova) letti tutti o errore; senza prova il gioc
     assert.equal(t.cpuSpeed, 4.9); assert.equal(t.cpuErr.run, .2);
     assert.equal(t.cpuErr.stretch, NS.SKILL_LEVELS.pro.cpuErr.stretch, 'il resto del gruppo resta quello del livello');
     assert.equal(NS.skillLevel('casual'), NS.SKILL_LEVELS.casual);
-    assert.throws(() => applyTrial({ evento: { cpuSpeed: 4 } }), /sconosciuto/);
+    // (B18.2 gruppo 3: «evento» adesso è un livello vero; il nome sconosciuto di questa prova è un altro)
+    assert.throws(() => applyTrial({ inesistente: { cpuSpeed: 4 } }), /sconosciuto/);
   } finally { applyTrial({}); }
   assert.equal(NS.skillLevel('pro'), NS.SKILL_LEVELS.pro);
   assert.deepEqual(gamesOf('PPPP CCCC PCPCPCPP'.replace(/ /g, '').split('').map(c => ({ who: c === 'P' ? 'player' : 'opponent' }))), { gw: 2, gl: 1 });

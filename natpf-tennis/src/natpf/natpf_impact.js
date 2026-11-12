@@ -337,7 +337,9 @@ export const earlyWindow = (engine, actor = null) => impactWindow(engine?.matchC
 export const P2_LATE_MARGIN = .03;
 const isP2 = (engine, actor) => !!actor && actor === engine.opponent;
 // B25: il più giovane aiutato nello stesso schermo ha «late» secondi in più (natpf_duo_rules.HELP)
-export const lateMargin = (engine, actor) => (isP2(engine, actor) && !engine.versus?.local ? P2_LATE_MARGIN : 0) + (helpOf(engine, actor)?.late || 0);
+// (B18.2 gruppo 3: al livello Bambini contro la CPU chi gioca ha lateMargin secondi in più, natpf_skill.SKILL_LEVELS.bambini)
+export const lateMargin = (engine, actor) => (isP2(engine, actor) && !engine.versus?.local ? P2_LATE_MARGIN : 0) + (helpOf(engine, actor)?.late || 0)
+  + (engine?.isMultiplayer || actor !== engine?.player ? 0 : finite(skillLevel(engine?.matchConfig?.difficulty).lateMargin));
 const pendKey = (engine, actor) => (isP2(engine, actor) ? 'pendingP2Swing' : 'pendingUserSwing');
 const strike = (engine, actor, evt) => (isP2(engine, actor) ? engine._attemptP2RallyStrike(evt) : engine._attemptPlayerRallyStrike(evt, !1));
 // palla corta o pallonetto confermati dalla forma del colpo (natpf_stroke_intent.js)
