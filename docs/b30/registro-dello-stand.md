@@ -224,3 +224,10 @@ scrivibile, costo misurato davvero).
 «Registro di gioco» ha ancora uno stile un po' diverso dagli altri del pannello; il tempo di calcolo del Worker su
 Cloudflare vero non è misurato (in node: 3–5 ms per un blocco tipico o pieno, sotto i 10 ms del piano gratuito); lo
 strumento di riassunto non usa ancora il campo «in».
+
+**Verifiche dopo le correzioni (12/11 notte):** `npm test` 1.336 test, 1.335 superati, 0 falliti, 1 saltato; `npm run
+build` riuscito; `npm run audit:legend` «Tutti i criteri rispettati»; test del sito 226/226; programma Windows 42/42;
+prove nel browser `natpf-registro` 39/39 (partita contro la CPU 2,6 kB di righe, 1,1–1,3 kB nello spazio; stesso
+schermo 2,7 kB, 0,75 kB; costo 0,0005 ms per fotogramma, una riga 0,005–0,006 ms), `natpf-menu` 45/45,
+`natpf-diag-session` lunga con i video 24/24 e corta 23/23 (la modalità diagnostica funziona come prima con il
+registro acceso).
