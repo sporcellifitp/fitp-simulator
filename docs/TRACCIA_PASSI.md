@@ -178,9 +178,12 @@ modello 3D con texture e scheletro avviato (job `9a8b3d4c-8f82-4171-8879-c22b112
 gamba avanti, busto ruotato). Immagine mostrata all'utente (`scratchpad/lobdrop3d/drop-3d-prova.jpg`). Proposto: fare anche
 Lob (35,25 crediti) e un blocco **B29** che carica i due GLB alleggeriti (obiettivo sotto 0,4 MB l'uno) e riporta le
 animazioni del gioco sulle 24 ossa, al posto delle mascotte costruite nel codice. **L'utente ha detto «Sì» (12/11, 13:00 UTC).**
-- [~] Lob: immagine pulita fatta (job `b63b21a6-dcc8-4bbf-bee2-c0729798a25b`, logo scritto giusto), modello 3D con scheletro
-      avviato (job `20e496ac-412f-4ee8-9f2d-0f286ff0bb34`, 35 crediti; crediti spesi in tutto 156,5). Da scaricare in
-      `scratchpad/lobdrop3d/glb/lob.glb` e guardare come Drop (`scratchpad/lobdrop3d/vista/` + `shot.cjs`).
+- [x] Lob fatto (12/11, 13:05 UTC): immagine pulita (job `b63b21a6-dcc8-4bbf-bee2-c0729798a25b`, logo scritto giusto) e
+      modello 3D con scheletro (job `20e496ac-412f-4ee8-9f2d-0f286ff0bb34`): 2.992.640 B, 8.210 triangoli, texture JPEG
+      2,26 MB, stesse 24 ossa di Drop; si riconosce (visiera blu con LOB, occhiali, punta in testa) e lo scheletro piega
+      pulito. Immagine mostrata all'utente. Crediti spesi in tutto: 156,5 (86 video + 70,5 mascotte). I due GLB stanno in
+      `scratchpad/lobdrop3d/glb/` (`drop.glb`, `lob.glb`); se lo scratchpad non c'è più si riscaricano dalla libreria
+      Higgsfield dell'utente con i job qui sopra (`jobs_wait` restituisce l'indirizzo).
 - [ ] **B29 · Lob & Drop dai modelli 3D** (dopo l'unione del B24, sullo stesso ramo di partenza): copiare i due GLB nel
       repository alleggeriti (texture 1024 px o meno, niente tangenti né clip, attributi compatti; obiettivo sotto 0,4 MB
       l'uno, margine dello zip Cloudflare 1,7 MB), correggere «Nittto» nella texture di Drop, caricarli con GLTFLoader al
