@@ -86,10 +86,13 @@ export const FREE_HAND_BLEND = Object.freeze([0.06, 0.3]);       // metri dal ri
 export const FREE_HAND_RATE = 12;          // 1/s: quanto in fretta la mano libera insegue il suo bersaglio
 export const FREE_HAND_TOP = 0.15, FREE_HAND_GAP = 0.075, FREE_HAND_MIN_REACH = 0.55;
 // Passo: i piedi del tennista si spostano di pochi centimetri; alle gambe corte e larghe delle mascotte serve di più
-export const FOOT_RATE = 18;               // 1/s: quanto in fretta il piede insegue il suo bersaglio
+// Il piede insegue il suo bersaglio a velocità limitata (unità del modello al secondo): il passo di corsa (al più
+// 2,6 al secondo) passa intero, un salto del bersaglio (cambio di passo, punto nuovo) si spalma su qualche fotogramma
+export const FOOT_SPEED = 3.2;
 export const LEG_TILT = 0.55;              // quanta dell'inclinazione verso il piede prende la gamba
 export const FOOT_EDGE = 0.07;             // di quanto si alza il piede per unità di inclinazione (unità del modello)
 export const FOOT_GAIN = 1.8, FOOT_LIFT_DEAD = 0.012;      // sotto 1,2 cm di alzata il piede resta a terra (il tennista fermo sposta il peso)
+export const FOOT_LIFT_GAIN = 2.4;         // l'alzata del piede si vede di più dell'avanti e indietro: gambe corte
 // Verso del gomito a riposo e in movimento (sistema del modello, lato sinistro: per il destro la x cambia segno):
 // fuori, giù e dietro, come il polo dei gomiti del tennista (natpf_character.ELBOW_POLE)
 const ELBOW_POLE = Object.freeze([0.25, -0.35, -0.9]), ELBOW_POLE2 = Object.freeze([0.85, -0.5, 0.1]);
@@ -259,11 +262,15 @@ function poseLeg(rig, side, foot, rest, k, dt){
   readPart(rig, foot, _F, null);
   // spostamento del piede dal suo riposo (nel sistema del modello la x del riposo segue il lato)
   const rx = rig.mirrored ? -rest[0] : rest[0];
-  _F.set(_F.x - rx, Math.max(0, _F.y - rest[1] - FOOT_LIFT_DEAD), _F.z - rest[2]).multiplyScalar(k*FOOT_GAIN).add(side.sole);
-  // il piede insegue il suo bersaglio con un filo di ritardo: quando il tennista cambia passo di colpo (cambio di
-  // direzione, punto nuovo) la gamba della mascotte non scatta. Senza tempo (scene ferme, prove) ci va subito.
-  if (side.footSet && dt > 0 && dt <= 0.25) side.foot.lerp(_F, 1 - Math.exp(-dt*FOOT_RATE));
-  else { side.foot.copy(_F); side.footSet = true; }
+  _F.set((_F.x - rx)*FOOT_GAIN, Math.max(0, _F.y - rest[1] - FOOT_LIFT_DEAD)*FOOT_LIFT_GAIN, (_F.z - rest[2])*FOOT_GAIN).multiplyScalar(k).add(side.sole);
+  // il piede insegue il suo bersaglio a velocità limitata: quando il tennista cambia passo di colpo (cambio di
+  // direzione, punto nuovo) la gamba della mascotte non scatta, e il passo normale non si accorcia. Senza tempo
+  // (scene ferme, prove) ci va subito.
+  if (side.footSet && dt > 0 && dt <= 0.25){
+    _d.subVectors(_F, side.foot);
+    const l = _d.length(), m = FOOT_SPEED*dt;
+    if (l > m) side.foot.addScaledVector(_d, m/l); else side.foot.copy(_F);
+  } else { side.foot.copy(_F); side.footSet = true; }
   // la coscia resta ferma con il bacino
   _pUp.copy(side.upleg.t).applyQuaternion(rig.hipsQ).add(rig.hipsP);
   _qUp.multiplyQuaternions(rig.hipsQ, side.upleg.q);
