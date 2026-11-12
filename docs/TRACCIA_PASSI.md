@@ -6,7 +6,7 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## ADESSO (aggiornato il 12/11/2026 alle 11:50 UTC)
+## ADESSO (aggiornato il 12/11/2026 alle 16:45 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
 - [x] Tappa 2 passo 1 (servizio, personaggi fermi) con revisore · su GitHub (`0bdb83f`)
@@ -230,6 +230,21 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
       di `game_engine.js`, `racchetta.js`, pannello dello stand), prove complete, versione, pacchetti
 - **Attenzione**: con il B28 chi aggiunge un controllo «siamo in partita?» deve escludere `ui.trial.active`; le prove
   `natpf-*` di prima girano con `CAL=gesti` (calibrazione con i gesti), il percorso nuovo lo provano i test nuovi.
+
+**RIPRESA delle 16:45 UTC del 12/11** (secondo limite d'uso della giornata, passato alle 16:40). Stato:
+- L'altro agente ha pubblicato **B27 (schermo del gioco all'avvio e telecomando dello staff) come versione 2026-11-12.3**
+  (`76c6ed3`): integrato qui con avanzamento lineare. **La prossima versione di questo agente è la 2026-11-12.4** (o la
+  successiva alla più alta che c'è sul remoto al momento dell'unione).
+- B24 Lob & Drop: revisore finito (1 bloccante: la racchetta entra nella testa delle mascotte; 6 minori). Tappa 2 gruppo
+  3: revisore finito (2 bloccanti: anello verde più lungo della finestra vera; scritta «Super mancato: eri in corsa» quasi
+  sempre falsa; 8 minori), correzioni già a metà (6 commit). I punti del revisore sono salvati in
+  `scratchpad/revisioni/b24.json` e `t2g3.json`.
+- [~] In corso: workflow `correzioni-b24-t2g3` (run `wf_f8ee6aab-728`): un agente di correzioni per filone nelle worktree
+      esistenti (`wf_0782518b-44b-1` ramo `b24-lob-drop`, `wf_0782518b-44b-2` ramo `b18-t2-4-evento-bambini`). Se si ferma:
+      rilanciare lo stesso script SENZA `resumeFromRunId` (gli agenti ritrovano commit e modifiche).
+- [ ] Poi: unire i due rami sopra B27 (conflitti attesi su `natpf_kiosk.js`, menu, Opzioni: rifare i test), scelta
+      «Personaggi: Classici · Lob & Drop» nelle impostazioni della partita (fatta direttamente), versione, controllo
+      rapido, `git fetch`, push, zip e installer, prove complete. Dopo: B29 (modelli 3D), `ripresa-b23-t2g2.js`.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
