@@ -126,8 +126,11 @@ anche installer e trailer).
 - **Tetto di un giorno** (`MAX_GIORNO_MB`, di base 200 MB, ottanta volte una giornata da 1.000 partite): un giorno pieno
   non accetta altre righe; restano in coda sul PC (pannello: «invio non riuscito»).
 - **Costi**: il piano gratuito di R2 comprende 10 GB, un milione di scritture e dieci milioni di letture al mese. Un
-  invio fa due scritture e due letture: una giornata da 1.000 partite fa poche migliaia di invii, cioè qualche decina
-  di migliaia di scritture al mese. Il piano gratuito dei Worker comprende 100.000 richieste al giorno.
+  invio fa due scritture e due letture, e una partita fa circa 3 invii (uno ogni 45 secondi di gioco e uno a fine
+  partita): 1.000 partite al giorno sono circa 6.000 scritture al giorno, circa 180.000 in un mese pieno; con 5.000
+  partite al giorno **tutti i giorni per un mese** si arriva vicino al milione gratuito (oltre, R2 costa pochi dollari
+  per milione di scritture: impostate l'avviso di spesa come nella guida del TURN, punto 17). Il piano gratuito dei
+  Worker comprende 100.000 richieste al giorno.
 
 ## Sicurezza in breve
 
