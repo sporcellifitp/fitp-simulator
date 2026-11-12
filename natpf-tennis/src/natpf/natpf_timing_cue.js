@@ -4,7 +4,13 @@
 // verde. Chi gioca colpisce quando l'anello si chiude.
 // Solo disegno: non legge i gesti e non cambia l'esito dei colpi, il voto, la fisica o i sorteggi (niente Math.random).
 // L'istante è lo stesso che usa il gioco per giudicare il colpo: il tempo che manca al punto d'impatto
-// (natpf_impact.timeToContact) e la finestra «Perfetto» del livello (natpf_skill.swingGrade: SWING_AIM.centre × timingSpan).
+// (natpf_impact.timeToContact). Il verde dura quanto la finestra del voto «Perfetto» del colpo vero (quello della scritta:
+// natpf_stroke_outcome.strokeOutcome → grade), che NON è simmetrica (cueEdges): prima del punto d'impatto
+// SWING_AIM.centre × finestra della direzione del livello (più larga sulle palle lente, slowFactor); dopo il punto
+// d'impatto SWING_AIM.centre × il ritardo che vale il lungolinea pieno (lateSpanOf: 1,4 m / velocità della palla, più il
+// margine del livello), molto più corto con le palle normali. Revisione del 12/11: prima il verde era simmetrico
+// (± 0,35 × timingSpan) e restava acceso 20–55 ms dopo la fine del «Perfetto»: un gesto su cinque fatto con l'anello
+// verde riceveva «Ritardo».
 // Quando è acceso (cueOn):
 //   • di base: acceso con «Bambino» e «Adulto» (livelli Bambini ed Evento), spento con gli altri livelli;
 //   • Opzioni → «Segnale del momento giusto: Di base · Sì · No»: «Sì» lo accende a tutti i livelli contro la CPU, «No»
@@ -13,14 +19,15 @@
 //     moviola.
 import * as THREE from 'three';
 import { SWING_AIM, skillLevel } from './natpf_skill.js';
-import { timeToContact } from './natpf_impact.js';
+import { timeToContact, lateMargin, openTight } from './natpf_impact.js';
+import { directionSpan, slowFactor, lateSpanOf } from './natpf_stroke_outcome.js';
 
 export const CUE_KEY = 'natpf-tennis.segnaleTempo';
 export const CUE = Object.freeze({
   lead: .9,       // s prima del punto d'impatto: l'anello compare (largo)
   wide: 3.2,      // m di diametro quando compare
   tight: .55,     // m di diametro quando è chiuso sulla palla (la palla è 0,2 m a schermo)
-  after: .12,     // s dopo la finestra «Perfetto» in cui resta in vista (rosso: tardi), poi sparisce
+  after: .12,     // s dopo la fine del verde in cui resta in vista (rosso: tardi), poi sparisce
 });
 export const CUE_COLORS = Object.freeze({ wait: '#ffe14a', now: '#39e58c', late: '#ff5d6c' });
 const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
@@ -46,14 +53,26 @@ export const cueToast = (pref, level) => (pref === 'on' ? 'Segnale del momento g
   : pref === 'off' ? 'Segnale del momento giusto spento a tutti i livelli'
   : `Segnale del momento giusto di base: acceso con «Bambino» e «Adulto», spento con gli altri livelli (adesso ${cueDefault(level) ? 'acceso' : 'spento'})`);
 
-// pura: come si disegna l'anello. ttc: secondi al punto d'impatto (negativo: passato); span: finestra della direzione
-// del livello (timingSpan). null: niente anello. { size 0…1 (1 largo, 0 chiuso), diameter (m), phase }
-export function cueView(ttc, span = SWING_AIM.timingSpan){
+// pura: i due bordi del verde, in secondi prima (early) e dopo (late) il punto d'impatto: la finestra del voto «Perfetto»
+// del colpo vero, con le stesse funzioni dell'esito (strokeOutcome: t = tempo/span in anticipo, tempo/late in ritardo,
+// «Perfetto» se |t| ≤ SWING_AIM.centre; natpf_impact.queueUserSwing: late = (lateSpanOf + lateMargin) × openTight).
+// level: parametri del livello; vz: velocità della palla lungo il campo; margin: natpf_impact.lateMargin (s in più in
+// ritardo: livello Bambini); tight: natpf_impact.openTight (1 contro la CPU)
+export function cueEdges({ level = null, vz = null, margin = 0, tight = 1 } = {}){
+  const span = directionSpan(level || {})*slowFactor(vz);
+  const late = Math.max(.04, Math.min(span, (lateSpanOf(vz, level || {}) + (Number.isFinite(margin) ? margin : 0))*(Number.isFinite(tight) ? tight : 1)));
+  return { early: SWING_AIM.centre*span, late: SWING_AIM.centre*late };
+}
+// pura: come si disegna l'anello. ttc: secondi al punto d'impatto (negativo: passato); win: i due bordi del verde
+// (cueEdges: { early, late }) o, per le prove, una sola finestra della direzione (verde simmetrico: centre × finestra).
+// null: niente anello. { size 0…1 (1 largo, 0 chiuso), diameter (m), phase }
+export function cueView(ttc, win = SWING_AIM.timingSpan){
   if (ttc == null || !Number.isFinite(ttc)) return null;
-  const perfect = SWING_AIM.centre*Math.max(.05, span);
-  if (ttc > CUE.lead || ttc < -(perfect + CUE.after)) return null;
+  const sym = typeof win === 'number' ? SWING_AIM.centre*Math.max(.05, win) : null;
+  const early = sym ?? Math.max(0, win?.early || 0), late = sym ?? Math.max(0, win?.late || 0);
+  if (ttc > CUE.lead || ttc < -(late + CUE.after)) return null;
   const size = clamp01(ttc/CUE.lead);
-  return { size, diameter: +(CUE.tight + (CUE.wide - CUE.tight)*size).toFixed(3), phase: ttc > perfect ? 'wait' : ttc >= -perfect ? 'now' : 'late' };
+  return { size, diameter: +(CUE.tight + (CUE.wide - CUE.tight)*size).toFixed(3), phase: ttc > early ? 'wait' : ttc >= -late ? 'now' : 'late' };
 }
 
 // pura: l'anello non si riallarga mai mentre la stessa palla arriva. Il tempo che manca all'impatto è una stima che il
@@ -102,7 +121,7 @@ export class NatpfTimingCue {
     const E = this.engine, b = E.ball;
     let v = null;
     if (this.enabled && E.phase === 'RALLY' && b?.inPlay && b.lastHitter !== 'player' && !E.autoPlayMode && !E.natpfReplay?.playing)
-      v = cueView(timeToContact(E, E.player), skillLevel(E.matchConfig?.difficulty).timingSpan);
+      v = cueView(timeToContact(E, E.player), cueEdges({ level: skillLevel(E.matchConfig?.difficulty), vz: b.vel.z, margin: lateMargin(E, E.player), tight: openTight(E, E.player) }));
     // una palla nuova (un altro colpo, o l'anello era sparito) riparte larga; la stessa palla non si riallarga (cueHold)
     const flight = v ? `${b.rallyStrokeCount}|${b.lastHitter}` : null;
     if (flight !== this._flight){ this._flight = flight; this._floor = Infinity; }

@@ -4,14 +4,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
-import { simulate } from '../scripts/audit/rally-balance.mjs';
+import { simulate, PROFILES } from '../scripts/audit/rally-balance.mjs';
 import { measure, SERIE } from '../scripts/audit/evento-bambini.mjs';
 import * as NS from '../src/natpf/natpf_skill.js';
 import { EVENTO, eventoStep, eventoPoint, eventoReset, eventoState, eventoK, eventoTuning, blend } from '../src/natpf/natpf_evento.js';
-import { ASSIST, assistOf, IMPACT, impactWindow, SUPER } from '../src/natpf/natpf_stroke_outcome.js';
+import { ASSIST, assistOf, IMPACT, impactWindow, SUPER, strokeOutcome, lateSpanOf, directionSpan, slowFactor } from '../src/natpf/natpf_stroke_outcome.js';
 import { lateMargin } from '../src/natpf/natpf_impact.js';
 import { WHO, WHO_LEVEL, WHO_DEFAULT, CPU_LEVELS, whoOfLevel, urlLevel, baseLevel, levelSummary, whoNote } from '../src/natpf/natpf_who.js';
-import { CUE, cueOn, cueDefault, cueView, cueHold, readCue, writeCue, CUE_KEY } from '../src/natpf/natpf_timing_cue.js';
+import { CUE, cueOn, cueDefault, cueView, cueEdges, cueHold, readCue, writeCue, CUE_KEY, NatpfTimingCue } from '../src/natpf/natpf_timing_cue.js';
 import { superHint, superReason, SUPER_RULE } from '../src/natpf/natpf_super_hint.js';
 import { matchSummary } from '../src/natpf/natpf_lobby.js';
 
@@ -243,7 +243,7 @@ test('segnale: di base acceso a Bambini ed Evento, spento agli altri; «Sì» e 
   assert.equal(readCue({ storage: { getItem(){ throw new Error('no'); } } }), 'auto');
 });
 
-test('segnale: l\'anello si stringe mentre la palla arriva, è verde nella finestra «Perfetto», poi rosso e sparisce', () => {
+test('segnale: l\'anello si stringe mentre la palla arriva, è verde tra i due bordi, poi rosso e sparisce', () => {
   const span = NS.SKILL_LEVELS.casual.timingSpan, perfect = NS.SWING_AIM.centre*span;
   assert.equal(cueView(null), null); assert.equal(cueView(CUE.lead + .01, span), null, 'palla ancora lontana');
   const far = cueView(CUE.lead, span), mid = cueView(CUE.lead/2, span), now = cueView(0, span);
@@ -252,12 +252,62 @@ test('segnale: l\'anello si stringe mentre la palla arriva, è verde nella fines
   assert.equal(now.phase, 'now'); assert.equal(cueView(perfect*.9, span).phase, 'now'); assert.equal(cueView(-perfect*.9, span).phase, 'now');
   assert.equal(cueView(perfect*1.2, span).phase, 'wait'); assert.equal(cueView(-perfect*1.2, span).phase, 'late');
   assert.equal(cueView(-(perfect + CUE.after + .01), span), null, 'palla passata');
-  // la finestra verde è quella del voto «Perfetto» del livello (swingGrade)
-  for (const lv of ['casual', 'bambini', 'pro']){
-    const L = NS.SKILL_LEVELS[lv], p = NS.SWING_AIM.centre*L.timingSpan;
-    for (const t of [-p*1.3, -p*.8, 0, p*.8, p*1.3]) assert.equal(cueView(t, L.timingSpan).phase === 'now', NS.swingGrade(t, L).grade === 'PERFECT', `${lv} ${t}`);
+  // con i due bordi (cueEdges): verde da «early» prima a «late» dopo il punto d'impatto, rosso per CUE.after, poi niente
+  const W = { early: .07, late: .03 };
+  assert.equal(cueView(.071, W).phase, 'wait'); assert.equal(cueView(.069, W).phase, 'now'); assert.equal(cueView(-.029, W).phase, 'now');
+  assert.equal(cueView(-.031, W).phase, 'late'); assert.equal(cueView(-(.03 + CUE.after + .01), W), null);
+  assert.equal(cueView(.01, {}).phase, 'wait', 'bordi mancanti: mai verde per sbaglio'); assert.equal(cueView(0, {}).phase, 'now');
+});
+
+// Revisione (bloccante 1): prima il verde era simmetrico (± 0,35 × timingSpan) e durava 20–55 ms più del «Perfetto» vero
+// dopo il punto d'impatto: un gesto su cinque fatto con l'anello verde riceveva «Ritardo»
+test('segnale: i bordi del verde sono quelli del voto «Perfetto» del colpo vero (strokeOutcome), diversi prima e dopo l\'impatto', () => {
+  for (const name of ['bambini', 'casual', 'evento', 'pro', 'leggenda']){
+    const L = NS.skillLevel(name), margin = L.lateMargin || 0;
+    for (const vz of [9, 14, 18, 24, 32]){
+      const E = cueEdges({ level: L, vz, margin }), span = directionSpan(L)*slowFactor(vz), lateSpan = lateSpanOf(vz, L) + margin;
+      assert.ok(near(E.early, NS.SWING_AIM.centre*span), `${name} ${vz}: bordo in anticipo`);
+      assert.ok(near(E.late, NS.SWING_AIM.centre*Math.max(.04, Math.min(span, lateSpan))), `${name} ${vz}: bordo in ritardo`);
+      assert.ok(E.late <= E.early + 1e-12, `${name} ${vz}: dopo l'impatto il verde non dura più che prima`);
+      // lo stesso tempo: anello verde ⇔ voto «Perfetto» dell'esito
+      for (const f of [-1.6, -1.05, -.95, -.5, 0, .5, .95, 1.05, 1.6]){
+        const timing = f >= 0 ? f*E.early : f*E.late, grade = strokeOutcome({ intent: { shot: 'topspin', power: .5 }, timing, lateSpan, ballVz: vz, level: L }).grade;
+        assert.equal(cueView(timing, E).phase === 'now', grade === 'PERFECT', `${name} ${vz} m/s, tempo ${timing.toFixed(3)} s: ${grade}`);
+      }
+    }
   }
-  assert.ok(NS.SKILL_LEVELS.bambini.timingSpan > span, 'a Bambini la finestra verde è più larga');
+  // palla normale (18 m/s) a Casual: il verde dopo l'impatto è meno della metà di quello prima (1,4 m / 18 m/s = 78 ms pieni)
+  const C = cueEdges({ level: NS.skillLevel('casual'), vz: 18 });
+  assert.ok(C.late < .5*C.early && near(C.late, NS.SWING_AIM.centre*1.4/18), `${C.early} ${C.late}`);
+  // a Bambini il margine in ritardo allarga il verde dopo l'impatto; il campo aperto (tight) lo stringe
+  const B = NS.skillLevel('bambini');
+  assert.ok(cueEdges({ level: B, vz: 18, margin: B.lateMargin }).late > cueEdges({ level: B, vz: 18 }).late);
+  assert.ok(cueEdges({ level: B, vz: 18, tight: .7 }).late < cueEdges({ level: B, vz: 18 }).late);
+  // senza dati non rompe
+  const D = cueEdges(); assert.ok(D.early > 0 && D.late > 0 && D.late <= D.early);
+});
+
+test('segnale nel motore vero: ogni gesto fatto con l\'anello verde riceve «Perfetto»; quasi ogni «Perfetto» era con il verde', () => {
+  // giocatore con il telefono e 0,1 s di errore di tempo: gesti prima, dentro e dopo la finestra
+  const P = { ...PROFILES.amatore, timingSd: .1 };
+  for (const difficulty of ['bambini', 'evento', 'casual']){
+    const T = { green: 0, greenPerfect: 0, greenAfter: 0, perfect: 0, perfectNotGreen: 0 };
+    let phase = null, seen = null;
+    simulate({ profile: P, difficulty, points: 70, seed: 3301,
+      setup: e => { e.cue = new NatpfTimingCue(e); e.cue.pref = 'on'; const h = e._handleUserSwingInput.bind(e);
+        e._handleUserSwingInput = ev => { if (e.phase === 'RALLY'){ e.cue.update(); phase = e.cue.view?.phase ?? 'none'; } return h(ev); }; },
+      onStep: e => { e.cue.update(1/120); const r = e.natpfLastRacket;
+        if (!r || r === seen || r.who !== 'player') return;
+        seen = r; if (!phase) return;
+        const g = r.out.grade;   // il voto della scritta (racketShot.u)
+        if (g === 'PERFECT'){ T.perfect++; if (phase !== 'now') T.perfectNotGreen++; }
+        if (phase === 'now'){ T.green++; if (g === 'PERFECT') T.greenPerfect++; if (r.timing < 0) T.greenAfter++; }
+        phase = null; } });
+    assert.ok(T.green >= 60 && T.greenAfter >= 15, `${difficulty}: gesti con il verde ${T.green}, di cui dopo l'impatto ${T.greenAfter}`);
+    assert.equal(T.greenPerfect, T.green, `${difficulty}: ${T.green - T.greenPerfect} gesti con l'anello verde senza «Perfetto»`);
+    // il contrario può mancare di poco: la palla rallenta al rimbalzo e la finestra vera in anticipo si allarga dopo il gesto
+    assert.ok(T.perfectNotGreen <= .06*T.perfect, `${difficulty}: «Perfetto» senza verde ${T.perfectNotGreen} su ${T.perfect}`);
+  }
 });
 
 test('segnale: l\'anello non si riallarga mentre la stessa palla arriva; una palla nuova riparte larga', () => {
@@ -277,7 +327,6 @@ test('segnale: l\'anello non si riallarga mentre la stessa palla arriva; una pal
 });
 
 test('segnale: è solo disegno, la partita simulata è la stessa con il segnale acceso o spento (stessi semi)', async () => {
-  const { NatpfTimingCue } = await import('../src/natpf/natpf_timing_cue.js');
   let seen = 0, grown = 0, last = null, key = null;
   const run = on => simulate({ profile: 'amatore', difficulty: 'bambini', points: 25, seed: 11, setup: e => { e.natpfCueTest = new NatpfTimingCue(e); e.natpfCueTest.pref = on ? 'on' : 'off'; },
     onStep: e => { e.natpfCueTest.update(1/120); const v = e.natpfCueTest.view, k = `${e.ball.rallyStrokeCount}|${e.ball.lastHitter}`;
