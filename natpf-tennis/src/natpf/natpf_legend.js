@@ -74,14 +74,27 @@ export const LEGEND = Object.freeze({
   // delle volte e contro «preciso» un terzo degli errori della CPU veniva dagli scambi oltre i 20 colpi
   closeFrom: 20, closeGain: .2, closeFloor: 0, closeAggr: .15, closeWiden: .25, closePower: [.72, .85], closeX: [3.2, 3.75],
   closeHard: 24, closeG: 1.6,
+  // … con questi colpi (B18.2 passo 3: anche l'incrociato stretto; con i soli tre colpi profondi, negli scambi più lunghi
+  // di adesso la CPU ripeteva la stessa zona nel 20,6–21,1% dei colpi, criterio ≤ 20%; con l'angolo stretto 15,5%)
+  closeKinds: Object.freeze(['chiusura', 'lungolinea', 'incrociato', 'incrociatoStretto']),
+  // B18.2 passo 3 (D2): scambi lunghissimi. Senza la regola nascosta di chi gioca, contro chi non sbaglia mai lo scambio
+  // non finiva (contro «preciso» il 4% dei punti arrivava a 60 colpi). Oltre lastFrom colpi la CPU rischia sempre di più
+  // per chiudere: in lastSpan colpi i suoi colpi da fondo arrivano a +lastAggr di forza e +lastWiden m verso le righe
+  // (in più di closeAggr e closeWiden). Il punto finisce con un suo vincente o con un suo errore, non per una regola
+  lastFrom: 36, lastSpan: 10, lastAggr: .35, lastWiden: .4,
   // B16: la pressione degli scambi lunghi sulla CPU parte dal 20° colpo (prima dal 10°, come chi gioca a Leggenda): la
   // Leggenda regge il ritmo più a lungo. Pesa solo negli scambi lunghi, quindi contro chi gioca bene
-  pressureFrom: 20,
+  // B18.2 passo 3 (D2): tolta la regola nascosta di chi gioca (natpf_stroke_outcome.ASSIST.leggenda), la forza viene dalla
+  // CPU: regge il ritmo ancora più a lungo (dal 26° colpo; prima dal 20°)
+  pressureFrom: 26,
   // B16: controllo dei colpi forti. Nell'esecuzione la parte dell'errore che cresce con la forza (playerErrorChance,
   // k.power) vale powerErr volte quella di Esperto; la scelta del colpo stima il rischio con le regole di Esperto, cioè
   // gioca con margine. Con il rischio vero nella scelta, contro chi sbaglia molto la CPU giocava quasi solo colpi forti e
   // profondi (entropia delle zone 2,05–2,24 bit, criterio ≥ 2,3)
-  powerErr: .65,
+  // B18.2 passo 3 (D2): .65 → .4. Senza la regola nascosta di chi gioca gli scambi durano di più e la CPU perdeva i punti
+  // con i suoi colpi forti fuori (contro «medio» chi gioca passava dal 20,1 al 24,7% dei punti, contro «amatore» dal 13,8
+  // al 20,5%): ora li controlla meglio (medio 21–22%, amatore 15–16%: docs/b18/t2-3-leggenda-e-palla-corta.md)
+  powerErr: .4,
   // B16: preferenza per l'angolo stretto incrociato (utilità + angle). Non è piccola: con tau 0,014 raddoppia il peso di
   // quel colpo (dal 7–10 al 15–17 % dei colpi contro «medio» e «amatore»). Non serve ai criteri (con angle 0 passano tutti:
   // incrociati al 31,8 % contro «medio», limite ≥ 30): dà margine a quel criterio e apre il campo come un giocatore forte
@@ -218,12 +231,17 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   // per chiudere (vincente o errore, niente «muro»); chi sbaglia spesso prima o poi sbaglia da solo
   const rally = finite(b.rallyStrokeCount), closing = rally >= L.closeFrom;
   if (closing) cands.push({ kind: 'chiusura', x: away*R(L.closeX[0], L.closeX[1]), z: R(9.8, 11.1), shot: 'FLAT', power: R(L.closePower[0], L.closePower[1]) });
-  if (L.closeHard && rally >= L.closeHard && g <= L.closeG){ const hard = cands.filter(c => ['chiusura', 'lungolinea', 'incrociato'].includes(c.kind)); if (hard.length) cands.splice(0, cands.length, ...hard); }
+  if (L.closeHard && rally >= L.closeHard && g <= L.closeG){ const hard = cands.filter(c => L.closeKinds.includes(c.kind)); if (hard.length) cands.splice(0, cands.length, ...hard); }
   const decay = Math.max(L.closeFloor, 1 - L.closeGain*Math.max(0, rally - L.closeFrom));
   const V = .5*decay*(L.vLearn ? clamp(g**L.vLearn, L.vMin, L.vMax) : 1);
   const aggr = clamp(1 - decay);
   if (aggr > 0) for (const c of cands) if (['TOPSPIN', 'FLAT'].includes(c.shot) && c.kind !== 'corpo' && c.kind !== 'contropiede'){
     c.power = Math.min(1, c.power + aggr*L.closeAggr); c.x = Math.sign(c.x)*Math.min(3.9, Math.abs(c.x) + aggr*L.closeWiden);
+  }
+  // scambi lunghissimi (B18.2 passo 3): rischio che cresce ancora, fino alle righe
+  const last = finite(L.lastFrom) > 0 ? clamp((rally - L.lastFrom)/Math.max(1, finite(L.lastSpan, 10))) : 0;
+  if (last > 0) for (const c of cands) if (['TOPSPIN', 'FLAT'].includes(c.shot) && c.kind !== 'corpo' && c.kind !== 'contropiede'){
+    c.power = Math.min(1, c.power + last*L.lastAggr); c.x = Math.sign(c.x)*Math.min(4, Math.abs(c.x) + last*L.lastWiden);
   }
   const recent = m.last.slice(-2).map(l => l.zone), last3 = m.last.slice(-3), last10 = m.last.slice(-10);
   let best = null;
@@ -296,7 +314,7 @@ export function legendRecover(e, actor, g, c){
   if (actor !== e.opponent || !isLegend(e)) return;
   const L = cfg(e), bx = e.ball.pos.x, landX = bx + (finite(g) - bx)*L.kLat;
   // da dove colpirà l'avversario: poco oltre il rimbalzo
-  const hx = clamp(landX*1.05, -5, 5), hz = Math.min(13.4, Math.abs(finite(c, 10)) + 2.1), zR = L.recoverZ;
+  const hx = clamp(landX*1.05, -5, 5), hz = Math.min(13.4, Math.abs(finite(c, 10)) + 2.1), zR = L.recoverZ + NS.dropForward(e);   // (B18.2 passo 3: più avanti se chi gioca fa spesso la palla corta)
   const u = tx => { const dx = tx - hx, dz = -C.BASELINE_Z - hz, n = Math.hypot(dx, dz); return [dx/n, dz/n]; };
   const [ax, az] = u(-C.SINGLES_X), [bx2, bz2] = u(C.SINGLES_X), dx = ax + bx2, dz = az + bz2;
   actor.targetPos.set(clamp(hx + dx/dz*(zR - hz), -2.2, 2.2), 0, zR);
