@@ -1480,3 +1480,25 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
   Non rifatte per questa versione: `audit:legend` e le altre prove nel browser (il B27 non tocca motore, CPU, colpi né
   la pagina della racchetta oltre alla batteria nello stato e al rifiuto di `role:'remote'`).
   **Non verificato**: telefoni veri, Windows vero, ledwall vero, due monitor veri, «Aggiungi a schermata Home».
+
+## B24 + B18.2 gruppo 3 · Lob & Drop, livelli Evento e Bambini (12/11) · [x] versione 2026-11-12.4
+- Due workflow (agente → revisore indipendente → correzioni), fermati due volte dal limite d'uso e ripresi nelle stesse
+  worktree. Rami `b24-lob-drop` (`5452261`…`eed8772`) e `b18-t2-4-evento-bambini` (…`a9ba5ed`), uniti sopra il B27
+  dell'altro agente (2026-11-12.3). Documenti: `docs/b24/lob-e-drop.md`, `docs/b18/t2-4-evento-bambini.md`.
+- B24: mascotte costruite nel codice (`natpf_lob_drop.js`) sullo scheletro di sempre, opzione «Personaggi in campo:
+  Classici · Lob & Drop» (`natpf-tennis.personaggi`, `?personaggi=`), solo disegno (impronte delle partite identiche a
+  `9b8f9cb`). Revisore: la racchetta entrava nella testa grande (Drop 11–20% dei passi) → `natpf_racket_clear.js`
+  (`keepRacketClear`): 1–5%, meno del tennista classico; nei colpi veloci la attraversa ancora per pochi fotogrammi.
+- Gruppo 3: livelli Bambini ed Evento (adattivo), «Chi gioca: Bambino · Ragazzo · Adulto» al posto del livello
+  (`natpf_who.js`), Esperta e Leggenda in «Altre impostazioni», segnale del momento giusto (`natpf_timing_cue.js`),
+  colpo super spiegato (`natpf_super_hint.js`). Revisore: anello verde più lungo della finestra vera (995 «Ritardo» su
+  4526 gesti con l'anello verde) → ora 2708 su 2708 «Perfetto»; scritta «eri in corsa» quasi sempre falsa → ora la causa
+  vera (0 su 1540). Livelli di prima identici a `9b8f9cb` (72 impronte su 72).
+- Richiesta dell'utente del 12/11: scelta dei personaggi dove si imposta la partita → riga «Personaggi» nella pagina
+  «Pronto per la partita» (`index.html`, `natpf_lobby.js`, test in `natpf-personaggi-opzione.test.mjs`).
+- Verifiche sul codice unito: gioco 1235/1235, sito 223/223, programma Windows 33/33, build ok; nel browser chi-gioca
+  55/55, lob-drop 80/80. Zip 23.343.105 B, sha256 `97d01104b52300ccf771ad3d0581cebe2e9787a017c9b00ffd262f248d2f4769`.
+  Installer 127.655.077 B, sha256 `0dfce566752624e604dc5cd74f8ecf74c6a9f7441640521342d8bc5d75148f50`.
+- **Non verificato**: persone e bambini veri, telefoni veri, Windows vero, ledwall, scheda grafica vera. Prove complete
+  nel browser avviate dopo la consegna (esito in `docs/TRACCIA_PASSI.md`).
+

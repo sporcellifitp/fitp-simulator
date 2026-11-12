@@ -6,7 +6,7 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## ADESSO (aggiornato il 12/11/2026 alle 16:45 UTC)
+## ADESSO (aggiornato il 12/11/2026 alle 18:05 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
 - [x] Tappa 2 passo 1 (servizio, personaggi fermi) con revisore · su GitHub (`0bdb83f`)
@@ -111,9 +111,9 @@ tengono il lavoro: in quel caso continuare a mano o con un agente singolo sulla 
 fogli del dritto, unire i due rami, versione 2026-11-12.3, controllo rapido, push, zip e installer SUBITO, prove complete dopo.
 **In corso dalle 09:20 UTC del 12/11 (richiesta dell'utente: «mi servono entro oggi»): workflow
 `b24-lob-drop-e-tappa2-gruppo3`** (run `wf_0782518b-44b`, base `9b8f9cb`), due filoni in parallelo con revisore e correzioni:
-- [~] **B24 Lob & Drop** come personaggi in campo: voce nelle Opzioni «Personaggi in campo: Di sempre · Lob & Drop»
+- [x] **B24 Lob & Drop** (2026-11-12.4, costruiti nel codice; i modelli 3D sono il B29) come personaggi in campo: voce nelle Opzioni «Personaggi in campo: Di sempre · Lob & Drop»
       (di base «Di sempre»), `?personaggi=lobdrop|sempre`; documento `docs/b24/lob-e-drop.md`.
-- [~] **Tappa 2 gruppo 3**: livelli Evento (adattivo) e Bambini, «Chi gioca: Bambino · Ragazzo · Adulto» al posto del
+- [x] **Tappa 2 gruppo 3** (2026-11-12.4): livelli Evento (adattivo) e Bambini, «Chi gioca: Bambino · Ragazzo · Adulto» al posto del
       livello (Pro e Leggenda in «Altre impostazioni»), segnale del momento giusto, colpo super spiegato; documento
       `docs/b18/t2-4-evento-bambini.md`.
 Ripresa: `Workflow({scriptPath: '/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/b24-lob-drop-e-tappa2-gruppo3-wf_0782518b-44b.js', resumeFromRunId: 'wf_0782518b-44b'})`
@@ -248,22 +248,24 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
   3: revisore finito (2 bloccanti: anello verde più lungo della finestra vera; scritta «Super mancato: eri in corsa» quasi
   sempre falsa; 8 minori), correzioni già a metà (6 commit). I punti del revisore sono salvati in
   `scratchpad/revisioni/b24.json` e `t2g3.json`.
-- [~] In corso: workflow `correzioni-b24-t2g3` (run `wf_f8ee6aab-728`): un agente di correzioni per filone nelle worktree
-      esistenti (`wf_0782518b-44b-1` ramo `b24-lob-drop`, `wf_0782518b-44b-2` ramo `b18-t2-4-evento-bambini`). Se si ferma:
-      rilanciare lo stesso script SENZA `resumeFromRunId` (gli agenti ritrovano commit e modifiche).
-- [ ] Poi: unire i due rami sopra B27 (conflitti attesi su `natpf_kiosk.js`, menu, Opzioni: rifare i test), scelta
-      «Personaggi: Classici · Lob & Drop» nelle impostazioni della partita (fatta direttamente), versione, controllo
-      rapido, `git fetch`, push, zip e installer, prove complete. Dopo: B29 (modelli 3D), `ripresa-b23-t2g2.js`.
-
-**DIFETTO DI GAMEPLAY TROVATO DAL REVISORE DEL B28, ESISTEVA GIÀ, NON CORRETTO (per l'agente del gameplay).**
-`natpf-tennis/src/swing_vfx.js:916` dà a `timingClass` il valore di base `"PERFECT"` e nessuno glielo passa: ogni
-contatto con la racchetta fa partire il fermo di 34–48 ms del «colpo perfetto». Durante il fermo la fisica è ferma
-(`game_engine.js:2841`) ma `elapsedTime` e `plan.at` continuano, quindi il piano d'intercetto non combacia più con la
-palla (`livePlan` falso per tutto il volo, per P1 e P2): `timeToContact`, `ballIsHigh`, la penalità dell'allungo e il
-«lascia andare» usano il ripiego. Nei test senza grafica `swingVfx` è `null`, per questo non si vede. Verificato
-emulando il fermo nel motore senza grafica (con il fermo `livePlan` sempre falso, senza mai); **non verificato nel
-browser**. `natpf_impact.js` e `swing_vfx.js` sono uguali a `8b85a3c`: non dipende da B27 né da B28. Da decidere: passare
-la classe vera del tempo, o far avanzare `plan.at` con il tempo di gioco.
+- [x] Correzioni finite (workflow `correzioni-b24-t2g3`): B24 fino a `eed8772` (modulo `natpf_racket_clear.js`: la racchetta
+      si scosta dalla testa grande; etichetta «Classici»; linguette del tabellone blu/gialle), gruppo 3 fino a `a9ba5ed`
+      (anello verde uguale alla finestra vera del «Perfetto»; scritta del super con la causa vera).
+- [x] Uniti sopra il B27 (`f8d4bf6`, `662b0a7`; un conflitto sugli import di `natpf_lobby.js`, risolto tenendo tutti e due)
+      e integrato un altro commit dell'altro agente (`73cc7d4`).
+- [x] Scelta **«Personaggi: Classici · Lob & Drop»** nella pagina «Pronto per la partita» (riga sotto «Chi gioca»,
+      `data-match-cast`, stessa `setCast` delle Opzioni: una scelta sola, salvata). Guardata a 1280×720 e 1920×540.
+- [x] **Versione 2026-11-12.4**: controllo rapido gioco 1235/1235, sito 223/223, Windows 33/33, build ok; nel browser
+      chi-gioca 55/55, lob-drop 80/80 → push.
+- [x] Zip Cloudflare consegnato: 23.343.105 B (margine 1.656.895 B), sha256
+      `97d01104b52300ccf771ad3d0581cebe2e9787a017c9b00ffd262f248d2f4769`, provato estratto.
+- [x] **Installer 2026-11-12.4 pubblicato su R2** e verificato dal link fisso: 127.655.077 B, sha256
+      `0dfce566752624e604dc5cd74f8ecf74c6a9f7441640521342d8bc5d75148f50`. Detto all'utente come si attiva tutto.
+- [~] Prove complete sul codice unito: `scratchpad/v1112d/prove.sh` → `prove.txt` (finisce con `== FINE`).
+- [ ] Poi, nell'ordine: **B29** (Lob & Drop dai modelli 3D; riusare `keepRacketClear` e `mascotHeadShape`), poi
+      `ripresa-b23-t2g2.js` (dritto dal video + tappa 2 gruppo 2; all'unione attenzione a `game_engine.js`
+      `_natpfRacketShot`, toccato dal gruppo 3). Aperti del gruppo 3 da chiedere all'utente dopo le prime partite vere:
+      valore di partenza del livello Evento (0,8); a Evento cambiano anche le regole di chi gioca, non solo la CPU.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
@@ -277,9 +279,9 @@ la classe vera del tempo, o far avanzare `plan.at` con il tempo di gioco.
       **+ aiuto al più giovane** (richiesta dell'11/11 sera): nello stesso schermo ogni giocatore sceglie Bambino · Ragazzo ·
       Adulto e il più giovane è facilitato; preparare 2–3 varianti, misurarle e far scegliere all'utente con i numeri
 - [~] **B23 Prova delle movenze dal video sul solo dritto** (se all'utente non piace si toglie)
-- [~] **B24 Lob & Drop** come personaggi (foto `docs/riferimenti/lob-drop-2026-11-11.webp`)
+- [x] **B24 Lob & Drop** (2026-11-12.4, costruiti nel codice; i modelli 3D sono il B29) come personaggi (foto `docs/riferimenti/lob-drop-2026-11-11.webp`)
 - [~] **Tappa 2 gruppo 2**: Leggenda stessa regola (D2), palla corta che può sbagliare (D8)
-- [~] **Tappa 2 gruppo 3**: livelli Evento e Bambini (D3) con la scelta **«Chi gioca: Bambino · Ragazzo · Adulto»** al posto
+- [x] **Tappa 2 gruppo 3** (2026-11-12.4): livelli Evento e Bambini (D3) con la scelta **«Chi gioca: Bambino · Ragazzo · Adulto»** al posto
       del livello (Pro e Leggenda in «Altre impostazioni»); segnale del momento giusto; super spiegato
 - [ ] Dall'utente: prova di due minuti con un telefono vero agitato senza guardare (poi si decide la regola)
 
