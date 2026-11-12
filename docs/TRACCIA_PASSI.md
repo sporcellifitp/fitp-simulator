@@ -346,7 +346,18 @@ consegna dopo ogni blocco come sempre, con «come si attiva»):
 7. **B32 · Tappa 3.2**: movimento con accelerazione e colpi in corsa (miglioramento 7)
 8. **B33 · Tappa 3.3**: fine partita con dati veri e classifica delle partite (miglioramento 5)
 Restano fuori per ora (non chiesti): tappa 3 punti 4 (doppio 2v2) e 5 (ledwall, servizio con scelte, Leggenda campione).
-Ogni blocco: agente in worktree → revisore indipendente → correzioni; impronte dei livelli e dello stesso schermo
+**PROCESSO NUOVO (decisione dell'utente del 12/11, 23:20 UTC: «Il revisore indipendente magari serve alla fine,
+ottimizza i processi»)**, dal punto 4 in poi:
+- un solo agente per blocco, senza revisore per blocco; l'agente fa le sue verifiche (test, impronte, prove nel browser
+  del blocco, schermate guardate) e scrive nel documento cosa non è provato;
+- al più due agenti insieme (la macchina ha 4 processori: con tre o quattro le prove nel browser falliscono per il carico
+  e vanno rifatte, lavoro sprecato);
+- consegna dopo ogni blocco come sempre (controllo rapido, push, zip, installer, «come si attiva»), prove complete solo
+  sulla consegna finale;
+- **un revisore indipendente solo alla fine della serie** (B23, tappa 2 gruppo 2, B31, B32, B33 insieme, sul codice
+  unito), poi correzioni e versione finale;
+- B29 e B30 hanno già il revisore in corso: si lasciano finire (il costo è già speso).
+Prima la regola era: impronte dei livelli e dello stesso schermo
 invariate dove non devono cambiare; regole dell'utente già prese (Pro com'è, nessun vantaggio di punti, ecc.).
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)

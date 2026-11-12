@@ -816,3 +816,12 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   `window.natpfDesktop.displays` (preload v3). Il pannello dello stand mostra «Schermo del gioco» solo con il ponte.
 - **Pannello dello stand senza posto**: le voci nuove vanno nella riga in basso (`staff-actions`), non nella griglia
   (tre file: «Chiudi» in vista a 1024 × 600, 1366 × 657 e 1024 × 1024).
+
+## Processo di lavoro con gli agenti (decisione dell'utente del 12/11/2026, 23:20 UTC)
+- «Il revisore indipendente magari serve alla fine, ottimizza i processi»: per una serie di blocchi un agente per blocco
+  senza revisore, consegna dopo ogni blocco, e **un revisore indipendente solo alla fine della serie** sul codice unito.
+- Al più due agenti insieme sulla macchina da 4 processori; non mandare messaggi a un agente di un workflow mentre gira
+  (ne nasce una seconda copia che lavora sugli stessi file): per cambiare il compito fermare e rilanciare.
+- Dopo un limite d'uso: rilanciare lo script del workflow facendolo continuare nella worktree esistente (senza
+  `isolation: 'worktree'`), e far unire prima il ramo principale aggiornato se nel frattempo è andato avanti.
+
