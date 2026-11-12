@@ -18,6 +18,7 @@ import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, f
   windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, UPDATE_ACTIONS,
   startupDisplayQuestion, displayAnswer, displaysState, displayPixels } from './desktop-core.mjs';
 import { UPDATES, Updater, readUpdateConfig, updateEnv, installerLaunchArgs } from './aggiornamenti.mjs';
+import { REGISTRO_PC, creaCodaRegistro, leggiIndirizzo } from './registro.mjs';
 
 const ROOT = app.getAppPath();
 const DATA = path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'NATPF');
@@ -39,6 +40,11 @@ function log(...a){
   try { fs.mkdirSync(path.dirname(LOG), { recursive: true }); fs.appendFileSync(LOG, line); } catch {}
   console.log(line.trim());
 }
+
+// registro dello stand (B30): coda dei blocchi di righe di gioco non ancora inviati, accanto a programma.log. Sul PC
+// resta solo quello che non è ancora arrivato allo spazio Cloudflare dell'utente (src/registro.mjs)
+// L'indirizzo del Worker dell'utente sta in registro.json del pacchetto (scripts/prepara.mjs): vuoto → solo coda
+const registro = creaCodaRegistro({ dir: path.join(DATA, 'log', REGISTRO_PC.cartella), log, url: leggiIndirizzo(path.join(app.getAppPath(), REGISTRO_PC.config)) });
 
 // regola del firewall (la crea l'installer; dal menu Rete si rifà)
 const RULE = DESKTOP.ruleName;
@@ -453,6 +459,18 @@ async function main(){
     if (action === 'choose'){ const d = screen.getAllDisplays().find(x => String(x.id) === String(id)); if (!d) throw new Error('monitor non trovato'); placeOn(d); return afterPlaced(); }
     throw new Error('azione non valida');
   });
+  // window.natpfDesktop.registro (B30): coda del registro dello stand. Stesse regole degli altri canali; accetta solo
+  // blocchi del registro (controllaBlocco) e solo le azioni previste; i file li nomina registro.mjs, mai la pagina
+  ipcMain.handle(DESKTOP.ipcRegistro, async (event, action, a, b) => {
+    if (!win || event.sender?.id !== win.webContents.id || !isOwnUrl(event.senderFrame?.url || '', addresses)) throw new Error('richiesta non consentita');
+    if (!REGISTRO_PC.azioni.includes(action)) throw new Error('azione non valida');
+    if (action === 'put') return registro.put(a, b);
+    if (action === 'list') return registro.list();
+    if (action === 'read') return registro.read(a);
+    if (action === 'remove') return registro.remove(a);
+    if (action === 'state') return registro.state();
+    try { fs.mkdirSync(registro.dir, { recursive: true }); const err = await shell.openPath(registro.dir); return { ok: !err }; } catch { return { ok: false }; }
+  });
   updater.onChange(onUpdateState);
   await win.loadURL(loading('Avvio del gioco…'));
   blocker = powerSaveBlocker.start('prevent-display-sleep');
@@ -486,7 +504,7 @@ async function main(){
     const text = String(event?.message ?? message ?? '');
     if (text.startsWith('[natpf-intro]')) log(text.slice(0, 600));
   });
-  win.webContents.on('render-process-gone',(_e, d) => { log('pagina del gioco chiusa', d); if (d.reason !== 'clean-exit') setTimeout(() => win?.webContents.reload(), 1000); });
+  win.webContents.on('render-process-gone',(_e, d) => { log('pagina del gioco chiusa', d); if (d.reason !== 'clean-exit'){ registro.crash(d.reason); setTimeout(() => win?.webContents.reload(), 1000); } });
   await win.loadURL(`https://localhost:${DESKTOP.port}${DESKTOP.gamePath}`);
   // aggiornamenti: un controllo qualche secondo dopo l'avvio, senza bloccare niente (senza internet: stato 'error', il
   // gioco va avanti). Scaricare e installare solo con il clic dell'utente

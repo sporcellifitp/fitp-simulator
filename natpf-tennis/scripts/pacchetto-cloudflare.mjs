@@ -3,9 +3,13 @@
 // La pagina del gioco (alla radice) e la pagina del telefono (/natpf/tennis/racchetta.html) la cercano entrambe con
 // lo stesso percorso assoluto /natpf/turn.json (site/js/tennis/ice-route.js): senza il file tutto resta come prima.
 // Il Worker delle credenziali è un altro, piccolo: natpf-tennis/cloudflare/turn-worker.js (lì le istruzioni).
+// B30 (12/11): con --registro-url anche natpf/registro.json, l'indirizzo del Worker del registro dello stand
+// (cloudflare/registro-worker.js, docs/GUIDA_REGISTRO_CLOUDFLARE.md): il gioco manda lì le righe di gioco. Senza, il
+// registro resta nella coda sul computer e il pannello dello stand lo dice. Mai la chiave segreta: sta solo nel Worker.
 //
 //   cd natpf-tennis && npm run build
 //   node scripts/pacchetto-cloudflare.mjs --out=../pacchetto [--zip=../pacchetto.zip] [--turn-url=https://<nome>.<account>.workers.dev/]
+//                                         [--registro-url=https://<nome-registro>.<account>.workers.dev/]
 //
 // Gli argomenti si scrivono solo come --nome=valore (con «=»): ogni altra forma è un errore (parseArgs).
 // La cartella di destinazione deve essere nuova o vuota: niente file vecchi mescolati a quelli nuovi.
@@ -24,6 +28,7 @@ import { MEDIAPIPE_EXCLUDED } from './offline-assets.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(HERE, '..');
 export const TURN_JSON = 'natpf/turn.json';
+export const REGISTRO_JSON = 'natpf/registro.json';
 // byte dello zip: deve restare sotto ZIP_LIMIT (25 MB decimali), sopra ZIP_WARN si avvisa
 export const ZIP_LIMIT = 25_000_000;
 export const ZIP_WARN = 24_000_000;
@@ -35,6 +40,15 @@ export function checkTurnUrl(raw){
   const local = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(u.hostname);
   if (!(u.protocol === 'https:' || (u.protocol === 'http:' && local))) throw new Error(`--turn-url deve essere https: ${raw}`);
   if (u.username || u.password) throw new Error('--turn-url senza utente o password: i segreti stanno nelle variabili del Worker');
+  return u.href;
+}
+// indirizzo del Worker del registro: stesse regole, e senza parametri (la chiave segreta non ci deve mai finire)
+export function checkRegistroUrl(raw){
+  let u; try { u = new URL(String(raw || '')); } catch { throw new Error(`--registro-url non è un indirizzo: ${raw}`); }
+  const local = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(u.hostname);
+  if (!(u.protocol === 'https:' || (u.protocol === 'http:' && local))) throw new Error(`--registro-url deve essere https: ${raw}`);
+  if (u.username || u.password) throw new Error('--registro-url senza utente o password: la chiave segreta sta solo nelle variabili del Worker');
+  if (u.search || u.hash) throw new Error('--registro-url senza «?…» né «#…»: solo l\'indirizzo del Worker (la chiave segreta non va mai nel pacchetto)');
   return u.href;
 }
 
@@ -53,7 +67,7 @@ export const TRAILER_FILE = /(^|\/)trailer-[0-9a-f]{12}\.mp4$/;
 export function mediaOrigin(file = path.resolve(ROOT, '../natpf-desktop/aggiornamenti.json')){
   try { return new URL(JSON.parse(fs.readFileSync(file, 'utf8')).base).origin; } catch { return null; }
 }
-export function headersProblems(text, { turnUrl = null, mediaUrl = null } = {}){
+export function headersProblems(text, { turnUrl = null, mediaUrl = null, registroUrl = null } = {}){
   const rules = [];
   let cur = null;
   for (const line of String(text).split(/\r?\n/)){
@@ -72,6 +86,16 @@ export function headersProblems(text, { turnUrl = null, mediaUrl = null } = {}){
     if (connect != null && !/(^|\s)\*(\s|$)/.test(connect) && !/'self'/.test(connect)) out.push(`${page}: Content-Security-Policy senza 'self' per leggere /${TURN_JSON}`);
     if (connect != null && origin && !connect.includes(origin) && !/(^|\s)(\*|https:)(\s|$)/.test(connect)) out.push(`${page}: Content-Security-Policy che non permette ${origin}`);
   }
+  // B30: la pagina del gioco deve poter leggere natpf/registro.json e chiamare il Worker del registro
+  const regOrigin = registroUrl ? new URL(registroUrl).origin : null;
+  if (regOrigin){
+    for (const [name, value] of on('/' + REGISTRO_JSON)) if (name === 'content-type' && !/json/i.test(value)) out.push(`/${REGISTRO_JSON} con Content-Type ${value}`);
+    for (const page of GAME_PAGES) for (const [name, value] of on(page)){
+      if (name !== 'content-security-policy') continue;
+      const connect = /(?:^|;)\s*connect-src([^;]*)/i.exec(value)?.[1] ?? /(?:^|;)\s*default-src([^;]*)/i.exec(value)?.[1];
+      if (connect != null && !connect.includes(regOrigin) && !/(^|\s)(\*|https:)(\s|$)/.test(connect)) out.push(`${page}: Content-Security-Policy che non permette il registro dello stand su ${regOrigin}`);
+    }
+  }
   const mediaOrig = mediaUrl ? new URL(mediaUrl).origin : null;
   if (mediaOrig) for (const page of GAME_PAGES) for (const [name, value] of on(page)){
     if (name !== 'content-security-policy') continue;
@@ -87,7 +111,7 @@ const copyDir = (from, to) => {
   for (const name of fs.readdirSync(from)) fs.cpSync(path.join(from, name), path.join(to, name), { recursive: true, errorOnExist: true, force: false });
 };
 
-export function makePackage({ out, turnUrl = null, dist = path.join(ROOT, 'dist'), headers = path.resolve(ROOT, '../site/_headers'), media = mediaOrigin() } = {}){
+export function makePackage({ out, turnUrl = null, registroUrl = null, dist = path.join(ROOT, 'dist'), headers = path.resolve(ROOT, '../site/_headers'), media = mediaOrigin() } = {}){
   if (!out) throw new Error('manca --out=cartella');
   const dest = path.resolve(out);
   if (!fs.existsSync(path.join(dist, 'index.html'))) throw new Error(`build mancante: ${dist}/index.html (prima npm run build)`);
@@ -98,9 +122,10 @@ export function makePackage({ out, turnUrl = null, dist = path.join(ROOT, 'dist'
   const stale = fs.existsSync(path.join(dist, 'assets/mediapipe')) ? listFiles(path.join(dist, 'assets/mediapipe')).filter(f => MEDIAPIPE_EXCLUDED.test(f)) : [];
   if (stale.length) throw new Error(`build vecchia, con file MediaPipe che il pacchetto non porta più (${stale.join(', ')}): rifare npm run build`);
   const url = turnUrl ? checkTurnUrl(turnUrl) : null;
+  const regUrl = registroUrl ? checkRegistroUrl(registroUrl) : null;
   const headersText = fs.readFileSync(headers, 'utf8');
-  const problems = headersProblems(headersText, { turnUrl: url, mediaUrl: media });
-  if (problems.length) throw new Error(`_headers impedirebbe di usare il TURN nostro o il video dell'intro: ${problems.join(' · ')}`);
+  const problems = headersProblems(headersText, { turnUrl: url, mediaUrl: media, registroUrl: regUrl });
+  if (problems.length) throw new Error(`_headers impedirebbe di usare il TURN nostro, il video dell'intro o il registro dello stand: ${problems.join(' · ')}`);
   // il trailer dell'intro si scarica dal bucket R2: nel pacchetto farebbe sforare i 25 MB
   const trailers = listFiles(dist).filter(f => TRAILER_FILE.test(f));
   if (trailers.length) throw new Error(`il trailer dell'intro non deve stare nel pacchetto Cloudflare (${trailers.join(', ')}): va in natpf-desktop/media, non in natpf-tennis/public`);
@@ -111,7 +136,12 @@ export function makePackage({ out, turnUrl = null, dist = path.join(ROOT, 'dist'
     fs.mkdirSync(path.join(dest, 'natpf'), { recursive: true });
     fs.writeFileSync(path.join(dest, TURN_JSON), JSON.stringify({ url }, null, 2) + '\n');
   } else if (fs.existsSync(path.join(dest, TURN_JSON))) fs.rmSync(path.join(dest, TURN_JSON));
-  return { dest, turnUrl: url, files: listFiles(dest) };
+  // registro dello stand: solo l'indirizzo del Worker; senza --registro-url nessun file (mai uno rimasto da una build)
+  if (regUrl){
+    fs.mkdirSync(path.join(dest, 'natpf'), { recursive: true });
+    fs.writeFileSync(path.join(dest, REGISTRO_JSON), JSON.stringify({ url: regUrl }, null, 2) + '\n');
+  } else if (fs.existsSync(path.join(dest, REGISTRO_JSON))) fs.rmSync(path.join(dest, REGISTRO_JSON));
+  return { dest, turnUrl: url, registroUrl: regUrl, files: listFiles(dest) };
 }
 export function listFiles(dir, base = dir){
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? listFiles(path.join(dir, e.name), base) : [path.relative(base, path.join(dir, e.name)).split(path.sep).join('/')]).sort();
@@ -148,9 +178,9 @@ export function makeZip({ dir, zip, maxBytes = ZIP_LIMIT, warnBytes = ZIP_WARN }
 }
 export const largestTable = largest => largest.map(e => `  ${String(e.compressed).padStart(10)} byte nello zip (${String(e.size).padStart(10)} su disco)  ${e.name}`).join('\n');
 
-// Argomenti: solo --out=…, --zip=…, --turn-url=…, ognuno una volta e con un valore. Tutto il resto è un errore:
+// Argomenti: solo --out=…, --zip=…, --turn-url=…, --registro-url=…, ognuno una volta e con un valore. Tutto il resto è un errore:
 // «--zip file» (con lo spazio) o «--zip» da solo non devono saltare lo zip e il controllo dei 25 MB terminando bene.
-export const CLI_OPTIONS = ['out', 'zip', 'turn-url'];
+export const CLI_OPTIONS = ['out', 'zip', 'turn-url', 'registro-url'];
 export function parseArgs(argv){
   const opts = {};
   for (const a of argv){
@@ -174,9 +204,10 @@ export function main(argv, { dist, headers, maxBytes = ZIP_LIMIT, warnBytes = ZI
     if (zip) checkZipTarget({ dir: opts.out, zip });   // prima di copiare 36 MB
     // con --zip e senza --out: cartella temporanea, cancellata alla fine
     if (zip && !opts.out) tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-cloudflare-'));
-    const r = makePackage({ out: opts.out ?? tmp, turnUrl: opts['turn-url'] ?? null, ...(dist ? { dist } : {}), ...(headers ? { headers } : {}) });
+    const r = makePackage({ out: opts.out ?? tmp, turnUrl: opts['turn-url'] ?? null, registroUrl: opts['registro-url'] ?? null, ...(dist ? { dist } : {}), ...(headers ? { headers } : {}) });
     log(`Pacchetto in ${r.dest}: ${r.files.length} file.`);
     log(r.turnUrl ? `TURN nostro: /${TURN_JSON} → ${r.turnUrl}` : `Senza --turn-url: nessun /${TURN_JSON}, strade di rete come prima.`);
+    log(r.registroUrl ? `Registro dello stand: /${REGISTRO_JSON} → ${r.registroUrl}` : `Senza --registro-url: nessun /${REGISTRO_JSON}, il registro dello stand resta in coda sul computer.`);
     if (zip){
       const z = makeZip({ dir: r.dest, zip, maxBytes, warnBytes });
       log(`Zip ${z.file}: ${z.bytes} byte (${mb(z.bytes)}), ${z.files} file; limite ${maxBytes} byte, margine ${z.margin} byte (${mb(z.margin)}).`);
