@@ -331,6 +331,24 @@ su GitHub; documento `docs/b28/calibrazione-giocando.md` nel ramo).
 - Dopo: unire B29 e B30, versione, controllo rapido, push, zip e installer; poi `ripresa-b23-t2g2.js` (dritto dal video
   e tappa 2 gruppo 2; anche lì far unire prima il ramo principale aggiornato).
 
+**DECISIONE DELL'UTENTE del 12/11 (23:10 UTC) sulla roadmap: «Dopo la consegna fino al punto 3, poi vai avanti e tira
+dritto fino alla tappa 3 (6, 7, 8)».** Ordine di lavoro deciso (senza fermarsi a chiedere tra un blocco e l'altro; si
+consegna dopo ogni blocco come sempre, con «come si attiva»):
+1. B29 Lob & Drop dai modelli 3D → consegna (in corso, al revisore)
+2. B30 Registro dello stand → consegna + passi Cloudflare all'utente (in corso, al revisore)
+3. B28.1 dell'altro agente (suo; qui solo integrarlo quando lo pubblica)
+4. B23 dritto con le movenze del trailer (prova con interruttore) e 5. tappa 2 gruppo 2 (Leggenda stessa regola D2,
+   palla corta che può sbagliare D8): `ripresa-b23-t2g2.js`, worktree `wf_26d95fdf-3ea-1` e `-2`, **prima unire il ramo
+   principale aggiornato** (le worktree partono da `9b8f9cb`)
+6. **B31 · Tappa 3.1**: gioco a rete per tutti e due, la CPU schiaccia e fa qualche rara palla corta, il tagliato
+   diventa utile; insieme i difetti della rete (rapporto `docs/b16/rapporto-gameplay.md` §4 tappa 3, miglioramento 6 e
+   punto 22)
+7. **B32 · Tappa 3.2**: movimento con accelerazione e colpi in corsa (miglioramento 7)
+8. **B33 · Tappa 3.3**: fine partita con dati veri e classifica delle partite (miglioramento 5)
+Restano fuori per ora (non chiesti): tappa 3 punti 4 (doppio 2v2) e 5 (ledwall, servizio con scelte, Leggenda campione).
+Ogni blocco: agente in worktree → revisore indipendente → correzioni; impronte dei livelli e dello stesso schermo
+invariate dove non devono cambiare; regole dell'utente già prese (Pro com'è, nessun vantaggio di punti, ecc.).
+
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
 - [x] **B21 Video nel gioco** (2026-11-11.2): trailer come video d'avvio (senza titolo) con ripiego su `public/media/intro.mp4`; due clip

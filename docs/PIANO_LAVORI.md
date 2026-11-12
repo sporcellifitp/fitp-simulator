@@ -130,6 +130,7 @@ Come si aggiorna:
   schermo, banner) ↔ B17.3 (tabellone, `natpf_scoreboard.js`); tutorial corto ↔ B17.2 (X per uscire). File che tutte e due
   le sessioni toccano o toccheranno: `natpf_tutorial.js`, `natpf_split_ui.js`, `index.html`, `natpf_stroke_intent.js`,
   `natpf_phone_racket.js`, e questi documenti: chi integra dopo fa `git fetch` e unisce (merge), rifà le prove.
+- **Decisione dell'utente del 12/11 (23:10 UTC) sulla roadmap**: consegnare B29, B30 (e integrare B28.1 dell'altro agente), poi senza fermarsi B23 + tappa 2 gruppo 2, poi tappa 3 punti 1, 2, 3 del rapporto B16 (gioco a rete/schiacciata/palla corta della CPU/tagliato utile; movimento con accelerazione e colpi in corsa; fine partita con dati veri e classifica delle partite) come B31, B32, B33. Dettaglio in `docs/TRACCIA_PASSI.md`.
 - **Prossima azione esatta:** attendere le decisioni dell'utente sulle **4 domande dell'audit** (passaggio di consegne §3
   punto 14): 1. partire con la tappa 1; 2. formato in fiera: punto decisivo sul 40-40 e servizio alternato; 3. pulsante
   «Nuovo giocatore» che azzera nome, calibrazione e tutorial senza scollegare il telefono, record per giorno; 4. tappa 2
