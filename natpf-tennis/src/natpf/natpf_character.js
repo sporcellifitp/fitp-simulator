@@ -12,7 +12,7 @@ import { setPortraitLooks } from './natpf_portrait.js';
 import { castLooks, getCast } from './natpf_personaggi.js';
 import { applyMascot, updateMascotLabels, MASCOT_COLORS } from './natpf_lob_drop.js';
 import { keepRacketClear } from './natpf_racket_clear.js';
-import { getMascotMode, loadMascotModel, mascotModelStatus, mascotModelInstance } from './natpf_mascot_models.js';
+import { getMascotMode, setMascotMode, loadMascotModel, mascotModelStatus, mascotModelInstance } from './natpf_mascot_models.js';
 import { createMascotRig, poseMascotBody, poseMascotArms, mascotModelHeadShape } from './natpf_mascot_rig.js';
 
 // Varianti: P1 come l'immagine di riferimento, CPU con la polo blu NATPF, P2 con dettagli rosa.
@@ -414,6 +414,8 @@ function mascotModelFor(actor, engine){
 const ACTOR_KEYS = ['player', 'playerPartner', 'opponent', 'opponentPartner'];
 export function updateNatpfCharacters(engine){
   const looks = castLooks(getCast(), !!engine?.isMultiplayer);
+  // per le prove nel browser: cambiare a gioco aperto tra modelli 3D e mascotte costruite nel codice (come ?mascotte=)
+  if (engine && engine.natpfMascotMode !== setMascotMode) engine.natpfMascotMode = setMascotMode;
   // tempo di gioco dall'ultimo disegno (per lo scostamento morbido della racchetta: natpf_racket_clear.js)
   const now = engine?.elapsedTime, dt = now - engine?.natpfDrawnAt;
   if (engine && typeof now === 'number') engine.natpfDrawnAt = now;
@@ -428,7 +430,7 @@ export function updateNatpfCharacters(engine){
     // e i pezzi costruiti nel codice si nascondono; altrimenti tutto come prima
     const rig3d = actor.natpfMascot || actor.natpfMascot3d ? mascotModelFor(actor, engine) : null;
     if (rig3d){
-      poseMascotBody(rig3d, actor);
+      poseMascotBody(rig3d, actor, dt);
       actor.natpfRacketPush = keepRacketClear(actor, mascotModelHeadShape(rig3d.key), dt, engine.ball, rig3d.head.bone);
       poseMascotArms(rig3d, actor, dt);
       continue;

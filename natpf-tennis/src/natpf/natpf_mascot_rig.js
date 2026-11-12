@@ -86,6 +86,7 @@ export const FREE_HAND_BLEND = Object.freeze([0.06, 0.3]);       // metri dal ri
 export const FREE_HAND_RATE = 12;          // 1/s: quanto in fretta la mano libera insegue il suo bersaglio
 export const FREE_HAND_TOP = 0.15, FREE_HAND_GAP = 0.075, FREE_HAND_MIN_REACH = 0.55;
 // Passo: i piedi del tennista si spostano di pochi centimetri; alle gambe corte e larghe delle mascotte serve di più
+export const FOOT_RATE = 18;               // 1/s: quanto in fretta il piede insegue il suo bersaglio
 export const LEG_TILT = 0.55;              // quanta dell'inclinazione verso il piede prende la gamba
 export const FOOT_EDGE = 0.07;             // di quanto si alza il piede per unità di inclinazione (unità del modello)
 export const FOOT_GAIN = 1.8, FOOT_LIFT_DEAD = 0.012;      // sotto 1,2 cm di alzata il piede resta a terra (il tennista fermo sposta il peso)
@@ -184,10 +185,10 @@ export function createMascotRig(model, key, scale = MASCOT_SCALE){
       armFrom: new THREE.Quaternion().setFromRotationMatrix(basis(new THREE.Matrix4(), armDir, normal0)).invert().multiply(arm.wq),
       foreFrom: new THREE.Quaternion().setFromRotationMatrix(basis(new THREE.Matrix4(), foreDir, normal0)).invert().multiply(fore.wq),
       legLen: leg.wp.y, sole: new THREE.Vector3(leg.wp.x, 0, leg.wp.z),
-      elbow: new THREE.Vector3(), palm: new THREE.Vector3(), foot: new THREE.Vector3(), stretch: 1, bend: new THREE.Vector3(), bendSet: false, free: new THREE.Vector3(), freeSet: false,
+      elbow: new THREE.Vector3(), palm: new THREE.Vector3(), foot: new THREE.Vector3(), stretch: 1, bend: new THREE.Vector3(), bendSet: false, free: new THREE.Vector3(), freeSet: false, footSet: false,
     };
   };
-  return {
+  const rig = {
     key, scale, group, model, bones, B,
     hips: B.Hips, spine02: B.Spine02, spine01: B.Spine01, spine: B.Spine, neck: B.neck, head: B.Head,
     left: side('Left'), right: side('Right'),
@@ -196,7 +197,11 @@ export function createMascotRig(model, key, scale = MASCOT_SCALE){
     // stato del fotogramma (sistema del modello)
     hipsP: new THREE.Vector3(), hipsQ: new THREE.Quaternion(), spineP: new THREE.Vector3(), spineQ: new THREE.Quaternion(), torsoQ: new THREE.Quaternion(),
     rootInv: new THREE.Matrix4(),
+    probe: null,
   };
+  // misure per le prove (nel browser non si può importare questo modulo dalla pagina)
+  rig.probe = (actor, out) => mascotRigProbe(rig, actor, out);
+  return rig;
 }
 
 // Parte del tennista nel sistema del modello: posizione (unità del modello) e rotazione. sigma: -1 per il mancino.
@@ -210,7 +215,7 @@ const _pUp = new THREE.Vector3(), _qUp = new THREE.Quaternion(), _K = new THREE.
 
 // Primo tempo, prima di scostare la racchetta dalla testa: bacino, busto, testa e gambe. Dopo, l'osso della testa
 // (rig.head.bone) ha la matrice nel mondo aggiornata: è il «nodo della testa» da dare a keepRacketClear.
-export function poseMascotBody(rig, actor){
+export function poseMascotBody(rig, actor, dt){
   const P = actor.parts, root = actor.root;
   if (!P?.torso || !P.head || !root) return false;
   const S = rig.scale, mirrored = root.scale.x < 0;
@@ -244,17 +249,21 @@ export function poseMascotBody(rig, actor){
   // piedi → gambe. Lato della racchetta nel motore: x < 0 (parte Foot_L); nel modello è il destro, o il sinistro
   // per il mancino
   const sideA = mirrored ? rig.left : rig.right, sideB = mirrored ? rig.right : rig.left;
-  poseLeg(rig, sideA, P.footL, R.footA, k);
-  poseLeg(rig, sideB, P.footR, R.footB, k);
+  poseLeg(rig, sideA, P.footL, R.footA, k, dt);
+  poseLeg(rig, sideB, P.footR, R.footB, k, dt);
   rig.group.updateMatrixWorld(true);
   return true;
 }
-function poseLeg(rig, side, foot, rest, k){
+function poseLeg(rig, side, foot, rest, k, dt){
   if (!foot) return;
   readPart(rig, foot, _F, null);
   // spostamento del piede dal suo riposo (nel sistema del modello la x del riposo segue il lato)
   const rx = rig.mirrored ? -rest[0] : rest[0];
-  side.foot.set(_F.x - rx, Math.max(0, _F.y - rest[1] - FOOT_LIFT_DEAD), _F.z - rest[2]).multiplyScalar(k*FOOT_GAIN).add(side.sole);
+  _F.set(_F.x - rx, Math.max(0, _F.y - rest[1] - FOOT_LIFT_DEAD), _F.z - rest[2]).multiplyScalar(k*FOOT_GAIN).add(side.sole);
+  // il piede insegue il suo bersaglio con un filo di ritardo: quando il tennista cambia passo di colpo (cambio di
+  // direzione, punto nuovo) la gamba della mascotte non scatta. Senza tempo (scene ferme, prove) ci va subito.
+  if (side.footSet && dt > 0 && dt <= 0.25) side.foot.lerp(_F, 1 - Math.exp(-dt*FOOT_RATE));
+  else { side.foot.copy(_F); side.footSet = true; }
   // la coscia resta ferma con il bacino
   _pUp.copy(side.upleg.t).applyQuaternion(rig.hipsQ).add(rig.hipsP);
   _qUp.multiplyQuaternions(rig.hipsQ, side.upleg.q);

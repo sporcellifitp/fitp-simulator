@@ -15,6 +15,13 @@
 //   SHOTS=cartella (schermate; predefinita nella cartella temporanea) · GAME_PORT (3164) · GAME=cartella del gioco
 //   BASELINE=file.json: solo la parte 1, scrive le impronte (da fare sul commit di prima) · CONFRONTA=file.json
 //   SOLO=1: solo la parte 1 · TESTA=1: solo la parte 1b (racchetta e testa) · COSTO=1: solo la parte 5 · FOGLI=cartella: solo i fogli di immagini (docs/b24/img)
+// B29, modelli 3D di Lob e di Drop (src/natpf/natpf_mascot_models.js e natpf_mascot_rig.js, ?mascotte=3d|codice):
+//   le parti qui sopra provano le mascotte costruite nel codice (aprono il gioco con ?mascotte=codice: restano il
+//   ripiego); la parte 6 prova i modelli: caricati solo con «Lob & Drop», ripiego con il file bloccato, partite a
+//   sorteggi fissi identiche, impatto sulla palla, palmo sul manico, piedi a terra, niente scatti; la parte 5 misura
+//   il costo dei tre aspetti (classici, mascotte nel codice, modelli 3D).
+//   TRE_D=1: solo le parti 6 e 5 · FOGLI3D=cartella: solo i fogli di docs/b29/img · MODELLI=cartella: modelli da
+//   un'altra cartella al posto di quelli del gioco (per confrontare texture diverse)
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -27,6 +34,7 @@ const here = path.dirname(fileURLToPath(import.meta.url)), GAME = process.env.GA
 const GAME_PORT = +(process.env.GAME_PORT || 3164), FPS_MS = +(process.env.FPS_MS || 6000), DRAW_N = +(process.env.DRAW_N || 14);
 const SHOTS = process.env.SHOTS || path.join(tmpdir(), 'natpf-lob-drop'); mkdirSync(SHOTS, { recursive: true });
 const BASELINE = process.env.BASELINE || '', CONFRONTA = process.env.CONFRONTA || '', FOGLI = process.env.FOGLI || '';
+const TRE_D = !!process.env.TRE_D, FOGLI3D = process.env.FOGLI3D || '', MODELLI = process.env.MODELLI || '';
 const KEY = 'natpf-tennis.personaggi';
 const PHOTO = path.resolve(here, '../../docs/riferimenti/lob-drop-2026-11-11.webp');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -37,9 +45,16 @@ check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 const B = await launch();
 
 // pagina del gioco pronta; cast: valore salvato dell'opzione prima dell'avvio ('lobdrop', 'sempre' o null = niente)
-async function game({ cast = null, query = 'intro=0', w = 1280, h = 720, hand = null } = {}){
-  const ctx = await B.newContext({ viewport: { width: w, height: h } }), p = await ctx.newPage(), errs = [];
+// mascotte: 'codice' (di base: le mascotte costruite nel codice, come prima del B29) o '3d' (i modelli: si aspetta che
+// siano montati); block: espressione dei file dei modelli da far fallire; models: cartella con altri modelli
+async function game({ cast = null, query = 'intro=0', w = 1280, h = 720, hand = null, mascotte = 'codice', block = null, models = MODELLI } = {}){
+  const ctx = await B.newContext({ viewport: { width: w, height: h } }), p = await ctx.newPage(), errs = [], warns = [], glb = [];
   p.on('pageerror', e => errs.push(e.message));
+  p.on('console', m => { if (/natpf-mascotte/.test(m.text())) warns.push(m.text()); });
+  p.on('request', r => { if (/mascotte-(drop|lob)\.glb/.test(r.url())) glb.push(r.url().split('/').pop()); });
+  if (block) await p.route(block, r => r.abort());
+  else if (models) await p.route(/mascotte-(drop|lob)\.glb/, r => r.fulfill({ body: readFileSync(path.join(models, r.request().url().split('/').pop().split('?')[0])), contentType: 'model/gltf-binary' }));
+  if (!/mascotte=/.test(query)) query += `&mascotte=${mascotte}`;
   await p.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ body: '', contentType: 'text/css' }));
   // sorteggi ripetibili (pubblico, battito degli occhi): stesso generatore a ogni avvio
   await p.addInitScript(({ KEY, cast, hand }) => {
@@ -61,8 +76,11 @@ async function game({ cast = null, query = 'intro=0', w = 1280, h = 720, hand = 
     if (k >= 3) throw new Error('gioco non avviato');
     errs.length = 0;
   }
+  // modelli 3D: si aspetta che siano in campo (se un file è bloccato, solo l'altro)
+  const want3d = /mascotte=3d/.test(query) && (cast === 'lobdrop' || /personaggi=lobdrop/.test(query)) && !/personaggi=sempre/.test(query);
+  if (want3d) await p.waitForFunction(b => { const E = __natpfTennis, ok = a => a.natpfMascot3dOn || (b && new RegExp(b).test(`mascotte-${a.natpfMascot}.glb`)); return ok(E.player) && ok(E.opponent); }, block ? block.source : null, { timeout: 90000 }).catch(() => errs.push('modelli 3D non montati'));
   await p.waitForTimeout(1500);
-  return { ctx, p, errs };
+  return { ctx, p, errs, warns, glb };
 }
 
 // Scena ferma: ciclo del gioco fermato, pagina nascosta tranne il campo, stato delle animazioni azzerato (orologio,
@@ -143,7 +161,7 @@ const scene = (p, name, o = {}) => p.evaluate(({ name, o }) => {
   E.isMultiplayer = multi0; E.natpfSplit.active = false;
   const seen = a => { const out = []; a.root.traverse(o => { if (!o.isMesh) return; for (let q = o; q; q = q.parent) if (!q.visible) return; out.push(o.name); }); return out; };
   const hand = a => { const g = a.racketMesh, v = g.localToWorld(g.position.clone().set(0, .08, 0)), h = a.parts.handR.getWorldPosition(v.clone()); return +h.distanceTo(v).toFixed(3); };
-  return { hash: hash.toString(16), W, H, looks: [E.player.natpfLook, E.opponent.natpfLook], mascots: [E.player.natpfMascot || null, E.opponent.natpfMascot || null],
+  return { hash: hash.toString(16), W, H, looks: [E.player.natpfLook, E.opponent.natpfLook], mascots: [E.player.natpfMascot || null, E.opponent.natpfMascot || null], on3d: [!!E.player.natpfMascot3dOn, !!E.opponent.natpfMascot3dOn],
     seen: [seen(E.player), seen(E.opponent)], grip: [hand(E.player), hand(E.opponent)], mirror: [E.player.root.scale.x < 0, E.opponent.root.scale.x < 0] };
 }, { name, o });
 const diff = (p, a, b) => p.evaluate(({ a, b }) => { const A = __px[a], Bx = __px[b]; let n = 0; for (let i = 0; i < A.length; i += 4) if (A[i] !== Bx[i] || A[i + 1] !== Bx[i + 1] || A[i + 2] !== Bx[i + 2]) n++; return n; }, { a, b });
@@ -206,9 +224,54 @@ const play = (p, o = {}) => p.evaluate(o => {
   const depth = (a, M = HEADS[a.natpfMascot]) => {
     if (!M) return 9;
     a.root.updateMatrixWorld(true);
-    const inv = a.parts.head.matrixWorld.clone().invert(); let f = 9;
-    for (let q = 0; q < 24; q++){ const t = q/24*Math.PI*2; v3.set(.172*Math.cos(t), .545 + .215*Math.sin(t), 0); a.racketMesh.localToWorld(v3).applyMatrix4(inv); f = Math.min(f, (v3.x/M.rx)**2 + ((v3.y - M.cy)/M.ry)**2 + (v3.z/M.rz)**2); }
+    // B29: con il modello 3D la testa è quella del modello (osso Head e forma dichiarata nel rig), non la parte del tennista
+    let head = a.parts.head;
+    if (a.natpfMascot3dOn && M !== HEADS.uomo){ M = a.natpfMascot3d.headShape; head = a.natpfMascot3d.head.bone; }
+    const inv = head.matrixWorld.clone().invert(); let f = 9;
+    for (let q = 0; q < 24; q++){ const t = q/24*Math.PI*2; v3.set(.172*Math.cos(t), .545 + .215*Math.sin(t), 0); a.racketMesh.localToWorld(v3).applyMatrix4(inv); f = Math.min(f, ((v3.x - (M.cx || 0))/M.rx)**2 + ((v3.y - M.cy)/M.ry)**2 + ((v3.z - (M.cz || 0))/M.rz)**2); }
     return Math.sqrt(f);
+  };
+  // B29, misure del rig dei modelli 3D a ogni passo: palmo sul manico, piante sul campo, scatti delle ossa
+  // (posizioni nel sistema della radice dell'attore: il saltello della corsa e gli spostamenti in campo li fa il motore
+  // sulla radice, uguali per tutti i personaggi. Gli scatti si misurano rispetto a quanto si sono mosse, nello stesso
+  // passo, le parti del tennista che il motore anima: così un taglio del motore, per esempio un punto nuovo, non conta)
+  const R3 = { n: 0, on: { player: 0, opponent: 0 }, presa: 0, piantaMin: 9, piantaMax: 0, inAria: 0, allungo: 0, allungoDove: null, scatto: 0, dove: '', manoLibera: 0 };
+  const BONES3 = ['Hips', 'Spine02', 'Head', 'LeftArm', 'LeftForeArm', 'RightArm', 'RightForeArm', 'LeftLeg', 'RightLeg'], mem3 = { player: null, opponent: null };
+  const PARTS3 = ['torso', 'head', 'handR', 'handL', 'footL', 'footR'], inv3 = E.player.root.matrixWorld.clone();
+  const rig3 = (k, a, i) => {
+    const rig = a.natpfMascot3d;
+    if (!a.natpfMascot3dOn || !rig?.probe) return;
+    R3.on[k]++;
+    a.root.updateMatrixWorld(true); inv3.copy(a.root.matrixWorld).invert();
+    const pr = rig.probe(a), hand = a.parts.handR.getWorldPosition(w3), m = mem3[k] || (mem3[k] = { q: {}, part: {}, free: null, first: true });
+    R3.presa = Math.max(R3.presa, pr.palmA.distanceTo(hand));
+    const stretch = Math.max(pr.stretchA, pr.stretchB);
+    if (stretch > R3.allungo){ R3.allungo = stretch; R3.allungoDove = { passo: i, chi: a.natpfMascot }; }
+    for (const pt of [pr.palmA, pr.palmB, pr.soleA, pr.soleB]) pt.applyMatrix4(inv3);
+    R3.piantaMin = Math.min(R3.piantaMin, pr.soleA.y, pr.soleB.y); R3.piantaMax = Math.max(R3.piantaMax, pr.soleA.y, pr.soleB.y);
+    if (Math.min(pr.soleA.y, pr.soleB.y) > .05) R3.inAria++;
+    // quanto si sono mosse le parti del tennista in questo passo (metri, e gradi per busto e testa)
+    const mv = {}, turnOf = {};
+    for (const n of PARTS3){
+      const now = a.parts[n].getWorldPosition(v3).applyMatrix4(inv3), was = m.part[n];
+      mv[n] = was ? now.distanceTo(was.p) : 0;
+      const q = a.parts[n].quaternion;
+      turnOf[n] = was ? 2*Math.acos(Math.min(1, Math.abs(was.q.dot(q))))*180/Math.PI : 0;
+      if (was){ was.p.copy(now); was.q.copy(q); } else m.part[n] = { p: now.clone(), q: q.clone() };
+    }
+    const freeMoved = m.free ? pr.palmB.distanceTo(m.free) : 0, body = mv.torso + mv.head, racketSide = rig.mirrored ? 'Left' : 'Right';
+    if (!m.first) R3.manoLibera = Math.max(R3.manoLibera, freeMoved - mv.handL);
+    for (const n of BONES3){
+      const q = rig.bones[n].quaternion, was = m.q[n];
+      if (was && !m.first){
+        const turn = 2*Math.acos(Math.min(1, Math.abs(was.dot(q))))*180/Math.PI;
+        const limit = n.includes('Arm') ? 40 + ((n.startsWith(racketSide) ? mv.handR : Math.max(freeMoved, mv.handL)) + body)*400
+          : n.includes('Leg') ? 25 + (Math.max(mv.footL, mv.footR) + body)*400 : 25 + body*400 + turnOf.torso + turnOf.head;
+        if (turn - limit > R3.scatto){ R3.scatto = turn - limit; R3.dove = `${a.natpfMascot} ${n} al passo ${i}: ${turn.toFixed(1)} gradi (limite ${limit.toFixed(0)})`; }
+      }
+      (m.q[n] ||= q.clone()).copy(q);
+    }
+    (m.free ||= pr.palmB.clone()).copy(pr.palmB); m.first = false;
   };
   const strings = a => { a.root.updateMatrixWorld(true); return a.racketMesh.localToWorld(v3.set(0, .545, 0)).distanceTo(E.ball.pos); };
   // foto da vicino della testa (il lavoro di prima del disegno è già stato fatto: qui solo il disegno, da un'altra camera)
@@ -254,20 +317,21 @@ const play = (p, o = {}) => p.evaluate(o => {
         if (hit && b.lastHitter === k) C.colpi.push({ passo: i, chi: a.natpfMascot, tipo: a.swingType, scostamento: +push.toFixed(4), prima: +raw[n][1].toFixed(3), dopo: +strings(a).toFixed(3) });
       });
     }
+    if (o.rig3d){ R3.n++; for (const [k, a] of actors) rig3(k, a, i); }
     if (stops.includes(i)) for (const [, a] of actors) C.foto.push(photo(a, `${a.natpfMascot === 'drop' ? 'Drop' : 'Lob'}, passo ${i}`));
     const sc = `${s.playerPoints}-${s.opponentPoints}/${s.playerGames}-${s.opponentGames}`;
     if (sc !== score){ score = sc; pts++; }
     if (i % 6 === 0) for (const v of [b.pos.x, b.pos.y, b.pos.z, E.player.pos.x, E.player.pos.z, E.opponent.pos.x, E.opponent.pos.z, s.playerPoints, s.opponentPoints, s.playerGames, s.opponentGames]) eat(v);
   }
   E.autoPlayMode = false;
-  return { hash: h.toString(16), hits, changes: pts - 1, score, looks: [E.player.natpfLook, E.opponent.natpfLook], clip: clip ? C : null, foto: C.foto };
+  return { hash: h.toString(16), hits, changes: pts - 1, score, looks: [E.player.natpfLook, E.opponent.natpfLook], clip: clip ? C : null, foto: C.foto, rig: o.rig3d ? R3 : null, on3d: [!!E.player.natpfMascot3dOn, !!E.opponent.natpfMascot3dOn] };
 }, o);
 // partite a sorteggi fissi con i robot (parte 1b): contro la CPU e nello stesso schermo
 const RUNS = { cpu: { mode: 'cpu', seed: 31337, steps: 2600 }, schermo: { mode: 'schermo', seed: 555, steps: 2600 } };
 
 /* ---------- fogli di immagini (docs/b24/img): solo con FOGLI=cartella ---------- */
-if (FOGLI){
-  mkdirSync(FOGLI, { recursive: true });
+if (FOGLI || FOGLI3D){
+  mkdirSync(FOGLI3D || FOGLI, { recursive: true });
   const photo = `data:image/webp;base64,${readFileSync(PHOTO).toString('base64')}`;
   const png = async (p) => `data:image/png;base64,${(await p.locator('canvas').first().screenshot()).toString('base64')}`;
   const blank = await (await B.newContext({ viewport: { width: 800, height: 600 } })).newPage();
@@ -292,12 +356,12 @@ if (FOGLI){
       return { u: c.toDataURL('image/webp', .3), q: .3, W: c.width, H: c.height };
     }, { tiles, cols, w, h, title });
     const buf = Buffer.from(out.u.split(',')[1], 'base64');
-    writeFileSync(path.join(FOGLI, file), buf);
+    writeFileSync(path.join(FOGLI3D || FOGLI, file), buf);
     console.log(`foglio ${file}: ${out.W}×${out.H}, ${buf.length} B, qualità ${out.q.toFixed(2)}`);
     check(`foglio ${file} sotto i 300 kB`, buf.length < 300000, `${buf.length} B`);
   }
   // FOGLIO=nome: solo un gruppo di fogli (racchetta, vicino, mancini, campo)
-  const want = n => !process.env.FOGLIO || process.env.FOGLIO === n;
+  const want = n => !!FOGLI && !FOGLI3D && (!process.env.FOGLIO || process.env.FOGLIO === n);
   // 0) racchetta e testa grande: gli stessi passi della stessa partita, prima e dopo la correzione
   if (want('racchetta')){
     const g0 = await game({ cast: 'lobdrop', w: 640, h: 480 }), m = await play(g0.p, { ...RUNS.cpu, clip: true }); await g0.ctx.close();
@@ -362,6 +426,103 @@ if (FOGLI){
   await sheet('confronto-classici.webp', cmp, { cols: 2, w: 640, h: 360, title: 'Opzioni → Personaggi in campo: «Classici» e «Lob & Drop»' });
   await court.ctx.close();
   }
+  /* ---------- B29: fogli dei modelli 3D (docs/b29/img), solo con FOGLI3D=cartella; FOGLIO=nome per un gruppo solo ---------- */
+  if (FOGLI3D){
+    const want3 = n => !process.env.FOGLIO || process.env.FOGLIO === n;
+    const refresh = p => p.evaluate(() => { const E = __natpfTennis; E.natpfUi.hand?.update?.(null); });
+    // a) foto, mascotte nel codice e modello 3D affiancati, stessa camera: davanti, lato, dietro
+    if (want3('vicino')){
+      const code = await game({ cast: 'lobdrop', w: 560, h: 640 }), m3 = await game({ cast: 'lobdrop', w: 560, h: 640, mascotte: '3d' });
+      const closeUp = async (g, actor, view) => { await scene(g.p, `v3-${actor}-${view}`, { pose: 'fermo', cam: { actor, ...NEAR[view] } }); return png(g.p); };
+      for (const [actor, nome] of [['player', 'Drop'], ['opponent', 'Lob']]){
+        const tiles = [{ src: photo, label: 'Foto dei peluche', zoom: 1.5, dx: actor === 'player' ? -.2 : .257, dy: .05 }];
+        for (const [v, l] of [['front', 'davanti'], ['side', 'di lato'], ['back', 'dietro']]) tiles.push({ src: await closeUp(code, actor, v), label: `${nome} costruito nel codice, ${l}` });
+        tiles.push({ src: await closeUp(m3, actor, 'quarter'), label: `${nome} dal modello 3D, di tre quarti` });
+        for (const [v, l] of [['front', 'davanti'], ['side', 'di lato'], ['back', 'dietro']]) tiles.push({ src: await closeUp(m3, actor, v), label: `${nome} dal modello 3D, ${l}` });
+        await sheet(`${nome.toLowerCase()}-foto-codice-3d.webp`, tiles, { cols: 4, w: 340, h: 390, title: `${nome}: la foto, la mascotte costruita nel codice (sopra) e il modello 3D (sotto), stessa camera` });
+      }
+      await code.ctx.close(); await m3.ctx.close();
+    }
+    // b) i gesti da vicino con i modelli
+    if (want3('gesti')){
+      const g = await game({ cast: 'lobdrop', w: 560, h: 640, mascotte: '3d' });
+      const LOW = { front: { from: [0, 1.15, 5.6], look: [0, .92, 0], fov: 28 }, side: { from: [5.6, 1.15, 0], look: [0, .92, 0], fov: 28 }, quarter: { from: [-4.0, 1.25, 3.9], look: [0, .92, 0], fov: 28 } };
+      const list = [['fermo', 0, 'attesa', 'front'], ['fermo', 0, 'attesa, di lato', 'side'], ['corsa', 12, 'corsa', 'front'], ['corsa', 20, 'corsa, di lato', 'side'],
+        ['dritto', 3, 'dritto, apertura', 'front'], ['dritto', 6, 'dritto, impatto', 'front'], ['dritto', 6, 'dritto, impatto (tre quarti)', 'quarter'], ['dritto', 12, 'dritto, finale', 'front'],
+        ['rovescio', 6, 'rovescio, impatto', 'front'], ['rovescio', 12, 'rovescio, finale', 'front'], ['servizio', 1, 'servizio, caricamento', 'front'], ['servizio', 5, 'servizio, impatto', 'front'],
+        ['servizio', 5, 'servizio, impatto (di lato)', 'side'], ['schiacciata', 5, 'schiacciata', 'front'], ['esultanza', 40, 'esultanza', 'front'], ['esultanza', 40, 'esultanza (tre quarti)', 'quarter']];
+      for (const [actor, nome] of [['player', 'Drop'], ['opponent', 'Lob']]){
+        const tiles = [];
+        for (const [pose, steps, l, view] of list){ await scene(g.p, `g3-${actor}`, { pose, steps, who: actor, cam: { actor, ...LOW[view] } }); tiles.push({ src: await png(g.p), label: `${nome}: ${l}` }); }
+        await sheet(`gesti-${nome.toLowerCase()}.webp`, tiles, { cols: 4, w: 300, h: 340, title: `${nome} dal modello 3D: attesa, corsa, dritto, rovescio, servizio, schiacciata, esultanza` });
+      }
+      await g.ctx.close();
+    }
+    // c) mancini: il modello non si specchia (scritte leggibili), la racchetta passa nella mano sinistra
+    if (want3('mancino')){
+      const g = await game({ cast: 'lobdrop', w: 560, h: 640, hand: 'left', mascotte: '3d' });
+      const flip = () => g.p.evaluate(() => { const E = __natpfTennis; E.natpfUi.hand?.update?.(null); E.opponent.root.scale.x = -Math.abs(E.opponent.root.scale.x); });
+      const tiles = [];
+      for (const [actor, nome] of [['player', 'Drop'], ['opponent', 'Lob']])
+        for (const [pose, steps, l] of [['fermo', 0, 'attesa'], ['dritto', 6, 'dritto'], ['rovescio', 6, 'rovescio'], ['servizio', 5, 'servizio']]){
+          await flip();
+          const info = await scene(g.p, `m3-${actor}-${pose}`, { pose, steps, who: actor, cam: { actor, from: [0, 1.15, 5.6], look: [0, .92, 0], fov: 28 } });
+          const bone = await g.p.evaluate(k => { const a = __natpfTennis[k], r = a.natpfMascot3d; return r?.probe ? r.probe(a).racketHandBone : '?'; }, actor);
+          tiles.push({ src: await png(g.p), label: `${nome} mancino, ${l}: racchetta in ${bone}${info.mirror[actor === 'player' ? 0 : 1] ? '' : ' (NON mancino)'}` });
+        }
+      await sheet('mancino.webp', tiles, { cols: 4, w: 320, h: 365, title: 'Mancini con i modelli 3D: racchetta nella mano sinistra, scritte e marchio leggibili (il modello non è specchiato)' });
+      await g.ctx.close();
+    }
+    // d) in campo dalla camera di gioco, anche ingrandito 3 volte; stesso schermo
+    if (want3('campo')){
+      const g = await game({ cast: 'lobdrop', w: 1280, h: 720, mascotte: '3d' });
+      const S3 = { ...SCENES, corsa: { pose: 'corsa', steps: 12 }, rovescio: { pose: 'rovescio', steps: 6 } }, tiles = [];
+      for (const [n, l] of [['fermo', 'Attesa'], ['corsa', 'Corsa di Drop'], ['dritto', 'Dritto di Drop'], ['rovescio', 'Rovescio di Drop'], ['servizio', 'Servizio di Drop'], ['esultanza', 'Esultanza di Drop'], ['avversario', 'Dritto di Lob']]){
+        await scene(g.p, `c3-${n}`, S3[n]); const src = await png(g.p);
+        tiles.push({ src, label: `${l}, camera di gioco` }, { src, label: `${l} (ingrandito 3 volte)`, zoom: 3, dx: n === 'avversario' ? -.005 : .05, dy: n === 'avversario' ? -.1 : .26 });
+      }
+      await scene(g.p, 'c3-split', SCENES.split); tiles.push({ src: await png(g.p), label: 'Stesso schermo: Drop a sinistra, Lob a destra' });
+      await scene(g.p, 'c3-split2', { pose: 'dritto', steps: 6, cam: 'split', multi: true }); tiles.push({ src: await png(g.p), label: 'Stesso schermo: dritto di Drop' });
+      await sheet('in-campo.webp', tiles, { cols: 4, w: 400, h: 225, title: 'Lob & Drop dai modelli 3D, in campo dalla camera di gioco' });
+      // confronto in campo: classici, mascotte nel codice, modelli 3D
+      const cmp = [];
+      for (const [cast, mode, l] of [['sempre', 'codice', 'Classici'], ['lobdrop', 'codice', 'Lob & Drop costruiti nel codice'], ['lobdrop', '3d', 'Lob & Drop dai modelli 3D']]){
+        await g.p.evaluate(m => __natpfTennis.natpfMascotMode(m), mode); await setCast(g.p, cast);
+        await scene(g.p, `k3-${cast}-${mode}`, SCENES.fermo); const src = await png(g.p);
+        cmp.push({ src, label: l }, { src, label: `${l} (ingrandito 3 volte)`, zoom: 3, dx: .05, dy: .26 });
+      }
+      await sheet('confronto-in-campo.webp', cmp, { cols: 2, w: 600, h: 338, title: 'In campo dalla camera di gioco: classici, mascotte nel codice, modelli 3D' });
+      await g.ctx.close();
+    }
+    // e) Drop blu sul campo blu: con e senza il bordo di luce
+    if (want3('bordo')){
+      const g = await game({ cast: 'lobdrop', w: 1280, h: 720, mascotte: '3d' }), tiles = [];
+      const rim = v => g.p.evaluate(v => { let m = null; __natpfTennis.player.natpfMascot3d.group.traverse(o => { if (o.isSkinnedMesh) m = o.material; }); const was = m.userData.natpfRim.value; if (v != null) m.userData.natpfRim.value = v; return was; }, v);
+      const full = await rim(null);
+      for (const [v, l] of [[0, 'senza bordo di luce'], [full, `con il bordo di luce (${full}), come nel gioco`]]){
+        await rim(v);
+        for (const [n, what] of [['fermo', 'attesa'], ['dritto', 'dritto']]){ await scene(g.p, `b3-${n}`, SCENES[n]); tiles.push({ src: await png(g.p), label: `Drop ${l}: ${what} (ingrandito 3 volte)`, zoom: 3, dx: .05, dy: .26 }); }
+        await scene(g.p, 'b3-vicino', { pose: 'fermo', cam: { actor: 'player', from: [0, 1.15, -5.6], look: [0, .92, 0], fov: 28 } }); tiles.push({ src: await png(g.p), label: `Drop ${l}: da dietro, da vicino` });
+      }
+      await sheet('bordo-drop.webp', tiles, { cols: 3, w: 420, h: 300, title: 'Drop è blu su un campo blu: senza e con il bordo di luce' });
+      await g.ctx.close();
+    }
+    // f) texture a 1024 e a 512 punti (TEXTURE512=cartella con i modelli a 512)
+    if (want3('texture') && process.env.TEXTURE512){
+      const tiles = [];
+      for (const [dir, l] of [['', '1024 punti (nel gioco)'], [process.env.TEXTURE512, '512 punti']]){
+        const g = await game({ cast: 'lobdrop', w: 640, h: 640, mascotte: '3d', models: dir });
+        for (const [actor, nome] of [['player', 'Drop'], ['opponent', 'Lob']]){
+          await scene(g.p, `t3-${actor}`, { pose: 'fermo', cam: { actor, from: [.25, 1.2, 2.9], look: [0, 1.0, 0], fov: 28 } }); tiles.push({ src: await png(g.p), label: `${nome}, texture a ${l}: da vicino` });
+        }
+        await g.ctx.close();
+        const c = await game({ cast: 'lobdrop', w: 1280, h: 720, mascotte: '3d', models: dir });
+        await scene(c.p, 't3-campo', SCENES.fermo); tiles.push({ src: await png(c.p), label: `Texture a ${l}: dalla camera di gioco (ingrandito 4 volte)`, zoom: 4, dx: .05, dy: .26 });
+        await c.ctx.close();
+      }
+      await sheet('texture-1024-512.webp', tiles, { cols: 3, w: 420, h: 420, title: 'Texture dei modelli: 1024 punti (scelta) e 512 punti' });
+    }
+  }
   await B.close(); summary(); process.exit(process.exitCode || 0);
 }
 
@@ -370,8 +531,8 @@ const MASCOT = /^Natpf(Drop|Lob)|^NatpfOcchio|^NatpfBoccaAperta|^NatpfLingua/;
 
 /* ---------- 1) scene ferme: «Classici» identico a prima, «Lob & Drop» diverso, ritorno identico ---------- */
 
-const prints = {};
-if (!process.env.COSTO && !process.env.TESTA){
+const prints = {}, partite = {};
+if (!process.env.COSTO && !process.env.TESTA && !TRE_D && !FOGLI3D){
   const g = await game({ cast: BASELINE ? null : 'sempre' }), p = g.p;
   // la partita si gioca per prima, a pagina appena aperta: una seconda partita nella stessa pagina parte da uno stato
   // diverso (resti della prima) e non è confrontabile; il confronto si fa tra pagine nuove (qui sotto, con Lob & Drop)
@@ -431,11 +592,12 @@ if (!process.env.COSTO && !process.env.TESTA){
 }
 
 /* ---------- 1b) racchetta fuori dalla testa grande, partita vera contro la CPU e nello stesso schermo ---------- */
+// (mascotte costruite nel codice; per i modelli 3D la stessa misura è nella parte 6)
 // Revisione del 12/11: con la testa grande la racchetta entrava nella testa. Stessa partita della revisione (contro la
 // CPU, seme 31337, 2600 passi, un robot al posto di chi gioca): quanti passi con il telaio dentro la testa prima e dopo,
 // quanto si scosta la racchetta, e al colpo le corde sono dove erano. La partita è la stessa con i due valori
 // dell'opzione, contro la CPU e nello stesso schermo (con il disegno a vuoto prima del seme: vedi play).
-if (!process.env.COSTO){
+if (!process.env.COSTO && !TRE_D && !FOGLI3D){
   const ref = CONFRONTA && existsSync(CONFRONTA) ? JSON.parse(readFileSync(CONFRONTA, 'utf8')) : {};
   for (const [name, run] of Object.entries(RUNS)){
     if (process.env.TESTA && process.env.TESTA !== '1' && process.env.TESTA !== name) continue;
@@ -447,6 +609,7 @@ if (!process.env.COSTO){
       await g.ctx.close();
     }
     const A = out.sempre, M = out.lobdrop, c = M.clip;
+    partite[name] = A.hash;
     check(`partita ${name}, sorteggi fissi: giocata, stessa impronta con «Classici» e con «Lob & Drop» (niente cambia nel gioco)`, A.hits >= 6 && A.hash === M.hash && M.looks.join() === 'drop,lob', `${A.hash} / ${M.hash}, ${A.hits} colpi, ${M.looks}`);
     if (ref[`partita-${name}`]) check(`partita ${name}: identica a prima del B24`, ref[`partita-${name}`] === A.hash, `${ref[`partita-${name}`]} / ${A.hash}`);
     const pct = n => `${n} su ${c.n} (${(n*100/c.n).toFixed(1)}%)`;
@@ -471,7 +634,7 @@ if (!process.env.COSTO){
 }
 
 /* ---------- 2) opzione e parametro ---------- */
-if (!process.env.COSTO){
+if (!process.env.COSTO && !TRE_D && !FOGLI3D){
   const def = await game({ cast: null }), p = def.p;
   const d0 = await p.evaluate(K => ({ saved: localStorage.getItem(K), looks: [__natpfTennis.player.natpfLook, __natpfTennis.opponent.natpfLook] }), KEY);
   check('niente di salvato: personaggi classici', d0.saved == null && d0.looks.join() === 'p1,cpu', JSON.stringify(d0));
@@ -524,10 +687,98 @@ if (!process.env.COSTO){
   await lf.ctx.close();
 }
 
-/* ---------- 5) costo: stesso fotogramma disegnato con i due aspetti, fotogrammi al secondo ---------- */
+/* ---------- 6) B29 · modelli 3D di Lob e di Drop ---------- */
+if (!process.env.COSTO && !process.env.TESTA){
+  const ref = CONFRONTA && existsSync(CONFRONTA) ? JSON.parse(readFileSync(CONFRONTA, 'utf8')) : {};
+  const CODE = /^Natpf(Drop|Lob)[A-Z]|^NatpfOcchio|^NatpfBoccaAperta|^NatpfLingua|^Natpf(Braccio|Avambraccio|Coscia|Stinco)/;
+  // a) con «Lob & Drop» i due modelli si caricano e sono loro in campo; niente pezzi costruiti nel codice
+  const g = await game({ cast: 'lobdrop', mascotte: '3d' }), p = g.p;
+  const a = await scene(p, '3d-fermo-a', SCENES.fermo), b = await scene(p, '3d-fermo-b', SCENES.fermo);
+  await shot(p, 'b29-fermo-3d');
+  check('3D: i due modelli sono stati chiesti e sono in campo (Drop chi gioca, Lob l\'altro)', a.on3d.every(Boolean) && a.looks.join() === 'drop,lob' && g.glb.includes('mascotte-drop.glb') && g.glb.includes('mascotte-lob.glb'), `${a.on3d} · ${[...new Set(g.glb)]}`);
+  check('3D: in scena il modello e la racchetta, nessun pezzo costruito nel codice né del tennista', a.seen[0].includes('NatpfMascotte3dDrop') && a.seen[1].includes('NatpfMascotte3dLob') && a.seen.every(l => l.includes('NatpfTelaio') && !l.some(n => CODE.test(n) || HUMAN.test(n))), JSON.stringify(a.seen).slice(0, 300));
+  check('3D: scena ripetibile (stessa impronta due volte)', a.hash === b.hash && await diff(p, '3d-fermo-a', '3d-fermo-b') === 0, `${a.hash} / ${b.hash}, ${await where(p, '3d-fermo-a', '3d-fermo-b')}`);
+  // palmo sul manico e piante sul campo nelle pose (misure del rig), destri
+  const poses = [['fermo', 0], ['corsa', 12], ['dritto', 3], ['dritto', 6], ['dritto', 12], ['rovescio', 6], ['servizio', 1], ['servizio', 5], ['schiacciata', 5], ['esultanza', 40]];
+  const probe = () => p.evaluate(() => ['player', 'opponent'].map(k => { const a = __natpfTennis[k], r = a.natpfMascot3d.probe(a), h = a.parts.handR.getWorldPosition(r.palmA.clone());
+    return { bone: r.racketHandBone, grip: +r.palmA.distanceTo(h).toFixed(3), sole: [+r.soleA.y.toFixed(3), +r.soleB.y.toFixed(3)], stretch: +r.stretchA.toFixed(2) }; }));
+  let worst = { grip: 0, low: 9, high: 0, stretch: 0 }, bones = new Set();
+  for (const who of ['player', 'opponent']) for (const [pose, steps] of poses){
+    await scene(p, '3d-posa', { pose, steps, who });
+    for (const r of await probe()){ bones.add(r.bone); worst = { grip: Math.max(worst.grip, r.grip), low: Math.min(worst.low, ...r.sole), high: Math.max(worst.high, ...r.sole), stretch: Math.max(worst.stretch, r.stretch) }; }
+  }
+  check('3D, nelle pose (attesa, corsa, dritto, rovescio, servizio, schiacciata, esultanza): racchetta nella mano destra (RightHand), palmo sul manico', bones.size === 1 && bones.has('RightHand') && worst.grip < .035, `${[...bones]}, palmo–manico al più ${worst.grip} m, braccio allungato al più ${worst.stretch} volte`);
+  check('3D, nelle pose: piante sul campo (mai sotto; al più 20 cm sopra nel passo di corsa e nel saltello dell\'esultanza)', worst.low > -.005 && worst.high < .2, `da ${worst.low} a ${worst.high} m`);
+  // «Classici» al volo: il modello sparisce, il disegno è quello di prima; di nuovo «Lob & Drop»: tornano i modelli
+  await setCast(p, 'sempre');
+  const c = await scene(p, '3d-classici', SCENES.fermo);
+  check('3D → «Classici» al volo: i personaggi di prima, nessun modello in scena', c.looks.join() === 'p1,cpu' && !c.on3d.some(Boolean) && !c.seen.flat().some(n => /Mascotte3d/.test(n)) && c.seen[0].some(n => HUMAN.test(n)), `${c.looks}`);
+  if (prints.fermo) check('3D → «Classici» al volo: disegno identico a «Classici»', c.hash === prints.fermo, `${c.hash} / ${prints.fermo}`);
+  else if (ref.fermo) check('3D → «Classici» al volo: disegno identico a prima (impronta del commit di prima)', c.hash === ref.fermo, `${c.hash} / ${ref.fermo}`);
+  await setCast(p, 'lobdrop');
+  const d = await scene(p, '3d-fermo-c', SCENES.fermo);
+  check('«Classici» → «Lob & Drop»: tornano i modelli, stesso disegno', d.on3d.every(Boolean) && d.hash === a.hash, `${d.hash} / ${a.hash}`);
+  check('3D: nessun errore, nessuna riga di avviso', !g.errs.length && !g.warns.length, [...g.errs, ...g.warns].join(' | ').slice(0, 300));
+  await g.ctx.close();
+  // mancino: il modello non è specchiato, la racchetta è nell'osso LeftHand
+  const lf = await game({ cast: 'lobdrop', mascotte: '3d', hand: 'left' });
+  await lf.p.evaluate(() => { const E = __natpfTennis; E._natpfFrame = () => 'paused'; E.natpfUi.hand?.update?.(null); });
+  const m = await scene(lf.p, '3d-mancino', { pose: 'dritto', steps: 6, cam: { actor: 'player', ...NEAR.front } });
+  const lm = await lf.p.evaluate(() => { const a = __natpfTennis.player, r = a.natpfMascot3d, pr = r.probe(a); r.group.updateMatrixWorld(true);
+    return { bone: pr.racketHandBone, grip: +pr.palmA.distanceTo(a.parts.handR.getWorldPosition(pr.palmB.clone())).toFixed(3), det: Math.sign(r.group.matrixWorld.determinant()), mirrored: r.mirrored }; });
+  await shot(lf.p, 'b29-mancino-3d');
+  check('3D, mancino: radice specchiata ma modello no (scritte leggibili), racchetta nell\'osso LeftHand, palmo sul manico', m.mirror[0] && lm.bone === 'LeftHand' && lm.det > 0 && lm.mirrored && lm.grip < .035 && !lf.errs.length, JSON.stringify(lm));
+  await lf.ctx.close();
+  // b) niente peso per chi non li usa: con «Classici» e con ?mascotte=codice i file non si chiedono
+  for (const [cast, mascotte, what] of [['sempre', '3d', '«Classici»'], ['lobdrop', 'codice', '«Lob & Drop» con ?mascotte=codice']]){
+    const q = await game({ cast, mascotte, w: 640, h: 360 });
+    await q.p.waitForTimeout(1500);
+    const s0 = await scene(q.p, '3d-niente', SCENES.fermo);
+    check(`${what}: i modelli non si scaricano${cast === 'lobdrop' ? ', in campo le mascotte costruite nel codice' : ''}`, !q.glb.length && !s0.on3d.some(Boolean) && (cast !== 'lobdrop' || s0.seen[0].includes('NatpfDropTesta')) && !q.errs.length, `richieste ${q.glb.length}, ${s0.looks}`);
+    await q.ctx.close();
+  }
+  // c) ripiego: il file di Drop non arriva → Drop resta quello costruito nel codice, Lob è il modello; una riga nella console
+  const f = await game({ cast: 'lobdrop', mascotte: '3d', block: /mascotte-drop\.glb/ });
+  await f.p.waitForTimeout(1500);
+  const fs3 = await scene(f.p, '3d-ripiego', SCENES.fermo);
+  await shot(f.p, 'b29-ripiego');
+  const overlay = await f.p.evaluate(() => !!document.querySelector('vite-error-overlay'));
+  check('ripiego (file di Drop bloccato): Drop costruito nel codice, Lob dal modello, racchetta in mano, nessun buco', !fs3.on3d[0] && fs3.on3d[1] && fs3.seen[0].includes('NatpfDropTesta') && fs3.seen[0].includes('NatpfTelaio') && fs3.seen[1].includes('NatpfMascotte3dLob') && fs3.grip.every(x => x < .05), `${fs3.on3d}`);
+  check('ripiego: nessun errore a schermo, una riga sola nella console', !f.errs.length && !overlay && f.warns.length === 1 && /Drop.*mascotte costruita nel codice/.test(f.warns[0]), `${f.errs.join(' | ')} · ${f.warns.join(' | ')}`.slice(0, 300));
+  await f.ctx.close();
+  // d) partite a sorteggi fissi con i modelli: stessa impronta di «Classici» e del commit di prima; al colpo le corde
+  // sono dove erano; palmo sul manico, piante sul campo, niente scatti, a ogni passo
+  for (const [name, run] of [['senza persone', { steps: 3600 }], ...Object.entries(RUNS)]){
+    if (process.env.PARTITA && process.env.PARTITA !== name) continue;
+    const key = name === 'senza persone' ? 'partita' : `partita-${name}`;
+    let base = name === 'senza persone' ? prints.partita : partite[name];
+    if (!base){ const g0 = await game({ cast: 'sempre', w: 640, h: 360 }); base = (await play(g0.p, run)).hash; await g0.ctx.close(); }
+    const g3 = await game({ cast: 'lobdrop', mascotte: '3d', w: 640, h: 360 });
+    const M = await play(g3.p, { ...run, clip: true, rig3d: true }), c3 = M.clip, R = M.rig;
+    check(`3D, partita ${name}: giocata con i modelli in campo, stessa impronta di «Classici» (niente cambia nel gioco)`, M.hits >= 6 && M.hash === base && M.on3d.every(Boolean) && R.on.player === R.n && R.on.opponent === R.n && !g3.errs.length, `${M.hash} / ${base}, ${M.hits} colpi, modelli in ${R.on.player} e ${R.on.opponent} passi su ${R.n} ${g3.errs.join(' | ')}`);
+    if (ref[key]) check(`3D, partita ${name}: identica al commit di prima`, ref[key] === M.hash, `${ref[key]} / ${M.hash}`);
+    const pct = n => `${n} su ${c3.n} (${(n*100/c3.n).toFixed(1)}%)`;
+    console.log(`3D, partita ${name}: telaio dentro la testa del modello · Drop prima ${pct(c3.prima.player)}, dopo ${pct(c3.dopo.player)} · Lob prima ${pct(c3.prima.opponent)}, dopo ${pct(c3.dopo.opponent)}`);
+    console.log(`  dove (passi prima → dopo): ${Object.entries(c3.pose).map(([k, v]) => `${k} ${v[0]} → ${v[1]}`).join(' · ')}`);
+    console.log(`  rig: palmo–manico al più ${(R.presa*100).toFixed(1)} cm, piante da ${(R.piantaMin*100).toFixed(1)} a ${(R.piantaMax*100).toFixed(1)} cm, passi con tutti e due i piedi alzati più di 5 cm ${R.inAria}, braccio allungato al più ${R.allungo.toFixed(2)} volte (${R.allungoDove?.chi} al passo ${R.allungoDove?.passo}), mano libera al più ${(R.manoLibera*100).toFixed(1)} cm per passo, scatto oltre il limite ${R.scatto.toFixed(1)} gradi ${R.dove}`);
+    check(`3D, partita ${name}: al colpo le corde sono dove erano (punto d'impatto non cambiato), su tutti i colpi`, c3.colpi.length >= 6 && c3.colpi.every(x => Math.abs(x.dopo - x.prima) < .001), `${c3.colpi.length} colpi · ${JSON.stringify(c3.colpi.filter(x => x.scostamento > 0)).slice(0, 200)}`);
+    check(`3D, partita ${name}: la racchetta è sempre nella mano (palmo a meno di 3,5 cm dal manico a ogni passo)`, R.presa < .035, `${(R.presa*100).toFixed(1)} cm`);
+    check(`3D, partita ${name}: piedi sul campo (le piante non scendono mai sotto; un piede si alza al più di 25 cm nel passo)`, R.piantaMin > -.005 && R.piantaMax < .25 && R.inAria < R.n*.02, `da ${(R.piantaMin*100).toFixed(1)} a ${(R.piantaMax*100).toFixed(1)} cm, ${R.inAria} passi su ${R.n} con tutti e due i piedi alzati`);
+    check(`3D, partita ${name}: niente scatti (ossa e mano libera, a ogni passo, anche tra un'animazione e l'altra)`, R.scatto === 0 && R.manoLibera < .2, `${R.dove || 'nessuno'} · mano libera al più ${(R.manoLibera*100).toFixed(1)} cm per passo oltre la mano del tennista`);
+    const wait = Object.entries(c3.pose).filter(([k]) => /attesa/.test(k)).reduce((t, [, v]) => [t[0] + v[0], t[1] + v[1]], [0, 0]);
+    check(`3D, partita ${name}: nell'attesa dello scambio il telaio non resta nella testa del modello (al più un quinto di prima)`, wait[1] <= Math.max(12, wait[0]*.2), `${wait[0]} → ${wait[1]} passi`);
+    check(`3D, partita ${name}: la racchetta non fa scatti (al più 22 cm tra due passi)`, Math.max(c3.salto.player, c3.salto.opponent)*160 <= 22, `${(c3.salto.player*160).toFixed(1)} e ${(c3.salto.opponent*160).toFixed(1)} cm`);
+    await g3.ctx.close();
+  }
+}
+
+/* ---------- 5) costo: stesso fotogramma disegnato con i tre aspetti, fotogrammi al secondo ---------- */
 {
   // finestra piccola: con la grafica in software del banco di prova il disegno è lento, e qui conta il confronto
-  const g = await game({ cast: 'sempre', w: 640, h: 360 }), p = g.p;
+  // la pagina parte con i modelli 3D già montati (poi il ciclo del gioco si ferma e non si monterebbero più)
+  const g = await game({ cast: 'lobdrop', w: 640, h: 360, mascotte: '3d' }), p = g.p;
+  // aspetto: 'sempre' (classici), 'lobdrop' (mascotte costruite nel codice), '3d' (modelli)
+  const use = (p, v) => p.evaluate(v => { const E = __natpfTennis; E.natpfMascotMode(v === '3d' ? '3d' : 'codice'); E.natpfUi.lobby.setCast(v === 'sempre' ? 'sempre' : 'lobdrop'); }, v);
   // conti del disegno (chiamate e triangoli per fotogramma: non dipendono dal carico della macchina) e tempo del
   // disegno: il più breve di tanti disegni a giri alternati (il più breve risente meno degli altri lavori in corso)
   const draw = () => p.evaluate(async N => {
@@ -539,19 +790,23 @@ if (!process.env.COSTO){
     return { ms: +Math.min(...t).toFixed(2), calls: info.calls, tris: info.triangles };
   }, DRAW_N);
   const cost = {};
-  for (const round of [1, 2, 3]) for (const cast of ['sempre', 'lobdrop']){
-    await setCast(p, cast); await scene(p, `costo-${cast}-${round}`, SCENES.dritto);
+  for (const round of [1, 2, 3]) for (const cast of ['sempre', 'lobdrop', '3d']){
+    await use(p, cast); const sc = await scene(p, `costo-${cast}-${round}`, SCENES.dritto);
+    if (round === 1) check(`costo: aspetto ${cast} in scena`, cast === 'sempre' ? sc.looks.join() === 'p1,cpu' : sc.looks.join() === 'drop,lob' && sc.on3d.every(Boolean) === (cast === '3d'), `${sc.looks} ${sc.on3d}`);
     const d = await draw();
     cost[cast] = cost[cast] ? { ...d, ms: Math.min(d.ms, cost[cast].ms) } : d;
   }
-  const A = cost.sempre, M = cost.lobdrop;
+  const A = cost.sempre, M = cost.lobdrop, T = cost['3d'];
   console.log(`disegno dello stesso fotogramma (il più breve di ${DRAW_N} disegni per 3 giri alternati): classici ${A.ms} ms, ${A.calls} chiamate, ${A.tris} triangoli · Lob & Drop ${M.ms} ms, ${M.calls} chiamate, ${M.tris} triangoli`);
   check('costo del disegno: chiamate e triangoli non più del 10% sopra i personaggi classici', M.calls <= A.calls*1.1 + 2 && M.tris <= A.tris*1.1, `chiamate ${A.calls} → ${M.calls}, triangoli ${A.tris} → ${M.tris}`);
   check('costo del disegno: tempo non peggiorato (entro il 12%, misura a macchina condivisa)', M.ms <= A.ms*1.12 + .5, `${A.ms} ms → ${M.ms} ms`);
+  console.log(`  modelli 3D: ${T.ms} ms, ${T.calls} chiamate, ${T.tris} triangoli`);
+  check('3D, costo del disegno: meno chiamate delle mascotte nel codice, triangoli non più dell\'1% sopra', T.calls <= M.calls && T.tris <= M.tris*1.01, `chiamate ${M.calls} → ${T.calls}, triangoli ${M.tris} → ${T.tris}`);
+  check('3D, costo del disegno: tempo non peggiorato rispetto alle mascotte nel codice (entro il 12%)', T.ms <= M.ms*1.12 + .5, `${M.ms} ms → ${T.ms} ms`);
   // fotogrammi al secondo con il gioco che gira (scambio senza persone), due giri alternati
   const fps = cast => p.evaluate(async ({ cast, ms }) => {
     const E = __natpfTennis;
-    E.natpfUi.lobby.setCast(cast);
+    E.natpfMascotMode(cast === '3d' ? '3d' : 'codice'); E.natpfUi.lobby.setCast(cast === 'sempre' ? 'sempre' : 'lobdrop');
     E.natpfSplit.active = false; E.natpfPaused = false; E.autoPlayMode = true; window.__seed(99); E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = true;
     E._natpfFrame = E.__frame0;
     await new Promise(r => setTimeout(r, 800));
@@ -560,13 +815,14 @@ if (!process.env.COSTO){
     let n = 0, first = 0, last = 0; const t0 = performance.now();
     await new Promise(done => { const f = () => { last = performance.now(); if (!n++) first = last; if (last - t0 >= ms && n >= 9) done(); else requestAnimationFrame(f); }; requestAnimationFrame(f); });
     E._natpfFrame = () => 'paused';
-    return { fps: +((n - 1)*1000/(last - first)).toFixed(2), frames: n, looks: [E.player.natpfLook, E.opponent.natpfLook] };
+    return { fps: +((n - 1)*1000/(last - first)).toFixed(2), frames: n, looks: [E.player.natpfLook, E.opponent.natpfLook], on3d: !!E.player.natpfMascot3dOn && !!E.opponent.natpfMascot3dOn };
   }, { cast, ms: FPS_MS });
-  const f = { sempre: [], lobdrop: [] };
-  for (const round of [1, 2]) for (const cast of ['sempre', 'lobdrop']){ const r = await fps(cast); f[cast].push(r.fps); if (cast === 'lobdrop') check(`giro ${round}: in partita ci sono Drop e Lob`, r.looks.join() === 'drop,lob', r.looks.join()); }
+  const f = { sempre: [], lobdrop: [], '3d': [] };
+  for (const round of [1, 2]) for (const cast of ['sempre', 'lobdrop', '3d']){ const r = await fps(cast); f[cast].push(r.fps); if (cast !== 'sempre') check(`giro ${round}: in partita ci sono Drop e Lob${cast === '3d' ? ' dai modelli 3D' : ' costruiti nel codice'}`, r.looks.join() === 'drop,lob' && r.on3d === (cast === '3d'), `${r.looks} ${r.on3d}`); }
   const best = k => Math.max(...f[k]);
-  console.log(`fotogrammi al secondo (grafica in software, ${FPS_MS} ms per misura): classici ${f.sempre.join(' e ')} · Lob & Drop ${f.lobdrop.join(' e ')}`);
+  console.log(`fotogrammi al secondo (grafica in software, ${FPS_MS} ms per misura): classici ${f.sempre.join(' e ')} · Lob & Drop nel codice ${f.lobdrop.join(' e ')} · modelli 3D ${f['3d'].join(' e ')}`);
   check('fotogrammi al secondo non peggiorati (il migliore dei due giri entro il 10% dei personaggi classici)', best('lobdrop') >= best('sempre')*.9, `classici ${best('sempre')}, Lob & Drop ${best('lobdrop')}`);
+  check('3D, fotogrammi al secondo non peggiorati rispetto alle mascotte nel codice (il migliore dei due giri entro il 10%)', best('3d') >= best('lobdrop')*.9, `nel codice ${best('lobdrop')}, modelli 3D ${best('3d')}`);
   check('costo: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
   await g.ctx.close();
 }

@@ -17,7 +17,7 @@
 #   · vertici uguali uniti, triangoli vuoti tolti;
 #   · scheletro in metri (la scala 0,01 dell'armatura è riportata nelle ossa), stessi 24 nomi;
 #   · SOLO per Drop: nella texture il marchio sul petto era scritto «Nittto», con tre t. Qui si corregge in «Nitto»
-#     (vedi correggi_nitto). Con --fogli si salvano il prima e il dopo.
+#     (vedi correggi_nitto). Con --fogli si salva il foglio con il prima e il dopo (nitto-prima-dopo.webp).
 # Niente Draco né meshopt: chiederebbero un decodificatore nel gioco.
 import argparse, io, json, os, struct, sys
 import numpy as np
@@ -163,6 +163,23 @@ def correggi_nitto(tex, pos, uv, idx, par=NITTO):
     return img(out), img(prima), img(dopo)
 
 
+# Foglio «prima e dopo» del marchio sul petto di Drop (vista da davanti, come esce da correggi_nitto)
+def foglio_nitto(prima, dopo):
+    from PIL import ImageDraw, ImageFont
+    taglio = (200, 215, 860, 560)                           # la zona del marchio nella vista da davanti
+    a, b = prima.crop(taglio), dopo.crop(taglio)
+    w, h = a.size; bordo, testa = 10, 34
+    foglio = Image.new('RGB', (2*w + 3*bordo, h + testa + 2*bordo), (16, 19, 28))
+    penna = ImageDraw.Draw(foglio)
+    try: font = ImageFont.load_default(20)
+    except TypeError: font = ImageFont.load_default()
+    for k, (img, testo) in enumerate(((a, 'Prima: la texture del generatore, con tre t'), (b, 'Dopo: corretta, come sui peluche'))):
+        x = bordo + k*(w + bordo)
+        penna.text((x + 2, bordo + 4), testo, fill=(223, 230, 245), font=font)
+        foglio.paste(img, (x, bordo + testa))
+    return foglio
+
+
 # ---------------------------------------------------------------------------------------------------------------
 def pesi_a_8_bit(w):
     w = np.maximum(w, 0); w = w/np.maximum(1e-12, w.sum(axis=1))[:, None]
@@ -223,13 +240,12 @@ def alleggerisci(nome, sorgente, lato, formato, qualita, fogli=None):
         tex, prima, dopo = correggi_nitto(tex, pos, uv, idx)
         if fogli:
             os.makedirs(fogli, exist_ok=True)
-            prima.save(os.path.join(fogli, 'nitto-prima.png')); dopo.save(os.path.join(fogli, 'nitto-dopo.png'))
+            foglio_nitto(prima, dopo).save(os.path.join(fogli, 'nitto-prima-dopo.webp'), 'WEBP', quality=88, method=6)
     if tex.size != (lato, lato): tex = tex.resize((lato, lato), Image.LANCZOS)
     buf = io.BytesIO()
     if formato == 'webp': tex.save(buf, 'WEBP', quality=qualita, method=6)
     else: tex.save(buf, 'JPEG', quality=qualita, optimize=True, progressive=True, subsampling=0)
     img = buf.getvalue()
-    if fogli: tex.save(os.path.join(fogli, f'texture-{nome}.png'))
 
     # posizioni a 16 bit: p = q/32767 * mezzo + centro (la matrice D finisce nelle inverse delle ossa)
     lo, hi = pos.min(axis=0), pos.max(axis=0); centro = (lo + hi)/2; mezzo = np.maximum((hi - lo)/2, 1e-9)
@@ -353,7 +369,7 @@ def main():
     ap.add_argument('--lato', type=int, default=1024)
     ap.add_argument('--formato', choices=('webp', 'jpeg'), default='webp')
     ap.add_argument('--qualita', type=int, default=80)
-    ap.add_argument('--fogli', help='cartella dove salvare il prima e il dopo del marchio e le texture ridotte')
+    ap.add_argument('--fogli', help='cartella dove salvare il foglio con il prima e il dopo del marchio di Drop')
     ap.add_argument('--solo', choices=NOMI)
     a = ap.parse_args()
     os.makedirs(a.uscita, exist_ok=True)
