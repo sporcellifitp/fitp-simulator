@@ -140,7 +140,7 @@ try {
   check('i servizi di chi gioca: tipo, tempo, velocità, voto', di('servizio').length === cpu.servizi && di('servizio').every(r => Number.isFinite(r.kmh) && Number.isFinite(r.ms)), fmt(di('servizio').slice(0, 2)));
   check('fine partita: esito, game, punti, durata, costo del registro', F1.esito === 'finita' && F1.vince === 'g' && fmt(F1.game) === fmt(finita.g) && F1.punti === cpu.punti && F1.durS >= 0 && Number.isFinite(F1.costoMs), fmt(F1));
   check('dopo l\'invio sul computer non resta niente in coda', s1.coda.blocchi === 0 && s1.inMemoria === 0 && s1.invio.ultimoOk > 0 && !s1.invio.ultimoErrore, fmt({ coda: s1.coda, invio: s1.invio }));
-  const byteCpu = Buffer.byteLength(righe.filter(r => r.n === 1).map(r => JSON.stringify(r)).join('\n'));
+  const byteCpu = Buffer.byteLength(righe.filter(r => r.n === 1).map(r => JSON.stringify(r)).join('\n')), r2Cpu = env.REGISTRO.byteBlocchi();
 
   // 2b. stesso schermo, due nomi scritti
   await alMenu(p);
@@ -160,7 +160,7 @@ try {
   check('niente nomi nello spazio (né nelle righe né nei nomi dei file)', nomiTrovati.length === 0, nomiTrovati.join(', '));
   check(`tutte le ${righe.length} righe passano il controllo (solo campi previsti, niente indirizzi, niente e-mail)`, male.length === 0, male.slice(0, 4).join(' | '));
   check('niente indirizzi di rete né identificativi del browser nello spazio', !/127\.0\.0\.1|Mozilla|HeadlessChrome|localhost/.test(tutto), (tutto.match(/127\.0\.0\.1|Mozilla|HeadlessChrome|localhost/) || [])[0]);
-  const byteDuo = Buffer.byteLength(righe.filter(r => r.n === 2).map(r => JSON.stringify(r)).join('\n'));
+  const byteDuo = Buffer.byteLength(righe.filter(r => r.n === 2).map(r => JSON.stringify(r)).join('\n')), r2Duo = env.REGISTRO.byteBlocchi() - r2Cpu;
 
   // 3. pannello dello stand
   await alMenu(p);
@@ -243,7 +243,7 @@ try {
   const msPartita = di('partita.fine', nelloSpazio()).map(r => r.costoMs);
   check('costo del registro: meno di 5 ms di lavoro per partita in tutto (agganci e righe), nessun passo del gioco oltre 2 ms per il registro', msPartita.every(v => v < 5) && costo.costo.max < 2, fmt({ msPerPartita: msPartita, piuLungo: +costo.costo.max.toFixed(3) }));
   check('costo del registro: un passo del gioco dura lo stesso con il registro acceso e spento (entro 0,05 ms)', Math.abs(costo.acceso - costo.spento) < .05, `acceso ${costo.acceso.toFixed(4)} ms · spento ${costo.spento.toFixed(4)} ms`);
-  console.log(`MISURE  partita contro la CPU: ${byteCpu} byte di righe · stesso schermo: ${byteDuo} byte · costo per partita ${msPartita.map(v => v.toFixed(1)).join(', ')} ms · passo del gioco acceso ${costo.acceso.toFixed(4)} ms, spento ${costo.spento.toFixed(4)} ms`);
+  console.log(`MISURE  partita contro la CPU: ${byteCpu} byte di righe, ${r2Cpu} byte compressi nello spazio (con l'avvio) · stesso schermo: ${byteDuo} byte, ${r2Duo} compressi · costo per partita ${msPartita.map(v => v.toFixed(1)).join(', ')} ms · passo del gioco acceso ${costo.acceso.toFixed(4)} ms, spento ${costo.spento.toFixed(4)} ms`);
   check('peso: una partita occupa pochi kB di righe (meno di 6 kB ognuna in questa prova)', byteCpu > 300 && byteCpu < 6000 && byteDuo > 300 && byteDuo < 6000, `${byteCpu} e ${byteDuo} byte`);
   check('nessun errore nella pagina in tutta la prova', !errs.length, errs.slice(0, 3).join(' | '));
 } finally { await B.close(); stop(); }
