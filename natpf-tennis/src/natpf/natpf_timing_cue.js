@@ -1,7 +1,7 @@
 // B18.2 · tappa 2, gruppo 3 · Segnale del momento giusto (miglioramento 3 del rapporto B16, appendice M3).
 // Il voto più frequente è «Anticipo»: chi gioca non sa QUANDO colpire. Il segnale è un anello attorno alla palla che
-// arriva: parte largo, si stringe mentre la palla si avvicina e si chiude sulla palla nell'istante giusto, diventando
-// verde. Chi gioca colpisce quando l'anello si chiude.
+// arriva: parte largo e bianco, si stringe mentre la palla si avvicina e si chiude sulla palla nell'istante giusto,
+// diventando verde e pieno. Chi gioca colpisce quando l'anello si chiude.
 // Solo disegno: non legge i gesti e non cambia l'esito dei colpi, il voto, la fisica o i sorteggi (niente Math.random).
 // L'istante è lo stesso che usa il gioco per giudicare il colpo: il tempo che manca al punto d'impatto
 // (natpf_impact.timeToContact). Il verde dura quanto la finestra del voto «Perfetto» del colpo vero (quello della scritta:
@@ -29,7 +29,10 @@ export const CUE = Object.freeze({
   tight: .55,     // m di diametro quando è chiuso sulla palla (la palla è 0,2 m a schermo)
   after: .12,     // s dopo la fine del verde in cui resta in vista (rosso: tardi), poi sparisce
 });
-export const CUE_COLORS = Object.freeze({ wait: '#ffe14a', now: '#39e58c', late: '#ff5d6c' });
+// Colori (revisione del 12/11): mentre la palla arriva l'anello è bianco, non più giallo: nell'anello a terra del voto il
+// giallo vuol dire «buono», qui voleva dire «aspetta». Verde: adesso. Rosso: tardi
+export const CUE_COLORS = Object.freeze({ wait: '#ffffff', now: '#39e58c', late: '#ff5d6c' });
+export const CUE_NOW_SCALE = 1.3;   // quando diventa verde l'anello si allarga di colpo e si riempie (un lampo): prima si vedeva poco
 const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
 
 // scelta salvata: 'auto' (di base) | 'on' | 'off'
@@ -86,13 +89,15 @@ export function cueHold(view, floor = Infinity){
   return { view, floor: view.diameter };
 }
 
-function ringTexture(){
+// fill: l'interno pieno e trasparente (l'anello verde: si vede anche sopra la racchetta, che ha quasi la stessa misura)
+function ringTexture(fill = false){
   const c = typeof document != 'undefined' ? document.createElement('canvas') : null, g = c && c.getContext ? c.getContext('2d') : null;
   if (!g) return null;
   c.width = c.height = 256;
   g.clearRect(0, 0, 256, 256);
-  g.lineWidth = 20; g.strokeStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.arc(128, 128, 104, 0, Math.PI*2); g.stroke();   // bordo scuro: si legge anche sul campo chiaro
-  g.lineWidth = 12; g.strokeStyle = '#ffffff'; g.beginPath(); g.arc(128, 128, 104, 0, Math.PI*2); g.stroke();
+  if (fill){ g.fillStyle = 'rgba(255,255,255,.34)'; g.beginPath(); g.arc(128, 128, 98, 0, Math.PI*2); g.fill(); }
+  g.lineWidth = 34; g.strokeStyle = 'rgba(0,0,0,.6)'; g.beginPath(); g.arc(128, 128, 98, 0, Math.PI*2); g.stroke();   // bordo scuro: si legge anche sul campo chiaro
+  g.lineWidth = 22; g.strokeStyle = '#ffffff'; g.beginPath(); g.arc(128, 128, 98, 0, Math.PI*2); g.stroke();
   return new THREE.CanvasTexture(c);
 }
 
@@ -106,7 +111,8 @@ export class NatpfTimingCue {
   }
   _build(){
     const scene = this.engine.scene; if (!scene) return null;
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTexture(), color: CUE_COLORS.wait, transparent: true, depthWrite: false, depthTest: false, opacity: .95 }));
+    this._maps = { ring: ringTexture(), full: ringTexture(true) };
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._maps.ring, color: CUE_COLORS.wait, transparent: true, depthWrite: false, depthTest: false, opacity: .95 }));
     s.visible = false; s.renderOrder = 9;
     scene.add(s);
     return s;
@@ -131,7 +137,11 @@ export class NatpfTimingCue {
     s.visible = !!v;
     if (!v) return;
     s.position.copy(b.pos);
-    s.scale.setScalar(v.diameter*(v.phase === 'now' ? 1.12 : 1));
-    if (this._phase !== v.phase){ this._phase = v.phase; s.material.color.set(CUE_COLORS[v.phase]); }
+    s.scale.setScalar(v.diameter*(v.phase === 'now' ? CUE_NOW_SCALE : 1));
+    if (this._phase !== v.phase){
+      this._phase = v.phase; s.material.color.set(CUE_COLORS[v.phase]);
+      const map = v.phase === 'now' ? this._maps.full : this._maps.ring;
+      if (map && s.material.map !== map){ s.material.map = map; s.material.needsUpdate = true; }
+    }
   }
 }
