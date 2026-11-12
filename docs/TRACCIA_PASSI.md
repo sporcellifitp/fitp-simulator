@@ -55,7 +55,14 @@ il video di prima», scia «gialla ma poco diversa»). Ramo `b26-trailer-scia` (
 - [x] **Installer 2026-11-12.1 pubblicato su R2** e verificato dal link fisso: 127.587.187 B, sha256
       `9e4f8335393ff332430ee76ff23ed8fa30e87568bd6305c762409f5416400a26` (corsa 43171074879, partita da sola con il push)
 - [x] Detto all'utente cosa cambia e che, se parte ancora il video vecchio, serve `programma.log`
-- [~] Prove complete nel browser sul codice unito, avviate alle 06:55 UTC del 12/11: `scratchpad/v1112b/prove.sh` → `prove.txt` (finisce con `== FINE`)
+- [x] Prove complete sul codice unito (12/11, 07:40 UTC): LAN 12/12, `audit:legend` 69/69, nel browser 19 su 20 verdi
+      (intro-trailer 78/78, scia-palla 39/39, schermo 41/41, stesso-schermo-b20 52/52, split-ready 34/34, formato-fiera
+      22/22 e p2p 9/9, 1v1-p2p 39/39, tabellone 42/42, nuovo-giocatore 28/28 al secondo giro (27/28 al primo), servizio-lancio
+      12/12, servizio-peso 8/8, menu 28/28, rally 9/9, leggenda 7/7, training-flow 22/22, tutorial-phone 52/52,
+      gesti-speciali 9/9, phone-keep 13/13)
+- [~] `natpf-modale-gesti` 28/29: resta rossa solo la misura dei fotogrammi a 1920×1080 (0,8 fps, con il campo da solo a
+      1,0 fps: macchina satura, carico 6 su 4 processori per il revisore del B25 in parallelo). Il B26 non tocca la
+      modale. **Da rifare a macchina libera** (`CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-modale-gesti.mjs`)
 - L'agente B26 e il revisore del B25 si sono fermati due volte (limite delle 5 ore, poi «crediti finiti»): il B26 l'ha
   chiuso l'agente principale (mancava solo la sezione finale del documento e il commit).
 
