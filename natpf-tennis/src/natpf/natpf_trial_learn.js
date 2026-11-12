@@ -187,6 +187,10 @@ export function createTrialLearner(){
 // Soglie per il telefono dal profilo imparato (messaggio «pf», pagine del telefono dal B28: quelle di prima lo ignorano e
 // restano con le soglie del profilo semplice): colpo tipico per verso e soglie d'inizio e di picco come le calcola la
 // calibrazione con i gesti dal verso più debole (calibration.js, review, percorso rapido). null senza profilo imparato
+// Provato e scartato (banco scripts/audit/scambi-di-prova.mjs, 12 telefoni × 10 colpi): mandare al telefono il colpo
+// tipico ridotto a tre quarti, per abbassare la soglia sotto cui un gesto è «debole» (40–50 % del colpo tipico,
+// gesture-intent.js). Al gesto impreciso i colpi persi scendevano da 12 a 7 su 120, ma al bambino debole la preparazione
+// lenta diventava un secondo colpo (0 → 6 colpi doppi su 120). Resta il colpo tipico vero, come nella calibrazione con i gesti
 export function phoneThresholds(profile, noise = 3){
   if (!profile || profile.simple || !profile.refs) return null;
   // per verso mai sopra il colpo tipico di tutti i colpi di prova: con due colpi per verso un colpo tirato forte alzerebbe
