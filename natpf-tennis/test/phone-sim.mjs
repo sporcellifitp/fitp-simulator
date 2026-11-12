@@ -11,7 +11,9 @@ import { createCalibration, calibrationPlan } from '@natpf/tennis/calibration.js
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { strokeShape } from '@natpf/tennis/stroke-shape.js';
 import { normalizeSample } from '@natpf/tennis/motion-sign.js';
-import { natpfSwingToEngine, NORMAL_SHOTS, habitualRise, createRiseModel, createTypicalModel, powerRefs } from '../src/natpf/natpf_phone_racket.js';
+import { natpfSwingToEngine, NORMAL_SHOTS, habitualRise, createRiseModel, createTypicalModel, powerRefs, profileTypical, teachesNormal } from '../src/natpf/natpf_phone_racket.js';
+import { createTrialLearner, phoneThresholds } from '../src/natpf/natpf_trial_learn.js';
+import { trialThresholds } from '@natpf/tennis/phone-screen.js';
 import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile, headBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
 
 export const G = 9.81, DT = 1000/60;
@@ -97,10 +99,15 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   // «Salta» durante la calibrazione: profilo semplice (niente colpo tipico né salita abituale), si gioca subito
   const skip = ({ tremor = 0 } = {}) => { cal.start({ quick: true, hand }); rest(800, tremor); const p = cal.skip(); ready = true; rest(600, tremor); return p; };
   // sul computer: come NatpfPhoneRacket._onSwing, con i riferimenti che si adattano ai colpi della partita
-  const prof = () => det.profile;
+  // (learned: profilo imparato dagli scambi di prova, B28: sul computer sostituisce quello semplice del telefono)
+  let learned = null, trial = null;
+  const learner = createTrialLearner();
+  const prof = () => learned || det.profile;
   const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = makeAim(), rises = createRiseModel(), typical = createTypicalModel();
   cal.on(e => {
     if (e.kind !== 'done') return;
+    // come NatpfPhoneRacket._onCal (done): profilo nuovo, riferimenti da capo
+    learned = null; learner.reset(); lifts.model = null; heads.model = null; faces.reset(); rises.reset(); typical.reset();
     aims.reset();
     // false riproduce i telefoni precedenti, il cui profilo non contiene l'heading assoluto.
     if (calibrationHeading && !e.profile?.simple) for (const dir of [1, -1]) aims.seed(dir, e.profile?.faceRef?.[dir]?.heading);
@@ -113,15 +120,44 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   const game = (d, { ballHigh = false, rally = true, own = null, expect = null, learn = true, aimFull = null } = {}) => {
     lifts.model ||= createLiftModel(liftBaselineFromProfile(prof()) ?? 0);
     heads.model ||= createLiftModel(headBaselineFromProfile(prof(), hand) ?? 0);
-    const s = parseSwingMessage(d, { at: 10, now: 10020 });
+    let s = parseSwingMessage(d, { at: 10, now: 10020 });
+    // scambi di prova (B28): il verso vota prima della lettura, poi il colpo si legge con il verso corretto
+    const probe = learn && trial && trial.want ? trial.ball : null;
+    if (probe != null) learner.vote({ ball: probe, want: trial.want, s });
+    if (learner.sign === -1) s = { ...s, dir: -s.dir, ...(Number.isFinite(s.aim) ? { aim: -s.aim } : {}), ...(Number.isFinite(s.twist) ? { twist: -s.twist } : {}) };
     const p = prof(), { ref, rawRef } = powerRefs(p, typical.value, { seen: typical.seen, peak: s.peak });
     const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, rawRef, riseRef: habitual ? habitualRise(p, s.dir, rises) : null, own: typeof own === 'function' ? own(s, habitual ? habitualRise(p, s.dir, rises) : null) : own, aimFull });
+    // come NatpfPhoneRacket._onSwing: colpo tipico di prima di questo colpo (il motore decide così se il gesto è debole)
+    ev.natpf.typical = typical.value ?? profileTypical(p); if (Number.isFinite(s.peak) && !Number.isFinite(ev.natpf.peak)) ev.natpf.peak = s.peak;
     if (!learn) return { s, ev };
+    if (probe != null) learner.mark(probe, teachesNormal(ev, { rally, expect }));
     if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }
     if (!expect){ faces.add(s.dir, s.face); aims.add(s.dir, s.heading); }
     if (!expect) rises.learn(s.dir, s.shape?.rise, ev.natpf.intent);
     if (rally && !expect) typical.learn(s.peak, ev.natpf.intent);
     return { s, ev };
   };
-  return { det, face, cal, msgs, rest, pose, swing, calibrate, skip, game, sampleWorld, models: { aims, typical, rises }, get t(){ return t; }, get q(){ return q; } };
+  /* ---------- calibrazione giocando (B28), come NatpfPhoneRacket ---------- */
+  // freshPlayer: il telefono riparte dal profilo semplice (cal + skip senza pausa: azzera i colpi giocati e il segno sul
+  // telefono; la fine della calibrazione azzera i riferimenti sul computer)
+  const fresh = ({ tremor = 0 } = {}) => { cal.start({ quick: true, hand }); const p = cal.skip(); ready = true; rest(600, tremor); return p; };
+  const beginTrial = o => { fresh(o); learner.reset(); trial = { ball: 0, want: 0 }; };
+  // palla nuova: want = +1 alla destra di chi gioca, −1 alla sinistra
+  const trialBall = (want = 0) => { if (trial){ trial.ball++; trial.want = want; } };
+  const endTrial = () => {
+    if (!trial) return null;
+    trial = null;
+    const level = learner.level(), L = learner.profile(det.profile), counts = learner.counts(hand);
+    if (L){
+      learned = L;
+      aims.reset(); for (const dir of [1, -1]) aims.seed(dir, L.faceRef?.[dir]?.heading);
+      rises.reset(); faces.reset(); lifts.model = null; heads.model = null;
+      // soglie al telefono (messaggio pf, pagina del telefono dal B28)
+      const th = trialThresholds(phoneThresholds(L, L.noise) || {});
+      if (th && det.profile.simple) det.setThresholds(th);
+    } else if (learner.flips){ aims.reset(); rises.reset(); faces.reset(); }
+    return { level, n: { forehand: counts.forehand, backhand: counts.backhand }, sign: learner.sign, ref: L?.ref ?? null, votes: learner.votes };
+  };
+  return { det, face, cal, msgs, rest, pose, swing, calibrate, skip, game, sampleWorld, fresh, beginTrial, trialBall, endTrial, learner, get profile(){ return prof(); },
+    models: { aims, typical, rises }, get t(){ return t; }, get q(){ return q; } };
 }

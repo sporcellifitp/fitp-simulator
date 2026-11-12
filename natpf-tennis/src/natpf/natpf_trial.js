@@ -25,7 +25,9 @@ const $ = id => (typeof document !== 'undefined' ? document.getElementById(id) :
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // posizione di partenza di chi gioca (m dalla rete), palla: di lato quanto basta per un colpo comodo, profondità e volo
-export const TRIAL_FEED = Object.freeze({ z: 11.4, side: 1.3, jitter: .5, depth: 8.6, depthJitter: 1, flight: 1.15, spin: 10, pass: 1.4 });
+// (rally: volo nello stesso schermo, un poco più svelto: ognuno dei due aspetta la palla dell'altro, e in 14 s devono
+// arrivare quattro palle a testa)
+export const TRIAL_FEED = Object.freeze({ z: 11.4, side: 1.3, jitter: .5, depth: 8.6, depthJitter: 1, flight: 1.15, rally: 1, spin: 10, pass: 1.4 });
 
 // profilo fatto con i gesti (non semplice e non imparato dagli scambi di prova): chi l'ha chiesto apposta lo tiene
 export const gestureProfile = p => !!p?.profile && !p.profile.simple && !p.profile.trial;
@@ -132,7 +134,7 @@ export class NatpfTrial {
     if (!start) start = new THREE.Vector3((Math.random() - .5)*1.5, 1.05, -sgn*11.6);
     if (!from){ E.ballTrail?.clear?.(); E.swingVfx?.clearAllTrails?.(); }
     E.ball.pos.copy(start);
-    E._launchBallToTarget(start, target, TRIAL_FEED.flight, { topspin: TRIAL_FEED.spin, sidespin: 0, allowNetFault: false });
+    E._launchBallToTarget(start, target, S.split ? TRIAL_FEED.rally : TRIAL_FEED.flight, { topspin: TRIAL_FEED.spin, sidespin: 0, allowNetFault: false });
     Object.assign(E.ball, { inPlay: true, lastHitter: id === 'p2' ? 'player' : 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1, natpfFeed: true, shotType: 'TOPSPIN', isPowerShot: false, natpfNetFault: false });
     E.pendingUserSwing = E.pendingP2Swing = null;
     E.phase = 'RALLY'; E.phaseTimer = 0; E.cameraMode = 'RALLY_CAM';
@@ -175,6 +177,7 @@ export class NatpfTrial {
     const S = this.S, E = this.engine, P = S.players[id];
     P.balls++; P.hits++; this._phone(id)?.trialIdle?.();
     S.flash = { id, text: 'Colpo letto ✓', until: performance.now() + 900 };
+    this._recenter(id);
     if (this._allDone()){ S.phase = 'gap'; S.wait = S.split ? .35 : .5; S.turn = id; return; }
     if (S.split){
       // rimando assistito: il colpo va comunque sul lato giusto dell'altro (chi ha già finito continua a palleggiare)
@@ -187,9 +190,11 @@ export class NatpfTrial {
   _onMiss(id){
     const S = this.S, P = S.players[id];
     P.balls++; this._phone(id)?.trialIdle?.();
-    this._idle();
+    this._idle(); this._recenter(id);
     S.phase = 'gap'; S.wait = TRIAL.miss; S.turn = this._other(id);
   }
+  // contro la CPU chi gioca torna verso il centro tra una palla e l'altra (dopo una palla rincorsa resterebbe di lato)
+  _recenter(id){ const a = this._actor(id); if (!this.S.split && a?.targetPos?.set) a.targetPos.set(0, 0, TRIAL_FEED.z); }
   // «Salta ›» (computer) o «Avanti» dal telefono: la partita parte subito con quello che si è imparato
   skip(){ if (this.S && this.S.phase !== 'outro'){ this.ui.diag?.recorder?.log?.('prova.salta', {}); this._outro({ quick: true }); } }
   _outro({ quick = false } = {}){

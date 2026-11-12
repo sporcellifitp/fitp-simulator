@@ -75,7 +75,7 @@ export function calModeToast(mode, forced = false){
 // al massimo (le ultime vanno dal lato che ha meno colpi); maxS: tetto in secondi dalla prima palla (allo scadere il match
 // parte comunque con quello che si è imparato); intro: s tra «Scambi di prova» e la prima palla; gap: s tra il colpo e la
 // palla dopo; miss: s tra una palla persa e la palla dopo; outro: s di «Si comincia!» prima del match
-export const TRIAL = Object.freeze({ perSide: 2, balls: 4, maxBalls: 6, maxS: 16, intro: 1.2, gap: .85, miss: .5, outro: 1.1,
+export const TRIAL = Object.freeze({ perSide: 2, balls: 4, maxBalls: 6, maxS: 16, intro: 1, gap: .6, miss: .45, outro: 1,
   minTotal: 2, signMin: 2, signFlip: .25, signKeep: .75, weak: .5 });
 
 const median = a => { const v = [...a].sort((x, y) => x - y), m = v.length >> 1; return v.length ? (v.length % 2 ? v[m] : (v[m - 1] + v[m])/2) : NaN; };
@@ -189,7 +189,9 @@ export function createTrialLearner(){
 // calibrazione con i gesti dal verso più debole (calibration.js, review, percorso rapido). null senza profilo imparato
 export function phoneThresholds(profile, noise = 3){
   if (!profile || profile.simple || !profile.refs) return null;
-  const a = profile.refs[1], b = profile.refs[-1]; if (!(a > 0) || !(b > 0)) return null;
+  // per verso mai sopra il colpo tipico di tutti i colpi di prova: con due colpi per verso un colpo tirato forte alzerebbe
+  // la soglia di quel verso e i colpi morbidi della partita non partirebbero (banco scambi-di-prova.mjs, gesto impreciso)
+  const a = Math.min(profile.refs[1], profile.ref), b = Math.min(profile.refs[-1], profile.ref); if (!(a > 0) || !(b > 0)) return null;
   const base = Math.min(a, b), clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v)), n = Math.max(1, noise || 3);
   return { ref: +profile.ref.toFixed(1), refs: { 1: +a.toFixed(1), '-1': +b.toFixed(1) },
     on: +Math.max(n*4, Math.min(clamp(.22*base, 22, 180), base*.18)).toFixed(1), minPeak: +Math.max(n*5, Math.min(clamp(.36*base, 35, 300), base*.28)).toFixed(1) };

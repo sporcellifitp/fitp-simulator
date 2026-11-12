@@ -314,6 +314,9 @@ export class NatpfTraining {
       const step = this.ui.phone.cal?.step;
       if (!phoneCalibrates && (!step || ['done', 'review', 'free'].includes(step) || this.view.stage === 'off')) this.ui.phone.recalibrate();
     } else if (this.calOnly && !this.drills.length) this.stop({ completed: true, calibrated: true });  // telefono già pronto: solo il tutorial
+    // B28: senza la calibrazione con i gesti gli esercizi cominciano come dopo la calibrazione, con il lanciapalle (prima,
+    // con il telefono già pronto, il motore preparava un servizio di chi gioca)
+    else if (this.learn){ this._idle(); this.wait = 1.2; }
     else E._setupPointServe({ showBanner: false });
   }
   lessonAction(a){
@@ -561,6 +564,8 @@ export class NatpfTraining {
     // volée: il giocatore aspetta a rete tra una palla e l'altra
     if (!this.cal && this.drill?.volley && !this.ballLive()) this.engine.player.targetPos.set(0, 0, VOLLEY_Z);
     if (!this.cal && this._phoneRecalibrating()) this._recal();
+    // B28: due colpi per lato imparati: il profilo vale da subito, senza aspettare la fine dei due esercizi
+    if (this.learn && this.ui.phone.learner?.level?.() === 'full') this._endLearn();
     if (this.cal) this._calTick(dt);
     if (this.wait > 0){ this.wait -= dt; if (this.wait <= 0) this._next(); }
     this.paint();

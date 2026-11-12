@@ -49,7 +49,8 @@ export function makePhone({ seed = 7, hand = 'right', makeAim = createAimModel }
 export function gesture(p, { side = 'forehand', k = 1, yaw = 0, R = Math.random, stroke = null } = {}){
   const hand = p.hand || 'right', S = stroke ? STROKES[stroke] : strokesOf(hand)[side === 'forehand' ? 'forehand' : 'backhand'], fh = hand === 'left' ? -1 : 1;
   // come in partita: il telefono sa da che parte arriva la palla (verso atteso) e la modalità preparazione è attiva
-  p.det.setPrepMode(true); p.det.setExpect(side === 'forehand' ? fh : -fh);
+  // (B28: con il verso corretto dagli scambi di prova il gioco manda al telefono il verso atteso girato, come NatpfPhoneRacket.update)
+  p.det.setPrepMode(true); p.det.setExpect((side === 'forehand' ? fh : -fh)*(p.learner?.sign ?? 1));
   p.rest(450, 4);
   if (yaw) p.pose([0, 1, 0], -yaw, 80);          // pose(+) = antiorario visto dall'alto = piatto a sinistra
   p.rest(250, 4);
