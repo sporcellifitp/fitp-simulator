@@ -8,7 +8,7 @@
 // braccia e gambe a due segmenti sono quelle di prima; qui si aggiungono solo i pezzi da disegnare, figli delle stesse
 // parti, e si nascondono quelli del tennista. Corsa, colpi, servizio, esultanza, racchetta nella mano (destri e mancini,
 // che sono lo specchio) e impatto sulla palla non cambiano di una virgola: sono calcolati sulle parti, non sui pezzi.
-// I pezzi nascono la prima volta che un attore diventa una mascotte: con «Di sempre» la scena è quella di prima.
+// I pezzi nascono la prima volta che un attore diventa una mascotte: con «Classici» la scena è quella di prima.
 // Niente allocazioni per fotogramma: tutto si fa al cambio di aspetto. Geometrie condivise tra gli attori.
 // Cosa NON è riprodotto della foto: vedi docs/b24/lob-e-drop.md.
 import * as THREE from 'three';
@@ -209,7 +209,7 @@ function buildFace(actor){
     smile = mesh(rig.neutralMouth, G.smile, flat(0x3a0d16), 'NatpfBoccaAperta', 'tutte', false);
     tongue = mesh(rig.neutralMouth, G.tongue, flat(0xf2877c), 'NatpfLingua', 'tutte', false);
   }
-  // valori del viso del tennista, da rimettere tornando a «Di sempre»
+  // valori del viso del tennista, da rimettere tornando a «Classici»
   // (posizione, rotazione e scala di ciò che la mascotte sposta; «visibile» solo per i pezzi che la mascotte spegne:
   // il resto lo accendono e spengono le espressioni)
   const keep = (o, vis = false) => (o ? { o, p: o.position.clone(), r: o.rotation.clone(), s: o.scale.clone(), v: vis ? o.visible : null } : null);

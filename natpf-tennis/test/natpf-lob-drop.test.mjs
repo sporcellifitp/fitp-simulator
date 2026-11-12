@@ -1,6 +1,6 @@
 // B24 · Lob & Drop come personaggi in campo: opzione «Personaggi in campo» (natpf_personaggi.js), assegnazione dei
 // personaggi nei vari modi, pezzi delle mascotte (natpf_lob_drop.js), stesso scheletro e stesse animazioni del tennista,
-// mancini, prima persona, ritratti, ritorno a «Di sempre». node --import ./test/register.mjs --test test/*.test.mjs
+// mancini, prima persona, ritratti, ritorno a «Classici». node --import ./test/register.mjs --test test/*.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -72,15 +72,15 @@ const shown = actor => { const out = []; actor.root.traverse(o => { if (o.isMesh
 const engineOf = (multi = false) => ({ isMultiplayer: multi, player: mountActor('p1').actor, opponent: mountActor('cpu', { role: 'opponent', sideSign: -1 }).actor,
   playerPartner: mountActor('p1', { role: 'player_partner' }).actor, opponentPartner: mountActor('cpu', { role: 'opponent_partner', sideSign: -1 }).actor });
 
-test('opzione: di base «Di sempre», chiave natpf-tennis.personaggi, salvata, valori sconosciuti ignorati', () => {
+test('opzione: di base «Classici», chiave natpf-tennis.personaggi, salvata, valori sconosciuti ignorati', () => {
   assert.equal(CAST_KEY, 'natpf-tennis.personaggi'); assert.equal(CAST_PARAM, 'personaggi');
   assert.deepEqual([...CASTS], ['sempre', 'lobdrop']);
-  assert.equal(CAST_LABEL.sempre, 'Di sempre'); assert.equal(CAST_LABEL.lobdrop, 'Lob & Drop');
+  assert.equal(CAST_LABEL.sempre, 'Classici'); assert.equal(CAST_LABEL.lobdrop, 'Lob & Drop');
   const storage = mem();
   assert.equal(readSavedCast({ storage }), 'sempre'); assert.equal(readCast({ storage, search: '' }), 'sempre');
   storage.setItem(CAST_KEY, 'lobdrop'); assert.equal(readCast({ storage, search: '' }), 'lobdrop');
   storage.setItem(CAST_KEY, 'boh'); assert.equal(readCast({ storage, search: '' }), 'sempre');
-  // memoria del browser che non risponde: «Di sempre», senza errori
+  // memoria del browser che non risponde: «Classici», senza errori
   const broken = { getItem(){ throw new Error('no'); }, setItem(){ throw new Error('no'); } };
   assert.equal(readCast({ storage: broken, search: '' }), 'sempre');
   resetCast(); assert.equal(setCast('lobdrop', { storage: broken }), 'lobdrop'); assert.equal(getCast(), 'lobdrop');
@@ -91,7 +91,7 @@ test('opzione: di base «Di sempre», chiave natpf-tennis.personaggi, salvata, v
   setCast('lobdrop', { storage }); setCast('sempre', { storage }); setCast('una cosa strana', { storage });
   assert.deepEqual(seen, ['lobdrop', 'sempre']); assert.equal(storage.getItem(CAST_KEY), 'sempre');
   off(); setCast('lobdrop', { storage }); assert.deepEqual(seen, ['lobdrop', 'sempre']);
-  assert.match(castToast('lobdrop'), /Lob & Drop/); assert.match(castToast('sempre'), /di sempre/);
+  assert.match(castToast('lobdrop'), /Lob & Drop/); assert.match(castToast('sempre'), /classici/);
   resetCast();
 });
 
@@ -106,7 +106,7 @@ test('parametro ?personaggi=lobdrop|sempre: vale per l\'avvio, vince sul valore 
   assert.equal(readCast({ storage, search: '?personaggi=boh' }), 'lobdrop');
 });
 
-test('chi è chi: «Di sempre» come prima; «Lob & Drop» → dalla parte del Player 1 Drop, dall\'altra Lob (CPU e Player 2)', () => {
+test('chi è chi: «Classici» come prima; «Lob & Drop» → dalla parte del Player 1 Drop, dall\'altra Lob (CPU e Player 2)', () => {
   assert.deepEqual({ ...castLooks('sempre', false) }, { player: 'p1', opponent: 'cpu' });
   assert.deepEqual({ ...castLooks('sempre', true) }, { player: 'p1', opponent: 'p2' });
   assert.deepEqual({ ...castLooks('lobdrop', false) }, { player: 'drop', opponent: 'lob' });
@@ -118,7 +118,7 @@ test('chi è chi: «Di sempre» come prima; «Lob & Drop» → dalla parte del P
     const E = engineOf(multi);
     updateNatpfCharacters(E);
     assert.deepEqual([E.player.natpfLook, E.opponent.natpfLook], ['p1', multi ? 'p2' : 'cpu']);
-    assert.equal(E.player.natpfMascotParts, undefined, '«Di sempre»: nessun pezzo delle mascotte nella scena');
+    assert.equal(E.player.natpfMascotParts, undefined, '«Classici»: nessun pezzo delle mascotte nella scena');
     assert.equal(E.player.model.getObjectByName('NatpfDropTesta'), undefined);
     setCast('lobdrop', { save: false });
     updateNatpfCharacters(E);
@@ -251,7 +251,7 @@ test('mancini: personaggio specchiato come il tennista, racchetta nella stessa m
   }
 });
 
-test('viso della mascotte: occhi grandi sulla testa nuova, niente sopracciglia; tornando a «Di sempre» tutto come prima', () => {
+test('viso della mascotte: occhi grandi sulla testa nuova, niente sopracciglia; tornando a «Classici» tutto come prima', () => {
   const ref = mountActor('p1'), ctx = mountActor('p1'), actor = ctx.actor, rig = actor.facialRig;
   const snap = a => {
     const out = {}; a.updateMatrixWorld?.(true);
@@ -282,7 +282,7 @@ test('viso della mascotte: occhi grandi sulla testa nuova, niente sopracciglia; 
   applyNatpfLook(actor, 'p1');
   assert.equal(actor.natpfMascot, null);
   const after = snap(actor);
-  for (const [id, v] of Object.entries(before)) assert.deepEqual(after[id], v, `diverso dopo il ritorno a «Di sempre»`);
+  for (const [id, v] of Object.entries(before)) assert.deepEqual(after[id], v, `diverso dopo il ritorno a «Classici»`);
   assert.deepEqual(shown(actor).filter(n => /Drop|Lob|Occhio|Bocca|Lingua|Scritta|Occhiali/.test(n)), []);
   // e identico a un attore mai stato mascotte (stessi pezzi visibili, stessi materiali per nome)
   assert.deepEqual(shown(actor).sort(), shown(ref.actor).sort());
@@ -323,7 +323,7 @@ test('ritratti: Drop e Lob nel tabellone, nella lobby e a fine partita quando l\
 test('pagina e pacchetto: riga «Personaggi in campo» nelle Opzioni, nessun file nuovo da scaricare', () => {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const row = /<span class="lobby-label">Personaggi in campo<\/span>[\s\S]{0,500}?<\/div>/.exec(html)?.[0] || '';
-  assert.match(row, /data-natpf-cast="sempre"[^>]*>Di sempre</); assert.match(row, /data-natpf-cast="lobdrop"[^>]*>Lob &amp; Drop</);
+  assert.match(row, /data-natpf-cast="sempre"[^>]*>Classici</); assert.match(row, /data-natpf-cast="lobdrop"[^>]*>Lob &amp; Drop</);
   assert.match(row, /role="radiogroup"/);
   // modelli nel codice: nessun file di modello o immagine caricato dai moduli nuovi
   for (const f of ['natpf_lob_drop.js', 'natpf_personaggi.js']){

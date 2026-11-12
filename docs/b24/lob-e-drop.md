@@ -9,25 +9,25 @@ giallo, con la visiera blu e gli occhiali.
 
 ## In breve
 
-- Nelle Opzioni c'è una riga nuova, **«Personaggi in campo: Di sempre · Lob & Drop»**. Di base è «Di sempre».
+- Nelle Opzioni c'è una riga nuova, **«Personaggi in campo: Classici · Lob & Drop»**. Di base è «Classici».
 - Con «Lob & Drop» chi gioca è **Drop** e l'avversario (la CPU o il Player 2) è **Lob**.
 - È **solo disegno**: il gioco, i colpi, il riconoscimento dei gesti e la rete tra due computer non cambiano.
-- Con «Di sempre» l'immagine è **identica** a prima, pixel per pixel (controllato su 9 scene).
-- Le mascotte sono costruite nel codice, come i personaggi di sempre: nessun file nuovo da scaricare.
+- Con «Classici» l'immagine è **identica** a prima, pixel per pixel (controllato su 9 scene).
+- Le mascotte sono costruite nel codice, come i personaggi classici: nessun file nuovo da scaricare.
 
 ## Come si attiva
 
 | cosa | come |
 |---|---|
 | Accendere | Menu → **Opzioni** → riga **«Personaggi in campo»** → **«Lob & Drop»**. Vale subito, anche dietro il menu. |
-| Spegnere | Stessa riga → **«Di sempre»**. |
-| Valore di base | «Di sempre». |
+| Spegnere | Stessa riga → **«Classici»**. |
+| Valore di base | «Classici». |
 | Dove resta salvata | Sul computer, chiave `natpf-tennis.personaggi` (`lobdrop` oppure `sempre`). Resta anche dopo aver chiuso il gioco e dopo «Nuovo giocatore». |
 | Dall'indirizzo | `?personaggi=lobdrop` oppure `?personaggi=sempre`. Vale per quell'avvio e non tocca il valore salvato. Se poi si sceglie dalle Opzioni, vale la scelta. |
 
 ## Chi è chi
 
-| modo di gioco | con «Di sempre» | con «Lob & Drop» |
+| modo di gioco | con «Classici» | con «Lob & Drop» |
 |---|---|---|
 | Contro la CPU | chi gioca bianco, CPU blu | chi gioca **Drop**, CPU **Lob** |
 | Stesso schermo | Player 1 bianco, Player 2 con i dettagli rosa | Player 1 **Drop**, Player 2 **Lob** |
@@ -36,7 +36,7 @@ giallo, con la visiera blu e gli occhiali.
 **Sfida tra due computer: scelta fatta.** Ogni computer disegna i personaggi secondo la **sua** opzione. Niente passa
 in rete: nessun messaggio nuovo e nessun campo nuovo. È la via senza rischi: un computer con una versione di prima non
 si accorge di niente, e non può succedere che un dato in più rompa la partita. La conseguenza è che i due schermi
-possono essere diversi (uno con le mascotte, l'altro con i personaggi di sempre) se le due opzioni sono diverse. Su
+possono essere diversi (uno con le mascotte, l'altro con i personaggi classici) se le due opzioni sono diverse. Su
 ogni schermo che ha «Lob & Drop» acceso, Drop è sempre il Player 1 (chi ha aperto la partita) e Lob il Player 2: chi
 entra come Player 2 vede sé stesso come Lob.
 
@@ -47,7 +47,7 @@ il personaggio in campo: non cambiano.
 
 ## Come sono fatti
 
-I personaggi di sempre sono fatti nel codice con forme semplici (`natpf-tennis/src/natpf/natpf_character.js`): sei
+I personaggi classici sono fatti nel codice con forme semplici (`natpf-tennis/src/natpf/natpf_character.js`): sei
 parti che il motore muove (testa, busto, due mani, due piedi) e braccia e gambe a due pezzi che le seguono. Lob e Drop
 sono fatti **nello stesso modo e sullo stesso scheletro** (`natpf-tennis/src/natpf/natpf_lob_drop.js`): le sei parti e
 gli arti sono gli stessi oggetti, cambiano solo i pezzi disegnati sopra.
@@ -62,22 +62,22 @@ gli arti sono gli stessi oggetti, cambiano solo i pezzi disegnati sopra.
   sempre, perché sono calcolate sulle parti e non sui pezzi disegnati.
 - **Racchetta e impatto**: la racchetta è la stessa, nella stessa mano, alla stessa distanza. L'impatto sulla palla è
   quello di prima (il gioco non guarda il disegno).
-- **Mancini**: come per i personaggi di sempre il mancino è lo specchio del destro, quindi la racchetta passa nella
+- **Mancini**: come per i personaggi classici il mancino è lo specchio del destro, quindi la racchetta passa nella
   mano sinistra. La scritta sulla fascia si gira da sola per restare leggibile.
 - **Arti**: le mascotte hanno braccia e gambe, quindi non è servito togliere niente. Sono corte nella foto e più lunghe
   nel gioco (vedi sotto).
 - **Peso**: nessun modello e nessuna immagine nel pacchetto. La sola immagine è la scritta DROP / LOB, disegnata al
   volo dal gioco (128 × 32 punti). Le forme sono condivise tra i personaggi e nascono la prima volta che si sceglie
-  «Lob & Drop»: con «Di sempre» in scena non c'è niente in più. Niente viene creato a ogni fotogramma.
+  «Lob & Drop»: con «Classici» in scena non c'è niente in più. Niente viene creato a ogni fotogramma.
 
 ## Cosa non cambia nel gioco
 
 - La scelta è letta solo da chi disegna (`natpf_character.js`, il menu e i ritratti). Fisica, colpi, esiti, sorteggi e
   riconoscimento dei gesti non la leggono.
 - Prova nel browser: una partita senza persone a passi fissi e sorteggi fissi (un game intero, 8 colpi) dà la
-  **stessa impronta** di palla, giocatori e punteggio con «Di sempre», con «Lob & Drop» e sul commit di prima
+  **stessa impronta** di palla, giocatori e punteggio con «Classici», con «Lob & Drop» e sul commit di prima
   (`9b8f9cb`): `105f1405` in tutti e tre i casi.
-- Con «Di sempre» il disegno è **identico a `9b8f9cb`** su 9 scene ferme (in campo, dritto, servizio, esultanza, colpo
+- Con «Classici» il disegno è **identico a `9b8f9cb`** su 9 scene ferme (in campo, dritto, servizio, esultanza, colpo
   dell'avversario, da vicino i due personaggi, stesso schermo, due persone): stessa impronta dei pixel. È identico
   anche dopo essere passati da «Lob & Drop» e tornati indietro.
 
@@ -92,7 +92,7 @@ In `docs/b24/img/` (webp, tutti sotto i 300 kB). Li rifà `FOGLI=cartella node t
 | `gesti-da-vicino.webp` | Drop e Lob durante dritto, servizio, esultanza e rovescio |
 | `mancini.webp` | Drop e Lob mancini: specchiati, racchetta nella sinistra, scritta leggibile |
 | `in-campo.webp` | dalla camera di gioco: fermo, dritto, servizio ed esultanza di Drop, dritto di Lob (anche ingranditi 3 volte), stesso schermo |
-| `confronto-di-sempre.webp` | «Di sempre» e «Lob & Drop» a confronto, contro la CPU e nello stesso schermo |
+| `confronto-classici.webp` | «Classici» e «Lob & Drop» a confronto, contro la CPU e nello stesso schermo |
 
 Le immagini sono state guardate una per una: le due mascotte si riconoscono dal colore, dalla forma della testa, dalla
 fascia bianca (Drop) e dalla visiera con gli occhiali (Lob), anche da lontano e da dietro.
@@ -102,8 +102,8 @@ fascia bianca (Drop) e dalla visiera con gli occhiali (Lob), anche da lontano e 
 | cosa | perché |
 |---|---|
 | Il marchio dell'evento stampato sul petto | Servirebbe l'immagine del marchio (un file in più) e il permesso di usarlo sul personaggio. Si può aggiungere se l'utente dà il file. |
-| Il tessuto di peluche | Il gioco usa colori pieni con un bordo di luce morbido, come per i personaggi di sempre. Un'immagine del tessuto peserebbe e da lontano non si vedrebbe. |
-| Le proporzioni esatte | Nella foto la testa è quasi metà del pupazzo e le gambe sono cortissime. Nel gioco lo scheletro è quello dei personaggi di sempre (serve per avere le stesse animazioni e lo stesso impatto), quindi il corpo e le gambe sono più lunghi. La testa è stata ingrandita quanto si poteva. |
+| Il tessuto di peluche | Il gioco usa colori pieni con un bordo di luce morbido, come per i personaggi classici. Un'immagine del tessuto peserebbe e da lontano non si vedrebbe. |
+| Le proporzioni esatte | Nella foto la testa è quasi metà del pupazzo e le gambe sono cortissime. Nel gioco lo scheletro è quello dei personaggi classici (serve per avere le stesse animazioni e lo stesso impatto), quindi il corpo e le gambe sono più lunghi. La testa è stata ingrandita quanto si poteva. |
 | Le mani con quattro dita aperte | Mano a manopola con tre dita corte e il pollice: è chiusa sul manico della racchetta e da lontano si legge meglio. |
 | I denti e i ricami fini degli occhi | Troppo piccoli per vedersi in campo. Restano il contorno nero, l'iride colorata, la pupilla e i riflessi. |
 | La visiera di Lob girata di lato con la scritta sul fianco | Nel gioco la visiera è appena inclinata e la scritta sta davanti, sopra la tesa, per leggersi. |
@@ -119,7 +119,7 @@ solo da davanti (per esempio nei replay o nello stesso schermo, sul personaggio 
 Misure fatte nel browser del banco di prova, con la grafica in software e la macchina occupata da altri lavori: i
 tempi sono lunghi e servono solo per il confronto tra le due scelte.
 
-| misura (stesso fotogramma) | Di sempre | Lob & Drop |
+| misura (stesso fotogramma) | Classici | Lob & Drop |
 |---|---|---|
 | chiamate di disegno | 248 | **219** |
 | triangoli | 1.454.220 | **1.443.812** |
@@ -128,7 +128,7 @@ tempi sono lunghi e servono solo per il confronto tra le due scelte.
 | fotogrammi al secondo con il gioco che gira, giro A (il migliore di 2) | 0,79 | 0,90 |
 | fotogrammi al secondo con il gioco che gira, giro B | 0,80 | 0,77 |
 
-Le mascotte hanno **meno** pezzi e meno triangoli dei personaggi di sempre. Sul tempo le due scelte sono pari entro
+Le mascotte hanno **meno** pezzi e meno triangoli dei personaggi classici. Sul tempo le due scelte sono pari entro
 l'errore della misura: con le mascotte il tempo del disegno è +0,2% e +4,6% nei due giri, i fotogrammi al secondo +14%
 e −4% (il segno cambia da un giro all'altro). Quasi tutti i triangoli sono dell'arena e del pubblico, non dei personaggi. La prova accetta fino al 12% sul
 tempo e al 10% sui fotogrammi al secondo.

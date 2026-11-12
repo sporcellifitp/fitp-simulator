@@ -5,10 +5,10 @@ import assert from 'node:assert/strict';
 import { makeWorld, $ } from './ui-world.mjs';
 import { CAST_KEY, getCast, resetCast, readCast, castLooks } from '../src/natpf/natpf_personaggi.js';
 
-test('Opzioni → «Personaggi in campo»: di base «Di sempre»; «Lob & Drop» vale subito e resta salvato', async () => {
+test('Opzioni → «Personaggi in campo»: di base «Classici»; «Lob & Drop» vale subito e resta salvato', async () => {
   resetCast();
   const w = await makeWorld({ controller: 'mouse' }), L = w.lobby;
-  assert.equal(localStorage.getItem(CAST_KEY), null); assert.equal(getCast(), 'sempre', 'di base i personaggi di sempre');
+  assert.equal(localStorage.getItem(CAST_KEY), null); assert.equal(getCast(), 'sempre', 'di base i personaggi classici');
   // pulsanti della pagina: uno acceso alla volta
   const btns = ['sempre', 'lobdrop'].map(v => { const b = { dataset: { natpfCast: v }, on: null, aria: null };
     b.classList = { toggle(c, on){ if (c === 'selected') b.on = on; } }; b.setAttribute = (k, x) => { if (k === 'aria-checked') b.aria = x; }; return b; });
@@ -23,7 +23,7 @@ test('Opzioni → «Personaggi in campo»: di base «Di sempre»; «Lob & Drop»
   assert.deepEqual(btns.map(b => [b.dataset.natpfCast, b.on, b.aria]), [['sempre', false, 'false'], ['lobdrop', true, 'true']]);
   L.setCast('sempre');
   assert.equal(localStorage.getItem(CAST_KEY), 'sempre'); assert.equal(getCast(), 'sempre');
-  assert.match($('natpf-toast').textContent, /di sempre/);
+  assert.match($('natpf-toast').textContent, /classici/);
   assert.deepEqual(btns.map(b => b.on), [true, false]);
   // il clic sul pulsante della pagina passa da qui
   const ev = { target: { closest: sel => (sel === '[data-natpf-cast]' ? { dataset: { natpfCast: 'lobdrop' } } : null) }, stopPropagation(){} };

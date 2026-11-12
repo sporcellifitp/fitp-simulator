@@ -1,10 +1,10 @@
 // NATPF motore base (natpf-tennis/): B24, Lob & Drop come personaggi in campo (src/natpf/natpf_lob_drop.js) e la loro
-// opzione «Personaggi in campo: Di sempre · Lob & Drop» (src/natpf/natpf_personaggi.js, chiave natpf-tennis.personaggi,
+// opzione «Personaggi in campo: Classici · Lob & Drop» (src/natpf/natpf_personaggi.js, chiave natpf-tennis.personaggi,
 // parametro ?personaggi=lobdrop|sempre). Prova nel browser:
-//   1) scene ferme e ripetibili (ciclo del gioco fermo, sorteggi fissi, stesse pose): con «Di sempre» il disegno è
+//   1) scene ferme e ripetibili (ciclo del gioco fermo, sorteggi fissi, stesse pose): con «Classici» il disegno è
 //      identico pixel per pixel a quello di prima del B24 (CONFRONTA=file.json con le impronte fatte sul commit di prima
 //      con BASELINE=file.json e GAME=cartella del gioco di prima); con «Lob & Drop» cambia;
-//   2) opzione e parametro: di base «Di sempre», clic su «Lob & Drop» → personaggi cambiati subito e scelta salvata,
+//   2) opzione e parametro: di base «Classici», clic su «Lob & Drop» → personaggi cambiati subito e scelta salvata,
 //      resta dopo aver ricaricato; ?personaggi= vale per l'avvio senza toccare il valore salvato;
 //   3) in campo contro la CPU e nello stesso schermo: chi gioca è Drop, l'altro è Lob, ritratti compresi; i pezzi del
 //      tennista sono nascosti, la racchetta resta nella mano, anche per il mancino;
@@ -201,7 +201,7 @@ if (FOGLI){
   for (const [actor, nome] of [['player', 'Drop'], ['opponent', 'Lob']])
     for (const [pose, steps, l, view] of [['dritto', 6, 'dritto', 'front'], ['servizio', 5, 'servizio', 'front'], ['esultanza', 22, 'esultanza', 'front'], ['rovescio', 6, 'rovescio', 'back']])
       gest.push({ src: await closeUp(actor, view, { pose, steps, who: actor }), label: `${nome}: ${l}${view === 'back' ? ' (da dietro)' : ''}` });
-  await sheet('gesti-da-vicino.webp', gest, { cols: 4, w: 380, h: 430, title: 'Lob & Drop: stesse animazioni dei personaggi di sempre' });
+  await sheet('gesti-da-vicino.webp', gest, { cols: 4, w: 380, h: 430, title: 'Lob & Drop: stesse animazioni dei personaggi classici' });
   await near.ctx.close();
   // 3) mancini: lo specchio, la scritta resta leggibile
   const left = await game({ cast: 'lobdrop', w: 560, h: 640, hand: 'left' });
@@ -215,7 +215,7 @@ if (FOGLI){
     }
   await sheet('mancini.webp', lt, { cols: 4, w: 380, h: 430, title: 'Mancini: personaggio specchiato, racchetta nella mano sinistra, scritta leggibile' });
   await left.ctx.close();
-  // 4) in campo dalla camera di gioco: fermo, dritto, servizio, esultanza; stesso schermo; «Di sempre» accanto
+  // 4) in campo dalla camera di gioco: fermo, dritto, servizio, esultanza; stesso schermo; «Classici» accanto
   const court = await game({ cast: 'lobdrop', w: 1280, h: 720 });
   const ct = [];
   for (const [n, l] of [['fermo', 'In campo, camera di gioco'], ['dritto', 'Dritto di Drop'], ['servizio', 'Servizio di Drop'], ['esultanza', 'Esultanza di Drop'], ['avversario', 'Dritto di Lob'], ['split', 'Stesso schermo: Player 1 = Drop, Player 2 = Lob']]){
@@ -227,11 +227,11 @@ if (FOGLI){
   await sheet('in-campo.webp', ct, { cols: 4, w: 480, h: 270, title: 'Lob & Drop in campo dalla camera di gioco' });
   await setCast(court.p, 'sempre');
   const cmp = [];
-  for (const [cast, l] of [['sempre', 'Di sempre'], ['lobdrop', 'Lob & Drop']]){
+  for (const [cast, l] of [['sempre', 'Classici'], ['lobdrop', 'Lob & Drop']]){
     await setCast(court.p, cast);
     for (const n of ['fermo', 'split']){ await scene(court.p, `k-${cast}-${n}`, SCENES[n]); cmp.push({ src: await png(court.p), label: `${l}${n === 'split' ? ', stesso schermo' : ''}` }); }
   }
-  await sheet('confronto-di-sempre.webp', cmp, { cols: 2, w: 640, h: 360, title: 'Opzioni → Personaggi in campo: «Di sempre» e «Lob & Drop»' });
+  await sheet('confronto-classici.webp', cmp, { cols: 2, w: 640, h: 360, title: 'Opzioni → Personaggi in campo: «Classici» e «Lob & Drop»' });
   await court.ctx.close();
   await B.close(); summary(); process.exit(process.exitCode || 0);
 }
@@ -239,7 +239,7 @@ if (FOGLI){
 const HUMAN = /^Natpf(Polo|Colletto|Abbottonatura|Bottoni|Pantaloncini|Collo|Testa|Capelli|Fascia|Orecchie|Naso|ManoDx|ManoSx|Scarpa|Suola|Manica|Orlo|Calza)/;
 const MASCOT = /^Natpf(Drop|Lob)|^NatpfOcchio|^NatpfBoccaAperta|^NatpfLingua/;
 
-/* ---------- 1) scene ferme: «Di sempre» identico a prima, «Lob & Drop» diverso, ritorno identico ---------- */
+/* ---------- 1) scene ferme: «Classici» identico a prima, «Lob & Drop» diverso, ritorno identico ---------- */
 // Partita senza persone (le due parti giocano da sole) a passi fissi e sorteggi fissi, un minuto di gioco: impronta di
 // palla, giocatori e punteggio. Deve essere la stessa con i due valori dell'opzione e sul commit di prima (niente cambia
 // nel gioco). Si confronta tra pagine appena aperte.
@@ -282,11 +282,11 @@ if (!process.env.COSTO){
     prints[name] = a.hash;
     check(`${name}: scena ripetibile (stessa impronta due volte)`, a.hash === b.hash && await diff(p, `${name}-a`, `${name}-b`) === 0, `${a.hash} / ${b.hash}, ${await where(p, `${name}-a`, `${name}-b`)}`);
     if (!BASELINE){
-      check(`${name}: «Di sempre» → i personaggi di prima, nessun pezzo delle mascotte`, a.looks[0] === 'p1' && a.looks[1] === (o.multi ? 'p2' : 'cpu') && !a.seen.flat().some(n => MASCOT.test(n)) && a.seen[0].some(n => HUMAN.test(n)), JSON.stringify(a.looks));
+      check(`${name}: «Classici» → i personaggi di prima, nessun pezzo delle mascotte`, a.looks[0] === 'p1' && a.looks[1] === (o.multi ? 'p2' : 'cpu') && !a.seen.flat().some(n => MASCOT.test(n)) && a.seen[0].some(n => HUMAN.test(n)), JSON.stringify(a.looks));
       await shot(p, `b24-${name}-sempre`);
     }
   }
-  check('«Di sempre»: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
+  check('«Classici»: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
   if (BASELINE){
     writeFileSync(BASELINE, JSON.stringify(prints, null, 2));
     console.log(`impronte di riferimento scritte in ${BASELINE}`);
@@ -294,10 +294,10 @@ if (!process.env.COSTO){
   }
   if (CONFRONTA && existsSync(CONFRONTA)){
     const ref = JSON.parse(readFileSync(CONFRONTA, 'utf8'));
-    for (const name of Object.keys(prints)) check(`${name}: «Di sempre» → ${name === 'partita' ? 'partita identica' : 'disegno identico'} a prima del B24`, ref[name] === prints[name], `${ref[name]} prima, ${prints[name]} ora`);
+    for (const name of Object.keys(prints)) check(`${name}: «Classici» → ${name === 'partita' ? 'partita identica' : 'disegno identico'} a prima del B24`, ref[name] === prints[name], `${ref[name]} prima, ${prints[name]} ora`);
   } else console.log('(senza CONFRONTA=file.json: niente confronto con il commit di prima del B24)');
 
-  // stessa pagina, «Lob & Drop» al volo: il disegno cambia, il gioco no; di nuovo «Di sempre»: disegno di prima
+  // stessa pagina, «Lob & Drop» al volo: il disegno cambia, il gioco no; di nuovo «Classici»: disegno di prima
   await setCast(p, 'lobdrop');
   for (const [name, o] of Object.entries(SCENES)){
     const a = await scene(p, `${name}-m`, o), d = await diff(p, `${name}-a`, `${name}-m`);
@@ -314,15 +314,15 @@ if (!process.env.COSTO){
   await setCast(p, 'sempre');
   for (const [name, o] of Object.entries(SCENES)){
     const a = await scene(p, `${name}-r`, o);
-    check(`${name}: tornati a «Di sempre» → disegno identico a prima`, a.hash === prints[name] && await diff(p, `${name}-a`, `${name}-r`) === 0, `${a.hash} / ${prints[name]}`);
+    check(`${name}: tornati a «Classici» → disegno identico a prima`, a.hash === prints[name] && await diff(p, `${name}-a`, `${name}-r`) === 0, `${a.hash} / ${prints[name]}`);
   }
   check('cambio al volo: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
   await g.ctx.close();
-  // la stessa partita in due pagine nuove, una con «Lob & Drop» e una con «Di sempre»: stessa impronta (niente cambia
+  // la stessa partita in due pagine nuove, una con «Lob & Drop» e una con «Classici»: stessa impronta (niente cambia
   // nel gioco, e la partita è ripetibile)
   for (const [cast, looks] of [['lobdrop', 'drop,lob'], ['sempre', 'p1,cpu']]){
     const m = await game({ cast }), pm = await play(m.p);
-    check(`pagina nuova con «${cast === 'lobdrop' ? 'Lob & Drop' : 'Di sempre'}»: partita con la stessa impronta (niente cambia nel gioco)`, pm.hash === prints.partita && pm.looks.join() === looks && !m.errs.length, `${pm.hash} / ${prints.partita}, in campo ${pm.looks}, ${pm.hits} colpi, punteggio ${pm.score}`);
+    check(`pagina nuova con «${cast === 'lobdrop' ? 'Lob & Drop' : 'Classici'}»: partita con la stessa impronta (niente cambia nel gioco)`, pm.hash === prints.partita && pm.looks.join() === looks && !m.errs.length, `${pm.hash} / ${prints.partita}, in campo ${pm.looks}, ${pm.hits} colpi, punteggio ${pm.score}`);
     await m.ctx.close();
   }
   if (process.env.SOLO){ await B.close(); summary(); process.exit(process.exitCode || 0); }
@@ -332,12 +332,12 @@ if (!process.env.COSTO){
 if (!process.env.COSTO){
   const def = await game({ cast: null }), p = def.p;
   const d0 = await p.evaluate(K => ({ saved: localStorage.getItem(K), looks: [__natpfTennis.player.natpfLook, __natpfTennis.opponent.natpfLook] }), KEY);
-  check('niente di salvato: personaggi di sempre', d0.saved == null && d0.looks.join() === 'p1,cpu', JSON.stringify(d0));
+  check('niente di salvato: personaggi classici', d0.saved == null && d0.looks.join() === 'p1,cpu', JSON.stringify(d0));
   await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('options'));
   await p.waitForSelector('[data-natpf-cast="lobdrop"]', { state: 'visible', timeout: 10000 });
   const row = await p.evaluate(() => { const b = document.querySelector('[data-natpf-cast="sempre"]'), r = b.closest('.lobby-row'), bb = r.getBoundingClientRect(), m = document.getElementById('title-modal').getBoundingClientRect();
     return { label: r.querySelector('.lobby-label').textContent.trim(), btns: [...r.querySelectorAll('[data-natpf-cast]')].map(x => x.textContent.trim() + (x.classList.contains('selected') ? '*' : '')), inside: bb.left >= m.left - 1 && bb.right <= m.right + 1 }; });
-  check('Opzioni: riga «Personaggi in campo» con «Di sempre» (scelto) e «Lob & Drop»', row.label === 'Personaggi in campo' && row.btns.join(' | ') === 'Di sempre* | Lob & Drop' && row.inside, JSON.stringify(row));
+  check('Opzioni: riga «Personaggi in campo» con «Classici» (scelto) e «Lob & Drop»', row.label === 'Personaggi in campo' && row.btns.join(' | ') === 'Classici* | Lob & Drop' && row.inside, JSON.stringify(row));
   await p.locator('[data-natpf-cast="lobdrop"]').scrollIntoViewIfNeeded();
   await p.screenshot({ path: path.join(SHOTS, 'b24-opzioni.png') });
   await p.click('[data-natpf-cast="lobdrop"]');
@@ -356,7 +356,7 @@ if (!process.env.COSTO){
   await p.click('[data-natpf-cast="sempre"]');
   const back = await p.waitForFunction(() => __natpfTennis.player.natpfLook === 'p1' && __natpfTennis.opponent.natpfLook === 'cpu', null, { timeout: 15000 }).then(() => true, () => false);
   const s3 = await p.evaluate(K => ({ saved: localStorage.getItem(K), sel: document.querySelector('[data-natpf-cast].selected')?.dataset.natpfCast, por: [...document.querySelectorAll('svg.nt-pl-svg')].map(s => s.dataset.look) }), KEY);
-  check('clic su «Di sempre»: tornano i personaggi di prima, ritratti compresi, scelta salvata', back && s3.saved === 'sempre' && s3.sel === 'sempre' && s3.por.every(l => l === 'p1' || l === 'cpu'), JSON.stringify(s3));
+  check('clic su «Classici»: tornano i personaggi di prima, ritratti compresi, scelta salvata', back && s3.saved === 'sempre' && s3.sel === 'sempre' && s3.por.every(l => l === 'p1' || l === 'cpu'), JSON.stringify(s3));
   check('Opzioni: nessun errore', !def.errs.length, def.errs.join(' | ').slice(0, 300));
   await def.ctx.close();
   // parametro: vale per l'avvio, non tocca il valore salvato; vince sul valore salvato
@@ -367,7 +367,7 @@ if (!process.env.COSTO){
   await q1.ctx.close();
   const q2 = await game({ cast: 'lobdrop', query: 'intro=0&personaggi=sempre' });
   const r2 = await q2.p.evaluate(K => ({ saved: localStorage.getItem(K), looks: [__natpfTennis.player.natpfLook, __natpfTennis.opponent.natpfLook] }), KEY);
-  check('?personaggi=sempre con «Lob & Drop» salvato: personaggi di sempre per questo avvio, il valore salvato resta', r2.saved === 'lobdrop' && r2.looks.join() === 'p1,cpu', JSON.stringify(r2));
+  check('?personaggi=sempre con «Lob & Drop» salvato: personaggi classici per questo avvio, il valore salvato resta', r2.saved === 'lobdrop' && r2.looks.join() === 'p1,cpu', JSON.stringify(r2));
   await q2.ctx.close();
 
   /* ---------- 3) mancini: specchio, racchetta nella mano, scritta leggibile ---------- */
@@ -403,8 +403,8 @@ if (!process.env.COSTO){
     cost[cast] = cost[cast] ? { ...d, ms: Math.min(d.ms, cost[cast].ms) } : d;
   }
   const A = cost.sempre, M = cost.lobdrop;
-  console.log(`disegno dello stesso fotogramma (il più breve di ${DRAW_N} disegni per 3 giri alternati): di sempre ${A.ms} ms, ${A.calls} chiamate, ${A.tris} triangoli · Lob & Drop ${M.ms} ms, ${M.calls} chiamate, ${M.tris} triangoli`);
-  check('costo del disegno: chiamate e triangoli non più del 10% sopra i personaggi di sempre', M.calls <= A.calls*1.1 + 2 && M.tris <= A.tris*1.1, `chiamate ${A.calls} → ${M.calls}, triangoli ${A.tris} → ${M.tris}`);
+  console.log(`disegno dello stesso fotogramma (il più breve di ${DRAW_N} disegni per 3 giri alternati): classici ${A.ms} ms, ${A.calls} chiamate, ${A.tris} triangoli · Lob & Drop ${M.ms} ms, ${M.calls} chiamate, ${M.tris} triangoli`);
+  check('costo del disegno: chiamate e triangoli non più del 10% sopra i personaggi classici', M.calls <= A.calls*1.1 + 2 && M.tris <= A.tris*1.1, `chiamate ${A.calls} → ${M.calls}, triangoli ${A.tris} → ${M.tris}`);
   check('costo del disegno: tempo non peggiorato (entro il 12%, misura a macchina condivisa)', M.ms <= A.ms*1.12 + .5, `${A.ms} ms → ${M.ms} ms`);
   // fotogrammi al secondo con il gioco che gira (scambio senza persone), due giri alternati
   const fps = cast => p.evaluate(async ({ cast, ms }) => {
@@ -423,8 +423,8 @@ if (!process.env.COSTO){
   const f = { sempre: [], lobdrop: [] };
   for (const round of [1, 2]) for (const cast of ['sempre', 'lobdrop']){ const r = await fps(cast); f[cast].push(r.fps); if (cast === 'lobdrop') check(`giro ${round}: in partita ci sono Drop e Lob`, r.looks.join() === 'drop,lob', r.looks.join()); }
   const best = k => Math.max(...f[k]);
-  console.log(`fotogrammi al secondo (grafica in software, ${FPS_MS} ms per misura): di sempre ${f.sempre.join(' e ')} · Lob & Drop ${f.lobdrop.join(' e ')}`);
-  check('fotogrammi al secondo non peggiorati (il migliore dei due giri entro il 10% dei personaggi di sempre)', best('lobdrop') >= best('sempre')*.9, `di sempre ${best('sempre')}, Lob & Drop ${best('lobdrop')}`);
+  console.log(`fotogrammi al secondo (grafica in software, ${FPS_MS} ms per misura): classici ${f.sempre.join(' e ')} · Lob & Drop ${f.lobdrop.join(' e ')}`);
+  check('fotogrammi al secondo non peggiorati (il migliore dei due giri entro il 10% dei personaggi classici)', best('lobdrop') >= best('sempre')*.9, `classici ${best('sempre')}, Lob & Drop ${best('lobdrop')}`);
   check('costo: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
   await g.ctx.close();
 }

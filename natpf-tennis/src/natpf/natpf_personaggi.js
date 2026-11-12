@@ -1,6 +1,6 @@
 // Personaggi in campo (B24, richiesta dell'utente dell'11/11/2026: «vorrei prevedere la possibilità di usare Lob & Drop
-// come due personaggi del campo»). Scelta di chi gioca: Opzioni → «Personaggi in campo: Di sempre · Lob & Drop».
-//   · «Di sempre» (di base): i tennisti di prima (Player 1 bianco, CPU blu, Player 2 con i dettagli rosa);
+// come due personaggi del campo»). Scelta di chi gioca: Opzioni → «Personaggi in campo: Classici · Lob & Drop».
+//   · «Classici» (di base): i tennisti di prima (Player 1 bianco, CPU blu, Player 2 con i dettagli rosa);
 //   · «Lob & Drop»: le due mascotte. Chi sta dalla parte del Player 1 è Drop (blu, fascia bianca), chi sta dall'altra
 //     parte (CPU o Player 2) è Lob (giallo, visiera blu, occhiali). Vale contro la CPU, nello stesso schermo e nella
 //     sfida tra due computer.
@@ -16,7 +16,7 @@
 export const CAST_KEY = 'natpf-tennis.personaggi';
 export const CAST_PARAM = 'personaggi';
 export const CASTS = Object.freeze(['sempre', 'lobdrop']);
-export const CAST_LABEL = Object.freeze({ sempre: 'Di sempre', lobdrop: 'Lob & Drop' });
+export const CAST_LABEL = Object.freeze({ sempre: 'Classici', lobdrop: 'Lob & Drop' });
 export const resolveCast = v => (CASTS.includes(v) ? v : null);
 
 // Valore dell'indirizzo (?personaggi=): null se manca o non è uno dei due
@@ -26,7 +26,7 @@ export function castFromSearch(search = ''){
 export function readSavedCast({ storage = globalThis.localStorage } = {}){
   try { return resolveCast(storage?.getItem(CAST_KEY)) || 'sempre'; } catch { return 'sempre'; }
 }
-// Scelta all'avvio: prima l'indirizzo, poi il valore salvato, altrimenti «Di sempre»
+// Scelta all'avvio: prima l'indirizzo, poi il valore salvato, altrimenti «Classici»
 export function readCast({ storage = globalThis.localStorage, search = globalThis.location?.search } = {}){
   return castFromSearch(search) || readSavedCast({ storage });
 }
@@ -57,4 +57,4 @@ const LOOKS = Object.freeze({
 export function castLooks(cast = getCast(), multiplayer = false){
   return (LOOKS[cast] || LOOKS.sempre)[multiplayer ? 'versus' : 'cpu'];
 }
-export const castToast = cast => (cast === 'lobdrop' ? 'In campo: Lob & Drop' : 'In campo: i personaggi di sempre');
+export const castToast = cast => (cast === 'lobdrop' ? 'In campo: Lob & Drop' : 'In campo: i personaggi classici');
