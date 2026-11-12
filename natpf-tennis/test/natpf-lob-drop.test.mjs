@@ -21,6 +21,7 @@ import { PlayerFacialFXController } from '../src/player_facial_fx.js';
 import { getRacketRimWorldPoints, RacketKinematicsController } from '../src/racket_kinematics.js';
 import { upgradePlayerCharacterMaterials, upgradeRacketMaterials } from '../src/player_materials.js';
 import { setFirstPersonBody } from '../src/natpf/natpf_camera.js';
+import { keepRacketClear, racketInHead, CLEAR_MARGIN } from '../src/natpf/natpf_racket_clear.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mem = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: k => { m.delete(k); } }; };
@@ -226,6 +227,83 @@ test('stesso scheletro e stesse animazioni: parti, racchetta e mano identiche al
   same('esultanza');
   // le espressioni del motore funzionano anche sulla mascotte
   for (const s of ['focused_squint', 'effort_shout', 'wide_eyed_panic', 'happy_grin', 'shocked_loss', 'neutral']) assert.equal(M.facial.setExpression(M.actor, s, .5), s);
+});
+
+// Revisione del 12/11 (bloccante): con la testa grande la racchetta entrava nella testa. Giro di pose: attesa, corsa,
+// dritto, rovescio, servizio, schiacciata, esultanza e sconfitta, un passo alla volta come nel gioco.
+function poseTour(c, each){
+  const A = c.actor, swing = (o, type, dur = .36) => { A.swingType = type; A.swingDuration = A.swingTimer = dur; c.rk.triggerSwing(A, o); };
+  const run = (n, label, extra) => { for (let i = 0; i < n; i++){ step(c, 1/60, extra); A.swingTimer = Math.max(0, A.swingTimer - 1/60); each(label, i); } };
+  run(40, 'attesa');
+  A.vel.set(-7, 0, 1.5); run(40, 'corsa'); A.vel.set(0, 0, 0);
+  swing({ shotType: 'topspin', side: 'forehand', speed: 1.3, timing: 'sweet' }, 'forehand'); run(30, 'dritto');
+  swing({ shotType: 'slice', side: 'backhand', speed: 1.2, timing: 'sweet' }, 'backhand'); run(30, 'rovescio');
+  swing({ shotType: 'serve', side: 'overhead', speed: 1.4, timing: 'sweet', isServe: true }, 'serve', .38); run(34, 'servizio', { phase: 'SERVE_TOSS' });
+  swing({ shotType: 'smash', side: 'overhead', speed: 1.25, timing: 'sweet' }, 'smash'); run(30, 'schiacciata');
+  triggerPointReaction(A, 'win'); run(40, 'esultanza', { phase: 'POINT_OVER' });
+  triggerPointReaction(A, 'loss'); run(40, 'sconfitta', { phase: 'POINT_OVER' });
+}
+const gripGap = A => world(A.rig?.handRPivot || A.parts.handR).distanceTo(new THREE.Vector3(0, .08, 0).applyMatrix4(A.racketMesh.matrixWorld));
+
+test('racchetta e testa grande: il telaio non entra più nella testa di Drop e di Lob, la mano resta sul manico, il tennista non si tocca', () => {
+  const stats = {};
+  for (const key of ['drop', 'lob']) for (const mirror of [false, true]){
+    const c = mountActor('p1', key === 'lob' ? { role: 'opponent', sideSign: -1 } : {}), A = c.actor, H = MASCOT[key].head;
+    if (mirror) A.root.scale.x = -1;
+    applyNatpfLook(A, key);
+    assert.equal(A.natpfHeadShape, H, 'la mascotte dichiara la forma della sua testa');
+    const S = stats[`${key}${mirror ? ' mancino' : ''}`] = { n: 0, prima: 0, dopo: 0, max: 0, pose: {} };
+    poseTour(c, label => {
+      // prima: la racchetta al posto che le dà il motore
+      keepRacketClear(A, null);
+      assert.deepEqual(A.racketMesh.position.toArray(), [0, 0, 0]);
+      const raw = racketInHead(A, H), rawAll = racketInHead(A, H, null, true), gap0 = gripGap(A);
+      // dopo: scostata quanto serve
+      const t = keepRacketClear(A, A.natpfHeadShape); updateNatpfActorLimbs(A);
+      const now = racketInHead(A, H);
+      S.n++; if (raw < 1){ S.prima++; S.pose[label] = (S.pose[label] || 0) + 1; } if (now < 1) S.dopo++; S.max = Math.max(S.max, t);
+      assert.ok(now >= 1, `${key} ${label}: telaio ancora dentro la testa (${now.toFixed(3)}, prima ${raw.toFixed(3)})`);
+      assert.ok(Math.abs(gripGap(A) - gap0) < 1e-9, `${key} ${label}: la mano non ha seguito il manico`);
+      // solo quanto serve: se la racchetta era già fuori (margine compreso) resta dov'era
+      const edge = 1 + CLEAR_MARGIN/Math.min(H.rx, H.ry, H.rz);
+      if (t === 0){ assert.deepEqual(A.racketMesh.position.toArray(), [0, 0, 0]); assert.ok(rawAll >= 1, `${key} ${label}: dentro la testa ma non scostata`); }
+      else assert.ok(rawAll < edge, `${key} ${label}: scostata senza motivo (tutta la racchetta era a ${rawAll.toFixed(3)})`);
+      assert.ok(racketInHead(A, H, null, true) >= 1, `${key} ${label}: piatto o manico ancora dentro la testa`);
+      assert.ok(t < .75, `${key} ${label}: scostamento esagerato (${t.toFixed(3)})`);
+    });
+    assert.ok(S.prima > 20, `${key}: senza la correzione il telaio entrava nella testa (${S.prima} passi su ${S.n})`);
+    // tornando al tennista la racchetta e la mano sono di nuovo al loro posto
+    const pushed = A.racketMesh.position.lengthSq() > 0 || (step(c), keepRacketClear(A, A.natpfHeadShape) > 0);
+    const E = { isMultiplayer: false, [A.sideSign > 0 ? 'player' : 'opponent']: A };
+    resetCast(); setCast('sempre', { save: false }); updateNatpfCharacters(E);
+    assert.equal(A.natpfHeadShape, null); assert.deepEqual(A.racketMesh.position.toArray(), [0, 0, 0]); assert.equal(A.natpfRacketPush, 0);
+    assert.ok(gripGap(A) < .03, `${key}: tornati al tennista la mano è sul manico (${pushed ? 'era scostata' : 'non era scostata'})`);
+  }
+  console.log('racchetta nella testa (passi con il telaio dentro, prima → dopo):', JSON.stringify(stats));
+  // il tennista di sempre: mai toccato
+  const c = mountActor('p1'), E = { isMultiplayer: false, player: c.actor };
+  poseTour(c, () => { updateNatpfCharacters(E); assert.deepEqual(c.actor.racketMesh.position.toArray(), [0, 0, 0]); assert.equal(c.actor.natpfRacketPush, 0); });
+  resetCast();
+});
+
+test('racchetta e testa grande: vale per qualunque testa (più grande, spostata, con un accessorio) e in prima persona non fa niente', () => {
+  const big = { rx: .52, ry: .46, rz: .5, cy: .2 }, shapes = [big, { rx: .3, ry: .3, rz: .3, cx: -.2, cy: .1, cz: .2 }, [MASCOT.lob.head, { rx: .3, ry: .05, rz: .2, cy: .25, cz: .3 }]];
+  for (const shape of shapes){
+    const c = mountActor('p1'), A = c.actor;
+    let inside = 0;
+    poseTour(c, label => {
+      keepRacketClear(A, null);
+      const list = Array.isArray(shape) ? shape : [shape];
+      if (list.some(s => racketInHead(A, s) < 1)) inside++;
+      keepRacketClear(A, shape); updateNatpfActorLimbs(A);
+      for (const s of list) assert.ok(racketInHead(A, s) >= 1, `${label}: telaio dentro la forma ${JSON.stringify(s)}`);
+    });
+    assert.ok(inside > 10, `forma ${JSON.stringify(shape)}: la prova non ha mai messo la racchetta nella testa`);
+  }
+  // prima persona: la testa è nascosta, la racchetta resta dove la mette il motore (come con il tennista)
+  const c = mountActor('p1'), A = c.actor;
+  applyNatpfLook(A, 'drop'); setFirstPersonBody(A, true);
+  poseTour(c, () => { assert.equal(keepRacketClear(A, A.natpfHeadShape), 0); assert.deepEqual(A.racketMesh.position.toArray(), [0, 0, 0]); });
 });
 
 test('mancini: personaggio specchiato come il tennista, racchetta nella stessa mano, scritta leggibile', () => {

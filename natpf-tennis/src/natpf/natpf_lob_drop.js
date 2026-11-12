@@ -37,6 +37,9 @@ export const MASCOT = Object.freeze({
 export const MASCOT_LIMBS = Object.freeze({ arm: 1.5, leg: 1.45 });
 export const MASCOT_FACE_SCALE = 1.45;
 export const mascotOf = lookKey => (MASCOT[lookKey] ? lookKey : null);
+// Ciò che la racchetta non deve attraversare (natpf_racket_clear.js), nel sistema della parte Head: l'ellissoide della
+// testa. Un personaggio nuovo con la testa grande dichiara qui la sua forma (o una lista: testa più accessori).
+export const mascotHeadShape = lookKey => (MASCOT[lookKey] ? MASCOT[lookKey].head : null);
 
 // ---------------------------------------------------------------------------------------------------------------
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
@@ -303,6 +306,7 @@ export function applyMascot(actor, lookKey, material){
   restoreFace(parts.face);
   if (key) styleFace(actor, key, parts.face, MASCOT_COLORS[key].body);
   actor.natpfMascot = key;
+  actor.natpfHeadShape = mascotHeadShape(key);   // testa grande: la racchetta le gira intorno (natpf_racket_clear.js)
   return key;
 }
 // La scritta resta leggibile anche sul personaggio specchiato (mancino: root.scale.x < 0). Da chiamare a ogni fotogramma:

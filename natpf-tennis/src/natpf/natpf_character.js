@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { setPortraitLooks } from './natpf_portrait.js';
 import { castLooks, getCast } from './natpf_personaggi.js';
 import { applyMascot, updateMascotLabels, MASCOT_COLORS } from './natpf_lob_drop.js';
+import { keepRacketClear } from './natpf_racket_clear.js';
 
 // Varianti: P1 come l'immagine di riferimento, CPU con la polo blu NATPF, P2 con dettagli rosa.
 export const CHARACTER_LOOKS = Object.freeze({
@@ -388,6 +389,9 @@ export function updateNatpfCharacters(engine){
     if (!actor?.natpfLimbs) continue;
     const want = actor.sideSign > 0 ? looks.player : looks.opponent;
     if (actor.natpfLook !== want) applyNatpfLook(actor, want);
+    // testa grande (mascotte): la racchetta si scosta dalla testa quanto serve, la mano la segue; con il tennista
+    // (natpfHeadShape assente) non si tocca niente. Unico punto in cui si chiama: vedi natpf_racket_clear.js
+    actor.natpfRacketPush = keepRacketClear(actor, actor.natpfHeadShape || null);
     updateNatpfActorLimbs(actor);
     if (actor.natpfMascot) updateMascotLabels(actor);
   }
