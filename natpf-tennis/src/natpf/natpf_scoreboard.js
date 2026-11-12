@@ -105,13 +105,16 @@ export function rowNames({ viewer = 'player', multiplayer = false, split = false
 // Vista del tabellone: due righe (prima quella di chi guarda, come negli annunci; stesso schermo: P1 sopra), formato e
 // scritta del momento (Parità, Vantaggio di chi). score: lo stato del motore (playerPoints, opponentPoints,
 // playerGames, opponentGames, server)
-export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '' } = {}){
+// looks (B24): aspetto dei personaggi in campo per lato del motore ({ player, opponent }, natpf_personaggi.castLooks);
+// con Lob & Drop la riga porta il nome della mascotte (`look`) e la linguetta prende il suo colore
+export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '', looks = null } = {}){
   const names = rowNames({ viewer, multiplayer, split, splitNames, doubles, hostName, guestName });
   const pts = gamePoints(score.playerPoints, score.opponentPoints);
   const side = s => ({ games: String(Math.max(0, score[`${s}Games`] | 0)), points: pts[s], serving: (score.server || 'player') === s, adv: pts.adv === s });
   const mine = split ? 'player' : viewer === 'opponent' ? 'opponent' : 'player', theirs = mine === 'player' ? 'opponent' : 'player';
   const short = shortNames(names.me, names.them);
   const rows = [{ side: 'me', name: names.me, short: short.me, ...side(mine) }, { side: 'them', name: names.them, short: short.them, ...side(theirs) }];
+  if (looks){ const mascot = l => (l === 'drop' || l === 'lob' ? l : ''); if (mascot(looks[mine])) rows[0].look = looks[mine]; if (mascot(looks[theirs])) rows[1].look = looks[theirs]; }
   let label = '';
   // B18: formato in fiera (score.fair, natpf_fair_format.js): sul 40-40 chi vince il punto vince il game, niente vantaggi
   if (pts.deuce && score.fair) label = 'Punto decisivo';
@@ -134,7 +137,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 // punti nella casella piena («AD» al vantaggio, così la casella resta larga uguale); sotto il riquadro il sottotitolo
 // .sb-foot con il formato e la scritta del momento
 export function scoreboardHtml(v){
-  const row = r => `<div class="sb-row sb-${r.side}${r.serving ? ' serving' : ''}${r.adv ? ' adv' : ''}" data-sb-row="${r.side}" title="${esc(r.name)}">`
+  const row = r => `<div class="sb-row sb-${r.side}${r.serving ? ' serving' : ''}${r.adv ? ' adv' : ''}" data-sb-row="${r.side}"${r.look ? ` data-sb-look="${esc(r.look)}"` : ''} title="${esc(r.name)}">`
     + `<i class="sb-tab" aria-hidden="true"></i><i class="sb-serve" aria-hidden="true"></i>`
     + `<b class="sb-name" data-sb-name="${esc(r.name)}" aria-hidden="true">${esc(r.short || r.name)}</b>`
     + `<span class="sb-sr">${esc(r.name)}${r.serving ? ' (al servizio)' : ''}</span>`

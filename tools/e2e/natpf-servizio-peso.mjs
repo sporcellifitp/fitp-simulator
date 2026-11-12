@@ -13,6 +13,8 @@
 // La scritta «Ace!» si legge dalla pagina (testo e striscia a schermo); niente schermate: il gioco gira a passi della
 // prova, più veloce dell'orologio delle scritte. Porta GAME_PORT (di base 3193).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-servizio-peso.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

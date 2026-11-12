@@ -69,7 +69,7 @@ export class NatpfReplay {
   record(dt){
     const E = this.e; if (this.play) return;
     const ph = E.phase, ui = E.natpfUi;
-    const live = (ph === 'SERVE_TOSS' || ph === 'RALLY') && !E.autoPlayMode && !ui?.training?.active && !ui?.events?.active && !E.natpfPaused;
+    const live = (ph === 'SERVE_TOSS' || ph === 'RALLY') && !E.autoPlayMode && !ui?.training?.active && !ui?.events?.active && !ui?.trial?.active && !E.natpfPaused;
     if (live && !this.cur) this.cur = { frames: [], t: 0, ended: null, count: {} };
     if (!this.cur) return;
     if (E.natpfPaused) return;

@@ -10,6 +10,9 @@ import { NatpfVersusUi } from './natpf_versus_ui.js';
 import { NatpfPause } from './natpf_pause.js';
 import { NatpfShotFeedback } from './natpf_shot_feedback.js';
 import { NatpfPowerHud } from './natpf_power_hud.js';
+import { NatpfTimingCue } from './natpf_timing_cue.js';
+import { NatpfSuperHint } from './natpf_super_hint.js';
+import { eventoRestart } from './natpf_skill.js';
 import { NatpfHand } from './natpf_hand.js';
 import { NatpfTraining } from './natpf_training.js';
 import { NatpfBallMachine } from './natpf_ball_machine.js';
@@ -18,9 +21,11 @@ import { NatpfGestureHud } from './natpf_gesture_hud.js';
 import { NatpfServeCoach } from './natpf_serve_coach.js';
 import { NatpfHotRallyHud } from './natpf_hot_rally.js';
 import { NatpfDiag } from './natpf_diag.js';
+import { NatpfRegistro } from './natpf_registro.js';
 import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
+import { NatpfRemote } from './natpf_remote.js';
 import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText, phoneOf, holdTitle, otherPhoneNote } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
@@ -30,8 +35,11 @@ import { NatpfSplitUi } from './natpf_split_ui.js';
 import { NatpfScreen } from './natpf_screen.js';
 import { NatpfCalibra } from './natpf_calibra.js';
 import { scoreboardView, scoreboardHtml } from './natpf_scoreboard.js';
+import { castLooks, getCast } from './natpf_personaggi.js';
 import { NatpfUpdates } from './natpf_updates.js';
 import { resetVisitor } from './natpf_new_player.js';
+import { NatpfTrial } from './natpf_trial.js';
+import { readCalMode } from './natpf_trial_learn.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -79,12 +87,16 @@ export class NatpfUi {
     this.hand = new NatpfHand(engine);
     this.shot = new NatpfShotFeedback(engine);
     this.power = new NatpfPowerHud(engine);          // potenza del colpo, colpo super ed energia (stanchezza)
+    this.cue = new NatpfTimingCue(engine);           // B18.2 gruppo 3: segnale del momento giusto (anello sulla palla)
+    this.superHint = new NatpfSuperHint(engine);     // B18.2 gruppo 3: perché il colpo super non è scattato
     this.machine = new NatpfBallMachine(engine);      // lanciapalle 3D del riscaldamento e dei minigiochi
     this.training = new NatpfTraining(engine, this);
     this.gesture = new NatpfGestureHud(engine, this);   // etichetta del gesto: rilevato, letto, applicato
     this.serveCoach = new NatpfServeCoach(engine, this); // istruzioni del servizio sul grande schermo (B18)
     this.hotRally = new NatpfHotRallyHud(engine); // scritta «Scambio caldo» (B20, opzione dello staff)
     this.events = new NatpfEvents(engine, this);      // sfide per gli eventi (dopo il riscaldamento: ne avvolge i punti)
+    // scambi di prova (B28): la calibrazione giocando, prima della partita (dopo le sfide: ne avvolge i punti per ultimo)
+    this.trial = new NatpfTrial(engine, this);
     // diagnostica (Maiusc+D o ?diag=1): prima del menu, così il suo tasto arriva anche con il menu aperto
     this.diag = new NatpfDiag(engine, this);
     this._gateDesktopInput();
@@ -108,6 +120,11 @@ export class NatpfUi {
     // stesso schermo (split screen): due telefoni, pannelli della pagina «Collega» ed etichette in partita
     this.split = new NatpfSplitUi(engine, this);
     this.kiosk = new NatpfKiosk(engine, this);
+    // registro dello stand (B30): righe di gioco continue e leggere, sempre acceso di base; dopo menu, allenamento,
+    // minigiochi, stesso schermo e chiosco, perché ne avvolge le funzioni. Se non parte il gioco va avanti uguale
+    try { this.registro = new NatpfRegistro(engine, this); } catch (e){ this.registro = null; console.warn('[natpf-registro] non avviato', e?.message || e); }
+    // telecomando dello staff (B27): telefono dello staff abbinato una volta, frecce, OK, Pausa, Menu… (natpf_remote.js)
+    this.remote = new NatpfRemote(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
     // aggiornamenti del programma Windows (window.natpfDesktop.updates, 07/11): avviso nel menu e sezione in Opzioni;
@@ -135,6 +152,8 @@ export class NatpfUi {
     // riapre il pannello del telefono (in allenamento la calibrazione la guida il campo, natpf_training)
     this.phone.onCal?.(e => {
       if (!e || e.kind === 'done' || this.controller !== 'phone' || this.phone.ready) return;
+      // (B28: non per il telefono che riceve da solo il profilo semplice, per un attimo «in calibrazione»)
+      if (this.phone.autoSimple || this.trial?.active) return;
       // stesso schermo: la calibrazione la conferma natpf_split_ui (il pannello coprirebbe le due metà)
       if (this.lobby?.visible || this.engine.autoPlayMode || this.training?.active || this.split?.session) return;
       if (this.modal?.classList.contains('hidden')) this.openPhone();
@@ -194,15 +213,18 @@ export class NatpfUi {
     // caldo» si tolgono subito (restavano sotto il riquadro della pausa) e tornano da sole alla ripresa
     if (this.engine.natpfPaused){ this.serveCoach?.paint(null); this.hotRally?.hide(); }
   }
-  tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); }
+  tick(dt = 1/60){ this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.cue.update(dt); this.superHint.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); }
   // sfondo fermo dell'arena dietro il menu (motore: _natpfBackdropFrame). Il Player 2 dell'invito vede l'arena viva
   // (riceve lo stato dell'host), e in campo (riscaldamento, sfide) il gioco gira
-  menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && this.engine.playerRole !== 'p2'; }
+  menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && !this.trial?.active && this.engine.playerRole !== 'p2'; }
   // esito dei colpi del giocatore locale: anello colorato, allenamento; il valore torna al telefono (vibrazione)
   feedback(e = {}){
     if ((e.role || 'p1') !== this.engine.playerRole) return null;
+    // scambi di prova (B28): i colpi non si giudicano (nessun anello, nessun esito per l'allenamento e i minigiochi)
+    if (this.trial?.active){ this.diag?.onFeedback(e, null); return null; }
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);
+    this.registro?.rec.onFeedback(e);
     this.gesture?.onFeedback(e, q);
     // colpo difensivo (molto fuori tempo, la palla resta in gioco: dal B18 arriva come «hit»): per l'allenamento e i
     // minigiochi resta un tentativo fuori tempo, come prima quando arrivava come «fault»
@@ -217,7 +239,8 @@ export class NatpfUi {
     const el = $('natpf-scoreboard'); if (!el || !score) return;
     const E = this.engine, rs = E.roomStatus || {};
     const v = scoreboardView(score, { gamesToWin, viewer: E.playerRole === 'p2' ? 'opponent' : 'player', multiplayer: !!E.isMultiplayer,
-      split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName });
+      split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName,
+      looks: castLooks(getCast(), !!E.isMultiplayer) });   // B24: linguette del colore di Drop e di Lob
     const html = scoreboardHtml(v);
     if (this._sbHtml !== html || !el.firstChild){ this._sbHtml = html; el.innerHTML = html; }
     // stesso schermo (B17.3): la stessa tabella anche in alto a sinistra della metà del Player 2; vuota altrimenti
@@ -226,7 +249,7 @@ export class NatpfUi {
   }
   // «Nuovo giocatore»: azzera nome, mano, tutorial, calibrazione e colpi imparati senza scollegare il telefono, e porta chi
   // arriva al passo giusto (natpf_new_player.js). Restituisce la strada presa ('match', 'challenge', 'split', 'versus', 'menu')
-  newPlayer(){ return resetVisitor(this); }
+  newPlayer(){ this.trialSkipOnce = false; return resetVisitor(this); }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer
   _paintVictory(){
     const versus = this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || !!this.versus?.hostActive;
@@ -241,6 +264,7 @@ export class NatpfUi {
     // Player 2 dell'invito: tornare al menu vuol dire lasciare la stanza (prima restava dentro e i suoi colpi passavano)
     if (E.playerRole === 'p2' && this.versus?.p2){ this.versus.leave(); return; }
     this.versus?.clearCheckpoint?.();     // tornare al menu chiude la partita: il punteggio salvato serve solo a un ricaricamento
+    this.trial?.abort();
     if (this.training.active) this.training.stop({ completed: false, silent: true });
     this.events.abort();
     this.split?.end();
@@ -248,6 +272,10 @@ export class NatpfUi {
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
     E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go(step); this._syncPause();
+    // B18.2 gruppo 3: tornare al menu principale chiude la serie di partite di un giocatore: il livello Evento riparte
+    // dal valore di base (senza, il visitatore dopo trovava la CPU regolata su quello di prima). «Gioca ancora» porta
+    // alla pagina «Partita» (step 'match') e il livello continua da dove era arrivato
+    if (step === 'menu') eventoRestart(E);
   }
   /* ---------- webcam nella tappa di preparazione ---------- */
   async startWebcam(){
@@ -382,18 +410,43 @@ export class NatpfUi {
     const label = $('natpf-view-label'); if (label) label.textContent = view === 'first' ? '1ª persona' : '3ª persona';
   }
   // Con lo smartphone scelto si entra in campo quando la racchetta è pronta (mouse e tastiera restano attivi).
+  // B28, calibrazione giocando: con l'opzione dello stand «Giocando» e il telefono, «Gioca» fa partire prima gli scambi di
+  // prova (natpf_trial.js) e alla fine la partita, con lo stesso clic rifatto dal gioco (_startMatchNow: il clic passa).
+  // Con «Nessuna» niente scambi di prova, ma chi gioca riparte comunque dal profilo semplice (non eredita niente).
+  // Non nella sfida tra due computer: lì gli scambi di prova si fanno prima, in campo dopo «Collega» (natpf_lobby,
+  // natpf_versus_ui), perché alla partenza l'altro computer aspetta
   _bindStart(){
     $('btn-start-match')?.addEventListener('click', e => {
+      if (this._trialPass){ this.wipe(this.lobby?.mode === 'split' ? 'Stesso schermo' : 'Si gioca'); return; }
+      const mode = this.lobby?.mode, cal = readCalMode();
+      // (revisione del B28, difetto 4) opzione dello stand cambiata a «Con i gesti» con un telefono rimasto con il
+      // profilo dato dal gioco o imparato dagli scambi di prova: non conta come calibrato, rifà i gesti (senza QR)
+      if (cal === 'gesti' && this.controller === 'phone') for (const p of mode === 'split' ? (this.split.webcam ? [] : [this.split.phone('p1'), this.split.phone('p2')]) : [this.phone]) p?.demoteIfStale?.();
       // stesso schermo: si parte con i due telefoni pronti; la sessione split nasce qui (natpf_split_ui.js)
-      if (this.lobby?.mode === 'split'){
+      if (mode === 'split'){
         if (!this.split.bothReady()){ e.stopImmediatePropagation(); this.toast(this.split.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.lobby.go('connect'); return; }
-        this.split.start(); this.wipe('Stesso schermo'); return;
+        this.split.start();
+        if (this.trial.due({ split: true })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: true, then: () => this._startMatchNow() }); return; }
+        if (cal === 'none' && !this.split.webcam) for (const id of ['p1', 'p2']){ const p = this.split.phone(id); if (!p?.keepsGesture) p?.freshPlayer?.(); }
+        this.wipe('Stesso schermo'); return;
       }
       // sfida tra due computer: si parte solo con il Player 2 entrato e pronto
-      if (this.lobby?.mode === 'friend' && this.versus?.hostActive && !this.versus.canStart()){ e.stopImmediatePropagation(); this.toast(this.versus.state === 'waiting' ? 'Manda il link al Player 2: la partita parte quando è pronto' : 'Il Player 2 sta scegliendo la racchetta: aspetta «pronto»'); return; }
-      if (this.controller === 'phone' && !this.phone.ready){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); return; }
-      this.wipe(this.lobby?.mode === 'friend' ? 'Sfida 1v1' : 'Si gioca');
+      if (mode === 'friend' && this.versus?.hostActive && !this.versus.canStart()){ e.stopImmediatePropagation(); this.toast(this.versus.state === 'waiting' ? 'Manda il link al Player 2: la partita parte quando è pronto' : 'Il Player 2 sta scegliendo la racchetta: aspetta «pronto»'); return; }
+      if (this.controller === 'phone' && !this.phone.soonReady){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); return; }
+      // (appena finito «Riscaldati prima», che ha già insegnato il colpo di chi gioca: niente scambi di prova, una volta)
+      const warmed = !!this.trialSkipOnce && !!this.phone.profile?.trial; this.trialSkipOnce = false;
+      if (mode !== 'friend' && !warmed && this.trial.due({ split: false })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: false, then: () => this._startMatchNow() }); return; }
+      // «Nessuna»: profilo semplice da capo a ogni partita (non chi ha appena calibrato apposta con i gesti: per questa partita)
+      if (mode !== 'friend' && !warmed && cal === 'none' && this.controller === 'phone' && !this.phone.keepsGesture) this.phone.freshPlayer?.();
+      this.wipe(mode === 'friend' ? 'Sfida 1v1' : 'Si gioca');
     }, true);
+  }
+  // la partita vera dopo gli scambi di prova: lo stesso «Gioca», senza rifare i controlli (il motore base la fa partire)
+  _startMatchNow(){
+    const b = $('btn-start-match'); if (!b) return;
+    this._trialPass = true;
+    try { b.disabled = false; b.click(); } finally { this._trialPass = false; }
+    this._syncPause();
   }
   // passaggio dal menu al campo: una fascia con il marchio attraversa lo schermo e copre il cambio di scena
   wipe(text = 'Si gioca'){
@@ -548,7 +601,8 @@ export class NatpfUi {
       E.pendingUserSwing = null; E.natpfWeakServe = null;
       // il punto lo rigioca chi decide i punti: questo computer, anche l'host del 1v1 in rete (il P2 segue l'host; prima
       // nel 1v1 in rete la pausa del telefono dell'host non rigiocava lo scambio interrotto)
-      const replay = a.replay && E.playerRole !== 'p2' && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
+      // (negli scambi di prova niente da rigiocare: la palla dopo arriva da sola)
+      const replay = a.replay && !this.trial?.active && E.playerRole !== 'p2' && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
       if (replay){ E._setupPointServe({ showBanner: false }); this.toast(phone ? `Il telefono${this._splitName('p1') ? ' ' + phoneOf(this._splitName('p1')) : ''} si era fermato: il punto si rigioca` : 'La webcam aveva perso la mano: il punto si rigioca'); }
       R?.log?.(phone ? 'tel.ripresa' : 'webcam.ripresa', { rigiocato: replay });
       if (phone) this.phone.lastPhase = null;      // la fase vera torna al telefono al prossimo fotogramma
@@ -639,10 +693,40 @@ export class NatpfUi {
     on('natpf-phone-retry', () => this.phone.retry());
     on('natpf-phone-invert', () => this.phone.invert());
     on('natpf-phone-skipgrip', () => this.phone.skipGrip());
-    on('natpf-phone-recal', () => this.phone.recalibrate());
+    on('natpf-phone-recal', () => this.recalibrate());
+    // B28: la calibrazione con i gesti resta raggiungibile anche con «Giocando» o «Nessuna»; e si può saltare (profilo semplice)
+    on('natpf-phone-gesti', () => this.phone.recalibrate({ gestures: true }));
+    on('natpf-phone-skip', () => this.phone.skipCalibration());
     on('natpf-phone-forget', () => { this.phone.forget(); this.qrToken = null; });
     // il pannello non deve far partire swing del mouse sotto
     this.modal?.addEventListener('pointerdown', e => e.stopPropagation());
+  }
+  // «Ricalibra» (pausa → Telefono, pannello del telefono). B28: con la calibrazione «Giocando», a partita in corso contro
+  // la CPU o nello stesso schermo, si rifanno gli scambi di prova (per tutti e due nello stesso schermo) e poi si rigioca
+  // il punto, con il punteggio com'era; altrove (menu, minigiochi, sfida tra due computer) il telefono riparte dal profilo
+  // semplice e il gioco reimpara dai colpi. Con «Con i gesti» la calibrazione di sempre. true se sono partiti gli scambi di prova
+  // una partita è in corso adesso (non il menu, l'allenamento, un minigioco, gli scambi di prova, la schermata finale)
+  matchLive(){
+    const E = this.engine;
+    return !this.lobby?.visible && !E.autoPlayMode && !this.training?.active && !this.events?.active && !this.trial?.active
+      && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(E.phase);
+  }
+  // «Ricalibra» adesso farebbe gli scambi di prova? (in partita, con «Calibrazione: Giocando»: lo usa anche il telecomando)
+  recalTrialDue(){
+    const E = this.engine, split = !!E.natpfSplit?.active;
+    const inMatch = this.matchLive() && E.playerRole !== 'p2' && (split || !E.isMultiplayer);
+    return readCalMode() === 'play' && this.controller === 'phone' && inMatch && !!this.phone.soonReady && !(split && this.split?.webcam);
+  }
+  recalibrate(){
+    const E = this.engine, split = !!E.natpfSplit?.active;
+    if (this.recalTrialDue()){
+      this.closePhone(); this.pause?.close?.();
+      this.trial.start({ split, resume: true, force: true, then: () => { E._setupPointServe({ showBanner: true }); this._syncPause(); } });
+      this.toast('Scambi di prova: poi si rigioca il punto');
+      return true;
+    }
+    this.phone.recalibrate();
+    return false;
   }
   _warn(text){ const w = $('natpf-phone-warn'); if (w){ w.textContent = text; show(w, !!text); } }
   step(){
@@ -686,6 +770,9 @@ export class NatpfUi {
     show($('natpf-phone-invert'), step === 'verifica');
     show($('natpf-phone-skipgrip'), step === 'impugna');
     show($('natpf-phone-recal'), step === 'pronto' || step === 'errore');
+    // B28: «Calibra con i gesti» da pronto (anche con «Giocando»); «Salta la calibrazione» mentre la si fa (mai bloccati)
+    show($('natpf-phone-gesti'), step === 'pronto');
+    show($('natpf-phone-skip'), step === 'impugna' || step === 'prova' || step === 'verifica');
     show($('natpf-phone-forget'), p.connected);
     $('natpf-phone-close').textContent = this.afterReady && step === 'pronto' ? 'Continua ›' : this.engine.autoPlayMode ? 'Torna alla lobby' : 'Torna al campo';
 

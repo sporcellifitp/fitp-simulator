@@ -94,7 +94,7 @@ export class NatpfServeCoach {
   snapshot(){
     const E = this.engine, U = this.ui || {}, sc = E.score || {}, split = !!E.natpfSplit?.active;
     const local = E.playerRole === 'p2' ? 'opponent' : 'player';
-    const inMatch = !E.autoPlayMode && !U.training?.active && !U.events?.active && !U.lobby?.visible;
+    const inMatch = !E.autoPlayMode && !U.training?.active && !U.events?.active && !U.trial?.active && !U.lobby?.visible;
     // chi serve gioca qui: nello stesso schermo tutti e due, altrimenti il lato di questo computer (la CPU non è mai locale)
     const mine = inMatch && (split || sc.server === local);
     const vy = E.ball?.vel?.y, guest = E.playerRole === 'p2' && !!E.isMultiplayer && !split;

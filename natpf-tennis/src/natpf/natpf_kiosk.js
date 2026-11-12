@@ -9,10 +9,16 @@
 // E lo «scambio che si scalda» (B20, natpf_hot_rally.js): No · Sì, spento di base.
 // E le due opzioni dello stesso schermo del B25 (natpf_duo_rules.js), spente di base: «Lancio automatico» (No · 30 s) e
 // «Stesso schermo: campo aperto» (No · Sì).
+// B27: «Telecomando dello staff» (natpf_remote.js) e, nel programma Windows, «Schermo del gioco» (monitor successivo),
+// nella riga dei pulsanti in basso.
+// B30: «Registro di gioco» (natpf_registro.js): Sì · No (di base sempre Sì), stato in parole semplici, «Invia adesso» e
+// «Scarica la coda», in una riga sotto la nota.
 import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLevel } from './natpf_aim_level.js';
 import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './natpf_fair_format.js';
 import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
 import { readAutoToss, writeAutoToss, autoTossButton, autoTossToast, readOpenCourt, writeOpenCourt, openCourtButton, openCourtToast } from './natpf_duo_rules.js';
+// B28: «Calibrazione: Giocando · Con i gesti · Nessuna» (natpf_trial_learn.js), di base «Giocando»
+import { readSavedCalMode, writeCalMode, nextCalMode, calModeButton, calModeToast, calModeFromUrl } from './natpf_trial_learn.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -89,6 +95,8 @@ export class NatpfKiosk {
     ui.events.forgetLearned?.();
     // B25: le fasce dei due giocatori dello stesso schermo tornano «Adulto» (sono di chi gioca, non dello stand)
     ui.split?.resetBands?.();
+    // B18.2 gruppo 3: «Chi gioca» al valore di base, livello Evento da capo, spiegazione del colpo super da rivedere
+    ui.lobby?.resetWho?.(); ui.superHint?.reset?.();
     // il visitatore successivo rivede il tutorial prima di calibrare (gioco singolo e stesso schermo)
     // (il tutorial visto è segnato sul telefono, per abbinamento: si dimentica anche con lo stesso telefono)
     if (ui.split) ui.split.closeTutorials?.();
@@ -110,6 +118,15 @@ export class NatpfKiosk {
     if (cmd === 'export') ui.events.exportCsv();
     if (cmd === 'reset'){ if (confirm('Azzerare la classifica di oggi?')) ui.events.resetBoard(); }
     if (cmd === 'phone'){ ui.phone.forget?.(); }
+    // B27: telecomando dello staff (natpf_remote.js: QR dello staff, codice, «Scollega») e monitor del gioco (programma
+    // Windows: window.natpfDesktop.displays, monitor successivo; la scelta resta salvata)
+    if (cmd === 'remote'){ ui.remote?.open(); return; }
+    // B30: registro dello stand (acceso · spento, invio, scarico della coda): lo fa natpf_registro.js, che ridipinge
+    if (cmd.startsWith('registro')){ ui.registro?.comando(cmd); return; }
+    if (cmd === 'display'){
+      Promise.resolve(window.natpfDesktop?.displays?.next?.()).then(r => { if (r?.current?.label) ui.toast?.(`Gioco su ${r.current.label}; resta salvato`); return ui.remote?._refreshDisplays?.(true); }).then(() => this.paint(), () => this.paint());
+      return;
+    }
     if (cmd === 'music') $('btn-audio-toggle')?.click();
     // mira del telefono: alta → media → bassa → alta; vale dal colpo successivo (anche per il secondo telefono). L'avviso
     // dice anche cosa vuol dire (nel foglio non c'è posto per un paragrafo: a 1024 × 600 «Chiudi» finiva fuori vista)
@@ -134,6 +151,23 @@ export class NatpfKiosk {
       ui.toast?.(autoTossToast(on));
       ui.diag?.recorder?.log?.('stand.lancioAuto', { acceso: on });
     }
+    // B28: calibrazione del telefono, giocando → con i gesti → nessuna → giocando; salvata, vale dalla partita dopo (il
+    // telefono già pronto resta com'è finché non si gioca o si ricalibra)
+    if (cmd === 'cal'){
+      const forced = !!calModeFromUrl(), mode = writeCalMode(nextCalMode(readSavedCalMode()));
+      ui.toast?.(calModeToast(mode, forced));
+      ui.diag?.recorder?.log?.('stand.calibrazione', { modo: mode, indirizzo: forced });
+      // (revisione del B28, difetto 4) l'opzione nuova vale dal prossimo «Gioca» senza rifare il QR e niente passa a chi
+      // arriva dopo: una calibrazione con i gesti fatta prima del cambio non vale più «per la prossima partita»; con
+      // «Con i gesti» un telefono rimasto con il profilo dato dal gioco torna a calibrare (subito se si è al menu,
+      // altrimenti al prossimo «Gioca»); con le altre un telefono fermo ai gesti riceve il profilo semplice
+      for (const p of [ui.phone, this.engine?.natpfPhone2]){
+        if (!p) continue;
+        p.gestureAt = null;
+        if (ui.lobby?.visible && !ui.training?.active && !ui.trial?.active) p.demoteIfStale?.();
+        p._autoProfile?.();
+      }
+    }
     if (cmd === 'open'){
       const on = writeOpenCourt(!readOpenCourt());
       ui.toast?.(openCourtToast(on));
@@ -153,6 +187,14 @@ export class NatpfKiosk {
     const hot = readHotRally(); set('hot', hotButton(hot), hot);
     const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);
     const open = readOpenCourt(); set('open', openCourtButton(open), open);
+    const cal = readSavedCalMode(); set('cal', calModeButton(cal, !!calModeFromUrl()), cal === 'play');
+    // B27: telecomando dello staff e, nel programma Windows con più monitor, il monitor del gioco
+    const remote = this.ui.remote; set('remote', remote ? remote.staffLabel : '—', !!remote?.link?.connected);
+    const disp = this.el.querySelector('[data-staff="display"]'), d = remote?.displays;
+    show(disp, !!window.natpfDesktop?.displays);
+    if (disp && !d) remote?._refreshDisplays?.();
+    set('display', d?.current ? `${d.current.label}${d.list?.length > 1 ? ' ›' : ''}` : '—', false);
+    show($('staff-registro'), !!this.ui.registro); this.ui.registro?.dipingi();
     const n = $('staff-note');
     if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
   }

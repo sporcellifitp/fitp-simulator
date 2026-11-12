@@ -193,6 +193,8 @@ export function createPhoneLink(){
       if (c === conn) lastSeen = Date.now();
       if (!ok){
         if (d.t !== 'hello') return c.close();
+        // il telecomando dello staff (B27, remote-link.js) non è mai una racchetta, nemmeno con il codice del QR giusto
+        if (d.role === 'remote'){ c.send({ t: 'deny', why: 'role' }); setTimeout(() => c.close(), 200); return; }
         // c'è già un telefono collegato: può entrare solo lo stesso telefono che si ricollega (chiave di ripresa)
         if (conn && conn.open && conn !== c && !d.r){ c.send({ t: 'deny', why: 'busy' }); setTimeout(() => c.close(), 200); return; }
         const res = gate.admit(c.peer, d.r ? { r: d.r } : d);
@@ -223,8 +225,9 @@ export function createPhoneLink(){
         // sa: ms dall'ultimo campione dei sensori sul telefono (telefoni dal 29/10), con l'istante di arrivo (beatAt): il
         // computer distingue i sensori fermi sul telefono dal flusso dei sensori che non arriva (canale veloce bloccato)
         // vis: pagina del telefono in primo piano; hiddenAt: da quando è nascosta (schermo spento, altra app), per dire da
-        // quanto sul computer. tu: il telefono mostra il tutorial (B9; s resta quello dei sensori)
-        case 'st': emit('state', d); if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1, hz: typeof d.hz === 'number' && isFinite(d.hz) ? Math.round(d.hz) : L.hz, ...(d.vis === 0 || d.vis === 1 ? { vis: d.vis === 1, hiddenAt: d.vis === 1 ? null : L.vis === false && L.hiddenAt != null ? L.hiddenAt : performance.now() } : {}), ...([-1, 0, 1].includes(d.wk) ? { wake: d.wk } : {}), touch: d.in === 't', tut: d.tu === 1, sensorAge: typeof d.sa === 'number' && isFinite(d.sa) ? Math.max(0, Math.round(d.sa)) : null, beatAt: performance.now() }); break;
+        // quanto sul computer. tu: il telefono mostra il tutorial (B9; s resta quello dei sensori). bt, bc: batteria in % e in
+        // carica (B27, per il telecomando dello staff; solo dove il browser del telefono la dà)
+        case 'st': emit('state', d); if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1, hz: typeof d.hz === 'number' && isFinite(d.hz) ? Math.round(d.hz) : L.hz, ...(d.vis === 0 || d.vis === 1 ? { vis: d.vis === 1, hiddenAt: d.vis === 1 ? null : L.vis === false && L.hiddenAt != null ? L.hiddenAt : performance.now() } : {}), ...([-1, 0, 1].includes(d.wk) ? { wake: d.wk } : {}), touch: d.in === 't', tut: d.tu === 1, sensorAge: typeof d.sa === 'number' && isFinite(d.sa) ? Math.max(0, Math.round(d.sa)) : null, beatAt: performance.now(), ...(Number.isFinite(d.bt) ? { battery: Math.max(0, Math.min(100, Math.round(d.bt))), charging: d.bc === 1 } : {}) }); break;
         case 'cal': if (d.e?.kind === 'done') racketMotion.setBias(d.e.profile?.bias || [0,0,0]); emit('cal', d.e || {}); break;
         // facoltativi: preparazione del colpo (pr) e giroscopio in JSON quando non c'è il canale binario (sm)
         case 'pr': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: d.lat }); if (at != null && (d.dir === 1 || d.dir === -1)) emit('prep', { dir: d.dir, peak: typeof d.v === 'number' ? d.v : null, angle: typeof d.a === 'number' ? d.a : null, at }); break; }
@@ -234,6 +237,8 @@ export function createPhoneLink(){
         case 'hand': if (d.h === 'left' || d.h === 'right') emit('hand', { hand: d.h }); break;
         // «Rivincita» toccata sul telefono a fine partita (stesso schermo, B20): decide il computer (natpf_split_ui)
         case 'rm': if (d.y === 1) emit('rematch', {}); break;
+        // «Avanti ›» toccato sul telefono (B28): il computer aveva offerto di andare avanti senza fare il gesto
+        case 'nx': if (d.y === 1) emit('next', {}); break;
         // tutorial prima della calibrazione: w = il telefono aspetta «Tutto chiaro, ho capito» (v 2: lo tiene spento finché
         // non si sono viste tutte le schede, con l'avanzamento «tp» del computer), ok = toccato, nav = frecce ‹ › del
         // telefono (-1 indietro, 1 avanti)

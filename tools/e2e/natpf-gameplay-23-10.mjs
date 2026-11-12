@@ -11,6 +11,8 @@
 //   E. a Leggenda, scambio lunghissimo: se la palla va in rete il messaggio dice «In rete», non «Perfetto».
 // Porte 3183 (gioco) e 9183 (PeerJS).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-gameplay-23-10.mjs
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

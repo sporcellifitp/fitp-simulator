@@ -1,6 +1,14 @@
 Foto e video di NATPF Simulator (tutorial e intro) — provenienza e diritti
 ==========================================================================
 
+Aggiornamento 12/11/2026 (B29): modelli 3D di Lob e di Drop, le due mascotte dell'evento (docs/b29/lob-e-drop-3d.md).
+- mascotte-drop.glb (321.988 byte) e mascotte-lob.glb (331.184 byte): i due modelli fatti generare dall'utente dalla
+  foto dei peluche (docs/riferimenti/lob-drop-2026-11-11.webp) e scelti da lui per il gioco. Qui c'è la versione
+  alleggerita (da 2,9 e 3,0 MB) da scripts/mascotte-modelli.py: texture 1024 × 1024 in WebP, niente tangenti né clip,
+  attributi compatti. Nella texture di Drop il marchio sul petto, che il generatore aveva scritto con tre t, è stato
+  corretto. Il gioco li carica solo con «Personaggi: Lob & Drop» (src/natpf/natpf_mascot_models.js); se mancano
+  restano le mascotte costruite nel codice. Sul petto c'è il marchio dell'evento, come sui peluche veri.
+
 Aggiornamento 11/11/2026 (B21): video nel gioco, richiesta dell'utente (docs/b21/video-e-scia.md).
 Tutti fatti con fotogrammi veri del gioco (1280×720, 24 fotogrammi al secondo, H.264, senza audio); nessuna persona
 reale; i marchi che si vedono sono quelli dell'arena del gioco (natpf/assets/brand/, site/assets/arena).

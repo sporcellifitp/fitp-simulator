@@ -208,6 +208,41 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 .demo-cues li { position: relative; padding-left: 16px; font: 500 14px/1.3 var(--font-text); color: var(--text-2); }
 .demo-cues li::before { content: ""; position: absolute; left: 2px; top: 0.5em; width: 6px; height: 6px; border-radius: 50%; background: var(--ball); }
 
+/* =====================================================================================================================
+   Scambi di prova (B28, natpf_trial.js): scritta grande in alto al centro, leggibile da lontano sul ledwall (misure in cqw
+   e cqh del contenitore natpf: 1024×1024 del 2×2 dello stand, 1280×720, 1920×1080). Il campo sotto resta libero.
+   ===================================================================================================================== */
+.natpf-trial { position: fixed; inset: 0; z-index: 41; pointer-events: none; font-family: var(--font-text); color: var(--text); }
+.natpf-trial.hidden { display: none; }
+.natpf-trial > * { pointer-events: auto; }
+.trial-card {
+  position: absolute; left: 50%; top: clamp(10px, 2.4cqh, 34px); transform: translateX(-50%);
+  width: max-content; max-width: calc(100cqw - 2 * var(--gutter));
+  display: grid; justify-items: center; gap: clamp(2px, 0.6cqh, 8px); text-align: center;
+  padding: clamp(10px, 1.6cqh, 22px) clamp(18px, 2.6cqw, 48px);
+  border-radius: var(--r-l); background: var(--panel); border: 1px solid var(--line);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+.trial-kicker { font: 700 clamp(18px, max(2cqw, 3cqh), 44px)/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ball); }
+.trial-title { font: 800 italic clamp(30px, max(4.2cqw, 6cqh), 96px)/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.01em; }
+.trial-sub { font: 500 clamp(15px, max(1.5cqw, 2.4cqh), 34px)/1.3 var(--font-text); color: var(--text-2); }
+.trial-rows { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(6px, 1cqh, 14px) clamp(18px, 3cqw, 56px); margin-top: clamp(2px, 0.6cqh, 8px); }
+.trial-row { display: flex; align-items: center; gap: clamp(8px, 1cqw, 18px); }
+.trial-row b { font: 700 clamp(14px, max(1.2cqw, 1.9cqh), 28px)/1 var(--font-display); text-transform: uppercase; }
+.trial-side { display: inline-flex; align-items: center; gap: clamp(4px, 0.5cqw, 9px); }
+.trial-side em { font: 600 clamp(12px, max(1cqw, 1.6cqh), 22px)/1 var(--font-display); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.trial-side i { width: clamp(12px, max(1.2cqw, 1.9cqh), 26px); height: clamp(12px, max(1.2cqw, 1.9cqh), 26px); border-radius: 50%; border: 2px solid var(--text-3); box-sizing: border-box; }
+.trial-side i.on { background: var(--ball); border-color: var(--ball); }
+.natpf-trial[data-state="go"] .trial-title { color: var(--ball); }
+.natpf-trial[data-state="go"] .trial-card { animation: trial-go 0.5s ease-out; }
+@keyframes trial-go { 0% { transform: translateX(-50%) scale(0.92); } 60% { transform: translateX(-50%) scale(1.05); } 100% { transform: translateX(-50%) scale(1); } }
+/* «Salta ›» accanto al pulsante della pausa (in alto a destra), non sopra */
+.trial-skip { position: absolute; right: calc(var(--gutter) + clamp(56px, 5cqw, 84px)); top: var(--gutter); }
+/* durante gli scambi di prova i colpi non si giudicano: niente scritta dell'esito del motore (nello stesso schermo ogni
+   colpo è rimandato dal gioco sul lato dell'altro: «Fuori» sarebbe falso) */
+body.natpf-trial-on #timing-popup { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .natpf-trial[data-state="go"] .trial-card { animation: none; } }
+
 /* scheda dell'esercizio, in basso a sinistra. Misure legate allo schermo (cqw del contenitore natpf, B15): a 1280 come
    prima (460 px, testo 15–16 px), a 1920×1080 o su un ledwall cresce (circa 610 px, testo 23 px) e si legge da 2 m */
 .coach-main {
@@ -620,6 +655,11 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 #title-modal[data-flow="friend"] #difficulty-mode-group { display: none; }
 /* stesso schermo: niente da scegliere tra gli avversari (l'unica tessera ripeteva il titolo «Stesso schermo», B15) */
 #title-modal[data-flow="split"] #difficulty-mode-group { display: none; }
+/* B18.2 gruppo 3: «Chi gioca?» sopra le tre tessere (solo contro la CPU) e la riga che dice il livello scelto per nome */
+#title-modal [data-page="match"] .who-label { margin: 0 0 -4px; font: 700 italic 20px/1.1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ball); text-align: left; }
+#title-modal [data-page="match"] .who-label.hidden, #title-modal[data-flow="friend"] .who-label, #title-modal[data-flow="split"] .who-label { display: none; }
+#title-modal [data-page="match"] .who-note { margin-top: -4px; color: var(--ball); }
+#title-modal [data-page="match"] .who-note.hidden { display: none; }
 /* «Altre impostazioni» (B15): una riga che apre formato, durata, chi batte e visuale; aperte, le righe stanno nella
    pagina come prima (display: contents), chiuse c'è solo il riassunto */
 #title-modal .match-more { display: contents; }
@@ -840,7 +880,20 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
   .natpf-sheet-backdrop .natpf-sheet.staff-sheet { width: min(1500px, calc(100cqw - 2 * var(--gutter))); }
   .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(6, 1fr); }
 }
-@container natpf (max-width: 820px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(2, 1fr); } }
+/* B28: con «Calibrazione» i pulsanti sono 13 (e il telecomando dello staff, B27, ne aggiunge altri). Due colonne solo sotto
+   700 px (prima sotto 820): a 720 × 720 su due colonne sarebbero sette file e il foglio scorrerebbe; su tre sono cinque
+   file, con posto fino a 15 pulsanti */
+@container natpf (max-width: 700px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(2, 1fr); } }
+/* … e nelle aree basse (1024 × 600, 1366 × 657) su quattro colonne le file diventano quattro: foglio e pulsanti un poco
+   più stretti, così «Chiudi» resta in vista senza scorrere (prova natpf-menu; posto fino a 16 pulsanti) */
+@container natpf (min-width: 821px) and (max-height: 680px) {
+  .natpf-sheet-backdrop .natpf-sheet.staff-sheet { padding: 16px 24px 14px; }
+  .natpf-sheet.staff-sheet .sheet-title { margin-bottom: 6px; font-size: 30px; }
+  .natpf-sheet.staff-sheet .pause-grid { gap: 6px; }
+  .natpf-sheet.staff-sheet .pause-grid button { min-height: 56px; padding: 8px 12px; }
+  .natpf-sheet.staff-sheet .sheet-actions { margin-top: 10px; }
+  .natpf-sheet.staff-sheet .sheet-desc { margin-bottom: 6px; }
+}
 /* B25: a 720 × 720 i 12 pulsanti su due colonne fanno sei file e il foglio scorreva di 10 px: file un po' più strette
    (revisione: con il chiosco acceso la nota è su due righe e con le opzioni accese scorreva ancora di 6 px: altri 11 px) */
 @container natpf (max-width: 820px) and (max-height: 760px) {
@@ -1449,6 +1502,11 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .nt-timing-popup:has(.q-super) { box-shadow: inset 0 0 0 2px #ffb020, 0 0 1.2em rgba(255, 150, 20, 0.7) !important; }
 /* stesso schermo: sopra le etichette dei giocatori (.natpf-split-hud), che occupano il fondo di ogni metà */
 .natpf-meters.split { padding-bottom: clamp(56px, 10cqh, 120px); }
+/* B18.2 gruppo 3: perché il colpo super non è scattato (natpf_super_hint.js), sopra le barre di potenza ed energia */
+/* revisione: carattere minimo 14 px (era 12: a 720×720 il motivo più lungo andava su quattro righe piccole) e, sugli
+   schermi stretti, riquadro largo almeno 350 px: la frase più lunga sta in tre righe */
+.natpf-super-hint { position: fixed; left: clamp(10px, 2cqw, 28px); bottom: clamp(74px, 13cqh, 150px); z-index: 31; max-width: min(max(44cqw, 350px), 640px, 94cqw); margin: 0; padding: 0.4em 0.8em; border-radius: var(--r-m); border: 1px solid rgba(255, 176, 32, 0.65); background: rgba(5, 9, 28, 0.84); color: #ffd24a; font: 600 clamp(14px, min(2.8cqh, 1.5cqw), 24px)/1.25 var(--font-text); pointer-events: none; }
+.natpf-super-hint.hidden { display: none; }
 /* B10, esito del colpo (natpf_shot_feedback.js popupPlace): nell'angolo in basso del proprio lato, sopra Potenza ed
    Energia (bottom dal JS), fuori dal campo. Prima si apriva sopra la testa di chi colpiva: nel doppio, con il compagno a
    rete, in mezzo al campo. Più piccolo e stretto: cresce verso l'alto, dove lo spazio accanto al campo si allarga */
@@ -1843,3 +1901,47 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .natpf-challenge-demo .cd-stage { width: clamp(120px, 26cqh, 260px); height: clamp(120px, 26cqh, 260px); }
 .natpf-challenge-demo .cd-stage canvas { width: 100% !important; height: 100% !important; }
 .natpf-challenge-demo .cd-title { font: 800 italic clamp(14px, 2.6cqh, 30px)/1 var(--font-display); text-transform: uppercase; color: var(--ball); }
+/* B27: telecomando dello staff (natpf_remote.js). Nel pannello dello stand due pulsanti nella riga in basso (a sinistra di
+   «Nuovo giocatore» e «Chiudi»): la griglia resta di tre file. Su due righe solo nelle aree strette */
+.natpf-sheet.staff-sheet .staff-actions .staff-extra { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; padding-block: 6px; text-align: left; line-height: 1.1; }
+.natpf-sheet.staff-sheet .staff-actions .new-player { margin-left: auto; }
+.natpf-sheet.staff-sheet .staff-actions .staff-extra span { font-size: 0.78em; font-weight: 500; color: var(--text-3, var(--text-2)); }
+.natpf-sheet.staff-sheet .staff-actions .staff-extra b { font-weight: 700; color: var(--text); }
+.natpf-sheet.staff-sheet .staff-actions .staff-extra.on b { color: var(--ball); }
+/* B30: riga del registro dello stand nel pannello dell'addetto: acceso · spento, stato, «Invia adesso», «Scarica la coda».
+   Una riga sola e bassa (il foglio deve restare nello schermo a 1024 × 600: prova natpf-menu); su aree strette va a capo.
+   Misure legate all'area del gioco (cqh con un minimo e un massimo): a 720 px di altezza come prima (14 e 13 px), su un
+   ledwall grande crescono con il resto del pannello (revisione: erano px fissi) */
+.natpf-sheet.staff-sheet .staff-registro { display: flex; align-items: center; gap: max(8px, 1.1cqh); margin: -6px 0 0; padding: max(6px, 0.8cqh) max(8px, 1.1cqh); border: 1px solid color-mix(in srgb, var(--text) 16%, transparent); border-radius: max(12px, 1.6cqh); }
+.natpf-sheet.staff-sheet .staff-registro.hidden { display: none; }
+.natpf-sheet.staff-sheet .staff-registro button { flex: none; min-height: 0; padding: max(6px, 0.8cqh) max(12px, 1.7cqh); font-size: clamp(13px, 1.95cqh, 30px); line-height: 1.15; white-space: nowrap; }
+.natpf-sheet.staff-sheet .staff-registro button:disabled { opacity: .45; cursor: default; }
+.natpf-sheet.staff-sheet .staff-registro .staff-registro-toggle { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; border: 1px solid color-mix(in srgb, var(--text) 22%, transparent); border-radius: max(10px, 1.4cqh); background: transparent; color: var(--text); cursor: pointer; text-align: left; }
+.natpf-sheet.staff-sheet .staff-registro .staff-registro-toggle span { font-size: 0.78em; font-weight: 500; color: var(--text-3, var(--text-2)); }
+.natpf-sheet.staff-sheet .staff-registro .staff-registro-toggle b { font-weight: 700; }
+.natpf-sheet.staff-sheet .staff-registro .staff-registro-toggle.on b { color: var(--ball); }
+.natpf-sheet.staff-sheet .staff-registro-stato { flex: 1; min-width: 0; margin: 0; font: 500 clamp(12px, 1.8cqh, 28px)/1.3 var(--font-text); color: var(--text-2); }
+/* area stretta (anche il quadrato 720 × 720 del B28): lo stato va a capo sotto, la riga si stringe perché il foglio non
+   scorra; il testo dello stato al più su due righe (revisione: con un errore lungo il foglio scorreva di 8 px) */
+@container natpf (max-width: 820px) {
+  .natpf-sheet.staff-sheet .staff-registro { flex-wrap: wrap; padding: 3px 8px; row-gap: 2px; }
+  .natpf-sheet.staff-sheet .staff-registro button { padding: 4px 10px; }
+  .natpf-sheet.staff-sheet .staff-registro-stato { flex-basis: 100%; order: 3; font-size: clamp(11px, 1.65cqh, 24px); line-height: 1.2; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+}
+.natpf-sheet-backdrop .natpf-sheet.remote-sheet { width: min(760px, calc(100cqw - 2 * var(--gutter))); max-height: calc(100cqh - 2 * var(--gutter)); overflow: auto; }
+.remote-sheet .remote-body { display: flex; gap: max(14px, 2cqw); align-items: flex-start; }
+.remote-sheet .remote-qr-col { display: grid; justify-items: center; gap: 6px; flex: none; }
+.remote-sheet .remote-qr { width: clamp(150px, 34cqh, 240px); height: clamp(150px, 34cqh, 240px); padding: 10px; background: #fff; display: grid; place-items: center; }
+.remote-sheet .remote-qr svg { width: 100%; height: 100%; }
+.remote-sheet .remote-info { flex: 1; min-width: 0; }
+.remote-sheet .remote-code-line { margin: 0 0 12px; font: 500 16px/1.4 var(--font-text); color: var(--text-2); }
+.remote-sheet .remote-code-line b { display: inline-block; margin-left: 4px; font: 800 26px/1 var(--font-display); letter-spacing: 0.08em; color: var(--ball); }
+.remote-sheet .remote-tip { font-size: 14px; margin-bottom: 8px; }
+@container natpf (max-width: 640px) { .remote-sheet .remote-body { flex-direction: column; align-items: center; } }
+.remote-sheet .remote-request, .remote-sheet .remote-paired { text-align: center; }
+.remote-sheet .remote-ask { margin: 0; font: 700 clamp(18px, 2.6cqh, 26px)/1.25 var(--font-text); color: var(--text); }
+.remote-sheet .remote-num { margin: 4px 0 8px; font: 800 italic clamp(72px, 16cqh, 150px)/1 var(--font-display); letter-spacing: 0.08em; color: var(--ball); }
+.remote-sheet .remote-request-actions { display: flex; justify-content: center; gap: 14px; margin-bottom: 8px; }
+.remote-sheet .remote-ok { margin: 6px 0 10px; font: 800 italic clamp(28px, 5cqh, 44px)/1 var(--font-display); text-transform: uppercase; color: var(--ball); }
+/* fuoco spostato dal telecomando (frecce del telefono): sempre visibile, anche dopo un clic del mouse sul computer */
+html.remote-nav :is(button, a, input, [tabindex]):focus { outline: 3px solid var(--ball); outline-offset: 3px; }

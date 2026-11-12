@@ -1,10 +1,12 @@
-// NATPF motore base: menu principale al centro, sfondo fermo. Verifica a tre risoluzioni (1366 × 657 di un portatile
-// con la barra del browser, 1024 × 600, 1280 × 720):
+// NATPF motore base: menu principale al centro, sfondo fermo. Verifica a quattro risoluzioni (1366 × 657 di un portatile
+// con la barra del browser, 1024 × 600, 1280 × 720 e, dal B27, il ledwall quadrato 1024 × 1024 dello stand; dal B28 il
+// pannello dello stand anche a 720 × 720):
 //   • tutte le voci visibili senza scorrere (anche le pagine «Modalità», «Racchetta», «Partita», «Opzioni», «Sfide»);
 //   • frecce come con un joypad: giù/su tra le voci, destra/sinistra nella fila delle due voci di servizio;
 //   • descrizione della voce scelta sotto il pannello;
 //   • pannello dello stand (Ctrl+Maiusc+K) in una schermata, «Chiudi» in vista senza scorrere (B16: una nota di tre righe
-//     sotto i pulsanti lo portava fuori vista a 1024 × 600 e a metà a 1366 × 657);
+//     sotto i pulsanti lo portava fuori vista a 1024 × 600 e a metà a 1366 × 657), con «Telecomando dello staff» (B27) nella
+//     riga in basso e «Schermo del gioco» nascosto nel browser;
 //   • con il menu aperto il gioco non avanza (niente partita dimostrativa) e l'arena non si ridisegna a ogni
 //     fotogramma: era la causa dello sfarfallio della home, insieme al campo animato dell'intro.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-menu.mjs
@@ -23,17 +25,19 @@ check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 
 const B = await launch();
 try {
-  for (const [w, h] of [[1366, 657], [1024, 600], [1280, 720]]){
+  for (const [w, h] of [[1366, 657], [1024, 600], [1280, 720], [1024, 1024]]){
     const ctx = await B.newContext({ viewport: { width: w, height: h } }), p = await ctx.newPage(), errs = [];
     p.on('pageerror', e => errs.push(e.message));
     await p.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0`, { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby?.visible, null, { timeout: 120000 });
     await p.waitForTimeout(600);
     const tag = `${w} × ${h}`;
-    const fit = await p.evaluate(() => { const m = document.getElementById('title-modal'); const items = [...document.querySelectorAll('[data-page="menu"] .menu-item')].map(e => e.getBoundingClientRect()); return { scroll: m.scrollHeight - m.clientHeight, inView: items.length === 5 && items.every(r => r.top >= 0 && r.bottom <= innerHeight), focus: document.activeElement?.dataset?.menu, centre: (() => { const l = document.querySelector('[data-page="menu"] .menu-layout').getBoundingClientRect(); return Math.round(Math.abs((l.left + l.right)/2 - innerWidth/2)); })(), side: (() => { const h = document.querySelector('[data-page="menu"] .menu-hero').getBoundingClientRect(); return items.every(r => r.left >= h.right - 1); })() }; });
-    // menu a due colonne (dal 31/10): titolo e descrizione a sinistra, voci a destra; il blocco intero è al centro
-    check(`${tag}: le cinque voci del menu a destra del titolo, blocco al centro, visibili senza scorrere, «Gioca» scelta`, fit.scroll <= 0 && fit.inView && fit.focus === 'play' && fit.side && fit.centre < 4, JSON.stringify(fit));
-    if (w === 1280) await p.screenshot({ path: `${SP}/menu-${w}x${h}.png` });
+    const fit = await p.evaluate(() => { const m = document.getElementById('title-modal'); const items = [...document.querySelectorAll('[data-page="menu"] .menu-item')].map(e => e.getBoundingClientRect()); return { scroll: m.scrollHeight - m.clientHeight, inView: items.length === 5 && items.every(r => r.top >= 0 && r.bottom <= innerHeight), focus: document.activeElement?.dataset?.menu, centre: (() => { const l = document.querySelector('[data-page="menu"] .menu-layout').getBoundingClientRect(); return Math.round(Math.abs((l.left + l.right)/2 - innerWidth/2)); })(), side: (() => { const h = document.querySelector('[data-page="menu"] .menu-hero').getBoundingClientRect(); return items.every(r => r.left >= h.right - 1); })(), below: (() => { const h = document.querySelector('[data-page="menu"] .menu-hero').getBoundingClientRect(); return items.every(r => r.top >= h.bottom - 1); })() }; });
+    // menu a due colonne (dal 31/10): titolo e descrizione a sinistra, voci a destra; il blocco intero è al centro. Nelle
+    // aree quadrate (ledwall 2×2, 1024 × 1024) in colonna: il marchio sopra, le voci sotto (natpf-ui.css, max-aspect-ratio 5/4)
+    const square = w/h <= 1.25;
+    check(`${tag}: le cinque voci del menu ${square ? 'sotto il marchio (area quadrata)' : 'a destra del titolo'}, blocco al centro, visibili senza scorrere, «Gioca» scelta`, fit.scroll <= 0 && fit.inView && fit.focus === 'play' && (square ? fit.below : fit.side) && fit.centre < 4, JSON.stringify(fit));
+    if (w === 1280 || h === 1024) await p.screenshot({ path: `${SP}/menu-${w}x${h}.png` });
     const seq = [];
     for (const k of ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowUp']){ await p.keyboard.press(k); seq.push(await p.evaluate(() => document.activeElement?.dataset?.menu)); }
     // (dal B15 la fila in basso ha due voci, Classifica e Opzioni: la guida è «Come si gioca» in alto)
@@ -60,9 +64,13 @@ try {
     await p.keyboard.press('Control+Shift+KeyK');
     await p.waitForSelector('#natpf-staff:not(.hidden) [data-staff="close"]', { state: 'visible', timeout: 10000 });
     await p.waitForTimeout(400);                                            // animazione d'entrata del foglio (0,28 s)
-    const staff = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'), r = s.getBoundingClientRect(), c = s.querySelector('[data-staff="close"]').getBoundingClientRect(); return { scroll: s.scrollHeight - s.clientHeight, sheet: [Math.round(r.top), Math.round(r.bottom)], close: [Math.round(c.top), Math.round(c.bottom)], inner: innerHeight }; });
-    check(`${tag}: pannello dello stand senza scorrere, «Chiudi» in vista`, staff.scroll <= 0 && staff.close[0] >= staff.sheet[0] && staff.close[1] <= Math.min(staff.sheet[1], staff.inner), JSON.stringify(staff));
+    const staff = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'), r = s.getBoundingClientRect(), c = s.querySelector('[data-staff="close"]').getBoundingClientRect(), t = s.querySelector('[data-staff="remote"]'), tr = t.getBoundingClientRect(); return { scroll: s.scrollHeight - s.clientHeight, sheet: [Math.round(r.top), Math.round(r.bottom)], close: [Math.round(c.top), Math.round(c.bottom)], inner: innerHeight, remote: tr.height > 0 && tr.bottom <= Math.min(r.bottom, innerHeight), display: s.querySelector('[data-staff="display"]').classList.contains('hidden') }; });
+    check(`${tag}: pannello dello stand senza scorrere, «Chiudi» e «Telecomando dello staff» in vista (nel browser niente «Schermo del gioco»)`, staff.scroll <= 0 && staff.close[0] >= staff.sheet[0] && staff.close[1] <= Math.min(staff.sheet[1], staff.inner) && staff.remote && staff.display, JSON.stringify(staff));
+    // B28 insieme al B27: anche «Calibrazione» (opzione dello stand) è nel foglio, tutta in vista
+    const calBtn = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet').getBoundingClientRect(), b = document.querySelector('#natpf-staff [data-staff="cal"]'), r = b?.getBoundingClientRect(); return b ? { text: b.textContent.replace(/\s+/g, ' ').trim(), inside: r.top >= s.top && r.bottom <= Math.min(s.bottom, innerHeight) && r.height > 0, n: document.querySelectorAll('#natpf-staff [data-staff]').length } : null; });
+    check(`${tag}: «Calibrazione» nel pannello dello stand, in vista`, !!calBtn && calBtn.inside && /Calibrazione/.test(calBtn.text), JSON.stringify(calBtn));
     if (w === 1024) await p.screenshot({ path: `${SP}/stand-${w}x${h}.png` });
+    if (h === 1024){ await p.click('#natpf-staff [data-staff="remote"]'); await p.waitForTimeout(800); await p.screenshot({ path: `${SP}/telecomando-pannello-${w}x${h}.png` }); const rs = await p.evaluate(() => { const s = document.querySelector('#natpf-remote .natpf-sheet'); return s.scrollHeight - s.clientHeight; }); check(`${tag}: foglio «Telecomando dello staff» senza scorrere`, rs <= 0, String(rs)); await p.click('#natpf-remote [data-remote="close"]'); await p.waitForTimeout(300); }
     await p.click('#natpf-staff [data-staff="close"]');
     check(`${tag}: «Chiudi» chiude il pannello dello stand`, await p.evaluate(() => document.getElementById('natpf-staff').classList.contains('hidden')));
     // Invio su «Allenamento» porta alla scelta della racchetta
@@ -71,6 +79,29 @@ try {
     await p.focus('[data-menu="training"]'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
     check(`${tag}: Invio sulla voce la apre`, await p.evaluate(() => __natpfTennis.natpfUi.lobby.step) === 'controller');
     check(`${tag}: nessun errore JavaScript`, !errs.length, errs.join(' | ').slice(0, 300));
+    await ctx.close();
+  }
+  // B28 insieme al B27: il pannello dello stand (voci del B27 più «Calibrazione») anche in un'area quadrata piccola,
+  // 720 × 720: non scorre e «Chiudi» resta in vista (le altre verifiche del menu a questa misura non si fanno qui)
+  {
+    const ctx = await B.newContext({ viewport: { width: 720, height: 720 } }), p = await ctx.newPage(), errs = [];
+    p.on('pageerror', e => errs.push(e.message));
+    await p.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0`, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby?.visible, null, { timeout: 120000 });
+    await p.waitForTimeout(600);
+    await p.keyboard.press('Control+Shift+KeyK');
+    await p.waitForSelector('#natpf-staff:not(.hidden) [data-staff="close"]', { state: 'visible', timeout: 10000 });
+    await p.waitForTimeout(400);
+    const staff = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'), r = s.getBoundingClientRect(), box = e => { const q = e.getBoundingClientRect(); return [Math.round(q.top), Math.round(q.bottom)]; };
+      const inside = e => { const q = e.getBoundingClientRect(); return q.height > 0 && q.top >= r.top && q.bottom <= Math.min(r.bottom, innerHeight) && q.left >= r.left && q.right <= Math.min(r.right, innerWidth); };
+      return { scroll: s.scrollHeight - s.clientHeight, wide: s.scrollWidth - s.clientWidth, sheet: box(s), close: box(s.querySelector('[data-staff="close"]')), inner: innerHeight,
+        closeIn: inside(s.querySelector('[data-staff="close"]')), remote: inside(s.querySelector('[data-staff="remote"]')), cal: inside(s.querySelector('[data-staff="cal"]')), n: s.querySelectorAll('[data-staff]').length }; });
+    check('720 × 720: pannello dello stand senza scorrere, «Chiudi», «Telecomando dello staff» e «Calibrazione» in vista', staff.scroll <= 0 && staff.wide <= 0 && staff.closeIn && staff.remote && staff.cal, JSON.stringify(staff));
+    await p.screenshot({ path: `${SP}/stand-720x720.png` });
+    await p.click('#natpf-staff [data-staff="cal"]'); await p.waitForTimeout(300);
+    const after = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'); return { scroll: s.scrollHeight - s.clientHeight, text: s.querySelector('[data-staff="cal"]').textContent.replace(/\s+/g, ' ').trim(), saved: localStorage.getItem('natpf-tennis.calibrazione') }; });
+    check('720 × 720: «Calibrazione» gira (Giocando → Con i gesti) e il foglio continua a non scorrere', after.scroll <= 0 && /Con i gesti/.test(after.text) && after.saved === 'gesti', JSON.stringify(after));
+    check('720 × 720: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
     await ctx.close();
   }
 } finally {

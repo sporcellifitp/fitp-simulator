@@ -51,6 +51,11 @@ vecchia la riga della partita dice «**sensibilità non applicata**».
 ## 3. Gioca
 
 - Ogni persona collega il telefono e **calibra con cura**: in piedi davanti allo schermo, come dice il gioco.
+  **Dal B28 (12/11)** di base la calibrazione si fa giocando: a ogni «Gioca» circa 10 secondi di scambi di prova, e il
+  centro della mira viene dai colpi di prova (due per lato). Nel banco quel centro sbaglia di circa 5° (6 % di partite
+  sbilanciate), contro circa 2° dei due gesti fatti con cura (`docs/b28/calibrazione-giocando.md` §5). **Per questa
+  misura** conviene quindi la calibrazione con i gesti: pannello dello stand → «Calibrazione: Con i gesti», oppure pausa →
+  Telefono → «Calibra con i gesti»; poi rimettere «Giocando».
 - Partite **contro la CPU**, in **Singolare 1v1**, con **Altre impostazioni → Durata: Al meglio di 3** (con «1 game» una
   partita ha spesso meno di 20 colpi e non si giudica).
 - Per controllare la calibrazione: **3 partite a persona**, ognuna con **almeno 30 colpi** del telefono. Con 3–5 persone

@@ -19,7 +19,7 @@
 // sfida.vista (natpf_guest_view.js), tel.strada, tel2.strada, sfida.strada,
 // atteso, marca, avviso, popup (messaggio del colpo a schermo), partita (inizio di una partita: modo, mani, sensibilità
 // della mira; B16, lato delle palle per partita in diag_metrics.sideBalance).
-import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
+import { latencyShift, eventLatency, swingTiming, eventoK } from '../natpf_skill.js';
 import { readAimLevel, aimFullNow } from '../natpf_aim_level.js';
 import { shotDirection } from './diag_metrics.js';
 import { NATPF_BUILD } from '@natpf/tennis/version.js';
@@ -222,12 +222,16 @@ export class DiagRecorder {
     const ren = E.render.bind(E);
     E.render = function(...a){ if (!R.active) return ren(...a); const s = R.now(); const out = ren(...a); R.perf.ren.push(R.now() - s); return out; };
     const wrap = (name, fn) => { const orig = E[name]; if (typeof orig !== 'function') return; E[name] = function(...a){ return R.active ? fn.call(this, orig.bind(this), ...a) : orig.apply(this, a); }; };
+    const eventoOn = () => E.matchConfig?.difficulty === 'evento' && !E.isMultiplayer && !E.versus?.active;
     wrap('_spawnBounceRing', function(orig, x, z){ R.log('rimbalzo', { x: r(x), z: r(z), da: E.ball?.lastHitter || null, n: E.ball?.bounceCountOnCurrentSide ?? null }); return orig(x, z); });
     wrap('_awardPoint', function(orig, winner, why = ''){
       const out = orig(winner, why);
-      R.log('punto', { vince: winner, motivo: String(why || ''), punteggio: [E.score?.playerPoints, E.score?.opponentPoints, E.score?.playerGames, E.score?.opponentGames], allenamento: !!R.ui?.training?.active, sfida: !!R.ui?.events?.active,
+      R.log('punto', { vince: winner, motivo: String(why || ''), punteggio: [E.score?.playerPoints, E.score?.opponentPoints, E.score?.playerGames, E.score?.opponentGames], allenamento: !!(R.ui?.training?.active || R.ui?.trial?.active), sfida: !!R.ui?.events?.active,
         // partita tra due persone (sfida tra due computer o stesso schermo); «sfida» è la modalità eventi (minigiochi)
-        '1v1': !!(E.versus?.active || E.isMultiplayer) });
+        '1v1': !!(E.versus?.active || E.isMultiplayer),
+        // B18.2 gruppo 3 (revisione): al livello Evento il valore della CPU dopo questo punto (0 facile … 1 esperta):
+        // con «partita.eventoK» dà partenza, fine e percorso dell'adattamento, per decidere il valore di partenza con persone vere
+        ...(eventoOn() ? { eventoK: r(eventoK(), 3) } : {}) });
       return out;
     });
     // tentativo di colpo del giocatore: distanza palla–giocatore lungo il campo al momento dello swing (prima della
@@ -271,7 +275,7 @@ export class DiagRecorder {
         // webcam), gradi della mira piena con cui il telefono ha letto il piatto; colpi dell'allenamento (riscaldamento
         // compreso) e dei minigiochi segnati, perché non sono una partita
         mano: L.hand || null, fonte: L.source || null, ...(Number.isFinite(L.aimFull) ? { miraPiena: L.aimFull } : {}),
-        ...(R.ui?.training?.active ? { allenamento: true } : {}), ...(R.ui?.events?.active ? { minigioco: true } : {}) });
+        ...(R.ui?.training?.active || R.ui?.trial?.active ? { allenamento: true } : {}), ...(R.ui?.trial?.active ? { prova: true } : {}), ...(R.ui?.events?.active ? { minigioco: true } : {}) });
       return out;
     });
     // inizio di una partita (B16): il lato delle palle si giudica partita per partita. Modo (contro la CPU, stesso schermo,
@@ -283,7 +287,10 @@ export class DiagRecorder {
         '1v1': !!(E.versus?.active || E.isMultiplayer), mano: R.ui?.hand?.hand || E.natpfPhone?.hand || null, mano2: E.natpfPhone2?.hand || null,
         mira: readAimLevel(), miraPiena: aimFullNow(), ruolo: E.playerRole || 'p1',   // ruolo: B18, chi gioca qui (misure del rimbalzo)
         // B18: formato in fiera (punto decisivo e servizio come nel tie-break) e game per vincere dopo la sua regola
-        formatoFiera: !!E.score?.fair, gameDaVincere: E.matchConfig?.gamesToWin ?? null };
+        formatoFiera: !!E.score?.fair, gameDaVincere: E.matchConfig?.gamesToWin ?? null,
+        // B18.2 gruppo 3 (revisione): segnale del momento giusto acceso in questa partita (per confrontare la quota di
+        // «Perfetto» con e senza) e, al livello Evento, il valore della CPU all'inizio della partita
+        segnale: !!R.ui?.cue?.enabled, ...(eventoOn() ? { eventoK: r(eventoK(), 3) } : {}) };
       R.log('partita', R.lastMatch);
       return out;
     });

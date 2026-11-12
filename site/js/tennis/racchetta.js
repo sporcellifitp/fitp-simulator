@@ -15,7 +15,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, veilText } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg } from './phone-screen.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -70,6 +70,10 @@ let fast = null, fastOk = false, rawSeq = 0;
 let selectedShot = 'auto', inputMode = 'motion', shotsPaintKey = '';
 // stesso schermo (B20): rivincita offerta dal computer a fine partita (phone-screen.rematchOnMsg) e motivo della pausa
 let rematch = null, phaseNote = '';
+// calibrazione giocando (B28): il computer sta giocando gli scambi di prova (fase con tr 1)
+let trial = false;
+// niente blocchi (B28): «Avanti ›» offerto dal computer ({ label }) dove chiede un gesto
+let nextOffer = null;
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
 const ARROW = { L: '←', R: '→', '?': '?' };
 // mano scelta nel gioco (o qui, e confermata dal gioco): menu, calibrazione in corso e profilo salvato. Il verso del
@@ -102,7 +106,8 @@ function setGate(g){ gate = g; if (g) ss.set('gate', g); else ss.del('gate'); }
 // «Pronto». Prima ogni elemento aveva la sua condizione e «Tutto chiaro» compariva sopra «Pronto»
 function paint(){
   bar();
-  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch });
+  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch, next: nextOffer });
+  if (nextOffer && $('#next').textContent !== nextOffer.label) $('#next').textContent = nextOffer.label;
   if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
   for (const [sel, on] of Object.entries(v.show)) show(sel, on);
   if (v.show['#profileOptions']) paintHand();
@@ -123,11 +128,12 @@ function paint(){
     // fine partita nello stesso schermo (B20): «Rivincita» e chi l'ha già chiesta
     const rv = phase === 'over' ? rematchView(rematch) : null, rb = $('#rematch');
     if (rv){ rb.textContent = rv.label; rb.disabled = rv.disabled; ui(rv.big, rv.sub, 'ready'); }
+    else if (trial && phase === 'play') ui(TRIAL_TEXT.big, TRIAL_TEXT.sub, 'ready');
     else ui(phase === 'serve' ? 'Al servizio' : phase === 'pause' && phaseNote ? 'Pausa' : 'Pronto', phaseText(), 'ready');
   }
 }
-// schermata del tutorial: pulsante spento finché il computer non dice che sono state viste tutte le schede, scheda
-// attuale, puntini delle schede viste, frecce per sfogliarle anche da qui (solo con un computer che le capisce)
+// schermata del tutorial: pulsante acceso da subito (B28), scheda attuale, puntini delle schede viste, frecce per
+// sfogliarle anche da qui (solo con un computer che le capisce)
 function paintTut(v){
   const b = $('#tutOk');
   if (v.screen !== 'tutorial'){ b.classList.remove('lit'); return; }
@@ -230,7 +236,7 @@ function onData(c, d){
   switch (d.t){
     case 'welcome':
       clearTimeout(connect.t); clearTimeout(retryT); pendingConn = null;
-      conn = c; linkState = 'on'; tries = 0; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast(); sendDevice();
+      conn = c; linkState = 'on'; tries = 0; nextOffer = null; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast(); sendDevice();
       // ripresa a calibrazione in corso: gli eventi fatti mentre il collegamento era giù sono andati persi, il computer
       // riceve il passo attuale (prima restava al gesto di prima mentre il telefono era già alla verifica)
       if (sensor === 'cal') for (const e of cal.replay()) sendCal(e);
@@ -248,20 +254,24 @@ function onData(c, d){
         // (w) con il pulsante spento fino all'ultima scheda (v 2). Calibrazione già partita (si entra in campo dalla pagina
         // «Collega»): si ferma e ripartirà dopo; un telefono già calibrato resta calibrato (dopo «ho capito» torna a «Pronto»)
         const was = gate; setGate(gateOnCfg(gate, d));
-        if (gate){ send({ t: 'tut', w: 1, v: 2 }); if (!was) sensor = sensorOnGateOpen(sensor); }
+        if (gate){ send({ t: 'tut', w: 1, v: 2 }); if (!was){ sensor = sensorOnGateOpen(sensor); lightTut(); } }
         // il computer ha chiuso il tutorial da solo (o non lo chiede più): chi aspettava calibra
         else if (was && sensor === 'idle') startCal();
       }
       sendState(); paint(); break;
-    // avanzamento del tutorial dal computer: scheda mostrata, schede viste; con l'ultima vista si accende «ho capito»
-    case 'tp': if (gate){ const was = tutConfirmable(gate); setGate(gateOnProgress(gate, d)); if (!was && tutConfirmable(gate)) lightTut(); paint(); } break;
+    // avanzamento del tutorial dal computer: scheda mostrata, schede viste (solo informazione: «ho capito» è acceso da subito, B28)
+    case 'tp': if (gate){ setGate(gateOnProgress(gate, d)); paint(); } break;
     // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
     case 'ex': det.setExpect(d.d); break;
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
     // rivincita offerta dal computer a fine partita nello stesso schermo (B20), o tolta (on 0)
     case 'rm': rematch = rematchOnMsg(d); if (sensor === 'ready') paint(); break;
+    // «Avanti ›» offerto (o tolto) dal computer: esercizi e scambi di prova si possono saltare anche da qui (B28)
+    case 'nx': nextOffer = nextOnMsg(d); if (sensor === 'ready') paint(); break;
     // (txt, B20: la partita è in pausa per il telefono dell'altro giocatore, e lo dice)
-    case 'ph': phase = d.ph; phaseNote = pauseNote(d); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
+    // soglie dal colpo imparato negli scambi di prova (B28): solo sopra il profilo semplice, che non ha un colpo tipico suo
+    case 'pf': { const th = trialThresholds(d); if (th && sensor === 'ready' && inputMode === 'motion' && det.profile.simple) det.setThresholds(th); break; }
+    case 'ph': phase = d.ph; phaseNote = pauseNote(d); trial = trialOnMsg(d); det.setSignVote?.(d.tr !== 1); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
     case 'cmd': command(d.c); break;
     case 'ev': {
       const vib = Array.isArray(d.vib) && d.vib.length <= 6 && d.vib.every(v => Number.isFinite(v) && v >= 0 && v <= 400) ? d.vib : null;
@@ -318,7 +328,11 @@ const wakeState = () => awake.state;
 // quando il canale veloce non glielo porta
 // s: sensori come li deve leggere il computer (phone-screen.reportedSensor: «tut» in attesa del tutorial senza calibrazione,
 // «ready» resta «ready» anche durante il tutorial); tu: la schermata è quella del tutorial
-const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
+// batteria del telefono (B27: la mostra il telecomando dello staff), dove il browser la dà (Chrome su Android; Safari no)
+let battery = null;
+try { navigator.getBattery?.().then(b => { battery = b; }, () => {}); } catch (e){}
+const batteryState = () => battery && Number.isFinite(battery.level) ? { bt: Math.round(battery.level*100), bc: battery.charging ? 1 : 0 } : {};
+const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batteryState(), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign });
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
@@ -426,10 +440,10 @@ function setGrip(value){
 }
 // Tutorial sul computer prima della calibrazione (richiesta del 04/11, B9 il 05/11): il computer lo chiede con cfg
 // { tut: 1, tv: 2 }; il telefono risponde che lo sa fare ({ t: 'tut', w: 1, v: 2 }), dopo «Attiva i sensori» non calibra
-// subito ma mostra la schermata del tutorial con «Tutto chiaro, ho capito» SPENTO finché il computer non dice (tp) che
-// tutte le schede sono state viste; le frecce ‹ › mandano { t: 'tut', nav: ±1 }. Al tocco manda { t: 'tut', ok: 1 } e
-// calibra (o torna a «Pronto» se era già calibrato). Un computer di prima (cfg senza tv) non manda l'avanzamento: il
-// pulsante è acceso subito, come prima; uno ancora più vecchio non manda tut: tutto come prima
+// subito ma mostra la schermata del tutorial con «Tutto chiaro, ho capito» acceso da subito (B28, 12/11: prima spento finché
+// il computer non diceva, tp, che tutte le schede erano state viste); le frecce ‹ › mandano { t: 'tut', nav: ±1 }. Al tocco
+// manda { t: 'tut', ok: 1 } e calibra (o torna a «Pronto» se era già calibrato; con la calibrazione «Giocando» il computer
+// chiede subito il profilo semplice). Un computer ancora più vecchio non manda tut: tutto come prima
 function tutDone(){
   if (!tutConfirmable(gate)) return;
   setGate(null); send({ t: 'tut', ok: 1 });
@@ -437,8 +451,9 @@ function tutDone(){
   clearTimeout(tutLitT); $('#tutOk').classList.remove('lit');
   sendState(); paint();
 }
-// «Tutto chiaro» appena acceso: un lampo breve e una vibrazione (chi guarda il computer lo sente nella mano)
-function lightTut(){ const b = $('#tutOk'); b.classList.remove('lit'); void b.offsetWidth; b.classList.add('lit'); clearTimeout(tutLitT); tutLitT = setTimeout(() => b.classList.remove('lit'), 1400); buzz([25, 40, 25]); }
+// «Tutto chiaro» quando compare (B28: acceso da subito): un lampo breve. Senza vibrazione: il tutorial può aprirsi prima
+// di un tocco sulla pagina, e lì il browser blocca la vibrazione e lo scrive come errore
+function lightTut(){ const b = $('#tutOk'); b.classList.remove('lit'); void b.offsetWidth; b.classList.add('lit'); clearTimeout(tutLitT); tutLitT = setTimeout(() => b.classList.remove('lit'), 1400); }
 // calibrazione da capo (con i tocchi: il profilo dei tocchi); chiesta con il tutorial aperto, aspetta la sua fine
 function startCal(){ sensor = 'cal'; if (inputMode === 'touch') cal.useTouch(); else cal.start(preferences(), { lead: CAL.lead }); }
 function needCal(){ if (sensorForCal(gate) === 'idle') sensor = 'idle'; else startCal(); }
@@ -536,6 +551,10 @@ $('#mark').addEventListener('click', e => { e.stopPropagation(); if (linkState !
 $('#recal').addEventListener('click', () => command('cal'));
 // «Rivincita» (stesso schermo, fine partita): si chiede al computer, che parte quando l'hanno chiesta tutti e due
 $('#rematch').addEventListener('click', e => { e.stopPropagation(); if (!rematch || rematch.me || linkState !== 'on') return; rematch = { ...rematch, me: true }; send({ t: 'rm', y: 1 }); buzz([30]); paint(); });
+// «Avanti ›»: il computer va avanti senza il gesto (un tocco alla volta: l'offerta dopo arriva dal computer)
+$('#next').addEventListener('click', e => { e.stopPropagation(); if (!nextOffer || linkState !== 'on') return; send({ t: 'nx', y: 1 }); buzz([30]); });
+// «Salta la calibrazione»: profilo semplice, si gioca subito (lo stesso di «Salta» sul computer)
+$('#calSkip').addEventListener('click', e => { e.stopPropagation(); command('skip'); });
 $('#tutOk').addEventListener('click', tutDone);
 // frecce del tutorial: il computer cambia scheda e rimanda l'avanzamento (tp)
 $('#tutPrev').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).prev) send({ t: 'tut', nav: -1 }); });

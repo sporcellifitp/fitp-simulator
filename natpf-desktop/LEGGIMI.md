@@ -53,10 +53,28 @@ Bucket degli aggiornamenti (Cloudflare R2), passi per l'utente: `docs/GUIDA_AGGI
   salvato anche quando all'avvio è spento (ledwall acceso dopo il programma: il gioco ci va quando compare). Gli
   spostamenti automatici non cambiano il monitor salvato.
 - **Ponte con la pagina** (`src/preload.cjs`, contextIsolation e sandbox): `window.natpfDesktop = { shell:'electron',
-  version:2, isFullScreen(), setFullScreen(on), toggleFullScreen(), onFullScreenChange(cb), updates }` (`updates`
-  dal 07/11, sezione sotto). Il processo principale
+  version:3, isFullScreen(), setFullScreen(on), toggleFullScreen(), onFullScreenChange(cb), updates, displays }`
+  (`updates` dal 07/11, `displays` dal B27: sezioni sotto). Il processo principale
   risponde solo alla finestra del gioco e alle pagine del proprio server. Con il ponte il gioco non usa
   `requestFullscreen` di HTML (Electron consumerebbe il primo Esc per uscirne).
+
+## Schermo del gioco e telecomando dello staff (B27, 12/11/2026)
+
+- **Domanda all'avvio** «Su quale schermo mostro il gioco?» (finestra di Windows sullo schermo principale, prima del
+  gioco) quando ci sono almeno due monitor e nessuno è mai stato scelto, o quello salvato manca e nessun altro monitor ha
+  la sua misura (se uno solo non principale ce l'ha, è lo stesso ledwall con un id nuovo: si usa senza chiedere). Un
+  pulsante per monitor con nome, misura, «principale» e **«probabile ledwall»** (il monitor quadrato, come il 1024×1024
+  dello stand, altrimenti il più grande non principale) e «Decidi tu» (anche Esc). Un clic su un monitor si salva
+  (`displayId` e `display` con la misura in `desktop-app.json`) e la domanda non torna. Senza risposta entro 30 s vale
+  la proposta: salvata se non era mai stato scelto niente; solo per quell'avvio se c'è un monitor salvato che adesso
+  manca (ledwall ancora spento: resta la scelta, e acceso il ledwall il gioco ci va; `displayAnswer`).
+- **Dalla pagina**: `window.natpfDesktop.displays = { list(), next(), choose(id), onChange(cb) }` (preload versione 3),
+  solo dalla finestra del gioco e dalle pagine del proprio server. Lo usano la voce **«Schermo del gioco»** del pannello
+  dello stand (monitor successivo, salvato) e il **telecomando dello staff** (`docs/GUIDA_TELECOMANDO.md`).
+- Il telecomando usa il server del programma (HTTPS 8443, `/lan-signal`) e la pagina `/natpf/tennis/telecomando.html`;
+  il telefono dello staff si fida del certificato come quelli dei giocatori (pagina 8081).
+- Prova su Linux: scenario `domanda-monitor` con `NATPF_PROVA_MONITOR` (monitor finti per la sola domanda, solo nel
+  programma non costruito) e `NATPF_SCHERMO_ATTESA_MS` (attesa più corta). Due monitor veri si provano solo su Windows.
 
 ## Aggiornamenti dal gioco (07/11/2026)
 
@@ -157,8 +175,9 @@ node scripts/prepara.mjs
 npm run prova-linux            # = node scripts/prova-linux.mjs [--display=:91] [--dati=cartella] [--senza-xvfb] [--scenari=…]
 ```
 
-Cinque avvii (`--scenari=predefinito,ledwall-spento,finestra,gioco,aggiornamenti`): senza impostazioni, con un monitor
-salvato che manca all'avvio, con l'avvio in finestra salvato, il gioco vero con il ponte, e gli aggiornamenti con un
+Sei avvii (`--scenari=predefinito,ledwall-spento,finestra,gioco,domanda-monitor,aggiornamenti`): senza impostazioni, con
+un monitor salvato che manca all'avvio, con l'avvio in finestra salvato, il gioco vero con il ponte (dal B27 anche
+`displays` e «Schermo del gioco»), la domanda del monitor con due monitor finti, e gli aggiornamenti con un
 server finto su 127.0.0.1 (`NATPF_AGGIORNAMENTI_BASE` e `NATPF_AGGIORNAMENTI_PROVA=1`: installazione simulata, non si
 avvia niente). Gli eventi dei monitor (risoluzione cambiata, ledwall acceso) sono simulati
 con `screen.emit`: provano il collegamento, non il comportamento di Windows.

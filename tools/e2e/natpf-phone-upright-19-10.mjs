@@ -13,6 +13,8 @@
 // d'orientamento vedeva un telefono dritto anche quando era inclinato. natpf-phone-upright.mjs usa invece i gesti
 // della racchetta simulata (braccio che ruota attorno alla spalla): servono tutte e due.
 // Eventi devicemotion sintetici: non sostituiscono la prova con un telefono vero.
+// B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
+process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';

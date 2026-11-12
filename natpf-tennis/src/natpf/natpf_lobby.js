@@ -37,28 +37,39 @@ import { p2pRequested } from './natpf_p2p.js';
 import { screenSummary } from './natpf_screen.js';
 import { waitingText } from './natpf_ready.js';
 import { readBallTrail, writeBallTrail, trailToast } from './natpf_ball_glow.js';
+import { WHO_LEVEL, WHO_DEFAULT, baseLevel, urlLevel, isCpuLevel, whoOfLevel, levelSummary, whoNote } from './natpf_who.js'; // B18.2 gruppo 3: «Chi gioca»
+import { eventoRestart } from './natpf_skill.js';
+import { readCue, writeCue, cueToast } from './natpf_timing_cue.js';
+import { getCast, setCast, castToast } from './natpf_personaggi.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const LOBBY_STEPS = ['menu', 'mode', 'options', 'challenges', 'ranking', 'result', 'controller', 'connect', 'warmup', 'match'];
 export const MODES = ['cpu', 'friend', 'training', 'challenge', 'split'];
 // tappe mostrate nella barra di avanzamento, per modalità (e racchetta: la calibrazione c'è solo con il telefono)
-export function progressSteps(mode, { controller = 'phone' } = {}){
+// (B28: con la calibrazione «Giocando» o «Nessuna», autoSimple, la tappa «Calibrazione» non c'è: in campo prima della
+// partita si va solo per il tutorial corto, e gli scambi di prova partono con «Gioca»)
+export function progressSteps(mode, { controller = 'phone', autoSimple = false } = {}){
   if (mode === 'challenge') return [['challenges', 'Sfida'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'In campo']];
   if (mode === 'split') return [['mode', 'Modalità'], ['connect', 'Racchette'], ['match', 'Partita']];
   if (mode === 'training') return [['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Allenamento']];
   // (in campo prima della partita dal B16 solo il tutorial corto e la calibrazione del telefono: il riscaldamento è
   // facoltativo; con mouse e tastiera o la webcam dalla pagina «Collega» subito la pagina «Partita», revisione del B16)
-  return controller === 'phone' ? [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Calibrazione'], ['match', 'Partita']]
+  return controller === 'phone' && !autoSimple ? [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Calibrazione'], ['match', 'Partita']]
     : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['match', 'Partita']];
 }
 // Dove porta la pagina «Collega» («Avanti», Invio, o da sola con il controller pronto), dal B16: 'match' la pagina
 // «Partita» (mouse e tastiera, webcam, telefono già calibrato e con il tutorial corto già visto); 'court' in campo
 // (calibrazione e tutorial corto, riscaldamento chiesto con «Riscaldati prima», sfida, allenamento)
-export function connectTarget({ mode, controller, phoneReady = false, tutorialDue = false, wantWarmup = false }){
+// B28: autoSimple = il telefono non calibra con i gesti (opzione dello stand «Giocando» o «Nessuna»): è pronto da solo, in
+// campo prima della partita si va solo per il tutorial corto; gli scambi di prova partono poi con «Gioca». trial: nella
+// sfida tra due computer gli scambi di prova si fanno adesso, in campo (alla partenza l'altro computer aspetta)
+export function connectTarget({ mode, controller, phoneReady = false, tutorialDue = false, wantWarmup = false, autoSimple = false, trial = false }){
   if (mode === 'split') return 'match';
   if (mode === 'training' || mode === 'challenge' || wantWarmup) return 'court';
-  return controller === 'phone' && (!phoneReady || tutorialDue) ? 'court' : 'match';
+  if (controller !== 'phone') return 'match';
+  if (mode === 'friend' && trial) return 'court';
+  return (!phoneReady && !autoSimple) || tutorialDue ? 'court' : 'match';
 }
 // Il pulsante della pagina «Collega» dice dove porta (revisione del B16: con mouse, webcam o telefono già pronto diceva
 // «In campo ›» e portava alla pagina «Partita»)
@@ -117,9 +128,10 @@ export function nearestTile(tiles, from, code, rect = el => el.getBoundingClient
 // Pagina «Partita»: riassunto delle impostazioni chiuse sotto «Altre impostazioni» (B15): durata, formato (non nello stesso
 // schermo, che è solo singolare) e visuale
 // fair: formato in fiera acceso dal pannello dello stand (B18, natpf_fair_format.js), detto nel riassunto
-export function matchSummary({ games = 1, format = 'singles', view = 'third', split = false, fair = false } = {}){
+// level (B18.2 gruppo 3): nome del livello quando non viene da «Chi gioca» (CPU Esperta, CPU Leggenda), detto per primo
+export function matchSummary({ games = 1, format = 'singles', view = 'third', split = false, fair = false, level = null } = {}){
   const n = parseInt(games, 10) || 1;
-  return [n > 1 ? `Al meglio di ${n}` : '1 game', fair ? 'formato fiera' : null, split ? null : format === 'doubles' ? 'doppio' : 'singolare', view === 'first' ? '1ª persona' : '3ª persona'].filter(Boolean).join(' · ');
+  return [split ? null : level, n > 1 ? `Al meglio di ${n}` : '1 game', fair ? 'formato fiera' : null, split ? null : format === 'doubles' ? 'doppio' : 'singolare', view === 'first' ? '1ª persona' : '3ª persona'].filter(Boolean).join(' · ');
 }
 // B18 (revisione R4): durata della partita quando il formato in fiera si accende o si spegne (funzione pura). Acceso con
 // «Al meglio di 5» scelto: si passa al 3 e ci si ricorda del 5; spento con il 3 ancora scelto: si torna al 5. Se nel
@@ -146,6 +158,9 @@ export class NatpfLobby {
       const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go(this.mode === 'split' ? 'connect' : 'controller'), 160); return; }
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
       const tr = e.target.closest('[data-natpf-trail]'); if (tr){ e.stopPropagation(); this.setBallTrail(tr.dataset.natpfTrail === '1'); return; }
+      const ca = e.target.closest('[data-natpf-cast]'); if (ca){ e.stopPropagation(); this.setCast(ca.dataset.natpfCast); return; }
+      // stessa scelta dalla pagina «Pronto per la partita» (richiesta dell'utente del 12/11: decidere i personaggi a ogni partita)
+      const mc = e.target.closest('[data-match-cast]'); if (mc){ e.stopPropagation(); this.setCast(mc.dataset.matchCast); return; }
       const sc = e.target.closest('[data-natpf-screen]'); if (sc){ e.stopPropagation(); this.ui.screen?.set(sc.dataset.natpfScreen); this.paint(); return; }
       // schermo intero all'avvio (Opzioni → Schermo): «Schermo intero» (al primo tasto) o «Finestra»
       const fp = e.target.closest('[data-natpf-fs]'); if (fp){ e.stopPropagation(); if (this.ui.screen?.fullscreen) this.ui.screen.fullscreen.pref = fp.dataset.natpfFs; this.paint(); return; }
@@ -154,6 +169,11 @@ export class NatpfLobby {
       const ch = e.target.closest('[data-challenge]'); if (ch){ e.stopPropagation(); this.pickChallenge(ch.dataset.challenge); return; }
       const tab = e.target.closest('[data-ranking]'); if (tab){ e.stopPropagation(); this.rankingTab = tab.dataset.ranking; this._paintRanking(); return; }
       const r = e.target.closest('[data-result]'); if (r){ e.stopPropagation(); this._resultAction(r.dataset.result); return; }
+      // B18.2 gruppo 3: «Chi gioca» (le tessere della pagina «Partita»; la selezione la fa l'HUD del motore, che ascolta le
+      // stesse tessere), «Livello della CPU» in «Altre impostazioni» e il segnale del momento giusto nelle Opzioni
+      const who = e.target.closest('#difficulty-mode-group [data-difficulty]'); if (who && who.dataset.difficulty !== '1v1'){ this.pickWho(who.dataset.difficulty); return; }
+      const lv = e.target.closest('[data-natpf-level]'); if (lv){ e.stopPropagation(); this.setLevel(lv.dataset.natpfLevel); return; }
+      const cue = e.target.closest('[data-natpf-cue]'); if (cue){ e.stopPropagation(); this.setCue(cue.dataset.natpfCue); return; }
       // pagina «Partita»: «Altre impostazioni» apre e chiude formato, durata, chi batte e visuale
       const more = e.target.closest('[data-match-more]'); if (more){
         e.stopPropagation(); this.matchMore = !this.matchMore; this.paint();
@@ -194,6 +214,10 @@ export class NatpfLobby {
     // chi batte per primo (match_format.firstServer): si ricorda tra una partita e l'altra
     // (B20: nello stesso schermo una scelta a parte, di base il sorteggio: _loadServe, anche a ogni cambio di modalità)
     this._loadServe();
+    // B18.2 gruppo 3: «Chi gioca». Valore di base: Adulto (livello Evento), o il livello chiesto dall'indirizzo
+    const search = globalThis.location?.search || '';
+    this.base = baseLevel(search); this.cpuLevel = this.base;
+    if (!urlLevel(search) && this.engine.hud?.selectedDifficulty === 'casual') this.engine.hud._setDifficultySelection?.(this.base, { notify: true });
     $('btn-start-match')?.addEventListener('click', () => this.engine.setMatchFormat?.(this.mode === 'split' ? 'singles' : this.format), true);
     // partite brevi: in fiera si gioca un game
     document.querySelector('#match-length-group [data-games="1"]')?.click();
@@ -207,6 +231,8 @@ export class NatpfLobby {
       mode: this.mode, splitReady: this.mode === 'split' && !!this.ui.split?.bothReady(),
       controller: this.ui.controller,
       phoneConnected: p.connected, phoneReady: p.ready,
+      // B28: niente gesti (profilo semplice automatico) e scambi di prova da fare adesso (sfida tra due computer)
+      autoSimple: !!p.autoSimple, trial: this.mode === 'friend' && !this.trialPlayed && !!this.ui.trial?.due?.({ split: false }),
       // sensori attivi: calibrazione, pronto, o tutorial sul telefono ('tut': sensori attivi in attesa di «ho capito»)
       phoneLinked: p.connected && (L.phone === 'cal' || L.phone === 'ready' || L.phone === 'tut'),
       webcamActive: !!mc?.webcamActive,
@@ -243,7 +269,8 @@ export class NatpfLobby {
     if (mode !== 'friend'){ this.engine.endVersus?.(); this.ui.inviteUrl = null; const box = $('natpf-invite'); if (box){ box.innerHTML = ''; box.dataset.pending = ''; } }
     // lasciando «Sfida un amico» (anche per allenamento o sfide) si torna alla CPU: prima allenamento e sfide ripristinavano
     // alla fine il 1v1 senza stanza
-    if (!versus && diff === '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click();
+    // (B18.2 gruppo 3: al livello scelto prima con «Chi gioca» o in «Altre impostazioni»; senza l'HUD vero la tessera di sempre)
+    if (!versus && diff === '1v1'){ if (this.engine.hud?._setDifficultySelection) this._applyLevel(this.cpuLevel || this.base); else document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click(); }
     for (const b of document.querySelectorAll('#difficulty-mode-group [data-difficulty]')) show(b, versus ? b.dataset.difficulty === '1v1' : b.dataset.difficulty !== '1v1');
     // stesso schermo: solo singolare (una metà per giocatore)
     for (const b of this.el.querySelectorAll('[data-natpf-format="doubles"]')) show(b, mode !== 'split');
@@ -334,7 +361,7 @@ export class NatpfLobby {
     $('result-top').innerHTML = this.ui.events.top(r.id, 5).map((e, i) => `<li class="${i + 1 === r.rank ? 'me' : ''}"><b>${i + 1}</b><span>${esc(e.nick)}</span><em>${e.score} ${c.unit}</em></li>`).join('');
   }
   _resultAction(a){
-    if (a === 'again'){ this.setMode('challenge'); this.startWarmup(); return; }
+    if (a === 'again'){ this.setMode('challenge'); this.startWarmup({ again: true }); return; }
     if (a === 'ranking'){ this.go('ranking'); return; }
     // «Nuovo giocatore» (B18): chi arriva gioca lo stesso minigioco dopo nome, tutorial corto e calibrazione
     if (a === 'new'){ this.ui.newPlayer?.(); return; }
@@ -388,14 +415,47 @@ export class NatpfLobby {
     this.paint();
   }
   // scia luminosa della palla (natpf_ball_glow.js, B22): vale subito e resta salvata
+  /* ---------- B18.2 gruppo 3: chi gioca, livello della CPU, segnale del momento giusto ---------- */
+  // il livello della CPU passa dall'HUD del motore (selezione delle tessere, scritta «CPU …», taratura del motore)
+  _applyLevel(level){
+    if (!isCpuLevel(level)) return;
+    this.cpuLevel = level;
+    this.engine.hud?._setDifficultySelection?.(level, { notify: true });
+  }
+  // una tessera di «Chi gioca» (l'HUD ha già selezionato il livello): il livello Evento riparte dal valore di base
+  pickWho(level){ if (isCpuLevel(level)) this.cpuLevel = level; eventoRestart(this.engine); this.paint(); }
+  // «Altre impostazioni» → «Livello della CPU»
+  setLevel(level){ this._applyLevel(level); eventoRestart(this.engine); this.paint(); }
+  // «Nuovo giocatore» e chiosco: la scelta torna al valore di base (Adulto, o il livello dell'indirizzo) e il livello
+  // Evento riparte. Nello stesso schermo e nella sfida tra due computer il livello resta 1v1: vale quando si torna alla CPU
+  resetWho(){
+    if (this.engine.hud?.selectedDifficulty === '1v1') this.cpuLevel = this.base; else this._applyLevel(this.base);
+    eventoRestart(this.engine);
+  }
+  // Opzioni → «Segnale del momento giusto: Di base · Sì · No» (natpf_timing_cue.js)
+  setCue(pref){
+    const p = this.ui.cue ? this.ui.cue.setPref(pref) : writeCue(pref);
+    this.ui.toast?.(cueToast(p, this.engine.hud?.selectedDifficulty)); this.paint();
+  }
   setBallTrail(on){
     writeBallTrail(on); this.engine.natpfBallGlow?.setEnabled(on);
     this.ui.toast?.(trailToast(on)); this.paint();
   }
+  // personaggi in campo (natpf_personaggi.js, B24): «Classici» o «Lob & Drop»; vale subito e resta salvata
+  setCast(value){
+    const cast = setCast(value);
+    this.engine.natpfBackdropDirty = true;        // lo sfondo fermo del menu si ridisegna con i personaggi scelti
+    this.ui.onScore?.(this.engine.score, this.engine.matchConfig?.gamesToWin);   // linguette del tabellone del colore dei personaggi
+    this.ui.toast?.(castToast(cast)); this.paint();
+  }
   _paintOptions(){
     const audio = this.engine.audioEngine;
+    const cast = getCast();
+    for (const b of this.el.querySelectorAll('[data-natpf-cast]')){ const on = b.dataset.natpfCast === cast; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     const trail = this.engine.natpfBallGlow ? !!this.engine.natpfBallGlow.enabled : readBallTrail();
     for (const b of this.el.querySelectorAll('[data-natpf-trail]')){ const on = (b.dataset.natpfTrail === '1') === trail; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
+    const cue = this.ui.cue ? this.ui.cue.pref : readCue();
+    for (const b of this.el.querySelectorAll('[data-natpf-cue]')){ const on = b.dataset.natpfCue === cue; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     this.ui.syncVolumes?.();
     const set = (k, on) => { const b = this.el.querySelector(`[data-option="${k}"] b`); if (b) b.textContent = on ? 'Sì' : 'No'; };
     set('music', audio ? !audio.muted : true);
@@ -429,7 +489,7 @@ export class NatpfLobby {
     if (this.step === 'connect' && step !== 'connect'){ this.releaseTutorial(); this.wantWarmup = false; }
     // al menu principale: visitatore nuovo, niente riscaldamento chiesto né già fatto; il telefono che aspettava il tutorial
     // per chi non è entrato in campo («Nuovo giocatore» e poi «Menu») non aspetta più
-    if (step === 'menu'){ this.wantWarmup = false; this.warmupDone = false; this.releaseTutorial(); }
+    if (step === 'menu'){ this.wantWarmup = false; this.warmupDone = false; this.trialPlayed = false; this.ui.trialSkipOnce = false; this.releaseTutorial(); }
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);
@@ -500,6 +560,8 @@ export class NatpfLobby {
     else if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
     if (this.step === 'options') this._paintOptions();
     if (match) this._paintMatchMore(split);
+    // personaggi di questa partita: la riga della pagina «Pronto per la partita» mostra la scelta in uso (natpf_personaggi.js)
+    if (match){ const cast = getCast(); for (const b of this.el.querySelectorAll('[data-match-cast]') || []){ const on = b.dataset.matchCast === cast; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); } }
     // aggiornamento del programma Windows: avviso sotto la pagina (solo nel menu principale) e Opzioni
     this.ui.updates?.paint();
     this.ui.paintWebcamSetup?.();
@@ -515,7 +577,9 @@ export class NatpfLobby {
     if (sb && this.mode !== 'friend' && sb.dataset.label && sb.textContent !== sb.dataset.label) sb.textContent = sb.dataset.label;
     const note = $('lobby-match-note');
     const names = this.engine.natpfSplitNames || {}, n1 = names.p1 || 'Player 1', n2 = names.p2 || 'Player 2';
-    if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady ? 'Telefono da ricollegare: con «Gioca» compare il QR.' : '';
+    // (B28: con la calibrazione «Giocando» si dice che la partita comincia con gli scambi di prova)
+    const trialNote = !split && this.mode !== 'friend' && this.ui.trial?.due?.({ split: false }) ? 'Si comincia con qualche scambio di prova: il gioco impara il tuo colpo, poi la partita da 0-0.' : split && st.splitReady && this.ui.trial?.due?.({ split: true }) ? ' Si comincia con qualche scambio di prova.' : '';
+    if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.${trialNote}` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady && !this.ui.phone.soonReady ? 'Telefono da ricollegare: con «Gioca» compare il QR.' : trialNote;
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
     // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){
@@ -543,7 +607,16 @@ export class NatpfLobby {
     }
     const games = document.querySelector('#match-length-group .selected')?.dataset?.games;
     const view = this.el.querySelector('[data-page="match"] [data-natpf-view].selected')?.dataset?.natpfView;
-    const t = matchSummary({ games, format: this.format, view, split, fair });
+    // B18.2 gruppo 3: «Chi gioca» e «Livello della CPU» solo contro la CPU; il livello che non viene da «Chi gioca» è
+    // detto sotto le tessere e nel riassunto
+    const versus = split || this.mode === 'friend', diff = this.engine.hud?.selectedDifficulty;
+    show($('who-label'), !versus); show($('level-row'), !versus);
+    for (const b of this.el.querySelectorAll('[data-natpf-level]')){ const on = b.dataset.natpfLevel === diff; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
+    const wn = $('who-note'), wt = versus ? '' : whoNote(diff);
+    // (revisione: con «Altre impostazioni» aperte la riga non si mostra: lì il livello scelto si vede già, e la riga in più
+    // allungava la pagina e tagliava a metà l'ultima riga sopra «Gioca»)
+    if (wn){ if (wn.textContent !== wt) wn.textContent = wt; show(wn, !!wt && !this.matchMore); }
+    const t = matchSummary({ games, format: this.format, view, split, fair, level: versus ? null : levelSummary(diff) });
     if (sum && sum.textContent !== t) sum.textContent = t;
   }
   // Sfida un amico (host): la barra dell'invito (codice, link, stato del Player 2) resta in vista dalla racchetta alla
@@ -650,16 +723,20 @@ export class NatpfLobby {
   // Il riscaldamento insegnava al gioco il colpo tipico prima della partita: senza, i primi colpi della partita si
   // leggono con la mediana dei colpi già fatti (natpf_phone_racket.powerRefs, banco scripts/audit/riscaldamento.mjs).
   // warmup: true per il riscaldamento vero («Riscaldati prima»)
-  startWarmup({ warmup = false } = {}){
+  startWarmup({ warmup = false, again = false } = {}){
     const ui = this.ui;
     // telefono non ancora collegato: prima il collegamento (il riscaldamento chiesto resta chiesto)
     if (ui.controller === 'phone' && !this.state().phoneLinked){ if (warmup) this.wantWarmup = true; this.go('connect'); return; }
     warmup = warmup || !!this.wantWarmup; this.wantWarmup = false;
-    // sfida: con il telefono non ancora calibrato prima solo la calibrazione in campo, poi la sfida
+    // B28: con la calibrazione «Giocando» o «Nessuna» il telefono non fa i gesti (profilo semplice automatico): in campo
+    // prima della partita o della sfida si va solo per il tutorial corto, se è da vedere
+    const P = ui.phone, court = ui.controller === 'phone' && ((!P.ready && !P.autoSimple) || this._tutorialDue());
+    // sfida: con il telefono non ancora calibrato prima solo la calibrazione in campo, poi la sfida (con «Giocando» prima
+    // gli scambi di prova; non con «Gioca ancora» del risultato: again, è la stessa persona)
     if (this.mode === 'challenge'){
       this.step = 'warmup'; this.el.dataset.step = 'warmup';
-      if (ui.controller === 'phone' && !ui.phone.ready) ui.training.start({ calOnly: true });
-      else { this.releaseTutorial(); ui.events.start(this.challenge); }
+      if (court && !again) ui.training.start({ calOnly: true });
+      else { this.releaseTutorial(); this._startChallenge({ trial: !again }); }
       return;
     }
     // Allenamento dal menu: tutorial completo, sempre con la lezione su presa e posizione
@@ -670,9 +747,24 @@ export class NatpfLobby {
     // partita: telefono da calibrare (o pronto ma con il tutorial corto da vedere: visitatore nuovo con lo stesso telefono)
     // → in campo il tutorial e la calibrazione, poi «Partita»
     // (la stessa scelta di connectTarget, che dà il nome al pulsante della pagina «Collega»)
-    if (ui.controller === 'phone' && (!ui.phone.ready || this._tutorialDue())){ this.step = 'warmup'; this.el.dataset.step = 'warmup'; ui.training.start({ calOnly: true }); return; }
+    if (court){ this.step = 'warmup'; this.el.dataset.step = 'warmup'; ui.training.start({ calOnly: true }); return; }
     this.releaseTutorial();
+    if (this._friendTrial()) return;
     this.go('match');
+  }
+  // B28, minigioco: prima gli scambi di prova (calibrazione «Giocando», telefono), poi il minigioco
+  _startChallenge({ trial = true } = {}){
+    const ui = this.ui, go = () => ui.events.start(this.challenge);
+    if (trial && ui.trial?.due?.({ split: false })) ui.trial.start({ split: false, then: go }); else go();
+  }
+  // B28, sfida tra due computer (chi invita): gli scambi di prova in campo dopo «Collega», una volta, poi la pagina
+  // «Partita» (alla partenza l'altro computer aspetta: lì non si possono fare). true se sono partiti
+  _friendTrial(){
+    const ui = this.ui;
+    if (this.mode !== 'friend' || this.trialPlayed || !ui.trial?.due?.({ split: false })) return false;
+    this.trialPlayed = true; this.step = 'warmup'; this.el.dataset.step = 'warmup';
+    ui.trial.start({ split: false, then: () => { this.engine.hud.showTitleModal(); this.engine._setupMidRallyShowcase?.({}); this.engine.autoPlayMode = true; this.engine.userHasInteracted = false; this.go('match'); ui._syncPause?.(); } });
+    return true;
   }
   // tutorial corto ancora da vedere con questo telefono (prima della partita: natpf_training lo apre in campo)
   _tutorialDue(){ const P = this.ui.phone; return P?.tutorialSeenFor ? !P.tutorialSeenFor('short') : !P?.tutorialSeen; }
@@ -693,8 +785,8 @@ export class NatpfLobby {
   // compatibilità: l'onboarding propone ancora «Prova» → allenamento
   startPractice(){ this.setMode('training'); this.go(this.ui.controller === 'phone' && !this.state().phoneLinked ? 'connect' : 'warmup'); }
   onTrainingEnd({ completed, skipped, calibrated, stats }){
-    // calibrazione prima di una sfida (anche saltata: modalità semplice) → la sfida
-    if (this.mode === 'challenge'){ this.ui.events.start(this.challenge); return; }
+    // calibrazione prima di una sfida (anche saltata: modalità semplice) → la sfida (B28: con «Giocando» prima gli scambi di prova)
+    if (this.mode === 'challenge'){ this._startChallenge(); return; }
     if (completed) this.trainingDone = true;
     // riscaldamento finito (non la sola calibrazione): il pulsante della pagina «Partita» diventa «Rifai il riscaldamento»
     if (completed && this.mode !== 'training' && !this.ui.training?.calOnly && this.ui.training?.drills?.length) this.warmupDone = true;
@@ -709,6 +801,8 @@ export class NatpfLobby {
       this.go('menu');
       const r = $('lobby-menu-result'); r.innerHTML = text; show(r);
     } else {
+      // B28, sfida tra due computer: dopo il tutorial in campo gli scambi di prova, poi la pagina «Partita»
+      if (!skipped && this._friendTrial()) return;
       this.go('match');
       const r = $('lobby-practice-result'); r.innerHTML = text; show(r);
     }
