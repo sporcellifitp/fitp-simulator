@@ -382,7 +382,7 @@ ok → push. Zip 23.826.443 B (**margine solo 1.173.557 B**: i due modelli pesan
 gusto da far vedere all'utente: scala 1,6 m (`docs/b29/img/scala.webp`) e bordo chiaro di Drop (`bordo-drop.webp`).
 
 **In corso dalle 00:10 UTC del 13/11: punto 4 e 5 della roadmap** — workflow `b23-t2g2-senza-revisore` (script
-`ripresa-b23-t2g2.js`, run `wf_20200b80-a34`): due agenti nelle worktree `wf_26d95fdf-3ea-1` (dritto dal video) e `-2`
+`ripresa-b23-t2g2.js`, run `wf_20200b80-a34`; dopo il riavvio del container alle 00:30 UTC del 13/11 rilanciato: run `wf_4fd99346-ef1`): due agenti nelle worktree `wf_26d95fdf-3ea-1` (dritto dal video) e `-2`
 (tappa 2 gruppo 2), prima uniscono il ramo principale, **senza revisore** (processo nuovo). Se si fermano: rilanciare lo
 script senza `resumeFromRunId`. Poi B31, B32, B33 (tappa 3).
 
