@@ -74,7 +74,7 @@ try {
   // partita vera a 1 game contro la CPU (batte la CPU); colpi di chi gioca: la coda dice quali mandare fuori largo
   // ('largo'), in rete ('rete') o lasciare com'erano (''); l'ultimo 'largo' arriva sul 0-40: è il punto della partita
   const PLAN = ['', 'largo', 'rete', 'largo', 'largo'];
-  await game.evaluate(plan => {
+  await game.evaluate(({ plan, shots }) => {
     const E = __natpfTennis, ui = E.natpfUi;
     ui.onboarding?.close?.(); E.hud.hideTitleModal(); ui.lobby && (ui.lobby.visible = false);
     E.autoPlayMode = false; E.userHasInteracted = true; E.isMultiplayer = false;
@@ -111,13 +111,27 @@ try {
     S._marker = (t, c) => { rec('anello', { c, x: +(t?.x ?? 0).toFixed(2), z: +(t?.z ?? 0).toFixed(2) }); return mk(t, c); };
     const el = document.getElementById('timing-popup-grade');
     new MutationObserver(() => rec('scritta', { txt: el.textContent })).observe(el, { childList: true, characterData: true, subtree: true });
-    // punto finito: si torna fermi al centro per il prossimo servizio (la CPU batte da sola)
-  }, PLAN);
+    // SHOTS=1: gioco fermo un attimo per le schermate del primo colpo mandato fuori largo, al colpo e alla palla a terra
+    // (il gioco non va avanti finché la prova non ha fatto la schermata)
+    if (shots){
+      const upd = E.update.bind(E); E.update = dt => (window.__freeze ? undefined : upd(dt));
+      const rs2 = E._natpfRacketShot.bind(E);
+      E._natpfRacketShot = (...a) => { const r = rs2(...a); if (r && !window.__shotDone && __T.ev.filter(e => e.k === 'colpo' && e.f === 'largo').length === 1 && __T.ev.at(-1)?.f === 'largo'){ window.__freeze = 'colpo'; window.__shotDone = 1; } return r; };
+      const aw2 = E._awardPoint.bind(E);
+      E._awardPoint = (w, why = '') => { const out = aw2(w, why); if (window.__shotDone === 1 && why === 'Out'){ window.__freeze = 'terra'; window.__shotDone = 2; } return out; };
+    }
+  }, { plan: PLAN, shots: process.env.SHOTS === '1' });
   const t0 = Date.now(); let lastPlan = null;
   while (Date.now() - t0 < 150000){
     const s = await game.evaluate(() => { const E = __natpfTennis, P = E.natpfPlan; return { phase: E.phase, last: E.ball.lastHitter, left: P ? P.at + P.t - E.elapsedTime : null, at: P ? P.at : null, side: P ? P.side : 1, plan: __T.plan.length, fine: __T.ev.some(e => e.k === 'fine') }; });
     if (s.phase === 'MATCH_OVER' && s.fine) break;
     if (s.phase === 'RALLY' && s.last === 'opponent' && s.left != null && s.at !== lastPlan && s.left < .16){ lastPlan = s.at; await phone.evaluate(sign => { __up.swing(sign).then(() => __up.still(300)); }, s.side >= 0 ? 1 : -1); }
+    const fz = await game.evaluate(() => window.__freeze || null);
+    if (fz){
+      await phone.waitForTimeout(250);   // il messaggio del telefono arriva
+      await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/fuori-vero-${fz}.png` }); await phone.screenshot({ path: `${SP}/fuori-vero-${fz}-telefono.png` });
+      await game.evaluate(() => { window.__freeze = null; });
+    }
     await game.waitForTimeout(10);
   }
   await game.waitForTimeout(1500);

@@ -27,7 +27,7 @@ Il gioco non cambia: esito dei colpi, direzione (B35a), punti, livelli e CPU son
   sono opzioni. Nell'**allenamento**, nei **minigiochi** e negli **scambi di prova** resta come prima (l'esito subito fa
   parte della lezione: la scheda dell'esercizio dice «Fuori: troppo presto» al colpo).
 - **Punto 2 · gemma e riquadro**: sempre, quando qualcuno deve battere (prima che lanci la palla e mentre la palla è in
-  aria), in partita e nell'allenamento. Non ci sono opzioni. In **prima persona** la gemma non sta sopra di sé (la camera è
+  aria), in partita e anche nell'esercizio «Servizio» dell'allenamento (lì non provato nel browser). Non ci sono opzioni. In **prima persona** la gemma non sta sopra di sé (la camera è
   lì): resta il riquadro. Nella moviola e nella dimostrazione dietro il menu non ci sono.
 - **Punto 3 · scritta del cerchio**: compare da sola quando il segnale del momento giusto è acceso: menu → **Opzioni** →
   **«Segnale del momento giusto: Di base · Sì · No»** (di base acceso con «Bambino» e «Adulto», spento con gli altri
@@ -74,20 +74,20 @@ pagina nello stesso browser); due giri prima e due dopo.
 
 | Che cosa (ms dal colpo) | Prima, giro 1 | Prima, giro 2 | Adesso, giro 1 | Adesso, giro 2 |
 |---|---|---|---|---|
-| **Palla a terra fuori** (largo) / **sulla rete** | 967, 815, 849 / 534 | 994, 833, 850 / 484 | 946, 830, 866 / 517 | DOPO2_VOLO |
-| Scritta «Fuori» / «In rete» nell'angolo | **7, 9, 9 / 7** (al colpo) | **11, 7, 6 / 6** (al colpo) | 959, 837, 874 / 525 | DOPO2_SCRITTA |
-| Anello rosso a terra | **5, 7, 8** (al colpo, dove cadrà) | **10, 5, 4** (al colpo) | 949, 833, 869 (dove è caduta); rete: nessuno | DOPO2_ANELLO |
-| Telefono: «Fuori» / «In rete» e vibrazione dell'errore | **11, 8, 11 / 6** (al colpo) | **10, 7, 5 / 6** (al colpo) | 951, 834, 869 / 521 | DOPO2_TEL |
-| Tabellone (punto assegnato) | 970, 816, 851 / 536 | 997, 834, 852 / 486 | 952, 834, 871 / 522 | DOPO2_TAB |
-| Scritta grande del punto | 973, 817, 852 / 537 | 998, 835, 852 / 488 | 957, 835, 872 / 523 | DOPO2_BANNER |
-| Voce «Out!» / «Net!» (sul punto della partita la voce della fine partita) | 974, 817, – / 537 | 998, 835, – / 488 | 957, 835, – / 523 | DOPO2_VOCE |
-| Telefono «Punto avversario» | 971, 816, 852 / 537, sotto «Fuori» | 997, 835, 854 / 486, sotto «Fuori» | 959, 836, 871 / 524, sotto «Fuori» o «Fuori · In anticipo» | DOPO2_TELP |
-| Schermata di fine partita (ultima palla) | 2654 (1,80 s dopo la palla a terra) | 2654 (1,80 s dopo) | 2673 (1,81 s dopo) | DOPO2_FINE |
-| Scritta di un colpo rimasto in campo | 17 | 18 | 20 | DOPO2_CAMPO |
+| **Palla a terra fuori** (largo) / **sulla rete** | 967, 815, 849 / 534 | 994, 833, 850 / 484 | 946, 830, 866 / 517 | 947, 848, 816 / 515 |
+| Scritta «Fuori» / «In rete» nell'angolo | **7, 9, 9 / 7** (al colpo) | **11, 7, 6 / 6** (al colpo) | 959, 837, 874 / 525 | 968, 855, 823 / 524 |
+| Anello rosso a terra | **5, 7, 8** (al colpo, dove cadrà) | **10, 5, 4** (al colpo) | 949, 833, 869 (dove è caduta); rete: nessuno | 956, 851, 819; rete: nessuno |
+| Telefono: «Fuori» / «In rete» e vibrazione dell'errore | **11, 8, 11 / 6** (al colpo) | **10, 7, 5 / 6** (al colpo) | 951, 834, 869 / 521 | 958, 852, 820 / 527 |
+| Tabellone (punto assegnato) | 970, 816, 851 / 536 | 997, 834, 852 / 486 | 952, 834, 871 / 522 | 961, 853, 821 / 521 |
+| Scritta grande del punto | 973, 817, 852 / 537 | 998, 835, 852 / 488 | 957, 835, 872 / 523 | 964, 854, 822 / 522 |
+| Voce «Out!» / «Net!» (sul punto della partita la voce della fine partita) | 974, 817, – / 537 | 998, 835, – / 488 | 957, 835, – / 523 | 964, 854, – / 522 |
+| Telefono «Punto avversario» | 971, 816, 852 / 537, sotto «Fuori» | 997, 835, 854 / 486, sotto «Fuori» | 959, 836, 871 / 524, sotto «Fuori» o «Fuori · In anticipo» | 970, 854, 824 / 527, sotto «Fuori» o «… · In anticipo» |
+| Schermata di fine partita (ultima palla) | 2654 (1,80 s dopo la palla a terra) | 2654 (1,80 s dopo) | 2673 (1,81 s dopo) | 2623 (1,81 s dopo) |
+| Scritta di un colpo rimasto in campo | 17 | 18 | 20 | 21 |
 
 In breve: **prima** la scritta, l'anello rosso e il telefono dicevano l'errore 4–11 ms dopo il colpo, cioè da mezzo
-secondo a un secondo **prima** che la palla toccasse terra o la rete; **adesso** arrivano 3–13 ms **dopo** (lo stesso fotogramma del
-punto, il telefono entro pochi millesimi). Il punto, il tabellone, la voce e la schermata di fine partita arrivano quando
+secondo a un secondo **prima** che la palla toccasse terra o la rete; **adesso** arrivano 3–21 ms **dopo** (lo stesso fotogramma del
+punto o quello dopo; il telefono entro 4–12 ms). Il punto, il tabellone, la voce e la schermata di fine partita arrivano quando
 arrivavano prima. I colpi che restano in campo hanno la scritta subito, come prima.
 
 ## Punto 2 · Chi deve servire: gemma sopra il personaggio e riquadro a terra
@@ -180,10 +180,11 @@ racchetta, cadute, colpi a vuoto): `scripts/audit/b37/impronte.mjs`, risultati i
 
 | Serie di semi | Partite (3 livelli × 5 profili × 3 semi, 80 punti) | Impronte |
 |---|---|---|
-| 7, 11, 23 | 45 | IMPRONTE_1 |
-| 31, 37, 41 | 45 | IMPRONTE_2 |
+| 7, 11, 23 | 45 | tutte uguali, 15 righe su 15 (impronta di tutto `a5c9e11211f7f618` prima e dopo) |
+| 31, 37, 41 | 45 | tutte uguali, 15 righe su 15 (impronta di tutto `86df03aa53e1f297` prima e dopo) |
 
-`npm run audit:legend`: LEGEND_RIGA
+`npm run audit:legend`: **stesso risultato del codice di prima, riga per riga** (87 righe uguali: 69 controlli superati,
+nessuno mancato, «Tutti i criteri rispettati»).
 
 Il blocco non tocca l'esito dei colpi, la direzione (B35a), la fisica, le regole del punteggio né la CPU: il motore
 chiama solo il verdetto rimandato (`natpfUi.shot.settle`) all'inizio di `_awardPoint` e alza la scritta «Al servizio»;
