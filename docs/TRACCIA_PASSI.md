@@ -410,7 +410,17 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
       credibile, va controllato da dove viene); in classifica una sconfitta a Leggenda (286 punti) sta sopra le vittorie
       (punteggio = % punti × valore del livello: decisione da chiedere all'utente se vuole premiare la vittoria); nella
       sfida tra due computer il Player 2 non vede ace e vincenti.
-- [~] **B32 tappa 3.2 movimento con accelerazione e colpi in corsa** — run `wf_c83f6e6c-4ee`, ramo `b32-movimento`, base `fa2482c`, documento `docs/b32/movimento.md`. Poi **revisore indipendente unico** su B23, T2.3, B31, B32, B33 e correzioni, versione finale con prove complete.
+- [x] **B32** finito (ramo `b32-movimento`, `c9a993f`), unito: **versione 2026-11-13.4** (`7c72b70`; controllo rapido
+      gioco 1409/1409, sito 226/226, Windows 42/42, build ok; zip 23.840.746 B, sha256
+      `d83ec86fb9dd0b810b3717b16be32968607c878834b462e12cc01d430fdb91b7`; installer: `scratchpad/attesa-installer.sh`).
+      Da portare al revisore: a Evento un colpo su cinque «in corsa» (troppe scritte?); palle davvero imprendibili non
+      aumentate (per non far uscire Pro dal criterio); 4 controlli «corde al colpo» in natpf-lob-drop.
+- [~] **REVISIONE FINALE della serie** (dalle 04:00 UTC del 13/11): workflow `revisione-finale-serie` (run
+      `wf_97a327be-1bf`): due revisori in parallelo (regole di gioco; presentazione e dati) sul diff `25e46ed..7c72b70`, poi un
+      agente di correzioni in una worktree nuova, ramo `revisione-finale`, documento `docs/revisione-finale-2026-11-13.md`
+      con le decisioni per l'utente. Se si ferma: `resumeFromRunId: 'wf_97a327be-1bf'` (i revisori finiti restano). Poi:
+      unire, versione, controllo rapido, push, pacchetti, **prove complete** (`prove.sh` con le prove nuove: natpf-rete,
+      natpf-movimento, natpf-fine-partita, natpf-dritto-video, natpf-registro), e chiedere all'utente le decisioni.
       indipendente unico** su B23, T2.3, B31, B32, B33 e correzioni, versione finale con prove complete.
 Ripresa se si fermano: `Workflow({scriptPath: '…/workflows/scripts/blocco-singolo.js', args: {stessi args + "worktree": "<percorso della worktree già creata>"}})`
 (gli args sono nel journal del run; la worktree con `git worktree list | grep <ramo>`).
