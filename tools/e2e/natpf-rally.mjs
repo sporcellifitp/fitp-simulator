@@ -5,7 +5,8 @@
 //   • dopo ogni colpo dal fondo si torna in fondo (niente corsa a rete); dopo un attacco riuscito da dentro il campo o una
 //     volée si sale o si resta a rete (B31, gioco a rete);
 //   • l'esito è nel campo aperto (cadute in punti diversi) e la diagnostica lo vede (mira, punto neutro);
-//   • B18.2 (D11): nella pausa tra i punti i personaggi sono fermi (prima la CPU «correva sul posto»).
+//   • B18.2 (D11): nella pausa tra i punti i personaggi sono fermi (prima la CPU «correva sul posto»);
+//   • B42: contro la CPU lo scambio caldo è acceso di base: al 22° colpo la scritta piccola, senza coprire il tabellone.
 // SHOTS=1 salva i fotogrammi all'impatto e 0,7 s dopo (recupero). Porte 3151 (gioco) e 9151 (PeerJS).
 // DIFF=casual|pro|leggenda: livello della CPU (B16: con le regole del livello, velocità della CPU compresa; prima cambiava
 // solo il nome del livello). CPU_SHOTS=n salva i primi n fotogrammi all'impatto della CPU (gioco fermo per lo scatto).
@@ -156,9 +157,13 @@ try {
     pauses.length >= 1 && pauses.every(p => p.phase !== 'RALLY' && p.v.every(v => v === 0) && p.corre.every(c => !c)),
     `${pauses.length} pause, velocità ${JSON.stringify(pauses.map(p => p.v))}, in corsa ${pauses.filter(p => p.corre.some(Boolean)).length}; CPU nell'istante di fine punto ${endV.join(' ')} m/s`);
   // B42: lo «scambio che si scalda» vale anche contro la CPU ed è acceso di base: dal 20° colpo la scritta piccola
-  // «Scambio caldo · colpo N», sotto il tabellone, senza coprirlo (lo scambio portato al 22° colpo a mano)
+  // «Scambio caldo · colpo N», sotto il tabellone, senza coprirlo. Si decide a inizio partita (startNewMatch, come con
+  // «Gioca»): qui fin sopra si giocano palle messe a mano, senza partita, quindi prima una partita nuova contro la CPU,
+  // poi lo scambio portato al 22° colpo a mano
   const hot = await game.evaluate(async () => {
-    const E = __natpfTennis, on = E.natpfHot;
+    const E = __natpfTennis;
+    E.startNewMatch({ showStartBanner: false });
+    const on = E.natpfHot;
     E.phase = 'RALLY'; E.ball.inPlay = true; E.ball.lastHitter = 'player'; E.ball.rallyStrokeCount = 22; E.ball.pos.set(0, 1.4, 0); E.ball.vel.set(0, 3, -4);
     await new Promise(r => setTimeout(r, 150));
     const el = document.getElementById('natpf-hot-rally'), b = el.getBoundingClientRect(), s = document.querySelector('#natpf-scoreboard .sb-box')?.getBoundingClientRect();
