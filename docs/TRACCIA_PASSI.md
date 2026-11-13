@@ -504,6 +504,16 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
       fisso giusti 27→66%, fuori 24→8%. Agente: gioco 1425/1426 (1 saltato), sito 226, build, audit:legend uguale, 7 prove
       nel browser. Documento `docs/b35/precisione-telefono.md` (istruzioni per registrare una sessione vera).
 - [x] **Versione 2026-11-13.8** = B35a (`6159b7e`; controllo rapido gioco 1426/1426, sito 226/226, Windows 42/42, build ok; zip 23.842.134 B, sha256 `0ba248a657a23618733a63d1292bc420e08b09b885beb6703c4b9bdbf014ed51`, provato estratto; **installer pubblicato su R2** e verificato dal link fisso: 128.063.238 B, sha256 `74728e9ff54240008aaa1fa45514a5e071f7ddeaa865c7ada924725841f8f33c`).
+- [x] **B35b finito** (ramo `b35-collaudo`, `f8b2040`, 11 commit), unito in `1043c85`: formato veloce detto a schermo;
+      pagina «Pronto per la partita» dopo gli scambi di prova (e «Ricalibra» che ci riporta); fine partita come la
+      proposta grafica (schermate guardate: vittoria e stesso schermo); «Al servizio» nelle due metà anche con Lob & Drop;
+      scia spenta di base e più discreta (−54…−65% di pixel). Agente: gioco 1430/1430, sito 226/226, build, audit:legend e
+      impronte uguali, unione di prova con B35a 1440/1440. Dubbi dell'agente da portare all'utente: «Ricalibra» a partita
+      in corsa rifà gli scambi e rigioca il punto (non torna alla pagina); i tre riquadri escono quasi sempre Perfetti,
+      vincenti, punti vinti.
+- [~] **Versione 2026-11-13.9** = B35a + B35b: controllo rapido + `natpf-scambi-di-prova` e `natpf-telecomando` sul codice
+      unito (consiglio dell'agente) → commit, push, zip, installer.
+- [~] **B37** partito alle 14:00 UTC (run `wf_63518f90-393`, ramo `b37-collaudo-bis`, base `1043c85`).
 - **NUOVO COLLAUDO DELL'UTENTE (13/11, 11:25 UTC) → blocco B37** (dopo B35b, sopra il suo lavoro):
   1. «quando la palla va fuori, aspetta che vada realmente fuori (anche quando finisce la partita): è brutto che si
      anticipi la palla fuori e si dica subito che la persona ha perso o si assegni subito il punto»;
