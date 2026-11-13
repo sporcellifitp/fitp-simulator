@@ -82,20 +82,25 @@ try {
   }
 
   // scambio in corso: una palla della CPU verso chi gioca, il motore va avanti da solo
-  const rally = () => game.evaluate(() => {
+  // flight: secondi di volo della palla fino al rimbalzo (palla tesa di base). Nel caso A la pausa arriva fino a 2,1 s dopo
+  // lo stop dei sensori (conto più giù), che parte 0,2 s dopo il lancio: con la palla tesa (1,05 s) lo scambio a volte era
+  // già finito prima della pausa (fase POINT_OVER, punto all'avversario: prova del B41 del 13/11, 1901 e 2033 ms), e la
+  // verifica «nessun punto per la pausa» falliva per il momento del segnale, non per il gioco. Lì la palla vola 2,5 s
+  // (rimbalzo dopo la pausa più tarda: 0,2 + 2,1 = 2,3 s), così la pausa trova sempre lo scambio in corso
+  const rally = (flight = 1.05) => game.evaluate(flight => {
     const E = __natpfTennis; E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.autoPlayMode = false; E.userHasInteracted = true;
     E.phase = 'RALLY'; E.phaseTimer = 0; E.natpfPaused = false; E.player.pos.set(0, 0, 11.4); E.player.targetPos.copy(E.player.pos);
     Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1 });
-    E.ball.pos.set(-.5, 1, -11); E._launchBallToTarget(E.ball.pos, new E.ball.pos.constructor(1.4, 0, 8.6), 1.05, { topspin: 14 }); E._natpfPlanPlayer();
+    E.ball.pos.set(-.5, 1, -11); E._launchBallToTarget(E.ball.pos, new E.ball.pos.constructor(1.4, 0, 8.6), flight, { topspin: 14 }); E._natpfPlanPlayer();
     E.natpfPhone.lastPhase = 'play'; E.natpfPhone.link.send({ t: 'ph', ph: 'play' });
-  });
+  }, flight);
   const score = () => game.evaluate(() => { const s = __natpfTennis.score; return [s.playerPoints, s.opponentPoints, s.playerGames, s.opponentGames].join(' '); });
   const hold = () => game.evaluate(() => { const U = __natpfTennis.natpfUi; return { why: U.phoneHold?.why ?? null, paused: !!__natpfTennis.natpfPaused, phase: __natpfTennis.phase, text: document.getElementById('natpf-phone-hold')?.textContent || '' }; });
   const alertOf = () => phone.evaluate(() => ({ on: !document.getElementById('alert').classList.contains('hidden'), title: document.getElementById('alertTitle').textContent, btn: document.getElementById('alertBtn').classList.contains('hidden') ? null : document.getElementById('alertBtn').textContent }));
   await game.evaluate(() => { window.__resumes = []; const U = __natpfTennis.natpfUi, act = U._phoneHoldAction.bind(U); U._phoneHoldAction = a => { if (a.kind === 'countdown' || a.kind === 'resume') __resumes.push({ ...a, t: performance.now() }); return act(a); }; });
 
-  // A. sensori fermi a pagina visibile
-  await rally();
+  // A. sensori fermi a pagina visibile (palla lunga: vedi rally)
+  await rally(2.5);
   const s0 = await score();
   await game.waitForTimeout(200);
   await phone.evaluate(() => { window.__mute = true; });

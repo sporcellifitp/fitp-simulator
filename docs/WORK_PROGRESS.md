@@ -1777,3 +1777,24 @@ prima e dopo, suite, build e prove nel browser, documento `docs/b42/scambi-lungh
 - [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.
   Poi, a parte (non tocca il B42): la prova `natpf-leggenda` con il riferimento del piatto per lato (dritto e rovescio),
   e decidere con l'utente se sistemare nel disegno l'allungo corto in corsa della Leggenda.
+
+## B28.1 · Il profilo del telefono vale per l'attività che segue (13/11, ramo `b41-fiera-1`) · [x] verificato sul ramo, da unire
+Obiettivo: i 5 punti di `docs/coda/B28.1-profilo-per-attivita.md`. Criterio di fine: un test per punto che fallisce
+senza la correzione, suite verdi, prove nel browser `natpf-scambi-di-prova` (anche `FLOW=minigioco`) e `natpf-phone-keep`
+nei due modi.
+- [x] B28.1.a · codice e test, ripresi da `763e338` (ramo `b28-cal-giocando`, fermo alla 2026-11-12.5) sopra la
+  2026-11-13.11 con `git cherry-pick`. File: `natpf_lobby.js` (`startWarmup`: `demoteStale`; `_startChallenge`:
+  `freshForActivity` e `activityStarted`; `_warmedOnce`), `natpf_phone_racket.js` (`activitySeq`, `gestureAt` per
+  attività, `endTrial` con `keep`), `natpf_super_hint.js` (niente «Super mancato» negli scambi di prova),
+  `natpf_training.js` (esercizi = attività), `natpf_trial.js` (`trialOutro` con «gesti», `outroCounts`), `natpf_ui.js`
+  (`activityStarted`, `activityLive`, `demoteStale`, `freshForActivity`; `_bindStart` del B35 unito a mano),
+  `natpf_versus_ui.js` (Player 2 con «Nessuna»), `test/natpf-giocando-revisione.test.mjs` (6 test B28.1, adattati al
+  flusso del B35), `tools/e2e/natpf-phone-keep.mjs` (soglia 2100 ms con il conto).
+  Verifiche: test B28.1 6/6 (6/6 rossi sulla stessa base senza la correzione), gioco 1482/1482, sito 226/226.
+- [x] B28.1.b · documenti e prova del minigioco (da `88cf743`), numeri in `docs/b28/calibrazione-giocando.md`;
+  `natpf-phone-keep`: nel caso A la palla vola 2,5 s (con la palla tesa la pausa a 1,9–2,0 s trovava lo scambio già
+  finito, 11/13 anche da sola).
+  Verifiche nel browser (porte 4150–4157): `natpf-scambi-di-prova` `FLOW=minigioco` 10/10 e `FLOW=singolo` 30/30;
+  `natpf-phone-keep` `CAL=gesti` 13/13 e `CAL=base` 13/13.
+  Non verificato: telefoni e persone vere; `natpf-nuovo-giocatore` e `natpf-formato-fiera` girano con la verifica finale
+  del B41 (stesso ramo).

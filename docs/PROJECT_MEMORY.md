@@ -150,11 +150,15 @@ e la calibrazione con i gesti come percorso di base.
   rivincita della sfida tra due computer.
 - **Il profilo ricorda come è stato fatto, e niente passa da un visitatore al successivo** (revisione del 12/11, giro 2):
   `NatpfPhoneRacket.madeBy` = `gesti` | `salta` | `auto` | `prova`. «Giocando»: ogni «Gioca» rifà gli scambi di prova da
-  un profilo nuovo; una calibrazione con i gesti fatta apposta dopo la fine dell'ultima partita vale **per la partita che
-  segue e basta** (`gestureAt`, `keepsGesture`). «Con i gesti»: conta come calibrato solo un profilo `gesti` o `salta`,
-  con la durata di prima del B28; un telefono rimasto `auto` o `prova` rifà i gesti senza QR (`calStale`,
-  `demoteIfStale`: subito al menu, altrimenti al prossimo «Gioca»). «Nessuna»: profilo semplice da capo a ogni partita.
-  Cambiare l'opzione vale dal prossimo «Gioca» e annulla il «vale per la prossima partita». Chi aggiunge un modo di
+  un profilo nuovo; una calibrazione con i gesti fatta apposta fuori da un'attività vale **per l'attività che segue e
+  basta** (`gestureAt`, `keepsGesture`). **Attività = partita, minigioco, allenamento, riscaldamento** (B28.1:
+  `NatpfUi.activityStarted` / `activityLive` / `demoteStale` / `freshForActivity`, `NatpfPhoneRacket.activitySeq`; le
+  partite le conta il motore con `natpfMatchSeq`): chi aggiunge un modo di cominciare a giocare deve chiamare
+  `demoteStale()` e `freshForActivity()` prima e `activityStarted()` all'inizio, tranne dove le persone sono le stesse.
+  «Con i gesti»: conta come calibrato solo un profilo `gesti` o `salta`, con la durata di prima del B28; un telefono
+  rimasto `auto` o `prova` rifà i gesti senza QR (`calStale`, `demoteIfStale`: subito al menu, altrimenti all'inizio
+  dell'attività dopo). «Nessuna»: profilo semplice da capo a ogni attività, anche nella sfida tra due computer.
+  Cambiare l'opzione vale dalla prossima attività e annulla il «vale per la prossima attività». Chi aggiunge un modo di
   fare o tenere un profilo deve dire come è stato fatto (`madeBy`) e passare da `keepsGesture`.
 - **Il verso si controlla con il lato della palla**, uguale per destri e mancini: palla alla destra di chi gioca = gesto
   +1. Il lato è quello del piano d'intercetto al momento del colpo (`ballSideNow`), non quello deciso al lancio. Il segno

@@ -107,16 +107,24 @@ campo), `natpf_phone_racket.js` (`autoSimple`, `freshPlayer`, `beginTrial`/`tria
   ancora**» del risultato di un minigioco (lì chi cambia usa «Nuovo giocatore», che serve anche per il nome in classifica).
 - **Niente passa da un visitatore al successivo: il profilo ricorda come è stato fatto** (revisione, difetto 4;
   `NatpfPhoneRacket.madeBy`: `gesti`, `salta`, `auto`, `prova`).
-  - «**Giocando**»: ogni «Gioca» rifà gli scambi di prova da un profilo nuovo. Unica eccezione: una calibrazione con i
-    gesti fatta apposta («Calibra con i gesti» nel pannello del telefono) **dopo la fine dell'ultima partita** vale per la
-    partita che segue, e basta (`gestureAt`, `keepsGesture`); fatta a partita in corso vale per quella partita. Prima un
-    solo «Calibra con i gesti» spegneva gli scambi di prova per tutti i visitatori dopo.
+  - **Attività** (B28.1): partita, minigioco, allenamento e riscaldamento valgono allo stesso modo. Le regole qui sotto
+    si applicano all'inizio di ognuna (`NatpfUi.activityStarted`, `demoteStale`, `freshForActivity`;
+    `NatpfPhoneRacket.activitySeq`), non solo a «Gioca» della partita: prima un profilo passava da un visitatore al
+    successivo attraverso i minigiochi e l'allenamento.
+  - «**Giocando**»: ogni attività comincia da un profilo nuovo (scambi di prova prima della partita e del minigioco, i
+    primi esercizi nell'allenamento e nel riscaldamento). Unica eccezione: una calibrazione con i gesti fatta apposta
+    («Calibra con i gesti» nel pannello del telefono) **fuori da un'attività** vale per **l'attività che segue, qualunque
+    sia, e basta** (`gestureAt`, `keepsGesture`); fatta a metà di una partita, di un minigioco o di un allenamento vale
+    per quello. Prima un solo «Calibra con i gesti» spegneva gli scambi di prova per tutti i visitatori dopo (giro 2), e
+    poi ancora due minigiochi lo lasciavano alla partita del visitatore dopo (B28.1).
   - «**Con i gesti**»: conta come calibrato solo un profilo fatto con i gesti (o saltato apposta con «Salta»), con la
     durata di prima del B28 (fino a «Nuovo giocatore» o «Ricalibra»). Un telefono rimasto con il profilo dato dal gioco o
     imparato dagli scambi di prova (l'opzione era un'altra) **rifà i gesti, senza rifare il QR**: subito se si è nel menu,
-    altrimenti al prossimo «Gioca» (`calStale`, `demoteIfStale`).
-  - «**Nessuna**»: profilo semplice da capo a ogni partita (con la stessa eccezione di una partita per chi ha appena
-    calibrato apposta con i gesti: l'ha chiesto l'addetto, e non passa comunque a chi viene dopo).
+    altrimenti all'inizio dell'attività dopo: a «Gioca», o in campo prima del minigioco e dell'allenamento (`calStale`,
+    `demoteIfStale`, `lobby.startWarmup`).
+  - «**Nessuna**»: profilo semplice da capo all'inizio di ogni attività, anche del minigioco, dell'allenamento e nella
+    sfida tra due computer (chi invita a «Gioca», il Player 2 a «Sono pronto», una volta), con la stessa eccezione di
+    un'attività per chi ha appena calibrato apposta con i gesti: l'ha chiesto l'addetto, e non passa a chi viene dopo.
   - **Cambiare l'opzione** vale dal prossimo «Gioca» senza riabbinare il telefono, e annulla il «vale per la prossima
     partita» di una calibrazione con i gesti fatta prima del cambio.
   - Restano le eccezioni dove le persone sono di sicuro le stesse: rivincita dai telefoni nello stesso schermo, «Gioca
@@ -358,6 +366,53 @@ con `CAL=gesti` a 1392 ms. Le altre 12 verifiche passano. Spiegazione dalle cost
 un segnale del telefono (uno al secondo) dice «ultimo campione da più di 700 ms», più 300 ms di grazia, quindi tra 1,0 e
 2,0 s dopo lo stop dei sensori secondo il momento del segnale; nella modalità di base la prova arriva a quel punto in un
 altro momento (scambi di prova al posto della calibrazione). La soglia della prova non è stata toccata.
+
+### B28.1 (12/11, dopo la seconda revisione, sopra la versione 2026-11-12.5)
+
+Unito `natpf-simulator` (`3586020`: 2026-11-12.4 con Lob & Drop, livelli Evento e Bambini, «Chi gioca», segnale del
+momento giusto, «Super mancato»; avanzamento veloce). Subito dopo l'unione: gioco 1283/1283, sito 226/226.
+
+| Punto aperto | Esito | Test (`natpf-giocando-revisione`, «B28.1») |
+|---|---|---|
+| 1 · il profilo passava attraverso minigiochi e allenamento | corretto: ogni attività conta (vedi «Decisioni prese») | tre test: «Giocando», «Nessuna», Giocando → «Con i gesti» |
+| 2 · sfida tra due computer con «Nessuna» | corretto: profilo da capo a «Gioca» (chi invita) e a «Sono pronto» (Player 2) | uno |
+| 3 · fine degli scambi di prova con uno calibrato con i gesti | corretto: «Colpo imparato ✓» se l'altro ha imparato («Calibrazione con i gesti ✓» se li tengono tutti e due), puntini pieni per chi tiene i gesti | uno |
+| 4 · `natpf-phone-keep` «A · sensori fermi» | soglia della prova a 2100 ms con il conto nel commento (1008–1968 ms secondo la fase del segnale del telefono, più il giro di controllo); il gioco non cambia | prova nel browser, tre volte per modalità |
+| 5 · livelli Evento e Bambini | confermato con un test: gli scambi di prova non muovono `eventoK` né i punti contati (giocati, senza colpire, saltati, interrotti, stesso schermo); il livello e la velocità della CPU tornano quelli di prima | uno |
+
+**Segnale del momento giusto** negli scambi di prova: c'è, contro la CPU con i livelli Bambini ed Evento (come in
+partita), sulla palla del lanciapalle, con la finestra del livello in uso lì (gli scambi di prova si giocano al livello
+facile): dice il momento giusto per quella palla, non è stato toccato. Nello stesso schermo non c'è, come in partita.
+**«Super mancato»** negli scambi di prova usciva (anche la spiegazione lunga, una volta sola per giocatore, bruciata
+sopra il cartello «Scambi di prova») per un colpo che non conta e non si giudica: ora lì non esce (`natpf_super_hint.js`,
+una condizione), in partita è com'era.
+
+**Voto del telefono in partita** (`review2/m_vote.mjs`, solo misura): con il telefono al contrario e i due gesti il segno
+si gira in 8 prove su 8 (alla palla 4–9 secondo la sequenza); al contrario e solo dritti non si gira mai (limite scritto
+al §7; con la regola di prima si girava in 3–8 prove su 8, ma la stessa regola specchiava chi ha il telefono giusto).
+
+#### B28.1 sopra la 2026-11-13.11 (13/11, ramo `b41-fiera-1`, insieme alla B41 prima parte)
+
+Il lavoro del 12/11 (`763e338`, `88cf743` del ramo `b28-cal-giocando`) è stato ripreso sopra la versione 2026-11-13.11
+(`38709e3`), dove nel frattempo è arrivato il B35: contro la CPU gli scambi di prova si fanno **prima** della pagina
+«Pronto per la partita» e la partita parte solo con «Gioca».
+- Conflitti risolti a mano: `natpf_trial.js` (testi del B35 e `trialPageNote` restano, più l'esito vero del B28.1:
+  `trialOutro` con «gesti», `outroCounts`); `natpf_ui.js` (`_bindStart` del B35 con `pageTrialFresh` e `_pageTrial`,
+  più `demoteStale` / `freshForActivity` al posto dei controlli con `cal`).
+- Una correzione in più per la stessa regola del riscaldamento: «Riscaldati prima» dopo una calibrazione con i gesti
+  (le stesse persone) non rifà gli scambi di prova nemmeno nel percorso del B35 (`NatpfLobby._warmedOnce`, usata dalla
+  riga della pagina, da `_pageTrial` e, con la stessa condizione, da `_bindStart`).
+- Test del B28.1 adattati al flusso del B35: gli scambi di prova contro la CPU partono arrivando alla pagina
+  (`toMatch`), non con «Gioca». **6/6 verdi**; sulla stessa base senza la correzione (copia del gioco con i sette file
+  di prima) **6/6 rossi**.
+- Suite: gioco **1482/1482**, sito **226/226**.
+- Nel browser: `natpf-scambi-di-prova` `FLOW=minigioco` **10/10** (11,4 s da «Tutto chiaro» al minigioco),
+  `FLOW=singolo` **30/30**.
+- `natpf-phone-keep` (punto 4): con la soglia a 2100 ms la pausa è arrivata a 1901 e 2033 ms con la calibrazione con i
+  gesti, ma lo scambio di prova della prova (palla tesa, 1,05 s di volo) era già finito: fase `POINT_OVER`, punto
+  all'avversario, e due verifiche dopo fallivano (11/13, anche da sola). Il gioco non c'entra: la pausa arriva fino a
+  2,1 s dopo lo stop dei sensori (il conto è accanto alla soglia). Nel caso A la palla della prova ora vola 2,5 s
+  (0,2 s di attesa + 2,1 s = 2,3 s prima del rimbalzo): **13/13** con `CAL=gesti` e **13/13** con `CAL=base`.
 
 ## 7. Limiti e cose non provate
 
