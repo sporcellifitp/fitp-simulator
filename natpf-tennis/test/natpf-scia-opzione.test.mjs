@@ -7,8 +7,10 @@ import { TRAIL_KEY, readBallTrail } from '../src/natpf/natpf_ball_glow.js';
 
 test('Opzioni → «Scia della palla»: No la spegne subito e la salva, Sì la riaccende', async () => {
   const w = await makeWorld({ controller: "mouse" }), E = w.E, L = w.lobby;
-  assert.equal(localStorage.getItem(TRAIL_KEY), null); assert.equal(readBallTrail(), true, 'di base accesa');
+  assert.equal(localStorage.getItem(TRAIL_KEY), null); assert.equal(readBallTrail(), false, 'di base spenta (B35)');
   // motore senza grafica: la scia non c'è, l'opzione si salva lo stesso
+  L.setBallTrail(true);
+  assert.equal(localStorage.getItem(TRAIL_KEY), '1'); assert.equal(readBallTrail(), true);
   L.setBallTrail(false);
   assert.equal(localStorage.getItem(TRAIL_KEY), '0'); assert.equal(readBallTrail(), false);
   // con la scia del motore: spenta e riaccesa subito, senza ricaricare

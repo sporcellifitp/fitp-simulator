@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TRAIL_KEY, BALL_GLOW, GLOW_ORDER, GLOW_COLORS, readBallTrail, writeBallTrail, trailToast, glowLevel, glowLength, NatpfBallGlow } from '../src/natpf/natpf_ball_glow.js';
+import { TRAIL_KEY, TRAIL_DEFAULT, BALL_GLOW, GLOW_ORDER, GLOW_COLORS, readBallTrail, writeBallTrail, trailToast, glowLevel, glowLength, NatpfBallGlow } from '../src/natpf/natpf_ball_glow.js';
 
 const mem = (init = {}) => { const m = new Map(Object.entries(init)); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; };
 const scene = () => ({ items: [], add(o){ this.items.push(o); } });
@@ -20,12 +20,15 @@ function fly(G, { speed = 26, secs = .5, from = [1, 1, 10], dir = [0, 0, -1], po
   return p;
 }
 
-test('opzione: accesa di base, «No» salvato come 0, chiave natpf-tennis.sciaPalla', () => {
+test('opzione: spenta di base (B35), «Sì» salvato come 1 resta accesa, «No» come 0, chiave natpf-tennis.sciaPalla', () => {
   assert.equal(TRAIL_KEY, 'natpf-tennis.sciaPalla');
-  assert.equal(readBallTrail({ storage: mem() }), true, 'niente di salvato: accesa');
-  assert.equal(readBallTrail({ storage: mem({ [TRAIL_KEY]: '1' }) }), true);
-  assert.equal(readBallTrail({ storage: mem({ [TRAIL_KEY]: '0' }) }), false);
-  assert.equal(readBallTrail({ storage: { getItem(){ throw new Error('bloccato'); } } }), true, 'memoria del browser bloccata: accesa');
+  assert.equal(TRAIL_DEFAULT, false);
+  assert.equal(readBallTrail({ storage: mem() }), false, 'niente di salvato: spenta (collaudo del 13/11: «dà fastidio»)');
+  assert.equal(readBallTrail({ storage: mem({ [TRAIL_KEY]: '1' }) }), true, 'chi l’aveva scelta accesa la tiene');
+  assert.equal(readBallTrail({ storage: mem({ [TRAIL_KEY]: '0' }) }), false, 'chi l’aveva spenta la tiene spenta');
+  assert.equal(readBallTrail({ storage: mem({ [TRAIL_KEY]: 'x' }) }), false, 'valore strano: quello di base');
+  assert.equal(readBallTrail({ storage: { getItem(){ throw new Error('bloccato'); } } }), false, 'memoria del browser bloccata: spenta');
+  assert.equal(readBallTrail({ storage: null }), false);
   const s = mem();
   assert.equal(writeBallTrail(false, { storage: s }), false); assert.equal(s.getItem(TRAIL_KEY), '0'); assert.equal(readBallTrail({ storage: s }), false);
   assert.equal(writeBallTrail(true, { storage: s }), true); assert.equal(s.getItem(TRAIL_KEY), '1');
@@ -38,18 +41,20 @@ test('intensità e lunghezza crescono con la velocità della palla', () => {
   assert.equal(glowLevel(BALL_GLOW.fullSpeed), 1); assert.equal(glowLevel(60), 1); assert.equal(glowLevel(NaN), 0);
   let prev = -1;
   for (let v = 0; v <= 40; v += .5){ const l = glowLevel(v); assert.ok(l >= prev && l >= 0 && l <= 1, `v ${v}`); prev = l; }
-  // B26: piena già alle velocità normali di scambio (15–20 m/s; prima del B26 solo da 24 m/s e la scia risultava tenue)
-  assert.ok(BALL_GLOW.fullSpeed <= 15 && BALL_GLOW.minSpeed >= 7); assert.equal(glowLevel(15), 1); assert.equal(glowLevel(20), 1);
-  assert.ok(glowLevel(12) > .2 && glowLevel(12) < .8, 'a metà tra niente e piena: a metà intensità');
+  // B35: a metà strada tra il B22 (piena da 24 m/s) e il B26 (da 14): piena con le palle veloci, tenue nello scambio lento
+  assert.ok(BALL_GLOW.fullSpeed > 14 && BALL_GLOW.fullSpeed < 24 && BALL_GLOW.minSpeed >= 7); assert.equal(glowLevel(BALL_GLOW.fullSpeed + 1), 1);
+  assert.ok(glowLevel(15) > .3 && glowLevel(15) < 1, 'scambio medio: già ben visibile, non piena');
+  assert.ok(glowLevel(12) > .05 && glowLevel(12) < .5, 'palla lenta: tenue');
   assert.equal(glowLevel(9.5), 0, 'pallonetto lento: niente');
   assert.equal(glowLength(0), 0); assert.ok(Math.abs(glowLength(20) - 20*BALL_GLOW.seconds) < 1e-9);
   assert.equal(glowLength(200), BALL_GLOW.maxLen); assert.ok(glowLength(12) < glowLength(24));
-  // B26 (collaudo dell'utente: «gialla ma poco diversa»): nastro pieno largo almeno il doppio della scia bianca di prima
-  // (.28 m, game_engine.js) e del nastro di prima del B26 (pieno per meno di .3 m), più lungo (prima .22 s e 6 m), con
-  // l'alone intorno; «leggermente meno luminosa» del trailer: mai del tutto opaca; non un muro
-  assert.ok(BALL_GLOW.alpha >= .85 && BALL_GLOW.alpha < 1); assert.ok(BALL_GLOW.width >= .56 && BALL_GLOW.width <= .9);
-  assert.ok(BALL_GLOW.halo >= 2 && BALL_GLOW.halo <= 3 && BALL_GLOW.haloAlpha > .2 && BALL_GLOW.haloAlpha < .7, 'alone largo e tenue');
-  assert.ok(BALL_GLOW.seconds >= .3 && BALL_GLOW.maxLen >= 8 && BALL_GLOW.maxLen <= 12); assert.ok(BALL_GLOW.points*BALL_GLOW.step >= BALL_GLOW.maxLen, 'la storia basta per la scia più lunga');
+  // B35 (collaudo del 13/11: «dà fastidio ed è troppo evidente»): più discreta del B26 (nastro .8 m, alone 2,2 volte a .5,
+  // opacità .92, .42 s e 10 m) e più visibile del B22 (nastro .42 m sfumato, opacità .8 al solo centro, .22 s e 6 m):
+  // meno larga, meno lunga, meno opaca; resta più larga della scia bianca di prima (.28 m, game_engine.js)
+  assert.ok(BALL_GLOW.alpha >= .6 && BALL_GLOW.alpha <= .8, `opacità ${BALL_GLOW.alpha}`); assert.ok(BALL_GLOW.width > .42 && BALL_GLOW.width < .8, `larghezza ${BALL_GLOW.width}`);
+  assert.ok(BALL_GLOW.width*BALL_GLOW.halo < .8*2.2 && BALL_GLOW.width*BALL_GLOW.halo > .42, 'larghezza con l’alone tra B22 e B26');
+  assert.ok(BALL_GLOW.halo >= 1.3 && BALL_GLOW.halo < 2.2 && BALL_GLOW.haloAlpha > .15 && BALL_GLOW.haloAlpha < .5, 'alone più stretto e più tenue del B26');
+  assert.ok(BALL_GLOW.seconds > .22 && BALL_GLOW.seconds < .42 && BALL_GLOW.maxLen > 6 && BALL_GLOW.maxLen < 10, 'lunghezza tra B22 e B26'); assert.ok(BALL_GLOW.points*BALL_GLOW.step >= BALL_GLOW.maxLen, 'la storia basta per la scia più lunga');
   assert.ok(BALL_GLOW.head >= .15, 'la palla non è coperta');
   // giallo pieno e saturo (poco blu), il centro più chiaro
   const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
