@@ -176,4 +176,18 @@ Classifica delle partite a schermo intero con dieci partite, ledwall 1920×540 e
 
 ## Verifiche finali
 
-(compilate alla fine del blocco)
+| Verifica | Risultato |
+|---|---|
+| `npm test` (gioco) | 1385 test, 1385 passati (prima del blocco 1375: +10 test nuovi; un test esistente aggiornato, `natpf-minigiochi-nascosti`, perché ora le schede della classifica cominciano con «Partite») |
+| `npm run build` | riuscita |
+| `npm run audit:legend` | «Tutti i criteri rispettati» |
+| `node --test tools/test/*.test.mjs` (sito e telefono) | 226/226 |
+| Impronte a sorteggi fissi (`fine-partita.mjs --impronte`) | 5/5 uguali alla base |
+| Nuova prova `natpf-fine-partita` | 33/33 (rifatta dopo l'ultimo cambiamento) |
+| `natpf-tabellone` | 42/42 |
+| `natpf-nuovo-giocatore` | 28/28 |
+| `natpf-menu` | 45/45 |
+| `natpf-telecomando` | 81/81 (la prima volta non è partita: mancavano le dipendenze del server LAN e la build in questa copia di lavoro; dopo `npm ci --prefix tools/lan` e `npm run build` è passata) |
+
+Il programma Windows (`natpf-desktop/`) non è toccato. Il pacchetto cresce di pochi kB (un modulo JavaScript e poche
+regole CSS; le schermate stanno solo in `docs/`).
