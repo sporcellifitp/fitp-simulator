@@ -691,3 +691,12 @@ cambiano le tappe (cade B36.2; B36.4 senza rientro verso l'angolo).
 - [~] **B42 sopra B37**: workflow `b42-unione-sopra-b37` (run `wf_7f418d88-ade`) nella worktree di B42: unione di
   `c619266`, conflitti, suite, `audit:legend`, 8 prove nel browser, posa della Leggenda misurata con e senza B42. Porte
   4150–4199. Dopo la 13.10: unire B42 → 2026-11-13.11.
+
+**13/11, 21:10 UTC · versione 2026-11-13.10 = B37 + B37.1.**
+- [x] B37.1 (`dade1dc`): via la gemma 3D sopra chi batte, torna la casella tonda gialla «Al servizio» del B35b (più
+      grande sui grandi schermi, sopra la testa misurata per Classici e Lob & Drop); riquadro a terra invariato. Agente:
+      gioco 1465/1465, sito 226/226, build; chi-serve 64/64 (riscritta), stesso-schermo-b20 52/52, servizio-lancio 12/12,
+      tabellone 42/42, lob-drop servizio 13/13 (intera 131/136: 3 «corde» note dal B32 e 2 fps sotto carico, da sola 15/15).
+- [x] Unione in `natpf-simulator`, versione nei quattro file. Controllo rapido: gioco 1465/1465, sito 226/226, Windows
+      43/43, LAN 12/12, build ok; `SERVIZIO=1 natpf-lob-drop` 13/13 sul codice unito → commit, push.
+- [ ] Zip Cloudflare, installer (attesa e verifica), messaggio all'utente con «come si attiva».
