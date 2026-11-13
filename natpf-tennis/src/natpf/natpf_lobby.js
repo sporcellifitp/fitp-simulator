@@ -20,7 +20,7 @@
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 import { FORMAT_KEY, SERVE_KEY, SPLIT_SERVE_KEY, serveChoice, splitServeChoice } from './match_format.js';
 import { readFairFormat, FAIR_MAX_GAMES_LABEL } from './natpf_fair_format.js';
-import { CHALLENGES, challengeById, pickableChallenge, validNickname, MATCH_MODE } from './natpf_events.js';
+import { CHALLENGES, challengeById, pickableChallenge, validNickname, MATCH_MODE, MATCH_ORDER_RULE } from './natpf_events.js';
 import { SCORE_RULE } from './natpf_match_stats.js';   // B33: classifica delle partite
 import { MEDAL_LABEL, nextMedal, medalCount } from './natpf_arcade.js';
 // icone dei minigiochi (natpf_arcade.MODES[].icon)
@@ -349,7 +349,7 @@ export class NatpfLobby {
     const tab = (id, label) => `<button type="button" class="seg-btn ${id === this.rankingTab ? 'selected' : ''}" data-ranking="${id}" role="tab">${label}</button>`;
     tabs.innerHTML = tab(MATCH_MODE, 'Partite') + CHALLENGES.map(c => tab(c.id, c.label)).join('');
     const note = $('ranking-note'), matches = this.rankingTab === MATCH_MODE;
-    if (note){ note.textContent = matches ? `Partite contro la CPU. ${SCORE_RULE}.` : ''; show(note, matches); }
+    if (note){ note.textContent = matches ? `Partite contro la CPU. ${MATCH_ORDER_RULE}. ${SCORE_RULE}.` : ''; show(note, matches); }   // B34: l'ordine in una frase
     if (matches){
       const top = this.ui.events.topMatches(10);
       list.innerHTML = top.length ? top.map((e, i) => `<li><b>${i + 1}</b><span>${esc(e.nick)}<small>${LEVEL_NAME[e.level] || ''} · ${e.win ? 'vinta' : 'persa'} ${e.games?.[0] | 0}-${e.games?.[1] | 0}</small></span><em>${e.score} punti</em></li>`).join('') : '<li class="empty">Ancora nessuna partita oggi</li>';

@@ -65,21 +65,29 @@ export const topScores = (board, mode, n = 10, day = dayKey()) => (freshBoard(bo
 // (natpf_match_stats.matchScore: % di punti vinti × valore del livello). Solo su questo computer, come il resto.
 export const MATCH_MODE = 'partite';
 export const MATCH_LABEL = 'Partite contro la CPU';
+// B34 (decisione dell'utente del 13/11, revisione finale n. 9): in cima tutte le partite VINTE, sotto le PERSE; dentro
+// ciascun gruppo per punteggio (a parità, prima chi l'ha fatto prima). Prima contava solo il punteggio e una sconfitta a
+// Leggenda (×5) passava sopra le vittorie degli altri livelli. Lo stesso ordine vale per la posizione nella frase di fine
+// partita, per la scheda «Partite» e per il CSV.
+export const matchOrder = (x, y) => (y.win ? 1 : 0) - (x.win ? 1 : 0) || y.score - x.score || x.at - y.at;
+export const MATCH_ORDER_RULE = 'Prima le partite vinte, poi le perse, ognuna per punteggio';
 export function addMatch(board, { nick, level, won = 0, lost = 0, games = [0, 0], win = false }, { day = dayKey(), at = Date.now(), keep = 50 } = {}){
   const b = freshBoard(board, day), score = matchScore({ level, won, lost });
   const list = [...(b.modes[MATCH_MODE] || []), { nick, score, at, level, won: won | 0, lost: lost | 0, games: [games[0] | 0, games[1] | 0], win: !!win }];
-  list.sort((x, y) => y.score - x.score || x.at - y.at);
+  list.sort(matchOrder);
   // (revisione finale: posizione e totale sulla lista tenuta. Prima dalla 51ª partita del giorno la schermata poteva dire
   // «57° su 57» per una partita già tolta dal tabellone e dal CSV; ora rank 0 = fuori dalle prime keep)
   const kept = list.slice(0, keep), rank = kept.findIndex(e => e.at === at && e.nick === nick) + 1;
   return { board: { ...b, modes: { ...b.modes, [MATCH_MODE]: kept } }, rank, total: kept.length, keep, score };
 }
-export const topMatches = (board, n = 10, day = dayKey()) => topScores(board, MATCH_MODE, n, day);
+// (riordinata anche in lettura: un tabellone di oggi salvato prima del B34 era in ordine di solo punteggio)
+export const matchList = (board, day) => [...(freshBoard(board, day).modes[MATCH_MODE] || [])].sort(matchOrder);
+export const topMatches = (board, n = 10, day = dayKey()) => matchList(board, day).slice(0, n);
 export function boardCsv(board){
   const rows = [['giorno', 'sfida', 'posizione', 'nickname', 'punteggio', 'ora', 'livello', 'risultato', 'punti vinti']];
   const ora = e => new Date(e.at).toLocaleTimeString('it-IT');
   for (const c of ALL_CHALLENGES) (board?.modes?.[c.id] || []).forEach((e, i) => rows.push([board.day, c.label, i + 1, e.nick, e.score, ora(e), '', '', '']));
-  (board?.modes?.[MATCH_MODE] || []).forEach((e, i) => rows.push([board.day, MATCH_LABEL, i + 1, e.nick, e.score, ora(e), LEVEL_NAME[e.level] || e.level || '',
+  [...(board?.modes?.[MATCH_MODE] || [])].sort(matchOrder).forEach((e, i) => rows.push([board.day, MATCH_LABEL, i + 1, e.nick, e.score, ora(e), LEVEL_NAME[e.level] || e.level || '',
     `${e.win ? 'vinta' : 'persa'} ${e.games?.[0] | 0}-${e.games?.[1] | 0}`, `${e.won | 0} su ${(e.won | 0) + (e.lost | 0)}`]));
   return rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
 }

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { simulate } from '../scripts/audit/rally-balance.mjs';
 import { eventoReset } from '../src/natpf/natpf_evento.js';
 import { newMatch, addShot, addPoint, sideSummary, tipsOf, viewOf, statsHtml, matchScore, timingOf, LEVEL_WEIGHT, SCORE_RULE, MatchStats, installMatchStats } from '../src/natpf/natpf_match_stats.js';
-import { addMatch, topMatches, boardCsv, freshBoard, MATCH_MODE } from '../src/natpf/natpf_events.js';
+import { addMatch, topMatches, boardCsv, freshBoard, MATCH_MODE, MATCH_ORDER_RULE } from '../src/natpf/natpf_events.js';
 import { fingerprint } from '../scripts/audit/fine-partita.mjs';
 
 // partita simulata con le statistiche accese e, accanto, quello che il motore fa davvero: punti (dal motore), scritte dei
@@ -186,12 +186,13 @@ test('B33: classifica delle partite nel tabellone del giorno, nel CSV e azzerata
   b = addMatch(b, { nick: 'Ada', level: 'evento', won: 13, lost: 7, games: [2, 1], win: true }, { day: '2026-11-13', at: 1 }).board;
   const r = addMatch(b, { nick: 'Bea', level: 'leggenda', won: 6, lost: 14, games: [0, 2], win: false }, { day: '2026-11-13', at: 2 });
   b = r.board;
-  assert.equal(r.rank, 1, 'Leggenda al 30% (150) davanti a Evento al 65% (91)');
+  // B34 (decisione dell'utente): prima le vinte, poi le perse; la sconfitta a Leggenda (150) va sotto la vittoria (91)
+  assert.equal(r.rank, 2, 'Leggenda persa (150) sotto Evento vinta (91)');
   const top = topMatches(b, 10, '2026-11-13');
-  assert.deepEqual(top.map(e => [e.nick, e.score, e.level, e.win]), [['Bea', 150, 'leggenda', false], ['Ada', 91, 'evento', true]]);
+  assert.deepEqual(top.map(e => [e.nick, e.score, e.level, e.win]), [['Ada', 91, 'evento', true], ['Bea', 150, 'leggenda', false]]);
   const csv = boardCsv(b);
-  assert.match(csv, /"Partite contro la CPU";"1";"Bea";"150"/);
-  assert.match(csv, /"Partite contro la CPU";"2";"Ada";"91"/);
+  assert.match(csv, /"Partite contro la CPU";"1";"Ada";"91"/);
+  assert.match(csv, /"Partite contro la CPU";"2";"Bea";"150"/);
   assert.ok(b.modes[MATCH_MODE]);
   assert.deepEqual(topMatches(freshBoard(null, '2026-11-13'), 10, '2026-11-13'), [], 'azzerata');
   // revisione finale: oltre le partite tenute (keep) posizione 0 e totale sulla lista tenuta, mai «57° su 57»
@@ -202,6 +203,34 @@ test('B33: classifica delle partite nel tabellone del giorno, nel CSV e azzerata
   assert.ok(!low.board.modes[MATCH_MODE].some(e => e.nick === 'Ultimo'));
   const high = addMatch(c, { nick: 'Primo', level: 'leggenda', won: 9, lost: 1, games: [1, 0], win: true }, { day: '2026-11-13', at: 100, keep: 4 });
   assert.deepEqual([high.rank, high.total], [1, 4]);
+});
+
+test('B34: classifica delle partite, prima tutte le vinte per punteggio poi le perse per punteggio (frase, scheda, CSV)', () => {
+  const day = '2026-11-13';
+  let b = freshBoard(null, day);
+  const rows = [
+    ['PersaLeggenda', 'leggenda', 3, 4, false],   // 214: sopra ogni vittoria per punteggio, ma è persa
+    ['VintaBambini', 'bambini', 4, 2, true],      // 67
+    ['PersaEvento', 'evento', 2, 4, false],       // 47
+    ['VintaEsperta', 'pro', 4, 1, true],          // 128
+    ['PersaLeggenda2', 'leggenda', 1, 4, false],  // 100
+    ['VintaFacile', 'casual', 4, 0, true]];       // 110
+  const ranks = rows.map(([nick, level, won, lost, win], i) => { const r = addMatch(b, { nick, level, won, lost, games: win ? [1, 0] : [0, 1], win }, { day, at: i + 1 }); b = r.board; return [nick, r.rank]; });
+  // posizione nella frase di fine partita = posizione nell'ordine vinte → perse
+  assert.deepEqual(ranks, [['PersaLeggenda', 1], ['VintaBambini', 1], ['PersaEvento', 3], ['VintaEsperta', 1], ['PersaLeggenda2', 4], ['VintaFacile', 2]]);
+  const top = topMatches(b, 10, day);
+  assert.deepEqual(top.map(e => e.nick), ['VintaEsperta', 'VintaFacile', 'VintaBambini', 'PersaLeggenda', 'PersaLeggenda2', 'PersaEvento']);
+  assert.deepEqual(top.map(e => e.score), [128, 110, 67, 214, 100, 47]);
+  const csv = boardCsv(b).split('\n').filter(l => l.includes('Partite contro la CPU')).map(l => l.split(';').slice(2, 4).join(';'));
+  assert.deepEqual(csv, top.map((e, i) => `"${i + 1}";"${e.nick}"`), 'CSV nello stesso ordine');
+  // a parità di vinta e punteggio è prima chi l'ha fatta prima
+  const t = addMatch(b, { nick: 'VintaFacile2', level: 'casual', won: 4, lost: 0, games: [1, 0], win: true }, { day, at: 99 });
+  assert.equal(t.rank, 3);
+  // tabellone di oggi salvato prima del B34 (ordine di solo punteggio): in lettura e nel CSV si riordina
+  const vecchio = { day, modes: { [MATCH_MODE]: [{ nick: 'P', score: 200, at: 1, level: 'leggenda', win: false }, { nick: 'V', score: 90, at: 2, level: 'evento', win: true }] } };
+  assert.deepEqual(topMatches(vecchio, 10, day).map(e => e.nick), ['V', 'P']);
+  assert.match(boardCsv(vecchio), /"1";"V".*\n.*"2";"P"/);
+  assert.equal(MATCH_ORDER_RULE, 'Prima le partite vinte, poi le perse, ognuna per punteggio');
 });
 
 test('B33: sfida tra due computer sul motore vero: l\'host vede i suoi numeri, il Player 2 i suoi dagli snapshot', async () => {
