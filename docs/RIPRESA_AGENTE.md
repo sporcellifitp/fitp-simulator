@@ -1,4 +1,4 @@
-# RIPRESA PER IL PROSSIMO AGENTE · stato al 13/11/2026, 15:45 UTC
+# RIPRESA PER IL PROSSIMO AGENTE · stato al 13/11/2026, 15:55 UTC
 
 Scritto dall'agente principale (orchestratore) quando l'utente ha avvisato del limite d'uso. Leggerlo **dopo**
 `CLAUDE.md` e **prima** di `docs/TRACCIA_PASSI.md` (che resta il diario passo per passo: le sezioni in fondo sono le più
@@ -34,6 +34,27 @@ script del blocco con gli stessi argomenti più `"worktree": "<percorso>"`. Test
 |---|---|---|---|---|---|
 | **B37** collaudo, seconda parte | `wf_63518f90-393` | `b37-collaudo-bis` | `1043c85` | `.claude/worktrees/wf_63518f90-393-1` | Fatti (`bb05e63`): punto 1 (fuori e rete annunciati solo quando la palla tocca terra o la rete), punto 4 (F9 nel programma Windows), punti 2 e 3 avviati (gemma sopra chi serve, riquadro a terra, scritta del segnale del momento giusto), documento in bozza. Mancano rifiniture 2–3, verifiche finali e documento. Compito: `docs/coda/B37-collaudo-bis.md` |
 | **B42** scambi lunghi | `wf_5cbad5b6-b75` | `b42-scambi-lunghi` | `fe6f774` | `.claude/worktrees/wf_5cbad5b6-b75-1` | Fatti (`f17f016`): banco e misure prima, regola nuova (scambio caldo di base, dal 20° colpo, per tutti e due i lati e la CPU). Mancano la scritta piccola «Scambio caldo · colpo N», le misure dopo (audit:legend, impronte, b25, evento-bambini, cpu-pressione), la suite e il documento `docs/b42/scambi-lunghi.md`. Il compito è nell'`args.task` del run (vedi il journal) |
+
+**Aggiornamento delle 15:55 UTC**:
+- B37 è a `bdb56cb`, con 8 commit: punti 1–4 fatti, schermate di chi serve (Classici, Lob & Drop, stesso schermo),
+  scritta del segnale in alto al centro, impronte e Leggenda uguali alla base su due serie di semi. Mancano le
+  verifiche finali e il documento.
+- B42 è a `e5ab4da`, con 3 commit: banco e misure prima, regola nuova, scritta piccola «Scambio caldo · colpo N» e
+  registro. Mancano le misure dopo (audit:legend, impronte, b25, evento-bambini, cpu-pressione), la suite e il
+  documento.
+
+**Se le worktree non ci sono più** (contenitore nuovo), i rami B37 e B42 sono salvati in
+`docs/ripresa/rami-b37-b42.bundle`, verificato con `git bundle verify`. Il lavoro non ancora salvato in commit sta in
+`docs/ripresa/patch/<ramo>/`: `lavoro-non-salvato.diff` e `file-nuovi-non-salvati.tar.gz`. Per ricostruire:
+```sh
+git fetch docs/ripresa/rami-b37-b42.bundle b37-collaudo-bis:b37-collaudo-bis b42-scambi-lunghi:b42-scambi-lunghi
+git worktree add .claude/worktrees/b37 b37-collaudo-bis
+git -C .claude/worktrees/b37 apply "$PWD/docs/ripresa/patch/b37-collaudo-bis/lavoro-non-salvato.diff"
+tar xzf docs/ripresa/patch/b37-collaudo-bis/file-nuovi-non-salvati.tar.gz -C .claude/worktrees/b37
+# lo stesso per b42-scambi-lunghi; poi blocco-singolo con "worktree" = la cartella nuova e un task «RIPRESA»
+```
+Il lavoro non salvato è una fotografia fatta mentre gli agenti lavoravano: va ricontrollato. Questi file servono solo
+alla ripresa: si tolgono quando B37 e B42 sono uniti.
 
 **Lo script dei blocchi**:
 - Percorso: `/root/.claude/projects/-home-user/ba4c6b81-3eda-5b46-9643-f32c32c7e045/workflows/scripts/blocco-singolo.js`.
