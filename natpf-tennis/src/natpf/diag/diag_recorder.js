@@ -261,7 +261,7 @@ export class DiagRecorder {
       // forzaTipo (B15, solo se c'è): la forza sulla scala di prima (typePower), con cui si leggono il tipo di colpo, il colpo
       // super, la schiacciata dal gesto e il colpo potente; forza è quella dell'esito (velocità, profondità)
       if (out && L) R.log('racchetta', { chi: L.who || null, n: L.seq ?? null, voluto: I.shot || null, colpo: O.shot || null, forza: r(I.power, 3), ...(Number.isFinite(I.typePower) ? { forzaTipo: r(I.typePower, 3) } : {}), profondita: r(I.depth, 3), piatto: r(I.face, 3), ricavato: !!I.derived,
-        tempoMs: r(1000*L.timing, 1), tempo: r(O.t, 3), oltre: r(O.excess, 3), qualita: r(O.q, 3), assistito: !!O.assisted, fallito: !!O.failed, rete: !!O.netFault,
+        tempoMs: r(1000*L.timing, 1), tempo: r(O.t, 3), oltre: r(O.excess, 3), ...(O.lag > 0 ? { ritardoAbitualeMs: r(1000*O.lag, 1) } : {}), qualita: r(O.q, 3), assistito: !!O.assisted, fallito: !!O.failed, rete: !!O.netFault,
         // a rete con il tempo perfetto: palla debole invece dell'errore; pressione degli scambi lunghi; causa del colpo
         // debole o fallito («in corsa», «in allungo», «palla veloce», «senza preparazione», «scambio lungo»)
         debole: !!O.weak, pressione: r(L.pressure, 3), causa: L.cause || null,

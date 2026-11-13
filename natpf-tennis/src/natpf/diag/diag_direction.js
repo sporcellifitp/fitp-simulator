@@ -52,7 +52,7 @@ export function directionReport(events = [], { meta = {}, blocks = null } = {}){
     // verso dell'incrociato per chi colpisce: x di segno opposto al contatto. Piatto e tempo «verso l'incrociato» (+)
     const faceX = finite(e.piatto) && c ? -c*Number(e.piatto) : null, timeX = finite(e.tempo) ? Number(e.tempo) : null;
     rows.push({ t: e.t, n: e.n ?? null, voluto: want.direzione, latoVoluto: want.lato, lato: g?.lato || null, ottenuto: gotOf(e), x: r2(e.x), piatto: r2(e.piatto), piattoX: r2(faceX),
-      tempo: r2(e.tempo), tempoMs: r2(e.tempoMs), oltre: r2(e.oltre), mira: r2(e.mira), scarto: r2(g?.scarto), aiuto: r2(e.aiuto), qualita: r2(e.qualita), voto: e.voto || null,
+      tempo: r2(e.tempo), tempoMs: r2(e.tempoMs), oltre: r2(e.oltre), ritardoAbitualeMs: r2(e.ritardoAbitualeMs ?? 0), mira: r2(e.mira), scarto: r2(g?.scarto), aiuto: r2(e.aiuto), qualita: r2(e.qualita), voto: e.voto || null,
       causa: gotOf(e) === 'fuori' || gotOf(e) === 'rete' ? outCause(e) : null });
   }
   const DIRS = ['incrociato', 'centro', 'lungolinea'], GOT = ['incrociato', 'centro', 'lungolinea', 'fuori', 'rete'];
@@ -72,7 +72,7 @@ export function directionReport(events = [], { meta = {}, blocks = null } = {}){
   }
   const all = rows.filter(r => finite(r.tempo)), lateBeyond = all.filter(r => r.tempo < -1).length, earlyBeyond = all.filter(r => r.tempo > 1).length;
   const out = { colpi: rows.length, perVoluto: per, righe: rows,
-    tempoMediano: r2(med(all.map(r => r.tempo))), tempoMsMediano: r2(med(rows.map(r => r.tempoMs))), oltreTardi: pct(lateBeyond, all.length), oltrePresto: pct(earlyBeyond, all.length),
+    tempoMediano: r2(med(all.map(r => r.tempo))), tempoMsMediano: r2(med(rows.map(r => r.tempoMs))), ritardoAbitualeMs: r2(Math.max(0, ...rows.map(r => r.ritardoAbitualeMs || 0))), oltreTardi: pct(lateBeyond, all.length), oltrePresto: pct(earlyBeyond, all.length),
     fuori: pct(rows.filter(r => r.ottenuto === 'fuori' || r.ottenuto === 'rete').length, rows.length),
     segnoGirato: prof?.trialSign === -1, ritardoSchermoMs: meta?.gioco?.ritardoSchermoMs ?? null, difficolta: meta?.gioco?.difficolta ?? null, mira: meta?.gioco?.mira ?? null };
   out.diagnosi = directionNotes(out);
@@ -89,6 +89,7 @@ export function directionNotes(R){
     if (p.tempoGiusto != null && p.tempoGiusto < 30 && p.piattoGiusto >= 50) notes.push(`${d}: il piatto era giusto ma il tempo andava dall’altra parte (mediano ${p.tempoMediano}): ${d === 'incrociato' ? 'colpisci un attimo prima' : 'colpisci un attimo dopo'}.`);
   }
   if (R.segnoGirato) notes.push('Sensori del telefono con il segno al contrario (scambi di prova): dalla correzione B35a anche la direzione del piatto si gira; con una versione precedente incrociato e lungolinea erano scambiati.');
+  if (R.ritardoAbitualeMs > 0) notes.push(`Il gioco ha visto un ritardo abituale (fino a ${R.ritardoAbitualeMs} ms: anche i colpi più in anticipo arrivavano tardi) e lo ha tolto per la direzione e per i fuori; il voto resta sul tempo vero. Se succede a ogni sessione, misura il ritardo dello schermo.`);
   if (R.oltreTardi != null && R.oltreTardi >= 20) notes.push(`${R.oltreTardi} % dei colpi oltre la finestra in ritardo (tempo mediano ${R.tempoMediano}, ${R.tempoMsMediano} ms): la palla va lungolinea e poi fuori di lato. Se succede a ogni sessione, misura il ritardo dello schermo (pannello della diagnostica, «Ritardo dello schermo», ora ${R.ritardoSchermoMs ?? 0} ms).`);
   if (R.oltrePresto != null && R.oltrePresto >= 20) notes.push(`${R.oltrePresto} % dei colpi oltre la finestra in anticipo: la palla va incrociata e poi fuori di lato. Aspetta la palla un attimo di più.`);
   if (R.fuori != null && R.fuori >= 15){

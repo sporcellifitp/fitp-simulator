@@ -3,7 +3,9 @@
 // il banco scripts/audit/direzione-telefono.mjs e corrette:
 //   1. sensori con l'accelerazione al contrario (verso girato dagli scambi di prova o dal voto del telefono): si girava il
 //      verso del colpo ma non la direzione del piatto, e la mira restava specchiata (incrociato ↔ lungolinea);
-//   2. centro della mira che inseguiva una mira tenuta: dal settimo incrociato di fila la palla andava al centro.
+//   2. centro della mira che inseguiva una mira tenuta: dal settimo incrociato di fila la palla andava al centro;
+//   3. ritmo in ritardo troppo corto: chi colpisce sempre un poco tardi (schermo in ritardo non misurato) mandava tutto
+//      lungolinea e fuori di lato (natpf_stroke_outcome.RHYTHM, insideLate e lagMax).
 // Qui: le regole pure (signedSwing, swingMessage, profilo imparato, centro della mira) e la catena del telefono simulato per
 // ogni combinazione di mano, colpo, calibrazione e segno dei sensori.
 import test from 'node:test';
@@ -13,6 +15,7 @@ import { createAimModel, AIM } from '../src/natpf/natpf_gestures.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { rng } from './phone-sim.mjs';
 import { CALS, stroke, serie, match, matrix } from '../scripts/audit/direzione-telefono.mjs';
+import { createRhythm, strokeOutcome, RHYTHM } from '../src/natpf/natpf_stroke_outcome.js';
 
 test('signedSwing: con il segno −1 si girano insieme verso, mira del gesto, polso, direzione del piatto e piatto; con +1 niente', () => {
   const s = { dir: 1, aim: .3, twist: -.2, heading: 14.5, face: { yaw: 12, pitch: 5, roll: 1, aim: .28 }, peak: 700, shape: { rise: .2 } };
@@ -137,4 +140,70 @@ test('analisi della sessione registrata: voluto → ottenuto, piatto e tempo nel
   assert.equal(B.perVoluto.incrociato.piattoGiusto, 100, 'rovescio del destro: piatto a destra = verso l\'incrociato');
   assert.match(B.diagnosi.join(' '), /segue il gesto/);
   assert.equal(directionReport(ev2).colpi, 0, 'senza prova guidata né blocchi: nessun voluto');
+  // ritardo abituale tolto dal gioco (B35a): la frase lo dice
+  t = 0; const ev3 = [];
+  for (let i = 0; i < 3; i++) ev3.push(k({ n: i, lato: 1, piatto: -.5, tempo: -1.1, tempoMs: -90, ritardoAbitualeMs: i ? 70 : 0, x: -2.4, z: -9.6 }));
+  const C = directionReport(ev3, { blocks: 'di' });
+  assert.equal(C.ritardoAbitualeMs, 70); assert.match(C.diagnosi.join(' '), /ritardo abituale \(fino a 70 ms/);
+  assert.ok(!/ritardo abituale/.test(B.diagnosi.join(' ')));
+});
+
+// 3. ritmo in ritardo. Palla a 18 m/s: finestra in ritardo 1,4/18 = 0,078 s, in anticipo 0,15 s (Pro)
+test('ritardo abituale: si misura in secondi, solo se anche i colpi più in anticipo sono in ritardo, da 8 colpi; il ritmo di sempre non cambia', () => {
+  const late = 1.4/18, feed = (r, secs) => { for (const s of secs) r.add(s >= 0 ? s/.15 : s/late, s); return r; };
+  // schermo in ritardo di circa 95 ms: tutti i colpi in ritardo, anche quelli voluti in anticipo
+  const lagged = [-.095, -.07, -.12, -.09, -.1, -.065, -.11, -.085, -.1, -.09];
+  const r = feed(createRhythm(), lagged.slice(0, 7));
+  assert.equal(r.lag, 0, 'servono almeno 8 colpi');
+  feed(r, lagged.slice(7));
+  assert.ok(r.lag > .06 && r.lag <= RHYTHM.lagMax, `ritardo ${r.lag}`);
+  assert.ok(r.value < -RHYTHM.max, `con il ritardo la direzione si misura attorno alla mediana vera (con i colpi oltre 1,3 unità): ${r.value}`);
+  // chi va lungolinea apposta colpendo tardi, con qualche colpo in tempo o in anticipo: nessun ritardo
+  const mixed = feed(createRhythm(), [-.095, -.07, -.12, .02, -.1, -.065, -.11, .05, -.1, -.09]);
+  assert.equal(mixed.lag, 0, 'due colpi in anticipo su dieci: non è uno schermo in ritardo');
+  // chi sbaglia molto il tempo (bambino, ±0,14 s attorno a 0): nessun ritardo
+  const R = rng(5), noisy = createRhythm();
+  for (let i = 0; i < 200; i++){ const s = Math.max(-.14, Math.min(.4, (R() + R() + R() - 1.5)*.28)); noisy.add(s >= 0 ? s/.15 : s/late, s); assert.equal(noisy.lag, 0, `colpo ${i}`); }
+  // senza i secondi (vecchio richiamo) il ritardo non si misura e il ritmo è quello di sempre
+  const old = createRhythm(); for (const s of lagged) old.add(s/late);
+  assert.equal(old.lag, 0); assert.equal(old.value, -RHYTHM.max);
+  // in anticipo tutto come prima
+  const e = createRhythm(); for (let i = 0; i < 10; i++) e.add(1.2, .18);
+  assert.equal(e.value, RHYTHM.max); assert.equal(e.lag, 0);
+  e.add(1.5, .225); assert.equal(e.count, 10 > RHYTHM.keep ? RHYTHM.keep : 10, 'oltre 1,3 unità in anticipo non conta, come prima');
+});
+
+test('ritardo abituale nell\'esito: la palla va al centro e non viene spinta fuori; voto e qualità sul tempo vero; senza ritardo identico a prima', () => {
+  const lv = { name: 'pro', timingSpan: .15 }, vz = 18, late = 1.4/vz;
+  // dritto del destro (contatto +1): lungolinea = x positiva; colpo 1,4 finestre in ritardo (109 ms)
+  const at = (u, rhythm, rhythmLag = 0) => strokeOutcome({ intent: { shot: 'topspin', power: .6 }, timing: u*late, lateSpan: late, ballVz: vz, contact: 1, hitX: .6, quality: .9, rhythm, rhythmLag, level: lv });
+  const before = at(-1.4, -RHYTHM.max), learned = at(-1.4, -1.4*RHYTHM.gain, 1.4*late*RHYTHM.gain);
+  assert.ok(before.x > 2.5 && before.excess > .3 && before.assist === 0, `senza ritardo abituale: lungolinea, oltre la finestra e senza assistenza ${JSON.stringify({ x: before.x, ex: before.excess, as: before.assist })}`);
+  assert.ok(Math.abs(learned.x) < 1.25 && learned.excess === 0 && learned.assist === 1, `con il ritardo abituale: al centro, dentro la finestra ${JSON.stringify({ x: learned.x, ex: learned.excess, lag: learned.lag })}`);
+  assert.equal(learned.grade, before.grade, 'il voto resta sul tempo vero'); assert.equal(learned.t, before.t); assert.equal(learned.q, before.q, 'la qualità del tempo resta sul tempo vero');
+  assert.ok(Math.abs(learned.lag - 1.4*late*RHYTHM.gain) < 1e-3, `${learned.lag}`);
+  // attorno al proprio tempo le tre direzioni ci sono ancora: prima del solito incrociato, dopo il solito lungolinea
+  const rh = -1.4*RHYTHM.gain, lag = 1.4*late*RHYTHM.gain;
+  assert.ok(at(-1.4 + 1.2, rh, lag).x < -1.25, `prima del solito: incrociato ${at(-.2, rh, lag).x}`);
+  assert.ok(at(-1.4 - .7, rh, lag).x > 1.25, `dopo il solito: lungolinea ${at(-2.1, rh, lag).x}`);
+  // tetto del ritardo tolto (lagMax 0,1 s): un colpo 3 finestre in ritardo (233 ms) resta oltre la finestra
+  const far = at(-3, -RHYTHM.lateMax, 1);
+  assert.ok(Math.abs(far.lag - RHYTHM.lagMax) < 1e-9 && far.excess > .6, `tetto ${JSON.stringify({ lag: far.lag, ex: far.excess })}`);
+  // senza ritardo abituale: esito identico alla regola di prima (direzione t − ritmo entro ±0,6, spinta sul tempo vero)
+  for (const [u, r2] of [[.5, .5], [0, .5], [1.6, .4], [-1.6, 0], [-1.4, -.6], [-1.4, -1.2], [.3, 0]]){
+    const o = at(u, r2), ref = at(u, Math.max(-RHYTHM.max, r2));
+    assert.equal(o.lag, 0); assert.equal(o.excess, +Math.max(0, Math.abs(o.t) - 1).toFixed(3), `${u} ${r2}`); assert.equal(o.x, ref.x, `${u} ${r2}`);
+  }
+  // mancino (contatto −1): lo stesso, allo specchio
+  const L = strokeOutcome({ intent: { shot: 'topspin', power: .6 }, timing: -1.4*late, lateSpan: late, ballVz: vz, contact: -1, hitX: -.6, quality: .9, rhythm: rh, rhythmLag: lag, level: lv });
+  assert.ok(Math.abs(L.x + learned.x) < 1e-6, `${L.x} ${learned.x}`);
+});
+
+test('nel motore (banco): con il tempo sempre 1,2 finestre in ritardo il gesto buono non esce quasi mai e l\'incrociato voluto resta incrociato', () => {
+  const rows = [];
+  for (const hand of ['right', 'left']) for (const seed of [1, 2]) rows.push(...match({ cal: 'prova', hand, seed, n: 2, model: 'naturale', noise: 'buono', late: -1.2 }).rows);
+  const M = matrix(rows);
+  assert.ok(M.fuori <= 8, `fuori o in rete ${M.fuori}% (prima della regola 24%)`);
+  assert.ok(M.m.cross.cross >= 50 && M.m.cross.line <= 5, `incrociato voluto: ${JSON.stringify(M.m.cross)} (prima 28% incrociati e 20% lungolinea)`);
+  assert.ok(M.m.line.line >= 60, `lungolinea voluto: ${JSON.stringify(M.m.line)}`);
 });

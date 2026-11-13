@@ -225,18 +225,46 @@ export const directionSpan = level => assistOf(level).span || level?.timingSpan 
 // prima del solito incrociata, dopo il solito lungolinea. Il voto (anticipo, perfetto, ritardo) resta sul tempo vero.
 // Diagnostica del 28/10 sera: chi gioca colpiva quasi sempre in anticipo (mediana +0,51 unità): 9 incrociati, 3 al centro
 // e un solo lungolinea su 13, e il lungolinea voluto non usciva mai
-export const RHYTHM = Object.freeze({ keep: 8, min: 4, gain: .8, max: .6, inside: 1.3 });
+// B35a (collaudo del 13/11: «dritto incrociato → lungolinea» e «molti colpi uscivano»): il RITARDO ABITUALE. Il tempo è
+// in unità della finestra e la finestra in ritardo (lateSpanOf: la palla passa il corpo) è circa metà di quella in
+// anticipo: con il tetto di ±0,6 unità il ritmo prendeva fino a circa 90 ms di anticipo ma solo 40 ms di ritardo, e i
+// colpi oltre 1,3 unità in ritardo non contavano. Chi colpisce SEMPRE un poco tardi (schermo in ritardo non misurato:
+// televisore, programma Windows) mandava tutto lungolinea e, oltre la finestra, fuori di lato dalla parte del lungolinea
+// (banco scripts/audit/direzione-telefono.mjs --fuori, tempo −1,2 finestre: 25% fuori o in rete con il gesto buono).
+// Un ritardo dello schermo sposta TUTTI i colpi, anche quelli voluti incrociati o al centro; chi va lungolinea apposta
+// colpendo tardi ha anche colpi in tempo o in anticipo. Per questo il ritardo abituale si misura in SECONDI (le unità
+// cambiano con la palla e, a Leggenda, si stringono negli scambi lunghi) e solo se anche i colpi più in anticipo sono in
+// ritardo: sugli ultimi lagKeep colpi (fino a insideLate unità in ritardo, cioè tutta la finestra d'impatto; da lagMin
+// colpi, con meno il caso di chi sbaglia molto il tempo sembra un ritardo) il 90° percentile (lagQ: il colpo più in
+// anticipo dopo il primo) deve essere oltre lagFrom secondi in ritardo, per intero da lagFrom + lagRamp. Il ritardo è la
+// mediana × gain (al massimo lagMax): sposta la finestra per la direzione, la spinta oltre la finestra e l'assistenza
+// (strokeOutcome, rhythmLag), e la direzione si misura attorno al ritmo vero (mediana con i colpi in ritardo). Il voto
+// (anticipo, perfetto, ritardo) e la qualità del tempo restano sul tempo vero. Senza ritardo abituale tutto resta com'era,
+// colpo per colpo (i profili simulati dei banchi non lo attivano mai: scripts/audit/direzione-telefono.mjs --fuori).
+export const RHYTHM = Object.freeze({ keep: 8, min: 4, gain: .8, max: .6, inside: 1.3, insideLate: 2.2, lateMax: 2.2, lagQ: .9, lagKeep: 10, lagMin: 8, lagFrom: .045, lagRamp: .03, lagMax: .1 });
+const quantile = (a, q) => { const s = [...a].sort((x, y) => x - y), k = (s.length - 1)*q, i = Math.floor(k); return s[i] + (s[Math.min(s.length - 1, i + 1)] - s[i])*(k - i); };
 export function createRhythm(){
-  const h = [];
+  const h = [], hl = [], hs = [];
+  const push = (a, v, n = RHYTHM.keep) => { a.push(v); if (a.length > n) a.shift(); };
+  const lagOf = () => { if (hs.length < RHYTHM.lagMin) return 0; const q = -quantile(hs, RHYTHM.lagQ); return q > RHYTHM.lagFrom ? Math.min(RHYTHM.lagMax, clamp((q - RHYTHM.lagFrom)/RHYTHM.lagRamp)*Math.max(0, -quantile(hs, .5))*RHYTHM.gain) : 0; };
   return {
-    add(t){ if (Number.isFinite(t) && Math.abs(t) <= RHYTHM.inside){ h.push(t); if (h.length > RHYTHM.keep) h.shift(); } },
+    // t: tempo in unità della finestra (+ anticipo), secs: lo stesso in secondi (senza, il ritardo abituale non si misura)
+    add(t, secs = NaN){
+      if (!Number.isFinite(t)) return;
+      if (Math.abs(t) <= RHYTHM.inside) push(h, t);
+      if (t <= RHYTHM.inside && t >= -RHYTHM.insideLate){ push(hl, t); if (Number.isFinite(secs)) push(hs, secs, RHYTHM.lagKeep); }
+    },
+    // ritmo per la direzione (unità): come sempre; con un ritardo abituale, la mediana con i colpi in ritardo (fino a −lateMax)
     get value(){
+      if (lagOf() > 0) return clamp(quantile(hl, .5)*RHYTHM.gain, -RHYTHM.lateMax, RHYTHM.max);
       if (h.length < RHYTHM.min) return 0;
       const s = [...h].sort((a, b) => a - b), m = s.length >> 1, med = s.length % 2 ? s[m] : (s[m - 1] + s[m])/2;
       return clamp(med*RHYTHM.gain, -RHYTHM.max, RHYTHM.max);
     },
+    // ritardo abituale (s, ≥ 0): 0 se i colpi più in anticipo (90° percentile) sono entro lagFrom secondi
+    get lag(){ return lagOf(); },
     get count(){ return h.length; },
-    reset(){ h.length = 0; },
+    reset(){ h.length = 0; hl.length = 0; hs.length = 0; },
   };
 }
 
@@ -266,14 +294,14 @@ export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.
 // dice da che parte va la palla in anticipo; hitX: posizione laterale della palla all'impatto (m, riferimento di chi
 // colpisce, + a destra); quality: la situazione di chi colpisce, allungo × corsa × preparazione × palla veloce (0…1);
 // pressure: pressione degli scambi lunghi (rallyPressure, 0…1); rhythm: tempo abituale di chi gioca (createRhythm, unità):
-// la direzione si misura attorno a questo; contactY: altezza della palla all'impatto; volley: presa
+// la direzione si misura attorno a questo; rhythmLag: ritardo abituale (createRhythm().lag, B35a); contactY: altezza della palla all'impatto; volley: presa
 // al volo; net: chi colpisce è a rete (entro 5 m dalla rete, anche dopo il rimbalzo); level: parametri del livello.
 // Restituisce, nel riferimento di chi colpisce (x a destra, depth in avanti dalla rete): { x, depth, clear, topspin,
 // flight (solo pallonetto e schiacciata), netFault, failed, weak, pressured, grade, cursor, t, excess, q, aim, x0,
 // assist, assisted }.
 // touch (B18.2 passo 3): la situazione che conta per la palla corta (come quality ma senza la preparazione: un tocco non
 // chiede di portare indietro il braccio); senza, vale quality.
-export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, touch = quality, pressure = 1, rhythm = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, touch = quality, pressure = 1, rhythm = 0, rhythmLag = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
   const O = OUTCOME;
   let shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
@@ -289,7 +317,15 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // tempo in unità della finestra della direzione (+ anticipo). Oltre ±1 la palla continua ad andare verso l'esterno
   // fino alla fine della finestra d'impatto (prima si fermava a 1,6 unità: nell'ultimo 40% della finestra tutte le
   // palle uguali). ±4 è oltre ogni finestra d'impatto, solo per sicurezza
-  const c = finite(contact, 1) >= 0 ? 1 : -1, t = clamp(finite(timing) >= 0 ? finite(timing)/span : finite(timing)/late, -4, 4), inside = clamp(t, -1, 1), excess = Math.max(0, Math.abs(t) - 1);
+  // B35a: ritmo in ritardo (RHYTHM): «lag» secondi di ritardo abituale (al massimo lagMax) spostano la finestra per la
+  // direzione, la spinta oltre la finestra e l'assistenza (te); il voto e la qualità del tempo restano su t, il tempo vero.
+  const unitsOf = s => clamp(s >= 0 ? s/span : s/late, -4, 4);
+  const c = finite(contact, 1) >= 0 ? 1 : -1, t = unitsOf(finite(timing)), inside = clamp(t, -1, 1);
+  // rhythmLag: ritardo abituale (createRhythm().lag, s, al massimo lagMax); il resto del ritmo (rRest) conta per la
+  // direzione come sempre. Senza ritardo abituale (0) tutto resta com'era
+  const lag = clamp(finite(rhythmLag), 0, RHYTHM.lagMax);
+  const te = lag > 0 ? unitsOf(finite(timing) + lag) : t, excess = Math.max(0, Math.abs(te) - 1);
+  const rRest = clamp(clamp(finite(rhythm), -RHYTHM.lateMax, RHYTHM.max) + lag/late, -RHYTHM.max, RHYTHM.max);
   const qs = clamp(timingQualityOf(t)*clamp(finite(quality, 1)), .2, 1), q = clamp(qs*clamp(finite(pressure, 1)), .2, 1);
   // qualità sotto failQ: fallito (in corsa, in allungo, palla veloce, sotto pressione); a rete, per la sola situazione e fino a
   // netQSpan sotto, colpo controllato con dispersione (B17.4) invece della palla debole uguale per tutti i gesti
@@ -314,9 +350,10 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   const sideHold = netHold ? Math.max(assist, clamp(1 - excess/O.assistFade)) : assist;
   // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
   // tempo neutro) e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
-  const aimT = clamp(t - clamp(finite(rhythm), -RHYTHM.max, RHYTHM.max), -1, 1);   // tempo rispetto al proprio ritmo
+  // tempo rispetto al proprio ritmo (B35a: la parte del ritmo in ritardo che è diventata un ritardo è già tolta in te)
+  const aimT = clamp(te - rRest, -1, 1);
   const aim = -c*O.natural*(1 - Math.abs(aimT)) - c*aimT*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
-  const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(t)*excess*finite(AS.pushOut, O.pushOut) + (controlled ? seedUnit(seed, 0)*O.netSpread.x*spread : 0);
+  const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(te)*excess*finite(AS.pushOut, O.pushOut) + (controlled ? seedUnit(seed, 0)*O.netSpread.x*spread : 0);
   const xa = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*sideHold;
   const x = Math.abs(xa) <= O.sideLine ? xa : Math.sign(xa)*(O.sideLine + softEdge(Math.abs(xa) - O.sideLine, O.outKnee, O.outMax));
   // profondità: voluta (forza e ampiezza dello swing), meno per la qualità che manca e il tempo oltre la finestra
@@ -379,6 +416,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   }
   return { x: +x.toFixed(3), depth: +depth.toFixed(3), clear: +lift.toFixed(3), topspin: +topspin.toFixed(2), flight: flight == null ? null : +flight.toFixed(3),
     netFault, failed, weak, pressured, attack: attacked, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3),
+    lag: +lag.toFixed(3),    // B35a: ritardo abituale (s) tolto dal ritmo in ritardo (0 se non c'è)
     aim: +aim.toFixed(3), x0: +x0.toFixed(3), assist: +assist.toFixed(3), assisted: assist >= .5, shot,
     // B17.4: colpo controllato a rete (qualità di situazione sotto failQ, dispersione «spread» 0…1) e volée controllata al posto
     // della palla corta per forma
