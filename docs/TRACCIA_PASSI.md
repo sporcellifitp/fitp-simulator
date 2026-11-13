@@ -435,7 +435,7 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
     (amatore, errori della CPU 1,9% su 2–6%). Chiesto all'utente se la vuole lo stesso. Per rimetterla: `git revert e5fa4bd`.
   → **versione 2026-11-13.6** (`65817db`): controllo rapido gioco 1416/1416, sito 226/226, Windows 42/42, build ok,
     `audit:legend` tutti i criteri OK; zip 23.841.154 B, sha256 `ff0ec72cf410e17b345b62c29f7eb9439961aa22b7c535106bbfef817dc36472`;
-    installer: `scratchpad/attesa-installer.sh`. Installer della 13.5 verificato: 128.086.155 B, sha256
+    **installer pubblicato su R2** e verificato: 128070648 B, sha256 `07f526cae924c01c624f326579b71a21a9017bac392c24daa8d3d9d8e05e10d4`. Installer della 13.5 verificato: 128.086.155 B, sha256
     `22e4d307e0336e6a33e3356f3b0f6b43b2b64346ce24eee1bf533611247933a7`.
   → prove complete: quelle della 13.5 si sono fermate al riavvio del processo (verdi fino a fine partita 34/34); rifatte
     sulla 13.6: `scratchpad/v1113f/prove.sh` → `prove.txt`.
