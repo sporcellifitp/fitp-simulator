@@ -5,9 +5,10 @@
 //   FLOW=singolo (predefinito)  menu → Gioca → Contro la CPU → Smartphone → telefono («Attiva i sensori», «Tutto chiaro»
 //                 dalla PRIMA scheda) → scambi di prova → «Pronto per la partita» → pagina «Pronto per la partita» con
 //                 «Chi gioca», «Personaggi» e «Altre impostazioni» (B35, collaudo dell'utente del 13/11: prima la partita
-//                 partiva da sola) → «Gioca» → partita da 0-0; «Ricalibra» dalla pausa a partita in corso → scambi di
-//                 prova e punto rigiocato (la stessa partita); poi menu → «Gioca» → di nuovo gli scambi di prova da capo
-//                 (molte persone, un telefono) → pagina → «Gioca» → seconda partita
+//                 partiva da sola; «Ricalibra» dalla pagina: di nuovo gli scambi di prova da capo e la pagina) → «Gioca» →
+//                 partita da 0-0; «Ricalibra» dalla pausa a partita in corso → scambi di prova e punto rigiocato (la
+//                 stessa partita); poi menu → «Gioca» → di nuovo gli scambi di prova da capo (molte persone, un
+//                 telefono) → pagina → «Gioca» → seconda partita
 //   FLOW=stesso   Gioca → Stesso schermo → due telefoni → conto alla rovescia → scambi di prova per tutti e due → partita
 //   HAND=left     mancino (la mano si sceglie nel gioco: la prima palla va alla sua sinistra, sul dritto)
 //   HITS=all|none|one   chi gioca colpisce tutte le palle, nessuna (la partita parte lo stesso allo scadere), una per lato
@@ -174,6 +175,20 @@ try {
     // di quando gli scambi partivano da «Gioca», con il telefono già pronto)
     if (!SHOTS) check(`dalla scritta degli scambi di prova alla pagina «Pronto per la partita»: ${secs.toFixed(1)} s (${HITS === 'all' ? 'circa 10–17' : 'tetto circa 22'})`, HITS === 'all' ? secs >= 6 && secs <= 17.5 : secs <= 23, JSON.stringify(r.log));
     await sleep(500); await shot('pc', 'pronto-dopo-scambi'); await shot('tel1', 'pronto');
+    if (HITS === 'all' && !process.env.SHORT){
+      // B35: «Ricalibra» dal pannello del telefono sulla pagina: di nuovo gli scambi di prova, poi di nuovo la pagina
+      await pc.evaluate(() => __natpfTennis.natpfUi.openPhone());
+      await until(pc, () => { const b = document.getElementById('natpf-phone-recal'); return b && !b.classList.contains('hidden') && b.offsetParent !== null; }, null, 5000);
+      await pc.click('#natpf-phone-recal');
+      const recalOn = await until(pc, () => __natpfTennis.natpfUi.trial.active && !__natpfTennis.natpfUi.lobby.visible && !(__natpfTennis.natpfMatchSeq > 0), null, 5000);
+      // (il profilo da capo è una richiesta al telefono: arriva dopo un attimo, prima della prima palla)
+      const freshOk = await until(pc, () => { const P = __natpfTennis.natpfPhone; return !!P.profile?.simple && P.typicalModel.value == null && P.typicalModel.seen.length === 0; }, null, 4000);
+      const fresh0 = await pc.evaluate(() => { const P = __natpfTennis.natpfPhone, T = __natpfTennis.natpfUi.trial; return { simple: !!P.profile?.simple, typical: P.typicalModel.value, seen: P.typicalModel.seen.length, balls: T.S?.players?.p1?.balls ?? null, panel: !document.getElementById('natpf-phone-modal').classList.contains('hidden') }; });
+      check('B35: «Ricalibra» sulla pagina «Pronto per la partita» → di nuovo gli scambi di prova, profilo del telefono da capo, pannello chiuso (la partita non parte)', recalOn && freshOk && !fresh0.panel, JSON.stringify(fresh0));
+      const rr = await playTrial({ tel1: ph }, () => true, { shots: false });
+      const again0 = await until(pc, () => { const L = __natpfTennis.natpfUi.lobby; return L.visible && L.step === 'match' && !__natpfTennis.natpfUi.trial.active && !(__natpfTennis.natpfMatchSeq > 0); }, null, 10000);
+      check('   poi di nuovo la pagina «Pronto per la partita», colpo reimparato', again0 && (await gameInfo()).p1.level === 'full', JSON.stringify(rr.log));
+    }
     // «Gioca» → la partita parte subito, senza altri scambi
     const tGo = Date.now();
     await pc.click('#btn-start-match');
