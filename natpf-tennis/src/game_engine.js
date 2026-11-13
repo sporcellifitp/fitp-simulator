@@ -834,7 +834,7 @@ export class NatpfTennisEngine {
   endSplit() {
     if (!this.natpfSplit?.active) return;
     this.natpfSplit.active = !1;
-    this.natpfHot = !1; // B20 (revisione): lo «scambio che si scalda» vale solo nello stesso schermo
+    this.natpfHot = !1; // B20 (revisione): finito lo stesso schermo lo «scambio che si scalda» si spegne; B42: si ridecide a inizio partita (startNewMatch)
     this.natpfDuo = null; // B25: anche le regole dello stesso schermo (natpf_duo_rules.js)
     (this.versus = { active: !1, closing: !1 }), (this.isMultiplayer = !1), (this.pendingP2Swing = null);
     this._natpfClearP2Hand();
@@ -1237,8 +1237,9 @@ export class NatpfTennisEngine {
       // sfida tra due computer resta il formato classico finché lo staff non sceglie «Sì»
       (this.score.fair = this.playerRole === "p2" && this.isMultiplayer ? !1 : typeof this.natpfFair == "boolean" ? this.natpfFair : NF.readFairFormat({ split: !!this.natpfSplit?.active })),
       (this.score.gameServer = this.score.server),
-      // B20: «scambio che si scalda» (natpf_hot_rally.js), opzione dello staff spenta di base, decisa a inizio partita:
-      // solo tra due persone nello stesso schermo con i due telefoni (natpfHotRally a mano per i test e le simulazioni)
+      // «scambio che si scalda» (natpf_hot_rally.js), deciso a inizio partita. B42: acceso di base (lo staff lo spegne dal
+      // pannello dello stand) in tutti i modi, tranne la webcam per due; sul computer del P2 della sfida tra due computer
+      // lo manda l'host con lo snapshot (natpfHotRally a mano per i test e le simulazioni)
       (this.natpfHot = NH.hotRallyFor({ split: !!this.natpfSplit?.active, webcam: !!this.natpfUi?.split?.webcam, forced: this.natpfHotRally })),
       // B25: regole della partita tra due persone nello stesso schermo (natpf_duo_rules.js), decise a inizio partita:
       // lancio automatico e campo aperto (opzioni dello staff, spente di base), colpo super sulla forza relativa,
@@ -2347,21 +2348,30 @@ export class NatpfTennisEngine {
       natpfRun = NM.runProfile(this, p),
       Q = { reach: NS.reachQuality(lateral, running), prep: duo?.noPrep ? 1 : NS.prepQuality(e.natpf), stretch: !this.isDoubles && (p === this.player || p === this.opponent) ? NI.stretchQuality(this, p) : 1, pace },
       quality = Q.reach * Q.prep * Q.stretch * Q.pace,
-      pressure = NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
+      pressure0 = NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
+      // B42: con lo scambio caldo, dal 20° colpo la pressione cresce di più (NH.hotPressure; 1 esatto prima e se spento):
+      // toglie qualità come la pressione di sempre, ma non stringe la finestra del tempo di Leggenda (strokeOutcome, hotPress)
+      hotPress = NH.hotPressure(b.rallyStrokeCount + 1, this.natpfHot),
+      pressure = pressure0 * hotPress,
       volley = b.bounceCountOnCurrentSide === 0 && Math.abs(p.pos.z) < 9;
     const shortBall = b.bounceCountOnCurrentSide > 0 && b.rallyStrokeCount > 1 && Math.abs(b.targetLanding.z) <= 6.4 && Math.abs(b.pos.z) <= 7;
     // ritmo di chi colpisce (natpf_stroke_outcome.createRhythm): la direzione si misura attorno al suo tempo abituale
     const rhythms = (this.natpfRhythm ||= { player: NO.createRhythm(), p2: NO.createRhythm() }), rhythm = rhythms[toward === 1 ? "p2" : "player"];
-    let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, ballVz: b.vel.z, contact, hitX, hitZ: Math.abs(b.pos.z), quality, touch: Q.reach * Q.stretch * Q.pace, pressure, rhythm: rhythm.value, rhythmLag: rhythm.lag, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
+    let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, ballVz: b.vel.z, contact, hitX, hitZ: Math.abs(b.pos.z), quality, touch: Q.reach * Q.stretch * Q.pace, pressure: pressure0, hotPress, rhythm: rhythm.value, rhythmLag: rhythm.lag, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
     rhythm.add(out.t, e.natpfTau);
     out = ND.helpOutcome(out, help); // B25: lo stesso oggetto senza aiuto
     // NATPF: colpo super potente (natpf_stroke_outcome.superShot): gesto fortissimo, naturale, a tempo, su una palla alta,
     // lenta o corta → in fondo, più piatto e molto più veloce; l'avversario lo legge in ritardo (ball.natpfSuper)
     // B25: tra due persone «gesto fortissimo» è rispetto al proprio colpo abituale (ND.relStrong; null: regola di sempre);
     // per chi è aiutato può bastare un po' meno (help.superRatio). Le altre condizioni del super non cambiano
-    const sup = NO.superShot({ intent, out, contact, ballSide: dx, contactY: b.pos.y, ballVz: b.vel.z, shortBall, strong: duo?.superRel ? ND.relStrong(e, help?.superRatio) : null });
+    // B42: scambio caldo (natpf_hot_rally.hotSuper): dal 20° colpo il super è via via più facile, uguale per tutti e due
+    // (gesto un po' meno forte, anche rispetto al proprio colpo, tempo meno preciso, senza la pressione degli scambi
+    // lunghi, poi ogni palla); prima del 20° colpo e con l'opzione spenta hotSup è null e tutto resta com'era
+    const hotSup = NH.hotSuper(b.rallyStrokeCount + 1, this.natpfHot, pressure);
+    const sup = NO.superShot({ intent, out, contact, ballSide: dx, contactY: b.pos.y, ballVz: b.vel.z, shortBall, ease: hotSup,
+      strong: duo?.superRel ? ND.relStrong(e, hotSup ? NH.hotRatio(help?.superRatio ?? ND.superTuning.ratio ?? ND.SUPER_REL.ratio, hotSup) : help?.superRatio) : null });
     if (sup.on) out = { ...out, depth: Math.max(out.depth, NO.SUPER.minDepth), clear: S.NET_HEIGHT_CENTER + NO.SUPER.netGap, topspin: out.shot === "SMASH" ? out.topspin : NO.SUPER.topspin };
-    // B20: «scambio che si scalda» (opzione dello staff, natpf_hot_rally.js): dal 10° colpo i colpi normali passano via via
+    // B20/B42: «scambio che si scalda» (natpf_hot_rally.js, acceso di base dal B42): dal 20° colpo i colpi normali passano via via
     // più bassi e più carichi, cioè più veloci, uguale per il P1 e per il P2. Spenta: lo stesso oggetto di prima
     else out = NH.hotOutcome(out, b.rallyStrokeCount + 1, this.natpfHot, S.NET_HEIGHT_CENTER);
     // colpo fallito o debole: la causa che pesa di più, per il messaggio del colpo e la diagnostica
@@ -2386,7 +2396,7 @@ export class NatpfTennisEngine {
       // B15 (08/11): il tetto della velocità del motore base era 1,2 (forza da 0,56 in su: stesso volo base 0,70 s, la
       // palla più forte solo per l'altezza minore sulla rete; banco colpi.mjs: gesto 0,6× → 1,4× del proprio colpo
       // 82 → 119 km/h, ×1,45). Ora 1,5: a forza piena 0,58 s (il minimo di sempre), a 0,74 0,63 s (era 0,70)
-      // B20: con lo «scambio che si scalda» acceso, dal 10° colpo il volo si accorcia ancora a ogni colpo, uguale per il
+      // B20/B42: con lo «scambio che si scalda» acceso, dal 20° colpo il volo si accorcia ancora a ogni colpo, uguale per il
       // P1 e per il P2 (NH.hotFlight; spento il fattore è 1 esatto)
       const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015) * NH.hotFlight(b.rallyStrokeCount + 1, this.natpfHot),
         base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.5, (0.8 + intent.power * 0.85) * 0.94)) * K;
@@ -2748,10 +2758,19 @@ export class NatpfTennisEngine {
     const d = this.ball.pos.clone(), natpfSmashC = this.natpfCpuShot?.kind === "smash";
     (d.y = Math.max(0.82, Math.min(natpfSmashC ? 2.9 : 1.68, d.y))), this.ball.pos.copy(d);
     // NATPF varietà: altezza sulla rete e top spin dal tipo di colpo e dalla forza (prima: top spin fisso 13 per tutti)
-    let natpfSpin = y === "SLICE" ? -5 : y === "LOB" ? 5 : 13;
+    let natpfSpin = y === "SLICE" ? -5 : y === "LOB" ? 5 : 13,
+      natpfNetClear = null;
     if (natpfArc && y !== "LOB") {
       const A = NS.shotArc({ shot: natpfArc.shot, power: natpfArc.power, fromY: d.y, fromZ: d.z, toZ: c, flight: f });
-      (f = A.flight), (natpfSpin = A.topspin);
+      // B42: scambio caldo (natpf_hot_rally.js), il colpo della CPU come quello di chi gioca: dal 20° colpo più basso
+      // sulla rete, più carico e con il volo più corto, cioè più veloce (NH.hotOutcome, NH.hotFlight; la parabola alta
+      // resta alta). Prima del 20° colpo e con l'opzione spenta hotOut è lo stesso oggetto e niente cambia
+      const hotN = this.ball.rallyStrokeCount + 1, hotIn = { shot: natpfArc.shot, clear: A.clear, topspin: A.topspin }, hotOut = NH.hotOutcome(hotIn, hotN, this.natpfHot, S.NET_HEIGHT_CENTER);
+      hotOut === hotIn
+        ? ((f = A.flight), (natpfSpin = A.topspin))
+        : ((f = NS.flightForClear({ fromY: d.y, fromZ: d.z, toZ: c, flight: f * NH.hotFlight(hotN, this.natpfHot), topspin: hotOut.topspin, clear: hotOut.clear })),
+          (natpfSpin = hotOut.topspin),
+          (natpfNetClear = Math.max(0.05, hotOut.clear - S.NET_HEIGHT_CENTER)));
     }
 
     f *= NS.cpuFlightFactor(this, y); // NATPF B18.2 gruppo 3: al livello Bambini la palla della CPU arriva più lenta (× 1 esatto negli altri)
@@ -2759,6 +2778,7 @@ export class NatpfTennisEngine {
         topspin: natpfSpin,
         sidespin: 0,
         allowNetFault: m,
+        ...(natpfNetClear != null ? { netClear: natpfNetClear } : {}), // B42: scambio caldo, la palla può passare più bassa
       }),
       m || NS.fixAir(this.ball, { from: d, to: { x: g, z: c }, topspin: natpfSpin, gravity: L.GRAVITY, drag: L.AIR_DRAG }), // NATPF varietà: la palla della CPU cade alla profondità voluta
       (this.ball.inPlay = !0),
@@ -2767,7 +2787,7 @@ export class NatpfTennisEngine {
       (this.ball.rallyStrokeCount += 1),
       (this.ball.shotType = y),
       (this.ball.isPowerShot = !1),
-      this.ballTrail.setStyle(natpfSmashC ? "SMASH" : y, !1),
+      this.ballTrail.setStyle(natpfSmashC ? "SMASH" : y, NH.hotSteps(this.ball.rallyStrokeCount, this.natpfHot) > 0), // B42: scambio caldo → scia del colpo potente, come per chi gioca
       natpfSmashC && (e.swingType = "smash"), // B31: schiacciata della CPU, posa da sopra la testa
       this.racketKinematics &&
         (this.racketKinematics.triggerSwing(e, {
@@ -3600,6 +3620,7 @@ export class NatpfTennisEngine {
         spin: [Number(this.ball.spin.x.toFixed(2)), Number(this.ball.spin.y.toFixed(2))],
         bounces: this.ball.bounceCountOnCurrentSide,
         p1Hand: this._natpfHostHand(), // NATPF B15: mano dell'host, per il suo personaggio sul computer del P2
+        hot: !!this.natpfHot, // B42: scambio caldo deciso dall'host (la scritta «Scambio caldo» sul computer del P2)
       };
     fetch("/api/match/sync", {
       method: "POST",
@@ -3679,6 +3700,7 @@ export class NatpfTennisEngine {
       G.everLinked = !0;
       n.fmt && n.fmt !== this.matchFormat.id && this.setMatchFormat(n.fmt);
       n.gamesToWin && (this.matchConfig.gamesToWin = n.gamesToWin);
+      typeof n.hot === "boolean" && (this.natpfHot = n.hot); // B42: lo scambio caldo lo decide l'host (host di prima: nessun campo)
       // l'host ha chiuso la stanza o è in lobby: niente partita da mostrare
       // (B15: anche la mano dell'host non vale più: il suo personaggio torna destro)
       if (n.closed) { G.closed = !0; G.lobby = !0; this.natpfUi?.hand?.mirrorRemote?.(this.player, "right"); return; }

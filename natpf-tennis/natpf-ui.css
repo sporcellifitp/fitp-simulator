@@ -1862,19 +1862,22 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 }
 @media (prefers-reduced-motion: reduce) { #title-modal .natpf-update { animation: none; } #title-modal .upd-bar i { transition: none; } }
 
-/* B20: «Scambio caldo» (natpf_hot_rally.js, opzione dello staff): in alto al centro, sotto i due tabelloni (alla stessa
-   altezza del richiamo per nome del servizio, che nello scambio non c'è), a cavallo delle due metà: lo vedono i due
-   giocatori e la fila. Tre gradi di colore con lo scambio che sale; a ogni colpo la scritta «batte» */
+/* B20: «Scambio caldo» (natpf_hot_rally.js): in alto al centro, sotto i due tabelloni (alla stessa altezza del richiamo
+   per nome del servizio, che nello scambio non c'è), a cavallo delle due metà: lo vedono i due giocatori e la fila. Tre
+   gradi di colore con lo scambio che sale; a ogni colpo la scritta «batte».
+   B42: acceso di base, dal 20° colpo. Piccola e su una riga, «SCAMBIO CALDO · colpo 23» (l'utente ha chiesto meno testi
+   durante la partita): circa metà della scritta di prima, senza la frase «palla sempre più veloce» */
 .natpf-hot-rally { position: fixed; left: 0; right: 0; margin-inline: auto; width: fit-content; max-width: 60cqw; z-index: 31; pointer-events: none;
   top: calc(var(--sb-top, clamp(12px, 6cqh, 64px)) + 4.8 * var(--sb, clamp(17px, 3cqh, 40px)) + 1.5 * max(12px, 0.6 * var(--sb, clamp(17px, 3cqh, 40px))) + 1cqh);
-  display: grid; justify-items: center; gap: 0.1em; padding: 0.3em 0.9em 0.35em; border-radius: 0.5em; background: rgba(7, 18, 51, 0.92); color: #ffd23f;
-  box-shadow: inset 0 0 0 max(2px, 0.35cqh) #ffd23f, 0 0 2.5cqh rgba(255, 210, 63, 0.45); text-align: center;
-  font-family: var(--font-display, "Bahnschrift", "Arial Narrow", system-ui, sans-serif); font-size: clamp(13px, min(3cqh, 2cqw), 60px); }
+  display: flex; align-items: baseline; gap: 0.35em; padding: 0.15em 0.65em 0.2em; border-radius: 0.5em; background: rgba(7, 18, 51, 0.85); color: #ffd23f;
+  box-shadow: inset 0 0 0 max(1px, 0.25cqh) #ffd23f, 0 0 1.5cqh rgba(255, 210, 63, 0.35); text-align: center; white-space: nowrap;
+  font-family: var(--font-display, "Bahnschrift", "Arial Narrow", system-ui, sans-serif); font-size: clamp(11px, min(2cqh, 1.4cqw), 36px); }
 .natpf-hot-rally.hidden { display: none; }
-.natpf-hot-rally b { font-size: 1.5em; font-weight: 800; font-style: italic; line-height: 1.05; text-transform: uppercase; letter-spacing: 0.02em; }
-.natpf-hot-rally small { font-size: 0.8em; color: #fff; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.natpf-hot-rally[data-level="2"] { color: #ff9a3d; box-shadow: inset 0 0 0 max(2px, 0.35cqh) #ff9a3d, 0 0 3cqh rgba(255, 154, 61, 0.55); }
-.natpf-hot-rally[data-level="3"] { color: #ff4d5e; box-shadow: inset 0 0 0 max(3px, 0.5cqh) #ff4d5e, 0 0 3.5cqh rgba(255, 77, 94, 0.65); }
+.natpf-hot-rally b { font-size: 1.1em; font-weight: 800; font-style: italic; line-height: 1.1; text-transform: uppercase; letter-spacing: 0.02em; }
+.natpf-hot-rally small { font-size: 0.95em; color: #fff; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.natpf-hot-rally small::before { content: "· "; opacity: 0.7; }
+.natpf-hot-rally[data-level="2"] { color: #ff9a3d; box-shadow: inset 0 0 0 max(1px, 0.25cqh) #ff9a3d, 0 0 2cqh rgba(255, 154, 61, 0.45); }
+.natpf-hot-rally[data-level="3"] { color: #ff4d5e; box-shadow: inset 0 0 0 max(2px, 0.35cqh) #ff4d5e, 0 0 2.5cqh rgba(255, 77, 94, 0.55); }
 .natpf-hot-rally.tick { animation: natpf-hot-tick 0.28s ease-out; }
 @keyframes natpf-hot-tick { 0% { transform: scale(1.12); } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .natpf-hot-rally.tick { animation: none; } }

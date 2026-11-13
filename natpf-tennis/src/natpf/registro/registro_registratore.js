@@ -261,8 +261,8 @@ export class RegistroStand {
       formato: E.matchFormat?.id || null, game: E.matchConfig?.gamesToWin ?? null, fiera: !!E.score?.fair, batte: this._lato(E.score?.server),
       personaggi: prova(() => getCast()), ctrl, mano: ui?.hand?.hand || E.natpfPhone?.hand || null, ...(split || modo === 'due-computer' ? { mano2: E.natpfP2Hand || E.natpfPhone2?.hand || null } : {}),
       segnale: !!ui?.cue?.enabled, nomeInserito: split ? conNome(nomi.p1) : !!prova(() => ui?.events?.nickname), ...(split ? { nomeInserito2: conNome(nomi.p2) } : {}),
-      // opzioni dello stand accese per questa partita
-      stand: { chiosco: this.chiosco, fiera: prova(() => readFairMode()), mira: prova(() => readAimLevel()), ...(split ? { caldo: !!E.natpfHot, lancioAuto: !!duo?.autoToss, campoAperto: !!duo?.open } : {}) },
+      // opzioni dello stand accese per questa partita (B42: lo «scambio che si scalda» vale in tutti i modi, acceso di base)
+      stand: { chiosco: this.chiosco, fiera: prova(() => readFairMode()), mira: prova(() => readAimLevel()), caldo: !!E.natpfHot, ...(split ? { lancioAuto: !!duo?.autoToss, campoAperto: !!duo?.open } : {}) },
       // stesso schermo: fasce dei due giocatori e chi riceve l'aiuto (il più giovane)
       ...(split ? { fasce: [E.natpfSplitBands?.p1 || 'adulto', E.natpfSplitBands?.p2 || 'adulto'], aiuto: duo?.help?.p1 ? 'g' : duo?.help?.p2 ? 'a' : null } : {}),
       ...(this._evento() ? { ek: r(eventoK(), 3) } : {}),

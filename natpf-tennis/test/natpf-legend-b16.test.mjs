@@ -49,12 +49,17 @@ test('B16: la Leggenda controlla meglio i colpi forti, ma sceglie con il rischio
   assert.deepEqual(NS.skillLevel('leggenda').playerErr, NS.skillLevel('pro').playerErr);
 });
 
-test('B16 e B18.2 passo 3: la pressione degli scambi lunghi arriva alla Leggenda dal 26° colpo', () => {
-  const q = strokes => { const e = engine(); rallyBall(e, { strokes }); return NL.legendDecide(e, e.opponent, mulberry32(9)).q; };
-  // B16: dal 20° colpo (prima dal 10°); B18.2 passo 3, tolta la regola nascosta di chi gioca: dal 26°
+test('B16 e B18.2 passo 3: la pressione degli scambi lunghi arriva alla Leggenda dal 26° colpo (B42: dal 20° con lo scambio caldo)', () => {
+  const q = (strokes, hot = false) => { const e = engine(); e.natpfHot = hot; rallyBall(e, { strokes }); return NL.legendDecide(e, e.opponent, mulberry32(9)).q; };
+  // B16: dal 20° colpo (prima dal 10°); B18.2 passo 3, tolta la regola nascosta di chi gioca: dal 26° (scambio caldo spento)
   assert.equal(NL.LEGEND.pressureFrom, 26);
   assert.equal(q(24), q(4), 'nessuna pressione fino al 26° colpo');
   assert.ok(q(32) < q(4), `al 32° colpo la qualità scende (${q(32)} contro ${q(4)})`);
+  // B42: con lo scambio caldo (acceso di base) la pressione parte dal 20° colpo, e la qualità cala anche di legendQ × calore;
+  // prima del 20° colpo niente cambia
+  assert.equal(q(18, true), q(18), 'scambio caldo, 19° colpo: come spento');
+  assert.ok(q(24, true) < q(24) - .05, `scambio caldo, 25° colpo: ${q(24, true)} contro ${q(24)}`);
+  assert.ok(q(32, true) < q(32), `scambio caldo, 33° colpo: ${q(32, true)} contro ${q(32)}`);
 });
 
 test('B16: primo passo più esplosivo, velocità massima invariata e sotto chi gioca', () => {

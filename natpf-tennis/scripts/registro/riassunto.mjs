@@ -127,6 +127,9 @@ export class Riassunto {
     // B28: calibrazione giocando (scambi di prova), a parte da quella con i gesti
     this.prova = { n: 0, finite: 0, saltate: 0, durata: new Misura(), palle: new Misura(), livelli: {}, colpi: 0, ms: new Misura() };
     this.split = { n: 0, fasce: {}, aiuto: { partite: 0, vinte: 0, punti: 0, puntiGiovane: 0 }, senzaAiuto: { partite: 0, vinteG: 0 }, campo: { aperto: null, chiuso: null }, caldo: 0, lancioAuto: 0 };
+    // B42: scambi lunghi e «scambio che si scalda» (acceso di base in tutti i modi): partite con l'opzione accesa, punti
+    // oltre 20 e oltre 30 colpi nelle partite con l'opzione accesa (c) e spenta (s), colpi super con la «palla calda»
+    this.lunghi = { partite: 0, caldo: 0, c: { punti: 0, oltre20: 0, oltre30: 0 }, s: { punti: 0, oltre20: 0, oltre30: 0 }, superCaldi: 0 };
     this.evento = { n: 0, inizio: new Misura(), fine: new Misura(), delta: new Misura(), sale: 0, scende: 0, uguale: 0, perOrdine: [] };
     this.tel = { stati: {}, cadutePerOra: {}, strade: {}, rtt: new Misura(), rttMax: new Misura(), so: {}, browser: {}, cadutePartite: 0, dopoS: new Misura() };
     this.fps = { medi: new Misura(), peggiori: new Misura(), maxMs: new Misura(), lunghi: 0, costo: new Misura(), sotto30: 0, n: 0 };
@@ -154,6 +157,7 @@ export class Riassunto {
     x.P = { r, giorno, sup: 0, puntiAiuto: 0, punti: 0 };
     for (const t of [r.tel, r.tel2]) if (t){ piu(this.tel.strade, t.strada); piu(this.tel.so, t.so); piu(this.tel.browser, t.browser); }
     if (r.modo === 'stesso-schermo'){ const S = this.split; S.n++; if (Array.isArray(r.fasce)) piu(S.fasce, r.fasce.join(' · ')); if (r.stand?.caldo) S.caldo++; if (r.stand?.lancioAuto) S.lancioAuto++; }
+    this.lunghi.partite++; if (r.stand?.caldo) this.lunghi.caldo++;
     if (Number.isFinite(r.ek)){ this.evento.n++; this.evento.inizio.metti(r.ek); const i = x.ordineEvento++; if (i < 40){ const o = this.evento.perOrdine[i] || (this.evento.perOrdine[i] = new Misura()); o.metti(r.ek); } }
   }
   _chiave(P){ const r = P.r; return r.modo === 'cpu' ? `${r.chi || '—'} · ${r.livello || '—'}` : r.modo === 'stesso-schermo' ? 'stesso schermo' : r.modo || '—'; }
@@ -164,6 +168,7 @@ export class Riassunto {
     const S = this.servizio; S.punti++; S.lanci += r.lanci || 0; S.lanciVuoti += r.lanciVuoti || 0; S.lanciAuto += r.lanciAuto || 0; S.battutaAuto += r.battutaAuto || 0;
     if (r.fine === 'servizio.rete' || r.fine === 'servizio.fuori') S.doppiFalli++; if (r.fine === 'ace') S.ace++;
     P.punti++; if (P.r.aiuto && r.vince === P.r.aiuto) P.puntiAiuto++;
+    if (Number.isFinite(r.colpi)){ const Lc = this.lunghi[P.r.stand?.caldo ? 'c' : 's']; Lc.punti++; if (r.colpi > 20) Lc.oltre20++; if (r.colpi > 30) Lc.oltre30++; }
     if (P.r.modo === 'stesso-schermo'){ const k = P.r.stand?.campoAperto ? 'aperto' : 'chiuso', C = this.split.campo[k] || (this.split.campo[k] = { partite: 0, colpiAPunto: new Misura(), durataPunto: new Misura(), nonRaggiunte: 0, punti: 0 }); C.colpiAPunto.metti(r.colpi); C.durataPunto.metti(r.durS); C.punti++; if (r.fine === 'vincente' || r.fine === 'passata' || r.fine === 'ace') C.nonRaggiunte++; }
   }
   _colpo(r, x){
@@ -171,7 +176,7 @@ export class Riassunto {
     if (r.amb) return;                                                       // colpi dell'allenamento e dei minigiochi: fuori dalle misure di partita
     const g = voce(this.gesti, r.gesto || '—', () => ({ n: 0, voti: {}, ms: new Misura(), esiti: {}, forza: new Misura() }));
     g.n++; piu(g.voti, r.voto || '—'); g.ms.metti(r.ms); piu(g.esiti, r.e || 'dentro'); g.forza.metti(r.f);
-    if (r.sup){ this.sup.riusciti++; if (x.P) x.P.sup++; } else if (r.supNo) piu(this.sup.no, r.supNo);
+    if (r.sup){ this.sup.riusciti++; if (x.P) x.P.sup++; if (r.sup === 'calda') this.lunghi.superCaldi++; } else if (r.supNo) piu(this.sup.no, r.supNo);
     // B31: gioco a rete (colpi di chi gioca entro 7 m dalla rete, volée, colpi a rete della CPU)
     const Rt = this.rete; Rt.colpi++; if (r.rete) Rt.aRete++; if (r.volee) Rt.volee++;
     if (Array.isArray(r.in) && ['volée', 'schiacciata', 'palla corta'].includes(r.in[0])) piu(Rt.cpu, r.in[0]);
@@ -275,6 +280,12 @@ export function rapporto(R, L){
   sez('Colpo super', [`Riusciti: ${N(R.sup.riusciti)} in ${N(R.sup.partite)} partite (${N(R.sup.perPartita.media, 2)} a partita; partite con almeno uno: ${R.sup.perPartita.n ? `${N(100*R.sup.perPartita.quota(v => v > 0))}%` : '—'}). Gesti forti senza colpo super: ${N(supNo)}.`],
     [{ titolo: 'Perché non è scattato', colonne: ['Motivo', 'Volte', 'Quota'], righe: elenco(R.sup.no, supNo) }]);
   const sv = R.servizio;
+  const Lg = R.lunghi, lg = k => `${pc(Lg[k].oltre20, Lg[k].punti)} oltre 20 colpi, ${pc(Lg[k].oltre30, Lg[k].punti)} oltre 30 (${N(Lg[k].punti)} punti)`;
+  sez('Scambi lunghi', [
+    `Partite con «Scambio che si scalda» acceso (dal 20° colpo colpi più forti e colpo super più facile): ${N(Lg.caldo)} su ${N(Lg.partite)}.`,
+    `Punti nelle partite con lo scambio caldo acceso: ${lg('c')}; con lo scambio caldo spento: ${lg('s')}.`,
+    `Colpi super con la «palla calda» (possibili solo nello scambio caldo): ${N(Lg.superCaldi)}.`,
+  ]);
   sez('Servizio', [
     `Punti: ${N(sv.punti)}. Lanci: ${N(sv.lanci)} (${N(sv.punti ? sv.lanci/sv.punti : null, 2)} a punto); lanci a vuoto: ${N(sv.lanciVuoti)} (${pc(sv.lanciVuoti, sv.lanci, 1)} dei lanci).`,
     `Servizio in rete o fuori (una palla sola: vale come un doppio fallo): ${N(sv.doppiFalli)} (${pc(sv.doppiFalli, sv.punti, 1)} dei punti). Ace: ${N(sv.ace)} (${pc(sv.ace, sv.punti, 1)}).`,

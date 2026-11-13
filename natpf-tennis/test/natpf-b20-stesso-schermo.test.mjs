@@ -267,93 +267,96 @@ test('A5: chi deve battere e resta fermo viene chiamato per nome dopo 9 s, solo 
   assert.equal(serveCoachView(s, { ...g, phase: 'SERVE_TOSS', idle: 40, tossT: .5 }), null);
 });
 
-/* ---------- D: «scambio che si scalda» (opzione dello staff, spenta di base) ---------- */
+/* ---------- D: «scambio che si scalda» (B20; dal B42 acceso di base, in tutti i modi, dal 20° colpo) ---------- */
 import * as THREE from 'three';
 import * as NI from '../src/natpf/natpf_impact.js';
 import { ENGINE_SHOT } from '../src/natpf/natpf_gestures.js';
 import { HOT_KEY, HOT_RALLY, readHotRally, writeHotRally, hotSteps, hotFlight, hotHeat, hotOutcome, hotRallyFor, hotRallyView, hotButton, hotToast } from '../src/natpf/natpf_hot_rally.js';
 
-test('D: opzione spenta di base, salvata in natpf-tennis.scambioCaldo; nel pannello dello stand «No · Sì»', () => {
+test('D (B42): opzione accesa di base, salvata in natpf-tennis.scambioCaldo; chi l\'aveva scelta resta con la sua scelta', () => {
   assert.equal(HOT_KEY, 'natpf-tennis.scambioCaldo');
-  assert.equal(readHotRally({ storage: memory() }), false, 'spenta di base');
-  assert.equal(readHotRally({ storage: null }), false);
-  assert.equal(readHotRally({ storage: { getItem(){ throw new Error('bloccato'); } } }), false);
+  assert.equal(readHotRally({ storage: memory() }), true, 'accesa di base');
+  assert.equal(readHotRally({ storage: null }), true);
+  assert.equal(readHotRally({ storage: { getItem(){ throw new Error('bloccato'); } } }), true);
+  assert.equal(readHotRally({ storage: memory({ [HOT_KEY]: '0' }) }), false, 'spenta dallo staff (anche prima del B42): resta spenta');
+  assert.equal(readHotRally({ storage: memory({ [HOT_KEY]: '1' }) }), true, 'accesa dallo staff: resta accesa');
   const s = memory();
-  assert.equal(writeHotRally(true, { storage: s }), true); assert.equal(s.m.get(HOT_KEY), '1');
-  assert.equal(readHotRally({ storage: s }), true, 'resta salvata');
-  writeHotRally(false, { storage: s }); assert.equal(readHotRally({ storage: s }), false);
-  assert.equal(hotButton(false), 'No'); assert.equal(hotButton(true), 'Sì · dal 10° colpo');
-  assert.match(hotToast(true), /dal 10° colpo la palla va sempre più veloce per tutti e due.*Vale dalla prossima partita; resta salvata/);
-  assert.match(hotToast(false), /spento/);
-  assert.match(html, /data-staff="hot"[^>]*><span>Scambio che si scalda<\/span><b>No<\/b>/);
+  assert.equal(writeHotRally(false, { storage: s }), false); assert.equal(s.m.get(HOT_KEY), '0');
+  assert.equal(readHotRally({ storage: s }), false, 'resta salvata');
+  writeHotRally(true, { storage: s }); assert.equal(readHotRally({ storage: s }), true);
+  assert.equal(hotButton(false), 'No'); assert.equal(hotButton(true), 'Sì · dal 20° colpo');
+  assert.match(hotToast(true), /dal 20° colpo dello scambio colpi sempre più forti per tutti e due.*Vale dalla prossima partita; resta salvata/);
+  assert.match(hotToast(false), /spento: scambi come sempre/);
+  assert.match(html, /data-staff="hot"[^>]*><span>Scambio che si scalda<\/span><b>Sì · dal 20° colpo<\/b>/);
   assert.match(html, /id="natpf-hot-rally"/);
 });
 
-test('D: vale solo tra due persone nello stesso schermo con i due telefoni', () => {
-  const on = memory({ [HOT_KEY]: '1' });
-  assert.equal(hotRallyFor({ split: true, storage: on }), true);
-  assert.equal(hotRallyFor({ split: false, storage: on }), false, 'contro la CPU e nella sfida tra due computer mai');
-  assert.equal(hotRallyFor({ split: true, webcam: true, storage: on }), false, 'webcam per due: no');
-  assert.equal(hotRallyFor({ split: true, storage: memory() }), false, 'spenta di base');
-  assert.equal(hotRallyFor({ split: true, forced: true, storage: memory() }), true, 'a mano (test e simulazioni)');
-  assert.equal(hotRallyFor({ split: true, forced: false, storage: on }), false);
-  assert.equal(hotRallyFor({ split: false, forced: true }), false);
-  // nel motore: deciso a inizio partita
+test('D (B42): vale in tutti i modi (CPU, stesso schermo, sfida tra due computer) tranne la webcam per due', () => {
+  const off = memory({ [HOT_KEY]: '0' });
+  assert.equal(hotRallyFor({ split: false, storage: memory() }), true, 'contro la CPU e nella sfida tra due computer: sì');
+  assert.equal(hotRallyFor({ split: true, storage: memory() }), true, 'stesso schermo: sì');
+  assert.equal(hotRallyFor({ split: true, webcam: true, storage: memory() }), false, 'webcam per due: no (il P2 gioca con le regole vecchie)');
+  assert.equal(hotRallyFor({ split: false, storage: off }), false, 'spenta dallo staff');
+  assert.equal(hotRallyFor({ split: true, forced: false, storage: memory() }), false, 'a mano (test e simulazioni)');
+  assert.equal(hotRallyFor({ split: false, forced: true, storage: off }), true);
+  assert.equal(hotRallyFor({ split: true, webcam: true, forced: true }), false);
+  // nel motore: deciso a inizio partita (nei test non c'è localStorage: vale «accesa di base»)
   const mk = (split, forced) => { const e = createHeadlessEngine({ difficulty: split ? '1v1' : 'casual' }); if (split) e.startSplit(); if (forced !== undefined) e.natpfHotRally = forced; e.startNewMatch({ showStartBanner: false }); return e.natpfHot; };
-  assert.equal(mk(true), false, 'stesso schermo, di base spenta');
-  assert.equal(mk(true, true), true);
-  assert.equal(mk(false, true), false, 'contro la CPU niente, anche forzata');
-  // (revisione) finito lo stesso schermo l'opzione non resta accesa nel motore
+  assert.equal(mk(true), true, 'stesso schermo, di base accesa');
+  assert.equal(mk(false), true, 'contro la CPU, di base accesa');
+  assert.equal(mk(true, false), false);
+  assert.equal(mk(false, false), false);
+  // (B20, revisione) finito lo stesso schermo il motore la spegne; si ridecide alla partita dopo
   const e = createHeadlessEngine({ difficulty: '1v1' }); e.startSplit(); e.natpfHotRally = true; e.startNewMatch({ showStartBanner: false });
   assert.equal(e.natpfHot, true);
   e.endSplit();
   assert.equal(e.natpfHot, false);
 });
 
-test('D: dal 10° colpo la palla passa via via più bassa e più carica; spenta o prima del 10° niente cambia', () => {
-  assert.equal(HOT_RALLY.from, 10);
+test('D (B42): dal 20° colpo la palla passa via via più bassa e più carica; spenta o prima del 20° niente cambia', () => {
+  assert.equal(HOT_RALLY.from, 20);
   for (let n = 0; n <= 200; n++){ assert.equal(hotFlight(n, false), 1); assert.equal(hotSteps(n, false), 0); assert.equal(hotHeat(n, false), 0); }
-  for (let n = 0; n < 10; n++){ assert.equal(hotFlight(n, true), 1); assert.equal(hotHeat(n, true), 0); }
-  assert.equal(hotSteps(10, true), 1); assert.equal(hotSteps(19, true), 10);
-  assert.ok(hotFlight(10, true) < 1 && hotFlight(15, true) < hotFlight(10, true));
+  for (let n = 0; n < 20; n++){ assert.equal(hotFlight(n, true), 1); assert.equal(hotHeat(n, true), 0); }
+  assert.equal(hotSteps(20, true), 1); assert.equal(hotSteps(29, true), 10);
+  assert.ok(hotFlight(20, true) < 1 && hotFlight(25, true) < hotFlight(20, true));
   assert.equal(hotFlight(200, true), HOT_RALLY.min);
-  // (revisione) il 10° colpo parte già da 4 passi su 10: la palla accelera davvero da quando compare la scritta
-  assert.ok(Math.abs(hotHeat(10, true) - .4) < 1e-9); assert.equal(hotHeat(16, true), 1); assert.equal(hotHeat(26, true), 2); assert.equal(hotHeat(100, true), HOT_RALLY.maxHeat);
+  // il 20° colpo parte già da 2 passi su 10 (calore 0,2): la palla accelera da quando compare la scritta; pieno al 28°
+  assert.ok(Math.abs(hotHeat(20, true) - .2) < 1e-9); assert.equal(hotHeat(28, true), 1); assert.equal(hotHeat(38, true), 2); assert.equal(hotHeat(100, true), HOT_RALLY.maxHeat);
   const out = { shot: 'TOPSPIN', clear: 1.8, topspin: 18, depth: 9 };
-  assert.equal(hotOutcome(out, 15, false), out, 'spenta: lo stesso oggetto');
-  assert.equal(hotOutcome(out, 9, true), out, 'prima del 10° colpo: lo stesso oggetto');
-  const h10 = hotOutcome(out, 10, true), h19 = hotOutcome(out, 16, true), h29 = hotOutcome(out, 26, true);
-  assert.ok(h10.clear < out.clear && h19.clear < h10.clear, 'sempre più bassa sulla rete');
-  assert.ok(h10.clear < out.clear - .25, `già dal 10° colpo più bassa di un bel po' (${h10.clear})`);
-  assert.ok(Math.abs(h19.clear - (.914 + HOT_RALLY.netGap)) < 1e-9, 'al massimo a 16 cm dal nastro');
-  assert.equal(h29.clear, h19.clear);
-  assert.ok(h10.topspin > out.topspin && h19.topspin > h10.topspin && h29.topspin > h19.topspin, 'sempre più carica');
-  assert.equal(h19.depth, 9, 'la profondità non cambia');
-  // (revisione) il tagliato resta un tagliato: più basso sulla rete, ma l'effetto all'indietro non cambia mai
+  assert.equal(hotOutcome(out, 25, false), out, 'spenta: lo stesso oggetto');
+  assert.equal(hotOutcome(out, 19, true), out, 'prima del 20° colpo: lo stesso oggetto');
+  const h20 = hotOutcome(out, 20, true), h28 = hotOutcome(out, 28, true), h38 = hotOutcome(out, 38, true);
+  assert.ok(h20.clear < out.clear && h28.clear < h20.clear, 'sempre più bassa sulla rete');
+  assert.ok(h20.clear < out.clear - .1, `già dal 20° colpo più bassa (${h20.clear})`);
+  assert.ok(Math.abs(h28.clear - (.914 + HOT_RALLY.netGap)) < 1e-9, 'al massimo a 16 cm dal nastro');
+  assert.equal(h38.clear, h28.clear);
+  assert.ok(h20.topspin > out.topspin && h28.topspin > h20.topspin && h38.topspin > h28.topspin, 'sempre più carica');
+  assert.equal(h28.depth, 9, 'la profondità non cambia');
+  // (B20, revisione) il tagliato resta un tagliato: più basso sulla rete, ma l'effetto all'indietro non cambia mai
   const slice = { shot: 'SLICE', clear: 1.5, topspin: -6.5 };
-  for (const n of [10, 16, 26, 60]){ const s = hotOutcome(slice, n, true); assert.equal(s.topspin, -6.5, `tagliato al colpo ${n}`); assert.ok(s.clear < slice.clear); assert.ok(s.hot > 0); }
-  // pallonetto, palla corta, schiacciata e colpi sbagliati restano come sono
-  for (const shot of ['LOB', 'DROP', 'SMASH']) { const o = { shot, clear: 2, topspin: 5 }; assert.equal(hotOutcome(o, 25, true), o); }
-  const net = { shot: 'TOPSPIN', clear: 1.5, topspin: 15, netFault: true }; assert.equal(hotOutcome(net, 25, true), net);
-  const fail = { shot: 'TOPSPIN', clear: 1.5, topspin: 15, failed: true }; assert.equal(hotOutcome(fail, 25, true), fail);
+  for (const n of [20, 28, 38, 60]){ const s = hotOutcome(slice, n, true); assert.equal(s.topspin, -6.5, `tagliato al colpo ${n}`); assert.ok(s.clear < slice.clear); assert.ok(s.hot > 0); }
+  // pallonetto, palla corta, schiacciata, parabola alta della CPU e colpi sbagliati restano come sono
+  for (const shot of ['LOB', 'DROP', 'SMASH', 'MOON']) { const o = { shot, clear: 2, topspin: 5 }; assert.equal(hotOutcome(o, 30, true), o); }
+  const net = { shot: 'TOPSPIN', clear: 1.5, topspin: 15, netFault: true }; assert.equal(hotOutcome(net, 30, true), net);
+  const fail = { shot: 'TOPSPIN', clear: 1.5, topspin: 15, failed: true }; assert.equal(hotOutcome(fail, 30, true), fail);
   // una palla già più bassa del minimo non si alza
-  assert.equal(hotOutcome({ shot: 'FLAT', clear: 1.0, topspin: 12 }, 19, true).clear, 1.0);
+  assert.equal(hotOutcome({ shot: 'FLAT', clear: 1.0, topspin: 12 }, 29, true).clear, 1.0);
 });
 
-test('D (revisione): nel motore la palla è più veloce già al 10° colpo, quando compare la scritta', () => {
-  const off = rallyFlight('p1', 9, false), on = rallyFlight('p1', 9, true), before = rallyFlight('p1', 8, true), beforeOff = rallyFlight('p1', 8, false);
-  assert.deepEqual(before, beforeOff, 'il 9° colpo è ancora quello di sempre');
-  assert.ok(on.hot > 0 && on.speed > off.speed*1.05, `10° colpo: ${off.speed.toFixed(1)} → ${on.speed.toFixed(1)} m/s`);
-  assert.equal(hotRallyView({ on: true, phase: 'RALLY', inPlay: true, strokes: 10 }).sub, 'Colpo 10 · palla sempre più veloce');
+test('D (B42): nel motore la palla è più veloce già al 20° colpo, quando compare la scritta', () => {
+  const off = rallyFlight('p1', 19, false), on = rallyFlight('p1', 19, true), before = rallyFlight('p1', 18, true), beforeOff = rallyFlight('p1', 18, false);
+  assert.deepEqual(before, beforeOff, 'il 19° colpo è ancora quello di sempre');
+  assert.ok(on.hot > 0 && on.speed > off.speed*1.03, `20° colpo: ${off.speed.toFixed(1)} → ${on.speed.toFixed(1)} m/s`);
+  assert.equal(hotRallyView({ on: true, phase: 'RALLY', inPlay: true, strokes: 20 }).sub, 'colpo 20');
 });
 
-test('D: scritta «Scambio caldo» solo nello scambio, dal 10° colpo, con tre gradi', () => {
+test('D (B42): scritta «Scambio caldo · colpo N» piccola, solo nello scambio, dal 20° colpo, con tre gradi', () => {
   const g = { on: true, phase: 'RALLY', inPlay: true };
-  assert.equal(hotRallyView({ ...g, strokes: 9 }), null);
-  assert.deepEqual(hotRallyView({ ...g, strokes: 10 }), { big: 'Scambio caldo', sub: 'Colpo 10 · palla sempre più veloce', level: 1 });
-  assert.equal(hotRallyView({ ...g, strokes: 14 }).level, 2);
-  assert.equal(hotRallyView({ ...g, strokes: 18 }).level, 3);
-  assert.equal(hotRallyView({ ...g, strokes: 40 }).level, 3);
+  assert.equal(hotRallyView({ ...g, strokes: 19 }), null);
+  assert.deepEqual(hotRallyView({ ...g, strokes: 20 }), { big: 'Scambio caldo', sub: 'colpo 20', level: 1 });
+  assert.equal(hotRallyView({ ...g, strokes: 24 }).level, 2);
+  assert.equal(hotRallyView({ ...g, strokes: 28 }).level, 3);
+  assert.equal(hotRallyView({ ...g, strokes: 50 }).level, 3);
   assert.equal(hotRallyView({ ...g, on: false, strokes: 30 }), null, 'opzione spenta: mai');
   assert.equal(hotRallyView({ ...g, phase: 'POINT_OVER', strokes: 30 }), null);
   assert.equal(hotRallyView({ ...g, inPlay: false, strokes: 30 }), null);
@@ -386,9 +389,9 @@ function rallyFlight(who, rally, hot){
   } finally { Math.random = real; }
 }
 
-test('D: nel motore, stessa palla al 15° colpo: accesa vola più veloce, uguale per il P1 e per il P2; spenta e prima del 10° identica', () => {
-  const off = { p1: rallyFlight('p1', 14, false), p2: rallyFlight('p2', 14, false) };
-  const on = { p1: rallyFlight('p1', 14, true), p2: rallyFlight('p2', 14, true) };
+test('D (B42): nel motore, stessa palla al 25° colpo: accesa vola più veloce, uguale per il P1 e per il P2; spenta e prima del 20° identica', () => {
+  const off = { p1: rallyFlight('p1', 24, false), p2: rallyFlight('p2', 24, false) };
+  const on = { p1: rallyFlight('p1', 24, true), p2: rallyFlight('p2', 24, true) };
   const early = { p1: rallyFlight('p1', 5, true), p1off: rallyFlight('p1', 5, false) };
   for (const who of ['p1', 'p2']){
     assert.equal(off[who].hot, 0);
@@ -398,5 +401,5 @@ test('D: nel motore, stessa palla al 15° colpo: accesa vola più veloce, uguale
   }
   assert.ok(Math.abs(on.p1.flight - on.p2.flight) < .011, `uguale per i due: P1 ${on.p1.flight} s, P2 ${on.p2.flight} s`);
   assert.ok(Math.abs(off.p1.flight - off.p2.flight) < .011);
-  assert.deepEqual(early.p1, early.p1off, 'prima del 10° colpo niente cambia');
+  assert.deepEqual(early.p1, early.p1off, 'prima del 20° colpo niente cambia');
 });

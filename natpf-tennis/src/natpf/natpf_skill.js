@@ -13,6 +13,7 @@
 import { openRun } from "./natpf_duo_rules.js"; // B25: campo aperto tra due persone nello stesso schermo (moveFactor)
 import { EVENTO, eventoK, eventoPoint, eventoReset, eventoState, blend } from "./natpf_evento.js"; // B18.2: livello «Evento» adattivo
 import { netOff } from "./natpf_net_play.js"; // B31: regole del gioco a rete (spente solo nelle prove di confronto)
+import { hotCpu } from "./natpf_hot_rally.js"; // B42: scambio caldo, la CPU attacca e sbaglia di più dal 20° colpo
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 export const gauss = (rng = Math.random) => { let u = 0, v = 0; while (!u) u = rng(); while (!v) v = rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
@@ -805,7 +806,11 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
   // del punto prima; per l'attacco della CPU conta il tempo del servizio (un servizio fuori tempo si attacca)
   const sv = serveInPlay(engine);
   if (sv){ info.quality = sv.q; info.threat = sv.threat; info.serve = true; }
-  const chance = sv ? cpuServeErrorChance({ serve: sv, stretch: info.stretch, level: lv, difficulty: engine.matchConfig?.difficulty }) : cpuErrorChance(info), roll = rng();
+  // B42: scambio caldo (natpf_hot_rally.hotCpu, il colpo della CPU è il numero rallyStrokeCount + 1): dal 20° colpo la CPU
+  // sotto pressione sbaglia via via di più (hot.err) e attacca più spesso (hot.attack), come chi gioca riceve palle più
+  // veloci e ha il colpo super più facile. Prima del 20° colpo e con l'opzione spenta tutti e due 0: niente cambia
+  const hot = hotCpu(finite(ball.rallyStrokeCount) + 1, !!engine.natpfHot);
+  const chance = (sv ? cpuServeErrorChance({ serve: sv, stretch: info.stretch, level: lv, difficulty: engine.matchConfig?.difficulty }) : cpuErrorChance(info)) + hot.err, roll = rng();
   s.lastCpu = { chance, ...info, level: undefined, kind: 'ok' };
   if (roll < chance){
     const kind = cpuErrorKind({ ...info, depth: s.lastShot?.landingZ, rng });
@@ -818,7 +823,7 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
   // palla corta (rimbalzo prima di 8 m dalla rete) e lenta: la CPU entra e attacca
   const short = clamp((finite(s.lastShot?.landingZ, -9.5) + 8.6)/2.4);
   const soft = (1 - clamp(info.quality)) + (info.angle < .35 && finite(s.lastShot?.power, .6) < .45 ? .35 : 0) + short*(.5 - .4*clamp(finite(s.lastShot?.power, .6)));
-  if (lv.cpuAttack && info.stretch < .8 && rng() < (lv.cpuAttackBase || 0) + lv.cpuAttack*clamp(soft)) return { kind: 'attack', chance, info, flight: lv.cpuAttackFlight };
+  if ((lv.cpuAttack || hot.attack) && info.stretch < .8 && rng() < (lv.cpuAttackBase || 0) + (lv.cpuAttack || 0)*clamp(soft) + hot.attack) return { kind: 'attack', chance, info, flight: lv.cpuAttackFlight };
   return { kind: 'ok', chance, info };
 }
 

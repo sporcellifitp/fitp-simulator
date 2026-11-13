@@ -1,7 +1,7 @@
 // NATPF motore base (natpf-tennis/): B20, 1v1 tra due persone nello stesso schermo (docs/b20/tappa-a.md; decisioni
 // dell'utente del 10/11 sull'audit B19). Gioco vero con vite e due telefoni simulati. Percorso:
 //   1. pannello dello stand (Ctrl+Maiusc+K): «Formato in fiera» di base «Solo stesso schermo» (tre valori), «Scambio che
-//      si scalda» di base «No» (si accende e si spegne, resta salvato); il foglio con i pulsanti (dodici dal B25) sta nello schermo a
+//      si scalda» di base «Sì · dal 20° colpo» (B42; si spegne e si riaccende, resta salvato); il foglio con i pulsanti (dodici dal B25) sta nello schermo a
 //      1280×720, 1920×540, 1024×600, 1366×657, 1920×1080 e 720×720;
 //   2. menu → Gioca → Stesso schermo: «Batte per primo» di base «Sorteggio»; i due telefoni si collegano, conto, partita;
 //      il banner d'inizio dice chi batte («Sorteggio: batte …», sorteggio guidato), formato in fiera acceso senza toccare
@@ -10,8 +10,8 @@
 //      richiamo per nome: mai sopra i due tabelloni, larghe uguali nelle due metà;
 //   4. fine partita: «Rivincita» sui due telefoni; uno la chiede (si vede sul grande schermo e sull'altro telefono), poi
 //      l'altro: partita nuova senza toccare il computer;
-//   5. «Scambio che si scalda»: spenta (prima partita) nessuna scritta; accesa (dalla partita dopo) la scritta «Scambio
-//      caldo» dal 10° colpo, sotto i tabelloni;
+//   5. «Scambio che si scalda»: spenta dal pannello (prima partita) nessuna scritta; accesa (dalla partita dopo) la scritta
+//      piccola «Scambio caldo · colpo N» dal 20° colpo (B42), sotto i tabelloni;
 //   6. telefono del Player 2 chiuso in partita: riquadro della pausa con il nome e il QR non coperto (si legge e porta
 //      al collegamento giusto), avviso sul telefono dell'altro.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-stesso-schermo-b20.mjs     (OUT=cartella delle schermate)
@@ -77,7 +77,7 @@ try {
   const staff = () => g.evaluate(() => ({ fair: document.querySelector('[data-staff="fair"] b').textContent, hot: document.querySelector('[data-staff="hot"] b').textContent, hotOn: document.querySelector('[data-staff="hot"]').classList.contains('on'),
     savedFair: localStorage.getItem('natpf-tennis.formatoFiera'), savedHot: localStorage.getItem('natpf-tennis.scambioCaldo') }));
   let st = await staff();
-  check('1. pannello dello stand: «Formato in fiera» di base «Solo stesso schermo», «Scambio che si scalda» di base «No» (niente di salvato)', st.fair === 'Solo stesso schermo' && st.hot === 'No' && !st.hotOn && st.savedFair == null && st.savedHot == null, fmt(st));
+  check('1. pannello dello stand: «Formato in fiera» di base «Solo stesso schermo», «Scambio che si scalda» di base «Sì · dal 20° colpo» (B42; niente di salvato)', st.fair === 'Solo stesso schermo' && st.hot === 'Sì · dal 20° colpo' && st.hotOn && st.savedFair == null && st.savedHot == null, fmt(st));
   // revisione: con il decimo pulsante a 1920×540 «Chiudi» e «Nuovo giocatore» finivano fuori vista (quarta fila), e a
   // 1024×600 restavano 23 px. Il foglio non scorre e i due pulsanti in fondo si vedono interi, a ogni misura
   const sheetAt = () => g.evaluate(() => {
@@ -98,11 +98,15 @@ try {
   check('   «Formato in fiera» ha tre valori: Sì · punto decisivo → No → Solo stesso schermo (salvati 1, no, split)', fairSeq.join(' | ') === 'Sì · punto decisivo=1 | No=no | Solo stesso schermo=split', fairSeq.join(' | '));
   await g.click('#natpf-staff [data-staff="hot"]'); await sleep(150);
   st = await staff();
-  const toast = await g.evaluate(() => (document.body.innerText.match(/Scambio che si scalda acceso[^\n]*/) || [''])[0]);
-  check('   «Scambio che si scalda»: un clic lo accende («Sì · dal 10° colpo», salvato), con l\'avviso', st.hot === 'Sì · dal 10° colpo' && st.hotOn && st.savedHot === '1' && /dal 10° colpo/.test(toast), fmt({ ...st, toast }));
+  const toastOff = await g.evaluate(() => (document.body.innerText.match(/Scambio che si scalda spento[^\n]*/) || [''])[0]);
+  check('   «Scambio che si scalda»: un clic lo spegne («No», salvato), con l\'avviso', st.hot === 'No' && !st.hotOn && st.savedHot === '0' && /scambi come sempre/.test(toastOff), fmt({ ...st, toastOff }));
   await g.click('#natpf-staff [data-staff="hot"]'); await sleep(150);
   st = await staff();
-  check('   un altro clic lo spegne («No»)', st.hot === 'No' && !st.hotOn && st.savedHot === '0', fmt(st));
+  const toast = await g.evaluate(() => (document.body.innerText.match(/Scambio che si scalda acceso[^\n]*/) || [''])[0]);
+  check('   un altro clic lo riaccende («Sì · dal 20° colpo», salvato), con l\'avviso', st.hot === 'Sì · dal 20° colpo' && st.hotOn && st.savedHot === '1' && /dal 20° colpo/.test(toast), fmt({ ...st, toast }));
+  await g.click('#natpf-staff [data-staff="hot"]'); await sleep(150);
+  st = await staff();
+  check('   e un altro lo spegne di nuovo (per la prima partita qui sotto)', st.hot === 'No' && !st.hotOn && st.savedHot === '0', fmt(st));
   await g.click('#natpf-staff [data-staff="close"]');
 
   /* 2: stesso schermo, sorteggio e formato in fiera di base */
@@ -134,7 +138,7 @@ try {
   const FAST = 'Formato veloce: il servizio cambia ogni 2 punti';
   check('   il sorteggio si vede: banner «Si gioca» con «Sorteggio: batte Giulia · Formato veloce…», e batte lei', bn.shown && bn.text === 'Si gioca' && bn.sub === `Sorteggio: batte Giulia · ${FAST}` && m1.server === 'opponent' && m1.serving.every(n => n === 'Giulia'), fmt({ bn, m1 }));
   check('   formato in fiera acceso di base nello stesso schermo; sottotitolo dei due tabelloni «1 game · punto decisivo sul 40-40»', m1.fair === true && m1.foot.length === 2 && m1.foot.every(t => t === '1 game · punto decisivo sul 40-40'), fmt(m1));
-  check('   «Scambio che si scalda» spento: questa partita non lo usa', m1.hot === false, String(m1.hot));
+  check('   «Scambio che si scalda» spento dal pannello: questa partita non lo usa', m1.hot === false, String(m1.hot));
   await shot('2-inizio-sorteggio-1280');
   // «Palla match <nome>»: 40-15 per Marco (partita a 1 game)
   await g.evaluate(() => { const E = __natpfTennis; E.score.playerPoints = 3; E.score.opponentPoints = 1; E._syncScoreboardHUD(); E._setupPointServe({ showBanner: true }); });
@@ -203,13 +207,14 @@ try {
   /* 5: scambio che si scalda, acceso dalla partita dopo */
   check('5. «Scambio che si scalda» acceso dal pannello: vale dalla partita dopo (questa lo usa)', m2.hot === true, String(m2.hot));
   const hotAt = async n => { await g.evaluate(n => { const E = __natpfTennis; E.phase = 'RALLY'; E.ball.inPlay = true; E.ball.rallyStrokeCount = n; E.ball.lastHitter = 'player'; E.ball.pos.set(0, 1.4, 0); E.ball.vel.set(0, 3, -4); }, n); await sleep(140); return rects(g, 'natpf-hot-rally'); };
-  const h9 = await hotAt(9), h12 = await hotAt(12);
+  const h19 = await hotAt(19), h22 = await hotAt(22);
   const lvl = await g.evaluate(() => document.getElementById('natpf-hot-rally').dataset.level);
-  check('   fino al 9° colpo nessuna scritta; dal 10° «Scambio caldo» con il numero del colpo', !h9.box && !!h12.box && /^Scambio caldoColpo 12 · palla sempre più veloce$/.test(h12.text), fmt({ h9: h9.box, h12: h12.box, testo: h12.text, grado: lvl }));
-  check('   la scritta sta sotto i tabelloni, al centro, e non li copre', !!h12.box && !covered(h12).length && Math.abs((h12.box.l + h12.box.r)/2 - 640) <= 3, fmt({ box: h12.box, coperti: covered(h12) }));
+  check('   fino al 19° colpo nessuna scritta; dal 20° «Scambio caldo · colpo N», piccola (B42)', !h19.box && !!h22.box && /^Scambio caldocolpo 22$/.test(h22.text) && h22.box.h <= 30, fmt({ h19: h19.box, h22: h22.box, testo: h22.text, grado: lvl }));
+  check('   la scritta sta sotto i tabelloni, al centro, e non li copre', !!h22.box && !covered(h22).length && Math.abs((h22.box.l + h22.box.r)/2 - 640) <= 3, fmt({ box: h22.box, coperti: covered(h22) }));
   await shot('5-scambio-caldo-1280');
-  const h20 = await hotAt(20), lvl3 = await g.evaluate(() => document.getElementById('natpf-hot-rally').dataset.level);
-  check('   più avanti nello scambio la scritta cambia grado (colore)', !!h20.box && lvl === '1' && lvl3 === '3', fmt({ lvl, lvl3 }));
+  const h30 = await hotAt(30), lvl3 = await g.evaluate(() => document.getElementById('natpf-hot-rally').dataset.level);
+  check('   più avanti nello scambio la scritta cambia grado (colore)', !!h30.box && lvl === '1' && lvl3 === '3', fmt({ lvl, lvl3 }));
+  await shot('5b-scambio-caldo-grado-3-1280');
   await g.evaluate(() => { const E = __natpfTennis; E._setupPointServe({ showBanner: false }); });
   await sleep(200);
   const hOff = await rects(g, 'natpf-hot-rally');

@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import * as NS from '../src/natpf/natpf_skill.js';
+import { hotCpu } from '../src/natpf/natpf_hot_rally.js';
 import { measure, goals, trialValues, applyTrial, easyBall, gamesOf, SEMI } from '../scripts/audit/cpu-pressione.mjs';
 
 const casual = NS.skillLevel('casual'), pro = NS.skillLevel('pro');
@@ -87,8 +88,8 @@ test('D1: il tipo di errore segue il motivo: in rete poche palle, in allungo di 
 });
 
 test('motore: il piano della risposta della CPU legge la corsa e l\'allungo veri; l\'errore di lato esce dal lato della palla', () => {
-  const setup = (difficulty, { x = .3, vx = 0 } = {}) => {
-    const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
+  const setup = (difficulty, { x = .3, vx = 0, hot } = {}) => {
+    const e = createHeadlessEngine({ difficulty }); if (hot !== undefined) e.natpfHotRally = hot; e.startNewMatch({ showStartBanner: false });
     e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'player'; e.ball.rallyStrokeCount = 6; e.ball.isPowerShot = false;
     e.opponent.pos.set(0, 0, -11.5); e.opponent.vel.set(vx, 0, 0);
     e.ball.pos.set(x, 1, -11.2); e.ball.vel.set(0, -1, -16);
@@ -101,9 +102,14 @@ test('motore: il piano della risposta della CPU legge la corsa e l\'allungo veri
     seeded(5, () => e._executeOpponentReturn(e.opponent));
     assert.equal(e.natpfSkill.lastCpu.running, 0); assert.ok(e.natpfSkill.lastCpu.stretch < .4);
     assert.equal(e.natpfSkill.lastCpu.chance, lv.cpuErr.base, `${difficulty}: palla comoda`);
-    e = setup(difficulty); e.ball.rallyStrokeCount = 40;
+    // (B42: con lo «scambio che si scalda» spento; acceso, di base, dal 20° colpo la CPU sbaglia via via di più anche sulla
+    // palla comoda: natpf_hot_rally.hotCpu)
+    e = setup(difficulty, { hot: false }); e.ball.rallyStrokeCount = 40;
     seeded(5, () => e._executeOpponentReturn(e.opponent));
     assert.equal(e.natpfSkill.lastCpu.chance, lv.cpuErr.base, `${difficulty}: scambio lungo, palla comoda`);
+    e = setup(difficulty); e.ball.rallyStrokeCount = 40;
+    seeded(5, () => e._executeOpponentReturn(e.opponent));
+    assert.ok(Math.abs(e.natpfSkill.lastCpu.chance - (lv.cpuErr.base + hotCpu(41, true).err)) < 1e-12, `${difficulty}: scambio caldo, palla comoda`);
     // in corsa alla velocità massima e con la palla a 0,9 della portata: probabilità più alta, con corsa e allungo nel registro
     e = setup(difficulty, { x: .9*lv.cpuReach, vx: lv.cpuSpeed });
     seeded(5, () => e._executeOpponentReturn(e.opponent));

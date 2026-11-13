@@ -357,7 +357,11 @@ test('D11 (revisione): a Casual chi batte tardi con il telefono non perde il ser
   // 25 semi × 300 punti), perché il servizio fuori tempo valeva il 60% della base anche al livello di chi comincia.
   // Ora a Casual la base è 0,15 (0,125 nella scala del passo 2, vedi sotto) e il ritardo non la riduce: 4 semi × 300
   // punti (circa 620 servizi, ±1,4 punti)
-  const opts = { difficulty: 'casual', profile: 'bambino', points: 300, seeds: [1001, 1038, 1075, 1112] };
+  // (B42: con lo «scambio che si scalda» spento, la regola di quando il test è stato tarato. La misura è del servizio, che
+  // lo scambio caldo non tocca: cambia i colpi dal 20° in poi e, da lì, il sorteggio dei punti dopo. Acceso, con questi
+  // semi i punti diretti del servizio in ritardo sono 11,8% invece di 14,0%; con altri quattro semi (2001…2112) 14,0%
+  // invece di 14,3%, e quelli del servizio insegnato 12,0% invece di 14,4%: è il sorteggio, ±1,4 punti come detto sopra)
+  const opts = { difficulty: 'casual', profile: 'bambino', points: 300, seeds: [1001, 1038, 1075, 1112], hot: false };
   const late = natural({ ...opts, serveModel: 'tardi' }), taught = natural({ ...opts, serveModel: 'insegnato' });
   const msg = r => `${r.serveModel}: punti diretti ${r.puntoDiretto}%, punti al servizio ${r.puntiAlServizio}%, q ${r.q}`;
   assert.ok(late.q < .9, msg(late));

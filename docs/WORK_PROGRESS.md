@@ -1673,7 +1673,7 @@ Ramo `b37-collaudo-bis` (base `1043c85`), commit da `66fd170` al commit di chius
   «Servizio» dell'allenamento nel browser; costo di gemma e riquadro con una scheda grafica vera e su Android. Da
   decidere con l'utente: la scritta grande del punto copre il punto di caduta nella metà lontana (vedi il documento).
 
-## B37.1 · Chi serve: via la gemma, torna la casella gialla «Al servizio» (13/11 sera) · [x] verificato sul ramo, da unire
+## B37.1 · Chi serve: via la gemma, torna la casella gialla «Al servizio» (13/11 sera) · [x] versione 2026-11-13.10
 
 Ramo `b37-collaudo-bis`, sopra la chiusura del B37 (`62f4c2a`). Riscontro dell'utente sulla versione con il B37: «Il
 triangolino in alto è orribile, meglio la casella tonda che usavi prima "al servizio"». Documento:
@@ -1709,3 +1709,71 @@ triangolino in alto è orribile, meglio la casella tonda che usavi prima "al ser
   telefono vero, programma Windows vero, persone vere; la casella nell'esercizio «Servizio» dell'allenamento nel browser;
   la sfida tra due computer con la rete vera (provato il computer del Player 2 con il motore nel ruolo del Player 2,
   senza rete). Programma Windows e server LAN non rifatti (non toccati). Versione e pacchetti non toccati.
+
+## B42 · Scambi lunghi che si chiudono (13/11) · [x] versione 2026-11-13.11
+
+Obiettivo (richiesta dell'utente del 13/11): dopo 20 colpi di fila colpi forti e speciali via via più probabili, perché
+lo scambio porti a un risultato e la partita sia più veloce. Criterio di fine: regola di base in tutti i modi, misure
+prima e dopo, suite, build e prove nel browser, documento `docs/b42/scambi-lunghi.md` completo.
+- [x] B42.1 · banco `natpf-tennis/scripts/audit/b42/scambi-lunghi.mjs` e misure prima, due serie di semi (`ea93660`).
+- [x] B42.2 · «Scambio che si scalda» acceso di base, dal 20° colpo, per tutti e due i lati e la CPU (`f17f016`):
+  `natpf_hot_rally.js`, `game_engine.js`, `natpf_stroke_outcome.js`, `natpf_skill.js`, `natpf_legend.js`,
+  `natpf_kiosk.js`, `index.html`, test (nuovo `natpf-b42-scambi-lunghi.test.mjs`, aggiornati B20, B25, Leggenda B16, CPU
+  sotto pressione, servizio).
+- [x] B42.3 · scritta piccola «Scambio caldo · colpo N», registro (`stand.caldo` in tutti i modi) e sezione «Scambi
+  lunghi» del riassunto (`e5ab4da`).
+- [x] B42.4 · fotografia del lavoro fermato dall'utente alle 16:00 UTC (`ae76bdf`, «NON verificato») controllata da chi
+  ha ripreso: in `game_engine.js` solo commenti; tolto `natpf-tennis/legend-prova-tmp.mjs` (file temporaneo); i file
+  «dopo» rifatti sul codice finale vengono identici (banco 56/56 righe, tracce 13/13 e tracce della base, `--b25`,
+  `audit:cpu`, `audit:evento` Bambini, `audit:legend`), e anche i «prima» di legend e cpu-pressione rifatti sulla base;
+  le tabelle della §3 del documento rigenerate dai file: 106/106 righe uguali (corretta una riga del testo, Casual
+  bambino −3,3 e non −3,4).
+- [x] B42.5 · verifiche e documento (`ff93706` prove e test, poi il commit dei documenti). File:
+  `docs/b42/scambi-lunghi.md` (§4 e §7 scritte, §1, §2, §3.2, §6, §8 corrette, immagine `contro-la-cpu-colpo-22.jpg`), `tools/e2e/natpf-rally.mjs` (il controllo B42 ora avvia una
+  partita: lo scambio caldo si decide in `startNewMatch`), nuovo `natpf-tennis/test/natpf-b42-sfida.test.mjs` (snapshot
+  `hot` dall'host al P2 e scritta sul P2; senza le due righe del motore fallisce), risultati nuovi
+  `evento-bambini-prima-fe6f774.txt` e `bambino-24-semi.md`, `docs/PROJECT_MEMORY.md` (§Scambi lunghi).
+  Verifiche: gioco 1451/1451, sito 226/226, Windows 42/42, LAN 12/12, build ok, `audit:legend` tutti i criteri (contro la
+  Leggenda «tennista» 33,6 → 28,1% dei punti, «preciso» 38 → 32,4%). Nel browser: `natpf-rally` 10/10 (primo giro 9/10,
+  corretta la prova), `natpf-formato-fiera` 25/25, `natpf-1v1-p2p` 39/39, `natpf-menu` 45/45,
+  `natpf-stesso-schermo-b20` 51/53 (i due KO del banner del sorteggio ci sono anche sulla base `fe6f774`, 50/52: prova
+  rimasta indietro rispetto al B35b), `natpf-leggenda` 6/7 in tre giri (posa nell'allungo in corsa; base 7/7 in due
+  giri; il fuori soglia misurato è al 12° colpo, prima dello scambio caldo: da decidere).
+  Non verificato: persone e telefoni veri, Windows, ledwall, installer (nessuna versione nuova), sfida tra due computer
+  oltre il 20° colpo nel browser, webcam.
+- [x] B42.6 · unione con il B37 (13/11 sera): `c619266` (unione B37 su `natpf-simulator`, non ancora in push) unito nel
+  ramo con un'unione normale, commit `d48155c`. Conflitti come previsto: testa di `natpf_hot_rally.js` (resta quella del
+  B42, con «F9 nel programma Windows» nella riga «Dove si spegne»), questo file e `PROJECT_MEMORY.md` (tutte e due le
+  parti, prima il B37); uniti da git e controllati: `game_engine.js` (le due chiamate `settle` del B37, in `_awardPoint`
+  e in `_handleRoomStateUpdate`, e le due righe `hot` del B42, nello snapshot e nella lettura del P2: le due differenze
+  applicate identiche), `index.html` e `natpf_kiosk.js` (le due parti), `natpf-stesso-schermo-b20.mjs` (banner del
+  sorteggio con il testo del B37, controlli dello scambio caldo del B42). F9 anche nella §2 del documento B42.
+  Verifiche sul codice unito: gioco **1475/1475** (1451 del B42 + 24 del B37), sito 226/226, programma Windows 43/43,
+  LAN 12/12, build ok; `audit:legend` identico a `scripts/audit/b42/risultati/legend-dopo.txt` (tutti i criteri). Nel
+  browser (porte 4170–4190, una prova alla volta; l'altro agente faceva girare le sue prove nello stesso momento):
+  `natpf-rally` 10/10, `natpf-stesso-schermo-b20` **53/53** (i due controlli del sorteggio ora passano con il testo del
+  B37), `natpf-fuori-vero` 10/10 (al primo giro 6/10 con `natpf-chi-serve` dell'altro agente in parallelo: il primo
+  colpo mandato fuori largo ha chiuso il punto con «Nice Shot!», palla passata oltre il fondo a 1,08 m da terra senza
+  rimbalzare; rifatta da sola 10/10, tempi come nel B37), `natpf-segnale-spiegato` 14/14, `natpf-menu` 45/45,
+  `natpf-formato-fiera` 25/25, `natpf-1v1-p2p` 39/39 (sulla build). Scritte in alto al centro: quella del segnale del
+  momento giusto (B37, prime 3 palle con l'anello di ogni partita) sta a 101–136 px a 1280 × 720, quella dello scambio
+  caldo (dal 20° colpo) a 172–197 px; nel gioco normale non compaiono insieme (al 20° colpo le prime 3 palle con
+  l'anello sono già passate) e, forzate insieme con una sonda (prima palla con l'anello al 21° colpo), non si toccano:
+  36 px tra le due a 1280 × 720, 53 px a 1920 × 1080.
+  `natpf-leggenda`, la stessa prova tre volte per parte, alternate: codice unito 7/7, 6/7, 6/7; `c619266` (solo B37)
+  7/7, 6/7, 6/7. Quando fallisce è sempre la stessa verifica, la posa negli allunghi **in corsa** durante la partita
+  (centro del piatto da −0,13 a +0,04 m oltre il posto normale invece di almeno +0,05; la testa va sempre verso la
+  palla, la mano tranne una volta su `c619266`, −0,12 con la palla a 2,29 m; gli allunghi forzati passano sempre): unito
+  6 fuori soglia su 13 allunghi in partita, `c619266` 5 su 21. Il B42 non la peggiora in modo chiaro: fallisce anche
+  senza. Con una copia della prova che stampa anche lato e numero del colpo (solo letture, un giro per parte: unito 6/7,
+  `c619266` 7/7): il «posto normale» del piatto è una mediana unica degli impatti normali che mescola dritto (0,53–0,54
+  m) e rovescio (0,78–0,79 m), e secondo il miscuglio va da 0,56 a 0,77 m; un allungo di dritto confrontato con un
+  riferimento quasi tutto di rovescio risulta indietro (−0,05) anche quando, rispetto ai dritti, va avanti di 0,16 m. Da
+  correggere nella prova (riferimento per lato); nel disegno (`legendReachPose`, `racket_kinematics`) resta solo
+  l'allungo corto in corsa (palla a 1,05 m, CPU a 5,3 m/s: +0,03 per lato). Gli allunghi in partita delle copie
+  diagnostiche sono tutti prima del 20° colpo. Dettagli nel documento B42, §7 e §8.
+  Non verificato: come sopra (persone e telefoni veri, Windows, ledwall, installer, webcam); il B37.1 (scritta «Al
+  servizio» al posto della gemma) non c'è ancora in questo ramo.
+- [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.
+  Poi, a parte (non tocca il B42): la prova `natpf-leggenda` con il riferimento del piatto per lato (dritto e rovescio),
+  e decidere con l'utente se sistemare nel disegno l'allungo corto in corsa della Leggenda.

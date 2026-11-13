@@ -674,7 +674,8 @@ test('con le opzioni spente, le fasce uguali e le due regole nuove spente a mano
   const { many } = await import('../scripts/audit/b19/due-umani.mjs');
   const sha = x => createHash('sha1').update(JSON.stringify(x)).digest('hex').slice(0, 12);
   const print = (a, fair, tweak) => { const r = many({ a, b: a, fair, matches: 20, tweak }, [7001, 7103, 7207]); return sha([r.pts.map(p => [p.win, p.n, p.kind, p.srv, p.why]), r.shots.map(s => [s.k, s.shot, s.grade, s.q, s.x, s.depth, s.sup, s.flight])]); };
-  const before = e => { e.natpfSuperRel = false; e.natpfNoPrep = false; };
+  // (B42: anche lo «scambio che si scalda», ora acceso di base, è un'opzione da spegnere: allora era spento)
+  const before = e => { e.natpfSuperRel = false; e.natpfNoPrep = false; e.natpfHotRally = false; };
   // B31: il gioco a rete vale anche nello stesso schermo (stessa regola per tutti e due): le impronte di f08243a tornano
   // con le sue regole spente (netPlayRules.off), quelle nuove sono più sotto
   netPlayRules.off = true;

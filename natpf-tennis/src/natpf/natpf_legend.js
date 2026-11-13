@@ -22,6 +22,7 @@
 import * as NS from './natpf_skill.js';
 import { rallyPressure } from './natpf_stroke_outcome.js';
 import { NET_PLAY, smashIncoming, netOff, netMoveOf } from './natpf_net_play.js';
+import { hotLegend } from './natpf_hot_rally.js'; // B42: scambio caldo, pressione e chiusura dal 20° colpo
 
 const C = NS.COURT;
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -221,7 +222,11 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   const slice = String(b.shotType).toUpperCase() === 'SLICE' && Math.abs(ctx.bz) > L.sliceFrom && !netOff() ? 1 - L.sliceQ : 1;
   // … e la schiacciata riuscita di chi gioca la mette in difficoltà (NS.LEGEND_SMASH.q; la reazione in ritardo in planCpuRun)
   const smashIn = e.natpfSkill?.lastShot?.shot === 'SMASH' && !netOff() ? NS.LEGEND_SMASH.q : 1;
-  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, L.pressureFrom)*finite(b.natpfSuper?.legendQ, 1)*(sv ? 1 - finite(L.serveQ)*sv.threat : 1)*slice*smashIn, .3, 1);
+  // B42: scambio caldo (natpf_hot_rally.hotLegend): la pressione e la chiusura degli scambi lunghi partono prima (dal 20°
+  // colpo invece che dal 26° e dal 24°), e la qualità cala un poco a ogni colpo caldo. Spento o prima del 20° colpo:
+  // i valori di LEGEND, identici
+  const HL = hotLegend(finite(b.rallyStrokeCount) + 1, !!e.natpfHot, L);
+  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, HL.pressureFrom)*finite(b.natpfSuper?.legendQ, 1)*(sv ? 1 - finite(L.serveQ)*sv.threat : 1)*slice*smashIn*HL.q, .3, 1);
   const R = (a, z) => a + rng()*(z - a), hx = h.pos.x, hz = h.pos.z, hv = h.vel.x;
   const away = -(Math.sign(hx) || -s);                    // angolo lontano dall'avversario
   const cands = [
@@ -249,10 +254,10 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   const g = (m.err + 2)/(m.exp + 2);
   // chiusura degli scambi lunghi: colpo in più per chiudere e, contro chi sbaglia poco, oltre closeHard colpi solo colpi
   // per chiudere (vincente o errore, niente «muro»); chi sbaglia spesso prima o poi sbaglia da solo
-  const rally = finite(b.rallyStrokeCount), closing = rally >= L.closeFrom;
+  const rally = finite(b.rallyStrokeCount), closing = rally >= HL.closeFrom;
   if (closing) cands.push({ kind: 'chiusura', x: away*R(L.closeX[0], L.closeX[1]), z: R(9.8, 11.1), shot: 'FLAT', power: R(L.closePower[0], L.closePower[1]) });
-  if (L.closeHard && rally >= L.closeHard && g <= L.closeG){ const hard = cands.filter(c => ['chiusura', 'lungolinea', 'incrociato'].includes(c.kind)); if (hard.length) cands.splice(0, cands.length, ...hard); }
-  const decay = Math.max(L.closeFloor, 1 - L.closeGain*Math.max(0, rally - L.closeFrom));
+  if (L.closeHard && rally >= HL.closeHard && g <= L.closeG){ const hard = cands.filter(c => ['chiusura', 'lungolinea', 'incrociato'].includes(c.kind)); if (hard.length) cands.splice(0, cands.length, ...hard); }
+  const decay = Math.max(L.closeFloor, 1 - L.closeGain*Math.max(0, rally - HL.closeFrom));
   const V = .5*decay*(L.vLearn ? clamp(g**L.vLearn, L.vMin, L.vMax) : 1);
   const aggr = clamp(1 - decay);
   if (aggr > 0) for (const c of cands) if (['TOPSPIN', 'FLAT'].includes(c.shot) && c.kind !== 'corpo' && c.kind !== 'contropiede'){

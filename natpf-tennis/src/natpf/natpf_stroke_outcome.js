@@ -301,7 +301,9 @@ export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.
 // assist, assisted }.
 // touch (B18.2 passo 3): la situazione che conta per la palla corta (come quality ma senza la preparazione: un tocco non
 // chiede di portare indietro il braccio); senza, vale quality.
-export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, touch = quality, pressure = 1, rhythm = 0, rhythmLag = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
+// hotPress (B42, scambio caldo: natpf_hot_rally.hotPressure; 1 fuori dallo scambio caldo): pressione in più che toglie
+// qualità come la pressione degli scambi lunghi, ma non stringe la finestra del tempo (spanPress di Leggenda)
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, touch = quality, pressure = 1, hotPress = 1, rhythm = 0, rhythmLag = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
   const O = OUTCOME;
   let shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
@@ -326,7 +328,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   const lag = clamp(finite(rhythmLag), 0, RHYTHM.lagMax);
   const te = lag > 0 ? unitsOf(finite(timing) + lag) : t, excess = Math.max(0, Math.abs(te) - 1);
   const rRest = clamp(clamp(finite(rhythm), -RHYTHM.lateMax, RHYTHM.max) + lag/late, -RHYTHM.max, RHYTHM.max);
-  const qs = clamp(timingQualityOf(t)*clamp(finite(quality, 1)), .2, 1), q = clamp(qs*clamp(finite(pressure, 1)), .2, 1);
+  const qs = clamp(timingQualityOf(t)*clamp(finite(quality, 1)), .2, 1), q = clamp(qs*clamp(finite(pressure, 1))*clamp(finite(hotPress, 1)), .2, 1);
   // qualità sotto failQ: fallito (in corsa, in allungo, palla veloce, sotto pressione); a rete, per la sola situazione e fino a
   // netQSpan sotto, colpo controllato con dispersione (B17.4) invece della palla debole uguale per tutti i gesti
   const fq = finite(AS.failQ, 0), belowFq = q < fq && shot !== 'DROP', pressured = belowFq && qs >= fq;
@@ -453,20 +455,26 @@ export const SUPER = Object.freeze({ power: .86, conf: .5, sideWrong: .35, timin
 // dal B15 (INTENT.relGain). Dagli altri controlli (webcam, mouse, CPU: niente typePower) power; d se manca anche quella.
 // Solo un numero vale come typePower (null, registrazioni vecchie: si usa power)
 export const superStrength = (intent = {}, d = 0) => (Number.isFinite(intent?.typePower) ? clamp(intent.typePower) : clamp(finite(intent?.power, d)));
-// { on, why[], ball } — ball: 'alta' | 'lenta' | 'corta' | 'schiacciata'
+// { on, why[], ball } — ball: 'alta' | 'lenta' | 'corta' | 'schiacciata' | 'calda' (B42)
 // strong (B25, solo tra due persone nello stesso schermo): true/false se il gesto è fortissimo rispetto al proprio colpo
 // abituale (natpf_duo_rules.relStrong) e decide lui al posto della soglia uguale per tutti; null: la soglia di sempre
-export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false, strong = null } = {}){
+// ease (B42, scambio caldo: natpf_hot_rally.hotSuper; null fuori dallo scambio caldo, e tutto resta com'era): il super
+// è più facile. power: soglia della forza più bassa di tanto; timing: tanto tempo in più (unità della finestra);
+// quality: qualità chiesta più bassa di tanto, misurata senza la pressione degli scambi lunghi (pressure: quella del
+// colpo; senza, dal 30° colpo il super non poteva più scattare: la pressione da sola portava la qualità sotto 0,8);
+// anyBall: va bene anche la palla veloce e bassa («palla calda»)
+export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false, strong = null, ease = null } = {}){
   const no = why => ({ on: false, why: [why], ball: null });
   if (!out || out.failed || out.weak || out.netFault) return no('colpo non riuscito');
   const shot = String(out.shot || '').toUpperCase();
   if (!['TOPSPIN', 'FLAT', 'SMASH'].includes(shot)) return no(`colpo ${shot.toLowerCase()}`);
-  if (typeof strong === 'boolean' ? !strong : superStrength(intent) < SUPER.power) return no('gesto non abbastanza forte');
+  if (typeof strong === 'boolean' ? !strong : superStrength(intent) < SUPER.power - (ease ? finite(ease.power) : 0)) return no('gesto non abbastanza forte');
   if (Number.isFinite(intent.conf) && intent.conf < SUPER.conf) return no('gesto poco chiaro');
   if (shot !== 'SMASH' && finite(ballSide)*(finite(contact, 1) >= 0 ? 1 : -1) < -SUPER.sideWrong) return no('colpo innaturale (palla dall\'altra parte)');
-  if (finite(out.excess) > 0 || Math.abs(finite(out.t)) > SUPER.timing) return no('fuori tempo');
-  if (finite(out.q, 1) < SUPER.quality) return no('in corsa o in allungo');
-  const ball = shot === 'SMASH' ? 'schiacciata' : finite(contactY, 1) >= SUPER.highY ? 'alta' : Math.abs(finite(ballVz, 15)) <= SUPER.slowVz ? 'lenta' : shortBall ? 'corta' : null;
+  if (finite(out.excess) > 0 || Math.abs(finite(out.t)) > SUPER.timing + (ease ? finite(ease.timing) : 0)) return no('fuori tempo');
+  const q = ease ? finite(out.q, 1)/clamp(finite(ease.pressure, 1), .2, 1) : finite(out.q, 1);
+  if (q < SUPER.quality - (ease ? finite(ease.quality) : 0)) return no('in corsa o in allungo');
+  const ball = shot === 'SMASH' ? 'schiacciata' : finite(contactY, 1) >= SUPER.highY ? 'alta' : Math.abs(finite(ballVz, 15)) <= SUPER.slowVz ? 'lenta' : shortBall ? 'corta' : ease?.anyBall ? 'calda' : null;
   if (!ball) return no('palla né alta, né lenta, né corta');
   return { on: true, why: ['gesto fortissimo', `palla ${ball}`], ball };
 }
