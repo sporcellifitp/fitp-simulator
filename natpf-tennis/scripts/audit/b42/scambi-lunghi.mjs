@@ -18,11 +18,15 @@ import { createHash } from 'node:crypto';
 import { simulate } from '../rally-balance.mjs';
 import { many } from '../b19/due-umani.mjs';
 import { eventoReset } from '../../../src/natpf/natpf_evento.js';
+// --hot='{"cpuErr":.03}': valori di prova dello scambio caldo, solo in memoria (natpf_hot_rally.hotTuning; il modulo
+// c'è solo dal B42: nella base senza la regola l'opzione non fa niente)
+const HT = await import('../../../src/natpf/natpf_hot_rally.js').then(m => m.hotTuning).catch(() => null);
 
 const arg = (k, d) => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1] ?? d;
 const has = k => process.argv.includes(`--${k}`);
 const list = (k, d) => arg(k, d).split(',').filter(Boolean);
 const CALDO = arg('caldo', 'base');
+if (arg('hot') && HT) Object.assign(HT, JSON.parse(arg('hot')));
 const forceHot = e => { if (CALDO === 'si') e.natpfHotRally = true; else if (CALDO === 'no') e.natpfHotRally = false; };
 const SERIE = list('serie', 'A,B');
 const SEEDS_CPU = { A: [7, 11, 23], B: [31, 37, 41] };
@@ -106,6 +110,36 @@ function duoRow(mode, pair, seeds, matches){
   return summary(pts, r.matches, total, r.shots.map(s => ({ n: s.n, sup: s.sup, why: s.supWhy })));
 }
 
+// --tracce: da dove cambiano le partite. Per ogni prova la stessa partita a sorteggi fissi con lo scambio caldo spento e
+// acceso (engine.natpfHotRally, solo in memoria): elenco di tutti i lanci della palla (numero del colpo nello scambio,
+// bersaglio, volo, velocità di partenza) e dei punti. Stampa l'impronta della partita spenta (nella copia della base,
+// dove la regola non c'era, deve venire uguale: spenta non cambia niente) e il primo lancio diverso tra spenta e accesa,
+// che deve essere un colpo dal 20° in poi (prima del 20° colpo la regola non cambia niente).
+function trace(kind, who, level, seed, hot){
+  const L = [];
+  const setup = e => {
+    e.natpfHotRally = hot;
+    const ln = e._launchBallToTarget.bind(e), aw = e._awardPoint.bind(e);
+    e._launchBallToTarget = (from, to, fl, o) => { const r = ln(from, to, fl, o); L.push([e.ball.rallyStrokeCount + 1, ...[to.x, to.z, fl, e.ball.vel.x, e.ball.vel.y, e.ball.vel.z].map(v => +(+v).toFixed(4))]); return r; };
+    e._awardPoint = (w, why = '') => { L.push(['punto', w, why, e.ball.rallyStrokeCount]); return aw(w, why); };
+  };
+  if (kind === 'cpu'){ eventoReset(); simulate({ profile: who, difficulty: level, points: 60, seed, cap: CAP, maxSeconds: 30000, setup }); }
+  else many({ a: who, b: who, mode: kind === 'stesso' ? 'split' : 'versus', fair: kind === 'stesso', gamesToWin: 1, matches: 6, cap: CAP, tweak: setup }, [seed]);
+  return L;
+}
+if (has('tracce')){
+  const PROVE = [['cpu', 'tennista', 'leggenda', 7], ['cpu', 'umano', 'pro', 11], ['cpu', 'amatore', 'evento', 23], ['cpu', 'umano', 'casual', 31], ['cpu', 'bambino', 'bambini', 37],
+    ['stesso', 'tennista', '1v1', 7001], ['stesso', 'amatore', '1v1', 7103], ['sfida', 'amatore', '1v1', 7207]];
+  console.log('prova | impronta con lo scambio caldo spento | primo lancio diverso tra spento e acceso');
+  for (const [kind, who, level, seed] of PROVE){
+    const off = trace(kind, who, level, seed, false), on = has('solo-spenta') ? null : trace(kind, who, level, seed, true);
+    let i = 0; if (on) while (i < off.length && i < on.length && JSON.stringify(off[i]) === JSON.stringify(on[i])) i++;
+    const pts = off.slice(0, i).filter(x => x[0] === 'punto').length, first = on ? (off[i] || on[i]) : null;
+    const where = !on ? '—' : i >= Math.min(off.length, on.length) ? 'nessuno' : `il lancio n. ${i + 1} (punto ${pts + 1}), colpo ${first[0] === 'punto' ? '— (fine punto)' : first[0]}° dello scambio; uguali i ${i} lanci prima`;
+    console.log(`${kind} ${who} ${level} seme ${seed} | ${sha(off)} (${off.length} righe) | ${where}`);
+  }
+}
+
 const rows = {};
 const t0 = Date.now();
 if (has('cpu')){
@@ -133,7 +167,9 @@ const head = (mode) => {
   console.log(`| riga | serie | punti (interrotti a ${CAP} colpi) | colpi: media · metà · 9 su 10 · max | oltre 20 | oltre 30 | scambi oltre 20 chiusi entro il 35° | vincenti ${A} · ${B} | in rete ${A} · ${B} | fuori ${A} · ${B} | punti vinti ${A} | s a punto | partita: media · 9 su 10 (s) |`);
   console.log('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
 };
-for (const mode of ['cpu', 'stesso', 'sfida']){
+// --breve: una riga per riga del banco (per le prove di taratura)
+if (has('breve')) for (const k of Object.keys(rows)) console.log(`${k.padEnd(26)} oltre 30 ${cell(k, 'oltre30')}% · 9 su 10 ${cell(k, 'p90')} · max ${cell(k, 'max')} · vinti ${cell(k, 'vintiA')}% · super ${cell(k, 'superCaldo')}% · s a punto ${cell(k, 'sAPunto')}`);
+for (const mode of has('breve') ? [] : ['cpu', 'stesso', 'sfida']){
   const keys = Object.keys(rows).filter(k => k.startsWith(mode + '|'));
   if (!keys.length) continue;
   console.log(`\n### ${mode === 'cpu' ? 'Contro la CPU (al meglio di 3 game)' : mode === 'stesso' ? 'Stesso schermo (formato in fiera, 1 game)' : 'Sfida tra due computer (1 game)'} · scambio caldo: ${CALDO}\n`);
@@ -143,8 +179,8 @@ for (const mode of ['cpu', 'stesso', 'sfida']){
     console.log(`| ${name} | ${serie} | ${cell(k, 'punti')} (${cell(k, 'interrotti')}) | ${cell(k, 'media')} · ${cell(k, 'p50')} · ${cell(k, 'p90')} · ${cell(k, 'max')} | ${cell(k, 'oltre20')}% | ${cell(k, 'oltre30')}% | ${cell(k, 'lunghiEntro35')}% | ${cell(k, 'vincA')} · ${cell(k, 'vincB')}% | ${cell(k, 'reteA')} · ${cell(k, 'reteB')}% | ${cell(k, 'fuoriA')} · ${cell(k, 'fuoriB')}% | ${cell(k, 'vintiA')}% | ${cell(k, 'sAPunto')} | ${cell(k, 'partitaMedia')} · ${cell(k, 'partitaP90')} |`);
   }
 }
-console.log('\ncolpi super dei telefoni (quota dei colpi): prima del 20° colpo → dal 20° in poi; perché no, dal 20° in poi');
-for (const k of Object.keys(rows)) console.log(`${k}: ${cell(k, 'superPrima')}% → ${cell(k, 'superCaldo')}% (${rows[k].colpiCaldo} colpi) · ${Object.entries(rows[k].perche).map(([w, v]) => `${w} ${it(v)}%`).join(', ')}`);
+if (!has('breve')) console.log('\ncolpi super dei telefoni (quota dei colpi): prima del 20° colpo → dal 20° in poi; perché no, dal 20° in poi');
+if (!has('breve')) for (const k of Object.keys(rows)) console.log(`${k}: ${cell(k, 'superPrima')}% → ${cell(k, 'superCaldo')}% (${rows[k].colpiCaldo} colpi) · ${Object.entries(rows[k].perche).map(([w, v]) => `${w} ${it(v)}%`).join(', ')}`);
 console.log(`\nimpronte: ${Object.entries(rows).map(([k, v]) => `${k} ${v.impronta}`).join(' · ')}`);
 console.log(`(${Math.round((Date.now() - t0)/1000)} s)`);
 if (arg('salva')) writeFileSync(arg('salva'), JSON.stringify({ caldo: CALDO, rows }, null, 1));

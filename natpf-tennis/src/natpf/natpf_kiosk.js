@@ -6,7 +6,7 @@
 // Ha anche la sensibilità della mira del telefono (B16, opzione dello staff: natpf_aim_level.js).
 // E il formato in fiera (B18: punto decisivo e servizio come nel tie-break, natpf_fair_format.js): dal B20 tre valori,
 // «No · Solo stesso schermo · Sì», di base «Solo stesso schermo».
-// E lo «scambio che si scalda» (B20, natpf_hot_rally.js): No · Sì, spento di base.
+// E lo «scambio che si scalda» (B20, natpf_hot_rally.js): Sì · No; dal B42 acceso di base, in tutti i modi.
 // E le due opzioni dello stesso schermo del B25 (natpf_duo_rules.js), spente di base: «Lancio automatico» (No · 30 s) e
 // «Stesso schermo: campo aperto» (No · Sì).
 // B27: «Telecomando dello staff» (natpf_remote.js) e, nel programma Windows, «Schermo del gioco» (monitor successivo),
@@ -139,7 +139,8 @@ export class NatpfKiosk {
       ui.toast?.(fairToast(mode, forced));
       ui.diag?.recorder?.log?.('stand.formatoFiera', { acceso: mode === 'si', modo: mode, indirizzo: forced });
     }
-    // B20: «scambio che si scalda» (natpf_hot_rally.js), no ↔ sì, salvato; vale dalla partita dopo, nello stesso schermo
+    // B20: «scambio che si scalda» (natpf_hot_rally.js), sì ↔ no, salvato; vale dalla partita dopo (B42: acceso di base,
+    // in tutti i modi tranne la webcam per due)
     if (cmd === 'hot'){
       const on = writeHotRally(!readHotRally());
       ui.toast?.(hotToast(on));

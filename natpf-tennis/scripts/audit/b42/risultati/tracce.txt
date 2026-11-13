@@ -1,0 +1,9 @@
+prova | impronta con lo scambio caldo spento | primo lancio diverso tra spento e acceso
+cpu tennista leggenda seme 7 | 37716196123c (1218 righe) | il lancio n. 40 (punto 2), colpo 20° dello scambio; uguali i 39 lanci prima
+cpu umano pro seme 11 | d5f0ca95faec (1000 righe) | il lancio n. 20 (punto 1), colpo 20° dello scambio; uguali i 19 lanci prima
+cpu amatore evento seme 23 | 9921caa4d9d0 (790 righe) | il lancio n. 48 (punto 3), colpo 21° dello scambio; uguali i 47 lanci prima
+cpu umano casual seme 31 | 27a008667bd7 (592 righe) | il lancio n. 151 (punto 22), colpo 20° dello scambio; uguali i 150 lanci prima
+cpu bambino bambini seme 37 | 7a718e5c79d6 (715 righe) | il lancio n. 75 (punto 8), colpo 20° dello scambio; uguali i 74 lanci prima
+stesso tennista 1v1 seme 7001 | 4cd84d9eda22 (1761 righe) | il lancio n. 20 (punto 1), colpo 20° dello scambio; uguali i 19 lanci prima
+stesso amatore 1v1 seme 7103 | 90204b7f5102 (517 righe) | il lancio n. 24 (punto 2), colpo 20° dello scambio; uguali i 23 lanci prima
+sfida amatore 1v1 seme 7207 | 0d69441e3cbd (752 righe) | il lancio n. 20 (punto 1), colpo 20° dello scambio; uguali i 19 lanci prima

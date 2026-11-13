@@ -154,11 +154,13 @@ export function gamesOf(pts){
 }
 // partite normali, un battitore per game. Senza serveModel: servizio del profilo (rally-balance, kick lento senza forma);
 // con serveModel (PHONE_SERVES): servizio del telefono con la forma, come lo batte chi gioca davvero
-export function natural({ difficulty = 'casual', profile = 'amatore', points = 300, seeds = [7, 11, 23], still = false, serveModel = null } = {}){
+// hot (B42): «scambio che si scalda» acceso o spento a mano (engine.natpfHotRally); senza, la regola del gioco (acceso)
+export function natural({ difficulty = 'casual', profile = 'amatore', points = 300, seeds = [7, 11, 23], still = false, serveModel = null, hot = null } = {}){
   const rows = [], all = [], G = { game: 0, vinti: 0, alServizio: 0, vintiAlServizio: 0 };
   for (const seed of seeds){
     const pts = [];
-    simulate({ profile, difficulty, points, seed, maxSeconds: 1e6, setup: hooks(rows, { still, pts }), serve: serveModel ? (e, rng) => phoneServeOf(serveModel, e, rng) : null });
+    const hk = hooks(rows, { still, pts });
+    simulate({ profile, difficulty, points, seed, maxSeconds: 1e6, setup: e => { if (typeof hot === 'boolean') e.natpfHotRally = hot; hk(e); }, serve: serveModel ? (e, rng) => phoneServeOf(serveModel, e, rng) : null });
     const g = gamesOf(pts); for (const k of Object.keys(G)) G[k] += g[k];
     all.push(...pts);
   }
