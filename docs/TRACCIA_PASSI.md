@@ -511,8 +511,8 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
       impronte uguali, unione di prova con B35a 1440/1440. Dubbi dell'agente da portare all'utente: «Ricalibra» a partita
       in corsa rifà gli scambi e rigioca il punto (non torna alla pagina); i tre riquadri escono quasi sempre Perfetti,
       vincenti, punti vinti.
-- [~] **Versione 2026-11-13.9** = B35a + B35b: controllo rapido + `natpf-scambi-di-prova` e `natpf-telecomando` sul codice
-      unito (consiglio dell'agente) → commit, push, zip, installer.
+- [~] **Versione 2026-11-13.9** = B35a + B35b (`4ac755c`): controllo rapido gioco 1440/1440, sito 226/226, Windows 42/42,
+      build ok; sul codice unito `natpf-scambi-di-prova` 30/30 e `natpf-telecomando` 85/85 → push fatto, zip e installer.
 - [~] **B37** partito alle 14:00 UTC (run `wf_63518f90-393`, ramo `b37-collaudo-bis`, base `1043c85`).
 - **NUOVO COLLAUDO DELL'UTENTE (13/11, 11:25 UTC) → blocco B37** (dopo B35b, sopra il suo lavoro):
   1. «quando la palla va fuori, aspetta che vada realmente fuori (anche quando finisce la partita): è brutto che si
