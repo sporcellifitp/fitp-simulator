@@ -1,0 +1,8 @@
+pro 18 m/s: oggi 1.61 m · bozza 0.23 m
+pro 25 m/s: oggi 1.97 m · bozza 0.32 m
+pro 30 m/s: oggi 2.00 m · bozza 0.39 m
+pro 35 m/s: oggi 2.01 m · bozza 0.45 m
+leggenda 18 m/s: oggi 1.64 m · bozza 0.35 m
+leggenda 25 m/s: oggi 1.98 m · bozza 0.48 m
+leggenda 30 m/s: oggi 2.00 m · bozza 0.58 m
+leggenda 35 m/s: oggi 2.01 m · bozza 0.68 m

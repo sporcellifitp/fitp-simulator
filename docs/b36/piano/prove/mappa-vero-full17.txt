@@ -1,0 +1,79 @@
+bozza: WT 0.3 FULL 17° OVER 1.6 PHI 0 W 3.2 L 4; palla 18 m/s
+
+== matrice voluto → ottenuto (3 fasce a 1,25 m), dritto del destro, palla a hitX 0,72 ==
+oggi  bambini buono                            in {"in":92,"ce":8,"lu":0,"fu":0} ce {"in":10,"ce":78,"lu":12,"fu":0} lu {"in":0,"ce":9,"lu":91,"fu":0} giusti 87% fuori 0% sd {"in":0.82,"ce":1.04,"lu":0.82}
+B36   bambini buono                            in {"in":95,"ce":5,"lu":0,"fu":0} ce {"in":5,"ce":90,"lu":5,"fu":0} lu {"in":0,"ce":4,"lu":96,"fu":0} giusti 93% fuori 0% sd {"in":0.85,"ce":0.71,"lu":0.83}
+oggi  bambini vero                             in {"in":81,"ce":13,"lu":2,"fu":4} ce {"in":44,"ce":38,"lu":17,"fu":1} lu {"in":12,"ce":37,"lu":51,"fu":0} giusti 57% fuori 1.9% sd {"in":1.31,"ce":1.98,"lu":1.68}
+B36   bambini vero                             in {"in":78,"ce":20,"lu":1,"fu":1} ce {"in":29,"ce":51,"lu":20,"fu":0} lu {"in":3,"ce":24,"lu":73,"fu":0} giusti 67% fuori 0.5% sd {"in":1.53,"ce":1.98,"lu":1.67}
+oggi  bambini bambino                          in {"in":69,"ce":17,"lu":5,"fu":8} ce {"in":42,"ce":32,"lu":23,"fu":3} lu {"in":18,"ce":36,"lu":45,"fu":1} giusti 48% fuori 4.3% sd {"in":1.79,"ce":2.29,"lu":2.03}
+B36   bambini bambino                          in {"in":68,"ce":22,"lu":5,"fu":4} ce {"in":34,"ce":38,"lu":27,"fu":1} lu {"in":8,"ce":25,"lu":67,"fu":1} giusti 58% fuori 1.9% sd {"in":1.92,"ce":2.41,"lu":2.06}
+oggi  evento buono                             in {"in":92,"ce":8,"lu":0,"fu":0} ce {"in":10,"ce":78,"lu":11,"fu":0} lu {"in":0,"ce":9,"lu":91,"fu":0} giusti 87% fuori 0% sd {"in":0.83,"ce":1.04,"lu":0.81}
+B36   evento buono                             in {"in":95,"ce":5,"lu":0,"fu":0} ce {"in":5,"ce":90,"lu":5,"fu":0} lu {"in":0,"ce":5,"lu":95,"fu":0} giusti 93% fuori 0% sd {"in":0.84,"ce":0.71,"lu":0.84}
+oggi  evento vero                              in {"in":81,"ce":13,"lu":2,"fu":4} ce {"in":45,"ce":37,"lu":17,"fu":1} lu {"in":11,"ce":37,"lu":52,"fu":0} giusti 57% fuori 1.8% sd {"in":1.33,"ce":1.97,"lu":1.66}
+B36   evento vero                              in {"in":78,"ce":20,"lu":1,"fu":1} ce {"in":28,"ce":52,"lu":20,"fu":0} lu {"in":3,"ce":25,"lu":72,"fu":0} giusti 67% fuori 0.5% sd {"in":1.52,"ce":1.97,"lu":1.71}
+oggi  evento bambino                           in {"in":69,"ce":18,"lu":6,"fu":8} ce {"in":42,"ce":32,"lu":23,"fu":4} lu {"in":17,"ce":37,"lu":46,"fu":1} giusti 49% fuori 4.1% sd {"in":1.81,"ce":2.3,"lu":2.01}
+B36   evento bambino                           in {"in":69,"ce":22,"lu":5,"fu":4} ce {"in":33,"ce":39,"lu":27,"fu":1} lu {"in":8,"ce":25,"lu":67,"fu":0} giusti 58% fuori 1.9% sd {"in":1.9,"ce":2.42,"lu":2.08}
+oggi  pro buono                                in {"in":91,"ce":9,"lu":0,"fu":0} ce {"in":11,"ce":78,"lu":10,"fu":0} lu {"in":0,"ce":8,"lu":92,"fu":0} giusti 87% fuori 0% sd {"in":0.85,"ce":1.04,"lu":0.8}
+B36   pro buono                                in {"in":95,"ce":5,"lu":0,"fu":0} ce {"in":5,"ce":90,"lu":5,"fu":0} lu {"in":0,"ce":5,"lu":95,"fu":0} giusti 93% fuori 0% sd {"in":0.83,"ce":0.72,"lu":0.84}
+oggi  pro vero                                 in {"in":81,"ce":13,"lu":2,"fu":4} ce {"in":44,"ce":38,"lu":16,"fu":1} lu {"in":11,"ce":37,"lu":52,"fu":0} giusti 57% fuori 1.8% sd {"in":1.35,"ce":1.96,"lu":1.64}
+B36   pro vero                                 in {"in":78,"ce":19,"lu":1,"fu":2} ce {"in":27,"ce":51,"lu":21,"fu":0} lu {"in":3,"ce":25,"lu":71,"fu":0} giusti 67% fuori 0.6% sd {"in":1.5,"ce":1.98,"lu":1.72}
+oggi  pro bambino                              in {"in":68,"ce":18,"lu":6,"fu":7} ce {"in":42,"ce":33,"lu":22,"fu":4} lu {"in":16,"ce":36,"lu":47,"fu":1} giusti 49% fuori 4.2% sd {"in":1.84,"ce":2.29,"lu":2}
+B36   pro bambino                              in {"in":69,"ce":22,"lu":4,"fu":5} ce {"in":33,"ce":39,"lu":27,"fu":1} lu {"in":8,"ce":25,"lu":66,"fu":1} giusti 58% fuori 2.2% sd {"in":1.89,"ce":2.43,"lu":2.08}
+oggi  leggenda buono                           in {"in":91,"ce":9,"lu":0,"fu":0} ce {"in":12,"ce":78,"lu":10,"fu":0} lu {"in":0,"ce":8,"lu":92,"fu":0} giusti 87% fuori 0% sd {"in":0.86,"ce":1.04,"lu":0.79}
+B36   leggenda buono                           in {"in":95,"ce":5,"lu":0,"fu":0} ce {"in":5,"ce":90,"lu":5,"fu":0} lu {"in":0,"ce":5,"lu":95,"fu":0} giusti 93% fuori 0% sd {"in":0.82,"ce":0.72,"lu":0.84}
+oggi  leggenda vero                            in {"in":81,"ce":13,"lu":2,"fu":3} ce {"in":44,"ce":39,"lu":15,"fu":2} lu {"in":10,"ce":37,"lu":53,"fu":0} giusti 57% fuori 1.7% sd {"in":1.35,"ce":1.95,"lu":1.64}
+B36   leggenda vero                            in {"in":78,"ce":18,"lu":1,"fu":3} ce {"in":28,"ce":50,"lu":22,"fu":0} lu {"in":4,"ce":25,"lu":71,"fu":0} giusti 66% fuori 1% sd {"in":1.5,"ce":2.01,"lu":1.73}
+oggi  leggenda bambino                         in {"in":68,"ce":18,"lu":7,"fu":7} ce {"in":42,"ce":33,"lu":21,"fu":4} lu {"in":17,"ce":35,"lu":47,"fu":1} giusti 49% fuori 4.3% sd {"in":1.85,"ce":2.29,"lu":2.01}
+B36   leggenda bambino                         in {"in":69,"ce":21,"lu":4,"fu":6} ce {"in":32,"ce":38,"lu":28,"fu":1} lu {"in":9,"ce":26,"lu":65,"fu":1} giusti 57% fuori 2.9% sd {"in":1.91,"ce":2.46,"lu":2.13}
+
+== dagli angoli (Pro): palla a +3,5 (angolo del dritto) e −2,8 (dritto dall'angolo del rovescio) ==
+oggi  hitX 3.5 buono                           in {"in":79,"ce":20,"lu":1,"fu":0} ce {"in":4,"ce":46,"lu":50,"fu":0} lu {"in":0,"ce":1,"lu":100,"fu":0} giusti 75% fuori 0% sd {"in":1.09,"ce":1.13,"lu":0.54}
+B36   hitX 3.5 buono                           in {"in":96,"ce":4,"lu":0,"fu":0} ce {"in":4,"ce":90,"lu":6,"fu":0} lu {"in":0,"ce":5,"lu":95,"fu":0} giusti 93% fuori 0% sd {"in":0.82,"ce":0.72,"lu":0.84}
+oggi  hitX 3.5 vero                            in {"in":72,"ce":18,"lu":7,"fu":3} ce {"in":34,"ce":33,"lu":32,"fu":1} lu {"in":5,"ce":15,"lu":79,"fu":0} giusti 61% fuori 1.5% sd {"in":1.63,"ce":2.13,"lu":1.53}
+B36   hitX 3.5 vero                            in {"in":79,"ce":18,"lu":1,"fu":2} ce {"in":28,"ce":50,"lu":22,"fu":0} lu {"in":3,"ce":25,"lu":72,"fu":0} giusti 67% fuori 0.6% sd {"in":1.47,"ce":1.98,"lu":1.72}
+oggi  hitX -2.8 buono                          in {"in":99,"ce":1,"lu":0,"fu":0} ce {"in":66,"ce":32,"lu":2,"fu":0} lu {"in":2,"ce":27,"lu":72,"fu":0} giusti 68% fuori 0% sd {"in":0.58,"ce":0.96,"lu":1.1}
+B36   hitX -2.8 buono                          in {"in":96,"ce":4,"lu":0,"fu":0} ce {"in":4,"ce":90,"lu":5,"fu":0} lu {"in":0,"ce":6,"lu":94,"fu":0} giusti 93% fuori 0% sd {"in":0.82,"ce":0.72,"lu":0.84}
+oggi  hitX -2.8 vero                           in {"in":91,"ce":5,"lu":1,"fu":4} ce {"in":73,"ce":19,"lu":7,"fu":2} lu {"in":29,"ce":41,"lu":29,"fu":0} giusti 46% fuori 1.9% sd {"in":1.05,"ce":1.73,"lu":1.84}
+B36   hitX -2.8 vero                           in {"in":79,"ce":18,"lu":1,"fu":2} ce {"in":28,"ce":50,"lu":22,"fu":0} lu {"in":3,"ce":25,"lu":72,"fu":0} giusti 67% fuori 0.6% sd {"in":1.5,"ce":1.98,"lu":1.7}
+
+== in corsa (q 0,75) ==
+oggi  pro buono q.75                           in {"in":91,"ce":9,"lu":0,"fu":0} ce {"in":11,"ce":78,"lu":11,"fu":0} lu {"in":0,"ce":8,"lu":92,"fu":0} giusti 87% fuori 0% sd {"in":0.86,"ce":1.03,"lu":0.81}
+B36   pro buono q.75                           in {"in":95,"ce":5,"lu":0,"fu":0} ce {"in":4,"ce":90,"lu":5,"fu":0} lu {"in":0,"ce":5,"lu":95,"fu":0} giusti 93% fuori 0% sd {"in":0.84,"ce":0.72,"lu":0.84}
+oggi  pro vero q.75                            in {"in":80,"ce":14,"lu":2,"fu":4} ce {"in":44,"ce":39,"lu":15,"fu":1} lu {"in":10,"ce":37,"lu":53,"fu":0} giusti 58% fuori 1.8% sd {"in":1.36,"ce":1.93,"lu":1.66}
+B36   pro vero q.75                            in {"in":78,"ce":19,"lu":1,"fu":2} ce {"in":28,"ce":51,"lu":21,"fu":0} lu {"in":3,"ce":26,"lu":72,"fu":0} giusti 67% fuori 0.6% sd {"in":1.5,"ce":1.97,"lu":1.71}
+oggi  leggenda buono q.75                      in {"in":84,"ce":9,"lu":0,"fu":6} ce {"in":11,"ce":78,"lu":10,"fu":0} lu {"in":0,"ce":8,"lu":89,"fu":3} giusti 84% fuori 3% sd {"in":1.11,"ce":1.03,"lu":0.94}
+B36   leggenda buono q.75                      in {"in":81,"ce":5,"lu":0,"fu":14} ce {"in":5,"ce":90,"lu":5,"fu":0} lu {"in":0,"ce":5,"lu":82,"fu":13} giusti 84% fuori 9% sd {"in":1.05,"ce":0.72,"lu":1.04}
+oggi  leggenda vero q.75                       in {"in":51,"ce":14,"lu":2,"fu":33} ce {"in":36,"ce":40,"lu":15,"fu":10} lu {"in":10,"ce":37,"lu":50,"fu":3} giusti 47% fuori 15.3% sd {"in":1.77,"ce":2.19,"lu":1.78}
+B36   leggenda vero q.75                       in {"in":44,"ce":19,"lu":1,"fu":36} ce {"in":25,"ce":49,"lu":19,"fu":6} lu {"in":3,"ce":24,"lu":52,"fu":21} giusti 49% fuori 20.9% sd {"in":1.89,"ce":2.16,"lu":1.92}
+
+== x (m) contro piatto (gradi), tempo neutro, Pro, palla 0,72 ==
+gradi 0 5 10 15 17 20 25 30 40 50 55 60 70
+oggi  -0.11 -0.67 -2.08 -3.46 -3.80 -3.80 -3.80 -3.80 -3.80 -2.73 -1.42 -0.11 -0.11
+B36   0.00 -0.46 -1.60 -2.74 -3.20 -3.43 -3.99 -4.00 -4.00 -4.00 -4.00 -4.00 0.00
+
+== solo tempo (piatto 0), Pro: x da anticipo pieno a ritardo pieno ==
+oggi -3.59 -1.88 -0.11 1.80 3.59
+B36 -0.96 -0.48 0.00 0.48 0.96
+piatto +17° (lungolinea) con anticipo pieno: oggi 0.288  B36 2.24
+
+== salto massimo del bersaglio per 10 ms di tempo (m) ==
+pro 18 m/s: oggi 1.61  B36 0.23
+pro 25 m/s: oggi 1.97  B36 0.32
+leggenda 18 m/s: oggi 1.64  B36 0.35
+leggenda 25 m/s: oggi 1.98  B36 0.48
+
+== piatto lungolinea pieno e ritardo (ms), Pro 18 m/s: x ==
+ms    60 70 78 82 86 90 95 100 110
+oggi  4.00 4.00 4.03 4.66 5.31 5.88 6.01 6.01 6.01
+B36   3.47 3.54 3.61 3.70 3.79 3.88 4.00 4.11 4.35
+B36 riga (25°) 4.00 4.00 4.01 4.10 4.19 4.28 4.40 4.51 4.75
+
+== copertura (celle 1×1 m raggiunte su 72) e cella più piena, Pro, da 3 posizioni ==
+hitX 0.72: oggi 59/72 (piena 11.8%)  B36 59/72 (piena 7.4%)  B36+corto 61/72 (piena 7.4%)
+hitX 3.5: oggi 52/72 (piena 10.0%)  B36 58/72 (piena 7.2%)  B36+corto 58/72 (piena 7.2%)
+hitX -2.8: oggi 59/72 (piena 11.3%)  B36 59/72 (piena 7.5%)  B36+corto 59/72 (piena 7.5%)
+
+== zone raggiunte con il gesto per quella zona (gesto buono: piatto ±5°, tempo ±0,25), Pro, rimbalzo ==
+hitX 0.72: PI: oggi 40% / B36 93% | LP: oggi 89% / B36 94% | CP: oggi 78% / B36 89% | AC: oggi 43% / B36 78% | RIGA: oggi 0% / B36 76%
+hitX 3.5: PI: oggi 25% / B36 94% | LP: oggi 99% / B36 95% | CP: oggi 44% / B36 90% | AC: oggi 57% / B36 78% | RIGA: oggi 0% / B36 74%
+hitX -2.8: PI: oggi 65% / B36 93% | LP: oggi 71% / B36 93% | CP: oggi 31% / B36 89% | AC: oggi 0% / B36 79% | RIGA: oggi 0% / B36 75%

@@ -1,0 +1,4 @@
+rampa 0,7→0,45: parte aggiunta ≤ 0.39 m per 0,05 di forza e ≤ 0.09 m per grado · totale 0.65 m (oggi, senza angolo corto, fino a 0.66 m) · gesto buono: voluto 74% non voluto 0.0% · persona vera: voluto 54% non voluto 3.3%
+rampa 0,75→0,35: parte aggiunta ≤ 0.32 m per 0,05 di forza e ≤ 0.08 m per grado · totale 0.65 m (oggi, senza angolo corto, fino a 0.66 m) · gesto buono: voluto 73% non voluto 0.0% · persona vera: voluto 53% non voluto 3.4%
+rampa 0,8→0,4: parte aggiunta ≤ 0.37 m per 0,05 di forza e ≤ 0.10 m per grado · totale 0.65 m (oggi, senza angolo corto, fino a 0.66 m) · gesto buono: voluto 77% non voluto 0.0% · persona vera: voluto 54% non voluto 3.6%
+rampa 0,8→0,4 e cima da 1,2 a 1,6 (proposta R7): parte aggiunta ≤ 0.36 m per 0,05 di forza e ≤ 0.12 m per grado · totale 0.65 m (oggi, senza angolo corto, fino a 0.66 m) · gesto buono: voluto 74% non voluto 0.0% · persona vera: voluto 52% non voluto 3.6%

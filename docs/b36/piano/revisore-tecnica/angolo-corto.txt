@@ -1,0 +1,5 @@
+forza persona vera (0,54 ± 0,24) · piatto buono ±5°: piatto >= 1 nel 26.3% degli incrociati voluti; angolo corto non voluto nel 11.7%
+forza persona vera (0,54 ± 0,24) · piatto vero ±12°: piatto >= 1 nel 43.4% degli incrociati voluti; angolo corto non voluto nel 16.2%
+forza persona normale sim (0,49 ± 0,145) · piatto buono ±5°: piatto >= 1 nel 26.3% degli incrociati voluti; angolo corto non voluto nel 12.4%
+forza persona normale sim (0,49 ± 0,145) · piatto vero ±12°: piatto >= 1 nel 43.4% degli incrociati voluti; angolo corto non voluto nel 17.7%
+profondità a forza 0,45 (angolo corto):  6.60 m · a forza 0,46 (normale): 8.93 m

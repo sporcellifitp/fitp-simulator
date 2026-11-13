@@ -1,0 +1,12 @@
+evento buono: giusti/fuori oggi 83%/0.0% · minima 90%/0.0% · oggi 12° 75%/0.0% · tappa1 12° 82%/0.0%
+evento vero: giusti/fuori oggi 54%/1.7% · minima 64%/0.1% · oggi 12° 51%/1.5% · tappa1 12° 58%/0.8%
+evento buono in corsa: giusti/fuori oggi 83%/0.0% · minima 90%/0.0% · oggi 12° 74%/0.0% · tappa1 12° 82%/0.0%
+evento vero in corsa: giusti/fuori oggi 55%/1.6% · minima 64%/0.1% · oggi 12° 51%/1.5% · tappa1 12° 58%/0.8%
+pro buono: giusti/fuori oggi 83%/0.0% · minima 90%/0.0% · oggi 12° 74%/0.0% · tappa1 12° 82%/0.0%
+pro vero: giusti/fuori oggi 55%/1.6% · minima 64%/0.2% · oggi 12° 51%/1.5% · tappa1 12° 57%/0.9%
+pro buono in corsa: giusti/fuori oggi 83%/0.0% · minima 90%/0.0% · oggi 12° 74%/0.0% · tappa1 12° 82%/0.0%
+pro vero in corsa: giusti/fuori oggi 55%/1.6% · minima 64%/0.2% · oggi 12° 51%/1.5% · tappa1 12° 58%/0.8%
+leggenda buono: giusti/fuori oggi 83%/0.0% · minima 90%/0.0% · oggi 12° 74%/0.0% · tappa1 12° 82%/0.0%
+leggenda vero: giusti/fuori oggi 55%/1.7% · minima 64%/0.4% · oggi 12° 51%/1.7% · tappa1 12° 57%/0.9%
+leggenda buono in corsa: giusti/fuori oggi 81%/2.4% · minima 90%/0.0% · oggi 12° 72%/1.4% · tappa1 12° 82%/0.1%
+leggenda vero in corsa: giusti/fuori oggi 46%/14.2% · minima 64%/0.4% · oggi 12° 43%/12.7% · tappa1 12° 54%/4.6%

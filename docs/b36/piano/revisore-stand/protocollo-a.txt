@@ -1,0 +1,7 @@
+gesto (dritto del destro, Adulto)                 Classica   B36.1 descritta   B36.1 ridotta   (metà esterna = oltre 2,06 m)
+cima −20° (verso il centro) e un attimo dopo       -1.51        -3.11           -2.57
+cima −25° e un attimo dopo                         -1.51        -3.32           -2.57
+cima +20° (verso l'esterno) e un attimo prima       1.65         3.31            2.77
+cima +25° e un attimo prima                         1.65         3.53            2.77
+cima dritta e un attimo prima                      -1.51        -0.37           -0.37
+cima dritta e un attimo dopo                        1.65         0.57            0.57

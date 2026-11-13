@@ -1,0 +1,49 @@
+== 1. x (m) contro scarto della cima (gradi), tempo neutro, Pro, palla a 0,72, verso incrociato ==
+gradi  20 | 25 | 30 | 40 | 50 | 55 | 59 | 60 | 60.5 | 61 | 65 | 70 | 80
+oggi   -3.80 | -3.80 | -3.80 | -3.80 | -2.73 | -1.42 | -0.37 | -0.11 | -0.11 | -0.11 | -0.11 | -0.11 | -0.11
+bozza  -3.43 | -3.99 | -4.00 | -4.00 | -4.00 | -4.00 | -4.00 | -4.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00
+
+== 2. calamita laterale: chi gira molto (rumore ±12°), Pro, tempo pulito (±0,25), q 1 ==
+giro voluto 20    oggi : in una striscia di 0,2 m (|x| 3,9–4,115) 0.0%  al centro (|x| < 1,25) 16.8%  fuori 0.0%
+giro voluto 20    bozza: in una striscia di 0,2 m (|x| 3,9–4,115) 38.0%  al centro (|x| < 1,25) 15.7%  fuori 0.0%
+giro voluto 24.65 oggi : in una striscia di 0,2 m (|x| 3,9–4,115) 0.0%  al centro (|x| < 1,25) 10.0%  fuori 0.0%
+giro voluto 24.65 bozza: in una striscia di 0,2 m (|x| 3,9–4,115) 52.0%  al centro (|x| < 1,25) 8.7%  fuori 0.0%
+giro voluto 30    oggi : in una striscia di 0,2 m (|x| 3,9–4,115) 0.0%  al centro (|x| < 1,25) 7.8%  fuori 0.0%
+giro voluto 30    bozza: in una striscia di 0,2 m (|x| 3,9–4,115) 68.1%  al centro (|x| < 1,25) 4.3%  fuori 0.0%
+giro voluto 40    oggi : in una striscia di 0,2 m (|x| 3,9–4,115) 0.0%  al centro (|x| < 1,25) 13.2%  fuori 0.0%
+giro voluto 40    bozza: in una striscia di 0,2 m (|x| 3,9–4,115) 82.8%  al centro (|x| < 1,25) 6.0%  fuori 0.0%
+
+== 3. angolo corto: profondità contro forza, cima 21° verso la diagonale, Pro, tempo neutro ==
+forza             0.3 | 0.4 | 0.44 | 0.45 | 0.46 | 0.5 | 0.6
+bozza (con gesto) 5.93 | 6.38 | 6.56 | 6.60 | 8.74 | 8.92 | 9.36
+bozza (senza)     7.95 | 8.45 | 8.64 | 8.69 | 8.74 | 8.92 | 9.36
+cima (forza 0,4)  16 | 16.9 | 17 | 17.1 | 18
+bozza (con gesto) 8.57 | 8.53 | 6.38 | 6.38 | 6.38
+
+== 4. profilo «bambino» del banco (rally-balance: non mira, tempo ±0,14 s, piatto ±0,45) e «amatore» quando non mira (±0,075 s, ±0,3) ==
+bambino a bambini, palla 15 m/s, q 1 → oggi: oltre 2,5 m 29.8% fuori 4.5% sd 2.32 m  ·  bozza: oltre 2,5 m 13.2% fuori 0.8% sd 1.65 m
+bambino a bambini, palla 15 m/s, q 0.8 → oggi: oltre 2,5 m 29.3% fuori 4.5% sd 2.31 m  ·  bozza: oltre 2,5 m 13.8% fuori 0.6% sd 1.65 m
+bambino a bambini, palla 18 m/s, q 1 → oggi: oltre 2,5 m 29.9% fuori 5.3% sd 2.36 m  ·  bozza: oltre 2,5 m 14.2% fuori 1.2% sd 1.72 m
+bambino a bambini, palla 18 m/s, q 0.8 → oggi: oltre 2,5 m 29.5% fuori 5.4% sd 2.36 m  ·  bozza: oltre 2,5 m 14.2% fuori 1.2% sd 1.72 m
+bambino a evento, palla 15 m/s, q 1 → oggi: oltre 2,5 m 35.8% fuori 12.5% sd 2.83 m  ·  bozza: oltre 2,5 m 18.8% fuori 5.3% sd 2.15 m
+bambino a evento, palla 15 m/s, q 0.8 → oggi: oltre 2,5 m 36.0% fuori 12.8% sd 2.84 m  ·  bozza: oltre 2,5 m 19.1% fuori 5.0% sd 2.14 m
+bambino a evento, palla 18 m/s, q 1 → oggi: oltre 2,5 m 36.9% fuori 15.5% sd 2.98 m  ·  bozza: oltre 2,5 m 19.4% fuori 8.3% sd 2.36 m
+bambino a evento, palla 18 m/s, q 0.8 → oggi: oltre 2,5 m 36.1% fuori 15.3% sd 2.97 m  ·  bozza: oltre 2,5 m 19.3% fuori 7.9% sd 2.34 m
+amatore a evento, palla 15 m/s, q 1 → oggi: oltre 2,5 m 26.2% fuori 2.5% sd 2.13 m  ·  bozza: oltre 2,5 m 5.2% fuori 0.1% sd 1.27 m
+amatore a evento, palla 15 m/s, q 0.8 → oggi: oltre 2,5 m 26.6% fuori 2.6% sd 2.14 m  ·  bozza: oltre 2,5 m 4.9% fuori 0.2% sd 1.26 m
+amatore a evento, palla 18 m/s, q 1 → oggi: oltre 2,5 m 29.3% fuori 4.2% sd 2.29 m  ·  bozza: oltre 2,5 m 7.4% fuori 0.6% sd 1.41 m
+amatore a evento, palla 18 m/s, q 0.8 → oggi: oltre 2,5 m 28.8% fuori 4.2% sd 2.29 m  ·  bozza: oltre 2,5 m 7.4% fuori 0.6% sd 1.41 m
+amatore a pro, palla 15 m/s, q 1 → oggi: oltre 2,5 m 26.9% fuori 2.9% sd 2.17 m  ·  bozza: oltre 2,5 m 5.7% fuori 0.3% sd 1.30 m
+amatore a pro, palla 15 m/s, q 0.8 → oggi: oltre 2,5 m 27.8% fuori 2.8% sd 2.17 m  ·  bozza: oltre 2,5 m 6.0% fuori 0.3% sd 1.32 m
+amatore a pro, palla 18 m/s, q 1 → oggi: oltre 2,5 m 29.0% fuori 5.0% sd 2.33 m  ·  bozza: oltre 2,5 m 7.9% fuori 0.8% sd 1.46 m
+amatore a pro, palla 18 m/s, q 0.8 → oggi: oltre 2,5 m 29.1% fuori 4.7% sd 2.32 m  ·  bozza: oltre 2,5 m 8.2% fuori 0.9% sd 1.46 m
+
+== 5. ritmo (createRhythm vero): chi colpisce SEMPRE «un attimo prima» (+0,5 unità) ==
+colpo 1: ritmo 0.00 → tempo per la direzione 0.50 unità → spostamento con peso 0,3: 0.48 m (con peso 1, oggi: 1.60 m)
+colpo 2: ritmo 0.00 → tempo per la direzione 0.50 unità → spostamento con peso 0,3: 0.48 m (con peso 1, oggi: 1.60 m)
+colpo 3: ritmo 0.00 → tempo per la direzione 0.50 unità → spostamento con peso 0,3: 0.48 m (con peso 1, oggi: 1.60 m)
+colpo 4: ritmo 0.00 → tempo per la direzione 0.50 unità → spostamento con peso 0,3: 0.48 m (con peso 1, oggi: 1.60 m)
+colpo 5: ritmo 0.40 → tempo per la direzione 0.10 unità → spostamento con peso 0,3: 0.10 m (con peso 1, oggi: 0.32 m)
+colpo 6: ritmo 0.40 → tempo per la direzione 0.10 unità → spostamento con peso 0,3: 0.10 m (con peso 1, oggi: 0.32 m)
+colpo 7: ritmo 0.40 → tempo per la direzione 0.10 unità → spostamento con peso 0,3: 0.10 m (con peso 1, oggi: 0.32 m)
+colpo 8: ritmo 0.40 → tempo per la direzione 0.10 unità → spostamento con peso 0,3: 0.10 m (con peso 1, oggi: 0.32 m)

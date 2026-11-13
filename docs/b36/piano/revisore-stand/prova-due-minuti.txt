@@ -1,0 +1,30 @@
+
+== livello evento: finestra anticipo 160 ms, ritardo 78 ms
+cima (gradi)  tempo                     Classica x   bozza x
+    0        a tempo                      0.01        0.00   (0 ms)
+    0        un attimo prima (+0,5)      -1.51       -0.48   (80 ms)
+    0        un attimo dopo (−0,5)        1.65        0.48   (-39 ms)
+  -15        a tempo                     -2.87       -2.74   (0 ms)
+  -15        un attimo prima (+0,5)      -3.33       -3.20   (80 ms)
+  -15        un attimo dopo (−0,5)       -1.03       -2.26   (-39 ms)
+   15        a tempo                      2.54        2.74   (0 ms)
+   15        un attimo prima (+0,5)       1.24        2.26   (80 ms)
+   15        un attimo dopo (−0,5)        3.50        3.20   (-39 ms)
+  -30        a tempo                     -3.17       -4.00   (0 ms)
+  -30        un attimo prima (+0,5)      -3.34       -4.00   (80 ms)
+  -30        un attimo dopo (−0,5)       -1.51       -3.88   (-39 ms)
+
+== livello pro: finestra anticipo 150 ms, ritardo 78 ms
+cima (gradi)  tempo                     Classica x   bozza x
+    0        a tempo                      0.01        0.00   (0 ms)
+    0        un attimo prima (+0,5)      -1.51       -0.48   (75 ms)
+    0        un attimo dopo (−0,5)        1.65        0.48   (-39 ms)
+  -15        a tempo                     -2.87       -2.74   (0 ms)
+  -15        un attimo prima (+0,5)      -3.33       -3.20   (75 ms)
+  -15        un attimo dopo (−0,5)       -1.03       -2.26   (-39 ms)
+   15        a tempo                      2.54        2.74   (0 ms)
+   15        un attimo prima (+0,5)       1.24        2.26   (75 ms)
+   15        un attimo dopo (−0,5)        3.50        3.20   (-39 ms)
+  -30        a tempo                     -3.17       -4.00   (0 ms)
+  -30        un attimo prima (+0,5)      -3.34       -4.00   (75 ms)
+  -30        un attimo dopo (−0,5)       -1.51       -3.88   (-39 ms)

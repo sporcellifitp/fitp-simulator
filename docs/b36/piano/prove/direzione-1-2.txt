@@ -1,0 +1,63 @@
+
+== pro, gesto buono (piatto ±5°, tempo ±0,25), semi 1,2, 4 colpi per voluto e lato ==
+                                  voluto cross    |voluto center   |voluto line     |
+                                    in  ce  lu  fu |  in  ce  lu  fu |  in  ce  lu  fu |
+tutto                               75  26   0   0 |  10  78  13   0 |   0  34  66   0 | giusti  73%  fuori   0%
+destro dritto                       85  16   0   0 |   0  97   4   0 |   0  45  55   0 | giusti  79%  fuori   0%
+destro rovescio                     68  33   0   0 |   8  58  34   0 |   0  38  63   0 | giusti  63%  fuori   0%
+mancino dritto                      76  24   0   0 |  13  88   0   0 |   1  22  78   0 | giusti  81%  fuori   0%
+mancino rovescio                    70  30   0   0 |  20  68  13   0 |   0  34  67   0 | giusti  68%  fuori   0%
+calibrazione rapida (2 gesti)       76  24   0   0 |   9  77  14   0 |   0  32  68   0 | giusti  74%  fuori   0%
+«Salta» / Nessuna                   72  28   0   0 |  11  73  16   0 |   0  31  69   0 | giusti  71%  fuori   0%
+scambi di prova (B28)               78  23   0   0 |   7  84   9   0 |   0  39  61   0 | giusti  74%  fuori   0%
+«Salta», sensori al contrario       70  30   0   0 |  16  71  13   0 |   1  31  68   0 | giusti  70%  fuori   0%
+scambi di prova, sensori al contrario  78  23   0   0 |   7  84   9   0 |   0  39  61   0 | giusti  74%  fuori   0%
+gesto «piatto»                      71  29   0   0 |  11  77  12   0 |   0  43  58   0 | giusti  69%  fuori   0%
+gesto «polso»                       71  29   0   0 |  11  76  13   0 |   0  43  58   0 | giusti  68%  fuori   0%
+gesto «tempo»                       50  50   0   0 |   9  78  13   0 |   1  55  44   0 | giusti  58%  fuori   0%
+gesto «naturale»                    82  18   0   0 |  10  77  13   0 |   0  32  68   0 | giusti  76%  fuori   0%
+gesto «riga»                        98   2   0   0 |   8  79  13   0 |   0   0 100   0 | giusti  93%  fuori   0%
+
+== pro, gesto della persona vera (piatto ±12°, tempo +0,35 ±0,45), semi 1,2, 4 colpi per voluto e lato ==
+                                  voluto cross    |voluto center   |voluto line     |
+                                    in  ce  lu  fu |  in  ce  lu  fu |  in  ce  lu  fu |
+tutto                               66  23  11   0 |  39  29  32   0 |  19  29  52   0 | giusti  49%  fuori   0%
+destro dritto                       77  16   8   0 |  28  35  38   0 |  25  43  33   0 | giusti  48%  fuori   0%
+destro rovescio                     61  24  16   0 |  16  33  51   0 |  19  40  42   0 | giusti  45%  fuori   0%
+mancino dritto                      67  30   3   0 |  63  14  24   0 |  20   8  73   0 | giusti  51%  fuori   0%
+mancino rovescio                    62  22  17   0 |  51  34  16   0 |  12  26  63   0 | giusti  53%  fuori   0%
+calibrazione rapida (2 gesti)       68  24   8   0 |  42  31  28   0 |  17  31  52   0 | giusti  50%  fuori   0%
+«Salta» / Nessuna                   66  19  16   0 |  41  21  38   0 |  20  23  58   0 | giusti  48%  fuori   0%
+scambi di prova (B28)               67  24   9   0 |  34  36  30   0 |  20  29  51   0 | giusti  51%  fuori   0%
+«Salta», sensori al contrario       64  22  14   0 |  45  21  34   0 |  17  32  51   0 | giusti  45%  fuori   0%
+scambi di prova, sensori al contrario  67  24   9   0 |  34  36  30   0 |  20  29  51   0 | giusti  51%  fuori   0%
+gesto «piatto»                      63  22  15   0 |  39  29  33   0 |  21  31  48   0 | giusti  47%  fuori   0%
+gesto «polso»                       66  21  14   0 |  39  28  33   0 |  21  32  47   0 | giusti  47%  fuori   0%
+gesto «tempo»                       49  32  19   0 |  38  32  30   0 |  31  28  41   0 | giusti  40%  fuori   0%
+gesto «naturale»                    68  26   6   0 |  41  26  33   0 |  20  23  58   0 | giusti  51%  fuori   0%
+gesto «riga»                        86  13   1   0 |  39  30  31   0 |   0  31  69   0 | giusti  62%  fuori   0%
+
+== pro, gesto buono IN CORSA (corsa 0,7, palla a 1,6 m) ==
+                                  voluto cross    |voluto center   |voluto line     |
+                                    in  ce  lu  fu |  in  ce  lu  fu |  in  ce  lu  fu |
+tutto                               72  28   0   0 |   6  72  22   0 |   0  30  70   0 | giusti  71%  fuori   0%
+destro dritto                       83  17   0   0 |   0  78  22   0 |   0  38  62   0 | giusti  74%  fuori   0%
+destro rovescio                     64  36   0   0 |   4  58  38   0 |   0  28  72   0 | giusti  64%  fuori   0%
+mancino dritto                      71  29   0   0 |  11  74  15   0 |   0  22  78   0 | giusti  74%  fuori   0%
+mancino rovescio                    68  32   0   0 |   9  78  13   0 |   0  30  70   0 | giusti  72%  fuori   0%
+calibrazione rapida (2 gesti)       71  29   0   0 |   6  73  22   0 |   0  29  71   0 | giusti  72%  fuori   0%
+«Salta» / Nessuna                   69  31   0   0 |   8  66  26   0 |   0  28  72   0 | giusti  69%  fuori   0%
+scambi di prova (B28)               74  26   0   0 |   4  78  18   0 |   0  32  68   0 | giusti  73%  fuori   0%
+gesto «piatto»                      70  30   0   0 |   9  67  24   0 |   0  36  64   0 | giusti  67%  fuori   0%
+gesto «polso»                       69  31   0   0 |   9  68  23   0 |   0  38  63   0 | giusti  66%  fuori   0%
+gesto «tempo»                       42  58   0   0 |   5  73  22   0 |   0  54  46   0 | giusti  53%  fuori   0%
+gesto «naturale»                    79  21   0   0 |   4  80  16   0 |   0  20  80   0 | giusti  80%  fuori   0%
+gesto «riga»                        99   1   0   0 |   2  73  25   0 |   0   0 100   0 | giusti  91%  fuori   0%
+
+== serie: lo stesso voluto 14 volte di fila (dopo 8 colpi normali), dritto del destro, scambi di prova ==
+cross   piatto    I I I I I I I c I I c I I I
+cross   naturale  I I I I I I I c I I c I I I
+center  piatto    I I c I c c c L c c c c c c
+center  naturale  I I c I c c c L c c c c c c
+line    piatto    c c L L c c c L L L L c L c
+line    naturale  c c L L c c c L L c L c c c

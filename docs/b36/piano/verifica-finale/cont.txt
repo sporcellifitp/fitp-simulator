@@ -1,0 +1,18 @@
+== pendenza della parte non tenuta 2.0 m per unità
+finale leggenda q0.75: salto massimo per 1 grado (0–90°) 0.23 m a 14.5°
+leggenda q0.75: tra 3,6 m e la riga 41% · fuori 41.3%
+evento q0.75 buono : oggi giusti 83% fuori 0.0% · finale giusti 90% fuori 0.0%
+evento q0.75 vero  : oggi giusti 55% fuori 1.6% · finale giusti 63% fuori 0.4%
+pro q0.75 buono : oggi giusti 83% fuori 0.0% · finale giusti 90% fuori 0.0%
+pro q0.75 vero  : oggi giusti 55% fuori 1.7% · finale giusti 63% fuori 0.5%
+leggenda q0.75 buono : oggi giusti 81% fuori 2.4% · finale giusti 89% fuori 1.1%
+leggenda q0.75 vero  : oggi giusti 46% fuori 14.2% · finale giusti 51% fuori 14.1%
+== pendenza della parte non tenuta 1.33 m per unità
+finale leggenda q0.75: salto massimo per 1 grado (0–90°) 0.23 m a 14.5°
+leggenda q0.75: tra 3,6 m e la riga 63% · fuori 11.9%
+evento q0.75 buono : oggi giusti 83% fuori 0.0% · finale giusti 90% fuori 0.0%
+evento q0.75 vero  : oggi giusti 55% fuori 1.6% · finale giusti 63% fuori 0.4%
+pro q0.75 buono : oggi giusti 83% fuori 0.0% · finale giusti 90% fuori 0.0%
+pro q0.75 vero  : oggi giusti 55% fuori 1.7% · finale giusti 63% fuori 0.5%
+leggenda q0.75 buono : oggi giusti 81% fuori 2.4% · finale giusti 90% fuori 0.1%
+leggenda q0.75 vero  : oggi giusti 46% fuori 14.2% · finale giusti 57% fuori 7.5%

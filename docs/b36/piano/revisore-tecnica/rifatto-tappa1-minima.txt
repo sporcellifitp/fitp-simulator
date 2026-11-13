@@ -1,0 +1,12 @@
+evento buono: giusti/fuori oggi 87%/0.0% · minima (tetto 1, senza aria) 93%/0.0% · oggi 12° 75%/0.0% · minima 12° 80%/0.0%
+evento vero: giusti/fuori oggi 57%/1.8% · minima (tetto 1, senza aria) 68%/0.1% · oggi 12° 51%/1.5% · minima 12° 58%/0.1%
+evento buono in corsa: giusti/fuori oggi 87%/0.0% · minima (tetto 1, senza aria) 93%/0.0% · oggi 12° 74%/0.0% · minima 12° 80%/0.0%
+evento vero in corsa: giusti/fuori oggi 57%/1.8% · minima (tetto 1, senza aria) 68%/0.1% · oggi 12° 51%/1.5% · minima 12° 58%/0.1%
+pro buono: giusti/fuori oggi 87%/0.0% · minima (tetto 1, senza aria) 93%/0.0% · oggi 12° 74%/0.0% · minima 12° 80%/0.0%
+pro vero: giusti/fuori oggi 58%/1.7% · minima (tetto 1, senza aria) 68%/0.2% · oggi 12° 51%/1.5% · minima 12° 58%/0.2%
+pro buono in corsa: giusti/fuori oggi 87%/0.0% · minima (tetto 1, senza aria) 93%/0.0% · oggi 12° 74%/0.0% · minima 12° 80%/0.0%
+pro vero in corsa: giusti/fuori oggi 58%/1.7% · minima (tetto 1, senza aria) 68%/0.2% · oggi 12° 51%/1.5% · minima 12° 58%/0.1%
+leggenda buono: giusti/fuori oggi 87%/0.0% · minima (tetto 1, senza aria) 93%/0.0% · oggi 12° 74%/0.0% · minima 12° 80%/0.0%
+leggenda vero: giusti/fuori oggi 58%/1.9% · minima (tetto 1, senza aria) 68%/0.4% · oggi 12° 51%/1.7% · minima 12° 58%/0.3%
+leggenda buono in corsa: giusti/fuori oggi 84%/3.1% · minima (tetto 1, senza aria) 93%/0.0% · oggi 12° 72%/1.4% · minima 12° 80%/0.0%
+leggenda vero in corsa: giusti/fuori oggi 47%/15.2% · minima (tetto 1, senza aria) 68%/0.4% · oggi 12° 43%/12.7% · minima 12° 58%/0.3%

@@ -1,0 +1,16 @@
+== QSPAN 0.3
+oggi   leggenda q0.75: salto massimo per 1 grado (0–90°) 0.24 m a 11.25°
+finale leggenda q0.75: salto massimo per 1 grado (0–90°) 0.23 m a 14.5°
+leggenda q0.75: tra 3,6 m e la riga 24% · fuori 62.4%
+evento q0.75 vero  : oggi giusti 55% fuori 1.6% · finale giusti 63% fuori 0.4%
+pro q0.75 vero  : oggi giusti 55% fuori 1.7% · finale giusti 63% fuori 0.8%
+leggenda q0.75 buono : oggi giusti 81% fuori 2.4% · finale giusti 86% fuori 3.7%
+leggenda q0.75 vero  : oggi giusti 46% fuori 14.2% · finale giusti 47% fuori 18.8%
+== QSPAN 0.4
+oggi   leggenda q0.75: salto massimo per 1 grado (0–90°) 0.24 m a 11.25°
+finale leggenda q0.75: salto massimo per 1 grado (0–90°) 0.23 m a 14.5°
+leggenda q0.75: tra 3,6 m e la riga 25% · fuori 61.0%
+evento q0.75 vero  : oggi giusti 55% fuori 1.6% · finale giusti 63% fuori 0.4%
+pro q0.75 vero  : oggi giusti 55% fuori 1.7% · finale giusti 59% fuori 5.4%
+leggenda q0.75 buono : oggi giusti 81% fuori 2.4% · finale giusti 86% fuori 3.5%
+leggenda q0.75 vero  : oggi giusti 46% fuori 14.2% · finale giusti 48% fuori 18.3%
