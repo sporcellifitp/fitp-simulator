@@ -1,12 +1,12 @@
 // B23 · PROVA «Dritto come nel video» (src/natpf/natpf_forehand_video.js): interruttore, pose chiave, raccordi, destro e
 // mancino, racchetta sulla palla all'impatto (in tempo, in anticipo, in ritardo; chi gioca e CPU), e soprattutto: con la
-// prova spenta le ossa sono quelle di 9b8f9cb fotogramma per fotogramma (scripts/audit/b23/ossa.mjs e il suo file di
+// prova spenta le ossa sono quelle di ae68759 (base unita; identiche a 9b8f9cb) fotogramma per fotogramma (scripts/audit/b23/ossa.mjs e il suo file di
 // impronte fatto sui sorgenti di quel commit).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
-import { load, sequenza, impronta, mount, bones, BONE_NAMES, PERSONAGGI, TRATTI, FRAMES, GOLDEN, DT } from '../scripts/audit/b23/ossa.mjs';
+import { load, sequenza, impronta, mount, bones, BONE_NAMES, PERSONAGGI, TRATTI, FRAMES, GOLDEN, DT, BASE } from '../scripts/audit/b23/ossa.mjs';
 import * as FVM from '../src/natpf/natpf_forehand_video.js';
 import { getRacketRimWorldPoints } from '../src/racket_kinematics.js';
 
@@ -47,17 +47,17 @@ test('interruttore: di base Sì, salvato con la chiave natpf-tennis.drittoVideo,
   assert.match(FVM.forehandVideoToast(true), /acceso/); assert.match(FVM.forehandVideoToast(false), /quello di prima/);
 });
 
-test('spenta: le ossa sono quelle di 9b8f9cb, fotogramma per fotogramma, per destro, mancino e avversario', () => {
-  assert.equal(G.commit, '9b8f9cb'); assert.equal(G.fotogrammi, FRAMES);
+test('spenta: le ossa sono quelle di ae68759, fotogramma per fotogramma, per destro, mancino e avversario', () => {
+  assert.equal(G.commit, BASE); assert.equal(G.fotogrammi, FRAMES);
   for (const who of Object.keys(PERSONAGGI)){
     const prints = run(false, who).rec.map(impronta);
     assert.equal(prints.length, FRAMES);
     const diff = prints.map((h, i) => (h === G.impronte[who][i] ? -1 : i)).filter(i => i >= 0);
-    assert.deepEqual(diff, [], `${who}: fotogrammi diversi da 9b8f9cb`);
+    assert.deepEqual(diff, [], `${who}: fotogrammi diversi da ${BASE}`);
   }
 });
 
-test('accesa: cambia solo attorno al dritto (preparazione, colpo, finale); attesa, rovescio, servizio ed esultanza restano di 9b8f9cb', () => {
+test('accesa: cambia solo attorno al dritto (preparazione, colpo, finale); attesa, rovescio, servizio ed esultanza restano di ae68759', () => {
   for (const who of Object.keys(PERSONAGGI)){
     const prints = run(true, who).rec.map(impronta), same = (a, b) => { for (let f = a; f < b; f++) assert.equal(prints[f], G.impronte[who][f], `${who}, fotogramma ${f}`); };
     const changed = (a, b) => { let n = 0; for (let f = a; f < b; f++) if (prints[f] !== G.impronte[who][f]) n++; return n; };
@@ -72,7 +72,7 @@ test('accesa: cambia solo attorno al dritto (preparazione, colpo, finale); attes
   }
 });
 
-test('lo stato dell\'animazione di sempre non viene toccato: spegnere a metà riporta subito alle ossa di 9b8f9cb', () => {
+test('lo stato dell\'animazione di sempre non viene toccato: spegnere a metà riporta subito alle ossa di ae68759', () => {
   setForehandVideo(true);
   const prints = sequenza(M, { onFrame: f => { if (f === 95) setForehandVideo(false); if (f === 255) setForehandVideo(true); } }).map(impronta);
   setForehandVideo(true);

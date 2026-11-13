@@ -18,7 +18,7 @@
 //   • lo stato del corpo di sempre (molle di busto e testa, mano libera): l'animazione di base va avanti identica con la
 //     prova accesa o spenta, quindi spegnerla a metà partita riporta subito al dritto di prima;
 //   • con la prova spenta (Opzioni → «No», o ?dritto=prima) fvPre e fvPost escono senza scrivere niente: le pose sono
-//     quelle di 9b8f9cb, osso per osso (test/natpf-dritto-video.test.mjs).
+//     quelle di prima (ae68759, uguali a 9b8f9cb), osso per osso (test/natpf-dritto-video.test.mjs).
 //
 // Destri e mancini: il personaggio del mancino è specchiato dalla radice (natpf_hand.js), e tutte le pose qui sono nel
 // riferimento del personaggio (racchetta a x < 0, rete verso +z): valgono per tutti e due senza casi a parte. Vale per
@@ -55,7 +55,11 @@ export const FV = Object.freeze({
   contact: .34,                 // frazione dello swing con la racchetta sulla palla (racket_kinematics: picco a 0,34)
   racketFree: Object.freeze([.2, .46]),   // tra queste frazioni la racchetta non si tocca (chi gioca parte da 0,24)
   // prontezza delle pose del corpo (s): le pose seguono lo swing con un piccolo ritardo, senza scatti
-  tau: Object.freeze({ coil: .07, uncoil: .05, drive: .035, finish: .055, still: .09, racket: .06, hop: .03 }),
+  tau: Object.freeze({ coil: .07, uncoil: .05, drive: .035, finish: .055, still: .09, racket: .06, hop: .03, react: .16 }),   // react: le pose lasciano il posto a esultanza o delusione
+  coilRate: 4.5,                // al secondo: la preparazione cresce al massimo così (anche quando la palla cambia lato
+                                // con la carica già alta, o la carica sale di colpo)
+  handSpeed: 6,                 // unità del modello al secondo: velocità massima di quello che la prova aggiunge alla mano
+                                // libera (nel trailer il braccio libero tira forte all'impatto, ma senza salti)
   hold: .12, release: .32,      // s: dopo la fine dello swing il finale resta, poi si scioglie
   charge: Object.freeze([.02, .5]),   // carica della preparazione (racket_kinematics) tra cui la posa passa da 0 a 1: girati presto, come nel trailer
   hop: Object.freeze({ from: .1, len: .3, up: .055 }),   // saltello di recupero: da quando (s dopo l'impatto), durata, altezza (m)
@@ -124,11 +128,12 @@ const newState = () => ({
   coil: 0, drive: 0, finish: 0, still: 1, hop: 0, rPrep: 0, rPrep0: 0, rFin: 0,   // pesi (filtrati)
   swinging: false, any: false, after: null, hit: false, sinceHit: 0,              // fase
   live: false, hand: false, bx: 0, by: 0, bz: 0,                                  // corpo: mano libera di base da rimettere
+  ax: 0, ay: 0, az: 0, dt: 1/60,                                                  // mano libera: quanto la prova ha aggiunto, passo
   ox: NaN, oy: NaN, oz: NaN,                                                      // racchetta: ultima posizione scritta
 });
 function rest(s){
   s.coil = s.drive = s.finish = s.hop = s.rPrep = s.rPrep0 = s.rFin = 0; s.still = 1;
-  s.swinging = s.any = s.hit = s.live = false; s.after = null; s.sinceHit = 0; s.ox = s.oy = s.oz = NaN;
+  s.swinging = s.any = s.hit = s.live = false; s.after = null; s.sinceHit = 0; s.ox = s.oy = s.oz = NaN; s.ax = s.ay = s.az = 0;
 }
 const TGT = { coil: 0, drive: 0, finish: 0 };
 const follow = (v, to, dt, tau) => v + (to - v)*(1 - Math.exp(-dt/tau));
@@ -161,9 +166,11 @@ export function fvPre(actor, rig, dt){
   const charge = !fh && !busy && !T.swingActive && T.anticipationSide === 'forehand' ? T.anticipationCharge : 0;
   fvTargets(TGT, charge, l, fh ? null : s.after);
   if (busy) TGT.coil = TGT.drive = TGT.finish = 0;   // esultanza o delusione a fine punto: solo quelle
-  s.coil = follow(s.coil, TGT.coil, dt, TGT.coil > s.coil ? FV.tau.coil : FV.tau.uncoil);
-  s.drive = follow(s.drive, TGT.drive, dt, FV.tau.drive);
-  s.finish = follow(s.finish, TGT.finish, dt, FV.tau.finish);
+  // a fine punto (esultanza o delusione) le pose se ne vanno più piano: il finale che restava non sparisce di colpo
+  s.coil = Math.min(follow(s.coil, TGT.coil, dt, busy ? FV.tau.react : TGT.coil > s.coil ? FV.tau.coil : FV.tau.uncoil), s.coil + FV.coilRate*dt);
+  s.dt = dt;
+  s.drive = follow(s.drive, TGT.drive, dt, busy ? FV.tau.react : FV.tau.drive);
+  s.finish = follow(s.finish, TGT.finish, dt, busy ? FV.tau.react : FV.tau.finish);
   s.hop = follow(s.hop, s.hit ? fvHop(s.sinceHit) : 0, dt, FV.tau.hop);
   const v = actor.vel ? Math.hypot(actor.vel.x, actor.vel.z) : 0;
   s.still = follow(s.still, 1 - ss(v, FV.run[0], FV.run[1]), dt, FV.tau.still);
@@ -194,7 +201,7 @@ const mix = k => wc*FV_POSE.coil[k] + wd*FV_POSE.drive[k] + wf*FV_POSE.finish[k]
 // Dopo l'animazione del corpo: aggiunge le pose a bacino, piedi, testa, mano libera e il saltello.
 export function fvPost(actor, rig){
   const s = rig.natpfFv;
-  if (!s || !s.live || !forehandVideoEnabled()) return;
+  if (!s || !s.live || !forehandVideoEnabled()){ if (s) s.ax = s.ay = s.az = 0; return; }
   wc = s.coil; wd = s.drive; wf = s.finish;
   const k = s.still, kh = .35 + .65*k, hip = rig.hipPivot, tw = mix('tw');
   hip.rotation.x += mix('pi'); hip.rotation.y += tw; hip.rotation.z += mix('ro');
@@ -211,7 +218,12 @@ export function fvPost(actor, rig){
   // mano libera: dalla posizione dell'animazione di sempre (tenuta da parte per il fotogramma dopo) verso le pose
   const h = rig.handLPivot.position, sum = wc + wd + wf, g = sum > 1 ? 1/sum : 1;
   s.bx = h.x; s.by = h.y; s.bz = h.z; s.hand = true;
-  h.x += g*(mix('lx') - sum*s.bx); h.y += g*(mix('ly') - sum*s.by); h.z += g*(mix('lz') - sum*s.bz);
+  // (quello che si aggiunge non cambia più di FV.handSpeed al secondo: niente salti della mano tra due fotogrammi)
+  let ax = g*(mix('lx') - sum*s.bx), ay = g*(mix('ly') - sum*s.by), az = g*(mix('lz') - sum*s.bz);
+  const dx = ax - s.ax, dy = ay - s.ay, dz = az - s.az, d = Math.hypot(dx, dy, dz), lim = FV.handSpeed*s.dt;
+  if (d > lim){ const q = lim/d; ax = s.ax + dx*q; ay = s.ay + dy*q; az = s.az + dz*q; }
+  s.ax = ax; s.ay = ay; s.az = az;
+  h.x += ax; h.y += ay; h.z += az;
   // saltello di recupero: tutto il personaggio (radice), ombra a terra compresa; non in prima persona (lì si vedono solo
   // racchetta e avambracci, che restano quelli di sempre)
   const up = firstPerson(actor) ? 0 : s.hop*k;

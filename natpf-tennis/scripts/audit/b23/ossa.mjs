@@ -5,9 +5,12 @@
 // destro, mancino (specchiato), avversario (l'altra metà campo).
 //
 //   node --import ./test/register.mjs scripts/audit/b23/ossa.mjs                      # stampa il riassunto del codice di oggi
-//   node --import ./test/register.mjs scripts/audit/b23/ossa.mjs --src=<cartella src di 9b8f9cb> --out=scripts/audit/b23/risultati/ossa-9b8f9cb.json
+//   node --import ./test/register.mjs scripts/audit/b23/ossa.mjs --src=<cartella src di ae68759> --out=scripts/audit/b23/risultati/ossa-ae68759.json
 //
-// Il file in risultati/ è stato fatto così sui sorgenti di 9b8f9cb (git archive 9b8f9cb natpf-tennis/src, con un
+// BASE del confronto: ae68759 (natpf-simulator unito in questo ramo, versione 2026-11-12.7). Le impronte fatte sui
+// sorgenti di 9b8f9cb (da cui la prova è partita) sono identiche, fotogramma per fotogramma: l'animazione dei
+// personaggi non è cambiata tra i due commit.
+// Il file in risultati/ è stato fatto così sui sorgenti di ae68759 (git archive ae68759 natpf-tennis/src, con un
 // collegamento a node_modules accanto): test/natpf-dritto-video.test.mjs rifà la sequenza con il codice di oggi e la
 // prova spenta e confronta le impronte fotogramma per fotogramma.
 import fs from 'node:fs';
@@ -18,8 +21,9 @@ import * as THREE from 'three';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const SRC = path.resolve(here, '../../../src');
-export const GOLDEN = path.join(here, 'risultati/ossa-9b8f9cb.json');
+export const GOLDEN = path.join(here, 'risultati/ossa-ae68759.json');
 export const DT = 1/60;
+export const BASE = 'ae68759';   // commit di riferimento (natpf-simulator unito)
 
 // moduli dell'animazione da una cartella src (quella di oggi o quella di un altro commit)
 export async function load(src = SRC){
@@ -141,9 +145,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const G = JSON.parse(fs.readFileSync(GOLDEN, 'utf8')).impronte;
     for (const k of Object.keys(P)){
       const diff = P[k].map((h, i) => (h === G[k][i] ? -1 : i)).filter(i => i >= 0);
-      console.log(`${k.padEnd(11)} fotogrammi diversi da 9b8f9cb: ${diff.length}${diff.length ? ` (dal ${diff[0]} al ${diff.at(-1)})` : ''}`);
+      console.log(`${k.padEnd(11)} fotogrammi diversi da ${BASE}: ${diff.length}${diff.length ? ` (dal ${diff[0]} al ${diff.at(-1)})` : ''}`);
       for (const [name, f0, f1] of TRATTI){ const n = diff.filter(i => i >= f0 && i < f1).length; if (n) console.log(`    ${name}: ${n} su ${f1 - f0}`); }
     }
   }
-  if (arg('out')){ fs.writeFileSync(path.resolve(arg('out')), JSON.stringify({ commit: '9b8f9cb', fotogrammi: FRAMES, dt: '1/60', tratti: TRATTI, impronte: P }) + '\n'); console.log('scritto ' + arg('out')); }
+  if (arg('out')){ fs.writeFileSync(path.resolve(arg('out')), JSON.stringify({ commit: BASE, fotogrammi: FRAMES, dt: '1/60', tratti: TRATTI, impronte: P }) + '\n'); console.log('scritto ' + arg('out')); }
 }

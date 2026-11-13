@@ -12,13 +12,18 @@
 //   3) nessuno scatto: la variazione massima tra due fotogrammi delle ossa del corpo (bacino, collo, piedi, mano libera)
 //      con la prova accesa resta sotto le soglie (e si scrive accanto quella di prima);
 //   4) su «No» identico a prima: le ossa della stessa sequenza, fotogramma per fotogramma, hanno la stessa impronta di
-//      quelle registrate su 9b8f9cb (tools/e2e/dati/dritto-video-ossa-9b8f9cb.json; BASELINE=file la rifà, da lanciare
-//      con GAME_DIR=<natpf-tennis di 9b8f9cb>); accesa, le ossa del dritto cambiano e quelle del rovescio no;
+//      quelle registrate sulla base ae68759 (natpf-simulator unito; tools/e2e/dati/dritto-video-base-ae68759.json;
+//      BASELINE=file la rifà, da lanciare con GAME_DIR=<natpf-tennis di ae68759>); accesa, le ossa del dritto cambiano
+//      e quelle del rovescio no;
+//   4b) il gioco non cambia: partite a passi e sorteggi fissi (senza persone, contro la CPU con un robot, stesso schermo
+//      con due robot) con la prova accesa e spenta hanno la stessa impronta di palla, giocatori e punteggio, e la stessa
+//      della base; con «Lob & Drop» (modelli 3D) la partita contro la CPU è la stessa e il dritto delle mascotte cambia
+//      con la prova (le loro ossa seguono le parti del tennista), con la racchetta sulla palla come prima;
 //   5) fotogrammi al secondo non peggiorati: costo dell'animazione dei personaggi per fotogramma e fotogrammi interi
 //      (calcolo + disegno), accesa e spenta a blocchi alterni.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-dritto-video.mjs
 //   FOGLI=cartella: salva anche i fotogrammi PRIMA/DOPO agli stessi istanti (camera di gioco e camera ravvicinata) per
-//     il foglio di confronto (natpf-tennis/scripts/audit/b23/foglio.mjs) · SOLO=fogli|interruttore|ossa|costo · GAME_PORT (3163)
+//     il foglio di confronto (natpf-tennis/scripts/audit/b23/foglio.mjs) · SOLO=fogli|interruttore|ossa|partite|mascotte|costo · GAME_PORT (3163)
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -28,7 +33,9 @@ import { launch, check, summary } from './th.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(process.env.GAME_DIR || path.join(here, '../../natpf-tennis'));
 const GAME_PORT = +(process.env.GAME_PORT || 3163), SOLO = process.env.SOLO || '', FOGLI = process.env.FOGLI || '', BASELINE = process.env.BASELINE || '';
-const REF = process.env.CONFRONTA || path.join(here, 'dati/dritto-video-ossa-9b8f9cb.json');
+const BASE_COMMIT = 'ae68759';   // natpf-simulator unito nel ramo della prova: base dei confronti
+const REF = process.env.CONFRONTA || path.join(here, `dati/dritto-video-base-${BASE_COMMIT}.json`);
+const baseRef = () => (existsSync(REF) ? JSON.parse(readFileSync(REF, 'utf8')) : null);
 const KEY = 'natpf-tennis.drittoVideo';
 if (FOGLI) mkdirSync(FOGLI, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -113,18 +120,21 @@ const DRIVER = () => {
     E._launchBallToTarget(E.ball.pos, new V3(S.toX*sx, 0, 8.6), 1.05, { topspin: 14 }); E._natpfPlanPlayer?.();
   };
   const fnv = (h, x) => { h ^= x; return Math.imul(h, 0x01000193) >>> 0; };
+  const draw0 = E.renderer.render, BONES3 = ['Hips', 'Spine02', 'Head', 'LeftArm', 'LeftForeArm', 'RightArm', 'RightForeArm', 'LeftLeg', 'RightLeg'];
   const f64 = new Float64Array(1), u8 = new Uint8Array(f64.buffer);
   const api = {
     get engine(){ return E; },
     mode(on){ const L = U.lobby; if (L.setForehandVideo){ L.setForehandVideo(!!on); return true; } return false; },
-    begin({ hand = 'right', offset = 0, rally = false, toX = 1.4 } = {}){
+    begin({ hand = 'right', offset = 0, rally = false, toX = 1.4, pre = false } = {}){
       window.__seme(20261112);
       U.hand.set(hand);
+      E.natpfFatigue = null;   // stanchezza della corsa (natpf_skill.fatigueStep): ogni sequenza riparte riposata
       E.elapsedTime = 500; E.cameraTrauma = 0; E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null; E.natpfTimeScale = 1;
       E.swingVfx?.clearAllTrails?.();
       still(E.player, 0, 11.4); still(E.opponent, 0, -11.6);
       S = { hand, offset, rally, toX, f: 0, strikes: [], swungFor: null, seen: -1, rec: { player: [], opponent: [] }, jerk: { player: {}, opponent: {} }, last: { player: null, opponent: null },
-        hits: { player: {}, opponent: {} }, wasSw: { player: false, opponent: false }, prints: [], centre: [], state: [], gestures: [], top: { player: [0, 0, 0, 0], opponent: [0, 0, 0, 0] } };
+        hits: { player: {}, opponent: {} }, wasSw: { player: false, opponent: false }, rel: { player: [], opponent: [] }, swStart: { player: [], opponent: [] }, prints: [], centre: [], state: [], gestures: [], top: { player: [0, 0, 0, 0], opponent: [0, 0, 0, 0] },
+        pre, mprints: [], mcentre: [] };
       feed();
       E._snapCameraImmediate?.();
       return true;
@@ -138,6 +148,9 @@ const DRIVER = () => {
           E.motionController._emitSwing({ source: 'keyboard', shotType: 'topspin', speed: 1.18, dirX: 0, dirY: -.45 });
         }
         if (!live && S.rally) feed();
+        // sorteggi rimessi a ogni fotogramma (seme + numero del fotogramma): quanti numeri consumano voce e suoni, che
+        // dipendono da quello che è successo prima nella pagina, non spostano i sorteggi dei fotogrammi dopo
+        window.__seme(20261112 + 7919*S.f);
         clock += 1000*DT; E.update(DT); S.f++;
         let h = 0x811c9dc5;
         for (const who of ['player', 'opponent']){
@@ -159,12 +172,26 @@ const DRIVER = () => {
           }
           S.last[who] = now;
           // colpi: quanti swing per lato
-          if (T.swingActive && !S.wasSw[who]){ const kk = T.isServe ? 'serve' : T.swingSide; S.hits[who][kk] = (S.hits[who][kk] || 0) + 1; }
+          if (T.swingActive && !S.wasSw[who]){ const kk = T.isServe ? 'serve' : T.swingSide; S.hits[who][kk] = (S.hits[who][kk] || 0) + 1; S.swStart[who].push(S.f); }
+          // ossa del corpo rispetto alla radice, fotogramma per fotogramma (per gli scatti di quello che la prova aggiunge)
+          S.rel[who].push(BODY.flatMap(n => now[n].map(x => +x.toFixed(6))));
           S.wasSw[who] = !!T.swingActive;
           const W = a.rig.natpfFv, top = S.top[who];
           if (W){ top[0] = Math.max(top[0], W.coil); top[1] = Math.max(top[1], W.drive); top[2] = Math.max(top[2], W.finish); top[3] = Math.max(top[3], W.hop); }
         }
         S.prints.push(h.toString(16));
+        // B23 con «Lob & Drop»: il lavoro che il gioco fa prima di disegnare (ossa dei modelli 3D dalle parti del
+        // tennista, racchetta fuori dalla testa grande), senza disegnare; impronta delle ossa delle mascotte e corde
+        if (S.pre){
+          E.renderer.render = () => {}; try { E.__render(); } finally { E.renderer.render = draw0; }
+          let m = 0x811c9dc5;
+          for (const who of ['player', 'opponent']){
+            const R3 = E[who].natpfMascot3dOn && E[who].natpfMascot3d;
+            if (R3) for (const n of BONES3){ const qq = R3.bones[n].quaternion; for (const x of [qq.x, qq.y, qq.z, qq.w]){ f64[0] = x; for (let k = 0; k < 8; k++) m = fnv(m, u8[k]); } }
+          }
+          S.mprints.push(m.toString(16));
+          E.player.root.updateMatrixWorld(true); E.player.racketMesh.localToWorld(v.set(0, .545, 0)); S.mcentre.push([v.x, v.y, v.z]);
+        }
         const T = E.player.racketKinematics, c = T.getRacketRimWorldPoints().centerWorld, F = E.player.rig.natpfFv;
         S.centre.push([c.x, c.y, c.z]);
         S.state.push({ sw: !!T.swingActive, l: +T.swingProgress.toFixed(3), side: T.swingSide, charge: +T.anticipationCharge.toFixed(3), fv: F ? [+F.coil.toFixed(3), +F.drive.toFixed(3), +F.finish.toFixed(3), +F.hop.toFixed(4), +F.rPrep.toFixed(3), +F.rFin.toFixed(3)] : null });
@@ -172,9 +199,14 @@ const DRIVER = () => {
       return { f: S.f, strike: S.strikes[0] || null, strikes: S.strikes.length, phase: E.phase };
     },
     end(){
-      const out = { frames: S.f, strikes: S.strikes, gestures: S.gestures, prints: S.prints, jerk: S.jerk, hits: S.hits, top: S.top, state: S.f <= 200 ? S.state : null, body: BODY, impact: [] };
+      const out = { frames: S.f, strikes: S.strikes, gestures: S.gestures, prints: S.prints, jerk: S.jerk, rel: S.rel, swStart: S.swStart, hits: S.hits, top: S.top, state: S.f <= 200 ? S.state : null, body: BODY, impact: [] };
       // impatto: cuore delle corde nel primo fotogramma dopo il colpo, rispetto al punto in cui la palla è stata colpita
       for (const k of S.strikes){ const c = S.centre[k.f]; if (c) out.impact.push({ f: k.f, side: k.side, d: Math.hypot(c[0] - k.ball[0], c[1] - k.ball[1], c[2] - k.ball[2]), c, ball: k.ball }); }
+      if (S.pre){
+        out.mprints = S.mprints; out.on3d = [!!E.player.natpfMascot3dOn, !!E.opponent.natpfMascot3dOn]; out.looks = [E.player.natpfLook, E.opponent.natpfLook];
+        // corde della racchetta disegnata (dopo lo scostamento dalla testa grande) rispetto al punto del colpo
+        out.impact3d = S.strikes.map(k => { const c = S.mcentre[k.f]; return c ? Math.hypot(c[0] - k.ball[0], c[1] - k.ball[1], c[2] - k.ball[2]) : null; });
+      }
       return out;
     },
     // disegno del fotogramma corrente: camera di gioco (com'è) o camera ravvicinata dietro chi gioca, come nel trailer
@@ -291,27 +323,37 @@ if (!BASELINE && (!SOLO || SOLO === 'interruttore')) await interruttore();
 /* ---------- 2–4) impatto, scatti, «No» identico a prima ---------- */
 // sequenze: gesto in tempo, in anticipo (0,14 s prima del punto d'impatto: lo swing aspetta la palla), in ritardo, mancino
 const SEQ = { tempo: {}, anticipo: { offset: .14 }, ritardo: { offset: -.05 }, mancino: { hand: 'left' } }, N = 160, RALLY = +(process.env.RALLY || 900);
-// limiti per fotogramma del movimento delle ossa del corpo rispetto alla radice (m e rad a 60 fotogrammi al secondo)
-const LIMITI = { bacino: [.2, .42], collo: [.2, .42], piedeDietro: [.12, .4], piedeDavanti: [.12, .4], manoLibera: [.36, 1.2] };
+// Scatti: quello che la prova AGGIUNGE a un osso del corpo (posizione e orientamento rispetto alla radice, accesa meno
+// spenta: le due pagine fanno la stessa partita fotogramma per fotogramma) non deve cambiare di colpo tra due
+// fotogrammi. Limiti per fotogramma (m e rad a 60 al secondo), come nel test di unità: durante lo swing (dalla partenza a
+// 40 fotogrammi dopo, il colpo vero è veloce) e fuori (entrata nella preparazione, finale che si scioglie, corsa).
+const BODY_E2E = ['bacino', 'collo', 'piedeDietro', 'piedeDavanti', 'manoLibera'];
+const SCATTI = { swing: [.17, .26], fuori: [.05, .08] }, SWING_LEN = 40;
 async function ossa(){
-  const g = await game({ saved: null }), p = g.p; await install(p);
-  const can = await p.evaluate(() => __fv.mode(false));
-  const off = {}, on = {};
-  for (const [k, o] of Object.entries(SEQ)) off[k] = await seq(p, o, N);
-  off.scambio = await seq(p, { rally: true }, RALLY);
+  // Ogni modo in una pagina appena aperta, con le sequenze nello stesso ordine: il gioco tiene da una sequenza all'altra
+  // qualcosa che questa prova non rimette da capo (il colpo dopo il primo esce un poco diverso), quindi si confrontano
+  // solo sequenze partite dallo stesso stato. Pagina «spenta» (scelta salvata No: la prova non parte mai), pagina
+  // «accesa», e una seconda pagina «spenta» per vedere che la sequenza è ripetibile.
+  const pagina = async saved => {
+    const g = await game({ saved }); await install(g.p);
+    const r = {}; for (const [k, o] of Object.entries(SEQ)) r[k] = await seq(g.p, o, N);
+    r.scambio = await seq(g.p, { rally: true }, RALLY);
+    check(`ossa, pagina con la prova ${BASELINE ? 'che non c\'è' : saved === '1' ? 'accesa' : 'spenta'}: nessun errore`, !g.errs.length, g.errs.join(' | ').slice(0, 300));
+    return { g, r };
+  };
+  const A = await pagina('0'), off = A.r; await A.g.ctx.close();
   if (BASELINE){
     mkdirSync(path.dirname(BASELINE), { recursive: true });
-    writeFileSync(BASELINE, JSON.stringify({ commit: process.env.COMMIT || '9b8f9cb', fotogrammi: Object.fromEntries(Object.entries(off).map(([k, r]) => [k, r.frames])), colpi: Object.fromEntries(Object.entries(off).map(([k, r]) => [k, r.strikes.map(s => s.f)])), impronte: Object.fromEntries(Object.entries(off).map(([k, r]) => [k, r.prints])) }) + '\n');
+    const old = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : {};
+    writeFileSync(BASELINE, JSON.stringify({ ...old, commit: process.env.COMMIT || BASE_COMMIT, fotogrammi: Object.fromEntries(Object.entries(off).map(([k, r]) => [k, r.frames])), colpi: Object.fromEntries(Object.entries(off).map(([k, r]) => [k, r.strikes.map(s => s.f)])), impronte: Object.fromEntries(Object.entries(off).map(([k, r]) => [k, r.prints])) }) + '\n');
     console.log(`impronte delle ossa scritte in ${BASELINE} (${Object.values(off).reduce((n, r) => n + r.frames, 0)} fotogrammi)`);
-    check('riferimento: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
-    await g.ctx.close(); return;
+    return;
   }
-  check('il gioco conosce la prova (interruttore dal menu)', can === true);
-  const again = await seq(p, SEQ.tempo, N);
-  check('sequenza ripetibile: stesse ossa due volte', again.prints.join() === off.tempo.prints.join() && again.strikes[0]?.f === off.tempo.strikes[0]?.f, `colpo ai fotogrammi ${off.tempo.strikes[0]?.f} e ${again.strikes[0]?.f}`);
-  await p.evaluate(() => __fv.mode(true));
-  for (const [k, o] of Object.entries(SEQ)) on[k] = await seq(p, o, N);
-  on.scambio = await seq(p, { rally: true }, RALLY);
+  const C = await game({ saved: '0' }); await install(C.p);
+  const again = await seq(C.p, SEQ.tempo, N); await C.ctx.close();
+  check('sequenza ripetibile: stesse ossa in due pagine', again.prints.join() === off.tempo.prints.join() && again.strikes[0]?.f === off.tempo.strikes[0]?.f, `colpo ai fotogrammi ${off.tempo.strikes[0]?.f} e ${again.strikes[0]?.f}`);
+  const Bp = await pagina('1'), on = Bp.r, g = Bp.g, p = g.p;
+  check('il gioco conosce la prova (interruttore dal menu)', await p.evaluate(() => __fv.mode(true)) === true);
 
   // 2) racchetta sulla palla all'impatto
   for (const k of Object.keys(SEQ)){
@@ -324,27 +366,44 @@ async function ossa(){
   check('anticipo: il gesto parte prima e lo swing aspetta la palla; ritardo: il colpo arriva dopo', e.gestures[0] <= t - 6 && e.strikes[0]?.f >= e.gestures[0] + 3 && l.strikes[0]?.f > t,
     `in tempo: colpo al fotogramma ${t}; anticipo: gesto ${e.gestures[0]}, colpo ${e.strikes[0]?.f}; ritardo: gesto ${l.gestures[0]}, colpo ${l.strikes[0]?.f}`);
 
-  // 3) nessuno scatto: movimento massimo tra due fotogrammi delle ossa del corpo
-  const jerk = (r, who) => Object.entries(LIMITI).map(([bone, [pos, rot]]) => { const j = r.jerk[who][bone]; return { bone, pos: j.pos, rot: j.ang, ok: j.pos <= pos && j.ang <= rot }; });
-  const tell = (A, Bq) => A.map((x, i) => `${x.bone} ${mm(x.pos)} mm/${x.rot.toFixed(2)} rad (prima ${mm(Bq[i].pos)}/${Bq[i].rot.toFixed(2)})`).join(', ');
+  // 3) nessuno scatto: variazione massima tra due fotogrammi di quello che la prova aggiunge alle ossa del corpo
+  const added = (r1, r0, who) => {
+    const A = r1.rel[who], Z = r0.rel[who], sw = r1.swStart[who], n = Math.min(A.length, Z.length), m = {};
+    const inSwing = f => sw.some(s => f >= s - 1 && f <= s + SWING_LEN);
+    for (let f = 1; f < n; f++) BODY_E2E.forEach((bone, b) => {
+      const o = b*7, d = k => (A[f][o + k] - Z[f][o + k]) - (A[f - 1][o + k] - Z[f - 1][o + k]);
+      const pos = Math.hypot(d(0), d(1), d(2)), rot = 2*Math.hypot(d(3), d(4), d(5), d(6)), w = inSwing(f) ? 'swing' : 'fuori', x = (m[bone] ||= { swing: [0, 0, 0, 0], fuori: [0, 0, 0, 0] })[w];
+      if (pos > x[0]){ x[0] = pos; x[3] = f; } if (rot > x[1]){ x[1] = rot; x[2] = f; }
+    });
+    return m;
+  };
   for (const k of [...Object.keys(SEQ), 'scambio']) for (const who of k === 'scambio' ? ['player', 'opponent'] : ['player']){
-    const A = jerk(on[k], who), Bq = jerk(off[k], who);
-    check(`${k}, ${who === 'player' ? 'chi gioca' : 'CPU'}: nessuno scatto delle ossa del corpo`, A.every(x => x.ok), tell(A, Bq));
+    const m = added(on[k], off[k], who), bad = [], txt = [];
+    for (const bone of BODY_E2E) for (const w of ['fuori', 'swing']){
+      const [pos, rot, f] = m[bone][w], [P, R] = SCATTI[w];
+      if (pos > P) bad.push(`${bone} ${w}: ${mm(pos)} mm al fotogramma ${m[bone][w][3]}`);
+      if (rot > R) bad.push(`${bone} ${w}: ${rot.toFixed(3)} rad al fotogramma ${f}`);
+    }
+    for (const bone of BODY_E2E) txt.push(`${bone} ${mm(m[bone].fuori[0])} mm/${m[bone].fuori[1].toFixed(3)} rad fuori, ${mm(m[bone].swing[0])}/${m[bone].swing[1].toFixed(3)} nello swing`);
+    check(`${k}, ${who === 'player' ? 'chi gioca' : 'CPU'}: nessuno scatto in quello che la prova aggiunge alle ossa del corpo`, !bad.length, (bad.length ? `oltre i limiti: ${bad.join(', ')} · ` : '') + txt.join(', '));
   }
+  // per informazione: movimento massimo assoluto tra due fotogrammi, accesa e spenta
+  const J = (r, who) => BODY_E2E.map(b => { const j = r.jerk[who][b]; return `${b} ${mm(j.pos)}/${j.ang.toFixed(2)}`; }).join(', ');
+  console.log(`movimento massimo tra due fotogrammi (mm/rad), scambio, chi gioca: accesa ${J(on.scambio, 'player')} · spenta ${J(off.scambio, 'player')}`);
   const rk = on.scambio.jerk.player.racchetta, rk0 = off.scambio.jerk.player.racchetta;
   check('scambio: lo scatto più grande della racchetta non è più grande di prima', rk.pos <= rk0.pos + .03, `${mm(rk.pos)} mm tra due fotogrammi (prima ${mm(rk0.pos)})`);
   const H = on.scambio.hits, top = on.scambio.top;
   check('scambio: dritti di chi gioca e della CPU con le pose della prova', (H.player.forehand || 0) >= 2 && (H.opponent.forehand || 0) >= 1 && top.player[2] > .9 && top.opponent[2] > .9 && top.player[0] > .9,
     `chi gioca ${JSON.stringify(H.player)}, CPU ${JSON.stringify(H.opponent)}; pesi massimi (preparazione, impatto, finale, saltello) chi gioca ${top.player.map(x => +x.toFixed(2))}, CPU ${top.opponent.map(x => +x.toFixed(2))}`);
 
-  // 4) su «No» identico a prima (9b8f9cb), accesa diversa solo attorno al dritto
-  if (existsSync(REF)){
-    const ref = JSON.parse(readFileSync(REF, 'utf8'));
+  // 4) su «No» identico a prima (base ae68759), accesa diversa solo attorno al dritto
+  const ref = baseRef();
+  if (ref?.impronte){
     for (const k of [...Object.keys(SEQ), 'scambio']){
       const diff = off[k].prints.map((h, i) => (h === ref.impronte[k][i] ? -1 : i)).filter(i => i >= 0);
       check(`${k}: su «No» le ossa dei due personaggi sono quelle di ${ref.commit}, fotogramma per fotogramma`, off[k].prints.length === ref.impronte[k].length && !diff.length, `${off[k].prints.length} fotogrammi, diversi ${diff.length}${diff.length ? ` (dal ${diff[0]})` : ''}`);
     }
-  } else check('riferimento delle ossa di 9b8f9cb presente', false, REF);
+  } else check(`riferimento delle ossa di ${BASE_COMMIT} presente`, false, REF);
   for (const k of Object.keys(SEQ)){
     const diff = on[k].prints.map((h, i) => (h === off[k].prints[i] ? -1 : i)).filter(i => i >= 0), hit = on[k].strikes[0]?.f;
     check(`${k}: accesa, le ossa cambiano attorno al dritto e solo lì`, diff.length >= 40 && diff[0] > 5 && diff.includes(hit) && diff.includes(hit + 8), `${diff.length} fotogrammi su ${N} diversi da prima, dal ${diff[0]} al ${diff.at(-1)} (colpo al ${hit})`);
@@ -353,6 +412,119 @@ async function ossa(){
   await g.ctx.close();
 }
 if (!SOLO || SOLO === 'ossa' || BASELINE) await ossa();
+
+/* ---------- 4b) il gioco non cambia: partite a passi e sorteggi fissi; «Lob & Drop» ---------- */
+// Come in natpf-lob-drop.mjs: partita in una pagina appena aperta, un passo da 1/60 s alla volta, a ogni passo il lavoro
+// che il gioco fa prima di disegnare (qui c'è l'animazione dei personaggi e quindi la prova) e ogni 300 passi un disegno
+// vero; impronta di palla, giocatori e punteggio ogni 6 passi. mode: 'demo' (le due parti giocano da sole), 'cpu'
+// (contro la CPU, un robot fa i gesti di chi gioca), 'schermo' (stesso schermo, due robot).
+const PARTITE = { demo: { mode: 'demo', seed: 4242, steps: 3600 }, cpu: { mode: 'cpu', seed: 31337, steps: 2600 }, schermo: { mode: 'schermo', seed: 555, steps: 2600 } };
+const play = (p, o) => p.evaluate(o => {
+  const E = __natpfTennis, { steps, mode, seed } = o;
+  if (!E.__frame0){ E.__frame0 = E._natpfFrame; E._natpfFrame = () => 'paused'; }
+  E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.userHasInteracted = true; E.natpfPaused = false;
+  for (const a of [E.player, E.opponent]){
+    a.model.scale.setScalar(1.16); a.rig = null; E.bodyAnimator.setupArticulatedPlayerRig(a); a.racketKinematics = null; E.racketKinematics.initActor(a);
+    a.natpfReach = null; if (a.userData) a.userData.natpfPrep = null; a.stridePhase = 0; a.swingTimer = 0; a.vel?.set(0, 0, 0);
+  }
+  E._natpfBackdropPose();
+  if (mode === 'schermo'){ const m0 = E.isMultiplayer; E.isMultiplayer = true; E.render(); E.isMultiplayer = m0; }
+  window.__seme(seed); E.elapsedTime = 0; E.physicsAccumulator = 0;
+  if (mode === 'demo'){ E.autoPlayMode = true; E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = true; }
+  else { E.autoPlayMode = false; if (mode === 'schermo') E.startSplit(); E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = false; }
+  const draw = E.renderer.render, before = () => { E.renderer.render = () => {}; try { E.render(); } finally { E.renderer.render = draw; } };
+  let h = 0x811c9dc5, hits = 0, last = 0, pts = 0, score = '', fh = 0, posed = 0;
+  const eat = v => { const n = Math.round(v*1000) | 0; for (let k = 0; k < 4; k++){ h ^= (n >>> (k*8)) & 255; h = Math.imul(h, 0x01000193) >>> 0; } };
+  const evt = extra => ({ speed: 1.18, shotType: 'topspin', source: 'keyboard', ...extra });
+  for (let i = 0; i < steps; i++){
+    if (mode !== 'demo'){
+      const sv = E.score.server, b = E.ball;
+      if (E.phase === 'SERVE_STANCE' && E.phaseTimer > .9){ if (sv === 'player') E._handleUserTossInput({}); else if (mode === 'schermo') E._handleP2TossInput({}); }
+      else if (E.phase === 'SERVE_TOSS' && b.vel.y < .6 && E.phaseTimer > .3 && i % 3 === 0){ if (sv === 'player') E._handleUserSwingInput(evt({ shotType: 'flat', speed: 1.3 })); else if (mode === 'schermo') E._handleP2SwingInput(evt({ shotType: 'flat', speed: 1.3 })); }
+      else if (E.phase === 'RALLY' && i % 7 === 0){
+        if (b.lastHitter === 'opponent' && b.pos.z > 5) E._handleUserSwingInput(evt({ shotType: i % 3 ? 'topspin' : 'slice' }));
+        if (mode === 'schermo' && b.lastHitter === 'player' && b.pos.z < -5) E._handleP2SwingInput(evt({ shotType: i % 2 ? 'topspin' : 'lob' }));
+      }
+    }
+    E.update(1/60);
+    const b = E.ball, s = E.score;
+    if (b.rallyStrokeCount !== last){ if (b.rallyStrokeCount > last) hits++; last = b.rallyStrokeCount; }
+    if (i % 300 === 0) E.render(); else before();
+    // quante volte la prova ha messo le sue pose (per sapere che nella partita c'era davvero)
+    for (const a of [E.player, E.opponent]){ const F = a.rig?.natpfFv; if (F?.finish > .5) posed++; if (a.racketKinematics?.swingActive && a.racketKinematics.swingSide === 'forehand' && a.racketKinematics.swingProgress < .02) fh++; }
+    const sc = `${s.playerPoints}-${s.opponentPoints}/${s.playerGames}-${s.opponentGames}`;
+    if (sc !== score){ score = sc; pts++; }
+    if (i % 6 === 0) for (const v of [b.pos.x, b.pos.y, b.pos.z, E.player.pos.x, E.player.pos.z, E.opponent.pos.x, E.opponent.pos.z, s.playerPoints, s.opponentPoints, s.playerGames, s.opponentGames]) eat(v);
+  }
+  E.autoPlayMode = false;
+  return { hash: h.toString(16), hits, changes: pts - 1, score, posed, fh, looks: [E.player.natpfLook, E.opponent.natpfLook], on3d: [!!E.player.natpfMascot3dOn, !!E.opponent.natpfMascot3dOn] };
+}, o);
+const wait3d = p => p.waitForFunction(() => { const E = __natpfTennis; E.render(); return E.player.natpfMascot3dOn && E.opponent.natpfMascot3dOn; }, null, { timeout: 60000, polling: 250 }).then(() => true, () => false);
+async function partite(){
+  const res = {};
+  for (const [name, run] of Object.entries(PARTITE)) for (const saved of BASELINE ? [null] : ['1', '0']){
+    const g = await game({ saved, w: 640, h: 360 }), r = await play(g.p, run);
+    res[`${name}:${saved}`] = r;
+    check(`partita ${name}${BASELINE ? '' : `, prova ${saved === '1' ? 'accesa' : 'spenta'}`}: giocata, nessun errore`, r.hits >= 6 && !g.errs.length, `${r.hash}, ${r.hits} colpi, punteggio ${r.score}, dritti ${r.fh}, passi con il finale della prova ${r.posed}${g.errs.length ? ' · ' + g.errs.join(' | ').slice(0, 200) : ''}`);
+    await g.ctx.close();
+  }
+  if (BASELINE){
+    const old = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : {};
+    writeFileSync(BASELINE, JSON.stringify({ ...old, commit: process.env.COMMIT || BASE_COMMIT, partite: Object.fromEntries(Object.keys(PARTITE).map(n => [n, res[`${n}:null`].hash])) }) + '\n');
+    console.log(`impronte delle partite scritte in ${BASELINE}`);
+    return;
+  }
+  const ref = baseRef();
+  for (const name of Object.keys(PARTITE)){
+    const A = res[`${name}:1`], Z = res[`${name}:0`];
+    check(`partita ${name}: stessa impronta con la prova accesa e spenta (il gioco non cambia), e la prova c'era`, A.hash === Z.hash && A.posed > 20 && Z.posed === 0, `${A.hash} / ${Z.hash}; passi con il finale della prova ${A.posed} e ${Z.posed}`);
+    check(`partita ${name}: identica alla base ${BASE_COMMIT}`, ref?.partite?.[name] === A.hash, `${ref?.partite?.[name]} base, ${A.hash} ora`);
+  }
+  // «Lob & Drop» (B24/B29): la stessa partita contro la CPU con i modelli 3D e la prova accesa
+  const g = await game({ saved: '1', w: 640, h: 360, query: 'intro=0&personaggi=lobdrop' });
+  const ok3d = await wait3d(g.p), L = await play(g.p, PARTITE.cpu);
+  check('«Lob & Drop», prova accesa: partita contro la CPU identica a quella con i personaggi classici', ok3d && L.hash === res['cpu:1'].hash && L.looks.join() === 'drop,lob' && L.on3d.every(Boolean) && L.posed > 20 && !g.errs.length,
+    `${L.hash} / ${res['cpu:1'].hash}, in campo ${L.looks} (modelli 3D ${L.on3d}), passi con il finale della prova ${L.posed}${g.errs.length ? ' · ' + g.errs.join(' | ').slice(0, 200) : ''}`);
+  await g.ctx.close();
+}
+if (!SOLO || SOLO === 'partite' || BASELINE) await partite();
+
+// «Lob & Drop» con i modelli 3D: il dritto delle mascotte segue la prova (le loro ossa leggono le parti del tennista);
+// la racchetta disegnata (dopo lo scostamento dalla testa grande) è sulla palla al colpo come con la prova spenta
+async function mascotte(){
+  const g = await game({ saved: null, query: 'intro=0&personaggi=lobdrop' }), p = g.p; await install(p);
+  const ok3d = await wait3d(p);
+  const run = {};
+  for (const [k, on] of [['off', false], ['on', true]]){
+    await p.evaluate(on => __fv.mode(on), on);
+    for (const [name, o] of [['tempo', {}], ['mancino', { hand: 'left' }]]) run[`${k}:${name}`] = await seq(p, { ...o, pre: true }, N);
+  }
+  for (const name of ['tempo', 'mancino']){
+    const A = run[`off:${name}`], Z = run[`on:${name}`], hit = Z.strikes[0]?.f;
+    const diff = Z.mprints.map((h, i) => (h === A.mprints[i] ? -1 : i)).filter(i => i >= 0);
+    check(`«Lob & Drop» (${name}): modelli 3D in campo, il dritto delle mascotte cambia con la prova attorno al colpo`, ok3d && Z.on3d.every(Boolean) && Z.looks.join() === 'drop,lob' && diff.length >= 30 && diff.includes(hit) && diff.includes(hit + 8),
+      `modelli 3D ${Z.on3d}, ${diff.length} fotogrammi su ${N} con ossa diverse, dal ${diff[0]} al ${diff.at(-1)} (colpo al ${hit})`);
+    check(`«Lob & Drop» (${name}): racchetta disegnata sulla palla al colpo come con la prova spenta (± 1 mm)`, A.impact3d?.[0] != null && Z.impact3d?.[0] != null && A.strikes[0]?.f === hit && Math.abs(A.impact3d[0] - Z.impact3d[0]) <= .001,
+      `corde a ${mm(Z.impact3d?.[0] ?? NaN)} mm dal punto del colpo (spenta ${mm(A.impact3d?.[0] ?? NaN)} mm)`);
+  }
+  if (FOGLI){
+    // fotogrammi per il foglio: Drop (chi gioca) prima / dopo agli istanti del foglio, camera ravvicinata
+    const f0 = run['on:tempo'].strikes[0].f;
+    await p.evaluate(() => __fv.hideUi());
+    for (const [mode, on] of [['prima', false], ['dopo', true]]){
+      await p.evaluate(on => __fv.mode(on), on); await p.evaluate(o => __fv.begin(o), { pre: true });
+      let f = 0;
+      for (const [name, d] of ISTANTI){
+        const want = f0 + d; await p.evaluate(n => __fv.step(n), want - f); f = want;
+        await p.evaluate(cam => __fv.draw(cam), 'vicina');
+        await p.screenshot({ path: path.join(FOGLI, `lobdrop-${mode}-vicina-${name}.png`), clip: { x: 280, y: 0, width: 720, height: 720 } });
+      }
+    }
+  }
+  check('«Lob & Drop»: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
+  await g.ctx.close();
+}
+if (!BASELINE && (!SOLO || SOLO === 'mascotte')) await mascotte();
 
 /* ---------- 5) fotogrammi al secondo non peggiorati ---------- */
 async function costo(){
