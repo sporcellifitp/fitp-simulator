@@ -1,4 +1,4 @@
-NATPF WINDOWS DESKTOP A+ — 2026-11-13.4
+NATPF WINDOWS DESKTOP A+ — 2026-11-13.5
 
 Estrai tutto lo ZIP. Apri AVVIA NATPF DESKTOP.cmd.
 Edge (oppure Chrome) e' necessario; Node e il gioco sono gia' inclusi.
