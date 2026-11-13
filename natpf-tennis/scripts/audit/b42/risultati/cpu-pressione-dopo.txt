@@ -1,0 +1,90 @@
+
+casual / umano: 2336 punti · punti vinti 88.6% ± 0.52 · game vinti 99.6% (512)
+  fine dei punti: CPU in rete 8.1% · CPU fuori 33% · vincente 47.5% (+ al servizio 0%) · errore di chi gioca: rete 0.5% fuori 9.3% · palla non presa 1.6%
+  errori della CPU 41.1% dei punti · vincenti 47.5% dei punti (53.6% dei punti vinti) · colpi per punto 8.53 (mediana 7, p90 18)
+  errori della CPU per colpo 11% (in rete 2.2%) · palle facili 2.3% (n 2746, 36.2% dei colpi) · medie 3.2% · dure 23% (n 2907) · risposta al servizio 14.5%
+  per numero del colpo: 1–6 9.9% (n 3779) · 7–16 11.1% (n 3092) · 17–… 10.5% (n 705) · sulle palle facili: 1–6 2.3% (n 1227) · 7–16 2.4% (n 1274) · 17–… 1.6% (n 245)
+  CPU stanca nel 0% dei colpi dello scambio: errori 0% (fresca 10.5%; stanca sulle palle facili 0%) · risposte difensive 7.9% · pallonetti 7.4%
+  vincenti per distanza della palla dalla CPU: <2 m 0.6% (n 4385; errori CPU 4.1%, riprese 95.3%) · 2–4 m 11.8% (n 3316; errori CPU 15.3%, riprese 72.9%) · 4–6 m 62.9% (n 673; errori CPU 14%, riprese 23.2%) · >6 m 77.8% (n 9; errori CPU 11.1%, riprese 11.1%)
+
+casual / medio: 2400 punti · punti vinti 92.1% ± 0.49 · game vinti 100% (549)
+  fine dei punti: CPU in rete 8.3% · CPU fuori 33% · vincente 50.8% (+ al servizio 0%) · errore di chi gioca: rete 1.5% fuori 0.8% · palla non presa 5.5%
+  errori della CPU 41.3% dei punti · vincenti 50.8% dei punti (55.2% dei punti vinti) · colpi per punto 6.99 (mediana 5, p90 15)
+  errori della CPU per colpo 13.9% (in rete 2.8%) · palle facili 2.2% (n 1408, 23.7% dei colpi) · medie 4.3% · dure 25.5% (n 2894) · risposta al servizio 12.8%
+  per numero del colpo: 1–6 14.2% (n 3384) · 7–16 13.8% (n 2246) · 17–… 14.2% (n 317) · sulle palle facili: 1–6 2.7% (n 735) · 7–16 1.5% (n 609) · 17–… 3.1% (n 64)
+  CPU stanca nel 0% dei colpi dello scambio: errori 0% (fresca 14.1%; stanca sulle palle facili 0%) · risposte difensive 9.5% · pallonetti 8.9%
+  vincenti per distanza della palla dalla CPU: <2 m 1.5% (n 3046; errori CPU 6.4%, riprese 92.1%) · 2–4 m 20.3% (n 3339; errori CPU 16.5%, riprese 63.2%) · 4–6 m 62.1% (n 733; errori CPU 12.6%, riprese 25.4%) · >6 m 100% (n 12; errori CPU 0%, riprese 0%)
+
+casual / amatore: 2353 punti · punti vinti 86% ± 0.92 · game vinti 99.2% (500)
+  fine dei punti: CPU in rete 7.2% · CPU fuori 35.3% · vincente 43.4% (+ al servizio 0%) · errore di chi gioca: rete 0% fuori 9.6% · palla non presa 4.4%
+  errori della CPU 42.5% dei punti · vincenti 43.4% dei punti (50.5% dei punti vinti) · colpi per punto 8.4 (mediana 6, p90 20)
+  errori della CPU per colpo 11.6% (in rete 2%) · palle facili 2.1% (n 2482, 33.1% dei colpi) · medie 3.8% · dure 21.8% (n 3195) · risposta al servizio 15.8%
+  per numero del colpo: 1–6 11.9% (n 3524) · 7–16 10.3% (n 3130) · 17–… 9.1% (n 845) · sulle palle facili: 1–6 2.1% (n 1038) · 7–16 1.8% (n 1180) · 17–… 3% (n 264)
+  CPU stanca nel 0% dei colpi dello scambio: errori 0% (fresca 10.9%; stanca sulle palle facili 0%) · risposte difensive 8.2% · pallonetti 7.4%
+  vincenti per distanza della palla dalla CPU: <2 m 0.8% (n 3859; errori CPU 3.2%, riprese 96%) · 2–4 m 12.5% (n 3645; errori CPU 14.7%, riprese 72.7%) · 4–6 m 43.6% (n 769; errori CPU 18.7%, riprese 37.7%) · >6 m 97.1% (n 34; errori CPU 0%, riprese 2.9%)
+
+casual / tennista: 2400 punti · punti vinti 98.4% ± 0.16 · game vinti 100% (588)
+  fine dei punti: CPU in rete 3.9% · CPU fuori 25.6% · vincente 68.9% (+ al servizio 0%) · errore di chi gioca: rete 0% fuori 1.5% · palla non presa 0.1%
+  errori della CPU 29.5% dei punti · vincenti 68.9% dei punti (70% dei punti vinti) · colpi per punto 4.39 (mediana 3, p90 8)
+  errori della CPU per colpo 18.5% (in rete 2.5%) · palle facili 2.1% (n 145, 5.5% dei colpi) · medie 10.7% · dure 31.3% (n 1338) · risposta al servizio 13.7%
+  per numero del colpo: 1–6 21.4% (n 2057) · 7–16 18.6% (n 555) · 17–… 6.7% (n 15) · sulle palle facili: 1–6 3% (n 100) · 7–16 0% (n 44) · 17–… 0% (n 1)
+  CPU stanca nel 0% dei colpi dello scambio: errori 0% (fresca 20.7%; stanca sulle palle facili 0%) · risposte difensive 8.7% · pallonetti 10.8%
+  vincenti per distanza della palla dalla CPU: <2 m 4.5% (n 1762; errori CPU 14%, riprese 81.5%) · 2–4 m 55.9% (n 2065; errori CPU 13.7%, riprese 30.5%) · 4–6 m 91.9% (n 420; errori CPU 3.8%, riprese 4.3%) · >6 m 100% (n 4; errori CPU 0%, riprese 0%)
+
+casual / bambino: 2400 punti · punti vinti 49.1% ± 1.18 · game vinti 47.4% (350)
+  fine dei punti: CPU in rete 6.7% · CPU fuori 27.2% · vincente 15.2% (+ al servizio 0%) · errore di chi gioca: rete 0.2% fuori 15.5% · palla non presa 35.2%
+  errori della CPU 33.9% dei punti · vincenti 15.2% dei punti (31% dei punti vinti) · colpi per punto 7.18 (mediana 5, p90 16)
+  errori della CPU per colpo 10.6% (in rete 2.1%) · palle facili 1.6% (n 1731, 26.9% dei colpi) · medie 3.2% · dure 17.6% (n 3385) · risposta al servizio 12.2%
+  per numero del colpo: 1–6 10.4% (n 3392) · 7–16 9.7% (n 2540) · 17–… 12.8% (n 500) · sulle palle facili: 1–6 1.3% (n 777) · 7–16 1.6% (n 835) · 17–… 3.4% (n 119)
+  CPU stanca nel 0% dei colpi dello scambio: errori 0% (fresca 10.3%; stanca sulle palle facili 0%) · risposte difensive 7.6% · pallonetti 5.1%
+  vincenti per distanza della palla dalla CPU: <2 m 0.2% (n 2961; errori CPU 3.1%, riprese 96.7%) · 2–4 m 4.6% (n 2829; errori CPU 12.7%, riprese 82.6%) · 4–6 m 9.5% (n 665; errori CPU 24.2%, riprese 66.3%) · >6 m 66.7% (n 63; errori CPU 12.7%, riprese 20.6%)
+
+pro / umano: 1653 punti · punti vinti 63% ± 0.97 · game vinti 79.6% (260)
+  fine dei punti: CPU in rete 5.7% · CPU fuori 14.9% · vincente 42.4% (+ al servizio 0%) · errore di chi gioca: rete 10.8% fuori 17.1% · palla non presa 9.1%
+  errori della CPU 20.6% dei punti · vincenti 42.4% dei punti (67.3% dei punti vinti) · colpi per punto 14.45 (mediana 14, p90 26)
+  errori della CPU per colpo 3.1% (in rete 0.9%) · palle facili 1% (n 3994, 39.4% dei colpi) · medie 1.9% · dure 6.7% (n 3057) · risposta al servizio 4.7%
+  per numero del colpo: 1–6 2.5% (n 3493) · 7–16 2.7% (n 4604) · 17–… 4.4% (n 2034) · sulle palle facili: 1–6 0.7% (n 1451) · 7–16 1% (n 1828) · 17–… 1.5% (n 715)
+  CPU stanca nel 34.2% dei colpi dello scambio: errori 4.8% (fresca 2%; stanca sulle palle facili 1.8%) · risposte difensive 9.1% · pallonetti 9.5%
+  vincenti per distanza della palla dalla CPU: <2 m 0.1% (n 4916; errori CPU 1.6%, riprese 98.3%) · 2–4 m 3.1% (n 4243; errori CPU 3.2%, riprese 93.8%) · 4–6 m 26.3% (n 1158; errori CPU 6%, riprese 67.8%) · >6 m 90% (n 40; errori CPU 0%, riprese 10%)
+
+pro / medio: 2120 punti · punti vinti 62.5% ± 0.95 · game vinti 79.9% (319)
+  fine dei punti: CPU in rete 5.3% · CPU fuori 13.9% · vincente 43.3% (+ al servizio 0%) · errore di chi gioca: rete 5.8% fuori 10.4% · palla non presa 21.4%
+  errori della CPU 19.2% dei punti · vincenti 43.3% dei punti (69.3% dei punti vinti) · colpi per punto 10.35 (mediana 8, p90 22)
+  errori della CPU per colpo 4.1% (in rete 1.2%) · palle facili 0.8% (n 2294, 26.1% dei colpi) · medie 1.6% · dure 9% (n 3158) · risposta al servizio 5%
+  per numero del colpo: 1–6 3.6% (n 3736) · 7–16 3.7% (n 3899) · 17–… 6.4% (n 1141) · sulle palle facili: 1–6 0.5% (n 969) · 7–16 0.7% (n 1009) · 17–… 2.2% (n 316)
+  CPU stanca nel 32.2% dei colpi dello scambio: errori 7.3% (fresca 2.5%; stanca sulle palle facili 1.4%) · risposte difensive 10.9% · pallonetti 11%
+  vincenti per distanza della palla dalla CPU: <2 m 0.2% (n 3792; errori CPU 2.1%, riprese 97.8%) · 2–4 m 6.2% (n 4222; errori CPU 4.4%, riprese 89.5%) · 4–6 m 32.9% (n 1430; errori CPU 6.2%, riprese 60.9%) · >6 m 100% (n 39; errori CPU 0%, riprese 0%)
+
+pro / amatore: 1856 punti · punti vinti 52.7% ± 1.12 · game vinti 56.4% (275)
+  fine dei punti: CPU in rete 4.8% · CPU fuori 11.3% · vincente 36.6% (+ al servizio 0%) · errore di chi gioca: rete 4.4% fuori 22.1% · palla non presa 20.7%
+  errori della CPU 16.1% dei punti · vincenti 36.6% dei punti (69.5% dei punti vinti) · colpi per punto 12.44 (mediana 11, p90 25)
+  errori della CPU per colpo 2.8% (in rete 0.8%) · palle facili 0.9% (n 3596, 37.5% dei colpi) · medie 1.2% · dure 6.2% (n 2936) · risposta al servizio 5%
+  per numero del colpo: 1–6 1.9% (n 3545) · 7–16 2.5% (n 4391) · 17–… 4.4% (n 1646) · sulle palle facili: 1–6 1.1% (n 1318) · 7–16 0.8% (n 1672) · 17–… 0.8% (n 606)
+  CPU stanca nel 35.4% dei colpi dello scambio: errori 4.2% (fresca 1.8%; stanca sulle palle facili 0.8%) · risposte difensive 8.3% · pallonetti 7.7%
+  vincenti per distanza della palla dalla CPU: <2 m 0.1% (n 4395; errori CPU 1.2%, riprese 98.8%) · 2–4 m 2.5% (n 4108; errori CPU 2.7%, riprese 94.9%) · 4–6 m 22.3% (n 1151; errori CPU 5.9%, riprese 71.8%) · >6 m 92.1% (n 76; errori CPU 0%, riprese 7.9%)
+
+pro / tennista: 2400 punti · punti vinti 93% ± 0.44 · game vinti 99.8% (553)
+  fine dei punti: CPU in rete 1.7% · CPU fuori 7.6% · vincente 83.7% (+ al servizio 0%) · errore di chi gioca: rete 1.1% fuori 4.7% · palla non presa 1.2%
+  errori della CPU 9.3% dei punti · vincenti 83.7% dei punti (90% dei punti vinti) · colpi per punto 7.68 (mediana 6, p90 16)
+  errori della CPU per colpo 3% (in rete 0.5%) · palle facili 0.8% (n 645, 10.2% dei colpi) · medie 1.5% · dure 4.7% (n 2197) · risposta al servizio 5.2%
+  per numero del colpo: 1–6 2.9% (n 3289) · 7–16 2.1% (n 2583) · 17–… 2.7% (n 480) · sulle palle facili: 1–6 1.1% (n 266) · 7–16 0.7% (n 289) · 17–… 0% (n 90)
+  CPU stanca nel 6.9% dei colpi dello scambio: errori 4.1% (fresca 2.4%; stanca sulle palle facili 0%) · risposte difensive 11.3% · pallonetti 13.2%
+  vincenti per distanza della palla dalla CPU: <2 m 1.2% (n 3532; errori CPU 2.1%, riprese 96.7%) · 2–4 m 27.4% (n 3566; errori CPU 2%, riprese 70.6%) · 4–6 m 77.7% (n 1047; errori CPU 1.2%, riprese 21%) · >6 m 100% (n 30; errori CPU 0%, riprese 0%)
+
+pro / bambino: 2400 punti · punti vinti 16.1% ± 0.48 · game vinti 0.4% (498)
+  fine dei punti: CPU in rete 3% · CPU fuori 6.8% · vincente 6.3% (+ al servizio 0%) · errore di chi gioca: rete 0.5% fuori 24.3% · palla non presa 59.2%
+  errori della CPU 9.8% dei punti · vincenti 6.3% dei punti (39.4% dei punti vinti) · colpi per punto 7.61 (mediana 5, p90 18)
+  errori della CPU per colpo 2.9% (in rete 0.9%) · palle facili 1.2% (n 2524, 36.4% dei colpi) · medie 1.5% · dure 5% (n 2227) · risposta al servizio 4.7%
+  per numero del colpo: 1–6 1.9% (n 3504) · 7–16 2.8% (n 2813) · 17–… 4.7% (n 613) · sulle palle facili: 1–6 1.3% (n 1190) · 7–16 1.3% (n 1116) · 17–… 0.9% (n 218)
+  CPU stanca nel 44.6% dei colpi dello scambio: errori 3.5% (fresca 1.8%; stanca sulle palle facili 1.1%) · risposte difensive 5.5% · pallonetti 4%
+  vincenti per distanza della palla dalla CPU: <2 m 0% (n 2883; errori CPU 1.2%, riprese 98.8%) · 2–4 m 0.5% (n 2948; errori CPU 2.7%, riprese 96.8%) · 4–6 m 2.7% (n 729; errori CPU 4.4%, riprese 92.9%) · >6 m 51.8% (n 56; errori CPU 5.4%, riprese 42.9%)
+
+Obiettivi
+  OK  CPU in rete al massimo in 1 punto su 8 (12,5%), Casual e Pro: casual/umano 8.1% · casual/medio 8.3% · casual/amatore 7.2% · casual/tennista 3.9% · casual/bambino 6.7% · pro/umano 5.7% · pro/medio 5.3% · pro/amatore 4.8% · pro/tennista 1.7% · pro/bambino 3%
+  OK  errori della CPU sulle palle facili non oltre il 3%, Casual e Pro: casual/umano 2.3% · casual/medio 2.2% · casual/amatore 2.1% · casual/tennista 2.1% · casual/bambino 1.6% · pro/umano 1% · pro/medio 0.8% · pro/amatore 0.9% · pro/tennista 0.8% · pro/bambino 1.2%
+  NO  palle facili: l'errore non cresce con lo scambio (dal 17° colpo non oltre il 3%): casual/umano 1.6% · casual/amatore 3% · casual/bambino 3.4% · pro/umano 1.5% · pro/medio 2.2% · pro/amatore 0.8% · pro/bambino 0.9%
+  OK  Pro, palla a 4–6 m dalla CPU: almeno il 15% di vincenti («umano»): pro/umano 26.3%
+  OK  Pro, palla a 4–6 m dalla CPU: almeno il 15% di vincenti («medio»): pro/medio 32.9%
+  OK  Pro contro «medio»: 70–85% dei game: pro/medio 79.9%
+  OK  Casual: adulto medio almeno il 90% dei game: casual/medio 100% · casual/umano 99.6% · casual/amatore 99.2%
+  OK  Casual: «bambino» non peggio di oggi (almeno il 31% dei game): casual/bambino 47.4%

@@ -28,9 +28,11 @@ const list = (k, d) => arg(k, d).split(',').filter(Boolean);
 const CALDO = arg('caldo', 'base');
 if (arg('hot') && HT) Object.assign(HT, JSON.parse(arg('hot')));
 const forceHot = e => { if (CALDO === 'si') e.natpfHotRally = true; else if (CALDO === 'no') e.natpfHotRally = false; };
-const SERIE = list('serie', 'A,B');
 const SEEDS_CPU = { A: [7, 11, 23], B: [31, 37, 41] };
 const SEEDS_DUO = { A: [7001, 7103, 7207], B: [7307, 7411, 7517] };
+// --semi=1,2,3…: una serie sola («X») con questi semi (per misure con più punti, es. per vedere il rumore del sorteggio)
+if (arg('semi')){ SEEDS_CPU.X = SEEDS_DUO.X = list('semi', '').map(Number); }
+const SERIE = arg('semi') ? ['X'] : list('serie', 'A,B');
 const CAP = 150;
 
 const qt = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(f*s.length))] : 0; };
@@ -38,6 +40,8 @@ const pc = (a, n) => (n ? +(100*a/n).toFixed(1) : 0);
 const mean = a => (a.length ? a.reduce((x, y) => x + y, 0)/a.length : 0);
 const r1 = v => +(+v).toFixed(1);
 const sha = x => createHash('sha1').update(JSON.stringify(x)).digest('hex').slice(0, 12);
+const it = v => String(v).replace('.', ',');
+const r1d = v => +(+v).toFixed(1);
 
 // riassunto di una serie di punti { n (colpi), end ('vincente'|'rete'|'fuori'|'servizio'|'interrotto'), by ('a'|'b':
 // di chi è il colpo che chiude), winA (punto vinto dal lato a), dur (s dal servizio alla fine) } e di partite { sec }
@@ -128,8 +132,10 @@ function trace(kind, who, level, seed, hot){
   return L;
 }
 if (has('tracce')){
+  // (le ultime cinque contro la CPU sono le partite delle impronte di ../fine-partita.mjs --impronte)
   const PROVE = [['cpu', 'tennista', 'leggenda', 7], ['cpu', 'umano', 'pro', 11], ['cpu', 'amatore', 'evento', 23], ['cpu', 'umano', 'casual', 31], ['cpu', 'bambino', 'bambini', 37],
-    ['stesso', 'tennista', '1v1', 7001], ['stesso', 'amatore', '1v1', 7103], ['sfida', 'amatore', '1v1', 7207]];
+    ['stesso', 'tennista', '1v1', 7001], ['stesso', 'amatore', '1v1', 7103], ['sfida', 'amatore', '1v1', 7207],
+    ['cpu', 'umano', 'evento', 7], ['cpu', 'tennista', 'leggenda', 11], ['cpu', 'bambino', 'bambini', 23], ['cpu', 'medio', 'pro', 31], ['cpu', 'amatore', 'casual', 37]];
   console.log('prova | impronta con lo scambio caldo spento | primo lancio diverso tra spento e acceso');
   for (const [kind, who, level, seed] of PROVE){
     const off = trace(kind, who, level, seed, false), on = has('solo-spenta') ? null : trace(kind, who, level, seed, true);
@@ -137,6 +143,24 @@ if (has('tracce')){
     const pts = off.slice(0, i).filter(x => x[0] === 'punto').length, first = on ? (off[i] || on[i]) : null;
     const where = !on ? '—' : i >= Math.min(off.length, on.length) ? 'nessuno' : `il lancio n. ${i + 1} (punto ${pts + 1}), colpo ${first[0] === 'punto' ? '— (fine punto)' : first[0]}° dello scambio; uguali i ${i} lanci prima`;
     console.log(`${kind} ${who} ${level} seme ${seed} | ${sha(off)} (${off.length} righe) | ${where}`);
+  }
+}
+
+// --b25: bambino contro adulto nello stesso schermo (B25: fasce «Bambino» e «Adulto», aiuto al più giovane della variante
+// in gioco), scambio caldo spento e acceso, i due lati (il bambino da Player 1 e da Player 2), due serie di semi: partite e
+// punti vinti dal bambino, colpi a punto, quota oltre 30 colpi, durata della partita
+if (has('b25')){
+  const ND = await import('../../../src/natpf/natpf_duo_rules.js');
+  console.log('| bambino contro | serie | scambio caldo | partite | vince il bambino | punti del bambino | colpi: media · 9 su 10 · max | oltre 30 | partita: media (s) |');
+  console.log('|---|---|---|---|---|---|---|---|---|');
+  for (const adult of ['medio', 'amatore']) for (const s of SERIE) for (const hot of [false, true]){
+    const tw = side => e => { e.natpfHotRally = hot; e.natpfSplitBands = side === 'p1' ? { p1: 'bambino', p2: 'adulto' } : { p1: 'adulto', p2: 'bambino' }; e.natpfHelpVariant = ND.HELP_DEFAULT; };
+    const m = +arg('partite', 1)*50;
+    const r1 = many({ a: 'bambino', b: adult, fair: true, gamesToWin: 1, matches: m, cap: CAP, tweak: tw('p1') }, SEEDS_DUO[s]);
+    const r2 = many({ a: adult, b: 'bambino', fair: true, gamesToWin: 1, matches: m, cap: CAP, tweak: tw('p2') }, SEEDS_DUO[s]);
+    const M = [...r1.matches.map(x => x.win === 'p1'), ...r2.matches.map(x => x.win === 'p2')], Pt = [...r1.pts.map(x => x.win === 'p1'), ...r2.pts.map(x => x.win === 'p2')];
+    const n = [...r1.pts, ...r2.pts].map(p => p.n), sec = [...r1.matches, ...r2.matches].map(x => x.sec);
+    console.log(`| ${adult} | ${s} | ${hot ? 'acceso' : 'spento'} | ${M.length} | ${it(pc(M.filter(Boolean).length, M.length))}% | ${it(pc(Pt.filter(Boolean).length, Pt.length))}% | ${it(r1d(mean(n)))} · ${qt(n, .9)} · ${Math.max(...n)} | ${it(pc(n.filter(x => x > 30).length, n.length))}% | ${it(r1d(mean(sec)))} |`);
   }
 }
 
@@ -160,7 +184,6 @@ for (const [flag, mode] of [['stesso', 'split'], ['sfida', 'versus']]) if (has(f
 // tabelle in markdown (per il documento)
 // (con --confronta: «prima → dopo» dove il valore cambia; numeri con la virgola, come nel documento)
 const before = arg('confronta') ? JSON.parse(readFileSync(arg('confronta'), 'utf8')).rows : null;
-const it = v => String(v).replace('.', ',');
 const cell = (k, f) => { const v = rows[k][f]; if (!before?.[k]) return it(v); const b = before[k][f]; return b === v ? it(v) : `${it(b)} → ${it(v)}`; };
 const head = (mode) => {
   const A = mode === 'cpu' ? 'chi gioca' : 'P1', B = mode === 'cpu' ? 'CPU' : 'P2';

@@ -7,3 +7,13 @@ cpu bambino bambini seme 37 | 7a718e5c79d6 (715 righe) | il lancio n. 75 (punto 
 stesso tennista 1v1 seme 7001 | 4cd84d9eda22 (1761 righe) | il lancio n. 20 (punto 1), colpo 20° dello scambio; uguali i 19 lanci prima
 stesso amatore 1v1 seme 7103 | 90204b7f5102 (517 righe) | il lancio n. 24 (punto 2), colpo 20° dello scambio; uguali i 23 lanci prima
 sfida amatore 1v1 seme 7207 | 0d69441e3cbd (752 righe) | il lancio n. 20 (punto 1), colpo 20° dello scambio; uguali i 19 lanci prima
+cpu umano evento seme 7 | e6cb5ddd68ef (1018 righe) | il lancio n. 26 (punto 2), colpo 20° dello scambio; uguali i 25 lanci prima
+cpu tennista leggenda seme 11 | 3d8f137edaf1 (1236 righe) | il lancio n. 20 (punto 1), colpo 20° dello scambio; uguali i 19 lanci prima
+cpu bambino bambini seme 23 | ace57ee6bd85 (711 righe) | il lancio n. 50 (punto 4), colpo 20° dello scambio; uguali i 49 lanci prima
+cpu medio pro seme 31 | 754af96ad375 (768 righe) | il lancio n. 23 (punto 2), colpo 20° dello scambio; uguali i 22 lanci prima
+cpu amatore casual seme 37 | d0e44127e011 (674 righe) | il lancio n. 55 (punto 3), colpo 20° dello scambio; uguali i 54 lanci prima
+
+colpi super dei telefoni (quota dei colpi): prima del 20° colpo → dal 20° in poi; perché no, dal 20° in poi
+
+impronte: 
+(0 s)

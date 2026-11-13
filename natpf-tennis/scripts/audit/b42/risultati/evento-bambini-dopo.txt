@@ -1,0 +1,12 @@
+bambini  bambino   1 game in fiera  serie A: partite  182 · punti vinti  80.7% ± 1.3 · game  96.7% · partite  96.7% · colpi per punto 9.77 (p90 23) · durata p50/p90/max 75/114/173 s · punti a partita 4.9
+bambini  bambino   1 game in fiera  serie B: partite  183 · punti vinti  80.1% ± 1.3 · game  98.4% · partite  98.4% · colpi per punto 9.73 (p90 23) · durata p50/p90/max 75/116/170 s · punti a partita 5
+bambini  bambino   al meglio di 3   serie A: partite  166 · punti vinti  80.8% ± 0.9 · game  97.4% · partite   100% · colpi per punto 9.65 (p90 23) · durata p50/p90/max 159/239/356 s · punti a partita 10.4
+bambini  bambino   al meglio di 3   serie B: partite  170 · punti vinti  81.1% ± 0.9 · game  98.3% · partite   100% · colpi per punto 9.4 (p90 22) · durata p50/p90/max 152/231/367 s · punti a partita 10.3
+bambini  ragazzo   1 game in fiera  serie A: partite  207 · punti vinti  91.8% ± 0.9 · game   100% · partite   100% · colpi per punto 9.98 (p90 23) · durata p50/p90/max 69/100/180 s · punti a partita 4.4
+bambini  ragazzo   1 game in fiera  serie B: partite  210 · punti vinti  92.6% ± 0.9 · game   100% · partite   100% · colpi per punto 9.91 (p90 23) · durata p50/p90/max 66/99/141 s · punti a partita 4.3
+bambini  ragazzo   al meglio di 3   serie A: partite  201 · punti vinti  90.7% ± 0.7 · game   100% · partite   100% · colpi per punto 9.98 (p90 23) · durata p50/p90/max 140/195/250 s · punti a partita 8.9
+bambini  ragazzo   al meglio di 3   serie B: partite  198 · punti vinti    91% ± 0.7 · game  99.2% · partite   100% · colpi per punto 10.32 (p90 24) · durata p50/p90/max 141/201/295 s · punti a partita 8.9
+bambini  amatore   1 game in fiera  serie A: partite  219 · punti vinti  96.7% ± 0.6 · game   100% · partite   100% · colpi per punto 9.5 (p90 21) · durata p50/p90/max 61/87/126 s · punti a partita 4.1
+bambini  amatore   1 game in fiera  serie B: partite  222 · punti vinti    98% ± 0.5 · game   100% · partite   100% · colpi per punto 8.97 (p90 21) · durata p50/p90/max 56/82/120 s · punti a partita 4.1
+bambini  amatore   al meglio di 3   serie A: partite  217 · punti vinti  98.1% ± 0.3 · game   100% · partite   100% · colpi per punto 9.11 (p90 21) · durata p50/p90/max 117/154/174 s · punti a partita 8.2
+bambini  amatore   al meglio di 3   serie B: partite  218 · punti vinti  98.4% ± 0.3 · game   100% · partite   100% · colpi per punto 8.77 (p90 20) · durata p50/p90/max 111/149/220 s · punti a partita 8.1

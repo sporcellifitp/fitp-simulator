@@ -2371,7 +2371,7 @@ export class NatpfTennisEngine {
     const sup = NO.superShot({ intent, out, contact, ballSide: dx, contactY: b.pos.y, ballVz: b.vel.z, shortBall, ease: hotSup,
       strong: duo?.superRel ? ND.relStrong(e, hotSup ? NH.hotRatio(help?.superRatio ?? ND.superTuning.ratio ?? ND.SUPER_REL.ratio, hotSup) : help?.superRatio) : null });
     if (sup.on) out = { ...out, depth: Math.max(out.depth, NO.SUPER.minDepth), clear: S.NET_HEIGHT_CENTER + NO.SUPER.netGap, topspin: out.shot === "SMASH" ? out.topspin : NO.SUPER.topspin };
-    // B20: «scambio che si scalda» (opzione dello staff, natpf_hot_rally.js): dal 10° colpo i colpi normali passano via via
+    // B20/B42: «scambio che si scalda» (natpf_hot_rally.js, acceso di base dal B42): dal 20° colpo i colpi normali passano via via
     // più bassi e più carichi, cioè più veloci, uguale per il P1 e per il P2. Spenta: lo stesso oggetto di prima
     else out = NH.hotOutcome(out, b.rallyStrokeCount + 1, this.natpfHot, S.NET_HEIGHT_CENTER);
     // colpo fallito o debole: la causa che pesa di più, per il messaggio del colpo e la diagnostica
@@ -2396,7 +2396,7 @@ export class NatpfTennisEngine {
       // B15 (08/11): il tetto della velocità del motore base era 1,2 (forza da 0,56 in su: stesso volo base 0,70 s, la
       // palla più forte solo per l'altezza minore sulla rete; banco colpi.mjs: gesto 0,6× → 1,4× del proprio colpo
       // 82 → 119 km/h, ×1,45). Ora 1,5: a forza piena 0,58 s (il minimo di sempre), a 0,74 0,63 s (era 0,70)
-      // B20: con lo «scambio che si scalda» acceso, dal 10° colpo il volo si accorcia ancora a ogni colpo, uguale per il
+      // B20/B42: con lo «scambio che si scalda» acceso, dal 20° colpo il volo si accorcia ancora a ogni colpo, uguale per il
       // P1 e per il P2 (NH.hotFlight; spento il fattore è 1 esatto)
       const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015) * NH.hotFlight(b.rallyStrokeCount + 1, this.natpfHot),
         base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.5, (0.8 + intent.power * 0.85) * 0.94)) * K;
@@ -2764,7 +2764,7 @@ export class NatpfTennisEngine {
       const A = NS.shotArc({ shot: natpfArc.shot, power: natpfArc.power, fromY: d.y, fromZ: d.z, toZ: c, flight: f });
       // B42: scambio caldo (natpf_hot_rally.js), il colpo della CPU come quello di chi gioca: dal 20° colpo più basso
       // sulla rete, più carico e con il volo più corto, cioè più veloce (NH.hotOutcome, NH.hotFlight; la parabola alta
-      // resta alta). Prima del 20° colpo e con l'opzione spenta H è lo stesso oggetto e niente cambia
+      // resta alta). Prima del 20° colpo e con l'opzione spenta hotOut è lo stesso oggetto e niente cambia
       const hotN = this.ball.rallyStrokeCount + 1, hotIn = { shot: natpfArc.shot, clear: A.clear, topspin: A.topspin }, hotOut = NH.hotOutcome(hotIn, hotN, this.natpfHot, S.NET_HEIGHT_CENTER);
       hotOut === hotIn
         ? ((f = A.flight), (natpfSpin = A.topspin))

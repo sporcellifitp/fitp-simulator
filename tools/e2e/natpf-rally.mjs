@@ -155,6 +155,19 @@ try {
   check('B18.2: nella pausa tra i punti nessuno corre sul posto (velocità 0, animazione ferma)',
     pauses.length >= 1 && pauses.every(p => p.phase !== 'RALLY' && p.v.every(v => v === 0) && p.corre.every(c => !c)),
     `${pauses.length} pause, velocità ${JSON.stringify(pauses.map(p => p.v))}, in corsa ${pauses.filter(p => p.corre.some(Boolean)).length}; CPU nell'istante di fine punto ${endV.join(' ')} m/s`);
+  // B42: lo «scambio che si scalda» vale anche contro la CPU ed è acceso di base: dal 20° colpo la scritta piccola
+  // «Scambio caldo · colpo N», sotto il tabellone, senza coprirlo (lo scambio portato al 22° colpo a mano)
+  const hot = await game.evaluate(async () => {
+    const E = __natpfTennis, on = E.natpfHot;
+    E.phase = 'RALLY'; E.ball.inPlay = true; E.ball.lastHitter = 'player'; E.ball.rallyStrokeCount = 22; E.ball.pos.set(0, 1.4, 0); E.ball.vel.set(0, 3, -4);
+    await new Promise(r => setTimeout(r, 150));
+    const el = document.getElementById('natpf-hot-rally'), b = el.getBoundingClientRect(), s = document.querySelector('#natpf-scoreboard .sb-box')?.getBoundingClientRect();
+    const box = [b.left, b.top, b.right, b.bottom].map(Math.round), sb = s ? [s.left, s.top, s.right, s.bottom].map(Math.round) : null;
+    return { on, shown: !el.classList.contains('hidden'), text: el.textContent, box, h: Math.round(b.height), sb, covers: !!sb && box[0] < sb[2] && box[2] > sb[0] && box[1] < sb[3] && box[3] > sb[1] };
+  });
+  await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/rally-scambio-caldo-cpu-${DIFF}.png` });
+  check('B42: contro la CPU lo scambio caldo è acceso di base; al 22° colpo la scritta piccola «Scambio caldo · colpo 22», senza coprire il tabellone',
+    hot.on === true && hot.shown && hot.text === 'Scambio caldocolpo 22' && hot.h <= 30 && !hot.covers, JSON.stringify(hot));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
   await B.close(); stop();

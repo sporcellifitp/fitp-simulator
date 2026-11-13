@@ -7,3 +7,13 @@ cpu bambino bambini seme 37 | 7a718e5c79d6 (715 righe) | —
 stesso tennista 1v1 seme 7001 | 4cd84d9eda22 (1761 righe) | —
 stesso amatore 1v1 seme 7103 | 90204b7f5102 (517 righe) | —
 sfida amatore 1v1 seme 7207 | 0d69441e3cbd (752 righe) | —
+cpu umano evento seme 7 | e6cb5ddd68ef (1018 righe) | —
+cpu tennista leggenda seme 11 | 3d8f137edaf1 (1236 righe) | —
+cpu bambino bambini seme 23 | ace57ee6bd85 (711 righe) | —
+cpu medio pro seme 31 | 754af96ad375 (768 righe) | —
+cpu amatore casual seme 37 | d0e44127e011 (674 righe) | —
+
+colpi super dei telefoni (quota dei colpi): prima del 20° colpo → dal 20° in poi; perché no, dal 20° in poi
+
+impronte: 
+(0 s)
