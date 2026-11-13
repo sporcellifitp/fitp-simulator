@@ -68,7 +68,8 @@ function phoneIntent(e, P, rng){
 // setup(e): facoltativo, prima della partita (B18: formato in fiera, scripts/audit/formato-fiera.mjs)
 // serve(e, rng): facoltativo, il servizio di chi gioca lo sceglie il banco (B18.2: scripts/audit/servizio.mjs). Restituisce
 //   { tau, swing }: il gesto «swing» parte quando al punto più alto del lancio mancano tau secondi (negativo = dopo)
-export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000, onStep = null, setup = null, serve = null } = {}){
+// cap: colpi oltre i quali lo scambio si chiude d'ufficio («scambio infinito»; di base RALLY_CAP; B42: scripts/audit/b42/scambi-lunghi.mjs usa 150)
+export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000, onStep = null, setup = null, serve = null, cap = RALLY_CAP } = {}){
   const P = typeof profile === 'string' ? PROFILES[profile] : profile;
   const rng = mulberry32(seed), engineRng = mulberry32(seed*7919 + 13);
   const realRandom = Math.random; Math.random = engineRng;
@@ -133,7 +134,7 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
             e._handleUserSwingInput({ source: 'audit', shotType: shotType === 'drop' ? 'slice' : shotType, natpfDrop: shotType === 'drop', speed: shotType === 'drop' ? .85 : P.speed + gauss(rng)*P.speedSd, dirX: aim });
           }
         }
-        if (e.ball.rallyStrokeCount >= RALLY_CAP){ out.capped++; e._awardPoint('opponent', 'scambio infinito'); }
+        if (e.ball.rallyStrokeCount >= cap){ out.capped++; e._awardPoint('opponent', 'scambio infinito'); }
       }
       e.step(DT);
       onStep?.(e);
