@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import * as NS from '../src/natpf/natpf_skill.js';
 import * as NL from '../src/natpf/natpf_legend.js';
 import { netPlayRules } from '../src/natpf/natpf_net_play.js';
+import { movementRules } from '../src/natpf/natpf_movement.js';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import { bench, natural, serveOf, gamesOf, trialValues, phoneServeOf, PHONE_SERVES } from '../scripts/audit/servizio.mjs';
 
@@ -283,8 +284,12 @@ test('D11: banco sul motore vero. Punto diretto sul servizio perfetto, forte e s
   // casella, docs/b18/t2-1-servizio.md). Qui 2 semi × 250 punti (±3 punti percentuali): fasce più larghe
   const opts = { points: 250, seeds: [7, 11] };
   const band = { casual: [16, 30], pro: [8, 19], leggenda: [2.5, 9] };
+  // B32 (movimento con accelerazione, docs/b32/movimento.md): a Leggenda 8 semi. Con 2 semi «perfetto» contro «tutorial»
+  // era 3,6 contro 2,4% (margine richiesto 1,5: il rumore è ±3); con 8 semi 4,7 contro 1,9% (senza B32 5,2 contro 1,4%)
+  const seedsOf = d => (d === 'leggenda' ? [7, 11, 13, 17, 19, 23, 29, 31] : opts.seeds);
   for (const difficulty of ['casual', 'pro', 'leggenda']){
-    const great = bench({ type: 'perfettoStretto', difficulty, ...opts }), taught = bench({ type: 'tutorial', difficulty, ...opts }), late = bench({ type: 'forteRitardo', difficulty, ...opts });
+    const o = { ...opts, seeds: seedsOf(difficulty) };
+    const great = bench({ type: 'perfettoStretto', difficulty, ...o }), taught = bench({ type: 'tutorial', difficulty, ...o }), late = bench({ type: 'forteRitardo', difficulty, ...o });
     const msg = `${difficulty}: perfetto ${great.puntoDiretto}% (ace ${great.ace}%), tutorial ${taught.puntoDiretto}%, forte in ritardo ${late.puntoDiretto}%`;
     assert.ok(great.puntoDiretto >= band[difficulty][0] && great.puntoDiretto <= band[difficulty][1], msg);
     assert.ok(great.puntoDiretto >= taught.puntoDiretto + (difficulty === 'leggenda' ? 1.5 : 4), msg);
@@ -363,11 +368,12 @@ test('D11 (revisione): a Casual chi batte tardi con il telefono non perde il ser
   NS.serveTuning.casual = { base: .113, lateBase: .6 };
   // (B31: il controllo è sui pesi del servizio di allora, con il gioco di allora: regole del gioco a rete spente. Con il
   // gioco a rete «bambino» vince qualche punto in più anche dopo il servizio, docs/b31/gioco-a-rete.md)
-  netPlayRules.off = true;
+  // (B32: e con il movimento di allora, velocità costante: movementRules.off, docs/b32/movimento.md)
+  netPlayRules.off = true; movementRules.off = true;
   try {
     const old = natural({ ...opts, serveModel: 'tardi' });
     assert.ok(old.puntoDiretto < 11.5 && old.puntiAlServizio < 48, `con i valori di prima: ${msg(old)}`);
-  } finally { delete NS.serveTuning.casual; netPlayRules.off = false; }
+  } finally { delete NS.serveTuning.casual; netPlayRules.off = false; movementRules.off = false; }
   // nel banco: a Casual il servizio in ritardo resta chiaramente sotto quello perfetto, forte e stretto
   const b = type => bench({ type, difficulty: 'casual', points: 250, seeds: [7, 11] }).puntoDiretto;
   const [perfetto, ritardo] = [b('perfettoStretto'), b('ritardo')];

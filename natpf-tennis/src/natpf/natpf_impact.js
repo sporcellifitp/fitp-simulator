@@ -20,6 +20,7 @@ import { IMPACT, impactWindow, lateSpanOf, directionSpan, slowFactor, OUTCOME } 
 import { skillLevel } from './natpf_skill.js';
 import { helpOf, helpLevel, openRun } from './natpf_duo_rules.js';
 import { NET_PLAY, netMoveOf } from './natpf_net_play.js';
+import { runProfile, firstStep, afterHold, runTime, startHold, runThrough } from './natpf_movement.js'; // B32: accelerazione e primo passo
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -71,6 +72,9 @@ export const PLAN = Object.freeze({
 // quando la palla è oltre stopZ dalla rete nel verso in cui va (oltre il fondo di chi la deve prendere), non dove parte:
 // diagnostica del 29/10 (1v1), il Player 2 colpiva in ritardo da 15,4 m, la traiettoria finiva al primo passo e chi
 // gioca correva a rete (piano «stretch» verso la palla dall'altra parte) e perdeva il punto
+// B32: margine sul tempo dopo lo split-step (prima PLAN.react, 0,12 s, conteneva sia la reazione sia il margine)
+export const RUN_MARGIN = .04;
+
 export function predictBall(b, { maxT = 2.8, dt = PHYS.DT, stopZ = 14.5 } = {}){
   let x = finite(b.pos.x), y = finite(b.pos.y), z = finite(b.pos.z), vx = finite(b.vel.x), vy = finite(b.vel.y), vz = finite(b.vel.z);
   const sx = finite(b.spin?.x), sy = finite(b.spin?.y), bs = bounceSpin(sx), out = [];
@@ -137,8 +141,17 @@ export function planPlayerIntercept(engine, actor, { groundOnly = false } = {}){
   // B25 (campo aperto, natpf_duo_rules.js): tra due persone, con l'opzione accesa, si parte un attimo dopo (la velocità
   // ridotta è già in moveFactor). Spenta, o contro la CPU: react 0, come prima
   // B31: a rete il passo è più corto e la reazione un poco più lunga (natpf_net_play.netMoveOf; 0 e 1 esatti lontano dalla rete)
-  const nm = netMoveOf(actor.pos.z), react = PLAN.react + (openRun(engine)?.react || 0) + nm.react, pace = speed*nm.speed;
-  const need = s => { const p = stand(s); return react + Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z)/pace; };
+  // B32 (natpf_movement.js): chi gioca contro la CPU parte dopo lo split-step (più tardi con la palla veloce), accelera fino a
+  // pace e, se corre dalla parte opposta, prima frena. Il piano usa gli stessi tempi del movimento: la palla lontana diventa
+  // in allungo o non raggiunta. Senza le regole (R null: Bambini, stesso schermo, Player 2, allenamento…) come prima
+  const R = runProfile(engine, actor), hold = R && !groundOnly ? firstStep(R, b.vel?.length?.() ?? 0) : 0;
+  const nm = netMoveOf(actor.pos.z), react = (R ? hold + RUN_MARGIN : PLAN.react) + (openRun(engine)?.react || 0) + nm.react, pace = speed*nm.speed;
+  const vx = finite(actor.vel?.x), vz = finite(actor.vel?.z);
+  const need = s => {
+    const p = stand(s), dx = p.x - actor.pos.x, dz = p.z - actor.pos.z, d = Math.hypot(dx, dz);
+    if (!R) return react + d/pace;
+    return react + runTime(d, afterHold(d > 1e-6 ? (vx*dx + vz*dz)/d : 0, R, hold), R, pace);
+  };
   const reachable = s => need(s) <= s.t;
   const before = path.filter(s => s.bounces === 0 && Z(s.z) > 0), after = path.filter(s => s.bounces === 1 && Z(s.z) <= back);
   const apex = before.reduce((m, s) => Math.max(m, s.y), 0);
@@ -197,6 +210,8 @@ export function planPlayerIntercept(engine, actor, { groundOnly = false } = {}){
   if (!s){ engine[key] = null; return null; }
   const p = stand(s);
   actor.targetPos.set(p.x, 0, p.z);
+  // B32: split-step, arrivo giusto in tempo e, sulla palla lontana senza il tempo di fermarsi, colpo in corsa
+  if (R) startHold(engine, actor, R, { hold, t: s.t, x: p.x, z: p.z, through: runThrough(R, { slack: s.t - need(s), run: Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z), reached: kind !== 'stretch' }) });
   // in corsa: poco margine tra quando si arriva e quando arriva la palla (o non ci si arriva)
   const run = Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z);
   const stretch = kind === 'stretch' ? 1 : Math.max(clamp(1 - (s.t - need(s))/PLAN.slackFull, 0, 1), PLAN.runWeight*clamp((run - PLAN.runFrom)/PLAN.runSpan, 0, 1));
@@ -229,7 +244,11 @@ export const stretchQuality = (engine, actor = engine.player) => 1 - (openRun(en
 export const openTight = (engine, actor) => { const O = openRun(engine); return O && O.tight ? 1 - finite(O.tight)*clamp(finite(livePlan(engine, actor)?.stretch), 0, 1) : 1; };
 // Portata laterale della racchetta (m). B25: con il campo aperto la palla non raggiunta (piano «stretch») si tocca solo se
 // passa vicino (OPEN_COURT.reach); altrimenti IMPACT.reach, come prima
-export const reachOf = (engine, actor) => { const O = openRun(engine); return O && livePlan(engine, actor)?.kind === 'stretch' ? Math.min(IMPACT.reach, finite(O.reach, IMPACT.reach)) : IMPACT.reach; };
+// B32: contro la CPU (natpf_movement.runProfile) la palla non raggiunta si tocca solo entro playerRun.reach m di lato
+export const reachOf = (engine, actor) => {
+  const O = openRun(engine), R = O ? null : runProfile(engine, actor), lim = O ? O.reach : R?.reach;
+  return lim != null && livePlan(engine, actor)?.kind === 'stretch' ? Math.min(IMPACT.reach, finite(lim, IMPACT.reach)) : IMPACT.reach;
+};
 
 // Dopo il colpo di chi gioca (nella propria metà, anche per il Player 2 del 1v1): verso il fondo, di lato dalla parte
 // opposta a dove va la palla, se si fa in tempo ad arrivare almeno a safeZ prima del colpo dell'avversario. Altrimenti

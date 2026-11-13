@@ -49,7 +49,7 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'primaInPartita', 'modo', 'chi', 'livello', 'ruolo', 'formato', 'game', 'fiera', 'batte', 'personaggi', 'ctrl', 'mano', 'mano2', 'segnale', 'nomeInserito', 'nomeInserito2', 'stand',
   'mira', 'caldo', 'lancioAuto', 'campoAperto', 'fasce', 'aiuto', 'ek', 'tel', 'tel2', 'strada', 'rtt', 'so', 'browser', 'p', 'vince', 'fine', 'ultimo', 'colpi', 'colpi2', 'durS',
   'attesaS', 'pt', 'lanci', 'lanciVuoti', 'battutaAuto', 'esito', 'come', 'punti', 'puntiVinti', 'fps', 'medi', 'peggiori', 'maxMs', 'lunghi', 'cadute', 'riprese', 'rttMax', 'errori',
-  'scartati', 'amb', 'gesto', 'voluto', 'ms', 'voto', 'f', 'd', 'e', 'x', 'z', 'sup', 'supNo', 'volee', 'rete', 'lato', 'fonte', 'causa', 'aiutato', 'tipo', 'q', 'kmh', 'auto', 'perche',
+  'scartati', 'amb', 'gesto', 'voluto', 'ms', 'voto', 'f', 'd', 'e', 'x', 'z', 'sup', 'supNo', 'volee', 'rete', 'mov', 'lato', 'fonte', 'causa', 'aiutato', 'tipo', 'q', 'kmh', 'auto', 'perche',
   'serie', 'schede', 'viste', 'tutte', 'chiusura', 'finita', 'prove', 'fallite', 'passi', 'ripartenze', 'revisioni', 'revisioniNo', 'semplice', 'finito', 'saltato', 'perfetti', 'gioco',
   'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in']);
 // campi che sono un elenco «voce: quante volte» (motivi dei gesti scartati, posti della visita, passi della

@@ -110,6 +110,7 @@ export class Riassunto {
     this.chi = {}; this.gesti = {}; this.scartati = {}; this.vuoti = {};
     this.sup = { riusciti: 0, partite: 0, no: {}, perPartita: new Misura() };
     this.rete = { colpi: 0, aRete: 0, volee: 0, cpu: {} };   // B31
+    this.movimento = { colpi: 0, corsa: 0, allungo: 0, falliti: { corsa: 0, allungo: 0, fermi: 0 } };   // B32
     this.servizio = { righe: 0, voti: {}, kmh: new Misura(), ms: new Misura(), punti: 0, lanci: 0, lanciVuoti: 0, lanciAuto: 0, battutaAuto: 0, doppiFalli: 0, ace: 0, auto: 0 };
     this.tutorial = { n: 0, chiusura: {}, durata: new Misura(), tutte: 0 }; this.cal = { n: 0, finite: 0, durata: new Misura(), prove: 0, fallite: 0, passi: {}, perche: {}, ripartenze: 0 };
     // B28: calibrazione giocando (scambi di prova), a parte da quella con i gesti
@@ -163,6 +164,9 @@ export class Riassunto {
     // B31: gioco a rete (colpi di chi gioca entro 7 m dalla rete, volée, colpi a rete della CPU)
     const Rt = this.rete; Rt.colpi++; if (r.rete) Rt.aRete++; if (r.volee) Rt.volee++;
     if (Array.isArray(r.in) && ['volée', 'schiacciata', 'palla corta'].includes(r.in[0])) piu(Rt.cpu, r.in[0]);
+    // B32: colpi in corsa e in allungo contro la CPU (mov), e quanti sono finiti in rete, fuori o deboli
+    const Mv = this.movimento, mv = r.mov === 'corsa' || r.mov === 'allungo' ? r.mov : 'fermi';
+    Mv.colpi++; if (mv !== 'fermi') Mv[mv]++; if (r.e) Mv.falliti[mv]++;
   }
   _servizio(r){ const S = this.servizio; if (r.fonte === 'senza gesto'){ S.senzaGesto = (S.senzaGesto || 0) + 1; return; } S.righe++; piu(S.voti, r.voto || '—'); S.kmh.metti(r.kmh); S.ms.metti(r.ms); if (r.auto) S.auto++; }
   _vuoto(r){ if (!r.amb) piu(this.vuoti, r.perche || '—'); }
@@ -250,6 +254,9 @@ export function rapporto(R, L){
   ]);
   // B31: gioco a rete
   const Rt = R.rete, cpuRete = Object.values(Rt.cpu).reduce((a, b) => a + b, 0);
+  // B32: movimento
+  const Mv = R.movimento, fermi = Mv.colpi - Mv.corsa - Mv.allungo;
+  sez('Movimento', [`Colpi in corsa: ${N(Mv.corsa)} su ${N(Mv.colpi)} (${pc(Mv.corsa, Mv.colpi)}); in allungo: ${N(Mv.allungo)} (${pc(Mv.allungo, Mv.colpi)}). Finiti in rete, fuori o deboli: in corsa ${pc(Mv.falliti.corsa, Mv.corsa)}, in allungo ${pc(Mv.falliti.allungo, Mv.allungo)}, gli altri ${pc(Mv.falliti.fermi, fermi)}.`]);
   sez('Gioco a rete', [`Colpi di chi gioca entro 7 m dalla rete: ${N(Rt.aRete)} su ${N(Rt.colpi)} (${pc(Rt.aRete, Rt.colpi)}); volée: ${N(Rt.volee)} (${pc(Rt.volee, Rt.colpi)}). Colpi a rete della CPU a cui chi gioca ha risposto: ${N(cpuRete)}.`],
     [{ titolo: 'Colpi a rete della CPU (volée, schiacciata, palla corta)', colonne: ['Colpo', 'Volte', 'Quota'], righe: elenco(Rt.cpu, cpuRete) }]);
   const supNo = Object.values(R.sup.no).reduce((a, b) => a + b, 0);

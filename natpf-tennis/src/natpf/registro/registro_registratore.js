@@ -353,7 +353,8 @@ export class RegistroStand {
       // colpo super: la palla che lo ha permesso, o perché non è scattato (solo con un gesto forte)
       ...(L.super ? { sup: String(L.super) } : forza >= .8 && Array.isArray(L.superWhy) && L.superWhy[0] ? { supNo: String(L.superWhy[0]) } : {}),
       // B31: rete 1 = colpo giocato entro 7 m dalla rete (chi gioca è salito a rete o ci è stato portato)
-      volee: L.volley || undefined, rete: Math.abs((L.who === 'p2' ? E.opponent : E.player)?.pos?.z ?? 99) < 7 ? 1 : undefined, lato: L.contact ?? undefined, fonte: L.source === 'webcam' && P?.ctrl !== 'webcam' ? 'webcam' : undefined, causa: L.cause || undefined, aiutato: O.assisted || undefined,
+      // B32: mov = come si è arrivati sulla palla contro la CPU: 'corsa' (colpo in corsa) o 'allungo' (natpf_movement.moveTag)
+      volee: L.volley || undefined, rete: Math.abs((L.who === 'p2' ? E.opponent : E.player)?.pos?.z ?? 99) < 7 ? 1 : undefined, mov: L.move || undefined, lato: L.contact ?? undefined, fonte: L.source === 'webcam' && P?.ctrl !== 'webcam' ? 'webcam' : undefined, causa: L.cause || undefined, aiutato: O.assisted || undefined,
     });
   }
   // colpo con mouse e tastiera (modalità prova): dall'esito a schermo, senza racchetta virtuale

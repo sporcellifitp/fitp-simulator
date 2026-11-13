@@ -292,8 +292,13 @@ test('banco ridotto: obiettivi del passo sul gioco simulato (CPU in rete, palle 
   // vero. Con 5 semi le soglie dovevano essere larghe (70–90% e 11%: i game oscillano di ±4 punti, i vincenti di ±3) e
   // lasciavano passare una taratura fuori obiettivo; con 16 semi il rumore scende a ±2 e ±1,5 e i valori di oggi (83,3% e
   // 18,2%) hanno margine. I semi sono fissi: il test non è instabile, ma una taratura nuova vicina al bordo lo fa fallire
+  // B32 (movimento di chi gioca con accelerazione, docs/b32/movimento.md): le tre caselle di Casual su 16 semi. Con 5 semi le palle
+  // facili sbagliate dalla CPU erano 3,1% (n 836, una palla oltre la soglia: ±0,6 punti di rumore), con 16 semi 2,4%
+  // (n 2710; senza B32 1,8%); dal 17° colpo «bambino» 3,5% (n 144: 5 palle) e «umano» 3,2% (n 347) con 5 semi, 2,2% e 2,4%
+  // (n 463 e 1130; senza B32 1,5% e 1,9%) con 16.
+  // La regola della CPU non cambia: cambia la sequenza dei colpi (sulle palle facili la CPU sbaglia 0,4–0,6 punti in più)
   const rows = {};
-  for (const [difficulty, profile, n] of [['casual', 'medio', 5], ['casual', 'umano', 5], ['casual', 'bambino', 5], ['pro', 'medio', 16], ['pro', 'umano', 16], ['pro', 'amatore', 5]])
+  for (const [difficulty, profile, n] of [['casual', 'medio', 16], ['casual', 'umano', 16], ['casual', 'bambino', 16], ['pro', 'medio', 16], ['pro', 'umano', 16], ['pro', 'amatore', 5]])
     rows[`${difficulty}/${profile}`] = measure({ difficulty, profile, points: 300, seeds: SEMI(n) });
   const txt = k => JSON.stringify({ punti: rows[k].puntiG, game: rows[k].gameG, fine: rows[k].fine, facili: rows[k].facili, campo: rows[k].campo });
   for (const k of Object.keys(rows)){
