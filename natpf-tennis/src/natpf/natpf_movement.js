@@ -21,7 +21,7 @@
 // Non cambia: il riconoscimento dei gesti, il movimento automatico verso la palla (il bersaglio lo decide sempre il
 // piano), la CPU, il Player 2 (sfida tra due computer), lo stesso schermo (con il campo aperto spento e acceso), il
 // doppio, l'allenamento, gli eventi e la demo, il livello Bambini (playerRun: null, movimento di prima) e il movimento a
-// rete del B31 (natpf_net_play.netMoveOf: entro 7 m dalla rete).
+// rete e verso la rete del B31 (natpf_net_play.netMoveOf: chi gioca o il suo bersaglio entro 7 m dalla rete).
 // Valori per livello: SKILL_LEVELS[livello].playerRun in natpf_skill.js (Evento: media tra Casual e Pro come il resto).
 // Niente oggetti creati a ogni fotogramma: runStep scrive solo numeri sull'attore.
 import { skillLevel } from './natpf_skill.js';
@@ -43,9 +43,11 @@ export function runProfile(engine, actor){
   if (moveOff() || !engine || !actor || actor !== engine.player) return null;
   if (engine.isMultiplayer || engine.isDoubles || engine.versus?.active || engine.natpfSplit?.active) return null;
   if (engine.autoPlayMode || engine.natpfUi?.training?.active || engine.natpfUi?.events?.active || engine.natpfUi?.trial?.active) return null;
-  // a rete (entro NET_PLAY.netMove.zone) resta il movimento del B31 (reazione in più e passo corto, già più lento): con
-  // l'accelerazione anche lì le volée diventavano rare (Pro, «amatore»: 54 → 13 piani di volée su 300 punti)
-  if (Math.abs(finite(actor.pos?.z, 11.5)) < NET_PLAY.netMove.zone) return null;
+  // a rete e verso la rete (chi gioca o il suo bersaglio entro NET_PLAY.netMove.zone) resta il movimento del B31 (reazione
+  // in più e passo corto, già più lento): con l'accelerazione anche lì le volée diventavano rare (Pro, «amatore»: 54 → 13
+  // piani di volée su 300 punti) e, con la salita a rete accelerata, 1,6 → 1,1 volée a game
+  const Z = NET_PLAY.netMove.zone;
+  if (Math.abs(finite(actor.pos?.z, 11.5)) < Z || Math.abs(finite(actor.targetPos?.z, 11.5)) < Z) return null;
   const R = skillLevel(engine.matchConfig?.difficulty).playerRun;
   return R && finite(R.accel) > 0 ? R : null;
 }

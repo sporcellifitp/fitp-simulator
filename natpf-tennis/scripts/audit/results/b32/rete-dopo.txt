@@ -1,0 +1,11 @@
+semi 2001, 2038, 2075 · 300 punti per seme
+livello/profilo/tattica        punti G% game G% G rete% p. G rete% vinti% volée/g volée ok% schiacc.    ok% C passa% CPU rete% C schiacc/g C corte/g rete/g
+casual/tennista/normale            98.2     100    12.3       17.1   99.4    0.62      99.3       14    100        0       0.5           0         0   0.71
+casual/amatore/normale             84.3    98.2     5.9       15.5   83.5    0.75      96.1       38    100        3         2           0      0.34   1.37
+casual/bambino/normale             46.8    40.6     0.4          5   48.9    0.05       100       10    100     36.4         4           0      0.37    0.8
+pro/tennista/normale               92.8     100       9       19.2   90.8    0.98      97.5       14   92.9      1.9       2.6        0.01      0.05   1.42
+pro/amatore/normale                52.7    54.7     4.3       17.6   61.8     1.2      96.5       15    100      8.6       7.3        0.05      0.74   4.38
+pro/bambino/normale                16.4     1.1     0.3        6.1   27.3    0.02        50        7    100       50      11.1           0      0.33   1.38
+leggenda/tennista/normale          28.7    10.2       6       69.8   25.2    0.84      98.6       30   96.7      2.1         0           0      3.28   1.18
+leggenda/amatore/normale           14.1       0     1.6       57.8   13.6    0.22       100       25     96      8.1       0.6        0.03      3.72   0.43
+leggenda/bambino/normale              8       0     0.1       12.8   14.8    0.04       100        6    100        0       8.6           0      0.32   0.07
