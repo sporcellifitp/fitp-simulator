@@ -460,6 +460,15 @@ Ripresa se si fermano: `Workflow({scriptPath: '…/workflows/scripts/blocco-sing
    essere fieri (cose positive).
 6. Con Lob & Drop (che gli piacciono) non si vede chi deve servire (manca la scritta di chi batte).
 7. Scia della palla tolta: dà fastidio ed è troppo evidente.
+In corso dalle 09:50 UTC del 13/11 (script `blocco-singolo.js`, due agenti):
+- [~] **B35a direzione e precisione dei colpi dal telefono** (punti 1–2) — run `wf_a87c484e-11a`, ramo
+      `b35-precisione-telefono`, base `d152035`, documento `docs/b35/precisione-telefono.md`.
+- [~] **B35b correzioni del collaudo** (punti 3, 4, 5, 6, 7) — run `wf_49eb0080-cad`, ramo `b35-collaudo`, base
+      `d152035`, documento `docs/b35/collaudo-13-11.md`. Fine partita rifatta sulla proposta grafica mostrata all'utente:
+      https://claude.ai/artifact/PMb2Gg3ZiakcHuqynZ2pJL (file in `scratchpad/design-fine/project/`). Scia: spenta di base
+      e più discreta. Il punto 4 tocca il flusso del B28 (scambi di prova) dell'altro agente: avvisarlo nella traccia.
+- Le prove complete della 13.6 si sono fermate a natpf-dritto-video quando il processo è stato riavviato (verdi fino a
+  lì): i processi lanciati con nohup non sopravvivono ai riavvii; da rifare con un comando in background del harness.
 
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
