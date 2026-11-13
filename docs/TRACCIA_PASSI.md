@@ -566,6 +566,16 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
   senza uscita; programma senza Esci/Ricarica col mouse; diagnostica e classifica a schermo intero senza uscita col mouse.
   Domande per l'utente: solo ledwall o anche lo schermo del portatile? tasto destro = menu di Windows o del gioco? il
   mouse è solo dello staff?
+- **L'utente ha giocato la 13.9 (13/11, 15:00 UTC)**: «direi bene con la precisione» (B35a funziona). Nuove richieste:
+  (1) scambi troppo lunghi: «dopo 20 colpi consecutivi la probabilità di usare colpi speciali o forti aumenti
+  progressivamente o del doppio, così la partita diventa più spettacolare o veloce e la serie di colpi porta a un
+  risultato» → **[~] B42 partito** (run `wf_5cbad5b6-b75`, ramo `b42-scambi-lunghi`, base `fe6f774`): scambio caldo dal
+  20° colpo acceso di base in tutti i modi, colpo super più facile e CPU più aggressiva per tutti e due i lati, misure
+  prima/dopo e audit:legend; (2) «animazioni dei personaggi scelti (classici o Lob & Drop) nella schermata di fine
+  partita, per player 1 e 2» → nella fine partita v2 (**B40**, insieme alla card e ai trofei); (3) «troppi testi vicino
+  al tabellone che l'utente non legge: semplifica, togli Formato veloce e al meglio di tre, magari un'etichetta sul
+  tabellone» → **B43** (con il pannello dello staff che ferma la partita), testo pronto in `scratchpad/b43-task.md`, parte
+  appena B37 è unito.
 - [ ] **B38 · Tastiera a schermo** (richiesta dell'utente del 13/11, 11:50 UTC: «una tastiera su schermo che compaia quando
       devo digitare, perché ho solo un mouse e non ho una tastiera wireless»). Tastiera del gioco (non di Windows) che
       compare cliccando un campo di testo (nome, nomi dello stesso schermo, codice della sfida, campi della diagnostica) e
