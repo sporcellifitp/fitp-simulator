@@ -496,6 +496,21 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
 - [x] **Tappa 2 gruppo 3** (2026-11-12.4): livelli Evento e Bambini (D3) con la scelta **«Chi gioca: Bambino · Ragazzo · Adulto»** al posto
       del livello (Pro e Leggenda in «Altre impostazioni»); segnale del momento giusto; super spiegato
 - [ ] Dall'utente: prova di due minuti con un telefono vero agitato senza guardare (poi si decide la regola)
+- [ ] **B36 · FASE SUCCESSIVA (richiesta dell'utente del 13/11, 10:40 UTC): direzionalità al centro del gioco, campo
+      completamente aperto, stile arcade.** Da fare **dopo** B35a/B35b, senza toccarli. Punti dell'utente: (1) la direzione
+      impressa dal giocatore decide traiettoria e punto d'atterraggio, è il fattore principale; (2) colpi diversi per gesto,
+      angolo, tempo e punto d'impatto (traiettoria, profondità, potenza, angolo coerenti); (3) incrociati, lungolinea,
+      stretti e profondi su tutto il campo, premiando la precisione; (4) arcade, comandi immediati; **all'inizio niente
+      palle corte e volée**; (5) gesti simili in condizioni simili → risultati coerenti, niente traiettorie casuali o
+      troppo assistite. «Non più traiettorie, ma il movimento del giocatore che decide dove e come colpire.»
+      Video di riferimento dati dall'utente: uno scambio da fondo in un gioco di tennis commerciale (Shorts `hu8sG08DJGY`)
+      e una raccolta di 25 colpi veri del circuito (`OXaEUUUJJ7s`). **YouTube blocca il server** («accedi per confermare
+      di non essere un bot»): visti solo titoli e miniature pubbliche (`scratchpad/b36/miniature/`); l'installazione di
+      uno strumento per scaricare i video è stata negata. Per guardarli davvero servono i file o delle schermate
+      dall'utente.
+      [~] In corso dalle 10:45 UTC: analisi in sola lettura (workflow `b36-direzionalita-analisi`: telefono, esito del
+      colpo, B35a, vincoli, riferimenti → tre piani tecnici) → sintesi in `docs/b36/piano-direzionalita.md` → due
+      revisori contrari → piano finale all'utente. **Nessuna modifica al codice finché l'utente non approva il piano.**
 
 ## COME SI LAVORA (regole dell'utente)
 
