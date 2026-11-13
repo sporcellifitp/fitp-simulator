@@ -521,6 +521,12 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
       compare cliccando un campo di testo (nome, nomi dello stesso schermo, codice della sfida, campi della diagnostica) e
       sparisce con «Fatto», Esc o appena si usa una tastiera vera; opzione dello stand «Tastiera a schermo: Automatica ·
       Sempre · Mai». Testo del compito: `scratchpad/b38-task.md`. Parte dopo B35b, in parallelo a B37 (due agenti).
+- [~] **Stand con il solo mouse** (richiesta dell'utente del 13/11, 11:55 UTC: «pensa ad altre cose necessarie se controllo il
+      ledwall dal solo mouse»). Controllo in corso (workflow `stand-solo-mouse`, run `wf_826fa68a-9cc`: tasti del gioco,
+      programma Windows, ledwall e puntatore, prova vera nel browser con il solo mouse → lista unica → revisore). Prime
+      voci da confermare: pannello dello stand e diagnostica senza tastiera in ogni schermata; uscita, schermo intero e
+      ricarica del programma senza la barra del menu; calibrazione dell'area del ledwall con le frecce; puntatore minuscolo
+      sul ledwall; doppio clic che salta una pagina. Risultato → probabile blocco **B39 · Stand con il solo mouse**.
 - [ ] **B36 · FASE SUCCESSIVA (richiesta dell'utente del 13/11, 10:40 UTC): direzionalità al centro del gioco, campo
       completamente aperto, stile arcade.** Da fare **dopo** B35a/B35b, senza toccarli. Punti dell'utente: (1) la direzione
       impressa dal giocatore decide traiettoria e punto d'atterraggio, è il fattore principale; (2) colpi diversi per gesto,
