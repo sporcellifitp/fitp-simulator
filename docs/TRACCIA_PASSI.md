@@ -386,6 +386,25 @@ gusto da far vedere all'utente: scala 1,6 m (`docs/b29/img/scala.webp`) e bordo 
 (tappa 2 gruppo 2), prima uniscono il ramo principale, **senza revisore** (processo nuovo). Se si fermano: rilanciare lo
 script senza `resumeFromRunId`. Poi B31, B32, B33 (tappa 3).
 
+**Versione 2026-11-13.1 = B23 dritto dal video (prova) + tappa 2 gruppo 2** (13/11, 01:45 UTC), senza revisore per
+blocco (processo nuovo). Unione `e697f4e` (B23) e `03d5c67` (T2.3), versione `1906562`. Controllo rapido: gioco
+1375/1375, sito 226/226, Windows 42/42, build ok → push. Zip 23.830.402 B (margine 1.169.598 B), sha256
+`3c741f5dc36237636c31ff8d3bc295838db46096fd232888e65f18744c7b14a2`. Installer: `scratchpad/v1113a/attesa.sh`.
+Punti aperti della T2.3 da portare al revisore finale: a Facile la palla corta al momento giusto vale −1…−2 punti per
+«amatore» (scheda D8: +2…+5); a Leggenda margini stretti sui criteri (CPU contro «tennista» 87–89%, criterio ≥85%);
+finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decidere all'utente); Esperta contro «medio»
+72,6% in una serie (criterio 70–85%).
+
+**In corso dalle 01:45 UTC del 13/11 (due agenti, script `blocco-singolo.js` con `args`):**
+- [~] **B31 tappa 3.1 gioco a rete** — run `wf_7447d3ae-089`, ramo `b31-gioco-a-rete`, base `1906562`, documento `docs/b31/gioco-a-rete.md`.
+- [~] **B33 tappa 3.3 fine partita e classifica delle partite** — run `wf_a87efb2f-d7e`, ramo `b33-fine-partita`, base
+      `1906562`, documento `docs/b33/fine-partita.md`. (B33 prima di B32 perché B31 e B32 toccano tutti e due il movimento:
+      in parallelo darebbero conflitti.)
+- [ ] Poi **B32 tappa 3.2 movimento con accelerazione e colpi in corsa** (dopo l'unione di B31), poi **revisore
+      indipendente unico** su B23, T2.3, B31, B32, B33 e correzioni, versione finale con prove complete.
+Ripresa se si fermano: `Workflow({scriptPath: '…/workflows/scripts/blocco-singolo.js', args: {stessi args + "worktree": "<percorso della worktree già creata>"}})`
+(gli args sono nel journal del run; la worktree con `git worktree list | grep <ramo>`).
+
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
 - [x] **B21 Video nel gioco** (2026-11-11.2): trailer come video d'avvio (senza titolo) con ripiego su `public/media/intro.mp4`; due clip
