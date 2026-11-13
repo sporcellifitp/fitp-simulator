@@ -40,7 +40,7 @@ test('C21: a inizio partita la velocità del servizio torna «---», poi quella 
   e.score.server = 'player'; e.phase = 'SERVE_STANCE'; e._startServeToss(e.player);
   for (let i = 0; i < 400 && e.ball.vel.y > 0; i++) e.step(1/120);
   e._executeServeHit(e.player, { natpfServeTau: 0, speed: 1.2 });
-  assert.ok(Number.isFinite(board.speeds.at(-1)) && board.speeds.at(-1) > 80, `velocità del servizio: ${board.speeds.at(-1)}`);
+  assert.ok(Number.isFinite(board.speeds.at(-1)) && board.speeds.at(-1) > 42, `velocità del servizio (km/h veri dal B34; 42 = 80 sulla scala × 6,8 di prima): ${board.speeds.at(-1)}`);
 });
 
 test('C21: il segnapunti mostra «---» senza velocità (anche la prima volta) e non ridisegna la stessa', async () => {

@@ -234,7 +234,7 @@ test('servizio della CPU: velocità vera sul tabellone (non 194 km/h fissi) e ni
       try {
         const e = createHeadlessEngine({ difficulty });
         const speeds = [];
-        e.natpfArena = { setScore(){}, setSpeed: v => { if (v != null) speeds.push({ shown: v, real: Math.round(e.ball.vel.length()*6.8) }); }, update(){}, setPractice(){} };
+        e.natpfArena = { setScore(){}, setSpeed: v => { if (v != null) speeds.push({ shown: v, real: Math.round(e.ball.vel.length()*3.6) /* B34: km/h veri (prima × 6,8) */ }); }, update(){}, setPractice(){} };
         e.natpfFair = false; e.natpfServeFirst = 'opponent';
         e.startNewMatch({ showStartBanner: false });
         let trauma = 0;
