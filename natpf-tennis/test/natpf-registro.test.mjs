@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import * as F from '../src/natpf/registro/registro_formato.js';
 import { codaMemoria, codaProgramma, conRiserva, controllaBlocco, daScartare } from '../src/natpf/registro/registro_coda.js';
 import { InvioRegistro, percheNo } from '../src/natpf/registro/registro_invio.js';
-import { RegistroStand } from '../src/natpf/registro/registro_registratore.js';
+import { RegistroStand, LINEE } from '../src/natpf/registro/registro_registratore.js';
+import fs from 'node:fs';
 import { testoStato, nomeNelloZip } from '../src/natpf/natpf_registro.js';
 import zlib from 'node:zlib';
 import worker, { dimentica } from '../cloudflare/registro-worker.js';
@@ -242,10 +243,15 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
     startNewMatch(){ this.autoPlayMode = false; this.phase = 'SERVE'; Object.assign(this.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player' }); },
     _startServeToss(){ this.phase = 'SERVE_TOSS'; },
     _executeServeHit(actor){ if (this.noGesto && this.ball.inPlay) return; if (!this.noGesto) this.natpfLastServe = { kind: 'piatto', q: .8, tau: .02, kmh: 142, grade: 'Perfetto • 142 km/h' }; this.ball.inPlay = true; this.ball.rallyStrokeCount = 1; this.ball.lastHitter = actor === this.player ? 'player' : 'opponent'; this.phase = 'RALLY'; },
-    _natpfRacketShot(e){ this.ball.rallyStrokeCount++; this.ball.lastHitter = e.who === 'p2' ? 'opponent' : 'player';
-      this.natpfLastRacket = { who: e.who || 'player', intent: { shot: e.intento || e.shot || 'forehand', power: e.power ?? .6, typePower: e.power ?? .6 }, out: { shot: e.shot || 'forehand', grade: e.grade || 'Perfetto', aim: .2, failed: !!e.failed, netFault: !!e.net },
+    // (B36.0: face, derived, t, rule facoltativi: piatto e intenzione ricostruita, tempo in finestre, regola dell'esito;
+    // la palla appena colpita non ha ancora rimbalzato)
+    _natpfRacketShot(e){ this.ball.rallyStrokeCount++; this.ball.lastHitter = e.who === 'p2' ? 'opponent' : 'player'; this.ball.bounceCountOnCurrentSide = 0;
+      this.natpfLastRacket = { who: e.who || 'player', intent: { shot: e.intento || e.shot || 'forehand', power: e.power ?? .6, typePower: e.power ?? .6, ...(e.face != null ? { face: e.face } : {}), ...(e.derived ? { derived: true } : {}) },
+        out: { shot: e.shot || 'forehand', grade: e.grade || 'Perfetto', aim: .2, failed: !!e.failed, netFault: !!e.net, ...(e.t != null ? { t: e.t } : {}), ...(e.rule ? { rule: e.rule } : {}) },
         timing: e.tau ?? .01, source: 'phone', ...(e.super ? { super: e.super } : { superWhy: ['palla troppo bassa'] }) };
       return { E: 1.5, N: -8.2 }; },
+    // B36.0: anello del rimbalzo (il motore vero lo chiama a ogni rimbalzo, prima di contarlo)
+    _spawnBounceRing(){},
     _natpfEarlyWhiff(){}, _natpfWeakDropped(){},
     _awardPoint(winner){ const k = winner === 'player' ? 'playerPoints' : 'opponentPoints'; this.score[k]++; this.ball.inPlay = false; this.ball.rallyStrokeCount = 0;
       if (this.score[k] >= 4){ this.score[winner === 'player' ? 'playerGames' : 'opponentGames']++; this.score.playerPoints = this.score.opponentPoints = 0; if (this.score.playerGames >= 2 || this.score.opponentGames >= 2) this.phase = 'MATCH_OVER'; } },
@@ -537,4 +543,87 @@ test('registro, pannello: stato in parole semplici', () => {
   assert.equal(testoStato({ ...base, invio: { configurato: false } }, { corto: true }), 'Oggi 12 partite · indirizzo non configurato · 34 righe in coda.');
   assert.equal(testoStato({ ...base, acceso: false }, { corto: true }), 'Registro spento.');
   assert.equal(nomeNelloZip(ID(7)), 'registro/2026-11-14/abcdefgh/00007-ab12.jsonl'); assert.equal(nomeNelloZip('x'), null);
+});
+
+/* ---------- B36.0: campi della direzione dei colpi (docs/b36/misure-b36-0.md) ---------- */
+// un rimbalzo come lo fa il motore: anello, poi il conto dei rimbalzi
+const rimbalza = (E, x, z) => { E._spawnBounceRing(x, z); E.ball.bounceCountOnCurrentSide = (E.ball.bounceCountOnCurrentSide || 0) + 1; };
+
+test('registro, B36.0: la riga del colpo aspetta il primo rimbalzo vero (rx, rz, fu come l’arbitro del motore); piatto, scarto, tempo; modello nella partita', async () => {
+  const M = mondo(), { E, ui, R } = M; ui.lobby.visible = false; E.startNewMatch(); E.ball.inPlay = true;
+  const colpo = o => { M.avanti(900); E._natpfRacketShot({ shot: 'topspin', ...o }); };
+  colpo({ face: .42, t: -.38, natpf: { aimDev: 8.94 } });              // 1: dentro
+  M.avanti(700); rimbalza(E, 1.414, -8.617); rimbalza(E, 1.1, -3);      // (il secondo rimbalzo non conta)
+  E.ball.lastHitter = 'opponent'; E.ball.bounceCountOnCurrentSide = 0; rimbalza(E, .3, 7.5);   // palla della CPU: niente
+  colpo({ face: -1, t: .6, natpf: { aimDev: -21.5 } }); rimbalza(E, -4.48, -9.7);              // 2: fuori di lato
+  colpo({ face: 0, t: 1.4, natpf: { aimDev: null } }); rimbalza(E, .5, 3);                    // 3: nella propria metà: fuori
+  colpo({ face: .1, t: 0 }); rimbalza(E, 1, -12.3);                                           // 4: lungo: fuori
+  colpo({ face: .2, t: .1, natpf: { aimDev: 5 } }); rimbalza(E, 4.3, -12.1);                  // 5: sulle righe, dentro la tolleranza
+  colpo({ face: .3, derived: true, t: .2 }); rimbalza(E, 0, -8);                              // 6: intenzione ricostruita: niente piatto
+  colpo({ face: .5, t: 0, rule: 'nuova' });                                                   // 7: preso al volo dalla CPU
+  E.ball.lastHitter = 'opponent'; M.avanti(800); E._awardPoint('player', 'Nice Shot!');
+  await R.blocco();
+  const rows = await tutte(M.coda), colpi = rows.filter(r => r.k === 'colpo'), [partita] = rows.filter(r => r.k === 'partita'), [avvio] = rows.filter(r => r.k === 'avvio');
+  assert.equal(avvio.v, 2, 'formato delle righe 2: con i campi della direzione'); assert.equal(partita.dir, 'classica');
+  const v = c => [c.pf, c.dv, c.tu, c.rx, c.rz, c.fu, c.nr];
+  assert.deepEqual(colpi.map(v), [
+    [.42, 8.9, -.38, 1.41, -8.62, undefined, undefined],
+    [-1, -21.5, .6, -4.48, -9.7, 1, undefined],
+    [0, undefined, 1.4, .5, 3, 1, undefined],
+    [.1, undefined, 0, 1, -12.3, 1, undefined],
+    [.2, 5, .1, 4.3, -12.1, undefined, undefined],
+    [undefined, undefined, .2, 0, -8, undefined, undefined],
+    [.5, undefined, 0, undefined, undefined, undefined, 1],
+  ]);
+  // il tempo della riga è quello del colpo (non del rimbalzo), le righe restano nell'ordine dei colpi e prima del punto
+  const t0 = colpi.map(c => c.t); assert.deepEqual([...t0].sort((a, b) => a - b), t0);
+  assert.equal(colpi[0].t, 900, 'tempo del colpo');
+  const [punto] = rows.filter(r => r.k === 'punto'); assert.ok(rows.indexOf(colpi.at(-1)) < rows.indexOf(punto));
+  for (const r of rows) assert.deepEqual(F.controllaRiga(r, { nomi: M.nomi }), [], JSON.stringify(r));
+});
+
+test('registro, B36.0: Precision scrive la zona chiesta (zp) e il modello della direzione nella riga del minigioco', async () => {
+  const M = mondo(), { E, ui, R } = M; ui.lobby.visible = false;
+  ui.events.active = { id: 'precision', zoneIdx: 1, score: 0, over: false }; ui.events.start('precision');
+  E.ball.inPlay = true; M.avanti(1000); E._natpfRacketShot({ face: -.6, t: .05, natpf: { aimDev: -11.4 } }); rimbalza(E, -2.6, -9.1);
+  ui.events.active.zoneIdx = 2; M.avanti(3000); E._natpfRacketShot({ face: .7, t: -.2, natpf: { aimDev: 12.8 } }); rimbalza(E, 2.9, -9.6);
+  ui.events.active.score = 160; M.avanti(2000); ui.events.finish();
+  await R.blocco();
+  const rows = await tutte(M.coda), colpi = rows.filter(r => r.k === 'colpo'), [mini] = rows.filter(r => r.k === 'minigioco');
+  assert.deepEqual(colpi.map(c => [c.amb, c.zp, c.pf, c.dv, c.rx, c.rz]), [['minigioco', 1, -.6, -11.4, -2.6, -9.1], ['minigioco', 2, .7, 12.8, 2.9, -9.6]]);
+  assert.equal(mini.gioco, 'precision'); assert.equal(mini.dir, 'classica'); assert.equal(mini.punti, 160);
+  assert.ok(rows.indexOf(colpi[1]) < rows.indexOf(mini));
+  // negli altri minigiochi niente zona
+  ui.events.active = { id: 'rush', zoneIdx: 0, score: 0, over: false }; ui.events.start('rush');
+  E._natpfRacketShot({ face: 0, t: 0 }); rimbalza(E, 0, -8); ui.events.finish(); await R.blocco();
+  const ultimo = (await tutte(M.coda)).filter(r => r.k === 'colpo').at(-1); assert.equal(ultimo.zp, undefined); assert.equal(ultimo.amb, 'minigioco');
+});
+
+test('registro, B36.0: stesso schermo, il colpo del Player 2 prende il suo rimbalzo; nessuna riga persa (palla in volo, menu, 6 s senza rimbalzo)', async () => {
+  const M = mondo({ split: true, nick: '' }), { E, ui, R } = M; ui.lobby.visible = false; E.startNewMatch(); E.ball.inPlay = true;
+  M.avanti(900); E._natpfRacketShot({ who: 'p2', face: .3, t: .2 }); rimbalza(E, -1.2, 9.4);          // P2 verso +z: dentro
+  M.avanti(900); E._natpfRacketShot({ who: 'p2', face: .3, t: .2 }); rimbalza(E, 1, -2);              // P2, nella sua metà: fuori
+  M.avanti(900); E._natpfRacketShot({ who: 'player', face: .1, t: 0 });
+  await R.blocco();                                                                                   // palla ancora in volo: aspetta
+  let rows = await tutte(M.coda);
+  assert.deepEqual(rows.filter(r => r.k === 'colpo').map(c => [c.chi, c.rx, c.rz, c.fu]), [['a', -1.2, 9.4, undefined], ['a', 1, -2, 1]]);
+  rimbalza(E, .4, -7.7); await R.blocco();
+  rows = await tutte(M.coda);
+  assert.deepEqual(rows.filter(r => r.k === 'colpo').at(-1).rx, .4, 'scritta nel blocco dopo, con il rimbalzo');
+  // nessun rimbalzo per più di 6 s: si scrive senza; poi menu a metà scambio: il colpo prima della fine della partita
+  M.avanti(900); E._natpfRacketShot({ who: 'player', face: .1, t: 0 }); M.avanti(6500); R.secondo(); await R.blocco();
+  rows = await tutte(M.coda); assert.equal(rows.filter(r => r.k === 'colpo').length, 4);
+  M.avanti(900); E._natpfRacketShot({ who: 'player', face: .1, t: 0 });
+  E.autoPlayMode = true; ui.lobby.visible = true; M.avanti(1000); R.secondo(); await R.blocco();
+  rows = await tutte(M.coda);
+  const colpi = rows.filter(r => r.k === 'colpo'), [fine] = rows.filter(r => r.k === 'partita.fine');
+  assert.equal(colpi.length, 5); assert.ok(rows.indexOf(colpi.at(-1)) < rows.indexOf(fine)); assert.equal(fine.colpi + (fine.colpi2 || 0), 5);
+});
+
+test('registro, B36.0: la riga del colpo dice «fuori» con la regola dell’arbitro del motore (righe e tolleranza)', () => {
+  const src = fs.readFileSync(new URL('../src/game_engine.js', import.meta.url), 'utf8');
+  assert.match(src, /BASELINE_Z: 11\.89,/); assert.match(src, /SINGLES_X: 4\.115,/);
+  assert.match(src, /Math\.abs\(this\.ball\.pos\.x\) > S\.SINGLES_X \+ 0\.22/); assert.match(src, /Math\.abs\(this\.ball\.pos\.z\) > S\.BASELINE_Z \+ 0\.28/);
+  assert.match(src, /this\._spawnBounceRing\(this\.ball\.pos\.x, this\.ball\.pos\.z\)/);
+  assert.equal(LINEE.x, 4.115 + .22); assert.equal(LINEE.z, 11.89 + .28);
 });

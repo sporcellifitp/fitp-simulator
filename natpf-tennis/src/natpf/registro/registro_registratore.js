@@ -15,6 +15,9 @@
 //     giocatore» o del chiosco: tenuti solo in memoria, mai su disco), che nei testi liberi diventano «[nome]».
 // La modalità diagnostica resta com'era: i suoi agganci avvolgono questi (o viceversa) senza cambiarne il risultato.
 // Senza DOM: lo provano i test con un motore finto (natpf_registro.js lo collega al gioco e al pannello dello stand).
+// B36.0 (misurare prima la direzione dei colpi, docs/b36/misure-b36-0.md): la riga «colpo» della racchetta aspetta il
+// primo rimbalzo vero della palla (dove cade davvero e se è fuori per l'arbitro del motore) e solo allora si scrive; se il
+// rimbalzo non arriva (palla presa al volo, in rete, punto finito, menu) si scrive senza. Solo lettura: il gioco non cambia.
 import { REGISTRO, giornoDi, leggiGiornata, scriviGiornata, registroAcceso, scriviScelta, idBlocco, dispositivo, strada, gpuVera, gpuNome, finePunto, pulisci, testoRiga, r } from './registro_formato.js';
 import { whoOfLevel } from '../natpf_who.js';
 import { eventoK } from '../natpf_evento.js';
@@ -22,6 +25,7 @@ import { getCast } from '../natpf_personaggi.js';
 import { readFairMode } from '../natpf_fair_format.js';
 import { readAimLevel } from '../natpf_aim_level.js';
 import { NATPF_BUILD } from '@natpf/tennis/version.js';
+import { dirModelOf, usedNewRule } from '../natpf_direction.js';
 
 const prova = (fn, no = null) => { try { return fn(); } catch { return no; } };
 const NOMI_BASE = new Set(['player 1', 'player 2', 'ospite', '']);
@@ -32,6 +36,12 @@ const MAX_NOMI = 300;                                    // nomi della giornata 
 
 // B31: nomi dei colpi a rete della CPU nel registro (campo «in» del colpo di chi gioca)
 const CPU_NET = Object.freeze({ volley: 'volée', smash: 'schiacciata', drop: 'palla corta' });
+// B36.0: la palla è fuori al primo rimbalzo come la chiama il motore (game_engine.js, primo rimbalzo: |x| oltre la riga
+// laterale del singolare 4,115 m + 0,22 di tolleranza, |z| oltre la riga di fondo 11,89 m + 0,28; e fuori anche se rimbalza
+// nella metà di chi l'ha colpita). Un test controlla che i numeri siano quelli del motore
+export const LINEE = Object.freeze({ x: 4.115 + .22, z: 11.89 + .28 });
+// colpo rimasto in attesa del rimbalzo oltre questo tempo: si scrive senza (il volo più lungo, un pallonetto, dura meno di 3 s)
+const ATTESA_RIMBALZO_MS = 6000;
 export class RegistroStand {
   constructor({ engine, ui = null, coda, invio = null, storage = globalThis.localStorage, now = () => performance.now(), wallNow = () => Date.now(), programma = false, win = null, raf = null, timers = true, area = null } = {}){
     this.engine = engine; this.ui = ui; this.coda = coda; this.invio = invio; this.storage = storage; this.now = now; this.wallNow = wallNow; this.programma = !!programma; this.win = win; this.area = area;
@@ -42,6 +52,7 @@ export class RegistroStand {
     this.costo = { ms: 0, max: 0 };                      // ms spesi dal registro sul thread del gioco (agganci e scritture)
     this.partita = null; this.visita = null; this.cal = {}; this.tut = new Map(); this.tel = {}; this.scarti = {}; this.err = new Map();
     this.att = null; this.mini = null; this._chiosco = -Infinity; this._telefoni = new Set(); this._nomi = new Set();
+    this._aperto = null;                                 // B36.0: il colpo della racchetta che aspetta il suo primo rimbalzo
     this._installa();
     if (timers && typeof setInterval === 'function'){
       this._secT = setInterval(() => this.secondo(), 1000); this._flushT = setInterval(() => { this.blocco(); }, REGISTRO.bloccoMs);
@@ -109,6 +120,7 @@ export class RegistroStand {
   // pagina che si chiude (o si ricarica): partita in corso chiusa come interrotta, segno di chiusura pulita
   chiudi(motivo = 'chiusura'){
     if (!this.on) return;
+    this._chiudiColpo();
     this._chiudiTutto(motivo); this._riga('chiusura', { motivo });
     const G = this._giornata(); G.aperta = { pulita: true, partita: 0 }; scriviGiornata(G, this.storage);
     this.blocco({ chiusura: motivo === 'chiusura' });
@@ -124,10 +136,17 @@ export class RegistroStand {
   }
 
   /* ---------- righe ---------- */
+  // la riga com'è adesso (tempo, partita in corso), prima di pulirla
+  _fai(k, data = {}){ return { k, t: this.t, ...(this.partita && data.n === undefined && k !== 'avvio' ? { n: this.partita.n } : {}), ...data }; }
   _riga(k, data = {}){
     if (!this.on) return;
+    if (this._aperto) this._forseChiudi();                                   // B36.0: il colpo già risolto va prima di questa riga
+    this._scrivi(this._fai(k, data));
+  }
+  _scrivi(raw){
+    if (!this.on) return;
     if (this.buf.length >= 4000){ this.conti.perse++; return; }               // coda ferma da molto: non si accumula senza fine
-    const row = pulisci({ k, t: this.t, ...(this.partita && data.n === undefined && k !== 'avvio' ? { n: this.partita.n } : {}), ...data }, { nomi: this.nomi() });
+    const row = pulisci(raw, { nomi: this.nomi() });
     const line = row && testoRiga(row); if (!line) return;
     this.buf.push(line); this.conti.righe++;
   }
@@ -135,6 +154,7 @@ export class RegistroStand {
   // Senza aspettare e senza errori fuori di qui: se la coda non si scrive le righe sono perse e contate (il blocco
   // dopo comincia con una riga «nota» che lo dice). chiusura: la pagina si chiude, il blocco parte anche con sendBeacon
   async blocco({ chiusura = false } = {}){
+    if (this._aperto) this._forseChiudi();                                   // un colpo con la palla ancora in volo resta per il blocco dopo
     if (!this.buf.length){ this.invio?.tic(); return; }
     const a = this.now(), G = this._giornata(), righe = this.buf; this.buf = [];
     if (this.conti.perse > this._perseDette){
@@ -168,17 +188,22 @@ export class RegistroStand {
     const dopo = (obj, name, fn) => wrap(obj, name, function(orig, ...a){ const out = orig(...a); const t = R.now(); try { fn.call(this, out, ...a); } catch {} R._costo(t); return out; });
     dopo(E, 'startNewMatch', () => R._partita());
     wrap(E, '_awardPoint', function(orig, winner, why = ''){
+      R._chiudiColpo();                                                      // B36.0: il colpo di prima (rimbalzo o no) prima del punto
       const b = E.ball, prima = R.partita ? { colpi: b?.rallyStrokeCount || 0, ultimo: b?.lastHitter || null, vuoto: E.natpfLastWhiff?.side || null, batte: E.score?.server || null, pt: (E.score?.playerPoints || 0) + (E.score?.opponentPoints || 0), game: (E.score?.playerGames || 0) + (E.score?.opponentGames || 0), over: E.phase === 'MATCH_OVER' } : null;
       const out = orig(winner, why);
       const t = R.now(); try { if (prima) R._punto(winner, why, prima); } catch {} R._costo(t);
       return out;
     });
     // il colpo, con la palla che arrivava (velocità e altezza prese prima che il colpo la cambi)
+    // (a[0]: il gesto che arriva al motore, con natpf.aimDev: lo scarto della cima in gradi, B36.0)
     wrap(E, '_natpfRacketShot', function(orig, ...a){
       const b = E.ball, v = b?.vel, pre = v && b?.pos ? [Math.hypot(v.x || 0, v.y || 0, v.z || 0)*3.6, b.pos.y] : null, out = orig(...a);
-      const t = R.now(); try { if (out) R._colpo(out, pre); } catch {} R._costo(t);
+      const t = R.now(); try { if (out) R._colpo(out, pre, a[0]); } catch {} R._costo(t);
       return out;
     });
+    // B36.0: primo rimbalzo vero della palla dell'ultimo colpo della racchetta (l'anello del rimbalzo: lo chiama il motore a
+    // ogni rimbalzo, con il punto dove la palla tocca terra, prima di decidere se è fuori)
+    dopo(E, '_spawnBounceRing', (_o, x, z) => R._rimbalzo(x, z));
     dopo(E, '_startServeToss', (_o, _a, auto) => { const P = R.partita; if (P){ P.lanci++; if (auto) P.lanciAuto++; if (auto === 'serve') P.battuteAuto++; } });
     wrap(E, '_executeServeHit', function(orig, actor, ...rest){
       const before = E.natpfLastServe, giaInGioco = !!E.ball?.inPlay, out = orig(actor, ...rest);
@@ -263,6 +288,8 @@ export class RegistroStand {
       segnale: !!ui?.cue?.enabled, nomeInserito: split ? conNome(nomi.p1) : !!prova(() => ui?.events?.nickname), ...(split ? { nomeInserito2: conNome(nomi.p2) } : {}),
       // opzioni dello stand accese per questa partita (B42: lo «scambio che si scalda» vale in tutti i modi, acceso di base)
       stand: { chiosco: this.chiosco, fiera: prova(() => readFairMode()), mira: prova(() => readAimLevel()), caldo: !!E.natpfHot, ...(split ? { lancioAuto: !!duo?.autoToss, campoAperto: !!duo?.open } : {}) },
+      // B36.0: modello della direzione dei colpi della partita (natpf_direction.js; oggi sempre «classica»)
+      dir: dirModelOf(E),
       // stesso schermo: fasce dei due giocatori e chi riceve l'aiuto (il più giovane)
       ...(split ? { fasce: [E.natpfSplitBands?.p1 || 'adulto', E.natpfSplitBands?.p2 || 'adulto'], aiuto: duo?.help?.p1 ? 'g' : duo?.help?.p2 ? 'a' : null } : {}),
       ...(this._evento() ? { ek: r(eventoK(), 3) } : {}),
@@ -309,6 +336,7 @@ export class RegistroStand {
   }
   _finePartita(esito, come){
     const P = this.partita, E = this.engine; if (!P) return;
+    this._chiudiColpo();
     const f = P.f, kiosk = this.now() - this._chiosco < 3000;
     this._riga('partita.fine', {
       esito, ...(esito !== 'finita' ? { dove: 'a metà partita', come: kiosk ? 'chiosco' : come } : {}),
@@ -329,18 +357,22 @@ export class RegistroStand {
   /* ---------- colpi ---------- */
   // colpi negli scambi di prova (anche a partita in corso, con «Ricalibra»): amb «prova», fuori dai conti della partita
   _ambiente(){ return this.ui?.trial?.active ? 'prova' : this.ui?.training?.active ? 'allenamento' : this.ui?.events?.active ? 'minigioco' : undefined; }
-  // pre: [velocità in km/h, altezza in m] della palla che arrivava
-  _colpo(out, pre = null){
+  // pre: [velocità in km/h, altezza in m] della palla che arrivava; ev: il gesto arrivato al motore (natpf.aimDev)
+  _colpo(out, pre = null, ev = null){
     const E = this.engine, L = E.natpfLastRacket; if (!L) return;
     const I = L.intent || {}, O = L.out || {}, forza = Number.isFinite(I.typePower) ? I.typePower : I.power;
     const prv = !!this.ui?.trial?.active, P = prv ? null : this.partita, amb = P ? undefined : this._ambiente();
     if (!P && !amb) return;                                                   // colpi fuori da partita, allenamento e minigiochi: niente
     const g = L.who === 'p2' ? 'a' : 'g';
     if (P){ if (g === 'g') P.colpi++; else P.colpiA++; }
+    // B36.0: zona chiesta da Precision (natpf_arcade.PRECISION_ZONES, 0–9) e scarto della cima in gradi
+    const A = this.ui?.events?.active, zp = amb === 'minigioco' && A?.id === 'precision' && Number.isInteger(A.zoneIdx) ? A.zoneIdx : null, dev = ev?.natpf?.aimDev;
     // Righe compatte (lo spazio dell'utente non è infinito): niente campi ripetuti a ogni colpo. Il punto è quello
     // della riga «punto» che segue; chi: solo se è l'avversario umano ('a'); e: solo se non è «dentro»; fonte: solo se
     // non è il controller scritto nella riga della partita
-    this._riga('colpo', {
+    // B36.0: la riga aspetta il primo rimbalzo vero (rx, rz, fu: _rimbalzo) e si scrive allora, o quando la palla non può
+    // più rimbalzare (_forseChiudi); il tempo (t) e la partita (n) restano quelli del colpo
+    this._apri(this._fai('colpo', {
       // voluto: solo se il gesto è davvero diverso (revisione: 'TOPSPIN' contro 'topspin' finiva in tutti i colpi)
       ...(P ? {} : { amb }), chi: g === 'a' ? 'a' : undefined, gesto: O.shot || I.shot || null, ...(I.shot && O.shot && String(I.shot).toLowerCase() !== String(O.shot).toLowerCase() ? { voluto: I.shot } : {}),
       // la palla della CPU che arrivava: tipo di colpo (solo Leggenda: gli altri livelli non lo scelgono così),
@@ -355,7 +387,32 @@ export class RegistroStand {
       // B31: rete 1 = colpo giocato entro 7 m dalla rete (chi gioca è salito a rete o ci è stato portato)
       // B32: mov = come si è arrivati sulla palla contro la CPU: 'corsa' (colpo in corsa) o 'allungo' (natpf_movement.moveTag)
       volee: L.volley || undefined, rete: Math.abs((L.who === 'p2' ? E.opponent : E.player)?.pos?.z ?? 99) < 7 ? 1 : undefined, mov: L.move || undefined, lato: L.contact ?? undefined, fonte: L.source === 'webcam' && P?.ctrl !== 'webcam' ? 'webcam' : undefined, causa: L.cause || undefined, aiutato: O.assisted || undefined,
-    });
+      // B36.0 · direzione del colpo. pf: piatto letto dalla cima (−1…+1; solo i telefoni con la forma del colpo, non le
+      // intenzioni ricostruite di webcam, mouse e telefoni vecchi); dv: scarto della cima dal proprio colpo abituale in
+      // gradi (nullo finché il centro della mira non c'è); tu: tempo in unità della finestra della direzione (+ anticipo);
+      // nr: colpo giocato con la regola nuova (natpf_direction.js: oggi mai); zp: zona chiesta da Precision
+      ...(!I.derived && Number.isFinite(I.face) ? { pf: r(I.face, 2) } : {}), ...(Number.isFinite(dev) ? { dv: r(dev, 1) } : {}), ...(Number.isFinite(O.t) ? { tu: r(O.t, 2) } : {}),
+      ...(usedNewRule(O) ? { nr: 1 } : {}), ...(zp != null ? { zp } : {}),
+    }), L.who === 'p2' ? 'opponent' : 'player');
+  }
+  /* ---------- B36.0: il colpo aspetta il suo primo rimbalzo ---------- */
+  // chi: chi ha colpito per il motore ('player' o 'opponent', come ball.lastHitter)
+  _apri(row, chi){ this._chiudiColpo(); this._aperto = { row, chi, at: this.now() }; }
+  _chiudiColpo(){ const A = this._aperto; if (!A) return; this._aperto = null; this._scrivi(A.row); }
+  // la palla del colpo non può più rimbalzare per la prima volta (punto finito, palla ripresa, già rimbalzata): si scrive
+  _forseChiudi(){
+    const A = this._aperto, b = this.engine.ball;
+    if (A && (!b || !b.inPlay || b.lastHitter !== A.chi || (b.bounceCountOnCurrentSide || 0) > 0)) this._chiudiColpo();
+  }
+  // anello del rimbalzo (x, z: dove la palla tocca terra): il primo rimbalzo della palla del colpo aperto (il motore
+  // conta il rimbalzo subito dopo l'anello) dà rx, rz e, se è fuori per l'arbitro del motore, fu
+  _rimbalzo(x, z){
+    const A = this._aperto, b = this.engine.ball;
+    if (!A || !b || b.lastHitter !== A.chi || (b.bounceCountOnCurrentSide || 0) > 0 || !Number.isFinite(x) || !Number.isFinite(z)) return;
+    const suaMeta = A.chi === 'player' ? z > 0 : z <= 0;
+    A.row.rx = r(x, 2); A.row.rz = r(z, 2);
+    if (suaMeta || Math.abs(x) > LINEE.x || Math.abs(z) > LINEE.z) A.row.fu = 1;
+    this._chiudiColpo();
   }
   // colpo con mouse e tastiera (modalità prova): dall'esito a schermo, senza racchetta virtuale
   onFeedback(e = {}){
@@ -423,6 +480,7 @@ export class RegistroStand {
   }
   _fineProva(finita){
     const V = this.prv; if (!V) return; this.prv = null;
+    this._chiudiColpo();
     const S = V.S, durS = r((this.now() - V.t0)/1000, 1);
     for (const id of Object.keys(S.players || {})){
       const res = S.result?.[id] || null, n = res?.n || {}, dr = n.forehand | 0, rv = n.backhand | 0;
@@ -441,6 +499,7 @@ export class RegistroStand {
   }
   _fineAllenamento(o = {}, come){
     const A = this.att; if (!A) return; this.att = null;
+    this._chiudiColpo();
     const st = this.ui?.training?.stats || {};
     this._riga('allenamento', { tipo: A.tipo, finito: !!o.completed, saltato: o.skipped || undefined, durS: r((this.now() - A.t0)/1000, 1), colpi: st.shots || undefined, perfetti: st.perfect || undefined, come: come === 'fine' ? undefined : come, ...this._prendiScarti() });
     if (o.completed && this.visita) this.visita.fatti++;
@@ -448,7 +507,9 @@ export class RegistroStand {
   _minigioco(gioco){ if (this.mini) this._fineMinigioco(false); if (this.partita) this._finePartita('abbandonata', 'menu'); this.mini = { t0: this.now(), gioco: String(gioco || '').slice(0, 24) }; }
   _fineMinigioco(finito, punti = null){
     const M = this.mini; if (!M) return; this.mini = null;
-    this._riga('minigioco', { gioco: M.gioco, finito, punti: finito ? punti : undefined, durS: r((this.now() - M.t0)/1000, 1), ...this._prendiScarti() });
+    this._chiudiColpo();
+    // dir (B36.0): modello della direzione dei colpi del minigioco (Precision con «Classica» o con «Nuova»)
+    this._riga('minigioco', { gioco: M.gioco, finito, punti: finito ? punti : undefined, durS: r((this.now() - M.t0)/1000, 1), dir: dirModelOf(this.engine), ...this._prendiScarti() });
     if (finito && this.visita) this.visita.fatti++;
   }
 
@@ -504,6 +565,7 @@ export class RegistroStand {
   secondo(){
     if (!this.on) return;
     const a = this.now(), E = this.engine, P = this.partita;
+    if (this._aperto && a - this._aperto.at > ATTESA_RIMBALZO_MS) this._chiudiColpo();
     // giorno nuovo a gioco acceso (stand aperto oltre la mezzanotte), a partita finita: giornata nuova
     this._cambioGiorno();
     if (P){

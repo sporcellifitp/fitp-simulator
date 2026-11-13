@@ -33,7 +33,7 @@ errori del programma) con i numeri veri.
 |---|---|
 | **Partita** | ora di inizio e di fine, versione del gioco, modo (contro la CPU, stesso schermo, due computer), «Chi gioca» e livello, formato e game, personaggi, opzioni dello stand accese (chiosco, formato fiera, mira, scambio che si scalda, lancio automatico, campo aperto), controller (telefono, webcam, mouse), mano, se il segnale del momento giusto era acceso, **nome inserito: sì/no** (mai il nome), esito, durata, se è stata abbandonata e come (menu, chiosco, partita nuova) |
 | **Punto** | chi batte, chi vince, colpi dello scambio, durata, come è finito (vincente, errore in rete, fuori, doppio fallo, palla non raggiunta, lancio a vuoto…), punteggio |
-| **Colpo** di chi gioca | gesto riconosciuto (e quello voluto, se diverso), errore di tempo in millisecondi e voto (Perfetto, Anticipo, Ritardo…), forza, direzione, esito (dentro, rete, fuori, debole), colpo super riuscito o perché no, volée, lato; contro la CPU anche la **palla che arrivava** (velocità in km/h, altezza; il tipo di colpo della CPU solo al livello Leggenda) |
+| **Colpo** di chi gioca | gesto riconosciuto (e quello voluto, se diverso), errore di tempo in millisecondi e voto (Perfetto, Anticipo, Ritardo…), forza, direzione, esito (dentro, rete, fuori, debole), colpo super riuscito o perché no, volée, lato; contro la CPU anche la **palla che arrivava** (velocità in km/h, altezza; il tipo di colpo della CPU solo al livello Leggenda). Dal B36.0 anche **la direzione del telefono**: piatto letto dalla cima, scarto della cima in gradi, tempo in unità della finestra, **dove la palla rimbalza davvero** e se lì è fuori, la zona chiesta da Precision (dettagli: `docs/b36/misure-b36-0.md`) |
 | **Gesti scartati** | quanti e perché (conteggi per partita) e i colpi «a vuoto» |
 | **Servizio** | tipo, qualità, tempo, velocità, voto; lanci, lanci a vuoto, lancio e battuta automatici |
 | **Tutorial** | quanto dura, quante schede viste, come si chiude (finito, saltato, chiosco; nello stesso schermo «finito» solo con tutte le schede viste) |
@@ -46,6 +46,12 @@ errori del programma) con i numeri veri.
 
 Ogni partita ha un **numero progressivo** e ogni giornata un **codice casuale** di 8 lettere (cambia ogni giorno, non
 dice niente del computer). Basta questo per mettere in ordine le righe.
+
+**B36.0 (14/11/2026): campi della direzione dei colpi.** Nove campi nuovi tutti insieme (`pf`, `dv`, `tu`, `rx`, `rz`,
+`fu`, `nr`, `zp` nella riga «colpo»; `dir` nelle righe «partita» e «minigioco»), formato delle righe 2 (campo `v` della riga
+«avvio»). Il Worker va ricaricato **una volta** perché li salvi: un Worker non ricaricato accetta lo stesso le righe e
+toglie solo i campi nuovi (il riassunto lo dice: «campi della direzione assenti»). Cosa vuol dire ogni campo, come si
+ricarica il Worker e la prova a Precision: `docs/b36/misure-b36-0.md`. Solo numeri di gioco: niente di chi gioca.
 
 ## Che cosa NON registra
 

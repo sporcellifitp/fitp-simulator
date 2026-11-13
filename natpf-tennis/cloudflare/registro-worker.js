@@ -77,6 +77,13 @@
 // Gli elenchi qui sotto (tipi di riga, campi previsti, campi vietati, limiti) sono una COPIA di quelli del gioco
 // (natpf-tennis/src/natpf/registro/registro_formato.js): questo file deve restare uno solo, da incollare. Un test
 // (test/registro-worker.test.mjs) fallisce se le due copie non sono uguali.
+//
+// FORMATO delle righe che questo Worker conosce (lo stesso numero del campo «v» della riga «avvio» del gioco): 2 dal B36.0,
+// con i campi della direzione dei colpi (pf, dv, tu, rx, rz, fu, nr, zp, dir: docs/b36/misure-b36-0.md). La pagina del
+// Worker lo scrive in chiaro («Formato delle righe: 2»), così chi lo ricarica vede subito che la versione nuova è attiva.
+// Compatibilità: un Worker di prima (formato 1) accetta le righe del gioco nuovo e ne toglie in silenzio i campi che non
+// conosce (le righe restano, i campi della direzione no); questo Worker accetta le righe dei giochi di prima (senza quei
+// campi) come sempre. Il test lo prova con il Worker di prima ricostruito da questo file.
 
 const MB = 1024*1024;
 export const LIMITI = Object.freeze({
@@ -102,7 +109,9 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'attesaS', 'pt', 'lanci', 'lanciVuoti', 'battutaAuto', 'esito', 'come', 'punti', 'puntiVinti', 'fps', 'medi', 'peggiori', 'maxMs', 'lunghi', 'cadute', 'riprese', 'rttMax', 'errori',
   'scartati', 'amb', 'gesto', 'voluto', 'ms', 'voto', 'f', 'd', 'e', 'x', 'z', 'sup', 'supNo', 'volee', 'rete', 'mov', 'lato', 'fonte', 'causa', 'aiutato', 'tipo', 'q', 'kmh', 'auto', 'perche',
   'serie', 'schede', 'viste', 'tutte', 'chiusura', 'finita', 'prove', 'fallite', 'passi', 'ripartenze', 'revisioni', 'revisioniNo', 'semplice', 'finito', 'saltato', 'perfetti', 'gioco',
-  'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in']);
+  'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in',
+  'pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr', 'zp', 'dir']);
+export const FORMATO = 2;
 export const MAPPE = Object.freeze(['scartati', 'posti', 'passi', 'perche']);
 export const CAMPI_VIETATI = Object.freeze(['nome', 'name', 'nick', 'nickname', 'giocatore', 'player', 'ip', 'indirizzo', 'address', 'host', 'ua', 'useragent', 'token', 'sessione',
   'session', 'stanza', 'room', 'roomid', 'id', 'deviceid', 'telefonoid', 'video', 'audio', 'immagine', 'foto', 'frame', 'campioni', 'sensori', 'rot', 'acc', 'accg', 'email', 'mail',
@@ -428,7 +437,7 @@ button:disabled{opacity:.5;cursor:default}button.via{background:#4a1626;border-c
 .riga{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.riga input{flex:1;min-width:200px}</style></head><body><main>
 <h1>Registro di NATPF Simulator</h1><p class="dim">Qui arrivano le righe di gioco dello stand (partite, punti, colpi, errori). Niente nomi, niente video, niente audio.</p>
 ${spazio ? '' : '<p class="no"><b>Il registro NON è pronto:</b> manca il collegamento al bucket R2. Finché manca, le righe dello stand non vengono salvate qui (restano in coda sul PC dello stand).</p>'}
-<p>Spazio R2 collegato: <b class="${spazio ? 'ok">sì' : 'no">no (Settings → Bindings → Add → R2 bucket, nome REGISTRO, bucket privato natpf-registro)'}</b><br>Chiave di lettura impostata: <b class="${chiave ? 'ok">sì' : 'no">no (Settings → Variables and Secrets → CHIAVE_LETTURA, almeno 12 caratteri)'}</b></p>
+<p>Spazio R2 collegato: <b class="${spazio ? 'ok">sì' : 'no">no (Settings → Bindings → Add → R2 bucket, nome REGISTRO, bucket privato natpf-registro)'}</b><br>Chiave di lettura impostata: <b class="${chiave ? 'ok">sì' : 'no">no (Settings → Variables and Secrets → CHIAVE_LETTURA, almeno 12 caratteri)'}</b><br>Formato delle righe: <b class="ok" id="formato">${FORMATO}</b> <span class="dim">(con la direzione dei colpi)</span></p>
 <div class="riga"><input id="k" type="password" autocomplete="off" placeholder="La tua chiave di lettura"><button id="vai">Mostra i giorni</button></div>
 <p id="msg" class="dim">Scrivi la chiave per vedere lo spazio occupato e i giorni registrati, scaricarli o cancellarli.</p>
 <div id="barra" hidden><i></i></div><p id="spazio" class="dim" hidden></p>
@@ -486,8 +495,8 @@ export default {
       if (url.pathname !== '/') return reply(404, { ok: false, error: 'indirizzo non previsto' });
       // la pagina per l'utente; a un programma (Accept senza text/html) solo lo stato. Mai dati senza la chiave
       // senza il collegamento al bucket il Worker non è pronto: lo dice chiaro e non accetta righe
-      if (!/text\/html/i.test(request.headers.get('Accept') || '')) return spazio ? reply(200, { ok: true, registro: 'pronto', spazio, chiave }, c.ok ? c.headers : {})
-        : reply(503, { ok: false, registro: 'non pronto', spazio, chiave, error: SENZA_SPAZIO }, c.ok ? c.headers : {});
+      if (!/text\/html/i.test(request.headers.get('Accept') || '')) return spazio ? reply(200, { ok: true, registro: 'pronto', spazio, chiave, formato: FORMATO }, c.ok ? c.headers : {})
+        : reply(503, { ok: false, registro: 'non pronto', spazio, chiave, formato: FORMATO, error: SENZA_SPAZIO }, c.ok ? c.headers : {});
       return new Response(PAGINA(spazio, chiave), { status: spazio ? 200 : 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' } });
     } catch { return reply(500, { ok: false, error: 'errore del Worker' }, c.ok ? c.headers : {}); }
   },
