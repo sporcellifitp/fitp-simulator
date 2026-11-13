@@ -1,0 +1,28 @@
+
+Leggenda contro «tennista» (631 game, punti di chi gioca 33.2% ± 0.89 con 24 semi (deviazione tra i semi 4.36), 20.59 colpi per punto, schemi {"incrociato":21.7,"incrociatoStretto":15.3,"corpo":13,"tagliato":12.9,"lungolinea":9.8,"chiusura":7.2,"alta":7.1,"smorzata":7,"campoAperto":5.6,"pallonetto":0.4,"contropiede":0}, distanza all'impatto p50/p95/max 0.4/1.16/2.3 m, affondi 16735, palle lasciate passare 2)
+  OK  game vinti dalla CPU ≥ 85%                       87.3%
+  OK  errori della CPU 2–6% per colpo                  2.4%
+  OK  incrociati 30–50%                                45.8%
+  OK  lungolinea ≥ 10%                                 24.6%
+  OK  almeno 6 schemi sopra il 3%                      9
+  OK  nessuno schema sopra il 35%                      21.7%
+  OK  entropia ≥ 2,3 bit                               2.7
+  OK  ripetizioni ≤ 20%                                14.2%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Leggenda contro «preciso» (514 game, punti di chi gioca 43.4% ± 0.88 con 24 semi (deviazione tra i semi 4.29), 23.1 colpi per punto, schemi {"incrociato":17.4,"lungolinea":15,"tagliato":14.3,"incrociatoStretto":13.6,"corpo":13.4,"chiusura":9.3,"smorzata":8.9,"campoAperto":6,"alta":1.8,"pallonetto":0.4}, distanza all'impatto p50/p95/max 0.3/0.93/2.3 m, affondi 10524, palle lasciate passare 1)
+  OK  game vinti dalla CPU ≥ 60%                       66%
+  OK  errori della CPU 2–6% per colpo                  2.7%
+  OK  incrociati 30–50%                                40.8%
+  OK  lungolinea ≥ 10%                                 30.2%
+  OK  almeno 6 schemi sopra il 3%                      8
+  OK  nessuno schema sopra il 35%                      17.4%
+  OK  entropia ≥ 2,3 bit                               2.73
+  OK  ripetizioni ≤ 20%                                13.1%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Tutti i criteri rispettati

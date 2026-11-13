@@ -1,0 +1,21 @@
+== impronte contro la CPU: 120 punti per riga, semi 7, 11, senza colpi speciali ==
+casual    tennista  | vinti 98.3%, 100% · colpi a scambio 4.4, 4.42 · palle corte 0 · impronta 78b16e5f41f5
+casual    amatore   | vinti 83.3%, 86.7% · colpi a scambio 8.68, 9.69 · palle corte 0 · impronta 7441e08e8e59
+casual    bambino   | vinti 54.2%, 46.7% · colpi a scambio 7.26, 8.22 · palle corte 0 · impronta 248dce76cc8c
+casual    medio     | vinti 87.5%, 87.5% · colpi a scambio 8.22, 7.9 · palle corte 0 · impronta 745e56a2345a
+pro       tennista  | vinti 96.7%, 95.8% · colpi a scambio 8.97, 9.51 · palle corte 0 · impronta e85978f5e7d2
+pro       amatore   | vinti 60%, 61.7% · colpi a scambio 17.02, 14.59 · palle corte 0 · impronta 2b0e2308eff7
+pro       bambino   | vinti 13.3%, 13.3% · colpi a scambio 7.18, 8.18 · palle corte 0 · impronta e00f1966764c
+pro       medio     | vinti 61.7%, 62.5% · colpi a scambio 12.22, 12.44 · palle corte 0 · impronta 3cc06b83797d
+bambini   tennista  | vinti 100%, 100% · colpi a scambio 4.22, 4.38 · palle corte 0 · impronta fbc730be3741
+bambini   amatore   | vinti 95.8%, 95% · colpi a scambio 8.87, 8.88 · palle corte 0 · impronta 08e575918dab
+bambini   bambino   | vinti 81.7%, 79.2% · colpi a scambio 10.84, 10.92 · palle corte 0 · impronta ff4140a9c209
+bambini   medio     | vinti 98.3%, 96.7% · colpi a scambio 7.63, 9.12 · palle corte 0 · impronta 1c1f23b050f7
+evento    tennista  | vinti 98.3%, 92.5% · colpi a scambio 10.29, 9.59 · palle corte 0 · impronta 396e73215193
+evento    amatore   | vinti 61.7%, 66.7% · colpi a scambio 14.96, 15.03 · palle corte 0 · impronta 8b837d0f4ff8
+evento    bambino   | vinti 44.2%, 48.3% · colpi a scambio 7.59, 8.19 · palle corte 0 · impronta 9f2da2b8f99a
+evento    medio     | vinti 71.7%, 66.7% · colpi a scambio 11.32, 13.85 · palle corte 0 · impronta 8a0bbf7e6b03
+leggenda  tennista  | vinti 25%, 25.8% · colpi a scambio 17.63, 16.13 · palle corte 0 · impronta 0815ea384c84
+leggenda  amatore   | vinti 12.5%, 14.2% · colpi a scambio 11.07, 10.63 · palle corte 0 · impronta 7b508b1f9c3b
+leggenda  bambino   | vinti 7.5%, 10% · colpi a scambio 5.49, 5.4 · palle corte 0 · impronta 72cd0dcfd819
+leggenda  medio     | vinti 20%, 17.5% · colpi a scambio 12.71, 12.77 · palle corte 0 · impronta 55700e1596b1

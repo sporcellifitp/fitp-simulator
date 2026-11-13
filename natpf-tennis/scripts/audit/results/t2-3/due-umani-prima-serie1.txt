@@ -1,0 +1,14 @@
+== Palla corta nello stesso schermo · semi 7001, 7103, 7207 · 40 partite per seme e per lato, 1 game in fiera ==
+medio contro medio                                         | 240 part.: vince il primo 50% · punti 50% · colpi a punto 11.1 | palle corte del primo 0 (0 a punto): in rete null%, troppo lunghe –%, fanno punto null%
+medio solo palle corte contro medio normale                | 240 part.: vince il primo 2.9% · punti 21.5% · colpi a punto 17 | palle corte del primo 9622 (7.96 a punto): in rete 0%, troppo lunghe –%, fanno punto 0.4%
+amatore contro amatore                                     | 240 part.: vince il primo 50% · punti 50% · colpi a punto 17.8 | palle corte del primo 0 (0 a punto): in rete null%, troppo lunghe –%, fanno punto null%
+amatore solo palle corte contro amatore normale            | 240 part.: vince il primo 5.8% · punti 25.2% · colpi a punto 25.3 | palle corte del primo 15260 (12.15 a punto): in rete 0%, troppo lunghe –%, fanno punto 0.3%
+bambino contro bambino                                     | 240 part.: vince il primo 50% · punti 50% · colpi a punto 6.5 | palle corte del primo 0 (0 a punto): in rete null%, troppo lunghe –%, fanno punto null%
+bambino solo palle corte contro bambino normale            | 240 part.: vince il primo 10.8% · punti 28.8% · colpi a punto 11.3 | palle corte del primo 6524 (5.07 a punto): in rete 0.1%, troppo lunghe –%, fanno punto 1.3%
+-- aiuto al più giovane (fasce bambino e adulto) --
+bambino contro medio · nessun aiuto                        | 240 part.: vince il primo 14.2% · punti 29.2% · colpi a punto 7.9 | palle corte del primo 0 (0 a punto): in rete null%, troppo lunghe –%, fanno punto null%
+bambino solo palle corte contro medio · nessun aiuto       | 240 part.: vince il primo 0.8% · punti 11.5% · colpi a punto 8.7 | palle corte del primo 4018 (3.72 a punto): in rete 0%, troppo lunghe –%, fanno punto 0.5%
+medio solo palle corte contro bambino · nessun aiuto       | 240 part.: vince il primo 57.1% · punti 52.9% · colpi a punto 17.2 | palle corte del primo 11292 (8.09 a punto): in rete 0%, troppo lunghe –%, fanno punto 1.5%
+bambino contro medio · aiuto G                             | 240 part.: vince il primo 40.8% · punti 45.1% · colpi a punto 11.5 | palle corte del primo 0 (0 a punto): in rete null%, troppo lunghe –%, fanno punto null%
+bambino solo palle corte contro medio · aiuto G            | 240 part.: vince il primo 2.5% · punti 20.6% · colpi a punto 14.3 | palle corte del primo 7692 (6.44 a punto): in rete 0%, troppo lunghe –%, fanno punto 0.3%
+medio solo palle corte contro bambino · aiuto G            | 240 part.: vince il primo 2.1% · punti 18.6% · colpi a punto 26.3 | palle corte del primo 14823 (12.68 a punto): in rete 0%, troppo lunghe –%, fanno punto 0.1%

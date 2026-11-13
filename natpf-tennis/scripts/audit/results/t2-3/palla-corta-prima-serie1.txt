@@ -1,0 +1,44 @@
+semi 2001, 2038, 2075 · 300 punti per seme
+livello   profilo   tattica  punti G  game G  colpi/punto | corte  per punto  riuscite  in rete  fuori  raggiunte  fa punto (diretto + errore CPU)  perse subito  cade a | falliti  scambio lungo  sopra la testa falliti
+casual    tennista  normale    99.7%    100%     4.73     |     0         0        0%       0%     0%         0%        0% (0 + 0)                            0%      – |      0%        0%  0% di 2  {}
+casual    tennista  ogni       99.8%    100%     5.03     |   331      0.37     99.7%       0%   0.3%      87.3%     49.8% (12.7 + 37.2)                    0.3%   1.99 |      0%        0%  0% di 2  {}
+casual    tennista  sole       98.6%    100%     9.75     |  2924      4.15     99.9%       0%   0.1%        98%       21% (1.9 + 19)                       0.3%   1.92 |      0%        0%  0% di 31  {}
+casual    amatore   normale    86.9%    100%     9.42     |     0         0        0%       0%     0%         0%        0% (0 + 0)                            0%      – |      0%        0%  0% di 6  {}
+casual    amatore   ogni       89.4%    100%     7.35     |   450       0.5     97.8%       0%   2.2%      79.1%     53.6% (20.4 + 33.1)                    2.7%   1.99 |      0%        0%  0% di 10  {}
+casual    amatore   sole       93.4%    100%     7.41     |  2605      3.09     98.5%       0%   1.5%      91.5%     26.8% (8.4 + 18.5)                     1.6%   1.92 |      0%        0%  0% di 26  {}
+casual    bambino   normale      45%   36.6%     7.51     |     0         0        0%       0%     0%         0%        0% (0 + 0)                            0%      – |    0.3%        0%  0% di 6  {"tempo":0.3}
+casual    bambino   ogni       53.3%   57.9%     6.17     |   327      0.36     92.7%       0%   7.3%      73.6%     52.6% (24.5 + 28.1)                     11%   1.96 |    0.2%        0%  0% di 6  {"palla corta: tempo":0.1,"tempo":0.1}
+casual    bambino   sole       71.8%   95.3%     4.73     |  1622       1.8     95.2%       0%   4.8%      83.6%     35.3% (15.6 + 19.7)                    9.6%   1.91 |    0.1%        0%  0% di 15  {"tempo":0.1}
+pro       tennista  normale    95.6%    100%     9.61     |     0         0        0%       0%     0%         0%        0% (0 + 0)                            0%      – |      0%        0%  0% di 4  {}
+pro       tennista  ogni       97.2%    100%     8.58     |   507      0.56       99%       0%     1%        94%     29.2% (5.9 + 23.3)                       1%   1.98 |      0%        0%  0% di 8  {}
+pro       tennista  sole       82.1%    100%    22.21     |  3800     10.44     99.1%       0%   0.9%      99.2%      7.3% (0.7 + 6.6)                      1.6%   1.83 |      0%        0%  0% di 18  {}
+pro       amatore   normale    55.5%   63.2%     14.8     |     0         0        0%       0%     0%         0%        0% (0 + 0)                            0%      – |    0.8%      0.8%  0% di 3  {"scambio lungo":0.8}
+pro       amatore   ogni         70%   88.6%    11.61     |   494       0.7     95.5%       0%   4.5%      89.6%       34% (9.9 + 24.1)                     4.9%   1.95 |    0.6%      0.4%  0% di 12  {"scambio lungo":0.4,"tempo":0.1}
+pro       amatore   sole       74.8%     90%    12.91     |  3398      5.94     97.1%       0%   2.9%      95.9%     11.7% (3.9 + 7.8)                      3.5%   1.86 |    0.2%        0%  0% di 16  {"palla corta: tempo":0.2}
+pro       bambino   normale    14.6%      0%     7.39     |     0         0        0%       0%     0%         0%        0% (0 + 0)                            0%      – |    0.1%        0%  0% di 6  {"in allungo":0.1}
+pro       bambino   ogni       26.6%    6.9%     6.76     |   297      0.33     93.6%       0%   6.4%      82.7%     40.4% (16.2 + 24.2)                   13.1%   1.94 |    0.1%        0%  0% di 7  {"in allungo":0.1}
+pro       bambino   sole       43.8%   35.6%     6.28     |  2301      2.56     92.1%       0%   7.9%      93.3%     15.9% (6.1 + 9.8)                     15.2%   1.86 |    0.2%        0%  0% di 19  {"palla corta: tempo":0.1,"in allungo":0.1}
+leggenda  tennista  normale    32.8%   17.5%    16.86     |     0         0        0%       0%     0%         0%        0% (0 + 0)                            0%      – |   48.9%     43.2%  0% di 11  {"scambio lungo":43.2,"in allungo":3.4,"palla veloce":1.4,"senza preparazione":0.7,"palla lontana":0.2}
+leggenda  tennista  ogni       31.8%   14.6%    17.78     |   904      1.72     98.3%       0%   1.7%       100%      2.3% (0 + 2.3)                        1.7%    1.8 |   52.6%     47.4%  13.3% di 30  {"scambio lungo":47.4,"in allungo":4.2,"palla veloce":0.6,"senza preparazione":0.4}
+leggenda  tennista  sole       56.1%   62.3%    22.66     |  3552     10.01       98%       0%     2%      99.9%      4.3% (0 + 4.3)                        2.1%    1.8 |   21.7%     21.4%  51.5% di 68  {"scambio lungo":21.4,"in allungo":0.3}
+leggenda  amatore   normale    13.4%    1.2%    11.33     |     0         0        0%       0%     0%         0%        0% (0 + 0)                            0%      – |   39.7%     19.4%  0% di 16  {"scambio lungo":19.4,"in allungo":10.2,"senza preparazione":6.3,"palla veloce":3.5,"palla lontana":0.3}
+leggenda  amatore   ogni       16.5%    1.5%     12.6     |   731      1.11     95.2%       0%   4.8%      99.9%      2.7% (0 + 2.7)                        5.7%   1.84 |   34.7%     18.8%  0% di 26  {"scambio lungo":18.8,"in allungo":7.3,"senza preparazione":5,"palla veloce":3.6}
+leggenda  amatore   sole       29.2%     12%    15.09     |  3246       6.4     95.4%       0%   4.6%       100%      2.7% (0 + 2.7)                        6.6%   1.85 |   20.9%     19.9%  50.8% di 128  {"scambio lungo":19.9,"in allungo":1}
+leggenda  bambino   normale     7.9%      0%     5.42     |     0         0        0%       0%     0%         0%        0% (0 + 0)                            0%      – |   27.1%      1.6%  0% di 4  {"senza preparazione":13.8,"in allungo":10.2,"scambio lungo":1.6,"palla veloce":1.6}
+leggenda  bambino   ogni       10.7%    0.5%     6.25     |   490      0.54     91.4%       0%   8.6%       100%      4.5% (0 + 4.5)                       16.5%   1.86 |   22.4%      2.8%  22.2% di 9  {"senza preparazione":11.7,"in allungo":6.2,"scambio lungo":2.8,"palla veloce":1.7,"palla lontana":0.1}
+leggenda  bambino   sole       12.6%      0%     8.82     |  2801       3.6       92%       0%     8%       100%      2.4% (0 + 2.4)                       17.2%   1.84 |    3.7%      1.8%  14.3% di 42  {"in allungo":1.9,"scambio lungo":1.8}
+
+Obiettivi
+  OK  casual/tennista: sole palle corte 98.6% contro 99.7% normale (-1.1 punti, al massimo +3)
+  KO  casual/amatore: sole palle corte 93.4% contro 86.9% normale (6.5 punti, al massimo +3)
+  KO  casual/bambino: sole palle corte 71.8% contro 45% normale (26.8 punti, al massimo +3)
+  OK  pro/tennista: sole palle corte 82.1% contro 95.6% normale (-13.5 punti, al massimo +3)
+  KO  pro/amatore: sole palle corte 74.8% contro 55.5% normale (19.3 punti, al massimo +3)
+  KO  pro/bambino: sole palle corte 43.8% contro 14.6% normale (29.2 punti, al massimo +3)
+  KO  leggenda/tennista: sole palle corte 56.1% contro 32.8% normale (23.3 punti, al massimo +3)
+  KO  leggenda/tennista: punti chiusi da un colpo fallito «scambio lungo» 43.2% (al massimo 10)
+  KO  leggenda/amatore: sole palle corte 29.2% contro 13.4% normale (15.8 punti, al massimo +3)
+  KO  leggenda/amatore: punti chiusi da un colpo fallito «scambio lungo» 19.4% (al massimo 10)
+  KO  leggenda/bambino: sole palle corte 12.6% contro 7.9% normale (4.7 punti, al massimo +3)
+  OK  leggenda/bambino: punti chiusi da un colpo fallito «scambio lungo» 1.6% (al massimo 10)
+fine
