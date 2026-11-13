@@ -441,3 +441,32 @@ test('punto 3 · partita nuova o giocatore nuovo: la scritta si rivede; segnale 
   const off = await cueRun('pro', 3);
   assert.deepEqual(off.out.map(o => [o.ring, o.hint]), [[false, false], [false, false], [false, false]], 'a Pro di base niente anello e niente scritta');
 });
+
+test('punto 1 · palla della CPU che va fuori: nessun segno prima che tocchi terra, punto e telefono all\'atterraggio', async () => {
+  const { createHeadlessEngine, mulberry32 } = await import('../scripts/audit/headless-engine.mjs');
+  const real = Math.random; Math.random = mulberry32(9);
+  await withDom(async () => {
+    try {
+      const e = createHeadlessEngine({ difficulty: 'casual' }); e.startNewMatch({ showStartBanner: false });
+      const log = [], stamp = k => x => log.push({ k, t: e.elapsedTime, ...x });
+      const hud = e.hud; e.hud = new Proxy({}, { get: (t, k) => k in t ? t[k] : k === 'showTimingPopup' ? (o => stamp('scritta')({ txt: o.grade })) : k === 'showCenterBanner' ? (txt => stamp('banner')({ txt })) : hud[k] });
+      e.scene = { add(){} };
+      const fb = new NatpfShotFeedback(e), { ph, sent } = phoneSink('p1');
+      e.natpfUi = { feedback: ev => fb.onLocalFeedback(ev), shot: fb }; e.natpfPhone = ph;
+      e.motionController = { triggerHapticFeedback: ev => { stamp('aptica')({ kind: ev.kind }); relayPhoneFeedback(e, ev); } };
+      const aw = e._awardPoint.bind(e); e._awardPoint = (w, why) => { stamp('punto')({ w, why, y: +e.ball.pos.y.toFixed(3) }); return aw(w, why); };
+      // la CPU colpisce largo, chi gioca è lontano e non la prende
+      e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = 4;
+      e.player.pos.set(-3, 0, 11.7); e.player.targetPos.copy(e.player.pos);
+      e.ball.pos.set(0, 1, -11); e._launchBallToTarget(e.ball.pos, new THREE.Vector3(5.6, 0, 9), 1.1, { topspin: 14 });
+      const t0 = e.elapsedTime;
+      for (let t = 0; t < 4 && e.phase === 'RALLY'; t += DT) e.step(DT);
+      const pt = log.find(l => l.k === 'punto');
+      assert.ok(pt && pt.w === 'player' && pt.why === 'Out' && pt.y < .1, JSON.stringify(log));
+      assert.ok(pt.t - t0 > .8, 'la palla ha volato');
+      assert.ok(log.filter(l => l.t < pt.t).every(l => l.k === 'punto'), `niente prima dell'atterraggio: ${JSON.stringify(log.filter(l => l.t < pt.t))}`);
+      assert.ok(log.some(l => l.k === 'banner' && l.t === pt.t) && log.some(l => l.k === 'aptica' && l.kind === 'point_won' && l.t === pt.t));
+      assert.ok(sent.some(m => m.k === 'point' && m.mine === true), 'telefono: «Punto tuo» all\'atterraggio');
+    } finally { Math.random = real; }
+  });
+});
