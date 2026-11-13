@@ -2298,7 +2298,7 @@ export class NatpfTennisEngine {
       this.hud.updateTimingGauge({ cursorNormalized: w, modeTitle: `${u} (${X})`, speedText: `${F} KM/H` }),
       // NATPF racchetta virtuale: dopo il colpo verso il fondo, quanto il tempo lo permette (natpf_impact.js)
       racketShot && !l && !this.isDoubles
-        ? NI.recoverAfterShot(this, this.player, { landingX: E, flight: I, contactZ: p.pos.z, approach: !NP.playerApproachOff(this) && NP.approachOf(racketShot.out, p.pos.z, { volley: !!this.natpfLastRacket?.volley, power: racketShot.power, contactY: this.natpfLastRacket?.contactY }) }) // B31: a rete dopo un attacco riuscito (B34: non a Leggenda)
+        ? NI.recoverAfterShot(this, this.player, { landingX: E, flight: I, contactZ: p.pos.z, approach: NP.approachOf(racketShot.out, p.pos.z, { volley: !!this.natpfLastRacket?.volley, power: racketShot.power, contactY: this.natpfLastRacket?.contactY }) }) // B31: a rete dopo un attacco riuscito
         : this.player.targetPos.set(o.MathUtils.clamp(-E * 0.22, -1.6, 1.6), 0, S.BASELINE_Z - 0.15),
       this.playerPartner.targetPos.set(
         o.MathUtils.clamp(E * 0.35 + (this.score.deuceSide ? -1.4 : 1.4), -2.8, 2.8),
