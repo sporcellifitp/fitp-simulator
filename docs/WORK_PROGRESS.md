@@ -1672,7 +1672,7 @@ Ramo `b37-collaudo-bis` (base `1043c85`), commit da `66fd170` al commit di chius
   «Servizio» dell'allenamento nel browser; costo di gemma e riquadro con una scheda grafica vera e su Android. Da
   decidere con l'utente: la scritta grande del punto copre il punto di caduta nella metà lontana (vedi il documento).
 
-## B42 · Scambi lunghi che si chiudono (13/11) · [~] finito sul ramo `b42-scambi-lunghi`, da unire dopo il B37
+## B42 · Scambi lunghi che si chiudono (13/11) · [~] unito al B37 sul ramo `b42-scambi-lunghi`, da unire in `natpf-simulator`
 
 Obiettivo (richiesta dell'utente del 13/11): dopo 20 colpi di fila colpi forti e speciali via via più probabili, perché
 lo scambio porti a un risultato e la partita sia più veloce. Criterio di fine: regola di base in tutti i modi, misure
@@ -1703,7 +1703,39 @@ prima e dopo, suite, build e prove nel browser, documento `docs/b42/scambi-lungh
   giri; il fuori soglia misurato è al 12° colpo, prima dello scambio caldo: da decidere).
   Non verificato: persone e telefoni veri, Windows, ledwall, installer (nessuna versione nuova), sfida tra due computer
   oltre il 20° colpo nel browser, webcam.
-- [ ] Da fare per chi unisce: unire dopo il B37. Nel codice l'unico conflitto è il commento in testa a
-  `natpf_hot_rally.js` (tenere il testo del B42 e aggiungere «F9 nel programma Windows»); nei documenti le voci aggiunte in
-  fondo a questo file e a `PROJECT_MEMORY.md` (tenerle tutte e due, prima il B37); F9 anche nella §2 del documento B42.
-  Poi `audit:legend` sul codice unito, versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.
+- [x] B42.6 · unione con il B37 (13/11 sera): `c619266` (unione B37 su `natpf-simulator`, non ancora in push) unito nel
+  ramo con un'unione normale, commit `d48155c`. Conflitti come previsto: testa di `natpf_hot_rally.js` (resta quella del
+  B42, con «F9 nel programma Windows» nella riga «Dove si spegne»), questo file e `PROJECT_MEMORY.md` (tutte e due le
+  parti, prima il B37); uniti da git e controllati: `game_engine.js` (le due chiamate `settle` del B37, in `_awardPoint`
+  e in `_handleRoomStateUpdate`, e le due righe `hot` del B42, nello snapshot e nella lettura del P2: le due differenze
+  applicate identiche), `index.html` e `natpf_kiosk.js` (le due parti), `natpf-stesso-schermo-b20.mjs` (banner del
+  sorteggio con il testo del B37, controlli dello scambio caldo del B42). F9 anche nella §2 del documento B42.
+  Verifiche sul codice unito: gioco **1475/1475** (1451 del B42 + 24 del B37), sito 226/226, programma Windows 43/43,
+  LAN 12/12, build ok; `audit:legend` identico a `scripts/audit/b42/risultati/legend-dopo.txt` (tutti i criteri). Nel
+  browser (porte 4170–4190, una prova alla volta; l'altro agente faceva girare le sue prove nello stesso momento):
+  `natpf-rally` 10/10, `natpf-stesso-schermo-b20` **53/53** (i due controlli del sorteggio ora passano con il testo del
+  B37), `natpf-fuori-vero` 10/10 (al primo giro 6/10 con `natpf-chi-serve` dell'altro agente in parallelo: il primo
+  colpo mandato fuori largo ha chiuso il punto con «Nice Shot!», palla passata oltre il fondo a 1,08 m da terra senza
+  rimbalzare; rifatta da sola 10/10, tempi come nel B37), `natpf-segnale-spiegato` 14/14, `natpf-menu` 45/45,
+  `natpf-formato-fiera` 25/25, `natpf-1v1-p2p` 39/39 (sulla build). Scritte in alto al centro: quella del segnale del
+  momento giusto (B37, prime 3 palle con l'anello di ogni partita) sta a 101–136 px a 1280 × 720, quella dello scambio
+  caldo (dal 20° colpo) a 172–197 px; nel gioco normale non compaiono insieme (al 20° colpo le prime 3 palle con
+  l'anello sono già passate) e, forzate insieme con una sonda (prima palla con l'anello al 21° colpo), non si toccano:
+  36 px tra le due a 1280 × 720, 53 px a 1920 × 1080.
+  `natpf-leggenda`, la stessa prova tre volte per parte, alternate: codice unito 7/7, 6/7, 6/7; `c619266` (solo B37)
+  7/7, 6/7, 6/7. Quando fallisce è sempre la stessa verifica, la posa negli allunghi **in corsa** durante la partita
+  (centro del piatto da −0,13 a +0,04 m oltre il posto normale invece di almeno +0,05; la testa va sempre verso la
+  palla, la mano tranne una volta su `c619266`, −0,12 con la palla a 2,29 m; gli allunghi forzati passano sempre): unito
+  6 fuori soglia su 13 allunghi in partita, `c619266` 5 su 21. Il B42 non la peggiora in modo chiaro: fallisce anche
+  senza. Con una copia della prova che stampa anche lato e numero del colpo (solo letture, un giro per parte: unito 6/7,
+  `c619266` 7/7): il «posto normale» del piatto è una mediana unica degli impatti normali che mescola dritto (0,53–0,54
+  m) e rovescio (0,78–0,79 m), e secondo il miscuglio va da 0,56 a 0,77 m; un allungo di dritto confrontato con un
+  riferimento quasi tutto di rovescio risulta indietro (−0,05) anche quando, rispetto ai dritti, va avanti di 0,16 m. Da
+  correggere nella prova (riferimento per lato); nel disegno (`legendReachPose`, `racket_kinematics`) resta solo
+  l'allungo corto in corsa (palla a 1,05 m, CPU a 5,3 m/s: +0,03 per lato). Gli allunghi in partita delle copie
+  diagnostiche sono tutti prima del 20° colpo. Dettagli nel documento B42, §7 e §8.
+  Non verificato: come sopra (persone e telefoni veri, Windows, ledwall, installer, webcam); il B37.1 (scritta «Al
+  servizio» al posto della gemma) non c'è ancora in questo ramo.
+- [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.
+  Poi, a parte (non tocca il B42): la prova `natpf-leggenda` con il riferimento del piatto per lato (dritto e rovescio),
+  e decidere con l'utente se sistemare nel disegno l'allungo corto in corsa della Leggenda.

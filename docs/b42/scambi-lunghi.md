@@ -410,6 +410,54 @@ Senza le due righe del motore che lo mandano e lo leggono, i due test falliscono
   scritta è piccola, si legge e non copre i tabelloni. Contro la CPU, quando la CPU è in fondo al centro, la scritta sta
   appena sopra la sua testa.
 
+**Dopo l'unione con il B37** (13/11 sera; `c619266`, cioè il B37 unito in `natpf-simulator`, unito in questo ramo con il
+commit `d48155c`; macchina condivisa con un altro agente che faceva girare le sue prove nel browser negli stessi minuti):
+
+- gioco `npm test` **1475/1475** (1451 del B42 + 24 del B37), sito **226/226**, programma Windows **43/43**, server LAN
+  **12/12**, build **ok**; `npm run audit:legend` identico a `risultati/legend-dopo.txt` (il B37 non cambia il gioco);
+- nel browser (porte 4170–4190, una prova alla volta): `natpf-rally` **10/10**, `natpf-stesso-schermo-b20` **53/53** (i
+  due controlli del sorteggio, che qui fallivano, li ha aggiornati il B37), `natpf-fuori-vero` **10/10** (al primo giro
+  6/10 mentre girava una prova dell'altro agente: il primo colpo mandato fuori largo ha chiuso il punto con «Nice Shot!»,
+  palla passata oltre il fondo a 1,08 m da terra senza rimbalzare; rifatta da sola 10/10, con i tempi del B37),
+  `natpf-segnale-spiegato` **14/14**, `natpf-menu` **45/45**, `natpf-formato-fiera` **25/25**, `natpf-1v1-p2p` **39/39**
+  (sulla build);
+- **due scritte in alto al centro**: quella del segnale del momento giusto del B37 («Colpisci quando il cerchio diventa
+  verde», nelle prime 3 palle con l'anello di ogni partita, contro la CPU ai livelli con il segnale acceso) e quella
+  dello scambio caldo (dal 20° colpo). Nel gioco non compaiono insieme: per arrivare al 20° colpo chi gioca ha già
+  ricevuto almeno 9 palle della CPU, ognuna con l'anello, e la scritta del segnale è già passata (il segnale si accende e
+  si spegne solo dalle Opzioni del menu, non a scambio in corso). Stanno anche ad altezze diverse: a 1280 × 720 il segnale
+  a 101–136 px dall'alto, lo scambio caldo a 172–197 px. Forzate insieme con una sonda (partita nuova a «Adulto», prima
+  palla con l'anello messa al 21° colpo, come fa `natpf-segnale-spiegato` con una partita nuova) restano **36 px** tra le
+  due a 1280 × 720 e **53 px** a 1920 × 1080;
+- `natpf-leggenda`, tre giri per parte, alternati e uno alla volta, sul codice unito e su `c619266` (il B37 senza il B42,
+  copia a parte con le sue dipendenze):
+
+  | giro | codice unito (B42 + B37) | `c619266` (solo B37) |
+  |---|---|---|
+  | 1 | 7/7: 2 allunghi in partita, nessuno fuori soglia | 7/7: 3 allunghi in partita, nessuno fuori soglia |
+  | 2 | 6/7: 4 allunghi, 2 fuori soglia (palla a 1,21 m: piatto −0,06; 1,05 m: −0,07) | 6/7: 11 allunghi, 2 fuori soglia (2,29 m: piatto +0,04 e mano −0,12; 1,75 m: +0,03) |
+  | 3 | 6/7: 7 allunghi, 4 fuori soglia (1,40 m: +0,00; 1,86 m: −0,10; 1,28 m: −0,01; 2,26 m: +0,01) | 6/7: 7 allunghi, 3 fuori soglia (1,04 m: −0,10; 1,98 m: +0,03; 1,03 m: −0,13) |
+
+  Le due parti passano una volta su tre e falliscono sempre per la stessa verifica (allunghi in corsa durante la
+  partita; gli allunghi forzati passano sempre): **il B42 non la fa fallire più spesso in modo chiaro** (6 fuori soglia
+  su 13 allunghi in partita con il B42, 5 su 21 senza: troppo pochi per dire di più). Una copia della prova che stampa
+  anche il lato e il numero del colpo (solo letture: la partita e le verifiche sono le stesse; un giro per parte, unito
+  6/7 e `c619266` 7/7, poi cancellata) mostra perché la verifica è fragile. Il «posto normale» del piatto è una mediana
+  unica degli impatti normali, che mescola dritto (centro del piatto a 0,53–0,54 m dal corpo) e rovescio (0,78–0,79 m):
+  secondo quanti dritti e rovesci capitano, il riferimento va da 0,56 a 0,77 m (nei 13 giri fatti per il B42 e per
+  questa unione) e un allungo di dritto confrontato con un riferimento quasi tutto di rovescio risulta indietro.
+  Esempio, codice unito: palla a 1,29 m di dritto, piatto −0,05 rispetto al riferimento unico, **+0,16** rispetto ai
+  soli dritti. Nelle due copie i fuori soglia sono 2 (tutti e due sul codice unito, di dritto): con il riferimento per
+  lato il primo passa e resta di poco fuori solo l'allungo corto in corsa (palla a 1,05 m, CPU a 5,3 m/s, 4,7 verso la
+  palla: +0,03 invece di +0,05). Per i giri della tabella il lato non è stato stampato: quanto pesi lì il riferimento
+  non è misurato. Gli allunghi in partita delle due copie sono tutti prima del 20° colpo (16°, 8°, 12° e 16°, 4°), dove
+  lo scambio caldo non cambia niente; il B42 può solo cambiare quali punti si giocano dopo il primo scambio caldo.
+  **Dove va la correzione**: soprattutto nella prova (riferimento del piatto per lato, dritto e rovescio, invece della
+  mediana unica: non è allargare la soglia); nel disegno, se l'utente vuole, solo l'allungo corto in corsa: i due punti
+  da guardare sono `legendReachPose` (`natpf_legend.js`), che stima la distanza dalla palla contando metà della velocità
+  della CPU, e la racchetta del motore base (`racket_kinematics.js`), che con la corsa laterale va dalla parte opposta
+  (fino a 9 cm) e ruota. In questo passo non è stato cambiato niente, né il gioco né la prova.
+
 ## 8. Cosa non è provato
 
 - **Persone vere e telefoni veri**: tutte le misure sono con giocatori simulati (robot). Non so quanto in fretta finisca
@@ -426,8 +474,9 @@ Senza le due righe del motore che lo mandano e lo leggono, i due test falliscono
   dal test di unità `natpf-b42-sfida.test.mjs` (mondo di prova: l'host lo manda, il P2 lo usa per la scritta), non nel
   browser con due computer (natpf-1v1-p2p non arriva al 20° colpo) né a occhio.
 - **Allungo della Leggenda in corsa** (prova natpf-leggenda, sezione 7): la verifica della posa fallisce a volte anche
-  prima del 20° colpo; non è chiarito se il B42, cambiando i punti dopo il primo scambio caldo, la faccia fallire più
-  spesso.
+  prima del 20° colpo. Dopo l'unione con il B37, tre giri per parte: fallisce due volte su tre anche senza il B42, quindi
+  il B42 non la peggiora in modo chiaro. Il riferimento della prova mescola dritto e rovescio, che stanno a 25 cm l'uno
+  dall'altro (sezione 7): la verifica così è fragile. Non corretto (né la prova né il disegno): da fare a parte.
 - **Il riassunto del registro** è provato con righe finte (`finto.mjs` e un test di unità), non con un registro vero
   dello stand.
 

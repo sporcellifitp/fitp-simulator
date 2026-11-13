@@ -920,3 +920,12 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   in meno (tennista 33,6 → 28,1%, preciso 38 → 32,4%; criteri di `audit:legend` tutti rispettati). Bambino contro adulto
   medio nello stesso schermo 39–44% delle partite (sotto il 50% deciso il 12/11). Banco: `scambi-lunghi.mjs` (due serie
   di semi; `--b25`, `--semi`); risultati in `natpf-tennis/scripts/audit/b42/risultati/`.
+- Due scritte in alto al centro contro la CPU: il segnale del momento giusto del B37 (`#natpf-cue-hint`, prime 3 palle
+  con l'anello di ogni partita, a `clamp(48px, 14cqh, 170px)` dall'alto) e lo scambio caldo (`#natpf-hot-rally`, dal 20°
+  colpo, sotto i tabelloni). Nel gioco non compaiono insieme (il segnale si cambia solo dalle Opzioni del menu) e, forzate
+  insieme, restano 36 px tra le due a 1280 × 720 e 53 px a 1920 × 1080 (sonda dell'unione B42 + B37, 13/11). Chi sposta
+  il tabellone o una delle due scritte (B43) le ricontrolli insieme.
+- Prova `natpf-leggenda`, verifica dell'allungo: il «posto normale» del centro del piatto è una mediana unica degli
+  impatti normali che mescola dritto (circa 0,53 m dal corpo) e rovescio (circa 0,78 m), quindi va da 0,56 a 0,77 m
+  secondo il miscuglio e la verifica degli allunghi in corsa fallisce a caso, con e senza il B42 (documento B42, §7).
+  Prima di cercare la causa nel gioco, confrontare con il riferimento per lato.
