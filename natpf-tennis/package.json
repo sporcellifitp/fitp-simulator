@@ -24,7 +24,8 @@
     "audit:serve": "node --import ./test/register.mjs scripts/audit/servizio.mjs",
     "audit:cpu": "node --import ./test/register.mjs scripts/audit/cpu-pressione.mjs",
     "audit:evento": "node --import ./test/register.mjs scripts/audit/evento-bambini.mjs",
-    "audit:drop": "node --import ./test/register.mjs scripts/audit/palla-corta.mjs"
+    "audit:drop": "node --import ./test/register.mjs scripts/audit/palla-corta.mjs",
+    "audit:rete": "node --import ./test/register.mjs scripts/audit/rete.mjs"
   },
   "dependencies": {
     "@mediapipe/hands": "0.4.1675469240",
