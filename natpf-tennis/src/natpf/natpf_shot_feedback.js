@@ -2,7 +2,8 @@
 // - anello di arrivo a terra, nel punto in cui atterrerà la palla (noto già al momento del colpo), colorato:
 //   verde = perfetto, giallo = buono / in anticipo / in ritardo, rosso = finirà fuori; al rimbalzo pulsa;
 // - lampo dello stesso colore sulla racchetta;
-// - messaggio breve («Perfetto», «Anticipo», «Ritardo», «Buono», «Fuori · troppo presto», «In rete», «Troppo tardi»), con il motivo quando la
+// - messaggio breve («Perfetto», «Anticipo», «Ritardo», «Buono», «Fuori · troppo presto», «In rete», «Troppo tardi»,
+//   «Troppo lunga» per la palla corta), con il motivo quando la
 //   situazione rende il colpo debole o lo fa fallire («palla debole: in corsa», «scambio lungo»).
 // I colpi dell'avversario restano con l'anello bianco di rimbalzo del motore base.
 import * as THREE from 'three';
@@ -44,14 +45,19 @@ export function timingWhy(grade = ''){
 }
 const withWhy = (q, why) => why ? { ...q, why, text: `${q.label} · ${why}` } : q;
 export const qualityText = q => q?.text || q?.label || '';
-export function shotQuality(grade = '', { inCourt = true, net = false } = {}){
+// B18.2 passo 3 (D8): la palla corta può venire troppo lunga (long: dentro il campo, lenta a metà campo, «Troppo lunga» in
+// giallo) o finire in rete; cause: il motivo che pesa di più (natpf_stroke_outcome.dropCause: «da troppo lontano», «gesto
+// troppo forte», «in corsa», «in ritardo»…), che il computer mostra nella riga piccola e il telefono sotto la scritta
+const withCause = (q, cause) => cause ? { ...q, cause } : q;
+export function shotQuality(grade = '', { inCourt = true, net = false, long = false, cause = null } = {}){
   const g = String(grade).toUpperCase();
   if (/WHIFF/.test(g) && /EARLY/.test(g)) return { color: 'red', label: 'Troppo presto' };
   if (/WHIFF/.test(g) && /REACH/.test(g)) return { color: 'red', label: 'Troppo lontana' };
   if (/TOO LATE|WHIFF.*LATE|LATE.*WHIFF/.test(g)) return { color: 'red', label: 'Troppo tardi' };
   if (/WHIFF/.test(g)) return { color: 'red', label: 'Mancata' };
-  if (net) return withWhy({ color: 'red', label: 'In rete' }, timingWhy(g));
+  if (net) return withCause(withWhy({ color: 'red', label: 'In rete' }, timingWhy(g)), cause);
   if (!inCourt) return withWhy({ color: 'red', label: 'Fuori' }, timingWhy(g));
+  if (long) return withCause(withWhy({ color: 'yellow', label: 'Troppo lunga' }, timingWhy(g)), cause);
   if (/PERFECT|POWER/.test(g)) return { color: 'green', label: 'Perfetto' };
   if (/EARLY/.test(g)) return { color: 'yellow', label: 'Anticipo' };
   if (/LATE/.test(g)) return { color: 'yellow', label: 'Ritardo' };
@@ -66,9 +72,17 @@ export function shotName(grade = ''){
 }
 // motivo del colpo debole o fallito della racchetta (natpfLastRacket del motore, solo se è il colpo appena fatto da chi):
 // «palla debole: in corsa» a rete con il tempo perfetto, altrimenti la causa («in allungo», «scambio lungo», …)
+// (B18.2 passo 3: anche la palla corta troppo lunga, che non è fallita, ha il suo motivo)
 export function shotWhy(L, { now = null, who = 'player' } = {}){
-  if (!L?.out?.failed || !L.cause || L.who !== who || (now != null && L.at !== now)) return null;
+  if (!(L?.out?.failed || L?.out?.dropLong) || !L.cause || L.who !== who || (now != null && L.at !== now)) return null;
   return L.out.weak ? `palla debole: ${L.cause}` : L.cause;
+}
+// B18.2 passo 3 (D8): la palla corta appena giocata da «who» ('player' o 'p2') è venuta troppo lunga o è finita in rete?
+// { long, cause } per shotQuality; null per gli altri colpi, per una palla corta riuscita o se non è il colpo di adesso
+export function dropOutcome(L, { now = null, who = 'player' } = {}){
+  const o = L?.out;
+  if (!o || o.shot !== 'DROP' || !(o.dropLong || o.failed) || L.who !== who || (now != null && L.at !== now)) return null;
+  return { long: !!o.dropLong && !o.netFault, cause: L.cause || null };
 }
 // Posto della scritta dell'esito (B10, segnalazione del 06/11: «se gioco 2v2, i nomi dei colpi (es. "Perfetto!")
 // ostruiscono la visuale del campo»). Prima la scritta si apriva sopra la testa di chi colpiva (+2,35 m): nel doppio il
@@ -128,7 +142,8 @@ export function eventQuality(engine, { kind, grade = '', role = 'p1' } = {}){
   if (kind === 'whiff') return shotQuality(/WHIFF/i.test(grade || '') ? grade : 'WHIFF');
   if (kind !== 'hit') return null;
   const towardNegativeZ = (role || 'p1') !== 'p2', serve = /SERVE/i.test(grade || '');
-  return shotQuality(grade, { inCourt: landsIn(landingOf(engine?.ball), { towardNegativeZ, serve }), net: !!engine?.ball?.natpfNetFault });
+  const drop = serve ? null : dropOutcome(engine?.natpfLastRacket, { now: engine?.elapsedTime, who: towardNegativeZ ? 'player' : 'p2' });
+  return shotQuality(grade, { inCourt: landsIn(landingOf(engine?.ball), { towardNegativeZ, serve }), net: !!engine?.ball?.natpfNetFault, ...(drop || {}) });
 }
 // Esito per il telefono del Player 2 nello stesso schermo (natpfPhone2): q è quello di chi gioca qui (natpf_ui.feedback,
 // null per i colpi del P2); per i colpi del P2 con lo stesso schermo attivo si calcola con eventQuality
@@ -172,12 +187,15 @@ export class NatpfShotFeedback {
       const g = String(o.grade || ''), p2 = /^P2\b/.test(g);
       // colpo super potente: «Super!» in oro (prima l'esito breve copriva la scritta «SUPER SHOT» del motore)
       const sup = /SUPER SHOT/i.test(g);
-      const q = sup ? { color: 'super', label: 'Super!' } : shotQuality(g, { inCourt: landsIn(landingOf(engine.ball), { towardNegativeZ: !p2, serve: /SERVE/i.test(g) }), net: !!engine.ball?.natpfNetFault });
+      const serve = /SERVE/i.test(g), drop = serve ? null : dropOutcome(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
+      const q = sup ? { color: 'super', label: 'Super!' } : shotQuality(g, { inCourt: landsIn(landingOf(engine.ball), { towardNegativeZ: !p2, serve }), net: !!engine.ball?.natpfNetFault, ...(drop || {}) });
       const kmh = String(o.detail || '').match(/\d+\s*KM\/H/i)?.[0] || '';
       // nell'angolo del proprio lato, mai sul campo (popupPlace); anche in prima persona (prima al centro dello sguardo)
       const place = popupPlace({ p2, role: engine.playerRole, split: !!engine.natpfSplit?.active, partner: !!o.partner });
       const who = place.kind === 'partner' ? 'compagno' : place.kind === 'other' ? 'avversario' : null;
-      const name = shotName(g), why = shotWhy(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
+      // (il motivo della palla corta che viene dal tempo è già nella scritta grande: non si ripete)
+      const name = shotName(g), why0 = shotWhy(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
+      const why = why0 && q.why && (why0 === q.why || engine.natpfLastRacket?.out?.dropWhy === 'tempo') ? null : why0;
       const miss = q.color === 'red' && /WHIFF/.test(g.toUpperCase());
       popup({ ...o, screenPos: null, durationMs: Math.min(o.durationMs ?? POPUP_MS.hit, miss ? POPUP_MS.miss : POPUP_MS.hit), grade: qualityText(q), detail: [who, name, why, kmh.toLowerCase()].filter(Boolean).join(' · ') });
       const el = document.getElementById('timing-popup-grade');

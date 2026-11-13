@@ -2340,7 +2340,7 @@ export class NatpfTennisEngine {
     const shortBall = b.bounceCountOnCurrentSide > 0 && b.rallyStrokeCount > 1 && Math.abs(b.targetLanding.z) <= 6.4 && Math.abs(b.pos.z) <= 7;
     // ritmo di chi colpisce (natpf_stroke_outcome.createRhythm): la direzione si misura attorno al suo tempo abituale
     const rhythms = (this.natpfRhythm ||= { player: NO.createRhythm(), p2: NO.createRhythm() }), rhythm = rhythms[toward === 1 ? "p2" : "player"];
-    let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, ballVz: b.vel.z, contact, hitX, hitZ: Math.abs(b.pos.z), quality, pressure, rhythm: rhythm.value, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
+    let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, ballVz: b.vel.z, contact, hitX, hitZ: Math.abs(b.pos.z), quality, touch: Q.reach * Q.stretch * Q.pace, pressure, rhythm: rhythm.value, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
     rhythm.add(out.t);
     out = ND.helpOutcome(out, help); // B25: lo stesso oggetto senza aiuto
     // NATPF: colpo super potente (natpf_stroke_outcome.superShot): gesto fortissimo, naturale, a tempo, su una palla alta,
@@ -2353,7 +2353,10 @@ export class NatpfTennisEngine {
     // più bassi e più carichi, cioè più veloci, uguale per il P1 e per il P2. Spenta: lo stesso oggetto di prima
     else out = NH.hotOutcome(out, b.rallyStrokeCount + 1, this.natpfHot, S.NET_HEIGHT_CENTER);
     // colpo fallito o debole: la causa che pesa di più, per il messaggio del colpo e la diagnostica
-    const cause = out.failed ? (out.pressured ? "scambio lungo" : [["reach", running > 0.5 ? "in corsa" : "palla lontana"], ["prep", "senza preparazione"], ["stretch", "in allungo"], ["pace", "palla veloce"]].reduce((a, k) => (Q[k[0]] < Q[a[0]] ? k : a))[1]) : null;
+    // B18.2 passo 3 (D8): palla corta in rete o troppo lunga, il motivo che pesa di più (natpf_stroke_outcome.dropControl)
+    // (per la palla corta la preparazione non conta: drop = true la toglie dai motivi)
+    const natpfSit = (drop) => [["reach", running > 0.5 ? "in corsa" : "palla lontana"], ["prep", "senza preparazione"], ["stretch", "in allungo"], ["pace", "palla veloce"]].filter((k) => !drop || k[0] !== "prep").reduce((a, k) => (Q[k[0]] < Q[a[0]] ? k : a))[1];
+    const cause = out.shot === "DROP" ? (out.failed || out.dropLong ? NO.dropCause(out, natpfSit(!0)) : null) : out.failed ? (out.pressured ? "scambio lungo" : natpfSit()) : null;
     const R = p.pos.x >= 0 ? 1 : -1, N = toward * out.depth, X = out.x * mirror, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;
     const st = NS.registerPlayerShot(this, { grade: out.grade, quality: out.q, power: intent.power, landingX: X, landingZ: N, shot: out.shot, cpuZ: this.opponent.pos.z, who: toward === 1 ? "p2" : "player" });
     const fromY = Math.max(0.78, Math.min(out.shot === "SMASH" ? 3.1 : 1.92, b.pos.y));
@@ -2362,7 +2365,8 @@ export class NatpfTennisEngine {
     if (out.shot === "LOB" || (out.attack && out.shot !== "SMASH")) I = out.flight;
     // NATPF: schiacciata a velocità piena (OUTCOME.smashSpeed): dal punto d'impatto al punto di caduta, più lenta se fallita
     else if (out.shot === "SMASH") I = Math.max(NO.OUTCOME.smashFlight / (sup.on ? NO.SUPER.smashUp : 1), (Math.abs(b.pos.z) + out.depth) / (NO.OUTCOME.smashSpeed * (sup.on ? NO.SUPER.smashUp : 1))) * (out.failed || out.weak ? 1.5 : 1);
-    else if (out.shot === "DROP") I = Math.max(1.32, (Math.abs(b.pos.z) + out.depth) / 10);
+    // (B18.2 passo 3: la palla corta sbagliata in rete parte più tesa, così arriva davvero nella rete e non cade prima)
+    else if (out.shot === "DROP") I = out.netFault ? Math.max(0.7, (Math.abs(b.pos.z) + out.depth) / 16) : Math.max(1.32, (Math.abs(b.pos.z) + out.depth) / 10);
     else {
       // forza → tempo di volo base (come prima), più veloce con lo scambio e con i perfetti consecutivi; poi abbastanza
       // lungo da passare la rete all'altezza voluta (galleggia di più se il colpo è sporco)
@@ -2760,7 +2764,8 @@ export class NatpfTennisEngine {
         h && this.facialFX.spawnSweatDrops(e, 4)),
       this.audioEngine &&
         (this.audioEngine.playSwingWhoosh(1), this.audioEngine.playRacketHit(y.toLowerCase(), "good")),
-      this.opponent.targetPos.set(o.MathUtils.clamp(-g * 0.25, -1.6, 1.6), 0, -S.BASELINE_Z + 0.35),
+      // B18.2 passo 3 (D8): se chi gioca fa spesso la palla corta la CPU aspetta più avanti (NS.dropForward; 0 esatto altrimenti)
+      this.opponent.targetPos.set(o.MathUtils.clamp(-g * 0.25, -1.6, 1.6), 0, -S.BASELINE_Z + 0.35 + NS.dropForward(this)),
       natpfLeg && NL.legendRecover(this, e, g, c), // NATPF Leggenda: recupero sulla bisettrice degli angoli possibili
       this._natpfPlanPlayer();
   }

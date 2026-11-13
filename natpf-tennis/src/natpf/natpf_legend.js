@@ -72,16 +72,22 @@ export const LEGEND = Object.freeze({
   // closeHard colpi gioca solo per chiudere
   // B16: chiusura misurata (prima +0,45 di forza, +0,6 m e chiusura a 0,85–0,95): il colpo di chiusura sbagliava il 17–18 %
   // delle volte e contro «preciso» un terzo degli errori della CPU veniva dagli scambi oltre i 20 colpi
-  closeFrom: 20, closeGain: .2, closeFloor: 0, closeAggr: .15, closeWiden: .25, closePower: [.72, .85], closeX: [3.2, 3.75],
-  closeHard: 24, closeG: 1.6,
+  // B18.2 passo 3 (D2): la chiusura parte più tardi (dal 24° colpo, prima dal 20°; solo chiusura dal 28°, prima dal 24°):
+  // senza la regola nascosta di chi gioca la CPU deve reggere lo scambio più a lungo prima di rischiare
+  closeFrom: 24, closeGain: .2, closeFloor: 0, closeAggr: .15, closeWiden: .25, closePower: [.72, .85], closeX: [3.2, 3.75],
+  closeHard: 28, closeG: 1.6,
   // B16: la pressione degli scambi lunghi sulla CPU parte dal 20° colpo (prima dal 10°, come chi gioca a Leggenda): la
   // Leggenda regge il ritmo più a lungo. Pesa solo negli scambi lunghi, quindi contro chi gioca bene
-  pressureFrom: 20,
+  // B18.2 passo 3 (D2): tolta la regola nascosta di chi gioca (natpf_stroke_outcome.ASSIST.leggenda), la forza viene dalla
+  // CPU: regge il ritmo ancora più a lungo (dal 26° colpo; prima dal 20°)
+  pressureFrom: 26,
   // B16: controllo dei colpi forti. Nell'esecuzione la parte dell'errore che cresce con la forza (playerErrorChance,
   // k.power) vale powerErr volte quella di Esperto; la scelta del colpo stima il rischio con le regole di Esperto, cioè
   // gioca con margine. Con il rischio vero nella scelta, contro chi sbaglia molto la CPU giocava quasi solo colpi forti e
   // profondi (entropia delle zone 2,05–2,24 bit, criterio ≥ 2,3)
-  powerErr: .65,
+  // B18.2 passo 3 (D2): .65 → .5. Senza la regola nascosta di chi gioca gli scambi durano di più e la CPU perdeva più
+  // punti con i suoi colpi forti fuori: ora li controlla meglio (misure: docs/b18/t2-3-leggenda-e-palla-corta.md)
+  powerErr: .5,
   // B16: preferenza per l'angolo stretto incrociato (utilità + angle). Non è piccola: con tau 0,014 raddoppia il peso di
   // quel colpo (dal 7–10 al 15–17 % dei colpi contro «medio» e «amatore»). Non serve ai criteri (con angle 0 passano tutti:
   // incrociati al 31,8 % contro «medio», limite ≥ 30): dà margine a quel criterio e apre il campo come un giocatore forte
@@ -296,7 +302,7 @@ export function legendRecover(e, actor, g, c){
   if (actor !== e.opponent || !isLegend(e)) return;
   const L = cfg(e), bx = e.ball.pos.x, landX = bx + (finite(g) - bx)*L.kLat;
   // da dove colpirà l'avversario: poco oltre il rimbalzo
-  const hx = clamp(landX*1.05, -5, 5), hz = Math.min(13.4, Math.abs(finite(c, 10)) + 2.1), zR = L.recoverZ;
+  const hx = clamp(landX*1.05, -5, 5), hz = Math.min(13.4, Math.abs(finite(c, 10)) + 2.1), zR = L.recoverZ + NS.dropForward(e);   // (B18.2 passo 3: più avanti se chi gioca fa spesso la palla corta)
   const u = tx => { const dx = tx - hx, dz = -C.BASELINE_Z - hz, n = Math.hypot(dx, dz); return [dx/n, dz/n]; };
   const [ax, az] = u(-C.SINGLES_X), [bx2, bz2] = u(C.SINGLES_X), dx = ax + bx2, dz = az + bz2;
   actor.targetPos.set(clamp(hx + dx/dz*(zR - hz), -2.2, 2.2), 0, zR);

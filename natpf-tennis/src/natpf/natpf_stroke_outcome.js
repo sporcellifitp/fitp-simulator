@@ -113,7 +113,34 @@ export const OUTCOME = Object.freeze({
   // (confidenza ≥ conf) e il gesto è davvero lento (forza ≤ power); altrimenti è una volée controllata, tagliata, con la
   // profondità da volleyDepth[0] a volleyDepth[1] m dalla forza e il volo del tagliato (niente minimo di 1,32 s del motore)
   dropNet: Object.freeze({ conf: .6, power: .25 }), volleyDepth: [3, 7],
+  // B18.2 passo 3 (D8 del rapporto B16): la palla corta può sbagliare. Dal 22/10 non falliva mai (riusciva il 92–100% delle
+  // volte) e la qualità che mancava la accorciava soltanto, cioè la migliorava: giocare solo palle corte era la tattica che
+  // vinceva di più (bambino a Casual dal 45 al 72% dei punti, amatore a Pro dal 55 al 75%; scripts/audit/palla-corta.mjs).
+  // Ora ha un suo «controllo del tocco» (dropControl, 0…1), senza caso: la situazione di chi colpisce (corsa, allungo,
+  // palla veloce, preparazione) e la pressione degli scambi lunghi, come gli altri colpi, per
+  //   • il tempo: anche dentro la finestra un tocco chiede precisione (fino a −timing al bordo, al quadrato) e oltre la
+  //     finestra cala come per gli altri colpi (timingQualityOf);
+  //   • la distanza dalla rete: da dentro il campo (fino a farFrom m) niente, poi fino a −far da farTo m (dietro la riga
+  //     di fondo): da lontano la palla corta è difficile;
+  //   • la forza: un gesto più forte di strongFrom non è un tocco (fino a −strong a strongFrom + strongSpan).
+  // Sopra «clean» la palla corta è quella di sempre. Sotto, via via più lunga (fino a +long m) e più alta (+float m): una
+  // palla lenta a metà campo che l'avversario raggiunge comoda (da longAt la scritta dice «Troppo lunga»). Sotto «fail»
+  // è sbagliata: in rete se il motivo è il ritardo, la distanza o una palla presa bassa (sotto lowY… 1 m per la
+  // situazione, come gli altri colpi), altrimenti lunga al massimo. La qualità che manca non la accorcia più.
+  drop: Object.freeze({ farFrom: 11.5, farTo: 15, far: .5, timing: .45, strongFrom: .3, strongSpan: .25, strong: .35, clean: .78, fail: .42, long: 4, float: .55, longAt: .5 }),
 });
+// Controllo del tocco della palla corta (B18.2 passo 3): { c: 0…1, lack: 0 pulita … 1 al massimo, why: il motivo che pesa
+// di più ('tempo', 'lontano', 'forte', 'situazione', 'pressione'; null se pulita), fail, net }. t: tempo in unità della
+// finestra della direzione (+ anticipo); z: distanza dalla rete del punto d'impatto; y: altezza della palla
+// clean, fail: soglie del livello (ASSIST.dropClean, dropFail; altrimenti quelle di OUTCOME.drop)
+export function dropControl({ t = 0, z = OUTCOME.hitZ, power = .2, quality = 1, pressure = 1, y = 1, clean = OUTCOME.drop.clean, fail: failAt = OUTCOME.drop.fail } = {}){
+  const K = { ...OUTCOME.drop, clean: finite(clean, OUTCOME.drop.clean), fail: finite(failAt, OUTCOME.drop.fail) }, far = clamp((finite(z, OUTCOME.hitZ) - K.farFrom)/(K.farTo - K.farFrom)), strong = clamp((finite(power, .2) - K.strongFrom)/K.strongSpan);
+  const sit = clamp(finite(quality, 1)), pr = clamp(finite(pressure, 1)), tq = timingQualityOf(t)*(1 - K.timing*Math.min(1, Math.abs(finite(t)))**2);
+  const c = clamp(sit*pr*tq*(1 - K.far*far)*(1 - K.strong*strong)), lack = clamp((K.clean - c)/(K.clean - K.fail));
+  const why = lack > 0 ? [['tempo', 1 - tq], ['lontano', K.far*far], ['forte', K.strong*strong], ['situazione', 1 - sit], ['pressione', 1 - pr]].reduce((a, k) => (k[1] > a[1] ? k : a))[0] : null;
+  const fail = c < K.fail, net = fail && (why === 'lontano' || (why === 'tempo' && finite(t) < 0) || ((why === 'situazione' || why === 'pressione') && finite(y, 1) < 1));
+  return { c: +c.toFixed(3), lack: +lack.toFixed(3), why, fail, net };
+}
 
 // Seme deterministico del colpo (B17.4): dagli ingressi del gesto e della palla a due numeri in [−1, 1], per la dispersione
 // dei colpi controllati a rete. Stessi ingressi, stesso esito; ingressi vicini, esiti diversi (come la mano che trema)
@@ -126,6 +153,16 @@ export function seedUnit(h, k = 0){
   let x = (h ^ Math.imul(k + 1, 0x9E3779B1)) >>> 0;
   x = Math.imul(x ^ (x >>> 16), 0x45d9f3b) >>> 0; x = Math.imul(x ^ (x >>> 16), 0x45d9f3b) >>> 0; x ^= x >>> 16;
   return ((x >>> 0)/4294967295)*2 - 1;
+}
+
+// Motivo, in parole, della palla corta in rete o troppo lunga (per la scritta dell'esito e la diagnostica). situation: il
+// motivo della situazione già scelto dal motore («in corsa», «in allungo», «palla veloce», «senza preparazione»…)
+export const DROP_CAUSE = Object.freeze({ lontano: 'da troppo lontano', forte: 'gesto troppo forte', pressione: 'scambio lungo' });
+export function dropCause(out = {}, situation = null){
+  const w = out.dropWhy;
+  if (!w) return null;
+  if (w === 'tempo') return finite(out.t) < 0 ? (finite(out.excess) > 0 ? 'troppo tardi' : 'in ritardo') : (finite(out.excess) > 0 ? 'troppo presto' : 'in anticipo');
+  return DROP_CAUSE[w] || situation || 'colpo difficile';
 }
 
 // Tempo misurato sulla strada della palla, non solo in secondi: su una palla lenta (palla corta, rimbalzo alto, colpo
@@ -146,12 +183,32 @@ export const slowFactor = vz => (vz == null || !Number.isFinite(Number(vz)) ? 1 
 // attackQ: qualità sotto la quale non c'è la chiusura sopra la rete (OUTCOME.attackZ…): come il resto, il livello cambia la
 // precisione chiesta (29/10 pomeriggio)
 export const ASSIST = Object.freeze({
-  casual: Object.freeze({ xMax: 3.65, assistQ: .5, failQ: .2, pushOut: .8, attackQ: .45 }),
+  // dropClean, dropFail (B18.2 passo 3): controllo del tocco sotto cui la palla corta viene lunga e sotto cui è sbagliata
+  // (dropControl); senza, i valori di OUTCOME.drop (.78 e .42). A Casual più larghi, come il resto dell'assistenza
+  casual: Object.freeze({ xMax: 3.65, assistQ: .5, failQ: .2, pushOut: .8, attackQ: .45, dropClean: .62, dropFail: .3 }),
   '1v1': Object.freeze({ xMax: 3.65, assistQ: .6, failQ: .34, pushOut: .9, attackQ: .6 }),
   pro: Object.freeze({ xMax: 3.65, assistQ: .62, failQ: .3, pushOut: .9, attackQ: .65 }),
-  leggenda: Object.freeze({ xMax: 3.65, assistQ: .8, failQ: .63, pressureFrom: 10, pushOut: 1.1, attackQ: .82 }),
+  // B18.2 passo 3 (D2 del rapporto B16): a Leggenda il colpo di chi gioca falliva con una regola sua, failQ .63 e
+  // pressione degli scambi lunghi dal 10° colpo (pressureFrom 10) invece che dal 16° come agli altri livelli. Contro
+  // «tennista» un punto su quattro finiva con un colpo fallito «scambio lungo» con il voto PERFETTO: chi gioca non poteva
+  // capirlo. Ora la regola è quella degli altri livelli: stessa pressione (RALLY_PRESSURE, dal 16° colpo) e la soglia del
+  // colpo fallito di Pro (failQ .3: fallisce solo il colpo preso davvero male, in corsa e in allungo, o molto fuori tempo).
+  // La difficoltà sta in margini che si vedono e si possono dire:
+  //   • span .115: la finestra del momento giusto è più stretta (Esperto e Pro .15): un errore di tempo che a Pro è
+  //     ancora «Perfetto» a Leggenda è «Anticipo» o «Ritardo» e sposta di più la palla;
+  //   • spanPress 3: negli scambi lunghi (dal 16° colpo, come la pressione di tutti) la finestra si stringe ancora, come
+  //     la pressione alla terza (al 30° colpo × 0,49, dal 46° × 0,17): il colpo esce di lato con il voto e la scritta
+  //     «in anticipo» o «in ritardo», non più un «Perfetto» che va in rete;
+  //   • pushOut 1.35: oltre la finestra la palla va fuori prima (Pro .9);
+  //   • come prima: palla tenuta in campo solo sopra assistQ .8, chiusura sopra la rete da attackQ .82.
+  // Il resto della forza viene dalla CPU (natpf_legend.LEGEND: pressureFrom, closeFrom, powerErr). netHold: il bordo
+  // morbido laterale nella zona di rete (B17.4) resta a Leggenda anche se failQ ora è sotto netQMin.
+  // Misure e criteri: docs/b18/t2-3-leggenda-e-palla-corta.md
+  leggenda: Object.freeze({ xMax: 3.65, assistQ: .8, failQ: .3, pushOut: 1.35, attackQ: .82, netHold: true, span: .115, spanPress: 3 }),
 });
-export const assistOf = level => ASSIST[level?.name] || (level?.cpuLegend ? ASSIST.leggenda : level?.assistWindow <= .16 ? ASSIST.pro : level?.assistWindow >= .3 ? ASSIST.casual : ASSIST['1v1']);
+// level.assist (solo prove e banchi): valori che sostituiscono quelli del livello, es. la regola di Leggenda di prima
+// { ...ASSIST.leggenda, failQ: .63, pressureFrom: 10 }
+export const assistOf = level => level?.assist || ASSIST[level?.name] || (level?.cpuLegend ? ASSIST.leggenda : level?.assistWindow <= .16 ? ASSIST.pro : level?.assistWindow >= .3 ? ASSIST.casual : ASSIST['1v1']);
 // finestra della direzione (s) del livello
 export const directionSpan = level => assistOf(level).span || level?.timingSpan || .16;
 
@@ -206,7 +263,9 @@ export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.
 // Restituisce, nel riferimento di chi colpisce (x a destra, depth in avanti dalla rete): { x, depth, clear, topspin,
 // flight (solo pallonetto e schiacciata), netFault, failed, weak, pressured, grade, cursor, t, excess, q, aim, x0,
 // assist, assisted }.
-export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, pressure = 1, rhythm = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
+// touch (B18.2 passo 3): la situazione che conta per la palla corta (come quality ma senza la preparazione: un tocco non
+// chiede di portare indietro il braccio); senza, vale quality.
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, touch = quality, pressure = 1, rhythm = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
   const O = OUTCOME;
   let shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
@@ -215,7 +274,9 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // palla corta per forma a rete: palla corta solo con la forma chiara e il gesto lento, altrimenti volée controllata (tagliata)
   const netVolley = shot === 'DROP' && nearNet && Number.isFinite(intent.conf) && !(finite(intent.conf) >= O.dropNet.conf && power <= O.dropNet.power);
   if (netVolley) shot = 'SLICE';
-  const AS = assistOf(level), span = directionSpan(level)*slowFactor(ballVz), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
+  // spanPress (B18.2 passo 3, solo Leggenda): negli scambi lunghi la finestra del tempo si stringe con la pressione
+  // (× pressione^spanPress, mai sotto 0,2^spanPress): il colpo esce di lato «in anticipo» o «in ritardo», con il voto che lo dice
+  const AS = assistOf(level), span = directionSpan(level)*slowFactor(ballVz)*(AS.spanPress ? clamp(finite(pressure, 1), .2, 1)**AS.spanPress : 1), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
   // tempo in unità della finestra della direzione (+ anticipo). Oltre ±1 la palla continua ad andare verso l'esterno
   // fino alla fine della finestra d'impatto (prima si fermava a 1,6 unità: nell'ultimo 40% della finestra tutte le
   // palle uguali). ±4 è oltre ogni finestra d'impatto, solo per sicurezza
@@ -224,7 +285,9 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // qualità sotto failQ: fallito (in corsa, in allungo, palla veloce, sotto pressione); a rete, per la sola situazione e fino a
   // netQSpan sotto, colpo controllato con dispersione (B17.4) invece della palla debole uguale per tutti i gesti
   const fq = finite(AS.failQ, 0), belowFq = q < fq && shot !== 'DROP', pressured = belowFq && qs >= fq;
-  const controlled = belowFq && !pressured && nearNet && q >= Math.max(O.netQMin, fq - O.netQSpan) && excess <= O.netControlExcess, failed = belowFq && !controlled;
+  // palla corta (B18.2 passo 3): il suo controllo del tocco; sbagliata in rete (DC.net) o lunga (più sotto)
+  const DC = shot === 'DROP' ? dropControl({ t, z: zc, power, quality: touch, pressure, y: contactY, clean: AS.dropClean, fail: AS.dropFail }) : null;
+  const controlled = belowFq && !pressured && nearNet && q >= Math.max(O.netQMin, fq - O.netQSpan) && excess <= O.netControlExcess, failed = (belowFq && !controlled) || !!DC?.net;
   const spread = controlled ? clamp((fq - q)/O.netQSpan) : 0, seed = controlled ? strokeSeed(timing, power, intent.face, rise, hitX, contactY, zc) : 0;
   // assistenza: piena dentro la finestra e sopra la qualità del livello, sfuma oltre (prima un gradino)
   const assist = clamp(1 - excess/O.assistFade)*clamp((q - AS.assistQ)/O.assistQSpan + .5), xMax = AS.xMax, k = xMax/O.xMax;
@@ -238,7 +301,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // a Pro, 1v1 e Casual (failQ sotto netQMin: niente colpo controllato, esito monotono con la situazione) e fuori dalla zona di
   // rete resta la regola del B15 (sotto assistQ la palla può uscire di lato): con il bordo a rete a tutti i livelli il banco
   // audit:legend «pro contro medio» passava da 83,5 a 85,3 % di game del giocatore, oltre il criterio (70–85 %)
-  const netHold = nearNet && fq > O.netQMin;
+  const netHold = nearNet && (fq > O.netQMin || !!AS.netHold);
   const sideHold = netHold ? Math.max(assist, clamp(1 - excess/O.assistFade)) : assist;
   // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
   // tempo neutro) e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
@@ -252,7 +315,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // profondità voluta con la curva (DROP e LOB restano lineari: la palla corta vuole restare corta; la volée controllata
   // segue la forza, lineare)
   const wantD = netVolley ? power : shot === 'DROP' || shot === 'LOB' ? want : Math.pow(want, O.depthCurve);
-  let depth = lerp(D[0], D[1], wantD) - (1 - q)*O.shortPerQ - excess*O.shortPerExcess - (volley ? O.volleyShort*(1 - power) : 0);
+  let depth = lerp(D[0], D[1], wantD) - (DC ? -DC.lack*O.drop.long : (1 - q)*O.shortPerQ + excess*O.shortPerExcess) - (volley ? O.volleyShort*(1 - power) : 0);
   // in diagonale la palla fa la stessa strada: la profondità voluta è la lunghezza del colpo dritto, e un colpo che va
   // di lato cade più vicino alla rete di quanto va di lato (prima la profondità era la stessa per ogni direzione: gli
   // incrociati e i lungolinea cadevano tutti alla stessa distanza, gli angoli non si vedevano)
@@ -269,7 +332,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   const high = clamp((finite(contactY, 1) - 1.5)/.5)*.18;
   // morbidezza con la curva (B15): il colpo tipico (forza 0,5) passa come prima, quello forte più basso, quello morbido più alto
   const softC = shot === 'LOB' ? soft : Math.pow(soft, O.clearCurve), clearSoft = shot === 'TOPSPIN' ? O.topClearSoft : A.clear[1];
-  const clear = Math.max(ARC.netY + .02, A.clear[0] + (clearSoft - A.clear[0])*softC + (1 - q)*O.floatPerQ - high + (shot === 'TOPSPIN' ? .6*clamp(rise - .15, 0, .6) : 0) + (controlled ? seedUnit(seed, 1)*O.netSpread.clear*spread : 0));
+  const clear = Math.max(ARC.netY + .02, A.clear[0] + (clearSoft - A.clear[0])*softC + (1 - q)*O.floatPerQ - high + (shot === 'TOPSPIN' ? .6*clamp(rise - .15, 0, .6) : 0) + (controlled ? seedUnit(seed, 1)*O.netSpread.clear*spread : 0) + (DC ? DC.lack*O.drop.float : 0));
   const topspin = shot === 'TOPSPIN' ? 15 + 8*clamp(rise) + 6*soft + O.topSpinPower*clamp((power - .5)/.5) : shot === 'FLAT' ? 12 : shot === 'SLICE' ? -6.5 : shot === 'DROP' ? -3 : shot === 'LOB' ? 5 : 9;
   let flight = shot === 'LOB' ? lerp(O.lobFlight[0], O.lobFlight[1], power)*clamp((zc + depth)/O.lobRef, O.lobScale[0], O.lobScale[1]) : shot === 'SMASH' ? Math.max(O.smashFlight, depth/26) : null;
   // colpo fallito: tempo molto sbagliato su una palla bassissima, o qualità sotto failQ (in corsa, in allungo, palla
@@ -285,8 +348,8 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   const g = swingGrade(t*(level?.timingSpan || span), level);
   // Palla corta raggiunta nella finestra utile: corsa e pressione producono una risposta debole, non errore obbligato.
   // (B17.4: solo oltre netQSpan sotto failQ, cioè raggiunta all'ultimo; prima ogni colpo a rete sotto failQ era così)
-  const weak = failed && ((shortBall && excess === 0) || (!pressured && (!!volley || !!net) && g.grade === 'PERFECT'));
-  const netFault = (finite(contactY, 1) < O.netLowY && excess > O.netExcess) || (failed && !weak && finite(contactY, 1) < 1);
+  const weak = failed && !DC && ((shortBall && excess === 0) || (!pressured && (!!volley || !!net) && g.grade === 'PERFECT'));
+  const netFault = (finite(contactY, 1) < O.netLowY && excess > O.netExcess) || (failed && !weak && finite(contactY, 1) < 1) || !!DC?.net;
   if (failed && !weak && !netFault) depth = Math.max(depth, 12.6 + (fq - q)*4);
   let lift = clear;
   if (weak){ depth = Math.min(depth, O.weakDepth); lift = clear + O.weakFloat; }
@@ -308,7 +371,10 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
     aim: +aim.toFixed(3), x0: +x0.toFixed(3), assist: +assist.toFixed(3), assisted: assist >= .5, shot,
     // B17.4: colpo controllato a rete (qualità di situazione sotto failQ, dispersione «spread» 0…1) e volée controllata al posto
     // della palla corta per forma
-    controlled, spread: +spread.toFixed(3), netVolley };
+    controlled, spread: +spread.toFixed(3), netVolley,
+    // B18.2 passo 3: palla corta, controllo del tocco (dropQ), quanto è venuta lunga (dropLack 0…1), il motivo (dropWhy) e
+    // se è «troppo lunga» (dropLong: non in rete, da OUTCOME.drop.longAt); null e false per gli altri colpi
+    dropQ: DC ? DC.c : null, dropLack: DC ? DC.lack : 0, dropWhy: DC ? DC.why : null, dropLong: !!DC && !DC.net && DC.lack >= O.drop.longAt };
 }
 
 // Colpo super potente (richiesta del 29/10: «se rilevi una forte accelerazione o un forte gesto del braccio, un colpo

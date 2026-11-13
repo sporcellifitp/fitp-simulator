@@ -12,7 +12,14 @@ import { NatpfPhoneRacket, atNet, NET_Z } from '../src/natpf/natpf_phone_racket.
 import { DEFAULTS as DET } from '@natpf/tennis/swing-detect.js';
 import { FIXTURE, replay, reproduces } from '../scripts/audit/rete-diag.mjs';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
+import { ASSIST_LEGGENDA_B16 } from './leggenda-b16.mjs';
+import { cpuTuning } from '../src/natpf/natpf_skill.js';
 
+// B18.2 passo 3 (docs/b18/t2-3-leggenda-e-palla-corta.md): il colpo controllato a rete vale solo con failQ sopra netQMin, cioè
+// con la regola di Leggenda di prima (failQ .63, pressione dal 10° colpo, finestra .15). La Leggenda di oggi ha la soglia di Pro
+// (failQ .3) e nessun livello accende più il colpo controllato: queste prove del meccanismo la rimettono a mano per tutto il
+// file (ogni file di prova gira nel suo processo). L'ultima prova guarda la stessa situazione con la Leggenda di oggi
+cpuTuning.leggenda = { assist: ASSIST_LEGGENDA_B16 };
 const lv = skillLevel('leggenda'), span = directionSpan(lv), late = lateSpanOf(8, lv);
 // la situazione delle diagnostiche: a rete (4 m), palla corta rimbalzata, bassa (0,9 m), lenta (8 m/s), qualità di situazione
 // 0,6 («in allungo»), tempo nella finestra. Solo il gesto cambia
@@ -56,7 +63,7 @@ test('colpo controllato: stessi ingressi stesso esito; la qualità che manca agg
   const units = [0, 1, 2, 3, 4].map(i => seedUnit(strokeSeed(.1 + i*.01, .7, 0, .3, .5, .9, 4), 0));
   assert.ok(units.every(u => u >= -1 && u <= 1) && new Set(units.map(u => u.toFixed(2))).size >= 4, units.join(' '));
   // con la qualità piena niente dispersione e niente colpo controllato; con la qualità al limite dispersione piena
-  const full = shot({ shot: 'topspin', power: .7, rise: .3 }, { quality: 1 }), edge = shot({ shot: 'topspin', power: .7, rise: .3 }, { quality: Math.max(OUTCOME.netQMin, ASSIST.leggenda.failQ - OUTCOME.netQSpan) + .02 });
+  const full = shot({ shot: 'topspin', power: .7, rise: .3 }, { quality: 1 }), edge = shot({ shot: 'topspin', power: .7, rise: .3 }, { quality: Math.max(OUTCOME.netQMin, ASSIST_LEGGENDA_B16.failQ - OUTCOME.netQSpan) + .02 });
   assert.ok(!full.controlled && full.spread === 0, JSON.stringify(full));
   assert.ok(edge.controlled && edge.spread > .5, JSON.stringify(edge));
   // più sotto (raggiunta all'ultimo): la palla debole di prima; molto fuori tempo: fallito
@@ -153,7 +160,15 @@ test('le tre palle deboli delle diagnostiche dell\'08/11 diventano colpi control
   const top = replay(FIXTURE.find(s => s.session === 'q79f' && s.n === 142)), lob = replay(FIXTURE.find(s => s.session === 'q79f' && s.n === 159));
   assert.ok(top.depth >= 9.5 && top.kmh >= 50, JSON.stringify(top));
   assert.ok(lob.shot === 'LOB' && lob.depth >= 8, JSON.stringify(lob));
-  for (const s of others) assert.ok(reproduces(s, replay(s)), `${s.session}·${s.n}: ${JSON.stringify(replay(s))}`);
+  // B18.2 passo 3 (D8): la palla corta ha il suo controllo del tocco (natpf_stroke_outcome.dropControl). Le palle corte
+  // delle diagnostiche non giocate a rete non sono più accorciate dalla qualità che manca: quella pulita (q79f·139) cade
+  // poco più lunga di prima, senza motivo; quella da 9,15 m con la situazione 0,73, in anticipo, al 16° colpo (wqdk·112)
+  // viene lunga, con il motivo. Gli altri colpi non cambiano
+  for (const s of others){
+    const o = replay(s);
+    if (o.shot === 'DROP' && !o.netVolley) assert.ok(o.depth >= s.recorded.depth && o.depth <= s.recorded.depth + (o.dropWhy ? 4 : .5) && !o.failed && !o.netFault && (o.dropLack > 0) === !!o.dropWhy, `${s.session}·${s.n}: ${JSON.stringify(o)}`);
+    else assert.ok(reproduces(s, o), `${s.session}·${s.n}: ${JSON.stringify(o)}`);
+  }
 });
 
 test('finestra del colpo a vuoto in anticipo allargata con slowFactor sulle palle lente (fino a ×1,8), solo nella zona di rete', () => {
@@ -295,7 +310,7 @@ test('motore a rete, la situazione dell\'utente: stessa situazione in allungo (q
   const R = Object.fromEntries(Object.entries(G).map(([k, g]) => [k, netPlay(g)]));
   for (const [k, r] of Object.entries(R)){
     assert.ok(r.hit, `${k}: non colpito ${JSON.stringify(r)}`);
-    assert.ok(r.q < ASSIST.leggenda.failQ && r.q >= OUTCOME.netQMin, `${k}: qualità di situazione ${r.q} (in allungo, sotto failQ)`);
+    assert.ok(r.q < ASSIST_LEGGENDA_B16.failQ && r.q >= OUTCOME.netQMin, `${k}: qualità di situazione ${r.q} (in allungo, sotto failQ)`);
     assert.ok(r.esito !== 'debole' && r.esito !== 'fallito' && !r.out.netFault, `${k}: ${JSON.stringify(r)}`);
     assert.ok(Math.abs(r.x) < OUTCOME.sideLine && r.depth > 0, `${k}: dentro il campo (x ${r.x}, profondità ${r.depth})`);
   }
@@ -331,8 +346,8 @@ test('motore a rete: lo stesso gesto da una situazione via via migliore resta de
   const rows = [[2.4, false], [2.2, false], [2.0, false], [2.4, true], [1.6, false], [1.2, false], [1.6, true], [.6, true]]
     .map(([lateral, prep]) => ({ lateral, prep, ...netPlay({ shot: 'flat', power: .75, rise: -.3, face: -1, conf: .6, lead: .12 + .5*sp, lateral, prep }) }));
   for (const r of rows) assert.ok(r.hit, JSON.stringify(r));
-  assert.ok(rows[0].esito === 'controllato' && rows[0].q < ASSIST.leggenda.failQ, JSON.stringify(rows[0]));
-  assert.ok(rows[1].esito === 'ok' && rows[1].q > ASSIST.leggenda.failQ && rows[1].out.assist === 0, JSON.stringify(rows[1]));
+  assert.ok(rows[0].esito === 'controllato' && rows[0].q < ASSIST_LEGGENDA_B16.failQ, JSON.stringify(rows[0]));
+  assert.ok(rows[1].esito === 'ok' && rows[1].q > ASSIST_LEGGENDA_B16.failQ && rows[1].out.assist === 0, JSON.stringify(rows[1]));
   assert.ok(rows.at(-1).q === 1 && rows.at(-1).out.assist === 1, JSON.stringify(rows.at(-1)));
   for (let i = 1; i < rows.length; i++) assert.ok(rows[i].q > rows[i - 1].q, rows.map(r => r.q).join(' '));
   for (const r of rows) assert.ok(Math.abs(r.x) <= OUTCOME.sideEdge + .01 && Math.abs(r.landX) < OUTCOME.sideLine, `allungo ${r.lateral}${r.prep ? ' con preparazione' : ''}, q ${r.q}: x ${r.x}, caduta ${r.landX} (fuori)`);
@@ -344,4 +359,15 @@ test('motore a rete: lo stesso gesto da una situazione via via migliore resta de
     for (let i = 1; i < g.length; i++) assert.ok(g[i].depth > g[i - 1].depth, g.map(r => `${r.q}:${r.depth}`).join(' '));
   }
   assert.ok(rows.at(-1).depth > rows[0].depth + .5, `${rows[0].depth} → ${rows.at(-1).depth}`);
+});
+
+test('B18.2 passo 3: con la Leggenda di oggi (soglia di Pro) la situazione dell\'utente a rete dà colpi normali, nessuno debole, fallito o controllato', () => {
+  const T = cpuTuning.leggenda; delete cpuTuning.leggenda;
+  try {
+    for (const g of [{ shot: 'flat', power: .9, rise: -.2, peak: 1500 }, { shot: 'topspin', power: .6, peak: 1000 }, { shot: 'slice', power: .55, rise: -.5, peak: 900 }, { shot: 'lob', power: .45, rise: .6, conf: .8, peak: 760, angle: 70 }]){
+      const r = netPlay(g);
+      assert.ok(r.hit && r.q > ASSIST.leggenda.failQ && r.q < ASSIST_LEGGENDA_B16.failQ, JSON.stringify(r));
+      assert.ok(r.esito !== 'debole' && r.esito !== 'fallito' && r.esito !== 'controllato' && !r.out.netFault, JSON.stringify(r));
+    }
+  } finally { cpuTuning.leggenda = T; }
 });

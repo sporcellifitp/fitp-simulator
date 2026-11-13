@@ -420,9 +420,25 @@ export function registerPlayerShot(engine, { grade, quality, power, landingX, la
   else s.streak = perfect ? s.streak + 1 : 0;
   const angle = clamp(Math.abs(finite(landingX))/COURT.SINGLES_X);
   s.pressure = clamp(s.pressure*.75 + clamp(finite(quality, 1))*(.1 + .45*angle + .45*clamp(finite(power, .6)))*shotThreat({ power, depth: landingZ }), 0, 3);
-  s.lastQuality = quality; s.lastShot = { shot: String(shot).toUpperCase(), grade, landingX, landingZ, power, cpuZ };
+  // B18.2 passo 3 (D8): quante palle corte ha visto la CPU negli ultimi colpi di chi gioca (dropHabit, prima di questo colpo)
+  const S = String(shot).toUpperCase(), habit = finite(s.dropHabit);
+  if (who !== 'p2') s.dropHabit = habit*DROP_READ.keep + (S === 'DROP' ? 1 : 0);
+  s.lastQuality = quality; s.lastShot = { shot: S, grade, landingX, landingZ, power, cpuZ, dropHabit: habit };
   return s;
 }
+// B18.2 passo 3 (D8 del rapporto B16): la palla corta prevedibile. Prima ogni palla corta giocata con la CPU in fondo
+// aggiungeva una probabilità d'errore fissa (cpuErr.drop: +32% a Casual, +22% a Pro), anche la decima di fila e anche se
+// cadeva a metà campo, e dopo ogni colpo la CPU tornava in fondo: giocare solo palle corte era la tattica migliore. Ora:
+//   • vale quanto è buona: piena se cade entro near − span m dalla rete, niente da near m (dropThreat);
+//   • vale meno se è prevedibile: la CPU tiene il conto delle palle corte negli ultimi colpi di chi gioca (dropHabit: ogni
+//     colpo il conto vale keep volte quello di prima, una palla corta aggiunge 1). Con il conto a «full» l'errore in più è
+//     ridotto di «cut» e la CPU, dopo il suo colpo, aspetta fino a «forward» m più avanti (dropForward): ci arriva prima,
+//     ma lascia spazio dietro (pallonetto e colpo profondo tornano utili). La prima palla corta vale intera.
+export const DROP_READ = Object.freeze({ keep: .5, full: 2, cut: .85, near: 5.2, span: 2, forward: 3.2 });
+export const dropExpect = habit => clamp(finite(habit)/DROP_READ.full);
+export const dropThreat = ({ depth = -3, habit = 0 } = {}) => clamp((DROP_READ.near - Math.abs(finite(depth, -3)))/DROP_READ.span)*(1 - DROP_READ.cut*dropExpect(habit));
+// metri più avanti a cui la CPU aspetta il colpo dopo (0 esatto se chi gioca non ha giocato palle corte)
+export const dropForward = engine => DROP_READ.forward*dropExpect(engine?.natpfSkill?.dropHabit);
 
 /* ---------- servizio di chi gioca contro la CPU: un servizio che conta (B18.2, D11 del rapporto B16) ---------- */
 // Prima la risposta della CPU non dipendeva dal servizio: la probabilità d'errore usava la qualità dell'ultimo colpo del
@@ -696,7 +712,8 @@ export function cpuStrain({ stretch = 0, running = 0, speed = 16, angle = 0 } = 
     pace: clamp((finite(speed, 16) - K.paceFrom)/K.paceSpan), angle: clamp(finite(angle))**1.5 };
 }
 // rally: accettato per compatibilità, non conta (prima: k.rally × colpi oltre il quarto)
-export function cpuErrorChance({ angle = 0, speed = 16, pressure = 0, stretch = 0, running = 0, quality = 1, shot = 'TOPSPIN', cpuDeep = true, threat = 1, sup = false, tired = 0, level = SKILL_LEVELS.casual } = {}){
+// drop (B18.2 passo 3): quanto vale questa palla corta (dropThreat, 0…1; 1 se non si sa: prove e chiamate di prima)
+export function cpuErrorChance({ angle = 0, speed = 16, pressure = 0, stretch = 0, running = 0, quality = 1, shot = 'TOPSPIN', cpuDeep = true, threat = 1, sup = false, tired = 0, drop = 1, level = SKILL_LEVELS.casual } = {}){
   const k = level.cpuErr; if (!k) return 0;
   const S = String(shot).toUpperCase(), D = cpuStrain({ stretch, running, speed, angle });
   // una palla debole (fuori tempo, lenta e corta) mette meno in difficoltà; k.soft è il minimo del livello (a Casual la
@@ -704,7 +721,7 @@ export function cpuErrorChance({ angle = 0, speed = 16, pressure = 0, stretch = 
   const q = Math.max(finite(k.soft), (.3 + .7*clamp(finite(quality, 1)))*clamp(finite(threat, 1), .25, 1.15));
   // tired: quanto la CPU ha corso nello scambio (cpuTired, 0…1): stanca sbaglia di più le palle difficili, non quelle comode
   let p = k.base + q*(k.stretch*D.reach + k.run*D.run + k.speed*D.pace)*(1 + k.angle*D.angle)*(1 + k.pressure*clamp(finite(pressure), 0, 3))*(1 + finite(k.tired)*clamp(finite(tired)));
-  if (S === 'DROP' && cpuDeep) p += k.drop;
+  if (S === 'DROP' && cpuDeep) p += k.drop*clamp(finite(drop, 1));
   if (S === 'LOB' && !cpuDeep) p += k.lob;
   if (S === 'SMASH') p += k.smash;
   // colpo super potente (natpf_stroke_outcome.superShot): oltre a leggerlo in ritardo, la CPU che ci arriva lo controlla
@@ -755,6 +772,8 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
     threat: s.lastShot ? shotThreat({ power: s.lastShot.power, depth: s.lastShot.landingZ }) : 1,
     sup: !!ball.natpfSuper,
     tired: cpuTired(engine),
+    // B18.2 passo 3 (D8): la palla corta vale quanto è buona e quanto è una sorpresa
+    drop: s.lastShot?.shot === 'DROP' ? dropThreat({ depth: s.lastShot.landingZ, habit: s.lastShot.dropHabit }) : 1,
     level: lv,
   };
   // B18.2 (D11): sulla palla del servizio la risposta dipende dal servizio ricevuto (serveInfo), non dall'ultimo colpo

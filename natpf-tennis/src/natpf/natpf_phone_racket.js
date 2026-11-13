@@ -932,7 +932,9 @@ export class NatpfPhoneRacket {
     // «Fuori» e «In rete» con il perché quando viene dal tempo (why: «troppo presto», «in ritardo»…); prima il telefono
     // ignorava fuori e rete e diceva «In anticipo» mentre il computer diceva «Fuori»
     if (kind === 'hit') this.link.send({ t: 'ev', k: 'contact', label: phoneLabel(quality, grade), shot, vib,
-      out: quality?.label === 'Fuori', net: quality?.label === 'In rete', ...(quality?.why ? { why: quality.why } : {}) });
+      out: quality?.label === 'Fuori', net: quality?.label === 'In rete', ...(quality?.label === 'Troppo lunga' ? { long: true } : {}),
+      // B18.2 passo 3 (D8): per la palla corta lunga o in rete, senza un errore di tempo, il motivo (cause: «da troppo lontano»…)
+      ...(quality?.why || quality?.cause ? { why: quality.why || quality.cause } : {}) });
     else if (kind === 'whiff') this.link.send({ t: 'ev', k: 'miss', why: /REACH/i.test(grade) ? 'portata' : /EARLY/i.test(grade) ? 'presto' : 'tardi', vib: VIBRATION.red });
     // «Punto tuo» / «Punto avversario» solo a punto finito (_awardPoint: point_won o fault), con il motivo in italiano
     else if (kind === 'point_won' || kind === 'fault') this.link.send({ t: 'ev', k: 'point', mine: kind === 'point_won', txt: pointReason(grade) });
