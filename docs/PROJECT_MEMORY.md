@@ -832,3 +832,17 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - Leggenda: chi gioca non sale a rete da solo dopo un attacco (la salita automatica del B31 vale agli altri livelli).
 - Scritte «in corsa / in allungo»: solo con la corsa forte.
 
+## Decisioni dell'utente del 13/11/2026 (pomeriggio): stand, modalità fiera, gioco
+
+- Precisione dei colpi dal telefono dopo B35a: «direi bene» (collaudo con la 2026-11-13.9).
+- Scambi troppo lunghi: dal 20° colpo colpi forti e speciali sempre più probabili per tutti e due i lati, perché lo
+  scambio porti a un risultato (B42).
+- Durante la partita meno testi vicino al tabellone: niente righe «Formato veloce» o «al meglio di tre», al più
+  un'etichetta nel tabellone (B43).
+- Fine partita: card della partita con trofei (proposta v2 sulla tavola di design) e personaggi 3D animati per il
+  giocatore 1 e 2 (B40). «Ricalibra» a partita in corsa resta com'è; i tre riquadri di fine partita vanno bene.
+- Modalità fiera (B41): telefoni dello staff abbinati una volta e sempre collegati; per ogni visitatore scambi di prova
+  (calibrazione «Giocando»); contro la CPU batte sempre il visitatore; visitatori numerati da soli («Visitatore 12»);
+  «Sono pronto» sul telefono e partenza automatica quando sono pronti tutti.
+- Stand: solo il ledwall e il solo mouse dello staff (B38 tastiera a schermo, B39 stand con il solo mouse).
+

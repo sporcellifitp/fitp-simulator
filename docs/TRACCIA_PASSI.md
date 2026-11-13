@@ -564,6 +564,16 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
   B41.4–B41.5 (interruttore, foglio «Telefoni dello stand», pagina della fiera, «Prossimo giocatore») dopo B38/B39.
   Domande all'utente: calibrazione (consigliata: forza imparata dai primi colpi), in fiera batte sempre la CPU?, nomi
   («Visitatore 12»?), solo ledwall o anche portatile.
+- **DECISIONI DELL'UTENTE sulla modalità fiera e sullo stand (13/11, 15:30 UTC)**:
+  1. calibrazione in fiera: **scambi di prova per ogni visitatore** (circa 10 s, 4 palle: la calibrazione «Giocando» del
+     B28), non il profilo dello staff né la sola forza imparata dai primi colpi; lo staff prepara i telefoni una volta
+     (collegamento e prova di dritto e rovescio);
+  2. in fiera contro la CPU **batte sempre il visitatore** (servizio fisso al visitatore in tutti i game, niente
+     alternanza);
+  3. nomi: **numero automatico «Visitatore 12»** (da capo ogni giorno, classifica del giorno valida), nome facoltativo
+     scritto dallo staff con la tastiera a schermo del B38;
+  4. allo stand **solo il ledwall, il mouse è solo dello staff** (niente icona nell'area di notifica; tasto destro =
+     menu dello staff; comandi dello staff protetti dai visitatori).
 - [x] **Controllo «stand con il solo mouse» finito** (run `wf_826fa68a-9cc`, 6 agenti con prove nel browser): lista unica
   in `scratchpad/mouse/risultati/05.md` (21 voci: 9 bloccanti, 10 importanti, 2 utili) e proposta **B39 · Stand con il
   solo mouse** in 7 passi; revisore in `06.md`. Da sapere: **il pannello dello stand aperto in partita NON ferma la
