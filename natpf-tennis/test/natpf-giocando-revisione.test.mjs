@@ -106,7 +106,9 @@ test('revisione 4: Giocando → Con i gesti: chi arriva dopo non gioca con il pr
   endMatch(w); c0 = link.cmds.length;
   assert.equal(w.pressStart(), true); assert.deepEqual(link.cmds.slice(c0), []); assert.equal(P.profile.ref, 580); assert.equal(E.natpfMatchSeq, 3);
   // al menu il cambio vale subito: da «Giocando» (profilo dato dal gioco) a «Con i gesti» il telefono chiede i gesti
-  const v = await playWorld(); assert.ok(v.P.ready && v.P.madeBy === 'auto' && v.lobby.visible);
+  // (B35: dopo «Collega» gli scambi di prova, poi la pagina «Pronto per la partita»: lì il cambio)
+  const v = await playWorld(); assert.ok(playTrial(v, (id, n, want) => stroke({ dir: want, peak: 600 }), { gioca: false }).page);
+  assert.ok(v.P.ready && v.P.madeBy === 'prova' && v.lobby.visible);
   const c1 = v.link.cmds.length; setCal(v, 'gesti');
   assert.deepEqual(v.link.cmds.slice(c1), ['cal']); assert.ok(!v.P.ready);
   // «Salta» premuto apposta con «Con i gesti» (com'era): conta, non si richiede di nuovo
@@ -120,12 +122,14 @@ test('revisione 4: Con i gesti → Giocando: il telefono calibrato con i gesti d
   link.cmd('confirm'); gestureDone(w, P, link, { ...GESTURE, ref: 980, refs: { 1: 980, '-1': 900 }, faceRef: { 1: { heading: 25 }, '-1': { heading: -20 } } });
   assert.ok(P.gestureProfile && P.keepsGesture && P.gestureAt === 0);
   setCal(w, 'play'); assert.ok(P.gestureProfile && !P.keepsGesture, 'fatta prima del cambio: non vale per la prossima partita');
-  lobby.go('mode'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); w.advance(300); lobby.next(); w.advance(300);
-  assert.equal(lobby.step, 'match'); assert.match($('lobby-match-note').textContent, /scambio di prova/);
-  for (const peak of [500, 760]){
+  lobby.go('mode'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); w.advance(300);
+  // B35: dopo «Collega» subito gli scambi di prova (prima della pagina «Pronto per la partita»); dalla seconda partita
+  // («Gioca» sulla pagina senza scambi fatti) li fa «Gioca» e si torna alla pagina
+  for (const [k, peak] of [[0, 500], [1, 760]]){
     const c0 = link.cmds.length;
-    assert.equal(w.pressStart(), false); assert.ok(ui.trial.active); assert.deepEqual(link.cmds.slice(c0), ['cal', 'skip'], 'profilo da capo');
-    playTrial(w, (id, n, want) => stroke({ dir: want, peak }));
+    if (k) assert.equal(w.pressStart(), false); else { lobby.next(); w.advance(300); }
+    assert.ok(ui.trial.active); assert.deepEqual(link.cmds.slice(c0), ['cal', 'skip'], 'profilo da capo');
+    assert.ok(playTrial(w, (id, n, want) => stroke({ dir: want, peak })).page);
     assert.deepEqual([P.profile.ref, P.madeBy], [peak, 'prova']); assert.notEqual(P.aimModel.center(1), 25, 'niente mira di chi c\'era prima');
     endMatch(w);
   }
@@ -142,6 +146,8 @@ test('revisione 4: Con i gesti → Giocando: il telefono calibrato con i gesti d
 
 test('revisione 4: con «Giocando» «Calibra con i gesti» vale per una partita sola; con «Nessuna» profilo da capo a ogni partita', async () => {
   const w = await playWorld(), { E, ui, lobby, link, P } = w;
+  // (B35: prima gli scambi di prova, poi la pagina «Pronto per la partita»)
+  assert.ok(playTrial(w, (id, n, want) => stroke({ dir: want, peak: 600 }), { gioca: false }).page);
   // l'addetto fa calibrare apposta con i gesti dal pannello del telefono
   P.recalibrate({ gestures: true }); w.advance(300); assert.ok(!P.ready && !P.autoSimple);
   gestureDone(w); assert.ok(P.keepsGesture && P.madeBy === 'gesti' && P.gestureAt === 0);
@@ -205,17 +211,20 @@ test('revisione 7: stesso schermo con un giocatore calibrato apposta con i gesti
 async function slowWorld(lag, { cal = 'play' } = {}){
   const w = await makeWorld({ controller: 'phone', cal }), { ui, link } = w, P = ui.phone;
   link.cmd('skip'); P._onCal({ kind: 'done', step: 'done', profile: { ...SIMPLE } }); P.markTutorialSeen('short'); w.advance(200);
-  w.lobby.go('mode'); w.lobby.setMode('cpu'); w.lobby.go('controller'); w.lobby.go('connect'); w.advance(300); w.lobby.next(); w.advance(300);
+  w.lobby.go('mode'); w.lobby.setMode('cpu'); w.lobby.go('controller'); w.lobby.go('connect'); w.advance(300);
   const pending = [];
   link.cmd = c => { link.cmds.push(c); if (c === 'cal'){ link.ready = false; link.L.phone = 'cal'; } if (c === 'skip') pending.push(performance.now() + lag); };
   // un passo del mondo con le risposte del telefono che arrivano in ritardo
   const step = (ms = 16) => { w.advance(ms); while (pending.length && pending[0] <= performance.now()){ pending.shift(); if (link.L.phone === 'cal'){ link.ready = true; link.L.phone = 'ready'; P._onCal({ kind: 'done', step: 'done', profile: { ...SIMPLE } }); } } };
-  return { ...w, P, step };
+  // B35: «Avanti» della pagina «Collega»: contro la CPU gli scambi di prova partono qui (prima della pagina «Pronto per la
+  // partita»); false se sono partiti, come il «Gioca» di prima
+  const go = () => { w.lobby.next(); return !w.ui.trial.active; };
+  return { ...w, P, step, go };
 }
 test('revisione 6: con la rete lenta (risposta dopo 0,5 e 1,5 s) niente pausa «Telefono non pronto» all\'inizio degli scambi di prova; oltre 2,5 s la pausa c\'è, e in partita resta quella di sempre', async () => {
   for (const lag of [500, 1500]){
     const w = await slowWorld(lag), { E, ui, P } = w, t0 = performance.now(), holds = []; let first = null, paused = 0, seen = -1;
-    assert.equal(w.pressStart(), false); assert.ok(ui.trial.active && !P.ready && P.resetting);
+    assert.equal(w.go(), false); assert.ok(ui.trial.active && !P.ready && P.resetting);
     while (ui.trial.active && performance.now() - t0 < 30000){
       w.step();
       if (E.natpfPaused) paused += 16;
@@ -225,11 +234,13 @@ test('revisione 6: con la rete lenta (risposta dopo 0,5 e 1,5 s) niente pausa «
       if (hot(E) && seen !== ball){ seen = ball; P._onSwing(stroke({ dir: ballWant(E), peak: 640 })); }
     }
     assert.deepEqual(holds, [], `risposta dopo ${lag} ms: nessuna pausa`); assert.equal(paused, 0);
-    assert.ok(first >= 1000 && first <= Math.max(1000, lag) + 100, `risposta dopo ${lag} ms: prima palla a ${Math.round(first)} ms (prima a 4300), non prima che il telefono sia pronto`);
+    // (B35: gli scambi partono con «Avanti» della pagina «Collega», nello stesso fotogramma: 1000 ms possono essere
+    // 999,99 per l'arrotondamento dei fotogrammi da 1/60 s; il minimo resta il secondo dell'intro)
+    assert.ok(first >= 1000 - .5 && first <= Math.max(1000, lag) + 100, `risposta dopo ${lag} ms: prima palla a ${Math.round(first)} ms (prima a 4300), non prima che il telefono sia pronto`);
     assert.equal(P.profile.trialLevel, 'full'); assert.ok(!P.resetting);
   }
   // telefono che non risponde più: dopo 2,5 s la pausa «non pronto» arriva, come sempre
-  const d = await slowWorld(60000); d.pressStart();
+  const d = await slowWorld(60000); d.go();
   d.step(2300); assert.ok(!d.ui.phoneHold && d.P.resetting && d.E.phase !== 'RALLY', 'ancora in attesa, nessuna palla sprecata');
   d.step(900); assert.equal(d.ui.phoneHold?.why, 'non pronto'); assert.ok(!d.P.resetting);
   // in partita il telefono che torna a calibrare per conto suo («Ricalibra» sul telefono) ferma la partita dopo i soliti 300 ms
@@ -238,7 +249,8 @@ test('revisione 6: con la rete lenta (risposta dopo 0,5 e 1,5 s) niente pausa «
   m.link.ready = false; m.link.L.phone = 'cal'; m.link.cmd = c => { m.link.cmds.push(c); };      // (non risponde a «skip»)
   m.advance(700); assert.equal(m.ui.phoneHold?.why, 'non pronto', 'la guardia in partita non è più debole');
   // «Nessuna»: lo stesso attimo all'inizio della partita, senza pausa
-  const n = await slowWorld(600, { cal: 'none' }); assert.equal(n.pressStart(), true);
+  const n = await slowWorld(600, { cal: 'none' }); assert.equal(n.go(), true, '«Nessuna»: niente scambi di prova, la pagina');
+  const nc = n.link.cmds.length; assert.equal(n.pressStart(), true); assert.deepEqual(n.link.cmds.slice(nc), ['cal', 'skip']);
   let hold = false; for (let k = 0; k < 120; k++){ n.step(); hold ||= !!n.ui.phoneHold; }
   assert.ok(!hold && n.P.ready, '«Nessuna»: partita senza pausa');
 });
@@ -256,8 +268,9 @@ test('di base · «Nuovo giocatore» durante gli scambi di prova e durante la pa
   $('nick-cancel').click(); w.advance(300);
   assert.ok(ui.training.active && ui.training.tutorialOpen && !ui.training.cal, 'tutorial corto in campo, senza calibrazione con i gesti');
   w.key('Enter', 'Enter'); w.advance(600); link.L.phone = 'ready'; w.advance(300);
-  assert.ok(lobby.visible && lobby.step === 'match' && P.ready);
-  assert.equal(w.pressStart(), false); playTrial(w, (id, n, want) => stroke({ dir: want, peak: 500 }));
+  // (B35: chiuso il tutorial, gli scambi di prova; poi la pagina «Pronto per la partita» e «Gioca»)
+  assert.ok(ui.trial.active && !lobby.visible && P.ready, 'chiuso il tutorial: scambi di prova');
+  assert.ok(playTrial(w, (id, n, want) => stroke({ dir: want, peak: 500 })).page);
   assert.deepEqual([E.natpfMatchSeq, P.profile.ref, P.madeBy], [1, 500, 'prova']);
   // in partita, sul profilo imparato
   w.advance(800); assert.ok(ui.matchLive());
@@ -291,7 +304,10 @@ test('di base · il telefono cade, si ricollega o spegne lo schermo durante gli 
     }
     const seconds = (performance.now() - t0)/1000;
     assert.equal(held, how === 'schermo' ? 'pagina nascosta' : 'scollegato', how); assert.equal(stance, 0, `${how}: nessun punto «rigiocato» negli scambi di prova`);
-    assert.ok(!ui.trial.active && E.natpfMatchSeq === 1 && E.phase === 'SERVE_STANCE', `${how}: la partita parte`);
+    // (B35: poi la pagina «Pronto per la partita» e la partita con «Gioca»)
+    assert.ok(!ui.trial.active && ui.lobby.visible && ui.lobby.step === 'match', `${how}: pagina «Pronto per la partita»`);
+    assert.equal(w.pressStart(), true); w.advance(100);
+    assert.ok(!ui.trial.active && E.natpfMatchSeq === 1 && E.phase === 'SERVE_STANCE', `${how}: la partita parte con «Gioca»`);
     assert.ok(seconds < 21, `${how}: ${seconds.toFixed(1)} s con 2 s di telefono fermo e il conto alla rovescia`);
     assert.ok(['full', 'ok'].includes(P.profile.trialLevel), `${how}: livello ${P.profile.trialLevel}`); assert.ok(P.ready && !ui.phoneHold);
   }
@@ -409,15 +425,26 @@ test('di base · telecomando dello staff negli scambi di prova: pagina «Scambi 
   assert.deepEqual(await cmd('back'), { ok: true, msg: 'Pausa' }); assert.ok(ui.pause.isOpen && ui.trial.active);
   n = now(); assert.deepEqual([n.screen.id, n.screen.under], ['pause', 'trial']); assert.match(n.cmds.skip, /niente da saltare/);
   assert.equal((await cmd('pause')).ok, true); assert.ok(!ui.pause.isOpen);
-  assert.deepEqual(await cmd('skip'), { ok: true, msg: 'Scambi di prova saltati: si gioca' }); w.advance(800);
-  assert.ok(!ui.trial.active && E.natpfMatchSeq === 1 && E.phase === 'SERVE_STANCE', 'partita partita');
+  // (B35: «Salta» porta alla pagina «Pronto per la partita»; la partita parte con «Gioca», anche dal telecomando)
+  assert.deepEqual(await cmd('skip'), { ok: true, msg: 'Scambi di prova saltati: pagina «Pronto per la partita»' }); w.advance(800);
+  assert.ok(!ui.trial.active && ui.lobby.visible && ui.lobby.step === 'match' && !(E.natpfMatchSeq > 0), 'pagina «Pronto per la partita»');
+  n = now(); assert.equal(n.screen.id, 'lobby:match'); assert.equal(n.cmds.play, 1);
+  assert.equal((await cmd('play')).ok, true); w.advance(300);
+  assert.ok(!ui.trial.active && E.natpfMatchSeq === 1 && E.phase === 'SERVE_STANCE', 'partita partita con «Gioca!» del telecomando');
   // in partita: «Ricalibra il telefono» rifà gli scambi di prova e poi si rigioca il punto
   n = now(); assert.equal(n.screen.id, 'match'); assert.deepEqual([n.cmds.recal, n.hints.recal], [1, 'scambi di prova, poi si rigioca il punto']);
   assert.deepEqual(await cmd('recal'), { ok: true, msg: 'Scambi di prova: poi si rigioca il punto' }); assert.ok(ui.trial.active && ui.trial.S.resume);
   playTrial(w, (id, k, want) => stroke({ dir: want, peak: 610 })); w.advance(300);
   assert.equal(E.natpfMatchSeq, 1); assert.equal(ui.phone.profile.ref, 610);
-  // al menu: «Ricalibra il telefono» fa ripartire il profilo, senza gesti
-  ui.backToMenu('match'); w.advance(300); const c0 = w.link.cmds.length;
+  // B35: sulla pagina «Pronto per la partita» «Ricalibra il telefono» rifà gli scambi di prova e riporta alla pagina
+  ui.backToMenu('match'); w.advance(300); let c0 = w.link.cmds.length;
+  n = now(); assert.equal(n.hints.recal, 'scambi di prova, poi la pagina «Pronto per la partita»');
+  assert.deepEqual(await cmd('recal'), { ok: true, msg: 'Scambi di prova: poi la pagina «Pronto per la partita»' }); w.advance(300);
+  assert.ok(ui.trial.active && ui.trial.S.toPage && !ui.trial.S.resume); assert.deepEqual(w.link.cmds.slice(c0), ['cal', 'skip'], 'profilo da capo');
+  playTrial(w, (id, k, want) => stroke({ dir: want, peak: 580 }), { gioca: false }); w.advance(300);
+  assert.ok(!ui.trial.active && ui.lobby.visible && ui.lobby.step === 'match' && E.natpfMatchSeq === 1, 'di nuovo la pagina, nessuna partita nuova');
+  // al menu principale: «Ricalibra il telefono» fa ripartire il profilo, senza gesti (gli scambi di prova con «Gioca»)
+  ui.lobby.go('menu'); w.advance(300); c0 = w.link.cmds.length;
   n = now(); assert.match(n.hints.recal, /impara dai prossimi scambi/);
   assert.equal((await cmd('recal')).ok, true); w.advance(300);
   assert.deepEqual(w.link.cmds.slice(c0), ['cal', 'skip']); assert.ok(ui.phone.ready && ui.phone.profile.simple);

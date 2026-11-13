@@ -37,6 +37,7 @@ import { NatpfSplitUi } from './natpf_split_ui.js';
 import { NatpfScreen } from './natpf_screen.js';
 import { NatpfCalibra } from './natpf_calibra.js';
 import { scoreboardView, scoreboardHtml } from './natpf_scoreboard.js';
+import { altServe } from './natpf_duo_rules.js';
 import { castLooks, getCast } from './natpf_personaggi.js';
 import { NatpfUpdates } from './natpf_updates.js';
 import { resetVisitor } from './natpf_new_player.js';
@@ -139,10 +140,13 @@ export class NatpfUi {
     // «Gioca ancora» (fine partita): si torna alla pagina «Partita» per scegliere di nuovo livello, formato e lunghezza,
     // con la modalità di prima (richiesta del 28/10 sera: prima ripartiva subito la stessa partita). Nel 1v1 tra due
     // computer resta la rivincita immediata: l'altro computer aspetta la stessa partita
+    // B35: contro la CPU con «Calibrazione: Giocando» prima gli scambi di prova (molte persone, un telefono: come dal B28 a
+    // ogni partita), poi la pagina «Pronto per la partita»; la partita parte con «Gioca»
     $('btn-play-again')?.addEventListener('click', e => {
       if (this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || this.versus?.hostActive){ this.wipe('Rivincita'); return; }
       e.stopImmediatePropagation();
       this.backToMenu('match');
+      if (this.lobby?.mode === 'cpu' && this.lobby._pageTrial?.()) this.wipe('Scambi di prova');
     }, true);
     // «Nuovo giocatore» (B18, natpf_new_player.js): a fine partita; non nella sfida tra due computer (la rivincita è tra le
     // stesse due persone: lì il giocatore di questo computer si cambia dal pannello dello stand)
@@ -246,7 +250,8 @@ export class NatpfUi {
     const E = this.engine, rs = E.roomStatus || {};
     const v = scoreboardView(score, { gamesToWin, viewer: E.playerRole === 'p2' ? 'opponent' : 'player', multiplayer: !!E.isMultiplayer,
       split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName,
-      looks: castLooks(getCast(), !!E.isMultiplayer) });   // B24: linguette del colore di Drop e di Lob
+      looks: castLooks(getCast(), !!E.isMultiplayer),      // B24: linguette del colore di Drop e di Lob
+      altServe: altServe(E, !!score.fair) });              // B35: «Formato veloce: il servizio cambia ogni 2 punti»
     const html = scoreboardHtml(v);
     if (this._sbHtml !== html || !el.firstChild){ this._sbHtml = html; el.innerHTML = html; }
     // stesso schermo (B17.3): la stessa tabella anche in alto a sinistra della metà del Player 2; vuota altrimenti
@@ -261,8 +266,9 @@ export class NatpfUi {
     if (m.mode !== 'cpu' || m.doubles || m.guest || !isCpuLevel(m.level)) return null;
     const p = m.s.player, o = m.s.opponent, g = m.games, mine = g.filter(x => x.winner === 'player').length;
     const r = this.events.recordMatch({ level: m.level, won: p.points, lost: o.points, games: [mine, g.length - mine], win: m.winner === 'player' });
-    this.stats.rank = r.rank ? `${r.rank}° su ${r.total} nella classifica delle partite di oggi · ${r.score} punti`
-      : `Fuori dalle prime ${r.keep} partite di oggi · ${r.score} punti`;
+    // (B35: la schermata finale scrive la pillola da questi numeri, natpf_match_stats.cpuPill: «3° posto nella classifica
+    // di oggi»; fuori dalle prime solo i punti, mai «fuori»)
+    this.stats.rank = { rank: r.rank | 0, total: r.total | 0, score: r.score | 0 };
     return r;
   }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer
@@ -433,6 +439,8 @@ export class NatpfUi {
   _bindStart(){
     $('btn-start-match')?.addEventListener('click', e => {
       if (this._trialPass){ this.wipe(this.lobby?.mode === 'split' ? 'Stesso schermo' : 'Si gioca'); return; }
+      // (B35: scambi di prova in corso, la pagina non è in vista: niente partita sopra gli scambi)
+      if (this.trial?.active){ e.stopImmediatePropagation(); return; }
       const mode = this.lobby?.mode, cal = readCalMode();
       // (revisione del B28, difetto 4) opzione dello stand cambiata a «Con i gesti» con un telefono rimasto con il
       // profilo dato dal gioco o imparato dagli scambi di prova: non conta come calibrato, rifà i gesti (senza QR)
@@ -449,8 +457,20 @@ export class NatpfUi {
       if (mode === 'friend' && this.versus?.hostActive && !this.versus.canStart()){ e.stopImmediatePropagation(); this.toast(this.versus.state === 'waiting' ? 'Manda il link al Player 2: la partita parte quando è pronto' : 'Il Player 2 sta scegliendo la racchetta: aspetta «pronto»'); return; }
       if (this.controller === 'phone' && !this.phone.soonReady){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); return; }
       // (appena finito «Riscaldati prima», che ha già insegnato il colpo di chi gioca: niente scambi di prova, una volta)
-      const warmed = !!this.trialSkipOnce && !!this.phone.profile?.trial; this.trialSkipOnce = false;
-      if (mode !== 'friend' && !warmed && this.trial.due({ split: false })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: false, then: () => this._startMatchNow() }); return; }
+      const warmed = !!this.trialSkipOnce && !!this.phone.profile?.trial;
+      // B35: contro la CPU gli scambi di prova si fanno prima di questa pagina (natpf_lobby._pageTrial): appena fatti,
+      // «Gioca» fa partire subito la partita. Se mancano (pagina raggiunta per un'altra strada), «Gioca» li fa adesso e
+      // riporta alla pagina «Pronto per la partita»: la partita parte sempre e solo con «Gioca» (collaudo del 13/11)
+      const fresh = !!this.lobby?.pageTrialFresh;
+      if (mode !== 'friend' && !warmed && !fresh && this.trial.due({ split: false })){
+        e.stopImmediatePropagation(); this.wipe('Scambi di prova');
+        if (mode === 'cpu' && this.lobby?._pageTrial?.({ force: true })) return;
+        this.trialSkipOnce = false;
+        this.trial.start({ split: false, then: () => this._startMatchNow() }); return;
+      }
+      this.trialSkipOnce = false;
+      // la partita parte: gli scambi di prova di prima valgono per questa (la partita dopo li rifà, come dal B28)
+      if (mode === 'cpu' && this.lobby) this.lobby.trialPlayed = false;
       // «Nessuna»: profilo semplice da capo a ogni partita (non chi ha appena calibrato apposta con i gesti: per questa partita)
       if (mode !== 'friend' && !warmed && cal === 'none' && this.controller === 'phone' && !this.phone.keepsGesture) this.phone.freshPlayer?.();
       this.wipe(mode === 'friend' ? 'Sfida 1v1' : 'Si gioca');
@@ -732,6 +752,12 @@ export class NatpfUi {
     const inMatch = this.matchLive() && E.playerRole !== 'p2' && (split || !E.isMultiplayer);
     return readCalMode() === 'play' && this.controller === 'phone' && inMatch && !!this.phone.soonReady && !(split && this.split?.webcam);
   }
+  // B35 (collaudo dell'utente del 13/11): sulla pagina «Pronto per la partita» contro la CPU, con «Giocando», «Ricalibra»
+  // rifà gli scambi di prova e riporta alla pagina (la partita parte con «Gioca», come dopo «Collega»)
+  recalPageDue(){
+    const L = this.lobby;
+    return readCalMode() === 'play' && this.controller === 'phone' && !!L?.visible && L.mode === 'cpu' && L.step === 'match' && !this.trial?.active && !!this.phone.soonReady;
+  }
   recalibrate(){
     const E = this.engine, split = !!E.natpfSplit?.active;
     if (this.recalTrialDue()){
@@ -739,6 +765,12 @@ export class NatpfUi {
       this.trial.start({ split, resume: true, force: true, then: () => { E._setupPointServe({ showBanner: true }); this._syncPause(); } });
       this.toast('Scambi di prova: poi si rigioca il punto');
       return true;
+    }
+    // (B35) gli scambi di prova fatti prima valgono per chi c'era: dopo «Ricalibra» il «Gioca» li rifà e torna alla pagina
+    if (this.lobby?.mode === 'cpu') this.lobby.trialPlayed = false;
+    if (this.recalPageDue()){
+      this.closePhone();
+      if (this.lobby._pageTrial({ force: true })){ this.wipe('Scambi di prova'); this.toast('Scambi di prova: poi la pagina «Pronto per la partita»'); return true; }
     }
     this.phone.recalibrate();
     return false;

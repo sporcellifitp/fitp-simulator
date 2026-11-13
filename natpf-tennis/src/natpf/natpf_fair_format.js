@@ -58,6 +58,13 @@ export function writeFairFormat(on, { storage = globalThis.localStorage } = {}){
 // l'indirizzo comanda: dal pannello si può cambiare la scelta salvata, ma per questa pagina vale l'indirizzo
 export const fairForcedByUrl = (search = globalThis.location?.search || '') => fairFromUrl(search) !== null;
 
+// B35 (collaudo dell'utente del 13/11: «su un game BO1 la battuta era alternata e non fissa ad un giocatore»): quando il
+// servizio passa ogni due punti (formato in fiera, o campo aperto nello stesso schermo: natpf_duo_rules.altServe) lo dice
+// una riga chiara a inizio partita (sotto «Si gioca») e sul tabellone, finché dura la partita. Di base vale solo nello
+// stesso schermo; contro la CPU e nella sfida tra due computer il servizio resta a un giocatore per game. Si spegne dal
+// pannello dello stand → «Formato in fiera: No» (e «Campo aperto: No», già spento di base)
+export const FAST_SERVE_LINE = 'Formato veloce: il servizio cambia ogni 2 punti';
+
 const other = s => (s === 'opponent' ? 'player' : 'opponent');
 
 // chi batte il punto numero `played` (0 = il primo) di un game iniziato da `gameServer`: A, B B, A A, B B…

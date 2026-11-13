@@ -6,8 +6,8 @@
 // del servizio e i pallonetti lenti non ce l'hanno). Si aggiunge alla scia sottile di prima (game_engine.js, classe te),
 // che resta com'è: bianca per i colpi normali, bianca e azzurra più larga per il colpo potente, il colpo super e lo
 // scambio caldo, che così si riconoscono ancora (la coda azzurra è più lunga della scia gialla, e ci sono le scintille).
-// Opzione: Opzioni → «Scia della palla: Sì · No», di base Sì, salvata (localStorage, chiave natpf-tennis.sciaPalla:
-// '0' spenta). Spenta: il nastro non è nella scena (mesh.visible = false, nessun calcolo): il disegno è quello di prima,
+// Opzione: Opzioni → «Scia della palla: Sì · No», salvata (localStorage, chiave natpf-tennis.sciaPalla: '1' accesa,
+// '0' spenta); di base No dal B35 (prima Sì). Spenta: il nastro non è nella scena (mesh.visible = false, nessun calcolo): il disegno è quello di prima,
 // pixel per pixel (tools/e2e/natpf-scia-palla.mjs).
 // Solo disegno: non legge né cambia la fisica, i colpi, i sorteggi (niente Math.random). Niente allocazioni per
 // fotogramma (storia in un anello di Float32Array, vertici riscritti sul posto). Il nastro si orienta verso la camera
@@ -20,22 +20,27 @@
 // profilo lo fa il fragment shader); intensità piena già alle velocità normali di scambio (da 14 m/s, prima da 24).
 // Resta un po' meno luminosa del trailer: non è mai del tutto opaca e non ha il bagliore bianco. Nei colpi potenti,
 // super e nello scambio caldo sta sotto la scia bianca e azzurra ed è attenuata (powerAlpha): si riconoscono ancora.
+// B35 (collaudo dell'utente del 13/11 sulla 2026-11-13.6: «la scia l'ho tolta perché dà fastidio ed è troppo evidente»):
+// SPENTA di base (chi l'aveva già scelta resta con la sua scelta salvata: '1' accesa, '0' spenta) e, quando la si
+// accende, più discreta, a metà strada tra quella del B22 e quella del B26: meno larga (nastro .55 m invece di .8, alone
+// 1,7 volte invece di 2,2 e più tenue), meno lunga (.3 s di volo e al più 8 m invece di .42 s e 10 m), meno opaca (.7
+// invece di .92), piena solo con le palle veloci (da 18 m/s invece di 14). Stesso disegno, stesso costo.
 import * as THREE from 'three';
 
 export const TRAIL_KEY = 'natpf-tennis.sciaPalla';
 export const BALL_GLOW = Object.freeze({
   points: 60,        // campioni della storia (anello)
   step: .18,         // m tra due campioni (i passi della fisica più fitti si saltano)
-  seconds: .42,      // lunghezza della scia = velocità × seconds (prima del B26 .22) …
-  maxLen: 10,        // … al più 10 m (nel trailer attraversa mezzo campo; prima 6)
-  minSpeed: 10,      // m/s: sotto, niente scia (lancio del servizio, palla che rotola, pallonetto lento; prima 7)
-  fullSpeed: 14,     // m/s: da qui l'intensità è piena (prima 24: nello scambio medio, 15–20 m/s, la scia era tenue)
-  width: .8,         // m del nastro pieno alla testa (prima .42 con i bordi sfumati: pieno per meno della metà)
-  halo: 2.2,         // l'alone è largo halo volte il nastro pieno
-  haloAlpha: .5,     // intensità dell'alone rispetto al nastro
+  seconds: .3,       // lunghezza della scia = velocità × seconds (B22 .22, B26 .42) …
+  maxLen: 8,         // … al più 8 m (nel trailer attraversa mezzo campo; B22 6, B26 10)
+  minSpeed: 10,      // m/s: sotto, niente scia (lancio del servizio, palla che rotola, pallonetto lento; B22 7)
+  fullSpeed: 18,     // m/s: da qui l'intensità è piena (B22 24, B26 14)
+  width: .55,        // m del nastro pieno alla testa (B22 .42 con i bordi sfumati: pieno per meno della metà; B26 .8)
+  halo: 1.7,         // l'alone è largo halo volte il nastro pieno (B26 2.2)
+  haloAlpha: .32,    // intensità dell'alone rispetto al nastro (B26 .5)
   tailWidth: .4,     // larghezza della coda rispetto alla testa
-  alpha: .92,        // opacità massima del nastro (il trailer è pieno, con il bagliore: qui «leggermente meno luminosa»)
-  powerAlpha: .5,    // nei colpi potenti, super e nello scambio caldo: sotto la scia bianca e azzurra, attenuata
+  alpha: .7,         // opacità massima del nastro (B22 .8 solo al centro, B26 .92; il trailer è pieno, con il bagliore)
+  powerAlpha: .45,   // nei colpi potenti, super e nello scambio caldo: sotto la scia bianca e azzurra, attenuata
   head: .2,          // m dietro la palla in cui la scia sfuma da zero: la palla non è mai coperta
   follow: 14,        // 1/s: prontezza con cui l'intensità segue la velocità
   back: .3,          // m all'indietro (lungo il campo) oltre i quali la palla è stata colpita: la storia riparte
@@ -45,8 +50,10 @@ export const BALL_GLOW = Object.freeze({
 // colori (sRGB): centro giallo chiaro, nastro giallo pieno e saturo, alone giallo caldo
 export const GLOW_COLORS = Object.freeze({ core: '#fff38a', body: '#ffdd00', halo: '#ffb400' });
 
+// B35: di base spenta; accesa solo se chi gioca l'ha scelta ('1' salvato, anche da una versione di prima)
+export const TRAIL_DEFAULT = false;
 export function readBallTrail({ storage = globalThis.localStorage } = {}){
-  try { return storage?.getItem(TRAIL_KEY) !== '0'; } catch { return true; }
+  try { const v = storage?.getItem(TRAIL_KEY); return v === '1' ? true : v === '0' ? false : TRAIL_DEFAULT; } catch { return TRAIL_DEFAULT; }
 }
 export function writeBallTrail(on, { storage = globalThis.localStorage } = {}){
   try { storage?.setItem(TRAIL_KEY, on ? '1' : '0'); } catch {}

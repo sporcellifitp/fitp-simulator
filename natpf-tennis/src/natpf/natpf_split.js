@@ -71,6 +71,7 @@ export class NatpfSplit {
     const E = this.e, r = E.renderer;
     if (!r || !splitVisible(E)){
       if (this.shown){ this.shown = false; E._onResize?.(); }
+      this._serveTags(null);
       return false;
     }
     const now = performance.now(), dt = clamp((now - (this.last || now))/1000, 0, .1), snap = !this.shown;
@@ -93,6 +94,53 @@ export class NatpfSplit {
     r.render(E.scene, this.cam2);
     r.shadowMap.autoUpdate = autoShadow;
     r.setScissorTest(false); r.setViewport(0, 0, this.size.x, this.size.y);
+    this._serveTags(vp);
     return true;
   }
+  // B35 (collaudo dell'utente del 13/11: «non esce scritto chi deve servire»): nello stesso schermo la scritta «Al
+  // servizio» del motore non c'è (è di una vista sola: _updateProjectedHUD la spegne); qui una per metà, sopra chi batte,
+  // come a schermo intero contro la CPU, con i personaggi Classici e con Lob & Drop. Solo al servizio (in posizione e
+  // con la palla in aria), come quella del motore
+  _serveTags(vp){
+    const E = this.e, on = !!vp && ['SERVE_STANCE', 'SERVE_TOSS'].includes(E.phase) && E.cameraMode !== 'REPLAY_CAM';
+    const tags = this._tags || (on ? (this._tags = serveTagEls()) : null);
+    if (!tags) return;
+    const who = E.score?.server === 'opponent' ? E.opponent : E.player;
+    [[E.camera, vp?.p1, tags[0]], [this.cam2, vp?.p2, tags[1]]].forEach(([cam, v, el]) => {
+      const at = on && who?.pos ? serveTagPoint(who.pos, cam, v) : null;
+      if (!el) return;
+      if (!at){ if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
+      el.classList.remove('hidden');
+      const left = `${at.x.toFixed(1)}px`, top = `${at.y.toFixed(1)}px`;
+      if (el.style.left !== left) el.style.left = left;
+      if (el.style.top !== top) el.style.top = top;
+    });
+  }
+  // fuori dallo split (fine partita, menu, moviola): le due scritte si spengono
+  hideServeTags(){ for (const el of this._tags || []) el?.classList.add('hidden'); }
+}
+
+// punto della scritta «Al servizio» in una metà: 2,25 m sopra chi batte (come _updateProjectedHUD), nella metà v
+// ({ x, y, w, h } in px), tenuta dentro la sua metà; null se è dietro la camera. Funzione pura (la provano i test)
+const _tagP = new THREE.Vector3();
+export function serveTagPoint(pos, cam, v){
+  if (!pos || !cam || !v) return null;
+  _tagP.set(pos.x, (pos.y || 0) + 2.25, pos.z).project(cam);
+  if (!(_tagP.z >= -1 && _tagP.z <= 1)) return null;
+  const x = v.x + (_tagP.x*.5 + .5)*v.w, y = v.y + (-_tagP.y*.5 + .5)*v.h;
+  return { x: clamp(x, v.x + Math.min(70, v.w/2), v.x + v.w - Math.min(70, v.w/2)), y: clamp(y, v.y + Math.min(60, v.h/2), v.y + v.h - 40) };
+}
+// le due scritte, una per metà, accanto a quella del motore (stesso aspetto: classe nt-server-tag)
+function serveTagEls(){
+  if (typeof document === 'undefined') return null;
+  const layer = document.getElementById('world-labels-layer'); if (!layer) return null;
+  return ['p1', 'p2'].map(id => {
+    let el = document.getElementById(`server-tag-${id}`);
+    if (!el){
+      el = document.createElement('div'); el.id = `server-tag-${id}`; el.className = 'nt-server-tag nt-server-tag-half hidden';
+      el.dataset.half = id; el.innerHTML = '<span class="server-tag-text">Al servizio</span>';
+      layer.appendChild(el);
+    }
+    return el;
+  });
 }

@@ -1263,9 +1263,13 @@ export class NatpfTennisEngine {
         bannerStyle: "style-start",
         persistentBanner: !1,
         // B20: nello stesso schermo chi batte per primo si vede («Sorteggio: batte Giulia»)
-        bannerSub: this.natpfSplit?.active
-          ? NPC.firstServeText({ ...NPC.callContext(this), server: this.score.server, drawn: serveChoice(this.natpfServeFirst) === "random" })
-          : "",
+        // B35: con il servizio che passa ogni due punti (formato in fiera, campo aperto) lo dice anche la riga sotto
+        bannerSub: [
+          this.natpfSplit?.active
+            ? NPC.firstServeText({ ...NPC.callContext(this), server: this.score.server, drawn: serveChoice(this.natpfServeFirst) === "random" })
+            : "",
+          ND.altServe(this, !!this.score.fair) ? NF.FAST_SERVE_LINE : "",
+        ].filter(Boolean).join(" · "),
       });
   }
   _setupPointServe({

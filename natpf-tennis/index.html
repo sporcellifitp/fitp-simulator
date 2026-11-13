@@ -466,7 +466,7 @@
               ><button type="button" class="seg-btn" data-natpf-view="first">1ª persona</button>
             </div>
           </div>
-          <!-- scia luminosa della palla (B22, natpf_ball_glow.js): di base Sì; No = la palla com'era prima -->
+          <!-- scia luminosa della palla (B22, natpf_ball_glow.js): di base No dal B35 (prima Sì); No = la palla com'era prima -->
           <div class="lobby-row">
             <span class="lobby-label">Scia della palla</span>
             <div class="lobby-seg" role="radiogroup" aria-label="Scia della palla">
@@ -801,21 +801,32 @@
     </div>
     <!-- fine partita (B18): chi ha vinto con il nome, i game dei due giocatori e «Nuovo giocatore» per chi arriva dopo
          (natpf_point_call.matchEndView; il rating finto con il grafico fisso non c'è più) -->
+    <!-- B35 (collaudo dell'utente del 13/11): con i numeri della partita la schermata segue la proposta grafica mostrata
+         all'utente: kicker e titolo grande, game in una pillola, al più tre riquadri tondi con le cose migliori (solo
+         positive), una pillola in basso e i bottoni a pillola (natpf_match_stats.endScreen, hud_ui.showVictoryModal).
+         Senza numeri (dati di prima) resta la scheda del B18 con le righe dei game -->
     <div id="victory-modal" class="nt-modal-backdrop hidden">
       <div class="nt-skill-card natpf-end-card" role="dialog" aria-labelledby="victory-result-banner">
-        <div class="skill-card-header" id="victory-kicker">Fine partita</div>
-        <div id="victory-result-banner" class="victory-result-banner">Hai vinto!</div>
+        <div class="end-head">
+          <div class="end-titles">
+            <div class="skill-card-header" id="victory-kicker">Fine partita</div>
+            <div id="victory-result-banner" class="victory-result-banner">Hai vinto!</div>
+            <p id="victory-sub" class="end-sub hidden"></p>
+          </div>
+          <div id="victory-games" class="end-games hidden" aria-label="Game"></div>
+        </div>
         <ol class="victory-rows" id="victory-rows" aria-label="Game vinti"></ol>
         <div id="victory-match-score" class="victory-match-score">Game 1-0</div>
-        <!-- B33: i numeri veri della partita (natpf_match_stats.statsHtml): game, punti, colpi, scambio più lungo, colpo più
-             veloce, ace, vincenti, colpi super, voto del tempo, una frase su cosa è andato bene e una su cosa migliorare -->
-        <div id="victory-stats" class="victory-stats hidden" aria-label="Com’è andata"></div>
+        <div id="victory-stats" class="victory-stats hidden" aria-label="Le cose migliori della partita"></div>
         <!-- B20: stesso schermo, rivincita dai telefoni: chi l'ha chiesta e chi manca (natpf_split_ui._paintRematch) -->
         <div id="victory-rematch" class="victory-rematch hidden" aria-live="polite"></div>
         <div class="skill-card-footer">
-          <button id="btn-play-again" type="button" class="nt-footer-btn primary">Gioca ancora</button
-          ><button id="btn-new-player" type="button" class="nt-footer-btn new-player">Nuovo giocatore</button
-          ><button id="btn-return-title" type="button" class="nt-footer-btn secondary">Menu</button>
+          <p id="victory-pill" class="end-pill hidden"></p>
+          <div class="end-btns">
+            <button id="btn-return-title" type="button" class="nt-footer-btn secondary">Menu</button
+            ><button id="btn-new-player" type="button" class="nt-footer-btn new-player">Nuovo giocatore</button
+            ><button id="btn-play-again" type="button" class="nt-footer-btn primary">Gioca ancora</button>
+          </div>
         </div>
       </div>
     </div>

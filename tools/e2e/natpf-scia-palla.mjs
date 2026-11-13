@@ -111,7 +111,7 @@ const SCENES = {
 };
 
 /* ---------- 1) scena ferma: accesa, spenta, confronto con il disegno di prima ---------- */
-const prints = {};
+const prints = {}, trailPx = {};
 if (!process.env.COSTO){
   const off = await game({ trail: '0' });
   for (const [name, o] of Object.entries(SCENES)){
@@ -144,35 +144,39 @@ if (!process.env.COSTO){
     await on.p.evaluate(() => __natpfTennis.natpfBallGlow.setEnabled(true));
     const d = await diff(on.p, `${name}-off`, `${name}-on`);
     check(`${name}: spenta al volo → stesso disegno di prima`, b.hash === prints[name], `${b.hash} / ${prints[name]}`);
+    trailPx[name] = { pixel: d.n, gialli: d.yellow, livello: a.glow.level, lunghezza: a.glow.len, kmh: Math.round(a.speed*3.6) };
     if (name === 'lento') check(`${name}: palla lenta (${a.speed} m/s) → scia appena accennata o assente`, a.glow.level <= .25 && d.n < 1500, `livello ${a.glow.level}, ${d.n} pixel`);
-    else check(`${name}: opzione accesa → scia visibile (pixel più gialli dietro la palla)`, a.glow.on && a.glow.visible && a.glow.segs > 3 && d.n > (name === 'ritorno' ? 120 : 400) && d.yellow > .8*d.n, `${JSON.stringify(a.glow)}, ${d.n} pixel diversi, ${d.yellow} più gialli, palla a ${a.speed} m/s`);
+    else check(`${name}: opzione accesa → scia visibile (pixel più gialli dietro la palla)`, a.glow.on && a.glow.visible && a.glow.segs > 3 && d.n > (name === 'ritorno' ? 60 : 200) && d.yellow > .8*d.n, `${JSON.stringify(a.glow)}, ${d.n} pixel diversi, ${d.yellow} più gialli, palla a ${a.speed} m/s`);
   }
+  // B35: quanto si vede la scia accesa in ogni scena (pixel cambiati): per il confronto prima/dopo (PIXEL=file.json)
+  console.log('pixel della scia accesa:', JSON.stringify(trailPx));
+  if (process.env.PIXEL) writeFileSync(process.env.PIXEL, JSON.stringify(trailPx, null, 1));
   if (process.env.SOLO){ await on.ctx.close(); await B.close(); summary(); process.exit(process.exitCode || 0); }
-  // opzione mai toccata: accesa di base
   check('opzione accesa: nessun errore', !on.errs.length, on.errs.join(' | ').slice(0, 300));
   await on.ctx.close();
+  // B35 (collaudo del 13/11: «dà fastidio ed è troppo evidente»): opzione mai toccata → spenta di base
   const def = await game({ trail: null });
-  const d0 = await def.p.evaluate(K => ({ on: __natpfTennis.natpfBallGlow.enabled, saved: localStorage.getItem(K) }), KEY);
-  check('niente di salvato: scia accesa di base', d0.on === true && d0.saved == null, JSON.stringify(d0));
+  const d0 = await def.p.evaluate(K => ({ on: __natpfTennis.natpfBallGlow.enabled, visible: __natpfTennis.natpfBallGlow.mesh?.visible, saved: localStorage.getItem(K) }), KEY);
+  check('niente di salvato: scia spenta di base (B35)', d0.on === false && !d0.visible && d0.saved == null, JSON.stringify(d0));
 
   /* ---------- 3) opzione nelle Opzioni: clic, salvataggio, ricarica ---------- */
   const p = def.p;
   await p.evaluate(() => { const L = __natpfTennis.natpfUi.lobby; L.go('options'); });
   await p.waitForSelector('[data-natpf-trail="0"]', { state: 'visible', timeout: 10000 });
   const row = await p.evaluate(() => { const b = document.querySelector('[data-natpf-trail="1"]'), r = b.closest('.lobby-row'); return { label: r.querySelector('.lobby-label').textContent.trim(), btns: [...r.querySelectorAll('[data-natpf-trail]')].map(x => `${x.textContent.trim()}${x.classList.contains('selected') ? '*' : ''}`) }; });
-  check('Opzioni: riga «Scia della palla» con Sì (scelto) e No', row.label === 'Scia della palla' && row.btns.join(' ') === 'Sì* No', JSON.stringify(row));
+  check('Opzioni: riga «Scia della palla» con Sì e No (scelto)', row.label === 'Scia della palla' && row.btns.join(' ') === 'Sì No*', JSON.stringify(row));
   await p.screenshot({ path: path.join(SHOTS, 'scia-opzioni.png') });
-  await p.click('[data-natpf-trail="0"]');
-  const s1 = await p.evaluate(K => ({ on: __natpfTennis.natpfBallGlow.enabled, saved: localStorage.getItem(K), sel: document.querySelector('[data-natpf-trail].selected')?.dataset.natpfTrail, aria: document.querySelector('[data-natpf-trail="0"]').getAttribute('aria-checked') }), KEY);
-  check('clic su «No»: scia spenta subito e salvata', s1.on === false && s1.saved === '0' && s1.sel === '0' && s1.aria === 'true', JSON.stringify(s1));
+  await p.click('[data-natpf-trail="1"]');
+  const s1 = await p.evaluate(K => ({ on: __natpfTennis.natpfBallGlow.enabled, saved: localStorage.getItem(K), sel: document.querySelector('[data-natpf-trail].selected')?.dataset.natpfTrail, aria: document.querySelector('[data-natpf-trail="1"]').getAttribute('aria-checked') }), KEY);
+  check('clic su «Sì»: scia accesa subito e salvata', s1.on === true && s1.saved === '1' && s1.sel === '1' && s1.aria === 'true', JSON.stringify(s1));
   await p.reload({ waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby && __natpfTennis.natpfBallGlow, null, { timeout: 60000 });
   await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('options'));
   const s2 = await p.evaluate(K => ({ on: __natpfTennis.natpfBallGlow.enabled, saved: localStorage.getItem(K), sel: document.querySelector('[data-natpf-trail].selected')?.dataset.natpfTrail }), KEY);
-  check('pagina ricaricata: resta «No»', s2.on === false && s2.saved === '0' && s2.sel === '0', JSON.stringify(s2));
-  await p.click('[data-natpf-trail="1"]');
+  check('pagina ricaricata: resta «Sì» (chi l’ha scelta la tiene)', s2.on === true && s2.saved === '1' && s2.sel === '1', JSON.stringify(s2));
+  await p.click('[data-natpf-trail="0"]');
   const s3 = await p.evaluate(K => ({ on: __natpfTennis.natpfBallGlow.enabled, saved: localStorage.getItem(K), sel: document.querySelector('[data-natpf-trail].selected')?.dataset.natpfTrail }), KEY);
-  check('clic su «Sì»: scia accesa e salvata', s3.on === true && s3.saved === '1' && s3.sel === '1', JSON.stringify(s3));
+  check('clic su «No»: scia spenta e salvata', s3.on === false && s3.saved === '0' && s3.sel === '0', JSON.stringify(s3));
   check('Opzioni: nessun errore', !def.errs.length, def.errs.join(' | ').slice(0, 300));
   await def.ctx.close();
 }

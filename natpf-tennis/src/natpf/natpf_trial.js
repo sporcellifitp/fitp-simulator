@@ -8,6 +8,12 @@
 // ogni colpo il gioco impara verso, forza, salita e centro della mira (NatpfPhoneRacket.beginTrial / trialBall / endTrial).
 // Poi «Si comincia!» e la partita vera parte da 0-0 con le sue regole (sorteggio, formato in fiera…): il «Gioca» di prima,
 // senza altri tocchi né sul computer né sul telefono.
+// B35 (collaudo dell'utente del 13/11: «le impostazioni del match non ho avuto modo di inserirle prima perché appena fatti
+// gli scambi di calibrazione è partita subito la partita»): contro la CPU gli scambi di prova si fanno PRIMA della pagina
+// «Pronto per la partita» (dopo «Collega» e il tutorial corto, o dopo «Gioca ancora»), come già per chi invita nella sfida
+// tra due computer: alla fine «Pronto per la partita» e la pagina con «Chi gioca», «Personaggi» e «Altre impostazioni»;
+// la partita parte solo con «Gioca» (natpf_lobby._pageTrial, opzione toPage qui). Nello stesso schermo resta com'era (dopo
+// il conto alla rovescia, poi la partita), e «Ricalibra» a partita in corso rifà gli scambi e rigioca il punto.
 //   - Contro la CPU, minigiochi, sfida tra due computer: chi gioca qui e il lanciapalle (l'avversario non si vede).
 //   - Stesso schermo, due telefoni: un palleggio assistito con una palla sola. Ogni colpo (di chiunque, comunque tirato) è
 //     rimandato dal gioco sul lato giusto dell'altro, facile; una palla persa riparte per l'altro. Tutti e due imparano
@@ -44,7 +50,11 @@ export function trialDue({ mode = readCalMode(), controller = 'phone', split = f
   return controller === 'phone' && ok(phones[0]) && !keepsGesture(phones[0]);
 }
 // testi della scritta grande (funzioni pure)
-export const TRIAL_TEXT = Object.freeze({ kicker: 'Scambi di prova', title: 'Colpisci la palla', sub: 'Il gioco impara il tuo colpo · poi si comincia da 0-0', go: 'Si comincia!' });
+export const TRIAL_TEXT = Object.freeze({ kicker: 'Scambi di prova', title: 'Colpisci la palla', sub: 'Il gioco impara il tuo colpo · poi si comincia da 0-0', go: 'Si comincia!',
+  // B35: scambi di prova prima della pagina «Pronto per la partita» (contro la CPU, chi invita nella sfida tra due computer)
+  subPage: 'Il gioco impara il tuo colpo · poi scegli la partita', goPage: 'Pronto per la partita' });
+// B35: riga della pagina «Pronto per la partita» appena finiti gli scambi di prova (levels: livelli imparati)
+export function trialPageNote(levels = []){ return `${trialOutro(levels)} · scegli la partita e premi «Gioca»`; }
 export function trialOutro(levels = []){
   const good = levels.length > 0 && levels.every(l => l === 'full' || l === 'ok');
   return good ? 'Colpo imparato ✓' : 'Il gioco impara dai tuoi primi colpi';
@@ -82,10 +92,11 @@ export class NatpfTrial {
   // resume: a partita in corso («Ricalibra»): il punteggio resta com'è; force: anche chi ha un profilo fatto con i gesti
   // reimpara dagli scambi di prova (l'ha chiesto apposta)
   // cancel: cosa fare se si chiudono prima della fine (menu, chiosco): chi li ha aperti rimette a posto il suo stato
-  start({ then = null, cancel = null, split = !!this.engine.natpfSplit?.active, resume = false, force = false } = {}){
+  // toPage (B35): alla fine si torna alla pagina «Pronto per la partita» (non parte la partita): cambiano solo le scritte
+  start({ then = null, cancel = null, split = !!this.engine.natpfSplit?.active, resume = false, force = false, toPage = false } = {}){
     if (this.S) return false;
     const E = this.engine, ids = split ? ['p1', 'p2'] : ['p1'];
-    this.S = { split, then, cancel, resume, phase: 'intro', wait: TRIAL.intro, t: 0, started: false, turn: 'p1', receiver: null, dead: false, flash: null,
+    this.S = { split, then, cancel, resume, toPage: !!toPage, phase: 'intro', wait: TRIAL.intro, t: 0, started: false, turn: 'p1', receiver: null, dead: false, flash: null,
       players: Object.fromEntries(ids.map(id => [id, { balls: 0, hits: 0 }])),
       prev: { difficulty: E.hud?.selectedDifficulty || E.matchConfig?.difficulty, format: E.matchFormat?.id || null, multi: !!E.isMultiplayer } };
     // come il riscaldamento: niente menu, niente dimostrazione, punteggio a zero
@@ -246,9 +257,9 @@ export class NatpfTrial {
     if (el.dataset.state !== state) el.dataset.state = state;
     if (el.dataset.split !== String(!!S.split)) el.dataset.split = String(!!S.split);
     set('[data-trial="kicker"]', TRIAL_TEXT.kicker);
-    set('[data-trial="title"]', outro ? TRIAL_TEXT.go : TRIAL_TEXT.title);
+    set('[data-trial="title"]', outro ? (S.toPage ? TRIAL_TEXT.goPage : TRIAL_TEXT.go) : TRIAL_TEXT.title);
     const now = performance.now(), flash = S.flash && now < S.flash.until && !outro ? S.flash : null;
-    set('[data-trial="sub"]', outro ? S.outro || '' : flash && !S.split ? flash.text : TRIAL_TEXT.sub);
+    set('[data-trial="sub"]', outro ? S.outro || '' : flash && !S.split ? flash.text : S.toPage ? TRIAL_TEXT.subPage : TRIAL_TEXT.sub);
     // avanzamento: per ogni giocatore due puntini per il dritto e due per il rovescio (pieni quelli imparati)
     const rows = $q('[data-trial="rows"]');
     if (rows){

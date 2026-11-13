@@ -96,7 +96,7 @@ export function navPlan(screen, cmd){
   if (screen.nav === 'field'){
     if (cmd === 'back') return { kind: 'pause' };
     return { kind: 'blocked', why: screen.id === 'cal' ? 'Calibrazione in corso: la fa il giocatore con il suo telefono. Indietro o Pausa per fermarla.'
-      : screen.id === 'trial' ? 'Scambi di prova: li gioca il giocatore. Salta per andare subito alla partita, Indietro o Pausa per fermarli.' : 'In campo frecce e OK muoverebbero il giocatore: usa Pausa (o Indietro).' };
+      : screen.id === 'trial' ? 'Scambi di prova: li gioca il giocatore. Salta per andare subito avanti (pagina «Pronto per la partita»), Indietro o Pausa per fermarli.' : 'In campo frecce e OK muoverebbero il giocatore: usa Pausa (o Indietro).' };
   }
   if (screen.nav === 'focus'){
     if (cmd === 'ok') return { kind: 'press' };
@@ -114,7 +114,8 @@ const on = 1;
 //   controller ('phone' | 'webcam' | 'mouse'), phone: { connected }, cpu (livello), desktop: { displays, label } | null,
 //   fullscreen: { available, on, gesture } (gesture: nel browser serve un tasto vero), skip (c'è un «Salta» in vista),
 //   canReview (si può aprire «Rivedi i gesti»), connectReady (la pagina «Collega» può andare avanti)
-//   trial (scambi di prova in corso), recalTrial («Ricalibra» adesso farebbe gli scambi di prova), calMode ('play' | 'gesti' | 'none')
+//   trial (scambi di prova in corso), recalTrial («Ricalibra» adesso farebbe gli scambi di prova), recalPage (B35: li farebbe
+//   e poi la pagina «Pronto per la partita»), calMode ('play' | 'gesti' | 'none')
 export function remoteCommands(s = {}, screen = remoteScreen(s)){
   const cmds = {}, labels = {}, hints = {};
   const field = screen.nav === 'field', running = gameRunning(screen), L = s.lobby || {};
@@ -149,7 +150,8 @@ export function remoteCommands(s = {}, screen = remoteScreen(s)){
   const underTrial = screen.id === 'trial' || screen.under === 'trial';
   cmds.recal = s.controller !== 'phone' ? 'Il giocatore non usa il telefono' : !s.phone?.connected ? 'Telefono del giocatore non collegato'
     : underTrial ? 'Gli scambi di prova stanno già calibrando' : s.split && !s.recalTrial ? 'Stesso schermo: ricalibra dalla pagina «Racchette»' : screen.id === 'intro' ? 'Prima entra nel menu (OK)' : on;
-  if (cmds.recal === on) hints.recal = s.recalTrial ? 'scambi di prova, poi si rigioca il punto' : s.calMode === 'gesti' ? 'rifà i gesti' : s.calMode === 'none' ? 'profilo da capo' : s.calMode === 'play' ? 'profilo da capo: impara dai prossimi scambi' : '';
+  // (B35: recalPage, sulla pagina «Pronto per la partita» contro la CPU con «Giocando»: scambi di prova, poi la pagina)
+  if (cmds.recal === on) hints.recal = s.recalTrial ? 'scambi di prova, poi si rigioca il punto' : s.recalPage ? 'scambi di prova, poi la pagina «Pronto per la partita»' : s.calMode === 'gesti' ? 'rifà i gesti' : s.calMode === 'none' ? 'profilo da capo' : s.calMode === 'play' ? 'profilo da capo: impara dai prossimi scambi' : '';
   if (!hints.recal) delete hints.recal;
   cmds.gestures = s.canReview ? on : screen.id === 'tutorial' ? 'Il tutorial è già aperto' : field || running ? 'In partita no: Pausa → Aiuto «Come si gioca»' : 'Qui non c’è il tutorial dei gesti';
   // livello della CPU (vale dalla prossima partita)

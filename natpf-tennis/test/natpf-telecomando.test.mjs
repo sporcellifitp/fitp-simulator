@@ -139,7 +139,7 @@ test('pulsanti diretti: Gioca, Pausa, livello CPU, schermo, schermo intero, Salt
 // dove ci sono, preme «Avanti ›» dell'allenamento e «Salta la calibrazione»; «Ricalibra il telefono» fa quello che fa
 // «Ricalibra» del pannello (in partita con «Giocando»: scambi di prova, anche nello stesso schermo)
 test('B28: scambi di prova dal telecomando (pagina, Salta, Ricalibra) e «Avanti ›» dell\'allenamento', async () => {
-  const cmdsOf = s => remoteCommands(s, remoteScreen(s));
+  const cmdsOf = s => remoteCommands(s, remoteScreen(s)), remote0 = () => fs.readFileSync(new URL('../src/natpf/natpf_remote.js', import.meta.url), 'utf8');
   for (const name of ['scambi di prova', 'scambi di prova stesso schermo', 'scambi di prova nella sfida']){
     const s = MATRIX[name], screen = remoteScreen(s), { cmds, labels } = cmdsOf(s);
     assert.deepEqual([screen.id, screen.label, screen.nav], ['trial', 'Scambi di prova', 'field'], name);
@@ -157,13 +157,19 @@ test('B28: scambi di prova dal telecomando (pagina, Salta, Ricalibra) e «Avanti
   assert.match(cmdsOf({ ...MATRIX['partita stesso schermo'], calMode: 'gesti' }).cmds.recal, /Racchette/);
   assert.equal(cmdsOf({ ...MATRIX['pronto per la partita'], calMode: 'gesti' }).hints.recal, 'rifà i gesti');
   assert.match(cmdsOf({ ...MATRIX['pronto per la partita'], calMode: 'play' }).hints.recal, /impara dai prossimi scambi/);
+  // (B35: sulla pagina «Pronto per la partita» contro la CPU «Ricalibra» rifà gli scambi di prova e torna alla pagina)
+  assert.equal(cmdsOf({ ...MATRIX['pronto per la partita'], calMode: 'play', recalPage: true }).hints.recal, 'scambi di prova, poi la pagina «Pronto per la partita»');
+  assert.match(remote0(), /recalPage: !!ui\.recalPageDue\?\.\(\)/);
+  assert.match(remote0(), /Scambi di prova: poi la pagina «Pronto per la partita»/);
   // la fotografia e i comandi veri (natpf_remote.js): nomi dei pulsanti che il gioco ha davvero
   const remote = fs.readFileSync(new URL('../src/natpf/natpf_remote.js', import.meta.url), 'utf8');
   assert.match(remote, /trial \? \(ui\.pause\?\.isOpen \? null : 'Salta gli scambi di prova'\)/);
-  assert.match(remote, /if \(ui\.trial\?\.active\)\{ ui\.trial\.skip\(\);/);
+  // (B35: contro la CPU «Salta» porta alla pagina «Pronto per la partita», e lo dice)
+  assert.match(remote, /if \(ui\.trial\?\.active\)\{ const page = !!ui\.trial\.S\?\.toPage; ui\.trial\.skip\(\);/);
+  assert.match(remote, /Scambi di prova saltati: pagina «Pronto per la partita»/);
   assert.match(remote, /visible\(\$\('coach-next'\)\)\)\{ \$\('coach-next'\)\.click\(\);/);
   assert.match(remote, /visible\(\$\('natpf-phone-skip'\)\)\)\{ \$\('natpf-phone-skip'\)\.click\(\);/);
-  assert.match(remote, /if \(ui\.recalibrate\(\)\) return \{ ok: true, msg: 'Scambi di prova: poi si rigioca il punto' \}/);
+  assert.match(remote, /if \(ui\.recalibrate\(\)\) return \{ ok: true, msg: live \? 'Scambi di prova: poi si rigioca il punto' : 'Scambi di prova: poi la pagina «Pronto per la partita»' \}/);
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   for (const id of ['coach-next', 'coach-exit', 'natpf-phone-skip', 'trial-skip']) assert.match(html, new RegExp(`id="${id}"`), id);
 });
