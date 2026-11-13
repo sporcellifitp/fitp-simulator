@@ -537,6 +537,19 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
   (`natpf-ui.css:552`, `visibility: hidden`): tenerlo premuto 3 s non fa niente; funziona nelle altre pagine del menu
   (es. «Opzioni»). Detto all'utente di passare da un'altra pagina. Da correggere (B38/B39): marchio anche nella pagina
   principale, anello che si riempie, pannello raggiungibile con il mouse anche in partita.
+- **Decisioni dell'utente (13/11, 14:25 UTC)**: «Ricalibra» a partita in corsa resta com'è (rifà gli scambi e rigioca il
+  punto); i tre riquadri di fine partita vanno bene. Poi: «lavora ancora per sintetizzare a fine partita i risultati
+  usando /design, con qualcosa di più figo, con icone o achievements e con l'immagine di Lob e Drop o dei due personaggi
+  rispettivamente. Qualcosa di creativo».
+  [x] Proposta grafica **v2 «la card della partita»** sulla stessa tavola https://claude.ai/artifact/PMb2Gg3ZiakcHuqynZ2pJL
+      (file in `scratchpad/design-fine/project/V2*.dc.html`, immagini di Lob e Drop dai modelli 3D caricate nella tavola):
+      card da collezione con il personaggio, cornice che cambia con il livello (Bambini azzurra, Evento giallo-verde, Pro
+      oro, Leggenda arcobaleno), «MVP della partita» / «Bella sfida», fino a 3 trofei con medaglie bronzo/argento/oro e
+      icone, «record di oggi», «prossimo trofeo» per chi perde, stesso schermo con le due card una contro l'altra e la
+      corona su chi vince, catalogo dei 12 trofei (Cecchino, Razzo, Maratoneta, Asso, Vincente, Super, Game a zero,
+      Rimonta, In serie, Muro, Prima volta, Re di oggi) con le soglie. **In attesa del parere dell'utente** → poi blocco
+      **B40 · Fine partita v2** (ritratti dai modelli 3D anche per i Classici, contatori nuovi in `natpf_match_stats.js`:
+      serie, game a zero, rimonta, colpi a vuoto, prima partita, posto in classifica).
 - [ ] **B38 · Tastiera a schermo** (richiesta dell'utente del 13/11, 11:50 UTC: «una tastiera su schermo che compaia quando
       devo digitare, perché ho solo un mouse e non ho una tastiera wireless»). Tastiera del gioco (non di Windows) che
       compare cliccando un campo di testo (nome, nomi dello stesso schermo, codice della sfida, campi della diagnostica) e
