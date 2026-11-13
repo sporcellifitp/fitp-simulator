@@ -1531,7 +1531,8 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 #timing-popup.anchored { top: auto !important; bottom: clamp(10px, 3cqh, 36px); left: clamp(10px, 2cqw, 28px); right: auto; transform: none; align-items: flex-start; max-width: clamp(140px, 18cqw, 340px); padding: 0.3em 0.75em 0.35em; font-size: clamp(11px, min(1.8cqh, 1.1cqw), 22px); text-align: left; animation: natpf-esito-in 0.16s ease-out; }
 #timing-popup.anchored.side-right { left: auto; right: clamp(10px, 2cqw, 28px); align-items: flex-end; text-align: right; }
 #timing-popup.anchored .timing-grade { font-size: 1.3em; line-height: 1.1; }
-#timing-popup.anchored .timing-detail { font-size: 0.78em; line-height: 1.2; letter-spacing: 0.05em; }
+/* revisione finale: riga piccola almeno 10 px (prima 0,78 × 11 px = 8,6 px a 720×720: «in corsa · 189 km/h» si leggeva a fatica) */
+#timing-popup.anchored .timing-detail { font-size: max(0.78em, 10px); line-height: 1.2; letter-spacing: 0.05em; }
 #timing-popup.anchored .timing-detail:empty { display: none; }
 /* colpo dell'altro giocatore (sfida un amico): più piccolo e meno acceso, non come un colpo tuo */
 #timing-popup.anchored.other { font-size: clamp(10px, min(1.4cqh, 0.9cqw), 17px); opacity: 0.85; }
