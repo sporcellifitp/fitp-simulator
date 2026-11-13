@@ -65,7 +65,7 @@ export function resetVisitor(ui){
   // nome li lasciava al visitatore dopo (unione B18.1)
   ui.events.forgetLearned?.();
   // B18.2 gruppo 3: «Chi gioca» al valore di base, livello Evento da capo, spiegazione del colpo super da rivedere
-  L?.resetWho?.(); ui.superHint?.reset?.();
+  L?.resetWho?.(); ui.superHint?.reset?.(); ui.cue?.resetHint?.();   // (B37: la scritta del segnale del momento giusto si rivede)
   if (route === 'split'){
     const S = ui.split;
     // nomi, caselle e targhette in campo (prima restavano le targhette di chi aveva giocato prima: revisione B18)

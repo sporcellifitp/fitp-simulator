@@ -107,7 +107,7 @@ export class NatpfSplit {
     if (!tags) return;
     const who = E.score?.server === 'opponent' ? E.opponent : E.player;
     [[E.camera, vp?.p1, tags[0]], [this.cam2, vp?.p2, tags[1]]].forEach(([cam, v, el]) => {
-      const at = on && who?.pos ? serveTagPoint(who.pos, cam, v, E.natpfUi?.serveMark?.tagHeight?.(who)) : null;   // (B37: sopra la gemma)
+      const at = on && who?.pos ? serveTagPoint(who.pos, cam, v, E.natpfUi?.serveMark?.tagHeight?.(who, cam)) : null;   // (B37: sopra la gemma vista da questa camera)
       if (!el) return;
       if (!at){ if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
       el.classList.remove('hidden');

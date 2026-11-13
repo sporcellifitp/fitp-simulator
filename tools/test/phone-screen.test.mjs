@@ -263,7 +263,11 @@ test('telefono: esito del colpo come il computer (Fuori/In rete con il perché),
   assert.equal(eventFlash({ k: 'point', mine: true, txt: 'Vincente' }).big, 'Punto tuo');
   assert.equal(eventFlash({ k: 'contact', why: 'x'.repeat(100), out: true }).sub.length, 40);
   assert.equal(eventFlash({ k: 'count' }), null);
-  assert.match(JS, /eventFlash\(d\)/, 'la pagina usa eventFlash');
+  assert.match(JS, /eventFlash\(d[,)]/, 'la pagina usa eventFlash');
+  // B37: «Fuori» / «In rete» arrivano con la palla a terra (late); al colpo wait, neutro; il punto che segue tiene il motivo
+  assert.deepEqual(eventFlash({ k: 'contact', wait: 1, label: 'anticipo', shot: 'drive' }), { ring: '', big: 'Colpo!', sub: '', ms: 650, buzz: [20] });
+  assert.equal(eventFlash({ k: 'point', mine: false, txt: 'Fuori' }, { verdict: 'Fuori · In anticipo' }).sub, 'Fuori · In anticipo');
+  assert.match(JS, /if \(d\.k === 'contact' && d\.late\) lateVerdict = \{ txt: verdictText\(d\)/, 'la pagina ricorda il verdetto arrivato con la palla a terra');
 });
 
 /* ---------- B20: stesso schermo, «Rivincita» dai telefoni e pausa per il telefono dell'altro ---------- */

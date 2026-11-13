@@ -250,7 +250,7 @@ test('punto 1 · motore: sul punto della partita «Fuori», punto e fine partita
 });
 
 // ---------- 2 · chi deve servire: gemma sopra la testa e riquadro di servizio a terra ----------
-import { NatpfServeMarker, SERVE_MARK, serviceBox, serverOf, serveMarkOn, gemOn, headTop, gemBase, serveTagHeight } from '../src/natpf/natpf_serve_marker.js';
+import { NatpfServeMarker, SERVE_MARK, serviceBox, serverOf, serveMarkOn, gemOn, headTop, gemBase, serveTagHeight, gemScale } from '../src/natpf/natpf_serve_marker.js';
 import { serveTagPoint } from '../src/natpf/natpf_split.js';
 
 test('punto 2 · riquadro di servizio: in diagonale, nella metà di chi riceve, come i servizi veri del motore', async () => {
@@ -345,4 +345,99 @@ test('punto 2 · leggero: pochi oggetti, materiali senza luci, nessuna ombra', (
   let meshes = 0, tris = 0;
   for (const g of [M.gem, M.box]) g.traverse(o => { if (!o.isMesh) return; meshes++; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count)/3; assert.equal(o.castShadow, false); assert.ok(o.material.isMeshBasicMaterial); });
   assert.ok(meshes <= 14 && tris <= 80, `${meshes} mesh, ${tris} triangoli`);
+});
+
+test('punto 2 · la gemma si vede anche lontana: per ogni camera quasi la stessa misura a schermo (stesso schermo: due camere)', () => {
+  assert.equal(gemScale(5), 1); assert.equal(gemScale(SERVE_MARK.near), 1); assert.equal(gemScale(2*SERVE_MARK.near), 2); assert.equal(gemScale(200), SERVE_MARK.grow); assert.equal(gemScale(NaN), 1);
+  const { e, M } = markerEngine({ server: 'opponent' });
+  M.update(1/60); M.gem.updateMatrixWorld(true);
+  const tip = new THREE.Vector3().setFromMatrixPosition(M.gem.matrixWorld);
+  const near = new THREE.PerspectiveCamera(), far = new THREE.PerspectiveCamera();
+  near.position.set(e.opponent.pos.x, 4, e.opponent.pos.z - 6); far.position.set(0, 5, 18); near.updateMatrixWorld(); far.updateMatrixWorld();
+  const mesh = M.gem.children[0], base = mesh.matrixWorld.clone(), sizeOf = m => new THREE.Vector3().setFromMatrixScale(m).x;
+  mesh.onBeforeRender(null, null, near); assert.ok(Math.abs(sizeOf(mesh.matrixWorld) - sizeOf(base)) < 1e-9, 'vicina: misura vera');
+  mesh.matrixWorld.copy(base); mesh.onBeforeRender(null, null, far);
+  const k = sizeOf(mesh.matrixWorld)/sizeOf(base), d = far.position.distanceTo(tip);
+  assert.ok(Math.abs(k - gemScale(d)) < 1e-6 && k > 2, `lontana (${d.toFixed(1)} m): ${k.toFixed(2)} volte`);
+  // la punta resta sopra la testa: si ingrandisce verso l'alto
+  const t2 = new THREE.Vector3(0, 0, 0).applyMatrix4(mesh.matrixWorld);
+  assert.ok(t2.distanceTo(tip) < 1e-6, 'punta ferma');
+  // la scritta «Al servizio» sopra la gemma ingrandita, per ogni camera
+  assert.ok(M.tagHeight(e.opponent, far) > M.tagHeight(e.opponent, near));
+  assert.ok(Math.abs(M.tagHeight(e.opponent, far) - serveTagHeight(M.top(e.opponent), gemScale(far.position.distanceTo(new THREE.Vector3(e.opponent.pos.x, gemBase(M.top(e.opponent)), e.opponent.pos.z))))) < 1e-9);
+});
+
+// ---------- 3 · il segnale del momento giusto spiegato le prime volte ----------
+import { NatpfTimingCue, CUE_HINT, cueHintFor, cueToast } from '../src/natpf/natpf_timing_cue.js';
+import { installMatchStats } from '../src/natpf/natpf_match_stats.js';
+import { readFileSync } from 'node:fs';
+
+test('punto 3 · regola pura: spiegata solo una palla nuova tra le prime tre della partita', () => {
+  assert.equal(CUE_HINT.text, 'Colpisci quando il cerchio diventa verde');
+  assert.equal(CUE_HINT.balls, 3);
+  assert.equal(cueHintFor({ fresh: true, shown: 0 }), true); assert.equal(cueHintFor({ fresh: true, shown: 2 }), true);
+  assert.equal(cueHintFor({ fresh: true, shown: 3 }), false); assert.equal(cueHintFor({ fresh: false, shown: 0 }), false);
+});
+
+test('punto 3 · la guida, le Opzioni e la scritta dicono la stessa cosa con le stesse parole', () => {
+  const guide = readFileSync(new URL('../src/natpf/natpf_onboarding.js', import.meta.url), 'utf8');
+  assert.match(guide, /colpisci quando il cerchio diventa verde/i, 'guida: passo «Colpisci quando la palla arriva»');
+  assert.match(cueToast('on', 'pro'), /colpisci quando il cerchio diventa verde/i);
+  const cue = readFileSync(new URL('../src/natpf/natpf_timing_cue.js', import.meta.url), 'utf8');
+  assert.match(cue, /Colpisci quando il cerchio diventa <b>verde<\/b>/, 'scritta a schermo');
+  const np = readFileSync(new URL('../src/natpf/natpf_new_player.js', import.meta.url), 'utf8');
+  assert.match(np, /ui\.cue\?\.resetHint\?\.\(\)/, '«Nuovo giocatore» la fa rivedere');
+});
+
+// motore vero senza grafica: palle della CPU verso chi gioca, il segnale e la sua scritta
+function fakeHintDom(){
+  const els = {}, body = { appendChild: el => { els[el.id] = el; } };
+  const mk = () => { const s = new Set(); return { add: c => s.add(c), remove: c => s.delete(c), toggle: (c, f) => ((f ?? !s.has(c)) ? s.add(c) : s.delete(c)), contains: c => s.has(c) }; };
+  return { body, getElementById: id => els[id] || null, createElement: () => ({ classList: mk(), setAttribute(){}, set className(v){ for (const c of String(v).split(/\s+/)) if (c) this.classList.add(c); } }), els };
+}
+async function cueRun(level, flights, { between = null } = {}){
+  const { createHeadlessEngine, mulberry32 } = await import('../scripts/audit/headless-engine.mjs');
+  const real = Math.random, had = globalThis.document, dom = fakeHintDom(); Math.random = mulberry32(3); globalThis.document = dom;
+  try {
+    const e = createHeadlessEngine({ difficulty: level }); installMatchStats(e);
+    const sink = e.hud; e.hud = new Proxy({}, { get: (t, k) => (k === 'selectedDifficulty' ? undefined : sink[k]) });   // (livello dal motore)
+    e.startNewMatch({ showStartBanner: false });
+    const cue = new NatpfTimingCue(e); cue.pref = 'auto';
+    const out = [];
+    for (let f = 0; f < flights; f++){
+      if (between) between(e, cue, f);
+      e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = 2*f + 1;
+      e.player.pos.set(.4, 0, 11.7); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
+      e.ball.pos.set(-.5, 1, -11);
+      e._launchBallToTarget(e.ball.pos, new THREE.Vector3(1.6, 0, 8.5), 1.05, { topspin: 14 });
+      e._natpfPlanPlayer();
+      let ring = false, hint = false, hintAfter = false;
+      for (let t = 0; t < 1.6; t += 1/60){
+        e.elapsedTime += 1/60; e._stepPhysics(1/60); cue.update();
+        ring ||= !!cue.view; hint ||= cue.hint.on;
+        if (e.phase !== 'RALLY') break;
+      }
+      // la palla è passata: la scritta resta CUE_HINT.hold secondi, poi sparisce
+      e.phase = 'POINT_OVER'; e.ball.inPlay = false;
+      for (let t = 0; t < 1; t += 1/60){ e.elapsedTime += 1/60; cue.update(); }
+      hintAfter = cue.hint.on;
+      out.push({ ring, hint, hintAfter, el: !dom.els['natpf-cue-hint']?.classList.contains('hidden') });
+    }
+    return { out, e, cue, dom };
+  } finally { Math.random = real; if (had === undefined) delete globalThis.document; else globalThis.document = had; }
+}
+test('punto 3 · motore: con il segnale acceso la scritta accompagna le prime tre palle della partita, poi basta', async () => {
+  const { out, dom } = await cueRun('evento', 5);
+  assert.ok(out.every(o => o.ring), `l'anello c'è su ogni palla: ${JSON.stringify(out)}`);
+  assert.deepEqual(out.map(o => o.hint), [true, true, true, false, false]);
+  assert.ok(out.every(o => !o.hintAfter && !o.el), 'sparisce dopo la palla');
+  assert.ok(dom.els['natpf-cue-hint'], 'scritta creata nella pagina');
+});
+test('punto 3 · partita nuova o giocatore nuovo: la scritta si rivede; segnale spento: nessuna scritta', async () => {
+  const again = await cueRun('evento', 5, { between: (e, cue, f) => { if (f === 3) e.startNewMatch({ showStartBanner: false }); } });
+  assert.deepEqual(again.out.map(o => o.hint), [true, true, true, true, true], 'partita nuova dopo tre palle');
+  const reset = await cueRun('evento', 5, { between: (e, cue, f) => { if (f === 4) cue.resetHint(); } });
+  assert.deepEqual(reset.out.map(o => o.hint), [true, true, true, false, true], '«Nuovo giocatore»');
+  const off = await cueRun('pro', 3);
+  assert.deepEqual(off.out.map(o => [o.ring, o.hint]), [[false, false], [false, false], [false, false]], 'a Pro di base niente anello e niente scritta');
 });

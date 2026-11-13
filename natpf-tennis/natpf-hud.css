@@ -1081,6 +1081,46 @@ body {
 .natpf-gesture.hidden {
   display: none;
 }
+
+/* ---------- B37: scritta del segnale del momento giusto nelle prime palle (natpf_timing_cue.js, CUE_HINT) ---------- */
+.natpf-cue-hint {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(64px, 11cqh, 150px);
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  max-width: 92cqw;
+  padding: 0.35em 0.9em 0.35em 0.55em;
+  border-radius: 999px;
+  background: rgba(7, 18, 51, 0.88);
+  box-shadow: inset 0 0 0 2px rgba(57, 229, 140, 0.55), 0 4px 14px rgba(0, 0, 0, 0.35);
+  color: #f3f6fb;
+  font: 700 clamp(15px, min(2.7cqh, 1.45cqw), 28px) / 1.2 "Bahnschrift", "DIN Alternate", "Barlow Semi Condensed", "Arial Narrow", "Segoe UI", system-ui, sans-serif;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.natpf-cue-hint.hidden {
+  display: none;
+}
+.natpf-cue-hint b {
+  color: #39e58c;
+}
+/* il cerchio bianco e poi verde, come l'anello sulla palla */
+.natpf-cue-hint .cue-dot {
+  width: 1.05em;
+  height: 1.05em;
+  flex: none;
+  border-radius: 50%;
+  border: 0.17em solid #ffffff;
+  box-shadow: 0 0 0 0.08em rgba(0, 0, 0, 0.6);
+}
+.natpf-cue-hint .cue-dot.now {
+  border-color: #39e58c;
+  background: rgba(57, 229, 140, 0.45);
+}
 .natpf-gesture b {
   display: grid;
   place-items: center;
