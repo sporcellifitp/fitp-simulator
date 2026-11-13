@@ -70,7 +70,7 @@ const setup = () => {
   // (B34: tutte le palle così, dalla più veloce: la scritta «in corsa» c'è solo con la corsa forte, da 0,8 della massima)
   W.findRuns = () => {
     const out = [];
-    for (const fl of [1, .95, .9, .85, .8, .75, .7]) for (const x of [3.9, 3.7, 3.5]) for (const px of [-.6, -1]){
+    for (const fl of [1, .95, .9, .85, .8, .75, .7, .65, .6, .55]) for (const x of [3.9, 3.7, 3.5]) for (const px of [-.6, -1, -1.4, -1.8]){
       rally(); E.player.pos.set(px, 0, 11.6); E.player.targetPos.copy(E.player.pos); E.player.vel.set(0, 0, 0);
       cpuShot(x, 9.8, fl);
       if (E.player.natpfRunThrough === 1 && E.natpfPlan?.kind !== 'stretch') out.push({ x, fl, px });
@@ -78,6 +78,7 @@ const setup = () => {
     return out;
   };
   W.run = (pick) => {
+    E.natpfFatigue?.clear?.();   // B34: ogni palla da riposati (si provano più palle di fila: la stanchezza rallenta)
     rally(); E.player.pos.set(pick.px, 0, 11.6); E.player.targetPos.copy(E.player.pos); E.player.vel.set(0, 0, 0);
     cpuShot(pick.x, 9.8, pick.fl);
     const through = E.player.natpfRunThrough, plan = E.natpfPlan?.kind;
@@ -118,21 +119,28 @@ try {
     const t = await game.evaluate(() => __m.turn()); await shot('cambio-direzione'); await close('cambio-direzione');
     check(`${look}: cambio di direzione, prima frena e poi riparte (almeno 0,2 s per invertire)`, t.tx < 0 && t.flip >= 12 && t.vx.at(-1) < -2 && t.vx.slice(0, 24).every((v, i) => i === 0 || v <= t.vx[i - 1] + 1e-6), JSON.stringify(t));
     const picks = await game.evaluate(() => __m.findRuns()), pick = picks[0];
-    check(`${look}: c'è una palla larga e veloce da prendere in corsa`, !!pick, JSON.stringify(picks.slice(0, 3)));
+    check(`${look}: c'è una palla larga e veloce da prendere in corsa`, !!pick, `${picks.length} palle, ${JSON.stringify(picks.slice(0, 3))}`);
     if (pick){
       // B34: si prova una palla dopo l'altra fino al colpo con la corsa forte; quelli con la corsa media sono colpi in corsa
-      // per la regola (move) ma senza la scritta
+      // per la regola (move) ma senza la scritta. Prima il colpo con la corsa forte (dalle palle più veloci) e i piedi dopo il colpo, poi un colpo con la corsa media
+      // (dalle palle più lente): giocate prima, le palle lente lasciano il personaggio in uno stato in cui la corsa forte
+      // non si ritrovava più
       let r = null, media = null;
-      for (const p of picks.slice(0, 8)){
+      for (const p of [...picks].sort((a, b) => a.fl - b.fl || a.px - b.px)){
         r = await game.evaluate(q => __m.run(q), p);
-        if (r.hit && r.move === 'corsa' && r.say !== 'corsa' && !media) media = r;
         if (r.say === 'corsa') break;
       }
       await shot('colpo-in-corsa'); await close('colpo-in-corsa');
       check(`${look}: colpo in corsa forte: al contatto corre ancora (da 0,8 della massima) e la scritta dell'esito lo dice`, r.through === 1 && r.hit && r.run > .75*r.vmax && r.move === 'corsa' && r.say === 'corsa' && /in corsa/i.test(r.popup), JSON.stringify(r));
-      if (media) check(`${look}: colpo in corsa media: colpo in corsa per la regola, nessuna scritta «in corsa» (B34)`, media.run > .5*media.vmax && !/in corsa/i.test(media.popup), JSON.stringify(media));
       const a = await game.evaluate(() => __m.after(8)); await shot('colpo-in-corsa-dopo'); await close('colpo-in-corsa-dopo');
       check(`${look}: durante il colpo i piedi non si fermano (il passo avanza, si corre ancora)`, a.stride > .5 && a.v > 2 && (a.hop == null || a.hop > .5), JSON.stringify(a));
+      for (const p of [...picks].sort((a, b) => b.fl - a.fl || b.px - a.px).slice(0, 10)){
+        const m = await game.evaluate(q => __m.run(q), p);
+        if (m.hit && m.move === 'corsa' && m.say !== 'corsa'){ media = m; break; }
+      }
+      if (media){ await shot('colpo-in-corsa-media'); await close('colpo-in-corsa-media'); }
+      check(`${look}: c'è anche un colpo in corsa con la corsa media`, !!media);
+      if (media) check(`${look}: colpo in corsa media: colpo in corsa per la regola, nessuna scritta «in corsa» (B34)`, media.run > .5*media.vmax && !/in corsa/i.test(media.popup), JSON.stringify(media));
     }
     check(`${look}: nessun errore in pagina`, errs.length === 0, errs.slice(0, 3).join(' | '));
     await game.close();

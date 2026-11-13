@@ -153,7 +153,7 @@ try {
     for (let i = 0; i < 9; i++){ ev.nickname = `Ospite ${i + 1}`; ev.recordMatch({ level: L[i % 5], won: 4 + i, lost: 10 - i, games: i % 2 ? [1, 0] : [0, 1], win: i % 2 === 1 }); }
     ev.nickname = 'Ada'; __natpfTennis.natpfUi.lobby._paintRanking(); });
   // B34 (decisione dell'utente): in cima tutte le vinte per punteggio, sotto le perse per punteggio
-  const order = await g.evaluate(() => [...document.querySelectorAll('#ranking-list li')].map(l => ({ win: /vinta/.test(l.textContent), score: +(/(\d+) punti/.exec(l.textContent)?.[1] || 0), nick: l.querySelector('span')?.firstChild?.textContent || '' })));
+  const order = await g.evaluate(() => [...document.querySelectorAll('#ranking-list li')].map(l => ({ win: /vinta/.test(l.textContent), score: +(/(\d+)/.exec(l.querySelector('em')?.textContent || '')?.[1] || 0), nick: l.querySelector('span')?.firstChild?.textContent || '' })));
   const firstLost = order.findIndex(r => !r.win), sorted = rows => rows.every((r, i) => i === 0 || rows[i - 1].score >= r.score);
   check('B3c. B34: prima tutte le vinte, poi le perse, ognuna per punteggio (anche se una persa ha più punti di una vinta)',
     firstLost > 0 && order.slice(firstLost).every(r => !r.win) && sorted(order.slice(0, firstLost)) && sorted(order.slice(firstLost)) && Math.max(...order.slice(firstLost).map(r => r.score)) > Math.min(...order.slice(0, firstLost).map(r => r.score)),
