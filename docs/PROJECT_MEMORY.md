@@ -896,3 +896,6 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   così**, con i personaggi animati. Animazione in loop dei personaggi scelti (Classici o Lob & Drop): **solo nella fine
   partita**, movimento **esultanza** (chi vince salta e alza la racchetta, l'altro applaude), **dentro il B40** (compito in
   `docs/coda/B40-fine-partita-v2.md`).
+- **Scritta grande del punto mezzo secondo dopo l'atterraggio** (domanda a scelta dopo B37): prima si vede la palla che
+  cade (anello rosso del fuori), poi «Punto della CPU / Punto per …»; il verdetto (punteggio, «Fuori», telefono) resta
+  all'atterraggio. Compito nel B43 (`docs/coda/B43-tabellone-e-pannello.md` punto 3).

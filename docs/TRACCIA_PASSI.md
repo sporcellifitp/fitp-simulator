@@ -676,3 +676,18 @@ cambiano le tappe (cade B36.2; B36.4 senza rientro verso l'angolo).
       prima del 20° colpo; aperto). Da unire dopo B37.
 - [~] B37 nelle ultime prove (lob-drop: trovate impronte diverse per un sorteggio delle palpebre spostato dal segno di chi
       serve; corretta la prova, non il gioco).
+
+**13/11, 19:40 UTC · B37 unito in locale, B37.1 e B42 in corso.**
+- [x] B37 finito (`62f4c2a`: controllo del commit «IN CORSO», suite, `audit:legend` uguale alla base, 13 prove nel browser,
+      documento) e unito in `natpf-simulator` (`c619266`). Controllo rapido sul codice unito: gioco 1464/1464, sito 226/226,
+      Windows 43/43, LAN 12/12, build ok; nel browser rally 9/9, lob-drop (chi serve) 13/13, formato-fiera 25/25.
+- **L'utente (19:30 UTC): «Il triangolino in alto è orribile, meglio la casella tonda che usavi prima "al servizio"».**
+  Quindi la 2026-11-13.10 aspetta il **B37.1**: via la gemma 3D sopra chi batte, torna la casella tonda gialla «Al
+  servizio» del B35b (il riquadro a terra resta). [~] Workflow `b37-1-al-servizio` (run `wf_3b4ff94f-e89`) sul ramo
+  `b37-collaudo-bis`, porte 4100–4149. Poi: riunire il ramo, versione 2026-11-13.10 (quattro file), controllo rapido,
+  push, zip, installer.
+- **Decisione dell'utente (domanda a scelta)**: la scritta grande del punto arriva **mezzo secondo dopo** che la palla tocca
+  terra (prima si vede la palla cadere fuori con l'anello rosso): aggiunta al compito B43 (punto 3).
+- [~] **B42 sopra B37**: workflow `b42-unione-sopra-b37` (run `wf_7f418d88-ade`) nella worktree di B42: unione di
+  `c619266`, conflitti, suite, `audit:legend`, 8 prove nel browser, posa della Leggenda misurata con e senza B42. Porte
+  4150–4199. Dopo la 13.10: unire B42 → 2026-11-13.11.
