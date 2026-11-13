@@ -4,6 +4,14 @@ Tappa 3, punto 2 del rapporto `docs/b16/rapporto-gameplay.md` (§3 punto 7 «Mov
 appendice M7, schede MOV-5 e MOV-9). Lavoro fatto nel ramo `b32-movimento`, partito da `fa2482c` (versione
 2026-11-13.3), senza push e senza toccare `natpf-simulator`, `main`, i file di versione e i documenti di ripresa.
 
+> **Correzione della revisione finale (13/11, `docs/revisione-finale-2026-11-13.md`).** Entro 7 m dalla rete questo
+> blocco lasciava «il movimento del B31», che però era il movimento di prima a velocità piena: il passo corto del B31
+> c'era solo nel piano (regola nascosta). La revisione finale ha tolto il passo corto nascosto e messo **anche a rete e
+> verso la rete** questo movimento (split-step, accelerazione, frenata). Vale anche per la corsa in avanti sulla palla
+> corta della CPU. Le volée non crollano (Pro «amatore» 1,2 → 1,66 e 1,09 → 1,12 a game nelle due serie): il crollo
+> 54 → 13 misurato qui sotto c'era con il passo corto nascosto e l'accelerazione insieme. Dove questo documento dice
+> «a rete resta il movimento del B31», oggi non vale più.
+
 **Tutti i numeri qui sotto vengono dal gioco simulato** (il motore vero senza disegno, con i giocatori simulati del
 banco). Non sono misure di persone vere, telefoni veri, del PC dell'evento o del ledwall.
 
@@ -85,8 +93,8 @@ allungo, e quanti di questi finiti in rete, fuori o deboli. Il campo è aggiunto
 - **Si attiva da solo** nelle partite contro la CPU a Casual, Evento (Adulto), Pro e Leggenda. Non c'è un'opzione nel
   menu.
 - **Non vale** (movimento di prima) a: livello Bambini (Chi gioca → Bambino), stesso schermo, sfida tra due computer,
-  doppio, allenamento, minigiochi ed eventi, demo, e quando chi gioca o il punto dove deve andare sono entro 7 m dalla
-  rete (lì resta il movimento del B31).
+  doppio, allenamento, minigiochi ed eventi, demo. (Fino alla revisione finale anche entro 7 m dalla rete, dove restava
+  il movimento di prima: ora vale anche lì.)
 - **Valori**: `natpf-tennis/src/natpf/natpf_skill.js`, campo `playerRun` dei livelli (Casual; Pro e Leggenda in
   `EXPERT_PLAYER`; Evento è la media tra Casual e Pro come il resto del livello; Bambini `playerRun: null`).
 - **Per spegnerlo del tutto** (solo prove e banchi): `movementRules.off = true` in

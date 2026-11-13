@@ -21,6 +21,9 @@
 //      con la prova (le loro ossa seguono le parti del tennista), con la racchetta sulla palla come prima;
 //   5) fotogrammi al secondo non peggiorati: costo dell'animazione dei personaggi per fotogramma e fotogrammi interi
 //      (calcolo + disegno), accesa e spenta a blocchi alterni.
+//   Revisione finale: in tutte le pagine le regole del B31 (gioco a rete) e del B32 (movimento) sono spente
+//   (netPlayRules.off, movementRules.off; REGOLE=oggi per lasciarle accese): cambiano apposta partite e corsa, e i
+//   confronti con ae68759 devono guardare solo la prova del dritto.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-dritto-video.mjs
 //   FOGLI=cartella: salva anche i fotogrammi PRIMA/DOPO agli stessi istanti (camera di gioco e camera ravvicinata) per
 //     il foglio di confronto (tools/e2e/natpf-dritto-video-foglio.mjs) · SOLO=fogli|interruttore|ossa|partite|mascotte|costo · GAME_PORT (3163)
@@ -66,6 +69,13 @@ async function game({ saved = null, query = 'intro=0', w = 1280, h = 720 } = {})
     errs.length = 0;
   }
   await p.waitForTimeout(1200);
+  // revisione finale: i confronti con la base ae68759 (ossa su «No», partite) si fanno con le regole del gioco a rete (B31)
+  // e del movimento (B32) spente, che cambiano apposta le partite e la corsa dei personaggi: così «su No identico a prima»
+  // misura ancora solo la prova del dritto. REGOLE=oggi le lascia accese (allora quei confronti non possono tornare)
+  if (!BASELINE && process.env.REGOLE !== 'oggi') await p.evaluate(async () => {
+    (await import('/src/natpf/natpf_movement.js')).movementRules.off = true;
+    (await import('/src/natpf/natpf_net_play.js')).netPlayRules.off = true;
+  });
   return { ctx, p, errs };
 }
 

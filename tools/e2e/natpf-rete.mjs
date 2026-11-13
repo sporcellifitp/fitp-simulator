@@ -6,7 +6,9 @@
 //   2) schiacciata della CPU: la CPU a rete (5,6 m), chi gioca alza una palla che passa sopra 2,05 m sulla sua linea.
 //      Verifica: piano della CPU «smash», colpo della CPU «smash» con la posa da sopra la testa (swingType 'smash');
 //   3) tagliato di chi gioca dal fondo: verifica colpo SLICE, effetto all'indietro (≤ −6) e rimbalzo basso (il primo
-//      rimbalzo risale meno di quello del top spin della stessa scena).
+//      rimbalzo risale meno di quello del top spin della stessa scena);
+//   4) (revisione finale) palla corta della CPU: la scritta dice «Palla corta della CPU», neutra, nell'angolo della CPU
+//      (prima l'involucro dell'esito la trattava come un colpo di chi gioca: «Fuori · Palla corta» in rosso).
 // Le tre scene si giocano due volte: personaggi «Classici» con il dritto dal video acceso (?dritto=video) e «Lob & Drop»
 // con i modelli 3D (?personaggi=lobdrop&mascotte=3d): le pose nuove (volée, schiacciata della CPU) devono funzionare
 // anche lì, senza errori in pagina. Schermate in OUT (rete-<aspetto>-<scena>.png).
@@ -99,6 +101,22 @@ const setup = () => {
     for (let i = 0; i < 300; i++){ const was = E.ball.bounceCountOnCurrentSide; tick(); if (E.ball.lastHitter !== 'player') break; if (!bounced && E.ball.bounceCountOnCurrentSide > was) bounced = true; if (bounced) up = Math.max(up, E.ball.pos.y); if (bounced && E.ball.vel.y < 0 && up > .2) break; }
     return (W.out[shot] = { ...snap, bounceUp: +up.toFixed(2) });
   };
+  // revisione finale: palla corta della CPU, chiamata vera del motore (_executeOpponentReturn) con il generatore delle
+  // scelte a rete fissato perché scatti; la scritta deve dire «Palla corta della CPU» (prima: «Fuori · Palla corta» in rosso)
+  W.cpuDrop = () => {
+    rally(); W.seq++; E.natpfCpuDrops = null;
+    E.player.pos.set(.3, 0, 12.4); E.player.targetPos.copy(E.player.pos); E.player.vel.set(0, 0, 0);
+    E.opponent.pos.set(.4, 0, -9.2); E.opponent.targetPos.copy(E.opponent.pos);
+    Object.assign(E.ball, { lastHitter: 'player', bounceCountOnCurrentSide: 1, rallyStrokeCount: 5, shotType: 'TOPSPIN', isPowerShot: false });
+    E.ball.pos.set(.6, 1.0, -8.9); E.ball.vel.set(0, -1, -6);
+    const seq = [.01, .5, .9, .5]; let k = 0, rng = E.natpfNetRng; E.natpfNetRng = () => (k < seq.length ? seq[k++] : .99);
+    const mr = Math.random; Math.random = () => .97;
+    try { E._executeOpponentReturn(E.opponent); } finally { Math.random = mr; E.natpfNetRng = rng; }
+    const el = id => document.getElementById(id), pop = el('timing-popup');
+    return (W.out.cpuDrop = { kind: E.natpfCpuShot?.kind || null, net: E.natpfCpuShot?.net ?? null, landingZ: +E.ball.targetLanding.z.toFixed(2),
+      grade: el('timing-popup-grade')?.textContent || '', detail: el('timing-popup-detail')?.textContent || '', gradeCls: el('timing-popup-grade')?.className || '',
+      hidden: pop?.classList.contains('hidden'), right: pop?.classList.contains('side-right'), other: pop?.classList.contains('other') });
+  };
 };
 
 const B = await launch();
@@ -124,6 +142,8 @@ try {
     const sl = await game.evaluate(() => __r.slice('slice')); await shot('tagliato');
     const top = await game.evaluate(() => __r.slice('topspin'));
     check(`${look}: tagliato di chi gioca, effetto all'indietro e rimbalzo più basso del top spin`, sl.hit && sl.shot === 'SLICE' && sl.spin <= -6 && sl.bounceUp > 0 && sl.bounceUp < top.bounceUp, `${JSON.stringify(sl)} · top spin ${JSON.stringify(top)}`);
+    const d = await game.evaluate(() => __r.cpuDrop()); await shot('palla-corta-cpu');
+    check(`${look}: palla corta della CPU scritta «Palla corta della CPU», neutra, nell'angolo della CPU (mai «Fuori»)`, d.kind === 'drop' && !d.net && d.landingZ > 0 && !d.hidden && /palla corta della cpu/i.test(d.grade) && !/fuori|rete/i.test(d.grade + ' ' + d.detail) && /q-cpu/.test(d.gradeCls) && !/q-red/.test(d.gradeCls) && d.right && d.other, JSON.stringify(d));
     check(`${look}: nessun errore in pagina`, errs.length === 0, errs.slice(0, 3).join(' | '));
     await game.close();
   }

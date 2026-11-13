@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { netPlayRules } from '../src/natpf/natpf_net_play.js';
-const B31_PRINTS = ['1eb7dff8db39', '7ac4aa5b8ef1'];   // impronte con il gioco a rete (B31), prese con questo stesso test
+const B31_PRINTS = ['6356d1e265b8', '750b592d650e'];   // impronte con il gioco a rete (B31), prese con questo stesso test (revisione finale: senza il passo corto nascosto a rete nel piano cambiano; prima 1eb7dff8db39, 7ac4aa5b8ef1)
 import * as THREE from 'three';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import * as ND from '../src/natpf/natpf_duo_rules.js';

@@ -21,7 +21,7 @@
 // Il generatore casuale si può iniettare (engine.natpfLegendRng); l'audit scripts/audit/legend.mjs misura i criteri.
 import * as NS from './natpf_skill.js';
 import { rallyPressure } from './natpf_stroke_outcome.js';
-import { NET_PLAY, smashIncoming, netOff } from './natpf_net_play.js';
+import { NET_PLAY, smashIncoming, netOff, netMoveOf } from './natpf_net_play.js';
 
 const C = NS.COURT;
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -164,9 +164,11 @@ function humanReach(L, c, ctx, h){
   // B31 (punto 22): chi gioca è a rete. Prima la stima guardava sempre il punto dopo il rimbalzo (2 m oltre), come se chi
   // è a rete dovesse tornare in fondo: i passanti sembravano facili da prendere e le palle profonde vincenti, e la
   // Leggenda non passava quasi mai chi saliva. Ora, tranne il pallonetto (che lo scavalca), conta la volée: dove passa la
-  // palla quando arriva all'altezza di chi gioca e quanto si muove a rete (NET_PLAY.netMove: reazione più lunga, passo corto)
+  // palla quando arriva all'altezza di chi gioca e quanto si muove a rete. È una stima prudente della Leggenda
+  // (netMoveOf: reazione più lunga, passo corto), non il movimento vero: chi gioca a rete si muove come in tutto il campo
+  // (revisione finale; con la stima uguale al movimento vero la Leggenda sceglie peggio i passanti, «tennista» 77,7%)
   if (c.shot !== 'LOB' && Math.abs(h.pos.z) < NET_PLAY.netMove.zone && !netOff()){
-    const M = NET_PLAY.netMove, hz = Math.abs(h.pos.z), path = Math.abs(ctx.bz) + Math.max(c.z, hz), f = clamp((Math.abs(ctx.bz) + hz)/Math.max(1, path), .2, 1);
+    const M = netMoveOf(h.pos.z), hz = Math.abs(h.pos.z), path = Math.abs(ctx.bz) + Math.max(c.z, hz), f = clamp((Math.abs(ctx.bz) + hz)/Math.max(1, path), .2, 1);
     const tc = flight*f, xc = ctx.bx + (c.x - ctx.bx)*f*(c.z < hz ? 1.15 : 1);
     const need = L.reachReact + M.react + Math.max(0, Math.abs(xc - h.pos.x) - L.reachSide - L.netReach)/Math.max(3, finite(h.maxSpeed, 9)*M.speed);
     const margin = tc - need;

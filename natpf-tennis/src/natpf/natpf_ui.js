@@ -261,7 +261,8 @@ export class NatpfUi {
     if (m.mode !== 'cpu' || m.doubles || m.guest || !isCpuLevel(m.level)) return null;
     const p = m.s.player, o = m.s.opponent, g = m.games, mine = g.filter(x => x.winner === 'player').length;
     const r = this.events.recordMatch({ level: m.level, won: p.points, lost: o.points, games: [mine, g.length - mine], win: m.winner === 'player' });
-    this.stats.rank = `${r.rank}° su ${r.total} nella classifica delle partite di oggi · ${r.score} punti`;
+    this.stats.rank = r.rank ? `${r.rank}° su ${r.total} nella classifica delle partite di oggi · ${r.score} punti`
+      : `Fuori dalle prime ${r.keep} partite di oggi · ${r.score} punti`;
     return r;
   }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer

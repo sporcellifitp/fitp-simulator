@@ -19,7 +19,7 @@ import { bounceSpin, eventLatency, holdSwingPrep, COURT, moveFactor } from './na
 import { IMPACT, impactWindow, lateSpanOf, directionSpan, slowFactor, OUTCOME } from './natpf_stroke_outcome.js';
 import { skillLevel } from './natpf_skill.js';
 import { helpOf, helpLevel, openRun } from './natpf_duo_rules.js';
-import { NET_PLAY, netMoveOf } from './natpf_net_play.js';
+import { NET_PLAY } from './natpf_net_play.js';
 import { runProfile, firstStep, afterHold, runTime, startHold, runThrough } from './natpf_movement.js'; // B32: accelerazione e primo passo
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -140,12 +140,14 @@ export function planPlayerIntercept(engine, actor, { groundOnly = false } = {}){
   const stand = s => { const dx = s.x - actor.pos.x, side = Math.abs(dx) > .3 ? Math.sign(dx) : fh; return { side, x: clamp(s.x - side*PLAN.side, -COURT.SINGLES_X - 1.4, COURT.SINGLES_X + 1.4), z: half*clamp(Z(s.z) + IMPACT.contactAhead, 1.2, Math.max(back, Z(s.z) > back ? PLAN.deepBack + IMPACT.contactAhead : back)) }; };
   // B25 (campo aperto, natpf_duo_rules.js): tra due persone, con l'opzione accesa, si parte un attimo dopo (la velocità
   // ridotta è già in moveFactor). Spenta, o contro la CPU: react 0, come prima
-  // B31: a rete il passo è più corto e la reazione un poco più lunga (natpf_net_play.netMoveOf; 0 e 1 esatti lontano dalla rete)
+  // (B31 aveva qui anche «a rete il passo è più corto e la reazione un poco più lunga», natpf_net_play.netMoveOf. Revisione
+  // finale: era una regola nascosta, il personaggio a rete correva a velocità piena e solo il piano lo trattava come lento.
+  // Tolta: il piano usa la velocità vera; netMove resta solo nella stima della Leggenda per scegliere i passanti)
   // B32 (natpf_movement.js): chi gioca contro la CPU parte dopo lo split-step (più tardi con la palla veloce), accelera fino a
   // pace e, se corre dalla parte opposta, prima frena. Il piano usa gli stessi tempi del movimento: la palla lontana diventa
   // in allungo o non raggiunta. Senza le regole (R null: Bambini, stesso schermo, Player 2, allenamento…) come prima
   const R = runProfile(engine, actor), hold = R && !groundOnly ? firstStep(R, b.vel?.length?.() ?? 0) : 0;
-  const nm = netMoveOf(actor.pos.z), react = (R ? hold + RUN_MARGIN : PLAN.react) + (openRun(engine)?.react || 0) + nm.react, pace = speed*nm.speed;
+  const react = (R ? hold + RUN_MARGIN : PLAN.react) + (openRun(engine)?.react || 0), pace = speed;
   const vx = finite(actor.vel?.x), vz = finite(actor.vel?.z);
   const need = s => {
     const p = stand(s), dx = p.x - actor.pos.x, dz = p.z - actor.pos.z, d = Math.hypot(dx, dz);
