@@ -37,6 +37,7 @@ import { p2pRequested } from './natpf_p2p.js';
 import { screenSummary } from './natpf_screen.js';
 import { waitingText } from './natpf_ready.js';
 import { readBallTrail, writeBallTrail, trailToast } from './natpf_ball_glow.js';
+import { forehandVideoEnabled, setForehandVideo, writeForehandVideo, forehandVideoToast } from './natpf_forehand_video.js';   // B23 (prova)
 import { WHO_LEVEL, WHO_DEFAULT, baseLevel, urlLevel, isCpuLevel, whoOfLevel, levelSummary, whoNote } from './natpf_who.js'; // B18.2 gruppo 3: «Chi gioca»
 import { eventoRestart } from './natpf_skill.js';
 import { readCue, writeCue, cueToast } from './natpf_timing_cue.js';
@@ -158,6 +159,7 @@ export class NatpfLobby {
       const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go(this.mode === 'split' ? 'connect' : 'controller'), 160); return; }
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
       const tr = e.target.closest('[data-natpf-trail]'); if (tr){ e.stopPropagation(); this.setBallTrail(tr.dataset.natpfTrail === '1'); return; }
+      const dv = e.target.closest('[data-natpf-dritto]'); if (dv){ e.stopPropagation(); this.setForehandVideo(dv.dataset.natpfDritto === '1'); return; }
       const ca = e.target.closest('[data-natpf-cast]'); if (ca){ e.stopPropagation(); this.setCast(ca.dataset.natpfCast); return; }
       // stessa scelta dalla pagina «Pronto per la partita» (richiesta dell'utente del 12/11: decidere i personaggi a ogni partita)
       const mc = e.target.closest('[data-match-cast]'); if (mc){ e.stopPropagation(); this.setCast(mc.dataset.matchCast); return; }
@@ -441,6 +443,11 @@ export class NatpfLobby {
     writeBallTrail(on); this.engine.natpfBallGlow?.setEnabled(on);
     this.ui.toast?.(trailToast(on)); this.paint();
   }
+  // B23 (prova): dritto con le movenze del trailer (natpf_forehand_video.js); vale subito e resta salvato
+  setForehandVideo(on){
+    writeForehandVideo(on); setForehandVideo(on);
+    this.ui.toast?.(forehandVideoToast(on)); this.paint();
+  }
   // personaggi in campo (natpf_personaggi.js, B24): «Classici» o «Lob & Drop»; vale subito e resta salvata
   setCast(value){
     const cast = setCast(value);
@@ -452,6 +459,7 @@ export class NatpfLobby {
     const audio = this.engine.audioEngine;
     const cast = getCast();
     for (const b of this.el.querySelectorAll('[data-natpf-cast]')){ const on = b.dataset.natpfCast === cast; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
+    for (const b of this.el.querySelectorAll('[data-natpf-dritto]')){ const on = (b.dataset.natpfDritto === '1') === forehandVideoEnabled(); b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     const trail = this.engine.natpfBallGlow ? !!this.engine.natpfBallGlow.enabled : readBallTrail();
     for (const b of this.el.querySelectorAll('[data-natpf-trail]')){ const on = (b.dataset.natpfTrail === '1') === trail; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     const cue = this.ui.cue ? this.ui.cue.pref : readCue();
