@@ -1,8 +1,56 @@
-# RIPRESA PER IL PROSSIMO AGENTE · stato al 13/11/2026, 15:55 UTC
+# RIPRESA PER IL PROSSIMO AGENTE · lavori FERMATI dall'utente il 13/11/2026 alle 16:00 UTC
 
-Scritto dall'agente principale (orchestratore) quando l'utente ha avvisato del limite d'uso. Leggerlo **dopo**
-`CLAUDE.md` e **prima** di `docs/TRACCIA_PASSI.md` (che resta il diario passo per passo: le sezioni in fondo sono le più
-recenti). Repository `sporcellifitp/fitp-simulator`, branch **`natpf-simulator`** (unico branch su cui lavorare).
+Scritto dall'agente principale (orchestratore) su richiesta dell'utente: «stoppa i lavori, salva tutto e lascia un
+messaggio per l'altro agente per dirgli come deve continuare». Leggerlo **dopo** `CLAUDE.md` e **prima** di
+`docs/TRACCIA_PASSI.md` (il diario passo per passo; le sezioni in fondo sono le più recenti). Repository
+`sporcellifitp/fitp-simulator`, branch **`natpf-simulator`** (unico branch su cui lavorare e fare push).
+
+## 0. MESSAGGIO PER L'AGENTE CHE RIPRENDE: cosa fare, nell'ordine
+
+Quando sono stati fermati i lavori **nessun agente era in esecuzione**. Tutto è salvato:
+- `natpf-simulator` su GitHub;
+- i due rami di lavoro non ancora uniti, B37 e B42, in `docs/ripresa/rami-b37-b42.bundle`.
+
+1. **Controlla lo stato.** `git fetch origin natpf-simulator`, `git status -sb`, `git log --oneline -5`. Leggi questo
+   file fino in fondo, poi gli ultimi paragrafi di `docs/TRACCIA_PASSI.md`.
+2. **Recupera i rami B37 e B42.** Se non esistono già in locale, segui la §2 (`git fetch` dal bundle e
+   `git worktree add`). In cima a ogni ramo c'è un commit «IN CORSO … NON verificato»: è lavoro a metà, da guardare.
+3. **Finisci B37** (ramo `b37-collaudo-bis`). I quattro punti sono fatti:
+   - fuori e rete annunciati quando la palla tocca davvero terra o rete, anche a fine partita;
+   - segno sopra chi serve e riquadro a terra;
+   - scritta del segnale del momento giusto;
+   - F9 nel programma Windows.
+
+   Mancano le verifiche finali: suite del gioco, del sito e di `natpf-desktop`, build, `npm run audit:legend`, prove
+   nel browser (natpf-rally, natpf-formato-fiera, natpf-fine-partita, natpf-stesso-schermo-b20, natpf-1v1-p2p,
+   natpf-servizio-lancio, natpf-lob-drop, natpf-menu, natpf-telecomando, natpf-tabellone, natpf-fuori-vero). Poi
+   completa `docs/b37/collaudo-13-11-bis.md`. Puoi farlo tu o con un agente (`docs/coda/B37-collaudo-bis.md` più un
+   «RIPRESA»).
+
+   Poi unisci in `natpf-simulator` e pubblica la versione **2026-11-13.10** con la procedura della §6. Guarda tu le
+   schermate di chi serve in `docs/b37/`. All'utente spiega come si attiva:
+   - F9 nel programma apre il pannello dello stand;
+   - il resto non va acceso.
+4. **Finisci B42** (ramo `b42-scambi-lunghi`). La regola, la scritta e le misure sono fatte; `docs/b42/scambi-lunghi.md`
+   è quasi completo, ma manca la parte `TESTO_SUITE` nella §7. Mancano anche la suite completa, la build e le prove nel
+   browser (natpf-rally, natpf-stesso-schermo-b20, natpf-leggenda, natpf-formato-fiera, natpf-1v1-p2p). Togli
+   `natpf-tennis/legend-prova-tmp.mjs`, che è un file temporaneo dell'agente.
+
+   Unisci **dopo** B37. Entrambi toccano `game_engine.js` in punti diversi: rifai `audit:legend` e le prove sul codice
+   unito. Poi la versione successiva. All'utente spiega che lo scambio caldo è acceso di base e si spegne dal pannello
+   dello stand («Scambio che si scalda»).
+5. **Poi la coda della §3, punto per punto.** Ogni blocco ha il compito già scritto in `docs/coda/` oppure un progetto
+   in `docs/b39/` o `docs/b41/`. L'ordine: B43, poi B41 prima parte, poi B38 e B39, poi B41 seconda parte, poi B40, poi
+   B36.
+6. **Regole.**
+   - Al massimo due blocchi di sviluppo in parallelo.
+   - Push solo con i test verdi.
+   - Una versione nuova dopo ogni blocco unito, con zip e installer verificati.
+   - Aggiorna `docs/TRACCIA_PASSI.md` a ogni passo.
+   - Risposte all'utente in italiano, brevi, e sempre con «come si attiva».
+   - Non chiedere segreti.
+   - Niente dati personali nel repository, che è pubblico.
+7. **Quando B37 e B42 sono uniti**, cancella `docs/ripresa/` (il bundle) con un commit: serviva solo alla ripresa.
 
 ## 1. Dove siamo (verificato)
 
@@ -25,35 +73,25 @@ recenti). Repository `sporcellifitp/fitp-simulator`, branch **`natpf-simulator`*
   - Non ancora confermato dall'utente: il primo giorno registrato nella pagina del Worker.
 - **Collaudo dell'utente sulla 13.9**: «direi bene con la precisione». Poi le richieste delle sezioni 3 e 4.
 
-## 2. Agenti al lavoro quando è stato scritto questo file
+## 2. I due rami non ancora uniti (agenti FERMATI alle 16:00 UTC)
 
-Se la sessione si è fermata, i loro run sono morti. **Le worktree e i commit restano.** Per riprendere si rilancia lo
-script del blocco con gli stessi argomenti più `"worktree": "<percorso>"`. Testo del compito: in `docs/coda/`.
+Gli agenti sono stati fermati: i run `wf_63518f90-393` (B37) e `wf_5cbad5b6-b75` (B42) non girano più. Il lavoro rimasto
+non salvato è stato chiuso in un commit «IN CORSO … NON verificato» in cima a ogni ramo.
 
-| Blocco | Run | Ramo | Base | Worktree | A che punto era |
+| Blocco | Ramo | Base | Ultimo commit | Worktree (se il contenitore è lo stesso) | Stato |
 |---|---|---|---|---|---|
-| **B37** collaudo, seconda parte | `wf_63518f90-393` | `b37-collaudo-bis` | `1043c85` | `.claude/worktrees/wf_63518f90-393-1` | Fatti (`bb05e63`): punto 1 (fuori e rete annunciati solo quando la palla tocca terra o la rete), punto 4 (F9 nel programma Windows), punti 2 e 3 avviati (gemma sopra chi serve, riquadro a terra, scritta del segnale del momento giusto), documento in bozza. Mancano rifiniture 2–3, verifiche finali e documento. Compito: `docs/coda/B37-collaudo-bis.md` |
-| **B42** scambi lunghi | `wf_5cbad5b6-b75` | `b42-scambi-lunghi` | `fe6f774` | `.claude/worktrees/wf_5cbad5b6-b75-1` | Fatti (`f17f016`): banco e misure prima, regola nuova (scambio caldo di base, dal 20° colpo, per tutti e due i lati e la CPU). Mancano la scritta piccola «Scambio caldo · colpo N», le misure dopo (audit:legend, impronte, b25, evento-bambini, cpu-pressione), la suite e il documento `docs/b42/scambi-lunghi.md`. Il compito è nell'`args.task` del run (vedi il journal) |
+| **B37** collaudo, seconda parte | `b37-collaudo-bis` | `1043c85` | `2bfe09a` (9 commit) | `.claude/worktrees/wf_63518f90-393-1` | Punti 1–4 fatti. Schermate di chi serve (Classici, Lob & Drop, stesso schermo, area stretta) in `docs/b37/`. Impronte e Leggenda uguali alla base su due serie di semi. Nel commit «IN CORSO»: documento aggiornato, misure `docs/b37/misure/fuori-dopo-2.json`, prova `natpf-fuori-vero` ritoccata. Mancano le verifiche finali e il documento finale. |
+| **B42** scambi lunghi | `b42-scambi-lunghi` | `fe6f774` | `ae76bdf` (4 commit) | `.claude/worktrees/wf_5cbad5b6-b75-1` | Fatti la regola (scambio caldo di base dal 20° colpo, per tutti e due i lati e la CPU) e la scritta piccola «Scambio caldo · colpo N». Misure dopo fatte, in `natpf-tennis/scripts/audit/b42/risultati/`: legend prima/dopo, cpu-pressione, evento-bambini, b25. Documento `docs/b42/scambi-lunghi.md` quasi completo (manca `TESTO_SUITE`). Mancano suite, build e prove nel browser; da togliere `natpf-tennis/legend-prova-tmp.mjs`. |
 
-**Aggiornamento delle 15:55 UTC**:
-- B37 è a `bdb56cb`, con 8 commit: punti 1–4 fatti, schermate di chi serve (Classici, Lob & Drop, stesso schermo),
-  scritta del segnale in alto al centro, impronte e Leggenda uguali alla base su due serie di semi. Mancano le
-  verifiche finali e il documento.
-- B42 è a `e5ab4da`, con 3 commit: banco e misure prima, regola nuova, scritta piccola «Scambio caldo · colpo N» e
-  registro. Mancano le misure dopo (audit:legend, impronte, b25, evento-bambini, cpu-pressione), la suite e il
-  documento.
-
-**Se le worktree non ci sono più** (contenitore nuovo), i rami B37 e B42 sono salvati in
-`docs/ripresa/rami-b37-b42.bundle`, verificato con `git bundle verify`. Il lavoro non ancora salvato in commit sta in
-`docs/ripresa/patch/<ramo>/`: `lavoro-non-salvato.diff` e `file-nuovi-non-salvati.tar.gz`. Per ricostruire:
+**Se le worktree non ci sono più** (contenitore nuovo), i due rami sono interi nel bundle, verificato con
+`git bundle verify`:
 ```sh
 git fetch docs/ripresa/rami-b37-b42.bundle b37-collaudo-bis:b37-collaudo-bis b42-scambi-lunghi:b42-scambi-lunghi
 git worktree add .claude/worktrees/b37 b37-collaudo-bis
-git -C .claude/worktrees/b37 apply "$PWD/docs/ripresa/patch/b37-collaudo-bis/lavoro-non-salvato.diff"
-tar xzf docs/ripresa/patch/b37-collaudo-bis/file-nuovi-non-salvati.tar.gz -C .claude/worktrees/b37
-# lo stesso per b42-scambi-lunghi; poi blocco-singolo con "worktree" = la cartella nuova e un task «RIPRESA»
+git worktree add .claude/worktrees/b42 b42-scambi-lunghi
+# nelle worktree: (cd natpf-tennis && npm ci), poi (cd natpf-desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci) se serve
 ```
-Il lavoro non salvato è una fotografia fatta mentre gli agenti lavoravano: va ricontrollato. Questi file servono solo
+Il bundle richiede i commit `1043c85` e `fe6f774`, che stanno nella storia di `natpf-simulator`. Questi file servono solo
 alla ripresa: si tolgono quando B37 e B42 sono uniti.
 
 **Lo script dei blocchi**:

@@ -6,9 +6,9 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## >>> RIPRESA DEL 13/11/2026 (15:45 UTC): leggere PRIMA `docs/RIPRESA_AGENTE.md` <<<
+## >>> LAVORI FERMATI DALL'UTENTE IL 13/11/2026 ALLE 16:00 UTC: leggere PRIMA `docs/RIPRESA_AGENTE.md` (§0 = cosa fare) <<<
 
-Stato, agenti in corso (B37, B42: worktree e commit salvati), coda dei lavori (B43 → B41 parte 1 → B38+B39 → B41 parte 2
+Stato, rami non ancora uniti (B37 a `2bfe09a`, B42 a `ae76bdf`, agenti fermati, rami interi in `docs/ripresa/rami-b37-b42.bundle`), coda dei lavori (B43 → B41 parte 1 → B38+B39 → B41 parte 2
 → B40 → B36), decisioni dell'utente e procedura di rilascio stanno lì. Compiti pronti in `docs/coda/`, analisi in
 `docs/b36/analisi/`, `docs/b39/controllo-solo-mouse/`, `docs/b41/`. Questo diario prosegue in fondo (sezioni più recenti).
 
@@ -636,3 +636,9 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
 - Pacchetti (installer su R2 + zip Cloudflare) dopo ogni versione, con «come si attiva» per ogni opzione nuova.
 - Se un agente si ferma per il limite d'uso: le modifiche restano nella sua worktree (`git worktree list`); riprenderlo
   con un messaggio, non rifare da capo.
+
+**13/11, 16:00 UTC · LAVORI FERMATI dall'utente** («stoppa i lavori, salva tutto e lascia un messaggio per l'altro agente»).
+Fermati i run di B37 (`wf_63518f90-393`) e B42 (`wf_5cbad5b6-b75`); il loro lavoro non salvato chiuso in un commit
+«IN CORSO … NON verificato» (B37 `2bfe09a`, B42 `ae76bdf`); i due rami salvati in `docs/ripresa/rami-b37-b42.bundle`.
+Nessun agente in esecuzione. Come continuare: `docs/RIPRESA_AGENTE.md` §0.
+
