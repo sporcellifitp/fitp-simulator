@@ -397,9 +397,13 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
 
 **In corso dalle 01:45 UTC del 13/11 (due agenti, script `blocco-singolo.js` con `args`):**
 - [~] **B31 tappa 3.1 gioco a rete** — run `wf_7447d3ae-089`, ramo `b31-gioco-a-rete`, base `1906562`, documento `docs/b31/gioco-a-rete.md`.
-- [~] **B33 tappa 3.3 fine partita e classifica delle partite** — run `wf_a87efb2f-d7e`, ramo `b33-fine-partita`, base
-      `1906562`, documento `docs/b33/fine-partita.md`. (B33 prima di B32 perché B31 e B32 toccano tutti e due il movimento:
-      in parallelo darebbero conflitti.)
+- [x] **B33** finito (ramo `b33-fine-partita`, `3ac03d0`), unito: **versione 2026-11-13.2** (controllo rapido gioco
+      1385/1385, sito 226/226, Windows 42/42, build ok; zip 23.836.415 B, sha256
+      `01232d0ba08b7c06e04c3fbd776584b7e46b492f13d075c9f34c752bb8e0014a`; installer: `scratchpad/v1113b/attesa.sh`).
+      **Da portare al revisore finale / all'utente**: «colpo più veloce» 221–240 km/h (numero del popup del colpo: poco
+      credibile, va controllato da dove viene); in classifica una sconfitta a Leggenda (286 punti) sta sopra le vittorie
+      (punteggio = % punti × valore del livello: decisione da chiedere all'utente se vuole premiare la vittoria); nella
+      sfida tra due computer il Player 2 non vede ace e vincenti.
 - [ ] Poi **B32 tappa 3.2 movimento con accelerazione e colpi in corsa** (dopo l'unione di B31), poi **revisore
       indipendente unico** su B23, T2.3, B31, B32, B33 e correzioni, versione finale con prove complete.
 Ripresa se si fermano: `Workflow({scriptPath: '…/workflows/scripts/blocco-singolo.js', args: {stessi args + "worktree": "<percorso della worktree già creata>"}})`
