@@ -12,7 +12,7 @@ import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js'
 import { strokeShape } from '@natpf/tennis/stroke-shape.js';
 import { normalizeSample } from '@natpf/tennis/motion-sign.js';
 import { natpfSwingToEngine, NORMAL_SHOTS, habitualRise, createRiseModel, createTypicalModel, powerRefs, profileTypical, teachesNormal } from '../src/natpf/natpf_phone_racket.js';
-import { createTrialLearner, phoneThresholds } from '../src/natpf/natpf_trial_learn.js';
+import { createTrialLearner, phoneThresholds, signedSwing } from '../src/natpf/natpf_trial_learn.js';
 import { trialThresholds } from '@natpf/tennis/phone-screen.js';
 import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile, headBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
 
@@ -100,7 +100,7 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   const skip = ({ tremor = 0 } = {}) => { cal.start({ quick: true, hand }); rest(800, tremor); const p = cal.skip(); ready = true; rest(600, tremor); return p; };
   // sul computer: come NatpfPhoneRacket._onSwing, con i riferimenti che si adattano ai colpi della partita
   // (learned: profilo imparato dagli scambi di prova, B28: sul computer sostituisce quello semplice del telefono)
-  let learned = null, trial = null;
+  let learned = null, trial = null, phoneSign = 1;
   const learner = createTrialLearner();
   const prof = () => learned || det.profile;
   const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = makeAim(), rises = createRiseModel(), typical = createTypicalModel();
@@ -124,7 +124,9 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     // scambi di prova (B28): il verso vota prima della lettura, poi il colpo si legge con il verso corretto
     const probe = learn && trial && trial.want ? trial.ball : null;
     if (probe != null) learner.vote({ ball: probe, want: trial.want, s });
-    if (learner.sign === -1) s = { ...s, dir: -s.dir, ...(Number.isFinite(s.aim) ? { aim: -s.aim } : {}), ...(Number.isFinite(s.twist) ? { twist: -s.twist } : {}) };
+    s = signedSwing(s, learner.sign);
+    // come NatpfPhoneRacket._onSwing (B35a): il telefono ha girato da sé verso e piatto, i riferimenti per verso ripartono
+    const ps = s.absSign === -1 ? -1 : 1; if (ps !== phoneSign){ phoneSign = ps; aims.reset(); rises.reset(); faces.reset(); }
     const p = prof(), { ref, rawRef } = powerRefs(p, typical.value, { seen: typical.seen, peak: s.peak });
     const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, rawRef, riseRef: habitual ? habitualRise(p, s.dir, rises) : null, own: typeof own === 'function' ? own(s, habitual ? habitualRise(p, s.dir, rises) : null) : own, aimFull });
     // come NatpfPhoneRacket._onSwing: colpo tipico di prima di questo colpo (il motore decide così se il gesto è debole)
@@ -151,7 +153,7 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     const level = learner.level(), L = learner.profile(det.profile), counts = learner.counts(hand);
     if (L){
       learned = L;
-      aims.reset(); for (const dir of [1, -1]) aims.seed(dir, L.faceRef?.[dir]?.heading);
+      aims.reset(); for (const dir of [1, -1]) aims.seed(dir, L.faceRef?.[dir]?.heading, { trusted: true });
       rises.reset(); faces.reset(); lifts.model = null; heads.model = null;
       // soglie al telefono (messaggio pf, pagina del telefono dal B28)
       const th = trialThresholds(phoneThresholds(L, L.noise) || {});

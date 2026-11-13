@@ -106,6 +106,20 @@ export function trialDone({ balls = 0, counts = null, t = 0 } = {}){
   return null;
 }
 
+// Il colpo come lo legge il computer con il segno degli scambi di prova (sign −1: sensori con l'accelerazione al contrario,
+// il verso del colpo si gira). B35a (collaudo del 13/11, «volevo incrociare e usciva lungolinea, nel dritto e nel
+// rovescio»): l'alto della posa di riposo del telefono è al contrario anche per la direzione del piatto (rotazione attorno
+// alla verticale, face-tracker.js): prima si girava solo il verso e la mira restava specchiata, l'incrociato voluto diventava
+// lungolinea e viceversa, per destri e mancini. Ora si girano insieme verso, mira del gesto, rotazione del polso, direzione
+// del piatto (heading) e piatto rispetto alla posa (face.yaw, face.aim)
+export function signedSwing(s, sign = 1){
+  if (sign !== -1 || !s) return s;
+  const neg = v => (Number.isFinite(v) ? -v : v);
+  return { ...s, dir: -s.dir, ...(Number.isFinite(s.aim) ? { aim: -s.aim } : {}), ...(Number.isFinite(s.twist) ? { twist: -s.twist } : {}),
+    ...(Number.isFinite(s.heading) ? { heading: -s.heading } : {}),
+    ...(s.face ? { face: { ...s.face, yaw: neg(s.face.yaw), aim: s.face.aim == null ? s.face.aim : neg(s.face.aim) } } : {}) };
+}
+
 export function createTrialLearner(){
   // un campione per palla: { ball, raw (verso grezzo del telefono), want (verso atteso dal lato della palla), peak, rawPeak,
   // rise, heading, head, normal }
@@ -185,7 +199,8 @@ export function createTrialLearner(){
       for (const d of [1, -1]){
         const r = by[d].map(x => x.rise).filter(fin); if (r.length) rises[d] = +median(r).toFixed(3);
         const h = by[d].map(x => x.head).filter(fin); if (h.length) heads[d] = +median(h).toFixed(3);
-        const f = by[d].map(x => x.heading).filter(fin); if (f.length) faceRef[d] = { heading: +circMedian(f).toFixed(1) };
+        // B35a: con il segno girato anche la direzione del piatto è al contrario (signedSwing)
+        const f = by[d].map(x => x.heading).filter(fin).map(h => sign*h); if (f.length) faceRef[d] = { heading: +circMedian(f).toFixed(1) };
       }
       if (Object.keys(rises).length) out.rises = rises; else delete out.rises;
       if (Object.keys(heads).length) out.heads = heads; else delete out.heads;

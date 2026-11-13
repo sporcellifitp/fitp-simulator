@@ -31,7 +31,7 @@ import { strokeIntent, shapeDistinct, strokePower, INTENT } from './natpf_stroke
 import { aimFullNow } from './natpf_aim_level.js';
 import { weakSwing, livePlan, planOf } from './natpf_impact.js';
 import { SMASH_FROM } from './natpf_stroke_outcome.js';
-import { createTrialLearner, readCalMode, phoneThresholds, TRIAL } from './natpf_trial_learn.js';
+import { createTrialLearner, readCalMode, phoneThresholds, TRIAL, signedSwing } from './natpf_trial_learn.js';
 // tempo concesso al telefono per tornare «pronto» dopo il profilo da capo chiesto dal gioco (freshPlayer): tre richieste
 // del profilo semplice a 700 ms l'una. Oltre, vale la pausa «telefono non pronto» di sempre
 export const RESET_GRACE_MS = 2500;
@@ -762,7 +762,11 @@ export class NatpfPhoneRacket {
     // palla), non quello deciso al lancio: chi gioca intanto si è mosso
     const T = this.trial, probe = T && !T.keep && T.want && this._incoming() ? T.ball : null;
     if (probe != null) this.learner.vote({ ball: probe, want: ballSideNow(this.engine, this.role, T.at), s });
-    if (this.learner.sign === -1) s = { ...s, dir: -s.dir, ...(Number.isFinite(s.aim) ? { aim: -s.aim } : {}), ...(Number.isFinite(s.twist) ? { twist: -s.twist } : {}) };
+    s = signedSwing(s, this.learner.sign);   // B35a: con il verso anche la direzione del piatto
+    // B35a: il telefono ha girato da sé verso e piatto (voto del rilevatore, profilo semplice): i riferimenti per verso
+    // imparati prima stanno dalla parte sbagliata e ripartono, come dopo gli scambi di prova con il segno girato
+    const phoneSign = s.absSign === -1 ? -1 : 1;
+    if (phoneSign !== (this.phoneSign ?? 1)){ this.phoneSign = phoneSign; this.aimModel.reset(); this.riseModel.reset(); this.faceModel.reset(); }
     // forza e profondità voluta rispetto al proprio colpo tipico imparato giocando (richiesta del 23/10, C4): un colpo più
     // forte del solito va più in fondo, uno più morbido più corto. Prima il riferimento era il gesto della calibrazione,
     // spesso un colpetto (il 23/10 143 °/s): la parte relativa della forza era sempre piena e la profondità non seguiva
@@ -883,7 +887,8 @@ export class NatpfPhoneRacket {
     if (learned){
       this.profile = learned; this.simple = false; this.madeBy = 'prova'; this.gestureAt = null;
       // i riferimenti per verso hanno visto i primi colpi con il verso di prima della correzione: da capo, dal profilo
-      this.aimModel.reset(); for (const dir of [1, -1]) this.aimModel.seed(dir, learned.faceRef?.[dir]?.heading);
+      // B35a: seme dai colpi veri dello scambio (trusted): una mira tenuta non sposta il centro (natpf_gestures.AIM)
+      this.aimModel.reset(); for (const dir of [1, -1]) this.aimModel.seed(dir, learned.faceRef?.[dir]?.heading, { trusted: true });
       this.riseModel.reset(); this.faceModel.reset();
       this.liftModel.reset(this.liftBaseline); this.headModel.reset(headBaselineFromProfile(learned, this.hand) ?? 0);
       this.shapeModel.seed(profileShapePower(learned));

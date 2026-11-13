@@ -111,7 +111,9 @@ export const got = r => (!r ? 'perso' : r.netFault ? 'rete' : r.fuori ? 'fuori' 
 
 // Una partita di prova: telefono calibrato, 8 colpi normali, poi per ogni lato e voluto n colpi (alternati come in uno
 // scambio: incrociato, centro, lungolinea, …) che imparano come in partita. noise: rumore della persona
-export function match({ cal = 'prova', hand = 'right', seed = 1, n = 4, model = 'naturale', noise = 'buono', difficulty = 'pro', run = 0, lateral = .6 } = {}){
+// warm: colpi normali prima delle prove (con «Salta» e i sensori al contrario il verso si gira dopo 4–5 colpi e il centro
+// della mira riparte: servono altri 3 colpi per verso)
+export function match({ cal = 'prova', hand = 'right', seed = 1, n = 4, model = 'naturale', noise = 'buono', difficulty = 'pro', run = 0, lateral = .6, warm = 8 } = {}){
   const p = CALS[cal].make(seed, hand); p.hand = hand;
   const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
   const R = rng(seed*977 + 13), M = MODELS[model], N = NOISE[noise], rows = [];
@@ -126,7 +128,7 @@ export function match({ cal = 'prova', hand = 'right', seed = 1, n = 4, model = 
     if (learnOnly) return;
     rows.push({ side, want, got: got(o), read: r.ev.side, x: o?.x ?? null, aim: o?.aim ?? null, face: o?.face ?? null, t: o?.t ?? null, u: +u.toFixed(2), turn: +turn.toFixed(1), q: o?.q ?? null, fuori: !!o?.fuori, long: !!o?.long, wide: !!o?.side, net: !!o?.netFault });
   };
-  for (let i = 0; i < 8; i++) one(i % 2 ? 'backhand' : 'forehand', 'center', true);
+  for (let i = 0; i < warm; i++) one(i % 2 ? 'backhand' : 'forehand', 'center', true);
   for (let i = 0; i < n; i++) for (const side of ['forehand', 'backhand']) for (const want of WANTS) one(side, want);
   return { cal, hand, seed, model, noise, sign: p.learner?.sign ?? 1, rows };
 }

@@ -107,8 +107,9 @@ test('correzione del verso: se il verso letto dal telefono non concorda con il l
   learn2(B, [[1, S(-1, 720, 24)], [-1, S(1, 610, -11)]], 3);
   assert.equal(B.sign, -1); assert.equal(B.flips, 1);
   // i colpi di prima della correzione finiscono nel verso giusto: palla a destra = +1 con il suo picco e il suo centro
+  // (B35a: con il segno girato anche la direzione del piatto è al contrario: il centro del verso +1 è −22°, non +22°)
   const p = B.profile(SIMPLE);
-  assert.deepEqual(p.refs, { 1: 710, '-1': 605 }); assert.equal(p.faceRef[1].heading, 22); assert.equal(p.faceRef[-1].heading, -13); assert.equal(p.trialSign, -1);
+  assert.deepEqual(p.refs, { 1: 710, '-1': 605 }); assert.equal(p.faceRef[1].heading, -22); assert.equal(p.faceRef[-1].heading, 13); assert.equal(p.trialSign, -1);
   assert.deepEqual(B.counts('right'), { 1: 2, '-1': 2, forehand: 2, backhand: 2, total: 4 });
   // chi tira sempre lo stesso gesto (dritto su tutte le palle) non fa girare niente: metà d'accordo, metà no
   const C = createTrialLearner(); learn(C, [[1, S(1, 700)], [-1, S(1, 700)], [1, S(1, 700)], [-1, S(1, 700)]]);
@@ -323,7 +324,9 @@ test('verso al contrario e mancini: il segno si gira dai colpi di prova, i colpi
   playTrial(w, (id, n, want) => stroke({ dir: -want, peak: want > 0 ? 700 : 520, heading: want > 0 ? 20 : -14 }));
   assert.equal(P.dirSign, -1, 'segno girato'); assert.equal(P.profile.trialSign, -1);
   assert.deepEqual(sides.slice(1), ['backhand', 'forehand', 'backhand'], 'dal secondo colpo il lato è quello della palla (il primo, da solo, non basta a decidere)');
-  assert.deepEqual(P.profile.refs, { 1: 700, '-1': 520 }, 'i colpi di prima della correzione stanno nel verso giusto'); assert.equal(P.aimModel.center(1), 20); assert.equal(P.aimModel.center(-1), -14);
+  // B35a: con il segno girato anche la direzione del piatto è al contrario (il telefono manda +20°: è −20°)
+  assert.deepEqual(P.profile.refs, { 1: 700, '-1': 520 }, 'i colpi di prima della correzione stanno nel verso giusto'); assert.equal(P.aimModel.center(1), -20); assert.equal(P.aimModel.center(-1), 14);
+  assert.ok(P.aimModel.trusted(1) && P.aimModel.trusted(-1), 'centro dai colpi veri degli scambi di prova');
   // in partita: un gesto che il telefono chiama −1 è un dritto del destro
   sides.length = 0; E.phase = 'RALLY'; E.ball.inPlay = true; E.ball.lastHitter = 'opponent';
   P._onSwing(stroke({ dir: -1 })); assert.equal(sides.at(-1), 'forehand');
