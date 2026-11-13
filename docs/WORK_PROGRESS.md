@@ -1639,7 +1639,8 @@ Ramo `b37-collaudo-bis` (base `1043c85`), commit da `66fd170` al commit di chius
   `shown`, `phoneQuality`), `src/game_engine.js` (`settle` all'inizio di `_awardPoint` e con la scritta del punto
   dall'host; altezza della scritta «Al servizio»), `natpf_gesture_hud.js`, `natpf_ui.js`, `natpf_phone_racket.js`,
   `site/js/tennis/phone-screen.js` e `racchetta.js` (telefono: `wait` al colpo, `late` con la palla a terra),
-  `natpf_serve_marker.js` (nuovo: gemma e riquadro di servizio), `natpf_split.js`, `natpf_timing_cue.js` e
+  `natpf_serve_marker.js` (nuovo: gemma e riquadro di servizio; la gemma tolta nel B37.1, sotto), `natpf_split.js`,
+  `natpf_timing_cue.js` e
   `natpf-hud.css` (scritta del segnale), `natpf_onboarding.js`, `natpf_new_player.js`, `natpf_kiosk.js` e
   `natpf-desktop/src/` (F9, voce del menu, canale `natpf:staff-panel`, ponte del preload v5), testi con Ctrl+Maiusc+K
   (gioco, telecomando, guide, LEGGIMI); test `natpf-b37-collaudo.test.mjs` (24); prove nel browser nuove
@@ -1671,3 +1672,40 @@ Ramo `b37-collaudo-bis` (base `1043c85`), commit da `66fd170` al commit di chius
   vere; stesso schermo e sfida tra due computer con palle mandate fuori nel browser (solo test di unità); esercizio
   «Servizio» dell'allenamento nel browser; costo di gemma e riquadro con una scheda grafica vera e su Android. Da
   decidere con l'utente: la scritta grande del punto copre il punto di caduta nella metà lontana (vedi il documento).
+
+## B37.1 · Chi serve: via la gemma, torna la casella gialla «Al servizio» (13/11 sera) · [x] verificato sul ramo, da unire
+
+Ramo `b37-collaudo-bis`, sopra la chiusura del B37 (`62f4c2a`). Riscontro dell'utente sulla versione con il B37: «Il
+triangolino in alto è orribile, meglio la casella tonda che usavi prima "al servizio"». Documento:
+`docs/b37/collaudo-13-11-bis.md`, punto 2.
+- File: `natpf-tennis/src/natpf/natpf_serve_marker.js` (gemma tolta: niente mesh sopra la testa, niente ingrandimento per
+  camera; resta il riquadro, 5 mesh; `measureTop` conta solo le mesh visibili, con il vertice più alto vero delle mesh
+  rigide vicine alla cima, e dice dove sta in profondità; `tagPoint(actor)`: il fondo della casella, al centro di lato,
+  `tagGap` 0,12 m sopra la parte più alta e alla sua profondità; cima e profondità al massimo per 1,2 s di gioco, poi
+  ferme), `natpf-hud.css` (casella del B35b: 14 px, 21 px a 1920×1080, al più 24; margini e bordo in em),
+  `game_engine.js` (`_updateProjectedHUD` con `tagPoint`), `natpf_split.js` (le due caselle dello stesso schermo con lo
+  stesso punto), `natpf_ui.js` (commento); test
+  `natpf-b37-collaudo.test.mjs` (punto 2 riscritto: niente gemma; punto della casella; personaggi veri Classici e
+  Lob & Drop 3D, anche a schermo con le camere del gioco); prova nel browser `natpf-chi-serve` riscritta (aspetto e misura
+  della casella, sopra la sagoma vera di chi batte, dentro lo schermo o la metà, lontana dal tabellone; anche computer
+  del Player 2, prima persona, 1280×720 e area 720×720); documento del B37 (punto 2, schermate nuove), `PROJECT_MEMORY`.
+- Trovato misurando (schermate e test con i personaggi veri): (1) la cima del B37 (`Box3.setFromObject` su tutta la
+  radice) contava i pezzi nascosti: con Lob & Drop in 3D 2,18–2,3 m invece di ~1,8–1,9 (testa di Lob costruita nel
+  codice, nascosta): la casella sarebbe stata mezzo metro sopra la testa; (2) la racchetta alzata di Lob & Drop sta
+  0,5–0,7 m davanti, verso la rete, e oscilla; dalla camera dietro chi batte una cosa più avanti sale sullo schermo:
+  toccava la casella messa sopra il centro (0 px), anche con il centro del riquadro del telaio; (3) in attesa del servizio
+  la testa dei Classici dondola fino a 14 cm: con 0,2 m di spazio la casella stava 33 px sopra i capelli a 1920×1080,
+  spazio portato a 0,12 m. Sei giri di `natpf-chi-serve` per arrivarci (i primi cinque fermati a metà o superati ma con
+  le schermate da correggere; log nella cartella di lavoro dell'agente).
+- Verifiche sul codice finale: gioco 1465/1465 (anche prima dell'ultimo ritocco); sito 226/226; build riuscita;
+  `natpf-b37-collaudo` 25/25. Nel browser: `natpf-chi-serve` 64/64 (giro finale; schermate guardate: contro la CPU con
+  Classici e Lob & Drop, batte chi gioca e batte la CPU, stesso schermo nelle due metà, computer del Player 2, prima
+  persona, 1920×1080, 1280×720 e area 720×720; casella da 1 a 26 px sopra la sagoma vera, mai sotto; costo del riquadro
+  3,90 → 4,03 ms), `natpf-stesso-schermo-b20` 52/52, `natpf-servizio-lancio` 12/12, `natpf-tabellone` 42/42 (tutte e tre
+  due volte, prima e dopo l'ultimo ritocco), `natpf-lob-drop` con `SERVIZIO=1` 13/13, `natpf-lob-drop` intera 131/136
+  (3 «corde», difetto noto dal B32; 2 fotogrammi al secondo con la macchina carica, rifatti da soli con `COSTO=1`: 15/15).
+  Le partite a sorteggi fissi hanno le impronte del B37 (`7bf8d71a`, `daab2297`, `7031e211`) e gli stessi numeri del rig.
+- Non verificato: ledwall vero (la misura che cresce è provata nel browser a 1920×1080, 1280×720 e in un'area 720×720),
+  telefono vero, programma Windows vero, persone vere; la casella nell'esercizio «Servizio» dell'allenamento nel browser;
+  la sfida tra due computer con la rete vera (provato il computer del Player 2 con il motore nel ruolo del Player 2,
+  senza rete). Programma Windows e server LAN non rifatti (non toccati). Versione e pacchetti non toccati.

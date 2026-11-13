@@ -848,11 +848,26 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   prevista fuori che cade dentro: al primo rimbalzo l'esito in campo (`_settleIn`). Chi aggiunge un segno dell'esito al
   colpo lo fa passare da `shot.shown(q)` / `shot.phoneQuality(e, q)`. Allenamento, minigiochi e scambi di prova restano
   con l'esito subito (fa parte della lezione).
-- **Chi serve**: gemma color accento sopra la testa di chi batte e riquadro di servizio colorato a terra
-  (`natpf_serve_marker.js`, oggetti della scena: si vedono nelle due metà dello stesso schermo e sui due computer).
+- **Chi serve** (B37.1, dopo il riscontro dell'utente del 13/11 sera: «il triangolino in alto è orribile, meglio la
+  casella tonda che usavi prima "al servizio"»): **niente gemma né altri segni 3D sopra la testa**. Sopra chi batte c'è
+  la casella gialla tonda «Al servizio» del B35b (fondo `--hud-ball`, scritta `--hud-navy` in corsivo maiuscolo, bordo
+  scuro di 2 px, angoli tondi di `natpf-round.css`): 14 px fino a 1280×720 e nelle aree strette, più grande sugli schermi
+  grandi (`clamp(14px, min(1.09cqw, 1.94cqh), 24px)` in `natpf-hud.css`, margini e bordo in em: 21 px a 1920×1080). Il
+  suo fondo è un punto del mondo (`natpf_serve_marker.tagPoint(actor)`, lo stesso per tutte le camere: motore, due metà
+  dello stesso schermo, computer del Player 2): al centro di chi batte di lato, `SERVE_MARK.tagGap` (0,12 m) sopra la sua
+  parte più alta e **alla sua profondità** (`ahead`: con Lob & Drop la racchetta alzata sta 0,3–0,8 m davanti, verso la
+  rete, e dalla camera alta dietro chi batte una cosa più avanti sale sullo schermo: con il punto sopra il centro la
+  racchetta toccava la casella). La cima conta **solo le mesh visibili** (`measureTop`: con Lob & Drop in 3D il tennista e
+  la mascotte costruita nel codice restano nascosti nella radice e sono più alti: contandoli la casella stava mezzo metro
+  sopra la testa); per le mesh rigide vicine alla cima il vertice più alto vero (il riquadro di un telaio inclinato ha il
+  centro più indietro del bordo in alto), per quelle con la pelle il loro riquadro nella posa di adesso (~3 ms, solo la
+  prima volta). Si misura quando cambiano modello, aspetto o modello 3D, poi per `SERVE_MARK.settle` (1,2 s di gioco: un
+  giro della racchetta che oscilla e della testa che dondola, fino a 14 cm) si tengono al massimo, ognuna per conto suo,
+  cima e profondità delle mesh rigide con le matrici dell'ultimo disegno; poi resta ferma (la casella non sobbalza).
+  In prima persona niente casella sopra di sé (come nel B35b). A terra resta il riquadro di servizio colorato
+  (`natpf_serve_marker.js`, 5 mesh senza luci né ombre, nella scena: si vede nelle due metà e sui due computer):
   `serviceBox(server, deuceSide)` deve restare il riquadro dove il motore manda davvero il servizio (`_executeServeHit`,
-  provato con 24 servizi veri); la gemma si ingrandisce per ogni camera in `onBeforeRender` (lontana fino a ×2,6). La
-  scritta «Al servizio» resta, piccola, sopra la gemma (`tagHeight`).
+  provato con 24 servizi veri).
 - **Segnale del momento giusto spiegato**: le prime `CUE_HINT.balls` (3) palle di ogni partita in cui l'anello compare,
   scritta in alto al centro «Colpisci quando il cerchio diventa verde» (stesse parole nella guida e nelle Opzioni); si
   rivede con una partita nuova e con «Nuovo giocatore» (`resetHint`). Quando è acceso non cambia.
@@ -864,7 +879,8 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   pagina): ogni oggetto three.js creato prima dei personaggi consuma sorteggi per il proprio nome (UUID) e cambia il
   primo battito delle palpebre dei personaggi (`player_facial_fx`: `blinkTimer = 2.6 + Math.random()*1.6` quando nasce il
   personaggio), che sorteggia ancora durante la partita: la sequenza si sposta e le partite a seme fisso cambiano anche
-  se il gioco non cambia (scoperto chiudendo il B37: la gemma e il riquadro di chi serve sono 9 oggetti nuovi). Nelle
+  se il gioco non cambia (scoperto chiudendo il B37: la gemma e il riquadro di chi serve erano 9 oggetti nuovi; dal B37.1
+  la gemma non c'è più e gli oggetti nuovi sono meno: la prova regge lo stesso). Nelle
   prove si mettono le palpebre uguali prima del seme (`play()` di `natpf-lob-drop`), come il disegno «a vuoto» dello
   stesso schermo.
 

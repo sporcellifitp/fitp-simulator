@@ -1,6 +1,7 @@
 // B37 (collaudo dell'utente del 13/11, seconda parte):
 //   1) fuori e punto solo quando la palla esce davvero (scritta, anello, telefono e punto all'atterraggio vero);
-//   2) chi deve servire con un elemento di gioco (segno sopra il personaggio e riquadro di servizio a terra);
+//   2) chi deve servire con un elemento di gioco: riquadro di servizio a terra e casella gialla «Al servizio» appena sopra
+//      la testa (B37.1: la gemma 3D sopra il personaggio tolta dopo il collaudo dell'utente del 13/11 sera);
 //   3) il segnale del momento giusto spiegato le prime volte («Colpisci quando il cerchio diventa verde»);
 //   4) pannello dello stand dal programma Windows (F9 e voce del menu, ponte del preload).
 import test from 'node:test';
@@ -273,9 +274,15 @@ test('punto 1 · motore: sul punto della partita «Fuori», punto e fine partita
   });
 });
 
-// ---------- 2 · chi deve servire: gemma sopra la testa e riquadro di servizio a terra ----------
-import { NatpfServeMarker, SERVE_MARK, serviceBox, serverOf, serveMarkOn, gemOn, headTop, gemBase, serveTagHeight, gemScale } from '../src/natpf/natpf_serve_marker.js';
-import { serveTagPoint } from '../src/natpf/natpf_split.js';
+// ---------- 2 · chi deve servire: riquadro di servizio a terra e casella «Al servizio» sopra la testa ----------
+// B37.1 (13/11 sera, l'utente: «il triangolino in alto è orribile, meglio la casella tonda che usavi prima "al servizio"»):
+// niente gemma 3D sopra chi batte; la casella gialla del B35b sta appena sopra la testa misurata, il riquadro resta
+import * as SM from '../src/natpf/natpf_serve_marker.js';
+import { NatpfServeMarker, SERVE_MARK, serviceBox, serverOf, serveMarkOn, headTop, serveTagHeight } from '../src/natpf/natpf_serve_marker.js';
+import { serveTagPoint, splitCameraPose } from '../src/natpf/natpf_split.js';
+import { mem, engineOf, seen, useModels } from './mascotte-campo.mjs';
+import { setCast, resetCast } from '../src/natpf/natpf_personaggi.js';
+import { setMascotMode, resetMascotModels } from '../src/natpf/natpf_mascot_models.js';
 
 test('punto 2 · riquadro di servizio: in diagonale, nella metà di chi riceve, come i servizi veri del motore', async () => {
   // regola pura
@@ -313,82 +320,156 @@ function markerEngine({ server = 'player', phase = 'SERVE_STANCE', deuce = true 
     player: mk(1.35, 12, 1), opponent: mk(-2.35, -12, -1), natpfUi: { lobby: { visible: false } } };
   return { e, added, M: new NatpfServeMarker(e) };
 }
-test('punto 2 · gemma sopra chi batte e riquadro solo finché il servizio non parte (chi gioca o la CPU)', () => {
+test('punto 2 · B37.1: niente gemma, solo il riquadro, finché il servizio non parte (chi gioca o la CPU)', () => {
   const { e, added, M } = markerEngine();
-  assert.equal(added.length, 2, 'due oggetti nella scena: gemma e riquadro');
+  assert.equal(added.length, 1, 'un solo oggetto nella scena: il riquadro');
+  let cones = 0; added[0].traverse(o => { if (o.geometry?.type === 'ConeGeometry') cones++; });
+  assert.equal(cones, 0, 'nessuna piramide');
+  assert.equal(M.gem, undefined); assert.equal(SERVE_MARK.gem, undefined);
+  for (const k of ['gemOn', 'gemBase', 'gemScale']) assert.equal(SM[k], undefined, `${k}: niente misura per camera`);
   M.update(1/60);
-  assert.equal(M.gem.visible, true); assert.equal(M.box.visible, true); assert.equal(M.state.server, 'player');
-  assert.equal(M.gem.position.x, 1.35); assert.equal(M.gem.position.z, 12);
-  assert.ok(M.gem.position.y >= gemBase(SERVE_MARK.head.fallback) - SERVE_MARK.bob.amp - 1e-9, 'sopra la testa');
+  assert.equal(M.box.visible, true); assert.equal(M.state.server, 'player');
+  assert.deepEqual(Object.keys(M.state).sort(), ['box', 'rect', 'server']);
   assert.deepEqual(M.state.rect, serviceBox(e.player, true));
   assert.ok(M.box.position.z < 0 && M.box.position.x < 0, 'nella metà della CPU, in diagonale');
   // lancio della palla: ancora
-  e.phase = 'SERVE_TOSS'; M.update(1/60); assert.equal(M.gem.visible, true); assert.equal(M.box.visible, true);
-  // la palla parte: spariscono
-  e.phase = 'RALLY'; M.update(1/60); assert.equal(M.gem.visible, false); assert.equal(M.box.visible, false);
+  e.phase = 'SERVE_TOSS'; M.update(1/60); assert.equal(M.box.visible, true);
+  // la palla parte: sparisce
+  e.phase = 'RALLY'; M.update(1/60); assert.equal(M.box.visible, false); assert.equal(M.state.rect, null);
   // batte la CPU, sul lato del vantaggio
   e.phase = 'SERVE_STANCE'; e.score.server = 'opponent'; e.score.deuceSide = false; M.update(1/60);
-  assert.equal(M.state.server, 'opponent'); assert.equal(M.gem.position.x, -2.35); assert.equal(M.gem.position.z, -12);
+  assert.equal(M.state.server, 'opponent');
   assert.deepEqual(M.state.rect, serviceBox(e.opponent, false)); assert.ok(M.box.position.z > 0, 'nella metà di chi gioca');
   // dimostrazione del menu, moviola, menu aperto: niente
   for (const set of [() => { e.autoPlayMode = true; }, () => { e.autoPlayMode = false; e.cameraMode = 'REPLAY_CAM'; }, () => { e.cameraMode = 'RALLY_CAM'; e.natpfUi.lobby.visible = true; }]){
-    set(); M.update(1/60); assert.equal(M.gem.visible, false); assert.equal(M.box.visible, false);
+    set(); M.update(1/60); assert.equal(M.box.visible, false);
   }
-  e.natpfUi.lobby.visible = false; M.update(1/60); assert.equal(M.gem.visible, true);
-});
-test('punto 2 · in prima persona niente gemma sopra di sé (il riquadro resta); la gemma gira e oscilla', () => {
-  const { e, M } = markerEngine();
-  e._isFirstPersonActive = () => true; e.localActor = e.player;
-  M.update(1/60); assert.equal(M.gem.visible, false); assert.equal(M.box.visible, true);
-  e.score.server = 'opponent'; M.update(1/60); assert.equal(M.gem.visible, true, 'la CPU che batte si vede');
-  const y0 = M.gem.position.y, r0 = M.gem.rotation.y;
-  M.update(.3); assert.notEqual(M.gem.position.y, y0); assert.notEqual(M.gem.rotation.y, r0);
-  assert.equal(gemOn(e, e.opponent), true); assert.equal(gemOn(e, e.player), false); assert.equal(gemOn({}, null), false);
+  e.natpfUi.lobby.visible = false; M.update(1/60); assert.equal(M.box.visible, true);
+  // in prima persona il riquadro resta (la casella sopra di sé no: lo decide il motore, come nel B35b)
+  e._isFirstPersonActive = () => true; e.localActor = e.opponent; M.update(1/60); assert.equal(M.box.visible, true);
+  // il riquadro pulsa
+  const o0 = M.fillMat.opacity; M.update(.3); assert.notEqual(M.fillMat.opacity, o0);
   assert.equal(serverOf({ score: { server: 'opponent' }, opponent: 1, player: 2 }), 1);
   assert.equal(serveMarkOn({ phase: 'SERVE_TOSS' }), true); assert.equal(serveMarkOn({ phase: 'POINT_OVER' }), false);
 });
-test('punto 2 · altezza: sopra la testa vera del personaggio (Classici e mascotte più alte), scritta sopra la gemma', () => {
+test('punto 2 · casella «Al servizio» appena sopra la testa misurata (un piccolo spazio), la stessa per ogni camera', () => {
   const actor = h => { const root = new THREE.Group(); const m = new THREE.Mesh(new THREE.BoxGeometry(.5, h, .5)); m.position.y = h/2; root.add(m); return { root, pos: new THREE.Vector3() }; };
   assert.ok(Math.abs(headTop(actor(1.9)) - 1.9) < 1e-6);
   assert.ok(Math.abs(headTop(actor(2.4)) - 2.4) < 1e-6, 'mascotte con la testa grande');
   assert.equal(headTop(actor(4)), SERVE_MARK.head.max); assert.equal(headTop(actor(.5)), SERVE_MARK.head.min);
   assert.equal(headTop({}), SERVE_MARK.head.fallback);
-  for (const top of [1.9, 2.4]) assert.ok(serveTagHeight(top) > gemBase(top) + SERVE_MARK.gem.h, 'la scritta sta sopra la gemma');
-  // si rimisura solo se cambia il modello del personaggio
+  // appena sopra: né sotto la testa né lontana; senza modello i 2,25 m di prima del B37
+  assert.ok(SERVE_MARK.tagGap >= .1 && SERVE_MARK.tagGap <= .3, `spazio sopra la testa ${SERVE_MARK.tagGap} m`);
+  for (const top of [1.9, 2.15, 2.4]) assert.ok(Math.abs(serveTagHeight(top) - top - SERVE_MARK.tagGap) < 1e-9);
+  assert.ok(Math.abs(serveTagHeight(SERVE_MARK.head.fallback) - 2.25) < 1e-9, 'senza modello come prima');
   const { e, M } = markerEngine(); const a = actor(1.9); e.player.root = a.root;
-  assert.ok(Math.abs(M.top(e.player) - 1.9) < 1e-6);
+  assert.ok(Math.abs(M.tagHeight(e.player) - (1.9 + SERVE_MARK.tagGap)) < 1e-6);
+  // nessuna camera: la stessa altezza per la vista di gioco, le due metà dello stesso schermo e il computer del Player 2
+  const far = new THREE.PerspectiveCamera(); far.position.set(0, 5, 18); far.updateMatrixWorld();
+  assert.equal(M.tagHeight(e.player, far), M.tagHeight(e.player));
+  // si rimisura solo se cambia il modello del personaggio
   a.root.children[0].scale.y = 2; assert.ok(Math.abs(M.top(e.player) - 1.9) < 1e-6, 'stesso modello: valore tenuto');
   a.root.add(new THREE.Group()); assert.ok(Math.abs(M.top(e.player) - 2.85) < 1e-6, `modello cambiato: rimisurato (${M.top(e.player)})`);
-  // la scritta della metà dello stesso schermo segue l'altezza nuova
+  assert.ok(Math.abs(M.tagHeight(e.player) - (2.85 + SERVE_MARK.tagGap)) < 1e-6);
+  // la scritta della metà dello stesso schermo segue l'altezza
   const cam = new THREE.PerspectiveCamera(50, 1, .1, 100); cam.position.set(0, 4, 18); cam.lookAt(0, 1, 0); cam.updateMatrixWorld();
   const v = { x: 0, y: 0, w: 640, h: 720 }, low = serveTagPoint(new THREE.Vector3(0, 0, 10), cam, v), high = serveTagPoint(new THREE.Vector3(0, 0, 10), cam, v, serveTagHeight(2.4));
   assert.ok(high.y < low.y, `più in alto sullo schermo: ${high.y} < ${low.y}`);
 });
+test('punto 2 · la cima si affina nei primi istanti del servizio (racchetta che sale), poi resta ferma', () => {
+  const { e, M } = markerEngine(); e.elapsedTime = 10;
+  const root = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(.5, 1.9, .5)), racket = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, .05));
+  body.position.y = .95; racket.position.y = 1.6; root.add(body, racket); e.player.root = root;
+  assert.ok(Math.abs(M.top(e.player) - 1.9) < 1e-6, 'prima misura: la testa');
+  // (le matrici le aggiorna il disegno: l'affinamento legge quelle dell'ultimo disegno e non le ricalcola)
+  const pose = y => { racket.position.y = y; root.updateMatrixWorld(true); };
+  pose(2); e.elapsedTime += .2;                                     // la racchetta sale mentre arriva la posa del servizio
+  assert.ok(Math.abs(M.top(e.player) - 2.15) < 1e-6, `sopra la racchetta (${M.top(e.player)})`);
+  pose(1.7); e.elapsedTime += .2;                                   // scende: la casella non scende (non sobbalza)
+  assert.ok(Math.abs(M.top(e.player) - 2.15) < 1e-6);
+  pose(2.6); e.elapsedTime += SERVE_MARK.settle;                    // passato il tempo (lancio, colpo): ferma
+  assert.ok(Math.abs(M.top(e.player) - 2.15) < 1e-6);
+  assert.ok(Math.abs(M.tagHeight(e.player) - 2.15 - SERVE_MARK.tagGap) < 1e-6);
+  // solo mesh con la pelle (nessuna rigida in vista): l'affinamento non tocca la cima (non la porta a quella di base)
+  const { e: e4, M: M4 } = markerEngine(); e4.elapsedTime = 5;
+  const sk = new THREE.Group(); sk.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(.4, 1.7, .4)), { isSkinnedMesh: true, boundingBox: null, computeBoundingBox(){ this.geometry.computeBoundingBox(); this.boundingBox = this.geometry.boundingBox.clone(); } }));
+  sk.children[0].position.y = .85; e4.player.root = sk;
+  assert.ok(Math.abs(M4.top(e4.player) - 1.7) < 1e-6); e4.elapsedTime += .1;
+  assert.ok(Math.abs(M4.top(e4.player) - 1.7) < 1e-6, `resta 1,7 (${M4.top(e4.player)})`);
+  // orologio tornato indietro: niente affinamento; senza l'orologio del motore una misura sola
+  e.elapsedTime = 0; pose(2.6); assert.ok(Math.abs(M.top(e.player) - 2.15) < 1e-6);
+  const { e: e2, M: M2 } = markerEngine(); e2.player.root = root; pose(1.6);
+  assert.ok(Math.abs(M2.top(e2.player) - 1.9) < 1e-6); pose(2); assert.ok(Math.abs(M2.top(e2.player) - 1.9) < 1e-6);
+});
+test('punto 2 · il punto della casella: al centro di chi batte, sopra la parte più alta e alla sua profondità (racchetta alzata davanti)', () => {
+  const { e, M } = markerEngine();
+  const build = (a, ahead, rh = 1.75) => { const root = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(.5, 1.6, .5)), racket = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, .05));
+    body.position.set(a.pos.x, .8, a.pos.z); racket.position.set(a.pos.x + .4, rh, a.pos.z - ahead*a.sideSign); root.add(body, racket); a.root = root; };
+  build(e.player, .6); build(e.opponent, .6);
+  const p = M.tagPoint(e.player), q = M.tagPoint(e.opponent);
+  assert.ok(Math.abs(p.y - (1.9 + SERVE_MARK.tagGap)) < 1e-6 && p.x === e.player.pos.x, `sopra la racchetta, al centro di lato (${p.x}, ${p.y})`);
+  // (il vertice più alto della racchetta: ±2,5 cm, metà del suo spessore)
+  assert.ok(Math.abs(p.z - (e.player.pos.z - .6)) <= .026, `chi gioca: verso la rete, z più piccolo (${p.z})`);
+  assert.ok(Math.abs(q.z - (e.opponent.pos.z + .6)) <= .026, `la CPU: verso la rete, z più grande (${q.z})`);
+  assert.ok(Math.abs(M.tagHeight(e.player) - p.y) < 1e-9, 'tagHeight: la stessa altezza');
+  // la testa più alta della racchetta: il punto sopra la testa, al centro; profondità tenuta tra i limiti
+  const { e: e2, M: M2 } = markerEngine(); build(e2.player, .6, 1.2); build(e2.opponent, 5);
+  // (un vertice in alto del corpo: entro metà del suo spessore, 25 cm, dal centro)
+  assert.ok(Math.abs(M2.tagPoint(e2.player).z - e2.player.pos.z) <= .25 && Math.abs(M2.tagPoint(e2.player).y - (1.6 + SERVE_MARK.tagGap)) < 1e-6);
+  assert.ok(Math.abs(M2.tagPoint(e2.opponent).z - (e2.opponent.pos.z + SERVE_MARK.ahead.max)) < 1e-6, 'al più 1 m davanti');
+  // senza modello: 2,25 m sopra i piedi, al centro (come prima del B37)
+  const { e: e3, M: M3 } = markerEngine(); const r = M3.tagPoint(e3.opponent);
+  assert.deepEqual([r.x, +r.y.toFixed(6), r.z], [-2.35, 2.25, -12]);
+});
+test('punto 2 · personaggi veri: la casella sta appena sopra la testa con i Classici e con Lob & Drop (modelli 3D), chi gioca e la CPU', () => {
+  // cima di quello che si vede del personaggio (mesh visibili, racchetta compresa) e di tutto il modello (anche i pezzi
+  // nascosti: con Lob & Drop in 3D il tennista e la mascotte costruita nel codice restano nella radice, nascosti)
+  const top = (o, all = false) => { const b = new THREE.Box3(), q = new THREE.Box3(); o.updateWorldMatrix(true, true); o.traverse(m => { if (m.isMesh && (all || seen(m))){ q.makeEmpty(); q.expandByObject(m); b.union(q); } }); return b.max.y; };
+  const tops = {};
+  try {
+    for (const cast of ['sempre', 'lobdrop']){
+      resetMascotModels(); resetCast();
+      if (cast === 'lobdrop') useModels(); else { setMascotMode('3d'); setCast('sempre', { storage: mem() }); }
+      const E = engineOf(); E.step(); E.step();
+      const M = new NatpfServeMarker({ scene: null });
+      for (const who of ['player', 'opponent']){
+        const a = E[who], h = M.tagHeight(a), seenTop = top(a.root) - a.pos.y, allTop = top(a.root, true) - a.pos.y;
+        const head = cast === 'sempre' && a.parts?.head ? top(a.parts.head) - a.pos.y : null;
+        if (cast === 'lobdrop') assert.ok(a.natpfMascot3dOn, `${who}: modello 3D in campo`);
+        assert.ok(h > seenTop, `${cast} ${who}: casella a ${h.toFixed(2)} m, sopra il personaggio (${seenTop.toFixed(2)} m): non lo copre`);
+        assert.ok(h - seenTop <= .3, `${cast} ${who}: appena sopra (${(h - seenTop).toFixed(2)} m), non lontana`);
+        if (head != null) assert.ok(h > head && h - head <= .3, `${cast} ${who}: sopra la testa (${head.toFixed(2)} m)`);
+        // i pezzi nascosti non contano (nel B37 sì: con Lob & Drop la casella sarebbe stata mezzo metro più su)
+        if (cast === 'lobdrop') assert.ok(allTop - seenTop > .2 && h < allTop, `${who}: pezzi nascosti fino a ${allTop.toFixed(2)} m, non contati`);
+        tops[`${cast}-${who}`] = [+seenTop.toFixed(2), +h.toFixed(2)];
+        // a schermo, con le camere del gioco (dietro chi batte e dal fondo opposto, 16:9): il fondo della casella sta sopra
+        // la sagoma vera (tutti i vertici visibili, anche quelli del modello con la pelle) e vicino (meno del 5 % dell'altezza)
+        const pt = M.tagPoint(a);
+        for (const camSide of [a.sideSign, -a.sideSign]){
+          const pose = splitCameraPose({ side: camSide, aspect: 16/9 }), cam = new THREE.PerspectiveCamera(pose.fov, 16/9, .1, 200);
+          cam.position.fromArray(pose.pos); cam.lookAt(new THREE.Vector3().fromArray(pose.look)); cam.updateMatrixWorld();
+          let sil = -Infinity; const v = new THREE.Vector3();
+          a.root.updateWorldMatrix(true, true);
+          a.root.traverseVisible(o => {
+            if (!o.isMesh || !o.geometry?.attributes?.position) return;
+            o.skeleton?.update?.();
+            for (let k = 0, n = o.geometry.attributes.position.count; k < n; k++){ o.getVertexPosition(k, v); v.applyMatrix4(o.matrixWorld).project(cam); if (v.y > sil) sil = v.y; }
+          });
+          const y = pt.clone().project(cam).y, view = camSide === a.sideSign ? 'da dietro' : 'dal fondo opposto';
+          assert.ok(y > sil, `${cast} ${who}, ${view}: casella sopra la sagoma (${y.toFixed(4)} > ${sil.toFixed(4)})`);
+          assert.ok((y - sil)/2 < .05, `${cast} ${who}, ${view}: vicina alla testa (${((y - sil)/2*100).toFixed(1)} % dell'altezza)`);
+        }
+      }
+    }
+    // i modelli 3D di Lob e di Drop sono più bassi dei Classici: la casella scende con loro (prima del B37 sempre a 2,25 m)
+    assert.ok(tops['lobdrop-player'][1] < tops['sempre-player'][1] && tops['lobdrop-opponent'][1] < tops['sempre-opponent'][1], JSON.stringify(tops));
+  } finally { resetMascotModels(); setMascotMode(null); resetCast(); }
+});
 test('punto 2 · leggero: pochi oggetti, materiali senza luci, nessuna ombra', () => {
   const { M } = markerEngine();
   let meshes = 0, tris = 0;
-  for (const g of [M.gem, M.box]) g.traverse(o => { if (!o.isMesh) return; meshes++; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count)/3; assert.equal(o.castShadow, false); assert.ok(o.material.isMeshBasicMaterial); });
-  assert.ok(meshes <= 14 && tris <= 80, `${meshes} mesh, ${tris} triangoli`);
-});
-
-test('punto 2 · la gemma si vede anche lontana: per ogni camera quasi la stessa misura a schermo (stesso schermo: due camere)', () => {
-  assert.equal(gemScale(5), 1); assert.equal(gemScale(SERVE_MARK.near), 1); assert.equal(gemScale(2*SERVE_MARK.near), 2); assert.equal(gemScale(200), SERVE_MARK.grow); assert.equal(gemScale(NaN), 1);
-  const { e, M } = markerEngine({ server: 'opponent' });
-  M.update(1/60); M.gem.updateMatrixWorld(true);
-  const tip = new THREE.Vector3().setFromMatrixPosition(M.gem.matrixWorld);
-  const near = new THREE.PerspectiveCamera(), far = new THREE.PerspectiveCamera();
-  near.position.set(e.opponent.pos.x, 4, e.opponent.pos.z - 6); far.position.set(0, 5, 18); near.updateMatrixWorld(); far.updateMatrixWorld();
-  const mesh = M.gem.children[0], base = mesh.matrixWorld.clone(), sizeOf = m => new THREE.Vector3().setFromMatrixScale(m).x;
-  mesh.onBeforeRender(null, null, near); assert.ok(Math.abs(sizeOf(mesh.matrixWorld) - sizeOf(base)) < 1e-9, 'vicina: misura vera');
-  mesh.matrixWorld.copy(base); mesh.onBeforeRender(null, null, far);
-  const k = sizeOf(mesh.matrixWorld)/sizeOf(base), d = far.position.distanceTo(tip);
-  assert.ok(Math.abs(k - gemScale(d)) < 1e-6 && k > 2, `lontana (${d.toFixed(1)} m): ${k.toFixed(2)} volte`);
-  // la punta resta sopra la testa: si ingrandisce verso l'alto
-  const t2 = new THREE.Vector3(0, 0, 0).applyMatrix4(mesh.matrixWorld);
-  assert.ok(t2.distanceTo(tip) < 1e-6, 'punta ferma');
-  // la scritta «Al servizio» sopra la gemma ingrandita, per ogni camera
-  assert.ok(M.tagHeight(e.opponent, far) > M.tagHeight(e.opponent, near));
-  assert.ok(Math.abs(M.tagHeight(e.opponent, far) - serveTagHeight(M.top(e.opponent), gemScale(far.position.distanceTo(new THREE.Vector3(e.opponent.pos.x, gemBase(M.top(e.opponent)), e.opponent.pos.z))))) < 1e-9);
+  M.box.traverse(o => { if (!o.isMesh) return; meshes++; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count)/3; assert.equal(o.castShadow, false); assert.ok(o.material.isMeshBasicMaterial); });
+  assert.ok(meshes === 5 && tris <= 10, `${meshes} mesh, ${tris} triangoli`);
 });
 
 // ---------- 3 · il segnale del momento giusto spiegato le prime volte ----------

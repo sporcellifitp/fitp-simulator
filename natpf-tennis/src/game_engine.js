@@ -4147,11 +4147,9 @@ export class NatpfTennisEngine {
       !this.natpfSplit?.active && // NATPF split screen: chi serve lo dice il tabellone (l'etichetta è di una sola vista)
       !(this._isFirstPersonActive() && t === this.localActor) // NATPF: in prima persona niente etichetta sopra di sé
     ) {
-      // NATPF B37: la scritta «Al servizio» sopra la gemma di chi batte (natpf_serve_marker.js), più piccola: il segno
-      // principale è la gemma
-      const i = t.pos
-          .clone()
-          .add(new o.Vector3(0, this.natpfUi?.serveMark?.tagHeight?.(t) ?? 2.25, 0)),
+      // NATPF B37.1: la casella gialla «Al servizio» appena sopra la testa misurata di chi batte (natpf_serve_marker.js,
+      // tagPoint: Classici e Lob & Drop); senza il modulo 2,25 m sopra i piedi, come prima. La gemma 3D del B37 non c'è più
+      const i = this.natpfUi?.serveMark?.tagPoint?.(t) ?? t.pos.clone().add(new o.Vector3(0, 2.25, 0)),
         a = this._projectToScreen(i);
       this.hud.updateServerTag(a, !0);
     } else this.hud.updateServerTag(null, !1);
