@@ -72,7 +72,23 @@ apposta fuori largo, in rete, fuori largo e fuori largo sul 0-40 (punto della pa
 di quel colpo, poi tutto il resto è il gioco vero. Millisecondi dal colpo, orologio del computer (il telefono è una seconda
 pagina nello stesso browser); due giri prima e due dopo.
 
-TABELLA_MISURE
+| Che cosa (ms dal colpo) | Prima, giro 1 | Prima, giro 2 | Adesso, giro 1 | Adesso, giro 2 |
+|---|---|---|---|---|
+| **Palla a terra fuori** (largo) / **sulla rete** | 967, 815, 849 / 534 | 994, 833, 850 / 484 | 946, 830, 866 / 517 | DOPO2_VOLO |
+| Scritta «Fuori» / «In rete» nell'angolo | **7, 9, 9 / 7** (al colpo) | **11, 7, 6 / 6** (al colpo) | 959, 837, 874 / 525 | DOPO2_SCRITTA |
+| Anello rosso a terra | **5, 7, 8** (al colpo, dove cadrà) | **10, 5, 4** (al colpo) | 949, 833, 869 (dove è caduta); rete: nessuno | DOPO2_ANELLO |
+| Telefono: «Fuori» / «In rete» e vibrazione dell'errore | **11, 8, 11 / 6** (al colpo) | **10, 7, 5 / 6** (al colpo) | 951, 834, 869 / 521 | DOPO2_TEL |
+| Tabellone (punto assegnato) | 970, 816, 851 / 536 | 997, 834, 852 / 486 | 952, 834, 871 / 522 | DOPO2_TAB |
+| Scritta grande del punto | 973, 817, 852 / 537 | 998, 835, 852 / 488 | 957, 835, 872 / 523 | DOPO2_BANNER |
+| Voce «Out!» / «Net!» (sul punto della partita la voce della fine partita) | 974, 817, – / 537 | 998, 835, – / 488 | 957, 835, – / 523 | DOPO2_VOCE |
+| Telefono «Punto avversario» | 971, 816, 852 / 537, sotto «Fuori» | 997, 835, 854 / 486, sotto «Fuori» | 959, 836, 871 / 524, sotto «Fuori» o «Fuori · In anticipo» | DOPO2_TELP |
+| Schermata di fine partita (ultima palla) | 2654 (1,80 s dopo la palla a terra) | 2654 (1,80 s dopo) | 2673 (1,81 s dopo) | DOPO2_FINE |
+| Scritta di un colpo rimasto in campo | 17 | 18 | 20 | DOPO2_CAMPO |
+
+In breve: **prima** la scritta, l'anello rosso e il telefono dicevano l'errore 4–11 ms dopo il colpo, cioè da mezzo
+secondo a un secondo **prima** che la palla toccasse terra o la rete; **adesso** arrivano 3–13 ms **dopo** (lo stesso fotogramma del
+punto, il telefono entro pochi millesimi). Il punto, il tabellone, la voce e la schermata di fine partita arrivano quando
+arrivavano prima. I colpi che restano in campo hanno la scritta subito, come prima.
 
 ## Punto 2 · Chi deve servire: gemma sopra il personaggio e riquadro a terra
 
