@@ -948,3 +948,40 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   impatti normali che mescola dritto (circa 0,53 m dal corpo) e rovescio (circa 0,78 m), quindi va da 0,56 a 0,77 m
   secondo il miscuglio e la verifica degli allunghi in corsa fallisce a caso, con e senza il B42 (documento B42, §7).
   Prima di cercare la causa nel gioco, confrontare con il riferimento per lato.
+
+## Decisioni B43 (13/11/2026; documento `docs/b43/tabellone-e-pannello.md`)
+- **Tabellone senza righe sotto** (richiesta dell'utente: «Formato veloce toglilo, al meglio di tre toglilo, magari metti
+  etichetta sullo scoreboard»): niente sottotitolo (formato in parole, «Parità», «Vantaggio …») né riga «Formato veloce»
+  del B35. **Una sola etichetta tonda dentro il riquadro** (`natpf_scoreboard.scoreTag`, `.sb-tag` in `natpf-round.css`):
+  il formato corto («1 GAME», «AL MEGLIO DI 3/5», azzurro `#4DD7FF`); al 40-40 del formato in fiera «PUNTO DECISIVO» rosa
+  `#FF4D94`. Parità e vantaggio li dicono le caselle (40 · 40, AD) e la scritta grande del punto. Formato intero e scritta
+  del momento restano nel testo per lo screen reader (`.sb-sr`, `data-sb-format`, `data-sb-label`: le prove li leggono
+  lì). Il servizio che passa ogni due punti lo dice il banner d'inizio (una volta), poi la pallina e «Al servizio». Chi
+  aggiunge un testo vicino al tabellone lo mette nell'etichetta o lo toglie: niente righe nuove sotto il riquadro. Il
+  riquadro con l'etichetta è alto circa 5 em di `--sb` (a 720p 43–154 px): «In attesa di Player 2», «Scambio caldo» e le
+  istruzioni del servizio nello stesso schermo usano ancora la formula di prima (4,8 em + 1,5 × il sottotitolo), che
+  ora lascia qualche px in più.
+- **Scritte in alto contro il tabellone** (misurate insieme, forzate, a 1920×1080, 1280×720, 1024×600, 720×720,
+  1920×540): nessuna tocca il riquadro o l'etichetta. Il segnale del momento giusto (B37) nelle aree fino a 800 px di
+  larghezza sta sotto il tabellone (`@container natpf (max-width: 800px)` in `natpf-hud.css`): a 720×720 ne copriva il
+  bordo destro. Lì, forzato insieme a «Scambio caldo», lo toccherebbe: nel gioco non compaiono mai insieme (B42). Le
+  istruzioni del servizio contro la CPU a 720×720 sfiorano l'angolo in basso a destra del riquadro (circa 12 px, come
+  prima del B43): non spostate, scendendo coprirebbero il campo lontano e il riquadro di servizio.
+- **Fogli dello staff = pausa**: pannello dello stand, foglio del telecomando dello staff (anche mentre si apre:
+  `remote.opening`) e diagnostica fermano la partita come la pausa (`natpf_ui.staffOpen()` in `_syncPause`; anche scambi di
+  prova, allenamento, minigiochi) e alla chiusura riprende. Chi aggiunge un foglio per lo staff lo conta in `staffOpen` e
+  chiama `_syncPause` all'apertura e alla chiusura. Z-index: pannello e telecomando 250, sopra pausa e fogli (60),
+  tutorial (70), diagnostica e intro (200); sopra di loro solo la calibrazione dello schermo (300) e gli avvisi (320).
+  Esc chiude prima i fogli dello staff (`natpf_lobby._key`). Diagnostica aperta dalla pausa (anche Maiusc+D a pausa
+  aperta): alla chiusura si torna alla pausa (`diag._back`, dimenticato da `backToMenu`); si registra giocando con il
+  pannello chiuso.
+- **Conferma in due clic** (`natpf_confirm.js`, `TwoStep`, niente `confirm()` di Windows): primo clic arma («Sicuro? Clicca
+  ancora», rosa), il secondo vale solo da 0,45 s a 5 s dopo (il doppio clic non basta). In partita: «Nuovo giocatore»,
+  «Classifica a schermo intero», «Telefono: Scollega» (con un telefono collegato); sempre: «Torna al menu» della pausa.
+  Solo i clic: le chiamate dal codice (`run()`, chiosco, telecomando con la sua conferma sul telefono) restano dirette.
+- **Scritta grande del punto 0,5 s dopo** l'atterraggio (`POINT_BANNER_DELAY`, tempo del gioco, `_natpfPointBanner`):
+  punto, game e partita, anche sul computer del Player 2; verdetto, punteggio, voce, telefono e messaggio al P2
+  all'atterraggio; pausa tra i punti invariata; schermata finale 1,8 s dopo la scritta della partita. Chi aggiunge una
+  scritta del punto la fa passare da `_natpfPointBanner` (le prove che misurano i tempi: `natpf-fuori-vero`).
+- **Mondo di prova** (`test/ui-world.mjs`): anche `#natpf-remote` parte nascosto, come nella pagina vera (aperto ferma la
+  partita).

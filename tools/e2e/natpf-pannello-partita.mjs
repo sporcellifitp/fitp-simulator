@@ -171,9 +171,14 @@ try {
   // stesso controllo a 1024×600 e 720×720, con il pulsante armato (dopo 5 s senza il secondo clic si disarma da solo: a
   // ogni misura, se serve, un clic lo riarma; mai un secondo clic sul pulsante armato, che farebbe partire la voce)
   const sizes = {}, armedNow = () => g.evaluate(() => __natpfTennis.natpfUi.kiosk.confirm.isArmed('newplayer'));
+  // (a ogni misura si aspetta che il pulsante di prima si disarmi e lo si riarma: la schermata, che con la grafica in
+  // software può costare più di un secondo, cade così dentro i 5 s e non sul disarmo, dove per un attimo la scritta
+  // bianca sta sul fondo ancora bianco)
   for (const [w, h] of [[1024, 600], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await g.waitForTimeout(600);
-    if (!await armedNow()){ await clickAt('#natpf-staff [data-staff="newplayer"]'); await g.waitForTimeout(300); }
+    await g.waitForFunction(() => !__natpfTennis.natpfUi.kiosk.confirm.isArmed(), null, { timeout: 8000 }).catch(() => {});
+    await g.waitForTimeout(400);
+    await clickAt('#natpf-staff [data-staff="newplayer"]'); await g.waitForTimeout(400);
     sizes[`${w}x${h}`] = { ...await lay(), armed: await armedNow(), text: await text('#natpf-staff [data-staff="newplayer"]') };
     await snap(`b43-pannello-nuovo-giocatore-armato-${w}x${h}.png`);
   }
