@@ -20,7 +20,7 @@ Come si aggiorna:
 - **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a
   ogni passo): leggerlo per primo.
 
-- Aggiornato: 12/11/2026 · agente: Claude · branch `natpf-simulator` (**versione 2026-11-12.5**: B28 calibrazione giocando (scambi di prova) e tutorial senza blocco, secondo agente, vedi `docs/TRACCIA_PASSI.md` sezione «B27 e B28»; prima 2026-11-12.4: Lob & Drop, livelli Evento e Bambini, «Chi gioca»; 2026-11-12.3: B27 schermo del gioco all'avvio e telecomando dello staff; prima 2026-11-12.2: B25 stesso schermo tra due persone con aiuto al più giovane solo di gioco; prima 2026-11-12.1 B26 trailer e scia, 2026-11-11.2 video e scia, 2026-11-11.1: tappa 2 gruppo 1 + stesso schermo B20; prima 2026-11-10.2 tappa 1). Repository: `sporcellifitp/fitp-simulator`.
+- Aggiornato: 13/11/2026 · agente: Claude · branch `natpf-simulator` (**versione 2026-11-13.7**: registro dello stand collegato al Worker dell'utente `natpf-registro` nell'installer Windows; prima 2026-11-13.1–13.6: B23 dritto dal video, tappa 2 gruppo 2, B29–B34 e revisione finale, vedi `docs/TRACCIA_PASSI.md`; in corso B35a e B35b, collaudo dell'utente del 13/11; **fase successiva in roadmap: B36 direzionalità dei colpi a campo aperto**, solo analisi e piano finché B35 non è chiuso). Storia delle versioni del 12/11: 12.5 B28, 12.4 Lob & Drop e livelli, 12.3 B27, 12.2 B25, 12.1 B26. Repository: `sporcellifitp/fitp-simulator`.
 - **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`** (lavoro dal 05/11, punti aperti §3, controlli §4) e, per i
   gesti del tutorial, `docs/b13/gesti-nuovi.md`. Checkpoint precedente (storia dal 04/11):
   `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`.

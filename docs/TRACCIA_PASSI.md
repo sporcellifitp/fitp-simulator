@@ -467,6 +467,15 @@ In corso dalle 09:50 UTC del 13/11 (script `blocco-singolo.js`, due agenti):
       `d152035`, documento `docs/b35/collaudo-13-11.md`. Fine partita rifatta sulla proposta grafica mostrata all'utente:
       https://claude.ai/artifact/PMb2Gg3ZiakcHuqynZ2pJL (file in `scratchpad/design-fine/project/`). Scia: spenta di base
       e più discreta. Il punto 4 tocca il flusso del B28 (scambi di prova) dell'altro agente: avvisarlo nella traccia.
+**REGISTRO DELLO STAND ACCESO (13/11, 10:35 UTC)**: l'utente ha creato il Worker `natpf-registro` con bucket R2 privato,
+binding `REGISTRO`, segreto `CHIAVE_LETTURA` (solo suo) e `ALLOWED_ORIGINS` = `https://localhost:8443` (apre il gioco solo
+dal programma Windows). Verificato da qui: pagina «Registro di NATPF Simulator» e stato `{ok, registro: pronto, spazio,
+chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine permessa. Indirizzo:
+`https://natpf-registro.s-porcelli.workers.dev/` (non è un segreto: la chiave sta solo nel Worker).
+- [~] **Versione 2026-11-13.7** (controllo rapido verde: gioco 1416/1416, sito 226/226, Windows 42/42, build ok; commit e push in corso) = solo l'indirizzo del registro in `natpf-desktop/registro.json` (installer). Lo zip
+      Cloudflare resta **senza** `--registro-url`: il Worker accetta solo il programma Windows, il gioco nel browser
+      verrebbe rifiutato. Passi: versione nei 4 file → controllo rapido (`scratchpad/v1113a/rapido.sh`) → commit → fetch
+      → push → zip → `scratchpad/attesa-installer.sh 2026-11-13.7 <dir>`. B35a e B35b andranno nella 13.8.
 - Le prove complete della 13.6 si sono fermate a natpf-dritto-video quando il processo è stato riavviato (verdi fino a
   lì): i processi lanciati con nohup non sopravvivono ai riavvii; da rifare con un comando in background del harness.
 

@@ -1612,3 +1612,18 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
   «Partita» con «Chi gioca» e «Personaggi», scambi di prova).
   Non rifatte dopo l'unione con la 12.4 (fatte sul ramo sopra la 12.3): `audit:legend`, banco degli scambi di prova, le
   altre prove nel browser elencate nel giro 2. **Non verificato**: telefoni veri, persone vere, Windows, ledwall.
+
+## Registro dello stand collegato al Worker dell'utente (13/11) · [x] versione 2026-11-13.7
+
+- L'utente ha creato su Cloudflare il Worker `natpf-registro` (bucket R2 privato `natpf-registro`, binding `REGISTRO`,
+  segreto `CHIAVE_LETTURA` solo suo, `ALLOWED_ORIGINS` = `https://localhost:8443` perché apre il gioco solo dal
+  programma Windows). Verificato da qui: pagina «Registro di NATPF Simulator» (Accept: text/html), stato per i programmi
+  `{ok:true, registro:'pronto', spazio:true, chiave:true}`, preflight CORS da `https://localhost:8443` → 204 con
+  `Access-Control-Allow-Origin: https://localhost:8443`. L'utente ha visto «Ancora nessun giorno registrato.»
+- File: `natpf-desktop/registro.json` (`url` = `https://natpf-registro.s-porcelli.workers.dev/`, nessuna chiave),
+  versione nei quattro file, `natpf-desktop/novita.txt`, `docs/GUIDA_REGISTRO_CLOUDFLARE.md` §F (com'è oggi).
+- Zip Cloudflare **senza** `--registro-url`: il Worker rifiuterebbe il gioco aperto nel browser (origine non permessa).
+- Verifiche: controllo rapido gioco 1416/1416, sito 226/226, programma Windows 42/42, build ok.
+- **Non verificato**: l'invio vero dal programma Windows installato (serve il PC dell'utente: una partita e poi «Mostra i
+  giorni» nella pagina del Worker).
+

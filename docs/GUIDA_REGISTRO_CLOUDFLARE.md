@@ -91,6 +91,10 @@ manca il collegamento al bucket R2».
       il file `natpf/registro.json` nello zip);
     - l'installer Windows con l'indirizzo dentro (`natpf-desktop/registro.json`, oppure la variabile
       `NATPF_REGISTRO_URL` al momento della costruzione).
+    - **Com'è oggi (13/11/2026)**: il gioco si apre solo dal programma Windows, quindi `ALLOWED_ORIGINS` =
+      `https://localhost:8443` e l'indirizzo sta solo nell'installer (dalla versione 2026-11-13.7); lo zip Cloudflare
+      resta **senza** `--registro-url` (il Worker rifiuterebbe il gioco aperto nel browser). Per registrare anche dal
+      browser: aggiungete l'indirizzo del gioco ad `ALLOWED_ORIGINS` (Deploy) e chiedete uno zip con `--registro-url`.
 17. Caricate lo zip sul Worker del gioco come al solito e installate il programma Windows sul PC dello stand. Il registro
     è **acceso da solo**: lo staff non deve fare niente. Nel pannello dello stand (Ctrl+Maiusc+K) la voce «Registro di
     gioco: Sì · No» lo spegne, e lo stato dice partite di oggi, ultimo invio, righe in coda, oppure «indirizzo del
