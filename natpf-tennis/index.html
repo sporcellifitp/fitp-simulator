@@ -345,7 +345,7 @@
               <button type="button" class="menu-item" data-menu="training" data-title="Allenamento" data-desc="Impara la presa e tutti i colpi, con il gesto da copiare."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="16" y="6" width="16" height="30" rx="4" /><path d="M20 30h8M14 40h20" /></svg><span class="mi-text"><b>Allenamento</b><span>Tutorial e colpi</span></span><i class="mi-go" aria-hidden="true">›</i></button>
               <button type="button" class="menu-item" data-menu="challenges" data-title="Minigiochi" data-desc="Bersagli, precisione e combo: record, medaglie e classifica del giorno."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="16" /><circle cx="24" cy="24" r="9" /><circle cx="24" cy="24" r="2.5" /></svg><span class="mi-text"><b>Minigiochi</b><span>Bersagli, precisione, combo</span></span><i class="mi-go" aria-hidden="true">›</i></button>
               <div class="menu-row">
-                <button type="button" class="menu-item menu-small" data-menu="ranking" data-title="Classifica" data-desc="I migliori di oggi in ogni minigioco."><b>Classifica</b></button
+                <button type="button" class="menu-item menu-small" data-menu="ranking" data-title="Classifica" data-desc="I migliori di oggi: partite contro la CPU e minigiochi."><b>Classifica</b></button
                 ><button type="button" class="menu-item menu-small" data-menu="options" data-title="Opzioni" data-desc="Schermo, mano, visuale e audio."><b>Opzioni</b></button>
               </div>
             </nav>
@@ -390,6 +390,7 @@
           <header class="page-head"><h2 class="lobby-title" id="lobby-t-ranking">Classifica del giorno</h2><p class="lobby-sub">Si azzera ogni giorno. Compare solo il nickname.</p></header>
           <div class="lobby-seg ranking-tabs" id="ranking-tabs" role="tablist"></div>
           <ol class="ranking-list" id="ranking-list"></ol>
+          <p class="ranking-note hidden" id="ranking-note"></p>
         </section>
 
         <section class="lobby-page" data-page="result" aria-labelledby="lobby-t-result">
@@ -806,6 +807,9 @@
         <div id="victory-result-banner" class="victory-result-banner">Hai vinto!</div>
         <ol class="victory-rows" id="victory-rows" aria-label="Game vinti"></ol>
         <div id="victory-match-score" class="victory-match-score">Game 1-0</div>
+        <!-- B33: i numeri veri della partita (natpf_match_stats.statsHtml): game, punti, colpi, scambio più lungo, colpo più
+             veloce, ace, vincenti, colpi super, voto del tempo, una frase su cosa è andato bene e una su cosa migliorare -->
+        <div id="victory-stats" class="victory-stats hidden" aria-label="Com’è andata"></div>
         <!-- B20: stesso schermo, rivincita dai telefoni: chi l'ha chiesta e chi manca (natpf_split_ui._paintRematch) -->
         <div id="victory-rematch" class="victory-rematch hidden" aria-live="polite"></div>
         <div class="skill-card-footer">

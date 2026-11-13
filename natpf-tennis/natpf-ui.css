@@ -757,6 +757,10 @@ body.natpf-trial-on #timing-popup { display: none !important; }
 #title-modal .ranking-list li em { font: 700 italic 22px/1 var(--font-display); font-style: italic; color: var(--ball); }
 #title-modal .ranking-list li.me { border-color: var(--ball); background: rgba(227, 255, 54, 0.08); }
 #title-modal .ranking-list li.empty { grid-template-columns: 1fr; color: var(--text-2); font: 500 16px/1.4 var(--font-text); }
+/* B33: classifica delle partite: livello e risultato accanto al nome, la regola del punteggio sotto in una riga */
+#title-modal .ranking-list li span small { margin-left: 0.7em; color: var(--text-2); font-size: 0.72em; font-weight: 600; white-space: nowrap; }
+#title-modal .ranking-note { width: 100%; max-width: 640px; margin: 0; color: var(--text-2); font: 500 clamp(12px, 1.8cqh, 18px)/1.35 var(--font-text); }
+.ranking-full #title-modal .ranking-note { max-width: 980px; font-size: clamp(14px, 2.2cqh, 24px); }
 #title-modal [data-page="result"] { align-items: center; text-align: center; }
 #title-modal .welcome-kicker { margin: 0; font: 600 15px/1 var(--font-display); letter-spacing: 0.24em; text-transform: uppercase; color: var(--pink); }
 #title-modal .result-title { text-align: center; }

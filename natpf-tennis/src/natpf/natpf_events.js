@@ -17,6 +17,8 @@ import { trainingDirection } from './natpf_training.js';
 import { viewport } from './natpf_screen.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
 import { GESTURES } from './natpf_gesture_motion.js';
+import { matchScore } from './natpf_match_stats.js';
+import { LEVEL_NAME } from './natpf_who.js';
 
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -58,9 +60,25 @@ export function addScore(board, mode, nick, score, { day = dayKey(), at = Date.n
   return { board: { ...b, modes: { ...b.modes, [mode]: list.slice(0, keep) } }, rank, total: list.length };
 }
 export const topScores = (board, mode, n = 10, day = dayKey()) => (freshBoard(board, day).modes[mode] || []).slice(0, n);
+// B33: classifica delle partite contro la CPU, nello stesso tabellone del giorno (si azzera con «Azzera oggi», va nel CSV).
+// Ogni riga: nickname, livello, punti vinti e persi, game, vinta o no, e il punteggio equo tra i livelli
+// (natpf_match_stats.matchScore: % di punti vinti × valore del livello). Solo su questo computer, come il resto.
+export const MATCH_MODE = 'partite';
+export const MATCH_LABEL = 'Partite contro la CPU';
+export function addMatch(board, { nick, level, won = 0, lost = 0, games = [0, 0], win = false }, { day = dayKey(), at = Date.now(), keep = 50 } = {}){
+  const b = freshBoard(board, day), score = matchScore({ level, won, lost });
+  const list = [...(b.modes[MATCH_MODE] || []), { nick, score, at, level, won: won | 0, lost: lost | 0, games: [games[0] | 0, games[1] | 0], win: !!win }];
+  list.sort((x, y) => y.score - x.score || x.at - y.at);
+  const rank = list.findIndex(e => e.at === at && e.nick === nick) + 1;
+  return { board: { ...b, modes: { ...b.modes, [MATCH_MODE]: list.slice(0, keep) } }, rank, total: list.length, score };
+}
+export const topMatches = (board, n = 10, day = dayKey()) => topScores(board, MATCH_MODE, n, day);
 export function boardCsv(board){
-  const rows = [['giorno', 'sfida', 'posizione', 'nickname', 'punteggio', 'ora']];
-  for (const c of ALL_CHALLENGES) (board?.modes?.[c.id] || []).forEach((e, i) => rows.push([board.day, c.label, i + 1, e.nick, e.score, new Date(e.at).toLocaleTimeString('it-IT')]));
+  const rows = [['giorno', 'sfida', 'posizione', 'nickname', 'punteggio', 'ora', 'livello', 'risultato', 'punti vinti']];
+  const ora = e => new Date(e.at).toLocaleTimeString('it-IT');
+  for (const c of ALL_CHALLENGES) (board?.modes?.[c.id] || []).forEach((e, i) => rows.push([board.day, c.label, i + 1, e.nick, e.score, ora(e), '', '', '']));
+  (board?.modes?.[MATCH_MODE] || []).forEach((e, i) => rows.push([board.day, MATCH_LABEL, i + 1, e.nick, e.score, ora(e), LEVEL_NAME[e.level] || e.level || '',
+    `${e.win ? 'vinta' : 'persa'} ${e.games?.[0] | 0}-${e.games?.[1] | 0}`, `${e.won | 0} su ${(e.won | 0) + (e.lost | 0)}`]));
   return rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
 }
 
@@ -124,6 +142,14 @@ export class NatpfEvents {
   // «Nuovo giocatore» (natpf_new_player): via i record di oggi del contenitore «Ospite» (revisione B18)
   forgetGuest(){ this.store = dropRecords(this.store, ''); this._writeRecords(); }
   resetBoard(){ this.board = freshBoard(null); this._write(); }
+  // B33: partita contro la CPU finita (natpf_match_stats → natpf_ui): nella classifica delle partite di oggi con il
+  // nickname (o «Ospite»). Solo su questo computer (localStorage), come le sfide; il registro dello stand non la vede
+  recordMatch({ level, won, lost, games, win }){
+    const r = addMatch(this.board, { nick: this.nickname || GUEST, level, won, lost, games, win });
+    this.board = r.board; this._write();
+    return r;
+  }
+  topMatches(n = 10){ this.board = freshBoard(this.board); return topMatches(this.board, n); }
   exportCsv(){
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + boardCsv(freshBoard(this.board))], { type: 'text/csv;charset=utf-8' }));

@@ -20,7 +20,8 @@
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 import { FORMAT_KEY, SERVE_KEY, SPLIT_SERVE_KEY, serveChoice, splitServeChoice } from './match_format.js';
 import { readFairFormat, FAIR_MAX_GAMES_LABEL } from './natpf_fair_format.js';
-import { CHALLENGES, challengeById, pickableChallenge, validNickname } from './natpf_events.js';
+import { CHALLENGES, challengeById, pickableChallenge, validNickname, MATCH_MODE } from './natpf_events.js';
+import { SCORE_RULE } from './natpf_match_stats.js';   // B33: classifica delle partite
 import { MEDAL_LABEL, nextMedal, medalCount } from './natpf_arcade.js';
 // icone dei minigiochi (natpf_arcade.MODES[].icon)
 const ARCADE_ICONS = {
@@ -38,7 +39,7 @@ import { screenSummary } from './natpf_screen.js';
 import { waitingText } from './natpf_ready.js';
 import { readBallTrail, writeBallTrail, trailToast } from './natpf_ball_glow.js';
 import { forehandVideoEnabled, setForehandVideo, writeForehandVideo, forehandVideoToast } from './natpf_forehand_video.js';   // B23 (prova)
-import { WHO_LEVEL, WHO_DEFAULT, baseLevel, urlLevel, isCpuLevel, whoOfLevel, levelSummary, whoNote } from './natpf_who.js'; // B18.2 gruppo 3: «Chi gioca»
+import { WHO_LEVEL, WHO_DEFAULT, baseLevel, urlLevel, isCpuLevel, whoOfLevel, levelSummary, whoNote, LEVEL_NAME } from './natpf_who.js'; // B18.2 gruppo 3: «Chi gioca»
 import { eventoRestart } from './natpf_skill.js';
 import { readCue, writeCue, cueToast } from './natpf_timing_cue.js';
 import { getCast, setCast, castToast } from './natpf_personaggi.js';
@@ -148,6 +149,7 @@ export function eggTyped(buffer, key){ const next = (buffer + String(key || '').
 export class NatpfLobby {
   constructor(engine, ui, onboarding){
     this.engine = engine; this.ui = ui; this.onboarding = onboarding;
+    this.rankingTab = MATCH_MODE;                      // B33: la classifica si apre sulle partite contro la CPU
     this.el = $('title-modal');
     this.eggBuffer = '';
     this.trainingDone = false;
@@ -342,8 +344,17 @@ export class NatpfLobby {
   }
   _paintRanking(){
     const tabs = $('ranking-tabs'), list = $('ranking-list'); if (!tabs || !list) return;
-    this.rankingTab = pickableChallenge(this.rankingTab) ? this.rankingTab : CHALLENGES[0].id;
-    tabs.innerHTML = CHALLENGES.map(c => `<button type="button" class="seg-btn ${c.id === this.rankingTab ? 'selected' : ''}" data-ranking="${c.id}" role="tab">${c.label}</button>`).join('');
+    // B33: prima scheda «Partite» (partite contro la CPU: livello, game, punteggio equo tra i livelli), poi i minigiochi
+    this.rankingTab = this.rankingTab === MATCH_MODE || pickableChallenge(this.rankingTab) ? this.rankingTab : CHALLENGES[0].id;
+    const tab = (id, label) => `<button type="button" class="seg-btn ${id === this.rankingTab ? 'selected' : ''}" data-ranking="${id}" role="tab">${label}</button>`;
+    tabs.innerHTML = tab(MATCH_MODE, 'Partite') + CHALLENGES.map(c => tab(c.id, c.label)).join('');
+    const note = $('ranking-note'), matches = this.rankingTab === MATCH_MODE;
+    if (note){ note.textContent = matches ? `Partite contro la CPU. ${SCORE_RULE}.` : ''; show(note, matches); }
+    if (matches){
+      const top = this.ui.events.topMatches(10);
+      list.innerHTML = top.length ? top.map((e, i) => `<li><b>${i + 1}</b><span>${esc(e.nick)}<small>${LEVEL_NAME[e.level] || ''} · ${e.win ? 'vinta' : 'persa'} ${e.games?.[0] | 0}-${e.games?.[1] | 0}</small></span><em>${e.score} punti</em></li>`).join('') : '<li class="empty">Ancora nessuna partita oggi</li>';
+      return;
+    }
     const c = challengeById(this.rankingTab), top = this.ui.events.top(c.id, 10);
     list.innerHTML = top.length ? top.map((e, i) => `<li><b>${i + 1}</b><span>${esc(e.nick)}</span><em>${e.score} ${c.unit}</em></li>`).join('') : '<li class="empty">Ancora nessun risultato oggi</li>';
   }
