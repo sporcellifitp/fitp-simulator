@@ -229,7 +229,8 @@ Quota dei colpi dei telefoni simulati che sono un colpo super, prima del 20° co
 ## 4. Gli altri banchi
 
 Prima = base del blocco (`fe6f774`), dopo = questo ramo, sempre con i giocatori simulati. I file sono in
-`natpf-tennis/scripts/audit/b42/risultati/`; i «dopo» sono stati rifatti sul codice finale e vengono identici.
+`natpf-tennis/scripts/audit/b42/risultati/`; i «dopo» rifatti sul codice finale e i «prima» rifatti su una copia della
+base vengono identici.
 
 **Leggenda** (`npm run audit:legend`, 8 semi × 300 punti per profilo; `legend-prima-fe6f774.txt`, `legend-dopo.txt`):
 **tutti i criteri rispettati**, prima e dopo. Cosa si muove:
@@ -378,7 +379,8 @@ Senza le due righe del motore che lo mandano e lo leggono, i due test falliscono
 - `npm run audit:legend`: **tutti i criteri rispettati** (sezione 4), uscita identica a `risultati/legend-dopo.txt`;
 - misure rifatte sul codice finale, identiche ai file salvati: banco della sezione 3 (56 righe di `dopo.json` e
   `dopo.md`), `--tracce` (13 partite, `tracce.txt`) e le stesse tracce sulla base (`tracce-base-fe6f774.txt`), `--b25`,
-  `audit:cpu`, `audit:evento` del livello Bambini;
+  `audit:cpu`, `audit:evento` del livello Bambini; anche `legend-prima-fe6f774.txt` e `cpu-pressione-prima-fe6f774.txt`
+  rifatti su una copia della base vengono identici;
 - prove nel browser (Chromium; porte 4150–4199; tutte una alla volta):
   - `natpf-rally` **10/10**. Al primo giro 9/10: il controllo nuovo del B42 metteva lo scambio al 22° colpo senza aver mai
     avviato una partita, e lo scambio caldo si decide all'inizio della partita (`startNewMatch`, come con «Gioca»); il

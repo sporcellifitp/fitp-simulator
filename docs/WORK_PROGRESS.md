@@ -1642,8 +1642,9 @@ prima e dopo, suite, build e prove nel browser, documento `docs/b42/scambi-lungh
 - [x] B42.4 · fotografia del lavoro fermato dall'utente alle 16:00 UTC (`ae76bdf`, «NON verificato») controllata da chi
   ha ripreso: in `game_engine.js` solo commenti; tolto `natpf-tennis/legend-prova-tmp.mjs` (file temporaneo); i file
   «dopo» rifatti sul codice finale vengono identici (banco 56/56 righe, tracce 13/13 e tracce della base, `--b25`,
-  `audit:cpu`, `audit:evento` Bambini, `audit:legend`); le tabelle della §3 del documento rigenerate dai file: 106/106
-  righe uguali (corretta una riga del testo, Casual bambino −3,3 e non −3,4).
+  `audit:cpu`, `audit:evento` Bambini, `audit:legend`), e anche i «prima» di legend e cpu-pressione rifatti sulla base;
+  le tabelle della §3 del documento rigenerate dai file: 106/106 righe uguali (corretta una riga del testo, Casual
+  bambino −3,3 e non −3,4).
 - [x] B42.5 · verifiche e documento (`ff93706` prove e test, poi il commit dei documenti). File:
   `docs/b42/scambi-lunghi.md` (§4 e §7 scritte, §1, §2, §3.2, §6, §8 corrette, immagine `contro-la-cpu-colpo-22.jpg`), `tools/e2e/natpf-rally.mjs` (il controllo B42 ora avvia una
   partita: lo scambio caldo si decide in `startNewMatch`), nuovo `natpf-tennis/test/natpf-b42-sfida.test.mjs` (snapshot
