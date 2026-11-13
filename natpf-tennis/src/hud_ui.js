@@ -2,7 +2,7 @@ import { renderAllHudPlayerAvatars as P, renderPlayerAvatar as L } from "./playe
 // NATPF: testi dell'HUD in italiano (traduzione al momento della visualizzazione)
 import { t as tr, scoreText as sc } from "./natpf/natpf_i18n.js";
 import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o area del ledwall
-import { statsHtml } from "./natpf/natpf_match_stats.js"; // NATPF B33: i numeri veri della partita nella schermata finale
+import { statsHtml, endScreen } from "./natpf/natpf_match_stats.js"; // NATPF B33/B35: i numeri veri della partita nella schermata finale
 // NATPF: scritture nel DOM solo se il valore cambia. updateMultiplayerRoomInfo gira a ogni risposta del relay (20 al
 // secondo nella sfida) e updateTimingGauge due volte per fotogramma (passi di fisica a 120 Hz): textContent riscritto
 // uguale sostituisce comunque il nodo di testo e fa ricalcolare lo stile (come natpf_split_ui.js)
@@ -349,10 +349,26 @@ export class HudUI {
       o && (o.textContent = `Game ${w.score}`);
     // NATPF B33: numeri veri della partita (natpf_match_stats.js: la vista la prepara il motore); senza dati la schermata
     // resta quella di prima
-    const st = document.getElementById("victory-stats"), html = w.stats ? statsHtml(w.stats) : "";
-    st && ((st.innerHTML = html), st.classList.toggle("hidden", !html)),
-      this.elVictoryModal.classList.toggle("has-stats", !!html),
-      this.elVictoryModal.classList.toggle("stats-split", !!html && w.stats.cols.length > 1),
+    // B35: con i numeri la schermata della proposta grafica (natpf_match_stats.endScreen): kicker, titolo («Bella sfida,
+    // Luca!» quando si perde), riga sotto, game in una pillola, riquadri delle cose migliori, pillola in basso, «Gioca
+    // ancora» o «Rivincita»
+    const S = w.stats ? endScreen(w, w.stats) : null,
+      st = document.getElementById("victory-stats"), html = S ? statsHtml(w.stats, w) : "",
+      el = (id) => document.getElementById(id),
+      put = (id, text) => { const n = el(id); n && ((n.textContent = text || ""), n.classList.toggle("hidden", !text)); };
+    st && ((st.innerHTML = html), st.classList.toggle("hidden", !html));
+    const kick = el("victory-kicker");
+    kick && (kick.textContent = S ? S.kicker : "Fine partita");
+    S && i && (i.textContent = S.title);
+    put("victory-sub", S ? S.sub : "");
+    const gp = el("victory-games");
+    gp && ((gp.innerHTML = S?.games ? `<b>${S.games.mine | 0}</b><span>game a</span><b>${S.games.theirs | 0}</b>` : ""), gp.classList.toggle("hidden", !S?.games));
+    put("victory-pill", S ? S.pill : "");
+    const again = el("btn-play-again");
+    again && (again.textContent = S ? S.again : "Gioca ancora");
+    this.elVictoryModal.classList.toggle("has-stats", !!html),
+      this.elVictoryModal.classList.toggle("stats-split", !!S?.players),
+      this.elVictoryModal.classList.toggle("natpf-lost", !w.won || (!!S && !S.won)),
       this.elVictoryModal.classList.remove("hidden"),
       window.dispatchEvent(new Event("natpf:victory"));
   }

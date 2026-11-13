@@ -266,8 +266,9 @@ export class NatpfUi {
     if (m.mode !== 'cpu' || m.doubles || m.guest || !isCpuLevel(m.level)) return null;
     const p = m.s.player, o = m.s.opponent, g = m.games, mine = g.filter(x => x.winner === 'player').length;
     const r = this.events.recordMatch({ level: m.level, won: p.points, lost: o.points, games: [mine, g.length - mine], win: m.winner === 'player' });
-    this.stats.rank = r.rank ? `${r.rank}° su ${r.total} nella classifica delle partite di oggi · ${r.score} punti`
-      : `Fuori dalle prime ${r.keep} partite di oggi · ${r.score} punti`;
+    // (B35: la schermata finale scrive la pillola da questi numeri, natpf_match_stats.cpuPill: «3° posto nella classifica
+    // di oggi»; fuori dalle prime solo i punti, mai «fuori»)
+    this.stats.rank = { rank: r.rank | 0, total: r.total | 0, score: r.score | 0 };
     return r;
   }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer

@@ -692,196 +692,319 @@ body {
   padding: 12px 20px;
   font-size: 18px;
 }
-/* B33: fine partita con i numeri veri (natpf_match_stats.statsHtml). Nelle aree larghe (16:9, ledwall) due colonne: a
-   sinistra chi ha vinto, i game e i pulsanti; a destra i numeri. Nelle aree quasi quadrate una colonna sola, più compatta.
-   Tutto in cqw/cqh: niente scorrimento da 720 × 720 a 1920 × 1080 e nell'area del ledwall 1920 × 540 */
+/* B35: la testa (kicker e titolo) e i pulsanti stanno in contenitori: senza i numeri della partita la scheda del B18
+   resta com'era (testa al centro, pulsanti in griglia con «Nuovo giocatore» sopra) */
+.natpf-end-card .end-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.natpf-end-card .end-titles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.natpf-end-card .skill-card-footer {
+  display: block;
+}
+.natpf-end-card .end-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.end-sub.hidden,
+.end-games.hidden,
+.end-pill.hidden,
 .victory-stats.hidden {
   display: none;
 }
+
+/* B35 · fine partita con i numeri (collaudo dell'utente del 13/11: «troppe e poco comprensibili: forme tondeggianti e
+   statistiche di cui uno può essere fiero»). Segue la proposta grafica (tre artboard a 1280 × 720): tutto lo schermo
+   del gioco, sfondo blu a raggiera, titolo grande, game in una pillola, al più tre riquadri tondi, pillola e bottoni in
+   basso. Misure in --eu (circa 1/100 dell'altezza della proposta, limitata dalla larghezza): niente vw/vh, si legge
+   da 720 × 720 al ledwall 1920 × 540 senza scorrere */
 #victory-modal.has-stats .natpf-end-card {
-  --vs-u: min(1cqh, 0.62cqw);
-  width: min(1240px, 94cqw);
-  max-height: 96cqh;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
-  grid-template-areas: "head stats" "title stats" "rows stats" "score stats" "rematch stats" "foot stats";
-  grid-template-rows: auto auto auto auto auto 1fr;
-  column-gap: clamp(14px, 2.6cqw, 44px);
-  row-gap: clamp(5px, calc(var(--vs-u) * 1.4), 16px);
-  padding: clamp(10px, calc(var(--vs-u) * 2.4), 30px) clamp(12px, 2.2cqw, 34px);
-}
-#victory-modal.has-stats .natpf-end-card > .skill-card-header { grid-area: head; font-size: clamp(11px, calc(var(--vs-u) * 1.7), 20px); }
-#victory-modal.has-stats .victory-result-banner { grid-area: title; font-size: clamp(24px, calc(var(--vs-u) * 6.4), 76px); line-height: 1.05; }
-#victory-modal.has-stats .victory-rows { grid-area: rows; }
-#victory-modal.has-stats .victory-rows li { padding: clamp(4px, calc(var(--vs-u) * 0.9), 12px) 14px; font-size: clamp(14px, calc(var(--vs-u) * 2.6), 30px); }
-#victory-modal.has-stats .victory-match-score { grid-area: score; font-size: clamp(11px, calc(var(--vs-u) * 1.7), 20px); }
-#victory-modal.has-stats .victory-rematch { grid-area: rematch; margin: 0 auto; }
-#victory-modal.has-stats .skill-card-footer { grid-area: foot; align-self: end; gap: clamp(6px, calc(var(--vs-u) * 1.2), 14px); }
-#victory-modal.has-stats .nt-footer-btn { padding: clamp(6px, calc(var(--vs-u) * 1.3), 14px) 14px; font-size: clamp(14px, calc(var(--vs-u) * 2.2), 26px); }
-#victory-modal.has-stats .nt-footer-btn.new-player { height: auto; min-height: clamp(38px, calc(var(--vs-u) * 6.6), 72px); font-size: clamp(16px, calc(var(--vs-u) * 2.8), 30px); }
-.victory-stats {
-  grid-area: stats;
+  --eu: min(1.04cqh, 0.58cqw);
+  box-sizing: border-box;
+  width: 96cqw;
+  height: 94cqh;
+  max-width: none;
+  max-height: none;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   justify-content: center;
-  gap: clamp(5px, calc(var(--vs-u, 1cqh) * 1.4), 18px);
-  min-width: 0;
-  min-height: 0;
-  font-family: var(--hud-font);
+  gap: calc(var(--eu) * 4.6);
+  padding: calc(var(--eu) * 6) calc(var(--eu) * 9);
+  overflow: hidden;
+  border: 0;
+  border-radius: calc(var(--eu) * 5) !important;
+  clip-path: none;
+  background: radial-gradient(120% 90% at 50% 0%, #1b3fa8 0%, #0b1a52 55%, #070f33 100%);
+  box-shadow: 0 1cqh 4cqh rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-family: "Barlow", var(--hud-font);
 }
-/* game: un riquadro per game con i punti (chi guarda per primo), verde se vinto */
-.vs-games {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: clamp(4px, 0.8cqw, 10px);
+#victory-modal.has-stats .victory-rows,
+#victory-modal.has-stats .victory-match-score {
+  display: none;
+}
+#victory-modal.has-stats .end-head {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--eu) * 3.3);
+}
+#victory-modal.has-stats .end-titles {
+  align-items: flex-start;
+  gap: calc(var(--eu) * 1.3);
+}
+#victory-modal.has-stats .end-titles .skill-card-header {
+  align-self: flex-start;
+  padding: calc(var(--eu) * 1.1) calc(var(--eu) * 2.5);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--hud-ball);
+  font: 700 calc(var(--eu) * 2.2) / 1.1 "Barlow", var(--hud-font);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+#victory-modal.has-stats .victory-result-banner {
   margin: 0;
-  padding: 0;
-  list-style: none;
+  color: var(--hud-ball);
+  font: italic 800 calc(var(--eu) * 13.5) / 0.95 "Barlow Condensed", var(--hud-font);
+  text-align: left;
+  text-transform: none;
+  overflow-wrap: anywhere;
 }
-.vs-games li {
-  padding: 0.15em 0.6em;
-  background: var(--hud-panel-2);
-  box-shadow: inset 0 -3px 0 var(--hud-pink);
-  font-size: clamp(14px, calc(var(--vs-u, 1cqh) * 2.6), 30px);
-  font-style: italic;
+#victory-modal.has-stats.natpf-lost .victory-result-banner {
+  color: #fff;
+}
+#victory-modal.has-stats .end-sub {
+  margin: 0;
+  color: #c9d3f5;
+  font: 600 calc(var(--eu) * 3.2) / 1.2 "Barlow", var(--hud-font);
+}
+#victory-modal.has-stats .end-games {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--eu) * 2);
+  padding: calc(var(--eu) * 2.2) calc(var(--eu) * 3.9);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+#victory-modal.has-stats .end-games b {
+  color: #fff;
+  font: italic 800 calc(var(--eu) * 8.9) / 1 "Barlow Condensed", var(--hud-font);
   font-variant-numeric: tabular-nums;
 }
-.vs-games li.win {
-  box-shadow: inset 0 -3px 0 var(--hud-ball);
+#victory-modal.has-stats:not(.natpf-lost) .end-games b:first-child {
   color: var(--hud-ball);
 }
-.vs-cols {
-  display: grid;
-  grid-template-columns: repeat(var(--vs-n, 1), minmax(0, 1fr));
-  gap: clamp(8px, 1.6cqw, 28px);
+#victory-modal.has-stats .end-games span {
+  color: #c9d3f5;
+  font: 600 calc(var(--eu) * 3) / 1 "Barlow", var(--hud-font);
 }
-.vs-cols[data-n="2"] { --vs-n: 2; }
-.vs-col {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(4px, calc(var(--vs-u, 1cqh) * 1.1), 14px);
+/* riquadri tondi: icona in un cerchio, numero grande, scritta */
+#victory-modal.has-stats .victory-stats {
+  display: block;
   min-width: 0;
 }
-.vs-name {
-  margin: 0;
-  overflow: hidden;
-  color: var(--hud-ball);
-  font-size: clamp(15px, calc(var(--vs-u, 1cqh) * 2.8), 32px);
-  font-style: italic;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.vs-col[data-side="opponent"] .vs-name { color: var(--hud-pink); }
-.vs-tiles {
+.end-tiles {
+  --n: 3;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(4px, 0.7cqw, 12px);
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: calc(var(--eu) * 3.9);
 }
-#victory-modal.stats-split .vs-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.vs-tile {
+.end-tiles[data-n="2"] { --n: 2; }
+.end-tiles[data-n="1"] { --n: 1; width: min(100%, calc(var(--eu) * 52)); margin-inline: auto; }
+.end-tile {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: calc(var(--eu) * 1.8);
   min-width: 0;
-  padding: clamp(3px, calc(var(--vs-u, 1cqh) * 0.8), 12px) 4px;
-  background: var(--hud-panel-2);
+  padding: calc(var(--eu) * 3.8) calc(var(--eu) * 2.8);
+  border-radius: calc(var(--eu) * 5);
+  background: rgba(255, 255, 255, 0.09);
   text-align: center;
 }
-.vs-tile b {
-  font-size: clamp(22px, calc(var(--vs-u, 1cqh) * 5.6), 66px);
-  font-style: italic;
-  line-height: 1;
+.end-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--eu) * 11.2);
+  height: calc(var(--eu) * 11.2);
+  border-radius: 999px;
+  background: var(--hud-ball);
+}
+.end-ico svg {
+  width: 52%;
+  height: 52%;
+  stroke: #0b1a52;
+  stroke-width: 2.4;
+}
+.end-tile[data-tone="pink"] .end-ico { background: #ff4d94; }
+.end-tile[data-tone="pink"] .end-ico svg { stroke: #fff; }
+.end-tile[data-tone="cyan"] .end-ico { background: #4dd7ff; }
+.end-num {
+  color: #fff;
+  font: italic 800 calc(var(--eu) * 10) / 1 "Barlow Condensed", var(--hud-font);
   font-variant-numeric: tabular-nums;
 }
-.vs-tile small {
-  color: var(--hud-muted);
-  font-size: clamp(10px, calc(var(--vs-u, 1cqh) * 1.55), 18px);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.15;
-  text-transform: uppercase;
+.end-lab {
+  max-width: 100%;
+  color: #fff;
+  font: 600 calc(var(--eu) * 3.2) / 1.2 "Barlow", var(--hud-font);
 }
-.vs-tile small em { font-style: normal; opacity: 0.8; }
-.vs-best {
+/* pillola e bottoni a pillola */
+#victory-modal.has-stats .skill-card-footer {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: clamp(4px, 0.6cqw, 10px);
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--eu) * 2.5) calc(var(--eu) * 3.3);
   margin: 0;
+  padding: 0;
+  border: 0;
 }
-.vs-best span {
-  padding: 0.15em 0.7em;
-  background: var(--hud-ball);
-  color: var(--hud-navy);
-  font-size: clamp(12px, calc(var(--vs-u, 1cqh) * 2), 24px);
-  font-weight: 800;
-  text-transform: uppercase;
-}
-/* voto del tempo: una barra con i colori della scritta del colpo e sotto i conti */
-.vs-timing {
-  display: flex;
-  height: clamp(8px, calc(var(--vs-u, 1cqh) * 1.5), 18px);
-  overflow: hidden;
-  background: var(--hud-panel-2);
-}
-.vs-timing i[data-t="perfetto"], .vs-legend [data-t="perfetto"]::before { background: #37d67a; }
-.vs-timing i[data-t="anticipo"], .vs-legend [data-t="anticipo"]::before { background: #ffd23f; }
-.vs-timing i[data-t="ritardo"], .vs-legend [data-t="ritardo"]::before { background: #ff9a3c; }
-.vs-timing i[data-t="buono"] { background: #8aa0c8; }
-.vs-legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.3em 1.1em;
+#victory-modal.has-stats .end-pill {
   margin: 0;
-  font-size: clamp(11px, calc(var(--vs-u, 1cqh) * 1.8), 22px);
-  font-weight: 700;
-}
-.vs-legend span::before {
-  content: "";
-  display: inline-block;
-  width: 0.7em;
-  height: 0.7em;
-  margin-right: 0.35em;
-}
-.vs-tip {
-  display: flex;
-  gap: 0.5em;
-  margin: 0;
-  font-size: clamp(13px, calc(var(--vs-u, 1cqh) * 2.2), 27px);
-  font-weight: 700;
-  line-height: 1.25;
-}
-.vs-tip b { flex: none; }
-.vs-tip.good b { color: #37d67a; }
-.vs-tip.fix b { color: var(--hud-ball); }
-.vs-rank {
-  margin: 0;
+  padding: calc(var(--eu) * 1.9) calc(var(--eu) * 3.6);
+  border-radius: 999px;
+  background: rgba(232, 255, 58, 0.16);
   color: var(--hud-ball);
-  font-size: clamp(12px, calc(var(--vs-u, 1cqh) * 2), 24px);
-  font-weight: 800;
-  text-align: center;
+  font: 700 calc(var(--eu) * 3.05) / 1.15 "Barlow", var(--hud-font);
+}
+#victory-modal.has-stats.natpf-lost .end-pill,
+#victory-modal.has-stats.stats-split .end-pill {
+  background: rgba(77, 215, 255, 0.16);
+  color: #4dd7ff;
+}
+#victory-modal.has-stats .end-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: calc(var(--eu) * 2.2);
+  margin-left: auto;
+}
+#victory-modal.has-stats .nt-footer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: auto;
+  min-height: calc(var(--eu) * 8.9);
+  padding: 0 calc(var(--eu) * 4.4);
+  border: 2px solid transparent;
+  border-radius: 999px !important;
+  clip-path: none;
+  box-shadow: none;
+  font: italic 800 calc(var(--eu) * 3.9) / 1 "Barlow Condensed", var(--hud-font);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+#victory-modal.has-stats .nt-footer-btn.secondary {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+}
+#victory-modal.has-stats .nt-footer-btn.new-player {
+  order: 0;
+  background: #ff4d94;
+  color: #fff;
+}
+#victory-modal.has-stats .nt-footer-btn.primary {
+  background: var(--hud-ball);
+  color: #0b1a52;
+}
+#victory-modal.has-stats .nt-footer-btn.new-player.hidden {
+  display: none;
+}
+/* stesso schermo: due schede tonde, una per giocatore (chi vince con il bordo giallo), due riquadri ciascuna */
+#victory-modal.has-stats.stats-split .end-head { justify-content: center; }
+#victory-modal.has-stats.stats-split .end-titles { align-items: center; }
+#victory-modal.has-stats.stats-split .end-titles .skill-card-header { align-self: center; }
+#victory-modal.has-stats.stats-split .victory-result-banner { font-size: calc(var(--eu) * 12.5); text-align: center; }
+.end-players {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--eu) * 3.9);
+}
+.end-player {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--eu) * 2.4);
+  min-width: 0;
+  padding: calc(var(--eu) * 3.4) calc(var(--eu) * 4);
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: calc(var(--eu) * 5.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+.end-player.won {
+  border-color: rgba(232, 255, 58, 0.5);
+  background: rgba(232, 255, 58, 0.12);
+}
+.end-player header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--eu) * 2);
+  min-width: 0;
+}
+.end-pname {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font: italic 800 calc(var(--eu) * 5.5) / 1.05 "Barlow Condensed", var(--hud-font);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.end-chip {
+  flex: none;
+  padding: calc(var(--eu) * 0.8) calc(var(--eu) * 2.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font: 700 calc(var(--eu) * 2.2) / 1.1 "Barlow", var(--hud-font);
   text-transform: uppercase;
 }
-/* aree molto larghe e basse (ledwall 1920 × 540): c'è altezza libera, tutto più grande per chi guarda da lontano */
-@container natpf (min-aspect-ratio: 3/1) {
-  #victory-modal.has-stats .natpf-end-card { --vs-u: min(1.45cqh, 0.62cqw); }
+.end-player.won .end-chip {
+  background: var(--hud-ball);
+  color: #0b1a52;
 }
-/* aree quasi quadrate (720 × 720) e strette: una colonna, i numeri sotto chi ha vinto; il totale dei game resta nei
-   riquadri dei game */
+.end-player .end-tiles { gap: calc(var(--eu) * 2.2); }
+.end-player .end-tile {
+  gap: calc(var(--eu) * 0.8);
+  padding: calc(var(--eu) * 2.4) calc(var(--eu) * 1.6);
+  border-radius: calc(var(--eu) * 3.9);
+  background: rgba(255, 255, 255, 0.1);
+}
+.end-player .end-num { font-size: calc(var(--eu) * 8.6); }
+.end-player .end-lab { font-size: calc(var(--eu) * 2.8); }
+#victory-modal.has-stats .victory-rematch { margin: 0 auto; }
+/* aree molto larghe e basse (ledwall 1920 × 540): l'altezza decide le misure, la larghezza avanza */
+@container natpf (min-aspect-ratio: 3/1) {
+  #victory-modal.has-stats .natpf-end-card { --eu: min(0.98cqh, 0.58cqw); padding-inline: calc(var(--eu) * 14); }
+}
+/* aree quasi quadrate (720 × 720) e strette: testa in colonna, la pillola in basso su una riga sua */
 @container natpf (max-aspect-ratio: 5/4) {
   #victory-modal.has-stats .natpf-end-card {
-    --vs-u: min(0.85cqh, 1.05cqw);
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "head" "title" "rows" "stats" "rematch" "foot";
-    grid-template-rows: auto auto auto 1fr auto auto;
+    --eu: min(0.86cqh, 0.62cqw);
+    gap: calc(var(--eu) * 4);
+    padding: calc(var(--eu) * 5) calc(var(--eu) * 5);
   }
-  #victory-modal.has-stats .victory-match-score { display: none; }
-  #victory-modal.has-stats .victory-rows { grid-template-columns: 1fr 1fr; }
+  #victory-modal.has-stats .end-head { flex-direction: column; align-items: flex-start; }
+  #victory-modal.has-stats.stats-split .end-head { align-items: center; }
+  #victory-modal.has-stats .end-pill { flex-basis: 100%; text-align: center; }
+  #victory-modal.has-stats .end-btns { margin-inline: auto; justify-content: center; }
 }
 
 @container natpf (max-width: 768px) {

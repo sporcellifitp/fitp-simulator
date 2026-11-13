@@ -1,12 +1,15 @@
 // NATPF B33 · fine partita con dati veri e classifica delle partite (docs/b33/fine-partita.md). Gioco vero con vite:
 //   A. contro la CPU (livello Evento, nickname «Ada»): una partita giocata davvero dal motore con un giocatore simulato
 //      (colpi con il tempo sbagliato a caso, come il profilo «medio» del banco), al meglio di 3 game. I numeri della
-//      schermata finale devono coincidere con quello che è successo: punti dal motore, colpi, km/h e voto dalle scritte
-//      dei colpi del motore. Schermate a 1280×720, 1920×1080, 1920×540 (ledwall), 1024×600 e 720×720: la scheda resta
+//      partita devono coincidere con quello che è successo: punti dal motore, colpi, km/h e voto dalle scritte dei colpi
+//      del motore. B35 (docs/b35/collaudo-13-11.md): la schermata segue la proposta grafica (titolo, game in una pillola,
+//      al più tre riquadri con le cose migliori, solo positive, pillola in basso, bottoni a pillola) e i riquadri mostrano
+//      quei numeri veri. Schermate a 1280×720, 1920×1080, 1920×540 (ledwall), 1024×600 e 720×720: la scheda resta
 //      tutta nello schermo, senza scorrere;
 //   B. classifica: la partita è nella scheda «Partite» (anche a schermo intero dal pannello dello stand), nel CSV, e
 //      sparisce con «Azzera oggi»; il registro dello stand non ha mai il nome;
-//   C. stesso schermo: due colonne con i nomi e i punti di ognuno; «Nuovo giocatore» chiude la schermata.
+//   C. stesso schermo: due schede con i nomi e due cose belle per giocatore, lo scambio più lungo nella pillola;
+//      «Nuovo giocatore» chiude la schermata.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-fine-partita.mjs      (OUT=cartella delle schermate)
 // Giocatore simulato e punti del motore: non sostituiscono un telefono vero né persone vere.
 import { spawn } from 'node:child_process';
@@ -26,22 +29,29 @@ process.on('exit', stop);
 const up = async url => { for (let i = 0; i < 120; i++){ const ok = await new Promise(r => http.get(url, res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false))); if (ok) return true; await sleep(500); } return false; };
 check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 
-// la schermata finale come la legge chi guarda
-const readModal = g => g.evaluate(() => {
+// la schermata finale come la legge chi guarda (B35: riquadri .end-tile con il numero e la scritta, schede dello stesso
+// schermo .end-player); expect: quello che deve mostrare secondo natpf_match_stats.endScreen dai numeri del motore
+const NEG = /errori|errore|in rete|fuori|anticipo|ritardo|a vuoto|migliora|sbagli/i;
+const readModal = g => g.evaluate(async () => {
   const m = document.getElementById('victory-modal'), card = m.querySelector('.nt-skill-card'), r = card.getBoundingClientRect();
-  const cols = [...m.querySelectorAll('.vs-col')].map(c => ({
-    name: c.querySelector('.vs-name')?.textContent || '',
-    tiles: Object.fromEntries([...c.querySelectorAll('.vs-tile')].map(t => [t.querySelector('small').firstChild.textContent.trim(), +t.querySelector('b').textContent])),
-    legend: Object.fromEntries([...c.querySelectorAll('.vs-legend span')].map(s => [s.dataset.t, +s.textContent.replace(/\D+/g, '')])),
-    best: [...c.querySelectorAll('.vs-best span')].map(s => s.textContent),
-    tips: [...c.querySelectorAll('.vs-tip')].map(s => s.textContent),
-  }));
+  const tile = t => ({ id: t.dataset.stat, value: +t.querySelector('.end-num').textContent, label: t.querySelector('.end-lab').textContent });
+  const tiles = [...m.querySelectorAll('#victory-stats > .end-tiles .end-tile')].map(tile);
+  const players = [...m.querySelectorAll('.end-player')].map(c => ({ name: c.querySelector('.end-pname')?.textContent || '', chip: c.querySelector('.end-chip')?.textContent || '', tiles: [...c.querySelectorAll('.end-tile')].map(tile) }));
+  const vis = id => { const n = document.getElementById(id); return n && !n.classList.contains('hidden') && n.getBoundingClientRect().height > 0 ? n.textContent : ''; };
   // pezzi tagliati: un testo che esce dal suo riquadro o dalla scheda
-  const clipped = [...card.querySelectorAll('.vs-tile, .vs-tip, .vs-legend span, .vs-games li, .nt-footer-btn:not(.hidden), .victory-result-banner')].filter(el => { const b = el.getBoundingClientRect(); return b.height > 0 && (b.bottom > r.bottom + 1 || b.right > r.right + 1 || b.top < r.top - 1 || el.scrollWidth > el.clientWidth + 2); }).map(el => el.className + ':' + el.textContent.slice(0, 20));
-  return { open: !m.classList.contains('hidden'), stats: m.classList.contains('has-stats'), title: document.getElementById('victory-result-banner').textContent,
-    games: [...m.querySelectorAll('.vs-games li')].map(l => l.textContent), cols, rank: m.querySelector('.vs-rank')?.textContent || '',
-    inView: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5, scroll: card.scrollHeight > card.clientHeight + 1, clipped, size: [innerWidth, innerHeight] };
+  const clipped = [...card.querySelectorAll('.end-tile, .end-lab, .end-num, .end-pill, .end-games, .end-sub, .end-pname, .end-chip, .skill-card-header, .nt-footer-btn:not(.hidden), .victory-result-banner')].filter(el => { const b = el.getBoundingClientRect(); return b.height > 0 && (b.bottom > r.bottom + 1 || b.right > r.right + 1 || b.top < r.top - 1 || b.left < r.left - 1 || el.scrollWidth > el.clientWidth + 2); }).map(el => el.className + ':' + el.textContent.slice(0, 20));
+  // parti che si sovrappongono (titolo, pillola dei game, riquadri, pillola in basso, bottoni)
+  const parts = ['victory-result-banner', 'victory-games', 'victory-stats', 'victory-pill'].map(id => document.getElementById(id)).filter(n => n && !n.classList.contains('hidden')).concat([card.querySelector('.end-btns')]).map(n => n.getBoundingClientRect()).filter(b => b.height > 0);
+  const overlap = parts.some((a, i) => parts.some((b, k) => k > i && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1));
+  const view = window.__endView, M = await import('/src/natpf/natpf_match_stats.js');
+  const expect = view?.stats ? M.endScreen(view, view.stats) : null;
+  return { open: !m.classList.contains('hidden'), stats: m.classList.contains('has-stats'), split: m.classList.contains('stats-split'), title: document.getElementById('victory-result-banner').textContent,
+    kicker: document.getElementById('victory-kicker').textContent, sub: vis('victory-sub'), games: vis('victory-games') ? [...document.getElementById('victory-games').children].map(c => c.textContent.trim()).join(' ') : '', pill: vis('victory-pill'),
+    again: document.getElementById('btn-play-again').textContent, btns: [...card.querySelectorAll('.end-btns .nt-footer-btn')].filter(b => !b.classList.contains('hidden') && b.offsetParent).map(b => b.textContent),
+    tiles, players, sums: view?.stats?.cols.map(c => c.sum) || [], expect, text: card.innerText,
+    inView: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5, scroll: card.scrollHeight > card.clientHeight + 1, clipped, overlap, size: [innerWidth, innerHeight] };
 });
+const sameTiles = (a, b) => JSON.stringify((a || []).map(t => [t.id, t.value, t.label])) === JSON.stringify((b || []).map(t => [t.id, t.value, t.label]));
 
 const B = await launch();
 try {
@@ -59,6 +69,8 @@ try {
     E.autoPlayMode = false; E.userHasInteracted = true; E.isMultiplayer = false;
     E._applyDifficultyTuning('evento'); E.matchConfig.difficulty = 'evento';
     E.natpfFair = false; E.startNewMatch({ showStartBanner: false }); E.matchConfig.gamesToWin = 2;
+    // la vista che il motore passa alla schermata finale (per confrontarla con quello che si vede)
+    const svm = E.hud.showVictoryModal.bind(E.hud); E.hud.showVictoryModal = o => { window.__endView = o?.view || null; return svm(o); };
     // quello che succede davvero: punti (dal motore, prima del punto) e scritte dei colpi del motore
     const T = window.__truth = { won: 0, lost: 0, longest: 0, serves: 0, shots: 0, kmh: 0, kmhAll: 0, kmhOut: 0, pend: null, timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 }, popups: [] };
     // B34: colpo più veloce solo dei colpi finiti in campo: fuori o in rete se il punto che segue è dell'avversario con
@@ -101,22 +113,30 @@ try {
   const opened = await g.waitForFunction(() => !document.getElementById('victory-modal').classList.contains('hidden'), null, { timeout: 8000 }).then(() => true, () => false);
   const truth = await g.evaluate(() => window.__truth), engine = await g.evaluate(() => { const S = __natpfTennis.score; return { pg: S.playerGames, og: S.opponentGames, board: __natpfTennis.natpfUi.events.topMatches(10) }; });
   let v = await readModal(g);
-  check('   schermata finale aperta con i numeri', opened && v.open && v.stats && v.cols.length === 1, JSON.stringify({ opened, open: v.open, stats: v.stats }));
-  const c = v.cols[0] || { tiles: {}, legend: {} };
-  console.log('   vero:', JSON.stringify({ ...truth, popups: truth.popups.length }), '\n   schermo:', JSON.stringify(c));
-  check('A2. punti vinti come il motore', c.tiles['Punti vinti'] === truth.won, `${c.tiles['Punti vinti']} / ${truth.won} su ${truth.won + truth.lost}`);
-  check('   colpi (servizi e colpi nello scambio) come le scritte dei colpi', c.tiles['Colpi'] === truth.serves + truth.shots, `${c.tiles['Colpi']} / ${truth.serves}+${truth.shots}`);
-  check('   scambio più lungo come il motore', c.tiles['Scambio più lungo'] === truth.longest, `${c.tiles['Scambio più lungo']} / ${truth.longest}`);
-  check('   colpo più veloce come la scritta del colpo, solo colpi in campo (B34)', c.tiles['Colpo più veloce'] === truth.kmh, `${c.tiles['Colpo più veloce']} / ${truth.kmh} (tutti ${truth.kmhAll}, fuori o in rete ${truth.kmhOut})`);
+  check('   schermata finale aperta con i numeri', opened && v.open && v.stats && v.sums.length === 1 && !v.split, JSON.stringify({ opened, open: v.open, stats: v.stats }));
+  const sum = v.sums[0] || { timing: {} };
+  console.log('   vero:', JSON.stringify({ ...truth, popups: truth.popups.length }), '\n   numeri:', JSON.stringify(sum), '\n   schermo:', JSON.stringify({ title: v.title, kicker: v.kicker, games: v.games, tiles: v.tiles, pill: v.pill, btns: v.btns }));
+  // i numeri della partita (quelli da cui si scelgono i riquadri) sono quelli del motore
+  check('A2. punti vinti come il motore', sum.points === truth.won && sum.lost === truth.lost, `${sum.points} / ${truth.won} su ${truth.won + truth.lost}`);
+  check('   colpi (servizi e colpi nello scambio) come le scritte dei colpi', sum.hits === truth.serves + truth.shots, `${sum.hits} / ${truth.serves}+${truth.shots}`);
+  check('   scambio più lungo come il motore', sum.longest === truth.longest, `${sum.longest} / ${truth.longest}`);
+  check('   colpo più veloce come la scritta del colpo, solo colpi in campo (B34)', sum.fastest === truth.kmh, `${sum.fastest} / ${truth.kmh} (tutti ${truth.kmhAll}, fuori o in rete ${truth.kmhOut})`);
   check('   km/h veri della palla (B34: sotto i 200 a Evento)', truth.kmhAll > 40 && truth.kmhAll < 200, `${truth.kmhAll}`);
-  check('   voto del tempo: Perfetto, Anticipo, Ritardo come le scritte', c.legend.perfetto === truth.timing.perfetto && c.legend.anticipo === truth.timing.anticipo && c.legend.ritardo === truth.timing.ritardo, `${JSON.stringify(c.legend)} / ${JSON.stringify(truth.timing)}`);
-  check('   game: un riquadro per game, quanti ne ha giocati il motore', v.games.length === engine.pg + engine.og, `${v.games.join(' ')} · motore ${engine.pg}-${engine.og}`);
-  check('   due frasi semplici (bene / da migliorare)', c.tips?.length === 2 && c.tips.every(t => t.length > 8 && t.length < 90), JSON.stringify(c.tips));
-  check('   posizione in classifica nella schermata', /1° su 1 nella classifica delle partite di oggi · \d+ punti/.test(v.rank), v.rank);
+  check('   voto del tempo: Perfetto, Anticipo, Ritardo come le scritte', sum.timing.perfetto === truth.timing.perfetto && sum.timing.anticipo === truth.timing.anticipo && sum.timing.ritardo === truth.timing.ritardo, `${JSON.stringify(sum.timing)} / ${JSON.stringify(truth.timing)}`);
+  // B35: la schermata della proposta grafica
+  const won = engine.pg > engine.og, val = { perfetti: truth.timing.perfetto, kmh: truth.kmh, scambio: truth.longest, punti: truth.won, vincenti: sum.winners, ace: sum.aces, super: sum.superOk };
+  check('A2b. B35: titolo grande con il nome («Vince Ada!» / «Bella sfida, Ada!»), livello nella pillola in alto', v.title === (won ? 'Vince Ada!' : 'Bella sfida, Ada!') && /^Fine partita · livello Evento$/i.test(v.kicker), `${v.title} · ${v.kicker}`);
+  check('   game in una pillola, dal motore', v.games === `${engine.pg} game a ${engine.og}`, `${v.games} · motore ${engine.pg}-${engine.og}`);
+  check('   da uno a tre riquadri, tutti con un numero positivo, e sono quelli scelti da endScreen', v.tiles.length >= 1 && v.tiles.length <= 3 && v.tiles.every(t => t.value > 0) && sameTiles(v.tiles, v.expect?.tiles), JSON.stringify(v.tiles));
+  check('   ogni riquadro ha il numero vero della partita (scritte dei colpi e punti del motore)', v.tiles.every(t => val[t.id] === t.value), JSON.stringify(v.tiles.map(t => [t.id, t.value, val[t.id]])));
+  check('   mai numeri negativi: niente errori, niente Anticipo/Ritardo, niente «cosa migliorare»', !NEG.test(v.text.replace(/Ecco cosa ti è venuto meglio/, '')), v.text.replace(/\s+/g, ' ').slice(0, 300));
+  check('   pillola in basso: posizione in classifica se vince, consiglio gentile se perde', won ? v.pill === '1° posto nella classifica di oggi' : v.pill === 'Prossima volta prova il livello Facile', v.pill);
+  check('   riga sotto il titolo solo quando perde', won ? v.sub === '' : v.sub === 'La CPU ha vinto questa volta. Ecco cosa ti è venuto meglio:', v.sub);
+  check('   bottoni a pillola: Menu, Nuovo giocatore, Gioca ancora (Rivincita se perde)', v.btns.join('|') === `Menu|Nuovo giocatore|${won ? 'Gioca ancora' : 'Rivincita'}`, v.btns.join('|'));
   for (const [w, h] of [[1280, 720], [1920, 1080], [1920, 540], [1024, 600], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(250);
     v = await readModal(g);
-    check(`A3. ${w}×${h}: scheda tutta nello schermo, senza scorrere né testi tagliati`, v.inView && !v.scroll && !v.clipped.length, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped }));
+    check(`A3. ${w}×${h}: scheda tutta nello schermo, senza scorrere né testi tagliati o sovrapposti`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.overlap }));
     await shot(`cpu-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 });
@@ -183,17 +203,25 @@ try {
     E.hud.hideVictoryModal(); E.natpfUi.lobby.visible = false; E.hud.hideTitleModal?.();
     E.autoPlayMode = false; E.userHasInteracted = true;   // il menu rimette la partita dimostrativa: qui si gioca
     E.natpfSplitNames = { p1: 'Giulia', p2: 'Marco' }; E.startSplit(); E.startNewMatch({ showStartBanner: false }); E.matchConfig.gamesToWin = 1;   // come natpf_split_ui (startSplit, poi startNewMatch)
+    // due colpi Perfetti di Giulia e uno di Marco (scritte dei colpi come nello stesso schermo)
+    E.natpfStats.shot(E, { role: 'p1', grade: 'PERFECT', kmh: 96 }); E.natpfStats.shot(E, { role: 'p2', grade: 'PERFECT', kmh: 104 }); E.natpfStats.shot(E, { role: 'p1', grade: 'PERFECT', kmh: 88 });
     for (const w of ['player', 'opponent', 'opponent', 'opponent', 'player', 'opponent']) if (E.phase !== 'MATCH_OVER'){ E.ball.rallyStrokeCount = 3; E._awardPoint(w, 'Out'); }
   });
   check('C0. partita dello stesso schermo finita, schermata con due colonne', await g.waitForFunction(() => !document.getElementById('victory-modal').classList.contains('hidden') && document.getElementById('victory-modal').classList.contains('stats-split'), null, { timeout: 8000 }).then(() => true, () => false));
-  for (const [w, h] of [[1280, 720], [720, 720], [1920, 540]]){
+  for (const [w, h] of [[1280, 720], [1920, 1080], [1920, 540], [1024, 600], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(250);
     v = await readModal(g);
     if (w === 1280){
-      const [a, b] = v.cols;
-      check('C1. stesso schermo: due colonne con i nomi e i punti di ognuno', v.cols.length === 2 && a.name === 'Giulia' && b.name === 'Marco' && a.tiles['Punti vinti'] === 2 && b.tiles['Punti vinti'] === 4 && v.title === 'Vince Marco!', JSON.stringify({ title: v.title, cols: v.cols.map(x => [x.name, x.tiles]) }));
+      const [a, b] = v.players, valOf = s => ({ perfetti: s.timing.perfetto, kmh: s.fastest, scambio: s.longest, punti: s.points, vincenti: s.winners, ace: s.aces, super: s.superOk });
+      const real = (p, s) => !!s && p.tiles.every(t => valOf(s)[t.id] === t.value);
+      check('C1. stesso schermo: due schede con i nomi, chi vince e due cose belle ciascuno (numeri veri: 2 e 4 punti, i colpi Perfetti e i km/h dati)', v.players.length === 2 && a.name === 'Giulia' && b.name === 'Marco' && a.chip === 'Bella sfida' && b.chip === 'Vince'
+        && v.sums[0]?.points === 2 && v.sums[1]?.points === 4 && v.sums[0]?.timing.perfetto === 2 && v.sums[1]?.timing.perfetto === 1
+        && v.players.every(p => p.tiles.length >= 1 && p.tiles.length <= 2 && p.tiles.every(t => t.value > 0)) && real(a, v.sums[0]) && real(b, v.sums[1]) && v.title === 'Vince Marco!' && sameTiles(a.tiles, v.expect?.players?.[0]?.tiles) && sameTiles(b.tiles, v.expect?.players?.[1]?.tiles),
+        JSON.stringify({ title: v.title, players: v.players, sums: v.sums.map(s => valOf(s)) }));
+      check('   pillola dei game in alto, scambio più lungo nella pillola in basso, «Rivincita»', v.kicker === 'Fine partita · 1 game a 0' && v.pill === 'Scambio più lungo della partita: 3 colpi' && v.again === 'Rivincita' && !v.players.some(p => p.tiles.some(t => t.id === 'scambio')), JSON.stringify({ kicker: v.kicker, pill: v.pill, again: v.again }));
+      check('   mai numeri negativi', !NEG.test(v.text), v.text.replace(/\s+/g, ' ').slice(0, 200));
     }
-    check(`C2. stesso schermo ${w}×${h}: tutta nello schermo, niente tagliato`, v.inView && !v.scroll && !v.clipped.length, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped }));
+    check(`C2. stesso schermo ${w}×${h}: tutta nello schermo, niente tagliato né sovrapposto`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.overlap }));
     await shot(`split-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 });
