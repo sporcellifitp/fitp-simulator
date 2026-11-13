@@ -699,4 +699,20 @@ cambiano le tappe (cade B36.2; B36.4 senza rientro verso l'angolo).
       tabellone 42/42, lob-drop servizio 13/13 (intera 131/136: 3 «corde» note dal B32 e 2 fps sotto carico, da sola 15/15).
 - [x] Unione in `natpf-simulator`, versione nei quattro file. Controllo rapido: gioco 1465/1465, sito 226/226, Windows
       43/43, LAN 12/12, build ok; `SERVIZIO=1 natpf-lob-drop` 13/13 sul codice unito → commit, push.
-- [ ] Zip Cloudflare, installer (attesa e verifica), messaggio all'utente con «come si attiva».
+- [x] Zip Cloudflare 23.849.291 B, sha256 `6f5d7ef88dfa94e581cd6d8975dece9401ea666ff010abd26926ab51090be6c6`, provato
+      estratto (versione giusta, nessun `natpf/registro.json`); **installer 2026-11-13.10 pubblicato su R2** e verificato dal
+      link fisso: 128.074.949 B, sha256 `640dc6e6ae97d15f16726e4b12377376d48fef57596fa1a6573fdd2e907535bc`. Detto all'utente
+      come si attiva tutto.
+
+**13/11, 21:20 UTC · versione 2026-11-13.11 = B42 (in verifica).**
+- [x] B42 sopra B37 (`4b8bf2d`, workflow `wf_7f418d88-ade`): gioco 1475/1475, sito 226, Windows 43, LAN 12, build,
+      `audit:legend` identico a `scripts/audit/b42/risultati/legend-dopo.txt`; nel browser rally 10/10, stesso-schermo-b20
+      53/53, fuori-vero 10/10, segnale-spiegato 14/14, menu 45/45, formato-fiera 25/25, 1v1-p2p 39/39. Posa della Leggenda:
+      1 giro su 3 verde sia con sia senza B42 (la prova confronta con una mediana che mescola dritto e rovescio: da
+      correggere nella prova, non nel gioco).
+- [x] Unito in `natpf-simulator` (`dd4cd44`, solo conflitti nei documenti), versione nei quattro file.
+- [~] Controllo rapido, `audit:legend`, rally e stesso-schermo-b20 sul codice unito (`scratchpad/v1311/`); poi push, zip,
+      installer.
+- [~] **B43** (tabellone pulito, pannello che ferma la partita, scritta del punto mezzo secondo dopo): workflow
+      `b43-tabellone-e-pannello` (run `wf_53b28db9-129`), worktree `scratchpad/b43/wt`, ramo `b43-tabellone-pannello`, base
+      `fd71f91` (13.10); unirà da solo la 13.11 prima delle verifiche finali. Porte 4100–4149 e 4902/4903.
