@@ -550,6 +550,22 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
       Rimonta, In serie, Muro, Prima volta, Re di oggi) con le soglie. **In attesa del parere dell'utente** → poi blocco
       **B40 · Fine partita v2** (ritratti dai modelli 3D anche per i Classici, contatori nuovi in `natpf_match_stats.js`:
       serie, game a zero, rimonta, colpi a vuoto, prima partita, posto in classifica).
+- **Richieste dell'utente (13/11, 14:40–14:55 UTC) → blocco B41 «Modalità fiera»**: (1) «una modalità evento fiera: i
+  telefoni sono sempre gli stessi, è inutile ogni volta collegare il telefono, scansionare il QR e fare la calibrazione;
+  io seleziono solo il livello di difficoltà, i telefoni sono già calibrati da me, le persone devono solo fare destra
+  sinistra e io gli do i telefoni»; (2) «nella schermata "Pronto per la partita" l'utente deve toccare sullo smartphone
+  "Sono pronto" (dove ora c'è "Pronto") e quando entrambi sono pronti la partita parte da sola, senza che uno clicchi su
+  Gioca». Analisi in corso (workflow `modalita-fiera-analisi`, run `wf_faa56d62-b61`: collegamento che resta,
+  calibrazione e profili, flusso dello stand → progetto in `scratchpad/fiera/progetto-modalita-fiera.md`).
+- [x] **Controllo «stand con il solo mouse» finito** (run `wf_826fa68a-9cc`, 6 agenti con prove nel browser): lista unica
+  in `scratchpad/mouse/risultati/05.md` (21 voci: 9 bloccanti, 10 importanti, 2 utili) e proposta **B39 · Stand con il
+  solo mouse** in 7 passi; revisore in `06.md`. Da sapere: **il pannello dello stand aperto in partita NON ferma la
+  partita** (la CPU fa punti dietro il pannello) e si apre SOTTO la pausa (`natpf_ui.js:219-221`, z-index): con F9 del B37
+  diventa più facile capitarci → passo **B39.0** subito dopo B37 (fogli dello staff sopra tutto e partita ferma). Altri
+  bloccanti: tasto «indietro» del mouse che fa sparire il gioco nel programma; porta 8443/8080 occupata = errore inglese
+  senza uscita; programma senza Esci/Ricarica col mouse; diagnostica e classifica a schermo intero senza uscita col mouse.
+  Domande per l'utente: solo ledwall o anche lo schermo del portatile? tasto destro = menu di Windows o del gioco? il
+  mouse è solo dello staff?
 - [ ] **B38 · Tastiera a schermo** (richiesta dell'utente del 13/11, 11:50 UTC: «una tastiera su schermo che compaia quando
       devo digitare, perché ho solo un mouse e non ho una tastiera wireless»). Tastiera del gioco (non di Windows) che
       compare cliccando un campo di testo (nome, nomi dello stesso schermo, codice della sfida, campi della diagnostica) e
