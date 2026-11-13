@@ -1,0 +1,18 @@
+== A. calamita laterale, confronto onesto: giro voluto G ± 12°, tempo pulito ±0,25, Pro, 18 m/s, q 1 ==
+G 12°  oggi:  striscia più piena |x| 3.2–3.4 m: 20.3% (fuori 0.0%)
+G 12°  bozza: striscia più piena |x| 3.8–4.0 m: 11.4% (fuori 0.0%)
+G 20°  oggi:  striscia più piena |x| 3.2–3.4 m: 31.4% (fuori 0.0%)
+G 20°  bozza: striscia più piena |x| 3.8–4.0 m: 23.6% (fuori 0.0%)
+G 30°  oggi:  striscia più piena |x| 3.2–3.4 m: 38.4% (fuori 0.0%)
+G 30°  bozza: striscia più piena |x| 3.8–4.0 m: 37.8% (fuori 0.0%)
+
+== B. bambino con il rumore della bozza (cima ±16°, tempo +0,35 ± 0,6 unità), non mira, Bambini ==
+palla 15 m/s oggi : oltre 2,5 m 37.6%  fuori 3.9%
+palla 15 m/s bozza: oltre 2,5 m 38.4%  fuori 1.2%
+palla 18 m/s oggi : oltre 2,5 m 39.7%  fuori 3.2%
+palla 18 m/s bozza: oltre 2,5 m 37.9%  fuori 1.3%
+
+== C. forza (strokePower) dei profili del banco, picco del gesto in °/s ==
+bambino: picco 380±90 → forza 0.04 / 0.12 / 0.20
+amatore: picco 700±160 → forza 0.26 / 0.41 / 0.55
+tennista: picco 1150±150 → forza 0.68 / 0.82 / 0.95

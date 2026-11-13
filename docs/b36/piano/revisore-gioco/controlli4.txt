@@ -1,0 +1,6 @@
+giro 12° ±12°: oggi 24.1% delle palle tra 3.14 e 3.34 m (fuori 0.0%)  ·  bozza 19.5% delle palle tra 3.80 e 4.00 m (fuori 0.0%)
+giro 17° ±12°: oggi 32.3% delle palle tra 3.14 e 3.34 m (fuori 0.0%)  ·  bozza 32.6% delle palle tra 3.80 e 4.00 m (fuori 0.0%)
+giro 20° ±12°: oggi 36.4% delle palle tra 3.14 e 3.34 m (fuori 0.0%)  ·  bozza 41.9% delle palle tra 3.80 e 4.00 m (fuori 0.0%)
+giro 25° ±12°: oggi 42.0% delle palle tra 3.14 e 3.34 m (fuori 0.0%)  ·  bozza 59.1% delle palle tra 3.80 e 4.00 m (fuori 0.0%)
+giro 30° ±12°: oggi 45.3% delle palle tra 3.14 e 3.34 m (fuori 0.0%)  ·  bozza 72.3% delle palle tra 3.80 e 4.00 m (fuori 0.0%)
+giro 40° ±12°: oggi 38.8% delle palle tra 3.14 e 3.34 m (fuori 0.0%)  ·  bozza 87.4% delle palle tra 3.80 e 4.00 m (fuori 0.0%)

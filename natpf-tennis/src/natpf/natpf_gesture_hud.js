@@ -17,6 +17,8 @@ export function gestureLabel(ev = {}, s = {}){
 // Colpo difensivo (molto fuori tempo, la palla resta in gioco): dal B18 arriva come «hit» con defensive (prima come
 // «fault»); l'etichetta dice ancora «Molto in anticipo» / «Molto in ritardo» in rosso, o «Fuori · troppo presto» se esce
 export function gestureOutcome(e = {}, q = null){
+  // B37: in partita il fuori e la rete si dicono quando la palla tocca terra o la rete (lateOutcome); al colpo «Colpita»
+  if (e.kind === 'hit' && q?.wait) return { state: 'mid', text: 'Colpita', wait: true };
   const defensive = e.kind === 'hit' && (!!e.defensive || /DEFENSIVE/.test(e.grade || ''));
   if (defensive && q?.color !== 'red') return { state: 'bad', text: /EARLY/.test(e.grade || '') ? 'Molto in anticipo' : 'Molto in ritardo' };
   if (e.kind === 'hit') return { state: q?.color === 'red' ? 'bad' : q?.color === 'green' ? 'ok' : 'mid', text: q?.text || q?.label || 'Colpita' };
@@ -43,7 +45,14 @@ export class NatpfGestureHud {
   onFeedback(e, q){
     if (!this.cur || this.cur.done || performance.now() - this.cur.t > 1500) return;
     const out = gestureOutcome(e, q); if (!out) return;
-    this.cur = { ...this.cur, state: out.state, status: out.text, done: true, t: performance.now() };
+    this.cur = { ...this.cur, state: out.state, status: out.text, done: true, t: performance.now(), wait: !!out.wait };
+    this._paint();
+  }
+  // B37: verdetto arrivato con la palla a terra (natpf_shot_feedback.settle): l'etichetta del colpo che aspettava lo dice
+  lateOutcome(q){
+    if (!this.cur?.wait || !q) return;
+    const out = gestureOutcome({ kind: 'hit' }, q); if (!out) return;
+    this.cur = { ...this.cur, state: out.state, status: out.text, done: true, t: performance.now(), wait: false };
     this._paint();
   }
   update(){

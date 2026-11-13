@@ -1,5 +1,5 @@
 // «Nuovo giocatore» (B18, difetto 5 del B16, decisione dell'utente del 10/11: «sì»): a fine partita, nel risultato dei
-// minigiochi e nel pannello dello stand (Ctrl+Maiusc+K). Prima il visitatore dopo ereditava nome, record, mano,
+// minigiochi e nel pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows). Prima il visitatore dopo ereditava nome, record, mano,
 // calibrazione e tutorial già visto («Giochi come Marco», forza tarata sul braccio di un altro, nessun tutorial).
 //
 // Cosa si azzera (resetVisitor), SENZA scollegare il telefono (niente link.forget, niente QR da rifare):
@@ -65,7 +65,7 @@ export function resetVisitor(ui){
   // nome li lasciava al visitatore dopo (unione B18.1)
   ui.events.forgetLearned?.();
   // B18.2 gruppo 3: «Chi gioca» al valore di base, livello Evento da capo, spiegazione del colpo super da rivedere
-  L?.resetWho?.(); ui.superHint?.reset?.();
+  L?.resetWho?.(); ui.superHint?.reset?.(); ui.cue?.resetHint?.();   // (B37: la scritta del segnale del momento giusto si rivede)
   if (route === 'split'){
     const S = ui.split;
     // nomi, caselle e targhette in campo (prima restavano le targhette di chi aveva giocato prima: revisione B18)

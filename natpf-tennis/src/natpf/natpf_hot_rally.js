@@ -20,9 +20,9 @@
 // Nessun punto regalato e nessuna regola diversa per un lato (decisione dell'utente del B25): il vantaggio è solo nel
 // gioco. Prima del 20° colpo, e con l'opzione spenta, tutto resta identico punto per punto (impronte delle partite a
 // sorteggi fissi: scripts/audit/b42/scambi-lunghi.mjs, docs/b42/scambi-lunghi.md).
-// Dove si spegne: pannello dello stand (Ctrl+Maiusc+K, o 3 s sul marchio NATPF del menu) → «Scambio che si scalda»:
-// Sì · No; resta salvata (localStorage, chiave natpf-tennis.scambioCaldo: '0' spenta, '1' accesa; senza chiave accesa).
-// Chi l'aveva già scelta resta con la sua scelta. Vale dalla partita dopo.
+// Dove si spegne: pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows, o 3 s sul marchio NATPF del menu) →
+// «Scambio che si scalda»: Sì · No; resta salvata (localStorage, chiave natpf-tennis.scambioCaldo: '0' spenta,
+// '1' accesa; senza chiave accesa). Chi l'aveva già scelta resta con la sua scelta. Vale dalla partita dopo.
 // Funzioni pure (le provano i test); le usano game_engine.js, natpf_skill.js, natpf_legend.js e l'etichetta qui sotto.
 
 export const HOT_KEY = 'natpf-tennis.scambioCaldo';

@@ -28,7 +28,7 @@ export const GUIDE = [
     phone: 'Mentre la palla arriva <b>porta indietro il telefono</b>, poi un <b>colpo deciso</b> quando la palla è vicina. Il verso del colpo decide dritto o rovescio.',
     webcam: 'Uno <b>swing della mano</b> verso sinistra o verso destra quando la palla arriva.',
     mouse: '<kbd>Spazio</kbd> quando la palla arriva alla racchetta.',
-  }, game: 'A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo. Con il <b>segnale del momento giusto</b> un anello si stringe sulla palla: colpisci quando si chiude.' },
+  }, game: 'A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo. Con il <b>segnale del momento giusto</b> un cerchio bianco si stringe sulla palla: <b>colpisci quando il cerchio diventa verde</b>.' },
   { id: 'aim', title: 'Scegli dove va la palla', clip: 'aim', you: {
     phone: 'Colpisci <b>un attimo prima</b> del solito: palla <b>incrociata</b>. <b>Un attimo dopo</b>: <b>lungolinea</b>. Un colpo <b>più forte</b> va più in fondo.',
     webcam: 'Colpire <b>prima</b> incrocia la palla, colpire <b>dopo</b> la manda lungolinea. Swing più veloce: palla più in fondo.',

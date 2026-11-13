@@ -15,7 +15,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg } from './phone-screen.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -59,6 +59,7 @@ let gate = pair ? gateRestore(ss.get('gate')) : null, screen = 'link', tutLitT =
 // schermo acceso e sensori vivi (phone-keep.js): ogni cambio del blocco va al computer e sullo schermo (avvisi più giù)
 const awake = createWakeKeeper({ onChange: () => { sendState(); paintAlert(); } }), sensorWatch = createSensorWatch();
 let revivedAt = null, alertKey = '';
+let lateVerdict = null;   // B37: ultimo «Fuori» / «In rete» arrivato con la palla a terra (per il punto che segue)
 // velo «Tocca lo schermo per riprendere» dopo lo schermo spento (phone-keep.js) e schermo intero da riprendere al primo
 // tocco dopo il ritorno (Android può uscirne con lo schermo spento: non verificato su telefoni veri)
 const veil = createResumeVeil();
@@ -276,7 +277,10 @@ function onData(c, d){
     case 'ev': {
       const vib = Array.isArray(d.vib) && d.vib.length <= 6 && d.vib.every(v => Number.isFinite(v) && v >= 0 && v <= 400) ? d.vib : null;
       // esito del colpo e del punto, come sul computer (eventFlash, B18: anche «Fuori» e «In rete» con il perché)
-      if (d.k === 'contact' || d.k === 'miss' || d.k === 'point'){ const f = eventFlash(d); if (f.buzz) buzz(vib || f.buzz); flash(f.ring, f.big, f.sub, f.ms); }
+      // B37: «Fuori» / «In rete» arrivano quando la palla tocca terra o la rete (late); il punto che segue subito lo tiene
+      // nella riga piccola (verdict), invece del solo «Fuori»
+      if (d.k === 'contact' && d.late) lateVerdict = { txt: verdictText(d), at: performance.now() };
+      if (d.k === 'contact' || d.k === 'miss' || d.k === 'point'){ const f = eventFlash(d, { verdict: d.k === 'point' && lateVerdict && performance.now() - lateVerdict.at < 1500 ? lateVerdict.txt : '' }); if (f.buzz) buzz(vib || f.buzz); flash(f.ring, f.big, f.sub, f.ms); }
       // stesso schermo (B9, natpf_split_ui._announce): conto alla rovescia del computer prima della partita (n = 3, 2, 1;
       // 0 = si gioca) o conto fermato (stop, con il motivo). Solo un avviso sopra la schermata, che poi torna da sola
       if (d.k === 'count'){ const f = countFlash(d); if (f.buzz) buzz(f.buzz); flash(f.ring, f.big, f.sub, f.ms, f.arrow); }

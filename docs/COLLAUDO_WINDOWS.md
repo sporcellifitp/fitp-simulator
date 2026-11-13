@@ -167,7 +167,7 @@ Guida per lo staff: `docs/GUIDA_TELECOMANDO.md`; matrice delle schermate: `docs/
    compare «Su quale schermo mostro il gioco?» con «Monitor 2 · 1024×1024 · probabile ledwall» già scelto. Scegli il
    ledwall: il gioco va a schermo intero sul ledwall e lo copre tutto (nessun bordo, nessuna barra). Riavvia: niente
    domanda, di nuovo sul ledwall. Rifai senza rispondere: dopo 30 s il gioco va sul ledwall da solo.
-2. Ctrl+Maiusc+K → «Schermo del gioco»: un clic porta il gioco sul portatile, un altro lo riporta sul ledwall.
+2. Ctrl+Maiusc+K (o F9 nel programma Windows) → «Schermo del gioco»: un clic porta il gioco sul portatile, un altro lo riporta sul ledwall.
 3. Telefono dello staff: certificato (pagina 8081) → «Telecomando dello staff» → QR → sul telefono e sul PC lo stesso
    numero di tre cifre → **Conferma** sul PC (mouse o tastiera) → «Collegato al gioco», sul PC «Telecomando abbinato ✓»
    senza QR. Guida dal telefono menu → partita → pausa → menu → nuovo giocatore; in partita le frecce non muovono il

@@ -1,0 +1,4 @@
+sempre +0,5 (sempre un attimo prima): tempo usato per la direzione colpo per colpo (te − ritmo):
+  +0.5→0.50  +0.5→0.50  +0.5→0.50  +0.5→0.50  +0.5→0.10  +0.5→0.10  +0.5→0.10  +0.5→0.10  +0.5→0.10  +0.5→0.10
+alternato +0,5 / −0,5: tempo usato per la direzione colpo per colpo (te − ritmo):
+  +0.5→0.50  -0.5→-0.50  +0.5→0.50  -0.5→-0.50  +0.5→0.50  -0.5→-0.90  +0.5→0.50  -0.5→-0.90  +0.5→0.50  -0.5→-0.50

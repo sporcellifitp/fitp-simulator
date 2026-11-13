@@ -21,6 +21,9 @@ export const DESKTOP = Object.freeze({
   ipcDisplaysChanged: 'natpf:displays-changed',
   // coda del registro dello stand (B30, 12/11): window.natpfDesktop.registro, solo blocchi del registro (src/registro.mjs)
   ipcRegistro: 'natpf:registro',
+  // pannello dello stand dalla tastiera del programma (B37, 13/11): F9 e la voce del menu lo aprono e lo chiudono nella
+  // pagina del gioco (window.natpfDesktop.staffPanel.onToggle); sul PC dello stand Ctrl+Maiusc+K non arrivava al gioco
+  ipcStaffPanel: 'natpf:staff-panel',
   // domanda all'avvio «Su quale schermo mostro il gioco?»: senza risposta entro questo tempo vale la proposta
   askDisplayMs: 30000,
   // disinstallazione scritta dall'installer accanto al programma: c'è solo nel programma installato
@@ -157,11 +160,13 @@ export function displayToFollow(added, { wantedId = null, currentId = null } = {
 // gioco blocca i tasti (preventDefault nella schermata iniziale). Solo alla pressione, non alla ripetizione. Mai Esc
 // (indietro nel gioco) né lettere senza Ctrl (F = schermo intero del gioco, gestito dalla pagina con natpfDesktop).
 // Ctrl+Alt (AltGr sulle tastiere italiane) non è mai una scorciatoia. input: { type, key, control, shift, alt, meta }
+// B37: F9 da solo apre e chiude il pannello dello stand (anche a schermo intero, dove la barra del menu non c'è)
 export function shortcutFor(input){
   if (!input || input.type !== 'keyDown' || input.isAutoRepeat) return null;
   const key = String(input.key || ''), k = key.length === 1 ? key.toLowerCase() : key;
   const ctrl = !!input.control, shift = !!input.shift, alt = !!input.alt, meta = !!input.meta;
   if (key === 'F11') return ctrl || alt || meta ? null : 'schermo-intero';
+  if (key === 'F9') return ctrl || alt || meta || shift ? null : 'pannello-stand';
   if (!ctrl || alt || meta) return null;
   if (shift && k === 'm') return 'monitor-successivo';
   if (shift && k === 'i') return 'strumenti';

@@ -1,0 +1,67 @@
+== 1. x (rimbalzo vero, m) contro il giro della cima, tempo neutro, Pro, q 1, verso l'incrociato (P 17°) ==
+gradi  0 | 5 | 10 | 17 | 20 | 22 | 25 | 25.4 | 28 | 30 | 35 | 40 | 45 | 50 | 60 | 70 | 80 | 90
+oggi   0.01 | -0.47 | -1.68 | -3.17 | -3.17 | -3.17 | -3.17 | -3.17 | -3.17 | -3.17 | -3.17 | -3.17 | -3.17 | -2.25 | 0.01 | 0.01 | 0.01 | 0.01
+finale 0.00 | -0.46 | -1.60 | -3.20 | -3.49 | -3.68 | -3.96 | -4.00 | -3.89 | -3.81 | -3.61 | -3.40 | -3.20 | -3.09 | -2.88 | -2.67 | -2.45 | -2.24
+oggi   pro q1: salto massimo per 1 grado (0–90°) 0.24 m a 11.25°
+oggi   pro q0.75: salto massimo per 1 grado (0–90°) 0.24 m a 11.25°
+oggi   leggenda q1: salto massimo per 1 grado (0–90°) 0.24 m a 11.25°
+oggi   leggenda q0.75: salto massimo per 1 grado (0–90°) 0.24 m a 11.25°
+finale pro q1: salto massimo per 1 grado (0–90°) 0.23 m a 14.5°
+finale pro q0.75: salto massimo per 1 grado (0–90°) 0.23 m a 14.5°
+finale leggenda q1: salto massimo per 1 grado (0–90°) 0.23 m a 14.5°
+finale leggenda q0.75: salto massimo per 1 grado (0–90°) 0.23 m a 14.5°
+
+== 2. calamita: quota più alta di palle in una finestra mobile di 0,2 m su |x|; giro G ± 12°, tempo ±0,25, Pro, q 1 ==
+giro 12° ±12°: oggi 24.1% tra 3.14 e 3.34 m (fuori 0.0%) · finale 11.2% tra 3.80 e 4.00 m (fuori 0.0%)
+giro 17° ±12°: oggi 32.3% tra 3.14 e 3.34 m (fuori 0.0%) · finale 16.5% tra 3.80 e 4.00 m (fuori 0.0%)
+giro 20° ±12°: oggi 36.4% tra 3.14 e 3.34 m (fuori 0.0%) · finale 19.8% tra 3.80 e 4.00 m (fuori 0.0%)
+giro 25° ±12°: oggi 42.0% tra 3.14 e 3.34 m (fuori 0.0%) · finale 23.1% tra 3.80 e 4.00 m (fuori 0.0%)
+giro 30° ±12°: oggi 45.3% tra 3.14 e 3.34 m (fuori 0.0%) · finale 21.8% tra 3.80 e 4.00 m (fuori 0.0%)
+giro 40° ±12°: oggi 38.8% tra 3.14 e 3.34 m (fuori 0.0%) · finale 23.1% tra 3.19 e 3.39 m (fuori 0.0%)
+
+== 3. riga voluta: giro 1,45 × P (24,7°) ± 5°, tempo ±0,25; quota tra 3,6 m e la riga, fuori ==
+evento q1: tra 3,6 m e la riga 72% · fuori 0.0%
+evento q0.75: tra 3,6 m e la riga 72% · fuori 0.0%
+pro q1: tra 3,6 m e la riga 72% · fuori 0.0%
+pro q0.75: tra 3,6 m e la riga 72% · fuori 0.0%
+leggenda q1: tra 3,6 m e la riga 72% · fuori 0.0%
+leggenda q0.75: tra 3,6 m e la riga 41% · fuori 41.3%
+
+== 4. salto per 10 ms oltre la finestra (deriva in m/s, pendenza massima 45 m/s), mira piena lungolinea ==
+pro 18 m/s: salto massimo per 10 ms 0.23 m
+pro 25 m/s: salto massimo per 10 ms 0.32 m
+pro 30 m/s: salto massimo per 10 ms 0.39 m
+pro 35 m/s: salto massimo per 10 ms 0.45 m
+leggenda 18 m/s: salto massimo per 10 ms 0.35 m
+leggenda 25 m/s: salto massimo per 10 ms 0.45 m
+leggenda 30 m/s: salto massimo per 10 ms 0.45 m
+leggenda 35 m/s: salto massimo per 10 ms 0.45 m
+
+== 5. angolo corto continuo (cima oltre 1,1 × P, gesto più morbido del solito), dal centro, dritto del destro, Pro ==
+gesto buono: angolo corto con il gesto 76% · senza il gesto (incrociato normale) 0.1%
+persona vera: angolo corto con il gesto 48% · senza il gesto (incrociato normale) 3.4%
+profondità: salto massimo per 0,05 di forza (≈ 0,07 di gesto relativo) 0.60 m · per 1 grado di cima 0.12 m
+
+== 6. tempo: solo tempo e tempo contro cima (Pro, dal centro, dritto del destro: − = incrociato) ==
+cima dritta            finale: anticipo pieno -0.96 · a tempo 0.00 · ritardo pieno 0.96
+                       oggi:   anticipo pieno -2.99 · a tempo 0.01 · ritardo pieno 3.19
+cima incrociata piena  finale: anticipo pieno -3.60 · a tempo -3.20 · ritardo pieno -2.24
+                       oggi:   anticipo pieno -3.34 · a tempo -3.17 · ritardo pieno 0.35
+cima lungolinea piena  finale: anticipo pieno 2.24 · a tempo 3.20 · ritardo pieno 3.60
+                       oggi:   anticipo pieno 0.35 · a tempo 2.95 · ritardo pieno 3.54
+cima incrociata 8°     finale: anticipo pieno -2.10 · a tempo -1.14 · ritardo pieno -0.18
+                       oggi:   anticipo pieno -3.32 · a tempo -1.20 · ritardo pieno 2.21
+
+== 7. Leggenda in corsa (q 0,75) e Pro: matrice incrociato / centro / lungolinea, giro insegnato 15° ==
+evento q1 buono : oggi giusti 83% fuori 0.0% · finale giusti 90% fuori 0.0%
+evento q1 vero  : oggi giusti 55% fuori 1.6% · finale giusti 63% fuori 0.5%
+evento q0.75 buono : oggi giusti 83% fuori 0.0% · finale giusti 90% fuori 0.0%
+evento q0.75 vero  : oggi giusti 55% fuori 1.6% · finale giusti 63% fuori 0.4%
+pro q1 buono : oggi giusti 83% fuori 0.0% · finale giusti 90% fuori 0.0%
+pro q1 vero  : oggi giusti 55% fuori 1.6% · finale giusti 63% fuori 0.5%
+pro q0.75 buono : oggi giusti 83% fuori 0.0% · finale giusti 90% fuori 0.0%
+pro q0.75 vero  : oggi giusti 55% fuori 1.7% · finale giusti 63% fuori 0.5%
+leggenda q1 buono : oggi giusti 83% fuori 0.0% · finale giusti 90% fuori 0.0%
+leggenda q1 vero  : oggi giusti 55% fuori 1.8% · finale giusti 63% fuori 0.8%
+leggenda q0.75 buono : oggi giusti 81% fuori 2.4% · finale giusti 89% fuori 1.1%
+leggenda q0.75 vero  : oggi giusti 46% fuori 14.2% · finale giusti 51% fuori 14.1%

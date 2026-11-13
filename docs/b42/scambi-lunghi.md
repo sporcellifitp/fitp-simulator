@@ -53,8 +53,9 @@ gli stessi (contro la Leggenda i giocatori simulati più forti vincono circa 5 p
 
 Per spegnerlo (o riaccenderlo):
 
-1. Apri il **pannello dello stand**: **Ctrl+Maiusc+K**, oppure tieni premuto **3 secondi** il marchio **NATPF** in alto
-   a sinistra nel menu.
+1. Apri il **pannello dello stand**: **Ctrl+Maiusc+K**, **F9** nel programma Windows (anche la voce del menu NATPF
+   «Pannello dello stand (F9)», dal B37), oppure tieni premuto **3 secondi** il marchio **NATPF** in alto a sinistra nel
+   menu.
 2. Premi il pulsante **«Scambio che si scalda»**: passa da **«Sì · dal 20° colpo»** a **«No»** (e viceversa). Compare un
    avviso che lo dice.
 3. Vale **dalla partita dopo** (quella in corso resta com'è) e **resta salvata** su quel computer (nel browser, chiave

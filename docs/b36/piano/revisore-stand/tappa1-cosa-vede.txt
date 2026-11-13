@@ -1,0 +1,22 @@
+
+== evento: rimbalzo vero (m), Classica → B36.1 descritta
+cima  -25°   prima: -3.34 → -3.34   a tempo: -3.17 → -3.33   dopo: -1.51 → -3.32
+cima  -20°   prima: -3.34 → -3.32   a tempo: -3.17 → -3.26   dopo: -1.51 → -3.11
+cima  -15°   prima: -3.33 → -3.00   a tempo: -2.87 → -2.59   dopo: -1.03 → -2.12
+cima  -10°   prima: -3.09 → -1.94   a tempo: -1.68 → -1.47   dopo: 0.18 → -1.00
+cima    0°   prima: -1.51 → -0.37   a tempo: 0.01 → 0.10     dopo: 1.65 → 0.57
+cima   10°   prima: 0.18 → 1.20     a tempo: 1.51 → 1.67     dopo: 3.08 → 2.14
+cima   15°   prima: 1.24 → 2.32     a tempo: 2.54 → 2.79     dopo: 3.50 → 3.20
+cima   20°   prima: 1.65 → 3.31     a tempo: 2.95 → 3.46     dopo: 3.53 → 3.52
+cima   25°   prima: 1.65 → 3.53     a tempo: 2.95 → 3.54     dopo: 3.53 → 3.54
+
+== pro: rimbalzo vero (m), Classica → B36.1 descritta
+cima  -25°   prima: -3.34 → -3.34   a tempo: -3.17 → -3.33   dopo: -1.51 → -3.32
+cima  -20°   prima: -3.34 → -3.32   a tempo: -3.17 → -3.26   dopo: -1.51 → -3.11
+cima  -15°   prima: -3.33 → -3.00   a tempo: -2.87 → -2.59   dopo: -1.03 → -2.12
+cima  -10°   prima: -3.09 → -1.94   a tempo: -1.68 → -1.47   dopo: 0.18 → -1.00
+cima    0°   prima: -1.51 → -0.37   a tempo: 0.01 → 0.10     dopo: 1.65 → 0.57
+cima   10°   prima: 0.18 → 1.20     a tempo: 1.51 → 1.67     dopo: 3.08 → 2.14
+cima   15°   prima: 1.24 → 2.32     a tempo: 2.54 → 2.79     dopo: 3.50 → 3.20
+cima   20°   prima: 1.65 → 3.31     a tempo: 2.95 → 3.46     dopo: 3.53 → 3.52
+cima   25°   prima: 1.65 → 3.53     a tempo: 2.95 → 3.54     dopo: 3.53 → 3.54

@@ -1,0 +1,13 @@
+gesto (dritto del destro, Adulto, rimbalzo vero, m; − = incrociato) Classica  Nuova (piano finale)
+cima −20° (verso il centro) e un attimo dopo           -1.51      -3.29
+cima −25° e un attimo dopo                             -1.51      -3.76
+cima +20° (verso l'esterno) e un attimo prima           1.65       3.29
+cima +25° e un attimo prima                             1.65       3.76
+cima dritta e un attimo prima                          -1.51      -0.48
+cima dritta e un attimo dopo                            1.65       0.48
+cima −15° a tempo                                      -2.87      -2.74
+cima −10° a tempo                                      -1.68      -1.60
+cima +15° a tempo                                       2.54       2.74
+cima −22° a tempo                                      -3.17      -3.68
+cima −25° a tempo                                      -3.17      -3.96
+cima −35° a tempo                                      -3.17      -3.61

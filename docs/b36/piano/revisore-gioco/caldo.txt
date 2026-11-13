@@ -1,0 +1,8 @@
+colpo 20: q 0.87 → tenuta Evento 1.00 · Esperta 1.00 · Leggenda 0.87
+colpo 22: q 0.78 → tenuta Evento 1.00 · Esperta 1.00 · Leggenda 0.41
+colpo 24: q 0.70 → tenuta Evento 1.00 · Esperta 0.88 · Leggenda 0.00
+colpo 26: q 0.61 → tenuta Evento 1.00 · Esperta 0.46 · Leggenda 0.00
+colpo 28: q 0.53 → tenuta Evento 0.67 · Esperta 0.07 · Leggenda 0.00
+colpo 30: q 0.46 → tenuta Evento 0.29 · Esperta 0.00 · Leggenda 0.00
+colpo 34: q 0.32 → tenuta Evento 0.00 · Esperta 0.00 · Leggenda 0.00
+colpo 38: q 0.27 → tenuta Evento 0.00 · Esperta 0.00 · Leggenda 0.00

@@ -5,7 +5,8 @@
 //     isFullScreen(), setFullScreen(on), toggleFullScreen(), onFullScreenChange(cb),     (schermo intero, B8, 04/11)
 //     updates: { state(), check(), download(), install(), onChange(cb) },             (aggiornamenti, 07/11)
 //     displays: { list(), next(), choose(id), onChange(cb) },                         (monitor del gioco, B27, 12/11)
-//     registro: { put(id, testo), list(), read(id), remove(id), state(), open() } }   (registro dello stand, B30, 12/11)
+//     registro: { put(id, testo), list(), read(id), remove(id), state(), open() },    (registro dello stand, B30, 12/11)
+//     staffPanel: { onToggle(cb) } }                                                   (pannello dello stand, B37, 13/11)
 // Schermo intero: le prime tre rispondono con lo stato nuovo (Promise<boolean>). Nel programma il gioco non usa
 // requestFullscreen di HTML: Electron consumerebbe il primo Esc per uscirne.
 // Aggiornamenti (src/aggiornamenti.mjs): state/check/download → Promise<S>, install → Promise<{ ok, error? }>,
@@ -19,6 +20,8 @@
 // spazio Cloudflare dell'utente. put → Promise<{ ok, perche? }> (il processo principale accetta solo blocchi del
 // registro), list → Promise<[{ id, byte, righe }]>, read → Promise<testo | null>, remove → Promise<{ ok }>,
 // state → Promise<{ blocchi, byte, righe, scartati, cartella }>, open → apre la cartella in Esplora file.
+// Pannello dello stand (B37): F9 o la voce del menu NATPF «Pannello dello stand (F9)» nel processo principale;
+// onToggle(cb) chiama cb('toggle') (oppure 'open' / 'close') e risponde con la funzione che toglie l'ascolto.
 // Nomi dei canali uguali a DESKTOP.ipc* in desktop-core.mjs (provato).
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
@@ -30,6 +33,7 @@ const UPDATES_CHANGED = 'natpf:updates-changed';
 const DISPLAYS = 'natpf:displays';
 const DISPLAYS_CHANGED = 'natpf:displays-changed';
 const REGISTRO = 'natpf:registro';
+const STAFF_PANEL = 'natpf:staff-panel';
 const registro = (action, ...a) => ipcRenderer.invoke(REGISTRO, action, ...a).then(copy);
 const ask = action => ipcRenderer.invoke(FULLSCREEN, action);
 const copy = v => (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v);
@@ -37,7 +41,7 @@ const update = action => ipcRenderer.invoke(UPDATES, action);
 
 contextBridge.exposeInMainWorld('natpfDesktop', {
   shell: 'electron',
-  version: 4,
+  version: 5,
   isFullScreen: () => ask('get'),
   setFullScreen: on => ask(on ? 'on' : 'off'),
   toggleFullScreen: () => ask('toggle'),
@@ -78,5 +82,14 @@ contextBridge.exposeInMainWorld('natpfDesktop', {
     remove: id => registro('remove', String(id)),
     state: () => registro('state'),
     open: () => registro('open'),
+  },
+  staffPanel: {
+    // alla pagina solo 'toggle', 'open' o 'close', mai l'evento di Electron
+    onToggle: cb => {
+      if (typeof cb !== 'function') return () => {};
+      const listener = (_event, action) => { try { cb(action === 'open' || action === 'close' ? action : 'toggle'); } catch (e) { console.error(e); } };
+      ipcRenderer.on(STAFF_PANEL, listener);
+      return () => { ipcRenderer.removeListener(STAFF_PANEL, listener); };
+    },
   },
 });

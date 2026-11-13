@@ -12,7 +12,7 @@
 //   5. FASCE «Bambino · Ragazzo · Adulto» per giocatore e AIUTO AL PIÙ GIOVANE quando le fasce sono diverse (`HELP`).
 //      Decisione dell'utente del 12/11: l'aiuto è solo di gioco (margine sul tempo, palla verso di lui più lenta, il suo
 //      colpo più in fondo). Nessun punto regalato, mai: ogni game parte da 0-0.
-// Dove si accendono: pannello dello stand (Ctrl+Maiusc+K, o 3 s sul marchio NATPF del menu) → «Lancio automatico» e
+// Dove si accendono: pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows, o 3 s sul marchio NATPF del menu) → «Lancio automatico» e
 // «Stesso schermo: campo aperto»; restano salvate (localStorage). Le fasce: pagina dei telefoni dello stesso schermo,
 // sulla scheda di ciascun giocatore. Tutto vale dalla partita dopo.
 // Funzioni pure (le provano i test); le usano game_engine.js, natpf_impact.js, natpf_skill.js e l'interfaccia.

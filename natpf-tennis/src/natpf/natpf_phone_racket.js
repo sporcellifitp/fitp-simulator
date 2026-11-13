@@ -934,7 +934,7 @@ export class NatpfPhoneRacket {
   relink(){ return !!this.link?.relink?.(); }
 
   // Esito dei colpi al telefono (vibrazione e scritta), dalle stesse chiamate che motore base usa per l'aptica.
-  feedback({ role, kind, grade = '', shotType = '', quality = null } = {}){
+  feedback({ role, kind, grade = '', shotType = '', quality = null, late = false } = {}){
     if (!this.ready || (role || 'p1') !== this.role) return;
     const shot = /SMASH/i.test(shotType) ? 'smash' : /LOB/i.test(shotType) ? 'lob' : /SLICE/i.test(shotType) ? 'slice' : 'drive';
     // vib: vibrazione per esito (lunga = perfetto, breve = buono, doppia = errore); i telefoni senza supporto la ignorano
@@ -942,7 +942,10 @@ export class NatpfPhoneRacket {
     // B18 (difetto 10): il telefono dice la stessa cosa del computer. Il voto viene dall'esito del computer (quality), poi
     // «Fuori» e «In rete» con il perché quando viene dal tempo (why: «troppo presto», «in ritardo»…); prima il telefono
     // ignorava fuori e rete e diceva «In anticipo» mentre il computer diceva «Fuori»
+    // B37: in partita «Fuori» e «In rete» aspettano la palla: al colpo wait (scritta neutra, vibrazione breve), poi lo
+    // stesso messaggio con l'esito vero e late quando la palla tocca terra o la rete (natpf_shot_feedback.settle)
     if (kind === 'hit') this.link.send({ t: 'ev', k: 'contact', label: phoneLabel(quality, grade), shot, vib,
+      ...(quality?.wait ? { wait: 1 } : {}), ...(late ? { late: 1 } : {}),
       out: quality?.label === 'Fuori', net: quality?.label === 'In rete', ...(quality?.label === 'Troppo lunga' ? { long: true } : {}),
       // B18.2 passo 3 (D8): per la palla corta lunga o in rete, senza un errore di tempo, il motivo (cause: «da troppo lontano»…)
       // (revisione finale: con un errore di tempo e una causa diversa vanno tutti e due, «in ritardo · da troppo lontano»,

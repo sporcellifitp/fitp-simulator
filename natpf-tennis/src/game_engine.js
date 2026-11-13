@@ -3424,6 +3424,9 @@ export class NatpfTennisEngine {
     } else e.vel.set(0, 0, 0);
   }
   _awardPoint(e, t = "") {
+    // NATPF B37: la palla ha appena toccato terra fuori o la rete: adesso il verdetto rimandato del colpo (scritta «Fuori» /
+    // «In rete», anello rosso, telefono), insieme al punto (natpf_shot_feedback.settle). Anche sul computer del P2
+    this.natpfUi?.shot?.settle?.(e, t);
     // NATPF 1v1: sul computer del P2 punti, game e fine partita li decide solo l'host (arrivano con gli snapshot).
     // Prima il P2 simulava per conto suo e poteva dare punti diversi o chiudere la partita da solo
     if (this.playerRole === "p2" && this.isMultiplayer) {
@@ -3794,6 +3797,9 @@ export class NatpfTennisEngine {
           n.banner.seq &&
           n.banner.seq !== this.bannerSeq &&
           ((this.bannerSeq = n.banner.seq),
+          // NATPF B37: se la palla del colpo del P2 non è ancora atterrata qui (la palla dell'host comanda), il verdetto
+          // arriva con il punto dell'host
+          this.natpfUi?.shot?.settle?.(null, n.banner.call?.why || "", { remote: !0 }),
           // NATPF: messaggio ricomposto dal lato del Player 2 (chi vince il punto e perché, natpf_point_call.js)
           (n.natpfCall = NPC.callFromBroadcast(this, n.banner)),
           this.hud.showCenterBanner(n.natpfCall.text, {
@@ -4163,9 +4169,11 @@ export class NatpfTennisEngine {
       !this.natpfSplit?.active && // NATPF split screen: chi serve lo dice il tabellone (l'etichetta è di una sola vista)
       !(this._isFirstPersonActive() && t === this.localActor) // NATPF: in prima persona niente etichetta sopra di sé
     ) {
+      // NATPF B37: la scritta «Al servizio» sopra la gemma di chi batte (natpf_serve_marker.js), più piccola: il segno
+      // principale è la gemma
       const i = t.pos
           .clone()
-          .add(new o.Vector3(0, 2.25, 0)),
+          .add(new o.Vector3(0, this.natpfUi?.serveMark?.tagHeight?.(t) ?? 2.25, 0)),
         a = this._projectToScreen(i);
       this.hud.updateServerTag(a, !0);
     } else this.hud.updateServerTag(null, !1);

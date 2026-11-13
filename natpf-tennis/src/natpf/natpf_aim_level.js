@@ -1,4 +1,4 @@
-// Sensibilità della mira scelta dallo staff (pannello dello stand → «Mira del telefono»: Ctrl+Maiusc+K, o 3 s sul marchio
+// Sensibilità della mira scelta dallo staff (pannello dello stand → «Mira del telefono»: Ctrl+Maiusc+K, F9 nel programma Windows, o 3 s sul marchio
 // NATPF del menu; B16 · decisione (d) dell'utente dell'08/11: «ok ma come lo misuro?»; è un'opzione dello staff, non dei
 // visitatori: non sta nelle Opzioni): alta 17° (la base, scelta del B15), media 20°, bassa 23° (prima del B15). I gradi
 // sono quelli di scarto del piatto per la mira piena (natpf_stroke_intent.AIM_FULL). Vale per i telefoni di questo

@@ -13,7 +13,7 @@ ospiti). Android con Chrome o iPhone con Safari.
    sul gioco, pagina «Collega» → «Certificato», oppure dal menu del programma (F11 per uscire dallo schermo intero, poi
    Alt) **Rete → Indirizzi e certificato per i telefoni**: sul telefono apri l'indirizzo `http://<indirizzo del PC>:8081` e installa il certificato della rete
    NATPF. Senza, il telefono vede «connessione non sicura» e il telecomando non si apre.
-2. **Abbinamento, confermato sul PC**: sul PC premi **Ctrl+Maiusc+K** (oppure tieni premuto 3 secondi il marchio NATPF
+2. **Abbinamento, confermato sul PC**: sul PC premi **Ctrl+Maiusc+K** (**F9** nel programma Windows; oppure tieni premuto 3 secondi il marchio NATPF
    in alto a sinistra nel menu) → **Telecomando dello staff**. Compare un QR (diverso da quello dei giocatori) e un
    codice come `K3ZQ-7M2P`. Valgono solo finché questo foglio è aperto, per 5 minuti.
    - **Android**: inquadra il QR con la fotocamera. Sul telefono compare un **numero di tre cifre**; lo stesso numero

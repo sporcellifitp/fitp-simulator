@@ -6,6 +6,12 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
+## >>> LAVORI FERMATI DALL'UTENTE IL 13/11/2026 ALLE 16:00 UTC: leggere PRIMA `docs/RIPRESA_AGENTE.md` (§0 = cosa fare) <<<
+
+Stato, rami non ancora uniti (B37 a `2bfe09a`, B42 a `ae76bdf`, agenti fermati, rami interi in `docs/ripresa/rami-b37-b42.bundle`), coda dei lavori (B43 → B41 parte 1 → B38+B39 → B41 parte 2
+→ B40 → B36), decisioni dell'utente e procedura di rilascio stanno lì. Compiti pronti in `docs/coda/`, analisi in
+`docs/b36/analisi/`, `docs/b39/controllo-solo-mouse/`, `docs/b41/`. Questo diario prosegue in fondo (sezioni più recenti).
+
 ## ADESSO (aggiornato il 12/11/2026 alle 22:05 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
@@ -555,8 +561,25 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
   io seleziono solo il livello di difficoltà, i telefoni sono già calibrati da me, le persone devono solo fare destra
   sinistra e io gli do i telefoni»; (2) «nella schermata "Pronto per la partita" l'utente deve toccare sullo smartphone
   "Sono pronto" (dove ora c'è "Pronto") e quando entrambi sono pronti la partita parte da sola, senza che uno clicchi su
-  Gioca». Analisi in corso (workflow `modalita-fiera-analisi`, run `wf_faa56d62-b61`: collegamento che resta,
-  calibrazione e profili, flusso dello stand → progetto in `scratchpad/fiera/progetto-modalita-fiera.md`).
+  Gioca». Analisi FATTA (run `wf_faa56d62-b61`): progetto in `scratchpad/fiera/progetto-modalita-fiera.md` (8 tappe B41.1–B41.8).
+  Scoperte: il telefono resta già collegato tra una persona e l'altra, ma il chiosco scollega il telefono P1 e ogni ricarica
+  del gioco o riavvio del programma obbliga al QR (id di sessione nuovo a ogni avvio, link.js:79-80); il telecomando dello
+  staff ha già l'abbinamento «una volta per tutte» (indirizzo fisso, chiave in localStorage, HMAC) da riusare; un profilo
+  di un adulto usato per un bambino gli fa perdere 7–8 colpi su 9 (meglio la forza imparata dai primi colpi). Piano:
+  B41.1–B41.3 (abbinamento fisso, collegamento, pagina del telefono dello stand) e B41.6 («Sono pronto») dopo B42;
+  B41.4–B41.5 (interruttore, foglio «Telefoni dello stand», pagina della fiera, «Prossimo giocatore») dopo B38/B39.
+  Domande all'utente: calibrazione (consigliata: forza imparata dai primi colpi), in fiera batte sempre la CPU?, nomi
+  («Visitatore 12»?), solo ledwall o anche portatile.
+- **DECISIONI DELL'UTENTE sulla modalità fiera e sullo stand (13/11, 15:30 UTC)**:
+  1. calibrazione in fiera: **scambi di prova per ogni visitatore** (circa 10 s, 4 palle: la calibrazione «Giocando» del
+     B28), non il profilo dello staff né la sola forza imparata dai primi colpi; lo staff prepara i telefoni una volta
+     (collegamento e prova di dritto e rovescio);
+  2. in fiera contro la CPU **batte sempre il visitatore** (servizio fisso al visitatore in tutti i game, niente
+     alternanza);
+  3. nomi: **numero automatico «Visitatore 12»** (da capo ogni giorno, classifica del giorno valida), nome facoltativo
+     scritto dallo staff con la tastiera a schermo del B38;
+  4. allo stand **solo il ledwall, il mouse è solo dello staff** (niente icona nell'area di notifica; tasto destro =
+     menu dello staff; comandi dello staff protetti dai visitatori).
 - [x] **Controllo «stand con il solo mouse» finito** (run `wf_826fa68a-9cc`, 6 agenti con prove nel browser): lista unica
   in `scratchpad/mouse/risultati/05.md` (21 voci: 9 bloccanti, 10 importanti, 2 utili) e proposta **B39 · Stand con il
   solo mouse** in 7 passi; revisore in `06.md`. Da sapere: **il pannello dello stand aperto in partita NON ferma la
@@ -566,6 +589,16 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
   senza uscita; programma senza Esci/Ricarica col mouse; diagnostica e classifica a schermo intero senza uscita col mouse.
   Domande per l'utente: solo ledwall o anche lo schermo del portatile? tasto destro = menu di Windows o del gioco? il
   mouse è solo dello staff?
+- **L'utente ha giocato la 13.9 (13/11, 15:00 UTC)**: «direi bene con la precisione» (B35a funziona). Nuove richieste:
+  (1) scambi troppo lunghi: «dopo 20 colpi consecutivi la probabilità di usare colpi speciali o forti aumenti
+  progressivamente o del doppio, così la partita diventa più spettacolare o veloce e la serie di colpi porta a un
+  risultato» → **[~] B42 partito** (run `wf_5cbad5b6-b75`, ramo `b42-scambi-lunghi`, base `fe6f774`): scambio caldo dal
+  20° colpo acceso di base in tutti i modi, colpo super più facile e CPU più aggressiva per tutti e due i lati, misure
+  prima/dopo e audit:legend; (2) «animazioni dei personaggi scelti (classici o Lob & Drop) nella schermata di fine
+  partita, per player 1 e 2» → nella fine partita v2 (**B40**, insieme alla card e ai trofei); (3) «troppi testi vicino
+  al tabellone che l'utente non legge: semplifica, togli Formato veloce e al meglio di tre, magari un'etichetta sul
+  tabellone» → **B43** (con il pannello dello staff che ferma la partita), testo pronto in `scratchpad/b43-task.md`, parte
+  appena B37 è unito.
 - [ ] **B38 · Tastiera a schermo** (richiesta dell'utente del 13/11, 11:50 UTC: «una tastiera su schermo che compaia quando
       devo digitare, perché ho solo un mouse e non ho una tastiera wireless»). Tastiera del gioco (non di Windows) che
       compare cliccando un campo di testo (nome, nomi dello stesso schermo, codice della sfida, campi della diagnostica) e
@@ -603,3 +636,43 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
 - Pacchetti (installer su R2 + zip Cloudflare) dopo ogni versione, con «come si attiva» per ogni opzione nuova.
 - Se un agente si ferma per il limite d'uso: le modifiche restano nella sua worktree (`git worktree list`); riprenderlo
   con un messaggio, non rifare da capo.
+
+**13/11, 16:00 UTC · LAVORI FERMATI dall'utente** («stoppa i lavori, salva tutto e lascia un messaggio per l'altro agente»).
+Fermati i run di B37 (`wf_63518f90-393`) e B42 (`wf_5cbad5b6-b75`); il loro lavoro non salvato chiuso in un commit
+«IN CORSO … NON verificato» (B37 `2bfe09a`, B42 `ae76bdf`); i due rami salvati in `docs/ripresa/rami-b37-b42.bundle`.
+Nessun agente in esecuzione. Come continuare: `docs/RIPRESA_AGENTE.md` §0.
+
+
+**13/11, 16:35 UTC · RIPRESA (nuova sessione dell'agente principale, contenitore diverso).** Letti `CLAUDE.md`,
+`docs/RIPRESA_AGENTE.md` e questa traccia; `natpf-simulator` = `origin` a `06a335b`, albero pulito.
+- Rami B37 e B42 recuperati dal bundle (`git fetch docs/ripresa/rami-b37-b42.bundle …`): `b37-collaudo-bis` a `2bfe09a`,
+  `b42-scambi-lunghi` a `ae76bdf`. Worktree **nello scratchpad di questa sessione** (non in `.claude/worktrees`, che non è
+  ignorata da git): `…/scratchpad/b37/wt` e `…/scratchpad/b42/wt`, dipendenze installate.
+- [~] **B37 finitura** (controllo del commit «IN CORSO», suite, build, `audit:legend`, 13 prove nel browser, documento):
+      workflow `b37-finitura`, run `wf_4f52f180-303`, porte 4100–4149 (più 4902/4903 del telecomando).
+- [~] **B42 finitura** (controllo del commit «IN CORSO», tolto `legend-prova-tmp.mjs`, suite, build, `audit:legend`, 6 prove
+      nel browser, `TESTO_SUITE` del documento, dove si scontrerà con B37): workflow `b42-finitura`, run `wf_32a43c3c-f2c`,
+      porte 4150–4199.
+  Se si fermano (limite d'uso): rilanciare lo stesso script con `resumeFromRunId` se l'agente aveva finito, altrimenti
+  un agente nuovo nella stessa worktree con «RIPRESA: …» (gli appunti con l'ora sono in `…/scratchpad/b37/notes.md` e
+  `…/scratchpad/b42/notes.md`). In un contenitore nuovo le worktree non ci sono: si riparte dal bundle (RIPRESA §2).
+- Poi: unire B37 → **2026-11-13.10**; B42 unito sopra B37 (conflitti attesi in `game_engine.js`, `index.html`,
+  `natpf_hot_rally.js`, `natpf_kiosk.js`), `audit:legend` sul codice unito → **2026-11-13.11**; poi la coda (B43, …).
+- **B28.1 mai unito** (lavoro di questa sessione del 12/11, fermato dal limite d'uso): ramo locale `b28-cal-giocando` a
+  `88cf743`, solo in questo contenitore, fermo alla 2026-11-12.5. Il profilo del telefono non si rinnova tra minigiochi e
+  allenamenti, sfida tra due computer con «Nessuna», fine degli scambi di prova per chi tiene i gesti, soglia di
+  `natpf-phone-keep`. Compito per rifarlo o unirlo: `docs/coda/B28.1-profilo-per-attivita.md` (da fare prima o insieme
+  alla B41 prima parte, che tocca gli stessi file).
+
+**13/11, 18:30 UTC · piano B36 e decisioni.** Piano della direzionalità scritto e pubblicato (run `wf_b6acb5fb-075`:
+piano unico, tre revisori contrari, piano finale) in `docs/b36/piano-direzionalita.md`, materiale in `docs/b36/piano/`.
+**Risposte dell'utente** (domande a scelta; d'ora in poi le domande si fanno solo così): cima del telefono; palle corte e
+volée **accese** come oggi; fuori **come nel tennis vero** girando troppo; una riga nella pagina «Pronto»; prove con
+**giornate intere** con «Nuova»; **B36.0 dopo B43**. Card del fine partita v2 (B40) **approvata**. Il piano §0 dice come
+cambiano le tappe (cade B36.2; B36.4 senza rientro verso l'angolo).
+- [x] B42 finito sul ramo (`ade3377`): gioco 1451/1451, sito 226, Windows 42, LAN 12, build, `audit:legend` tutti i
+      criteri; nel browser rally 10/10, formato-fiera 25/25, 1v1-p2p 39/39, menu 45/45, stesso-schermo-b20 51/53 (i 2 KO
+      del banner del sorteggio ci sono già sulla base dal B35b), leggenda 6/7 (posa nell'allungo in corsa: capita anche
+      prima del 20° colpo; aperto). Da unire dopo B37.
+- [~] B37 nelle ultime prove (lob-drop: trovate impronte diverse per un sorteggio delle palpebre spostato dal segno di chi
+      serve; corretta la prova, non il gioco).

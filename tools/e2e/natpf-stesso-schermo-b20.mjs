@@ -134,7 +134,9 @@ try {
   await sleep(250);
   let bn = await banner(g);
   const m1 = await g.evaluate(() => { const E = __natpfTennis; return { fair: E.score.fair, server: E.score.server, hot: E.natpfHot, foot: [...document.querySelectorAll('[data-sb-format]')].map(e => e.textContent), serving: [...document.querySelectorAll('.sb-row.serving')].map(r => r.getAttribute('title')) }; });
-  check('   il sorteggio si vede: banner «Si gioca» con «Sorteggio: batte Giulia», e batte lei', bn.shown && bn.text === 'Si gioca' && bn.sub === 'Sorteggio: batte Giulia' && m1.server === 'opponent' && m1.serving.every(n => n === 'Giulia'), fmt({ bn, m1 }));
+  // (B35b, 13/11: con il servizio che cambia ogni 2 punti il banner d'inizio aggiunge la riga del formato veloce)
+  const FAST = 'Formato veloce: il servizio cambia ogni 2 punti';
+  check('   il sorteggio si vede: banner «Si gioca» con «Sorteggio: batte Giulia · Formato veloce…», e batte lei', bn.shown && bn.text === 'Si gioca' && bn.sub === `Sorteggio: batte Giulia · ${FAST}` && m1.server === 'opponent' && m1.serving.every(n => n === 'Giulia'), fmt({ bn, m1 }));
   check('   formato in fiera acceso di base nello stesso schermo; sottotitolo dei due tabelloni «1 game · punto decisivo sul 40-40»', m1.fair === true && m1.foot.length === 2 && m1.foot.every(t => t === '1 game · punto decisivo sul 40-40'), fmt(m1));
   check('   «Scambio che si scalda» spento dal pannello: questa partita non lo usa', m1.hot === false, String(m1.hot));
   await shot('2-inizio-sorteggio-1280');
@@ -196,7 +198,7 @@ try {
   bn = await banner(g);
   const m2 = await g.evaluate(() => { const E = __natpfTennis; return { split: !!E.natpfSplit?.active, server: E.score.server, fair: E.score.fair, hot: E.natpfHot, pts: [E.score.playerPoints, E.score.opponentPoints, E.score.playerGames, E.score.opponentGames], modal: !document.getElementById('victory-modal').classList.contains('hidden'), lobby: __natpfTennis.natpfUi.lobby.visible }; });
   check('   la chiede anche Marco: partita nuova senza toccare il computer (0-0, stesso schermo, scheda finale chiusa)', again && m2.split && !m2.modal && !m2.lobby && m2.pts.join('') === '0000' && m2.fair === true, fmt(m2));
-  check('   nuovo sorteggio, scritto nel banner: «Sorteggio: batte Marco»', bn.sub === 'Sorteggio: batte Marco' && m2.server === 'player', fmt(bn));
+  check('   nuovo sorteggio, scritto nel banner: «Sorteggio: batte Marco · Formato veloce…»', bn.sub === `Sorteggio: batte Marco · ${FAST}` && m2.server === 'player', fmt(bn));
   await until(ph1, () => document.getElementById('rematch').classList.contains('hidden'), null, 5000);
   v1 = await phoneView(ph1); v2 = await phoneView(ph2);
   check('   i telefoni tolgono «Rivincita» e tornano alla partita («Al servizio» per chi batte)', !v1.rematch && !v2.rematch && v1.big === 'Al servizio', fmt({ v1, v2 }));
