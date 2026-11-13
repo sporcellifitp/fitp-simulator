@@ -44,6 +44,12 @@ export function phoneLabel(quality = null, grade = ''){
   if (quality && PHONE_LABEL[quality.label]) return PHONE_LABEL[quality.label];
   return /PERFECT|POWER/i.test(grade) ? 'perfetto' : /EARLY/i.test(grade) ? 'anticipo' : /LATE/i.test(grade) ? 'ritardo' : 'buono';
 }
+// perché del colpo per il telefono (riga piccola): il motivo del tempo e, per la palla corta lunga o in rete, la causa se è
+// diversa («in ritardo · da troppo lontano»); revisione finale: prima solo il tempo, la causa vera si perdeva
+export function phoneWhy(quality = null){
+  const w = quality?.why || '', c = quality?.cause || '';
+  return w && c && w !== c ? `${w} · ${c}` : w || c;
+}
 // motivo del punto finito (_awardPoint) in italiano per il telefono: prima arrivava «Out», «Net», «Nice Shot!» in inglese
 const POINT_REASON = Object.freeze({ OUT: 'Fuori', NET: 'In rete', 'NICE SHOT!': 'Vincente', POINT: 'Palla non presa', 'POINT WON!': '', 'POINT LOST': '' });
 export function pointReason(grade = ''){
@@ -934,7 +940,9 @@ export class NatpfPhoneRacket {
     if (kind === 'hit') this.link.send({ t: 'ev', k: 'contact', label: phoneLabel(quality, grade), shot, vib,
       out: quality?.label === 'Fuori', net: quality?.label === 'In rete', ...(quality?.label === 'Troppo lunga' ? { long: true } : {}),
       // B18.2 passo 3 (D8): per la palla corta lunga o in rete, senza un errore di tempo, il motivo (cause: «da troppo lontano»…)
-      ...(quality?.why || quality?.cause ? { why: quality.why || quality.cause } : {}) });
+      // (revisione finale: con un errore di tempo e una causa diversa vanno tutti e due, «in ritardo · da troppo lontano»,
+      // come sul computer; prima il telefono perdeva la causa)
+      ...(quality?.why || quality?.cause ? { why: phoneWhy(quality) } : {}) });
     else if (kind === 'whiff') this.link.send({ t: 'ev', k: 'miss', why: /REACH/i.test(grade) ? 'portata' : /EARLY/i.test(grade) ? 'presto' : 'tardi', vib: VIBRATION.red });
     // «Punto tuo» / «Punto avversario» solo a punto finito (_awardPoint: point_won o fault), con il motivo in italiano
     else if (kind === 'point_won' || kind === 'fault') this.link.send({ t: 'ev', k: 'point', mine: kind === 'point_won', txt: pointReason(grade) });

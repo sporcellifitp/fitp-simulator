@@ -124,6 +124,17 @@ try {
   // il registro dello stand non ha mai il nome (righe in memoria e coda sul computer)
   const reg = await g.evaluate(() => { const R = __natpfTennis.natpfUi.registro; const all = [...(R?.rec?.buf || [])].join('\n'); let ls = ''; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (/registro/i.test(k)) ls += localStorage.getItem(k); } return { on: !!R?.rec?.on, lines: R?.rec?.conti?.righe || 0, hasName: /\bAda\b/.test(all + ls) }; });
   check('B2. registro dello stand: righe della partita, senza il nome', reg.on && reg.lines > 0 && !reg.hasName, JSON.stringify(reg));
+  // revisione finale: anche la coda sul computer (IndexedDB natpf-registro, archivio «testi»), dopo aver chiuso un blocco
+  const coda = await g.evaluate(async () => {
+    const R = __natpfTennis.natpfUi.registro; try { await R?.rec?.blocco?.(); } catch {}
+    const db = await new Promise((ok, ko) => { const r = indexedDB.open('natpf-registro'); r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); });
+    if (![...db.objectStoreNames].includes('testi')){ db.close(); return { blocchi: 0, chars: 0, hasName: false, store: false }; }
+    const all = await new Promise((ok, ko) => { const q = db.transaction('testi').objectStore('testi').getAll(); q.onsuccess = () => ok(q.result || []); q.onerror = () => ko(q.error); });
+    db.close();
+    const txt = all.map(x => String(x?.testo || '')).join('\n');
+    return { blocchi: all.length, chars: txt.length, hasName: /\bAda\b/.test(txt), store: true };
+  });
+  check('B2b. coda del registro sul computer (IndexedDB): blocchi della partita, senza il nome', coda.store && coda.blocchi > 0 && coda.chars > 0 && !coda.hasName, JSON.stringify(coda));
   await g.click('#btn-return-title');
   await g.waitForFunction(() => __natpfTennis.natpfUi.lobby.visible, null, { timeout: 8000 });
   await g.evaluate(() => __natpfTennis.natpfUi.kiosk.run('ranking'));

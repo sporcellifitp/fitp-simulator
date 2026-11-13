@@ -179,6 +179,14 @@ test('B: scritta dell\'esito: «Troppo lunga» in giallo e «In rete» con il pe
   assert.deepEqual([f.big, f.sub], ['Troppo lunga', 'Gesto troppo forte · Palla corta']);
   phone.feedback({ role: 'p1', kind: 'hit', grade: 'PERFECT • DROP SHOT', shotType: 'drop', quality: net });
   assert.deepEqual([eventFlash({ k: 'contact', ...sent[1], shot: 'drop' }).big, eventFlash({ k: 'contact', ...sent[1], shot: 'drop' }).sub], ['In rete', 'Da troppo lontano · Palla corta']);
+  // revisione finale: errore di tempo e causa diversa insieme, sul telefono tutti e due (prima solo «In ritardo»)
+  const lateFar = shotQuality('LATE • DROP SHOT', { long: true, cause: 'da troppo lontano' });
+  phone.feedback({ role: 'p1', kind: 'hit', grade: 'LATE • DROP SHOT', shotType: 'drop', quality: lateFar });
+  assert.equal(sent[2].why, 'in ritardo · da troppo lontano');
+  assert.deepEqual([eventFlash({ k: 'contact', ...sent[2], shot: 'drop' }).big, eventFlash({ k: 'contact', ...sent[2], shot: 'drop' }).sub], ['Troppo lunga', 'In ritardo · da troppo lontano · Palla corta']);
+  // la causa uguale al tempo non si ripete
+  phone.feedback({ role: 'p1', kind: 'hit', grade: 'LATE • DROP SHOT', shotType: 'drop', quality: longLate });
+  assert.equal(sent[3].why, 'in ritardo');
 });
 
 test('B: motore: la palla corta da dietro la riga di fondo viene troppo lunga con il motivo, e l\'esito per il telefono lo dice', () => {
