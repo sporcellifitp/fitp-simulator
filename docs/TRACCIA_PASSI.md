@@ -503,7 +503,7 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
       buono, colpi nella direzione voluta 58→73% (56→71%), incrociato voluto finito lungolinea 25→0%; con ~95 ms di ritardo
       fisso giusti 27→66%, fuori 24→8%. Agente: gioco 1425/1426 (1 saltato), sito 226, build, audit:legend uguale, 7 prove
       nel browser. Documento `docs/b35/precisione-telefono.md` (istruzioni per registrare una sessione vera).
-- [~] **Versione 2026-11-13.8** = B35a (controllo rapido in corso) → commit, push, zip, installer.
+- [~] **Versione 2026-11-13.8** = B35a (`6159b7e`; controllo rapido gioco 1426/1426, sito 226/226, Windows 42/42, build ok) → push fatto, zip e installer in corso.
 - **NUOVO COLLAUDO DELL'UTENTE (13/11, 11:25 UTC) → blocco B37** (dopo B35b, sopra il suo lavoro):
   1. «quando la palla va fuori, aspetta che vada realmente fuori (anche quando finisce la partita): è brutto che si
      anticipi la palla fuori e si dica subito che la persona ha perso o si assegni subito il punto»;
