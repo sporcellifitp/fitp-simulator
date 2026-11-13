@@ -175,3 +175,17 @@ test('motore: chi gioca va a rete al massimo in un colpo su sei, la CPU ogni tan
   assert.ok(p.cpuVoleePerGame > 0, `volée della CPU ${p.cpuVoleePerGame}`);
 });
 void THREE; void simulate;
+
+/* ---------- registro dello stand: i colpi a rete si registrano e si riassumono ---------- */
+test('registro: il campo «rete» del colpo è previsto (gioco e Worker) e il riassunto conta colpi a rete, volée e colpi a rete della CPU', async () => {
+  const { CAMPI, controllaRiga } = await import('../src/natpf/registro/registro_formato.js');
+  const W = await import('../cloudflare/registro-worker.js');
+  assert.ok(CAMPI.includes('rete') && W.CAMPI.includes('rete'));
+  const row = { k: 'colpo', t: 1, gesto: 'topspin', voto: 'p', rete: 1, volee: true, in: ['schiacciata', 120, 2.4] };
+  assert.deepEqual(controllaRiga(row), []);
+  const { Riassunto } = await import('../scripts/registro/riassunto.mjs');
+  const R = new Riassunto();
+  R._colpo(row, {}); R._colpo({ ...row, rete: undefined, volee: undefined, in: ['palla corta', 60, .8] }, {}); R._colpo({ k: 'colpo', gesto: 'slice' }, {});
+  assert.deepEqual([R.rete.colpi, R.rete.aRete, R.rete.volee], [3, 1, 1]);
+  assert.deepEqual(R.rete.cpu, { schiacciata: 1, 'palla corta': 1 });
+});
