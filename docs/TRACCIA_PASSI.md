@@ -399,7 +399,7 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
 - [~] **B31 tappa 3.1 gioco a rete** — run `wf_7447d3ae-089`, ramo `b31-gioco-a-rete`, base `1906562`, documento `docs/b31/gioco-a-rete.md`.
 - [x] **B33** finito (ramo `b33-fine-partita`, `3ac03d0`), unito: **versione 2026-11-13.2** (controllo rapido gioco
       1385/1385, sito 226/226, Windows 42/42, build ok; zip 23.836.415 B, sha256
-      `01232d0ba08b7c06e04c3fbd776584b7e46b492f13d075c9f34c752bb8e0014a`; **installer pubblicato su R2** e verificato: 128059991 B, sha256 `f8db3e2265119b9112d15891dfef2cb90d807e39533d6e11c7a30801365f1e0e`).
+      `01232d0ba08b7c06e04c3fbd776584b7e46b492f13d075c9f34c752bb8e0014a`; **installer pubblicato su R2** e verificato: 128.059.215 B, sha256 `f8db3e2265119b9112d15891dfef2cb90d807e39533d6e11c7a30801365f1e0e`).
       **Da portare al revisore finale / all'utente**: «colpo più veloce» 221–240 km/h (numero del popup del colpo: poco
       credibile, va controllato da dove viene); in classifica una sconfitta a Leggenda (286 punti) sta sopra le vittorie
       (punteggio = % punti × valore del livello: decisione da chiedere all'utente se vuole premiare la vittoria); nella
