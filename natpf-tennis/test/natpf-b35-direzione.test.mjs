@@ -107,3 +107,34 @@ test('nel motore: incrociati voluti mai lungolinea con il gesto buono, anche con
   assert.ok(s.filter(g => g === 'cross').length >= 12 && !s.includes('line'), s.join(' '));
   assert.ok(s.slice(-5).filter(g => g === 'cross').length >= 4, `gli ultimi colpi della serie restano incrociati: ${s.join(' ')}`);
 });
+
+// Strumento per la sessione vera (scripts/diag/diag.mjs direzione): voluto dalla prova guidata o dai blocchi tra i segni
+test('analisi della sessione registrata: voluto → ottenuto, piatto e tempo nel verso voluto, oltre la finestra, segno e fuori', async () => {
+  const { directionReport, gotOf } = await import('../src/natpf/diag/diag_direction.js');
+  // dritto del destro (contatto +1): incrociato a sinistra (x < 0), lungolinea a destra
+  assert.equal(gotOf({ x: -2.5, z: -9, lato: 1 }), 'incrociato'); assert.equal(gotOf({ x: 2.5, z: -9, lato: 1 }), 'lungolinea');
+  assert.equal(gotOf({ x: 2.5, z: -9, lato: -1 }), 'incrociato', 'rovescio del destro: incrociato a destra');
+  assert.equal(gotOf({ x: .3, z: -9, lato: 1 }), 'centro'); assert.equal(gotOf({ x: -4.6, z: -9, lato: 1 }), 'fuori'); assert.equal(gotOf({ rete: true }), 'rete');
+  assert.equal(gotOf({ x: 1, z: -12.4, lato: 1 }), 'fuori', 'lunga');
+  let t = 0;
+  const k = o => ({ t: (t += 900), k: 'racchetta', chi: 'player', ...o });
+  // prova guidata: 4 dritti incrociati voluti, il telefono girato verso il lungolinea e in ritardo (come nel collaudo)
+  const ev = [{ t: 0, k: 'tel.profilo', profilo: { trialSign: -1 } }];
+  for (let i = 0; i < 4; i++){ ev.push({ t: (t += 100), k: 'atteso', lato: 'forehand', direzione: 'incrociato', finestraMs: 4000 }); ev.push(k({ n: i, lato: 1, piatto: .5, tempo: -1.3, tempoMs: -110, oltre: .3, x: i < 3 ? 2.6 : 4.6, z: -9.5 })); }
+  const R = directionReport(ev, { meta: { gioco: { ritardoSchermoMs: 0, difficolta: 'pro' } } });
+  assert.equal(R.colpi, 4); assert.equal(R.perVoluto.incrociato.ottenuto.lungolinea, 75); assert.equal(R.perVoluto.incrociato.ottenuto.fuori, 25);
+  assert.equal(R.perVoluto.incrociato.piattoGiusto, 0); assert.equal(R.perVoluto.incrociato.piattoMediano, -.5); assert.equal(R.oltreTardi, 100);
+  assert.ok(R.segnoGirato);
+  const notes = R.diagnosi.join('\n');
+  assert.match(notes, /cima verso il centro/); assert.match(notes, /ritardo dello schermo/); assert.match(notes, /segno al contrario/);
+  // blocchi tra i segni Maiusc+M: dritti lungolinea poi rovesci incrociati, colpi buoni
+  t = 0; const ev2 = [];
+  for (let i = 0; i < 3; i++) ev2.push(k({ n: i, lato: 1, piatto: .6, tempo: -.2, x: 2.4, z: -9.6 }));
+  ev2.push({ t: (t += 10), k: 'marca', testo: 'segno da tastiera' });
+  for (let i = 0; i < 3; i++) ev2.push(k({ n: 10 + i, lato: -1, piatto: .5, tempo: .3, x: 2.2, z: -9.4 }));
+  const B = directionReport(ev2, { blocks: 'dl,ri' });
+  assert.equal(B.perVoluto.lungolinea.giusti, 100); assert.equal(B.perVoluto.incrociato.giusti, 100);
+  assert.equal(B.perVoluto.incrociato.piattoGiusto, 100, 'rovescio del destro: piatto a destra = verso l\'incrociato');
+  assert.match(B.diagnosi.join(' '), /segue il gesto/);
+  assert.equal(directionReport(ev2).colpi, 0, 'senza prova guidata né blocchi: nessun voluto');
+});
