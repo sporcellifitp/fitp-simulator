@@ -516,6 +516,11 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
   4. voce «Pannello dello stand» nel programma Windows, che non dipenda da Ctrl+Maiusc+K (nel menu e con un tasto, per
      esempio F9, gestito dal programma: a schermo intero la barra del menu non c'è).
   Video 1 dei riferimenti B36 ricevuto (`scratchpad/b36/video1/video1.mp4`, 36,7 s, 720×1280): il secondo non è arrivato.
+- [ ] **B38 · Tastiera a schermo** (richiesta dell'utente del 13/11, 11:50 UTC: «una tastiera su schermo che compaia quando
+      devo digitare, perché ho solo un mouse e non ho una tastiera wireless»). Tastiera del gioco (non di Windows) che
+      compare cliccando un campo di testo (nome, nomi dello stesso schermo, codice della sfida, campi della diagnostica) e
+      sparisce con «Fatto», Esc o appena si usa una tastiera vera; opzione dello stand «Tastiera a schermo: Automatica ·
+      Sempre · Mai». Testo del compito: `scratchpad/b38-task.md`. Parte dopo B35b, in parallelo a B37 (due agenti).
 - [ ] **B36 · FASE SUCCESSIVA (richiesta dell'utente del 13/11, 10:40 UTC): direzionalità al centro del gioco, campo
       completamente aperto, stile arcade.** Da fare **dopo** B35a/B35b, senza toccarli. Punti dell'utente: (1) la direzione
       impressa dal giocatore decide traiettoria e punto d'atterraggio, è il fattore principale; (2) colpi diversi per gesto,
