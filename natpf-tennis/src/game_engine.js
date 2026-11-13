@@ -42,6 +42,7 @@ import * as NS from "./natpf/natpf_skill.js";
 import * as NL from "./natpf/natpf_legend.js";
 import * as NO from "./natpf/natpf_stroke_outcome.js";
 import * as NI from "./natpf/natpf_impact.js";
+import * as NP from "./natpf/natpf_net_play.js";
 import * as NPC from "./natpf/natpf_point_call.js";
 import { NatpfReplay } from "./natpf/natpf_replay.js";
 const NR = { c: null }; // NATPF moviola: posa della telecamera
@@ -2293,7 +2294,7 @@ export class NatpfTennisEngine {
       this.hud.updateTimingGauge({ cursorNormalized: w, modeTitle: `${u} (${X})`, speedText: `${F} KM/H` }),
       // NATPF racchetta virtuale: dopo il colpo verso il fondo, quanto il tempo lo permette (natpf_impact.js)
       racketShot && !l && !this.isDoubles
-        ? NI.recoverAfterShot(this, this.player, { landingX: E, flight: I, contactZ: p.pos.z })
+        ? NI.recoverAfterShot(this, this.player, { landingX: E, flight: I, contactZ: p.pos.z, approach: NP.approachOf(racketShot.out, p.pos.z, { volley: !!this.natpfLastRacket?.volley, power: racketShot.power, contactY: this.natpfLastRacket?.contactY }) }) // B31: a rete dopo un attacco riuscito
         : this.player.targetPos.set(o.MathUtils.clamp(-E * 0.22, -1.6, 1.6), 0, S.BASELINE_Z - 0.15),
       this.playerPartner.targetPos.set(
         o.MathUtils.clamp(E * 0.35 + (this.score.deuceSide ? -1.4 : 1.4), -2.8, 2.8),
@@ -2392,6 +2393,7 @@ export class NatpfTennisEngine {
     // NATPF B18.2 gruppo 3 (revisione): le voci della situazione anche per i colpi riusciti («cause» c'è solo per i falliti),
     // per dire la causa vera di un colpo super mancato (natpf_super_hint.js). Solo lettura: niente nell'esito
     this.natpfLastRacket.sit = NS.situationParts(Q, { speed: b.vel.length(), z: p.pos.z, y: b.pos.y, smash, pressure, running });
+    this.natpfLastRacket.contactY = +b.pos.y.toFixed(3); // B31: altezza della palla all'impatto (approccio a rete, NP.approachOf)
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
     const netClear = sup.on ? NO.SUPER.netGap : out.attack || out.hot ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null; // (B20: anche lo scambio caldo passa basso)
     return {
@@ -2644,7 +2646,7 @@ export class NatpfTennisEngine {
         }),
       // NATPF racchetta virtuale: come chi gioca qui, dopo il colpo verso il fondo quanto il tempo lo permette
       p2Racket && !r && !this.isDoubles
-        ? NI.recoverAfterShot(this, this.opponent, { landingX: T, flight: R, contactZ: l.pos.z })
+        ? NI.recoverAfterShot(this, this.opponent, { landingX: T, flight: R, contactZ: l.pos.z, approach: NP.approachOf(p2Racket.out, l.pos.z, { volley: !!this.natpfLastRacket?.volley, power: p2Racket.power, contactY: this.natpfLastRacket?.contactY }) }) // B31: stessa regola
         : this.opponent.targetPos.set(o.MathUtils.clamp(-T * 0.22, -1.6, 1.6), 0, -S.BASELINE_Z + 0.25),
       this.opponentPartner.targetPos.set(
         o.MathUtils.clamp(T * 0.35 + (this.score.deuceSide ? 1.4 : -1.4), -2.8, 2.8),

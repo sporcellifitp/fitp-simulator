@@ -21,6 +21,7 @@
 // Il generatore casuale si può iniettare (engine.natpfLegendRng); l'audit scripts/audit/legend.mjs misura i criteri.
 import * as NS from './natpf_skill.js';
 import { rallyPressure } from './natpf_stroke_outcome.js';
+import { NET_PLAY } from './natpf_net_play.js';
 
 const C = NS.COURT;
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -97,6 +98,8 @@ export const LEGEND = Object.freeze({
   // − (reazione + strada / velocità). Margine negativo:
   // probabilmente non ci arriva (vincente); piccolo: ci arriva in corsa e risponde peggio. reachSd: scala del margine (s)
   reachAfter: .55, reachReact: .12, reachSide: .72, reachSd: .08, reachUse: 1,
+  // B31: portata della racchetta oltre reachSide per la volée di chi è a rete (m)
+  netReach: .9,
   // B18.2 (D11 del rapporto B16): il servizio perfetto, forte e sulla riga di chi gioca toglie fino a serveQ alla qualità
   // della risposta (come il colpo super, natpfSuper.legendQ); la lettura in ritardo è in natpf_skill.SERVE_WEIGHT.leggenda
   serveQ: .15,
@@ -157,6 +160,17 @@ const punishOf = (m, L, kind) => { const k = m.kinds[kind]; return L.learn ? ((k
 // probabilità che non ci arrivi (vincente) e quanto arriva in corsa (0…1), dalla posizione e dalla corsa attuali
 function humanReach(L, c, ctx, h){
   const flight = finite(c.flight, .9), vx = (c.x - ctx.bx)/Math.max(.3, flight);
+  // B31 (punto 22): chi gioca è a rete. Prima la stima guardava sempre il punto dopo il rimbalzo (2 m oltre), come se chi
+  // è a rete dovesse tornare in fondo: i passanti sembravano facili da prendere e le palle profonde vincenti, e la
+  // Leggenda non passava quasi mai chi saliva. Ora, tranne il pallonetto (che lo scavalca), conta la volée: dove passa la
+  // palla quando arriva all'altezza di chi gioca e quanto si muove a rete (NET_PLAY.netMove: reazione più lunga, passo corto)
+  if (c.shot !== 'LOB' && Math.abs(h.pos.z) < NET_PLAY.netMove.zone){
+    const M = NET_PLAY.netMove, hz = Math.abs(h.pos.z), path = Math.abs(ctx.bz) + Math.max(c.z, hz), f = clamp((Math.abs(ctx.bz) + hz)/Math.max(1, path), .2, 1);
+    const tc = flight*f, xc = ctx.bx + (c.x - ctx.bx)*f*(c.z < hz ? 1.15 : 1);
+    const need = L.reachReact + M.react + Math.max(0, Math.abs(xc - h.pos.x) - L.reachSide - L.netReach)/Math.max(3, finite(h.maxSpeed, 9)*M.speed);
+    const margin = tc - need;
+    return { pWin: 1/(1 + Math.exp(margin/L.reachSd)), stretch: clamp(1 - margin/.35), margin };
+  }
   const xc = c.x + vx*L.reachAfter, zc = c.z + 2;
   const hx = h.pos.x + finite(h.vel?.x)*.1, hz = h.pos.z + finite(h.vel?.z)*.1;
   const need = L.reachReact + Math.hypot(Math.max(0, Math.abs(xc - hx) - L.reachSide), zc - hz)/Math.max(4, finite(h.maxSpeed, 9));
@@ -218,6 +232,12 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   if (hz > 11 && ctx.bz > -10.6 && q > .75) cands.push({ kind: 'smorzata', x: R(-2.2, 2.2), z: R(2.4, 3.6), shot: 'DROP', power: .2 });
   // pallonetto: avversario a rete
   if (hz < 7.5) cands.push({ kind: 'pallonetto', x: R(-2.4, 2.4), z: R(9.6, 11), shot: 'LOB', power: .3 });
+  // B31 (punto 22): passanti contro chi è a rete, basso e stretto incrociato o teso lungolinea, lontano da lui
+  if (hz < NET_PLAY.netMove.zone){
+    const far = -(Math.sign(hx) || s);
+    cands.push({ kind: 'passante', x: far*R(3.2, 3.85), z: R(6, 8.2), shot: 'TOPSPIN', power: R(.6, .8) });
+    cands.push({ kind: 'passanteLungo', x: far*R(3.1, 3.7), z: R(9, 10.6), shot: 'FLAT', power: R(.7, .88) });
+  }
   // errori dell'avversario osservati / attesi in questa partita (1 all'inizio)
   const g = (m.err + 2)/(m.exp + 2);
   // chiusura degli scambi lunghi: colpo in più per chiudere e, contro chi sbaglia poco, oltre closeHard colpi solo colpi

@@ -6,7 +6,7 @@
 //        [--serie=2]      seconda serie di semi (1: 2001, 2038, …; 2: 5003, 5044, …)
 //        [--tattiche=normale,tagliati]   normale: il profilo com'è; tagliati: ogni colpo dello scambio è un tagliato
 //                         (stesso gesto, stesso tempo: serve a vedere che il tagliato non diventi la tattica che vince)
-//        [--json]
+//        [--json] [--cols=puntiG,gameG,…]   solo queste colonne
 // Il banco non cambia nessuna regola: guarda i colpi (_natpfRacketShot, _executeOpponentReturn) e i punti (_awardPoint).
 // Cosa misura, per livello × profilo × tattica:
 //   • punti e game vinti da chi gioca (game: primo a 4 con 2 di scarto sulla sequenza dei punti), colpi per punto;
@@ -116,6 +116,9 @@ export function cell({ difficulty, profile, tattica = 'normale', points = 300, s
     tagliati: sl.length, tagliatiQuota: pct(sl.length, S.length), tagliatiOk: pct(sl.filter(inCourt).length, sl.length), tagliatiPunto: pct(sl.filter(point).length, sl.length),
     tagliatiErroreCPU: pct(sl.filter(s => s.reached && s.res === 'player').length, sl.length),
     // la CPU
+    // la CPU contro chi è a rete: passanti e pallonetti che fanno punto senza che chi gioca la tocchi
+    cpuControRete: C.filter(c => c.playerNet).length, cpuPassaPunto: pct(C.filter(c => c.playerNet && c.res === 'opponent' && !c.answered).length, C.filter(c => c.playerNet).length),
+    cpuPallonettiRete: pct(C.filter(c => c.playerNet && c.shot === 'LOB').length, C.filter(c => c.playerNet).length),
     cpuReteQuota: pct(cpuAtNet.length, C.length), puntiReteC: pct(cNet.length, n), vintiReteC: pct(cNet.filter(p => p.who === 'opponent').length, cNet.length),
     cpuSchiacciate: cs('smash').length, cpuSchiacciatePerGame: per(cs('smash').length, games), cpuSchiacciatePunto: pct(cs('smash').filter(c => c.res === 'opponent' && !c.answered).length, cs('smash').length),
     cpuVolee: cs('volley').length, cpuVoleePerGame: per(cs('volley').length, games),
@@ -129,7 +132,7 @@ export const COLS = [
   ['reteG', 'G rete%'], ['puntiReteG', 'p. G rete%'], ['vintiReteG', 'vinti%'], ['voleePerGame', 'volée/g'], ['voleeOk', 'volée ok%'], ['voleePunto', 'volée p%'], ['voleeFuoriLato', 'v.lato%'], ['fondoFuoriLato', 'f.lato%'],
   ['schiacciate', 'schiacc.'], ['schiacciateOk', 'ok%'], ['schiacciateRimandate', 'rimand.%'], ['pallonetti', 'pallon.'], ['pallonettiOk', 'ok%'], ['pallonettiPunto', 'p%'],
   ['tagliatiQuota', 'tagl.%'], ['tagliatiOk', 'ok%'], ['tagliatiPunto', 'p%'],
-  ['cpuReteQuota', 'CPU rete%'], ['puntiReteC', 'p. C rete%'], ['vintiReteC', 'vinti%'], ['cpuSchiacciatePerGame', 'C schiacc/g'], ['cpuSchiacciatePunto', 'p%'], ['cpuVoleePerGame', 'C volée/g'], ['cpuCortePerGame', 'C corte/g'],
+  ['cpuPassaPunto', 'C passa%'], ['cpuPallonettiRete', 'C pall.%'], ['cpuReteQuota', 'CPU rete%'], ['puntiReteC', 'p. C rete%'], ['vintiReteC', 'vinti%'], ['cpuSchiacciatePerGame', 'C schiacc/g'], ['cpuSchiacciatePunto', 'p%'], ['cpuVoleePerGame', 'C volée/g'], ['cpuCortePerGame', 'C corte/g'],
   ['reteColpiPerGame', 'rete/g'],
 ];
 
@@ -137,11 +140,11 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
   const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1], has = k => process.argv.includes(`--${k}`);
   const difficulties = (arg('difficulty') || 'casual,pro,leggenda').split(','), profiles = (arg('profiles') || 'tennista,amatore,bambino').split(',');
   const tattiche = (arg('tattiche') || 'normale').split(','), points = +(arg('points') || 300), seeds = (SERIE[arg('serie') || 1] || SERIE[1])(+(arg('nsemi') || 3));
-  const rows = [], json = has('json');
-  if (!json) console.log(`semi ${seeds.join(', ')} · ${points} punti per seme\n${'livello/profilo/tattica'.padEnd(30)} ` + COLS.map(c => c[1].padStart(Math.max(6, c[1].length))).join(' '));
+  const rows = [], json = has('json'), only = arg('cols')?.split(','), COLS2 = only ? COLS.filter(c => only.includes(c[0])) : COLS;
+  if (!json) console.log(`semi ${seeds.join(', ')} · ${points} punti per seme\n${'livello/profilo/tattica'.padEnd(30)} ` + COLS2.map(c => c[1].padStart(Math.max(6, c[1].length))).join(' '));
   for (const difficulty of difficulties) for (const profile of profiles) for (const tattica of tattiche){
     const r = cell({ difficulty, profile, tattica, points, seeds }); rows.push(r);
-    if (!json) console.log(`${`${difficulty}/${profile}/${tattica}`.padEnd(30)} ` + COLS.map(c => String(r[c[0]]).padStart(Math.max(6, c[1].length))).join(' '));
+    if (!json) console.log(`${`${difficulty}/${profile}/${tattica}`.padEnd(30)} ` + COLS2.map(c => String(r[c[0]]).padStart(Math.max(6, c[1].length))).join(' '));
   }
   if (json) console.log(JSON.stringify(rows, null, 1));
 }
