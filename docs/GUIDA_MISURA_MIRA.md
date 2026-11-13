@@ -232,8 +232,8 @@ pannello dello stand a 1366 × 657, 1024 × 600 e 1280 × 720, con «Chiudi» in
 1. Ctrl+Maiusc+K (F9 nel programma Windows) → «Pannello dello stand»: «Mira del telefono» dice «Alta · 17°»; un clic → «Media · 20°» con l'avviso
    «Mira del telefono: media (20°) · un po’ meno angolate dell’alta; resta salvata». Nelle Opzioni del menu la riga non
    c'è. Ricaricata la pagina, resta «Media · 20°».
-2. Maiusc+D → il pannello dice «Mira del telefono: media (20°), si cambia nel pannello dello stand: Ctrl+Maiusc+K, o 3 s
-   sul marchio NATPF del menu»; tolti i due video; nota; «● Avvia registrazione».
+2. Maiusc+D → il pannello dice «Mira del telefono: media (20°), si cambia nel pannello dello stand: Ctrl+Maiusc+K (F9 nel
+   programma Windows), o 3 s sul marchio NATPF del menu»; tolti i due video; nota; «● Avvia registrazione».
 3. Telefono collegato e calibrato; pagina «Partita» → «Gioca»; partita 1 con 22 colpi del telefono. Menu → pannello dello
    stand → due clic («Bassa», poi «Alta · 17°»); «Gioca»; partita 2 con 4 colpi.
 4. Maiusc+D → «■ Ferma la registrazione»: nel riassunto la riga della partita 1 del §5 (metà sinistra 45 % · metà

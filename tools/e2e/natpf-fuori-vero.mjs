@@ -8,7 +8,11 @@
 //   rete; tutto arriva quando la palla tocca (entro un fotogramma, il telefono entro il giro della rete locale); la
 //   schermata di fine partita arriva dopo che l'ultima palla è atterrata, con il tempo di vederla.
 // MISURA=1: stampa solo le misure (per il confronto con il codice di prima, GAME_DIR=… su un'altra copia del gioco).
-// Porte 3157 (gioco) e 9157 (PeerJS).
+// JSON_OUT=file.json: le misure in un file (docs/b37/misure/). SHOTS=1: schermate in OUT (o nella cartella temporanea)
+// del primo colpo mandato fuori largo, gioco e telefono: «colpo» (subito dopo il colpo) e «terra» (subito dopo che la palla
+// ha toccato terra fuori), più «fine» (schermata di fine partita). Per le schermate il gioco si ferma un attimo: i tempi
+// di quel punto non valgono come misura (gli altri sì).
+// Porte 3157 (gioco) e 9157 (PeerJS), o GAME_PORT e PEER_PORT.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-fuori-vero.mjs
 process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
@@ -22,7 +26,7 @@ import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const GAME = process.env.GAME_DIR ? path.resolve(process.env.GAME_DIR) : path.resolve(here, '../../natpf-tennis');
-const PEER_PORT = +(process.env.PEER_PORT || 9157), GAME_PORT = +(process.env.GAME_PORT || 3157), MISURA = process.env.MISURA === '1';
+const PEER_PORT = +(process.env.PEER_PORT || 9157), GAME_PORT = +(process.env.GAME_PORT || 3157), MISURA = process.env.MISURA === '1', SHOTS = process.env.SHOTS === '1';
 const app = express(), peerServer = http.createServer(app);
 app.use('/fiw', ExpressPeerServer(peerServer, { path: '/' }));
 await new Promise(r => peerServer.listen(PEER_PORT, '127.0.0.1', r));
@@ -111,27 +115,49 @@ try {
     S._marker = (t, c) => { rec('anello', { c, x: +(t?.x ?? 0).toFixed(2), z: +(t?.z ?? 0).toFixed(2) }); return mk(t, c); };
     const el = document.getElementById('timing-popup-grade');
     new MutationObserver(() => rec('scritta', { txt: el.textContent })).observe(el, { childList: true, characterData: true, subtree: true });
-    // SHOTS=1: gioco fermo un attimo per le schermate del primo colpo mandato fuori largo, al colpo e alla palla a terra
-    // (il gioco non va avanti finché la prova non ha fatto la schermata)
+    // SHOTS=1: gioco fermo un attimo per le schermate del primo colpo mandato fuori largo, subito dopo il colpo e subito
+    // dopo che la palla ha toccato terra (il gioco non va avanti finché la prova non ha fatto le schermate). Si ferma dopo
+    // un giro di update in più: l'anello rosso e il lampo prendono colore e trasparenza nel primo update dopo l'evento
     if (shots){
-      const upd = E.update.bind(E); E.update = dt => (window.__freeze ? undefined : upd(dt));
+      const upd = E.update.bind(E);
+      E.update = dt => { if (window.__freeze) return; upd(dt); const A = window.__arm; if (A && --A.n <= 0){ window.__freeze = A.k; window.__arm = null; } };
       const rs2 = E._natpfRacketShot.bind(E);
-      E._natpfRacketShot = (...a) => { const r = rs2(...a); if (r && !window.__shotDone && __T.ev.filter(e => e.k === 'colpo' && e.f === 'largo').length === 1 && __T.ev.at(-1)?.f === 'largo'){ window.__freeze = 'colpo'; window.__shotDone = 1; } return r; };
+      E._natpfRacketShot = (...a) => { const r = rs2(...a), e = __T.ev.at(-1); if (r && !window.__shotDone && e?.k === 'colpo' && e.f === 'largo'){ window.__arm = { k: 'colpo', n: 2 }; window.__shotDone = 1; } return r; };
       const aw2 = E._awardPoint.bind(E);
-      E._awardPoint = (w, why = '') => { const out = aw2(w, why); if (window.__shotDone === 1 && why === 'Out'){ window.__freeze = 'terra'; window.__shotDone = 2; } return out; };
+      E._awardPoint = (w, why = '') => { const out = aw2(w, why); if (window.__shotDone === 1 && why === 'Out'){ window.__arm = { k: 'terra', n: 2 }; window.__shotDone = 2; } return out; };
     }
-  }, { plan: PLAN, shots: process.env.SHOTS === '1' });
+  }, { plan: PLAN, shots: SHOTS });
+  // SHOTS=1: anche i timer delle due pagine stanno fermi con il gioco (window.__freeze): le scritte del gioco e del
+  // telefono si nascondono con setTimeout, e il disegno con la grafica in software del banco può durare secondi
+  const HOLD_TIMERS = () => {
+    if (window.__holdTimers) return; window.__holdTimers = true;
+    const st = window.setTimeout.bind(window), ct = window.clearTimeout.bind(window), cur = new Map();
+    window.setTimeout = (fn, ms, ...a) => {
+      if (typeof fn !== 'function') return st(fn, ms, ...a);
+      let id;
+      const run = () => { if (window.__freeze){ cur.set(id, st(run, 40)); return; } cur.delete(id); fn(...a); };
+      id = st(run, ms); cur.set(id, id); return id;
+    };
+    window.clearTimeout = id => { const c = cur.get(id); cur.delete(id); ct(c ?? id); };
+  };
+  if (SHOTS){ await game.evaluate(HOLD_TIMERS); await phone.evaluate(HOLD_TIMERS); }
+  // schermate di un momento fermo: prima il telefono (con la scritta che il gioco gli ha appena mandato: al colpo il
+  // nome del colpo, a terra «Punto avversario»), poi il gioco disegnato in quel momento
+  const shoot = async fz => {
+    const at = await game.evaluate(k => (__T.ev.filter(e => e.k === (k === 'terra' ? 'punto' : 'colpo')).at(-1)?.t ?? 0), fz);
+    const want = fz === 'terra' ? '^Punto' : '^(Colpo!|Palla corta!|Lob!|Tagliato!|Smash!)';
+    await phone.waitForFunction(({ at, want }) => __P.some(e => e.k === 'tel' && e.t >= at - 5 && new RegExp(want).test(e.txt)), { at, want }, { timeout: 1500 }).catch(() => {});
+    await phone.evaluate(() => { window.__freeze = 1; });
+    await phone.screenshot({ path: `${SP}/fuori-vero-${fz}-telefono.png` });
+    await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/fuori-vero-${fz}.png` });
+    await phone.evaluate(() => { window.__freeze = null; }); await game.evaluate(() => { window.__freeze = null; });
+  };
   const t0 = Date.now(); let lastPlan = null;
   while (Date.now() - t0 < 150000){
-    const s = await game.evaluate(() => { const E = __natpfTennis, P = E.natpfPlan; return { phase: E.phase, last: E.ball.lastHitter, left: P ? P.at + P.t - E.elapsedTime : null, at: P ? P.at : null, side: P ? P.side : 1, plan: __T.plan.length, fine: __T.ev.some(e => e.k === 'fine') }; });
+    const s = await game.evaluate(() => { const E = __natpfTennis, P = E.natpfPlan; return { phase: E.phase, last: E.ball.lastHitter, left: P ? P.at + P.t - E.elapsedTime : null, at: P ? P.at : null, side: P ? P.side : 1, plan: __T.plan.length, fine: __T.ev.some(e => e.k === 'fine'), fz: window.__freeze || null }; });
     if (s.phase === 'MATCH_OVER' && s.fine) break;
+    if (s.fz){ await shoot(s.fz); continue; }
     if (s.phase === 'RALLY' && s.last === 'opponent' && s.left != null && s.at !== lastPlan && s.left < .16){ lastPlan = s.at; await phone.evaluate(sign => { __up.swing(sign).then(() => __up.still(300)); }, s.side >= 0 ? 1 : -1); }
-    const fz = await game.evaluate(() => window.__freeze || null);
-    if (fz){
-      await phone.waitForTimeout(250);   // il messaggio del telefono arriva
-      await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/fuori-vero-${fz}.png` }); await phone.screenshot({ path: `${SP}/fuori-vero-${fz}-telefono.png` });
-      await game.evaluate(() => { window.__freeze = null; });
-    }
     await game.waitForTimeout(10);
   }
   await game.waitForTimeout(1500);
@@ -175,7 +201,7 @@ try {
     check('B37: i colpi in campo hanno la scritta subito, come prima', unforced.length >= 1 && unforced.every(v => v != null && v < 150), JSON.stringify(unforced));
     check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
   }
-  if (process.env.SHOTS === '1'){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/fuori-vero-fine.png` }); }
+  if (SHOTS){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/fuori-vero-fine.png` }); }
 } finally {
   await B.close(); stop();
 }

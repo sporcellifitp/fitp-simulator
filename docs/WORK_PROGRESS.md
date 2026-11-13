@@ -1627,3 +1627,47 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
 - **Non verificato**: l'invio vero dal programma Windows installato (serve il PC dell'utente: una partita e poi «Mostra i
   giorni» nella pagina del Worker).
 
+## B37 · Collaudo del 13/11, seconda parte: fuori vero, chi serve, segnale spiegato, F9 nel programma Windows (13/11) · [x] verificato sul ramo, da unire
+
+Ramo `b37-collaudo-bis` (base `1043c85`), commit da `66fd170` al commit di chiusura; documento
+`docs/b37/collaudo-13-11-bis.md`. Il lavoro è stato fermato dall'utente alle 16:00 UTC a metà delle verifiche (commit
+«IN CORSO» `2bfe09a`, non verificato) ed è stato chiuso da un altro agente nella stessa worktree.
+- Richieste dell'utente (collaudo delle 11:25): «Fuori» e punto solo quando la palla esce davvero, anche a fine partita;
+  chi deve servire con un elemento di gioco; il «cerchietto bianco che segue la palla» spiegato; pannello dello stand
+  dal programma Windows (Ctrl+Maiusc+K non arrivava al gioco sul PC dello stand).
+- File: `natpf-tennis/src/natpf/natpf_shot_feedback.js` (verdetto rimandato: `defersVerdict`, `settle`, `_settleIn`,
+  `shown`, `phoneQuality`), `src/game_engine.js` (`settle` all'inizio di `_awardPoint` e con la scritta del punto
+  dall'host; altezza della scritta «Al servizio»), `natpf_gesture_hud.js`, `natpf_ui.js`, `natpf_phone_racket.js`,
+  `site/js/tennis/phone-screen.js` e `racchetta.js` (telefono: `wait` al colpo, `late` con la palla a terra),
+  `natpf_serve_marker.js` (nuovo: gemma e riquadro di servizio), `natpf_split.js`, `natpf_timing_cue.js` e
+  `natpf-hud.css` (scritta del segnale), `natpf_onboarding.js`, `natpf_new_player.js`, `natpf_kiosk.js` e
+  `natpf-desktop/src/` (F9, voce del menu, canale `natpf:staff-panel`, ponte del preload v5), testi con Ctrl+Maiusc+K
+  (gioco, telecomando, guide, LEGGIMI); test `natpf-b37-collaudo.test.mjs` (24); prove nel browser nuove
+  `natpf-fuori-vero`, `natpf-chi-serve`, `natpf-segnale-spiegato`; impronte in `natpf-tennis/scripts/audit/b37/`.
+- Misure (`natpf-fuori-vero`, ms dal colpo, due giri prima e due dopo, JSON in `docs/b37/misure/`): prima «Fuori»,
+  anello rosso e telefono 4–11 ms dopo il colpo (0,5–1 s prima della palla a terra); adesso 3–21 ms dopo la palla a
+  terra (telefono 3–12); punto, tabellone, voce e schermata di fine partita come prima (fine 1,81 s dopo l'ultima palla).
+- Chiusura (commit di chiusura, dopo `2bfe09a`): controllato il commit «IN CORSO»: la tabella delle misure è uguale ai
+  JSON riga per riga (corretto solo «il telefono 3–12 ms», era scritto 4–12); il modo `SHOTS=1` di `natpf-fuori-vero`
+  che aveva aggiunto non mostrava il verdetto nelle schermate «palla a terra» (timer delle pagine scaduti durante il
+  disegno in software, anello rosso senza il suo primo update, telefono già tornato a «Pronto»): corretto (fermo un
+  update dopo l'evento, timer delle due pagine fermi con il gioco, telefono fotografato per primo); schermate guardate e
+  messe nel documento. Test di unità nuovo per lo stesso schermo (il «Fuori» del Player 2 aspetta la palla, anche sul
+  suo telefono). Guida della mira: la nota della diagnostica citata con «F9 nel programma Windows».
+  `natpf-stesso-schermo-b20`: 2 controlli volevano ancora il banner d'inizio di prima del B35b (senza « · Formato
+  veloce…»): uguali sulla base, aggiornati al testo intero. `natpf-lob-drop`: le partite a seme fisso cambiavano perché
+  i 9 oggetti three.js nuovi (gemma e riquadro) consumano sorteggi per il nome e spostano il primo battito delle
+  palpebre dei personaggi, che sorteggia ancora in partita: con le palpebre uguali prima del seme base e ramo giocano
+  partite identiche (sonda e `TRE_D=1` su tutti e due); corretta la prova (`play()`).
+- Verifiche sul codice finale: gioco 1463/1463 (primo giro) e 1463/1464 al secondo con il test nuovo (il KO è un tempo
+  della LAN con la macchina a carico 13: da solo 5/5 tre volte); sito 226/226; programma Windows 43/43; LAN 12/12; build
+  ok; `audit:legend` uguale alla base riga per riga (87 righe). Prove nel browser: `natpf-fuori-vero` 10/10 (quattro
+  giri), `natpf-chi-serve` 36/36, `natpf-segnale-spiegato` 14/14, `natpf-rally` 9/9, `natpf-servizio-lancio` 12/12,
+  `natpf-1v1-p2p` 39/39, `natpf-formato-fiera` 25/25, `natpf-fine-partita` 47/47, `natpf-tabellone` 42/42,
+  `natpf-menu` 45/45, `natpf-telecomando` 85/85, `natpf-stesso-schermo-b20` 52/52 (dopo l'aggiornamento),
+  `natpf-lob-drop` 131/136 al primo giro, 133/136 con la prova corretta (restano 3 «corde», difetto noto dal B32, uguali
+  sulla base).
+- Non verificato: telefono vero, programma Windows vero (F9 premuto davvero in Electron su Windows), ledwall, persone
+  vere; stesso schermo e sfida tra due computer con palle mandate fuori nel browser (solo test di unità); esercizio
+  «Servizio» dell'allenamento nel browser; costo di gemma e riquadro con una scheda grafica vera e su Android. Da
+  decidere con l'utente: la scritta grande del punto copre il punto di caduta nella metà lontana (vedi il documento).

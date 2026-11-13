@@ -161,6 +161,30 @@ test('punto 1 · in rete: «In rete» quando la palla tocca la rete, senza anell
   assert.equal(M.sent[1].net, true); assert.equal(M.sent[1].late, 1);
 }));
 
+test('punto 1 · stesso schermo: il «Fuori» del Player 2 (scritta nella sua metà e suo telefono) arriva con la palla a terra', () => withDom(() => {
+  const M = fakeMatch({ target: { x: 6, z: 8 } });   // il P2 tira verso z > 0: fuori largo nella metà del P1
+  const P2 = phoneSink('p2');
+  Object.assign(M.engine, { natpfSplit: { active: true }, natpfPhone2: P2.ph });
+  M.engine.ball.lastHitter = 'opponent';
+  // come natpf_ui.feedback: l'esito locale (anello, allenamento) è solo di chi gioca su questo computer (il P1)
+  M.engine.natpfUi.feedback = ev => ((ev.role || 'p1') !== M.engine.playerRole ? null : M.fb.onLocalFeedback(ev));
+  // come il motore: la scritta del colpo del P2, poi il giro dell'aptica con il ruolo del P2
+  M.engine.hud.showTimingPopup({ grade: 'P2 VERY EARLY • FOREHAND CROSS!', detail: '98 KM/H' });
+  assert.equal(relayPhoneFeedback(M.engine, { role: 'p2', kind: 'hit', grade: 'VERY EARLY • FOREHAND CROSS', shotType: 'TOPSPIN' }), null, 'il colpo del P2 non è di chi gioca sul P1 (come prima)');
+  assert.equal(M.shown.length, 0, 'al colpo nessuna scritta «Fuori» nella metà del P2');
+  assert.equal(P2.sent.length, 1); assert.equal(P2.sent[0].wait, 1); assert.equal(P2.sent[0].out, false, 'telefono del P2: al colpo esito neutro');
+  assert.equal(M.sent.length, 0, 'il telefono del P1 non riceve il colpo del P2');
+  M.engine.elapsedTime += .5; M.fb.update(.5);
+  assert.equal(M.shown.length, 0); assert.equal(P2.sent.length, 1);
+  // la palla tocca terra fuori: punto del P1
+  M.engine.elapsedTime += .4;
+  assert.equal(M.fb.settle('player', 'Out'), true);
+  assert.equal(M.shown.length, 1); assert.match(M.shown[0].grade, /^Fuori/);
+  assert.equal(P2.sent.length, 2); assert.equal(P2.sent[1].late, 1); assert.equal(P2.sent[1].out, true); assert.deepEqual(P2.sent[1].vib, [25, 60, 25]);
+  assert.equal(M.sent.length, 0, 'il telefono del P1 resta fuori anche dal verdetto');
+  assert.ok(M.fb.markers.every(m => !m.active), 'colpo del P2: nessun anello di chi gioca sul P1 (come prima)');
+}));
+
 test('punto 1 · palla ripresa al volo, punto interrotto o finito in un altro modo: nessun «Fuori»', () => withDom(() => {
   const A = fakeMatch(); A.hit();
   A.engine.ball.rallyStrokeCount = 4; A.engine.ball.lastHitter = 'opponent'; A.fb.update(1/60);   // la CPU la prende al volo

@@ -214,6 +214,11 @@ const play = (p, o = {}) => p.evaluate(o => {
   // cambio di aspetto chiedono un nome a three.js, che lo sorteggia con Math.random: senza questo passo la sequenza dei
   // sorteggi si sposta e le partite a seme fisso non sono confrontabili (non cambia il gioco, solo la prova)
   if (mode === 'schermo'){ const m0 = E.isMultiplayer; E.isMultiplayer = true; E.render(); E.isMultiplayer = m0; }
+  // (B37) anche il primo battito delle palpebre: ogni personaggio nasce con un intervallo sorteggiato con Math.random
+  // (player_facial_fx), quindi dipende da quanti sorteggi ha fatto la pagina prima, anche per dare il nome agli oggetti
+  // three.js del gioco (per esempio la gemma di chi serve del B37). Le palpebre sorteggiano ancora durante la partita:
+  // senza questo passo la sequenza dei sorteggi si sposta. Uguale per tutti prima del seme (non cambia il gioco)
+  for (const a of [E.player, E.opponent, E.playerPartner, E.opponentPartner]){ const r = a?.facialRig; if (r){ r.blinkTimer = 3; r.blinkActiveTimer = 0; } }
   window.__seed(seed); E.elapsedTime = 0; E.physicsAccumulator = 0;
   if (mode === 'demo'){ E.autoPlayMode = true; E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = true; }
   else { E.autoPlayMode = false; if (mode === 'schermo') E.startSplit(); E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = false; }
