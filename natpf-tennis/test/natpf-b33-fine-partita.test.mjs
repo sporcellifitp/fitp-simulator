@@ -147,7 +147,12 @@ test('B33: il motore collegato conta solo le partite vere', () => {
   const v = S.endView(E), s = v.cols[0].sum;
   assert.equal(s.points, 4); assert.equal(s.lost, 0); assert.equal(s.fastest, 110); assert.equal(s.hits, 1);
   // la partita dimostrativa dietro il menu non conta
-  E.autoPlayMode = true; S.start(E); assert.equal(S.m, null); assert.equal(S.endView(E), null);
+  E.autoPlayMode = true; S.start(E);
+  S.shot(E, { role: 'p1', grade: 'PERFECT', kmh: 90 }); S.point(E, { winner: 'player', why: 'Out', strokes: 3 });
+  assert.equal(S.endView(E), null, 'niente numeri della dimostrazione');
+  // una strada che spegne la dimostrazione dopo startNewMatch: la partita conta lo stesso
+  E.autoPlayMode = false; S.point(E, { winner: 'player', why: 'Out', strokes: 3 });
+  assert.equal(S.endView(E).cols[0].sum.points, 1);
 });
 
 test('B33: stesso schermo con due colonne e i nomi; computer del Player 2 dal punteggio dell\'host', () => {

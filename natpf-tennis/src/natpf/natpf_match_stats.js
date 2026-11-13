@@ -165,7 +165,9 @@ export class MatchStats {
   start(E){
     this.rank = null; this._gs = null; this._gmax = 0;
     const mode = this._mode(E);
-    this.m = E.autoPlayMode ? null : newMatch({ mode, level: mode === 'cpu' ? E.matchConfig?.difficulty || null : null, gamesToWin: E.matchConfig?.gamesToWin || 1, doubles: !!E.isDoubles,
+    // (sempre una partita nuova, anche se in quel momento gira ancora la dimostrazione dietro il menu: qualche strada
+    // spegne autoPlayMode dopo startNewMatch. I colpi e i punti della dimostrazione non contano comunque: _on)
+    this.m = newMatch({ mode, level: mode === 'cpu' ? E.matchConfig?.difficulty || null : null, gamesToWin: E.matchConfig?.gamesToWin || 1, doubles: !!E.isDoubles,
       guest: E.playerRole === 'p2' && !!E.isMultiplayer });
   }
   // colpo con la scritta del motore (role: 'p1' chi gioca qui o il Player 1, 'p2' il Player 2)
