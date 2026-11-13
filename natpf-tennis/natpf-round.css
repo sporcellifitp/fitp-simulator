@@ -441,7 +441,10 @@
   height: 0.42em;
   border-radius: 50%;
   background: var(--lb-ball);
-  box-shadow: 0 0 0.35em rgba(232, 255, 58, 0.7);
+  /* B35: anello scuro, così la pallina si stacca anche dalla linguetta gialla di Lob e da quella di chi gioca */
+  box-shadow:
+    0 0 0 0.1em rgba(5, 10, 28, 0.95),
+    0 0 0.35em rgba(232, 255, 58, 0.7);
   visibility: hidden;
 }
 .natpf-scoreboard .serving .sb-serve {
@@ -514,6 +517,31 @@
 }
 .natpf-scoreboard .sb-label:empty {
   display: none;
+}
+/* B35: «Formato veloce: il servizio cambia ogni 2 punti» (formato in fiera, campo aperto), sotto il sottotitolo; nelle
+   metà strette dello stesso schermo va a capo invece di uscire */
+.natpf-scoreboard .sb-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 0.14em 0.55em 0.16em;
+  border-radius: 0.3em;
+  background: rgba(5, 10, 28, 0.72);
+  color: var(--lb-ink);
+  font-size: max(12px, 0.6em);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: normal;
+}
+.natpf-scoreboard .sb-rule-ball {
+  flex: none;
+  width: 0.62em;
+  height: 0.62em;
+  border-radius: 50%;
+  background: var(--lb-ball);
 }
 /* l'avviso «In attesa di Player 2» del 1v1 sotto il tabellone, allineato al suo bordo sinistro (B17.3; prima al centro,
    a 26 px + 5,4 righe). Il tabellone è alto 4,07 em di riquadro (88 px a 720p con --sb 21,6: due righe da 1,75 em più

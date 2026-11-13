@@ -10,6 +10,7 @@
 // con due punti di scarto (parità e vantaggio), o con il formato in fiera (B18, natpf_fair_format.js) al punto decisivo
 // sul 40-40, con il servizio che passa ogni due punti (la pallina di chi serve segue score.server). Funzioni pure: le usa natpf_ui.onScore e le provano i test.
 import { viewScore } from './natpf_point_call.js';
+import { FAST_SERVE_LINE } from './natpf_fair_format.js';
 
 const POINTS = ['0', '15', '30', '40'];
 
@@ -107,7 +108,9 @@ export function rowNames({ viewer = 'player', multiplayer = false, split = false
 // playerGames, opponentGames, server)
 // looks (B24): aspetto dei personaggi in campo per lato del motore ({ player, opponent }, natpf_personaggi.castLooks);
 // con Lob & Drop la riga porta il nome della mascotte (`look`) e la linguetta prende il suo colore
-export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '', looks = null } = {}){
+// altServe (B35): il servizio passa ogni due punti (formato in fiera o campo aperto, natpf_duo_rules.altServe): una riga
+// in più sotto il sottotitolo lo dice (FAST_SERVE_LINE); senza, il tabellone è quello di prima
+export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '', looks = null, altServe = false } = {}){
   const names = rowNames({ viewer, multiplayer, split, splitNames, doubles, hostName, guestName });
   const pts = gamePoints(score.playerPoints, score.opponentPoints);
   const side = s => ({ games: String(Math.max(0, score[`${s}Games`] | 0)), points: pts[s], serving: (score.server || 'player') === s, adv: pts.adv === s });
@@ -127,7 +130,7 @@ export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', 
       label = viewScore({ player: pts.player === 'Vant.' ? 'Ad' : '40', opponent: pts.opponent === 'Vant.' ? 'Ad' : '40' }, viewer, rival);
     }
   }
-  return { rows, format: formatText(gamesToWin, { fair: !!score.fair, short: !!label }), label };
+  return { rows, format: formatText(gamesToWin, { fair: !!score.fair, short: !!label }), label, rule: altServe ? FAST_SERVE_LINE : '' };
 }
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -143,5 +146,6 @@ export function scoreboardHtml(v){
     + `<span class="sb-sr">${esc(r.name)}${r.serving ? ' (al servizio)' : ''}</span>`
     + `<span class="sb-games" data-sb-games>${esc(r.games)}</span><strong class="sb-points" data-sb-points>${esc(r.points === 'Vant.' ? 'AD' : r.points)}</strong></div>`;
   return `<div class="sb-box">${v.rows.map(row).join('')}</div>`
-    + `<div class="sb-foot"><span data-sb-format>${esc(v.format)}</span><span class="sb-label" data-sb-label>${esc(v.label)}</span></div>`;
+    + `<div class="sb-foot"><span data-sb-format>${esc(v.format)}</span><span class="sb-label" data-sb-label>${esc(v.label)}</span></div>`
+    + (v.rule ? `<div class="sb-rule" data-sb-rule><i class="sb-rule-ball" aria-hidden="true"></i>${esc(v.rule)}</div>` : '');
 }
