@@ -24,9 +24,9 @@ per la partita»); poi le prove nel browser (`fbc4026`, `4578ca1`, `d2a0aad`, `c
 
 - **Formato in fiera** (servizio ogni 2 punti e punto decisivo sul 40-40): pannello dello stand (Ctrl+Maiusc+K, oppure
   tenere premuto 3 secondi il marchio NATPF in alto a sinistra nel menu; dal telecomando dello staff il tasto
-  «Pannello dell'addetto») → riga **«Formato in fiera»**. Ogni clic cambia valore: «No» → «Solo stesso schermo» → «Sì · punto
-  decisivo». Di base vale **«Solo stesso schermo»**: contro la CPU e nella sfida tra due computer il servizio resta a un
-  giocatore per game. **Per spegnerlo del tutto: «Formato in fiera: No».** Se il pannello mostra «Sì · punto decisivo»
+  «Pannello dell'addetto») → riga **«Formato in fiera»**. Ogni clic cambia valore: «No» → «Solo stesso schermo» →
+  «Sì · punto decisivo». Di base vale **«Solo stesso schermo»**: contro la CPU e nella sfida tra due computer il
+  servizio resta a un giocatore per game. **Per spegnerlo del tutto: «Formato in fiera: No».** Se il pannello mostra «Sì · punto decisivo»
   (scelta salvata sul computer, anche da una versione di prima), anche contro la CPU il servizio passa ogni 2 punti:
   la riga «Formato veloce» adesso lo dice.
 - **Campo aperto** (solo stesso schermo, servizio ogni 2 punti anche lui): pannello dello stand → «Campo aperto». Di base
@@ -143,7 +143,7 @@ schermo (`cqw/cqh`, `@container natpf`): ci sta senza scorrere a 1280×720, 1920
 
 **Quanti numeri mostra la parte centrale della schermata**, stessa partita a sorteggi fissi con il codice di prima
 (`d152035`) e con quello di adesso (partite lunghe da 90 punti del banco, chi gioca è un robot: servono per contare, non
-sono partite vere):
+sono partite vere; conti rifatti sui due codici dopo l'ultimo commit):
 
 | Serie di semi | Partite | Numeri prima | Cose negative prima | Numeri adesso | Cose negative adesso |
 |---|---|---|---|---|---|
@@ -177,7 +177,7 @@ così si vedono anche accanto al giallo di Lob.
 | Stesso schermo, batte il Player 2 | ✓ due scritte (prima: nessuna) | ✓ due scritte (prima: nessuna) |
 
 ![Lob & Drop contro la CPU, batte la CPU](img-collaudo/servizio-lobdrop-cpu.jpg)
-![Lob & Drop nello stesso schermo, batte il Player 1](img-collaudo/servizio-lobdrop-stesso-schermo.jpg)
+![Lob & Drop nello stesso schermo, batte il Player 1 (la scritta «Telefono in pausa» sotto Giulia viene dalla prova: i telefoni sono finti)](img-collaudo/servizio-lobdrop-stesso-schermo.jpg)
 
 ## Punto 7 · Scia della palla
 
@@ -211,25 +211,29 @@ Costo con la scia accesa: +3 % del disegno di un fotogramma, 2 µs di calcolo (g
 ## Il gioco non cambia: impronte delle partite
 
 Le stesse partite a sorteggi fissi giocate con il codice di prima (`d152035`) e con quello di adesso (dopo l'ultimo
-commit) hanno la stessa impronta (punti, scambi, voti dei colpi, motivi dei punti, racchetta):
+commit) hanno la stessa impronta (punti, scambi, voti dei colpi, motivi dei punti, racchetta). Tutte e due le serie
+rifatte sui due codici dopo l'ultimo commit:
 
 | Serie di semi | Partite (5 profili × 5 semi, 80 punti) | Impronte |
 |---|---|---|
-| 7, 11, 23, 31, 37 | 25 | @@IMP1@@ |
-| 41, 43, 47, 53, 59 | 25 | @@IMP2@@ |
+| 7, 11, 23, 31, 37 | 25 | tutte uguali (25 su 25) |
+| 41, 43, 47, 53, 59 | 25 | tutte uguali (25 su 25) |
 
-`npm run audit:legend`: @@LEG@@ Il riconoscimento dei gesti non è toccato (nessuno dei file del telefono e dei gesti
-cambiato; i file della direzione dei colpi cambiati dal B35a non sono toccati da questo blocco).
+`npm run audit:legend`: **stesso risultato del codice di prima, riga per riga** (87 righe uguali: 69 controlli
+superati, nessuno mancato, «Tutti i criteri rispettati»), rifatto su tutti e due i codici dopo l'ultimo commit.
+
+Il riconoscimento dei gesti non è toccato: nessuno dei file del telefono e dei gesti è cambiato, e nemmeno i file della
+direzione dei colpi già cambiati dal B35a.
 
 ## Verifiche
 
 | Cosa | Risultato |
 |---|---|
-| Test del gioco (`npm test`) | @@NPM@@ |
-| Test del sito (`node --test tools/test/*.test.mjs`) | @@SITO@@ |
-| Build (`npm run build`) | riuscita |
+| Test del gioco (`npm test`) | **1430 su 1430** (dopo l'ultimo commit; 11 minuti con la macchina carica da un altro agente) |
+| Test del sito (`node --test tools/test/*.test.mjs`) | **226 su 226** (dopo l'ultimo commit) |
+| Build (`npm run build`) | riuscita (dopo l'ultimo commit) |
 | Peso | i file del gioco toccati crescono di circa 7,9 KB compressi (sorgenti con i commenti; niente immagini, font o librerie nuove) |
-| Unione di prova con `natpf-simulator` (dove c'è già il B35a) | @@UNIONE@@ |
+| Unione di prova con `natpf-simulator` (dove c'è già il B35a) | nessun conflitto (prova fatta fuori dal ramo, senza toccare `natpf-simulator`); sul codice unito test del gioco **1440 su 1440** e test del sito **226 su 226** |
 
 Test nuovi: `natpf-b35-fine-partita.test.mjs` (7: cose migliori solo positive, pillola, vittoria, sconfitta e doppio,
 stesso schermo, sfida tra due computer, numeri veri a sorteggi fissi), `natpf-b35-battuta.test.mjs` (punti 3 e 6);
@@ -243,14 +247,16 @@ Prove nel browser (telefono simulato, mouse):
 | `natpf-scambi-di-prova` contro la CPU, 4 palle colpite (con «Ricalibra» sulla pagina) | 30/30 | dopo l'ultimo commit |
 | `natpf-telecomando` | 85/85 | dopo l'ultimo commit |
 | `natpf-fine-partita` (cinque misure, partita vera contro la CPU, classifica, registro senza nomi, stesso schermo) | 47/47 | dopo l'ultimo commit |
-| `natpf-scambi-di-prova` senza colpi, con schermate | 19/19 | prima di `d5830f6` (che non tocca questo percorso) |
+| `natpf-scambi-di-prova` senza colpi, con schermate | 19/19 | prima di `d5830f6` (che cambia solo «Ricalibra», qui non usato) |
 | `natpf-scambi-di-prova` stesso schermo | 12/12 | prima di `d5830f6` (idem) |
-| `natpf-lob-drop` parte 7 (chi serve, Classici e Lob & Drop) | 13/13 | |
-| `natpf-lob-drop` intera | 131/136: vedi «Cosa non è riuscito» | |
-| `natpf-formato-fiera` | 25/25 | |
-| `natpf-scia-palla` | 39/39 | |
-| `natpf-menu` | 45/45 | |
-| `natpf-chi-gioca` | 55/55 | |
+| `natpf-lob-drop` parte 7 (chi serve, Classici e Lob & Drop) | 13/13 | prima di `d5830f6` (idem) |
+| `natpf-lob-drop` intera | 131/136: vedi «Cosa non è riuscito» | prima di `d5830f6` (idem) |
+| `natpf-lob-drop` parte «3D» sul codice di prima (`d152035`) | 49/51: gli stessi 2 controlli «corde» non passano, con gli stessi numeri | dopo l'ultimo commit |
+| `natpf-lob-drop` solo il costo del disegno (`COSTO=1`) | 15/15 | dopo l'ultimo commit |
+| `natpf-formato-fiera` | 25/25 | prima di `d5830f6` (idem) |
+| `natpf-scia-palla` | 39/39 | prima di `d5830f6` (idem) |
+| `natpf-menu` | 45/45 | prima di `d5830f6` (idem) |
+| `natpf-chi-gioca` | 55/55 | prima di `d5830f6` (idem) |
 
 ## Cosa non è riuscito e perché
 
@@ -259,11 +265,12 @@ Prove nel browser (telefono simulato, mouse):
   «Gioca» dal menu principale).
 - **`natpf-lob-drop` intera: 5 controlli su 136 non passano, nessuno per questo blocco.** Quattro sono «al colpo le
   corde sono dove erano» (la racchetta scostata dalla testa grande della mascotte): è un difetto noto dal B32
-  (`docs/b32/movimento.md`). I due senza modelli 3D falliscono **uguali, con gli stessi numeri, sul codice di prima**
-  (`d152035`); i due con i modelli 3D non li ho rifatti sul codice di prima, ma questo blocco non tocca personaggi,
-  modelli né racchetta (solo la scritta «Al servizio» e il tabellone). Il quinto è il tempo di disegno con i modelli
-  3D (+14 % contro il 12 % ammesso), misurato con la grafica in software e la macchina carica da un altro agente;
-  chiamate e triangoli sono nei limiti.
+  (`docs/b32/movimento.md`). Tutti e quattro falliscono **uguali, con gli stessi numeri, sul codice di prima**
+  (`d152035`): rifatti lì i due senza modelli 3D (parte «testa») e i due con i modelli 3D (parte «3D»). Questo blocco
+  non tocca personaggi, modelli né racchetta (solo la scritta «Al servizio» e il tabellone). Il quinto è il tempo di
+  disegno con i modelli 3D (+14 % contro il 12 % ammesso), misurato con la grafica in software e la macchina carica da
+  un altro agente; rifatto da solo (`COSTO=1`) con la macchina meno carica passa: 15/15, con i modelli 3D 1123 ms
+  contro 1167 ms delle mascotte nel codice.
 - **Prove fermate dal carico della macchina** (un altro agente lavorava in parallelo): `natpf-telecomando` al primo giro
   si è fermata all'abbinamento (tempo scaduto) e la parte 7 di `natpf-lob-drop` al primo giro per il browser chiuso;
   rifatte uguali, verdi.
@@ -284,3 +291,5 @@ Prove nel browser (telefono simulato, mouse):
   con due browser.
 - La scia e i modelli 3D di Lob & Drop sono provati con la grafica in software del banco di prova, non con una scheda
   grafica vera.
+- Il codice **unito con `natpf-simulator`** (B35a più questo blocco) è provato con i test del gioco e del sito, non con
+  le prove nel browser: l'unione vera la fa chi rivede la serie.
