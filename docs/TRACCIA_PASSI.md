@@ -721,3 +721,17 @@ cambiano le tappe (cade B36.2; B36.4 senza rientro verso l'angolo).
 - [~] **B43** (tabellone pulito, pannello che ferma la partita, scritta del punto mezzo secondo dopo): workflow
       `b43-tabellone-e-pannello` (run `wf_53b28db9-129`), worktree `scratchpad/b43/wt`, ramo `b43-tabellone-pannello`, base
       `fd71f91` (13.10); unirà da solo la 13.11 prima delle verifiche finali. Porte 4100–4149 e 4902/4903.
+
+**13/11, 21:55 UTC · riavvio del contenitore (21:48 UTC) e due blocchi in corso.**
+- Il riavvio ha fermato l'agente del B43. Salvato: punto 3 fatto (`640ef31`, scritta grande del punto mezzo secondo dopo
+  l'atterraggio; suite del gioco 1480 ok), punto 2 a metà messo nel commit `dc3adae` «B43 IN CORSO … NON verificato»,
+  punto 1 da fare. Il ramo ha già dentro la 13.11.
+- [~] **B43 ripresa**: stesso script con una sezione «RIPRESA» (workflow `b43-tabellone-e-pannello-ripresa`, run
+      `wf_7c6beb81-eb3`), worktree `scratchpad/b43/wt`, porte 4100–4149.
+- [~] **B41 prima parte + B28.1**: workflow `b41-fiera-parte-1` (run `wf_c35c3067-84a`), worktree `scratchpad/b41/wt`,
+      ramo `b41-fiera-1`, base `38709e3` (13.11), porte 4150–4199. Prima porta il B28.1 (dal ramo locale
+      `b28-cal-giocando` o rifatto dal compito), poi B41.1–B41.3 e B41.6; unirà la 13.12 (B43) prima delle verifiche finali.
+- `natpf-telecomando` ha le porte fisse 4902/4903: i due agenti lo lanciano con `flock scratchpad/telecomando.lock`.
+- Se il contenitore si riavvia ancora: guardare `git log` e `git status` nelle due worktree e gli appunti
+  `scratchpad/b43/notes.md` e `scratchpad/b41/notes.md`, salvare il lavoro non committato in un commit «IN CORSO», poi
+  rilanciare lo script del workflow con una sezione «RIPRESA» (senza `resumeFromRunId`: l'agente non aveva finito).
