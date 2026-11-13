@@ -294,6 +294,8 @@ export class NatpfUi {
     // Player 2 dell'invito: tornare al menu vuol dire lasciare la stanza (prima restava dentro e i suoi colpi passavano)
     if (E.playerRole === 'p2' && this.versus?.p2){ this.versus.leave(); return; }
     this.versus?.clearCheckpoint?.();     // tornare al menu chiude la partita: il punteggio salvato serve solo a un ricaricamento
+    // B43: la diagnostica aperta dalla pausa di questa partita, chiusa dopo, non riapre la pausa nella partita di un altro
+    if (this.diag) this.diag._back = null;
     this.trial?.abort();
     if (this.training.active) this.training.stop({ completed: false, silent: true });
     this.events.abort();

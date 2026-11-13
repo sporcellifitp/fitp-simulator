@@ -65,7 +65,8 @@ export class NatpfKiosk {
     this.el?.addEventListener('pointerdown', e => e.stopPropagation());
     // B43: conferma in due passi (solo i clic: run() dal codice resta immediato) per le voci che in campo chiudono la
     // partita o tolgono il telefono a chi gioca
-    this.confirm = new TwoStep();
+    // (onChange: disarmato, il pulsante riprende la scritta di adesso, non quella di quando era armato)
+    this.confirm = new TwoStep({ onChange: on => { if (!on) this.paint(); } });
     this.el?.addEventListener('click', e => { const b = e.target.closest('[data-staff]'); if (b){ e.stopPropagation(); this.press(b); } });
     window.addEventListener('keydown', e => { if (e.ctrlKey && e.shiftKey && e.code === 'KeyK'){ e.preventDefault(); e.stopImmediatePropagation(); this.toggle(); } }, true);
     // B37: nel programma Windows anche F9 e la voce del menu «Pannello dello stand (F9)» (processo principale, ponte del

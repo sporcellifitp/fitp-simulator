@@ -70,8 +70,13 @@ export class NatpfDiag {
   _store(){ return this.storeP || (this.storeP = createDiagStore().then(st => { this.store = this.recorder.store = st; return st; })); }
   toggle(){ this.on ? this.close() : this.open(); }
   get isOpen(){ return !!this.el && !this.el.classList.contains('hidden'); }
-  // back: 'pause' se aperta dalla pausa (alla chiusura si torna lì, la partita intanto resta ferma)
-  open({ back = null } = {}){ this.on = true; this._back = back; this._build(); this.el.classList.remove('hidden'); this.refresh(); this.paint(); this.ui?._syncPause?.(); }
+  // back: 'pause' se aperta dalla pausa (alla chiusura si torna lì, la partita intanto resta ferma). Anche con Maiusc+D a
+  // pausa aperta la pausa si chiude e si riapre dopo: la diagnostica (in basso a sinistra, sopra la pausa) copriva
+  // «Torna al menu» (controllo «solo mouse», A3)
+  open({ back = null } = {}){
+    if (this.ui?.pause?.isOpen){ back = 'pause'; this.ui.pause.close(); }
+    this.on = true; this._back = back; this._build(); this.el.classList.remove('hidden'); this.refresh(); this.paint(); this.ui?._syncPause?.();
+  }
   // quiet: senza tornare alla pausa (la pausa si sta aprendo adesso)
   close({ quiet = false } = {}){
     const back = this._back; this._back = null;

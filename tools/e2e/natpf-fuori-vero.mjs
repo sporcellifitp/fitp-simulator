@@ -7,6 +7,8 @@
 //   Dopo il B37: niente «Fuori», «In rete», anello rosso o vibrazione d'errore prima che la palla tocchi terra fuori o la
 //   rete; tutto arriva quando la palla tocca (entro un fotogramma, il telefono entro il giro della rete locale); la
 //   schermata di fine partita arriva dopo che l'ultima palla è atterrata, con il tempo di vederla.
+//   Dopo il B43 (punto 3): la scritta grande del punto arriva mezzo secondo dopo l'atterraggio (il verdetto no) e la
+//   schermata di fine partita 1,8 s dopo quella scritta.
 // MISURA=1: stampa solo le misure (per il confronto con il codice di prima, GAME_DIR=… su un'altra copia del gioco).
 // JSON_OUT=file.json: le misure in un file (docs/b37/misure/). SHOTS=1: schermate in OUT (o nella cartella temporanea)
 // del primo colpo mandato fuori largo, gioco e telefono: «colpo» (subito dopo il colpo) e «terra» (subito dopo che la palla
@@ -180,7 +182,7 @@ try {
     const telV = tel.find(e => e.k === 'tel' && /^(Fuori|In rete)/.test(e.txt)), telP = tel.find(e => e.k === 'tel' && /^Punto/.test(e.txt));
     const vibErr = tel.find(e => e.k === 'vibra' && e.p === '[25,60,25]');
     const ms = e => (e ? Math.round(e.t - c.t) : null);
-    rows.push({ f: c.f, ok: true, why: pt.why, y: pt.y, volo: ms(pt), scritta: ms(scritta), scrittaTxt: scritta?.txt || null, anello: ms(anello), tabellone: ms(tab), banner: ms(banner), bannerTxt: banner ? `${banner.txt} · ${banner.sub}` : null, voce: ms(voce), telFuori: ms(telV), telTxt: telV?.txt || null, telPunto: ms(telP), telPuntoTxt: telP?.txt || null, vibraErrore: ms(vibErr), fine: ms(fine) });
+    rows.push({ f: c.f, ok: true, why: pt.why, y: pt.y, volo: ms(pt), scritta: ms(scritta), scrittaTxt: scritta?.txt || null, anello: ms(anello), tabellone: ms(tab), banner: ms(banner), bannerG: banner ? +(banner.g - pt.g).toFixed(3) : null, bannerTxt: banner ? `${banner.txt} · ${banner.sub}` : null, voce: ms(voce), telFuori: ms(telV), telTxt: telV?.txt || null, telPunto: ms(telP), telPuntoTxt: telP?.txt || null, vibraErrore: ms(vibErr), fine: ms(fine) });
   }
   result = rows;
   console.log('colpo → (ms dal colpo) atterraggio | scritta «Fuori» | anello rosso | tabellone | scritta del punto | voce | telefono «Fuori» | vibrazione d\'errore | telefono «Punto» | fine partita');
@@ -194,10 +196,16 @@ try {
     check('B37: la scritta «Fuori» / «In rete» compare solo quando la palla tocca terra fuori o la rete (non al colpo)', done.every(r => r.scritta != null && r.scritta >= r.volo - tol && r.scritta <= r.volo + 250), JSON.stringify(done.map(r => [r.volo, r.scritta])));
     check('B37: anello rosso solo all\'atterraggio fuori (mai al colpo; per la rete nessun anello)', done.every(r => (r.why === 'Net' ? r.anello == null : r.anello != null && r.anello >= r.volo - tol && r.anello <= r.volo + 250)), JSON.stringify(done.map(r => [r.why, r.volo, r.anello])));
     // (sul punto della partita la voce è quella della fine partita, non «Out!», come prima)
-    check('B37: tabellone, scritta del punto e voce all\'atterraggio, come prima', done.every(r => r.tabellone != null && Math.abs(r.tabellone - r.volo) <= tol && r.banner != null && Math.abs(r.banner - r.volo) <= tol && (r.fine != null || (r.voce != null && Math.abs(r.voce - r.volo) <= tol))), JSON.stringify(done.map(r => [r.volo, r.tabellone, r.banner, r.voce])));
+    check('B37: tabellone e voce all\'atterraggio, come prima', done.every(r => r.tabellone != null && Math.abs(r.tabellone - r.volo) <= tol && (r.fine != null || (r.voce != null && Math.abs(r.voce - r.volo) <= tol))), JSON.stringify(done.map(r => [r.volo, r.tabellone, r.voce])));
+    // B43 punto 3 (decisione dell'utente del 13/11 sera): la scritta grande del punto mezzo secondo DOPO che la palla ha
+    // toccato terra o rete: 0,5 s del tempo del gioco, nel primo fotogramma che li raggiunge (un fotogramma del motore dura
+    // al più 0,08 s); sull'orologio del computer mai prima di 0,5 s e circa mezzo secondo (fino a 0,75 s). Il verdetto
+    // (scritta in basso, anello, tabellone, voce, telefono) resta all'atterraggio (controlli del B37 qui sopra)
+    check('B43: scritta grande del punto 0,5 s dopo l\'atterraggio (tempo del gioco, entro un fotogramma; orologio 460–750 ms)', done.every(r => r.banner != null && r.bannerG != null && r.bannerG >= 0.499 && r.bannerG <= 0.581 && r.banner - r.volo >= 500 - tol && r.banner - r.volo <= 750), JSON.stringify(done.map(r => [r.volo, r.banner, r.bannerG, r.bannerTxt])));
     check('B37: telefono: «Fuori» / «In rete» e vibrazione d\'errore solo all\'atterraggio (entro il giro della rete), poi «Punto avversario»', done.every(r => r.telFuori != null && r.telFuori >= r.volo - tol && r.telFuori <= r.volo + 600 && r.vibraErrore != null && r.vibraErrore >= r.volo - tol && r.telPunto != null && r.telPunto >= r.volo - tol), JSON.stringify(done.map(r => [r.volo, r.telFuori, r.vibraErrore, r.telPunto, r.telPuntoTxt])));
     const last = done.find(r => r.fine != null);
     check('B37: fine partita: la schermata arriva dopo che l\'ultima palla è atterrata, con il tempo di vederla (≥ 1,5 s)', !!last && last.y <= 0.1 && last.fine - last.volo >= 1500, JSON.stringify(last));
+    check('B43: fine partita mai prima della scritta della partita (1,8 s dopo la scritta)', !!last && last.banner != null && last.fine - last.banner >= 1800 - tol, JSON.stringify(last && { volo: last.volo, banner: last.banner, fine: last.fine }));
     check('B37: i colpi in campo hanno la scritta subito, come prima', unforced.length >= 1 && unforced.every(v => v != null && v < 150), JSON.stringify(unforced));
     check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
   }
