@@ -429,7 +429,8 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
   - decisione 1, Leggenda e gioco a rete: **a Leggenda niente salita a rete automatica** dopo un attacco;
   - decisioni 2 e 11, scritte «in corsa / in allungo»: **solo con la corsa forte** (soglia da 0,5 a 0,8);
   - le altre (3–8, 12, 13) non chieste: **restano come sono** (opzione «tenere»).
-  → blocco **B34** (un agente, senza revisore), poi versione e pacchetti.
+  → blocco **B34** in corso (run `wf_4db330c4-cc0`, ramo `b34-decisioni`, base `95a8712`, documento
+    `docs/b34/decisioni-revisione.md`), poi versione e pacchetti.
 - [~] Prove complete della 2026-11-13.5 (dalle 07:30 UTC del 13/11): `scratchpad/v1113e/prove.sh` → `prove.txt`.
 - Il disco era pieno (100%, l'agente di correzioni ha fatto la build in `/dev/shm`): liberati 10 GB togliendo
   `node_modules` e `dist` dalle worktree già unite (si rigenerano con `npm ci`) e vecchie cartelle dello scratchpad.
