@@ -848,3 +848,15 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   «Sono pronto» sul telefono e partenza automatica quando sono pronti tutti.
 - Stand: solo il ledwall e il solo mouse dello staff (B38 tastiera a schermo, B39 stand con il solo mouse).
 
+
+## Decisioni dell'utente del 13/11/2026 (sera, ripresa)
+
+- **Domande all'utente solo con lo strumento delle domande a scelta** («se devi farmi domande usa AskUserQuestion»): mai
+  domande aperte nel testo della risposta.
+- **B36 · direzionalità** (piano in `docs/b36/piano-direzionalita.md` §0): con «Direzione dei colpi: Nuova» decide la
+  **cima del telefono** (il momento del colpo sposta di circa 1 m); **palle corte e volée accese come oggi** (cambia la
+  richiesta del mattino «all'inizio niente palle corte e volée»); **fuori come nel tennis vero** girando troppo, anche con
+  un colpo pulito; si insegna con **una riga nella pagina «Pronto per la partita»**; si prova con **giornate intere** con
+  «Nuova» allo stand e il confronto nel registro; si parte con **B36.0 (solo misure) dopo B43**. «Classica» resta di base.
+- **B40 · fine partita v2**: la card della tavola (riga «v2», https://claude.ai/artifact/PMb2Gg3ZiakcHuqynZ2pJL) **va bene
+  così**, con i personaggi animati (chi vince esulta, l'altro applaude).

@@ -663,3 +663,16 @@ Nessun agente in esecuzione. Come continuare: `docs/RIPRESA_AGENTE.md` §0.
   allenamenti, sfida tra due computer con «Nessuna», fine degli scambi di prova per chi tiene i gesti, soglia di
   `natpf-phone-keep`. Compito per rifarlo o unirlo: `docs/coda/B28.1-profilo-per-attivita.md` (da fare prima o insieme
   alla B41 prima parte, che tocca gli stessi file).
+
+**13/11, 18:30 UTC · piano B36 e decisioni.** Piano della direzionalità scritto e pubblicato (run `wf_b6acb5fb-075`:
+piano unico, tre revisori contrari, piano finale) in `docs/b36/piano-direzionalita.md`, materiale in `docs/b36/piano/`.
+**Risposte dell'utente** (domande a scelta; d'ora in poi le domande si fanno solo così): cima del telefono; palle corte e
+volée **accese** come oggi; fuori **come nel tennis vero** girando troppo; una riga nella pagina «Pronto»; prove con
+**giornate intere** con «Nuova»; **B36.0 dopo B43**. Card del fine partita v2 (B40) **approvata**. Il piano §0 dice come
+cambiano le tappe (cade B36.2; B36.4 senza rientro verso l'angolo).
+- [x] B42 finito sul ramo (`ade3377`): gioco 1451/1451, sito 226, Windows 42, LAN 12, build, `audit:legend` tutti i
+      criteri; nel browser rally 10/10, formato-fiera 25/25, 1v1-p2p 39/39, menu 45/45, stesso-schermo-b20 51/53 (i 2 KO
+      del banner del sorteggio ci sono già sulla base dal B35b), leggenda 6/7 (posa nell'allungo in corsa: capita anche
+      prima del 20° colpo; aperto). Da unire dopo B37.
+- [~] B37 nelle ultime prove (lob-drop: trovate impronte diverse per un sorteggio delle palpebre spostato dal segno di chi
+      serve; corretta la prova, non il gioco).

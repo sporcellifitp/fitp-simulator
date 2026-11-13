@@ -29,6 +29,19 @@ valide (`docs/RIPRESA_AGENTE.md` §4, `docs/PROJECT_MEMORY.md`).
 
 ---
 
+## 0. Decisioni dell'utente (13/11/2026, 18:25 UTC) · valgono più del resto di questo piano
+
+Chieste con le domande a scelta; dove la risposta è diversa dal consiglio, il piano va corretto prima di cominciare.
+
+| | Domanda | Risposta dell'utente | Effetto sul piano |
+|---|---|---|---|
+| D1 | Chi decide la direzione con «Nuova» | **La cima del telefono** (consigliato): il momento del colpo sposta la palla di circa 1 m, ma non dall'altra parte | come scritto (§4) |
+| D2 | Palle corte e volée con «Nuova» | **Accese come oggi** (non il consiglio) | **cade la tappa B36.2** «solo da fondo campo»; con «Nuova» palle corte, volée, salite a rete e smorzata della Leggenda restano come con «Classica». Cambia rispetto alla richiesta del 13/11 mattina («all'inizio niente palle corte e volée») |
+| D3 | Fuori girando troppo | **Sì, come nel tennis vero** (non il consiglio) | nella B36.4 niente «rientro verso l'angolo»: oltre la riga la palla va fuori anche con un colpo pulito, in proporzione a quanto si gira troppo (senza scalini); le fasce «sicura» e «della riga» restano come margine misurato, non come protezione. Va rifatta la misura dei fuori per livello (criterio 8) e guardato il bambino che gira tanto |
+| D4 | Come si impara la cima | **Una riga nella pagina «Pronto per la partita»** (consigliato), niente mirino | come scritto (§2, B36.6) |
+| D5 | Come si prova | **Giornate intere con «Nuova»** allo stand, confronto nel registro con le giornate «Classica» (non il consiglio) | i traguardi A e B diventano giornate con una regola sola (la classifica del giorno vale per quella regola); le prove da due minuti restano solo come controllo dello staff prima di aprire |
+| D6 | Quando | **B36.0 dopo B43** (consigliato): prima solo misure, poi le tappe che cambiano il gioco dopo la coda | come scritto |
+
 ## 1. In breve
 
 1. Nella modalità nuova («Direzione dei colpi: Nuova») la palla va dal lato dove **giri** la cima del telefono, rispetto al
