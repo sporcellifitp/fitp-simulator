@@ -429,9 +429,17 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
   - decisione 1, Leggenda e gioco a rete: **a Leggenda niente salita a rete automatica** dopo un attacco;
   - decisioni 2 e 11, scritte «in corsa / in allungo»: **solo con la corsa forte** (soglia da 0,5 a 0,8);
   - le altre (3–8, 12, 13) non chieste: **restano come sono** (opzione «tenere»).
-  → blocco **B34** in corso (run `wf_4db330c4-cc0`, ramo `b34-decisioni`, base `95a8712`, documento
-    `docs/b34/decisioni-revisione.md`), poi versione e pacchetti.
-- [~] Prove complete della 2026-11-13.5 (dalle 07:30 UTC del 13/11): `scratchpad/v1113e/prove.sh` → `prove.txt`.
+  → **B34 fatto** (ramo `b34-decisioni`, `29590e1`), unito in `4ba33d1`. **La decisione 1 (Leggenda senza salita a rete)
+    è TENUTA DA PARTE** (revert `e5fa4bd` del commit `c592035`): con le misure vere non rende la Leggenda più facile
+    («preciso» resta intorno al 77%, la revisione prevedeva 62,6%) e fa uscire di poco un criterio di audit:legend
+    (amatore, errori della CPU 1,9% su 2–6%). Chiesto all'utente se la vuole lo stesso. Per rimetterla: `git revert e5fa4bd`.
+  → **versione 2026-11-13.6** (`65817db`): controllo rapido gioco 1416/1416, sito 226/226, Windows 42/42, build ok,
+    `audit:legend` tutti i criteri OK; zip 23.841.154 B, sha256 `ff0ec72cf410e17b345b62c29f7eb9439961aa22b7c535106bbfef817dc36472`;
+    installer: `scratchpad/attesa-installer.sh`. Installer della 13.5 verificato: 128.086.155 B, sha256
+    `22e4d307e0336e6a33e3356f3b0f6b43b2b64346ce24eee1bf533611247933a7`.
+  → prove complete: quelle della 13.5 si sono fermate al riavvio del processo (verdi fino a fine partita 34/34); rifatte
+    sulla 13.6: `scratchpad/v1113f/prove.sh` → `prove.txt`.
+- [x] Prove complete: vedi sopra (13.6).
 - Il disco era pieno (100%, l'agente di correzioni ha fatto la build in `/dev/shm`): liberati 10 GB togliendo
   `node_modules` e `dist` dalle worktree già unite (si rigenerano con `npm ci`) e vecchie cartelle dello scratchpad.
       indipendente unico** su B23, T2.3, B31, B32, B33 e correzioni, versione finale con prove complete.
