@@ -146,11 +146,18 @@ try {
   const rk = await g.evaluate(() => ({ full: document.documentElement.classList.contains('ranking-full'), tab: document.querySelector('#ranking-tabs .selected')?.dataset.ranking, rows: [...document.querySelectorAll('#ranking-list li')].map(l => l.textContent), note: document.getElementById('ranking-note')?.textContent || '' }));
   check('B3. pannello dello stand → «A schermo intero»: la classifica delle partite', rk.full && rk.tab === 'partite' && rk.rows.length === 1 && /Ada/.test(rk.rows[0]) && /Evento/.test(rk.rows[0]) && /punti/.test(rk.rows[0]), JSON.stringify(rk));
   check('   la regola del punteggio in una riga', /Punteggio = % di punti vinti × livello/.test(rk.note), rk.note);
+  check('   B34: la riga dice anche l\'ordine (prima le vinte, poi le perse)', /Prima le partite vinte, poi le perse, ognuna per punteggio/.test(rk.note), rk.note);
   await shot('classifica-1280x720');
   // dieci partite (altri nove visitatori, livelli diversi): a schermo intero ci stanno tutte, anche sul ledwall
   await g.evaluate(() => { const ev = __natpfTennis.natpfUi.events, L = ['bambini', 'casual', 'evento', 'pro', 'leggenda'];
     for (let i = 0; i < 9; i++){ ev.nickname = `Ospite ${i + 1}`; ev.recordMatch({ level: L[i % 5], won: 4 + i, lost: 10 - i, games: i % 2 ? [1, 0] : [0, 1], win: i % 2 === 1 }); }
     ev.nickname = 'Ada'; __natpfTennis.natpfUi.lobby._paintRanking(); });
+  // B34 (decisione dell'utente): in cima tutte le vinte per punteggio, sotto le perse per punteggio
+  const order = await g.evaluate(() => [...document.querySelectorAll('#ranking-list li')].map(l => ({ win: /vinta/.test(l.textContent), score: +(/(\d+) punti/.exec(l.textContent)?.[1] || 0), nick: l.querySelector('span')?.firstChild?.textContent || '' })));
+  const firstLost = order.findIndex(r => !r.win), sorted = rows => rows.every((r, i) => i === 0 || rows[i - 1].score >= r.score);
+  check('B3c. B34: prima tutte le vinte, poi le perse, ognuna per punteggio (anche se una persa ha più punti di una vinta)',
+    firstLost > 0 && order.slice(firstLost).every(r => !r.win) && sorted(order.slice(0, firstLost)) && sorted(order.slice(firstLost)) && Math.max(...order.slice(firstLost).map(r => r.score)) > Math.min(...order.slice(0, firstLost).map(r => r.score)),
+    JSON.stringify(order.map(r => `${r.win ? 'V' : 'P'}${r.score}`)));
   for (const [w, h] of [[1920, 540], [1280, 720], [720, 720], [1024, 600]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(250);
     const fit = await g.evaluate(() => { const li = [...document.querySelectorAll('#ranking-list li')], n = document.getElementById('ranking-note').getBoundingClientRect(); return { rows: li.length, bottom: Math.round(Math.max(n.bottom, ...li.map(l => l.getBoundingClientRect().bottom))), h: innerHeight }; });
@@ -160,6 +167,8 @@ try {
   await g.setViewportSize({ width: 1280, height: 720 });
   const [dl] = await Promise.all([g.waitForEvent('download', { timeout: 8000 }), g.evaluate(() => __natpfTennis.natpfUi.kiosk.run('export'))]);
   const csv = readFileSync(await dl.path(), 'utf8');
+  const csvNicks = csv.split('\n').filter(l => l.includes('Partite contro la CPU')).map(l => l.split(';')[3].replace(/"/g, ''));
+  check('B4b. B34: il CSV ha lo stesso ordine della classifica', csvNicks.join('|') === order.map(r => r.nick).join('|'), `${csvNicks.join('|')} / ${order.map(r => r.nick).join('|')}`);
   check('B4. «Scarica CSV»: la partita c\'è, con livello e risultato (dieci partite in tutto)', csv.split('\n').filter(l => l.includes('Partite contro la CPU')).length === 10 && new RegExp(`"Partite contro la CPU";"\\d+";"Ada";"${board[0]?.score}";"[^"]+";"Evento";"(vinta|persa) \\d-\\d";"${truth.won} su ${truth.won + truth.lost}"`).test(csv), csv.split('\n').slice(0, 3).join(' | '));
   g.once('dialog', d => d.accept());
   await g.evaluate(() => __natpfTennis.natpfUi.kiosk.run('reset'));
