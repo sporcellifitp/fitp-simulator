@@ -238,3 +238,40 @@ test('a rete: niente passo corto nascosto nel piano, il movimento vero è quello
   assert.equal(caught, cases, `palle prese ${caught}/${cases}`);
   assert.ok(volleys > 0 && vmax <= p.maxSpeed + 1e-6, `volée ${volleys}, velocità massima ${vmax.toFixed(2)}`);
 });
+
+/* ---------- B34: la scritta «in corsa» solo con la corsa forte (decisione dell'utente del 13/11) ---------- */
+test('B34: «in corsa» scritto solo da 0,8 della velocità massima; la regola del colpo in corsa e il registro non cambiano', () => {
+  for (const lv of ['casual', 'pro', 'leggenda', 'evento']){
+    const P = NS.skillLevel(lv).playerRun;
+    assert.equal(P.runSay, .5, `${lv}: la regola (e il registro) da 0,5`);
+    assert.equal(P.runShow, .8, `${lv}: la scritta da 0,8`);
+  }
+  // moveTag (regola e registro) come prima; moveSay (scritta) tace sulla corsa media e non la trasforma in «in allungo»
+  assert.equal(NM.moveTag(R, { running: .6, stretch: .9 }), 'corsa');
+  assert.equal(NM.moveSay(R, { running: .6, stretch: .9 }), null);
+  assert.equal(NM.moveSay(R, { running: .79 }), null);
+  assert.equal(NM.moveSay(R, { running: .8 }), 'corsa');
+  assert.equal(NM.moveSay(R, { running: .95 }), 'corsa');
+  assert.equal(NM.moveSay(R, { running: .2, stretch: .8 }), 'allungo', '«in allungo» come prima');
+  assert.equal(NM.moveSay(R, { running: .2, stretch: .3 }), null);
+  assert.equal(NM.moveSay(null, { running: 1 }), null);
+  // la scritta segue say; senza say (colpi costruiti prima del B34) segue move
+  const L = { who: 'player', at: 3, move: 'corsa', say: null, out: { failed: false } };
+  assert.equal(shotWhy(L, { now: 3 }), null, 'corsa media: niente scritta');
+  assert.equal(shotWhy({ ...L, say: 'corsa' }, { now: 3 }), 'in corsa');
+  assert.equal(shotWhy({ ...L, out: { failed: true, weak: true }, cause: 'in corsa' }, { now: 3 }), 'palla debole: in corsa', 'il colpo fallito dice la causa come prima');
+  // in partita: stesse partite di prima (punti e colpi), meno scritte; il registro (move) conta i colpi in corsa come prima
+  const count = difficulty => { let last = null; const c = { shots: 0, move: 0, say: 0, old: 0 };
+    const r = simulate({ profile: 'umano', difficulty, points: 80, seed: 2001, onStep: e => {
+      const L = e.natpfLastRacket; if (!L || L === last || L.who !== 'player') return; last = L; c.shots++;
+      if (L.move === 'corsa') c.move++;
+      if (shotWhy(L) === 'in corsa') c.say++;
+      if (shotWhy({ ...L, say: L.move }) === 'in corsa') c.old++;
+      assert.ok(L.say !== 'corsa' || L.move === 'corsa', 'scritta «in corsa» solo su un colpo in corsa per la regola');
+    } });
+    return { ...c, points: r.points };
+  };
+  const ev = count('evento');
+  assert.ok(ev.move > 20 && ev.old > ev.points*.8, `Evento prima: ${ev.old} scritte in ${ev.points} punti`);
+  assert.ok(ev.say < ev.points*.35 && ev.say < ev.old/4, `Evento ora: ${ev.say} scritte in ${ev.points} punti (prima ${ev.old})`);
+});

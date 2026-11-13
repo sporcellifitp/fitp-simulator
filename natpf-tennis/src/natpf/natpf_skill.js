@@ -27,7 +27,7 @@ const EXPERT_PLAYER = Object.freeze({
   streakGain: .05, streakMin: .8, playerSpeed: 8.8,
   // B32: movimento di chi gioca con accelerazione e frenata (natpf_movement.js, docs/b32/movimento.md). Accelerazione
   // sopra quella della CPU di Leggenda (22 m/s²): la regola «la CPU di Leggenda è più lenta di chi gioca» resta
-  playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 24, decel: 32, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.0, runSay: .5, stretchSay: .7 }),
+  playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 24, decel: 32, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.0, runSay: .5, runShow: .8, stretchSay: .7 }),
 });
 // Parametri per difficoltà. «1v1» (due persone) usa solo la parte del giocatore.
 // (B18.2 gruppo 3: i livelli «Bambini» ed «Evento» si aggiungono qui sotto, dopo questi quattro, che restano identici)
@@ -52,7 +52,7 @@ const LEVELS = {
     cpuWeak: .16, cpuAttack: .7, cpuAttackBase: .12, cpuAttackFlight: .7, playerSpeed: 10.2,  // su palle deboli la CPU attacca: angolo e ritmo
     // B32: movimento di chi gioca (natpf_movement.js): split-step e lettura della palla veloce, accelerazione e frenata,
     // arrivo giusto in tempo, colpo in corsa sulla palla lontana, portata della palla non raggiunta. Misure: docs/b32/movimento.md
-    playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 22, decel: 30, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.1, runSay: .5, stretchSay: .7 }),
+    playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 22, decel: 30, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.1, runSay: .5, runShow: .8, stretchSay: .7 }),
     cpuServe: Object.freeze({ flight: 1, wide: 0 }),     // servizio della CPU lento e al centro del quadrato (cpuServe)
   }),
   pro: Object.freeze({

@@ -2402,7 +2402,10 @@ export class NatpfTennisEngine {
     this.natpfLastRacket.sit = NS.situationParts(Q, { speed: b.vel.length(), z: p.pos.z, y: b.pos.y, smash, pressure, running });
     this.natpfLastRacket.contactY = +b.pos.y.toFixed(3); // B31: altezza della palla all'impatto (approccio a rete, NP.approachOf)
     // B32: colpo in corsa o in allungo (scritta dell'esito, registro dello stand); null senza le regole o da fermi
-    this.natpfLastRacket.move = NM.moveTag(natpfRun, { running, stretch: NI.livePlan(this, p)?.stretch });
+    const natpfStretch = NI.livePlan(this, p)?.stretch;
+    this.natpfLastRacket.move = NM.moveTag(natpfRun, { running, stretch: natpfStretch });
+    // B34: la scritta «in corsa» solo con la corsa forte (natpf_movement.moveSay); move resta per il registro
+    this.natpfLastRacket.say = NM.moveSay(natpfRun, { running, stretch: natpfStretch });
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
     const netClear = sup.on ? NO.SUPER.netGap : out.attack || out.hot ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null; // (B20: anche lo scambio caldo passa basso)
     return {

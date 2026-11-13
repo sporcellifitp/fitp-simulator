@@ -76,8 +76,10 @@ export function shotName(grade = ''){
 // (B18.2 passo 3: anche la palla corta troppo lunga, che non è fallita, ha il suo motivo)
 // B32: un colpo riuscito preso in corsa o in allungo contro la CPU lo dice anche lui («in corsa», «in allungo»: L.move,
 // natpf_movement.moveTag), perché è più debole e meno preciso di quello da fermo
+// (B34: la scritta segue L.say, «in corsa» solo con la corsa forte: natpf_movement.moveSay; L.move resta per il registro)
 export function shotWhy(L, { now = null, who = 'player' } = {}){
-  if (L && !L.out?.failed && !L.out?.dropLong && MOVE_WHY[L.move] && L.who === who && (now == null || L.at === now)) return MOVE_WHY[L.move];
+  const say = L && ('say' in L ? L.say : L.move);
+  if (L && !L.out?.failed && !L.out?.dropLong && MOVE_WHY[say] && L.who === who && (now == null || L.at === now)) return MOVE_WHY[say];
   if (!(L?.out?.failed || L?.out?.dropLong) || !L.cause || L.who !== who || (now != null && L.at !== now)) return null;
   return L.out.weak ? `palla debole: ${L.cause}` : L.cause;
 }

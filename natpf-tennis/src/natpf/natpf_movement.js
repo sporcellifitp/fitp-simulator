@@ -126,3 +126,12 @@ export function moveTag(R, { running = 0, stretch = 0 } = {}){
   return null;
 }
 export const MOVE_WHY = Object.freeze({ corsa: 'in corsa', allungo: 'in allungo' });
+// B34 (decisione dell'utente del 13/11, revisione finale n. 2 e 11): la SCRITTA «in corsa» solo con la corsa forte, cioè
+// con la velocità al contatto da runShow (0,8) della massima in su. Tra runSay (0,5) e runShow il colpo resta un colpo in
+// corsa per la regola (forza e precisione, che usano la velocità vera al contatto e non questa etichetta) e per il
+// registro dello stand (campo «mov» di moveTag, come prima), ma la scritta non dice niente (nemmeno «in allungo»: le
+// scritte «in allungo» restano quelle di prima). Prima a Evento chi gioca leggeva «in corsa» 1,6 volte per punto.
+export function moveSay(R, { running = 0, stretch = 0 } = {}){
+  const tag = moveTag(R, { running, stretch });
+  return tag === 'corsa' && finite(running) < finite(R?.runShow, .8) ? null : tag;
+}
