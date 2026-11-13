@@ -190,3 +190,40 @@ test('B33: classifica delle partite nel tabellone del giorno, nel CSV e azzerata
   assert.ok(b.modes[MATCH_MODE]);
   assert.deepEqual(topMatches(freshBoard(null, '2026-11-13'), 10, '2026-11-13'), [], 'azzerata');
 });
+
+test('B33: sfida tra due computer sul motore vero: l\'host vede i suoi numeri, il Player 2 i suoi dagli snapshot', async () => {
+  const { createHeadlessEngine } = await import('../scripts/audit/headless-engine.mjs');
+  // host: i punti li decide lui; la schermata mostra solo la colonna di chi gioca qui
+  const h = createHeadlessEngine({ difficulty: 'casual' });
+  h.isMultiplayer = true; installMatchStats(h); h.startNewMatch({ showStartBanner: false }); h.matchConfig.gamesToWin = 1;
+  assert.equal(h.natpfStats.m.mode, 'versus');
+  for (const w of ['opponent', 'player', 'player', 'player', 'player']){ h.ball.rallyStrokeCount = 2; h._awardPoint(w, 'Out'); }
+  assert.equal(h.phase, 'MATCH_OVER');
+  const hv = h._natpfMatchEndView('player');
+  assert.equal(hv.stats.cols.length, 1); assert.equal(hv.stats.cols[0].side, 'player');
+  assert.equal(hv.stats.cols[0].sum.points, 4); assert.equal(hv.stats.cols[0].sum.lost, 1);
+  // Player 2: niente _awardPoint, i numeri dal punteggio dell'host (gli snapshot che arrivano già oggi, niente di nuovo)
+  const e = createHeadlessEngine({ difficulty: 'casual' });
+  e.playerRole = 'p2'; e.urlRoom = 'AT-AB12'; e.roomId = 'AT-AB12'; e.isMultiplayer = true;
+  installMatchStats(e); e.startNewMatch({ showStartBanner: false });
+  let seq = 0, victory = null;
+  const snap = snapshot => e._handleRoomStateUpdate({ p1Online: true, epoch: 'x', snapshotSeq: ++seq, snapshot });
+  snap({ lobby: true, fmt: 'singles', gamesToWin: 1 });
+  e.hud = new Proxy({}, { get: (t, k) => k === 'showVictoryModal' ? v => { victory = v; } : () => {} });
+  const S = (pp, op, pg, og) => ({ playerPoints: pp, opponentPoints: op, playerGames: pg, opponentGames: og, server: 'player', deuceSide: true });
+  const ball = n => ({ px: 0, py: 1, pz: 0, vx: 0, vy: 0, vz: 1, rallyStrokeCount: n });
+  const realT = globalThis.setTimeout; globalThis.setTimeout = fn => { fn(); return 0; };
+  try {
+    snap({ phase: 'RALLY', phaseTimer: .1, score: S(0, 0, 0, 0), ball: ball(1) });
+    snap({ phase: 'RALLY', phaseTimer: .1, score: S(0, 0, 0, 0), ball: ball(5) });
+    snap({ phase: 'POINT_OVER', phaseTimer: 0, score: S(1, 0, 0, 0), ball: ball(5) });
+    for (let i = 1; i <= 3; i++) snap({ phase: 'POINT_OVER', phaseTimer: 0, score: S(1, i, 0, 0), ball: ball(2) });
+    snap({ phase: 'MATCH_OVER', phaseTimer: 0, score: S(0, 0, 0, 1), ball: ball(3) });
+  } finally { globalThis.setTimeout = realT; }
+  assert.ok(victory?.view?.stats, 'schermata finale del Player 2 con i numeri');
+  const c = victory.view.stats.cols;
+  assert.equal(c.length, 1); assert.equal(c[0].side, 'opponent');
+  assert.equal(c[0].sum.points, 4); assert.equal(c[0].sum.lost, 1); assert.equal(c[0].sum.longest, 5); assert.equal(c[0].sum.won, true);
+  assert.equal(victory.view.stats.guest, true);
+  assert.deepEqual(victory.view.stats.games, [{ mine: 4, theirs: 1, win: true }], 'i game dal lato del Player 2');
+});
