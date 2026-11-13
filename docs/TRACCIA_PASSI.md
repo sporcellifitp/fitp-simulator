@@ -516,6 +516,15 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
   4. voce «Pannello dello stand» nel programma Windows, che non dipenda da Ctrl+Maiusc+K (nel menu e con un tasto, per
      esempio F9, gestito dal programma: a schermo intero la barra del menu non c'è).
   Video 1 dei riferimenti B36 ricevuto (`scratchpad/b36/video1/video1.mp4`, 36,7 s, 720×1280): il secondo non è arrivato.
+- **12:50 UTC, limite d'uso**: si erano fermati B35b (solo verifiche finali e documento), il controllo «solo mouse» (fatte
+      le ricerche «tasti» e «programma») e il piano unico B36 (nessun agente finito). Ripresi alle 12:55: B35b (run
+      `wf_0112b1ff-1d5`, stessa worktree), controllo «solo mouse» con `resumeFromRunId wf_826fa68a-9cc`; il piano unico B36
+      (`b36-piano-unico`, run `wf_c286e290-cbc`, rilanciare con `resumeFromRunId`) dopo B35b/B37/B38 per non consumare il
+      limite tutto insieme.
+- **Scoperta del controllo «solo mouse» (verificata)**: nella PAGINA PRINCIPALE del menu il marchio NATPF è nascosto
+  (`natpf-ui.css:552`, `visibility: hidden`): tenerlo premuto 3 s non fa niente; funziona nelle altre pagine del menu
+  (es. «Opzioni»). Detto all'utente di passare da un'altra pagina. Da correggere (B38/B39): marchio anche nella pagina
+  principale, anello che si riempie, pannello raggiungibile con il mouse anche in partita.
 - [ ] **B38 · Tastiera a schermo** (richiesta dell'utente del 13/11, 11:50 UTC: «una tastiera su schermo che compaia quando
       devo digitare, perché ho solo un mouse e non ho una tastiera wireless»). Tastiera del gioco (non di Windows) che
       compare cliccando un campo di testo (nome, nomi dello stesso schermo, codice della sfida, campi della diagnostica) e
