@@ -22,7 +22,7 @@
 // l'accelerazione con il segno opposto non corretto dal nome del browser (Salta e scambi di prova, il verso lo gira il gioco).
 // Uscite: matrice voluto → ottenuto (incrociato / centro / lungolinea con la geometria dell'allenamento,
 // natpf_training.trainingDirection; fuori e in rete a parte) e quota di colpi fuori o in rete con il gesto buono.
-//   node --import ./test/register.mjs scripts/audit/direzione-telefono.mjs [--seeds=1,2] [--n=4] [--level=pro] [--quick] [--json=file] [--serie] [--fuori]
+//   node --import ./test/register.mjs scripts/audit/direzione-telefono.mjs [--seeds=1,2] [--n=4] [--level=pro] [--quick] [--json=file] [--serie] [--fuori] [--ritardo]
 import { pathToFileURL } from 'node:url';
 import { writeFileSync } from 'node:fs';
 import { rng } from '../../test/phone-sim.mjs';
@@ -207,6 +207,17 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
       const rows = audit({ seeds, n, noise: 'buono', cals, models, ...o });
       json[label] = rows;
       console.log(report(rows, `\n== fuori: ${label} ==`).split('\n').filter(l => !/calibrazione|Salta|scambi|destro|mancino/.test(l)).join('\n'));
+    }
+  }
+  if (process.argv.includes('--ritardo')){
+    // B35a: schermo in ritardo non misurato. Tempo sempre spostato di 0,6 / 1,2 / 1,8 finestre in ritardo (a 18 m/s circa
+    // 47 / 93 / 140 ms), Pro, gesto buono «naturale», tre calibrazioni, destri e mancini: incrociato voluto → incrociato e
+    // lungolinea, giusti, fuori o in rete
+    console.log(`\n== ritardo costante (Pro, gesto buono «naturale», semi ${seeds.join(',')}) ==\nritardo  | incrociato voluto: in / lu | centro voluto: ce | lungolinea voluto: lu / fuori | giusti | fuori`);
+    for (const late of [0, -.6, -1.2, -1.8]){
+      const rows = audit({ seeds, n, noise: 'buono', cals: ['rapida', 'salta', 'prova'], models: ['naturale'], late }), M = matrix(rows);
+      json[`ritardo ${late}`] = rows;
+      console.log(`${String(-late).padEnd(8)} | ${String(M.m.cross.cross).padStart(3)} / ${String(M.m.cross.line).padStart(3)}${' '.repeat(16)}| ${String(M.m.center.center).padStart(3)}${' '.repeat(14)}| ${String(M.m.line.line).padStart(3)} / ${String(M.m.line.fuori + M.m.line.rete).padStart(3)}${' '.repeat(17)}| ${String(M.ok).padStart(3)}%   | ${String(M.fuori).padStart(3)}%`);
     }
   }
   const file = arg('json'); if (file) writeFileSync(file, JSON.stringify(json));
