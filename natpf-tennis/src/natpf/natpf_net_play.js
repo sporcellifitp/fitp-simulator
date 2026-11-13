@@ -17,6 +17,10 @@ import { predictBall } from './natpf_impact.js';
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
+// Solo prove e banchi: netPlayRules.off = true rimette le regole di prima (1906562) in tutto il gioco, per confrontare le
+// partite a sorteggi fissi con la base (test/natpf-b31-rete.test.mjs, scripts/audit/rete.mjs --senza-b31)
+export const netPlayRules = { off: false };
+export const netOff = () => netPlayRules.off === true;
 export const NET_PLAY = Object.freeze({
   // Chi gioca: attacco riuscito che porta a rete. z: colpito entro tanto dalla rete (dentro il campo, non dalla riga di
   // fondo); sliceZ: il tagliato porta a rete anche da un poco più indietro (palla bassa, buona per avvicinarsi); depth:
@@ -67,7 +71,7 @@ const levelKey = d => (['pro', 'leggenda'].includes(String(d)) || (String(d) ===
 //   volley: palla presa al volo (volée o schiacciata)
 //   power: forza del gesto (intenzione, 0…1) · contactY: altezza della palla all'impatto (m)
 export function approachOf(out, contactZ, { volley = false, power = .5, contactY = 1 } = {}){
-  if (!out || out.failed || out.weak || out.netFault) return false;
+  if (netOff() || !out || out.failed || out.weak || out.netFault) return false;
   const A = NET_PLAY.approach, z = Math.abs(finite(contactZ, 11.5)), shot = String(out.shot || '').toUpperCase();
   if (shot === 'LOB' || shot === 'DROP') return false;
   // già a rete: la volée o la schiacciata riuscita tiene lì (la palla corta raggiunta no: vale la regola dell'attacco)
@@ -84,10 +88,21 @@ export function approachOf(out, contactZ, { volley = false, power = .5, contactY
 // { react, speed } da sommare alla reazione e da moltiplicare alla velocità; { 0, 1 } lontano dalla rete
 export function netMoveOf(actorZ){
   const M = NET_PLAY.netMove;
-  return Math.abs(finite(actorZ, 11.5)) < M.zone ? { react: M.react, speed: M.speed } : { react: 0, speed: 1 };
+  return !netOff() && Math.abs(finite(actorZ, 11.5)) < M.zone ? { react: M.react, speed: M.speed } : { react: 0, speed: 1 };
 }
 
 /* ---------- la CPU a rete ---------- */
+// Sorteggi delle scelte nuove della CPU (salire a rete, palla corta, errore della volée): un generatore suo, non
+// Math.random, così le partite a sorteggi fissi restano quelle di prima finché le regole nuove non scattano (i banchi e le
+// prove confrontano con la base). Seme: engine.natpfNetSeed, altrimenti fisso
+export function netRng(e){
+  if (!e) return Math.random;
+  if (!e.natpfNetRng){
+    let a = (Number.isFinite(e.natpfNetSeed) ? e.natpfNetSeed : 0x31b31) >>> 0;
+    e.natpfNetRng = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0)/4294967296; };
+  }
+  return e.natpfNetRng;
+}
 // Stato: engine.natpfCpuNet = { at } quando la CPU è salita a rete (fino a quando torna in fondo); engine.natpfCpuOver =
 // { kind: 'volley' | 'smash', at } per la palla in arrivo (piano del colpo al volo); engine.natpfCpuShot = { kind } del
 // suo ultimo colpo (banco e scritte). La sfida tra due computer e lo stesso schermo non passano di qui (nessuna CPU).
@@ -97,7 +112,7 @@ export const cpuActive = e => !!e && !e.isMultiplayer && !e.isDoubles && !(e.aut
 // rete. Dal fondo schiaccia al volo il pallonetto corto che può raggiungere. Restituisce il piano o null (piano di prima).
 export function cpuOverheadPlan(e, cpu){
   e.natpfCpuOver = null;
-  if (!cpuActive(e) || cpu !== e.opponent || !e.ball?.inPlay) return null;
+  if (netOff() || !cpuActive(e) || cpu !== e.opponent || !e.ball?.inPlay) return null;
   const K = NET_PLAY.cpu, path = predictBall(e.ball), before = path.filter(p => p.bounces === 0 && p.z < 0);
   if (!before.length) return null;
   const now = finite(e.elapsedTime), cz = Math.abs(cpu.pos.z), speed = Math.max(3, finite(cpu.maxSpeed, 5));
@@ -120,11 +135,11 @@ export function cpuOverheadPlan(e, cpu){
   return (e.natpfCpuOver = { kind: 'smash', at: now, y: +p.y.toFixed(2) });
 }
 // Altezza massima a cui la CPU colpisce la palla in arrivo: alta solo con la schiacciata pianificata
-export const cpuReachY = (e, base) => (e?.natpfCpuOver?.kind === 'smash' ? NET_PLAY.cpu.smashY + .05 : base);
+export const cpuReachY = (e, base) => (!netOff() && e?.natpfCpuOver?.kind === 'smash' ? NET_PLAY.cpu.smashY + .05 : base);
 // Colpo al volo della CPU (volée o schiacciata) al posto della risposta normale. plan: cpuReturnPlan (gli errori della
 // CPU restano: rete, largo, lungo). Restituisce null (risposta normale) o { kind, x, z, shot, flight, fromY }
-export function cpuNetShot(e, cpu, plan, rng = Math.random){
-  if (!cpuActive(e) || cpu !== e.opponent || !plan || ['net', 'wide', 'long'].includes(plan.kind)) return null;
+export function cpuNetShot(e, cpu, plan, rng = netRng(e)){
+  if (netOff() || !cpuActive(e) || cpu !== e.opponent || !plan || ['net', 'wide', 'long'].includes(plan.kind)) return null;
   const b = e.ball, K = NET_PLAY.cpu, cz = Math.abs(cpu.pos.z), high = finite(b.pos.y) > K.volleyY;
   if (skillLevel(e.matchConfig?.difficulty).cpuLegend && !high) return null;   // Leggenda: solo la schiacciata (il resto lo sceglie natpf_legend)
   const air = finite(b.bounceCountOnCurrentSide) === 0 && (cz < NET_PLAY.netMove.zone + .5 || high);
@@ -146,8 +161,8 @@ export function cpuNetShot(e, cpu, plan, rng = Math.random){
 // Dopo il colpo della CPU: a rete o in fondo. plan: cpuReturnPlan; net: cpuNetShot (null se è stata una risposta normale).
 // true: va a rete (targetPos già impostato). Resta a rete dopo una volée o una schiacciata; sale dopo il suo attacco o da
 // una palla presa da dentro il campo, con la probabilità del livello.
-export function cpuRecover(e, cpu, { plan = null, net = null, landingX = 0, rng = Math.random } = {}){
-  if (!cpuActive(e) || cpu !== e.opponent || !plan || ['net', 'wide', 'long'].includes(plan.kind) || plan.kind === 'weak' || skillLevel(e.matchConfig?.difficulty).cpuLegend){ e.natpfCpuNet = null; return false; }
+export function cpuRecover(e, cpu, { plan = null, net = null, landingX = 0, rng = netRng(e) } = {}){
+  if (netOff() || !cpuActive(e) || cpu !== e.opponent || !plan || ['net', 'wide', 'long'].includes(plan.kind) || plan.kind === 'weak' || skillLevel(e.matchConfig?.difficulty).cpuLegend){ e.natpfCpuNet = null; return false; }
   const K = NET_PLAY.cpu, cz = Math.abs(cpu.pos.z), chance = byLevel(K.approach, e.matchConfig?.difficulty);
   const open = Math.abs(finite(landingX) - finite(e.player?.pos?.x)) >= K.open;
   const go = (!!net && !!e.natpfCpuNet) || (!e.natpfCpuNetTried && chance > 0 && open && ((plan.kind === 'attack' && cz <= K.attackZ) || cz <= K.inside) && rng() < chance);
@@ -157,8 +172,8 @@ export function cpuRecover(e, cpu, { plan = null, net = null, landingX = 0, rng 
   return true;
 }
 // Palla corta della CPU: rara (tetto per game) e dichiarata. Restituisce null o { x, z, net, flight }
-export function cpuDropShot(e, cpu, plan, rng = Math.random){
-  if (!cpuActive(e) || cpu !== e.opponent || !plan || plan.kind !== 'ok' || skillLevel(e.matchConfig?.difficulty).cpuLegend) return null;
+export function cpuDropShot(e, cpu, plan, rng = netRng(e)){
+  if (netOff() || !cpuActive(e) || cpu !== e.opponent || !plan || plan.kind !== 'ok' || skillLevel(e.matchConfig?.difficulty).cpuLegend) return null;
   const D = NET_PLAY.cpu.drop, b = e.ball, S = e.score || {};
   const chance = byLevel(D.chance, e.matchConfig?.difficulty);
   if (!(chance > 0) || finite(b.rallyStrokeCount) < 3 || Math.abs(finite(e.player?.pos?.z)) < D.farZ || Math.abs(cpu.pos.z) > D.fromZ || finite(b.bounceCountOnCurrentSide) === 0) return null;
@@ -170,11 +185,11 @@ export function cpuDropShot(e, cpu, plan, rng = Math.random){
   return { x: (rng() - .5)*3.6, z: net ? 3.2 + rng()*1.2 : z, net, flight: Math.max(1.32, (Math.abs(b.pos.z) + z)/10) };
 }
 // Portata laterale della CPU (× cpuReach): più lunga a rete
-export const cpuNetReach = e => (e?.natpfCpuNet && e.opponent && Math.abs(e.opponent.pos.z) < NET_PLAY.netMove.zone + .5 ? NET_PLAY.cpu.reach : 1);
+export const cpuNetReach = e => (!netOff() && e?.natpfCpuNet && e.opponent && Math.abs(e.opponent.pos.z) < NET_PLAY.netMove.zone + .5 ? NET_PLAY.cpu.reach : 1);
 // B31 (punto 22): la schiacciata riuscita di chi gioca si prende solo vicino al corpo (portata al massimo SMASH_REACH m,
 // e niente affondo della Leggenda): prima la Leggenda ne rimandava in gioco più di una su due, anche quelle colpite a rete
 export const SMASH_REACH = .9;
-export const smashIncoming = e => !!e && !e.isMultiplayer && e.ball?.lastHitter === 'player' && e.natpfSkill?.lastShot?.shot === 'SMASH' && !e.natpfLastRacket?.out?.failed && !e.natpfLastRacket?.out?.weak;
+export const smashIncoming = e => !netOff() && !!e && !e.isMultiplayer && e.ball?.lastHitter === 'player' && e.natpfSkill?.lastShot?.shot === 'SMASH' && !e.natpfLastRacket?.out?.failed && !e.natpfLastRacket?.out?.weak;
 // portata della CPU (m) con la schiacciata in arrivo: al massimo SMASH_REACH; reach senza schiacciata
 export const smashReach = (e, reach) => (smashIncoming(e) ? Math.min(reach, SMASH_REACH) : reach);
 // … e appena rimbalzata, in salita e sotto SMASH_LOW m, non si prende (la schiacciata rimbalza alta e veloce: prima la

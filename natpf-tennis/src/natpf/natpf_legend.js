@@ -21,7 +21,7 @@
 // Il generatore casuale si può iniettare (engine.natpfLegendRng); l'audit scripts/audit/legend.mjs misura i criteri.
 import * as NS from './natpf_skill.js';
 import { rallyPressure } from './natpf_stroke_outcome.js';
-import { NET_PLAY, smashIncoming } from './natpf_net_play.js';
+import { NET_PLAY, smashIncoming, netOff } from './natpf_net_play.js';
 
 const C = NS.COURT;
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -165,7 +165,7 @@ function humanReach(L, c, ctx, h){
   // è a rete dovesse tornare in fondo: i passanti sembravano facili da prendere e le palle profonde vincenti, e la
   // Leggenda non passava quasi mai chi saliva. Ora, tranne il pallonetto (che lo scavalca), conta la volée: dove passa la
   // palla quando arriva all'altezza di chi gioca e quanto si muove a rete (NET_PLAY.netMove: reazione più lunga, passo corto)
-  if (c.shot !== 'LOB' && Math.abs(h.pos.z) < NET_PLAY.netMove.zone){
+  if (c.shot !== 'LOB' && Math.abs(h.pos.z) < NET_PLAY.netMove.zone && !netOff()){
     const M = NET_PLAY.netMove, hz = Math.abs(h.pos.z), path = Math.abs(ctx.bz) + Math.max(c.z, hz), f = clamp((Math.abs(ctx.bz) + hz)/Math.max(1, path), .2, 1);
     const tc = flight*f, xc = ctx.bx + (c.x - ctx.bx)*f*(c.z < hz ? 1.15 : 1);
     const need = L.reachReact + M.react + Math.max(0, Math.abs(xc - h.pos.x) - L.reachSide - L.netReach)/Math.max(3, finite(h.maxSpeed, 9)*M.speed);
@@ -216,9 +216,9 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   // fino a −serveQ per il servizio perfetto, forte e sulla riga; un servizio normale non la tocca
   const sv = NS.serveInPlay(e);
   // B31: il tagliato basso di chi gioca preso da dietro (oltre sliceFrom dalla rete) toglie sliceQ alla qualità
-  const slice = String(b.shotType).toUpperCase() === 'SLICE' && Math.abs(ctx.bz) > L.sliceFrom ? 1 - L.sliceQ : 1;
+  const slice = String(b.shotType).toUpperCase() === 'SLICE' && Math.abs(ctx.bz) > L.sliceFrom && !netOff() ? 1 - L.sliceQ : 1;
   // … e la schiacciata riuscita di chi gioca la mette in difficoltà (NS.LEGEND_SMASH.q; la reazione in ritardo in planCpuRun)
-  const smashIn = e.natpfSkill?.lastShot?.shot === 'SMASH' ? NS.LEGEND_SMASH.q : 1;
+  const smashIn = e.natpfSkill?.lastShot?.shot === 'SMASH' && !netOff() ? NS.LEGEND_SMASH.q : 1;
   const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, L.pressureFrom)*finite(b.natpfSuper?.legendQ, 1)*(sv ? 1 - finite(L.serveQ)*sv.threat : 1)*slice*smashIn, .3, 1);
   const R = (a, z) => a + rng()*(z - a), hx = h.pos.x, hz = h.pos.z, hv = h.vel.x;
   const away = -(Math.sign(hx) || -s);                    // angolo lontano dall'avversario
@@ -238,7 +238,7 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   // pallonetto: avversario a rete
   if (hz < 7.5) cands.push({ kind: 'pallonetto', x: R(-2.4, 2.4), z: R(9.6, 11), shot: 'LOB', power: .3 });
   // B31 (punto 22): passanti contro chi è a rete, basso e stretto incrociato o teso lungolinea, lontano da lui
-  if (hz < NET_PLAY.netMove.zone){
+  if (hz < NET_PLAY.netMove.zone && !netOff()){
     const far = -(Math.sign(hx) || s);
     cands.push({ kind: 'passante', x: far*R(3.2, 3.85), z: R(6, 8.2), shot: 'TOPSPIN', power: R(.6, .8) });
     cands.push({ kind: 'passanteLungo', x: far*R(3.1, 3.7), z: R(9, 10.6), shot: 'FLAT', power: R(.7, .88) });

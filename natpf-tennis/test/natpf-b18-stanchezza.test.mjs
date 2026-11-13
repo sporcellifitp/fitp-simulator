@@ -16,20 +16,27 @@ const TIRED = 1 - ENERGY.low;   // energia ≤ 0,25: «Stanco!»
 test('stanchezza nel motore: a Pro si ricarica tra i punti (quasi mai «Stanco!»), ma lo scambio stanca ancora', () => {
   let steps = 0, tired = 0, maxF = 0, eng = null;
   // passi tra i punti: la stanchezza non sale mai, e dopo la pausa è scesa
-  let drops = 0, rises = 0, prev = null;
+  let drops = 0, rises = 0, prev = null, prevOut = false;
   simulate({ profile: 'amatore', difficulty: 'pro', points: 40, seed: 7, onStep: e => {
     eng = e; steps++;
     const f = fatigueLevel(e, e.player); maxF = Math.max(maxF, f); if (f >= TIRED) tired++;
-    const out = !(e.phase === 'RALLY' && e.ball.inPlay);
-    if (out && prev != null){ if (f < prev - 1e-9) drops++; if (f > prev + 1e-9) rises++; }
-    prev = f;
+    // (B31: «fuori dallo scambio» come lo conta il motore, fasi diverse da RALLY e SERVE_TOSS: con il gioco a rete chi gioca
+    // può ancora correre verso la rete nel passo in cui la palla è appena morta, ancora in RALLY)
+    // e solo tra due passi entrambi fuori (il passo in cui il punto finisce ha ancora contato la corsa)
+    const out = e.phase !== 'RALLY' && e.phase !== 'SERVE_TOSS';
+    if (out && prevOut && prev != null){ if (f < prev - 1e-9) drops++; if (f > prev + 1e-9) rises++; }
+    prev = f; prevOut = out;
   } });
   assert.ok(maxF > .2, `lo scambio stanca ancora: massimo ${maxF.toFixed(2)}`);
   // B18.2 passo 2: soglia da 10 a 15%. Questa partita (seme 7, 40 punti) era già al 9,9% e con gli scambi di Pro un poco
   // più lunghi (la CPU non regala più il punto) è al 10,3%. A Pro chi gioca è su «Stanco!» un poco più spesso di prima
   // («amatore» 6,2 → 6,9% del tempo su 12 semi × 150 punti; il revisore, con altri semi, 5,8 → 8,1% e una partita al
   // 16,1%): resta lontanissimo dal difetto (93–96%). Questo test guarda una partita sola, sempre la stessa (seme 7)
-  assert.ok(tired/steps < .15, `tempo su «Stanco!» ${(100*tired/steps).toFixed(1)}% (prima 93–96%)`);
+  // B31 (gioco a rete): soglia da 15 a 22%. Chi gioca ora sale a rete dopo un attacco riuscito e da lì corre indietro sui
+  // pallonetti: corre di più e si stanca un poco più spesso. «amatore» a Pro, 6 semi × 100 punti: 0,5% → 4,4% del tempo su
+  // «Stanco!» (/tmp: scratchpad tired.mjs, docs/b31/gioco-a-rete.md); questa partita sola (seme 7, 40 punti) 18,6%.
+  // Resta lontanissimo dal difetto (93–96%)
+  assert.ok(tired/steps < .22, `tempo su «Stanco!» ${(100*tired/steps).toFixed(1)}% (prima 93–96%)`);
   assert.ok(drops > 100, `recupero tra i punti: ${drops} passi in discesa`);
   assert.equal(rises, 0, 'fuori dallo scambio la stanchezza non sale');
   // partita nuova: energia piena

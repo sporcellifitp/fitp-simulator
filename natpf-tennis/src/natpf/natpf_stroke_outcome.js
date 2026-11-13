@@ -14,6 +14,7 @@
 // alle righe senza superarle e senza cambiare l'ordine delle direzioni; sfuma oltre la finestra e sotto la qualità del
 // livello. Escono solo i colpi estremi. Stessi ingressi, stesso esito.
 import { ARC, flightForClear, swingGrade, timingUnits } from './natpf_skill.js';
+import { netOff } from './natpf_net_play.js'; // B31: regole del gioco a rete (spente solo nelle prove di confronto)
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -283,7 +284,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   if (netVolley) shot = 'SLICE';
   // spanPress (B18.2 passo 3, solo Leggenda): negli scambi lunghi la finestra del tempo si stringe con la pressione
   // (× pressione^spanPress, mai sotto 0,2^spanPress): il colpo esce di lato «in anticipo» o «in ritardo», con il voto che lo dice
-  const volleyNet = !!volley && zKnown && zc <= O.volleyHoldZ;     // B31: volée vicino alla rete (finestra più larga, bordo morbido)
+  const volleyNet = !!volley && zKnown && zc <= O.volleyHoldZ && !netOff();     // B31: volée vicino alla rete (finestra più larga, bordo morbido)
   const AS = assistOf(level), span = directionSpan(level)*slowFactor(ballVz)*(AS.spanPress ? clamp(finite(pressure, 1), .2, 1)**AS.spanPress : 1)*(volleyNet ? O.volleySpan : 1), late = Number.isFinite(lateSpan) ? clamp(lateSpan*(volleyNet ? O.volleySpan : 1), .04, span) : span;
   // tempo in unità della finestra della direzione (+ anticipo). Oltre ±1 la palla continua ad andare verso l'esterno
   // fino alla fine della finestra d'impatto (prima si fermava a 1,6 unità: nell'ultimo 40% della finestra tutte le
@@ -353,7 +354,9 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // pressione la qualità sarebbe sopra failQ), il modo in cui finiscono gli scambi senza fine: contro «preciso» tutti i
   // colpi falliti con il tempo perfetto sono di questo tipo (dal 15° colpo); senza, la CPU Leggenda vinceva il 43% dei game
   // contro di lui (criterio ≥ 60%)
-  const g = swingGrade(t*(level?.timingSpan || span), level);
+  // (B31: il voto della volée resta quello della finestra di sempre, come il segnale del momento giusto: la finestra più
+  // larga vale solo per la direzione)
+  const vk = volleyNet ? O.volleySpan : 1, g = swingGrade(t*vk*(level?.timingSpan || span/vk), level);
   // Palla corta raggiunta nella finestra utile: corsa e pressione producono una risposta debole, non errore obbligato.
   // (B17.4: solo oltre netQSpan sotto failQ, cioè raggiunta all'ultimo; prima ogni colpo a rete sotto failQ era così)
   const weak = failed && !DC && ((shortBall && excess === 0) || (!pressured && (!!volley || !!net) && g.grade === 'PERFECT'));

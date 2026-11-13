@@ -9,6 +9,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { netPlayRules } from '../src/natpf/natpf_net_play.js';
+const B31_PRINTS = ['1eb7dff8db39', '7ac4aa5b8ef1'];   // impronte con il gioco a rete (B31), prese con questo stesso test
 import * as THREE from 'three';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import * as ND from '../src/natpf/natpf_duo_rules.js';
@@ -673,9 +675,17 @@ test('con le opzioni spente, le fasce uguali e le due regole nuove spente a mano
   const sha = x => createHash('sha1').update(JSON.stringify(x)).digest('hex').slice(0, 12);
   const print = (a, fair, tweak) => { const r = many({ a, b: a, fair, matches: 20, tweak }, [7001, 7103, 7207]); return sha([r.pts.map(p => [p.win, p.n, p.kind, p.srv, p.why]), r.shots.map(s => [s.k, s.shot, s.grade, s.q, s.x, s.depth, s.sup, s.flight])]); };
   const before = e => { e.natpfSuperRel = false; e.natpfNoPrep = false; };
+  // B31: il gioco a rete vale anche nello stesso schermo (stessa regola per tutti e due): le impronte di f08243a tornano
+  // con le sue regole spente (netPlayRules.off), quelle nuove sono più sotto
+  netPlayRules.off = true;
+  try {
   assert.equal(print('bambino', true, before), '909a097fe488');
   assert.equal(print('bambino', false, before), 'f25564be9708');
   assert.equal(print('medio', true, e => { before(e); e.natpfSplitBands = { p1: 'ragazzo', p2: 'ragazzo' }; e.natpfAutoToss = false; e.natpfOpenCourt = false; }), 'b557aa21ae9f');
+  } finally { netPlayRules.off = false; }
+  // con il gioco a rete (B31) le partite cambiano: impronte nuove (scripts/audit/b25/impronte.mjs)
+  assert.equal(print('bambino', true, before), B31_PRINTS[0]);
+  assert.equal(print('bambino', false, before), B31_PRINTS[1]);
   // e con le regole di oggi cambia (il super parte anche per il bambino)
   assert.notEqual(print('bambino', true, null), '909a097fe488');
 });

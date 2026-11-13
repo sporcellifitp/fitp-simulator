@@ -7,6 +7,7 @@
 //        [--tattiche=normale,tagliati]   normale: il profilo com'è; tagliati: ogni colpo dello scambio è un tagliato
 //                         (stesso gesto, stesso tempo: serve a vedere che il tagliato non diventi la tattica che vince)
 //        [--json] [--cols=puntiG,gameG,…]   solo queste colonne
+//        [--senza-b31]    regole del gioco a rete spente: stessi numeri della base (confronto)
 // Il banco non cambia nessuna regola: guarda i colpi (_natpfRacketShot, _executeOpponentReturn) e i punti (_awardPoint).
 // Cosa misura, per livello × profilo × tattica:
 //   • punti e game vinti da chi gioca (game: primo a 4 con 2 di scarto sulla sequenza dei punti), colpi per punto;
@@ -21,6 +22,7 @@
 import { pathToFileURL } from 'node:url';
 import { simulate } from './rally-balance.mjs';
 import { mulberry32, gauss } from './headless-engine.mjs';
+import { netPlayRules } from '../../src/natpf/natpf_net_play.js';
 const { NatpfTennisEngine: E } = await import('../../src/game_engine.js');
 
 const pct = (a, n, d = 1) => +(100*a/Math.max(1, n)).toFixed(d);
@@ -142,6 +144,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
   const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1], has = k => process.argv.includes(`--${k}`);
   const difficulties = (arg('difficulty') || 'casual,pro,leggenda').split(','), profiles = (arg('profiles') || 'tennista,amatore,bambino').split(',');
   const tattiche = (arg('tattiche') || 'normale').split(','), points = +(arg('points') || 300), seeds = (SERIE[arg('serie') || 1] || SERIE[1])(+(arg('nsemi') || 3));
+  // --senza-b31: le regole del gioco a rete spente (netPlayRules.off): deve dare gli stessi numeri della base 1906562
+  if (has('senza-b31')) netPlayRules.off = true;
   const rows = [], json = has('json'), only = arg('cols')?.split(','), COLS2 = only ? COLS.filter(c => only.includes(c[0])) : COLS;
   if (!json) console.log(`semi ${seeds.join(', ')} · ${points} punti per seme\n${'livello/profilo/tattica'.padEnd(30)} ` + COLS2.map(c => c[1].padStart(Math.max(6, c[1].length))).join(' '));
   for (const difficulty of difficulties) for (const profile of profiles) for (const tattica of tattiche){

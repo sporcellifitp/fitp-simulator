@@ -12,6 +12,7 @@
 //    angolo, velocità, pressione dello scambio e allungo; sotto pressione rimanda palle corte e alte da smash.
 import { openRun } from "./natpf_duo_rules.js"; // B25: campo aperto tra due persone nello stesso schermo (moveFactor)
 import { EVENTO, eventoK, eventoPoint, eventoReset, eventoState, blend } from "./natpf_evento.js"; // B18.2: livello «Evento» adattivo
+import { netOff } from "./natpf_net_play.js"; // B31: regole del gioco a rete (spente solo nelle prove di confronto)
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 export const gauss = (rng = Math.random) => { let u = 0, v = 0; while (!u) u = rng(); while (!v) v = rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
@@ -558,7 +559,7 @@ export function planCpuRun(engine, { rng = Math.random } = {}){
     // punto d'incontro con un errore di lettura che si azzera mentre la palla vola (in cpuReadFix secondi)
     const truth = cpu.targetPos.clone(), speed = finite(engine.ball?.vel?.length?.(), 24), now = finite(engine.elapsedTime), sup = engine.ball?.natpfSuper;
     // B31 (punto 22): la schiacciata di chi gioca la Leggenda la legge in ritardo (LEGEND_SMASH.react, come il colpo super)
-    const smashIn = s.lastShot?.shot === 'SMASH' && !engine.isMultiplayer;
+    const smashIn = s.lastShot?.shot === 'SMASH' && !engine.isMultiplayer && !netOff();
     const react = clamp(lv.cpuReact + gauss(rng)*(lv.cpuReactSd || 0), .1, .25) + (sup ? finite(sup.react) : 0) + (smashIn ? LEGEND_SMASH.react : 0);
     const err = gauss(rng)*lv.cpuReadSd*(.6 + .4*clamp((speed - 18)/14))*(sup ? finite(sup.misread, 1) : 1);
     s.cpuPlan = { legend: true, hold: cpu.pos.clone(), truth, err, readAt: now + react, fixDur: lv.cpuReadFix };
@@ -783,7 +784,7 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
     tired: cpuTired(engine),
     // B18.2 passo 3 (D8): la palla corta vale quanto è buona e quanto è una sorpresa
     drop: s.lastShot?.shot === 'DROP' ? dropThreat({ depth: s.lastShot.landingZ, habit: s.lastShot.dropHabit }) : 1,
-    slice: s.lastShot?.shot === 'SLICE' ? finite(SLICE_ERR[lv.cpuPro > .5 || lv === SKILL_LEVELS.pro ? 'pro' : 'casual']) : 0,   // B31: tagliato basso
+    slice: s.lastShot?.shot === 'SLICE' && !netOff() ? finite(SLICE_ERR[lv.cpuPro > .5 || lv === SKILL_LEVELS.pro ? 'pro' : 'casual']) : 0,   // B31: tagliato basso
     level: lv,
   };
   // B18.2 (D11): sulla palla del servizio la risposta dipende dal servizio ricevuto (serveInfo), non dall'ultimo colpo
@@ -915,7 +916,7 @@ export function angleDepth(x, z, { rng = Math.random } = {}){
 // (fino a 0,8 invece di 0,88 della velocità verticale): palla bassa, buona per avvicinarsi a rete e contro chi sta
 // lontano. Il tagliato morbido e la palla corta (−5…−3) restano come prima
 export const SLICE_BOUNCE = Object.freeze({ spin: -6, up: .8 });
-export const bounceSpin = spin => { const s = finite(spin, 14); return { up: clamp(1 + (s - 14)*.012, s <= SLICE_BOUNCE.spin ? SLICE_BOUNCE.up : .88, 1.12), along: clamp(1 + (s - 14)*.006, .95, 1.06) }; };
+export const bounceSpin = spin => { const s = finite(spin, 14); return { up: clamp(1 + (s - 14)*.012, s <= SLICE_BOUNCE.spin && !netOff() ? SLICE_BOUNCE.up : .88, 1.12), along: clamp(1 + (s - 14)*.006, .95, 1.06) }; };
 
 // Schemi della CPU nella risposta normale: prima il colpo veniva da un ciclo fisso (top, top, tagliato, top, lob) e la
 // palla andava sempre verso il campo libero a media profondità. Ora la CPU sceglie per peso tra più schemi, con
