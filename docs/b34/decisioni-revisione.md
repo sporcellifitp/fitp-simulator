@@ -47,7 +47,13 @@ cambiare il codice (`natpf-tennis/src/natpf/natpf_events.js`, funzione `matchOrd
 - Prova nel browser `natpf-fine-partita`: controlli nuovi B3c (dieci partite vere e finte: prima tutte le vinte, poi le
   perse, ognuna per punteggio, anche se una persa ha più punti di una vinta) e B4b (CSV nello stesso ordine).
 
+Schermate della prova nel browser (guardate): dieci partite di oggi, la persa a Leggenda con 286 punti è sesta, sotto
+tutte le vinte; la riga sotto la classifica dice l'ordine. Anche nel riquadro del ledwall (720 × 720) tutto sta nello
+schermo.
+
 ![Classifica con dieci partite: in cima le vinte, sotto le perse](img/classifica-10-1280x720.jpg)
+
+![La stessa classifica a 720 × 720](img/classifica-10-720x720.jpg)
 
 ## 2. km/h veri della palla
 
@@ -114,6 +120,9 @@ i colpi fuori e in rete lo provano i test (sotto), dove nelle stesse partite ci 
 - Prove nel browser: `natpf-fine-partita` (colpo più veloce come le scritte, solo colpi in campo; km/h veri sotto 200 a
   Evento), `natpf-formato-fiera` (servizio della CPU sul tabellone tra 79 e 138 km/h veri), `natpf-servizio-peso`
   (soglie del servizio in km/h veri).
+
+Schermata della prova nel browser (guardata): partita a Evento giocata dal motore, colpo più veloce **143 km/h**
+(prima sarebbe stato circa 270); «1° su 1 nella classifica delle partite di oggi · 102 punti».
 
 ![Fine partita contro la CPU con i km/h veri](img/cpu-1280x720.jpg)
 
@@ -236,10 +245,10 @@ restano tante scritte «in allungo» (0,8 per punto): non erano nella decisione,
 regola e registro da 0,5, scritta da 0,8, «in allungo» come prima, colpo fallito con la causa come prima; in una partita
 a Evento le scritte «in corsa» sono meno di un quarto di prima e meno di 0,35 per punto, e ogni scritta «in corsa» è su
 un colpo in corsa per il gioco. Prova nel browser `natpf-movimento`: cerca una palla larga e veloce e la gioca finché
-trova il colpo con la corsa forte («in corsa» scritto); se trova un colpo con la corsa media controlla che non ci sia
-la scritta.
-
-![Colpo in corsa forte: la scritta lo dice](img/colpo-in-corsa.jpg)
+trova il colpo con la corsa forte: al contatto 7,64 m/s su 8,8 (0,87 della massima), scritta letta nella pagina
+«Perfetto · in corsa · 91 km/h»; poi un colpo con la corsa media (5,35 m/s, 0,61): colpo in corsa per il gioco, scritta
+«Perfetto · 94 km/h» senza «in corsa». Le schermate di quella prova non mostrano la scritta (nella schermata il
+personaggio si vede, la scritta no: la prova la legge dalla pagina), per questo non le metto qui.
 
 ## Impronte: cosa non cambia
 
@@ -257,10 +266,30 @@ giovane (bambino con adulto, variante in gioco), sfida tra due computer (medio�
 Anche `scripts/audit/fine-partita.mjs --impronte` (5 partite, statistiche accese e spente): uguale alla base nei passi
 1–2; con le statistiche accese sempre «uguale» a quelle spente.
 
+## Verifiche fatte (ramo `b34-decisioni`)
+
+| Verifica | Risultato |
+|---|---|
+| `npm test` (gioco) | vedi sotto «Ultimo giro» |
+| `node --test tools/test/*.test.mjs` (sito e telefono) | 226/226 |
+| `npm run build` | riuscita |
+| `npm run audit:legend` | tutti i criteri tranne uno: «amatore, errori della CPU» 1,9% (vedi decisione 3) |
+| Prova nel browser `natpf-fine-partita` | 38/38 |
+| Prova nel browser `natpf-movimento` | 17/17 |
+| Prova nel browser `natpf-rete` | 11/11 |
+| Prova nel browser `natpf-leggenda` | 7/7 |
+| Prova nel browser `natpf-formato-fiera` (servizio della CPU in km/h veri) | 22/22 |
+| Prova nel browser `natpf-servizio-peso` (soglie del servizio) | 8/8 |
+| Impronte delle partite a sorteggi fissi | come nella tabella sopra |
+
+Il programma Windows (`natpf-desktop/`) non è toccato: non ho rifatto i suoi test.
+
 ## Cosa non è provato
 
 - **Persone vere**: tutte le misure sono partite simulate con giocatori simulati. Non ho provato con un telefono vero,
   su Windows, sul ledwall o in fiera.
+- **La scritta «in corsa» guardata a schermo**: la prova nel browser la legge dalla pagina, ma non ho una schermata in
+  cui si veda.
 - **Leggenda**: il 62,6% della revisione non è ritrovato (sopra); il criterio «errori della CPU» dell'amatore è a 1,9%
   sugli 8 semi di base (da decidere).
 - **Colpo più veloce nella sfida tra due computer**: provato con i test di unità (sul computer del Player 2 conta solo
