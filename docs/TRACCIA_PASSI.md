@@ -446,6 +446,21 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
 Ripresa se si fermano: `Workflow({scriptPath: '…/workflows/scripts/blocco-singolo.js', args: {stessi args + "worktree": "<percorso della worktree già creata>"}})`
 (gli args sono nel journal del run; la worktree con `git worktree list | grep <ramo>`).
 
+**COLLAUDO DELL'UTENTE sulla 2026-11-13.6 (13/11, 09:30 UTC) → blocco B35** (testo dell'utente, in breve):
+- Leggenda senza salita a rete: **resta com'è** (la decisione 1 tenuta da parte non si rimette).
+- Registro su Cloudflare: l'utente chiede i passi in chat (dati; mandato anche il file del Worker aggiornato).
+1. «I movimenti non seguono ancora quelli del braccio/polso»: dritto da destra verso sinistra per incrociare → esce
+   **lungolinea**; uguale per i rovesci. «Devi lavorare ancora molto sulla stabilità e precisione dei colpi tramite
+   smartphone».
+2. «Molti dei colpi che facevo uscivano», anche cercando la massima precisione: sempre punto dell'avversario.
+3. In un game singolo (BO1) la battuta era **alternata** e non fissa a un giocatore: non capisce perché.
+4. Le impostazioni della partita non si sono potute scegliere: finiti gli scambi di calibrazione (B28) è partita
+   subito la partita.
+5. Statistiche di fine partita troppe e poco comprensibili: usare «/design», forme tondeggianti, statistiche di cui
+   essere fieri (cose positive).
+6. Con Lob & Drop (che gli piacciono) non si vede chi deve servire (manca la scritta di chi batte).
+7. Scia della palla tolta: dà fastidio ed è troppo evidente.
+
 ## IN CODA (nell'ordine; dettaglio in PIANO_LAVORI §1, voci B21–B24)
 
 - [x] **B21 Video nel gioco** (2026-11-11.2): trailer come video d'avvio (senza titolo) con ripiego su `public/media/intro.mp4`; due clip
