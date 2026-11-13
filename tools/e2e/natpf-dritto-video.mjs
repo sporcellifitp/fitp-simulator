@@ -23,7 +23,7 @@
 //      (calcolo + disegno), accesa e spenta a blocchi alterni.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-dritto-video.mjs
 //   FOGLI=cartella: salva anche i fotogrammi PRIMA/DOPO agli stessi istanti (camera di gioco e camera ravvicinata) per
-//     il foglio di confronto (natpf-tennis/scripts/audit/b23/foglio.mjs) · SOLO=fogli|interruttore|ossa|partite|mascotte|costo · GAME_PORT (3163)
+//     il foglio di confronto (tools/e2e/natpf-dritto-video-foglio.mjs) · SOLO=fogli|interruttore|ossa|partite|mascotte|costo · GAME_PORT (3163)
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -434,6 +434,7 @@ const play = (p, o) => p.evaluate(o => {
   else { E.autoPlayMode = false; if (mode === 'schermo') E.startSplit(); E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = false; }
   const draw = E.renderer.render, before = () => { E.renderer.render = () => {}; try { E.render(); } finally { E.renderer.render = draw; } };
   let h = 0x811c9dc5, hits = 0, last = 0, pts = 0, score = '', fh = 0, posed = 0;
+  const was = new Map();
   const eat = v => { const n = Math.round(v*1000) | 0; for (let k = 0; k < 4; k++){ h ^= (n >>> (k*8)) & 255; h = Math.imul(h, 0x01000193) >>> 0; } };
   const evt = extra => ({ speed: 1.18, shotType: 'topspin', source: 'keyboard', ...extra });
   for (let i = 0; i < steps; i++){
@@ -451,7 +452,7 @@ const play = (p, o) => p.evaluate(o => {
     if (b.rallyStrokeCount !== last){ if (b.rallyStrokeCount > last) hits++; last = b.rallyStrokeCount; }
     if (i % 300 === 0) E.render(); else before();
     // quante volte la prova ha messo le sue pose (per sapere che nella partita c'era davvero)
-    for (const a of [E.player, E.opponent]){ const F = a.rig?.natpfFv; if (F?.finish > .5) posed++; if (a.racketKinematics?.swingActive && a.racketKinematics.swingSide === 'forehand' && a.racketKinematics.swingProgress < .02) fh++; }
+    for (const a of [E.player, E.opponent]){ const F = a.rig?.natpfFv; if (F?.finish > .5) posed++; const T = a.racketKinematics, sw = !!T?.swingActive; if (sw && !was.get(a) && T.swingSide === 'forehand' && !T.isServe) fh++; was.set(a, sw); }
     const sc = `${s.playerPoints}-${s.opponentPoints}/${s.playerGames}-${s.opponentGames}`;
     if (sc !== score){ score = sc; pts++; }
     if (i % 6 === 0) for (const v of [b.pos.x, b.pos.y, b.pos.z, E.player.pos.x, E.player.pos.z, E.opponent.pos.x, E.opponent.pos.z, s.playerPoints, s.opponentPoints, s.playerGames, s.opponentGames]) eat(v);
