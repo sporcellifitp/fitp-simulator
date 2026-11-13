@@ -96,7 +96,7 @@ export function navPlan(screen, cmd){
   if (screen.nav === 'field'){
     if (cmd === 'back') return { kind: 'pause' };
     return { kind: 'blocked', why: screen.id === 'cal' ? 'Calibrazione in corso: la fa il giocatore con il suo telefono. Indietro o Pausa per fermarla.'
-      : screen.id === 'trial' ? 'Scambi di prova: li gioca il giocatore. Salta per andare subito alla partita, Indietro o Pausa per fermarli.' : 'In campo frecce e OK muoverebbero il giocatore: usa Pausa (o Indietro).' };
+      : screen.id === 'trial' ? 'Scambi di prova: li gioca il giocatore. Salta per andare subito avanti (pagina «Pronto per la partita»), Indietro o Pausa per fermarli.' : 'In campo frecce e OK muoverebbero il giocatore: usa Pausa (o Indietro).' };
   }
   if (screen.nav === 'focus'){
     if (cmd === 'ok') return { kind: 'press' };

@@ -358,7 +358,8 @@ export class NatpfRemote {
       case 'skip': {
         if (ui.intro?.active){ ui.intro.finishAnimation(); ui.intro.start(); return { ok: true, msg: 'Intro saltata' }; }
         if (visible($('natpf-nick'))){ $('nick-cancel')?.click(); return { ok: true }; }
-        if (ui.trial?.active){ ui.trial.skip(); return { ok: true, msg: 'Scambi di prova saltati: si gioca' }; }
+        // (B35: contro la CPU gli scambi di prova portano alla pagina «Pronto per la partita»; la partita parte con «Gioca»)
+        if (ui.trial?.active){ const page = !!ui.trial.S?.toPage; ui.trial.skip(); return { ok: true, msg: page ? 'Scambi di prova saltati: pagina «Pronto per la partita»' : 'Scambi di prova saltati: si gioca' }; }
         if (ui.training?.active && visible($('coach-next'))){ $('coach-next').click(); return { ok: true, msg: ui.training.cal ? 'Calibrazione saltata' : 'Esercizio dopo' }; }
         if (visible($('coach-exit'))){ $('coach-exit').click(); return { ok: true, msg: 'Saltato' }; }
         if (visible($('natpf-phone-modal')) && visible($('natpf-phone-skip'))){ $('natpf-phone-skip').click(); return { ok: true, msg: 'Calibrazione saltata' }; }

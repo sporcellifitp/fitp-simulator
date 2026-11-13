@@ -35,8 +35,11 @@ export async function playWorld({ cal = 'play', tutorial = true, mode = 'cpu', .
 }
 // gioca gli scambi di prova: hit(id, n, want, side) → il colpo (o null: non colpisce); want è il lato che si vede (palla a
 // destra +1 o a sinistra −1 di chi gioca), side il lato deciso dal gioco al lancio. Restituisce i colpi fatti
-export function playTrial(w, hit = (id, n, want) => stroke({ dir: want }), { phones = { p1: w.ui.phone }, max = 30000 } = {}){
+// B35: contro la CPU gli scambi di prova portano alla pagina «Pronto per la partita» (la partita parte solo con «Gioca»):
+// alla fine page dice se si è arrivati lì senza partita, e con gioca (di base) si preme «Gioca» come farebbe chi gioca
+export function playTrial(w, hit = (id, n, want) => stroke({ dir: want }), { phones = { p1: w.ui.phone }, max = 30000, gioca = true } = {}){
   const { E, ui } = w, log = [], sides = [], n = { p1: 0, p2: 0 }, seen = { p1: -1, p2: -1 }, t0 = performance.now();
+  const seq0 = E.natpfMatchSeq || 0;
   while (ui.trial.active && performance.now() - t0 < max){
     w.advance(16);
     for (const id of Object.keys(phones)){
@@ -48,7 +51,10 @@ export function playTrial(w, hit = (id, n, want) => stroke({ dir: want }), { pho
       if (s){ phones[id]._onSwing(s); log.push({ id, want, side, at: +((performance.now() - t0)/1000).toFixed(2) }); }
     }
   }
-  return { log, sides, seconds: (performance.now() - t0)/1000 };
+  const seconds = (performance.now() - t0)/1000;
+  const page = !ui.trial.active && !!ui.lobby?.visible && ui.lobby.step === 'match' && ui.lobby.mode === 'cpu' && (E.natpfMatchSeq || 0) === seq0;
+  if (page && gioca){ w.pressStart(); w.advance(100); }
+  return { log, sides, seconds, page };
 }
 // secondo telefono (Player 2 dello stesso schermo) che risponde come la pagina vera
 export function secondPhone(E, NatpfPhoneRacket){

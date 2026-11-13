@@ -160,7 +160,9 @@ test('B28: scambi di prova dal telecomando (pagina, Salta, Ricalibra) e «Avanti
   // la fotografia e i comandi veri (natpf_remote.js): nomi dei pulsanti che il gioco ha davvero
   const remote = fs.readFileSync(new URL('../src/natpf/natpf_remote.js', import.meta.url), 'utf8');
   assert.match(remote, /trial \? \(ui\.pause\?\.isOpen \? null : 'Salta gli scambi di prova'\)/);
-  assert.match(remote, /if \(ui\.trial\?\.active\)\{ ui\.trial\.skip\(\);/);
+  // (B35: contro la CPU «Salta» porta alla pagina «Pronto per la partita», e lo dice)
+  assert.match(remote, /if \(ui\.trial\?\.active\)\{ const page = !!ui\.trial\.S\?\.toPage; ui\.trial\.skip\(\);/);
+  assert.match(remote, /Scambi di prova saltati: pagina «Pronto per la partita»/);
   assert.match(remote, /visible\(\$\('coach-next'\)\)\)\{ \$\('coach-next'\)\.click\(\);/);
   assert.match(remote, /visible\(\$\('natpf-phone-skip'\)\)\)\{ \$\('natpf-phone-skip'\)\.click\(\);/);
   assert.match(remote, /if \(ui\.recalibrate\(\)\) return \{ ok: true, msg: 'Scambi di prova: poi si rigioca il punto' \}/);
