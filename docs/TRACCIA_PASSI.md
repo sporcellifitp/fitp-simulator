@@ -555,8 +555,15 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
   io seleziono solo il livello di difficoltà, i telefoni sono già calibrati da me, le persone devono solo fare destra
   sinistra e io gli do i telefoni»; (2) «nella schermata "Pronto per la partita" l'utente deve toccare sullo smartphone
   "Sono pronto" (dove ora c'è "Pronto") e quando entrambi sono pronti la partita parte da sola, senza che uno clicchi su
-  Gioca». Analisi in corso (workflow `modalita-fiera-analisi`, run `wf_faa56d62-b61`: collegamento che resta,
-  calibrazione e profili, flusso dello stand → progetto in `scratchpad/fiera/progetto-modalita-fiera.md`).
+  Gioca». Analisi FATTA (run `wf_faa56d62-b61`): progetto in `scratchpad/fiera/progetto-modalita-fiera.md` (8 tappe B41.1–B41.8).
+  Scoperte: il telefono resta già collegato tra una persona e l'altra, ma il chiosco scollega il telefono P1 e ogni ricarica
+  del gioco o riavvio del programma obbliga al QR (id di sessione nuovo a ogni avvio, link.js:79-80); il telecomando dello
+  staff ha già l'abbinamento «una volta per tutte» (indirizzo fisso, chiave in localStorage, HMAC) da riusare; un profilo
+  di un adulto usato per un bambino gli fa perdere 7–8 colpi su 9 (meglio la forza imparata dai primi colpi). Piano:
+  B41.1–B41.3 (abbinamento fisso, collegamento, pagina del telefono dello stand) e B41.6 («Sono pronto») dopo B42;
+  B41.4–B41.5 (interruttore, foglio «Telefoni dello stand», pagina della fiera, «Prossimo giocatore») dopo B38/B39.
+  Domande all'utente: calibrazione (consigliata: forza imparata dai primi colpi), in fiera batte sempre la CPU?, nomi
+  («Visitatore 12»?), solo ledwall o anche portatile.
 - [x] **Controllo «stand con il solo mouse» finito** (run `wf_826fa68a-9cc`, 6 agenti con prove nel browser): lista unica
   in `scratchpad/mouse/risultati/05.md` (21 voci: 9 bloccanti, 10 importanti, 2 utili) e proposta **B39 · Stand con il
   solo mouse** in 7 passi; revisore in `06.md`. Da sapere: **il pannello dello stand aperto in partita NON ferma la
