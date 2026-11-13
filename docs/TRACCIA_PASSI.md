@@ -389,7 +389,7 @@ script senza `resumeFromRunId`. Poi B31, B32, B33 (tappa 3).
 **Versione 2026-11-13.1 = B23 dritto dal video (prova) + tappa 2 gruppo 2** (13/11, 01:45 UTC), senza revisore per
 blocco (processo nuovo). Unione `e697f4e` (B23) e `03d5c67` (T2.3), versione `1906562`. Controllo rapido: gioco
 1375/1375, sito 226/226, Windows 42/42, build ok → push. Zip 23.830.402 B (margine 1.169.598 B), sha256
-`3c741f5dc36237636c31ff8d3bc295838db46096fd232888e65f18744c7b14a2`. Installer: `scratchpad/v1113a/attesa.sh`.
+`3c741f5dc36237636c31ff8d3bc295838db46096fd232888e65f18744c7b14a2`. **Installer 2026-11-13.1 pubblicato su R2** e verificato: 128059991 B, sha256 `eb00f52949faa7752d47464901da1e9ade5339db8d8c8ed3d687e20839d8c82c`.
 Punti aperti della T2.3 da portare al revisore finale: a Facile la palla corta al momento giusto vale −1…−2 punti per
 «amatore» (scheda D8: +2…+5); a Leggenda margini stretti sui criteri (CPU contro «tennista» 87–89%, criterio ≥85%);
 finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decidere all'utente); Esperta contro «medio»
