@@ -90,6 +90,8 @@ test('a chi valgono le regole: chi gioca contro la CPU; non Bambini, stesso sche
   off('regole spente', () => { NM.movementRules.off = true; }, () => { NM.movementRules.off = false; });
   const z = e.player.pos.z;
   off('a rete (B31)', () => { e.player.pos.z = NET_PLAY.netMove.zone - .5; }, () => { e.player.pos.z = z; });
+  const tz = e.player.targetPos.z;
+  off('verso la rete (B31)', () => { e.player.targetPos.z = NET_PLAY.netMove.zone - .5; }, () => { e.player.targetPos.z = tz; });
   e.matchConfig.difficulty = 'bambini';
   assert.equal(NM.runProfile(e, e.player), null, 'Bambini');
   e.matchConfig.difficulty = 'evento';
@@ -166,8 +168,8 @@ test('in partita: lo split-step e la partenza graduale dopo il colpo della CPU; 
     const b = e.ball;
     if (b.inPlay && e.phase === 'RALLY' && b.lastHitter === 'opponent' && lastHitter !== 'opponent') sinceCpu = 0, speeds.length = 0;
     lastHitter = b.inPlay ? b.lastHitter : null;
-    // (a rete, entro 7 m, resta il movimento del B31: lì la prova non vale)
-    if (sinceCpu >= 0 && sinceCpu < 30){ if (Math.abs(e.player.pos.z) < NET_PLAY.netMove.zone + .5) sinceCpu = 31; else { speeds.push(Math.hypot(e.player.vel.x, e.player.vel.z)); sinceCpu++; } }
+    // (a rete, o con il punto da raggiungere entro 7 m dalla rete, resta il movimento del B31: lì la prova non vale)
+    if (sinceCpu >= 0 && sinceCpu < 30){ if (Math.abs(e.player.pos.z) < NET_PLAY.netMove.zone + .5 || Math.abs(e.player.targetPos.z) < NET_PLAY.netMove.zone) sinceCpu = 31; else { speeds.push(Math.hypot(e.player.vel.x, e.player.vel.z)); sinceCpu++; } }
     const L = e.natpfLastRacket; if (L && L !== seen && L.who === 'player'){ seen = L; tags.colpi++; if (L.move) tags[L.move]++; }
     if (sinceCpu === 30 && speeds.length === 30){
       // nei 0,25 s dopo il colpo della CPU la velocità cresce al più di accel × dt a passo (niente partenza a tutta)
@@ -179,4 +181,21 @@ test('in partita: lo split-step e la partenza graduale dopo il colpo della CPU; 
   assert.ok(tags.colpi > 500, `colpi ${tags.colpi}`);
   assert.ok(tags.corsa > 0 && tags.corsa/tags.colpi < .25, `in corsa ${tags.corsa} su ${tags.colpi}`);
   assert.ok(tags.allungo > 0 && tags.allungo/tags.colpi < .25, `in allungo ${tags.allungo} su ${tags.colpi}`);
+});
+
+test('stesso schermo: campo aperto spento e acceso, aiuto al più giovane: partite identiche con le regole B32 accese e spente', async () => {
+  const { many } = await import('../scripts/audit/b19/due-umani.mjs');
+  const fp = r => JSON.stringify([r.pts.map(p => [p.win, p.n, p.kind, p.srv, p.why]), r.shots.map(s => [s.k, s.shot, s.grade, s.q, s.x, s.depth, s.sup, s.flight])]);
+  const cases = [
+    ['campo aperto spento', 'medio', e => { e.natpfOpenCourt = false; }],
+    ['campo aperto acceso', 'medio', e => { e.natpfOpenCourt = true; }],
+    ['aiuto al più giovane (bambino contro adulto)', 'bambino', e => { e.natpfSplitBands = { p1: 'bambino', p2: 'adulto' }; }],
+  ];
+  for (const [name, a, tweak] of cases){
+    const on = fp(many({ a, b: 'medio', fair: true, matches: 6, tweak }, [7001, 7103]));
+    NM.movementRules.off = true;
+    let off; try { off = fp(many({ a, b: 'medio', fair: true, matches: 6, tweak }, [7001, 7103])); } finally { NM.movementRules.off = false; }
+    assert.ok(on.length > 200, name);
+    assert.equal(on, off, name);
+  }
 });

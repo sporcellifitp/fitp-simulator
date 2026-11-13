@@ -284,8 +284,12 @@ test('D11: banco sul motore vero. Punto diretto sul servizio perfetto, forte e s
   // casella, docs/b18/t2-1-servizio.md). Qui 2 semi × 250 punti (±3 punti percentuali): fasce più larghe
   const opts = { points: 250, seeds: [7, 11] };
   const band = { casual: [16, 30], pro: [8, 19], leggenda: [2.5, 9] };
+  // B32 (movimento con accelerazione, docs/b32/movimento.md): a Leggenda 8 semi. Con 2 semi «perfetto» contro «tutorial»
+  // era 3,6 contro 2,4% (margine richiesto 1,5: il rumore è ±3); con 8 semi 4,7 contro 1,9% (senza B32 5,2 contro 1,4%)
+  const seedsOf = d => (d === 'leggenda' ? [7, 11, 13, 17, 19, 23, 29, 31] : opts.seeds);
   for (const difficulty of ['casual', 'pro', 'leggenda']){
-    const great = bench({ type: 'perfettoStretto', difficulty, ...opts }), taught = bench({ type: 'tutorial', difficulty, ...opts }), late = bench({ type: 'forteRitardo', difficulty, ...opts });
+    const o = { ...opts, seeds: seedsOf(difficulty) };
+    const great = bench({ type: 'perfettoStretto', difficulty, ...o }), taught = bench({ type: 'tutorial', difficulty, ...o }), late = bench({ type: 'forteRitardo', difficulty, ...o });
     const msg = `${difficulty}: perfetto ${great.puntoDiretto}% (ace ${great.ace}%), tutorial ${taught.puntoDiretto}%, forte in ritardo ${late.puntoDiretto}%`;
     assert.ok(great.puntoDiretto >= band[difficulty][0] && great.puntoDiretto <= band[difficulty][1], msg);
     assert.ok(great.puntoDiretto >= taught.puntoDiretto + (difficulty === 'leggenda' ? 1.5 : 4), msg);
