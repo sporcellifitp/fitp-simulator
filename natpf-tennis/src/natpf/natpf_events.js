@@ -69,8 +69,10 @@ export function addMatch(board, { nick, level, won = 0, lost = 0, games = [0, 0]
   const b = freshBoard(board, day), score = matchScore({ level, won, lost });
   const list = [...(b.modes[MATCH_MODE] || []), { nick, score, at, level, won: won | 0, lost: lost | 0, games: [games[0] | 0, games[1] | 0], win: !!win }];
   list.sort((x, y) => y.score - x.score || x.at - y.at);
-  const rank = list.findIndex(e => e.at === at && e.nick === nick) + 1;
-  return { board: { ...b, modes: { ...b.modes, [MATCH_MODE]: list.slice(0, keep) } }, rank, total: list.length, score };
+  // (revisione finale: posizione e totale sulla lista tenuta. Prima dalla 51ª partita del giorno la schermata poteva dire
+  // «57° su 57» per una partita già tolta dal tabellone e dal CSV; ora rank 0 = fuori dalle prime keep)
+  const kept = list.slice(0, keep), rank = kept.findIndex(e => e.at === at && e.nick === nick) + 1;
+  return { board: { ...b, modes: { ...b.modes, [MATCH_MODE]: kept } }, rank, total: kept.length, keep, score };
 }
 export const topMatches = (board, n = 10, day = dayKey()) => topScores(board, MATCH_MODE, n, day);
 export function boardCsv(board){

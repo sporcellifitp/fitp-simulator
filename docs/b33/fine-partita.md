@@ -22,7 +22,7 @@ Tappa 3, punto 3 del rapporto `docs/b16/rapporto-gameplay.md` (miglioramento 5).
 | **Punti vinti** «su» quelli giocati | i punti dati dal gioco |
 | **Colpi** | i colpi fatti (servizi compresi): uno per ogni scritta del colpo che compare in partita |
 | **Scambio più lungo** | quanti colpi nello scambio più lungo |
-| **Colpo più veloce** (km/h) | lo stesso numero di km/h che compare nella scritta del colpo |
+| **Colpo più veloce** (km/h) | lo stesso numero di km/h che compare nella scritta del colpo (revisione finale: **non sono km/h veri**, vedi sotto) |
 | Ace, vincenti, colpi super (solo se ce ne sono) | come è finito ogni punto (servizio non toccato = ace; palla non presa = vincente) |
 | Barra colorata del **tempo**: Perfetto · Anticipo · Ritardo | il voto della scritta di ogni colpo nello scambio (il servizio no) |
 | ✓ una frase su cosa è andato bene, → una su cosa migliorare | regole semplici sui numeri qui sopra (vedi sotto) |
@@ -120,6 +120,16 @@ Punteggio della classifica con i valori scelti (media delle due serie):
 Come si legge: l'adulto medio prende quasi lo stesso punteggio a ogni livello (88–109); il giocatore bravo sale
 scegliendo livelli più difficili. Leggenda vale ×5 perché lì anche l'adulto medio vince circa un punto su cinque.
 
+**Revisione finale (13/11): la media è equa, la singola partita no.** Le tabelle sono medie su 200 punti per seme
+(rifatte dal revisore a 7c72b70: umano 91/96/96/102/97, ancora piatte). Una partita della fiera dura 1 game (4–7 punti):
+a Leggenda un punto in più vale circa 70 punti di classifica. Il massimo di una vittoria perfetta è 100 a Bambini, 110 a
+Facile, 140 a Evento, 160 a Esperta; a Leggenda una sconfitta 3-4 vale 214. Simulazione del revisore (20 000 partite
+per caso, probabilità dei punti misurate a 7c72b70), formato a 1 game: l'adulto medio che perde a Leggenda ha mediana
+100, 90° percentile 167 e nel 25% delle partite supera 160, cioè ogni vittoria perfetta degli altri livelli; il
+«tennista» a Leggenda supera 160 nel 50% dei casi, l'«amatore» nel 14%. Con 2 game: umano 13,6%, tennista 44%. Quindi la
+parte alta della classifica del giorno la possono occupare partite perse a Leggenda. Le possibili regole sono una
+decisione dell'utente (`docs/revisione-finale-2026-11-13.md`, decisione 1).
+
 ### Prove
 
 | Prova | Risultato |
@@ -162,6 +172,14 @@ Classifica delle partite a schermo intero con dieci partite, ledwall 1920×540 e
 - Il **colpo più veloce** usa i km/h della scritta del colpo così come sono: con colpi molto forti la scritta del gioco
   arriva anche oltre 200 km/h (nella prova 221–240 km/h). Non li ho corretti: la schermata deve dire lo stesso numero che
   si è visto in partita.
+- **Correzione della revisione finale (13/11)**: questi numeri **non sono km/h veri**. Il campo del gioco è in metri e la
+  velocità della palla in m/s; i km/h veri sarebbero velocità × 3,6, la scritta del colpo usa velocità × 6,8
+  (`game_engine.js`, `Math.round(ball.vel.length()*6.8)`), cioè **1,89 volte la palla del motore**. Nelle partite vere del
+  revisore: Evento fino a 233 (123 km/h veri), **Leggenda fino a 334** (177 veri), oltre il record del servizio (263); i
+  servizi escono a 126–145 (67–77 veri), più lenti dei colpi di scambio, il contrario del tennis vero. Il colpo più
+  veloce conta anche un colpo finito fuori o in rete (nelle partite provate veniva da colpi riusciti). La scala e il
+  riquadro «Colpo più veloce» sono una **decisione dell'utente** (`docs/revisione-finale-2026-11-13.md`, decisione 2):
+  il codice non è cambiato.
 
 ## Cosa non è provato
 

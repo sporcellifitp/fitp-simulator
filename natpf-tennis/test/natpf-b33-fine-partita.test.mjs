@@ -194,6 +194,14 @@ test('B33: classifica delle partite nel tabellone del giorno, nel CSV e azzerata
   assert.match(csv, /"Partite contro la CPU";"2";"Ada";"91"/);
   assert.ok(b.modes[MATCH_MODE]);
   assert.deepEqual(topMatches(freshBoard(null, '2026-11-13'), 10, '2026-11-13'), [], 'azzerata');
+  // revisione finale: oltre le partite tenute (keep) posizione 0 e totale sulla lista tenuta, mai «57° su 57»
+  let c = freshBoard(null, '2026-11-13');
+  for (let i = 0; i < 4; i++) c = addMatch(c, { nick: `N${i}`, level: 'evento', won: 15, lost: 5, games: [1, 0], win: true }, { day: '2026-11-13', at: 10 + i, keep: 4 }).board;
+  const low = addMatch(c, { nick: 'Ultimo', level: 'bambini', won: 1, lost: 9, games: [0, 1], win: false }, { day: '2026-11-13', at: 99, keep: 4 });
+  assert.deepEqual([low.rank, low.total, low.keep], [0, 4, 4], 'fuori dalle prime 4');
+  assert.ok(!low.board.modes[MATCH_MODE].some(e => e.nick === 'Ultimo'));
+  const high = addMatch(c, { nick: 'Primo', level: 'leggenda', won: 9, lost: 1, games: [1, 0], win: true }, { day: '2026-11-13', at: 100, keep: 4 });
+  assert.deepEqual([high.rank, high.total], [1, 4]);
 });
 
 test('B33: sfida tra due computer sul motore vero: l\'host vede i suoi numeri, il Player 2 i suoi dagli snapshot', async () => {
