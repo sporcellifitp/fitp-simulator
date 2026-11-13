@@ -18,7 +18,7 @@ Il gioco non cambia: esito dei colpi, direzione (B35a), punti, livelli e CPU son
 | 1 · fuori | Appena colpita la palla compariva «Fuori» (o «In rete»), un anello rosso a terra dove sarebbe caduta e il telefono vibrava l'errore, quasi un secondo prima che la palla cadesse | «Fuori» / «In rete», l'anello rosso (dove è caduta davvero), il telefono (scritta e vibrazione dell'errore), il punto e la voce arrivano **insieme, quando la palla tocca terra fuori o tocca la rete**. Al colpo solo il colpo (scritta neutra sul telefono). Se l'avversario prende la palla al volo, nessun «Fuori» |
 | 1 · fine partita | La schermata di fine arrivava 1,8 s dopo l'ultima palla, ma il «Fuori» si leggeva già al colpo | L'ultima palla atterra, poi «Fuori» e «Partita della CPU», e la schermata di fine 1,8 s dopo: si vede tutta |
 | 2 · chi serve | Solo la scritta «Al servizio» sopra chi batte | Una **gemma gialla (accento #E8FF3A) con il bordo scuro** gira sopra la testa di chi deve battere e il **riquadro dove deve cadere il servizio** è colorato a terra con il contorno luminoso; spariscono quando parte la palla. La scritta «Al servizio» resta, più piccola, sopra la gemma |
-| 3 · cerchietto bianco | Un anello bianco seguiva la palla senza spiegazione | Nelle prime 3 palle di ogni partita in cui compare, in basso al centro: **«Colpisci quando il cerchio diventa verde»** (con un cerchio bianco e uno verde disegnati); poi sparisce. La guida dice le stesse parole |
+| 3 · cerchietto bianco | Un anello bianco seguiva la palla senza spiegazione | Nelle prime 3 palle di ogni partita in cui compare, in alto al centro: **«Colpisci quando il cerchio diventa verde»** (con un cerchio bianco e uno verde disegnati); poi sparisce. La guida dice le stesse parole |
 | 4 · pannello | Solo Ctrl+Maiusc+K (sul PC dello stand non funzionava) o 3 s sul marchio NATPF | Nel programma Windows anche **F9** (funziona anche a schermo intero) e il menu **NATPF → «Pannello dello stand (F9)»**. Ctrl+Maiusc+K resta |
 
 ## Come si attiva / come si spegne
@@ -107,17 +107,39 @@ arrivavano prima. I colpi che restano in campo hanno la scritta subito, come pri
   nella sfida tra due computer (la gemma è nella scena: ogni computer la disegna sopra chi batte secondo il punteggio che
   arriva dall'host) e nell'allenamento.
 
-SCHERMATE_SERVIZIO
+**Prova nel browser `natpf-chi-serve` (36 controlli, tutti superati)**: partita vera al servizio, per ogni caso la gemma
+è sopra la testa di chi batte (in tutte e due le metà nello stesso schermo), la scritta «Al servizio» è sopra la gemma, il
+riquadro è nella metà di chi riceve in diagonale e si vede; quando la palla parte spariscono. Schermate guardate una per
+una (1920×1080 ridotte qui a 960 pixel; area stretta 640×800 ridotta a 480):
 
-COSTO_SERVIZIO
+| | Batte chi gioca / il Player 1 | Batte la CPU / il Player 2 |
+|---|---|---|
+| Classici, contro la CPU | ![](img/chi-serve-sempre-cpu-player.jpg) | ![](img/chi-serve-sempre-cpu-opponent.jpg) |
+| Lob & Drop, contro la CPU | ![](img/chi-serve-lobdrop-cpu-player.jpg) | ![](img/chi-serve-lobdrop-cpu-opponent.jpg) |
+| Classici, stesso schermo | ![](img/chi-serve-sempre-schermo-player.jpg) | ![](img/chi-serve-sempre-schermo-opponent.jpg) |
+| Lob & Drop, stesso schermo | ![](img/chi-serve-lobdrop-schermo-player.jpg) | ![](img/chi-serve-lobdrop-schermo-opponent.jpg) |
+| Area stretta 640×800, Lob & Drop contro la CPU | ![](img/chi-serve-stretta-lobdrop-cpu-player.jpg) | ![](img/chi-serve-stretta-lobdrop-cpu-opponent.jpg) |
+| Area stretta 640×800, Classici stesso schermo | ![](img/chi-serve-stretta-sempre-schermo-player.jpg) | ![](img/chi-serve-stretta-sempre-schermo-opponent.jpg) |
+
+Cosa si vede: la gemma gialla con il bordo scuro sopra chi batte (lontano è più grande, così si vede come quella vicina),
+la scritta piccola «Al servizio» sopra; il riquadro giallo dall'altra parte della rete in diagonale (quando batte chi è
+lontano, il riquadro è vicino, nella propria metà). Nelle schermate a volte resta un anello verde a terra: è l'anello di
+rimbalzo del servizio provato nel caso prima (la prova serve due volte nella stessa pagina), non un elemento nuovo.
+
+**Costo.** 9 oggetti in più nella scena, solo al servizio, materiali senza luci, nessuna ombra. Misurato nel browser
+con la grafica in software del banco (il caso peggiore: niente scheda grafica) a 1920×1080 con Lob & Drop, mediana di 10
+giri di 10 disegni: giro 1 spenti 3,17 ms, solo gemma 3,10, solo riquadro 3,19, tutti e due 3,40 ms a disegno; giro 2
+(macchina più carica) spenti 6,40 ms, tutti e due 4,51 ms. La differenza sta dentro il rumore della macchina (un altro
+agente lavorava in parallelo): al massimo un paio di decimi di millisecondo per disegno, e solo mentre si aspetta il
+servizio.
 
 ## Punto 3 · Il «cerchietto bianco che segue la palla»
 
 È il **segnale del momento giusto** (B18.2): un anello bianco che si stringe sulla palla e diventa verde quando è il
 momento di colpire. Non è cambiato niente su quando è acceso e su come si stringe. Adesso **le prime volte si spiega**:
 
-- nelle **prime 3 palle di ogni partita** in cui l'anello compare, in basso al centro c'è la scritta **«Colpisci quando il
-  cerchio diventa verde»** con un cerchio bianco e uno verde disegnati accanto; resta finché c'è l'anello e 0,7 s dopo,
+- nelle **prime 3 palle di ogni partita** in cui l'anello compare, in alto al centro (sopra il campo: in basso copriva il
+  proprio giocatore) c'è la scritta **«Colpisci quando il cerchio diventa verde»** con un cerchio bianco e uno verde disegnati accanto; resta finché c'è l'anello e 0,7 s dopo,
   poi sparisce; dalla quarta palla niente;
 - si rivede con una **partita nuova** e con **«Nuovo giocatore»**;
 - la **guida** (passo «Colpisci quando la palla arriva») e l'avviso delle **Opzioni** dicono le stesse parole: «un cerchio
@@ -125,7 +147,16 @@ momento di colpire. Non è cambiato niente su quando è acceso e su come si stri
 - con il segnale spento (di base con «Ragazzo» e con i livelli Facile, Esperta e Leggenda, oppure sempre con «Segnale del
   momento giusto: No») né anello né scritta.
 
-SCHERMATE_SEGNALE
+**Prova nel browser `natpf-segnale-spiegato` (14 controlli, tutti superati)**, livello «Adulto» (Evento), palle della CPU
+verso chi gioca, a 1280×720 e 1920×1080: l'anello c'è su ogni palla; la scritta c'è nelle palle 1, 2 e 3 e non nella 4 e
+nella 5; sparisce dopo la palla; sta tutta nello schermo, in alto al centro; una partita nuova e «Nuovo giocatore» la
+fanno rivedere; a livello Esperta (segnale spento di base) né anello né scritta; la guida dice le stesse parole.
+Prima versione guardata: la scritta stava in basso al centro e copriva il proprio giocatore (che in terza persona sta
+proprio lì): spostata in alto.
+
+| Prima palla: anello bianco e scritta | Quarta palla: solo l'anello |
+|---|---|
+| ![](img/segnale-palla-1.jpg) | ![](img/segnale-palla-4.jpg) |
 
 ## Punto 4 · Pannello dello stand dal programma Windows
 

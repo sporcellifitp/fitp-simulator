@@ -1083,10 +1083,11 @@ body {
 }
 
 /* ---------- B37: scritta del segnale del momento giusto nelle prime palle (natpf_timing_cue.js, CUE_HINT) ---------- */
+/* in alto al centro, sopra il campo: in basso copriva chi gioca (che in terza persona sta lì) e l'etichetta del gesto */
 .natpf-cue-hint {
   position: fixed;
   left: 50%;
-  bottom: clamp(64px, 11cqh, 150px);
+  top: clamp(48px, 14cqh, 170px);
   z-index: 31;
   display: flex;
   align-items: center;

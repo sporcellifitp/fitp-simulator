@@ -19,8 +19,8 @@
 //     moviola.
 // B37 (collaudo dell'utente del 13/11, punto 3: «compare un cerchietto bianco che non capisco cosa sia che segue la palla»):
 // quando è acceso non cambia niente, ma le prime volte si spiega. Nelle prime CUE_HINT.balls palle di ogni partita in cui
-// l'anello compare (e di nuovo per un giocatore nuovo: natpf_new_player.resetVisitor) una scritta breve in basso al centro
-// dice «Colpisci quando il cerchio diventa verde», con le stesse parole della guida (natpf_onboarding.js, «Colpisci quando
+// l'anello compare (e di nuovo per un giocatore nuovo: natpf_new_player.resetVisitor) una scritta breve in alto al centro
+// (in basso copriva chi gioca) dice «Colpisci quando il cerchio diventa verde», con le stesse parole della guida (natpf_onboarding.js, «Colpisci quando
 // la palla arriva»); resta finché c'è l'anello e poco dopo, poi sparisce. Solo una scritta: niente nell'esito dei colpi.
 import * as THREE from 'three';
 import { SWING_AIM, skillLevel } from './natpf_skill.js';
