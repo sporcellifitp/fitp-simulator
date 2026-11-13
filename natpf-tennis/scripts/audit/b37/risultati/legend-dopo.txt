@@ -1,0 +1,87 @@
+
+Leggenda contro «medio» (408 game, punti di chi gioca 14.4% ± 0.73 con 8 semi (deviazione tra i semi 2.07), 11.74 colpi per punto, schemi {"corpo":18.3,"tagliato":18.1,"smorzata":15.1,"lungolinea":13.4,"incrociatoStretto":12.1,"incrociato":9.4,"campoAperto":7.2,"alta":2.9,"chiusura":2.3,"passanteLungo":0.6,"contropiede":0.3,"pallonetto":0.2,"passante":0.2}, distanza all'impatto p50/p95/max 0.34/0.69/2.24 m, affondi 1524, palle lasciate passare 1)
+  OK  game vinti dalla CPU ≥ 90%                       99%
+  OK  errori della CPU 2–6% per colpo                  2.3%
+  OK  incrociati 30–50%                                35.7%
+  OK  lungolinea ≥ 10%                                 24.7%
+  OK  almeno 6 schemi sopra il 3%                      7
+  OK  nessuno schema sopra il 35%                      18.3%
+  OK  entropia ≥ 2,3 bit                               2.8
+  OK  ripetizioni ≤ 20%                                10%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+  OK  vincenti ≥ errori                                2.52
+
+Leggenda contro «amatore» (382 game, punti di chi gioca 14.8% ± 1 con 8 semi (deviazione tra i semi 2.83), 12.43 colpi per punto, schemi {"corpo":18.3,"incrociatoStretto":17.5,"tagliato":15.1,"smorzata":13,"incrociato":11.5,"lungolinea":8.3,"alta":7.2,"campoAperto":5.8,"chiusura":2.4,"passanteLungo":0.4,"pallonetto":0.2,"passante":0.1,"contropiede":0.1}, distanza all'impatto p50/p95/max 0.36/0.65/2.07 m, affondi 995, palle lasciate passare 4)
+  OK  game vinti dalla CPU ≥ 90%                       98.7%
+  OK  errori della CPU 2–6% per colpo                  2.2%
+  OK  incrociati 30–50%                                44.1%
+  OK  lungolinea ≥ 10%                                 17.8%
+  OK  almeno 6 schemi sopra il 3%                      8
+  OK  nessuno schema sopra il 35%                      18.3%
+  OK  entropia ≥ 2,3 bit                               2.81
+  OK  ripetizioni ≤ 20%                                8.8%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Leggenda contro «tennista» (224 game, punti di chi gioca 33.6% ± 1.16 con 8 semi (deviazione tra i semi 3.27), 19.24 colpi per punto, schemi {"incrociato":18.6,"incrociatoStretto":16.8,"corpo":12.9,"tagliato":11.1,"lungolinea":8.4,"chiusura":8.1,"alta":7.3,"smorzata":5.6,"campoAperto":4.8,"passanteLungo":3.6,"passante":1.6,"contropiede":0.9,"pallonetto":0.2}, distanza all'impatto p50/p95/max 0.41/1.05/2.3 m, affondi 5250, palle lasciate passare 6)
+  OK  game vinti dalla CPU ≥ 85%                       86.6%
+  OK  errori della CPU 2–6% per colpo                  2.6%
+  OK  incrociati 30–50%                                48.3%
+  OK  lungolinea ≥ 10%                                 22.5%
+  OK  almeno 6 schemi sopra il 3%                      10
+  OK  nessuno schema sopra il 35%                      18.6%
+  OK  entropia ≥ 2,3 bit                               2.73
+  OK  ripetizioni ≤ 20%                                13.9%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Leggenda contro «preciso» (180 game, punti di chi gioca 38% ± 1.87 con 8 semi (deviazione tra i semi 5.29), 23.19 colpi per punto, schemi {"incrociato":15.4,"tagliato":14.8,"incrociatoStretto":13.7,"lungolinea":13.6,"corpo":10.9,"chiusura":10.7,"smorzata":9,"campoAperto":6.9,"passanteLungo":2.2,"alta":1.4,"passante":0.9,"contropiede":0.5,"pallonetto":0.1}, distanza all'impatto p50/p95/max 0.3/0.83/2.3 m, affondi 3412, palle lasciate passare 3)
+  OK  game vinti dalla CPU ≥ 60%                       76.7%
+  OK  errori della CPU 2–6% per colpo                  2.7%
+  OK  incrociati 30–50%                                41.1%
+  OK  lungolinea ≥ 10%                                 32.2%
+  OK  almeno 6 schemi sopra il 3%                      8
+  OK  nessuno schema sopra il 35%                      15.4%
+  OK  entropia ≥ 2,3 bit                               2.75
+  OK  ripetizioni ≤ 20%                                12.9%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Leggenda contro «bambino» (548 game, punti di chi gioca 7.9% ± 0.31 con 8 semi (deviazione tra i semi 0.87), 6.49 colpi per punto, schemi {"tagliato":21.5,"corpo":16.4,"incrociato":14.1,"smorzata":12.4,"incrociatoStretto":12.4,"lungolinea":11.2,"campoAperto":8.3,"alta":3.2,"chiusura":0.3,"pallonetto":0.1,"contropiede":0.1,"passanteLungo":0}, distanza all'impatto p50/p95/max 0.38/0.6/1.02 m, affondi 322, palle lasciate passare 0)
+  OK  game vinti dalla CPU ≥ 98%                       100%
+  OK  errori della CPU 2–6% per colpo                  2.5%
+  OK  incrociati 30–50%                                44.8%
+  OK  lungolinea ≥ 10%                                 19.8%
+  OK  almeno 6 schemi sopra il 3%                      8
+  OK  nessuno schema sopra il 35%                      21.5%
+  OK  entropia ≥ 2,3 bit                               2.76
+  OK  ripetizioni ≤ 20%                                10%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.52
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Leggenda contro «impreciso» (565 game, punti di chi gioca 5.4% ± 0.68 con 8 semi (deviazione tra i semi 1.92), 5.02 colpi per punto, schemi {"corpo":21.5,"tagliato":20.7,"incrociato":19.9,"lungolinea":15.7,"campoAperto":7.4,"incrociatoStretto":5.5,"alta":4.7,"smorzata":4.2,"contropiede":0.1,"pallonetto":0.1,"chiusura":0.1,"passanteLungo":0.1,"passante":0}, distanza all'impatto p50/p95/max 0.4/0.64/2.13 m, affondi 737, palle lasciate passare 0)
+  OK  game vinti dalla CPU ≥ 98%                       100%
+  OK  errori della CPU 2–6% per colpo                  2.2%
+  OK  incrociati 30–50%                                41%
+  OK  lungolinea ≥ 10%                                 22.3%
+  OK  almeno 6 schemi sopra il 3%                      8
+  OK  nessuno schema sopra il 35%                      21.5%
+  OK  entropia ≥ 2,3 bit                               2.37
+  OK  ripetizioni ≤ 20%                                13.6%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+pro contro «medio» (non regressione)
+  OK  pro contro medio: il giocatore vince 70–85% dei game 75.2%
+
+casual contro «medio» (non regressione)
+  OK  casual contro medio: il giocatore vince ≥ 95% dei game 100%
+
+Tutti i criteri rispettati

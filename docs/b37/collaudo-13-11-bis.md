@@ -171,3 +171,45 @@ prende prima). Nel programma Windows adesso:
 - nel gioco (`natpf_kiosk.js`) solo l'aggancio al ponte: Ctrl+Maiusc+K e i 3 secondi sul marchio restano com'erano;
 - i testi che citano Ctrl+Maiusc+K dicono anche «F9 nel programma Windows» (nota della diagnostica, pagina del
   telecomando dello staff, guide del telecomando, del registro, della mira e del collaudo Windows, LEGGIMI del programma).
+
+## Il gioco non cambia: impronte delle partite e Leggenda
+
+Le stesse partite a sorteggi fissi, giocate dal motore vero senza grafica con il codice di prima (`1043c85`) e con
+quello di adesso, hanno la stessa impronta (punti, vinti, scambi, motivi dei punti, voti dei colpi, colpi della
+racchetta, cadute, colpi a vuoto): `scripts/audit/b37/impronte.mjs`, risultati in `scripts/audit/b37/risultati/`.
+
+| Serie di semi | Partite (3 livelli × 5 profili × 3 semi, 80 punti) | Impronte |
+|---|---|---|
+| 7, 11, 23 | 45 | IMPRONTE_1 |
+| 31, 37, 41 | 45 | IMPRONTE_2 |
+
+`npm run audit:legend`: LEGEND_RIGA
+
+Il blocco non tocca l'esito dei colpi, la direzione (B35a), la fisica, le regole del punteggio né la CPU: il motore
+chiama solo il verdetto rimandato (`natpfUi.shot.settle`) all'inizio di `_awardPoint` e alza la scritta «Al servizio»;
+senza grafica (impronte) quelle parti non ci sono, come nel gioco non cambiano niente di quello che succede.
+
+## Verifiche
+
+VERIFICHE
+
+## Cosa non è riuscito e perché
+
+NON_RIUSCITO
+
+## Cosa non è provato
+
+- **Telefono vero, programma Windows vero, ledwall vero e persone vere**: le prove sono nel browser con un telefono
+  simulato (eventi di movimento finti) e il mouse; l'installer non è stato rifatto in questo blocco.
+- **F9 nel programma Windows**: provato con i test del programma (scorciatoia, voce del menu, canale solo verso la pagina
+  del proprio server, ponte del preload) e del gioco (il pannello si apre e si chiude dal ponte); non premendo F9 in
+  Electron su Windows. Se F9 non funzionasse sul PC dello stand (un altro programma che prende anche F9), resta la voce
+  del menu NATPF (in finestra) e il marchio da tenere premuto.
+- **Sfida tra due computer**: il verdetto rimandato sul computer del Player 2 è provato con i test di unità (anche con la
+  scritta del punto dall'host) e con la prova `natpf-1v1-p2p` (che non manda palle fuori apposta). Un caso raro non è
+  provato: se il Player 1 prende al volo una palla del Player 2 che sarebbe uscita e la rete è lenta, sul computer del
+  Player 2 la palla può cadere fuori «da sola» prima che arrivi la palla dell'host, e lì comparirebbe «Fuori» (prima
+  compariva sempre, al colpo).
+- **Gemma e riquadro con una scheda grafica vera** e su Android: il costo è misurato con la grafica in software del banco.
+- **La scritta del segnale con persone vere**: non si sa se 3 palle bastano; il numero è una costante
+  (`CUE_HINT.balls` in `natpf_timing_cue.js`).
