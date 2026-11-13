@@ -60,7 +60,9 @@ export const fairForcedByUrl = (search = globalThis.location?.search || '') => f
 
 // B35 (collaudo dell'utente del 13/11: «su un game BO1 la battuta era alternata e non fissa ad un giocatore»): quando il
 // servizio passa ogni due punti (formato in fiera, o campo aperto nello stesso schermo: natpf_duo_rules.altServe) lo dice
-// una riga chiara a inizio partita (sotto «Si gioca») e sul tabellone, finché dura la partita. Di base vale solo nello
+// una riga chiara a inizio partita (sotto «Si gioca»); dal B43 non più sul tabellone (richiesta dell'utente: «Formato
+// veloce toglilo», meno testi vicino al tabellone; durante la partita lo dicono la pallina di chi serve e «Al servizio»
+// sopra chi batte). Di base vale solo nello
 // stesso schermo; contro la CPU e nella sfida tra due computer il servizio resta a un giocatore per game. Si spegne dal
 // pannello dello stand → «Formato in fiera: No» (e «Campo aperto: No», già spento di base)
 export const FAST_SERVE_LINE = 'Formato veloce: il servizio cambia ogni 2 punti';

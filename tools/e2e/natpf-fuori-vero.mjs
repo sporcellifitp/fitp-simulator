@@ -12,8 +12,9 @@
 // MISURA=1: stampa solo le misure (per il confronto con il codice di prima, GAME_DIR=… su un'altra copia del gioco).
 // JSON_OUT=file.json: le misure in un file (docs/b37/misure/). SHOTS=1: schermate in OUT (o nella cartella temporanea)
 // del primo colpo mandato fuori largo, gioco e telefono: «colpo» (subito dopo il colpo) e «terra» (subito dopo che la palla
-// ha toccato terra fuori), più «fine» (schermata di fine partita). Per le schermate il gioco si ferma un attimo: i tempi
-// di quel punto non valgono come misura (gli altri sì).
+// ha toccato terra fuori), «scritta» (B43: quando compare la scritta grande del punto, mezzo secondo dopo), più «fine»
+// (schermata di fine partita). Per le schermate il gioco si ferma un attimo: i tempi di quel punto non valgono come misura
+// (gli altri sì).
 // Porte 3157 (gioco) e 9157 (PeerJS), o GAME_PORT e PEER_PORT.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-fuori-vero.mjs
 process.env.CAL ||= 'gesti';
@@ -127,6 +128,9 @@ try {
       E._natpfRacketShot = (...a) => { const r = rs2(...a), e = __T.ev.at(-1); if (r && !window.__shotDone && e?.k === 'colpo' && e.f === 'largo'){ window.__arm = { k: 'colpo', n: 2 }; window.__shotDone = 1; } return r; };
       const aw2 = E._awardPoint.bind(E);
       E._awardPoint = (w, why = '') => { const out = aw2(w, why); if (window.__shotDone === 1 && why === 'Out'){ window.__arm = { k: 'terra', n: 2 }; window.__shotDone = 2; } return out; };
+      // B43: e quando compare la scritta grande del punto, mezzo secondo dopo (terza schermata, «scritta»)
+      const cb2 = E.hud.showCenterBanner.bind(E.hud);
+      E.hud.showCenterBanner = (txt, o) => { const out = cb2(txt, o); if (window.__shotDone === 2){ window.__arm = { k: 'scritta', n: 1 }; window.__shotDone = 3; } return out; };
     }
   }, { plan: PLAN, shots: SHOTS });
   // SHOTS=1: anche i timer delle due pagine stanno fermi con il gioco (window.__freeze): le scritte del gioco e del
@@ -146,8 +150,8 @@ try {
   // schermate di un momento fermo: prima il telefono (con la scritta che il gioco gli ha appena mandato: al colpo il
   // nome del colpo, a terra «Punto avversario»), poi il gioco disegnato in quel momento
   const shoot = async fz => {
-    const at = await game.evaluate(k => (__T.ev.filter(e => e.k === (k === 'terra' ? 'punto' : 'colpo')).at(-1)?.t ?? 0), fz);
-    const want = fz === 'terra' ? '^Punto' : '^(Colpo!|Palla corta!|Lob!|Tagliato!|Smash!)';
+    const at = await game.evaluate(k => (__T.ev.filter(e => e.k === (k === 'terra' || k === 'scritta' ? 'punto' : 'colpo')).at(-1)?.t ?? 0), fz);
+    const want = fz === 'terra' || fz === 'scritta' ? '^Punto' : '^(Colpo!|Palla corta!|Lob!|Tagliato!|Smash!)';
     await phone.waitForFunction(({ at, want }) => __P.some(e => e.k === 'tel' && e.t >= at - 5 && new RegExp(want).test(e.txt)), { at, want }, { timeout: 1500 }).catch(() => {});
     await phone.evaluate(() => { window.__freeze = 1; });
     await phone.screenshot({ path: `${SP}/fuori-vero-${fz}-telefono.png` });

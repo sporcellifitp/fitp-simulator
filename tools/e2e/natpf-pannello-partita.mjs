@@ -46,6 +46,10 @@ try {
   await g.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0&peer=127.0.0.1:${PEER_PORT}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await g.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby?.visible && window.__natpfTennis.player?.model, null, { timeout: 180000 });
   await g.waitForTimeout(800);
+  // grafica in software lenta (un disegno può durare un secondo e il tempo del gioco andrebbe a passi di 0,08 s): il gioco
+  // gira senza disegnare e si disegna solo per le schermate (come natpf-fuori-vero)
+  await g.evaluate(() => { const E = __natpfTennis; E.__render = E.render.bind(E); E.render = () => {}; });
+  const snap = async name => { await g.evaluate(() => { try { __natpfTennis.__render(); } catch {} }); await g.screenshot({ path: `${SP}/${name}` }); };
 
   const st = () => g.evaluate(() => { const E = __natpfTennis, ui = E.natpfUi; return { t: +E.elapsedTime.toFixed(3), phase: E.phase, paused: !!E.natpfPaused, score: `${E.score.playerPoints}-${E.score.opponentPoints} ${E.score.playerGames}-${E.score.opponentGames}`,
     staff: ui.kiosk.isOpen, remote: ui.remote.isOpen, diag: !!ui.diag.isOpen, pause: ui.pause.isOpen, lobby: ui.lobby.visible, step: ui.lobby.step, inGame: ui.pause.inGame,
@@ -76,10 +80,12 @@ try {
   const go = await startMatch();
   const s0 = await st(); await g.waitForTimeout(1500); const s1 = await st();
   check('partita contro la CPU partita con un clic su «Gioca», motore che gira', go.onTop && s0.inGame && !s0.paused && s1.t > s0.t + 0.5, JSON.stringify({ s0, s1 }));
+  // la CPU batte: il pannello si apre a scambio in corso (prima, in 8 s, la CPU vinceva il punto dietro il pannello)
+  const rally = await g.waitForFunction(() => __natpfTennis.phase === 'RALLY' && __natpfTennis.ball.inPlay, null, { timeout: 20000 }).then(() => true, () => false);
   await staffKey(); await g.waitForTimeout(300);
   const a = await st(); await g.waitForTimeout(8000); const b = await st();
-  check('A1: pannello aperto in partita → partita ferma: in 8 s nessun tempo di gioco e nessun punto della CPU', a.staff && a.paused && b.paused && b.staff && Math.abs(b.t - a.t) < 0.02 && a.score === b.score, JSON.stringify({ a, b }));
-  await g.screenshot({ path: `${SP}/b43-pannello-partita-1280x720.png` });
+  check('A1: pannello aperto a scambio in corso → partita ferma: in 8 s nessun tempo di gioco, scambio ancora lì, nessun punto della CPU', rally && a.staff && a.paused && a.phase === 'RALLY' && b.paused && b.staff && b.phase === 'RALLY' && Math.abs(b.t - a.t) < 0.02 && a.score === b.score, JSON.stringify({ rally, a, b }));
+  await snap('b43-pannello-partita-1280x720.png');
   const close1 = await clickAt('#natpf-staff [data-staff="close"]'); await g.waitForTimeout(1200);
   const c = await st();
   check('«Chiudi» con un clic: pannello chiuso, la partita riprende', close1.onTop && !c.staff && !c.paused && c.t > b.t + 0.5, JSON.stringify({ close1, c }));
@@ -89,7 +95,7 @@ try {
   await staffKey(); await g.waitForTimeout(300);
   const tops = await g.evaluate(() => ['close', 'newplayer', 'aim', 'kiosk'].map(k => { const el = document.querySelector(`#natpf-staff [data-staff="${k}"]`), r = el.getBoundingClientRect(), t = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2); return { k, top: !!t && (t === el || el.contains(t)) }; }));
   check('A2: pannello aperto con la pausa aperta: il pannello sta sopra («Chiudi», «Nuovo giocatore», «Mira», «Modalità chiosco» cliccabili)', pz.onTop && tops.every(x => x.top), JSON.stringify({ pz, tops }));
-  await g.screenshot({ path: `${SP}/b43-pannello-sopra-pausa-1280x720.png` });
+  await snap('b43-pannello-sopra-pausa-1280x720.png');
   const t2 = (await st()).t; await g.waitForTimeout(2000);
   await clickAt('#natpf-staff [data-staff="close"]'); await g.waitForTimeout(500);
   const d = await st();
@@ -98,7 +104,7 @@ try {
   /* ---------- 3. «Torna al menu» con due clic ---------- */
   const m1 = await clickAt('#natpf-pause [data-pause="menu"]'); await g.waitForTimeout(300);
   const e1 = await st(), armed = await text('#natpf-pause [data-pause="menu"]');
-  await g.screenshot({ path: `${SP}/b43-pausa-torna-al-menu-armato-1280x720.png` });
+  await snap('b43-pausa-torna-al-menu-armato-1280x720.png');
   check('n. 15: «Torna al menu», primo clic: si resta in pausa e il pulsante dice «Sicuro? Clicca ancora»', m1.onTop && e1.pause && e1.inGame && !e1.lobby && armed === 'Sicuro? Clicca ancora', JSON.stringify({ e1, armed }));
   // «Riprendi ›» disarma; di nuovo in pausa, un doppio clic su «Torna al menu» non basta
   await clickAt('#natpf-pause [data-pause="resume"]'); await g.waitForTimeout(400);
@@ -120,7 +126,7 @@ try {
   const hold = await g.evaluate(() => { const h = document.querySelector('.natpf-diag [data-diag-hold]'); return h && !h.classList.contains('hidden') ? h.textContent : null; });
   check('n. 14: «Diagnostica» dalla pausa: la diagnostica al posto della pausa e la partita resta ferma (in 4 s nessun tempo di gioco)', dg.onTop && h0.diag && !h0.pause && h0.paused && h1.paused && Math.abs(h1.t - h0.t) < 0.02 && h0.score === h1.score, JSON.stringify({ h0, h1 }));
   check('la diagnostica dice che la partita è ferma finché è aperta', /Partita ferma/.test(hold || ''), hold);
-  await g.screenshot({ path: `${SP}/b43-diagnostica-dalla-pausa-1280x720.png` });
+  await snap('b43-diagnostica-dalla-pausa-1280x720.png');
   const x = await clickAt('.natpf-diag [data-diag="close"]'); await g.waitForTimeout(400);
   const h2 = await st();
   check('× della diagnostica: di nuovo la pausa, partita ancora ferma', x.onTop && !h2.diag && h2.pause && h2.paused, JSON.stringify(h2));
@@ -140,7 +146,7 @@ try {
   const r0 = await st(); await g.waitForTimeout(3000); const r1 = await st();
   const rtop = await g.evaluate(() => { const el = document.querySelector('#natpf-remote [data-remote="close"]'), r = el.getBoundingClientRect(), t = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2); return !!t && (t === el || el.contains(t)); });
   check('telecomando dello staff aperto dal pannello in partita: foglio in cima, partita ferma (3 s senza tempo di gioco)', rc.onTop && r0.remote && !r0.staff && r0.paused && r1.paused && Math.abs(r1.t - r0.t) < 0.02 && rtop, JSON.stringify({ r0, r1, rtop }));
-  await g.screenshot({ path: `${SP}/b43-telecomando-in-partita-1280x720.png` });
+  await snap('b43-telecomando-in-partita-1280x720.png');
   await g.keyboard.press('Escape'); await g.waitForTimeout(400);
   const r2 = await st();
   check('Esc nel foglio del telecomando: di nuovo il pannello dello stand (non la pausa sotto), partita ancora ferma', !r2.remote && r2.staff && !r2.pause && r2.paused, JSON.stringify(r2));
@@ -159,17 +165,21 @@ try {
     return { scroll: s.scrollHeight - s.clientHeight, closeInView: close.bottom <= Math.min(r.bottom, innerHeight) && close.top >= 0, out, rowH: Math.round(row.getBoundingClientRect().height), size: `${innerWidth}×${innerHeight}` };
   });
   const l1280 = await lay();
-  await g.screenshot({ path: `${SP}/b43-pannello-nuovo-giocatore-armato-1280x720.png` });
+  await snap('b43-pannello-nuovo-giocatore-armato-1280x720.png');
   check('A5: «Nuovo giocatore» in partita, primo clic: niente (pannello aperto, partita ferma), il pulsante dice «Sicuro? Clicca ancora»', n1.onTop && k1.staff && k1.paused && k1.inGame && !k1.nick && npText === 'Sicuro? Clicca ancora', JSON.stringify({ k1, npText }));
   check('pulsante armato: il foglio resta in una schermata, «Chiudi» in vista, niente scritte tagliate (1280×720)', l1280.scroll <= 0 && l1280.closeInView && !l1280.out.length, JSON.stringify(l1280));
-  // stesso controllo a 1024×600 e 720×720 (lo stesso pulsante armato: il foglio si ridisegna alla nuova misura)
-  const sizes = {};
+  // stesso controllo a 1024×600 e 720×720, con il pulsante armato (dopo 5 s senza il secondo clic si disarma da solo: a
+  // ogni misura, se serve, un clic lo riarma; mai un secondo clic sul pulsante armato, che farebbe partire la voce)
+  const sizes = {}, armedNow = () => g.evaluate(() => __natpfTennis.natpfUi.kiosk.confirm.isArmed('newplayer'));
   for (const [w, h] of [[1024, 600], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await g.waitForTimeout(600);
-    sizes[`${w}x${h}`] = await lay();
-    await g.screenshot({ path: `${SP}/b43-pannello-nuovo-giocatore-armato-${w}x${h}.png` });
+    if (!await armedNow()){ await clickAt('#natpf-staff [data-staff="newplayer"]'); await g.waitForTimeout(300); }
+    sizes[`${w}x${h}`] = { ...await lay(), armed: await armedNow(), text: await text('#natpf-staff [data-staff="newplayer"]') };
+    await snap(`b43-pannello-nuovo-giocatore-armato-${w}x${h}.png`);
   }
-  check('pulsante armato a 1024×600 e 720×720: foglio senza scorrere, «Chiudi» in vista, niente scritte tagliate', Object.values(sizes).every(l => l.scroll <= 0 && l.closeInView && !l.out.length), JSON.stringify(sizes));
+  check('pulsante armato a 1024×600 e 720×720: foglio senza scorrere, «Chiudi» in vista, niente scritte tagliate', Object.values(sizes).every(l => l.armed && l.text === 'Sicuro? Clicca ancora' && l.scroll <= 0 && l.closeInView && !l.out.length), JSON.stringify(sizes));
+  // il pulsante di prima si disarma da solo dopo 5 s; il doppio clic qui sotto parte dal pannello con «Nuovo giocatore» com'era
+  await g.waitForFunction(() => !__natpfTennis.natpfUi.kiosk.confirm.isArmed(), null, { timeout: 8000 }).catch(() => {});
   await g.setViewportSize({ width: 1280, height: 720 }); await g.waitForTimeout(600);
   // doppio clic su «Classifica · A schermo intero»: arma la classifica (e disarma «Nuovo giocatore»), ma non la apre
   const rk = await clickAt('#natpf-staff [data-staff="ranking"]', { dbl: true }); await g.waitForTimeout(400);
@@ -189,13 +199,13 @@ try {
   await clickAt('#natpf-pause-btn'); await g.waitForTimeout(300);
   await clickAt('#natpf-pause [data-pause="menu"]'); await g.waitForTimeout(300);
   const p720 = await g.evaluate(() => { const s = document.querySelector('#natpf-pause .natpf-sheet'), r = s.getBoundingClientRect(); const bs = ['menu', 'resume'].map(k => { const b = s.querySelector(`[data-pause="${k}"]`), q = b.getBoundingClientRect(); return q.bottom <= Math.min(r.bottom, innerHeight) && q.right <= r.right + 1 && b.scrollWidth <= b.clientWidth + 2; }); return { scroll: s.scrollHeight - s.clientHeight, ok: bs, text: s.querySelector('[data-pause="menu"]').textContent }; });
-  await g.screenshot({ path: `${SP}/b43-pausa-torna-al-menu-armato-720x720.png` });
+  await snap('b43-pausa-torna-al-menu-armato-720x720.png');
   check('pausa a 720×720 con «Sicuro? Clicca ancora»: in una schermata, i due pulsanti in vista e interi', p720.scroll <= 0 && p720.ok.every(Boolean) && p720.text === 'Sicuro? Clicca ancora', JSON.stringify(p720));
   await clickAt('#natpf-pause [data-pause="resume"]'); await g.waitForTimeout(500);
   await g.setViewportSize({ width: 1920, height: 1080 }); await g.waitForTimeout(800);
   await clickAt('#natpf-pause-btn'); await g.waitForTimeout(300);
   await staffKey(); await g.waitForTimeout(500);
-  await g.screenshot({ path: `${SP}/b43-pannello-sopra-pausa-1920x1080.png` });
+  await snap('b43-pannello-sopra-pausa-1920x1080.png');
   const big = await st();
   check('1920×1080: pannello sopra la pausa, partita ferma', big.staff && big.pause && big.paused, JSON.stringify(big));
   await clickAt('#natpf-staff [data-staff="close"]'); await clickAt('#natpf-pause [data-pause="resume"]');

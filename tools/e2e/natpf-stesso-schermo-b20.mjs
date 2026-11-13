@@ -55,7 +55,8 @@ const banner = g => g.evaluate(() => { const L = document.getElementById('center
 const rects = (g, id) => g.evaluate(id => {
   const r = el => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 ? { l: Math.round(b.left), t: Math.round(b.top), r: Math.round(b.right), b: Math.round(b.bottom), w: Math.round(b.width), h: Math.round(b.height) } : null; };
   const el = document.getElementById(id), boards = [];
-  for (const sb of ['natpf-scoreboard', 'natpf-scoreboard-p2']) for (const part of ['.sb-box', '.sb-foot']) boards.push({ id: `${sb} ${part}`, ...r(document.querySelector(`#${sb} ${part}`)) });
+  // (B43: niente più sottotitolo sotto il riquadro: l'etichetta del formato sta dentro .sb-box)
+  for (const sb of ['natpf-scoreboard', 'natpf-scoreboard-p2']) for (const part of ['.sb-box']) boards.push({ id: `${sb} ${part}`, ...r(document.querySelector(`#${sb} ${part}`)) });
   return { box: el && !el.classList.contains('hidden') ? r(el) : null, text: el?.textContent || '', side: el?.dataset.side, call: el?.dataset.call || '', lines: el ? Math.round(el.querySelector('b').getBoundingClientRect().height/parseFloat(getComputedStyle(el.querySelector('b')).lineHeight)) : 0, boards, W: innerWidth, H: innerHeight };
 }, id);
 const overlap = (a, b) => (a && b && b.w ? Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l))*Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t)) : 0);
@@ -133,11 +134,11 @@ try {
   check('   i due telefoni pronti: conto alla rovescia e partita, senza toccare il computer', started);
   await sleep(250);
   let bn = await banner(g);
-  const m1 = await g.evaluate(() => { const E = __natpfTennis; return { fair: E.score.fair, server: E.score.server, hot: E.natpfHot, foot: [...document.querySelectorAll('[data-sb-format]')].map(e => e.textContent), serving: [...document.querySelectorAll('.sb-row.serving')].map(r => r.getAttribute('title')) }; });
+  const m1 = await g.evaluate(() => { const E = __natpfTennis; return { fair: E.score.fair, server: E.score.server, hot: E.natpfHot, foot: [...document.querySelectorAll('[data-sb-format]')].map(e => e.textContent), tags: [...document.querySelectorAll('.natpf-scoreboard .sb-tag')].map(e => e.offsetParent ? e.textContent : ''), serving: [...document.querySelectorAll('.sb-row.serving')].map(r => r.getAttribute('title')) }; });
   // (B35b, 13/11: con il servizio che cambia ogni 2 punti il banner d'inizio aggiunge la riga del formato veloce)
   const FAST = 'Formato veloce: il servizio cambia ogni 2 punti';
   check('   il sorteggio si vede: banner «Si gioca» con «Sorteggio: batte Giulia · Formato veloce…», e batte lei', bn.shown && bn.text === 'Si gioca' && bn.sub === `Sorteggio: batte Giulia · ${FAST}` && m1.server === 'opponent' && m1.serving.every(n => n === 'Giulia'), fmt({ bn, m1 }));
-  check('   formato in fiera acceso di base nello stesso schermo; sottotitolo dei due tabelloni «1 game · punto decisivo sul 40-40»', m1.fair === true && m1.foot.length === 2 && m1.foot.every(t => t === '1 game · punto decisivo sul 40-40'), fmt(m1));
+  check('   formato in fiera acceso di base nello stesso schermo; B43: etichetta «1 GAME» dentro i due tabelloni (formato intero «1 game · punto decisivo sul 40-40» per lo screen reader)', m1.fair === true && m1.foot.length === 2 && m1.foot.every(t => t === '1 game · punto decisivo sul 40-40') && m1.tags.length === 2 && m1.tags.every(t => t === '1 game'), fmt(m1));
   check('   «Scambio che si scalda» spento dal pannello: questa partita non lo usa', m1.hot === false, String(m1.hot));
   await shot('2-inizio-sorteggio-1280');
   // «Palla match <nome>»: 40-15 per Marco (partita a 1 game)

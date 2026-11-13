@@ -38,7 +38,6 @@ import { NatpfSplitUi } from './natpf_split_ui.js';
 import { NatpfScreen } from './natpf_screen.js';
 import { NatpfCalibra } from './natpf_calibra.js';
 import { scoreboardView, scoreboardHtml } from './natpf_scoreboard.js';
-import { altServe } from './natpf_duo_rules.js';
 import { castLooks, getCast } from './natpf_personaggi.js';
 import { NatpfUpdates } from './natpf_updates.js';
 import { resetVisitor } from './natpf_new_player.js';
@@ -253,14 +252,14 @@ export class NatpfUi {
     return q;
   }
   // tabellone della partita (natpf_scoreboard.js): una riga per giocatore o squadra con chi serve, nome, game e punti,
-  // più il formato in parole. Prima «30 - 15» tra due ritratti e sotto «Game 1 – 0 · game secco» (B10, 06/11)
+  // più il formato in una piccola etichetta dentro il riquadro (B43: prima un sottotitolo e la riga «Formato veloce» del
+  // B35 sotto il riquadro). Prima ancora «30 - 15» tra due ritratti e sotto «Game 1 – 0 · game secco» (B10, 06/11)
   onScore(score, gamesToWin){
     const el = $('natpf-scoreboard'); if (!el || !score) return;
     const E = this.engine, rs = E.roomStatus || {};
     const v = scoreboardView(score, { gamesToWin, viewer: E.playerRole === 'p2' ? 'opponent' : 'player', multiplayer: !!E.isMultiplayer,
       split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName,
-      looks: castLooks(getCast(), !!E.isMultiplayer),      // B24: linguette del colore di Drop e di Lob
-      altServe: altServe(E, !!score.fair) });              // B35: «Formato veloce: il servizio cambia ogni 2 punti»
+      looks: castLooks(getCast(), !!E.isMultiplayer) });   // B24: linguette del colore di Drop e di Lob
     const html = scoreboardHtml(v);
     if (this._sbHtml !== html || !el.firstChild){ this._sbHtml = html; el.innerHTML = html; }
     // stesso schermo (B17.3): la stessa tabella anche in alto a sinistra della metà del Player 2; vuota altrimenti
