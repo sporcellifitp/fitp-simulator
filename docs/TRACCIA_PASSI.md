@@ -642,3 +642,24 @@ Fermati i run di B37 (`wf_63518f90-393`) e B42 (`wf_5cbad5b6-b75`); il loro lavo
 «IN CORSO … NON verificato» (B37 `2bfe09a`, B42 `ae76bdf`); i due rami salvati in `docs/ripresa/rami-b37-b42.bundle`.
 Nessun agente in esecuzione. Come continuare: `docs/RIPRESA_AGENTE.md` §0.
 
+
+**13/11, 16:35 UTC · RIPRESA (nuova sessione dell'agente principale, contenitore diverso).** Letti `CLAUDE.md`,
+`docs/RIPRESA_AGENTE.md` e questa traccia; `natpf-simulator` = `origin` a `06a335b`, albero pulito.
+- Rami B37 e B42 recuperati dal bundle (`git fetch docs/ripresa/rami-b37-b42.bundle …`): `b37-collaudo-bis` a `2bfe09a`,
+  `b42-scambi-lunghi` a `ae76bdf`. Worktree **nello scratchpad di questa sessione** (non in `.claude/worktrees`, che non è
+  ignorata da git): `…/scratchpad/b37/wt` e `…/scratchpad/b42/wt`, dipendenze installate.
+- [~] **B37 finitura** (controllo del commit «IN CORSO», suite, build, `audit:legend`, 13 prove nel browser, documento):
+      workflow `b37-finitura`, run `wf_4f52f180-303`, porte 4100–4149 (più 4902/4903 del telecomando).
+- [~] **B42 finitura** (controllo del commit «IN CORSO», tolto `legend-prova-tmp.mjs`, suite, build, `audit:legend`, 6 prove
+      nel browser, `TESTO_SUITE` del documento, dove si scontrerà con B37): workflow `b42-finitura`, run `wf_32a43c3c-f2c`,
+      porte 4150–4199.
+  Se si fermano (limite d'uso): rilanciare lo stesso script con `resumeFromRunId` se l'agente aveva finito, altrimenti
+  un agente nuovo nella stessa worktree con «RIPRESA: …» (gli appunti con l'ora sono in `…/scratchpad/b37/notes.md` e
+  `…/scratchpad/b42/notes.md`). In un contenitore nuovo le worktree non ci sono: si riparte dal bundle (RIPRESA §2).
+- Poi: unire B37 → **2026-11-13.10**; B42 unito sopra B37 (conflitti attesi in `game_engine.js`, `index.html`,
+  `natpf_hot_rally.js`, `natpf_kiosk.js`), `audit:legend` sul codice unito → **2026-11-13.11**; poi la coda (B43, …).
+- **B28.1 mai unito** (lavoro di questa sessione del 12/11, fermato dal limite d'uso): ramo locale `b28-cal-giocando` a
+  `88cf743`, solo in questo contenitore, fermo alla 2026-11-12.5. Il profilo del telefono non si rinnova tra minigiochi e
+  allenamenti, sfida tra due computer con «Nessuna», fine degli scambi di prova per chi tiene i gesti, soglia di
+  `natpf-phone-keep`. Compito per rifarlo o unirlo: `docs/coda/B28.1-profilo-per-attivita.md` (da fare prima o insieme
+  alla B41 prima parte, che tocca gli stessi file).
