@@ -377,11 +377,12 @@ Prove complete della 12.6: non ancora (si fanno sulla consegna finale della seri
 **Versione 2026-11-12.7 = B29 Lob & Drop dai modelli 3D** (13/11, 00:10 UTC). Ramo `b29-lob-drop-3d` (revisore: 0
 bloccanti, 8 minori sistemati), unito in `06511fb`. Controllo rapido: gioco 1349/1349, sito 226/226, Windows 42/42, build
 ok → push. Zip 23.826.443 B (**margine solo 1.173.557 B**: i due modelli pesano 0,65 MB), sha256
-`8717eda1ad755e747f9388e40e340f7c5ef4006b00ad58500fa0cbe3f614802a`. Installer: `scratchpad/v1112g/attesa.sh`. Scelte di
+`8717eda1ad755e747f9388e40e340f7c5ef4006b00ad58500fa0cbe3f614802a`. **Installer 2026-11-12.7 pubblicato su R2** e verificato: 128.043.481 B, sha256
+`70035aa2d5f0749cb523cb453650b1a4dca140e6e35d4e29504c55f8f99ffb28`. Scelte di
 gusto da far vedere all'utente: scala 1,6 m (`docs/b29/img/scala.webp`) e bordo chiaro di Drop (`bordo-drop.webp`).
 
 **In corso dalle 00:10 UTC del 13/11: punto 4 e 5 della roadmap** — workflow `b23-t2g2-senza-revisore` (script
-`ripresa-b23-t2g2.js`, run `wf_20200b80-a34`): due agenti nelle worktree `wf_26d95fdf-3ea-1` (dritto dal video) e `-2`
+`ripresa-b23-t2g2.js`, run `wf_20200b80-a34`; dopo il riavvio del container alle 00:30 UTC del 13/11 rilanciato: run `wf_4fd99346-ef1`): due agenti nelle worktree `wf_26d95fdf-3ea-1` (dritto dal video) e `-2`
 (tappa 2 gruppo 2), prima uniscono il ramo principale, **senza revisore** (processo nuovo). Se si fermano: rilanciare lo
 script senza `resumeFromRunId`. Poi B31, B32, B33 (tappa 3).
 
