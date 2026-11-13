@@ -2,7 +2,8 @@
 // veri). Il robot fa partire il gesto quando la palla sta per arrivare al punto d'impatto (dal piano d'intercetto),
 // dritto o rovescio dal lato del piano. Prova insieme le parti del colpo (fase C e D del 22/10 notte):
 //   • ogni gesto colpisce la palla, il lato del colpo è quello del gesto;
-//   • dopo ogni colpo dal fondo si torna in fondo (niente corsa a rete), e dopo una palla corta si torna indietro;
+//   • dopo ogni colpo dal fondo si torna in fondo (niente corsa a rete); dopo un attacco riuscito da dentro il campo o una
+//     volée si sale o si resta a rete (B31, gioco a rete);
 //   • l'esito è nel campo aperto (cadute in punti diversi) e la diagnostica lo vede (mira, punto neutro);
 //   • B18.2 (D11): nella pausa tra i punti i personaggi sono fermi (prima la CPU «correva sul posto»).
 // SHOTS=1 salva i fotogrammi all'impatto e 0,7 s dopo (recupero). Porte 3151 (gioco) e 9151 (PeerJS).
@@ -135,7 +136,9 @@ try {
   check('scambio vero contro la CPU: almeno 6 colpi del telefono, ogni gesto colpisce (tranne le palle fuori della CPU)', log.length >= 6 && gestures - log.length <= outs, `${log.length} colpi su ${gestures} gesti in ${rallies} punti; fine dei punti: ${ends.join(', ')}`);
   check('il lato del colpo è quello del gesto (dritto o rovescio), con l’intenzione dalla forma', log.every(l => l.gesto === (l.lato > 0 ? 'forehand' : 'backhand') && l.mano === 'ok'), JSON.stringify(log.map(l => [l.gesto, l.lato])));
   // a rete si resta solo se una palla corta ha portato vicino alla rete (colpo da meno di 6 m) e non c'è il tempo di tornare
-  check('dopo ogni colpo si torna in fondo, anche dopo le palle prese dentro il campo (niente corsa a rete)', log.every(l => l.target > 11 || l.pz < 6) && log.filter(l => l.pz > 9).every(l => l.target > 11), JSON.stringify(log.map(l => [l.pz, l.target])));
+  // B31 (gioco a rete, natpf_net_play.approachOf): dopo un attacco riuscito da dentro il campo si sale a rete (fino a
+  // 5,2 m) e dopo la volée si resta lì; dal fondo (oltre la riga di fondo) mai, e mai a metà campo
+  check('dopo ogni colpo si torna in fondo o, dopo un attacco da dentro il campo o una volée, si sale a rete (mai dal fondo né a metà campo)', log.every(l => l.target > 11 || (l.target <= 5.25 && l.pz < 11)) && log.filter(l => l.pz > 11.5).every(l => l.target > 11), JSON.stringify(log.map(l => [l.pz, l.target])));
   const xs = log.map(l => Math.round(l.x)), depths = log.map(l => l.depth);
   check('campo aperto: cadute in punti diversi, mira e punto neutro dal modello', new Set(xs).size >= 3 && log.every(l => Number.isFinite(l.mira) && Number.isFinite(l.neutro)) && Math.max(...depths) - Math.min(...depths) > .3, JSON.stringify(log.map(l => [l.x, l.depth])));
   const cpu = await game.evaluate(() => ({ shots: __cpu, vmax: __cpuVmax, speed: __natpfTennis.opponent.maxSpeed, level: __natpfTennis.matchConfig.difficulty }));

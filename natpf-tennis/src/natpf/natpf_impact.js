@@ -19,6 +19,7 @@ import { bounceSpin, eventLatency, holdSwingPrep, COURT, moveFactor } from './na
 import { IMPACT, impactWindow, lateSpanOf, directionSpan, slowFactor, OUTCOME } from './natpf_stroke_outcome.js';
 import { skillLevel } from './natpf_skill.js';
 import { helpOf, helpLevel, openRun } from './natpf_duo_rules.js';
+import { NET_PLAY, netMoveOf } from './natpf_net_play.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -135,8 +136,9 @@ export function planPlayerIntercept(engine, actor, { groundOnly = false } = {}){
   const stand = s => { const dx = s.x - actor.pos.x, side = Math.abs(dx) > .3 ? Math.sign(dx) : fh; return { side, x: clamp(s.x - side*PLAN.side, -COURT.SINGLES_X - 1.4, COURT.SINGLES_X + 1.4), z: half*clamp(Z(s.z) + IMPACT.contactAhead, 1.2, Math.max(back, Z(s.z) > back ? PLAN.deepBack + IMPACT.contactAhead : back)) }; };
   // B25 (campo aperto, natpf_duo_rules.js): tra due persone, con l'opzione accesa, si parte un attimo dopo (la velocità
   // ridotta è già in moveFactor). Spenta, o contro la CPU: react 0, come prima
-  const react = PLAN.react + (openRun(engine)?.react || 0);
-  const need = s => { const p = stand(s); return react + Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z)/speed; };
+  // B31: a rete il passo è più corto e la reazione un poco più lunga (natpf_net_play.netMoveOf; 0 e 1 esatti lontano dalla rete)
+  const nm = netMoveOf(actor.pos.z), react = PLAN.react + (openRun(engine)?.react || 0) + nm.react, pace = speed*nm.speed;
+  const need = s => { const p = stand(s); return react + Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z)/pace; };
   const reachable = s => need(s) <= s.t;
   const before = path.filter(s => s.bounces === 0 && Z(s.z) > 0), after = path.filter(s => s.bounces === 1 && Z(s.z) <= back);
   const apex = before.reduce((m, s) => Math.max(m, s.y), 0);
@@ -234,8 +236,11 @@ export const reachOf = (engine, actor) => { const O = openRun(engine); return O 
 // (succede solo quando una palla corta ha portato vicino alla rete) si chiude a rete: presi a metà campo è peggio. Fin
 // dove si arriva lo decide il tempo; il colpo dopo lo decide il piano nuovo, da lì. Prima: a rete da dentro il campo o
 // dopo un attacco, anche con il tempo per tornare. Restituisce 'net' o 'baseline'.
-export function recoverAfterShot(engine, actor, { landingX = 0, flight = 1, contactZ = 11.5 } = {}){
+// B31: approach (natpf_net_play.approachOf: attacco riuscito da dentro il campo, o volée e schiacciata riuscite a rete):
+// si va a rete (NET_PLAY.approach.netZ, o si resta dove si è se già più vicini), un poco dalla parte della palla.
+export function recoverAfterShot(engine, actor, { landingX = 0, flight = 1, contactZ = 11.5, approach = false } = {}){
   const half = Math.sign(actor.pos.z) || 1, z = Math.abs(finite(contactZ, 11.5)), x = finite(landingX);
+  if (approach){ actor.targetPos.set(clamp(x*.35, -2.2, 2.2), 0, half*Math.max(PLAN.netZ, Math.min(z, NET_PLAY.approach.netZ))); return 'net'; }
   const time = Math.max(0, finite(flight, 1) + PLAN.oppTake - PLAN.react);
   const back = z + Math.max(4, finite(actor.maxSpeed, 9))*PLAN.recoverEff*time;
   if (back < PLAN.safeZ){ actor.targetPos.set(clamp(x*.3, -2.4, 2.4), 0, half*Math.max(z, PLAN.netZ)); return 'net'; }

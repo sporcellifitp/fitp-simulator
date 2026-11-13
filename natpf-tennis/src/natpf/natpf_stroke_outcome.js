@@ -14,6 +14,7 @@
 // alle righe senza superarle e senza cambiare l'ordine delle direzioni; sfuma oltre la finestra e sotto la qualità del
 // livello. Escono solo i colpi estremi. Stessi ingressi, stesso esito.
 import { ARC, flightForClear, swingGrade, timingUnits } from './natpf_skill.js';
+import { netOff } from './natpf_net_play.js'; // B31: regole del gioco a rete (spente solo nelle prove di confronto)
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -85,6 +86,13 @@ export const OUTCOME = Object.freeze({
   // del test va a 31 m/s (era 30) e la schiacciata deve restare almeno 1,4 volte più veloce (richiesta del 29/10)
   lobFlight: [2.6, 1.95], lobRef: 22, lobScale: [.85, 1.1], smashFlight: .26, smashSpeed: 48,
   volleyShort: 1,     // m: la volée spinge meno
+  // B31 (punto 22 del rapporto B16): la volée (palla al volo entro volleyHoldZ dalla rete) ha il bordo morbido laterale
+  // della zona di rete a tutti i livelli (prima solo a Leggenda): è un colpo bloccato, la direzione viene dal piatto e
+  // dal tempo dentro la finestra, e la palla veloce non la spinge oltre la riga. Prima a Casual e Pro le volée uscivano
+  // di lato da 2 a 40 volte più spesso dei colpi da fondo (banco scripts/audit/rete.mjs, colonne v.lato% e f.lato%)
+  // volleySpan: la finestra del tempo della volée è volleySpan volte quella del colpo da fondo (la palla veloce a rete la
+  // stringeva: con lo stesso anticipo in secondi la volée finiva oltre la finestra e veniva spinta fuori di lato)
+  volleyHoldZ: 7, volleySpan: 1.6,
   netLowY: .42, netExcess: .45,   // palla presa sotto 0,42 m molto fuori tempo: in rete
   weakDepth: 6.8, weakFloat: .9,  // a rete, colpo fallito con il tempo perfetto: al massimo a 6,8 m dalla rete, 0,9 m più alto
   assistQ: .6,        // sotto questa qualità l'assistenza non tiene la palla dentro
@@ -276,7 +284,8 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   if (netVolley) shot = 'SLICE';
   // spanPress (B18.2 passo 3, solo Leggenda): negli scambi lunghi la finestra del tempo si stringe con la pressione
   // (× pressione^spanPress, mai sotto 0,2^spanPress): il colpo esce di lato «in anticipo» o «in ritardo», con il voto che lo dice
-  const AS = assistOf(level), span = directionSpan(level)*slowFactor(ballVz)*(AS.spanPress ? clamp(finite(pressure, 1), .2, 1)**AS.spanPress : 1), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
+  const volleyNet = !!volley && zKnown && zc <= O.volleyHoldZ && !netOff();     // B31: volée vicino alla rete (finestra più larga, bordo morbido)
+  const AS = assistOf(level), span = directionSpan(level)*slowFactor(ballVz)*(AS.spanPress ? clamp(finite(pressure, 1), .2, 1)**AS.spanPress : 1)*(volleyNet ? O.volleySpan : 1), late = Number.isFinite(lateSpan) ? clamp(lateSpan*(volleyNet ? O.volleySpan : 1), .04, span) : span;
   // tempo in unità della finestra della direzione (+ anticipo). Oltre ±1 la palla continua ad andare verso l'esterno
   // fino alla fine della finestra d'impatto (prima si fermava a 1,6 unità: nell'ultimo 40% della finestra tutte le
   // palle uguali). ±4 è oltre ogni finestra d'impatto, solo per sicurezza
@@ -301,7 +310,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // a Pro, 1v1 e Casual (failQ sotto netQMin: niente colpo controllato, esito monotono con la situazione) e fuori dalla zona di
   // rete resta la regola del B15 (sotto assistQ la palla può uscire di lato): con il bordo a rete a tutti i livelli il banco
   // audit:legend «pro contro medio» passava da 83,5 a 85,3 % di game del giocatore, oltre il criterio (70–85 %)
-  const netHold = nearNet && (fq > O.netQMin || !!AS.netHold);
+  const netHold = (nearNet && (fq > O.netQMin || !!AS.netHold)) || volleyNet;
   const sideHold = netHold ? Math.max(assist, clamp(1 - excess/O.assistFade)) : assist;
   // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
   // tempo neutro) e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
@@ -345,7 +354,9 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // pressione la qualità sarebbe sopra failQ), il modo in cui finiscono gli scambi senza fine: contro «preciso» tutti i
   // colpi falliti con il tempo perfetto sono di questo tipo (dal 15° colpo); senza, la CPU Leggenda vinceva il 43% dei game
   // contro di lui (criterio ≥ 60%)
-  const g = swingGrade(t*(level?.timingSpan || span), level);
+  // (B31: il voto della volée resta quello della finestra di sempre, come il segnale del momento giusto: la finestra più
+  // larga vale solo per la direzione)
+  const vk = volleyNet ? O.volleySpan : 1, g = swingGrade(t*vk*(level?.timingSpan || span/vk), level);
   // Palla corta raggiunta nella finestra utile: corsa e pressione producono una risposta debole, non errore obbligato.
   // (B17.4: solo oltre netQSpan sotto failQ, cioè raggiunta all'ultimo; prima ogni colpo a rete sotto failQ era così)
   const weak = failed && !DC && ((shortBall && excess === 0) || (!pressured && (!!volley || !!net) && g.grade === 'PERFECT'));

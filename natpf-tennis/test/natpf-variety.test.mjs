@@ -59,7 +59,9 @@ test('angolo stretto: la palla molto angolata cade corta, quella centrale non ca
 test('rimbalzo: il top spin salta più alto e scorre, il tagliato resta basso', () => {
   const top = NS.bounceSpin(23), slice = NS.bounceSpin(-6), base = NS.bounceSpin(14);
   assert.ok(top.up > base.up && base.up > slice.up && top.along > slice.along);
-  assert.ok(top.up <= 1.12 && slice.up >= .88);
+  // B31: il tagliato forte (effetto −6 o meno) rimbalza più basso (fino a 0,8); il tagliato morbido e la palla corta come prima
+  assert.ok(top.up <= 1.12 && slice.up >= NS.SLICE_BOUNCE.up && slice.up < .88);
+  assert.equal(NS.bounceSpin(-5).up, .88); assert.equal(NS.bounceSpin(-3).up, .88);
 });
 
 test('CPU: sceglie tra più schemi (non un ciclo fisso), tutti dentro il campo; in Esperto più angoli e palle profonde', () => {

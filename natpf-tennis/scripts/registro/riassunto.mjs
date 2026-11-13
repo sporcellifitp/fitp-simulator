@@ -109,6 +109,7 @@ export class Riassunto {
     this.partite = { n: 0, finite: 0, abbandonate: 0, senzaFine: 0, modo: {}, ctrl: {}, personaggi: {}, versioni: {}, nomeInserito: 0 };
     this.chi = {}; this.gesti = {}; this.scartati = {}; this.vuoti = {};
     this.sup = { riusciti: 0, partite: 0, no: {}, perPartita: new Misura() };
+    this.rete = { colpi: 0, aRete: 0, volee: 0, cpu: {} };   // B31
     this.servizio = { righe: 0, voti: {}, kmh: new Misura(), ms: new Misura(), punti: 0, lanci: 0, lanciVuoti: 0, lanciAuto: 0, battutaAuto: 0, doppiFalli: 0, ace: 0, auto: 0 };
     this.tutorial = { n: 0, chiusura: {}, durata: new Misura(), tutte: 0 }; this.cal = { n: 0, finite: 0, durata: new Misura(), prove: 0, fallite: 0, passi: {}, perche: {}, ripartenze: 0 };
     // B28: calibrazione giocando (scambi di prova), a parte da quella con i gesti
@@ -159,6 +160,9 @@ export class Riassunto {
     const g = voce(this.gesti, r.gesto || '—', () => ({ n: 0, voti: {}, ms: new Misura(), esiti: {}, forza: new Misura() }));
     g.n++; piu(g.voti, r.voto || '—'); g.ms.metti(r.ms); piu(g.esiti, r.e || 'dentro'); g.forza.metti(r.f);
     if (r.sup){ this.sup.riusciti++; if (x.P) x.P.sup++; } else if (r.supNo) piu(this.sup.no, r.supNo);
+    // B31: gioco a rete (colpi di chi gioca entro 7 m dalla rete, volée, colpi a rete della CPU)
+    const Rt = this.rete; Rt.colpi++; if (r.rete) Rt.aRete++; if (r.volee) Rt.volee++;
+    if (Array.isArray(r.in) && ['volée', 'schiacciata', 'palla corta'].includes(r.in[0])) piu(Rt.cpu, r.in[0]);
   }
   _servizio(r){ const S = this.servizio; if (r.fonte === 'senza gesto'){ S.senzaGesto = (S.senzaGesto || 0) + 1; return; } S.righe++; piu(S.voti, r.voto || '—'); S.kmh.metti(r.kmh); S.ms.metti(r.ms); if (r.auto) S.auto++; }
   _vuoto(r){ if (!r.amb) piu(this.vuoti, r.perche || '—'); }
@@ -244,6 +248,10 @@ export function rapporto(R, L){
     { titolo: 'Gesti scartati o non riconosciuti', colonne: ['Motivo', 'Volte'], righe: elenco(R.scartati) },
     { titolo: 'Colpi a vuoto', colonne: ['Perché', 'Volte'], righe: elenco(R.vuoti) },
   ]);
+  // B31: gioco a rete
+  const Rt = R.rete, cpuRete = Object.values(Rt.cpu).reduce((a, b) => a + b, 0);
+  sez('Gioco a rete', [`Colpi di chi gioca entro 7 m dalla rete: ${N(Rt.aRete)} su ${N(Rt.colpi)} (${pc(Rt.aRete, Rt.colpi)}); volée: ${N(Rt.volee)} (${pc(Rt.volee, Rt.colpi)}). Colpi a rete della CPU a cui chi gioca ha risposto: ${N(cpuRete)}.`],
+    [{ titolo: 'Colpi a rete della CPU (volée, schiacciata, palla corta)', colonne: ['Colpo', 'Volte', 'Quota'], righe: elenco(Rt.cpu, cpuRete) }]);
   const supNo = Object.values(R.sup.no).reduce((a, b) => a + b, 0);
   sez('Colpo super', [`Riusciti: ${N(R.sup.riusciti)} in ${N(R.sup.partite)} partite (${N(R.sup.perPartita.media, 2)} a partita; partite con almeno uno: ${R.sup.perPartita.n ? `${N(100*R.sup.perPartita.quota(v => v > 0))}%` : '—'}). Gesti forti senza colpo super: ${N(supNo)}.`],
     [{ titolo: 'Perché non è scattato', colonne: ['Motivo', 'Volte', 'Quota'], righe: elenco(R.sup.no, supNo) }]);

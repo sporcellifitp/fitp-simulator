@@ -300,7 +300,11 @@ test('scambi che finiscono e dinamici: nessuno scambio infinito; palle lasciate 
     // a Leggenda con il seme 7 i colpi controllati a rete restano in campo e lo scambio continua a rete (10,8% di mosse verso
     // la rete, tutte da palla corta; era 5,6%)
     const c = courtStats([r]);
-    assert.ok(c.toNetPct < 15 && c.toNetFromBackPct === 0, `${difficulty}: ${JSON.stringify(c)}`);
+    // B31 (gioco a rete): chi gioca sale a rete anche dopo un attacco riuscito (palla corta presa alta, tagliato o colpo
+    // forte, profondo e pulito da dentro la riga di fondo, natpf_net_play.approachOf) e resta a rete dopo la volée:
+    // «dal fondo» (impatto oltre 10 m) ora capita, ma solo così. Tetto: un colpo su quattro (banco audit:rete, 3 semi × 300
+    // punti: chi gioca a rete nel 2–15% dei colpi della CPU)
+    assert.ok(c.toNetPct < 25 && c.toNetFromBackPct < 20, `${difficulty}: ${JSON.stringify(c)}`);
     all.volleys += r.racket.volleys;
     for (const [k, v] of Object.entries(r.racket.shots)) all.shots[k] = (all.shots[k] || 0) + v;
     for (const [k, v] of Object.entries(r.racket.plans)) all.plans[k] = (all.plans[k] || 0) + v;

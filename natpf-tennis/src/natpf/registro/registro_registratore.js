@@ -30,6 +30,8 @@ const CTRL = { phone: 'telefono', webcam: 'webcam', mouse: 'mouse' };
 const base = f => String(f || '').slice(0, 2000).replace(/[?#].*$/, '').split(/[\\/]/).pop().slice(0, 60) || null;
 const MAX_NOMI = 300;                                    // nomi della giornata tenuti in memoria (i più vecchi escono)
 
+// B31: nomi dei colpi a rete della CPU nel registro (campo «in» del colpo di chi gioca)
+const CPU_NET = Object.freeze({ volley: 'volée', smash: 'schiacciata', drop: 'palla corta' });
 export class RegistroStand {
   constructor({ engine, ui = null, coda, invio = null, storage = globalThis.localStorage, now = () => performance.now(), wallNow = () => Date.now(), programma = false, win = null, raf = null, timers = true, area = null } = {}){
     this.engine = engine; this.ui = ui; this.coda = coda; this.invio = invio; this.storage = storage; this.now = now; this.wallNow = wallNow; this.programma = !!programma; this.win = win; this.area = area;
@@ -343,13 +345,15 @@ export class RegistroStand {
       ...(P ? {} : { amb }), chi: g === 'a' ? 'a' : undefined, gesto: O.shot || I.shot || null, ...(I.shot && O.shot && String(I.shot).toLowerCase() !== String(O.shot).toLowerCase() ? { voluto: I.shot } : {}),
       // la palla della CPU che arrivava: tipo di colpo (solo Leggenda: gli altri livelli non lo scelgono così),
       // velocità in km/h, altezza in m (serve a capire se i ritardi e le palle non prese dipendono dalla palla)
-      ...(P && pre && this._modo() === 'cpu' ? { in: [E.matchConfig?.difficulty === 'leggenda' ? E.natpfLegend?.lastPick?.kind || null : null, r(pre[0], 0), r(pre[1], 2)] } : {}),
+      // B31: e i colpi a rete della CPU, a tutti i livelli: «volée», «schiacciata», «palla corta» (natpfCpuShot)
+      ...(P && pre && this._modo() === 'cpu' ? { in: [CPU_NET[E.natpfCpuShot?.kind] || (E.matchConfig?.difficulty === 'leggenda' ? E.natpfLegend?.lastPick?.kind || null : null), r(pre[0], 0), r(pre[1], 2)] } : {}),
       // errore di tempo in ms (+ anticipo, − ritardo) e voto; forza 0…1; direzione −1…+1 tra le righe
       ms: r(1000*L.timing, 0), voto: voto(O.grade), f: r(I.power, 2), d: r(O.aim, 2),
       e: O.weak ? 'debole' : O.failed ? (O.netFault ? 'rete' : 'fuori') : undefined, x: r(out.E, 1), z: r(out.N, 1),
       // colpo super: la palla che lo ha permesso, o perché non è scattato (solo con un gesto forte)
       ...(L.super ? { sup: String(L.super) } : forza >= .8 && Array.isArray(L.superWhy) && L.superWhy[0] ? { supNo: String(L.superWhy[0]) } : {}),
-      volee: L.volley || undefined, lato: L.contact ?? undefined, fonte: L.source === 'webcam' && P?.ctrl !== 'webcam' ? 'webcam' : undefined, causa: L.cause || undefined, aiutato: O.assisted || undefined,
+      // B31: rete 1 = colpo giocato entro 7 m dalla rete (chi gioca è salito a rete o ci è stato portato)
+      volee: L.volley || undefined, rete: Math.abs((L.who === 'p2' ? E.opponent : E.player)?.pos?.z ?? 99) < 7 ? 1 : undefined, lato: L.contact ?? undefined, fonte: L.source === 'webcam' && P?.ctrl !== 'webcam' ? 'webcam' : undefined, causa: L.cause || undefined, aiutato: O.assisted || undefined,
     });
   }
   // colpo con mouse e tastiera (modalità prova): dall'esito a schermo, senza racchetta virtuale
