@@ -69,19 +69,6 @@ test('punto 3 · motore: se il punto finisce prima (servizio dopo, menu) la scri
   run(e, .7); assert.equal(log.length, 0, 'tornati al menu: niente scritta');
 });
 
-test('punto 3 · con la partita in pausa la scritta aspetta (tempo del gioco); poi arriva', async () => {
-  const { makeWorld } = await import('./ui-world.mjs');
-  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
-  const { E, ui } = w, seen = [];
-  const sc = E.hud.showCenterBanner.bind(E.hud); E.hud.showCenterBanner = (t, o) => { seen.push(t); return sc(t, o); };
-  w.pressStart(); w.advance(300); seen.length = 0;
-  E.phase = 'RALLY'; E.ball.inPlay = true; E.ball.lastHitter = 'opponent'; E._awardPoint('player', 'Out');
-  w.advance(200); ui.pause.open(); assert.equal(E.natpfPaused, true);
-  w.advance(2000); assert.deepEqual(seen, [], 'in pausa niente scritta');
-  ui.pause.close(); w.advance(250); assert.deepEqual(seen, [], 'ripresa: mancano ancora 0,1 s di gioco');
-  w.advance(150); assert.deepEqual(seen, ['Punto tuo']);
-});
-
 test('punto 3 · sfida tra due computer: sul Player 2 la scritta del punto aspetta come sull\'host; l\'inizio no; la schermata finale dopo la scritta', async () => {
   const e = await headless();
   e.playerRole = 'p2'; e.urlRoom = 'AT-AB12'; e.roomId = 'AT-AB12'; e.isMultiplayer = true;

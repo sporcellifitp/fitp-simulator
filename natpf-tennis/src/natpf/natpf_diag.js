@@ -10,6 +10,9 @@
 //       attesa palla  dall'arrivo all'impatto in gioco (il colpo anticipato aspetta lo sweet spot: è voluto)
 //       a schermo     dall'impatto al primo fotogramma disegnato dopo
 // Prima la registrazione si fermava da sola dopo 60 s e teneva tutto in memoria fino al download.
+// B43 (controllo «solo mouse», A3 e n. 14): con il pannello aperto in campo la partita resta ferma (natpf_ui._syncPause;
+// anche con ?diag=1: il pannello lo dice in alto) e riparte alla chiusura; aperto dalla pausa, alla chiusura si torna
+// alla pausa. Per registrare giocando: «Avvia registrazione», ×, si gioca; poi Maiusc+D (o Pausa → Diagnostica) → «Ferma».
 import { DiagRecorder } from './diag/diag_recorder.js';
 import { createDiagStore } from './diag/diag_store.js';
 import { compareMetrics, compareNote, summaryLines } from './diag/diag_metrics.js';
@@ -66,13 +69,20 @@ export class NatpfDiag {
   }
   _store(){ return this.storeP || (this.storeP = createDiagStore().then(st => { this.store = this.recorder.store = st; return st; })); }
   toggle(){ this.on ? this.close() : this.open(); }
-  open(){ this.on = true; this._build(); this.el.classList.remove('hidden'); this.refresh(); this.paint(); }
-  close(){ this.on = false; this.el?.classList.add('hidden'); }
+  get isOpen(){ return !!this.el && !this.el.classList.contains('hidden'); }
+  // back: 'pause' se aperta dalla pausa (alla chiusura si torna lì, la partita intanto resta ferma)
+  open({ back = null } = {}){ this.on = true; this._back = back; this._build(); this.el.classList.remove('hidden'); this.refresh(); this.paint(); this.ui?._syncPause?.(); }
+  // quiet: senza tornare alla pausa (la pausa si sta aprendo adesso)
+  close({ quiet = false } = {}){
+    const back = this._back; this._back = null;
+    this.on = false; this.el?.classList.add('hidden'); this.ui?._syncPause?.();
+    if (!quiet && back === 'pause' && this.ui?.pause?.inGame && !this.ui.pause.isOpen) this.ui.pause.open();
+  }
   _build(){
     if (this.el) return;
     const el = this.el = document.createElement('div');
     el.className = 'natpf-diag'; el.setAttribute('aria-live', 'off');
-    el.innerHTML = `<div class="diag-head"><b>Diagnostica</b><button type="button" data-diag="close" aria-label="Chiudi">×</button></div>
+    el.innerHTML = `<div class="diag-head"><b>Diagnostica</b><span class="diag-hold hidden" data-diag-hold>Partita ferma finché la diagnostica è aperta: × per giocare</span><button type="button" data-diag="close" aria-label="Chiudi">×</button></div>
       <section class="diag-rec" id="natpf-diag-rec"></section>
       <section class="diag-sessions"><div class="diag-sub">Sessioni salvate</div><div id="natpf-diag-list" class="diag-list"></div><div id="natpf-diag-compare"></div></section>
       <details class="diag-live"><summary>Dettagli tecnici in diretta</summary><pre id="natpf-diag-body"></pre></details>`;
@@ -260,6 +270,9 @@ export class NatpfDiag {
     return this._ml.lines;
   }
   paint(){
+    // B43: la partita ferma per il pannello aperto si dice in alto (con ?diag=1 il pannello è aperto già all'avvio)
+    const hold = this.el?.querySelector('[data-diag-hold]');
+    if (hold) hold.classList.toggle('hidden', !(this.isOpen && this.engine.natpfPaused && this.ui?.pause?.inGame));
     const body = $('natpf-diag-body'); if (!body) return;
     const ph = this.engine.natpfPhone, link = ph.link, st = link?.stats?.() || { rates: {} }, R = st.rates || {};
     const rate = k => (R[k] ? `${R[k].hz} Hz (${R[k].ageMs} ms fa)` : '–');

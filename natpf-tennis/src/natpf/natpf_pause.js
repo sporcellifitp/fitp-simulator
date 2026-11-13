@@ -2,6 +2,11 @@
 // della webcam, moviola, ricalibrazione del telefono, schermo intero, aiuto e ritorno al menu stanno qui (pulsante
 // tondo ⏸ o Esc).
 // I comandi riusano i pulsanti dell'HUD del motore base, che restano nel DOM ma non si vedono.
+// B43 (controllo «solo mouse», n. 14 e 15): «Torna al menu» chiede un secondo clic (natpf_confirm.js: accanto c'è
+// «Riprendi ›», un clic impreciso chiudeva la partita del visitatore); «Diagnostica» apre il pannello con la partita che
+// resta ferma e alla chiusura si torna qui (prima la partita ripartiva dietro la diagnostica); aprendo la pausa con la
+// diagnostica aperta, la diagnostica si chiude (copriva «Torna al menu»).
+import { TwoStep } from './natpf_confirm.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const text = sel => (document.querySelector(sel)?.textContent || '').trim();
@@ -13,17 +18,29 @@ export class NatpfPause {
     this.btn = $('natpf-pause-btn');
     this.btn?.addEventListener('click', e => { e.stopPropagation(); this.open(); });
     this.el?.addEventListener('pointerdown', e => e.stopPropagation());
-    this.el?.addEventListener('click', e => {
-      const b = e.target.closest('[data-pause]'); if (!b) return;
-      e.stopPropagation(); this.run(b.dataset.pause);
-    });
+    this.confirm = new TwoStep();
+    this.el?.addEventListener('click', e => { const b = e.target.closest('[data-pause]'); if (b){ e.stopPropagation(); this.press(b); } });
   }
   get isOpen(){ return !!this.el && !this.el.classList.contains('hidden'); }
   // in campo (lobby chiusa): partita, allenamento o P2 in una stanza
   get inGame(){ return document.documentElement.classList.contains('autoplay-mode') && !this.engine.autoPlayMode; }
-  open(){ if (!this.el || !this.inGame) return; show(this.el); this.paint(); this.ui.syncVolumes?.(); this.ui._syncPause(); this.el.querySelector('[data-pause="resume"]')?.focus(); }
-  close(){ show(this.el, false); this.ui._syncPause(); }
+  open(){
+    if (!this.el || !this.inGame) return;
+    // B43: la diagnostica (in basso a sinistra, sopra la pausa) si chiude: copriva «Torna al menu» (controllo A3)
+    if (this.ui.diag?.isOpen) this.ui.diag.close({ quiet: true });
+    show(this.el); this.paint(); this.ui.syncVolumes?.(); this.ui._syncPause(); this.el.querySelector('[data-pause="resume"]')?.focus();
+  }
+  close(){ this.confirm?.disarm(); show(this.el, false); this.ui._syncPause(); }
   toggle(){ this.isOpen ? this.close() : this.open(); }
+  // clic su una voce: «Torna al menu» vuole il secondo clic (solo i clic: run('menu') dal codice e il «Menu» del
+  // telecomando, che chiede conferma sul telefono, restano diretti). true se la voce è partita
+  press(b, cmd = b?.dataset?.pause){
+    if (!cmd) return false;
+    if (cmd === 'menu'){ if (!this.confirm.click(b, 'menu')) return false; }
+    else this.confirm.disarm();
+    this.run(cmd);
+    return true;
+  }
   run(cmd){
     const click = id => $(id)?.click();
     switch (cmd){
@@ -37,7 +54,8 @@ export class NatpfPause {
       case 'replay': this.close(); click('btn-replay-trigger'); return;
       case 'phone': this.close(); this.ui.openPhone(); return;
       case 'help': this.close(); this.ui.onboarding.open(); return;
-      case 'diag': this.close(); this.ui.diag?.open(); return;
+      // B43: la partita resta ferma con la diagnostica aperta (natpf_ui._syncPause) e alla chiusura si torna alla pausa
+      case 'diag': this.close(); this.ui.diag?.open({ back: 'pause' }); return;
       case 'menu': this.close(); this.ui.backToMenu(); return;
     }
     this.paint();
