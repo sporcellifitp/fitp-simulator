@@ -103,12 +103,20 @@ try {
   await game.evaluate(v => { const o = __natpfTennis.natpfUi.diag.opts; o.webcamVideo = v.includes('webcam'); o.gameVideo = v.includes('gioco'); }, VIDEOS);
   await game.click('.natpf-diag [data-diag="start"]');
   await game.waitForFunction(() => __natpfTennis.natpfUi.diag.recorder.active, null, { timeout: 15000 });
+  // B43: con la diagnostica aperta in campo l'allenamento resta fermo (come la partita); si registra giocando con il
+  // pannello chiuso: «Avvia registrazione», ×, si gioca; poi Maiusc+D → «Ferma»
+  const held = await game.evaluate(() => ({ paused: !!__natpfTennis.natpfPaused, training: __natpfTennis.natpfUi.training.active }));
+  await game.click('.natpf-diag [data-diag="close"]');
+  const free = await game.evaluate(() => ({ paused: !!__natpfTennis.natpfPaused, open: __natpfTennis.natpfUi.diag.isOpen, rec: __natpfTennis.natpfUi.diag.recorder.active }));
+  check('B43: diagnostica aperta in allenamento → allenamento fermo; chiusa (×) si gioca e la registrazione continua', held.training && held.paused && !free.paused && !free.open && free.rec, JSON.stringify({ held, free }));
   const t0 = Date.now();
   const swings = await swingLoop(phone, SECONDS*1000);
   // pagina del telefono nascosta per 2 s (come uno schermo che si spegne): il computer lo deve sapere e annotare
   const hide = on => phone.evaluate(on => { Object.defineProperty(document, 'hidden', { value: on, configurable: true }); Object.defineProperty(document, 'visibilityState', { value: on ? 'hidden' : 'visible', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }, on);
   await hide(true); await phone.waitForTimeout(2000); await hide(false); await phone.waitForTimeout(1500);
   const mid = await game.evaluate(() => ({ ...__natpfTennis.natpfUi.diag.recorder.counts }));
+  await game.keyboard.press('Shift+KeyD');
+  await game.waitForSelector('.natpf-diag:not(.hidden) [data-diag="stop"]', { timeout: 10000 });
   await game.click('.natpf-diag [data-diag="stop"]').catch(async () => { await game.evaluate(() => __natpfTennis.natpfUi.diag.stop()); });
   await game.waitForFunction(() => !__natpfTennis.natpfUi.diag.recorder.active && !__natpfTennis.natpfUi.diag.busy, null, { timeout: 60000 }).catch(async e => {
     console.log('stato al blocco:', JSON.stringify(await game.evaluate(() => { const d = __natpfTennis.natpfUi.diag, R = d.recorder; return { busy: d.busy, active: R.active, videos: (R.videos || []).map(v => v.info), counts: R.counts, backlog: R.store?.backlog }; })));

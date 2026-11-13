@@ -9,8 +9,15 @@
 // La partita del motore non ha set né tie-break: si vince arrivando per primi a `gamesToWin` game, e un game si vince
 // con due punti di scarto (parità e vantaggio), o con il formato in fiera (B18, natpf_fair_format.js) al punto decisivo
 // sul 40-40, con il servizio che passa ogni due punti (la pallina di chi serve segue score.server). Funzioni pure: le usa natpf_ui.onScore e le provano i test.
+// B43 (richiesta dell'utente del 13/11 dopo aver giocato: «durante il match ci sono troppi testi che l'utente non legge, in
+// prossimità dello scoreboard. Semplifica. Formato veloce toglilo, al meglio di tre toglilo, magari metti etichetta sullo
+// scoreboard»): via il sottotitolo sotto il riquadro (formato in parole e «Parità»/«Vantaggio …») e la riga «Formato
+// veloce: il servizio cambia ogni 2 punti» del B35. Resta UNA piccola etichetta tonda DENTRO il riquadro, sotto le sigle:
+// il formato («1 GAME», «AL MEGLIO DI 3»), che al punto decisivo del formato in fiera (40-40) diventa rosa, «PUNTO
+// DECISIVO». Parità e vantaggio li dicono già le caselle (40 · 40, AD) e la scritta grande del punto; il servizio che
+// passa ogni due punti lo dicono la pallina di chi serve, «Al servizio» sopra chi batte e il banner d'inizio partita (una
+// volta). Formato intero e scritta del momento restano nel testo per chi legge con lo screen reader (role="status").
 import { viewScore } from './natpf_point_call.js';
-import { FAST_SERVE_LINE } from './natpf_fair_format.js';
 
 const POINTS = ['0', '15', '30', '40'];
 
@@ -22,6 +29,14 @@ export function formatText(gamesToWin = 1, { fair = false, short = false } = {})
   const n = Math.max(1, Math.round(Number(gamesToWin) || 1));
   if (fair){ const len = n > 1 ? `Al meglio di ${n*2 - 1}` : '1 game'; return short ? len : `${len} · punto decisivo sul 40-40`; }
   return n > 1 ? `Al meglio di ${n*2 - 1} game` : 'Partita a 1 game';
+}
+
+// B43: l'etichetta dentro il tabellone (una sola, corta; maiuscole dal CSS): il formato, «1 game» o «Al meglio di 3»; al
+// punto decisivo del formato in fiera (40-40) «Punto decisivo», rosa. { text, kind: 'format' | 'decisive' }
+export function scoreTag(gamesToWin = 1, { decisive = false } = {}){
+  if (decisive) return { text: 'Punto decisivo', kind: 'decisive' };
+  const n = Math.max(1, Math.round(Number(gamesToWin) || 1));
+  return { text: n > 1 ? `Al meglio di ${n*2 - 1}` : '1 game', kind: 'format' };
 }
 
 // punti del game in corso dal riferimento del motore: { player, opponent } come si scrivono sul tabellone
@@ -108,9 +123,10 @@ export function rowNames({ viewer = 'player', multiplayer = false, split = false
 // playerGames, opponentGames, server)
 // looks (B24): aspetto dei personaggi in campo per lato del motore ({ player, opponent }, natpf_personaggi.castLooks);
 // con Lob & Drop la riga porta il nome della mascotte (`look`) e la linguetta prende il suo colore
-// altServe (B35): il servizio passa ogni due punti (formato in fiera o campo aperto, natpf_duo_rules.altServe): una riga
-// in più sotto il sottotitolo lo dice (FAST_SERVE_LINE); senza, il tabellone è quello di prima
-export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '', looks = null, altServe = false } = {}){
+// format e label: il formato in parole e la scritta del momento (Parità, Vantaggio di chi, Punto decisivo), dal B43 solo per
+// lo screen reader; tag: l'etichetta che si vede dentro il riquadro (scoreTag). B43: niente più riga «Formato veloce» del
+// B35 sul tabellone (l'opzione altServe non c'è più: il banner d'inizio partita lo dice una volta)
+export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '', looks = null } = {}){
   const names = rowNames({ viewer, multiplayer, split, splitNames, doubles, hostName, guestName });
   const pts = gamePoints(score.playerPoints, score.opponentPoints);
   const side = s => ({ games: String(Math.max(0, score[`${s}Games`] | 0)), points: pts[s], serving: (score.server || 'player') === s, adv: pts.adv === s });
@@ -130,22 +146,24 @@ export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', 
       label = viewScore({ player: pts.player === 'Vant.' ? 'Ad' : '40', opponent: pts.opponent === 'Vant.' ? 'Ad' : '40' }, viewer, rival);
     }
   }
-  return { rows, format: formatText(gamesToWin, { fair: !!score.fair, short: !!label }), label, rule: altServe ? FAST_SERVE_LINE : '' };
+  return { rows, format: formatText(gamesToWin, { fair: !!score.fair, short: !!label }), label, tag: scoreTag(gamesToWin, { decisive: !!(pts.deuce && score.fair) }) };
 }
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // HTML del tabellone (data-sb-* per le prove nel browser). Riquadro .sb-box con una riga per giocatore: linguetta del
 // colore della riga, pallina di chi serve, sigla (nome intero nel title e per chi legge con lo screen reader), game,
-// punti nella casella piena («AD» al vantaggio, così la casella resta larga uguale); sotto il riquadro il sottotitolo
-// .sb-foot con il formato e la scritta del momento
+// punti nella casella piena («AD» al vantaggio, così la casella resta larga uguale). B43: sotto le sigle, sempre dentro il
+// riquadro, l'etichetta tonda .sb-tag (data-sb-tag: format | decisive); formato intero e scritta del momento solo per lo
+// screen reader (.sb-sr, data-sb-format e data-sb-label: prima erano il sottotitolo .sb-foot sotto il riquadro)
 export function scoreboardHtml(v){
   const row = r => `<div class="sb-row sb-${r.side}${r.serving ? ' serving' : ''}${r.adv ? ' adv' : ''}" data-sb-row="${r.side}"${r.look ? ` data-sb-look="${esc(r.look)}"` : ''} title="${esc(r.name)}">`
     + `<i class="sb-tab" aria-hidden="true"></i><i class="sb-serve" aria-hidden="true"></i>`
     + `<b class="sb-name" data-sb-name="${esc(r.name)}" aria-hidden="true">${esc(r.short || r.name)}</b>`
     + `<span class="sb-sr">${esc(r.name)}${r.serving ? ' (al servizio)' : ''}</span>`
     + `<span class="sb-games" data-sb-games>${esc(r.games)}</span><strong class="sb-points" data-sb-points>${esc(r.points === 'Vant.' ? 'AD' : r.points)}</strong></div>`;
-  return `<div class="sb-box">${v.rows.map(row).join('')}</div>`
-    + `<div class="sb-foot"><span data-sb-format>${esc(v.format)}</span><span class="sb-label" data-sb-label>${esc(v.label)}</span></div>`
-    + (v.rule ? `<div class="sb-rule" data-sb-rule><i class="sb-rule-ball" aria-hidden="true"></i>${esc(v.rule)}</div>` : '');
+  const tag = v.tag || scoreTag();
+  return `<div class="sb-box">${v.rows.map(row).join('')}`
+    + `<span class="sb-tag" data-sb-tag="${esc(tag.kind)}" aria-hidden="true">${esc(tag.text)}</span></div>`
+    + `<span class="sb-sr"><span data-sb-format>${esc(v.format)}</span> <span data-sb-label>${esc(v.label)}</span></span>`;
 }

@@ -1111,6 +1111,15 @@ body {
 .natpf-cue-hint.hidden {
   display: none;
 }
+/* B43: nelle aree strette (fino a 800 px di larghezza, come il ledwall 720 × 720) la scritta centrata arrivava sul bordo
+   destro del tabellone (13 px a 720 × 720, già prima del B43): lì sta subito sotto il tabellone, alto circa 5,1 em del suo
+   carattere (--sb 3 cqh tra 17 e 40 px, --sb-top 6 cqh tra 12 e 64 px: le misure di #hud-root in natpf-round.css, ripetute
+   perché la scritta sta nel body). Nel gioco non compare insieme a «Scambio caldo» (B42) né alle istruzioni del servizio */
+@container natpf (max-width: 800px) {
+  .natpf-cue-hint {
+    top: calc(clamp(12px, 6cqh, 64px) + 5.4 * clamp(17px, 3cqh, 40px));
+  }
+}
 .natpf-cue-hint b {
   color: #39e58c;
 }

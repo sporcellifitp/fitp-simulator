@@ -38,7 +38,6 @@ import { NatpfSplitUi } from './natpf_split_ui.js';
 import { NatpfScreen } from './natpf_screen.js';
 import { NatpfCalibra } from './natpf_calibra.js';
 import { scoreboardView, scoreboardHtml } from './natpf_scoreboard.js';
-import { altServe } from './natpf_duo_rules.js';
 import { castLooks, getCast } from './natpf_personaggi.js';
 import { NatpfUpdates } from './natpf_updates.js';
 import { resetVisitor } from './natpf_new_player.js';
@@ -176,7 +175,9 @@ export class NatpfUi {
     this.phoneWatch = createPhoneWatch(); this.phoneHold = null; this.phoneResync = createResync();
     // webcam in campo: lo stesso per la mano persa a lungo e la camera ferma (natpf_webcam_watch.js)
     this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
-    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); } catch (e){ console.error(e); } }, 100);
+    // (B43: con un foglio dello staff aperto la pausa si ricalcola anche qui: una partita che parte con la diagnostica già
+    // aperta, ?diag=1, resta ferma come le altre)
+    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -217,9 +218,13 @@ export class NatpfUi {
     for (const el of document.querySelectorAll('[data-tile-status]')){ const id = el.dataset.tileStatus; if (CONTROLLERS.some(c => c.id === id)) el.textContent = controllerStatus(id, state); }
     for (const el of document.querySelectorAll('[data-natpf-controller="phone"]')) el.classList.toggle('ok', this.phone.ready);
   }
+  // B43 (controllo «solo mouse», A1 e n. 14): fogli dello staff aperti (pannello dello stand, telecomando dello staff,
+  // diagnostica): la partita resta ferma (anche scambi di prova e allenamento) e riparte quando si chiudono. Prima la CPU
+  // faceva punti dietro il pannello e la diagnostica aperta dalla pausa faceva ripartire la partita
+  staffOpen(){ return !!(this.kiosk?.isOpen || this.remote?.isOpen || this.remote?.opening || this.diag?.isOpen); }
   // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
   _syncPause(){
-    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold || !!this.split?.hold;
+    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold || !!this.split?.hold || this.staffOpen();
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
     // B20 (revisione): a partita ferma il gioco non ridisegna le scritte del campo; le istruzioni del servizio e «Scambio
     // caldo» si tolgono subito (restavano sotto il riquadro della pausa) e tornano da sole alla ripresa
@@ -247,14 +252,14 @@ export class NatpfUi {
     return q;
   }
   // tabellone della partita (natpf_scoreboard.js): una riga per giocatore o squadra con chi serve, nome, game e punti,
-  // più il formato in parole. Prima «30 - 15» tra due ritratti e sotto «Game 1 – 0 · game secco» (B10, 06/11)
+  // più il formato in una piccola etichetta dentro il riquadro (B43: prima un sottotitolo e la riga «Formato veloce» del
+  // B35 sotto il riquadro). Prima ancora «30 - 15» tra due ritratti e sotto «Game 1 – 0 · game secco» (B10, 06/11)
   onScore(score, gamesToWin){
     const el = $('natpf-scoreboard'); if (!el || !score) return;
     const E = this.engine, rs = E.roomStatus || {};
     const v = scoreboardView(score, { gamesToWin, viewer: E.playerRole === 'p2' ? 'opponent' : 'player', multiplayer: !!E.isMultiplayer,
       split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName,
-      looks: castLooks(getCast(), !!E.isMultiplayer),      // B24: linguette del colore di Drop e di Lob
-      altServe: altServe(E, !!score.fair) });              // B35: «Formato veloce: il servizio cambia ogni 2 punti»
+      looks: castLooks(getCast(), !!E.isMultiplayer) });   // B24: linguette del colore di Drop e di Lob
     const html = scoreboardHtml(v);
     if (this._sbHtml !== html || !el.firstChild){ this._sbHtml = html; el.innerHTML = html; }
     // stesso schermo (B17.3): la stessa tabella anche in alto a sinistra della metà del Player 2; vuota altrimenti
@@ -288,6 +293,8 @@ export class NatpfUi {
     // Player 2 dell'invito: tornare al menu vuol dire lasciare la stanza (prima restava dentro e i suoi colpi passavano)
     if (E.playerRole === 'p2' && this.versus?.p2){ this.versus.leave(); return; }
     this.versus?.clearCheckpoint?.();     // tornare al menu chiude la partita: il punteggio salvato serve solo a un ricaricamento
+    // B43: la diagnostica aperta dalla pausa di questa partita, chiusa dopo, non riapre la pausa nella partita di un altro
+    if (this.diag) this.diag._back = null;
     this.trial?.abort();
     if (this.training.active) this.training.stop({ completed: false, silent: true });
     this.events.abort();

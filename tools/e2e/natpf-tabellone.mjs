@@ -10,6 +10,10 @@
 // grande e leggibile»), angolo a 2,3 cqw / 6 cqh, lontano dal pulsante di pausa in alto
 // a destra; stesso schermo: una copia in alto a sinistra della metà del Player 2 (#natpf-scoreboard-p2), ognuna nella sua
 // metà, e niente etichetta «Al servizio» (è di una sola vista). Misure in docs/b17/punteggio.md.
+// B43 (richiesta dell'utente del 13/11: «troppi testi vicino allo scoreboard… al meglio di tre toglilo, magari metti
+// etichetta sullo scoreboard»): niente sottotitolo sotto il riquadro; una sola etichetta tonda DENTRO il riquadro con il
+// formato («1 GAME», «AL MEGLIO DI 3»), che al punto decisivo del formato in fiera dice «PUNTO DECISIVO». Formato intero e
+// «Parità»/«Vantaggio …» restano nel testo per lo screen reader ([data-sb-format], [data-sb-label]), non si vedono.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome GAME_PORT=3851 node natpf-tabellone.mjs
 // B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
 process.env.CAL ||= 'gesti';
@@ -47,13 +51,21 @@ const read = p => p.evaluate(() => {
   // sigle accorciate con i puntini (il testo non sta nella cella): non deve succedere, nemmeno nella copia del P2 nel ledwall diviso
   const nameCut = [...document.querySelectorAll('.natpf-scoreboard [data-sb-name]')].some(el => el.scrollWidth > el.clientWidth + 1);
   // «game secco» non deve comparire in nessuna scritta visibile della pagina (innerText salta ciò che è nascosto)
-  return { visible: vis(sb), rows, format: fmtEl?.textContent || '', label: labEl?.textContent || '', secco: /secco/i.test(document.body.innerText), fmtInk: ink(fmtEl), labInk: ink(labEl, true), box: b ? { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) } : null,
+  // B43: l'etichetta dentro il riquadro (testo, tipo, carattere, riquadro) e niente sottotitolo o riga «Formato veloce» in vista
+  const tagEl = sb?.querySelector('.sb-tag'), sbTag = tagEl ? { text: tagEl.textContent, kind: tagEl.dataset.sbTag, fs: parseFloat(getComputedStyle(tagEl).fontSize), up: getComputedStyle(tagEl).textTransform === 'uppercase', r: rc(tagEl), cut: tagEl.scrollWidth > tagEl.clientWidth + 1 } : null;
+  // (formato intero e scritta del momento dentro .sb-sr: 1 px ritagliato, solo per lo screen reader, non contano)
+  const seen = el => vis(el) && !el.closest('.sb-sr') && el.getBoundingClientRect().width > 2;
+  const extra = [...document.querySelectorAll('.natpf-scoreboard .sb-foot, .natpf-scoreboard .sb-rule')].filter(vis).length + (seen(fmtEl) ? 1 : 0) + (seen(labEl) ? 1 : 0)
+    + (fmtEl && !fmtEl.closest('.sb-sr') ? 1 : 0) + (labEl && !labEl.closest('.sb-sr') ? 1 : 0);
+  return { visible: vis(sb), rows, format: fmtEl?.textContent || '', label: labEl?.textContent || '', tag: sbTag, extra, secco: /secco/i.test(document.body.innerText), fmtInk: ink(fmtEl), labInk: ink(labEl, true), box: b ? { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) } : null,
     fs: sb ? parseFloat(getComputedStyle(sb).fontSize) : 0, p2: rc(p2), same: !!p2 && p2.textContent === sb?.textContent, pause: rc(document.querySelector('.natpf-pause-btn')),
     sbBox: rc(boxEl), cells, cellFs: cells.length ? parseFloat(getComputedStyle(sb.querySelector('[data-sb-points]')).fontSize) : 0, head: !!sb?.querySelector('.sb-head'), tagOn, nameCut, split: document.body.classList.contains('natpf-split') };
 });
-// il formato finisce prima che cominci la scritta del momento, sulla stessa riga, con almeno 4 px di spazio
-// (revisione del 07/11: «Al meglio di 5 game» e «Vantaggio di Player 2» si toccavano: «gameVANTAGGIO»)
-const footApart = v => !!v.fmtInk && !!v.labInk && v.fmtInk.r + 4 <= v.labInk.l && v.labInk.b > v.fmtInk.t && v.labInk.t < v.fmtInk.b && v.box && v.labInk.r <= v.box.x + v.box.w;
+// B43: l'etichetta sta tutta dentro il riquadro scuro (.sb-box), sotto le righe, intera (non accorciata), maiuscola, di almeno
+// 12 px; nient'altro sotto il riquadro (né sottotitolo né riga «Formato veloce»: prima la revisione del 07/11 controllava
+// qui che formato e «Vantaggio di …» del sottotitolo non si toccassero)
+const tagIn = v => !!v.tag?.r && !!v.sbBox && v.tag.r.x >= v.sbBox.x && v.tag.r.x + v.tag.r.w <= v.sbBox.x + v.sbBox.w + 1 && v.tag.r.y >= v.sbBox.y && v.tag.r.y + v.tag.r.h <= v.sbBox.y + v.sbBox.h + 1
+  && v.tag.fs >= 12 && v.tag.up && !v.tag.cut && v.extra === 0;
 const setScore = (p, s, gamesToWin = 2) => p.evaluate(({ s, gamesToWin }) => { const E = __natpfTennis; E.matchConfig.gamesToWin = gamesToWin; Object.assign(E.score, s); E._syncScoreboardHUD(); try { E.__render?.(); } catch {} }, { s, gamesToWin });
 // prima della schermata anche l'etichetta «Al servizio» si aggiorna (update() è fermo: _updateProjectedHUD la posiziona o
 // la nasconde come in partita; prima restava dov'era, e nelle schermate dello stesso schermo compariva a cavallo della metà
@@ -97,26 +109,36 @@ try {
   if (!ONLY_SHOTS){
     check('1v1 CPU: tabellone visibile con due righe, sigle «TU» e «CPU» (nome intero in data-sb-name e nel title)', v.visible && v.rows.length === 2 && row(v, 'me').name === 'TU' && row(v, 'them').name === 'CPU' && row(v, 'me').full === 'Tu' && row(v, 'me').title === 'Tu', fmt(v));
     check('1v1 CPU: game 1 e 0, punti 30 e 15, serve chi gioca', row(v, 'me').games === '1' && row(v, 'them').games === '0' && row(v, 'me').points === '30' && row(v, 'them').points === '15' && row(v, 'me').serve && !row(v, 'them').serve, fmt(v));
-    check('1v1 CPU: formato in parole («Al meglio di 3 game»), niente «game secco»', v.format === 'Al meglio di 3 game' && !v.secco, fmt(v));
-    check('1280×720: tabellone nell\'angolo in alto a sinistra (29, 43), carattere 21,6 px, sottotitolo ≥ 12 px sotto il riquadro, lontano dalla pausa, niente copia del P2', corner(v, 1280, 720) && v.fmtInk?.fs >= 12 && v.fmtInk.t >= v.sbBox.y + v.sbBox.h && !v.p2, fmt(v));
+    check('1v1 CPU: formato in una piccola etichetta dentro il riquadro («AL MEGLIO DI 3»; per lo screen reader «Al meglio di 3 game»), niente «game secco»', v.tag?.text === 'Al meglio di 3' && v.tag.kind === 'format' && v.format === 'Al meglio di 3 game' && !v.secco, fmt(v));
+    check('1280×720: tabellone nell\'angolo in alto a sinistra (29, 43), carattere 21,6 px, etichetta ≥ 12 px dentro il riquadro e niente sotto, lontano dalla pausa, niente copia del P2', corner(v, 1280, 720) && tagIn(v) && !v.p2, fmt(v));
     check('1280×720: etichetta «Al servizio» in vista sopra chi serve (schermo intero)', v.tagOn, fmt({ tagOn: v.tagOn }));
   }
   await shot(p, '1280-1v1-cpu-30-15');
   await setScore(p, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'opponent' }, 1);
   v = await read(p);
-  if (!ONLY_SHOTS) check('partita a 1 game: «Partita a 1 game», punti 0-0, serve la CPU', v.format === 'Partita a 1 game' && row(v, 'me').points === '0' && row(v, 'them').points === '0' && row(v, 'them').serve && !row(v, 'me').serve, fmt(v));
+  if (!ONLY_SHOTS) check('partita a 1 game: etichetta «1 GAME», punti 0-0, serve la CPU', v.tag?.text === '1 game' && v.format === 'Partita a 1 game' && tagIn(v) && row(v, 'me').points === '0' && row(v, 'them').points === '0' && row(v, 'them').serve && !row(v, 'me').serve, fmt(v));
   await shot(p, '1280-1v1-cpu-0-0-1game');
   await setScore(p, { playerPoints: 3, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player' }, 1);
   v = await read(p);
-  if (!ONLY_SHOTS) check('parità: 40 e 40 con la scritta «Parità»', row(v, 'me').points === '40' && row(v, 'them').points === '40' && v.label === 'Parità', fmt(v));
+  if (!ONLY_SHOTS) check('parità: 40 e 40; «Parità» solo per lo screen reader, l\'etichetta resta «1 GAME»', row(v, 'me').points === '40' && row(v, 'them').points === '40' && v.label === 'Parità' && v.tag?.text === '1 game' && tagIn(v), fmt(v));
   await shot(p, '1280-1v1-cpu-parita');
   await setScore(p, { playerPoints: 4, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player' }, 1);
   v = await read(p);
-  if (!ONLY_SHOTS) check('vantaggio di chi gioca: «AD» nella sua casella, 40 alla CPU, «Vantaggio tuo» nel sottotitolo, caselle larghe uguali', row(v, 'me').points === 'AD' && row(v, 'them').points === '40' && v.label === 'Vantaggio tuo' && drawn(v), fmt(v));
+  if (!ONLY_SHOTS) check('vantaggio di chi gioca: «AD» nella sua casella, 40 alla CPU, «Vantaggio tuo» solo per lo screen reader, caselle larghe uguali', row(v, 'me').points === 'AD' && row(v, 'them').points === '40' && v.label === 'Vantaggio tuo' && drawn(v) && tagIn(v), fmt(v));
   await shot(p, '1280-1v1-cpu-vantaggio');
   await setScore(p, { playerPoints: 3, opponentPoints: 5, playerGames: 0, opponentGames: 0, server: 'player' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('vantaggio della CPU al meglio di 5: «AD» nella casella della CPU, «Vantaggio della CPU» separato dal formato', row(v, 'them').points === 'AD' && row(v, 'me').points === '40' && v.label === 'Vantaggio della CPU' && footApart(v), fmt(v));
+  if (!ONLY_SHOTS) check('vantaggio della CPU al meglio di 5: «AD» nella casella della CPU, etichetta «AL MEGLIO DI 5» dentro il riquadro', row(v, 'them').points === 'AD' && row(v, 'me').points === '40' && v.label === 'Vantaggio della CPU' && v.tag?.text === 'Al meglio di 5' && tagIn(v), fmt(v));
+  // B43: formato in fiera, 40-40 (punto decisivo): l'etichetta diventa rosa, «PUNTO DECISIVO»; finito il 40-40 torna il formato
+  await setScore(p, { playerPoints: 3, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player', fair: true }, 1);
+  v = await read(p);
+  const pink = await p.evaluate(() => getComputedStyle(document.querySelector('#natpf-scoreboard .sb-tag')).backgroundColor);
+  if (!ONLY_SHOTS) check('formato in fiera, 40-40: etichetta rosa «PUNTO DECISIVO» dentro il riquadro (al posto del formato)', v.tag?.text === 'Punto decisivo' && v.tag.kind === 'decisive' && pink === 'rgb(255, 77, 148)' && tagIn(v), fmt({ tag: v.tag, pink, extra: v.extra }));
+  await shot(p, '1280-1v1-cpu-punto-decisivo');
+  await setScore(p, { playerPoints: 0, opponentPoints: 0, playerGames: 1, opponentGames: 0, server: 'player', fair: true }, 1);
+  v = await read(p);
+  if (!ONLY_SHOTS) check('formato in fiera, punto dopo: di nuovo «1 GAME»', v.tag?.text === '1 game' && v.tag.kind === 'format', fmt(v.tag));
+  await setScore(p, { fair: false }, 1);
 
   // 1920×1080: stesso tabellone, in proporzione
   await p.setViewportSize({ width: 1920, height: 1080 }); await p.waitForTimeout(250);
@@ -128,7 +150,7 @@ try {
   await p.setViewportSize({ width: 1024, height: 600 }); await p.waitForTimeout(250);
   await setScore(p, { playerPoints: 3, opponentPoints: 2, playerGames: 0, opponentGames: 1, server: 'player' }, 2);
   v = await read(p);
-  if (!ONLY_SHOTS) check('1024×600: 40-30, tabellone in alto a sinistra (24, 36; carattere 18 px), sottotitolo ≥ 12 px', row(v, 'me').points === '40' && row(v, 'them').points === '30' && corner(v, 1024, 600) && v.fmtInk?.fs >= 12, fmt(v));
+  if (!ONLY_SHOTS) check('1024×600: 40-30, tabellone in alto a sinistra (24, 36; carattere 18 px), etichetta ≥ 12 px dentro il riquadro', row(v, 'me').points === '40' && row(v, 'them').points === '30' && corner(v, 1024, 600) && tagIn(v), fmt(v));
   await shot(p, '1024-1v1-cpu-40-30');
 
   // 2v2 contro la CPU: squadre
@@ -147,7 +169,7 @@ try {
   if (!ONLY_SHOTS) check('stesso schermo: subito dopo l\'avvio la copia del P2 è già piena e uguale al tabellone, e l\'etichetta «Al servizio» è sparita subito', !!v.p2 && v.same && row(v, 'me').name === 'MAR' && !v.tagOn, fmt({ p2: v.p2, same: v.same, rows: v.rows, tagOn: v.tagOn }));
   await setScore(p, { playerPoints: 1, opponentPoints: 0, playerGames: 1, opponentGames: 2, server: 'opponent' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('stesso schermo: righe con le sigle dei nomi (MAR, GIU; interi Marco e Giulia), 15-0, serve Giulia, «Al meglio di 5 game»', row(v, 'me').name === 'MAR' && row(v, 'them').name === 'GIU' && row(v, 'me').full === 'Marco' && row(v, 'them').full === 'Giulia' && row(v, 'me').points === '15' && row(v, 'them').points === '0' && row(v, 'them').serve && v.format === 'Al meglio di 5 game', fmt(v));
+  if (!ONLY_SHOTS) check('stesso schermo: righe con le sigle dei nomi (MAR, GIU; interi Marco e Giulia), 15-0, serve Giulia, etichetta «AL MEGLIO DI 5»', row(v, 'me').name === 'MAR' && row(v, 'them').name === 'GIU' && row(v, 'me').full === 'Marco' && row(v, 'them').full === 'Giulia' && row(v, 'me').points === '15' && row(v, 'them').points === '0' && row(v, 'them').serve && v.format === 'Al meglio di 5 game' && v.tag?.text === 'Al meglio di 5' && tagIn(v), fmt(v));
   // B17.3: un tabellone in alto a sinistra di ogni metà, lo stesso testo, ognuno dentro la sua metà (la linea scura sta a 637–643)
   if (!ONLY_SHOTS) check('stesso schermo 1280×720: tabellone del P1 nella metà sinistra e copia uguale in alto a sinistra della metà del P2', corner(v, 1280, 720, splitFs(1280, 720)) && v.box.x + v.box.w <= 637 && !!v.p2 && v.same && Math.abs(v.p2.x - (643 + v.box.x)) <= 1 && Math.abs(v.p2.y - v.box.y) <= 1 && v.p2.x + v.p2.w <= 1280 && p2Clear(v), fmt({ box: v.box, p2: v.p2, same: v.same, pause: v.pause }));
   await shot(p, '1280-stesso-schermo');
@@ -162,7 +184,7 @@ try {
   await shot(p, '1920-stesso-schermo');
   await setScore(p, { playerPoints: 5, opponentPoints: 4, playerGames: 1, opponentGames: 2, server: 'opponent' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('stesso schermo, vantaggio: «AD» a Marco, «Vantaggio Marco» nel sottotitolo', row(v, 'me').points === 'AD' && v.label === 'Vantaggio Marco' && footApart(v), fmt(v));
+  if (!ONLY_SHOTS) check('stesso schermo, vantaggio: «AD» a Marco («Vantaggio Marco» per lo screen reader), etichetta dentro il riquadro', row(v, 'me').points === 'AD' && v.label === 'Vantaggio Marco' && tagIn(v), fmt(v));
   // revisione del 08/11 (difetto preesistente): nello stesso schermo niente etichetta «Al servizio», anche dopo un nuovo
   // punteggio con un altro battitore e un disegno (_updateProjectedHUD come in partita)
   await p.evaluate(() => { try { __natpfTennis._updateProjectedHUD?.(); __natpfTennis.__render?.(); } catch {} });
@@ -175,7 +197,7 @@ try {
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(250);
     await setScore(p, { playerPoints: 4, opponentPoints: 5, playerGames: 2, opponentGames: 2, server: 'player' }, 3);
     v = await read(p);
-    if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi di 24 caratteri al vantaggio: sigle «BAR» e «MAR», sottotitolo dentro il tabellone, scritte separate`, row(v, 'me').name === 'BAR' && row(v, 'them').name === 'MAR' && v.label === 'Vantaggio Maria Francesca Giovanna' && footApart(v) && v.box.x >= 0 && v.box.x + v.box.w <= w / 2, fmt(v));
+    if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi di 24 caratteri al vantaggio: sigle «BAR» e «MAR», etichetta dentro il riquadro, tabellone nella sua metà`, row(v, 'me').name === 'BAR' && row(v, 'them').name === 'MAR' && v.label === 'Vantaggio Maria Francesca Giovanna' && tagIn(v) && v.box.x >= 0 && v.box.x + v.box.w <= w / 2, fmt(v));
     if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi lunghi: copia del P2 nella sua metà e almeno 40 px prima del pulsante di pausa`, !!v.p2 && v.same && v.p2.x >= w / 2 && p2Clear(v), fmt({ box: v.box, p2: v.p2, pause: v.pause }));
     await shot(p, `${w}-stesso-schermo-nomi-lunghi`);
   }
@@ -203,8 +225,7 @@ try {
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(250);
     await setScore(p, { playerPoints: 3, opponentPoints: 4, playerGames: 1, opponentGames: 2, server: 'player' }, 3);
     v = await read(p);
-    if (!ONLY_SHOTS) check(`sfida un amico (host) ${w}×${h}, vantaggio: «Al meglio di 5 game» e «Vantaggio di Player 2» separati`, v.format === 'Al meglio di 5 game' && v.label === 'Vantaggio di Player 2' && footApart(v), fmt(v));
-      if (!ONLY_SHOTS) check(`sfida un amico ${w}×${h}: scritte del sottotitolo di almeno 12 px`, v.fmtInk?.fs >= 12 && v.labInk?.fs >= 12, fmt(v));
+    if (!ONLY_SHOTS) check(`sfida un amico (host) ${w}×${h}, vantaggio: etichetta «AL MEGLIO DI 5» dentro il riquadro (≥ 12 px), «Vantaggio di Player 2» per lo screen reader`, v.format === 'Al meglio di 5 game' && v.label === 'Vantaggio di Player 2' && v.tag?.text === 'Al meglio di 5' && tagIn(v), fmt(v));
     await shot(p, `${w}-amico-host-vantaggio`);
   }
   await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(250);
@@ -215,7 +236,7 @@ try {
   await shot(p, '1280-amico-p2');
   await setScore(p, { playerPoints: 5, opponentPoints: 4, playerGames: 2, opponentGames: 1, server: 'opponent' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('sfida un amico (Player 2), vantaggio dell\'host: «Vantaggio di Player 1» separato dal formato', v.label === 'Vantaggio di Player 1' && footApart(v), fmt(v));
+  if (!ONLY_SHOTS) check('sfida un amico (Player 2), vantaggio dell\'host: «Vantaggio di Player 1» per lo screen reader, etichetta dentro il riquadro', v.label === 'Vantaggio di Player 1' && tagIn(v), fmt(v));
   await shot(p, '1280-amico-p2-vantaggio');
   await p.evaluate(() => { const E = __natpfTennis; E.playerRole = E.__role; E.isMultiplayer = false; E._syncScoreboardHUD(); });
 
@@ -231,7 +252,7 @@ try {
   await p.evaluate(() => { const E = __natpfTennis; E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; E.startSplit(); });
   await setScore(p, { playerPoints: 2, opponentPoints: 3, playerGames: 1, opponentGames: 1, server: 'opponent' }, 2);
   v = await read(p);
-  if (!ONLY_SHOTS) check('ledwall 720×720, stesso schermo: tabellone del P1 nella metà sinistra e copia nella metà del P2 (carattere 21,6 px), dentro il riquadro e lontana dalla pausa, niente «Al servizio»', corner(v, 720, 720, splitFs(720, 720)) && v.box.x + v.box.w <= 358 && !!v.p2 && v.same && v.p2.x >= 362 && v.p2.x + v.p2.w <= 720 && p2Clear(v) && v.fmtInk?.fs >= 12 && !v.tagOn, fmt({ box: v.box, p2: v.p2, pause: v.pause, fs: v.fs, foot: v.fmtInk?.fs, tagOn: v.tagOn }));
+  if (!ONLY_SHOTS) check('ledwall 720×720, stesso schermo: tabellone del P1 nella metà sinistra e copia nella metà del P2 (carattere 21,6 px), dentro il riquadro e lontana dalla pausa, niente «Al servizio»', corner(v, 720, 720, splitFs(720, 720)) && v.box.x + v.box.w <= 358 && !!v.p2 && v.same && v.p2.x >= 362 && v.p2.x + v.p2.w <= 720 && p2Clear(v) && tagIn(v) && !v.tagOn, fmt({ box: v.box, p2: v.p2, pause: v.pause, fs: v.fs, tag: v.tag, tagOn: v.tagOn }));
   await p.screenshot({ path: `${SP}/tabellone-ledwall-720-stesso-schermo.png`, clip: { x: 0, y: 0, width: 720, height: 720 } });
   // sigle di 6 lettere nel ledwall diviso (il caso più largo: la copia del P2 arriva proprio al limite dei 40 px prima della
   // pausa, 610; la larghezza massima della metà è 49,8 cqw − --sb-left − 110 px = 232 px): sigle intere, non accorciate

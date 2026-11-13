@@ -71,12 +71,20 @@ test('stesso schermo, vince il Player 2: banner, voce e schermata finale con il 
   const w = await audioWorld({ controller: 'mouse' }), { E } = w;
   E.natpfSplitNames = { p1: 'Marco', p2: 'Luca' };
   assert.equal(E.startSplit(), true);
-  E.matchConfig.gamesToWin = 1; E.autoPlayMode = false; E.startNewMatch({ showStartBanner: false });
+  // (in campo come nel gioco: menu chiuso, il motore avanza)
+  E.hud.hideTitleModal(); E.matchConfig.gamesToWin = 1; E.autoPlayMode = false; E.startNewMatch({ showStartBanner: false });
   for (let i = 0; i < 4; i++) E._awardPoint('opponent', 'Out');
   assert.equal(E.phase, 'MATCH_OVER');
   assert.equal(E.lastBannerBroadcast.text, 'Vince Luca!');
   assert.equal(w.voices.at(-1), 'Game Set and Match', 'prima diceva solo «Game» quando vinceva il Player 2');
-  w.advance(2000);
+  // B43: la scritta della partita compare mezzo secondo dopo l'atterraggio, la schermata finale 1,8 s dopo la scritta
+  const said = []; const sc = E.hud.showCenterBanner.bind(E.hud); E.hud.showCenterBanner = (t, o) => { said.push(t); return sc(t, o); };
+  w.advance(400);
+  assert.deepEqual(said, [], 'a 0,4 s dall\'atterraggio ancora niente scritta');
+  w.advance(1800);
+  assert.deepEqual(said, ['Vince Luca!']);
+  assert.equal(w.shown.length, 0, 'la schermata finale non arriva prima di 1,8 s dalla scritta');
+  w.advance(200);
   assert.equal(w.shown.length, 1);
   assert.equal(w.shown[0].view.title, 'Vince Luca!');
   assert.deepEqual(w.shown[0].view.rows.map(r => `${r.name} ${r.games}`), ['Marco 0', 'Luca 1']);
@@ -89,6 +97,8 @@ test('contro la CPU, vince la CPU: «Vince la CPU», con il nome di chi gioca ne
   for (let i = 0; i < 4; i++) E._awardPoint('opponent', 'Out');
   assert.equal(w.voices.at(-1), 'Game Set and Match');
   w.advance(2000);
+  assert.equal(w.shown.length, 0, 'B43: 0,5 s per la scritta, poi 1,8 s');
+  w.advance(400);
   assert.equal(w.shown[0].view.title, 'Vince la CPU');
   assert.equal(w.shown[0].view.rows[0].name, 'Ada');
   assert.equal(w.shown[0].view.won, false);

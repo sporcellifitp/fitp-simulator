@@ -14,12 +14,17 @@
 // nella riga dei pulsanti in basso.
 // B30: «Registro di gioco» (natpf_registro.js): Sì · No (di base sempre Sì), stato in parole semplici, «Invia adesso» e
 // «Scarica la coda», in una riga sotto la nota.
+// B43 (controllo «solo mouse», voci A1, A2, A5): il pannello aperto in campo ferma la partita (anche scambi di prova,
+// allenamento e minigiochi: natpf_ui._syncPause) e alla chiusura la fa ripartire; sta sopra la pausa e sopra tutto il
+// resto tranne la calibrazione dello schermo (natpf-ui.css); in campo «Nuovo giocatore», «Classifica a schermo intero» e
+// «Telefono: Scollega» chiedono un secondo clic (natpf_confirm.js).
 import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLevel } from './natpf_aim_level.js';
 import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './natpf_fair_format.js';
 import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
 import { readAutoToss, writeAutoToss, autoTossButton, autoTossToast, readOpenCourt, writeOpenCourt, openCourtButton, openCourtToast } from './natpf_duo_rules.js';
 // B28: «Calibrazione: Giocando · Con i gesti · Nessuna» (natpf_trial_learn.js), di base «Giocando»
 import { readSavedCalMode, writeCalMode, nextCalMode, calModeButton, calModeToast, calModeFromUrl } from './natpf_trial_learn.js';
+import { TwoStep } from './natpf_confirm.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -58,7 +63,11 @@ export class NatpfKiosk {
     ui.phone?.onSwing?.(poke);
     this.el = $('natpf-staff');
     this.el?.addEventListener('pointerdown', e => e.stopPropagation());
-    this.el?.addEventListener('click', e => { const b = e.target.closest('[data-staff]'); if (b){ e.stopPropagation(); this.run(b.dataset.staff); } });
+    // B43: conferma in due passi (solo i clic: run() dal codice resta immediato) per le voci che in campo chiudono la
+    // partita o tolgono il telefono a chi gioca
+    // (onChange: disarmato, il pulsante riprende la scritta di adesso, non quella di quando era armato)
+    this.confirm = new TwoStep({ onChange: on => { if (!on) this.paint(); } });
+    this.el?.addEventListener('click', e => { const b = e.target.closest('[data-staff]'); if (b){ e.stopPropagation(); this.press(b); } });
     window.addEventListener('keydown', e => { if (e.ctrlKey && e.shiftKey && e.code === 'KeyK'){ e.preventDefault(); e.stopImmediatePropagation(); this.toggle(); } }, true);
     // B37: nel programma Windows anche F9 e la voce del menu «Pannello dello stand (F9)» (processo principale, ponte del
     // preload: window.natpfDesktop.staffPanel). Sul PC dello stand Ctrl+Maiusc+K non arrivava al gioco
@@ -74,8 +83,23 @@ export class NatpfKiosk {
   }
   _save(){ try { localStorage.setItem(KIOSK_KEY, JSON.stringify({ enabled: this.enabled, limit: this.limit })); } catch {} }
   get isOpen(){ return !!this.el && !this.el.classList.contains('hidden'); }
-  open(){ show(this.el); this.paint(); }
-  close(){ show(this.el, false); }
+  // B43: aperto o chiuso, la partita si ferma o riparte (natpf_ui._syncPause conta il pannello)
+  open(){ show(this.el); this.paint(); this.ui._syncPause?.(); }
+  close(){ this.confirm?.disarm(); show(this.el, false); this.ui._syncPause?.(); }
+  // in campo (partita, scambi di prova, allenamento, minigioco), non a partita finita
+  get gameRunning(){ return !!this.ui.pause?.inGame && this.engine.phase !== 'MATCH_OVER'; }
+  // voci che in campo vogliono il secondo clic: chiudono la partita («Nuovo giocatore», «Classifica a schermo intero»)
+  // o tolgono il telefono a chi gioca («Telefono: Scollega», solo con un telefono collegato)
+  needsConfirm(cmd){ return this.gameRunning && (cmd === 'newplayer' || cmd === 'ranking' || (cmd === 'phone' && !!this.ui.phone?.connected)); }
+  // clic su una voce (mouse, tastiera o OK del telecomando sul pulsante a fuoco): dove serve, prima la conferma. true se
+  // la voce è partita
+  press(b, cmd = b?.dataset?.staff){
+    if (!cmd) return false;
+    if (this.needsConfirm(cmd)){ if (!this.confirm.click(b, cmd)) return false; }
+    else this.confirm.disarm();
+    this.run(cmd);
+    return true;
+  }
   toggle(){ this.isOpen ? this.close() : this.open(); }
   check(){
     if (this.isOpen) return;
@@ -183,7 +207,8 @@ export class NatpfKiosk {
   }
   paint(){
     if (!this.el) return;
-    const set = (k, v, on) => { const b = this.el.querySelector(`[data-staff="${k}"] b`); if (b){ b.textContent = v; b.parentElement.classList.toggle('on', !!on); } };
+    // (B43: un pulsante armato per la conferma tiene la sua scritta «Sicuro? Clicca ancora»)
+    const set = (k, v, on) => { const b = this.el.querySelector(`[data-staff="${k}"] b`); if (b){ if (!this.confirm?.isArmed(k)) b.textContent = v; b.parentElement.classList.toggle('on', !!on); } };
     set('kiosk', this.enabled ? 'Sì' : 'No', this.enabled);
     set('idle', `${this.limit} s`);
     const audio = this.engine.audioEngine; set('music', audio && audio.muted ? 'No' : 'Sì', !(audio && audio.muted));

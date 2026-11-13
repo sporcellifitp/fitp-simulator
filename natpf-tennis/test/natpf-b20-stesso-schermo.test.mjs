@@ -208,40 +208,43 @@ test('A4: nel motore il gesto a vuoto di chi perde il punto arriva al banner, e 
   e.hud = new Proxy({}, { get: (t, k) => (k === 'showCenterBanner' ? (text, o) => banners.push({ text, ...o }) : () => {}) });
   e.startSplit(); e.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; e.natpfFair = false; e.natpfServeFirst = 'player';
   e.startNewMatch({ showStartBanner: false });
+  // B43: la scritta del punto compare mezzo secondo dopo l'atterraggio (prima: subito); qui si fa passare 0,55 s di gioco
+  const shown = () => { const n = banners.length; for (let t = 0; t < .55; t += 1/60) e.step(1/60); assert.equal(banners.length, n + 1, 'una scritta, dopo mezzo secondo'); return banners.at(-1); };
   // scambio: il P1 fa il gesto troppo presto (a vuoto) sulla palla n. 4, che poi passa
   e.phase = 'RALLY'; e.ball.rallyStrokeCount = 4; e.ball.lastHitter = 'opponent';
   e._natpfEarlyWhiff({ actor: e.player, evt: {} });
   assert.deepEqual(e.natpfLastWhiff, { side: 'player', stroke: 4 });
   e._awardPoint('opponent', 'Nice Shot!');
-  assert.match(banners.at(-1).subText, /^Colpo a vuoto di Marco/);
+  assert.match(e.lastBannerBroadcast.subText, /^Colpo a vuoto di Marco/, 'il messaggio (per il P2 e la voce) parte subito');
+  assert.match(shown().subText, /^Colpo a vuoto di Marco/);
   assert.equal(e.natpfLastWhiff, null);
   // punto dopo, stessa palla n. 4, nessun gesto: «Vincente di Giulia»
   e.phase = 'RALLY'; e.ball.rallyStrokeCount = 4; e.ball.lastHitter = 'opponent';
   e._awardPoint('opponent', 'Nice Shot!');
-  assert.match(banners.at(-1).subText, /^Vincente di Giulia/);
+  assert.match(shown().subText, /^Vincente di Giulia/);
   // gesto a vuoto su una palla, poi colpita la palla dopo: non vale più
   e.phase = 'RALLY'; e.ball.rallyStrokeCount = 2; e.ball.lastHitter = 'player';
   e._natpfEarlyWhiff({ actor: e.opponent, evt: {} });
   e.ball.rallyStrokeCount = 5; e.ball.lastHitter = 'player';
   e._awardPoint('player', 'Nice Shot!');
-  assert.match(banners.at(-1).subText, /^Vincente di Marco/);
+  assert.match(shown().subText, /^Vincente di Marco/);
   // il gesto a vuoto di chi VINCE il punto non conta
   e.phase = 'RALLY'; e.ball.rallyStrokeCount = 3; e.ball.lastHitter = 'opponent';
   e._natpfEarlyWhiff({ actor: e.opponent, evt: {} });
   e._awardPoint('opponent', 'Nice Shot!');
-  assert.match(banners.at(-1).subText, /^Vincente di Giulia/);
+  assert.match(shown().subText, /^Vincente di Giulia/);
   // (revisione) gesto su una palla fuori portata: è un vincente dell'altro, non un colpo a vuoto
   e.score.playerPoints = 0; e.score.opponentPoints = 0;   // (game da capo: i punti di prima non devono chiuderlo)
   e.phase = 'RALLY'; e.ball.rallyStrokeCount = 6; e.ball.lastHitter = 'opponent';
   e._natpfEarlyWhiff({ actor: e.player, evt: {}, natpfWhy: 'portata' });
   assert.equal(e.natpfLastWhiff, null);
   e._awardPoint('opponent', 'Nice Shot!');
-  assert.match(banners.at(-1).subText, /^Vincente di Giulia/);
+  assert.match(shown().subText, /^Vincente di Giulia/);
   // … troppo tardi invece sì
   e.phase = 'RALLY'; e.ball.rallyStrokeCount = 6; e.ball.lastHitter = 'opponent';
   e._natpfEarlyWhiff({ actor: e.player, evt: {}, natpfWhy: 'tardi' });
   e._awardPoint('opponent', 'Nice Shot!');
-  assert.match(banners.at(-1).subText, /^Colpo a vuoto di Marco/);
+  assert.match(shown().subText, /^Colpo a vuoto di Marco/);
   // (revisione) il colpo a vuoto vale solo per il suo punto: il servizio dopo lo azzera (per esempio un punto rigiocato)
   e.phase = 'RALLY'; e.ball.rallyStrokeCount = 2; e.ball.lastHitter = 'opponent';
   e._natpfEarlyWhiff({ actor: e.player, evt: {} });

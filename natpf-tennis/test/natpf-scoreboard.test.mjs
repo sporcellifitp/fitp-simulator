@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { formatText, gamePoints, rowNames, shortName, shortNames, scoreboardView, scoreboardHtml } from '../src/natpf/natpf_scoreboard.js';
+import { formatText, gamePoints, rowNames, shortName, shortNames, scoreboardView, scoreboardHtml, scoreTag } from '../src/natpf/natpf_scoreboard.js';
 import { pointCall } from '../src/natpf/natpf_point_call.js';
 import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
 
@@ -137,21 +137,41 @@ test('sigle uguali: 3 lettere, poi fino a 6, poi 5 più l\'ultima, poi le inizia
   assert.deepEqual(shortNames('Tu + CPU', '2 CPU'), { me: 'TU+CPU', them: '2CPU' });
 });
 
-test('HTML del tabellone: riquadro con linguetta, pallina, sigla (nome intero in data-sb-name e title), game, casella dei punti; niente intestazioni; sottotitolo', () => {
+test('HTML del tabellone: riquadro con linguetta, pallina, sigla (nome intero in data-sb-name e title), game, casella dei punti; niente intestazioni; etichetta del formato dentro il riquadro (B43)', () => {
   const html = scoreboardHtml(scoreboardView(sc(2, 0, 0, 0, 'opponent'), { split: true, splitNames: { p1: '<b>x</b>', p2: 'Giulia' } }));
   assert.doesNotMatch(html, /sb-head|<span>Game<\/span>|<span>Punti<\/span>/);
   assert.match(html, /<div class="sb-box"><div class="sb-row sb-me" data-sb-row="me" title="&lt;b&gt;x&lt;\/b&gt;"><i class="sb-tab"[^>]*><\/i><i class="sb-serve"[^>]*><\/i><b class="sb-name" data-sb-name="&lt;b&gt;x&lt;\/b&gt;"[^>]*>&lt;B&gt;<\/b>/);
   assert.match(html, /class="sb-row sb-them serving" data-sb-row="them" title="Giulia"/);
   assert.match(html, /data-sb-name="Giulia"[^>]*>GIU<\/b><span class="sb-sr">Giulia \(al servizio\)<\/span>/);
   assert.match(html, /data-sb-games>0<\/span><strong class="sb-points" data-sb-points>0<\/strong>/);
-  assert.match(html, /<\/div><div class="sb-foot"><span data-sb-format>Partita a 1 game<\/span><span class="sb-label" data-sb-label><\/span><\/div>$/);
-  assert.doesNotMatch(html, /secco/);
-  // al vantaggio la casella dice «AD» (larghezza fissa), la scritta sotto resta quella degli annunci
+  // B43: una sola etichetta, DENTRO il riquadro (dopo le righe), con il formato corto; niente sottotitolo sotto il riquadro;
+  // formato intero e scritta del momento solo per lo screen reader
+  assert.match(html, /<\/div><span class="sb-tag" data-sb-tag="format" aria-hidden="true">1 game<\/span><\/div><span class="sb-sr"><span data-sb-format>Partita a 1 game<\/span> <span data-sb-label><\/span><\/span>$/);
+  assert.doesNotMatch(html, /sb-foot|sb-rule|secco/);
+  // al vantaggio la casella dice «AD» (larghezza fissa); «Vantaggio tuo» solo per lo screen reader (lo dicono la casella e
+  // la scritta grande del punto), l'etichetta resta il formato
   const adv = scoreboardHtml(scoreboardView(sc(4, 3), { gamesToWin: 2 }));
   assert.match(adv, /data-sb-row="me"[^>]*>.*data-sb-points>AD<\/strong>/);
   assert.match(adv, /data-sb-row="them"[^>]*>.*data-sb-points>40<\/strong>/);
-  assert.match(adv, /data-sb-label>Vantaggio tuo</);
+  assert.match(adv, /data-sb-tag="format"[^>]*>Al meglio di 3<\/span>/);
+  assert.match(adv, /<span class="sb-sr">.*data-sb-label>Vantaggio tuo</);
   assert.doesNotMatch(adv, /Vant\./);
+});
+
+test('B43 · etichetta del tabellone: il formato corto («1 game», «Al meglio di 3/5»); al punto decisivo del formato in fiera «Punto decisivo»; parità e vantaggio non la cambiano', () => {
+  assert.deepEqual(scoreTag(1), { text: '1 game', kind: 'format' });
+  assert.deepEqual(scoreTag(2), { text: 'Al meglio di 3', kind: 'format' });
+  assert.deepEqual(scoreTag(3), { text: 'Al meglio di 5', kind: 'format' });
+  assert.deepEqual(scoreTag(undefined), { text: '1 game', kind: 'format' });
+  assert.deepEqual(scoreTag(2, { decisive: true }), { text: 'Punto decisivo', kind: 'decisive' });
+  const fair = (p, o, extra = {}) => ({ ...sc(p, o), fair: true, ...extra });
+  assert.deepEqual(scoreboardView(fair(3, 3)).tag, { text: 'Punto decisivo', kind: 'decisive' }, 'formato in fiera, 40-40');
+  assert.deepEqual(scoreboardView(fair(3, 2), { gamesToWin: 2 }).tag, { text: 'Al meglio di 3', kind: 'format' }, 'formato in fiera, 40-30: il formato');
+  assert.deepEqual(scoreboardView(sc(3, 3), { gamesToWin: 2 }).tag, { text: 'Al meglio di 3', kind: 'format' }, 'classico, parità: il formato (40 · 40 nelle caselle)');
+  assert.deepEqual(scoreboardView(sc(5, 4)).tag, { text: '1 game', kind: 'format' }, 'classico, vantaggio: il formato (AD nella casella)');
+  assert.match(scoreboardHtml(scoreboardView(fair(3, 3), { split: true, splitNames: { p1: 'Marco', p2: 'Giulia' } })), /<span class="sb-tag" data-sb-tag="decisive" aria-hidden="true">Punto decisivo<\/span><\/div>/);
+  // la riga «Formato veloce» del B35 non c'è più sul tabellone, nemmeno con il servizio che passa ogni due punti
+  for (const opt of [{}, { split: true }, { altServe: true }]) assert.doesNotMatch(scoreboardHtml(scoreboardView(fair(1, 0), opt)), /Formato veloce|sb-rule|sb-foot/);
 });
 
 test('motore: _syncScoreboardHUD passa punteggio e formato al tabellone (natpf_ui.onScore)', () => {
@@ -190,25 +210,26 @@ test('pagina e stili: tabellone nuovo al posto della riga «Game … game secco�
   assert.doesNotMatch(block, /sb-head/);
 });
 
-test('piede del tabellone fuori dalla sottogriglia: il formato e «Vantaggio di …» non si sovrappongono, testo leggibile', () => {
-  // revisione del 07/11: con il piede nella sottogriglia «Vantaggio di Player 2» stava nelle colonne di game e punti
-  // (2em + 3.4em) e usciva a sinistra sul formato («Al meglio di 5 game»): «gameVANTAGGIO». Ora in fila (flex) con
-  // uno spazio, e la larghezza del piede conta in quella del tabellone
+test('B43 · etichetta dentro il riquadro: pillola tonda sotto le sigle, almeno 12 px, azzurra (formato) o rosa (punto decisivo); niente piede né riga «Formato veloce»', () => {
+  // prima (B17.3, revisione del 07/11) il sottotitolo stava sotto il riquadro, in fila (flex) con la scritta del momento,
+  // e il B35 aggiungeva la riga «Formato veloce: il servizio cambia ogni 2 punti»; dal B43 una sola etichetta piccola
   const css = readFileSync(new URL('../natpf-round.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const rule = sel => [...css.matchAll(/(?:^|\n)([^{}]*?)\{([^}]*)\}/g)].filter(m => m[1].split(',').some(s => s.trim() === sel)).map(m => m[2]).join(';');
-  const foot = rule('.natpf-scoreboard .sb-foot');
-  assert.match(foot, /display:\s*flex/);
-  assert.doesNotMatch(foot, /subgrid/);
-  assert.match(foot, /gap:\s*0?\.\d+em/);
-  // la sottogriglia resta per intestazioni e righe, non per il piede
+  const tag = rule('.natpf-scoreboard .sb-tag');
+  assert.match(tag, /grid-column:\s*3 \/ -1/, 'nella griglia del riquadro, allineata alle sigle');
+  assert.match(tag, /border-radius:\s*999px/, 'pillola tonda');
+  assert.match(tag, /font-size:\s*max\(12px,\s*0?\.5\d*em\)/, 'almeno 12 px');
+  assert.match(tag, /color:\s*#4dd7ff/i, 'azzurro del gioco');
+  assert.match(tag, /text-transform:\s*uppercase/);
+  assert.doesNotMatch(tag, /\d(vw|vh)\b/);
+  assert.match(rule('.natpf-scoreboard .sb-tag[data-sb-tag="decisive"]'), /background:\s*#ff4d94/i, 'punto decisivo: rosa del gioco');
+  for (const gone of ['.natpf-scoreboard .sb-foot', '.natpf-scoreboard .sb-rule', '.natpf-scoreboard .sb-label']) assert.equal(rule(gone), '', `${gone}: niente più`);
+  // la scritta del segnale del momento giusto (B37) nelle aree strette sta sotto il tabellone (prima ne copriva il bordo
+  // destro: 13 px a 720 × 720)
+  const hud = readFileSync(new URL('../natpf-hud.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(hud, /@container natpf \(max-width: 800px\) \{\s*\.natpf-cue-hint \{\s*top: calc\(clamp\(12px, 6cqh, 64px\) \+ 5\.4 \* clamp\(17px, 3cqh, 40px\)\);/);
+  // le righe restano nella sottogriglia; il tabellone resta una colonna (riquadro e testo per lo screen reader)
   assert.match(rule('.natpf-scoreboard .sb-row'), /grid-template-columns:\s*subgrid/);
-  // niente colonne fisse per le due scritte del piede
-  assert.doesNotMatch(rule('.natpf-scoreboard .sb-foot [data-sb-format]') + rule('.natpf-scoreboard .sb-label'), /grid-column/);
-  // almeno 12 px (rifinitura del 08/11; B17.3 11, prima 10, e prima ancora 0.56em: 7,3 px a 844×390 e 9,3 px nel ledwall 720×720)
-  assert.match(foot, /font-size:\s*max\(12px,\s*0?\.6\d*em\)/);
-  // B17.3: il sottotitolo sta sotto il riquadro (.sb-box), non dentro
   assert.match(rule('.natpf-scoreboard'), /flex-direction:\s*column/);
   assert.match(rule('.natpf-scoreboard .sb-box'), /display:\s*grid/);
-  // la scritta del momento, se proprio non ci sta, si accorcia invece di uscire
-  assert.match(rule('.natpf-scoreboard .sb-label'), /text-overflow:\s*ellipsis/);
 });
