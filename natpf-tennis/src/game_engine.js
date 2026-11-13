@@ -1280,6 +1280,7 @@ export class NatpfTennisEngine {
     persistentBanner: a = !1,
     bannerSub: bs = "",
   } = {}) {
+    this.natpfBannerDue = null; // NATPF B43: punto nuovo, la scritta del punto di prima non compare più
     (this.phase = "SERVE_STANCE"),
       (this.phaseTimer = 0),
       (this.cameraMode = "SERVE_CAM"),
@@ -1362,6 +1363,7 @@ export class NatpfTennisEngine {
       });
   }
   _setupMidRallyShowcase({ scorePlayer: e = 1, scoreOpponent: t = 0 } = {}) {
+    this.natpfBannerDue = null; // NATPF B43: al menu niente scritta del punto in attesa
     (this.phase = "RALLY"),
       (this.phaseTimer = 0),
       (this.cameraMode = "RALLY_CAM"),
@@ -2991,6 +2993,8 @@ export class NatpfTennisEngine {
     if (this.natpfReplay && this.natpfReplay.step(e)) return (this.phaseTimer += e), void 0; // NATPF moviola dell'ultimo punto
     if (
       ((this.phaseTimer += e),
+      // NATPF B43: la scritta grande del punto 0,5 s dopo l'atterraggio (_natpfPointBanner)
+      this.natpfBannerDue && this._natpfBannerTick(),
       this.player.swingCooldown > 0 &&
         (this.player.swingCooldown = Math.max(0, this.player.swingCooldown - e)),
       this.playerPartner.swingCooldown > 0 &&
@@ -3509,30 +3513,31 @@ export class NatpfTennisEngine {
         const gc = NPC.gameCall({ winner: p ? "player" : "opponent", ...NPC.callContext(this), games: { player: this.score.playerGames, opponent: this.score.opponentGames }, match: !0 });
         // voce di fine partita per chiunque vinca (B18: prima «Game, set and match» solo se vinceva il Player 1, altrimenti
         // «Game»; anche per il Player 2 della sfida tra due computer, che la riceve con il messaggio)
+        // NATPF B43: la scritta della partita 0,5 s dopo l'atterraggio, la schermata finale 1,8 s dopo la scritta (mai prima)
         this._recordBannerBroadcast(gc.text, gc.style, gc.subText, { kind: "match", winner: p ? "player" : "opponent", games: { player: this.score.playerGames, opponent: this.score.opponentGames }, voice: NPC.MATCH_VOICE }),
-          this.hud.showCenterBanner(gc.text, { style: gc.style, subText: gc.subText, durationMs: 2600 }),
+          this._natpfPointBanner(gc.text, { style: gc.style, subText: gc.subText, durationMs: 2600 }, () =>
+            setTimeout(() => {
+              // NATPF: solo se la partita è ancora finita lì (prima, tornando al menu entro 1,8 s, la schermata finale
+              // compariva sopra il menu)
+              this.phase === "MATCH_OVER" &&
+                !this.autoPlayMode &&
+                this.hud.showVictoryModal({
+                  playerWon: this.playerRole === "p2" ? !p : p,
+                  playerGames: this.score.playerGames,
+                  opponentGames: this.score.opponentGames,
+                  view: this._natpfMatchEndView(p ? "player" : "opponent"),
+                });
+            }, 1800)),
           this.audioEngine &&
             (this.audioEngine.playMusicForState("victory"),
-            this.audioEngine.announceScore(NPC.MATCH_VOICE)),
-          setTimeout(() => {
-            // NATPF: solo se la partita è ancora finita lì (prima, tornando al menu entro 1,8 s, la schermata finale
-            // compariva sopra il menu)
-            this.phase === "MATCH_OVER" &&
-              !this.autoPlayMode &&
-              this.hud.showVictoryModal({
-                playerWon: this.playerRole === "p2" ? !p : p,
-                playerGames: this.score.playerGames,
-                opponentGames: this.score.opponentGames,
-                view: this._natpfMatchEndView(p ? "player" : "opponent"),
-              });
-          }, 1800);
+            this.audioEngine.announceScore(NPC.MATCH_VOICE));
         return;
       }
       // NATPF: di chi è il game, dal lato di chi guarda (natpf_point_call.js)
       const gg = { player: this.score.playerGames, opponent: this.score.opponentGames },
         gl = NPC.gameCall({ winner: gw, ...NPC.callContext(this), games: gg });
       this._recordBannerBroadcast(gl.text, gl.style, gl.subText, { kind: "game", winner: gw, games: gg, voice: "Game" }),
-        this.hud.showCenterBanner(gl.text, { style: gl.style, subText: gl.subText, durationMs: 1800 }),
+        this._natpfPointBanner(gl.text, { style: gl.style, subText: gl.subText, durationMs: 1800 }), // NATPF B43: 0,5 s dopo
         this.audioEngine && this.audioEngine.announceScore("Game");
       return;
     }
@@ -3546,8 +3551,9 @@ export class NatpfTennisEngine {
       // B20: nello stesso schermo «Colpo a vuoto di Marco» se chi ha perso il punto ha fatto il gesto su questa palla
       // (prima «Vincente di Giulia» anche così); la voce e il motivo del motore restano quelli di prima
       pc = NPC.pointCall({ winner: e, why: t, ...NPC.callContext(this), score: sc, whiff: !!wf && wf.side !== e && wf.stroke === this.ball.rallyStrokeCount });
+    // NATPF B43: la scritta grande 0,5 s dopo l'atterraggio (_natpfPointBanner); messaggio per il P2, voce e telefono subito
     this._recordBannerBroadcast(pc.text, pc.style, pc.subText, { kind: "point", winner: e, why: t, score: sc, voice: n }),
-      this.hud.showCenterBanner(pc.text, { style: pc.style, subText: pc.subText, durationMs: 1800 }),
+      this._natpfPointBanner(pc.text, { style: pc.style, subText: pc.subText, durationMs: 1800 }),
       this.audioEngine &&
         (t === "Out" || t === "Net" || t === "Nice Shot!" || t === "Ace!"
           ? (this.audioEngine.playVoiceCallout(t, { clearQueue: !0 }),
@@ -3573,6 +3579,31 @@ export class NatpfTennisEngine {
   _recordBannerBroadcast(e, t = "style-score", i = "", call = null) {
     (this.bannerSeq += 1),
       (this.lastBannerBroadcast = { seq: this.bannerSeq, text: e, style: t, subText: i, ...(call ? { call } : {}) });
+  }
+  // NATPF B43 (decisione dell'utente del 13/11 sera): la scritta grande del punto, del game e della partita compare
+  // NPC.POINT_BANNER_DELAY (0,5 s) dopo che la palla ha toccato terra o rete, contati sul tempo del gioco (phaseTimer, che
+  // parte da 0 all'atterraggio: con la partita in pausa la scritta aspetta). Il verdetto del B37 (natpf_shot_feedback
+  // .settle: «Fuori», anello, telefono), il punteggio, la voce e il messaggio per il Player 2 restano all'atterraggio.
+  // Se intanto il punto è finito (servizio dopo, menu, moviola) la scritta non compare più. after: parte quando la scritta
+  // compare (la schermata finale della partita, 1,8 s dopo: mai prima della scritta)
+  _natpfPointBanner(text, opts = {}, after = null) {
+    this.natpfBannerDue = { text, opts, at: NPC.POINT_BANNER_DELAY, after };
+  }
+  _natpfBannerTick() {
+    const d = this.natpfBannerDue;
+    if (!d) return;
+    if (this.phase !== "POINT_OVER" && this.phase !== "MATCH_OVER") return void (this.natpfBannerDue = null);
+    if (this.phaseTimer < d.at - 1e-9) return;
+    this.natpfBannerDue = null;
+    this.hud.showCenterBanner(d.text, d.opts);
+    d.after && d.after();
+  }
+  // fn dopo ms dalla scritta del punto in attesa (subito con setTimeout se non ce n'è una)
+  _natpfAfterBanner(fn, ms = 0) {
+    const go = () => setTimeout(fn, ms), d = this.natpfBannerDue;
+    if (!d) return void go();
+    const prev = d.after;
+    d.after = () => (prev && prev(), go());
   }
   _broadcastMultiplayerSnapshot() {
     if (!this._versusInMatch()) {
@@ -3733,10 +3764,11 @@ export class NatpfTennisEngine {
         typeof n.phaseTimer == "number" && (this.phaseTimer = n.phaseTimer),
         (this.cameraMode = n.cameraMode || this.cameraMode)),
         // NATPF 1v1: fine partita decisa dall'host → schermata finale anche sul P2 (prima solo il banner)
+        // (B43: parte dopo la scritta della partita, qui sotto con il messaggio dell'host)
         n.phase === "MATCH_OVER" &&
           !wasOver &&
           n.score &&
-          setTimeout(() => this.phase === "MATCH_OVER" && this.hud.showVictoryModal({ playerWon: n.score.opponentGames > n.score.playerGames, playerGames: n.score.playerGames, opponentGames: n.score.opponentGames, view: this._natpfMatchEndView(n.score.playerGames > n.score.opponentGames ? "player" : "opponent", n.score) }), 1800),
+          (this.natpfVictoryDue = { ...n.score }),
         n.score && ((this.score = { ...this.score, ...n.score }), this._syncScoreboardHUD());
       // NATPF 1v1: palla dell'host. Prima sovrascriveva sempre la palla del P2: dopo un suo colpo locale gli snapshot
       // fatti dall'host prima di riceverlo la riportavano indietro oltre la racchetta. Ora quella palla si ignora (per al
@@ -3802,7 +3834,9 @@ export class NatpfTennisEngine {
           this.natpfUi?.shot?.settle?.(null, n.banner.call?.why || "", { remote: !0 }),
           // NATPF: messaggio ricomposto dal lato del Player 2 (chi vince il punto e perché, natpf_point_call.js)
           (n.natpfCall = NPC.callFromBroadcast(this, n.banner)),
-          this.hud.showCenterBanner(n.natpfCall.text, {
+          // NATPF B43: punto, game e partita 0,5 s dopo l'atterraggio anche qui (tempo della fase che arriva dall'host);
+          // inizio partita, «Palla break», «Punto decisivo»… subito, come prima. Voce e verdetto subito
+          (NPC.isPointBanner(n.banner) ? (t, o) => this._natpfPointBanner(t, o) : (t, o) => this.hud.showCenterBanner(t, o))(n.natpfCall.text, {
             style: n.natpfCall.style || "style-score",
             subText: n.natpfCall.subText || "",
             durationMs: 1700,
@@ -3816,6 +3850,11 @@ export class NatpfTennisEngine {
             this.audioEngine.announceScore(vt, { delayMs: 680 }))
           : this.audioEngine.announceScore(vt);
       }
+      // NATPF B43: schermata finale sul computer del P2 1,8 s dopo la scritta della partita (mai prima della scritta)
+      const vs = this.natpfVictoryDue;
+      vs &&
+        ((this.natpfVictoryDue = null),
+        this._natpfAfterBanner(() => this.phase === "MATCH_OVER" && this.hud.showVictoryModal({ playerWon: vs.opponentGames > vs.playerGames, playerGames: vs.playerGames, opponentGames: vs.opponentGames, view: this._natpfMatchEndView(vs.playerGames > vs.opponentGames ? "player" : "opponent", vs) }), 1800));
     }
   }
   _formatCurrentScore() {

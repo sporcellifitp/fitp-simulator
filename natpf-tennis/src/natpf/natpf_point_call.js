@@ -120,6 +120,18 @@ export function callContext(engine){
   return { viewer, rival: rivalOf({ multiplayer, viewer }), ...(engine?.natpfSplit?.active ? { sharedNames: { player: engine.natpfSplitNames?.p1 || 'Player 1', opponent: engine.natpfSplitNames?.p2 || 'Player 2' } } : {}) };
 }
 
+// B43 (decisione dell'utente del 13/11 sera, domanda a scelta): la scritta grande del punto, del game e della partita
+// («Punto della CPU», «Punto per …» con la riga del motivo) compare mezzo secondo DOPO che la palla ha toccato terra o
+// rete: prima si vedono la palla che cade, l'anello rosso del fuori e «Fuori» in basso, che restano all'atterraggio (il
+// verdetto rimandato del B37, natpf_shot_feedback.settle, con il punteggio, la voce e il telefono). Secondi del gioco
+// (phaseTimer, che parte da 0 all'atterraggio): con la partita in pausa la scritta aspetta. La pausa tra i punti resta di
+// 2,15 s (la scritta si vede da 0,5 s fino al servizio dopo); la schermata finale arriva 1,8 s dopo la scritta della
+// partita, mai prima (game_engine._natpfPointBanner)
+export const POINT_BANNER_DELAY = 0.5;
+// messaggio del motore (o dell'host, sul computer del Player 2) che è una scritta del punto: punto, game o partita
+// (call.kind di _recordBannerBroadcast); le altre (inizio, «Palla break», «Punto decisivo» al servizio) restano subito
+export const isPointBanner = b => !!b?.call && (b.call.kind === 'point' || b.call.kind === 'game' || b.call.kind === 'match');
+
 // Messaggio dell'host ricevuto dal Player 2 del 1v1: ricomposto dal suo lato con chi vince e perché (prima ripeteva il
 // testo dell'host). Senza dati (host di prima) resta quello dell'host
 export function callFromBroadcast(engine, b){
