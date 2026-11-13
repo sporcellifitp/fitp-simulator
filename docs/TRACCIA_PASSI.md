@@ -539,9 +539,12 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
       di non essere un bot»): visti solo titoli e miniature pubbliche (`scratchpad/b36/miniature/`); l'installazione di
       uno strumento per scaricare i video è stata negata. Per guardarli davvero servono i file o delle schermate
       dall'utente.
-      [~] In corso dalle 10:45 UTC: analisi in sola lettura (workflow `b36-direzionalita-analisi`: telefono, esito del
-      colpo, B35a, vincoli, riferimenti → tre piani tecnici) → sintesi in `docs/b36/piano-direzionalita.md` → due
-      revisori contrari → piano finale all'utente. **Nessuna modifica al codice finché l'utente non approva il piano.**
+      [x] Analisi in sola lettura finita (run `wf_a58a8c0b-a47`, 8 agenti: letture telefono/esito/B35a/vincoli/riferimenti
+      e tre piani «prima il gioco», «prima il segnale», «prima la sicurezza»), risultati in `scratchpad/b36/risultati/`
+      (01–05 letture, 06–08 piani). Video 1 guardato: `scratchpad/b36/video1/analisi-video1.md`.
+      [~] Dalle 12:35 UTC: piano unico + tre revisori contrari + versione finale (run `wf_c286e290-cbc`) →
+      `scratchpad/b36/piano/piano-direzionalita.md` → da copiare in `docs/b36/piano-direzionalita.md` e mostrare
+      all'utente. **Nessuna modifica al codice finché l'utente non approva il piano.**
 
 ## COME SI LAVORA (regole dell'utente)
 
