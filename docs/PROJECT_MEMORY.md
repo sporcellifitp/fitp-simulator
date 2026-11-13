@@ -829,7 +829,9 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - Classifica delle partite: prima le partite vinte, poi le perse (dentro ciascun gruppo per punteggio).
 - Velocità dei colpi: km/h veri della palla (× 3,6), stessa scala per servizio e scambio; il «colpo più veloce» di fine
   partita conta solo colpi finiti in campo.
-- Leggenda: chi gioca non sale a rete da solo dopo un attacco (la salita automatica del B31 vale agli altri livelli).
+- Leggenda e salita a rete: la proposta «a Leggenda chi gioca non sale a rete da solo dopo un attacco» (B34) è stata
+  **tenuta da parte** (revert `e5fa4bd`) e al collaudo del 13/11 l'utente ha detto «resta com'è»: oggi la salita
+  automatica del B31 vale a **tutti** i livelli, Leggenda compresa (`natpf_net_play.js` `approachOf`, nessuna eccezione).
 - Scritte «in corsa / in allungo»: solo con la corsa forte.
 
 ## Decisioni dell'utente del 13/11/2026 (pomeriggio): stand, modalità fiera, gioco

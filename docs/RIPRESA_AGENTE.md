@@ -171,7 +171,8 @@ Stanno anche in `docs/PROJECT_MEMORY.md` §«Decisioni dell'utente del 13/11/202
 - **Gioco**:
   - «Ricalibra» a partita in corsa resta com'è;
   - i tre riquadri della fine partita vanno bene;
-  - Leggenda senza salite a rete automatiche, com'è;
+  - Leggenda e salita a rete: «resta com'è», cioè con la salita automatica del B31 come agli altri livelli (la proposta
+    di toglierla, B34, è stata tenuta da parte e non si rimette);
   - classifica con prima le vittorie; km/h veri.
 - **Sicurezza**: mai chiavi, token o dati personali nel repository (è **pubblico**), né nei commit; mai chiedere
   segreti in chat. Il nome del gioco commerciale e i nomi di giocatori reali non vanno nei file.
