@@ -396,7 +396,13 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
 72,6% in una serie (criterio 70–85%).
 
 **In corso dalle 01:45 UTC del 13/11 (due agenti, script `blocco-singolo.js` con `args`):**
-- [~] **B31 tappa 3.1 gioco a rete** — run `wf_7447d3ae-089`, ramo `b31-gioco-a-rete`, base `1906562`, documento `docs/b31/gioco-a-rete.md`.
+- [x] **B31** finito (ramo `b31-gioco-a-rete`, `1455e1e`), unito in `62508e3`: **versione 2026-11-13.3** (`fa2482c`;
+      controllo rapido gioco 1397/1397, sito 226/226, Windows 42/42, build ok; zip 23.839.397 B, sha256
+      `70b5e87ce9d0edf496ebbb05c4bca2fd75d80a4a6aa8d483211458208a47526d`; installer: `scratchpad/attesa-installer.sh`).
+      **Da portare al revisore finale**: a Leggenda il profilo «preciso» perde molto di più (CPU 68,2% → 83,5% dei game;
+      criterio ≥60% rispettato); la CPU a rete vince poco (20–47% dei punti in cui sale); solo tagliati in una casella
+      +4,9 punti (tetto +3); «Stanco!» 0,5% → 4,4% del tempo; «tennista» al livello Bambini a rete 35% dei colpi; il
+      Worker del registro va ricaricato su Cloudflare per il campo nuovo `rete` (l'utente non l'ha ancora creato).
 - [x] **B33** finito (ramo `b33-fine-partita`, `3ac03d0`), unito: **versione 2026-11-13.2** (controllo rapido gioco
       1385/1385, sito 226/226, Windows 42/42, build ok; zip 23.836.415 B, sha256
       `01232d0ba08b7c06e04c3fbd776584b7e46b492f13d075c9f34c752bb8e0014a`; **installer pubblicato su R2** e verificato: 128.059.215 B, sha256 `f8db3e2265119b9112d15891dfef2cb90d807e39533d6e11c7a30801365f1e0e`).
@@ -404,7 +410,7 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
       credibile, va controllato da dove viene); in classifica una sconfitta a Leggenda (286 punti) sta sopra le vittorie
       (punteggio = % punti × valore del livello: decisione da chiedere all'utente se vuole premiare la vittoria); nella
       sfida tra due computer il Player 2 non vede ace e vincenti.
-- [ ] Poi **B32 tappa 3.2 movimento con accelerazione e colpi in corsa** (dopo l'unione di B31), poi **revisore
+- [~] **B32 tappa 3.2 movimento con accelerazione e colpi in corsa** — run `wf_c83f6e6c-4ee`, ramo `b32-movimento`, base `fa2482c`, documento `docs/b32/movimento.md`. Poi **revisore indipendente unico** su B23, T2.3, B31, B32, B33 e correzioni, versione finale con prove complete.
       indipendente unico** su B23, T2.3, B31, B32, B33 e correzioni, versione finale con prove complete.
 Ripresa se si fermano: `Workflow({scriptPath: '…/workflows/scripts/blocco-singolo.js', args: {stessi args + "worktree": "<percorso della worktree già creata>"}})`
 (gli args sono nel journal del run; la worktree con `git worktree list | grep <ramo>`).
