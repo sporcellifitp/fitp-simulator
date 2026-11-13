@@ -1313,6 +1313,7 @@ export class NatpfTennisEngine {
       (this.pendingP2Swing = null),
       (this.pendingServeSwing = null),
       NS.resetRally(this), // NATPF skill gap: serie di perfetti e pressione ripartono a ogni punto
+      (this.natpfCpuNet = this.natpfCpuOver = this.natpfCpuShot = this.natpfCpuNetTried = null), // B31: la CPU riparte dal fondo a ogni punto
       (this.player.swingArcMesh.visible = !1),
       (this.opponent.swingArcMesh.visible = !1),
       this.playerPartner.swingArcMesh && (this.playerPartner.swingArcMesh.visible = !1),
@@ -2714,12 +2715,22 @@ export class NatpfTennisEngine {
         (f = y === "LOB" ? (i ? 1.36 : 1.24) : y === "SLICE" ? (i ? 1.18 : 0.96) : i ? 1.1 : 0.86);
     }
     natpfPlan.kind === "attack" && (natpfArc = { shot: "FLAT", power: 0.8 });
+    // B31 (natpf_net_play.js): la CPU a rete gioca la volée e schiaccia le palle alte; fa qualche rara palla corta (al
+    // massimo una per game, con la scritta). Gli errori della CPU (rete, largo, lungo) restano quelli di cpuReturnPlan
+    const natpfNet = t ? null : NP.cpuNetShot(this, e, natpfPlan),
+      natpfDropC = t || natpfNet ? null : NP.cpuDropShot(this, e, natpfPlan);
+    // (la traiettoria della volée e della schiacciata la calcola shotArc come per gli altri colpi: passa la rete e cade dove vuole)
+    natpfNet && ((g = natpfNet.x), (c = natpfNet.z), (y = natpfNet.shot), (f = natpfNet.flight), (natpfArc = natpfNet.err === "net" ? null : { shot: natpfNet.shot, power: natpfNet.power }), (m = natpfNet.err === "net"));
+    natpfDropC && ((g = natpfDropC.x), (c = natpfDropC.z), (y = "SLICE"), (f = natpfDropC.flight), (natpfArc = null), (m = natpfDropC.net));
+    this.natpfCpuShot = natpfNet ? { kind: natpfNet.kind, err: natpfNet.err || null } : natpfDropC ? { kind: "drop", net: natpfDropC.net } : null;
     // NATPF Leggenda: colpo scelto per utilità ed eseguito con le regole del giocatore, mira corretta per l'aria
     // (natpf_legend.js). Solo per la CPU principale: il compagno a rete del doppio gioca come prima
     const natpfLeg = e === this.opponent && NL.isLegend(this) && !(this.autoPlayMode && !this.userHasInteracted) ? NL.legendReturn(this, e) : null;
     natpfLeg && ((g = natpfLeg.x), (c = natpfLeg.z), (y = natpfLeg.shot), (f = natpfLeg.flight), (natpfArc = natpfLeg.arc), (m = natpfLeg.net));
-    const d = this.ball.pos.clone();
-    (d.y = Math.max(0.82, Math.min(1.68, d.y))), this.ball.pos.copy(d);
+    // B31: la Leggenda schiaccia la palla alta (il bersaglio resta quello che ha scelto, il colpo è teso e veloce)
+    natpfLeg && natpfNet && natpfNet.kind === "smash" && !natpfLeg.net && ((y = "FLAT"), (f = NP.NET_PLAY.cpu.smashFlight.pro), (natpfArc = null));
+    const d = this.ball.pos.clone(), natpfSmashC = this.natpfCpuShot?.kind === "smash";
+    (d.y = Math.max(0.82, Math.min(natpfSmashC ? 2.9 : 1.68, d.y))), this.ball.pos.copy(d);
     // NATPF varietà: altezza sulla rete e top spin dal tipo di colpo e dalla forza (prima: top spin fisso 13 per tutti)
     let natpfSpin = y === "SLICE" ? -5 : y === "LOB" ? 5 : 13;
     if (natpfArc && y !== "LOB") {
@@ -2740,11 +2751,12 @@ export class NatpfTennisEngine {
       (this.ball.rallyStrokeCount += 1),
       (this.ball.shotType = y),
       (this.ball.isPowerShot = !1),
-      this.ballTrail.setStyle(y, !1),
+      this.ballTrail.setStyle(natpfSmashC ? "SMASH" : y, !1),
+      natpfSmashC && (e.swingType = "smash"), // B31: schiacciata della CPU, posa da sopra la testa
       this.racketKinematics &&
         (this.racketKinematics.triggerSwing(e, {
-          shotType: y.toLowerCase(),
-          side: r ? "backhand" : "forehand",
+          shotType: natpfSmashC ? "smash" : y.toLowerCase(),
+          side: natpfSmashC ? "overhead" : r ? "backhand" : "forehand",
           speed: 1.15,
           timing: "sweet",
         }),
@@ -2767,7 +2779,11 @@ export class NatpfTennisEngine {
       this.audioEngine &&
         (this.audioEngine.playSwingWhoosh(1), this.audioEngine.playRacketHit(y.toLowerCase(), "good")),
       // B18.2 passo 3 (D8): se chi gioca fa spesso la palla corta la CPU aspetta più avanti (NS.dropForward; 0 esatto altrimenti)
-      this.opponent.targetPos.set(o.MathUtils.clamp(-g * 0.25, -1.6, 1.6), 0, -S.BASELINE_Z + 0.35 + NS.dropForward(this)),
+      // B31: a rete dopo il suo attacco o dopo la volée (natpf_net_play.cpuRecover), altrimenti in fondo come prima
+      NP.cpuRecover(this, e, { plan: natpfPlan, net: natpfNet, landingX: g }) ||
+        this.opponent.targetPos.set(o.MathUtils.clamp(-g * 0.25, -1.6, 1.6), 0, -S.BASELINE_Z + 0.35 + NS.dropForward(this)),
+      // … e la palla corta della CPU si dichiara (scritta vicino alla CPU)
+      natpfDropC && this.hud.showTimingPopup({ grade: "CPU DROP SHOT", detail: "", screenPos: this._projectToScreen(e.pos.clone().add(new o.Vector3(0, 2.35, 0))), durationMs: 1100 }),
       natpfLeg && NL.legendRecover(this, e, g, c), // NATPF Leggenda: recupero sulla bisettrice degli angoli possibili
       this._natpfPlanPlayer();
   }
@@ -2777,7 +2793,8 @@ export class NatpfTennisEngine {
   }
   // … e il Player 2 del 1v1 allo stesso modo nella sua metà campo; la CPU e il doppio come prima
   _natpfPlanOpponent(e = this.opponent, opts) {
-    this.isMultiplayer && !this.isDoubles && e === this.opponent ? NI.planPlayerIntercept(this, e, opts) : this._predictBallIntercept(e);
+    // B31: la CPU a rete gioca al volo (volée o schiacciata) e dal fondo schiaccia il pallonetto corto (natpf_net_play.js)
+    this.isMultiplayer && !this.isDoubles && e === this.opponent ? NI.planPlayerIntercept(this, e, opts) : (this._predictBallIntercept(e), e === this.opponent && NP.cpuOverheadPlan(this, e));
   }
   // NATPF (diagnostiche del 30/10, C7): schiacciata o volée prevista e non colpita, finestra in ritardo passata: il piano
   // si rifà con i soli punti dopo il rimbalzo (natpf_impact.missedPlan), al massimo una volta per colpo. Prima chi gioca
@@ -3219,7 +3236,7 @@ export class NatpfTennisEngine {
         } else {
           const s = !["pro", "leggenda"].includes(this.matchConfig.difficulty),
             n = s ? 0.85 : 1.3,
-            h = NS.cpuReach(this, s ? 1.8 : 2.34); // NATPF skill gap: portata reale della CPU
+            h = NP.smashReach(this, NS.cpuReach(this, s ? 1.8 : 2.34) * NP.cpuNetReach(this)); // NATPF skill gap: portata reale della CPU (B31: più lunga a rete, volée in allungo)
           if (
             this.isDoubles &&
             !this.ball.isPowerShot &&
@@ -3235,7 +3252,7 @@ export class NatpfTennisEngine {
           }
           const r = Math.abs(this.ball.pos.z - this.opponent.pos.z),
             l = Math.abs(this.ball.pos.x - this.opponent.pos.x);
-          if (r < 1.32 && this.ball.pos.y < (this.ball.shotType === "LOB" ? 3.1 : 2.05)) { // NATPF: la CPU risponde anche al pallonetto (sopra 2,05 m non colpiva mai)
+          if (r < 1.32 && this.ball.pos.y < NP.cpuReachY(this, this.ball.shotType === "LOB" ? 3.1 : 2.05) && !NP.smashTooLow(this)) { // B31: più in alto solo con la schiacciata pianificata; la schiacciata appena rimbalzata no // NATPF: la CPU risponde anche al pallonetto (sopra 2,05 m non colpiva mai)
             if (l <= h) NL.legendLetGo(this) || this._executeOpponentReturn(this.opponent); // NATPF Leggenda: le palle che vede fuori le lascia passare
             else if (l <= 3.45 && this.opponent.swingTimer <= 0) {
               const p = this.ball.pos.x < this.opponent.pos.x ? "backhand" : "forehand";

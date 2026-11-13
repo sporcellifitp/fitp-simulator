@@ -109,6 +109,8 @@ export function cell({ difficulty, profile, tattica = 'normale', points = 300, s
     // chi gioca
     reteG: pct(C.filter(c => c.playerNet).length, C.length), puntiReteG: pct(pNet.length, n), vintiReteG: pct(pNet.filter(p => p.who === 'player').length, pNet.length),
     volee: vol.length, voleePerGame: per(vol.length, games), voleeOk: pct(vol.filter(inCourt).length, vol.length), voleePunto: pct(vol.filter(point).length, vol.length),
+    // schiacciate a rete (colpite entro 7 m dalla rete, punto 22 del rapporto) e quante la CPU rimanda in gioco
+    schiacciateRete: sm.filter(s => s.z < NET).length, schiacciateReteRimandate: pct(smBack.filter(s => s.z < NET).length, smIn.filter(s => s.z < NET).length),
     schiacciate: sm.length, schiacciateOk: pct(smIn.length, sm.length), schiacciateRimandate: pct(smBack.length, smIn.length), schiacciatePunto: pct(sm.filter(point).length, sm.length),
     pallonetti: lob.length, pallonettiOk: pct(lob.filter(inCourt).length, lob.length), pallonettiPunto: pct(lob.filter(point).length, lob.length),
     // fuori di lato (punto 22): volée e colpi da fondo (dopo il rimbalzo, da oltre 9 m) che cadono oltre la riga laterale
@@ -130,7 +132,7 @@ export function cell({ difficulty, profile, tattica = 'normale', points = 300, s
 export const COLS = [
   ['puntiG', 'punti G%'], ['gameG', 'game G%'], ['colpiPerPunto', 'colpi/p'],
   ['reteG', 'G rete%'], ['puntiReteG', 'p. G rete%'], ['vintiReteG', 'vinti%'], ['voleePerGame', 'volée/g'], ['voleeOk', 'volée ok%'], ['voleePunto', 'volée p%'], ['voleeFuoriLato', 'v.lato%'], ['fondoFuoriLato', 'f.lato%'],
-  ['schiacciate', 'schiacc.'], ['schiacciateOk', 'ok%'], ['schiacciateRimandate', 'rimand.%'], ['pallonetti', 'pallon.'], ['pallonettiOk', 'ok%'], ['pallonettiPunto', 'p%'],
+  ['schiacciate', 'schiacc.'], ['schiacciateOk', 'ok%'], ['schiacciateRimandate', 'rimand.%'], ['schiacciateRete', 'sch.rete'], ['schiacciateReteRimandate', 'rimand.%'], ['pallonetti', 'pallon.'], ['pallonettiOk', 'ok%'], ['pallonettiPunto', 'p%'],
   ['tagliatiQuota', 'tagl.%'], ['tagliatiOk', 'ok%'], ['tagliatiPunto', 'p%'],
   ['cpuPassaPunto', 'C passa%'], ['cpuPallonettiRete', 'C pall.%'], ['cpuReteQuota', 'CPU rete%'], ['puntiReteC', 'p. C rete%'], ['vintiReteC', 'vinti%'], ['cpuSchiacciatePerGame', 'C schiacc/g'], ['cpuSchiacciatePunto', 'p%'], ['cpuVoleePerGame', 'C volée/g'], ['cpuCortePerGame', 'C corte/g'],
   ['reteColpiPerGame', 'rete/g'],

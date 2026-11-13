@@ -21,7 +21,7 @@
 // Il generatore casuale si può iniettare (engine.natpfLegendRng); l'audit scripts/audit/legend.mjs misura i criteri.
 import * as NS from './natpf_skill.js';
 import { rallyPressure } from './natpf_stroke_outcome.js';
-import { NET_PLAY } from './natpf_net_play.js';
+import { NET_PLAY, smashIncoming } from './natpf_net_play.js';
 
 const C = NS.COURT;
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -98,8 +98,9 @@ export const LEGEND = Object.freeze({
   // − (reazione + strada / velocità). Margine negativo:
   // probabilmente non ci arriva (vincente); piccolo: ci arriva in corsa e risponde peggio. reachSd: scala del margine (s)
   reachAfter: .55, reachReact: .12, reachSide: .72, reachSd: .08, reachUse: 1,
-  // B31: portata della racchetta oltre reachSide per la volée di chi è a rete (m)
-  netReach: .9,
+  // B31: portata della racchetta oltre reachSide per la volée di chi è a rete (m); tagliato basso di chi gioca preso da
+  // oltre sliceFrom m dalla rete: qualità × (1 − sliceQ)
+  netReach: .9, sliceQ: .06, sliceFrom: 10,
   // B18.2 (D11 del rapporto B16): il servizio perfetto, forte e sulla riga di chi gioca toglie fino a serveQ alla qualità
   // della risposta (come il colpo super, natpfSuper.legendQ); la lettura in ritardo è in natpf_skill.SERVE_WEIGHT.leggenda
   serveQ: .15,
@@ -214,7 +215,11 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   // B18.2 (D11): in risposta al servizio la qualità scende con la minaccia del servizio ricevuto (natpf_skill.serveInfo):
   // fino a −serveQ per il servizio perfetto, forte e sulla riga; un servizio normale non la tocca
   const sv = NS.serveInPlay(e);
-  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, L.pressureFrom)*finite(b.natpfSuper?.legendQ, 1)*(sv ? 1 - finite(L.serveQ)*sv.threat : 1), .3, 1);
+  // B31: il tagliato basso di chi gioca preso da dietro (oltre sliceFrom dalla rete) toglie sliceQ alla qualità
+  const slice = String(b.shotType).toUpperCase() === 'SLICE' && Math.abs(ctx.bz) > L.sliceFrom ? 1 - L.sliceQ : 1;
+  // … e la schiacciata riuscita di chi gioca la mette in difficoltà (NS.LEGEND_SMASH.q; la reazione in ritardo in planCpuRun)
+  const smashIn = e.natpfSkill?.lastShot?.shot === 'SMASH' ? NS.LEGEND_SMASH.q : 1;
+  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, L.pressureFrom)*finite(b.natpfSuper?.legendQ, 1)*(sv ? 1 - finite(L.serveQ)*sv.threat : 1)*slice*smashIn, .3, 1);
   const R = (a, z) => a + rng()*(z - a), hx = h.pos.x, hz = h.pos.z, hv = h.vel.x;
   const away = -(Math.sign(hx) || -s);                    // angolo lontano dall'avversario
   const cands = [
@@ -340,7 +345,8 @@ export function legendStep(e, a, dt){
   // Mai durante il tempo di reazione (split-step, planCpuRun): con le volée di chi gioca la palla arriva in meno di
   // lungeTime e l'affondo partiva subito, cioè la CPU reagiva in 25 ms
   const plan = e.natpfSkill?.cpuPlan, reacting = !!plan?.legend && finite(e.elapsedTime) < finite(plan.readAt);
-  if (!reacting && b.inPlay && b.lastHitter !== 'opponent' && b.vel.z < -1){
+  // (B31: niente affondo sulla schiacciata riuscita di chi gioca, natpf_net_play.smashIncoming)
+  if (!reacting && b.inPlay && b.lastHitter !== 'opponent' && b.vel.z < -1 && !smashIncoming(e)){
     const t = (b.pos.z - a.pos.z - 1.32)/(-b.vel.z), reach = NS.cpuReach(e, 1.5);
     if (t > 0 && t < L.lungeTime){
       const px = b.pos.x + b.vel.x*t, gap = px - a.pos.x;

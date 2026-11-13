@@ -557,7 +557,9 @@ export function planCpuRun(engine, { rng = Math.random } = {}){
     // Leggenda: split-step all'impatto dell'avversario (ferma per il tempo di reazione, 0,15 ± 0,03 s), poi verso il
     // punto d'incontro con un errore di lettura che si azzera mentre la palla vola (in cpuReadFix secondi)
     const truth = cpu.targetPos.clone(), speed = finite(engine.ball?.vel?.length?.(), 24), now = finite(engine.elapsedTime), sup = engine.ball?.natpfSuper;
-    const react = clamp(lv.cpuReact + gauss(rng)*(lv.cpuReactSd || 0), .1, .25) + (sup ? finite(sup.react) : 0);
+    // B31 (punto 22): la schiacciata di chi gioca la Leggenda la legge in ritardo (LEGEND_SMASH.react, come il colpo super)
+    const smashIn = s.lastShot?.shot === 'SMASH' && !engine.isMultiplayer;
+    const react = clamp(lv.cpuReact + gauss(rng)*(lv.cpuReactSd || 0), .1, .25) + (sup ? finite(sup.react) : 0) + (smashIn ? LEGEND_SMASH.react : 0);
     const err = gauss(rng)*lv.cpuReadSd*(.6 + .4*clamp((speed - 18)/14))*(sup ? finite(sup.misread, 1) : 1);
     s.cpuPlan = { legend: true, hold: cpu.pos.clone(), truth, err, readAt: now + react, fixDur: lv.cpuReadFix };
     cpu.targetPos.copy(s.cpuPlan.hold);
@@ -713,7 +715,8 @@ export function cpuStrain({ stretch = 0, running = 0, speed = 16, angle = 0 } = 
 }
 // rally: accettato per compatibilità, non conta (prima: k.rally × colpi oltre il quarto)
 // drop (B18.2 passo 3): quanto vale questa palla corta (dropThreat, 0…1; 1 se non si sa: prove e chiamate di prima)
-export function cpuErrorChance({ angle = 0, speed = 16, pressure = 0, stretch = 0, running = 0, quality = 1, shot = 'TOPSPIN', cpuDeep = true, threat = 1, sup = false, tired = 0, drop = 1, level = SKILL_LEVELS.casual } = {}){
+// slice (B31): errore in più sul tagliato basso preso da lontano (NET_PLAY.slice di natpf_net_play.js; 0 per gli altri colpi)
+export function cpuErrorChance({ angle = 0, speed = 16, pressure = 0, stretch = 0, running = 0, quality = 1, shot = 'TOPSPIN', cpuDeep = true, threat = 1, sup = false, tired = 0, drop = 1, slice = 0, level = SKILL_LEVELS.casual } = {}){
   const k = level.cpuErr; if (!k) return 0;
   const S = String(shot).toUpperCase(), D = cpuStrain({ stretch, running, speed, angle });
   // una palla debole (fuori tempo, lenta e corta) mette meno in difficoltà; k.soft è il minimo del livello (a Casual la
@@ -723,6 +726,7 @@ export function cpuErrorChance({ angle = 0, speed = 16, pressure = 0, stretch = 
   let p = k.base + q*(k.stretch*D.reach + k.run*D.run + k.speed*D.pace)*(1 + k.angle*D.angle)*(1 + k.pressure*clamp(finite(pressure), 0, 3))*(1 + finite(k.tired)*clamp(finite(tired)));
   if (S === 'DROP' && cpuDeep) p += k.drop*clamp(finite(drop, 1));
   if (S === 'LOB' && !cpuDeep) p += k.lob;
+  if (S === 'SLICE' && cpuDeep) p += finite(slice)*(.3 + .7*clamp(finite(quality, 1)));
   if (S === 'SMASH') p += k.smash;
   // colpo super potente (natpf_stroke_outcome.superShot): oltre a leggerlo in ritardo, la CPU che ci arriva lo controlla
   // male. Prima questo veniva dall'allungo (peso .18 a Pro, ora .06): senza, a Pro lo rimandava 20 volte su 24 invece di 15
@@ -746,6 +750,11 @@ export function cpuErrorKind({ stretch = 0, running = 0, speed = 16, angle = 0, 
 // B18 (D9 del rapporto B16): a Pro la soglia era 1,55 m, oltre la portata della CPU (cpuReach 1,5 m): la risposta difensiva
 // non scattava mai (0,0% dei colpi della CPU, a Casual 14%) e la palla larga non dava niente. Ora sotto la portata, un poco
 // più in là che a Casual (80% della portata contro 77%). Leggenda: come prima (la sua risposta la sceglie natpf_legend.js)
+// B31: errore in più della CPU in fondo sul tagliato basso di chi gioca (cpuErrorChance, slice), per la qualità del colpo
+// B31 (punto 22): la Leggenda contro la schiacciata riuscita di chi gioca: reazione in più (s) e qualità della risposta ×
+// q (natpf_legend.legendDecide). Prima ne rimandava in gioco una su due (banco audit:rete: 50–67%)
+export const LEGEND_SMASH = Object.freeze({ react: .15, q: .45 });
+export const SLICE_ERR = Object.freeze({ casual: .006, pro: .003 });
 export const CPU_DEFENSE = Object.freeze({
   casual: Object.freeze({ wide: 1.08, power: .75 }),
   pro: Object.freeze({ wide: 1.2, power: .95 }),
@@ -774,6 +783,7 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
     tired: cpuTired(engine),
     // B18.2 passo 3 (D8): la palla corta vale quanto è buona e quanto è una sorpresa
     drop: s.lastShot?.shot === 'DROP' ? dropThreat({ depth: s.lastShot.landingZ, habit: s.lastShot.dropHabit }) : 1,
+    slice: s.lastShot?.shot === 'SLICE' ? finite(SLICE_ERR[lv.cpuPro > .5 || lv === SKILL_LEVELS.pro ? 'pro' : 'casual']) : 0,   // B31: tagliato basso
     level: lv,
   };
   // B18.2 (D11): sulla palla del servizio la risposta dipende dal servizio ricevuto (serveInfo), non dall'ultimo colpo
@@ -901,7 +911,11 @@ export function angleDepth(x, z, { rng = Math.random } = {}){
   return s*(d + (short - d)*a);
 }
 // Rimbalzo: il top spin salta più alto e scorre, il tagliato resta basso (moltiplicatori della velocità al rimbalzo).
-export const bounceSpin = spin => { const s = finite(spin, 14); return { up: clamp(1 + (s - 14)*.012, .88, 1.12), along: clamp(1 + (s - 14)*.006, .95, 1.06) }; };
+// B31: il tagliato forte (effetto −6 o meno: il tagliato di chi gioca, il tagliato pieno della CPU) rimbalza più basso
+// (fino a 0,8 invece di 0,88 della velocità verticale): palla bassa, buona per avvicinarsi a rete e contro chi sta
+// lontano. Il tagliato morbido e la palla corta (−5…−3) restano come prima
+export const SLICE_BOUNCE = Object.freeze({ spin: -6, up: .8 });
+export const bounceSpin = spin => { const s = finite(spin, 14); return { up: clamp(1 + (s - 14)*.012, s <= SLICE_BOUNCE.spin ? SLICE_BOUNCE.up : .88, 1.12), along: clamp(1 + (s - 14)*.006, .95, 1.06) }; };
 
 // Schemi della CPU nella risposta normale: prima il colpo veniva da un ciclo fisso (top, top, tagliato, top, lob) e la
 // palla andava sempre verso il campo libero a media profondità. Ora la CPU sceglie per peso tra più schemi, con
