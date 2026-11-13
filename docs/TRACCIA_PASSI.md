@@ -735,3 +735,25 @@ cambiano le tappe (cade B36.2; B36.4 senza rientro verso l'angolo).
 - Se il contenitore si riavvia ancora: guardare `git log` e `git status` nelle due worktree e gli appunti
   `scratchpad/b43/notes.md` e `scratchpad/b41/notes.md`, salvare il lavoro non committato in un commit «IN CORSO», poi
   rilanciare lo script del workflow con una sezione «RIPRESA» (senza `resumeFromRunId`: l'agente non aveva finito).
+
+**13/11, 23:40 UTC · versione 2026-11-13.12 = B43.**
+- [x] B43 finito (ripreso dopo il riavvio; `6acbf08`): una sola etichetta dentro il tabellone («1 GAME», «AL MEGLIO DI 3»,
+      «PUNTO DECISIVO» rosa sul 40-40 in fiera), «Formato veloce» solo nel banner d'inizio; pannello dello stand,
+      telecomando e diagnostica che fermano la partita e stanno sopra la pausa; conferma in due clic per «Nuovo
+      giocatore», «Classifica a schermo intero», «Telefono: Scollega» in partita e «Torna al menu» della pausa; scritta
+      grande del punto 0,5 s dopo l'atterraggio. Agente: gioco 1492/1492, sito 226, Windows 43, LAN 12, build,
+      `audit:legend` identico; nel browser pannello-partita (nuova) 25/25, tabellone 41/41, formato-fiera 25/25,
+      stesso-schermo-b20 53/53, menu 45/45, diag-session 26/26, lob-drop servizio 13/13, fuori-vero 12/12, fine-partita
+      47/47, telecomando 85/85.
+- [x] Unito (`0035e02`), sul codice unito: gioco 1492/1492, sito 226/226, Windows 43/43, LAN 12/12, build ok,
+      pannello-partita 25/25, tabellone 41/41 → push. Zip 23.851.547 B, sha256
+      `bef22aa41b06cff6a8a7e673d8ad8e0aa2cabfff60ebdc5cf6ccbb4820543b94`, provato estratto; **installer 2026-11-13.12
+      pubblicato su R2** e verificato dal link fisso: 128.066.450 B, sha256
+      `e848cb1dbbec152db7cb22d05eaac0b6f6069bdc79eb18bf45cec650eb42b395`.
+- Dubbi del B43 da portare all'utente (con le domande a scelta, quando serve): «Parità/Vantaggio» non più scritti (restano
+  40/AD); istruzioni del servizio che a 720×720 sfiorano l'angolo del tabellone (come prima); la diagnostica ora ferma la
+  partita anche con `?diag=1`.
+- [~] **B36.0 · misure** (decisione dell'utente: dopo B43): workflow `b36-0-misure` (run `wf_0cc9ce5f-199`), worktree
+      `scratchpad/b36/wt`, ramo `b36-0-misure`, base `0035e02`, porte 4100–4149. Il gioco non cambia; servirà ricaricare
+      una volta il Worker del registro.
+- [~] **B41 prima parte + B28.1** (run `wf_c35c3067-84a`): B28.1 fatto sul ramo; in corso B41.1.
