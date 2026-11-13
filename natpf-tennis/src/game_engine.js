@@ -43,6 +43,7 @@ import * as NL from "./natpf/natpf_legend.js";
 import * as NO from "./natpf/natpf_stroke_outcome.js";
 import * as NI from "./natpf/natpf_impact.js";
 import * as NP from "./natpf/natpf_net_play.js";
+import * as NM from "./natpf/natpf_movement.js"; // B32: movimento di chi gioca con accelerazione e colpi in corsa
 import * as NPC from "./natpf/natpf_point_call.js";
 import { NatpfReplay } from "./natpf/natpf_replay.js";
 const NR = { c: null }; // NATPF moviola: posa della telecamera
@@ -2341,6 +2342,9 @@ export class NatpfTennisEngine {
       // situazione di chi colpisce (corsa e palla lontana, preparazione, allungo, palla veloce) e, a parte, pressione degli
       // scambi lunghi: a rete con il tempo perfetto la situazione non manda la palla in rete (natpf_stroke_outcome.js)
       // B25: tra due persone la preparazione non conta (duo.noPrep: dava un vantaggio che nessuna scritta spiegava)
+      // B32: con le regole del movimento (NM.runProfile) si arriva in corsa sulla palla lontana: la corsa al contatto toglie
+      // qualità come sempre (NS.reachQuality, fino a −15% a velocità piena), e la scritta dell'esito lo dice (move, sotto)
+      natpfRun = NM.runProfile(this, p),
       Q = { reach: NS.reachQuality(lateral, running), prep: duo?.noPrep ? 1 : NS.prepQuality(e.natpf), stretch: !this.isDoubles && (p === this.player || p === this.opponent) ? NI.stretchQuality(this, p) : 1, pace },
       quality = Q.reach * Q.prep * Q.stretch * Q.pace,
       pressure = NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
@@ -2401,6 +2405,8 @@ export class NatpfTennisEngine {
     // per dire la causa vera di un colpo super mancato (natpf_super_hint.js). Solo lettura: niente nell'esito
     this.natpfLastRacket.sit = NS.situationParts(Q, { speed: b.vel.length(), z: p.pos.z, y: b.pos.y, smash, pressure, running });
     this.natpfLastRacket.contactY = +b.pos.y.toFixed(3); // B31: altezza della palla all'impatto (approccio a rete, NP.approachOf)
+    // B32: colpo in corsa o in allungo (scritta dell'esito, registro dello stand); null senza le regole o da fermi
+    this.natpfLastRacket.move = NM.moveTag(natpfRun, { running, stretch: NI.livePlan(this, p)?.stretch });
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
     const netClear = sup.on ? NO.SUPER.netGap : out.attack || out.hot ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null; // (B20: anche lo scambio caldo passa basso)
     return {
@@ -3382,7 +3388,11 @@ export class NatpfTennisEngine {
     // (natpf_skill.moveFactor, fatigueStep)
     const natpfHuman = e === this.player || (e === this.opponent && (this.isMultiplayer || !!this.versus?.active)),
       natpfMatch = natpfHuman && !this.autoPlayMode && !this.natpfUi?.training?.active && !this.natpfUi?.events?.active && !this.natpfUi?.trial?.active;
-    natpfMatch && NS.fatigueStep(this, e, { vx: e.vel.x, speed: e.vel.length(), dt: t, inPoint: this.phase === "RALLY" || this.phase === "SERVE_TOSS" });
+    // B32: chi gioca contro la CPU accelera e frena, con lo split-step al colpo della CPU (natpf_movement.js); null: come prima.
+    // Il riposo della stanchezza è la quota di velocità che manca alla massima (NS.fatigueStep, restShare)
+    const natpfRun = natpfHuman ? NM.runProfile(this, e) : null;
+    natpfMatch && NS.fatigueStep(this, e, { vx: e.vel.x, speed: e.vel.length(), dt: t, inPoint: this.phase === "RALLY" || this.phase === "SERVE_TOSS", restShare: natpfRun ? 1 - e.vel.length() / Math.max(1, e.maxSpeed) : null });
+    if (natpfRun) return void NM.runStep(this, e, t, natpfRun, e.maxSpeed * NS.moveFactor(this, e));
     if (s > 0.08) {
       const n = Math.min(s, e.maxSpeed * (natpfHuman ? NS.moveFactor(this, e) : 1) * t),
         h = (i / s) * (n / t),

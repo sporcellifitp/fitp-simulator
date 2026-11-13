@@ -7,6 +7,7 @@ import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
 import { simulate, PROFILES } from '../scripts/audit/rally-balance.mjs';
 import { measure, SERIE } from '../scripts/audit/evento-bambini.mjs';
 import * as NS from '../src/natpf/natpf_skill.js';
+import { movementRules } from '../src/natpf/natpf_movement.js';
 import { EVENTO, eventoStep, eventoPoint, eventoReset, eventoState, eventoK, eventoTuning, blend } from '../src/natpf/natpf_evento.js';
 import { ASSIST, assistOf, IMPACT, impactWindow, SUPER, strokeOutcome, lateSpanOf, directionSpan, slowFactor } from '../src/natpf/natpf_stroke_outcome.js';
 import { lateMargin } from '../src/natpf/natpf_impact.js';
@@ -405,7 +406,12 @@ test('colpo super spiegato nel motore vero: le voci scritte dal motore danno la 
   const P = { ...PROFILES.tennista, prep: .3 };
   const T = { shots: 0, quality: 0, said: {}, hints: 0 };
   let seen = null, H = null, points = 0, hintPoint = -1, twice = 0, shownBefore = 0;
-  const out = simulate({ profile: P, difficulty: 'evento', points: 90, seed: 4441,
+  // B32: con il movimento di prima (velocità costante, movementRules.off). Con l'accelerazione a Evento un colpo su quattro
+  // è in allungo e la voce «allungo» copre quasi tutte le altre (prep 10, stretch 18, deep 2): la prova vuole scritte di
+  // tutti i tipi. Le scritte con il movimento nuovo: test/natpf-b32-movimento.test.mjs
+  movementRules.off = true;
+  let out;
+  try { out = simulate({ profile: P, difficulty: 'evento', points: 90, seed: 4441,
     setup: e => { H = new NatpfSuperHint(e); const award = e._awardPoint.bind(e); e._awardPoint = (...a) => { points++; return award(...a); }; },
     onStep: e => { H.update(1/120);
       if (H.shown > shownBefore){ shownBefore = H.shown; if (hintPoint === points) twice++; hintPoint = points; }
@@ -425,7 +431,7 @@ test('colpo super spiegato nel motore vero: le voci scritte dal motore danno la 
         if (cause === 'prep') assert.ok(s.prep < 1 && (prod/s.prep >= SUPER.quality || lowest), 'bastava portare indietro la racchetta, o è la voce più bassa');
         else assert.ok(lowest, `${cause} è la voce più bassa`);
       }
-    } });
+    } }); } finally { movementRules.off = false; }
   assert.ok(T.quality >= 30, `scritte per la qualità: ${T.quality}`);
   assert.ok(T.said.prep >= 5 && T.said.deep >= 5, JSON.stringify(T.said));
   assert.equal(T.said.running || 0, 0, 'nel banco chi colpisce è fermo: «eri in corsa» non esce mai');

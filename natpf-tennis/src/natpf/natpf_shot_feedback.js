@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { splitViewports } from './natpf_split.js';
 import { predictBall } from './natpf_impact.js';
+import { MOVE_WHY } from './natpf_movement.js';
 
 export const QUALITY_COLORS = Object.freeze({ green: 0x3be37f, yellow: 0xffd23f, red: 0xff4d5e });
 const COURT = { halfW: 4.115, halfL: 11.885, service: 6.4 };
@@ -73,7 +74,10 @@ export function shotName(grade = ''){
 // motivo del colpo debole o fallito della racchetta (natpfLastRacket del motore, solo se è il colpo appena fatto da chi):
 // «palla debole: in corsa» a rete con il tempo perfetto, altrimenti la causa («in allungo», «scambio lungo», …)
 // (B18.2 passo 3: anche la palla corta troppo lunga, che non è fallita, ha il suo motivo)
+// B32: un colpo riuscito preso in corsa o in allungo contro la CPU lo dice anche lui («in corsa», «in allungo»: L.move,
+// natpf_movement.moveTag), perché è più debole e meno preciso di quello da fermo
 export function shotWhy(L, { now = null, who = 'player' } = {}){
+  if (L && !L.out?.failed && !L.out?.dropLong && MOVE_WHY[L.move] && L.who === who && (now == null || L.at === now)) return MOVE_WHY[L.move];
   if (!(L?.out?.failed || L?.out?.dropLong) || !L.cause || L.who !== who || (now != null && L.at !== now)) return null;
   return L.out.weak ? `palla debole: ${L.cause}` : L.cause;
 }

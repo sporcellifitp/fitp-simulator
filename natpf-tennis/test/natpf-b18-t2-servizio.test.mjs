@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import * as NS from '../src/natpf/natpf_skill.js';
 import * as NL from '../src/natpf/natpf_legend.js';
 import { netPlayRules } from '../src/natpf/natpf_net_play.js';
+import { movementRules } from '../src/natpf/natpf_movement.js';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import { bench, natural, serveOf, gamesOf, trialValues, phoneServeOf, PHONE_SERVES } from '../scripts/audit/servizio.mjs';
 
@@ -363,11 +364,12 @@ test('D11 (revisione): a Casual chi batte tardi con il telefono non perde il ser
   NS.serveTuning.casual = { base: .113, lateBase: .6 };
   // (B31: il controllo è sui pesi del servizio di allora, con il gioco di allora: regole del gioco a rete spente. Con il
   // gioco a rete «bambino» vince qualche punto in più anche dopo il servizio, docs/b31/gioco-a-rete.md)
-  netPlayRules.off = true;
+  // (B32: e con il movimento di allora, velocità costante: movementRules.off, docs/b32/movimento.md)
+  netPlayRules.off = true; movementRules.off = true;
   try {
     const old = natural({ ...opts, serveModel: 'tardi' });
     assert.ok(old.puntoDiretto < 11.5 && old.puntiAlServizio < 48, `con i valori di prima: ${msg(old)}`);
-  } finally { delete NS.serveTuning.casual; netPlayRules.off = false; }
+  } finally { delete NS.serveTuning.casual; netPlayRules.off = false; movementRules.off = false; }
   // nel banco: a Casual il servizio in ritardo resta chiaramente sotto quello perfetto, forte e stretto
   const b = type => bench({ type, difficulty: 'casual', points: 250, seeds: [7, 11] }).puntoDiretto;
   const [perfetto, ritardo] = [b('perfettoStretto'), b('ritardo')];

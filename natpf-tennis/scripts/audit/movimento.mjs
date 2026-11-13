@@ -22,7 +22,7 @@
 //     falliti, e punti vinti nel seguito;
 //   • stanchezza: quota del tempo con la palla in gioco su «Affaticato» (≥ 0,5) e su «Stanco!» (≥ 0,75).
 import { pathToFileURL } from 'node:url';
-import { simulate, PHONE_PROFILES } from './rally-balance.mjs';
+import { simulate, PROFILES } from './rally-balance.mjs';
 import * as NS from '../../src/natpf/natpf_skill.js';
 const NM = await import('../../src/natpf/natpf_movement.js').catch(() => null);   // assente sulla base (fa2482c)
 const { NatpfTennisEngine: E } = await import('../../src/game_engine.js');
@@ -38,9 +38,9 @@ export function gamesOf(points){
 const pct = (a, n, d = 1) => +(100*a/Math.max(1, n)).toFixed(d);
 const per = (a, n, d = 2) => +(a/Math.max(1, n)).toFixed(d);
 export const PROFILI = {
-  ...PHONE_PROFILES,
-  piazza: { ...PHONE_PROFILES.amatore, intent: 1 },
-  centro: { ...PHONE_PROFILES.amatore, intent: 0 },
+  ...PROFILES,
+  piazza: { ...PROFILES.amatore, intent: 1 },
+  centro: { ...PROFILES.amatore, intent: 0 },
 };
 
 /* ---------- strumenti sul motore (solo misura) ---------- */

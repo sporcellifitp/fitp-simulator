@@ -25,6 +25,9 @@ const EXPERT_PLAYER = Object.freeze({
   scatter: .5, lineRisk: .6, depthRisk: .55,
   playerErr: Object.freeze({ base: .01, power: .13, timing: .32, max: .5 }),
   streakGain: .05, streakMin: .8, playerSpeed: 8.8,
+  // B32: movimento di chi gioca con accelerazione e frenata (natpf_movement.js, docs/b32/movimento.md). Accelerazione
+  // sopra quella della CPU di Leggenda (22 m/s²): la regola «la CPU di Leggenda è più lenta di chi gioca» resta
+  playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 24, decel: 32, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.0, runSay: .5, stretchSay: .7 }),
 });
 // Parametri per difficoltà. «1v1» (due persone) usa solo la parte del giocatore.
 // (B18.2 gruppo 3: i livelli «Bambini» ed «Evento» si aggiungono qui sotto, dopo questi quattro, che restano identici)
@@ -47,6 +50,9 @@ const LEVELS = {
     // punti) e con la stanchezza «bambino» passava dal 45 al 58–64% dei game: il livello cambiava più del voluto
     cpuErr: Object.freeze({ base: .017, stretch: .24, run: .1, speed: .1, angle: .5, pressure: .4, soft: .7, net: .2, drop: .32, lob: .3, smash: .5, sup: .25, max: .7 }),
     cpuWeak: .16, cpuAttack: .7, cpuAttackBase: .12, cpuAttackFlight: .7, playerSpeed: 10.2,  // su palle deboli la CPU attacca: angolo e ritmo
+    // B32: movimento di chi gioca (natpf_movement.js): split-step e lettura della palla veloce, accelerazione e frenata,
+    // arrivo giusto in tempo, colpo in corsa sulla palla lontana, portata della palla non raggiunta. Misure: docs/b32/movimento.md
+    playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 22, decel: 30, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.1, runSay: .5, stretchSay: .7 }),
     cpuServe: Object.freeze({ flight: 1, wide: 0 }),     // servizio della CPU lento e al centro del quadrato (cpuServe)
   }),
   pro: Object.freeze({
@@ -112,6 +118,7 @@ LEVELS.bambini = Object.freeze({
   cpuErr: Object.freeze({ ...LEVELS.casual.cpuErr, base: .012, stretch: .2, run: .08 }),
   cpuAttack: 0, cpuAttackBase: 0,
   cpuServe: Object.freeze({ flight: 1.15, wide: 0 }),
+  playerRun: null,   // B32: il movimento di prima (velocità costante): un bambino non perde palle per l'accelerazione
 });
 // «Evento» (nel menu: Chi gioca → Adulto): il livello si regola da solo su chi gioca (natpf_evento.js). È una media,
 // pesata da k (0…1, natpf_evento.eventoK), tra due livelli che esistono già e sono tarati:
@@ -633,7 +640,11 @@ export function fatigueRest(engine, dt){
 // livello di stanchezza (0…1) di un personaggio
 export const fatigueLevel = (engine, actor) => (engine.natpfFatigue?.get(actor)?.level ?? 0);
 // a ogni passo del movimento di un personaggio di chi gioca: vx velocità laterale (m/s), dt (s)
-export function fatigueStep(engine, actor, { vx = 0, speed = 0, dt = 0, inPoint = true } = {}){
+// restShare (B32, natpf_movement.js): quota di riposo di questo passo (1 − velocità/velocità massima) al posto della soglia
+// restSpeed. Con l'accelerazione chi gioca passa più tempo sotto la velocità piena e meno tempo fermo per la stessa
+// strada: con la soglia la stanchezza saliva senza motivo (Leggenda, «tennista»: fermo dal 66 al 48% del tempo, «Stanco!»
+// dal 3 al 13%). Con la quota il riposo è lo stesso della corsa a velocità costante sulla stessa strada
+export function fatigueStep(engine, actor, { vx = 0, speed = 0, dt = 0, inPoint = true, restShare = null } = {}){
   if (!actor || !(dt > 0)) return 0;
   const f = fatigueOf(engine, actor), F = FATIGUE;
   if (inPoint){
@@ -641,7 +652,8 @@ export function fatigueStep(engine, actor, { vx = 0, speed = 0, dt = 0, inPoint 
     const dir = Math.abs(vx) > F.turnSpeed ? Math.sign(vx) : 0;
     if (dir && f.dir && dir !== f.dir) f.level += F.turn;
     if (dir) f.dir = dir;
-    if (speed < F.restSpeed) f.level -= F.restRecover*dt;
+    if (restShare != null) f.level -= F.restRecover*dt*clamp(finite(restShare));
+    else if (speed < F.restSpeed) f.level -= F.restRecover*dt;
   } else { f.level -= F.pointRecover*dt; f.dir = 0; }
   f.level = clamp(f.level, 0, 1);
   return f.level;
