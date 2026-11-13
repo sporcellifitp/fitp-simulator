@@ -431,6 +431,10 @@ export function createSwingDetector(opts = {}){
   function commit(sw, now = sw.t){
     sw.holdMs = +Math.max(0, now - sw.t).toFixed(1);
     if (!prof.axis && !training && !serving()) vote(sw);
+    // B35a: verso girato perché i sensori danno l'accelerazione con il segno opposto (voto qui sopra): l'alto della posa di
+    // riposo è al contrario, quindi anche la direzione del piatto attorno alla verticale (face-tracker). Il messaggio la
+    // gira (swing-message.js, segno −1), altrimenti l'incrociato voluto si leggeva lungolinea e viceversa
+    if (!prof.axis && absSign === -1) sw.absSign = -1;
     // colpo tipico imparato giocando (solo colpi dello scambio con un verso)
     if (!training && !serving() && (sw.dir === 1 || sw.dir === -1)){ const h = played[sw.dir]; h.push(sw.peak); if (h.length > C.typicalKeep) h.shift(); }
     lastFire = sw.peakT; lastDir = sw.dir || 0; lastAxis = sw.axis || null; lastPeak = sw.peak || 0;

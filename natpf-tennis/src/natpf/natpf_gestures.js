@@ -144,13 +144,25 @@ export function createFaceModel({ keep = 12, min = 3 } = {}) {
 // semi e riferimento girato (0,93 → 0,79 m, girato dopo 60 colpi 4,1° → 3,5°) ma assorbe di più la mira tenuta con dritto
 // e rovescio (−1,54 → −1,64 m). Mira tenuta e riferimento sbagliato non si distinguono se non da quanto durano: qui si
 // sceglie il riferimento che si corregge (docs/b15/audit-colpi.md)
-export const AIM = Object.freeze({ gain: 22, settle: 10, alpha: .12, drift: .03, min: 3, maxDev: 80, seedAlpha: .35,
-  verify: 4, verifyDev: 35, keep: 12, biasFrom: 10, biasDev: 12, biasPull: .3, commonFrom: 3, commonDev: 8, commonPull: .3 });
+// B35a (collaudo del 13/11, «ho provato a incrociare e usciva lungolinea»): chi incrocia apposta dieci volte di fila
+// con il dritto ha la mediana dei suoi colpi a 10–15° dal centro, dentro la mira (piena a 17°): lo «sbilanciamento che
+// dura» (biasDev 12) spostava il centro sui suoi incrociati e dal settimo colpo la palla andava al centro, poi con il
+// tempo anche lungolinea (banco scripts/audit/direzione-telefono.mjs --serie: I I I I I I I c c c c c c c). Con il centro
+// seminato dagli scambi di prova (colpi veri dello scambio, non colpetti a vuoto: trusted) lo sbilanciamento di un verso
+// sposta il centro solo oltre biasDevTrusted, cioè oltre la mira piena: un riferimento sbagliato di tanto si corregge come
+// prima, una mira tenuta resta. Con la calibrazione con i gesti e senza seme (Salta) resta biasDev: i colpetti a vuoto
+// danno spesso un centro sbagliato di 15–30° (diagnostiche del 29/10, B15), che va corretto.
+// Per la stessa ragione, con il seme degli scambi di prova un colpo vicino al centro (entro settle) lo sposta di
+// alphaTrusted invece di alpha: con alpha .12 gli incrociati tenuti a 8–10° (dentro settle) portavano il centro da −8° a
+// −17° in tredici colpi. La deriva lenta (corpo girato, giroscopio) la segue già il telefono (posa «pronto» che segue il
+// telefono fermo, face-tracker.js) e qui la pendenza comune dei due versi (commonPull)
+export const AIM = Object.freeze({ gain: 22, settle: 10, alpha: .12, alphaTrusted: .03, drift: .03, min: 3, maxDev: 80, seedAlpha: .35,
+  verify: 4, verifyDev: 35, keep: 12, biasFrom: 10, biasDev: 12, biasDevTrusted: 22, biasPull: .3, commonFrom: 3, commonDev: 8, commonPull: .3 });
 const wrapDeg = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
 // mediana circolare (gradi): +179° e −179° sono vicini
 const circMedian = a => (a.length ? wrapDeg(a[0] + median(a.map(h => wrapDeg(h - a[0])))) : null);
 export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = AIM.alpha, drift = AIM.drift, min = AIM.min } = {}) {
-  const fresh = () => ({ first: [], center: null, seeded: 0, verify: 0, since: [], recent: [] });
+  const fresh = () => ({ first: [], center: null, seeded: 0, verify: 0, since: [], recent: [], trusted: false });
   const S = { 1: fresh(), '-1': fresh() };
   return {
     reset() { for (const d of [1, -1]) Object.assign(S[d], fresh()); },
@@ -158,10 +170,12 @@ export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = A
     // centro dalla calibrazione (direzione del piatto all'impatto dei gesti chiesti, per verso): la mira vale dal primo
     // colpo della partita. Prima il centro nasceva solo dopo «min» colpi veri (e dopo ogni ricalibrazione): nei primi
     // colpi, proprio quelli del riscaldamento in cui si impara a mirare, il piatto non contava niente (27/10)
-    seed(dir, heading) {
+    // trusted (B35a): seme dai colpi veri degli scambi di prova (natpf_trial_learn), non dai gesti a vuoto
+    seed(dir, heading, { trusted = false } = {}) {
       const st = S[dir]; if (!st || !Number.isFinite(heading)) return;
-      Object.assign(st, fresh(), { center: wrapDeg(heading), seeded: 2, verify: AIM.verify });   // i primi colpi veri lo correggono di più
+      Object.assign(st, fresh(), { center: wrapDeg(heading), seeded: 2, verify: AIM.verify, trusted: !!trusted });   // i primi colpi veri lo correggono di più
     },
+    trusted(dir) { return !!S[dir]?.trusted; },
     get seeded() { return S[1].seeded > 0 || S[-1].seeded > 0; },
     add(dir, heading) {
       const st = S[dir]; if (!st || !Number.isFinite(heading)) return;
@@ -170,7 +184,7 @@ export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = A
       // centro della calibrazione verificato sui primi colpi veri: molto lontano dalla loro mediana, si prende quella
       if (st.verify > 0) {
         st.since.push(heading);
-        if (--st.verify === 0) { const m = circMedian(st.since); st.since = []; if (Math.abs(wrapDeg(m - st.center)) > AIM.verifyDev) { st.center = m; st.seeded = 0; return; } }
+        if (--st.verify === 0) { const m = circMedian(st.since); st.since = []; if (Math.abs(wrapDeg(m - st.center)) > AIM.verifyDev) { st.center = m; st.seeded = 0; st.trusted = false; return; } }
       }
       const dev = wrapDeg(heading - st.center);
       // centro seminato dalla calibrazione: i primi colpi veri lo correggono con decisione (ma un colpo mirato oltre
@@ -179,13 +193,13 @@ export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = A
         if (st.seeded > 0) { st.seeded--; st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? AIM.seedAlpha : drift) * dev); }
         // vicino al centro: colpo normale, il centro lo segue; lontano: colpo mirato, il centro si sposta appena (una
         // deriva che dura si recupera in una trentina di colpi, qualche colpo mirato non sposta il centro)
-        else st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? alpha : drift) * dev);
+        else st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? (st.trusted ? AIM.alphaTrusted : alpha) : drift) * dev);
       }
       // tutti i colpi recenti da una parte: il centro va verso di loro (anche da oltre maxDev: un centro molto sbagliato
       // si recupera)
       if (st.recent.length >= AIM.biasFrom) {
         const off = wrapDeg(circMedian(st.recent) - st.center);
-        if (Math.abs(off) > AIM.biasDev) st.center = wrapDeg(st.center + AIM.biasPull * off);
+        if (Math.abs(off) > (st.trusted ? AIM.biasDevTrusted : AIM.biasDev)) st.center = wrapDeg(st.center + AIM.biasPull * off);
       }
       // dritti e rovesci dalla stessa parte: il riferimento si è girato, i due centri vanno insieme
       const A = S[1], B = S[-1];

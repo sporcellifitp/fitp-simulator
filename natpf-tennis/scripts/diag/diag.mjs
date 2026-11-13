@@ -2,14 +2,18 @@
 //   node scripts/diag/diag.mjs metriche sessione.zip            metriche e riassunto (ricalcolate dagli eventi)
 //   node scripts/diag/diag.mjs colpi sessione.zip               un colpo del telefono per riga: tipo, mira, tempi, forma, esito
 //   node scripts/diag/diag.mjs confronta prima.zip dopo.zip     variazioni delle metriche: meglio, peggio, uguale
+//   node scripts/diag/diag.mjs direzione sessione.zip [--blocchi=di,dl,ri,rl]   (B35a) voluto → ottenuto dei colpi del
+//        telefono: dalla prova guidata, o dai blocchi tra i segni Maiusc+M (di dritto incrociato, dl dritto lungolinea,
+//        ri rovescio incrociato, rl rovescio lungolinea, dc/rc al centro, - salta un blocco); piatto, tempo, fuori, segno
 // Codice d'uscita 2 se il confronto trova peggioramenti oltre la soglia di rumore (utile prima/dopo una modifica).
 import fs from 'node:fs';
 import path from 'node:path';
 import { readZip } from '../../src/natpf/diag/diag_zip.js';
 import { computeMetrics, compareMetrics, compareNote, summaryLines } from '../../src/natpf/diag/diag_metrics.js';
+import { directionReport } from '../../src/natpf/diag/diag_direction.js';
 
 const [, , cmd, a, b] = process.argv;
-const usage = () => { console.error('Uso: node scripts/diag/diag.mjs metriche|colpi <pacchetto.zip|cartella>  ·  confronta <prima> <dopo>'); process.exit(1); };
+const usage = () => { console.error('Uso: node scripts/diag/diag.mjs metriche|colpi|direzione <pacchetto.zip|cartella> [--blocchi=di,dl,ri,rl]  ·  confronta <prima> <dopo>'); process.exit(1); };
 function open(p){
   if (!p) usage();
   if (fs.statSync(p).isDirectory()) return name => { const f = path.join(p, name); return fs.existsSync(f) ? new Uint8Array(fs.readFileSync(f)) : null; };
@@ -39,6 +43,16 @@ if (cmd === 'metriche'){
     const forma = c.forma ? `${c.forma.salita}/${c.forma.piano}` : '–';
     console.log(`${(c.t/1000).toFixed(2).padStart(8)} ${String(c.n ?? '').padStart(4)}  ${(c.via || '').padEnd(8)}  ${c.scartato ? ('scartato: ' + c.scartato).padEnd(32) : `${(c.lato || '?') + '/' + (c.tipo || '?')}`.padEnd(18) + ` ${String(c.mira ?? '').padStart(6)} ${String(c.rilevamento ?? '').padStart(6)} ${String(c.consegna ?? '').padStart(9)}`}  ${forma.padStart(12)}  ${String(c.intenzione?.forza ?? '–').padStart(5)}  ${res ? `${res.esito} ${res.tempo || ''} x ${res.x ?? ''} ${res.direzione || ''}${k ? ` · finestra ${k.tempo}${k.oltre ? ` (oltre ${k.oltre})` : ''} q ${k.qualita}${k.fallito ? ' fallito' : ''}${k.rete ? ' in rete' : ''}${k.volee ? ' volée' : ''}` : ''}` : ''}`);
   }
+} else if (cmd === 'direzione'){
+  const s = load(a), blocchi = (process.argv.find(x => x.startsWith('--blocchi=')) || '').slice(10) || null;
+  const R = directionReport(s.events, { meta: s.meta, blocks: blocchi });
+  const f = v => (v == null ? '–' : String(v));
+  console.log(`Colpi con un voluto: ${R.colpi} · livello ${f(R.difficolta)} · mira ${f(R.mira)} · ritardo dello schermo ${f(R.ritardoSchermoMs)} ms${R.segnoGirato ? ' · sensori con il segno al contrario' : ''}`);
+  console.log(`tempo mediano ${f(R.tempoMediano)} della finestra (${f(R.tempoMsMediano)} ms; + anticipo) · oltre la finestra: in ritardo ${f(R.oltreTardi)} %, in anticipo ${f(R.oltrePresto)} % · fuori o in rete ${f(R.fuori)} %`);
+  console.log('\nvoluto         n   incrociato  centro  lungolinea  fuori  rete | giusti  piatto giusto (mediano)  tempo giusto (mediano)  oltre');
+  for (const [d, p] of Object.entries(R.perVoluto)) console.log(`${d.padEnd(12)} ${String(p.n).padStart(3)}   ${['incrociato', 'centro', 'lungolinea', 'fuori', 'rete'].map((k, i) => `${f(p.ottenuto[k])}%`.padStart([10, 7, 11, 6, 5][i])).join(' ')} | ${`${f(p.giusti)}%`.padStart(6)}  ${`${f(p.piattoGiusto)}% (${f(p.piattoMediano)})`.padStart(22)}  ${`${f(p.tempoGiusto)}% (${f(p.tempoMediano)})`.padStart(22)}  ${f(p.oltre)}%`);
+  console.log('\nCosa dice:'); for (const n of R.diagnosi) console.log(`  • ${n}`);
+  if (process.argv.includes('--righe')) for (const r of R.righe) console.log(JSON.stringify(r));
 } else if (cmd === 'confronta'){
   const A = load(a), Bs = load(b);
   const rows = compareMetrics(A.metrics, Bs.metrics), note = compareNote(A.metrics, Bs.metrics);
