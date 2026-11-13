@@ -472,7 +472,7 @@ binding `REGISTRO`, segreto `CHIAVE_LETTURA` (solo suo) e `ALLOWED_ORIGINS` = `h
 dal programma Windows). Verificato da qui: pagina «Registro di NATPF Simulator» e stato `{ok, registro: pronto, spazio,
 chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine permessa. Indirizzo:
 `https://natpf-registro.s-porcelli.workers.dev/` (non è un segreto: la chiave sta solo nel Worker).
-- [~] **Versione 2026-11-13.7** (controllo rapido verde: gioco 1416/1416, sito 226/226, Windows 42/42, build ok; commit e push in corso) = solo l'indirizzo del registro in `natpf-desktop/registro.json` (installer). Lo zip
+- [x] **Versione 2026-11-13.7** (`1c8c1b2`; controllo rapido gioco 1416/1416, sito 226/226, Windows 42/42, build ok; zip 23.841.151 B, sha256 `50963e48aceed1586a269027e48169c141ab3d951b8c2121070094cf4557e813`, provato estratto, senza `natpf/registro.json`; **installer pubblicato su R2** e verificato dal link fisso: 128.089.067 B, sha256 `97c098a41722a36dc132beb97df871c0b5bd59e951f8120369f4c3835d82329c`) = solo l'indirizzo del registro in `natpf-desktop/registro.json` (installer). Lo zip
       Cloudflare resta **senza** `--registro-url`: il Worker accetta solo il programma Windows, il gioco nel browser
       verrebbe rifiutato. Passi: versione nei 4 file → controllo rapido (`scratchpad/v1113a/rapido.sh`) → commit → fetch
       → push → zip → `scratchpad/attesa-installer.sh 2026-11-13.7 <dir>`. B35a e B35b andranno nella 13.8.
