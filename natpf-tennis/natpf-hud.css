@@ -864,6 +864,10 @@ body {
   text-align: center;
   text-transform: uppercase;
 }
+/* aree molto larghe e basse (ledwall 1920 × 540): c'è altezza libera, tutto più grande per chi guarda da lontano */
+@container natpf (min-aspect-ratio: 3/1) {
+  #victory-modal.has-stats .natpf-end-card { --vs-u: min(1.45cqh, 0.62cqw); }
+}
 /* aree quasi quadrate (720 × 720) e strette: una colonna, i numeri sotto chi ha vinto; il totale dei game resta nei
    riquadri dei game */
 @container natpf (max-aspect-ratio: 5/4) {
