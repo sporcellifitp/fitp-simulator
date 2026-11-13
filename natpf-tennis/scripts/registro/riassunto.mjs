@@ -84,6 +84,17 @@ export async function leggiRegistro(ingresso, onRiga){
 
 /* ---------- conti ---------- */
 // una misura: quante, somma, minimo, massimo e un campione (al più 4096 valori) per mediana e percentili
+// B34 (decisione dell'utente del 13/11): dal B34 il servizio scrive i km/h veri della palla (m/s × 3,6), come le altre
+// velocità del registro («in» dei colpi). Le versioni del gioco fino alla 2026-11-13.5 compresa scrivevano m/s × 6,8
+// (1,89 volte la palla vera): qui si riportano alla scala vera, così le misure di prima e di dopo si possono sommare.
+export const KMH_VECCHI_FINO_A = '2026-11-13.5';
+const versioneNum = v => { const m = /^(\d{4})-(\d{2})-(\d{2})\.(\d+)$/.exec(String(v || '')); return m ? [+m[1], +m[2], +m[3], +m[4]] : null; };
+export function kmhVecchi(versione){
+  const a = versioneNum(versione), b = versioneNum(KMH_VECCHI_FINO_A); if (!a) return false;
+  for (let i = 0; i < 4; i++) if (a[i] !== b[i]) return a[i] < b[i];
+  return true;
+}
+export const kmhVeri = (kmh, versione) => (Number.isFinite(kmh) && kmhVecchi(versione) ? kmh*3.6/6.8 : kmh);
 export class Misura {
   constructor(){ this.n = 0; this.somma = 0; this.min = Infinity; this.max = -Infinity; this.campione = []; this._s = 2463534242; }
   metti(v){
@@ -168,7 +179,7 @@ export class Riassunto {
     const Mv = this.movimento, mv = r.mov === 'corsa' || r.mov === 'allungo' ? r.mov : 'fermi';
     Mv.colpi++; if (mv !== 'fermi') Mv[mv]++; if (r.e) Mv.falliti[mv]++;
   }
-  _servizio(r){ const S = this.servizio; if (r.fonte === 'senza gesto'){ S.senzaGesto = (S.senzaGesto || 0) + 1; return; } S.righe++; piu(S.voti, r.voto || '—'); S.kmh.metti(r.kmh); S.ms.metti(r.ms); if (r.auto) S.auto++; }
+  _servizio(r, x){ const S = this.servizio; if (r.fonte === 'senza gesto'){ S.senzaGesto = (S.senzaGesto || 0) + 1; return; } S.righe++; piu(S.voti, r.voto || '—'); S.kmh.metti(kmhVeri(r.kmh, x?.P?.r?.versione)); S.ms.metti(r.ms); if (r.auto) S.auto++; }
   _vuoto(r){ if (!r.amb) piu(this.vuoti, r.perche || '—'); }
   _chiudi(x, r){
     const P = x.P; x.P = null; if (!P) return;
@@ -256,7 +267,8 @@ export function rapporto(R, L){
   const Rt = R.rete, cpuRete = Object.values(Rt.cpu).reduce((a, b) => a + b, 0);
   // B32: movimento
   const Mv = R.movimento, fermi = Mv.colpi - Mv.corsa - Mv.allungo;
-  sez('Movimento', [`Colpi in corsa: ${N(Mv.corsa)} su ${N(Mv.colpi)} (${pc(Mv.corsa, Mv.colpi)}); in allungo: ${N(Mv.allungo)} (${pc(Mv.allungo, Mv.colpi)}). Finiti in rete, fuori o deboli: in corsa ${pc(Mv.falliti.corsa, Mv.corsa)}, in allungo ${pc(Mv.falliti.allungo, Mv.allungo)}, gli altri ${pc(Mv.falliti.fermi, fermi)}.`]);
+  sez('Movimento', [`Colpi in corsa: ${N(Mv.corsa)} su ${N(Mv.colpi)} (${pc(Mv.corsa, Mv.colpi)}); in allungo: ${N(Mv.allungo)} (${pc(Mv.allungo, Mv.colpi)}). Finiti in rete, fuori o deboli: in corsa ${pc(Mv.falliti.corsa, Mv.corsa)}, in allungo ${pc(Mv.falliti.allungo, Mv.allungo)}, gli altri ${pc(Mv.falliti.fermi, fermi)}.`,
+    'Colpi in corsa per la regola (forza e precisione: velocità al contatto da metà della massima). Dal B34 la scritta «in corsa» compare solo con la corsa forte (da 0,8 della massima): a schermo se ne vedono meno di quanti ne conta questa riga.']);
   sez('Gioco a rete', [`Colpi di chi gioca entro 7 m dalla rete: ${N(Rt.aRete)} su ${N(Rt.colpi)} (${pc(Rt.aRete, Rt.colpi)}); volée: ${N(Rt.volee)} (${pc(Rt.volee, Rt.colpi)}). Colpi a rete della CPU a cui chi gioca ha risposto: ${N(cpuRete)}.`],
     [{ titolo: 'Colpi a rete della CPU (volée, schiacciata, palla corta)', colonne: ['Colpo', 'Volte', 'Quota'], righe: elenco(Rt.cpu, cpuRete) }]);
   const supNo = Object.values(R.sup.no).reduce((a, b) => a + b, 0);
@@ -268,7 +280,7 @@ export function rapporto(R, L){
     `Servizio in rete o fuori (una palla sola: vale come un doppio fallo): ${N(sv.doppiFalli)} (${pc(sv.doppiFalli, sv.punti, 1)} dei punti). Ace: ${N(sv.ace)} (${pc(sv.ace, sv.punti, 1)}).`,
     `Lancio automatico: ${N(sv.lanciAuto)} lanci fatti dal gioco, ${N(sv.battutaAuto)} battute fatte dal gioco.`,
     `Servizi di chi gioca senza il tempo del gesto (mouse, tastiera, webcam del Player 2): ${N(sv.senzaGesto || 0)}.`,
-    `Servizi di chi gioca: ${N(sv.righe)}; velocità ${mis(sv.kmh, 0, ' km/h')}; errore di tempo medio ${N(sv.ms.media)} ms.`,
+    `Servizi di chi gioca: ${N(sv.righe)}; velocità ${mis(sv.kmh, 0, ' km/h')} (km/h veri della palla: le versioni fino alla ${KMH_VECCHI_FINO_A} li scrivevano × 1,89 e qui sono già riportati); errore di tempo medio ${N(sv.ms.media)} ms.`,
   ], [{ titolo: 'Voto del servizio', colonne: ['Voto', 'Volte', 'Quota'], righe: elenco(sv.voti, sv.righe) }]);
   const tu = R.tutorial, ca = R.cal;
   sez('Tutorial e calibrazione', [

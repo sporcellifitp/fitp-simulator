@@ -27,7 +27,7 @@ const EXPERT_PLAYER = Object.freeze({
   streakGain: .05, streakMin: .8, playerSpeed: 8.8,
   // B32: movimento di chi gioca con accelerazione e frenata (natpf_movement.js, docs/b32/movimento.md). Accelerazione
   // sopra quella della CPU di Leggenda (22 m/s²): la regola «la CPU di Leggenda è più lenta di chi gioca» resta
-  playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 24, decel: 32, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.0, runSay: .5, stretchSay: .7 }),
+  playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 24, decel: 32, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.0, runSay: .5, runShow: .8, stretchSay: .7 }),
 });
 // Parametri per difficoltà. «1v1» (due persone) usa solo la parte del giocatore.
 // (B18.2 gruppo 3: i livelli «Bambini» ed «Evento» si aggiungono qui sotto, dopo questi quattro, che restano identici)
@@ -52,7 +52,7 @@ const LEVELS = {
     cpuWeak: .16, cpuAttack: .7, cpuAttackBase: .12, cpuAttackFlight: .7, playerSpeed: 10.2,  // su palle deboli la CPU attacca: angolo e ritmo
     // B32: movimento di chi gioca (natpf_movement.js): split-step e lettura della palla veloce, accelerazione e frenata,
     // arrivo giusto in tempo, colpo in corsa sulla palla lontana, portata della palla non raggiunta. Misure: docs/b32/movimento.md
-    playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 22, decel: 30, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.1, runSay: .5, stretchSay: .7 }),
+    playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 22, decel: 30, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.1, runSay: .5, runShow: .8, stretchSay: .7 }),
     cpuServe: Object.freeze({ flight: 1, wide: 0 }),     // servizio della CPU lento e al centro del quadrato (cpuServe)
   }),
   pro: Object.freeze({
@@ -455,8 +455,10 @@ export const dropForward = engine => DROP_READ.forward*dropExpect(engine?.natpfS
 // livelli) e gli unici ace nascevano dalla velocità rimasta dal punto prima (game_engine._natpfStandStill). Con la CPU
 // ferma: punto diretto 14–18% a Casual, 3–9% a Pro e 1–2% a Leggenda, quasi uguale per un servizio perfetto, forte e
 // sulla riga e per uno colpito in ritardo. Ora il servizio ha una minaccia sua (serveInfo):
-//   • velocità (fast): quella vera della palla alla partenza, sulla scala del tabellone (km/h = m/s × 6,8): 0 fino a
-//     160 km/h (il servizio insegnato a tempo parte a 157), 1 da 190 (forza 0,9 a tempo: 191–194). La velocità vera e
+//   • velocità (fast): quella vera della palla alla partenza: 0 fino a 84,7 km/h (il servizio insegnato a tempo parte a
+//     83), 1 da 100,6 (forza 0,9 a tempo: 101–103). (B34: prima le soglie erano scritte sulla scala del tabellone di
+//     allora, km/h = m/s × 6,8: 160 e 190. Ora il tabellone dice i km/h veri, m/s × 3,6, e le soglie sono le stesse
+//     velocità della palla convertite: il gioco non cambia.) La velocità vera e
 //     non la forza del gesto: il kick di webcam, mouse e prove (natpf_stroke_outcome.SERVE.legacyFlight) è una palla lenta
 //     anche con un gesto forte;
 //   • strettezza (tight): distanza del rimbalzo dal centro del quadrato, verso l'esterno o verso la «T» (chi risponde
@@ -477,7 +479,7 @@ export const dropForward = engine => DROP_READ.forward*dropExpect(engine?.natpfS
 // contro la CPU: nello stesso schermo e nella sfida tra due computer chi risponde è una persona
 // (game_engine._executeServeHit). Valori tarati con scripts/audit/servizio.mjs (docs/b18/t2-1-servizio.md).
 export const SERVE_WEIGHT = Object.freeze({
-  kmhFrom: 160, kmhSpan: 30, kmh: 6.8, tightFrom: .45, tightSpan: .45, qFrom: .55, boxCenter: 2.05, boxHalf: 1.77,
+  kmhFrom: 160*3.6/6.8, kmhSpan: 30*3.6/6.8, kmh: 3.6, tightFrom: .45, tightSpan: .45, qFrom: .55, boxCenter: 2.05, boxHalf: 1.77,
   mix: Object.freeze({ pace: .7, tight: .1, both: .2 }),
   lateBase: .6,                // un servizio colpito fuori tempo vale il 60% della base (Pro; un livello può avere il suo)
   // Casual (revisione del B18.2): base 0,15 e nessuna penalità per il servizio fuori tempo (lateBase 1). Con i personaggi

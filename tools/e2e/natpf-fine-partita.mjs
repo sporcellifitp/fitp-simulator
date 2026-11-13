@@ -60,9 +60,12 @@ try {
     E._applyDifficultyTuning('evento'); E.matchConfig.difficulty = 'evento';
     E.natpfFair = false; E.startNewMatch({ showStartBanner: false }); E.matchConfig.gamesToWin = 2;
     // quello che succede davvero: punti (dal motore, prima del punto) e scritte dei colpi del motore
-    const T = window.__truth = { won: 0, lost: 0, longest: 0, serves: 0, shots: 0, kmh: 0, timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 }, popups: [] };
+    const T = window.__truth = { won: 0, lost: 0, longest: 0, serves: 0, shots: 0, kmh: 0, kmhAll: 0, kmhOut: 0, pend: null, timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 }, popups: [] };
+    // B34: colpo più veloce solo dei colpi finiti in campo: fuori o in rete se il punto che segue è dell'avversario con
+    // il motivo «Out» o «Net» del motore
+    const settle = bad => { if (T.pend != null){ if (bad) T.kmhOut = Math.max(T.kmhOut, T.pend); else T.kmh = Math.max(T.kmh, T.pend); } T.pend = null; };
     const award = E._awardPoint.bind(E);
-    E._awardPoint = (w, why = '') => { if (E.phase !== 'MATCH_OVER' && E.natpfStats?.m && !E.natpfStats.m.over){ w === 'player' ? T.won++ : T.lost++; T.longest = Math.max(T.longest, E.ball.rallyStrokeCount); } return award(w, why); };
+    E._awardPoint = (w, why = '') => { if (E.phase !== 'MATCH_OVER' && E.natpfStats?.m && !E.natpfStats.m.over){ w === 'player' ? T.won++ : T.lost++; T.longest = Math.max(T.longest, E.ball.rallyStrokeCount); settle(w === 'opponent' && (why === 'Out' || why === 'Net')); } return award(w, why); };
     const pop = E.hud.showTimingPopup.bind(E.hud);
     E.hud.showTimingPopup = (o = {}) => {
       const g = String(o.grade || '').toUpperCase(), d = String(o.detail || ''), kmh = +(/(\d+) KM\/H/.exec(d)?.[1] || 0);
@@ -70,7 +73,7 @@ try {
         T.popups.push(g);
         if (/•/.test(d)) T.serves++;
         else { T.shots++; const v = /WHIFF|TOO LATE|TOO EARLY/.test(g) ? null : /PERFECT|POWER/.test(g) ? 'perfetto' : /EARLY/.test(g) ? 'anticipo' : /LATE/.test(g) ? 'ritardo' : 'buono'; if (v) T.timing[v]++; }
-        T.kmh = Math.max(T.kmh, kmh);
+        settle(false); T.pend = kmh; T.kmhAll = Math.max(T.kmhAll, kmh);
       }
       return pop(o);
     };
@@ -104,7 +107,8 @@ try {
   check('A2. punti vinti come il motore', c.tiles['Punti vinti'] === truth.won, `${c.tiles['Punti vinti']} / ${truth.won} su ${truth.won + truth.lost}`);
   check('   colpi (servizi e colpi nello scambio) come le scritte dei colpi', c.tiles['Colpi'] === truth.serves + truth.shots, `${c.tiles['Colpi']} / ${truth.serves}+${truth.shots}`);
   check('   scambio più lungo come il motore', c.tiles['Scambio più lungo'] === truth.longest, `${c.tiles['Scambio più lungo']} / ${truth.longest}`);
-  check('   colpo più veloce come la scritta del colpo', c.tiles['Colpo più veloce'] === truth.kmh, `${c.tiles['Colpo più veloce']} / ${truth.kmh}`);
+  check('   colpo più veloce come la scritta del colpo, solo colpi in campo (B34)', c.tiles['Colpo più veloce'] === truth.kmh, `${c.tiles['Colpo più veloce']} / ${truth.kmh} (tutti ${truth.kmhAll}, fuori o in rete ${truth.kmhOut})`);
+  check('   km/h veri della palla (B34: sotto i 200 a Evento)', truth.kmhAll > 40 && truth.kmhAll < 200, `${truth.kmhAll}`);
   check('   voto del tempo: Perfetto, Anticipo, Ritardo come le scritte', c.legend.perfetto === truth.timing.perfetto && c.legend.anticipo === truth.timing.anticipo && c.legend.ritardo === truth.timing.ritardo, `${JSON.stringify(c.legend)} / ${JSON.stringify(truth.timing)}`);
   check('   game: un riquadro per game, quanti ne ha giocati il motore', v.games.length === engine.pg + engine.og, `${v.games.join(' ')} · motore ${engine.pg}-${engine.og}`);
   check('   due frasi semplici (bene / da migliorare)', c.tips?.length === 2 && c.tips.every(t => t.length > 8 && t.length < 90), JSON.stringify(c.tips));
@@ -142,11 +146,18 @@ try {
   const rk = await g.evaluate(() => ({ full: document.documentElement.classList.contains('ranking-full'), tab: document.querySelector('#ranking-tabs .selected')?.dataset.ranking, rows: [...document.querySelectorAll('#ranking-list li')].map(l => l.textContent), note: document.getElementById('ranking-note')?.textContent || '' }));
   check('B3. pannello dello stand → «A schermo intero»: la classifica delle partite', rk.full && rk.tab === 'partite' && rk.rows.length === 1 && /Ada/.test(rk.rows[0]) && /Evento/.test(rk.rows[0]) && /punti/.test(rk.rows[0]), JSON.stringify(rk));
   check('   la regola del punteggio in una riga', /Punteggio = % di punti vinti × livello/.test(rk.note), rk.note);
+  check('   B34: la riga dice anche l\'ordine (prima le vinte, poi le perse)', /Prima le partite vinte, poi le perse, ognuna per punteggio/.test(rk.note), rk.note);
   await shot('classifica-1280x720');
   // dieci partite (altri nove visitatori, livelli diversi): a schermo intero ci stanno tutte, anche sul ledwall
   await g.evaluate(() => { const ev = __natpfTennis.natpfUi.events, L = ['bambini', 'casual', 'evento', 'pro', 'leggenda'];
     for (let i = 0; i < 9; i++){ ev.nickname = `Ospite ${i + 1}`; ev.recordMatch({ level: L[i % 5], won: 4 + i, lost: 10 - i, games: i % 2 ? [1, 0] : [0, 1], win: i % 2 === 1 }); }
     ev.nickname = 'Ada'; __natpfTennis.natpfUi.lobby._paintRanking(); });
+  // B34 (decisione dell'utente): in cima tutte le vinte per punteggio, sotto le perse per punteggio
+  const order = await g.evaluate(() => [...document.querySelectorAll('#ranking-list li')].map(l => ({ win: /vinta/.test(l.textContent), score: +(/(\d+)/.exec(l.querySelector('em')?.textContent || '')?.[1] || 0), nick: l.querySelector('span')?.firstChild?.textContent || '' })));
+  const firstLost = order.findIndex(r => !r.win), sorted = rows => rows.every((r, i) => i === 0 || rows[i - 1].score >= r.score);
+  check('B3c. B34: prima tutte le vinte, poi le perse, ognuna per punteggio (anche se una persa ha più punti di una vinta)',
+    firstLost > 0 && order.slice(firstLost).every(r => !r.win) && sorted(order.slice(0, firstLost)) && sorted(order.slice(firstLost)) && Math.max(...order.slice(firstLost).map(r => r.score)) > Math.min(...order.slice(0, firstLost).map(r => r.score)),
+    JSON.stringify(order.map(r => `${r.win ? 'V' : 'P'}${r.score}`)));
   for (const [w, h] of [[1920, 540], [1280, 720], [720, 720], [1024, 600]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(250);
     const fit = await g.evaluate(() => { const li = [...document.querySelectorAll('#ranking-list li')], n = document.getElementById('ranking-note').getBoundingClientRect(); return { rows: li.length, bottom: Math.round(Math.max(n.bottom, ...li.map(l => l.getBoundingClientRect().bottom))), h: innerHeight }; });
@@ -156,6 +167,8 @@ try {
   await g.setViewportSize({ width: 1280, height: 720 });
   const [dl] = await Promise.all([g.waitForEvent('download', { timeout: 8000 }), g.evaluate(() => __natpfTennis.natpfUi.kiosk.run('export'))]);
   const csv = readFileSync(await dl.path(), 'utf8');
+  const csvNicks = csv.split('\n').filter(l => l.includes('Partite contro la CPU')).map(l => l.split(';')[3].replace(/"/g, ''));
+  check('B4b. B34: il CSV ha lo stesso ordine della classifica', csvNicks.join('|') === order.map(r => r.nick).join('|'), `${csvNicks.join('|')} / ${order.map(r => r.nick).join('|')}`);
   check('B4. «Scarica CSV»: la partita c\'è, con livello e risultato (dieci partite in tutto)', csv.split('\n').filter(l => l.includes('Partite contro la CPU')).length === 10 && new RegExp(`"Partite contro la CPU";"\\d+";"Ada";"${board[0]?.score}";"[^"]+";"Evento";"(vinta|persa) \\d-\\d";"${truth.won} su ${truth.won + truth.lost}"`).test(csv), csv.split('\n').slice(0, 3).join(' | '));
   g.once('dialog', d => d.accept());
   await g.evaluate(() => __natpfTennis.natpfUi.kiosk.run('reset'));

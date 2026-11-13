@@ -23,7 +23,7 @@ test('il codice dei minigiochi nascosti c’è ancora: regole, medaglie, motore'
   assert.equal(MODES.length, 5);
   assert.equal(modeById('radar')?.label, 'Radar del servizio'); assert.equal(challengeById('survival')?.label, 'Survival');
   assert.equal(SURVIVAL.lives, 3); assert.equal(survivalLevel(12), 2);
-  assert.equal(medalFor('radar', 150), 'silver');
+  assert.equal(medalFor('radar', 79), 'silver');   // B34: km/h veri (79 = 150 sulla scala × 6,8 di prima)
   const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
   w.ui.events.start('survival'); assert.equal(w.ui.events.active?.id, 'survival', 'Survival si avvia ancora dal codice');
   w.ui.events.abort();

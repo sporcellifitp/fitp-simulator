@@ -85,7 +85,7 @@ try {
   // 1. servizio insegnato a Casual: nessuna minaccia, la CPU parte subito, nessun ace; fermi al servizio e nella pausa
   const taught = await serves(p, { level: 'casual', n: 10, power: .5, wide: false, seed: 5 });
   const zero = a => a.every(v => v === 0);
-  check('servizio insegnato (157 km/h): minaccia 0, nessuna lettura in ritardo, la CPU parte al primo passo, nessun ace',
+  check('servizio insegnato (83 km/h veri, 157 sulla scala di prima del B34): minaccia 0, nessuna lettura in ritardo, la CPU parte al primo passo, nessun ace',
     taught.length === 10 && taught.every(r => r.threat === 0 && r.late === 0 && !r.plan && r.still <= 1/120 + 1e-9 && r.why !== 'Ace!'), fmt(taught.map(r => [r.kmh, r.threat, r.late, r.still, r.why])));
   check('a ogni servizio e nella pausa tra i punti i quattro personaggi sono fermi, anche se a fine punto la CPU correva',
     taught.every(r => zero(r.vServe) && zero(r.vEnd) && zero(r.vPause) && r.phasePause !== 'RALLY') && taught.filter(r => r.vmax > 1).length >= 5, fmt(taught.map(r => ({ servizio: r.vServe, fine: r.vEnd, pausa: r.vPause, corsaCpu: r.vmax }))));
@@ -93,8 +93,8 @@ try {
   // 2. servizio forte ed esterno a Casual: lettura in ritardo e almeno un ace con la CPU ferma, «Ace!» a schermo
   const great = await serves(p, { level: 'casual', n: SERVES, power: .9, wide: true, seed: 11 });
   const ace = great.find(r => r.why === 'Ace!');
-  check('servizio forte ed esterno (oltre 188 km/h, sulla riga): minaccia piena e CPU ferma per la lettura in ritardo (pochi centesimi)',
-    great.every(r => r.kmh >= 188 && r.threat >= .95 && r.sharp >= .9 && zero(r.vServe)) && great.filter(r => r.plan && r.late > .01 && Math.abs(r.still - r.late) < .03).length >= Math.min(great.length, 3) && great.every(r => r.late < .25),
+  check('servizio forte ed esterno (oltre 99 km/h veri, 188 sulla scala di prima del B34, sulla riga): minaccia piena e CPU ferma per la lettura in ritardo (pochi centesimi)',
+    great.every(r => r.kmh >= 99 && r.threat >= .95 && r.sharp >= .9 && zero(r.vServe)) && great.filter(r => r.plan && r.late > .01 && Math.abs(r.still - r.late) < .03).length >= Math.min(great.length, 3) && great.every(r => r.late < .25),
     fmt(great.map(r => [r.kmh, r.threat, r.late, r.still, r.why])));
   check(`servizio forte ed esterno a Casual: un ace in al più ${SERVES} servizi, con la CPU ferma al servizio; il punto è di chi gioca e lo schermo scrive «Ace!»`,
     !!ace && !ace.touched && ace.winner === 'player' && zero(ace.vServe) && ace.shown && /Ace/.test(`${ace.text} ${ace.sub}`), fmt({ dopo: great.length, ace }));

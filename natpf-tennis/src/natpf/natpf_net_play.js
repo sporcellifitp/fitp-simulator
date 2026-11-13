@@ -87,6 +87,13 @@ export function approachOf(out, contactZ, { volley = false, power = .5, contactY
   return z <= A.drive.z && d >= A.drive.depth && q >= A.drive.q && finite(power) >= A.drive.power;
 }
 
+// B34 (decisione dell'utente del 13/11, revisione finale n. 1): a Leggenda chi gioca NON sale a rete da solo dopo un
+// attacco (e non resta a rete dopo una volée): torna in fondo come prima del B31, come la CPU, che a Leggenda resta in
+// fondo. Con la salita automatica la Leggenda era diventata più facile per chi gioca bene («preciso» 76,7% dei game
+// della CPU contro 68,2% prima del B31) e chi gioca bene giocava 6 volée a game invece di 0,8. Agli altri livelli, nello
+// stesso schermo e nella sfida tra due computer la salita resta (lì non c'è la Leggenda).
+export const playerApproachOff = e => !netOff() && cpuActive(e) && !e.natpfSplit?.active && !!skillLevel(e.matchConfig?.difficulty).cpuLegend;
+
 // Stima della Leggenda per chi è a rete (natpf_legend.humanReach): reazione in più e passo più corto entro netMove.zone.
 // { react, speed } da sommare alla reazione e da moltiplicare alla velocità; { 0, 1 } lontano dalla rete. Non è il
 // movimento vero (revisione finale: non entra più nel piano di chi gioca, dove era una regola nascosta)

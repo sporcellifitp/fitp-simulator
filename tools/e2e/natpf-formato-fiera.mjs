@@ -2,7 +2,7 @@
 // «dimmi come attivarlo»). Gioco vero con vite. Percorso dello staff con i tasti veri: Ctrl+Maiusc+K, «Formato in fiera»
 // → «Sì · punto decisivo» (salvato in natpf-tennis.formatoFiera), «Al meglio di 5» sparisce dalla pagina «Partita»; poi:
 //   • singolo contro la CPU (avviato da «Gioca» come chi gioca): il servizio passa come nel tie-break (A, B B, A A…), la
-//     CPU serve davvero nei suoi punti (con la sua velocità vera sul tabellone, non 194 km/h fissi), sul 40-40 il
+//     CPU serve davvero nei suoi punti (con la sua velocità vera sul tabellone, in km/h veri dal B34, non 194 km/h fissi), sul 40-40 il
 //     tabellone scrive «Punto decisivo» e il punto decisivo chiude la partita a 1 game;
 //   • stesso schermo: il Player 2 batte nei suoi punti (lancio e colpo dagli ingressi del secondo telefono,
 //     _handleP2TossInput/_handleP2SwingInput, la stessa strada di natpf_phone_racket), la pallina del servizio passa
@@ -111,7 +111,8 @@ try {
     b = await board(p); seq.push(server(b));
   }
   check('singolo: battitore A B B A A B B (la pallina del tabellone segue chi serve)', seq.join('') === 'ABBAABB', seq.join(''));
-  check('singolo: la CPU serve davvero nei suoi punti, con la velocità vera (tra 150 e 260 km/h, non sempre 194)', speeds.length === 3 && speeds.every(s => s.served && s.kmh >= 150 && s.kmh <= 260) && !speeds.every(s => s.kmh === 194), fmt(speeds));
+  // (B34: km/h veri della palla, m/s × 3,6; prima la scala × 6,8 dava 150–260)
+  check('singolo: la CPU serve davvero nei suoi punti, con la velocità vera (tra 79 e 138 km/h veri, non sempre la stessa)', speeds.length === 3 && speeds.every(s => s.served && s.kmh >= 79 && s.kmh <= 138) && !speeds.every(s => s.kmh === speeds[0].kmh), fmt(speeds));
   check('singolo, 40-40: tabellone «40» e «40» con «Punto decisivo» (niente «Parità»)', b.main.rows.every(r => r.points === '40') && b.main.label === 'Punto decisivo', fmt(b.main));
   const banner = await p.evaluate(() => __natpfTennis.lastBannerBroadcast);
   check('singolo, 40-40: al servizio il banner «Deciding Point» (HUD: «Punto decisivo») e la voce «Match Point» (clip esistente)', banner.text === 'Deciding Point' && banner.call?.voice === 'Match Point', fmt(banner));

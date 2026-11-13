@@ -1923,15 +1923,11 @@ export class NatpfTennisEngine {
     // NATPF B18: servizio della CPU (con il formato in fiera la CPU batte anche a 1 game): velocità vera della palla come
     // per il servizio dal gesto, non più 194 km/h fissi (audit B16, punto 17)
     const cpuServe = e.role === "opponent" && !this.isMultiplayer;
-    const w = natpfServe || cpuServe
-      ? Math.round(this.ball.vel.length() * 6.8) // NATPF: dalla velocità vera della palla, con la scala dei colpi dello scambio
-      : Math.round(
-          s
-            ? 188 + Math.min(22, (a - 1) * 32)
-            : n
-              ? 128 + Math.random() * 14
-              : 158 + Math.min(22, (a - 0.9) * 28),
-        );
+    // NATPF B34 (decisione dell'utente del 13/11): km/h veri della palla (m/s × 3,6) per ogni servizio, come i colpi dello
+    // scambio. Prima × 6,8 (1,89 volte la palla vera) e, senza il servizio dal gesto, 128–210 fissi. Il sorteggio della
+    // regola di prima resta, così la sequenza casuale (e le partite a sorteggi fissi) non cambia
+    !(natpfServe || cpuServe) && !s && n && Math.random();
+    const w = Math.round(this.ball.vel.length() * 3.6);
     natpfServe && (this.natpfLastServe = { ...natpfServe, kmh: w, tau: +t.natpfServeTau.toFixed(3) });
     this.natpfArena.setSpeed(w); // NATPF: velocità del servizio sui segnapunti dell'arena
     if (
@@ -2253,7 +2249,7 @@ export class NatpfTennisEngine {
         ),
         // NATPF: colpo super potente: sforzo e il pubblico che trattiene il fiato
         racketShot?.super && !this.autoPlayMode && (this.audioEngine.playerVoice?.("effort"), this.audioEngine.playCrowdReaction?.("ooh")));
-    const F = Math.round(this.ball.vel.length() * 6.8),
+    const F = Math.round(this.ball.vel.length() * 3.6), // NATPF B34: km/h veri della palla (prima × 6,8)
       H = dn ? "SMASH" : m ? "BACKHAND" : "FOREHAND",
       // NATPF: i colpi speciali si vedono sempre per nome (prima «anticipo/ritardo» copriva pallonetto e palla corta)
       natpfSpecial = dn ? "SMASH" : natpfDrop ? "DROP SHOT" : T === "LOB" ? "LOB" : T === "SLICE" ? "SLICE" : null,
@@ -2302,7 +2298,7 @@ export class NatpfTennisEngine {
       this.hud.updateTimingGauge({ cursorNormalized: w, modeTitle: `${u} (${X})`, speedText: `${F} KM/H` }),
       // NATPF racchetta virtuale: dopo il colpo verso il fondo, quanto il tempo lo permette (natpf_impact.js)
       racketShot && !l && !this.isDoubles
-        ? NI.recoverAfterShot(this, this.player, { landingX: E, flight: I, contactZ: p.pos.z, approach: NP.approachOf(racketShot.out, p.pos.z, { volley: !!this.natpfLastRacket?.volley, power: racketShot.power, contactY: this.natpfLastRacket?.contactY }) }) // B31: a rete dopo un attacco riuscito
+        ? NI.recoverAfterShot(this, this.player, { landingX: E, flight: I, contactZ: p.pos.z, approach: !NP.playerApproachOff(this) && NP.approachOf(racketShot.out, p.pos.z, { volley: !!this.natpfLastRacket?.volley, power: racketShot.power, contactY: this.natpfLastRacket?.contactY }) }) // B31: a rete dopo un attacco riuscito (B34: non a Leggenda)
         : this.player.targetPos.set(o.MathUtils.clamp(-E * 0.22, -1.6, 1.6), 0, S.BASELINE_Z - 0.15),
       this.playerPartner.targetPos.set(
         o.MathUtils.clamp(E * 0.35 + (this.score.deuceSide ? -1.4 : 1.4), -2.8, 2.8),
@@ -2406,7 +2402,10 @@ export class NatpfTennisEngine {
     this.natpfLastRacket.sit = NS.situationParts(Q, { speed: b.vel.length(), z: p.pos.z, y: b.pos.y, smash, pressure, running });
     this.natpfLastRacket.contactY = +b.pos.y.toFixed(3); // B31: altezza della palla all'impatto (approccio a rete, NP.approachOf)
     // B32: colpo in corsa o in allungo (scritta dell'esito, registro dello stand); null senza le regole o da fermi
-    this.natpfLastRacket.move = NM.moveTag(natpfRun, { running, stretch: NI.livePlan(this, p)?.stretch });
+    const natpfStretch = NI.livePlan(this, p)?.stretch;
+    this.natpfLastRacket.move = NM.moveTag(natpfRun, { running, stretch: natpfStretch });
+    // B34: la scritta «in corsa» solo con la corsa forte (natpf_movement.moveSay); move resta per il registro
+    this.natpfLastRacket.say = NM.moveSay(natpfRun, { running, stretch: natpfStretch });
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
     const netClear = sup.on ? NO.SUPER.netGap : out.attack || out.hot ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null; // (B20: anche lo scambio caldo passa basso)
     return {
@@ -2630,7 +2629,7 @@ export class NatpfTennisEngine {
           m === "FLAT" || d ? "smash" : m.toLowerCase(),
           u === "PERFECT" ? "perfect" : "good",
         );
-    const O = Math.round(this.ball.vel.length() * 6.8),
+    const O = Math.round(this.ball.vel.length() * 3.6), // NATPF B34: km/h veri della palla (prima × 6,8), come per il P1
       // NATPF: i colpi speciali del P2 si vedono per nome, come quelli del P1
       natpfP2Special = natpfSwing || natpfDrop ? (dn ? "SMASH" : natpfDrop ? "DROP SHOT" : m === "LOB" ? "LOB" : m === "SLICE" ? "SLICE" : null) : null,
       N = p2Racket?.super
@@ -3053,7 +3052,7 @@ export class NatpfTennisEngine {
         (this.hud.updateTimingGauge({
           cursorNormalized: t * 0.52,
           modeTitle: "SERVE APEX TIMING",
-          speedText: this.ball.pos.y >= 2.05 ? "SWEET SPOT! (198 KM/H)" : "RISING...",
+          speedText: this.ball.pos.y >= 2.05 ? "SWEET SPOT!" : "RISING...", // NATPF B34: niente km/h finti (scheda nascosta)
         }),
         this.pendingServeSwing && (this.ball.pos.y >= 2.68 || this.ball.vel.y <= 0.35))
       ) {

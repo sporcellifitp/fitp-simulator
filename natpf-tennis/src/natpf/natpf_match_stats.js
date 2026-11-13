@@ -3,7 +3,7 @@
 // Cosa fa:
 //   - conta, mentre si gioca, quello che succede davvero nella partita: punti vinti e come (ace, vincenti, errori in
 //     rete, fuori, colpi a vuoto), punti di ogni game, scambio più lungo, colpi, colpo più veloce (i km/h della scritta
-//     del colpo), colpi super, voto del tempo (Perfetto · Anticipo · Ritardo · Buono, come la scritta del colpo);
+//     del colpo, cioè la velocità vera della palla; dal B34 solo i colpi finiti in campo), colpi super, voto del tempo (Perfetto · Anticipo · Ritardo · Buono, come la scritta del colpo);
 //   - a fine partita prepara la schermata: pochi numeri grandi, i game, una frase su cosa è andato bene e una su cosa
 //     migliorare (regole semplici sui numeri veri, viewOf e tipsOf);
 //   - il punteggio della classifica delle partite contro la CPU (matchScore): % di punti vinti × valore del livello.
@@ -51,16 +51,37 @@ const side0 = () => ({ points: 0, aces: 0, winners: 0, net: 0, out: 0, whiff: 0,
 // mode: 'cpu' | 'split' (stesso schermo) | 'versus' (sfida tra due computer); guest: computer del Player 2
 export function newMatch({ mode = 'cpu', level = null, gamesToWin = 1, doubles = false, guest = false } = {}){
   return { mode, level, gamesToWin: Math.max(1, gamesToWin | 0), doubles: !!doubles, guest: !!guest, games: [], cur: { player: 0, opponent: 0 }, longest: 0, played: 0,
-    s: { player: side0(), opponent: side0() }, over: false, winner: null };
+    s: { player: side0(), opponent: side0() }, pend: { player: null, opponent: null }, over: false, winner: null };
 }
-// un colpo: side chi colpisce; serve servizio; grade e kmh come la scritta del colpo; superShot colpo super (failed: è
-// finito in rete o fuori)
+// B34 (decisione dell'utente del 13/11, revisione finale n. 10): il «colpo più veloce» conta solo i colpi finiti in campo.
+// Al momento del colpo non si sa ancora: i km/h restano in attesa (m.pend) e valgono quando la palla risulta buona, cioè
+// quando qualcuno colpisce di nuovo (l'avversario l'ha ripresa; sul computer del Player 2 e contro la CPU i colpi
+// dell'altro non arrivano qui, quindi vale anche il colpo successivo dello stesso lato) o quando il punto finisce in
+// altro modo che con quella palla fuori o in rete (il motivo del motore, come per gli errori: finePunto). Si buttano se
+// il punto finisce perché quella palla è fuori o in rete, o se a un servizio ne segue un altro dello stesso lato
+// (servizio da rifare). Sul computer del Player 2 il motivo non arriva: lì vale solo se chi ha colpito vince il punto
+// (qualche colpo buono può mancare, uno fuori non entra mai). Una palla che andava fuori ma l'avversario colpisce lo
+// stesso conta: per il motore la palla è in gioco.
+const keepFastest = (m, side, kmh) => { const S = m.s[side]; if (kmh > S.fastest) S.fastest = Math.round(kmh); };
+const BAD_END = new Set(['rete', 'fuori', 'servizio.rete', 'servizio.fuori']);
+function settle(m, { shot = null, winner = null, fine = undefined } = {}){
+  if (!m.pend) m.pend = { player: null, opponent: null };
+  for (const side of SIDES){
+    const p = m.pend[side]; if (!p) continue;
+    m.pend[side] = null;
+    const good = winner ? side === winner || (fine !== undefined && !BAD_END.has(fine)) : !(shot && shot.side === side && shot.serve && p.serve);
+    if (good) keepFastest(m, side, p.kmh);
+  }
+}
+// un colpo: side chi colpisce; serve servizio; grade e kmh come la scritta del colpo (km/h veri della palla); superShot
+// colpo super (failed: il colpo è fallito)
 export function addShot(m, { side = 'player', grade = '', kmh = 0, serve = false, superShot = false, failed = false } = {}){
   if (!m || m.over || !SIDES.includes(side)) return m;
   const S = m.s[side];
   if (serve) S.serves++;
   else { S.shots++; const t = timingOf(grade); if (t) S.timing[t]++; }
-  const v = num(kmh); if (v > 0 && v > S.fastest) S.fastest = Math.round(v);   // i km/h della scritta del colpo, così come sono
+  settle(m, { shot: { side, serve: !!serve } });
+  const v = num(kmh); if (v > 0) m.pend[side] = { kmh: v, serve: !!serve };   // i km/h della scritta del colpo, in attesa dell'esito
   if (superShot){ S.supers++; if (!failed) S.superOk++; }
   return m;
 }
@@ -69,10 +90,11 @@ export function addShot(m, { side = 'player', grade = '', kmh = 0, serve = false
 export function addPoint(m, { winner, why = null, strokes = 0, whiff = false, gameWinner = null, gamesAfter = null } = {}){
   if (!m || m.over || !SIDES.includes(winner)) return m;
   const W = m.s[winner], L = m.s[other(winner)], n = Math.max(0, strokes | 0);
+  const fine = why != null ? finePunto({ motivo: why, colpi: n, vuoto: !!whiff }) : undefined;
+  settle(m, { winner, fine });
   W.points++; m.played++; m.cur[winner]++;
   if (n > m.longest) m.longest = n;
   if (why != null){
-    const fine = finePunto({ motivo: why, colpi: n, vuoto: !!whiff });
     if (fine === 'ace') W.aces++;
     else if (fine === 'vincente' || fine === 'passata') W.winners++;
     else if (fine === 'rete' || fine === 'servizio.rete') L.net++;

@@ -233,3 +233,24 @@ test('palla corta della CPU nel motore con l\'involucro dell\'esito: «Palla cor
     }
   } finally { Math.random = real; if (had === undefined) delete globalThis.document; else globalThis.document = had; }
 });
+
+/* ---------- B34: a Leggenda chi gioca non sale a rete da solo (decisione dell'utente del 13/11) ---------- */
+test('B34: a Leggenda nessuna salita a rete automatica per chi gioca; agli altri livelli, stesso schermo e sfida resta', () => {
+  const E = (difficulty, more = {}) => ({ matchConfig: { difficulty }, isMultiplayer: false, isDoubles: false, autoPlayMode: false, userHasInteracted: true, ...more });
+  assert.equal(NP.playerApproachOff(E('leggenda')), true);
+  for (const d of ['bambini', 'casual', 'evento', 'pro', '1v1']) assert.equal(NP.playerApproachOff(E(d)), false, d);
+  assert.equal(NP.playerApproachOff(E('leggenda', { natpfSplit: { active: true } })), false, 'stesso schermo: due persone, la regola del B31 resta');
+  assert.equal(NP.playerApproachOff(E('leggenda', { isMultiplayer: true })), false, 'sfida tra due computer');
+  NP.netPlayRules.off = true;
+  try { assert.equal(NP.playerApproachOff(E('leggenda')), false, 'regole del B31 spente: niente da spegnere'); } finally { NP.netPlayRules.off = false; }
+  // nel motore: dopo i colpi da oltre 8 m dalla rete, dove va chi gioca subito dopo il colpo
+  const where = difficulty => { let last = null; const r = { n: 0, net: 0 };
+    simulate({ profile: 'tennista', difficulty, points: 60, seed: 2001, onStep: e => {
+      const L = e.natpfLastRacket;
+      if (L && L !== last && e.ball.lastHitter === 'player'){ last = L; if (Math.abs(e.player.pos.z) >= 8){ r.n++; if (Math.abs(e.player.targetPos.z) <= NP.NET_PLAY.approach.netZ + .05) r.net++; } }
+    } });
+    return r; };
+  const leg = where('leggenda'), pro = where('pro');
+  assert.ok(leg.n > 200 && leg.net === 0, `Leggenda: ${leg.net} salite su ${leg.n} colpi`);
+  assert.ok(pro.net > 5, `Pro: la salita resta (${pro.net} su ${pro.n})`);
+});

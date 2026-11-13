@@ -6,20 +6,25 @@ import assert from 'node:assert/strict';
 import { simulate } from '../scripts/audit/rally-balance.mjs';
 import { eventoReset } from '../src/natpf/natpf_evento.js';
 import { newMatch, addShot, addPoint, sideSummary, tipsOf, viewOf, statsHtml, matchScore, timingOf, LEVEL_WEIGHT, SCORE_RULE, MatchStats, installMatchStats } from '../src/natpf/natpf_match_stats.js';
-import { addMatch, topMatches, boardCsv, freshBoard, MATCH_MODE } from '../src/natpf/natpf_events.js';
+import { addMatch, topMatches, boardCsv, freshBoard, MATCH_MODE, MATCH_ORDER_RULE } from '../src/natpf/natpf_events.js';
 import { fingerprint } from '../scripts/audit/fine-partita.mjs';
 
 // partita simulata con le statistiche accese e, accanto, quello che il motore fa davvero: punti (dal motore), scritte dei
 // colpi (popup con voto e km/h, come le vede chi gioca)
 function recorded({ profile = 'umano', difficulty = 'evento', points = 90, seed = 7 } = {}){
   eventoReset();
-  let S = null; const truth = { won: 0, lost: 0, rallies: [], aces: 0, serves: 0, shots: 0, kmh: 0, timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 }, games: 0 };
+  let S = null; const truth = { won: 0, lost: 0, rallies: [], aces: 0, serves: 0, shots: 0, kmh: 0, kmhAll: 0, kmhOut: 0, pend: null, timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 }, games: 0 };
+  // B34: il colpo più veloce conta solo i colpi finiti in campo. Qui dal motore: un colpo di chi gioca è fuori o in rete se
+  // il punto che segue subito è dell'avversario con il motivo «Out» o «Net» (il motore lo dà così solo contro chi ha
+  // colpito per ultimo); qualunque altra cosa dopo (un altro colpo, un punto vinto) vuol dire palla buona
+  const settle = bad => { if (truth.pend != null){ if (bad) truth.kmhOut = Math.max(truth.kmhOut, truth.pend); else truth.kmh = Math.max(truth.kmh, truth.pend); } truth.pend = null; };
   const out = simulate({ profile, difficulty, points, seed, setup: e => {
     S = installMatchStats(e);
     const award = e._awardPoint.bind(e);
     e._awardPoint = (who, why = '') => {
       const n = e.ball.rallyStrokeCount, g0 = e.score.playerGames + e.score.opponentGames;
       who === 'player' ? truth.won++ : truth.lost++; truth.rallies.push(n);
+      settle(who === 'opponent' && (why === 'Out' || why === 'Net'));
       if (who === 'player' && n === 1 && (why === 'Nice Shot!' || why === 'Point')) truth.aces++;
       award(who, why);
       truth.games += e.score.playerGames + e.score.opponentGames - g0;
@@ -29,7 +34,7 @@ function recorded({ profile = 'umano', difficulty = 'evento', points = 90, seed 
       const g = String(a.grade || ''), d = String(a.detail || ''), kmh = +(/(\d+) KM\/H/.exec(d)?.[1] || 0);
       if (!g.startsWith('P2') && /KM\/H/.test(d)){
         if (/•/.test(d)) truth.serves++; else { truth.shots++; const t = timingOf(g.split('•')[0]); if (t) truth.timing[t]++; }
-        truth.kmh = Math.max(truth.kmh, kmh);
+        settle(false); truth.pend = kmh; truth.kmhAll = Math.max(truth.kmhAll, kmh);
       }
       return hud.showTimingPopup(a);
     } : hud[k] });
@@ -50,7 +55,8 @@ test('B33: partita registrata a sorteggi fissi, i numeri della schermata sono qu
     assert.equal(sum.serves, truth.serves, `servizi ${tag}`);
     assert.equal(sum.shots, truth.shots, `colpi nello scambio ${tag}`);
     assert.equal(sum.hits, truth.serves + truth.shots);
-    assert.equal(sum.fastest, truth.kmh, `colpo più veloce ${tag}`);
+    assert.equal(sum.fastest, truth.kmh, `colpo più veloce ${tag}: solo colpi in campo`);
+    assert.ok(truth.kmhOut > 0 && truth.kmhAll >= truth.kmh, `ci sono colpi fuori o in rete ${tag}: ${JSON.stringify({ in: truth.kmh, fuori: truth.kmhOut, tutti: truth.kmhAll })}`);
     assert.deepEqual(sum.timing, truth.timing, `voto del tempo ${tag}`);
     // i game: uno per ogni game chiuso dal motore, i punti dei game più quelli del game in corso sono tutti i punti
     assert.equal(m.games.length, truth.games, `game ${tag}`);
@@ -97,10 +103,47 @@ test('B33: voto del tempo come la scritta del colpo, colpi super, km/h', () => {
   addShot(m, { side: 'player', grade: 'EARLY', kmh: 99, superShot: true, failed: true });
   addShot(m, { side: 'player', grade: 'GOOD SERVE', kmh: 150, serve: true });
   addShot(m, { side: 'opponent', grade: 'LATE', kmh: 300 });
+  addPoint(m, { winner: 'opponent', why: 'Nice Shot!', strokes: 4 });
   const s = sideSummary(m, 'player');
   assert.deepEqual(s.timing, { perfetto: 1, anticipo: 1, ritardo: 0, buono: 0 }, 'il servizio non entra nel voto del tempo');
   assert.equal(s.hits, 3); assert.equal(s.fastest, 150); assert.equal(s.supers, 2); assert.equal(s.superOk, 1);
   assert.equal(sideSummary(m, 'opponent').fastest, 300);
+});
+
+test('B34: colpo più veloce solo con i colpi finiti in campo (fuori, in rete, servizio rifatto non contano)', () => {
+  const m = newMatch();
+  addShot(m, { side: 'player', grade: 'GOOD SERVE', kmh: 90, serve: true });
+  assert.equal(sideSummary(m, 'player').fastest, 0, 'in attesa: non si sa ancora dove cade');
+  addShot(m, { side: 'opponent', grade: 'GOOD', kmh: 60 });           // l'avversario risponde: il servizio era buono
+  assert.equal(sideSummary(m, 'player').fastest, 90);
+  addShot(m, { side: 'player', grade: 'PERFECT', kmh: 130 });         // la risposta dell'avversario era buona
+  assert.equal(sideSummary(m, 'opponent').fastest, 60);
+  addPoint(m, { winner: 'opponent', why: 'Out', strokes: 3 });          // il 130 è finito fuori: non conta
+  assert.equal(sideSummary(m, 'player').fastest, 90);
+  addShot(m, { side: 'player', grade: 'POWER SERVE!', kmh: 120, serve: true });
+  addPoint(m, { winner: 'opponent', why: 'Net', strokes: 1 });          // servizio in rete: non conta
+  assert.equal(sideSummary(m, 'player').fastest, 90);
+  addShot(m, { side: 'player', grade: 'GOOD SERVE', kmh: 110, serve: true });
+  addShot(m, { side: 'player', grade: 'GOOD SERVE', kmh: 95, serve: true });   // servizio rifatto: il primo non conta
+  addPoint(m, { winner: 'player', why: 'Nice Shot!', strokes: 1 });     // ace: conta
+  assert.equal(sideSummary(m, 'player').fastest, 95);
+  // contro la CPU (i colpi della CPU non arrivano qui) e sul computer del Player 2: il colpo dopo dello stesso lato vuol
+  // dire che l'altro ha ripreso la palla
+  addShot(m, { side: 'player', grade: 'PERFECT', kmh: 140 });
+  addShot(m, { side: 'player', grade: 'GOOD', kmh: 100 });
+  addPoint(m, { winner: 'player', why: 'Nice Shot!', strokes: 4 });     // vincente: contano tutti e due
+  assert.equal(sideSummary(m, 'player').fastest, 140);
+  // la CPU ha ripreso il colpo (non arriva qui) e chi gioca non ci arriva: il punto non finisce con quella palla fuori
+  addShot(m, { side: 'player', grade: 'PERFECT', kmh: 170 });
+  addPoint(m, { winner: 'opponent', why: 'Point', strokes: 2 });
+  assert.equal(sideSummary(m, 'player').fastest, 170);
+  // computer del Player 2: il motivo non arriva (why null): vale solo se chi ha colpito vince il punto
+  const g = newMatch({ mode: 'versus', guest: true });
+  addShot(g, { side: 'opponent', grade: 'PERFECT', kmh: 150 });
+  addPoint(g, { winner: 'player', strokes: 3 });
+  addShot(g, { side: 'opponent', grade: 'GOOD', kmh: 80 });
+  addPoint(g, { winner: 'opponent', strokes: 5 });
+  assert.equal(sideSummary(g, 'opponent').fastest, 80);
 });
 
 test('B33: frasi semplici dai numeri veri', () => {
@@ -186,12 +229,13 @@ test('B33: classifica delle partite nel tabellone del giorno, nel CSV e azzerata
   b = addMatch(b, { nick: 'Ada', level: 'evento', won: 13, lost: 7, games: [2, 1], win: true }, { day: '2026-11-13', at: 1 }).board;
   const r = addMatch(b, { nick: 'Bea', level: 'leggenda', won: 6, lost: 14, games: [0, 2], win: false }, { day: '2026-11-13', at: 2 });
   b = r.board;
-  assert.equal(r.rank, 1, 'Leggenda al 30% (150) davanti a Evento al 65% (91)');
+  // B34 (decisione dell'utente): prima le vinte, poi le perse; la sconfitta a Leggenda (150) va sotto la vittoria (91)
+  assert.equal(r.rank, 2, 'Leggenda persa (150) sotto Evento vinta (91)');
   const top = topMatches(b, 10, '2026-11-13');
-  assert.deepEqual(top.map(e => [e.nick, e.score, e.level, e.win]), [['Bea', 150, 'leggenda', false], ['Ada', 91, 'evento', true]]);
+  assert.deepEqual(top.map(e => [e.nick, e.score, e.level, e.win]), [['Ada', 91, 'evento', true], ['Bea', 150, 'leggenda', false]]);
   const csv = boardCsv(b);
-  assert.match(csv, /"Partite contro la CPU";"1";"Bea";"150"/);
-  assert.match(csv, /"Partite contro la CPU";"2";"Ada";"91"/);
+  assert.match(csv, /"Partite contro la CPU";"1";"Ada";"91"/);
+  assert.match(csv, /"Partite contro la CPU";"2";"Bea";"150"/);
   assert.ok(b.modes[MATCH_MODE]);
   assert.deepEqual(topMatches(freshBoard(null, '2026-11-13'), 10, '2026-11-13'), [], 'azzerata');
   // revisione finale: oltre le partite tenute (keep) posizione 0 e totale sulla lista tenuta, mai «57° su 57»
@@ -202,6 +246,34 @@ test('B33: classifica delle partite nel tabellone del giorno, nel CSV e azzerata
   assert.ok(!low.board.modes[MATCH_MODE].some(e => e.nick === 'Ultimo'));
   const high = addMatch(c, { nick: 'Primo', level: 'leggenda', won: 9, lost: 1, games: [1, 0], win: true }, { day: '2026-11-13', at: 100, keep: 4 });
   assert.deepEqual([high.rank, high.total], [1, 4]);
+});
+
+test('B34: classifica delle partite, prima tutte le vinte per punteggio poi le perse per punteggio (frase, scheda, CSV)', () => {
+  const day = '2026-11-13';
+  let b = freshBoard(null, day);
+  const rows = [
+    ['PersaLeggenda', 'leggenda', 3, 4, false],   // 214: sopra ogni vittoria per punteggio, ma è persa
+    ['VintaBambini', 'bambini', 4, 2, true],      // 67
+    ['PersaEvento', 'evento', 2, 4, false],       // 47
+    ['VintaEsperta', 'pro', 4, 1, true],          // 128
+    ['PersaLeggenda2', 'leggenda', 1, 4, false],  // 100
+    ['VintaFacile', 'casual', 4, 0, true]];       // 110
+  const ranks = rows.map(([nick, level, won, lost, win], i) => { const r = addMatch(b, { nick, level, won, lost, games: win ? [1, 0] : [0, 1], win }, { day, at: i + 1 }); b = r.board; return [nick, r.rank]; });
+  // posizione nella frase di fine partita = posizione nell'ordine vinte → perse
+  assert.deepEqual(ranks, [['PersaLeggenda', 1], ['VintaBambini', 1], ['PersaEvento', 3], ['VintaEsperta', 1], ['PersaLeggenda2', 4], ['VintaFacile', 2]]);
+  const top = topMatches(b, 10, day);
+  assert.deepEqual(top.map(e => e.nick), ['VintaEsperta', 'VintaFacile', 'VintaBambini', 'PersaLeggenda', 'PersaLeggenda2', 'PersaEvento']);
+  assert.deepEqual(top.map(e => e.score), [128, 110, 67, 214, 100, 47]);
+  const csv = boardCsv(b).split('\n').filter(l => l.includes('Partite contro la CPU')).map(l => l.split(';').slice(2, 4).join(';'));
+  assert.deepEqual(csv, top.map((e, i) => `"${i + 1}";"${e.nick}"`), 'CSV nello stesso ordine');
+  // a parità di vinta e punteggio è prima chi l'ha fatta prima
+  const t = addMatch(b, { nick: 'VintaFacile2', level: 'casual', won: 4, lost: 0, games: [1, 0], win: true }, { day, at: 99 });
+  assert.equal(t.rank, 3);
+  // tabellone di oggi salvato prima del B34 (ordine di solo punteggio): in lettura e nel CSV si riordina
+  const vecchio = { day, modes: { [MATCH_MODE]: [{ nick: 'P', score: 200, at: 1, level: 'leggenda', win: false }, { nick: 'V', score: 90, at: 2, level: 'evento', win: true }] } };
+  assert.deepEqual(topMatches(vecchio, 10, day).map(e => e.nick), ['V', 'P']);
+  assert.match(boardCsv(vecchio), /"1";"V".*\n.*"2";"P"/);
+  assert.equal(MATCH_ORDER_RULE, 'Prima le partite vinte, poi le perse, ognuna per punteggio');
 });
 
 test('B33: sfida tra due computer sul motore vero: l\'host vede i suoi numeri, il Player 2 i suoi dagli snapshot', async () => {

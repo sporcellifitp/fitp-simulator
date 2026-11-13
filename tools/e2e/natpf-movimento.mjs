@@ -67,15 +67,18 @@ const setup = () => {
     return (W.out.turn = { vx, flip, flipS: +(flip/60).toFixed(3), plan: E.natpfPlan?.kind, tx: +E.player.targetPos.x.toFixed(2) });
   };
   // 3) colpo in corsa: si cerca la palla larga e veloce che il piano dichiara «in corsa»
-  W.findRun = () => {
-    for (const fl of [1, .95, .9, .85, .8, .75, .7]) for (const x of [3.9, 3.7, 3.5]) for (const px of [-.6, -1]){
+  // (B34: tutte le palle così, dalla più veloce: la scritta «in corsa» c'è solo con la corsa forte, da 0,8 della massima)
+  W.findRuns = () => {
+    const out = [];
+    for (const fl of [1, .95, .9, .85, .8, .75, .7, .65, .6, .55]) for (const x of [3.9, 3.7, 3.5]) for (const px of [-.6, -1, -1.4, -1.8]){
       rally(); E.player.pos.set(px, 0, 11.6); E.player.targetPos.copy(E.player.pos); E.player.vel.set(0, 0, 0);
       cpuShot(x, 9.8, fl);
-      if (E.player.natpfRunThrough === 1 && E.natpfPlan?.kind !== 'stretch') return { x, fl, px };
+      if (E.player.natpfRunThrough === 1 && E.natpfPlan?.kind !== 'stretch') out.push({ x, fl, px });
     }
-    return null;
+    return out;
   };
   W.run = (pick) => {
+    E.natpfFatigue?.clear?.();   // B34: ogni palla da riposati (si provano più palle di fila: la stanchezza rallenta)
     rally(); E.player.pos.set(pick.px, 0, 11.6); E.player.targetPos.copy(E.player.pos); E.player.vel.set(0, 0, 0);
     cpuShot(pick.x, 9.8, pick.fl);
     const through = E.player.natpfRunThrough, plan = E.natpfPlan?.kind;
@@ -88,7 +91,7 @@ const setup = () => {
     }
     stride1 = E.player.stridePhase; W.stride = stride1;
     const L = E.natpfLastRacket || {};
-    return (W.out.run = { through, plan, hit: hitAt >= 0, run: +runAt.toFixed(2), vmax: E.player.maxSpeed, move: L.move || null, q: L.out?.q, sit: L.sit?.reach, stride: +(stride1 - stride0).toFixed(2), popup: popup.replace(/\s+/g, ' ').trim() });
+    return (W.out.run = { through, plan, hit: hitAt >= 0, run: +runAt.toFixed(2), vmax: E.player.maxSpeed, move: L.move || null, say: L.say ?? null, q: L.out?.q, sit: L.sit?.reach, stride: +(stride1 - stride0).toFixed(2), popup: popup.replace(/\s+/g, ' ').trim() });
   };
   // dopo il colpo in corsa: n passi ancora (il colpo continua), quanto avanza il passo e quanto si corre
   W.after = (n = 8) => { const s0 = E.player.stridePhase, h0 = E.player.rig?.hopPhase ?? null; tick(n);
@@ -115,13 +118,29 @@ try {
     check(`${look}: partenza con split-step e accelerazione (niente partenza a tutta)`, s.hold > 0 && s.v[0] === 0 && s.jump <= 24/60 + .01 && s.v.at(-1) > 3, JSON.stringify(s));
     const t = await game.evaluate(() => __m.turn()); await shot('cambio-direzione'); await close('cambio-direzione');
     check(`${look}: cambio di direzione, prima frena e poi riparte (almeno 0,2 s per invertire)`, t.tx < 0 && t.flip >= 12 && t.vx.at(-1) < -2 && t.vx.slice(0, 24).every((v, i) => i === 0 || v <= t.vx[i - 1] + 1e-6), JSON.stringify(t));
-    const pick = await game.evaluate(() => __m.findRun());
-    check(`${look}: c'è una palla larga e veloce da prendere in corsa`, !!pick, JSON.stringify(pick));
+    const picks = await game.evaluate(() => __m.findRuns()), pick = picks[0];
+    check(`${look}: c'è una palla larga e veloce da prendere in corsa`, !!pick, `${picks.length} palle, ${JSON.stringify(picks.slice(0, 3))}`);
     if (pick){
-      const r = await game.evaluate(p => __m.run(p), pick); await shot('colpo-in-corsa'); await close('colpo-in-corsa');
-      check(`${look}: colpo in corsa: al contatto corre ancora e la scritta dell'esito lo dice`, r.through === 1 && r.hit && r.run > .5*r.vmax && r.move === 'corsa' && /in corsa/i.test(r.popup), JSON.stringify(r));
+      // B34: si prova una palla dopo l'altra fino al colpo con la corsa forte; quelli con la corsa media sono colpi in corsa
+      // per la regola (move) ma senza la scritta. Prima il colpo con la corsa forte (dalle palle più veloci) e i piedi dopo il colpo, poi un colpo con la corsa media
+      // (dalle palle più lente): giocate prima, le palle lente lasciano il personaggio in uno stato in cui la corsa forte
+      // non si ritrovava più
+      let r = null, media = null;
+      for (const p of [...picks].sort((a, b) => a.fl - b.fl || a.px - b.px)){
+        r = await game.evaluate(q => __m.run(q), p);
+        if (r.say === 'corsa') break;
+      }
+      await shot('colpo-in-corsa'); await close('colpo-in-corsa');
+      check(`${look}: colpo in corsa forte: al contatto corre ancora (da 0,8 della massima) e la scritta dell'esito lo dice`, r.through === 1 && r.hit && r.run > .75*r.vmax && r.move === 'corsa' && r.say === 'corsa' && /in corsa/i.test(r.popup), JSON.stringify(r));
       const a = await game.evaluate(() => __m.after(8)); await shot('colpo-in-corsa-dopo'); await close('colpo-in-corsa-dopo');
       check(`${look}: durante il colpo i piedi non si fermano (il passo avanza, si corre ancora)`, a.stride > .5 && a.v > 2 && (a.hop == null || a.hop > .5), JSON.stringify(a));
+      for (const p of [...picks].sort((a, b) => b.fl - a.fl || b.px - a.px).slice(0, 10)){
+        const m = await game.evaluate(q => __m.run(q), p);
+        if (m.hit && m.move === 'corsa' && m.say !== 'corsa'){ media = m; break; }
+      }
+      if (media){ await shot('colpo-in-corsa-media'); await close('colpo-in-corsa-media'); }
+      check(`${look}: c'è anche un colpo in corsa con la corsa media`, !!media);
+      if (media) check(`${look}: colpo in corsa media: colpo in corsa per la regola, nessuna scritta «in corsa» (B34)`, media.run > .5*media.vmax && !/in corsa/i.test(media.popup), JSON.stringify(media));
     }
     check(`${look}: nessun errore in pagina`, errs.length === 0, errs.slice(0, 3).join(' | '));
     await game.close();
