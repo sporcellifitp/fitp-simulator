@@ -398,7 +398,7 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
 **In corso dalle 01:45 UTC del 13/11 (due agenti, script `blocco-singolo.js` con `args`):**
 - [x] **B31** finito (ramo `b31-gioco-a-rete`, `1455e1e`), unito in `62508e3`: **versione 2026-11-13.3** (`fa2482c`;
       controllo rapido gioco 1397/1397, sito 226/226, Windows 42/42, build ok; zip 23.839.397 B, sha256
-      `70b5e87ce9d0edf496ebbb05c4bca2fd75d80a4a6aa8d483211458208a47526d`; installer: `scratchpad/attesa-installer.sh`).
+      `70b5e87ce9d0edf496ebbb05c4bca2fd75d80a4a6aa8d483211458208a47526d`; **installer pubblicato su R2** e verificato: 128061270 B, sha256 `bb2deb6ba9df51693e79a8b604c2122d38c051b3ab6e7eed5f218a4d380bea90`).
       **Da portare al revisore finale**: a Leggenda il profilo «preciso» perde molto di più (CPU 68,2% → 83,5% dei game;
       criterio ≥60% rispettato); la CPU a rete vince poco (20–47% dei punti in cui sale); solo tagliati in una casella
       +4,9 punti (tetto +3); «Stanco!» 0,5% → 4,4% del tempo; «tennista» al livello Bambini a rete 35% dei colpi; il
