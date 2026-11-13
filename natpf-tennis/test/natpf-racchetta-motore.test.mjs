@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import { simulate, courtStats } from '../scripts/audit/rally-balance.mjs';
 import * as NI from '../src/natpf/natpf_impact.js';
+import { NET_PLAY } from '../src/natpf/natpf_net_play.js';
 import { ENGINE_SHOT } from '../src/natpf/natpf_gestures.js';
 import { DiagRecorder } from '../src/natpf/diag/diag_recorder.js';
 import { memoryStore } from '../src/natpf/diag/diag_store.js';
@@ -304,7 +305,11 @@ test('scambi che finiscono e dinamici: nessuno scambio infinito; palle lasciate 
     // forte, profondo e pulito da dentro la riga di fondo, natpf_net_play.approachOf) e resta a rete dopo la volée:
     // «dal fondo» (impatto oltre 10 m) ora capita, ma solo così. Tetto: un colpo su quattro (banco audit:rete, 3 semi × 300
     // punti: chi gioca a rete nel 2–15% dei colpi della CPU)
-    assert.ok(c.toNetPct < 25 && c.toNetFromBackPct < 20, `${difficulty}: ${JSON.stringify(c)}`);
+    assert.ok(c.toNetPct < 25, `${difficulty}: ${JSON.stringify(c)}`);
+    // revisione finale: al posto del tetto largo (< 20% «dal fondo») la regola vera: verso la rete solo da entro 11,2 m
+    // dalla rete (tagliato d'approccio; il colpo forte e profondo da entro 10,8 m), mai da dietro (riga di fondo a 11,9 m)
+    const far = (r.moves || []).filter(m => m.targetZ < 7 && Math.abs(m.contactZ) > NET_PLAY.approach.slice.z + .01);
+    assert.equal(far.length, 0, `${difficulty}: salite a rete da troppo lontano ${JSON.stringify(far.slice(0, 3))}`);
     all.volleys += r.racket.volleys;
     for (const [k, v] of Object.entries(r.racket.shots)) all.shots[k] = (all.shots[k] || 0) + v;
     for (const [k, v] of Object.entries(r.racket.plans)) all.plans[k] = (all.plans[k] || 0) + v;

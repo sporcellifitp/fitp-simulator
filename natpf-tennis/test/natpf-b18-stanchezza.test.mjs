@@ -8,10 +8,13 @@ import assert from 'node:assert/strict';
 import { simulate } from '../scripts/audit/rally-balance.mjs';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import { fatigueLevel, FATIGUE } from '../src/natpf/natpf_skill.js';
-import { ENERGY } from '../src/natpf/natpf_power_hud.js';
+import { ENERGY, energyView } from '../src/natpf/natpf_power_hud.js';
 
 const DT = 1/120;
-const TIRED = 1 - ENERGY.low;   // energia ≤ 0,25: «Stanco!»
+// «Stanco!»: energia ≤ 1 − ENERGY.low (0,25), cioè stanchezza ≥ ENERGY.low (0,75), come la barra (energyView).
+// Revisione finale: prima qui c'era 1 − ENERGY.low (0,25) confrontato con la stanchezza: il test contava la stanchezza
+// ≥ 0,25 (energia ≤ 0,75, nemmeno «Affaticato») e la chiamava «Stanco!» (il 18,6% del B31 era quello)
+const TIRED = ENERGY.low;
 
 test('stanchezza nel motore: a Pro si ricarica tra i punti (quasi mai «Stanco!»), ma lo scambio stanca ancora', () => {
   let steps = 0, tired = 0, maxF = 0, eng = null;
@@ -36,7 +39,16 @@ test('stanchezza nel motore: a Pro si ricarica tra i punti (quasi mai «Stanco!�
   // pallonetti: corre di più e si stanca un poco più spesso. «amatore» a Pro, 6 semi × 100 punti: 0,5% → 4,4% del tempo su
   // «Stanco!» (/tmp: scratchpad tired.mjs, docs/b31/gioco-a-rete.md); questa partita sola (seme 7, 40 punti) 18,6%.
   // Resta lontanissimo dal difetto (93–96%)
-  assert.ok(tired/steps < .22, `tempo su «Stanco!» ${(100*tired/steps).toFixed(1)}% (prima 93–96%)`);
+  // Revisione finale: la soglia su una partita sola (22%, messa guardando questa partita al 18,6%) vedeva poco. Si tiene
+  // larga qui (10% con la soglia giusta, sotto) e la misura vera è sotto: quota del tempo CON LA PALLA IN GIOCO su
+  // «Stanco!», 3 semi × 100 punti, Pro/«amatore» ≤ 5% (revisore: 0,0% sulla base, 2,1–2,2% dopo il B31 e il B32)
+  assert.equal(energyView(TIRED).state, 'stanco'); assert.equal(energyView(TIRED - .01).state, 'affaticato');
+  assert.ok(tired/steps < .1, `tempo su «Stanco!» ${(100*tired/steps).toFixed(1)}% (prima 93–96%)`);
+  let live = 0, liveTired = 0;
+  for (const seed of [4101, 4219, 4337]) simulate({ profile: 'amatore', difficulty: 'pro', points: 100, seed, onStep: e => {
+    if (e.phase === 'RALLY' && e.ball.inPlay){ live++; if (fatigueLevel(e, e.player) >= TIRED) liveTired++; }
+  } });
+  assert.ok(live > 10000 && liveTired/live <= .05, `palla in gioco su «Stanco!» ${(100*liveTired/live).toFixed(2)}% (tetto 5%)`);
   assert.ok(drops > 100, `recupero tra i punti: ${drops} passi in discesa`);
   assert.equal(rises, 0, 'fuori dallo scambio la stanchezza non sale');
   // partita nuova: energia piena
