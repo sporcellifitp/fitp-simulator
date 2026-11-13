@@ -270,10 +270,10 @@ Anche `scripts/audit/fine-partita.mjs --impronte` (5 partite, statistiche accese
 
 | Verifica | Risultato |
 |---|---|
-| `npm test` (gioco) | vedi sotto «Ultimo giro» |
+| `npm test` (gioco) | 1416 su 1417 superati, 0 falliti, 1 saltato (come prima) |
 | `node --test tools/test/*.test.mjs` (sito e telefono) | 226/226 |
 | `npm run build` | riuscita |
-| `npm run audit:legend` | tutti i criteri tranne uno: «amatore, errori della CPU» 1,9% (vedi decisione 3) |
+| `npm run audit:legend` | **esce con «1 criteri non rispettati»**: «amatore, errori della CPU 2–6%» a 1,9% (prima 2,2%); tutti gli altri rispettati (vedi decisione 3) |
 | Prova nel browser `natpf-fine-partita` | 38/38 |
 | Prova nel browser `natpf-movimento` | 17/17 |
 | Prova nel browser `natpf-rete` | 11/11 |
