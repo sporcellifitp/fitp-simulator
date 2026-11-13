@@ -756,7 +756,7 @@ e la calibrazione con i gesti come percorso di base.
   `npm run audit:serve`. A Casual la base dell'errore in risposta è stata alzata (0,135 → 0,15, `lateBase` 1) per
   compensare gli ace «regalati» spariti: scelta dell'agente, da confermare con l'utente.
 - **CPU che sbaglia per la pressione (D1, D9)**: l'errore dipende da allungo, corsa e (a Casual) palla veloce, non dalla
-  lunghezza dello scambio; a Pro la palla oltre 2,5 m è letta fino a 0,19 s in ritardo e le corse lunghe stancano la CPU
+  lunghezza dello scambio (dal B42, con lo scambio caldo acceso di base, dal 20° colpo sì: §Scambi lunghi); a Pro la palla oltre 2,5 m è letta fino a 0,19 s in ritardo e le corse lunghe stancano la CPU
   (`cpuErr`, `cpuWide`, `cpuFatigue` in `SKILL_LEVELS`); spente nel 1v1 tra persone. Banco
   `scripts/audit/cpu-pressione.mjs`. **Decisione dell'utente (11/11): Pro resta com'è** anche se «amatore» scende dal 76 al
   62–64% dei game e gli scambi si allungano (la partita tirata per tutti la darà il livello Evento); scartata l'opzione
@@ -765,7 +765,8 @@ e la calibrazione con i gesti come percorso di base.
   «Partita» dello stesso schermo → «Altre impostazioni» → «Batte per primo»); **Formato in fiera** a tre valori nel
   pannello dello stand (No · Solo stesso schermo · Sì), di base **Solo stesso schermo** (il vecchio `0` salvato diventa
   «Solo stesso schermo»: chi vuole il classico sceglie «No» una volta); **Scambio che si scalda** = opzione dello stand,
-  spenta di base (dal 10° colpo la palla accelera per tutti e due; il tagliato resta tagliato); **Rivincita** dai telefoni
+  spenta di base (dal 10° colpo la palla accelera per tutti e due; il tagliato resta tagliato; **dal B42 acceso di base in
+  tutti i modi, dal 20° colpo**: §Scambi lunghi); **Rivincita** dai telefoni
   (parte quando l'hanno toccata tutti e due). Non voluti dall'utente: tempo massimo, aiuto per il più debole, «chi vince
   resta». Il Player 2 ha risposta al servizio, schiacciata ed effetto laterale del tagliato come il Player 1 (vale anche per
   il P2 della sfida tra due computer). `docs/b20/tappa-a.md`.
@@ -832,3 +833,25 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - Leggenda: chi gioca non sale a rete da solo dopo un attacco (la salita automatica del B31 vale agli altri livelli).
 - Scritte «in corsa / in allungo»: solo con la corsa forte.
 
+## Scambi lunghi: scambio caldo acceso di base (B42, 13/11/2026; `docs/b42/scambi-lunghi.md`)
+- Richiesta dell'utente (13/11, dopo la 2026-11-13.9): dopo 20 colpi di fila colpi forti e speciali via via più probabili,
+  perché lo scambio porti a un risultato e la partita sia più veloce. Fatto con lo «Scambio che si scalda» del B20
+  (`natpf-tennis/src/natpf/natpf_hot_rally.js`), ora **acceso di base in tutti i modi** (CPU a ogni livello, stesso
+  schermo, sfida tra due computer decisa dall'host e mandata al P2 nello snapshot, webcam di chi gioca da solo), **non**
+  con la webcam per due (lì il P2 ha le regole vecchie). Si spegne dal pannello dello stand («Scambio che si scalda»: Sì ·
+  dal 20° colpo / No; chiave `natpf-tennis.scambioCaldo`, `0` spento; senza valore acceso; vale dalla partita dopo).
+- **Dal 20° colpo** (il servizio è il 1°), uguale per i due lati: colpi normali più bassi, carichi e veloci (anche la
+  CPU), colpo super più facile (fino alla «palla calda» dal 23°), CPU che attacca e sbaglia di più, Leggenda che chiude
+  prima, pressione in più su chi gioca. Valori in `HOT_RALLY` (from 20, lead 1, full 10, maxHeat 2, step 0,035, min 0,58,
+  netGap 0,16, spin 10, super 0,14/0,3/0,1/0,5/0,5, cpuAttack 0,25, cpuErr 0,02, press 0,35, pressMin 0,4, legendFrom 20,
+  legendHard 24, legendQ 0,1). Prova di valori senza toccare il gioco: `scambi-lunghi.mjs --hot='{…}'`.
+- **Prima del 20° colpo, e spento, il gioco è identico alla base** colpo per colpo (impronte di 13 partite:
+  `scambi-lunghi.mjs --tracce`; test `natpf-b42-scambi-lunghi.test.mjs`). Le impronte di altri banchi cambiano dopo il
+  primo scambio caldo (cambia il sorteggio): per confrontare con la base usare `--caldo=no` o `natpfHotRally = false`.
+- Lo scambio caldo si decide in `startNewMatch`: una prova che mette in campo uno scambio senza avviare una partita lo
+  trova `undefined` (spento).
+- Effetti misurati con i giocatori simulati (persone vere non provate): punti oltre 30 colpi contro la CPU quasi spariti,
+  partite più corte, punti vinti per livello quasi uguali; contro la Leggenda i profili forti vincono circa 5 punti su 100
+  in meno (tennista 33,6 → 28,1%, preciso 38 → 32,4%; criteri di `audit:legend` tutti rispettati). Bambino contro adulto
+  medio nello stesso schermo 39–44% delle partite (sotto il 50% deciso il 12/11). Banco: `scambi-lunghi.mjs` (due serie
+  di semi; `--b25`, `--semi`); risultati in `natpf-tennis/scripts/audit/b42/risultati/`.

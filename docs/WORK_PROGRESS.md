@@ -1627,3 +1627,37 @@ come telecomando, abbinato una volta per tutte, che copra tutte le schermate. Do
 - **Non verificato**: l'invio vero dal programma Windows installato (serve il PC dell'utente: una partita e poi «Mostra i
   giorni» nella pagina del Worker).
 
+## B42 · Scambi lunghi che si chiudono (13/11) · [~] finito sul ramo `b42-scambi-lunghi`, da unire dopo il B37
+
+Obiettivo (richiesta dell'utente del 13/11): dopo 20 colpi di fila colpi forti e speciali via via più probabili, perché
+lo scambio porti a un risultato e la partita sia più veloce. Criterio di fine: regola di base in tutti i modi, misure
+prima e dopo, suite, build e prove nel browser, documento `docs/b42/scambi-lunghi.md` completo.
+- [x] B42.1 · banco `natpf-tennis/scripts/audit/b42/scambi-lunghi.mjs` e misure prima, due serie di semi (`ea93660`).
+- [x] B42.2 · «Scambio che si scalda» acceso di base, dal 20° colpo, per tutti e due i lati e la CPU (`f17f016`):
+  `natpf_hot_rally.js`, `game_engine.js`, `natpf_stroke_outcome.js`, `natpf_skill.js`, `natpf_legend.js`,
+  `natpf_kiosk.js`, `index.html`, test (nuovo `natpf-b42-scambi-lunghi.test.mjs`, aggiornati B20, B25, Leggenda B16, CPU
+  sotto pressione, servizio).
+- [x] B42.3 · scritta piccola «Scambio caldo · colpo N», registro (`stand.caldo` in tutti i modi) e sezione «Scambi
+  lunghi» del riassunto (`e5ab4da`).
+- [x] B42.4 · fotografia del lavoro fermato dall'utente alle 16:00 UTC (`ae76bdf`, «NON verificato») controllata da chi
+  ha ripreso: in `game_engine.js` solo commenti; tolto `natpf-tennis/legend-prova-tmp.mjs` (file temporaneo); i file
+  «dopo» rifatti sul codice finale vengono identici (banco 56/56 righe, tracce 13/13 e tracce della base, `--b25`,
+  `audit:cpu`, `audit:evento` Bambini, `audit:legend`); le tabelle della §3 del documento rigenerate dai file: 106/106
+  righe uguali (corretta una riga del testo, Casual bambino −3,3 e non −3,4).
+- [x] B42.5 · verifiche e documento (`ff93706` prove e test, poi il commit dei documenti). File:
+  `docs/b42/scambi-lunghi.md` (§4 e §7 scritte, §1, §2, §3.2, §6, §8 corrette, immagine `contro-la-cpu-colpo-22.jpg`), `tools/e2e/natpf-rally.mjs` (il controllo B42 ora avvia una
+  partita: lo scambio caldo si decide in `startNewMatch`), nuovo `natpf-tennis/test/natpf-b42-sfida.test.mjs` (snapshot
+  `hot` dall'host al P2 e scritta sul P2; senza le due righe del motore fallisce), risultati nuovi
+  `evento-bambini-prima-fe6f774.txt` e `bambino-24-semi.md`, `docs/PROJECT_MEMORY.md` (§Scambi lunghi).
+  Verifiche: gioco 1451/1451, sito 226/226, Windows 42/42, LAN 12/12, build ok, `audit:legend` tutti i criteri (contro la
+  Leggenda «tennista» 33,6 → 28,1% dei punti, «preciso» 38 → 32,4%). Nel browser: `natpf-rally` 10/10 (primo giro 9/10,
+  corretta la prova), `natpf-formato-fiera` 25/25, `natpf-1v1-p2p` 39/39, `natpf-menu` 45/45,
+  `natpf-stesso-schermo-b20` 51/53 (i due KO del banner del sorteggio ci sono anche sulla base `fe6f774`, 50/52: prova
+  rimasta indietro rispetto al B35b), `natpf-leggenda` 6/7 in tre giri (posa nell'allungo in corsa; base 7/7 in due
+  giri; il fuori soglia misurato è al 12° colpo, prima dello scambio caldo: da decidere).
+  Non verificato: persone e telefoni veri, Windows, ledwall, installer (nessuna versione nuova), sfida tra due computer
+  oltre il 20° colpo nel browser, webcam.
+- [ ] Da fare per chi unisce: unire dopo il B37. Nel codice l'unico conflitto è il commento in testa a
+  `natpf_hot_rally.js` (tenere il testo del B42 e aggiungere «F9 nel programma Windows»); nei documenti le voci aggiunte in
+  fondo a questo file e a `PROJECT_MEMORY.md` (tenerle tutte e due, prima il B37); F9 anche nella §2 del documento B42.
+  Poi `audit:legend` sul codice unito, versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.

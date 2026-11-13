@@ -10,7 +10,8 @@ di base in tutte le partite**. **Dal 20° colpo** di uno scambio, a ogni colpo, 
 forti e veloci, il **colpo super** diventa via via più facile, la **CPU** attacca di più e sbaglia di più sotto pressione,
 e anche chi gioca regge meno la palla sempre più veloce. Con i giocatori simulati gli scambi oltre 30 colpi contro la CPU
 passano da fino a un quarto dei punti a quasi nessuno, e le partite durano meno; i punti vinti per livello restano quasi
-gli stessi. Prima del 20° colpo non cambia niente. Non è stato provato con persone vere.
+gli stessi (contro la Leggenda i giocatori simulati più forti vincono circa 5 punti su 100 in meno: sezione 4). Prima del
+20° colpo non cambia niente. Non è stato provato con persone vere.
 
 ---
 
@@ -22,7 +23,8 @@ gli stessi. Prima del 20° colpo non cambia niente. Non è stato provato con per
   chiesto meno testi durante la partita.
 - **Da lì, a ogni colpo** (uguale per i due lati):
   - i colpi normali (dritto, rovescio, tagliato) passano più bassi sulla rete, con più effetto e più veloci: per chi
-    gioca e per la CPU (pallonetto, palla corta, schiacciata e la parabola alta della CPU restano come sono);
+    gioca e per la CPU (il tagliato diventa solo più basso e resta un tagliato; pallonetto, palla corta, schiacciata e
+    la parabola alta della CPU restano come sono);
   - il **colpo super** è sempre più facile: basta un gesto un po' meno forte, il tempo può essere meno preciso, la
     stanchezza dello scambio lungo non lo toglie più e, dal 23° colpo, va bene anche la palla veloce e bassa (prima
     serviva una palla alta, lenta o corta). Prima del B42, dal 30° colpo circa, il super non poteva più scattare;
@@ -43,6 +45,8 @@ gli stessi. Prima del 20° colpo non cambia niente. Non è stato provato con per
 
 ![Stesso schermo, 30° colpo: la scritta diventa rossa](stesso-schermo-colpo-30.jpg)
 
+![Contro la CPU, 22° colpo: la scritta in alto al centro, lontana dal tabellone (prova natpf-rally, 1280×720)](contro-la-cpu-colpo-22.jpg)
+
 ## 2. Come si attiva / come si spegne
 
 È **acceso di base**: non serve fare niente.
@@ -57,7 +61,8 @@ Per spegnerlo (o riaccenderlo):
    `natpf-tennis.scambioCaldo`: `0` spento, `1` acceso; senza nessun valore salvato è acceso).
 
 Chi l'aveva già scelto prima del B42 resta con la sua scelta: se l'aveva spento resta spento, se l'aveva acceso resta
-acceso (e ora vale dal 20° colpo e in tutte le partite).
+acceso (e ora vale dal 20° colpo e in tutte le partite). Sul computer dello stand conviene guardare il pulsante una volta:
+se dice «No» (scelta rimasta da prima), un clic lo accende.
 
 Nel **registro dello stand** ogni partita dice se lo scambio caldo era acceso (`stand.caldo`, prima solo nello stesso
 schermo). Il **riassunto** del registro (`scripts/registro/riassunto.mjs`) ha una sezione nuova **«Scambi lunghi»**: quante
@@ -151,11 +156,11 @@ punti):
 
 - bambini: bambino -0,4, amatore -0,3, umano +0,3, tennista +0
 - evento: bambino +4,1, amatore +0,2, umano +0,7, tennista -0,5
-- casual: bambino -3,4, amatore +0,7, umano +1,7, tennista +0
+- casual: bambino -3,3, amatore +0,6, umano +1,7, tennista +0
 - pro: bambino -2,2, amatore +2,5, umano +1,5, tennista -1,5
 - leggenda: bambino +0,1, amatore +1,1, umano -0,7, tennista -1,6
 
-Le righe con il profilo «bambino» (Evento +4,1, Casual −3,4) sono il sorteggio, non la regola: lì gli scambi oltre il 20° colpo sono il 3–6% dei punti, e lo scambio caldo cambia la partita solo da quel punto in poi (cambiano i punti dopo perché cambia il sorteggio). Controllo con più punti nella sezione 4.
+Le righe con il profilo «bambino» (Evento +4,1, Casual −3,3) sono il sorteggio, non la regola: lì gli scambi oltre il 20° colpo sono il 3–6% dei punti, e lo scambio caldo cambia la partita solo da quel punto in poi (cambiano i punti dopo perché cambia il sorteggio). Controllo con più punti nella sezione 4.
 
 ### 3.3 Come finiscono i punti
 
@@ -223,7 +228,86 @@ Quota dei colpi dei telefoni simulati che sono un colpo super, prima del 20° co
 
 ## 4. Gli altri banchi
 
-TESTO_ALTRI
+Prima = base del blocco (`fe6f774`), dopo = questo ramo, sempre con i giocatori simulati. I file sono in
+`natpf-tennis/scripts/audit/b42/risultati/`; i «dopo» sono stati rifatti sul codice finale e vengono identici.
+
+**Leggenda** (`npm run audit:legend`, 8 semi × 300 punti per profilo; `legend-prima-fe6f774.txt`, `legend-dopo.txt`):
+**tutti i criteri rispettati**, prima e dopo. Cosa si muove:
+
+| contro la Leggenda | punti di chi gioca | game vinti dalla CPU (criterio) | colpi a punto | colpi «per chiudere» della CPU |
+|---|---|---|---|---|
+| tennista | 33,6 → 28,1% | 86,6 → 92,2% (≥ 85%) | 19,24 → 16,83 | 8,1 → 11,7% |
+| preciso | 38 → 32,4% | 76,7 → 83,4% (≥ 60%) | 23,19 → 20,11 | 10,7 → 13,6% |
+| medio | 14,4 → 14,4% | 99 → 98,5% (≥ 90%) | 11,74 → 11,74 | 2,3 → 5,3% |
+| amatore | 14,8 → 13,9% | 98,7 → 99,8% (≥ 90%) | 12,43 → 11,92 | 2,4 → 4,8% |
+| bambino | 7,9 → 6,9% | 100 → 99,8% (≥ 98%) | 6,49 → 6,18 | 0,3 → 0,7% |
+| impreciso | 5,4 → 5,6% | 100 → 100% (≥ 98%) | 5,02 → 5,05 | 0,1 → 0,1% |
+
+Gli altri criteri (errori della CPU per colpo, incrociati, lungolinea, schemi, entropia, ripetizioni, velocità, reazione)
+si muovono di poco e restano dentro, per esempio entropia contro «tennista» 2,73 → 2,85 e velocità massima di chi gioca
+contro «bambino» 8,52 → 8,6 m/s (limite 8,8). Non regressione: Pro contro «medio» 75,2 → 75,9% dei game (70–85%), Casual
+contro «medio» 100%. **Da sapere**: contro la Leggenda i profili forti («tennista», «preciso») vincono circa **5 punti su
+100 in meno**: negli scambi lunghi la Leggenda comincia prima a chiudere (dal 20° colpo) e chi gioca ha la pressione in
+più. La Leggenda resta il livello più duro (decisione B16); nel banco della sezione 3 (3 semi, al meglio di 3) la
+differenza era più piccola (35,4 → 33,8%). Per lasciare la Leggenda com'era si toccherebbero `legendQ` e `press`
+(sezione 9): non provato.
+
+**CPU sotto pressione** (`npm run audit:cpu`, Casual e Pro, 8 semi × 300 punti; `cpu-pressione-prima-fe6f774.txt`,
+`cpu-pressione-dopo.txt`):
+
+| | punti di chi gioca | game di chi gioca | colpi a punto (9 su 10 entro) |
+|---|---|---|---|
+| casual · umano | 88,7 → 88,6% | 99,6 → 99,6% | 9,13 → 8,53 (19 → 18) |
+| casual · medio | 90,6 → 92,1% | 100 → 100% | 7,03 → 6,99 (15 → 15) |
+| casual · amatore | 86,1 → 86% | 99 → 99,2% | 8,82 → 8,4 (19 → 20) |
+| casual · tennista | 98,5 → 98,4% | 100 → 100% | 4,4 → 4,39 (8 → 8) |
+| casual · bambino | 49,3 → 49,1% | 48,2 → 47,4% | 7,11 → 7,18 (16 → 16) |
+| pro · umano | 62,4 → 63% | 77,3 → 79,6% | 16,59 → 14,45 (36 → 26) |
+| pro · medio | 61,8 → 62,5% | 76,8 → 79,9% | 11,23 → 10,35 (24 → 22) |
+| pro · amatore | 53,5 → 52,7% | 59,9 → 56,4% | 13,65 → 12,44 (29 → 25) |
+| pro · tennista | 94,1 → 93% | 99,8 → 99,8% | 8,05 → 7,68 (17 → 16) |
+| pro · bambino | 15 → 16,1% | 0,4 → 0,4% | 7,8 → 7,61 (17 → 18) |
+
+Obiettivi del banco: prima 2 non raggiunti, dopo 1, lo stesso di prima («palle facili: l'errore non cresce con lo scambio,
+dal 17° colpo non oltre il 3%»: casual · bambino 3,4%, come prima). L'altro (Pro, palla a 4–6 m dalla CPU, almeno il 15%
+di vincenti contro «umano») passa da 14,9% a 26,3%; Pro contro «medio» 79,9% dei game (obiettivo 70–85%). Pro contro
+«amatore» scende di 3,5 game su 100 (59,9 → 56,4%): con 8 semi i game oscillano di ± 3 punti (nota del banco), ma va
+tenuto d'occhio (decisione dell'11/11: Pro resta com'è). Da sapere: con lo scambio caldo acceso, dal 20° colpo la CPU
+sbaglia di più anche solo perché lo scambio è lungo; prima (D1, D9) la lunghezza dello scambio da sola non contava.
+
+**Livello Bambini** (`npm run audit:evento -- --livelli=bambini --profili=bambino,ragazzo,amatore`, 6 semi × 300 punti
+per serie, media delle due serie; `evento-bambini-prima-fe6f774.txt`, rifatto sulla base, e `evento-bambini-dopo.txt`):
+
+| livello Bambini | punti vinti da chi gioca | colpi a punto | partita: 9 su 10 entro · la più lunga (s) |
+|---|---|---|---|
+| bambino, 1 game | 82,1 → 80,4% | 10,3 → 9,8 | 124,5 → 115 · 204 → 173 |
+| bambino, al meglio di 3 | 80,6 → 80,9% | 10,5 → 9,5 | 250,5 → 235 · 433 → 367 |
+| ragazzo, 1 game | 90,7 → 92,2% | 11,2 → 9,9 | 117,5 → 99,5 · 213 → 180 |
+| ragazzo, al meglio di 3 | 91,9 → 90,9% | 11,4 → 10,2 | 221,5 → 198 · 323 → 295 |
+| amatore, 1 game | 98,2 → 97,4% | 9,1 → 9,2 | 90 → 84,5 · 186 → 126 |
+| amatore, al meglio di 3 | 97,9 → 98,3% | 9,8 → 8,9 | 168,5 → 151,5 · 304 → 220 |
+
+I bambini vincono sempre circa 8 punti su 10 e le partite più lunghe si accorciano.
+
+**Bambino contro adulto nello stesso schermo** (B25: fasce «Bambino» e «Adulto», aiuto al più giovane acceso;
+`scambi-lunghi.mjs --b25`, 300 partite a 1 game per riga, il bambino metà delle volte da Player 1 e metà da Player 2;
+spento = scambio caldo spento, cioè la base; `b25-bambino-adulto.md`):
+
+| bambino contro | serie | partite vinte dal bambino | punti del bambino | punti oltre 30 colpi | partita media (s) |
+|---|---|---|---|---|---|
+| medio | A | 39 → 44% | 44,2 → 46,4% | 4,9 → 2,4% | 93,2 → 90,2 |
+| medio | B | 38 → 39% | 44,5 → 44,6% | 5,8 → 2,2% | 95,9 → 84,4 |
+| amatore | A | 21,3 → 26,3% | 36,8 → 38,6% | 10,5 → 4,5% | 106,2 → 98,5 |
+| amatore | B | 17,7 → 27% | 32,8 → 39,5% | 9,8 → 5% | 106 → 98,6 |
+
+Contro l'adulto medio il bambino resta sotto la metà delle partite (39–44%; obiettivo del 12/11: circa il 40%, mai oltre
+il 50%).
+
+**Il bambino contro la CPU, con più punti** (righe «bambino» a Evento e Casual della sezione 3.2; 24 semi × 120 punti,
+2.880 punti per riga; `bambino-24-semi.md`): punti vinti dal bambino Evento 45,9 → 47,1% (+1,2), Casual 48,7 → 51,7%
+(+3,0). Con le due serie della sezione 3 erano +4,1 e −3,3: il segno di Casual si rovescia, quindi quelle differenze sono
+soprattutto sorteggio. Resta possibile un piccolo vantaggio per il bambino, di qualche punto su 100 (con 24 semi i suoi
+vincenti a Casual passano dall'11,3 al 15,1% dei punti); le regole sono uguali per tutti e due, nessun punto regalato.
 
 ## 5. Prima del 20° colpo non cambia niente (impronte)
 
@@ -265,8 +349,9 @@ il primo lancio diverso è un colpo dal 20° in poi contro la Leggenda e nello s
   ridotta. Nello stesso schermo, dove il «gesto fortissimo» si misura rispetto al proprio colpo abituale, sale per tutti
   (amatore dallo 0,3% all'8,2% dei colpi dal 20° in poi).
 - **Il bambino con l'aiuto (B25) vince un po' di più contro l'adulto** (sezione 4): lo scambio caldo è uguale per i due,
-  ma il bambino ha già la finestra del tempo più larga e la palla dell'altro più lenta. Non è un punto regalato: succede
-  solo negli scambi oltre il 20° colpo.
+  ma il bambino ha già la finestra del tempo più larga e la palla dell'altro più lenta. Non è un punto regalato: la
+  regola agisce solo dal 20° colpo dello scambio, uguale per i due. Contro l'adulto medio il bambino resta sotto la metà
+  delle partite (39–44%).
 
 ## 7. Prove
 
@@ -279,9 +364,48 @@ stesso schermo); scambi oltre 30 colpi molto meno contro la Leggenda. Aggiornati
 acceso di base, dal 20° colpo, scritta «colpo N»), B25 (le impronte di f08243a con lo scambio caldo spento, come allora),
 Leggenda B16 (pressione dal 26° colpo spento, dal 20° acceso), CPU sotto pressione (la lunghezza dello scambio da sola non
 conta con lo scambio caldo spento; acceso, la CPU sbaglia di più dal 20° colpo), servizio (misura del servizio con lo
-scambio caldo spento: vedi il commento nel test), riassunto del registro (sezione «Scambi lunghi»).
+scambio caldo spento: vedi il commento nel test), riassunto del registro (sezione «Scambi lunghi»). In più
+`natpf-tennis/test/natpf-b42-sfida.test.mjs` (2 test, mondo di prova): nella sfida tra due computer l'host manda lo
+scambio caldo nello snapshot della partita (acceso di base, spento se lo staff l'ha spento) e il computer del Player 2 usa
+quello dell'host per la scritta «colpo N», anche se lì era spento; un host di prima, senza il campo, non cambia niente.
+Senza le due righe del motore che lo mandano e lo leggono, i due test falliscono (provato).
 
-TESTO_SUITE
+**Suite e prove sul ramo** (13/11, sul codice finale; macchina a 4 CPU condivisa con un altro agente):
+
+- gioco `npm test`: **1451/1451** (compresi i 2 test nuovi); sito e pagina del telefono
+  (`node --test tools/test/*.test.mjs`): **226/226**; programma Windows (`natpf-desktop`): **42/42**; server LAN:
+  **12/12**; build: **ok**;
+- `npm run audit:legend`: **tutti i criteri rispettati** (sezione 4), uscita identica a `risultati/legend-dopo.txt`;
+- misure rifatte sul codice finale, identiche ai file salvati: banco della sezione 3 (56 righe di `dopo.json` e
+  `dopo.md`), `--tracce` (13 partite, `tracce.txt`) e le stesse tracce sulla base (`tracce-base-fe6f774.txt`), `--b25`,
+  `audit:cpu`, `audit:evento` del livello Bambini;
+- prove nel browser (Chromium; porte 4150–4199; tutte una alla volta):
+  - `natpf-rally` **10/10**. Al primo giro 9/10: il controllo nuovo del B42 metteva lo scambio al 22° colpo senza aver mai
+    avviato una partita, e lo scambio caldo si decide all'inizio della partita (`startNewMatch`, come con «Gioca»); il
+    controllo ora avvia una partita nuova contro la CPU e poi porta lo scambio al 22° colpo (corretta la prova, non il
+    gioco). La scritta al 22° colpo è 168 × 23 px a 1280 × 720, in alto al centro, lontana dal tabellone;
+  - `natpf-stesso-schermo-b20` **51/53**: falliscono i due controlli del banner del sorteggio, che aspettano «Sorteggio:
+    batte Giulia» mentre il banner dice anche «· Formato veloce: il servizio cambia ogni 2 punti» (riga del B35b, versione
+    2026-11-13.9). Sulla base `fe6f774` la stessa prova fa 50/52 con gli stessi due KO: non dipende dal B42 e qui non è
+    stata toccata. Passano tutti i controlli dello scambio caldo: di base «Sì · dal 20° colpo» senza niente di salvato, un
+    clic lo spegne e uno lo riaccende (salvato, con l'avviso), pannello dello stand senza scorrere a sei misure, fino al
+    19° colpo nessuna scritta, al 22° la scritta piccola (172 × 24 px) sotto i tabelloni senza coprirli, rossa al 30°,
+    sparisce a punto finito;
+  - `natpf-leggenda` **6/7** in tre giri (uno con due banchi in parallelo, uno da solo, uno con una copia della prova che
+    stampa anche il numero del colpo): fallisce sempre la stessa verifica, la posa della CPU negli allunghi **in corsa**
+    durante la partita (centro del piatto della racchetta da +0,00 a +0,04 m oltre il suo posto normale, una volta
+    −0,08, invece di almeno +0,05; mano e testa vanno verso la palla). Gli allunghi forzati passano sempre. Sulla base
+    `fe6f774` 7/7 in due giri, con meno allunghi in partita (1 e 3, contro 3, 8 e 9) e uno esattamente al limite (+0,05
+    al 19° colpo). Nel giro con il numero del colpo l'allungo fuori soglia è al **12° colpo**, dove lo scambio caldo non
+    cambia niente (fino al 19° colpo il gioco è quello della base, sezione 5): il B42 non tocca la posa, ma cambiando i
+    punti dopo il primo scambio caldo può far capitare più allunghi in corsa. Da decidere: sistemare la posa della
+    racchetta nell'allungo in corsa (`legendReachPose` in `natpf_legend.js`, racchetta di `racket_kinematics`) o
+    accettarlo. La soglia della prova non è stata toccata;
+  - `natpf-formato-fiera` **25/25**, `natpf-1v1-p2p` **39/39** (sulla build), `natpf-menu` **45/45** (pannello dello
+    stand senza scorrere e «Chiudi» in vista a 1366 × 657, 1024 × 600, 1280 × 720, 1024 × 1024 e 720 × 720).
+- Schermate guardate: contro la CPU al 22° colpo (immagine qui sopra) e nello stesso schermo al 22° e al 30° colpo: la
+  scritta è piccola, si legge e non copre i tabelloni. Contro la CPU, quando la CPU è in fondo al centro, la scritta sta
+  appena sopra la sua testa.
 
 ## 8. Cosa non è provato
 
@@ -296,7 +420,11 @@ TESTO_SUITE
 - **Programma Windows, ledwall, installer**: non provati (nessun pacchetto nuovo: i file di versione non sono stati toccati,
   come chiesto).
 - **La scritta sul computer del Player 2** nella sfida tra due computer: il campo nuovo dello snapshot (`hot`) è provato
-  solo dai test di unità e dalla prova natpf-1v1-p2p (che non arriva al 20° colpo), non a occhio.
+  dal test di unità `natpf-b42-sfida.test.mjs` (mondo di prova: l'host lo manda, il P2 lo usa per la scritta), non nel
+  browser con due computer (natpf-1v1-p2p non arriva al 20° colpo) né a occhio.
+- **Allungo della Leggenda in corsa** (prova natpf-leggenda, sezione 7): la verifica della posa fallisce a volte anche
+  prima del 20° colpo; non è chiarito se il B42, cambiando i punti dopo il primo scambio caldo, la faccia fallire più
+  spesso.
 - **Il riassunto del registro** è provato con righe finte (`finto.mjs` e un test di unità), non con un registro vero
   dello stand.
 
