@@ -739,10 +739,22 @@
       <footer class="lobby-bottom">
         <button type="button" id="lobby-back" class="lobby-ghost">‹ Indietro</button>
         <span class="lobby-keys" aria-hidden="true">Invio avanti · Esc indietro</span>
+        <!-- B41.6: pagina «Pronto per la partita» con i telefoni: chi ha toccato «Sono pronto» (natpf_ready_go.js) -->
+        <div id="ready-go" class="ready-go hidden" role="status" aria-live="polite"></div>
         <button type="button" id="lobby-warmup" class="lobby-ghost hidden">Riscaldati prima</button
         ><button type="button" id="lobby-next" class="lobby-primary">Avanti ›</button
         ><button id="btn-start-match" type="button" class="lobby-primary"><span>Gioca</span> ›</button>
       </footer>
+      <!-- B41.6: tutti hanno toccato «Sono pronto» sul telefono: conto alla rovescia, poi la partita da sola (stessi stili del
+           conto dello stesso schermo; natpf_ready_go.js) -->
+      <div id="ready-go-count" class="split-countdown ready-go-count hidden" role="status" aria-live="assertive">
+        <div class="split-countdown-box">
+          <p class="split-countdown-kicker">Tutti pronti · si gioca tra</p>
+          <b class="split-countdown-num" data-ready-go-count>3</b>
+          <p class="split-countdown-sub" data-ready-go-names></p>
+          <button type="button" class="lobby-ghost" data-ready-go-hold>Aspetta <kbd>Esc</kbd></button>
+        </div>
+      </div>
       <!-- stesso schermo: conto alla rovescia prima della partita, grande al centro (natpf_split_ui._paintStart) -->
       <div id="split-countdown" class="split-countdown hidden" role="status" aria-live="assertive">
         <div class="split-countdown-box">

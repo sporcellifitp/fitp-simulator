@@ -29,6 +29,8 @@ import { installMatchStats } from './natpf_match_stats.js';
 import { isCpuLevel } from './natpf_who.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
 import { NatpfRemote } from './natpf_remote.js';
+import { NatpfFiera } from './natpf_fiera.js';
+import { NatpfReadyGo } from './natpf_ready_go.js';
 import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText, phoneOf, holdTitle, otherPhoneNote } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
@@ -134,6 +136,10 @@ export class NatpfUi {
     try { this.registro = new NatpfRegistro(engine, this); } catch (e){ this.registro = null; console.warn('[natpf-registro] non avviato', e?.message || e); }
     // telecomando dello staff (B27): telefono dello staff abbinato una volta, frecce, OK, Pausa, Menu… (natpf_remote.js)
     this.remote = new NatpfRemote(engine, this);
+    // B41 prima parte: modalità fiera (telefoni dello stand abbinati una volta e sempre in ascolto, natpf_fiera.js) e
+    // «Sono pronto» dai telefoni sulla pagina «Pronto per la partita» (natpf_ready_go.js, vale anche fuori dalla fiera)
+    this.fiera = new NatpfFiera(engine, this);
+    this.readyGo = new NatpfReadyGo(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
     // aggiornamenti del programma Windows (window.natpfDesktop.updates, 07/11): avviso nel menu e sezione in Opzioni;
@@ -176,7 +182,7 @@ export class NatpfUi {
     this.phoneWatch = createPhoneWatch(); this.phoneHold = null; this.phoneResync = createResync();
     // webcam in campo: lo stesso per la mano persa a lungo e la camera ferma (natpf_webcam_watch.js)
     this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
-    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); } catch (e){ console.error(e); } }, 100);
+    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); this.readyGo?.tick(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -348,6 +354,8 @@ export class NatpfUi {
     const L = p.state, url = p.pairingUrl;
     if (!box) return;
     if (p.connected){ if (box.dataset.token !== 'ok'){ box.innerHTML = '<div class="natpf-qr-ok">✓</div>'; box.dataset.token = 'ok'; } }
+    // B41.2: telefono dello stand (modalità fiera) scollegato: niente QR per il pubblico, si ricollega da solo
+    else if (p.standSlot){ const k = `stand:${p.standSlot}`; if (box.dataset.token !== k){ box.innerHTML = `<div class="natpf-qr-stand"><b>${p.standSlot === 'p2' ? 'Telefono 2' : 'Telefono 1'}</b><span>Telefono dello stand scollegato: si ricollega da solo. Se non torna, chiama lo staff.</span></div>`; box.dataset.token = k; } }
     else if (url && (L.state === 'waiting' || L.state === 'lost') && box.dataset.token !== p.link.token && window.qrcode){
       const q = window.qrcode(0, 'M'); q.addData(url); q.make();
       box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); box.dataset.url = url; box.dataset.token = p.link.token;

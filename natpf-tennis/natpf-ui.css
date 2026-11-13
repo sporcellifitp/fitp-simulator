@@ -1967,3 +1967,31 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .remote-sheet .remote-ok { margin: 6px 0 10px; font: 800 italic clamp(28px, 5cqh, 44px)/1 var(--font-display); text-transform: uppercase; color: var(--ball); }
 /* fuoco spostato dal telecomando (frecce del telefono): sempre visibile, anche dopo un clic del mouse sul computer */
 html.remote-nav :is(button, a, input, [tabindex]):focus { outline: 3px solid var(--ball); outline-offset: 3px; }
+
+/* B41.6: «Sono pronto» dai telefoni (natpf_ready_go.js). In basso accanto a «Gioca», al posto dei tasti: una spunta per
+   giocatore (verde pronto, ambra da toccare, rossa con il motivo). Misure legate all'area del gioco */
+#title-modal .lobby-bottom.with-ready-go .lobby-keys { display: none; }
+#title-modal .ready-go { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: max(6px, 0.8cqh) max(8px, 1cqw); }
+#title-modal .ready-go.hidden { display: none; }
+#title-modal .rg-chip { display: inline-flex; align-items: center; gap: max(6px, 0.7cqh); max-width: 100%; padding: max(5px, 0.7cqh) max(12px, 1.6cqh); border-radius: 999px; border: 2px solid var(--line-strong); background: var(--panel); font: 700 clamp(13px, 2.1cqh, 30px)/1.15 var(--font-text); color: var(--text); }
+#title-modal .rg-chip b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: inherit; }
+#title-modal .rg-chip i { flex: none; width: max(10px, 1.3cqh); height: max(10px, 1.3cqh); border-radius: 50%; border: 2px solid currentColor; }
+#title-modal .rg-chip[data-p="p1"] { box-shadow: inset 5px 0 0 var(--ball); }
+#title-modal .rg-chip[data-p="p2"] { box-shadow: inset 5px 0 0 var(--pink); }
+#title-modal .rg-chip.is-ok { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.16), rgba(54, 224, 122, 0.16)), var(--panel); }
+#title-modal .rg-chip.is-ok i { background: var(--ok); border-color: var(--ok); }
+#title-modal .rg-chip.is-wait { border-color: rgba(255, 198, 64, 0.7); }
+#title-modal .rg-chip.is-wait i { border-color: var(--warn, #ffc640); animation: rg-blink 1.2s ease-in-out infinite; }
+#title-modal .rg-chip.is-ko { border-color: var(--bad); color: var(--text-2); }
+#title-modal .rg-chip.is-ko i { border-color: var(--bad); }
+#title-modal .rg-why { flex-basis: 100%; text-align: center; font: 600 clamp(12px, 1.8cqh, 24px)/1.2 var(--font-text); color: var(--bad); }
+@keyframes rg-blink { 50% { opacity: 0.25; } }
+/* area stretta (720 × 720, colonna): le spunte vanno sopra i pulsanti, su tutta la larghezza */
+@container natpf (max-width: 820px) {
+  #title-modal .lobby-bottom.with-ready-go { flex-wrap: wrap; row-gap: 6px; }
+  #title-modal .lobby-bottom.with-ready-go .ready-go { order: -1; flex-basis: 100%; }
+}
+/* B41.2: telefono dello stand scollegato al posto del QR (il pubblico non deve trovare un QR che valga) */
+.natpf-qr-stand { display: grid; gap: 6px; padding: 8px; text-align: center; color: #0b1433; }
+.natpf-qr-stand b { font: 800 italic clamp(18px, 3cqh, 34px)/1 var(--font-display); text-transform: uppercase; }
+.natpf-qr-stand span { font: 600 clamp(11px, 1.6cqh, 18px)/1.25 var(--font-text); color: #3b4a6b; }

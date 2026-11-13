@@ -93,11 +93,29 @@
   body.flat.land #sub,body.flat.land #faceTxt{flex-basis:100%}
   body.flat.land #ring{width:min(36vh,150px)} body.flat.land #big{font-size:20px} body.flat.land #arrow{font-size:34px} body.flat.land #sub{font-size:14px;min-height:0}
   body.flat.land #faceDial{width:min(34vh,130px)} body.flat.land #gripFlat{width:min(36vh,140px)} body.flat.land .btn{padding:11px;font-size:16px}
-  @media(max-height:740px){#ring{width:min(54vw,170px)}#big{font-size:19px}#arrow{font-size:42px}#stage{gap:6px;min-height:170px}#grip{width:min(66vw,220px)}#sub{font-size:15px;min-height:0}.btn{padding:12px}}
+  /* B41.6: «Sono pronto» grande e pieno sulla pagina «Pronto per la partita» del computer; spento con la spunta dopo il tocco */
+  .btn.big{font-size:27px;padding:24px 18px;border-radius:18px;box-shadow:0 0 0 4px rgba(232,255,58,.18)}
+  .btn.big:disabled{background:var(--ok);color:#06210f;box-shadow:none;opacity:1}
+  /* B41.3: telefono dello stand. Il numero del posto, grande, con il colore del giocatore (1 giallo, 2 rosa); tenuto premuto
+     3 s dallo staff (l'anello si riempie) mostra Ricalibra, Ricollega e Scollega */
+  #standTag{display:flex;align-items:center;gap:12px;margin:8px auto 2px;padding:6px 16px 6px 8px;border-radius:999px;background:#13245a;border:2px solid #405b9b;
+    touch-action:none;-webkit-touch-callout:none;position:relative}
+  #standTag b{display:grid;place-items:center;width:58px;height:58px;border-radius:50%;background:var(--ball);color:#071233;font-size:38px;font-weight:900;line-height:1}
+  #standTag[data-slot="p2"] b{background:var(--pink);color:#fff}
+  #standTag span{font-size:16px;font-weight:700;color:var(--muted);line-height:1.2;text-align:left}
+  #standTag em{display:block;font-style:normal;font-size:24px;font-weight:800;color:var(--ink)}
+  #standTag span small{display:block;font-size:12px;font-weight:600;opacity:.8}
+  #standTag::after{content:"";position:absolute;inset:-6px;border-radius:999px;border:4px solid var(--ball);opacity:0;clip-path:inset(0 100% 0 0)}
+  #standTag.holding::after{opacity:1;animation:staff-fill 3s linear forwards}
+  @keyframes staff-fill{to{clip-path:inset(0 0 0 0)}}
+  #standTag.staff{border-color:var(--warn)} #standTag.staff span small{color:var(--warn);opacity:1}
+  @media(max-height:740px){#ring{width:min(54vw,170px)}#big{font-size:19px}#arrow{font-size:42px}#stage{gap:6px;min-height:170px}#grip{width:min(66vw,220px)}#sub{font-size:15px;min-height:0}.btn{padding:12px}.btn.big{font-size:23px;padding:18px}#standTag b{width:46px;height:46px;font-size:30px}}
 </style>
 </head>
 <body>
 <div id="bar"><i></i><span id="barTxt">Collegamento…</span><small id="lat"></small></div>
+<!-- B41.3: telefono dello stand (modalità fiera): numero del posto; tenuto premuto 3 s, i pulsanti dello staff -->
+<div id="standTag" class="hidden" role="img" aria-label="Telefono dello stand"><b>1</b><span><em>Telefono 1</em><small>dello stand · staff: tieni premuto 3 s</small></span></div>
 <!-- sensori fermi o schermo che può spegnersi (phone-keep.js): cosa succede e cosa fare -->
 <!-- tutorial sul computer prima della partita (richiesta del 04/11): il pulsante sta in alto, lontano dalle dita che
      tengono la parte bassa del telefono (presa nel palmo). Acceso da subito (B28, 12/11: prima spento finché non si erano

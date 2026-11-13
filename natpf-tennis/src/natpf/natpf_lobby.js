@@ -685,6 +685,8 @@ export class NatpfLobby {
   // Esc durante il conto alla rovescia dello stesso schermo: lo ferma («Aspetta»), non cambia pagina
   back(){
     if (this.mode === 'split' && this.step === 'connect' && this.ui.split?.countdownRunning){ this.ui.split.holdCountdown(); return; }
+    // (B41.6: … e quello di «Sono pronto» sulla pagina «Pronto per la partita»)
+    if (this.step === 'match' && this.ui.readyGo?.cd?.running){ this.ui.readyGo.hold(); return; }
     const p = previousStep(this.step, this.mode); if (p) this.go(p);
   }
   _tiles(){

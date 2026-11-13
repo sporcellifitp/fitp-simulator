@@ -24,7 +24,8 @@ import { decodeSensor } from './sensor-packet.js';
 import { createRacketMotion } from './racket-motion.js';
 import { phoneInputTime } from './input-time.js';
 import { parseSwingMessage } from './swing-message.js';
-import { createGate, newSessionId, pairingUrl, createClock } from './pairing.js';
+import { createGate, newSessionId, pairingUrl, createClock, same } from './pairing.js';
+import { STAND, createStandGate, gameStoreKey, newStandNonce, newPairNumber, NONCE, hasSubtle } from './stand-pairing.js';
 import { iceReady, ourIceServers, mergeIceServers, followIce, watchRoute } from './ice-route.js';
 export { iceReady } from './ice-route.js';
 
@@ -75,10 +76,23 @@ export const loadPeer = () => libP || (libP = new Promise((res, rej) => {
   s.onload = () => res(window.Peer); s.onerror = () => { libP = null; rej(new Error('peerjs')); }; document.head.appendChild(s);
 }));
 
-export function createPhoneLink(){
+// errori della segnalazione con cui l'id resta occupato dal collegamento di prima (pagina ricaricata, programma
+// riavviato): l'indirizzo fisso di un posto dello stand si riprova finché il server non lo libera (come remote-link.js)
+const ID_TAKEN = new Set(['unavailable-id', 'id-unavailable']);
+const browserStore = key => ({
+  load(){ try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } },
+  save(v){ try { localStorage.setItem(key, JSON.stringify(v)); } catch {} },
+});
+
+// stand (B41.2, modalità fiera): { slot: 'p1' | 'p2', store? } → telefono dello stand di quel posto (stand-pairing.js).
+// Niente QR pubblico né codice monouso: si entra solo all'indirizzo fisso del posto con la prova della chiave (HMAC,
+// come il telecomando dello staff), oppure dall'indirizzo dell'abbinamento a foglio aperto con la conferma dello staff
+// (standPairing / standConfirm). Dopo l'ingresso il telefono è una racchetta come le altre: stessi messaggi
+export function createPhoneLink({ stand = null } = {}){
   const gate = createGate({});
   const session = newSessionId();
-  const L = { state: 'off', phone: null, rtt: null, error: null, grip: null };
+  const sgate = stand ? createStandGate({ slot: stand.slot, store: stand.store || browserStore(gameStoreKey(stand.slot)) }) : null;
+  const L = { state: 'off', phone: null, rtt: null, error: null, grip: null, ...(sgate ? { stand: { slot: sgate.slot, paired: sgate.paired, pairing: false, request: null, closedWhy: null } } : {}) };
   let faceSample = null;                     // ultimo orientamento del piatto { yaw, pitch, roll, at }
   let lastFaceK = -Infinity;                 // istante (telefono) dell'ultimo piatto: sul percorso veloce l'ordine non è garantito
   // copie del colpo: numeri già visti (ultimi 64) e da quale percorso è arrivata la prima copia
@@ -98,6 +112,9 @@ export function createPhoneLink(){
   // route: strada scelta del collegamento con il telefono (ice-route.js, routeSummary), all'apertura e a ogni cambio
   const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [], discard: [], mark: [], device: [], route: [] };
   let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0, starting = null, startEpoch = 0;
+  // stand: indirizzo del Peer fisso (cambia con un abbinamento nuovo), Peer dell'abbinamento (solo a foglio aperto),
+  // telefono in attesa della conferma ({ c, num }), nuovo tentativo dell'indirizzo occupato
+  let peerId = null, pairPeer = null, pairPending = null, idRetry = null;
   // strada del collegamento con il telefono (ice-route.js): letta all'apertura e poi ogni 10 s, «route» se cambia
   let stopRoute = () => {};
   const clock = createClock(), racketMotion = createRacketMotion();
@@ -119,6 +136,7 @@ export function createPhoneLink(){
   // nuove (o, se scadute, le sole strade di base) arrivano nella configurazione del Peer (followIce)
   const renewIce = () => { if (!isLanMode()) iceReady().catch(() => null); };
   async function run(){
+    if (sgate) return runStand();
     if (peer && !peer.destroyed){ renewIce(); return; }
     const epoch = ++startEpoch;
     set({ state: 'starting', error: null });
@@ -133,15 +151,57 @@ export function createPhoneLink(){
       peer.on('disconnected', () => { if (!peer.destroyed) setTimeout(() => peer && !peer.destroyed && peer.reconnect(), 1500); });
       peer.on('error', e => { if (e.type === 'peer-unavailable') return; set({ state: conn ? L.state : 'error', error: e.type || String(e) }); });
     } catch (e){ set({ state: 'error', error: 'libreria' }); }
+    startTick();
+  }
+  // Peer della libreria (PeerJS via internet, LanPeer in LAN) per un indirizzo
+  const makePeer = async id => {
+    const Peer = isLanMode() ? LanPeer : (await Promise.all([loadPeer(), iceReady().catch(() => null)]))[0];
+    return new Peer(id, peerConfig());
+  };
+  // B41.2 · posto dello stand: in ascolto all'indirizzo fisso solo se il posto è abbinato (senza, nessun indirizzo: si
+  // aspetta l'abbinamento a foglio aperto). Con l'indirizzo ancora occupato dal collegamento di prima (gioco ricaricato,
+  // programma riavviato) si riprova dopo STAND.idRetryMs finché il server non lo libera (prima link.js segnava solo
+  // «error» e il telefono restava fuori)
+  async function runStand(){
+    startTick();
+    const id = sgate.session;
+    if (!id){ if (peer){ const p = peer; peer = null; peerId = null; try { p.destroy(); } catch {} } if (!conn) set({ state: 'off', error: null }); return; }
+    if (peer && !peer.destroyed && peerId === id){ renewIce(); return; }
+    const epoch = ++startEpoch;
+    if (peer){ const p = peer; peer = null; peerId = null; try { p.destroy(); } catch {} }
+    set({ state: 'starting', error: null });
+    try {
+      const p = await makePeer(id);
+      if (epoch !== startEpoch || sgate.session !== id){ try { p.destroy(); } catch {} return; }
+      peer = p; peerId = id;
+      p.on('open', () => { if (peer === p) set({ state: conn ? 'connected' : 'waiting', error: null }); });
+      p.on('connection', c => { if (peer === p) accept(c, 'main'); });
+      p.on('disconnected', () => { if (!p.destroyed) setTimeout(() => { if (!p.destroyed) try { p.reconnect(); } catch {} }, 1500); });
+      p.on('error', e => {
+        if (e?.type === 'peer-unavailable' || peer !== p) return;
+        if (ID_TAKEN.has(e?.type)){
+          set({ state: 'retry', error: e.type });
+          clearTimeout(idRetry);
+          idRetry = setTimeout(() => { if (peer === p && L.state === 'retry'){ try { p.destroy(); } catch {} peer = null; peerId = null; start(); } }, STAND.idRetryMs);
+          return;
+        }
+        set({ state: conn ? L.state : 'error', error: e?.type || String(e) });
+      });
+    } catch { set({ state: 'error', error: 'libreria' }); }
+  }
+  function startTick(){
     clearInterval(tick);
     tick = setInterval(() => {
       renewIce();
+      // (stand: foglio aperto da più di 5 minuti, il QR non vale più)
+      if (sgate && L.stand.pairing && sgate.expired) endPairing('expired');
       if (gate.expired && !conn) gate.rotate();
       if (gate.token !== lastTok){ lastTok = gate.token; emit('change', L); }                 // QR nuovo
       if (conn) conn.send({ t: 'dp', d: performance.now() });
       // il telefono manda un segnale ogni secondo: se tace per 5 s (schermo spento, rete persa) è scollegato
       if (conn && Date.now() - lastSeen > 5000){ const c = conn; conn = null; gate.release(); try { c.close(); } catch (e){} set({ state: 'lost', phone: null }); }
     }, 1000);
+    tick.unref?.();
   }
   // via internet: seconda connessione non ordinata dello stesso telefono (stesso peer della connessione principale)
   function acceptFast(c){
@@ -181,39 +241,85 @@ export function createPhoneLink(){
         return;
     }
   }
-  function accept(c){
+  function accept(c, kind = 'main'){
     if (typeof c.label === 'string' && c.label.startsWith('fast-')) return acceptFast(c);
     let ok = false;
     // chi non si presenta entro 6 s dall'apertura del canale viene chiuso; prima che il canale si apra c'è più tempo
     // (LINK_TIMES: il percorso attraverso un server di inoltro è lento)
-    let timer = setTimeout(() => { if (!ok) c.close(); }, LINK_TIMES.negotiateMs);
-    c.on('open', () => { if (ok) return; clearTimeout(timer); timer = setTimeout(() => { if (!ok) c.close(); }, LINK_TIMES.helloMs); });
+    let timer = setTimeout(() => { if (!ok && !waiting) c.close(); }, LINK_TIMES.negotiateMs);
+    c.on('open', () => { if (ok || waiting) return; clearTimeout(timer); timer = setTimeout(() => { if (!ok && !waiting) c.close(); }, LINK_TIMES.helloMs); });
+    const deny = why => { try { c.send({ t: 'deny', why }); } catch (e){} setTimeout(() => { try { c.close(); } catch (e){} }, 200); };
+    // telefono ammesso: diventa quello di questo collegamento (welcome: il benvenuto da mandargli)
+    const enter = (welcome, { pairs = 0, resumed = false, relinked = false, fresh = false } = {}) => {
+      ok = true; clearTimeout(timer);
+      const previous = conn; conn = c;
+      // (stand: la stessa chiave entrata da un'altra scheda; lo stesso telefono che si ricollega lo ignora, come il telecomando)
+      if (previous && previous !== c && sgate) try { previous.send({ t: 'bye', why: 'other' }); } catch (e){}
+      if (previous && previous !== c) try { previous.close(); } catch (e){}
+      conn = c; lastSeen = Date.now(); clock.reset(); faceSample = null; lastFaceK = -Infinity; seen.clear(); seenOrder.length = 0; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send(welcome);
+      // strada di questo collegamento (via internet c.peerConnection di PeerJS, in LAN c.pc)
+      stopRoute(); L.route = null;
+      stopRoute = watchRoute(c.peerConnection || c.pc, r => { if (c === conn){ L.route = r; emit('route', r); } });
+      // joins: un collegamento nuovo (anche lo stesso telefono che si ricollega senza che il computer l'abbia visto
+      // cadere): chi usa il collegamento rimanda al telefono quello che la pagina ricaricata ha perso
+      // relinked: lo stesso telefono, senza ricaricare la pagina, ha rifatto il collegamento («Ricollega»): calibrazione e
+      // riferimenti della pagina restano validi
+      // pairs: abbinamenti nuovi (hello con il codice del QR, k), non le riprese con la chiave (r: pagina ricaricata,
+      // ricollegamento automatico dopo lo schermo spento, «Ricollega»). Il tutorial si rivede solo con un abbinamento
+      // nuovo (B9, docs/b9/analisi-telefono.md C4): prima ripartiva a ogni collegamento (joins)
+      set({ state: 'connected', phone: 'sensors', error: null, joins: (L.joins || 0) + 1, pairs: (L.pairs || 0) + pairs, resumed, relinked, sensorAge: null, beatAt: null, ...(fresh ? { vis: true, hiddenAt: null } : {}) });
+    };
+    // B41.2 · ingresso di un telefono dello stand. stage: 'hello' → ('proof' →) dentro | 'wait' (abbinamento da
+    // confermare) | 'done'. Un tentativo per collegamento: dopo il primo messaggio gli altri «hello» non contano
+    let stage = 'hello', gameNonce = null, relink = false, waiting = false;
+    async function standAdmit(d){
+      if (stage === 'hello'){
+        stage = 'done';
+        if (d.t !== 'hello'){ try { c.close(); } catch (e){} return; }
+        // la racchetta normale (QR del gioco) e il telecomando non diventano mai un telefono dello stand
+        if (d.role !== 'stand') return deny('role');
+        if (kind === 'pair'){
+          const res = sgate.request(d);
+          if (!res.ok){ deny(res.why); if (!sgate.open && L.stand.pairing) endPairing(sgate.closedWhy); return; }
+          // il codice del QR è giusto ma non basta: numero sul computer e sul telefono, poi «Conferma» dello staff
+          clearTimeout(timer); stage = 'wait'; waiting = true;
+          pairPending = { c, num: newPairNumber() };
+          c.send({ t: 'wait', num: pairPending.num });
+          setStand({ request: { num: pairPending.num } });
+          return;
+        }
+        // indirizzo fisso: la chiave non viaggia, la si prova (il gioco per primo, sul numero del telefono)
+        if (!sgate.paired || typeof d.n !== 'string' || !NONCE.test(d.n)) return deny('unpaired');
+        if (!hasSubtle()) return deny('insecure');
+        gameNonce = newStandNonce(); relink = d.rl === 1;
+        const m = await sgate.prove('game', d.n);
+        if (!m) return deny('unpaired');
+        stage = 'proof';
+        try { c.send({ t: 'proof', m, n: gameNonce }); } catch (e){}
+        return;
+      }
+      if (stage === 'proof'){
+        stage = 'done';
+        const want = d.t === 'proof' && typeof d.m === 'string' ? await sgate.prove('phone', gameNonce) : null;
+        if (!want || !same(d.m, want)) return deny('unpaired');
+        if (!c.open) return;
+        enter({ t: 'welcome', f: 1, st: 1, slot: sgate.slot }, { resumed: true, relinked: relink });
+      }
+    }
     c.on('data', d => {
       if (!d || typeof d !== 'object') return;
       if (c === conn) lastSeen = Date.now();
       if (!ok){
+        if (sgate){ standAdmit(d).catch(() => deny('unpaired')); return; }
         if (d.t !== 'hello') return c.close();
-        // il telecomando dello staff (B27, remote-link.js) non è mai una racchetta, nemmeno con il codice del QR giusto
-        if (d.role === 'remote'){ c.send({ t: 'deny', why: 'role' }); setTimeout(() => c.close(), 200); return; }
+        // il telecomando dello staff (B27, remote-link.js) non è mai una racchetta, nemmeno con il codice del QR giusto;
+        // un telefono dello stand (B41) neanche: il suo posto ha un indirizzo suo
+        if (d.role === 'remote' || d.role === 'stand'){ c.send({ t: 'deny', why: 'role' }); setTimeout(() => c.close(), 200); return; }
         // c'è già un telefono collegato: può entrare solo lo stesso telefono che si ricollega (chiave di ripresa)
         if (conn && conn.open && conn !== c && !d.r){ c.send({ t: 'deny', why: 'busy' }); setTimeout(() => c.close(), 200); return; }
         const res = gate.admit(c.peer, d.r ? { r: d.r } : d);
         if (!res.ok){ c.send({ t: 'deny', why: res.why }); setTimeout(() => c.close(), 200); return; }
-        ok = true; clearTimeout(timer);
-        const previous = conn; conn = c;
-        if (previous && previous !== c) try { previous.close(); } catch (e){}
-        conn = c; lastSeen = Date.now(); clock.reset(); faceSample = null; lastFaceK = -Infinity; seen.clear(); seenOrder.length = 0; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send({ t: 'welcome', r: res.resume, f: 1 });
-        // strada di questo collegamento (via internet c.peerConnection di PeerJS, in LAN c.pc)
-        stopRoute(); L.route = null;
-        stopRoute = watchRoute(c.peerConnection || c.pc, r => { if (c === conn){ L.route = r; emit('route', r); } });
-        // joins: un collegamento nuovo (anche lo stesso telefono che si ricollega senza che il computer l'abbia visto
-        // cadere): chi usa il collegamento rimanda al telefono quello che la pagina ricaricata ha perso
-        // relinked: lo stesso telefono, senza ricaricare la pagina, ha rifatto il collegamento («Ricollega»): calibrazione e
-        // riferimenti della pagina restano validi
-        // pairs: abbinamenti nuovi (hello con il codice del QR, k), non le riprese con la chiave (r: pagina ricaricata,
-        // ricollegamento automatico dopo lo schermo spento, «Ricollega»). Il tutorial si rivede solo con un abbinamento
-        // nuovo (B9, docs/b9/analisi-telefono.md C4): prima ripartiva a ogni collegamento (joins)
-        set({ state: 'connected', phone: 'sensors', error: null, joins: (L.joins || 0) + 1, pairs: (L.pairs || 0) + (d.r ? 0 : 1), resumed: !!d.r, relinked: d.rl === 1, sensorAge: null, beatAt: null, ...(d.r ? {} : { vis: true, hiddenAt: null }) });
+        enter({ t: 'welcome', r: res.resume, f: 1 }, { pairs: d.r ? 0 : 1, resumed: !!d.r, relinked: d.rl === 1, fresh: !d.r });
         return;
       }
       if (c !== conn) return;
@@ -253,15 +359,86 @@ export function createPhoneLink(){
     c.on('motion', buffer => { if (ok && c === conn){ countMsg('bin'); const sample = decodeSensor(buffer); if (sample) racketMotion.push(sample, performance.now()); } });
     // LAN: percorso veloce sul canale dei sensori
     c.on('fast', d => { if (ok && c === conn && d && typeof d === 'object') onTimely(d, 'fast'); });
-    c.on('close', () => { clearTimeout(timer); if (c === conn){ conn = null; stopRoute(); gate.release(); set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null }); } });
+    c.on('close', () => {
+      clearTimeout(timer);
+      // (stand: il telefono in attesa della conferma se n'è andato: si torna al QR, la finestra non si allunga)
+      if (pairPending?.c === c){ pairPending = null; sgate.rejectPairing(); setStand({ request: null }); syncPairPeer(); }
+      if (c === conn){ conn = null; stopRoute(); gate.release(); set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null }); }
+    });
     c.on('error', () => {});
   }
+  /* ---------- B41.1 · abbinamento del posto dello stand (solo con stand) ---------- */
+  const setStand = patch => { if (!sgate) return; L.stand = { ...L.stand, ...patch, paired: sgate.paired }; emit('change', L); };
+  // indirizzo dell'abbinamento in ascolto solo a foglio aperto (con un telefono in attesa resta quello da cui è arrivato)
+  let pairSync = null;
+  async function syncPairPeer(){
+    if (!sgate || pairPending) return;
+    const want = L.stand.pairing && sgate.open ? sgate.pairId : null;
+    if (want === pairSync) return;
+    pairSync = want;
+    if (pairPeer){ const p = pairPeer; pairPeer = null; try { p.destroy(); } catch (e){} }
+    if (!want) return;
+    try {
+      const p = await makePeer(want);
+      if (pairSync !== want){ try { p.destroy(); } catch (e){} return; }
+      pairPeer = p;
+      p.on('connection', c => { if (pairPeer === p) accept(c, 'pair'); });
+      p.on('error', () => {});
+    } catch (e){}
+  }
+  function dropPending(why){
+    const p = pairPending; pairPending = null;
+    if (p){ try { p.c.send({ t: 'deny', why }); } catch (e){} setTimeout(() => { try { p.c.close(); } catch (e){} }, 200); }
+    sgate?.rejectPairing();
+  }
+  function endPairing(why = null){
+    if (!sgate) return;
+    const waited = !!pairPending;
+    dropPending(why === 'expired' ? 'expired' : 'closed');
+    sgate.closePairing(why);
+    setStand({ pairing: false, request: null, closedWhy: why });
+    if (waited) setTimeout(syncPairPeer, 300); else syncPairPeer();
+  }
   return {
-    L, session,
+    L,
+    // (stand: l'indirizzo fisso del posto, che non va mai in un QR; null se non abbinato)
+    get session(){ return sgate ? sgate.session : session; },
     on(k, f){ (handlers[k] ||= []).push(f); return this; },
     start,
-    url(){ return pairingUrl(new URL('racchetta.html', location.href).href, testSearch(), session, gate.token); },
-    get token(){ return gate.token; },
+    // QR del collegamento: niente per un posto dello stand (sul ledwall il pubblico non deve trovare un QR che valga)
+    url(){ return sgate ? null : pairingUrl(new URL('racchetta.html', location.href).href, testSearch(), session, gate.token); },
+    get token(){ return sgate ? null : gate.token; },
+    // B41.1 · posto dello stand (null per la racchetta normale)
+    get stand(){ return sgate ? { slot: sgate.slot, paired: sgate.paired, session: sgate.session } : null; },
+    // abbinamento a foglio aperto (on) o chiuso; { pairId, token } da mettere nel QR (null a foglio chiuso o con un
+    // telefono in attesa della conferma)
+    standPairing(on){
+      if (!sgate) return false;
+      if (on){ dropPending('closed'); sgate.openPairing(); setStand({ pairing: true, request: null, closedWhy: null }); start(); syncPairPeer(); return true; }
+      if (L.stand.pairing || pairPending) endPairing(null);
+      return true;
+    },
+    standInfo(){ return sgate && L.stand.pairing && sgate.open && !pairPending ? { pairId: sgate.pairId, token: sgate.token } : null; },
+    // «Conferma» (chi chiama controlla che sia un clic vero dello staff): il telefono che chiede diventa quello del
+    // posto, con indirizzo fisso e chiave nuovi; il telefono di prima riceve «non sei più il Telefono N»
+    standConfirm(){
+      if (!sgate) return false;
+      const p = pairPending; if (!p) return false;
+      const fixed = sgate.confirmPairing();
+      if (!fixed){ dropPending('closed'); setStand({ request: null }); return false; }
+      pairPending = null;
+      const old = conn; conn = null;
+      if (old){ try { old.send({ t: 'bye', why: 'replaced' }); } catch (e){} setTimeout(() => { try { old.close(); } catch (e){} }, 150); stopRoute(); }
+      try { p.c.send({ t: 'welcome', st: 1, s: fixed.session, key: fixed.key, slot: fixed.slot }); } catch (e){}
+      setTimeout(() => { try { p.c.close(); } catch (e){} }, 600);
+      setStand({ pairing: false, request: null, closedWhy: null });
+      set({ state: 'starting', phone: null });
+      // il telefono confermato si ricollega all'indirizzo nuovo con la prova della chiave
+      setTimeout(() => { syncPairPeer(); start(); }, 400);
+      return true;
+    },
+    // «Rifiuta»: quel telefono non entra, il foglio torna al QR (nuovo)
+    standRefuse(){ if (!sgate || !pairPending) return false; dropPending('refused'); setStand({ request: null }); setTimeout(syncPairPeer, 300); return true; },
     motion(now = performance.now()){ const sample = racketMotion.sample(now); return sample ? { ...sample, rtt: clock.rtt ?? L.rtt, transport: isLanMode() ? 'lan-webrtc' : 'webrtc' } : null; },
     get transport(){ return isLanMode() ? 'lan-webrtc' : 'webrtc'; },
     // strada attuale del collegamento con il telefono (null se non collegato o non ancora letta)
@@ -282,8 +459,23 @@ export function createPhoneLink(){
     cmd(c){ this.send({ t: 'cmd', c }); },
     // «Ricollega»: il telefono rifà il collegamento (canali nuovi) con la sua chiave di ripresa, senza ricaricare la pagina
     relink(){ if (!this.connected) return false; this.cmd('relink'); return true; },
-    // «Scollega»: il telefono perde la chiave di ripresa, per ricollegarsi serve un QR nuovo
-    forget(){ this.send({ t: 'bye' }); gate.forget(); if (conn) try { conn.close(); } catch (e){} conn = null; stopRoute(); set({ state: peer && !peer.destroyed ? 'waiting' : 'off', phone: null }); },
-    stop(){ ++startEpoch; starting = null; clearInterval(tick); stopRoute(); if (peer) peer.destroy(); peer = null; conn = null; set({ state: 'off', phone: null }); },
+    // «Scollega»: il telefono perde la chiave di ripresa, per ricollegarsi serve un QR nuovo. Posto dello stand: indirizzo
+    // e chiave buttati (il telefono dice «non sei più il Telefono N»), per riaverlo serve un abbinamento nuovo
+    forget(){
+      if (sgate){
+        if (L.stand.pairing || pairPending) endPairing(null);
+        this.send({ t: 'bye', why: 'unpaired' }); sgate.forget();
+        const c = conn; conn = null; stopRoute(); if (c) setTimeout(() => { try { c.close(); } catch (e){} }, 150);
+        ++startEpoch; clearTimeout(idRetry); if (peer){ const p = peer; peer = null; peerId = null; try { p.destroy(); } catch (e){} }
+        setStand({}); set({ state: 'off', phone: null });
+        return;
+      }
+      this.send({ t: 'bye' }); gate.forget(); if (conn) try { conn.close(); } catch (e){} conn = null; stopRoute(); set({ state: peer && !peer.destroyed ? 'waiting' : 'off', phone: null });
+    },
+    stop(){
+      ++startEpoch; starting = null; clearInterval(tick); clearTimeout(idRetry); stopRoute();
+      if (sgate){ if (pairPending) dropPending('closed'); sgate.closePairing(); L.stand = { ...L.stand, pairing: false, request: null }; pairSync = null; if (pairPeer){ const p = pairPeer; pairPeer = null; try { p.destroy(); } catch (e){} } }
+      if (peer) peer.destroy(); peer = null; peerId = null; conn = null; set({ state: 'off', phone: null });
+    },
   };
 }
