@@ -415,12 +415,16 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
       `d83ec86fb9dd0b810b3717b16be32968607c878834b462e12cc01d430fdb91b7`; **installer pubblicato su R2** e verificato: 128039808 B, sha256 `7d9519820500826252a6fcea25fea4830b68530f1271964a48f11159a938fdf4`).
       Da portare al revisore: a Evento un colpo su cinque «in corsa» (troppe scritte?); palle davvero imprendibili non
       aumentate (per non far uscire Pro dal criterio); 4 controlli «corde al colpo» in natpf-lob-drop.
-- [~] **REVISIONE FINALE della serie** (dalle 04:00 UTC del 13/11): workflow `revisione-finale-serie` (run
-      `wf_97a327be-1bf`): due revisori in parallelo (regole di gioco; presentazione e dati) sul diff `25e46ed..7c72b70`, poi un
-      agente di correzioni in una worktree nuova, ramo `revisione-finale`, documento `docs/revisione-finale-2026-11-13.md`
-      con le decisioni per l'utente. Se si ferma: `resumeFromRunId: 'wf_97a327be-1bf'` (i revisori finiti restano). Poi:
-      unire, versione, controllo rapido, push, pacchetti, **prove complete** (`prove.sh` con le prove nuove: natpf-rete,
-      natpf-movimento, natpf-fine-partita, natpf-dritto-video, natpf-registro), e chiedere all'utente le decisioni.
+- [x] **REVISIONE FINALE della serie** fatta (run `wf_97a327be-1bf`; il container si è riavviato durante le ultime
+      verifiche dell'agente di correzioni: le ha finite l'agente principale). Revisori: 4 bloccanti (2 uguali), 14 minori,
+      13 decisioni. Corretti: «Palla corta della CPU» che non compariva mai; passo corto a rete nascosto (ora vale il
+      movimento del B32 anche a rete); documento del «colpo più veloce»; minori. Ramo `revisione-finale` unito:
+      **versione 2026-11-13.5** (`ff67126`; controllo rapido gioco 1411/1411, sito 226/226, Windows 42/42, build ok; zip
+      23.840.848 B, sha256 `0457a434f553aad8e7e9ad6b5b7da024f18c56d462e189f672746e980c872e4e`; installer:
+      `scratchpad/attesa-installer.sh`). Documento con le **13 decisioni per l'utente**: `docs/revisione-finale-2026-11-13.md` §3.
+- [~] Prove complete della 2026-11-13.5 (dalle 07:30 UTC del 13/11): `scratchpad/v1113e/prove.sh` → `prove.txt`.
+- Il disco era pieno (100%, l'agente di correzioni ha fatto la build in `/dev/shm`): liberati 10 GB togliendo
+  `node_modules` e `dist` dalle worktree già unite (si rigenerano con `npm ci`) e vecchie cartelle dello scratchpad.
       indipendente unico** su B23, T2.3, B31, B32, B33 e correzioni, versione finale con prove complete.
 Ripresa se si fermano: `Workflow({scriptPath: '…/workflows/scripts/blocco-singolo.js', args: {stessi args + "worktree": "<percorso della worktree già creata>"}})`
 (gli args sono nel journal del run; la worktree con `git worktree list | grep <ramo>`).
