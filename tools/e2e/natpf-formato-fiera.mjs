@@ -32,7 +32,10 @@ const until = async (p, fn, arg = null, ms = 15000) => { try { await p.waitForFu
 const board = p => p.evaluate(() => {
   const rd = el => (el ? { rows: [...el.querySelectorAll('[data-sb-row]')].map(r => ({ side: r.dataset.sbRow, name: r.querySelector('[data-sb-name]')?.textContent, points: r.querySelector('[data-sb-points]')?.textContent, games: r.querySelector('[data-sb-games]')?.textContent, serve: r.classList.contains('serving') })), format: el.querySelector('[data-sb-format]')?.textContent || '', label: el.querySelector('[data-sb-label]')?.textContent || '' } : null);
   const E = __natpfTennis;
-  return { main: rd(document.getElementById('natpf-scoreboard')), p2: rd(document.getElementById('natpf-scoreboard-p2')), score: { ...E.score }, phase: E.phase, gamesToWin: E.matchConfig.gamesToWin };
+  // B35: riga «Formato veloce: il servizio cambia ogni 2 punti» sotto il tabellone (solo quando passa ogni due punti)
+  const rule = el => { const r = el?.querySelector('[data-sb-rule]'); return r && r.offsetParent ? r.textContent.trim() : ''; };
+  return { main: rd(document.getElementById('natpf-scoreboard')), p2: rd(document.getElementById('natpf-scoreboard-p2')), rule: rule(document.getElementById('natpf-scoreboard')), rule2: rule(document.getElementById('natpf-scoreboard-p2')),
+    sub: E.lastBannerBroadcast?.subText || '', score: { ...E.score }, phase: E.phase, gamesToWin: E.matchConfig.gamesToWin };
 });
 const server = b => (b.main?.rows.find(r => r.serve)?.side === 'me' ? 'A' : b.main?.rows.find(r => r.serve)?.side === 'them' ? 'B' : '?');
 const award = (p, who) => p.evaluate(w => { const E = __natpfTennis; E._awardPoint(w, 'Out'); }, who);
@@ -97,6 +100,8 @@ try {
   await p.waitForFunction(() => !__natpfTennis.autoPlayMode && __natpfTennis.phase === 'SERVE_STANCE', null, { timeout: 20000 });
   let b = await board(p);
   check('singolo: partita con il formato in fiera (score.fair), il primo game lo inizia chi gioca', b.score.fair === true && b.score.gameServer === 'player' && b.score.server === 'player' && server(b) === 'A', fmt(b));
+  check('B35 singolo con «Sì»: riga «Formato veloce: il servizio cambia ogni 2 punti» sotto il tabellone e nel banner d\'inizio', b.rule === 'Formato veloce: il servizio cambia ogni 2 punti' && /Formato veloce: il servizio cambia ogni 2 punti/.test(b.sub), fmt({ rule: b.rule, sub: b.sub }));
+  await p.evaluate(() => { try { __natpfTennis.render(); } catch {} }); await p.screenshot({ path: `${SP}/b35-formato-veloce-cpu.png` });
   const seq = [server(b)];
   const speeds = [];
   // punti: P (chi gioca), O (CPU), alternati fino al 40-40; nei punti della CPU si lascia servire la CPU (motore vero)
@@ -150,6 +155,7 @@ try {
   check('stesso schermo: il telefono al servizio passa A B B A A B B (P1 «serve», poi P2 due volte…)', phones.join(' ') === 'serve/play play/serve play/serve serve/play serve/play play/serve play/serve', phones.join(' '));
   check('stesso schermo: il P2 lancia e colpisce il servizio nei suoi punti (3 su 3)', p2serves.length === 3 && p2serves.every(Boolean), fmt(p2serves));
   check('stesso schermo, 40-40: «Punto decisivo» nel tabellone del P1 e nella copia del P2, pallina sulla riga di Giulia', b.main.label === 'Punto decisivo' && b.p2?.label === 'Punto decisivo' && b.main.rows.find(r => r.serve)?.name === 'GIU', fmt(b));
+  check('B35 stesso schermo: la riga «Formato veloce» in tutte e due le metà', b.rule === 'Formato veloce: il servizio cambia ogni 2 punti' && b.rule2 === b.rule, fmt({ rule: b.rule, rule2: b.rule2 }));
   await p.evaluate(() => { try { __natpfTennis.render(); } catch {} });
   await p.screenshot({ path: `${SP}/formato-fiera-stesso-schermo-40-40.png` });
   await award(p, 'opponent');
@@ -178,6 +184,7 @@ try {
   for (const w of ['player', 'opponent', 'player', 'opponent', 'player', 'opponent']){ cseq.push(server(await board(c.p))); await award(c.p, w); await nextServe(c.p); }
   const cb = await board(c.p);
   check('spenta: «Al meglio di 5» c\'è, batte sempre chi gioca nel game (AAAAAA), sul 40-40 «Parità»', five !== 'none' && cseq.join('') === 'AAAAAA' && cb.main.label === 'Parità' && cb.score.fair === false, fmt({ five, seq: cseq.join(''), label: cb.main.label }));
+  check('B35 spenta: niente riga «Formato veloce» (né sul tabellone né nel banner d\'inizio)', cb.rule === '' && !/Formato veloce/.test(cb.sub), fmt({ rule: cb.rule, sub: cb.sub }));
   check('nessun errore nella pagina (formato spento)', !c.errs.length, c.errs.slice(0, 3).join(' | '));
 
 } finally {
