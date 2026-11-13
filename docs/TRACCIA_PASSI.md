@@ -412,7 +412,7 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
       sfida tra due computer il Player 2 non vede ace e vincenti.
 - [x] **B32** finito (ramo `b32-movimento`, `c9a993f`), unito: **versione 2026-11-13.4** (`7c72b70`; controllo rapido
       gioco 1409/1409, sito 226/226, Windows 42/42, build ok; zip 23.840.746 B, sha256
-      `d83ec86fb9dd0b810b3717b16be32968607c878834b462e12cc01d430fdb91b7`; installer: `scratchpad/attesa-installer.sh`).
+      `d83ec86fb9dd0b810b3717b16be32968607c878834b462e12cc01d430fdb91b7`; **installer pubblicato su R2** e verificato: 128039808 B, sha256 `7d9519820500826252a6fcea25fea4830b68530f1271964a48f11159a938fdf4`).
       Da portare al revisore: a Evento un colpo su cinque «in corsa» (troppe scritte?); palle davvero imprendibili non
       aumentate (per non far uscire Pro dal criterio); 4 controlli «corde al colpo» in natpf-lob-drop.
 - [~] **REVISIONE FINALE della serie** (dalle 04:00 UTC del 13/11): workflow `revisione-finale-serie` (run
