@@ -5,6 +5,13 @@ messaggio per l'altro agente per dirgli come deve continuare». Leggerlo **dopo*
 `docs/TRACCIA_PASSI.md` (il diario passo per passo; le sezioni in fondo sono le più recenti). Repository
 `sporcellifitp/fitp-simulator`, branch **`natpf-simulator`** (unico branch su cui lavorare e fare push).
 
+> **Aggiornamento del 13/11/2026, 21:50 UTC.** I lavori sono ripresi alle 16:35 UTC: **B37 e B42 sono finiti e
+> pubblicati** (2026-11-13.10 con la casella tonda «Al servizio» al posto della gemma, chiesta dall'utente; 2026-11-13.11
+> con lo scambio caldo) e il bundle `docs/ripresa/` è stato tolto. Le §0–§2 qui sotto sono la storia dell'arresto; lo
+> stato attuale e i passi in corso sono in fondo a `docs/TRACCIA_PASSI.md`. Valgono ancora la coda della §3 (B43 in corso,
+> poi B41 prima parte con il compito `docs/coda/B28.1-profilo-per-attivita.md`), le decisioni della §4 (con quelle della
+> sera in `docs/PROJECT_MEMORY.md`), le cose da sapere della §5 e la procedura della §6.
+
 ## 0. MESSAGGIO PER L'AGENTE CHE RIPRENDE: cosa fare, nell'ordine
 
 Quando sono stati fermati i lavori **nessun agente era in esecuzione**. Tutto è salvato:

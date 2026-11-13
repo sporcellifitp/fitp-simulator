@@ -6,11 +6,12 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## >>> LAVORI FERMATI DALL'UTENTE IL 13/11/2026 ALLE 16:00 UTC: leggere PRIMA `docs/RIPRESA_AGENTE.md` (§0 = cosa fare) <<<
+## >>> RIPRESI IL 13/11/2026 ALLE 16:35 UTC (dopo l'arresto delle 16:00): lo stato attuale è nelle sezioni IN FONDO <<<
 
-Stato, rami non ancora uniti (B37 a `2bfe09a`, B42 a `ae76bdf`, agenti fermati, rami interi in `docs/ripresa/rami-b37-b42.bundle`), coda dei lavori (B43 → B41 parte 1 → B38+B39 → B41 parte 2
-→ B40 → B36), decisioni dell'utente e procedura di rilascio stanno lì. Compiti pronti in `docs/coda/`, analisi in
-`docs/b36/analisi/`, `docs/b39/controllo-solo-mouse/`, `docs/b41/`. Questo diario prosegue in fondo (sezioni più recenti).
+B37 e B42 sono finiti e pubblicati (2026-11-13.10 e 2026-11-13.11); il bundle `docs/ripresa/` non serve più ed è stato
+tolto. Coda: B43 (in corso) → B41 prima parte con B28.1 → B38+B39 → B41 seconda parte → B40 → B36 (B36.0 dopo B43).
+Regole e decisioni ancora valide in `docs/RIPRESA_AGENTE.md` §3–§6 e `docs/PROJECT_MEMORY.md`. Le domande all'utente si
+fanno solo con le domande a scelta.
 
 ## ADESSO (aggiornato il 12/11/2026 alle 22:05 UTC)
 
@@ -711,8 +712,12 @@ cambiano le tappe (cade B36.2; B36.4 senza rientro verso l'angolo).
       1 giro su 3 verde sia con sia senza B42 (la prova confronta con una mediana che mescola dritto e rovescio: da
       correggere nella prova, non nel gioco).
 - [x] Unito in `natpf-simulator` (`dd4cd44`, solo conflitti nei documenti), versione nei quattro file.
-- [~] Controllo rapido, `audit:legend`, rally e stesso-schermo-b20 sul codice unito (`scratchpad/v1311/`); poi push, zip,
-      installer.
+- [x] Sul codice unito: gioco 1476/1476, sito 226/226, Windows 43/43, LAN 12/12, build ok, `audit:legend` 69 OK e
+      identico a `legend-dopo.txt` del B42, rally 10/10, stesso-schermo-b20 53/53 → push.
+- [x] Zip Cloudflare 23.850.185 B, sha256 `7f8ca17750f7fa0542a56852d9eeed1d6ce7e7479516bdd122e9fc66c2980c68`, provato
+      estratto; **installer 2026-11-13.11 pubblicato su R2** e verificato dal link fisso: 128.054.038 B, sha256
+      `166966ee09cf97ced67ecabc36eed58de8fd7d6ba1c2911442b6f2dda8bb70cb`.
+- [x] Tolto `docs/ripresa/` (il bundle di B37 e B42: tutti e due uniti).
 - [~] **B43** (tabellone pulito, pannello che ferma la partita, scritta del punto mezzo secondo dopo): workflow
       `b43-tabellone-e-pannello` (run `wf_53b28db9-129`), worktree `scratchpad/b43/wt`, ramo `b43-tabellone-pannello`, base
       `fd71f91` (13.10); unirà da solo la 13.11 prima delle verifiche finali. Porte 4100–4149 e 4902/4903.
