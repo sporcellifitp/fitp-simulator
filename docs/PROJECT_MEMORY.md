@@ -859,4 +859,6 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   un colpo pulito; si insegna con **una riga nella pagina «Pronto per la partita»**; si prova con **giornate intere** con
   «Nuova» allo stand e il confronto nel registro; si parte con **B36.0 (solo misure) dopo B43**. «Classica» resta di base.
 - **B40 · fine partita v2**: la card della tavola (riga «v2», https://claude.ai/artifact/PMb2Gg3ZiakcHuqynZ2pJL) **va bene
-  così**, con i personaggi animati (chi vince esulta, l'altro applaude).
+  così**, con i personaggi animati. Animazione in loop dei personaggi scelti (Classici o Lob & Drop): **solo nella fine
+  partita**, movimento **esultanza** (chi vince salta e alza la racchetta, l'altro applaude), **dentro il B40** (compito in
+  `docs/coda/B40-fine-partita-v2.md`).
