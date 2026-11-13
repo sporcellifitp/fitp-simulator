@@ -18,7 +18,7 @@ export const MODES = Object.freeze([
   { id: 'precision', label: 'Precision', unit: 'punti', icon: 'zone', balls: 10, short: 'Dieci palle, dieci zone del campo: più vicino al centro, più punti.', facts: ['10 palle', 'Zone sempre più piccole', 'Fino a 100 punti a palla'], medals: [200, 420, 650] },
   { id: 'combo', label: 'Combo Challenge', unit: 'punti', icon: 'chain', time: 90, short: 'Esegui in ordine le sequenze di colpi richieste.', facts: ['90 secondi', 'Prime catene: dritto e rovescio', 'Due errori sullo stesso colpo: si cambia'], medals: [300, 750, 1300] },
   { id: 'survival', label: 'Survival', unit: 'palle', icon: 'heart', short: 'Tre vite contro un lanciapalle sempre più cattivo.', facts: ['3 vite', 'Livello su ogni 5 palle', 'Più veloce, tagli, pallonetti, angoli'], medals: [8, 20, 35] },
-  { id: 'radar', label: 'Radar del servizio', unit: 'km/h', icon: 'radar', time: 30, short: 'Tre servizi: vale il più veloce dentro il campo.', facts: ['3 servizi', 'Vale il più veloce dentro', '30 secondi'], medals: [110, 140, 165] },
+  { id: 'radar', label: 'Radar del servizio', unit: 'km/h', icon: 'radar', time: 30, short: 'Tre servizi: vale il più veloce dentro il campo.', facts: ['3 servizi', 'Vale il più veloce dentro', '30 secondi'], medals: [58, 74, 87] },   // B34: km/h veri (prima 110 · 140 · 165 sulla scala × 6,8: stesse velocità della palla)
 ]);
 export const modeById = id => MODES.find(m => m.id === id) || null;
 // Minigiochi nascosti (30/10/2026, richiesta dell'utente: «togli Radar del servizio e Survival, nascondili, non

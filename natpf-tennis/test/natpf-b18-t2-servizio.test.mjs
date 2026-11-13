@@ -33,6 +33,9 @@ function playerServe(e, evt, tau = 0){
 }
 const match = (difficulty, seed = 5) => { const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false }); return e; };
 
+// B34: i km/h sono veri (m/s × 3,6); i numeri dei test scritti prima erano sulla scala × 6,8 del tabellone di allora
+const K = kmh => kmh*3.6/6.8;
+
 test('D11: a fine punto e a ogni servizio i quattro personaggi sono fermi (motore vero)', () => {
   for (const difficulty of ['casual', 'pro', 'leggenda']) seeded(11, () => {
     const e = match(difficulty);
@@ -78,7 +81,8 @@ test('D11: senza l\'azzeramento la velocità rimasta arriverebbe al servizio; _n
 });
 
 test('D11: minaccia del servizio (serveInfo): velocità vera della palla, strettezza e tempo del colpo', () => {
-  const W = NS.SERVE_WEIGHT, ms = kmh => kmh/W.kmh, I = o => NS.serveInfo({ box: -1, q: 1, x: -2.8, ...o });
+  // (i km/h qui sotto sono quelli del tabellone di prima del B34, m/s × 6,8: ms() li riporta alla velocità della palla)
+  const ms = kmh => kmh/6.8, I = o => NS.serveInfo({ box: -1, q: 1, x: -2.8, ...o });
   // servizio insegnato a tempo (157 km/h, a 0,75 m dal centro del quadrato): nessuna minaccia e nessuna lettura in ritardo
   assert.deepEqual([I({ speed: ms(157) }).threat, I({ speed: ms(157) }).sharp], [0, 0]);
   // forte ma nella direzione del servizio insegnato: conta la velocità, non è «forte e angolato»
@@ -103,12 +107,12 @@ test('D11: minaccia del servizio (serveInfo): velocità vera della palla, strett
   try {
     const kmhOf = evt => { const e = match('pro'); for (let i = 0; i < 400 && !(e.phase === 'SERVE_STANCE' && e.phaseTimer > .3); i++) e.step(DT); playerServe(e, evt(e)); return e.natpfSkill.serve; };
     const taught = kmhOf(() => serveEvt({ power: .5 })), flat = kmhOf(() => serveEvt({ power: .9 })), great = kmhOf(e => serveEvt({ power: .9, ...wide(e) }));
-    assert.ok(taught.kmh >= 150 && taught.kmh <= 160 && taught.threat === 0, JSON.stringify(taught));
-    assert.ok(flat.kmh >= 188 && flat.fast === 1 && flat.sharp === 0, JSON.stringify(flat));
-    assert.ok(great.kmh >= 188 && great.threat >= .97 && great.sharp >= .95, JSON.stringify(great));
+    assert.ok(taught.kmh >= K(150) && taught.kmh <= K(160) && taught.threat === 0, JSON.stringify(taught));
+    assert.ok(flat.kmh >= K(188) && flat.fast === 1 && flat.sharp === 0, JSON.stringify(flat));
+    assert.ok(great.kmh >= K(188) && great.threat >= .97 && great.sharp >= .95, JSON.stringify(great));
     // webcam, mouse e prove (intenzione ricostruita): kick lento anche con un gesto forte
     const derived = kmhOf(() => ({ source: 'test', speed: 1.45, dirX: 0 }));
-    assert.ok(derived.kmh < 160 && derived.threat === 0, JSON.stringify(derived));
+    assert.ok(derived.kmh < K(160) && derived.threat === 0, JSON.stringify(derived));
   } finally { Math.random = real; }
 });
 
@@ -336,9 +340,9 @@ test('D11 (revisione): il banco misura le partite normali con il servizio del te
   const taught = natural({ difficulty: 'casual', profile: 'bambino', points: 150, seeds: [7, 11], serveModel: 'insegnato' });
   const late = natural({ difficulty: 'casual', profile: 'bambino', points: 150, seeds: [7, 11], serveModel: 'tardi' });
   const kick = natural({ difficulty: 'casual', profile: 'bambino', points: 150, seeds: [7, 11] });
-  assert.ok(taught.kmh >= 153 && taught.kmh <= 161 && taught.q >= .97, JSON.stringify({ kmh: taught.kmh, q: taught.q }));
+  assert.ok(taught.kmh >= K(153) && taught.kmh <= K(161) && taught.q >= .97, JSON.stringify({ kmh: taught.kmh, q: taught.q }));
   assert.ok(late.q < .9 && late.q > .6 && late.kmh < taught.kmh, JSON.stringify({ kmh: late.kmh, q: late.q }));
-  assert.ok(kick.kmh < 150, `il servizio dei profili è un kick lento: ${kick.kmh} km/h`);
+  assert.ok(kick.kmh < K(150), `il servizio dei profili è un kick lento: ${kick.kmh} km/h`);
   for (const r of [taught, late, kick]){
     assert.equal(r.inCorsa, 0); assert.equal(r.ace, 0, `${r.serveModel}: nessun ace con un servizio normale`);
     assert.ok(r.game >= 30 && r.n >= 100 && r.puntiAlServizio > 0 && r.puntiInRisposta > 0 && r.gameVinti >= 0 && r.gameVinti <= 100, JSON.stringify({ ...r, rows: undefined }));
@@ -378,4 +382,19 @@ test('D11 (revisione): a Casual chi batte tardi con il telefono non perde il ser
   const b = type => bench({ type, difficulty: 'casual', points: 250, seeds: [7, 11] }).puntoDiretto;
   const [perfetto, ritardo] = [b('perfettoStretto'), b('ritardo')];
   assert.ok(ritardo >= 10 && ritardo <= perfetto - 6, `ritardo ${ritardo}%, perfetto ${perfetto}%`);
+});
+
+test('B34: soglie della velocità del servizio convertite ai km/h veri, stessa minaccia di prima per ogni velocità', () => {
+  const W = NS.SERVE_WEIGHT, clamp = v => Math.max(0, Math.min(1, v));
+  assert.equal(W.kmh, 3.6, 'km/h veri della palla');
+  assert.ok(Math.abs(W.kmhFrom - 84.7059) < 1e-3 && Math.abs(W.kmhSpan - 15.8824) < 1e-3, JSON.stringify(W));
+  // regola di prima: fast = clamp((m/s × 6,8 − 160)/30), con le stesse strettezza e tempo del colpo
+  let n = 0;
+  for (let v = 15; v <= 35; v += .01) for (const x of [-2.8, -3.67, -1.2]) for (const q of [1, .8]){
+    const s = NS.serveInfo({ speed: v, q, x, box: -1 }), P = clamp((v*6.8 - 160)/30);
+    assert.equal(s.fast, +P.toFixed(3), `velocità ${v}`);
+    assert.equal(s.kmh, Math.round(v*3.6), 'km/h veri');
+    n++;
+  }
+  assert.ok(n > 10000);
 });

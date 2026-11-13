@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { giornoFinto, scriviFinto, inBlocchi, bloccoSalvato } from '../scripts/registro/finto.mjs';
-import { riassumi, Misura } from '../scripts/registro/riassunto.mjs';
+import { riassumi, Misura, Riassunto, kmhVeri, kmhVecchi, KMH_VECCHI_FINO_A } from '../scripts/registro/riassunto.mjs';
 import { main as scarica } from '../scripts/registro/scarica.mjs';
 import { workerLocale } from '../scripts/registro/worker-locale.mjs';
 import { controllaRiga, TIPI } from '../src/natpf/registro/registro_formato.js';
@@ -158,4 +158,19 @@ test('scarico dal Worker (in locale, spazio finto) e riassunto: i blocchi mandat
     assert.equal(await scarica([`--url=${w.url}`, '--cancella=2026-11-14'], { env: { REGISTRO_CHIAVE: CHIAVE }, log, error: log }), 0);
     assert.ok([...w.bucket.oggetti.keys()].every(k => !k.includes('/2026-11-14/')));
   } finally { await w.close(); fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('B34: km/h del servizio veri nel riassunto, anche dai registri delle versioni con la scala × 6,8', () => {
+  assert.equal(KMH_VECCHI_FINO_A, '2026-11-13.5');
+  assert.ok(kmhVecchi('2026-11-12.4') && kmhVecchi('2026-11-13.5') && kmhVecchi('2026-10-30.18'));
+  assert.ok(!kmhVecchi('2026-11-13.6') && !kmhVecchi('2026-11-13.10') && !kmhVecchi('2026-11-14.1') && !kmhVecchi(undefined));
+  assert.equal(kmhVeri(170, '2026-11-13.5'), 90);
+  assert.equal(kmhVeri(90, '2026-11-13.6'), 90);
+  const ctx = { giorno: '2026-11-13', postazione: 'abcd1234' };
+  for (const [versione, kmh] of [['2026-11-13.5', 170], ['2026-11-14.1', 90]]){
+    const R = new Riassunto();
+    R.aggiungi({ k: 'partita', t: 0, n: 1, versione, modo: 'cpu' }, ctx);
+    R.aggiungi({ k: 'servizio', t: 10, q: 1, ms: 0, kmh, voto: 'p' }, ctx);
+    assert.equal(R.servizio.kmh.somma, 90, versione);
+  }
 });

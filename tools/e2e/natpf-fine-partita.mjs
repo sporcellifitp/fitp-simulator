@@ -60,9 +60,12 @@ try {
     E._applyDifficultyTuning('evento'); E.matchConfig.difficulty = 'evento';
     E.natpfFair = false; E.startNewMatch({ showStartBanner: false }); E.matchConfig.gamesToWin = 2;
     // quello che succede davvero: punti (dal motore, prima del punto) e scritte dei colpi del motore
-    const T = window.__truth = { won: 0, lost: 0, longest: 0, serves: 0, shots: 0, kmh: 0, timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 }, popups: [] };
+    const T = window.__truth = { won: 0, lost: 0, longest: 0, serves: 0, shots: 0, kmh: 0, kmhAll: 0, kmhOut: 0, pend: null, timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 }, popups: [] };
+    // B34: colpo più veloce solo dei colpi finiti in campo: fuori o in rete se il punto che segue è dell'avversario con
+    // il motivo «Out» o «Net» del motore
+    const settle = bad => { if (T.pend != null){ if (bad) T.kmhOut = Math.max(T.kmhOut, T.pend); else T.kmh = Math.max(T.kmh, T.pend); } T.pend = null; };
     const award = E._awardPoint.bind(E);
-    E._awardPoint = (w, why = '') => { if (E.phase !== 'MATCH_OVER' && E.natpfStats?.m && !E.natpfStats.m.over){ w === 'player' ? T.won++ : T.lost++; T.longest = Math.max(T.longest, E.ball.rallyStrokeCount); } return award(w, why); };
+    E._awardPoint = (w, why = '') => { if (E.phase !== 'MATCH_OVER' && E.natpfStats?.m && !E.natpfStats.m.over){ w === 'player' ? T.won++ : T.lost++; T.longest = Math.max(T.longest, E.ball.rallyStrokeCount); settle(w === 'opponent' && (why === 'Out' || why === 'Net')); } return award(w, why); };
     const pop = E.hud.showTimingPopup.bind(E.hud);
     E.hud.showTimingPopup = (o = {}) => {
       const g = String(o.grade || '').toUpperCase(), d = String(o.detail || ''), kmh = +(/(\d+) KM\/H/.exec(d)?.[1] || 0);
@@ -70,7 +73,7 @@ try {
         T.popups.push(g);
         if (/•/.test(d)) T.serves++;
         else { T.shots++; const v = /WHIFF|TOO LATE|TOO EARLY/.test(g) ? null : /PERFECT|POWER/.test(g) ? 'perfetto' : /EARLY/.test(g) ? 'anticipo' : /LATE/.test(g) ? 'ritardo' : 'buono'; if (v) T.timing[v]++; }
-        T.kmh = Math.max(T.kmh, kmh);
+        settle(false); T.pend = kmh; T.kmhAll = Math.max(T.kmhAll, kmh);
       }
       return pop(o);
     };
@@ -104,7 +107,8 @@ try {
   check('A2. punti vinti come il motore', c.tiles['Punti vinti'] === truth.won, `${c.tiles['Punti vinti']} / ${truth.won} su ${truth.won + truth.lost}`);
   check('   colpi (servizi e colpi nello scambio) come le scritte dei colpi', c.tiles['Colpi'] === truth.serves + truth.shots, `${c.tiles['Colpi']} / ${truth.serves}+${truth.shots}`);
   check('   scambio più lungo come il motore', c.tiles['Scambio più lungo'] === truth.longest, `${c.tiles['Scambio più lungo']} / ${truth.longest}`);
-  check('   colpo più veloce come la scritta del colpo', c.tiles['Colpo più veloce'] === truth.kmh, `${c.tiles['Colpo più veloce']} / ${truth.kmh}`);
+  check('   colpo più veloce come la scritta del colpo, solo colpi in campo (B34)', c.tiles['Colpo più veloce'] === truth.kmh, `${c.tiles['Colpo più veloce']} / ${truth.kmh} (tutti ${truth.kmhAll}, fuori o in rete ${truth.kmhOut})`);
+  check('   km/h veri della palla (B34: sotto i 200 a Evento)', truth.kmhAll > 40 && truth.kmhAll < 200, `${truth.kmhAll}`);
   check('   voto del tempo: Perfetto, Anticipo, Ritardo come le scritte', c.legend.perfetto === truth.timing.perfetto && c.legend.anticipo === truth.timing.anticipo && c.legend.ritardo === truth.timing.ritardo, `${JSON.stringify(c.legend)} / ${JSON.stringify(truth.timing)}`);
   check('   game: un riquadro per game, quanti ne ha giocati il motore', v.games.length === engine.pg + engine.og, `${v.games.join(' ')} · motore ${engine.pg}-${engine.og}`);
   check('   due frasi semplici (bene / da migliorare)', c.tips?.length === 2 && c.tips.every(t => t.length > 8 && t.length < 90), JSON.stringify(c.tips));
