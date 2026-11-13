@@ -171,10 +171,15 @@ test('schermo intero su un monitor: fermo se è già lì e lo copre, rettangolo 
   assert.equal(placeMode(), 'giro');
 });
 
-test('scorciatoie del programma: F11, Ctrl+Maiusc+M, Ctrl+R, Ctrl+Q, Ctrl+Maiusc+I; mai Esc, lettere o AltGr', () => {
+test('scorciatoie del programma: F11, F9, Ctrl+Maiusc+M, Ctrl+R, Ctrl+Q, Ctrl+Maiusc+I; mai Esc, lettere o AltGr', () => {
   const down = (key, mods = {}) => ({ type: 'keyDown', key, isAutoRepeat: false, control: false, shift: false, alt: false, meta: false, ...mods });
   const table = [
     [down('F11'), 'schermo-intero'],
+    // B37: F9 da solo apre e chiude il pannello dello stand; con un altro tasto insieme no (la pagina lo riceve)
+    [down('F9'), 'pannello-stand'],
+    [down('F9', { control: true }), null], [down('F9', { shift: true }), null], [down('F9', { alt: true }), null], [down('F9', { meta: true }), null],
+    [{ ...down('F9'), type: 'keyUp' }, null], [{ ...down('F9'), isAutoRepeat: true }, null],
+    [down('F8'), null], [down('F10'), null],
     [down('F11', { shift: true }), 'schermo-intero'],
     [down('M', { control: true, shift: true }), 'monitor-successivo'],
     [down('m', { control: true, shift: true }), 'monitor-successivo'],
@@ -197,7 +202,20 @@ test('scorciatoie del programma: F11, Ctrl+Maiusc+M, Ctrl+R, Ctrl+Q, Ctrl+Maiusc
   for (const [input, expected] of table) assert.equal(shortcutFor(input), expected, JSON.stringify(input));
   // le azioni sono quelle del menu (id delle voci in main.mjs)
   const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
-  for (const id of ['schermo-intero', 'monitor-successivo', 'ricarica', 'esci', 'strumenti']) assert.match(main, new RegExp(`id: '${id}'`), id);
+  for (const id of ['schermo-intero', 'monitor-successivo', 'ricarica', 'esci', 'strumenti', 'pannello-stand']) assert.match(main, new RegExp(`id: '${id}'`), id);
+  // B37: la voce del menu dice il tasto e chiama la stessa azione di F9
+  assert.match(main, /\{ id: 'pannello-stand', label: 'Pannello dello stand \(F9\)', click: ACTIONS\['pannello-stand'\] \}/);
+  assert.match(main, /'pannello-stand': \(\) => staffPanel\(\)/);
+});
+
+test('pannello dello stand (B37): F9 e il menu mandano il comando solo alla pagina del gioco del proprio server', () => {
+  const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
+  // stessa regola degli altri canali verso la pagina: la finestra del gioco e solo con una pagina del proprio server
+  assert.match(main, /function staffPanel\(\)\{\n  if \(!win \|\| !isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) return;\n  win\.webContents\.send\(DESKTOP\.ipcStaffPanel, 'toggle'\);/);
+  // F9 passa da 'before-input-event' (funziona anche a schermo intero, senza la barra del menu): azione presa da shortcutFor
+  assert.match(main, /before-input-event[^\n]*\n\s*const action = shortcutFor\(input\);/);
+  assert.equal(DESKTOP.ipcStaffPanel, 'natpf:staff-panel');
+  assert.equal(new Set(Object.entries(DESKTOP).filter(([k]) => k.startsWith('ipc')).map(([, v]) => v)).size, Object.keys(DESKTOP).filter(k => k.startsWith('ipc')).length, 'canali tutti diversi');
 });
 
 test('richieste della pagina sullo schermo intero', () => {
@@ -222,8 +240,8 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   vm.runInNewContext(code, { require, console });
   const api = exposed.natpfDesktop;
   assert.ok(api, 'natpfDesktop esposto');
-  assert.deepEqual(Object.keys(api).sort(), ['displays', 'isFullScreen', 'onFullScreenChange', 'registro', 'setFullScreen', 'shell', 'toggleFullScreen', 'updates', 'version']);
-  assert.equal(api.shell, 'electron'); assert.equal(api.version, 4);
+  assert.deepEqual(Object.keys(api).sort(), ['displays', 'isFullScreen', 'onFullScreenChange', 'registro', 'setFullScreen', 'shell', 'staffPanel', 'toggleFullScreen', 'updates', 'version']);
+  assert.equal(api.shell, 'electron'); assert.equal(api.version, 5);
   assert.equal(await api.isFullScreen(), true);
   assert.equal(await api.setFullScreen(false), false);
   await api.setFullScreen(true); await api.toggleFullScreen();
@@ -262,6 +280,14 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   assert.equal(JSON.stringify(dseen), JSON.stringify([{ list: [], current: null }]));
   doff(); assert.equal(removed.at(-1)[0], DESKTOP.ipcDisplaysChanged);
   assert.equal(typeof api.displays.onChange(null), 'function');
+  // pannello dello stand (B37): onToggle con la funzione che toglie l'ascolto; alla pagina solo 'toggle' / 'open' / 'close'
+  assert.deepEqual(Object.keys(api.staffPanel), ['onToggle']);
+  const kseen = [], koff = api.staffPanel.onToggle(a => kseen.push(a));
+  assert.equal(listeners[DESKTOP.ipcStaffPanel].length, 1);
+  for (const a of ['toggle', 'open', 'close', 'altro', undefined]) listeners[DESKTOP.ipcStaffPanel][0]({ sender: 'evento di Electron' }, a);
+  assert.deepEqual(kseen, ['toggle', 'open', 'close', 'toggle', 'toggle']);
+  koff(); assert.equal(removed.at(-1)[0], DESKTOP.ipcStaffPanel);
+  assert.equal(typeof api.staffPanel.onToggle('non una funzione'), 'function');
   // il programma usa il preload e lo copia in app/; la richiesta passa dal controllo dei propri indirizzi
   const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
   const prepara = fs.readFileSync(new URL('../scripts/prepara.mjs', import.meta.url), 'utf8');
@@ -273,7 +299,7 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   assert.match(main, /isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) win\.webContents\.send\(DESKTOP\.ipcUpdatesChanged/);
   assert.match(main, /ipcMain\.handle\(DESKTOP\.ipcDisplays,[^\n]*\n[^\n]*isOwnUrl\(event\.senderFrame\?\.url/, 'monitor solo dalle pagine del gioco');
   assert.match(main, /isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) win\.webContents\.send\(DESKTOP\.ipcDisplaysChanged/);
-  for (const k of ['ipcFullscreen', 'ipcFullscreenChanged', 'ipcUpdates', 'ipcUpdatesChanged', 'ipcDisplays', 'ipcDisplaysChanged', 'ipcRegistro']) assert.ok(code.includes(`'${DESKTOP[k]}'`), `canale ${k} uguale nel preload`);
+  for (const k of ['ipcFullscreen', 'ipcFullscreenChanged', 'ipcUpdates', 'ipcUpdatesChanged', 'ipcDisplays', 'ipcDisplaysChanged', 'ipcRegistro', 'ipcStaffPanel']) assert.ok(code.includes(`'${DESKTOP[k]}'`), `canale ${k} uguale nel preload`);
   assert.match(main, /'fullscreen'/, 'permesso dello schermo intero ancora consentito');
   assert.match(prepara, /'main\.mjs', 'desktop-core\.mjs', 'aggiornamenti\.mjs', 'registro\.mjs', DESKTOP\.preload/);
   assert.match(prepara, /UPDATES\.config/, 'aggiornamenti.json nel pacchetto');

@@ -81,7 +81,7 @@ manca il collegamento al bucket R2».
 14. Scrivete la chiave nella casella e premete **Mostra i giorni**. La prima volta: «Ancora nessun giorno registrato.»
     Sotto c'è la barra dello **spazio occupato** (per esempio «12 MB su 2.0 GB»).
 15. Dopo aver caricato il gioco con l'indirizzo del registro (parte F): giocate una partita, aprite il pannello dello
-    stand (**Ctrl+Maiusc+K**) e premete **Invia adesso**. Il pannello deve dire «ultimo invio riuscito alle …». Ripremete
+    stand (**Ctrl+Maiusc+K**, **F9** nel programma Windows) e premete **Invia adesso**. Il pannello deve dire «ultimo invio riuscito alle …». Ripremete
     **Mostra i giorni** nella pagina del Worker: compare il giorno di oggi con blocchi, righe e peso.
 
 ## F · Mettere l'indirizzo nel gioco
@@ -96,7 +96,7 @@ manca il collegamento al bucket R2».
       resta **senza** `--registro-url` (il Worker rifiuterebbe il gioco aperto nel browser). Per registrare anche dal
       browser: aggiungete l'indirizzo del gioco ad `ALLOWED_ORIGINS` (Deploy) e chiedete uno zip con `--registro-url`.
 17. Caricate lo zip sul Worker del gioco come al solito e installate il programma Windows sul PC dello stand. Il registro
-    è **acceso da solo**: lo staff non deve fare niente. Nel pannello dello stand (Ctrl+Maiusc+K) la voce «Registro di
+    è **acceso da solo**: lo staff non deve fare niente. Nel pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows) la voce «Registro di
     gioco: Sì · No» lo spegne, e lo stato dice partite di oggi, ultimo invio, righe in coda, oppure «indirizzo del
     registro non impostato» o «rete assente».
 

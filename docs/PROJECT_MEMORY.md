@@ -834,6 +834,40 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   automatica del B31 vale a **tutti** i livelli, Leggenda compresa (`natpf_net_play.js` `approachOf`, nessuna eccezione).
 - Scritte «in corsa / in allungo»: solo con la corsa forte.
 
+
+## Decisioni B37 (13/11/2026, collaudo dell'utente, seconda parte; documento `docs/b37/collaudo-13-11-bis.md`)
+- **Il verdetto «Fuori» / «In rete» non si dice mai prima che la palla tocchi terra o la rete** («è brutto che tu anticipi
+  la palla che va fuori»). Il gioco sa già al colpo dove cadrà la palla (`natpf_stroke_outcome.strokeOutcome`,
+  `ball.targetLanding`), ma in partita (`defersVerdict`: fase `RALLY`, non dimostrazione, allenamento, minigiochi né
+  scambi di prova) `natpf_shot_feedback.js` tiene il verdetto in `verdict` e al colpo mostra solo cose neutre (lampo
+  bianco, etichetta «Colpita», telefono `wait`: nome del colpo e vibrazione breve). Il verdetto arriva con
+  `natpfUi.shot.settle(winner, why)`, chiamato all'inizio di `game_engine._awardPoint` (motivo `Out` / `Net`): scritta,
+  anello rosso dove la palla è caduta, etichetta del gesto e telefono (`late`) insieme al punto. Sul computer del Player 2
+  della sfida tra due computer anche con la scritta del punto che arriva dall'host (`settle(null, why, { remote: true })`).
+  Palla ripresa al volo, punto interrotto, menu o moviola: il verdetto si butta (`update`, `VERDICT.maxWait` 6 s); palla
+  prevista fuori che cade dentro: al primo rimbalzo l'esito in campo (`_settleIn`). Chi aggiunge un segno dell'esito al
+  colpo lo fa passare da `shot.shown(q)` / `shot.phoneQuality(e, q)`. Allenamento, minigiochi e scambi di prova restano
+  con l'esito subito (fa parte della lezione).
+- **Chi serve**: gemma color accento sopra la testa di chi batte e riquadro di servizio colorato a terra
+  (`natpf_serve_marker.js`, oggetti della scena: si vedono nelle due metà dello stesso schermo e sui due computer).
+  `serviceBox(server, deuceSide)` deve restare il riquadro dove il motore manda davvero il servizio (`_executeServeHit`,
+  provato con 24 servizi veri); la gemma si ingrandisce per ogni camera in `onBeforeRender` (lontana fino a ×2,6). La
+  scritta «Al servizio» resta, piccola, sopra la gemma (`tagHeight`).
+- **Segnale del momento giusto spiegato**: le prime `CUE_HINT.balls` (3) palle di ogni partita in cui l'anello compare,
+  scritta in alto al centro «Colpisci quando il cerchio diventa verde» (stesse parole nella guida e nelle Opzioni); si
+  rivede con una partita nuova e con «Nuovo giocatore» (`resetHint`). Quando è acceso non cambia.
+- **Pannello dello stand dal programma Windows**: F9 da solo (processo principale, `before-input-event`, anche a schermo
+  intero) e la voce del menu NATPF «Pannello dello stand (F9)»; canale `natpf:staff-panel` solo verso la finestra del
+  gioco con una pagina del proprio server, ponte del preload `window.natpfDesktop.staffPanel.onToggle` (versione 5).
+  Ctrl+Maiusc+K e 3 s sul marchio restano; nel browser F9 resta del browser.
+- **Prove nel browser a sorteggi fissi** (per esempio `natpf-lob-drop`: `Math.random` con seme da quando si apre la
+  pagina): ogni oggetto three.js creato prima dei personaggi consuma sorteggi per il proprio nome (UUID) e cambia il
+  primo battito delle palpebre dei personaggi (`player_facial_fx`: `blinkTimer = 2.6 + Math.random()*1.6` quando nasce il
+  personaggio), che sorteggia ancora durante la partita: la sequenza si sposta e le partite a seme fisso cambiano anche
+  se il gioco non cambia (scoperto chiudendo il B37: la gemma e il riquadro di chi serve sono 9 oggetti nuovi). Nelle
+  prove si mettono le palpebre uguali prima del seme (`play()` di `natpf-lob-drop`), come il disegno «a vuoto» dello
+  stesso schermo.
+
 ## Decisioni dell'utente del 13/11/2026 (pomeriggio): stand, modalità fiera, gioco
 
 - Precisione dei colpi dal telefono dopo B35a: «direi bene» (collaudo con la 2026-11-13.9).

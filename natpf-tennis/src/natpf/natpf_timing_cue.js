@@ -17,6 +17,11 @@
 //     lo spegne a tutti (anche a Bambini ed Evento). Resta salvato (localStorage, chiave natpf-tennis.segnaleTempo);
 //   • mai nello stesso schermo e nella sfida tra due computer (lì non cambia niente), nella demo dietro il menu e nella
 //     moviola.
+// B37 (collaudo dell'utente del 13/11, punto 3: «compare un cerchietto bianco che non capisco cosa sia che segue la palla»):
+// quando è acceso non cambia niente, ma le prime volte si spiega. Nelle prime CUE_HINT.balls palle di ogni partita in cui
+// l'anello compare (e di nuovo per un giocatore nuovo: natpf_new_player.resetVisitor) una scritta breve in alto al centro
+// (in basso copriva chi gioca) dice «Colpisci quando il cerchio diventa verde», con le stesse parole della guida (natpf_onboarding.js, «Colpisci quando
+// la palla arriva»); resta finché c'è l'anello e poco dopo, poi sparisce. Solo una scritta: niente nell'esito dei colpi.
 import * as THREE from 'three';
 import { SWING_AIM, skillLevel } from './natpf_skill.js';
 import { timeToContact, lateMargin, openTight } from './natpf_impact.js';
@@ -33,6 +38,10 @@ export const CUE = Object.freeze({
 // giallo vuol dire «buono», qui voleva dire «aspetta». Verde: adesso. Rosso: tardi
 export const CUE_COLORS = Object.freeze({ wait: '#ffffff', now: '#39e58c', late: '#ff5d6c' });
 export const CUE_NOW_SCALE = 1.3;   // quando diventa verde l'anello si allarga di colpo e si riempie (un lampo): prima si vedeva poco
+// B37: scritta delle prime palle (text: le stesse parole della guida; balls: palle per partita; hold: s in vista dopo l'anello)
+export const CUE_HINT = Object.freeze({ text: 'Colpisci quando il cerchio diventa verde', balls: 3, hold: .7 });
+// pura: si spiega questa palla? fresh: palla nuova con l'anello in vista; shown: palle già spiegate in questa partita
+export const cueHintFor = ({ fresh = false, shown = 0, balls = CUE_HINT.balls } = {}) => !!fresh && shown < balls;
 const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
 
 // scelta salvata: 'auto' (di base) | 'on' | 'off'
@@ -52,7 +61,7 @@ export function cueOn({ level = 'casual', pref = 'auto', versus = false } = {}){
   if (versus || level === '1v1') return false;
   return pref === 'on' ? true : pref === 'off' ? false : cueDefault(level);
 }
-export const cueToast = (pref, level) => (pref === 'on' ? 'Segnale del momento giusto acceso a tutti i livelli contro la CPU: un anello si chiude sulla palla quando è il momento di colpire'
+export const cueToast = (pref, level) => (pref === 'on' ? 'Segnale del momento giusto acceso a tutti i livelli contro la CPU: un cerchio bianco si stringe sulla palla, colpisci quando il cerchio diventa verde'
   : pref === 'off' ? 'Segnale del momento giusto spento a tutti i livelli'
   : `Segnale del momento giusto di base: acceso con «Bambino» e «Adulto», spento con gli altri livelli (adesso ${cueDefault(level) ? 'acceso' : 'spento'})`);
 
@@ -108,7 +117,11 @@ export class NatpfTimingCue {
     this.view = null;            // ultimo anello disegnato (per le prove)
     this._flight = null; this._floor = Infinity;   // palla in arrivo di adesso e diametro più stretto già mostrato
     this.sprite = this._build();
+    // B37: scritta delle prime palle (palle spiegate in questa partita, palla spiegata adesso, ora in cui sparisce)
+    this.hint = { shown: 0, match: undefined, flight: null, until: 0, on: false };
   }
+  // B37: giocatore nuovo: la scritta si rivede dalle prime palle
+  resetHint(){ this.hint = { ...this.hint, shown: 0, flight: null, until: 0 }; this._paintHint(false); }
   _build(){
     const scene = this.engine.scene; if (!scene) return null;
     this._maps = { ring: ringTexture(), full: ringTexture(true) };
@@ -118,6 +131,28 @@ export class NatpfTimingCue {
     return s;
   }
   setPref(pref){ this.pref = writeCue(pref); return this.pref; }
+  // B37: scritta delle prime palle. Partita nuova (statistiche della partita: un oggetto nuovo a ogni partita): si riparte
+  // da zero; palla nuova con l'anello: spiegata se è tra le prime; in vista finché c'è l'anello, poi hold secondi
+  _hint(fresh, flight){
+    const H = this.hint, E = this.engine, now = E.elapsedTime || 0, match = E.natpfStats?.m ?? null;
+    if (match !== H.match){ H.match = match; H.shown = 0; H.flight = null; H.until = 0; }
+    if (cueHintFor({ fresh, shown: H.shown })){ H.shown++; H.flight = flight; }
+    if (H.flight && flight === H.flight) H.until = now + CUE_HINT.hold;
+    const on = !!H.flight && now < H.until && !E.autoPlayMode && !E.natpfReplay?.playing;
+    if (!on && H.flight && now >= H.until) H.flight = null;
+    if (on !== H.on) this._paintHint(on);
+  }
+  _paintHint(on){
+    this.hint.on = on;
+    if (typeof document === 'undefined') return;
+    let el = document.getElementById('natpf-cue-hint');
+    if (!el && on && document.body){
+      el = document.createElement('div'); el.id = 'natpf-cue-hint'; el.className = 'natpf-cue-hint hidden'; el.setAttribute('aria-live', 'polite');
+      el.innerHTML = `<i class="cue-dot"></i><i class="cue-dot now"></i><span>Colpisci quando il cerchio diventa <b>verde</b></span>`;
+      document.body.appendChild(el);
+    }
+    el?.classList.toggle('hidden', !on);
+  }
   // acceso per la partita di adesso?
   get enabled(){
     const E = this.engine, versus = !!E.isMultiplayer || !!E.natpfSplit?.active || E.playerRole === 'p2';
@@ -129,10 +164,11 @@ export class NatpfTimingCue {
     if (this.enabled && E.phase === 'RALLY' && b?.inPlay && b.lastHitter !== 'player' && !E.autoPlayMode && !E.natpfReplay?.playing)
       v = cueView(timeToContact(E, E.player), cueEdges({ level: skillLevel(E.matchConfig?.difficulty), vz: b.vel.z, margin: lateMargin(E, E.player), tight: openTight(E, E.player) }));
     // una palla nuova (un altro colpo, o l'anello era sparito) riparte larga; la stessa palla non si riallarga (cueHold)
-    const flight = v ? `${b.rallyStrokeCount}|${b.lastHitter}` : null;
+    const flight = v ? `${b.rallyStrokeCount}|${b.lastHitter}` : null, fresh = !!flight && flight !== this._flight;
     if (flight !== this._flight){ this._flight = flight; this._floor = Infinity; }
     ({ view: v, floor: this._floor } = cueHold(v, this._floor));
     this.view = v;
+    this._hint(fresh, flight);
     const s = this.sprite; if (!s) return;
     s.visible = !!v;
     if (!v) return;

@@ -169,17 +169,26 @@ const LABEL_FLASH = { perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In a
 const MISS_FLASH = { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana', lancio: 'Lancio a vuoto' };
 // lancio a vuoto al servizio (B18): come il grande schermo, più a lungo perché c'è da leggere
 const MISS_SUB = { nessuno: 'Il movimento non è arrivato: riprova con un colpetto comodo.', lancio: 'Colpisci quando la palla è in alto. Alza il telefono e riprova.' };
-export function eventFlash(d = {}){
+// B37 (collaudo del 13/11): in partita il computer manda «Fuori» / «In rete» quando la palla tocca terra o la rete (late),
+// non al colpo: al colpo arriva wait (scritta neutra, nessun esito). Il punto che segue subito dopo un verdetto (verdict:
+// «Fuori · in anticipo») lo tiene nella riga piccola, così il motivo non si perde
+export function verdictText(d = {}){
+  if (!(d.out || d.net)) return '';
+  const why = typeof d.why === 'string' ? d.why.slice(0, 40) : '';
+  return [d.net ? 'In rete' : 'Fuori', cap(why)].filter(Boolean).join(' · ');
+}
+export function eventFlash(d = {}, { verdict = '' } = {}){
   const why = typeof d.why === 'string' ? d.why.slice(0, 40) : '';
   if (d.k === 'contact'){
     const name = SHOT_FLASH[d.shot] || '';
+    if (d.wait) return { ring: '', big: name || 'Colpo!', sub: '', ms: 650, buzz: [20] };
     if (d.net || d.out) return { ring: 'miss', big: d.net ? 'In rete' : 'Fuori', sub: [cap(why), name.replace('!', '')].filter(Boolean).join(' · '), ms: 900, buzz: d.label === 'perfetto' ? [40] : [20] };
     // palla corta troppo lunga (B18.2 passo 3): la palla resta in gioco, ma lenta a metà campo; sotto il perché
     if (d.long) return { ring: 'hit', big: 'Troppo lunga', sub: [cap(why), name.replace('!', '')].filter(Boolean).join(' · '), ms: 900, buzz: [20] };
     return { ring: 'hit', big: name || LABEL_FLASH[d.label] || 'Colpo!', sub: '', ms: 650, buzz: d.label === 'perfetto' ? [40] : [20] };
   }
   if (d.k === 'miss') return { ring: 'miss', big: MISS_FLASH[d.why] || 'Mancata', sub: MISS_SUB[d.why] || '', ms: d.why === 'lancio' ? 1800 : 650, buzz: [90] };
-  if (d.k === 'point') return { ring: d.mine ? 'hit' : 'miss', big: d.mine ? 'Punto tuo' : 'Punto avversario', sub: String(d.txt || '').slice(0, 60), ms: 1300, buzz: null };
+  if (d.k === 'point') return { ring: d.mine ? 'hit' : 'miss', big: d.mine ? 'Punto tuo' : 'Punto avversario', sub: String(verdict || d.txt || '').slice(0, 60), ms: 1300, buzz: null };
   return null;
 }
 

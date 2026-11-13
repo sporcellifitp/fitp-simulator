@@ -336,9 +336,11 @@ test('revisione B18, motore: colpi del P2 nello stesso schermo, metà destra e t
       e.startNewMatch({ showStartBanner: false });
       e.isMultiplayer = true; e.versus = { active: true, closing: false, local: true }; e.playerRole = 'p1'; e.natpfSplit.active = true;
       e.scene = { add(){} };
-      const hud = e.hud; e.hud = new Proxy({}, { get: (t, k) => k in t ? t[k] : k === 'showTimingPopup' ? (o => shown.push(o)) : hud[k] });
+      const hud = e.hud; e.hud = new Proxy({}, { get: (t, k) => k in t ? t[k] : k === 'showTimingPopup' ? (o => shown.push({ ...o, at: e.elapsedTime })) : hud[k] });
       const fb = new NatpfShotFeedback(e);
-      e.natpfUi = { feedback: ev => ((ev.role || 'p1') !== e.playerRole ? null : fb.onLocalFeedback(ev)) };
+      // (B37: con la scritta e il telefono del verdetto rimandato, come nel gioco: natpfUi.shot)
+      e.natpfUi = { feedback: ev => ((ev.role || 'p1') !== e.playerRole ? null : fb.onLocalFeedback(ev)), shot: fb };
+      let endAt = null; const aw = e._awardPoint.bind(e); e._awardPoint = (w, why) => { endAt ??= e.elapsedTime; return aw(w, why); };
       const p2 = phoneSink('p2'); e.natpfPhone2 = p2.ph; e.natpfPhone = phoneSink('p1').ph;
       e.motionController = { triggerHapticFeedback: ev => relayPhoneFeedback(e, ev) };
       e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'player'; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = 3;
@@ -352,11 +354,17 @@ test('revisione B18, motore: colpi del P2 nello stesso schermo, metà destra e t
         if (!swung && ttc != null && ttc <= lead){ e._handleP2SwingInput({ ...phoneSwing({ shot: 'topspin', power: .6, face }), role: 'p2' }); swung = true; }
         e.step(DT);
       }
-      const pop = shown.find(o => /^(Perfetto|Anticipo|Ritardo|Buono|Fuori|In rete)/.test(o.grade)), msg = p2.sent.find(m => m.k === 'contact');
+      // B37: il messaggio che conta è l'ultimo (con fuori e rete arriva quando la palla tocca terra o la rete)
+      const pop = shown.find(o => /^(Perfetto|Anticipo|Ritardo|Buono|Fuori|In rete)/.test(o.grade)), contacts = p2.sent.filter(m => m.k === 'contact'), msg = contacts.at(-1);
       assert.ok(pop && msg, `scritta e messaggio (lead ${lead}, face ${face}): ${JSON.stringify(shown.map(o => o.grade))} ${JSON.stringify(p2.sent)}`);
       const label = pop.grade.split(' · ')[0], f = eventFlash(msg);
       assert.equal(f.big, SAME[label], `lead ${lead}: schermo «${pop.grade}», telefono ${JSON.stringify(msg)}`);
-      if (label === 'Fuori' || label === 'In rete'){ outs++; assert.equal(f.ring, 'miss'); assert.equal(f.sub.toLowerCase(), pop.grade.split(' · ')[1] || ''); }
+      if (label === 'Fuori' || label === 'In rete'){
+        outs++; assert.equal(f.ring, 'miss'); assert.equal(f.sub.toLowerCase(), pop.grade.split(' · ')[1] || '');
+        // B37: al colpo il telefono del P2 non dice l'esito (wait), la scritta non c'è; tutti e due quando la palla tocca
+        assert.equal(contacts.length, 2, JSON.stringify(contacts)); assert.equal(contacts[0].wait, 1); assert.equal(eventFlash(contacts[0]).ring, '');
+        assert.equal(msg.late, 1); assert.ok(endAt != null && pop.at >= endAt - 1e-9, `scritta a ${pop.at} s, palla a terra a ${endAt} s`);
+      } else assert.ok(endAt == null || pop.at < endAt, 'colpo in campo: la scritta subito, come prima');
       n++;
     }
   } finally { Math.random = real; if (had === undefined) delete globalThis.document; else globalThis.document = had; }
