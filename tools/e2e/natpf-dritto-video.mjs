@@ -545,14 +545,16 @@ async function costo(){
   // b) fotogrammi interi (calcolo + disegno) di uno scambio vero, a blocchi alterni
   await p.evaluate(() => __fv.hideUi());
   const full = { on: [], off: [] }, NF = +(process.env.FPS_N || 45);
-  for (let i = 0; i < 6; i++){
-    const on = i % 2 === 0;
+  // un blocco di riscaldamento che non conta (il primo disegno compila i materiali), poi 8 blocchi alterni: mediane
+  await p.evaluate(o => __fv.begin(o), { rally: true }); await p.evaluate(n => __fv.step(n), f0 - 20); await p.evaluate(n => __fv.cost(n, true), NF);
+  for (let i = 0; i < 8; i++){
+    const on = i % 2 === 1;
     await p.evaluate(on => __fv.mode(on), on); await p.evaluate(o => __fv.begin(o), { rally: true }); await p.evaluate(n => __fv.step(n), f0 - 20);
     full[on ? 'on' : 'off'].push(await p.evaluate(n => __fv.cost(n, true), NF));
   }
-  const avg = a => a.reduce((x, y) => x + y, 0)/a.length, f1 = 1000/avg(full.on), f00 = 1000/avg(full.off);
+  const f1 = 1000/med(full.on), f00 = 1000/med(full.off);
   // senza GPU (WebGL in software) il campo va a pochi fotogrammi al secondo e la misura oscilla di qualche punto percentuale
-  check('fotogrammi al secondo: con la prova non meno del 95% di quelli senza', f1 >= .95*f00, `accesa ${full.on.map(x => (1000/x).toFixed(2)).join(', ')} (media ${f1.toFixed(2)}), spenta ${full.off.map(x => (1000/x).toFixed(2)).join(', ')} (media ${f00.toFixed(2)}); ${NF} fotogrammi per blocco attorno al colpo`);
+  check('fotogrammi al secondo: con la prova non meno del 95% di quelli senza', f1 >= .95*f00, `accesa ${full.on.map(x => (1000/x).toFixed(2)).join(', ')} (mediana ${f1.toFixed(2)}), spenta ${full.off.map(x => (1000/x).toFixed(2)).join(', ')} (mediana ${f00.toFixed(2)}); ${NF} fotogrammi per blocco attorno al colpo`);
   if (FOGLI) writeFileSync(path.join(FOGLI, 'misure.json'), JSON.stringify({ animUs: anim, fullMs: full }, null, 2));
   check('costo: nessun errore', !g.errs.length, g.errs.join(' | ').slice(0, 300));
   await g.ctx.close();
