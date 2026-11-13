@@ -497,6 +497,25 @@ chiave}`; preflight CORS da `https://localhost:8443` → 204 con l'origine perme
       del livello (Pro e Leggenda in «Altre impostazioni»); segnale del momento giusto; super spiegato
 - [ ] Dall'utente: prova di due minuti con un telefono vero agitato senza guardare (poi si decide la regola)
 - [ ] **Per la 13.8 (con B35)**: l'utente dice che **Ctrl+Maiusc+K non apre il pannello dello stand** sul PC dello stand (programma Windows 13.7). Nel codice la scorciatoia è giusta (`natpf_kiosk.js:61`, ascolto in cattura su window; il programma non la intercetta: `desktop-core.mjs` `shortcutFor` usa solo F11, Ctrl+R/Q, Ctrl+Maiusc+M/I; il menu la lascia passare con Ctrl premuto, `natpf_lobby.js` `_key`; durante il video iniziale ogni tasto serve solo a partire, `natpf_intro.js` `_input`). Cause probabili: «Bloc Maiusc» al posto di Maiusc ⇧, tasti premuti durante il video iniziale, oppure un altro programma del PC che usa Ctrl+Maiusc+K. Detto all'utente di usare il marchio NATPF tenuto premuto 3 s nel menu. **Da aggiungere**: voce «Pannello dello stand» nel menu del programma Windows (Alt), che apre il pannello senza scorciatoia, con test.
+- [x] **B35a finito** (ramo `b35-precisione-telefono`, `c5de71c`), unito in `c22b6e8`: tre cause corrette con il telefono
+      simulato (piatto non girato con il verso sui telefoni con i sensori al contrario; centro della mira che inseguiva una
+      mira tenuta; ritardo abituale dello schermo non misurato). Banco `scripts/audit/direzione-telefono.mjs`: Pro, gesto
+      buono, colpi nella direzione voluta 58→73% (56→71%), incrociato voluto finito lungolinea 25→0%; con ~95 ms di ritardo
+      fisso giusti 27→66%, fuori 24→8%. Agente: gioco 1425/1426 (1 saltato), sito 226, build, audit:legend uguale, 7 prove
+      nel browser. Documento `docs/b35/precisione-telefono.md` (istruzioni per registrare una sessione vera).
+- [~] **Versione 2026-11-13.8** = B35a (controllo rapido in corso) → commit, push, zip, installer.
+- **NUOVO COLLAUDO DELL'UTENTE (13/11, 11:25 UTC) → blocco B37** (dopo B35b, sopra il suo lavoro):
+  1. «quando la palla va fuori, aspetta che vada realmente fuori (anche quando finisce la partita): è brutto che si
+     anticipi la palla fuori e si dica subito che la persona ha perso o si assegni subito il punto»;
+  2. chi deve servire: non basta la scritta «alza la mano»; serve un elemento di gioco, per esempio un **selettore sopra
+     il personaggio** (anche Lob) o una **zona colorata/evidenziata** che faccia capire chi batte;
+  3. contro la CPU «un cerchietto bianco che segue la palla nel tragitto, non capisco cosa sia»: è il **segnale del
+     momento giusto** (`natpf_timing_cue.js`, anello bianco che si stringe e diventa verde; acceso di base con «Bambino»
+     e «Adulto», Opzioni → «Segnale del momento giusto»). Va spiegato a schermo le prime volte (o spento di base se
+     l'utente preferisce);
+  4. voce «Pannello dello stand» nel programma Windows, che non dipenda da Ctrl+Maiusc+K (nel menu e con un tasto, per
+     esempio F9, gestito dal programma: a schermo intero la barra del menu non c'è).
+  Video 1 dei riferimenti B36 ricevuto (`scratchpad/b36/video1/video1.mp4`, 36,7 s, 720×1280): il secondo non è arrivato.
 - [ ] **B36 · FASE SUCCESSIVA (richiesta dell'utente del 13/11, 10:40 UTC): direzionalità al centro del gioco, campo
       completamente aperto, stile arcade.** Da fare **dopo** B35a/B35b, senza toccarli. Punti dell'utente: (1) la direzione
       impressa dal giocatore decide traiettoria e punto d'atterraggio, è il fattore principale; (2) colpi diversi per gesto,
