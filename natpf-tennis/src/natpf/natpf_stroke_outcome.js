@@ -190,15 +190,21 @@ export const ASSIST = Object.freeze({
   pro: Object.freeze({ xMax: 3.65, assistQ: .62, failQ: .3, pushOut: .9, attackQ: .65 }),
   // B18.2 passo 3 (D2 del rapporto B16): a Leggenda il colpo di chi gioca falliva con una regola sua, failQ .63 e
   // pressione degli scambi lunghi dal 10° colpo (pressureFrom 10) invece che dal 16° come agli altri livelli. Contro
-  // «tennista» il 43–49% dei punti finiva con un colpo fallito «scambio lungo», con il voto PERFETTO (banco
-  // scripts/audit/palla-corta.mjs): chi gioca non poteva capirlo. Ora la regola è quella degli altri livelli: stessa
-  // pressione (RALLY_PRESSURE, dal 16° colpo) e failQ sulla stessa scala (Casual .2, Pro .3, 1v1 .34, Leggenda .4:
-  // fallisce solo il colpo preso davvero male, in piena corsa e in allungo, o molto fuori tempo). Restano di Leggenda i
-  // margini che si possono dichiarare: finestra del tempo più stretta (timingSpan), palla tenuta in campo solo sopra
-  // assistQ .8, uscita di lato più pronta (pushOut), chiusura sopra la rete da attackQ .82. La forza del livello viene
-  // dalla CPU (natpf_legend.LEGEND: powerErr, pressureFrom). Misure e criteri: docs/b18/t2-3-leggenda-e-palla-corta.md
-  // netHold: il bordo morbido laterale nella zona di rete (B17.4) resta a Leggenda anche se failQ ora è sotto netQMin
-  leggenda: Object.freeze({ xMax: 3.65, assistQ: .8, failQ: .4, pushOut: 1.1, attackQ: .82, netHold: true }),
+  // «tennista» un punto su quattro finiva con un colpo fallito «scambio lungo» con il voto PERFETTO: chi gioca non poteva
+  // capirlo. Ora la regola è quella degli altri livelli: stessa pressione (RALLY_PRESSURE, dal 16° colpo) e la soglia del
+  // colpo fallito di Pro (failQ .3: fallisce solo il colpo preso davvero male, in corsa e in allungo, o molto fuori tempo).
+  // La difficoltà sta in margini che si vedono e si possono dire:
+  //   • span .115: la finestra del momento giusto è più stretta (Esperto e Pro .15): un errore di tempo che a Pro è
+  //     ancora «Perfetto» a Leggenda è «Anticipo» o «Ritardo» e sposta di più la palla;
+  //   • spanPress 3: negli scambi lunghi (dal 16° colpo, come la pressione di tutti) la finestra si stringe ancora, come
+  //     la pressione alla terza (al 30° colpo × 0,49, dal 46° × 0,17): il colpo esce di lato con il voto e la scritta
+  //     «in anticipo» o «in ritardo», non più un «Perfetto» che va in rete;
+  //   • pushOut 1.35: oltre la finestra la palla va fuori prima (Pro .9);
+  //   • come prima: palla tenuta in campo solo sopra assistQ .8, chiusura sopra la rete da attackQ .82.
+  // Il resto della forza viene dalla CPU (natpf_legend.LEGEND: pressureFrom, closeFrom, powerErr). netHold: il bordo
+  // morbido laterale nella zona di rete (B17.4) resta a Leggenda anche se failQ ora è sotto netQMin.
+  // Misure e criteri: docs/b18/t2-3-leggenda-e-palla-corta.md
+  leggenda: Object.freeze({ xMax: 3.65, assistQ: .8, failQ: .3, pushOut: 1.35, attackQ: .82, netHold: true, span: .115, spanPress: 3 }),
 });
 // level.assist (solo prove e banchi): valori che sostituiscono quelli del livello, es. la regola di Leggenda di prima
 // { ...ASSIST.leggenda, failQ: .63, pressureFrom: 10 }
@@ -268,7 +274,9 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // palla corta per forma a rete: palla corta solo con la forma chiara e il gesto lento, altrimenti volée controllata (tagliata)
   const netVolley = shot === 'DROP' && nearNet && Number.isFinite(intent.conf) && !(finite(intent.conf) >= O.dropNet.conf && power <= O.dropNet.power);
   if (netVolley) shot = 'SLICE';
-  const AS = assistOf(level), span = directionSpan(level)*slowFactor(ballVz), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
+  // spanPress (B18.2 passo 3, solo Leggenda): negli scambi lunghi la finestra del tempo si stringe con la pressione
+  // (× pressione^spanPress, mai sotto 0,2^spanPress): il colpo esce di lato «in anticipo» o «in ritardo», con il voto che lo dice
+  const AS = assistOf(level), span = directionSpan(level)*slowFactor(ballVz)*(AS.spanPress ? clamp(finite(pressure, 1), .2, 1)**AS.spanPress : 1), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
   // tempo in unità della finestra della direzione (+ anticipo). Oltre ±1 la palla continua ad andare verso l'esterno
   // fino alla fine della finestra d'impatto (prima si fermava a 1,6 unità: nell'ultimo 40% della finestra tutte le
   // palle uguali). ±4 è oltre ogni finestra d'impatto, solo per sicurezza

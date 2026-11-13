@@ -49,10 +49,11 @@ test('B16: la Leggenda controlla meglio i colpi forti, ma sceglie con il rischio
   assert.deepEqual(NS.skillLevel('leggenda').playerErr, NS.skillLevel('pro').playerErr);
 });
 
-test('B16: la pressione degli scambi lunghi arriva alla Leggenda dal 20° colpo', () => {
+test('B16 e B18.2 passo 3: la pressione degli scambi lunghi arriva alla Leggenda dal 26° colpo', () => {
   const q = strokes => { const e = engine(); rallyBall(e, { strokes }); return NL.legendDecide(e, e.opponent, mulberry32(9)).q; };
-  assert.equal(NL.LEGEND.pressureFrom, 20);
-  assert.equal(q(18), q(4), 'nessuna pressione fino al 20° colpo');
+  // B16: dal 20° colpo (prima dal 10°); B18.2 passo 3, tolta la regola nascosta di chi gioca: dal 26°
+  assert.equal(NL.LEGEND.pressureFrom, 26);
+  assert.equal(q(24), q(4), 'nessuna pressione fino al 26° colpo');
   assert.ok(q(32) < q(4), `al 32° colpo la qualità scende (${q(32)} contro ${q(4)})`);
 });
 

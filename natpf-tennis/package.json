@@ -23,7 +23,8 @@
     "audit:rhythm": "node --import ./test/register.mjs scripts/audit/rhythm.mjs",
     "audit:serve": "node --import ./test/register.mjs scripts/audit/servizio.mjs",
     "audit:cpu": "node --import ./test/register.mjs scripts/audit/cpu-pressione.mjs",
-    "audit:evento": "node --import ./test/register.mjs scripts/audit/evento-bambini.mjs"
+    "audit:evento": "node --import ./test/register.mjs scripts/audit/evento-bambini.mjs",
+    "audit:drop": "node --import ./test/register.mjs scripts/audit/palla-corta.mjs"
   },
   "dependencies": {
     "@mediapipe/hands": "0.4.1675469240",

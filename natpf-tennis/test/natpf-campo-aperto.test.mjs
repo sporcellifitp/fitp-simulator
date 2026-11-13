@@ -10,6 +10,7 @@ import { ARC, skillLevel } from '../src/natpf/natpf_skill.js';
 import * as THREE from 'three';
 import * as NI from '../src/natpf/natpf_impact.js';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
+import { legendaB16 } from './leggenda-b16.mjs';
 
 const SIDELINE = 4.115, BASELINE = 11.885;
 // finestra in cui lo swing si gioca davvero (natpf_impact.js): in anticipo fino a early, in ritardo fino a lateExtra ×
@@ -24,7 +25,10 @@ test('direzione continua su tutta la finestra: ogni anticipo diverso dà una cad
     for (const contact of [1, -1]) for (const hitX of [-3, 0, 3]){
       const xs = steps(from, to, 120).map(timing => shotOf({ timing, lateSpan: late, contact, hitX }, lv).x);
       // in anticipo la palla va dalla parte opposta al lato del colpo (dritto del destro: verso sinistra)
-      for (let i = 1; i < xs.length; i++) assert.ok(-contact*(xs[i] - xs[i - 1]) > 1e-4, `${difficulty} lato ${contact} da ${hitX}: ${xs[i - 1]} → ${xs[i]} a ${i}`);
+      // (B18.2 passo 3: a Leggenda la finestra della direzione è più stretta, quindi nell'ultima parte della finestra
+      // d'impatto la palla è già molto fuori, oltre la riga laterale di più di outKnee: lì la distanza si avvicina a
+      // outMax e a tre decimali può restare uguale. Dentro e appena fuori cambia sempre)
+      for (let i = 1; i < xs.length; i++) assert.ok(-contact*(xs[i] - xs[i - 1]) > 1e-4 || Math.min(Math.abs(xs[i]), Math.abs(xs[i - 1])) > OUTCOME.sideLine + OUTCOME.outKnee, `${difficulty} lato ${contact} da ${hitX}: ${xs[i - 1]} → ${xs[i]} a ${i}`);
       // ampiezza: almeno 6 m con il solo tempo (dal 23/10 da una riga all'altra: natpf-campo-aperto-23-10.test.mjs)
       assert.ok(Math.max(...xs) - Math.min(...xs) > 6, `${difficulty} ${contact} ${hitX}: ${Math.min(...xs)}…${Math.max(...xs)}`);
     }
@@ -38,8 +42,13 @@ test('profondità controllabile e continua: cresce con la forza voluta, dalla ri
     for (let i = 1; i < ds.length; i++) assert.ok(ds[i] > ds[i - 1], `${shot}: ${ds[i - 1]} → ${ds[i]}`);
     assert.ok(ds[0] < 6.5 && ds.at(-1) > 10.4 && ds.at(-1) < BASELINE, `${shot}: ${ds[0]}…${ds.at(-1)}`);
   }
-  const drop = steps(0, 1, 20).map(p => shotOf({ intent: { shot: 'drop', power: p, depth: p, rise: -.4 } }, lv).depth);
-  assert.ok(drop[0] < 2.5 && drop.at(-1) < 5, `palla corta ${drop[0]}…${drop.at(-1)}`);
+  // palla corta: con il gesto da tocco (fino a OUTCOME.drop.strongFrom) resta corta e cresce con la forza; più forte non è
+  // più un tocco e viene lunga (B18.2 passo 3, D8), sempre continua
+  const dropP = steps(0, 1, 20), drop = dropP.map(p => shotOf({ intent: { shot: 'drop', power: p, depth: p, rise: -.4 } }, lv).depth);
+  const touch = drop.filter((d, i) => dropP[i] <= OUTCOME.drop.strongFrom);
+  assert.ok(drop[0] < 2.5 && touch.at(-1) < 4, `palla corta ${drop[0]}…${touch.at(-1)}`);
+  for (let i = 1; i < drop.length; i++) assert.ok(drop[i] > drop[i - 1], `palla corta: ${drop[i - 1]} → ${drop[i]}`);
+  assert.ok(drop.at(-1) > 5 && drop.at(-1) < BASELINE, `palla corta con il gesto forte: ${drop.at(-1)}`);
   const lob = steps(0, 1, 20).map(p => shotOf({ intent: { shot: 'lob', power: p, depth: p, rise: .8 } }, lv).depth);
   assert.ok(lob[0] > 8 && lob.at(-1) < BASELINE, `pallonetto ${lob[0]}…${lob.at(-1)}`);
 });
@@ -83,7 +92,13 @@ test('fuori e in rete possibili: tempo molto sbagliato, qualità scarsa, palla b
 });
 
 test('a rete con il tempo nella finestra la palla passa la rete: la situazione non la manda in rete (23/10, sera; B17.4: colpo controllato, non più debole uguale per tutti)', () => {
-  const lv = skillLevel('leggenda'), late = lateSpanOf(18, lv), Q = .55;        // sotto failQ di Leggenda (.63): in corsa sulla palla corta
+  // B18.2 passo 3: il colpo controllato vale solo con failQ sopra netQMin, cioè con la regola di Leggenda di prima
+  // (failQ .63, test/leggenda-b16.mjs); la Leggenda di oggi (failQ .3) la stessa palla la gioca normale, sotto
+  const lv = legendaB16(), late = lateSpanOf(18, lv), Q = .55;        // sotto failQ .63: in corsa sulla palla corta
+  for (const o of [{ net: true, contactY: .4 }, { volley: true, hitZ: 4, contactY: .7 }, { volley: true, net: true, contactY: 1.1 }]){
+    const now = shotOf({ ...o, quality: Q }, skillLevel('leggenda'));
+    assert.ok(!now.failed && !now.weak && !now.netFault && !now.controlled && now.depth < BASELINE, JSON.stringify(now));
+  }
   for (const o of [{ net: true, contactY: .4 }, { volley: true, hitZ: 4, contactY: .7 }, { volley: true, net: true, contactY: 1.1 }]){
     const s = shotOf({ ...o, quality: Q }, lv);
     // passa (niente rete né lunga): colpo controllato con la dispersione della qualità che manca (B17.4), in campo
