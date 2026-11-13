@@ -1967,6 +1967,16 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .remote-sheet .remote-ok { margin: 6px 0 10px; font: 800 italic clamp(28px, 5cqh, 44px)/1 var(--font-display); text-transform: uppercase; color: var(--ball); }
 /* fuoco spostato dal telecomando (frecce del telefono): sempre visibile, anche dopo un clic del mouse sul computer */
 html.remote-nav :is(button, a, input, [tabindex]):focus { outline: 3px solid var(--ball); outline-offset: 3px; }
+/* B43 (controllo «solo mouse», A2): i fogli dello staff, pannello dello stand e telecomando dello staff, stanno sopra la
+   pausa (60: prima, venendo prima nel DOM, ci finivano sotto e «Chiudi» non si poteva cliccare), la diagnostica (200),
+   l'intro (200), il tutorial in campo (70) e il riquadro «Telefono in pausa» (60). Sopra di loro restano solo la
+   calibrazione dello schermo (300) e gli avvisi brevi (320), che rispondono ai pulsanti del pannello */
+#natpf-staff.natpf-sheet-backdrop, #natpf-remote.natpf-sheet-backdrop { z-index: 250; }
+/* B43: conferma in due passi (natpf_confirm.js): il pulsante armato è rosa e dice «Sicuro? Clicca ancora». Anche «Nuovo
+   giocatore» (già rosa pieno): armato diventa rosa scuro con l'anello, la scritta resta bianca (con il fondo bianco, nel
+   passaggio di colore la scritta bianca spariva per un attimo sul fondo ancora bianco) */
+.natpf-sheet .pause-grid button.armed, .natpf-sheet .sheet-actions button.armed { border-color: #ff4d94; background: rgba(255, 77, 148, 0.2); color: #fff; box-shadow: 0 0 0 2px #ff4d94; }
+.natpf-sheet .pause-grid button.armed b { color: #ff4d94; }
 
 /* B41.6: «Sono pronto» dai telefoni (natpf_ready_go.js). In basso accanto a «Gioca», al posto dei tasti: una spunta per
    giocatore (verde pronto, ambra da toccare, rossa con il motivo). Misure legate all'area del gioco */

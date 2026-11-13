@@ -76,13 +76,17 @@ export class NatpfRemote {
   _disarm(){ clearTimeout(this._armT); const b = this.el?.querySelector('[data-remote="forget"]'); if (b && b.dataset.armed === '1'){ b.dataset.armed = ''; b.textContent = 'Scollega il telecomando'; } }
   // dal pannello dello stand. Senza un telecomando abbinato parte l'abbinamento (QR e codice nuovi, 5 minuti); con un
   // telecomando abbinato il foglio dice solo «abbinato»: per un altro telefono serve «Abbina un altro telefono»
+  // B43: con il foglio aperto la partita resta ferma (natpf_ui._syncPause conta anche l'apertura in corso, mentre si
+  // caricano le librerie: tra il pannello dello stand chiuso e questo foglio la partita non riparte)
   async open(){
     if (!this.el) return;
+    this.opening = true;
     this.ui.kiosk?.close();
-    await this._libs();
+    try { await this._libs(); } finally { this.opening = false; }
     if (!this.link.paired && this.link.secure) this.link.pairing(true);
     show(this.el);
     this.paint();
+    this.ui._syncPause?.();
     this.el.querySelector('[data-remote="close"]')?.focus({ preventScroll: true });
   }
   // librerie del sito sotto /natpf/ (come la racchetta, natpf_phone_racket._start): PeerJS fuori dalla LAN, QR
@@ -93,7 +97,7 @@ export class NatpfRemote {
     })().finally(() => { if (!window.qrcode || (!isLanMode() && !window.Peer)) this._libsP = null; }));
   }
   // foglio chiuso: QR e codice non valgono più da subito, chi stava chiedendo è rifiutato
-  close({ toStaff = true } = {}){ if (!this.isOpen) return; this._disarm(); show(this.el, false); this.link.pairing(false); if (toStaff) this.ui.kiosk?.open(); }
+  close({ toStaff = true } = {}){ if (!this.isOpen) return; this._disarm(); show(this.el, false); this.link.pairing(false); if (toStaff) this.ui.kiosk?.open(); this.ui._syncPause?.(); }
   // scritta del pulsante nel pannello dello stand
   get staffLabel(){ return this.link.connected ? 'Collegato ✓' : this.link.paired ? 'Abbinato, non collegato' : 'Abbina'; }
   // vista del foglio: 'request' un telefono chiede (numero, Conferma/Rifiuta) · 'pair' QR e codice · 'paired' abbinato,

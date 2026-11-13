@@ -698,6 +698,11 @@ export class NatpfLobby {
     if (this.ui.intro?.active) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;     // scorciatoie (pannello dell'addetto, browser): non sono del menu
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    // B43: i fogli dello staff stanno sopra la guida e la pausa (sotto solo la calibrazione dello schermo): Esc chiude prima
+    // loro (il telecomando torna al pannello dello stand, il pannello si chiude e la partita riparte). Prima in campo Esc
+    // apriva e chiudeva la pausa sotto il foglio, senza che si vedesse
+    const staffSheet = this.ui.remote?.isOpen ? this.ui.remote : this.ui.kiosk?.isOpen ? this.ui.kiosk : null;
+    if (e.code === 'Escape' && staffSheet && !this.ui.calibra?.isOpen){ e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) staffSheet.close(); return; }
     if (this.onboarding.isOpen){ if (this.onboarding.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
     // calibrazione dello schermo aperta: frecce, Tab, numeri, Invio ed Esc sono suoi (F11 e gli altri tasti del browser no)
     if (this.ui.calibra?.isOpen){ if (this.ui.calibra.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }

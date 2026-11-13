@@ -266,7 +266,12 @@ test('punto 1 · motore: sul punto della partita «Fuori», punto e fine partita
       assert.ok(out && out.t === pt.t, `«Fuori» insieme al punto: colpo ${hitAt}, a terra ${pt.t}, scritta ${out?.t}`);
       assert.ok(pt.t - hitAt > .4, `la palla ha volato ${(pt.t - hitAt).toFixed(2)} s prima del verdetto`);
       assert.equal(e.phase, 'MATCH_OVER'); assert.equal(e.score.opponentGames, 1);
-      assert.ok(log.some(l => l.k === 'banner' && l.t === pt.t), 'scritta della fine partita all\'atterraggio');
+      // B43 (decisione dell'utente del 13/11 sera): la scritta grande della fine partita mezzo secondo DOPO l'atterraggio;
+      // «Fuori», punto e telefono restano all'atterraggio
+      assert.ok(!log.some(l => l.k === 'banner'), 'all\'atterraggio ancora nessuna scritta grande');
+      for (let t = 0; t < .6; t += DT) e.step(DT);
+      const bn = log.filter(l => l.k === 'banner');
+      assert.ok(bn.length === 1 && Math.abs(bn[0].t - pt.t - .5) <= DT + 1e-6, `scritta della fine partita 0,5 s dopo l'atterraggio: ${JSON.stringify(bn)}, a terra ${pt.t}`);
       const contacts = sent.filter(m => m.k === 'contact');
       assert.equal(contacts.length, 2); assert.equal(contacts[0].wait, 1); assert.equal(contacts[1].late, 1); assert.equal(contacts[1].out, true);
       const point = sent.find(m => m.k === 'point'); assert.ok(point && point.mine === false && sent.indexOf(point) > sent.indexOf(contacts[1]), 'il punto dopo il verdetto');
@@ -570,7 +575,11 @@ test('punto 1 · palla della CPU che va fuori: nessun segno prima che tocchi ter
       assert.ok(pt && pt.w === 'player' && pt.why === 'Out' && pt.y < .1, JSON.stringify(log));
       assert.ok(pt.t - t0 > .8, 'la palla ha volato');
       assert.ok(log.filter(l => l.t < pt.t).every(l => l.k === 'punto'), `niente prima dell'atterraggio: ${JSON.stringify(log.filter(l => l.t < pt.t))}`);
-      assert.ok(log.some(l => l.k === 'banner' && l.t === pt.t) && log.some(l => l.k === 'aptica' && l.kind === 'point_won' && l.t === pt.t));
+      // B43: telefono e punto all'atterraggio, la scritta grande mezzo secondo dopo (prima: insieme)
+      assert.ok(log.some(l => l.k === 'aptica' && l.kind === 'point_won' && l.t === pt.t) && !log.some(l => l.k === 'banner'));
+      for (let t = 0; t < .6; t += DT) e.step(DT);
+      const bn = log.filter(l => l.k === 'banner');
+      assert.ok(bn.length === 1 && Math.abs(bn[0].t - pt.t - .5) <= DT + 1e-6, `scritta del punto 0,5 s dopo: ${JSON.stringify(bn)}, a terra ${pt.t}`);
       assert.ok(sent.some(m => m.k === 'point' && m.mine === true), 'telefono: «Punto tuo» all\'atterraggio');
     } finally { Math.random = real; }
   });

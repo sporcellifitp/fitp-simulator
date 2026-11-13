@@ -305,6 +305,14 @@
   flex: 1;
   color: var(--lb-ball);
 }
+/* B43: la partita resta ferma finché la diagnostica è aperta (natpf_ui._syncPause): lo dice in alto */
+.natpf-diag .diag-hold {
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: rgba(255, 77, 148, 0.25);
+  color: #ffd2e4;
+  font: 600 12px/1.4 system-ui, sans-serif;
+}
 .natpf-diag button {
   padding: 3px 10px;
   border: 0;

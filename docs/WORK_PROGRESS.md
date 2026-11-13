@@ -1778,6 +1778,55 @@ prima e dopo, suite, build e prove nel browser, documento `docs/b42/scambi-lungh
   Poi, a parte (non tocca il B42): la prova `natpf-leggenda` con il riferimento del piatto per lato (dritto e rovescio),
   e decidere con l'utente se sistemare nel disegno l'allungo corto in corsa della Leggenda.
 
+## B43 · Tabellone pulito, pannello dello staff che ferma la partita, scritta del punto mezzo secondo dopo (13/11) · [x] verificato sul ramo, da unire
+Obiettivo: i tre punti di `docs/coda/B43-tabellone-e-pannello.md`. Documento: `docs/b43/tabellone-e-pannello.md`.
+Ramo `b43-tabellone-pannello` (base `fd71f91` = 2026-11-13.10, con dentro la 13.11 del B42, `38709e3`).
+- [x] B43.3 · scritta grande del punto 0,5 s dopo l'atterraggio (commit `640ef31`, primo agente): `game_engine.js`
+  (`_natpfPointBanner`, `_natpfBannerTick`, `_natpfAfterBanner`; schermata finale 1,8 s dopo la scritta, anche sul P2),
+  `natpf_point_call.js` (`POINT_BANNER_DELAY`, `isPointBanner`); test nuovi in `natpf-b43-tabellone-pannello.test.mjs`
+  (4) e uno in `natpf-b43-pannello-partita.test.mjs` (con la pausa vera e il pannello), aggiornati b20, b37, fine
+  partita. Gioco 1480 ok + 1 saltato su `640ef31`.
+- [x] B43.2 · pannello, telecomando e diagnostica fermano la partita; conferme in due clic (commit `dc3adae` del primo
+  agente, «IN CORSO», ricontrollato e finito in `5a6ec8e`). File: `natpf_confirm.js` (nuovo, `TwoStep`), `natpf_ui.js`
+  (`staffOpen` in `_syncPause`, ricalcolo ogni 100 ms con un foglio aperto, `backToMenu` dimentica il ritorno della
+  diagnostica), `natpf_kiosk.js` (`_syncPause` all'apertura e alla chiusura, `press` con la conferma, disarmo che
+  ridipinge), `natpf_pause.js` (conferma di «Torna al menu», diagnostica che torna alla pausa), `natpf_diag.js` (pausa,
+  `back`, scritta «Partita ferma…», Maiusc+D a pausa aperta), `natpf_remote.js` (`opening`, `_syncPause`),
+  `natpf_lobby.js` (Esc chiude prima i fogli dello staff), `natpf-ui.css` (z-index 250, pulsante armato), `natpf-flow.css`
+  (scritta della diagnostica). Trovato nel controllo: nel mondo di prova `#natpf-remote` non era nascosto → `staffOpen`
+  sempre vero e 11 test di flusso rossi (`ui-world.mjs`: ora nascosto come nella pagina). Test nuovi
+  `natpf-b43-pannello-partita.test.mjs` (11; 9 rossi sul codice di prima); prova nel browser nuova
+  `tools/e2e/natpf-pannello-partita.mjs`; `natpf-diag-session` registra con la diagnostica chiusa (aperta, ora
+  l'allenamento è fermo: controllo nuovo). Gioco 1491/1491.
+- [x] B43.1 · una sola etichetta dentro il tabellone (commit `004f094`): `natpf_scoreboard.js` (`scoreTag`, HTML con
+  `.sb-tag` dentro il riquadro, formato intero e momento in `.sb-sr`; via l'opzione `altServe`), `natpf_ui.js`
+  (`onScore`), `natpf-round.css` (via `.sb-foot`, `.sb-label`, `.sb-rule`; `.sb-tag`), `natpf-hud.css` (segnale del
+  momento giusto sotto il tabellone fino a 800 px di larghezza), `natpf_fair_format.js` (commento). Test aggiornati:
+  `natpf-scoreboard.test.mjs` (HTML, etichetta, CSS), `natpf-b35-battuta.test.mjs` (la riga non è più sul tabellone);
+  prove nel browser aggiornate: `natpf-tabellone` (etichetta dentro il riquadro, punto decisivo rosa), `natpf-formato-fiera`,
+  `natpf-stesso-schermo-b20`; `natpf-fuori-vero` misura la scritta del punto (punto 3). Gioco 1492/1492.
+- [x] B43.4 · unione di `natpf-simulator` (`c0c9b6d`, solo `TRACCIA_PASSI.md`) nel ramo: `242fed5`, senza conflitti.
+  Verifiche sul codice unito (con lo stile rifinito del pulsante armato: «Nuovo giocatore» rosa scuro come gli altri,
+  il fondo bianco nel passaggio di colore nascondeva la scritta per un attimo): gioco **1492/1492**, sito 226/226,
+  programma Windows 43/43, LAN 12/12, build ok, `audit:legend` identico alla base 13.11 (`38709e3`, 91 righe, nessuna
+  differenza, tutti i criteri). Nel browser (porte 4101–4149, una prova alla volta): `natpf-pannello-partita` 25/25
+  (nuova; tre giri, l'ultimo dopo lo stile rifinito; al primo giro, con il gioco che disegnava ogni fotogramma in
+  software, tre controlli «riprende» a 0,08 s di gioco per fotogramma: ora il gioco gira senza disegnare e disegna per
+  le schermate), `natpf-tabellone` 41/41, `natpf-formato-fiera` 25/25, `natpf-stesso-schermo-b20` 53/53, `natpf-menu`
+  45/45, `natpf-diag-session` 26/26, `SERVIZIO=1 natpf-lob-drop` 13/13, `natpf-fuori-vero` 12/12 (scritta grande a
+  +499, +517, +500, +499 ms dall'atterraggio, 0,5 s di gioco; verdetto a +2…+11 ms; fine partita 1802 ms dopo la scritta)
+  e con `SHOTS=1 MISURA=1` 2/2, `natpf-fine-partita` 47/47, `natpf-telecomando` 85/85 (porte fisse, con `flock`).
+  Scritte in alto misurate insieme al tabellone a cinque misure (nessuna tocca riquadro o etichetta; il segnale del
+  momento giusto a 720×720 ora sotto il tabellone; istruzioni del servizio a 720×720 sull'angolo del riquadro, 12 × 46
+  px, come prima: non spostate). Schermate guardate: tabellone prima/dopo (CPU, stesso schermo, Lob & Drop a 1920×1080,
+  720×720, 1920×540), pannello sopra la pausa, pulsanti armati, diagnostica dalla pausa, scritta del punto
+  all'atterraggio e 0,5 s dopo (`docs/b43/img/`).
+  Non verificato: programma Windows (F9 vero), ledwall e mouse veri, telefono vero del telecomando, sfida tra due
+  computer nel browser con la scritta rimandata (solo test di unità), screen reader, persone vere.
+- [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`. Da
+  chiedere all'utente (domanda a scelta): le istruzioni del servizio a 720×720 contro la CPU (sotto il tabellone o più
+  strette).
+
 ## B28.1 · Il profilo del telefono vale per l'attività che segue (13/11, ramo `b41-fiera-1`) · [x] verificato sul ramo, da unire
 Obiettivo: i 5 punti di `docs/coda/B28.1-profilo-per-attivita.md`. Criterio di fine: un test per punto che fallisce
 senza la correzione, suite verdi, prove nel browser `natpf-scambi-di-prova` (anche `FLOW=minigioco`) e `natpf-phone-keep`

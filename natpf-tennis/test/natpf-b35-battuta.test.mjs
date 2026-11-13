@@ -2,7 +2,8 @@
 //   3) «su un game BO1 la battuta era alternata e non fissa ad un giocatore»: con le opzioni di base (formato in fiera
 //      «Solo stesso schermo», campo aperto spento) il servizio passa ogni due punti SOLO nello stesso schermo; contro la
 //      CPU e nella sfida tra due computer un giocatore batte tutto il game. Quando passa ogni due punti lo dice una riga
-//      chiara a inizio partita e sul tabellone («Formato veloce: il servizio cambia ogni 2 punti»).
+//      chiara a inizio partita e sul tabellone («Formato veloce: il servizio cambia ogni 2 punti»). Dal B43 (richiesta
+//      dell'utente: meno testi vicino al tabellone) solo a inizio partita.
 //   6) «con Lob e Drop non si vede chi deve servire»: nello stesso schermo la scritta «Al servizio» c'è in tutte e due le
 //      metà, sopra chi batte (natpf_split.serveTagPoint), con qualsiasi personaggio.
 import test from 'node:test';
@@ -63,7 +64,7 @@ test('punto 3 · «Formato in fiera: Sì» salvato dallo staff: anche contro la 
   assert.equal(servers(no, 'POPOPO'), 'AAAAAA', 'spento dal pannello dello stand: anche nello stesso schermo un battitore per game');
 });
 
-test('punto 3 · la riga «Formato veloce» c’è a inizio partita e sul tabellone solo quando il servizio passa ogni due punti', () => {
+test('punto 3 · la riga «Formato veloce» c’è a inizio partita solo quando il servizio passa ogni due punti; dal B43 non sul tabellone', () => {
   assert.equal(FAST_SERVE_LINE, 'Formato veloce: il servizio cambia ogni 2 punti');
   const s = match({ mode: 'split', banner: true });
   assert.match(s.lastBannerBroadcast?.subText || '', /Formato veloce: il servizio cambia ogni 2 punti$/, 'sotto «Si gioca», dopo chi batte per primo');
@@ -72,13 +73,13 @@ test('punto 3 · la riga «Formato veloce» c’è a inizio partita e sul tabell
   assert.ok(!/Formato veloce/.test(c.lastBannerBroadcast?.subText || ''), 'contro la CPU (di base) niente riga');
   const f = match({ mode: 'cpu', saved: '1', banner: true });
   assert.equal(f.lastBannerBroadcast.subText, FAST_SERVE_LINE, 'contro la CPU con «Sì»: solo la riga');
-  // tabellone
+  // tabellone: B43 (richiesta dell'utente del 13/11, «Formato veloce toglilo»): la riga non c'è più vicino al tabellone,
+  // nemmeno con il servizio che passa ogni due punti (lo dicono la pallina di chi serve e «Al servizio» sopra chi batte)
   const on = scoreboardView({ playerPoints: 1, opponentPoints: 0, server: 'opponent', fair: true }, { split: true, altServe: true });
-  assert.equal(on.rule, FAST_SERVE_LINE);
-  assert.match(scoreboardHtml(on), /data-sb-rule[^>]*>.*Formato veloce: il servizio cambia ogni 2 punti<\/div>$/);
+  assert.ok(!('rule' in on));
+  assert.doesNotMatch(scoreboardHtml(on), /Formato veloce|data-sb-rule/);
   const off = scoreboardView({ playerPoints: 1, opponentPoints: 0, server: 'player' }, {});
-  assert.equal(off.rule, '');
-  assert.ok(!/data-sb-rule/.test(scoreboardHtml(off)), 'senza: il tabellone di prima');
+  assert.doesNotMatch(scoreboardHtml(off), /Formato veloce|data-sb-rule/);
 });
 
 test('punto 6 · stesso schermo: «Al servizio» in tutte e due le metà, sopra chi batte, dentro la sua metà', () => {

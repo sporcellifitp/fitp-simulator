@@ -483,65 +483,33 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
-/* sottotitolo sotto il riquadro (B17.3): formato della partita e scritta del momento, in fila con uno spazio, almeno
-   12 px (0,6 em: 13 px a 720p, 19,4 a 1080p; rifinitura del 08/11, prima 11); su un velo scuro leggero perché sta sopra il
-   campo. Fuori dalla griglia (revisione del 07/11): nelle colonne strette «Vantaggio di Player 2» usciva sul formato
-   («gameVANTAGGIO»); se proprio non ci sta (nomi lunghi dello stesso schermo) la scritta del momento si accorcia con i
-   puntini */
-.natpf-scoreboard .sb-foot {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 0.9em;
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: 100%;
-  padding: 0.12em 0.55em 0.14em;
-  border-radius: 0.3em;
-  background: rgba(5, 10, 28, 0.62);
-  color: var(--lb-muted);
-  font-size: max(12px, 0.6em);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-.natpf-scoreboard .sb-foot [data-sb-format] {
-  flex: none;
-}
-.natpf-scoreboard .sb-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--lb-ball);
+/* B43 (richiesta dell'utente del 13/11: «troppi testi vicino allo scoreboard… Formato veloce toglilo, al meglio di tre
+   toglilo, magari metti etichetta sullo scoreboard»): niente più sottotitolo sotto il riquadro (formato in parole e
+   «Parità»/«Vantaggio …», B17.3) né riga «Formato veloce: il servizio cambia ogni 2 punti» (B35). Una sola etichetta tonda
+   DENTRO il riquadro, sotto sigle, game e punti, allineata alle sigle: il formato («1 GAME», «AL MEGLIO DI 3») in azzurro;
+   al punto decisivo del formato in fiera (40-40) piena rosa, «PUNTO DECISIVO». Carattere di almeno 12 px (0,55 em del
+   tabellone: 12 px a 720p, 17,8 a 1080p), come il sottotitolo di prima. Il riquadro con l'etichetta è alto circa 5 em,
+   poco meno di prima con il sottotitolo: l'avviso «In attesa di Player 2» e «Scambio caldo» (B42) restano dove erano */
+.natpf-scoreboard .sb-tag {
+  grid-column: 3 / -1;
+  justify-self: start;
+  margin: 0.04em 0 0.1em;
+  padding: 0.24em 0.8em 0.26em;
+  border-radius: 999px;
+  background: rgba(77, 215, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(77, 215, 255, 0.6);
+  color: #4dd7ff;
+  font-size: max(12px, 0.55em);
   font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
 }
-.natpf-scoreboard .sb-label:empty {
-  display: none;
-}
-/* B35: «Formato veloce: il servizio cambia ogni 2 punti» (formato in fiera, campo aperto), sotto il sottotitolo; nelle
-   metà strette dello stesso schermo va a capo invece di uscire */
-.natpf-scoreboard .sb-rule {
-  display: flex;
-  align-items: center;
-  gap: 0.45em;
-  box-sizing: border-box;
-  max-width: 100%;
-  padding: 0.14em 0.55em 0.16em;
-  border-radius: 0.3em;
-  background: rgba(5, 10, 28, 0.72);
-  color: var(--lb-ink);
-  font-size: max(12px, 0.6em);
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  line-height: 1.2;
-  white-space: normal;
-}
-.natpf-scoreboard .sb-rule-ball {
-  flex: none;
-  width: 0.62em;
-  height: 0.62em;
-  border-radius: 50%;
-  background: var(--lb-ball);
+.natpf-scoreboard .sb-tag[data-sb-tag="decisive"] {
+  background: #ff4d94;
+  box-shadow: 0 0 0.6em rgba(255, 77, 148, 0.55);
+  color: #fff;
 }
 /* l'avviso «In attesa di Player 2» del 1v1 sotto il tabellone, allineato al suo bordo sinistro (B17.3; prima al centro,
    a 26 px + 5,4 righe). Il tabellone è alto 4,07 em di riquadro (88 px a 720p con --sb 21,6: due righe da 1,75 em più
