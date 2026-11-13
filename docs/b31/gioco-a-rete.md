@@ -5,6 +5,15 @@ appendice M6 e punto 22 «A rete contro la Leggenda»). Lavoro fatto nel ramo `b
 (versione 2026-11-13.1), senza push e senza toccare `natpf-simulator`, `main`, i file di versione e i documenti di
 ripresa.
 
+> **Correzioni della revisione finale (13/11, `docs/revisione-finale-2026-11-13.md`).** (1) Il «passo corto a rete»
+> descritto qui c'era solo nel piano d'intercetto: il personaggio a rete correva a velocità piena (8,8 m/s) mentre il
+> gioco lo trattava come lento. Era una regola nascosta ed è stata tolta: ora a rete vale il movimento di tutto il campo
+> del B32 (split-step, accelerazione, frenata), che si vede. Il «passo corto» resta solo come stima della Leggenda quando
+> sceglie i passanti. (2) La scritta della palla corta della CPU usciva come «Fuori · Palla corta» in rosso nell'angolo
+> di chi gioca: ora dice «Palla corta della CPU», in bianco, nell'angolo della CPU. (3) Da dove si sale a rete: fino a
+> 10,8 m dalla rete (11,2 m con il tagliato), non solo «da dentro il campo». I numeri sotto sono quelli del B31; quelli
+> nuovi sono nel documento della revisione finale.
+
 **Tutti i numeri qui sotto vengono dal gioco simulato** (il motore vero senza disegno, con i giocatori simulati del
 banco). Non sono misure di persone vere, telefoni veri, del PC dell'evento o del ledwall.
 
@@ -17,7 +26,8 @@ banco). Non sono misure di persone vere, telefoni veri, del PC dell'evento o del
 - **Il tagliato rimbalza più basso** e la CPU in fondo lo sbaglia un poco di più. Non è diventato la tattica che vince.
 - **Difetti della rete (punto 22)**: le volée non escono più di lato più dei colpi da fondo; la schiacciata riuscita a
   rete contro la Leggenda torna indietro meno spesso; a rete ci si muove meno in fretta, così chi sale male viene
-  passato o scavalcato dal pallonetto, e la Leggenda ora gioca i passanti.
+  passato o scavalcato dal pallonetto, e la Leggenda ora gioca i passanti. (Revisione finale: il passo più lento c'era
+  solo nel piano, non nel personaggio; tolto. A rete vale il movimento del B32.)
 - Il **riconoscimento dei gesti non è toccato**: cambiano solo movimento, esiti dei colpi e scelte della CPU.
 
 ## Cosa cambia per chi gioca
@@ -31,11 +41,15 @@ riuscito**:
 - un colpo **forte, profondo e pulito** da dentro la riga di fondo.
 
 Dopo una **volée o una schiacciata riuscite** resta a rete. Dopo un colpo fallito, debole, in rete, un pallonetto o una
-palla corta torna in fondo come prima. Dalla riga di fondo non si va mai a rete.
+palla corta torna in fondo come prima. Da più lontano di 10,8 m dalla rete (11,2 m con il tagliato; la riga di fondo è a
+11,9 m) non si va mai a rete: il colpo forte e profondo porta a rete anche da 1,1 m dentro la riga di fondo.
 
-**A rete ci si muove meno in fretta** (si reagisce un poco dopo e il passo è più corto, come nel tennis vero): la palla
-che passa lontana (passante) o sopra la testa (pallonetto) può battere chi è salito male. Prima il movimento automatico
-arrivava su tutto anche a rete, e salire non costava mai niente.
+~~**A rete ci si muove meno in fretta**~~ (revisione finale: **non era vero nel personaggio**). Il B31 aggiungeva una
+reazione di 0,12 s e un passo × 0,55 solo al piano d'intercetto (dove andare, cosa è raggiungibile, volée o dopo il
+rimbalzo); il personaggio vero correva a 8,8 m/s come prima. Ora il piano usa il movimento vero, e a rete vale lo stesso
+movimento del resto del campo (B32: split-step dopo il colpo della CPU, accelerazione, frenata, arrivo «giusto in
+tempo»). La palla che passa lontana o sopra la testa batte chi è salito male perché il tempo è poco, non per un passo
+più lento nascosto.
 
 ### 2. La volée
 
@@ -54,8 +68,9 @@ arrivava su tutto anche a rete, e salire non costava mai niente.
   schiacciata ha la posa da sopra la testa (anche con Lob & Drop) e la scia della schiacciata.
 - La CPU a rete può sbagliare la volée e la schiacciata (un po' di più con la palla veloce): in rete, lunga o larga.
 - **Palla corta della CPU: rara e dichiarata.** Solo quando chi gioca è lontano dietro la riga di fondo e la CPU è dentro
-  il campo, mai sulla risposta, **al massimo una per game**; può finire in rete. Sullo schermo, vicino alla CPU, compare
-  la scritta **«Palla corta della CPU»**. A Bambini e a Leggenda no (la Leggenda ha già le sue smorzate: vedi «Cosa non
+  il campo, mai sulla risposta, **al massimo una per game**; può finire in rete. Sullo schermo, nell'angolo della CPU
+  e in bianco, compare la scritta **«Palla corta della CPU»** (revisione finale: prima usciva per sbaglio come
+  «Fuori · Palla corta» in rosso nell'angolo di chi gioca). A Bambini e a Leggenda no (la Leggenda ha già le sue smorzate: vedi «Cosa non
   è riuscito»).
 
 ### 4. Il tagliato
@@ -327,6 +342,10 @@ Prova nel browser `tools/e2e/natpf-rete.mjs` (gioco vero, scene messe in campo a
    togliere una per volta le parti nuove (passo a rete, approccio, schiacciata, volée, tagliato, passanti della
    Leggenda): nessuna da sola spiega la differenza, e togliendo i passanti della Leggenda «tennista» scende sotto il suo
    criterio (84,3% invece di ≥ 85%). Ho lasciato così e lo segnalo: va guardato con persone vere.
+   **Revisione finale**: la frase «nessuna da sola spiega la differenza» non regge. Ablazione del revisore (24 semi nuovi):
+   «preciso» 68,2% sulla base, 80,1% a 7c72b70, 71,9% senza il passo a rete, 85,7% senza l'approccio; la causa
+   principale è il passo a rete nascosto. Tolto quello e messo a rete il movimento del B32: «preciso» 76,7% (8 semi
+   ufficiali), 76,4% (24 semi), 78,9% (24 semi del revisore); «tennista» 86,6 / 88,1 / 86,9% (criterio ≥ 85%).
 2. **La CPU a rete vince poco** contro chi gioca bene (Pro/umano 20–25% dei punti in cui è salita, Pro/amatore 30–47%).
    Il movimento automatico di chi gioca arriva quasi su tutte le volée della CPU; le volée della CPU più veloci e corte
    finivano fuori (con la fisica del motore una volée corta da 5,6 m non può essere anche veloce). Per non regalare

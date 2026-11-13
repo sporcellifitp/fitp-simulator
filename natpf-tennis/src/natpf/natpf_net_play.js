@@ -30,7 +30,10 @@ export const NET_PLAY = Object.freeze({
   // drive: il colpo forte, profondo e pulito da poco dentro la riga di fondo (entro drive.z) porta a rete anche lui
   approach: Object.freeze({ z: 9.2, depth: 8, q: .6, y: .85, stay: 6.4, netZ: 5.2,
     slice: Object.freeze({ z: 11.2, depth: 7.5, q: .7 }), drive: Object.freeze({ z: 10.8, depth: 9.4, q: .85, power: .6 }) }),
-  // A rete (entro zone m dalla rete): reazione in più (s) e velocità del passo (× velocità piena) per arrivare sulla palla
+  // A rete (entro zone m dalla rete). react e speed: solo la STIMA della Leggenda quando sceglie il passante
+  // (natpf_legend.humanReach: reazione in più, s, e passo × speed). Revisione finale: prima valevano anche nel piano di chi
+  // gioca (natpf_impact.planPlayerIntercept), ma il personaggio correva a velocità piena: regola nascosta, tolta. Il
+  // movimento vero a rete è quello di tutto il campo (natpf_movement.js: split-step, accelerazione, frenata)
   netMove: Object.freeze({ zone: 7, react: .12, speed: .55 }),
   // La CPU (Casual, Pro, Evento; Bambini no). approach: probabilità di salire a rete dopo il suo colpo d'attacco (palla
   // debole di chi gioca, cpuReturnPlan 'attack') o dopo una palla presa da dentro il campo (entro inside m dalla rete);
@@ -84,8 +87,9 @@ export function approachOf(out, contactZ, { volley = false, power = .5, contactY
   return z <= A.drive.z && d >= A.drive.depth && q >= A.drive.q && finite(power) >= A.drive.power;
 }
 
-// Movimento a rete (natpf_impact.planPlayerIntercept): reazione in più e passo più corto entro netMove.zone dalla rete.
-// { react, speed } da sommare alla reazione e da moltiplicare alla velocità; { 0, 1 } lontano dalla rete
+// Stima della Leggenda per chi è a rete (natpf_legend.humanReach): reazione in più e passo più corto entro netMove.zone.
+// { react, speed } da sommare alla reazione e da moltiplicare alla velocità; { 0, 1 } lontano dalla rete. Non è il
+// movimento vero (revisione finale: non entra più nel piano di chi gioca, dove era una regola nascosta)
 export function netMoveOf(actorZ){
   const M = NET_PLAY.netMove;
   return !netOff() && Math.abs(finite(actorZ, 11.5)) < M.zone ? { react: M.react, speed: M.speed } : { react: 0, speed: 1 };

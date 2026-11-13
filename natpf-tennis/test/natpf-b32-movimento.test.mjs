@@ -76,7 +76,7 @@ test('scritta dell\'esito: un colpo riuscito in corsa o in allungo lo dice; il c
   assert.equal(shotWhy({ ...L, out: { failed: true }, cause: 'palla veloce' }, { now: 3 }), 'palla veloce');
 });
 
-test('a chi valgono le regole: chi gioca contro la CPU; non Bambini, stesso schermo, sfida, doppio, allenamento, demo, rete', () => {
+test('a chi valgono le regole: chi gioca contro la CPU, anche a rete; non Bambini, stesso schermo, sfida, doppio, allenamento, demo', () => {
   const e = createHeadlessEngine({ difficulty: 'pro' });
   assert.equal(NM.runProfile(e, e.player), R);
   assert.equal(NM.runProfile(e, e.opponent), null, 'la CPU ha il suo movimento');
@@ -88,10 +88,11 @@ test('a chi valgono le regole: chi gioca contro la CPU; non Bambini, stesso sche
   off('demo', () => { e.autoPlayMode = true; }, () => { e.autoPlayMode = false; });
   off('allenamento', () => { e.natpfUi = { training: { active: true } }; }, () => { e.natpfUi = null; });
   off('regole spente', () => { NM.movementRules.off = true; }, () => { NM.movementRules.off = false; });
-  const z = e.player.pos.z;
-  off('a rete (B31)', () => { e.player.pos.z = NET_PLAY.netMove.zone - .5; }, () => { e.player.pos.z = z; });
-  const tz = e.player.targetPos.z;
-  off('verso la rete (B31)', () => { e.player.targetPos.z = NET_PLAY.netMove.zone - .5; }, () => { e.player.targetPos.z = tz; });
+  // revisione finale: anche a rete e verso la rete (prima entro 7 m restava il «passo corto» del B31, che c'era solo nel
+  // piano: una regola nascosta)
+  const z = e.player.pos.z, tz = e.player.targetPos.z;
+  e.player.pos.z = NET_PLAY.netMove.zone - .5; assert.equal(NM.runProfile(e, e.player), R, 'a rete'); e.player.pos.z = z;
+  e.player.targetPos.z = NET_PLAY.netMove.zone - .5; assert.equal(NM.runProfile(e, e.player), R, 'verso la rete'); e.player.targetPos.z = tz;
   e.matchConfig.difficulty = 'bambini';
   assert.equal(NM.runProfile(e, e.player), null, 'Bambini');
   e.matchConfig.difficulty = 'evento';
@@ -168,8 +169,8 @@ test('in partita: lo split-step e la partenza graduale dopo il colpo della CPU; 
     const b = e.ball;
     if (b.inPlay && e.phase === 'RALLY' && b.lastHitter === 'opponent' && lastHitter !== 'opponent') sinceCpu = 0, speeds.length = 0;
     lastHitter = b.inPlay ? b.lastHitter : null;
-    // (a rete, o con il punto da raggiungere entro 7 m dalla rete, resta il movimento del B31: lì la prova non vale)
-    if (sinceCpu >= 0 && sinceCpu < 30){ if (Math.abs(e.player.pos.z) < NET_PLAY.netMove.zone + .5 || Math.abs(e.player.targetPos.z) < NET_PLAY.netMove.zone) sinceCpu = 31; else { speeds.push(Math.hypot(e.player.vel.x, e.player.vel.z)); sinceCpu++; } }
+    // (revisione finale: anche a rete e verso la rete, dove prima restava il movimento del B31)
+    if (sinceCpu >= 0 && sinceCpu < 30){ speeds.push(Math.hypot(e.player.vel.x, e.player.vel.z)); sinceCpu++; }
     const L = e.natpfLastRacket; if (L && L !== seen && L.who === 'player'){ seen = L; tags.colpi++; if (L.move) tags[L.move]++; }
     if (sinceCpu === 30 && speeds.length === 30){
       // nei 0,25 s dopo il colpo della CPU la velocità cresce al più di accel × dt a passo (niente partenza a tutta)
@@ -198,4 +199,42 @@ test('stesso schermo: campo aperto spento e acceso, aiuto al più giovane: parti
     assert.ok(on.length > 200, name);
     assert.equal(on, off, name);
   }
+});
+
+// Revisione finale (bloccante del B31): «a rete ci si muove meno in fretta» c'era solo nel piano d'intercetto (reazione
+// +0,12 s, passo × 0,55), mentre il personaggio correva a velocità piena: il gioco lo trattava come lento senza che si
+// vedesse. Ora il piano usa il movimento vero e a rete vale il movimento di tutto il campo (split-step, accelerazione):
+// la velocità del personaggio dopo il colpo della CPU cresce al più di accel × dt anche a rete, e il piano non dipende più
+// da quanto si è vicini alla rete (stessa palla, stessa distanza: stesso tempo)
+test('a rete: niente passo corto nascosto nel piano, il movimento vero è quello di tutto il campo', async () => {
+  const THREE = await import('three');
+  const e = createHeadlessEngine({ difficulty: 'pro' }), p = e.player, R = NM.runProfile(e, p), DT = 1/120;
+  e.startNewMatch({ showStartBanner: false });
+  let caught = 0, cases = 0, volleys = 0, vmax = 0;
+  // passanti della CPU contro chi è a rete (5,2 m): volo 0,75–1,05 s, verso 2,2–3,9 m di lato, 6,5–10,5 m dalla rete
+  for (const fl of [.75, 1.05]) for (const x of [2.2, 3.9]) for (const z of [6.5, 10.5]){
+    e.phase = 'RALLY'; e.phaseTimer = 0; e.natpfCpuNet = e.natpfCpuOver = e.natpfCpuShot = null;
+    p.pos.set(0, 0, 5.2); p.targetPos.copy(p.pos); p.vel.set(0, 0, 0); p.swingTimer = 0;
+    e.opponent.pos.set(-.4, 0, -11.4); e.opponent.targetPos.copy(e.opponent.pos);
+    Object.assign(e.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 5, shotType: 'TOPSPIN', isPowerShot: false });
+    e.ball.pos.set(-.2, 1.2, -10.4);
+    e._launchBallToTarget(e.ball.pos.clone(), new THREE.Vector3(x, 0, z), fl, { topspin: 14 });
+    assert.equal(NM.runProfile(e, p), R, 'a rete vale il movimento B32');
+    e._natpfPlanPlayer(); cases++; if (e.natpfPlan?.kind === 'volley') volleys++;
+    let sent = false, last = 0;
+    for (let t = 0; t < 2.5 && e.ball.inPlay; t += DT){
+      e.opponent.pos.set(-.4, 0, -11.4); e.opponent.targetPos.copy(e.opponent.pos);
+      const r = e.ball.pos.z - p.pos.z, tti = (-.45 - r)/Math.max(.5, e.ball.vel.z - p.vel.z);
+      if (!sent && e.ball.vel.z > .5 && tti <= 0){ sent = true;
+        e._handleUserSwingInput({ source: 'audit', side: 'forehand', shotType: 'topspin', speed: 1.3, dirX: 0, natpf: { aim: 'swing', shot: 'topspin', intent: { shot: 'topspin', power: .6, depth: .55, rise: .3, face: 0 }, power: .6, peak: 1100, latency: 0, hand: 'right', prepCapable: true, prep: null } }); }
+      e.step(DT);
+      const v = Math.hypot(p.vel.x, p.vel.z); vmax = Math.max(vmax, v);
+      // niente partenza a tutta: la velocità cresce al più di accel × dt a passo, anche a rete (prima: 8,8 m/s subito)
+      if (!sent) assert.ok(v - last <= R.accel*DT + 1e-6, `salto di velocità ${last.toFixed(2)} → ${v.toFixed(2)}`);
+      last = v;
+      if (e.ball.lastHitter === 'player'){ caught++; break; }
+    }
+  }
+  assert.equal(caught, cases, `palle prese ${caught}/${cases}`);
+  assert.ok(volleys > 0 && vmax <= p.maxSpeed + 1e-6, `volée ${volleys}, velocità massima ${vmax.toFixed(2)}`);
 });
