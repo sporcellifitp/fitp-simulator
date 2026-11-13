@@ -114,7 +114,8 @@ export class NatpfKiosk {
     if (cmd === 'newplayer'){ this.close(); ui.newPlayer?.(); return; }
     if (cmd === 'kiosk'){ this.enabled = !this.enabled; this._save(); }
     if (cmd === 'idle'){ this.limit = IDLE_STEPS[(IDLE_STEPS.indexOf(this.limit) + 1) % IDLE_STEPS.length]; this._save(); }
-    if (cmd === 'ranking'){ this.close(); if (!ui.lobby.visible) ui.backToMenu(); ui.lobby.go('ranking'); document.documentElement.classList.add('ranking-full'); return; }
+    // B33: a schermo intero si apre sulla classifica delle partite (le schede dei minigiochi restano accanto)
+    if (cmd === 'ranking'){ this.close(); if (!ui.lobby.visible) ui.backToMenu(); ui.lobby.rankingTab = 'partite'; ui.lobby.go('ranking'); document.documentElement.classList.add('ranking-full'); return; }
     if (cmd === 'export') ui.events.exportCsv();
     if (cmd === 'reset'){ if (confirm('Azzerare la classifica di oggi?')) ui.events.resetBoard(); }
     if (cmd === 'phone'){ ui.phone.forget?.(); }

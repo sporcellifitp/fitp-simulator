@@ -43,8 +43,10 @@ test('menu: le tessere dei minigiochi e le schede della classifica non mostrano 
   // classifica (dal menu e dal pannello dell'addetto del chiosco: stessa pagina), anche se la scheda era su un nascosto
   lobby.rankingTab = 'radar'; lobby.go('ranking'); lobby._paintRanking();
   const tabs = $('ranking-tabs').innerHTML;
-  assert.deepEqual([...tabs.matchAll(/data-ranking="([a-z]+)"/g)].map(m => m[1]), ['rush', 'precision', 'combo']);
+  // (B33: prima la scheda «Partite», la classifica delle partite contro la CPU; il pannello dello stand apre quella)
+  assert.deepEqual([...tabs.matchAll(/data-ranking="([a-z]+)"/g)].map(m => m[1]), ['partite', 'rush', 'precision', 'combo']);
   assert.equal(lobby.rankingTab, 'rush');
   ui.kiosk?.run?.('ranking');
+  assert.equal(lobby.rankingTab, 'partite');
   assert.doesNotMatch($('ranking-tabs').innerHTML, /Radar|Survival/);
 });

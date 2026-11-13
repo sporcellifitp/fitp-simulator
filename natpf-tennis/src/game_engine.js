@@ -1249,6 +1249,8 @@ export class NatpfTennisEngine {
       // senza toccare la scelta del menu, matchConfig.gamesToWinChosen; installGamesToWin è idempotente)
       NF.installGamesToWin(this.matchConfig, () => this.score?.fair),
       (this.score.deuceSide = !0),
+      // NATPF B33: i numeri della partita per la schermata finale ripartono da zero (natpf_match_stats.js, solo lettura)
+      this.natpfStats?.start(this),
       this._syncScoreboardHUD(),
       this.hud.setReplayMode(!1),
       this.audioEngine &&
@@ -1975,6 +1977,8 @@ export class NatpfTennisEngine {
         R = this._projectToScreen(e.pos.clone().add(new o.Vector3(0, 2.35, 0)));
       // NATPF B10: servizio del Player 2 con «P2» come i colpi dello scambio (lato della scritta, «avversario», dentro/fuori)
       this.hud.showTimingPopup({ grade: (e === this.opponent ? "P2 " : "") + T, detail: M, screenPos: R }),
+        this.natpfStats?.shot(this, { role: _, grade: T, kmh: w, serve: !0 }), // NATPF B33: servizio per la schermata finale
+
         this.hud.updateTimingGauge({
           cursorNormalized: s ? 0.5 : n ? 0.22 : 0.42,
           modeTitle: "SERVE IMPACT",
@@ -2273,6 +2277,8 @@ export class NatpfTennisEngine {
       // NATPF: «Smash» detto solo quando la scritta del colpo lo dice (prima: da swingType, anche sotto «Volée» o «Super!»)
       /\bSMASH\b/.test(X) && this.audioEngine && this.audioEngine.playVoiceCallout("smash");
       this.hud.showTimingPopup({ grade: `${u} \u2022 ${X}!`, detail: `${F} KM/H`, screenPos: A, partner: p === this.playerPartner }), // NATPF B10: colpo del compagno (il tuo gesto)
+        // NATPF B33: lo stesso colpo della scritta per la schermata finale (natpf_match_stats.js, solo lettura)
+        this.natpfStats?.shot(this, { role: "p1", grade: u, kmh: F, superShot: !!racketShot?.super, failed: !!racketShot?.out?.failed }),
         this.motionController &&
           this.motionController.triggerHapticFeedback &&
           this.motionController.triggerHapticFeedback({
@@ -2632,6 +2638,7 @@ export class NatpfTennisEngine {
       I = this._projectToScreen(l.pos.clone().add(new o.Vector3(0, 2.35, 0)));
     return (
       this.hud.showTimingPopup({ grade: `P2 ${u} \u2022 ${N}!`, detail: `${O} KM/H`, screenPos: I, partner: l === this.opponentPartner }),
+      this.natpfStats?.shot(this, { role: "p2", grade: u, kmh: O, superShot: !!p2Racket?.super, failed: !!p2Racket?.out?.failed }), // NATPF B33: come per il P1
       this.motionController &&
         this.motionController.triggerHapticFeedback &&
         this.motionController.triggerHapticFeedback({
@@ -3429,6 +3436,8 @@ export class NatpfTennisEngine {
       // regola di sempre. Nessun punto di vantaggio a inizio game, mai: decisione dell'utente del 12/11)
       sv = NF.nextServe({ server: this.score.server, gameServer: this.score.gameServer ?? this.score.server, played: a + s, gameOver: !!gw, fair: ND.altServe(this, fair) });
     (this.score.server = sv.server), (this.score.gameServer = sv.gameServer);
+    // NATPF B33: il punto per la schermata finale, con come è finito e i colpi dello scambio (natpf_match_stats.js, solo lettura)
+    this.natpfStats?.point(this, { winner: e, why: t, strokes: this.ball.rallyStrokeCount, whiff: !!wf && wf.side !== e && wf.stroke === this.ball.rallyStrokeCount, gameWinner: gw || null });
     if (gw) {
       if (
         (gw === "player" ? (this.score.playerGames += 1) : (this.score.opponentGames += 1),
@@ -3492,6 +3501,11 @@ export class NatpfTennisEngine {
   }
   // NATPF: schermata finale dal lato di chi guarda, con i nomi (natpf_point_call.matchEndView, B18)
   _natpfMatchEndView(winner, score = this.score) {
+    // NATPF B33: con i numeri veri della partita (natpf_match_stats.js; null senza modulo o senza punti giocati)
+    const stats = this.natpfStats?.endView(this) || null;
+    return stats ? { ...this._natpfMatchEndViewBase(winner, score), stats } : this._natpfMatchEndViewBase(winner, score);
+  }
+  _natpfMatchEndViewBase(winner, score = this.score) {
     return NPC.matchEndView({
       winner,
       games: { player: score.playerGames, opponent: score.opponentGames },
@@ -3651,6 +3665,8 @@ export class NatpfTennisEngine {
         return;
       }
       const wasOver = this.phase === "MATCH_OVER";
+      // NATPF B33: computer del Player 2: punti e game dal punteggio dell'host, prima di copiarlo (natpf_match_stats.js)
+      this.natpfStats?.guest(this, n);
       (G.lobby = !1), (G.hold = null);
       n.phase &&
         n.phase !== "TITLE" &&

@@ -2,6 +2,7 @@ import { renderAllHudPlayerAvatars as P, renderPlayerAvatar as L } from "./playe
 // NATPF: testi dell'HUD in italiano (traduzione al momento della visualizzazione)
 import { t as tr, scoreText as sc } from "./natpf/natpf_i18n.js";
 import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o area del ledwall
+import { statsHtml } from "./natpf/natpf_match_stats.js"; // NATPF B33: i numeri veri della partita nella schermata finale
 // NATPF: scritture nel DOM solo se il valore cambia. updateMultiplayerRoomInfo gira a ogni risposta del relay (20 al
 // secondo nella sfida) e updateTimingGauge due volte per fotogramma (passi di fisica a 120 Hz): textContent riscritto
 // uguale sostituisce comunque il nodo di testo e fa ricalcolare lo stile (come natpf_split_ui.js)
@@ -345,7 +346,13 @@ export class HudUI {
     i && ((i.textContent = w.title), (i.style.color = "")),
       this.elVictoryModal.classList.toggle("natpf-lost", !w.won),
       r && (r.innerHTML = w.rows.map((s) => `<li class="${s.win ? "win" : ""}" data-victory-row><span>${x(s.name)}</span><b>${s.games | 0}</b></li>`).join("")),
-      o && (o.textContent = `Game ${w.score}`),
+      o && (o.textContent = `Game ${w.score}`);
+    // NATPF B33: numeri veri della partita (natpf_match_stats.js: la vista la prepara il motore); senza dati la schermata
+    // resta quella di prima
+    const st = document.getElementById("victory-stats"), html = w.stats ? statsHtml(w.stats) : "";
+    st && ((st.innerHTML = html), st.classList.toggle("hidden", !html)),
+      this.elVictoryModal.classList.toggle("has-stats", !!html),
+      this.elVictoryModal.classList.toggle("stats-split", !!html && w.stats.cols.length > 1),
       this.elVictoryModal.classList.remove("hidden"),
       window.dispatchEvent(new Event("natpf:victory"));
   }

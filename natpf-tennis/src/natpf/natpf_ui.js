@@ -24,6 +24,8 @@ import { NatpfDiag } from './natpf_diag.js';
 import { NatpfRegistro } from './natpf_registro.js';
 import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
+import { installMatchStats } from './natpf_match_stats.js';
+import { isCpuLevel } from './natpf_who.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
 import { NatpfRemote } from './natpf_remote.js';
 import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText, phoneOf, holdTitle, otherPhoneNote } from './natpf_phone_watch.js';
@@ -95,6 +97,10 @@ export class NatpfUi {
     this.serveCoach = new NatpfServeCoach(engine, this); // istruzioni del servizio sul grande schermo (B18)
     this.hotRally = new NatpfHotRallyHud(engine); // scritta «Scambio caldo» (B20, opzione dello staff)
     this.events = new NatpfEvents(engine, this);      // sfide per gli eventi (dopo il riscaldamento: ne avvolge i punti)
+    // B33: numeri veri della partita per la schermata finale (natpf_match_stats.js; il motore li chiama solo in lettura):
+    // fuori dai conti allenamento, minigiochi e scambi di prova. Partita singola contro la CPU finita: nella classifica
+    // delle partite di oggi (natpf_events.recordMatch: nickname solo su questo computer, niente al registro dello stand)
+    this.stats = installMatchStats(engine, { counts: () => !this.training?.active && !this.events?.active && !this.trial?.active, onEnd: m => this._matchEnded(m) });
     // scambi di prova (B28): la calibrazione giocando, prima della partita (dopo le sfide: ne avvolge i punti per ultimo)
     this.trial = new NatpfTrial(engine, this);
     // diagnostica (Maiusc+D o ?diag=1): prima del menu, così il suo tasto arriva anche con il menu aperto
@@ -250,6 +256,14 @@ export class NatpfUi {
   // «Nuovo giocatore»: azzera nome, mano, tutorial, calibrazione e colpi imparati senza scollegare il telefono, e porta chi
   // arriva al passo giusto (natpf_new_player.js). Restituisce la strada presa ('match', 'challenge', 'split', 'versus', 'menu')
   newPlayer(){ this.trialSkipOnce = false; return resetVisitor(this); }
+  // B33: partita singola contro la CPU finita: nella classifica delle partite di oggi; la posizione va nella schermata finale
+  _matchEnded(m){
+    if (m.mode !== 'cpu' || m.doubles || m.guest || !isCpuLevel(m.level)) return null;
+    const p = m.s.player, o = m.s.opponent, g = m.games, mine = g.filter(x => x.winner === 'player').length;
+    const r = this.events.recordMatch({ level: m.level, won: p.points, lost: o.points, games: [mine, g.length - mine], win: m.winner === 'player' });
+    this.stats.rank = `${r.rank}° su ${r.total} nella classifica delle partite di oggi · ${r.score} punti`;
+    return r;
+  }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer
   _paintVictory(){
     const versus = this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || !!this.versus?.hostActive;
