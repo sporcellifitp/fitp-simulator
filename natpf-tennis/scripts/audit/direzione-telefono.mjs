@@ -22,7 +22,7 @@
 // l'accelerazione con il segno opposto non corretto dal nome del browser (Salta e scambi di prova, il verso lo gira il gioco).
 // Uscite: matrice voluto → ottenuto (incrociato / centro / lungolinea con la geometria dell'allenamento,
 // natpf_training.trainingDirection; fuori e in rete a parte) e quota di colpi fuori o in rete con il gesto buono.
-//   node --import ./test/register.mjs scripts/audit/direzione-telefono.mjs [--seeds=1,2] [--n=4] [--level=pro] [--quick] [--json=file] [--serie]
+//   node --import ./test/register.mjs scripts/audit/direzione-telefono.mjs [--seeds=1,2] [--n=4] [--level=pro] [--quick] [--json=file] [--serie] [--fuori]
 import { pathToFileURL } from 'node:url';
 import { writeFileSync } from 'node:fs';
 import { rng } from '../../test/phone-sim.mjs';
@@ -46,10 +46,14 @@ export const MODELS = Object.freeze({
   polso: { face: 0, shift: 12, u: 0 },
   tempo: { face: 0, shift: 0, u: .4 },
   naturale: { face: 10, shift: 0, u: .25 },
+  // un incrociato o un lungolinea «verso il centro»: piatto girato appena e tempo solito (non deve mai uscire)
+  vicino: { face: 6, shift: 0, u: .1 },
   // chi cerca le righe: piatto girato quasi alla mira piena e tempo nello stesso verso (la precisione è un merito: qui un
   // colpo può uscire)
   riga: { face: 16, shift: 0, u: .4 },
 });
+// modelli del banco principale (vicino solo nel confronto dei fuori, --fuori)
+export const MAIN_MODELS = Object.freeze(['piatto', 'polso', 'tempo', 'naturale', 'riga']);
 export const NOISE = Object.freeze({ buono: { face: 5, u: .25, uMed: 0 }, vero: { face: 12, u: .45, uMed: .35 } });
 export const CALS = Object.freeze({
   rapida: { label: 'calibrazione rapida (2 gesti)', make: (seed, hand) => makePhone({ seed, hand }) },
@@ -113,7 +117,9 @@ export const got = r => (!r ? 'perso' : r.netFault ? 'rete' : r.fuori ? 'fuori' 
 // scambio: incrociato, centro, lungolinea, …) che imparano come in partita. noise: rumore della persona
 // warm: colpi normali prima delle prove (con «Salta» e i sensori al contrario il verso si gira dopo 4–5 colpi e il centro
 // della mira riparte: servono altri 3 colpi per verso)
-export function match({ cal = 'prova', hand = 'right', seed = 1, n = 4, model = 'naturale', noise = 'buono', difficulty = 'pro', run = 0, lateral = .6, warm = 8 } = {}){
+// late: tempo spostato di tanto (unità della finestra, − ritardo; senza il limite ±0,95), come uno schermo in ritardo non
+// misurato; aimFull: gradi della mira piena (opzione «Mira» dello stand: alta 17, media 20, bassa 23)
+export function match({ cal = 'prova', hand = 'right', seed = 1, n = 4, model = 'naturale', noise = 'buono', difficulty = 'pro', run = 0, lateral = .6, warm = 8, late = 0, aimFull = null } = {}){
   const p = CALS[cal].make(seed, hand); p.hand = hand;
   const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
   const R = rng(seed*977 + 13), M = MODELS[model], N = NOISE[noise], rows = [];
@@ -121,10 +127,10 @@ export function match({ cal = 'prova', hand = 'right', seed = 1, n = 4, model = 
     const c = contactOf(hand, side), w = want === 'cross' ? 1 : want === 'line' ? -1 : 0;
     // piatto girato verso l'incrociato: a sinistra (−) per il dritto del destro, cioè −c gradi; lo spostamento dell'arco
     // nel verso del colpo è già «verso l'incrociato»
-    const turn = -c*w*M.face + gauss(R)*N.face, shift = w*M.shift, u = clip(N.uMed + w*M.u + gauss(R)*N.u, -.95, .95);
+    const turn = -c*w*M.face + gauss(R)*N.face, shift = w*M.shift, u = clip(N.uMed + w*M.u + gauss(R)*N.u, -.95, .95) + late;
     const msgs = stroke(p, { side, turn, shift, k: clip(1 + gauss(R)*.15, .6, 1.5), R });
     if (msgs.length !== 1){ if (!learnOnly) rows.push({ side, want, got: 'perso', n: msgs.length }); return; }
-    const r = p.game(msgs[0]), o = strike(r.ev, { e, difficulty, u, rally: 3 + rows.length, run, lateral });
+    const r = p.game(msgs[0], { aimFull }), o = strike(r.ev, { e, difficulty, u, rally: 3 + rows.length, run, lateral });
     if (learnOnly) return;
     rows.push({ side, want, got: got(o), read: r.ev.side, x: o?.x ?? null, aim: o?.aim ?? null, face: o?.face ?? null, t: o?.t ?? null, u: +u.toFixed(2), turn: +turn.toFixed(1), q: o?.q ?? null, fuori: !!o?.fuori, long: !!o?.long, wide: !!o?.side, net: !!o?.netFault });
   };
@@ -157,10 +163,10 @@ export function matrix(rows){
   const all = rows.length, hit = rows.filter(r => r.want === r.got).length;
   return { m, ok: pct(hit, all), fuori: pct(rows.filter(r => r.got === 'fuori' || r.got === 'rete').length, all), crossFuori: pct(rows.filter(r => r.want !== 'line' && (r.got === 'fuori' || r.got === 'rete')).length, rows.filter(r => r.want !== 'line').length) };
 }
-export function audit({ seeds = [1, 2], n = 4, hands = ['right', 'left'], cals = Object.keys(CALS), models = Object.keys(MODELS), noise = 'buono', difficulty = 'pro', run = 0, lateral = .6 } = {}){
+export function audit({ seeds = [1, 2], n = 4, hands = ['right', 'left'], cals = Object.keys(CALS), models = MAIN_MODELS, noise = 'buono', difficulty = 'pro', run = 0, lateral = .6, late = 0, aimFull = null } = {}){
   const res = [];
   for (const hand of hands) for (const cal of cals) for (const model of models) for (const seed of seeds){
-    const r = match({ cal, hand, seed, n, model, noise, difficulty, run, lateral });
+    const r = match({ cal, hand, seed, n, model, noise, difficulty, run, lateral, late, aimFull });
     for (const row of r.rows) res.push({ hand, cal, model, seed, sign: r.sign, ...row });
   }
   return res;
@@ -191,6 +197,17 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
   if (process.argv.includes('--serie')){
     console.log('\n== serie: lo stesso voluto 14 volte di fila (dopo 8 colpi normali), dritto del destro, scambi di prova ==');
     for (const want of WANTS) for (const model of ['piatto', 'naturale']) console.log(`${want.padEnd(7)} ${model.padEnd(9)} ${serie({ want, model, seed: seeds[0] }).map(g => ({ cross: 'I', center: 'c', line: 'L', fuori: 'F', rete: 'R', perso: '-' })[g]).join(' ')}`);
+  }
+  if (process.argv.includes('--fuori')){
+    // colpi fuori con il gesto buono: a Leggenda in corsa (la palla non è tenuta in campo) con la mira alta e bassa, e
+    // con il tempo sempre in ritardo di 1,2 finestre (schermo in ritardo non misurato, Pro)
+    const cals = ['rapida', 'salta', 'prova'], models = ['naturale', 'vicino', 'riga'];
+    for (const [label, o] of [['Leggenda in corsa, mira alta 17°', { difficulty: 'leggenda', run: .7, lateral: 1.6 }], ['Leggenda in corsa, mira bassa 23°', { difficulty: 'leggenda', run: .7, lateral: 1.6, aimFull: 23 }],
+      ['Pro da fermo, tempo in ritardo di 1,2 finestre', { difficulty: 'pro', late: -1.2 }]]){
+      const rows = audit({ seeds, n, noise: 'buono', cals, models, ...o });
+      json[label] = rows;
+      console.log(report(rows, `\n== fuori: ${label} ==`).split('\n').filter(l => !/calibrazione|Salta|scambi|destro|mancino/.test(l)).join('\n'));
+    }
   }
   const file = arg('json'); if (file) writeFileSync(file, JSON.stringify(json));
 }
