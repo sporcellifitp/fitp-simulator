@@ -6,6 +6,12 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
+## >>> RIPRESA DEL 13/11/2026 (15:45 UTC): leggere PRIMA `docs/RIPRESA_AGENTE.md` <<<
+
+Stato, agenti in corso (B37, B42: worktree e commit salvati), coda dei lavori (B43 → B41 parte 1 → B38+B39 → B41 parte 2
+→ B40 → B36), decisioni dell'utente e procedura di rilascio stanno lì. Compiti pronti in `docs/coda/`, analisi in
+`docs/b36/analisi/`, `docs/b39/controllo-solo-mouse/`, `docs/b41/`. Questo diario prosegue in fondo (sezioni più recenti).
+
 ## ADESSO (aggiornato il 12/11/2026 alle 22:05 UTC)
 
 **Versione 2026-11-11.1** = tappa 2 gruppo 1 + stesso schermo (B20).
