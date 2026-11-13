@@ -470,3 +470,23 @@ test('punto 1 · palla della CPU che va fuori: nessun segno prima che tocchi ter
     } finally { Math.random = real; }
   });
 });
+
+test('punto 1 · sfida tra due computer: sul computer del Player 2 il suo «Fuori» arriva con la palla a terra o con il punto dell\'host', () => withDom(() => {
+  // il P2 tira verso z > 0: bersaglio fuori largo nella metà dell'host
+  const M = fakeMatch({ target: { x: -6, z: 8 } });
+  Object.assign(M.engine, { playerRole: 'p2', isMultiplayer: true });
+  M.engine.ball.lastHitter = 'opponent';
+  M.engine.natpfPhone = phoneSink('p2').ph; const sentP2 = []; M.engine.natpfPhone.link = { send: m => sentP2.push(m) };
+  M.engine.hud.showTimingPopup({ grade: 'P2 VERY EARLY • CROSS-COURT!', detail: '90 KM/H' });
+  relayPhoneFeedback(M.engine, { role: 'p2', kind: 'hit', grade: 'VERY EARLY • CROSS-COURT', shotType: 'TOPSPIN' });
+  assert.equal(M.shown.length, 0, 'al colpo nessun «Fuori» sul computer del P2');
+  assert.equal(sentP2[0].wait, 1, 'telefono del P2: neutro al colpo');
+  // la palla dell'host comanda: il numero del colpo può cambiare con gli snapshot, il verdetto aspetta lo stesso
+  M.engine.ball.rallyStrokeCount = 7; M.fb.update(1/60);
+  assert.ok(M.fb.verdict, 'sul P2 il verdetto resta in attesa anche se lo snapshot cambia il numero del colpo');
+  // arriva la scritta del punto dall'host (motivo «Out»)
+  M.engine.elapsedTime += .9;
+  assert.equal(M.fb.settle(null, 'Out', { remote: true }), true);
+  assert.equal(M.shown.length, 1); assert.equal(M.shown[0].grade, 'Fuori · troppo presto');
+  assert.equal(sentP2[1].late, 1); assert.equal(sentP2[1].out, true);
+}));

@@ -33,8 +33,14 @@ async function game({ cast, w = 1920, h = 1080, query = 'intro=0' }){
   await p.addInitScript(({ KEY, cast }) => {
     try { localStorage.setItem('natpf-tennis.controller', 'mouse'); localStorage.setItem('natpf-tennis.testInput', '1'); localStorage.setItem(KEY, cast); } catch {}
   }, { KEY, cast });
-  await p.goto(`http://127.0.0.1:${GAME_PORT}/?${query}${cast === 'lobdrop' ? '&mascotte=3d' : ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.serveMark, null, { timeout: 120000 });
+  // (a macchina carica il caricamento può non arrivare: si riprova fino a tre volte, come natpf-lob-drop)
+  for (let k = 0; ; k++){
+    const ok = await p.goto(`http://127.0.0.1:${GAME_PORT}/?${query}${cast === 'lobdrop' ? '&mascotte=3d' : ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 }).then(() => true, () => false)
+      && await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.serveMark, null, { timeout: 120000 }).then(() => true, () => false);
+    if (ok) break;
+    if (k >= 2) throw new Error('gioco non avviato');
+    errs.length = 0;
+  }
   if (cast === 'lobdrop') await p.waitForFunction(() => __natpfTennis.player.natpfMascot3dOn && __natpfTennis.opponent.natpfMascot3dOn, null, { timeout: 90000 }).catch(() => errs.push('modelli 3D non montati'));
   await p.waitForTimeout(800);
   return { ctx, p, errs };
@@ -42,7 +48,6 @@ async function game({ cast, w = 1920, h = 1080, query = 'intro=0' }){
 // al servizio: partita vera, qualche fotogramma, poi ciclo fermo e misure (gemma, testa, scritta, riquadro, a schermo)
 const atServe = (p, mode, server) => p.evaluate(async ({ mode, server }) => {
   const E = __natpfTennis, ui = E.natpfUi;
-  if (E.__frame0){ E._natpfFrame = E.__frame0; delete E.__frame0; }
   ui.lobby.visible = false; E.hud.hideTitleModal?.(); ui.onboarding?.close?.();
   E.autoPlayMode = false; E.userHasInteracted = true;
   if (mode === 'schermo'){ E.natpfSplitNames = { p1: 'Giulia', p2: 'Marco' }; if (!E.natpfSplit.active) E.startSplit(); }
@@ -50,8 +55,11 @@ const atServe = (p, mode, server) => p.evaluate(async ({ mode, server }) => {
   E.score.server = server; E._setupPointServe?.({ showBanner: false }); ui.onScore(E.score, E.matchConfig.gamesToWin);
   // (la CPU batterebbe da sola dopo 1,25 s: con la grafica in software i fotogrammi sono lenti; qui si aspetta ferma)
   E.persistentStateLock = true;
-  await new Promise(res => { let n = 0; const f = () => (++n > 24 ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); });
+  // (ciclo del gioco fermo e 24 passi del gioco a mano, poi un solo disegno: con la grafica in software e lo stesso
+  // schermo con i modelli 3D a 1920×1080 ogni fotogramma vero può durare secondi)
   if (!E.__frame0){ E.__frame0 = E._natpfFrame; E._natpfFrame = () => 'paused'; }
+  for (let i = 0; i < 24; i++) E.update(1/60);
+  E.render();
   const M = ui.serveMark, who = server === 'opponent' ? E.opponent : E.player, top = M.top(who);
   const { viewport } = await import('/src/natpf/natpf_screen.js'), { splitViewports } = await import('/src/natpf/natpf_split.js');
   const V = viewport(), S = E.natpfSplit, halves = mode === 'schermo' ? splitViewports(S.size.x, S.size.y) : null;
@@ -70,26 +78,30 @@ const atServe = (p, mode, server) => p.evaluate(async ({ mode, server }) => {
 // la palla parte: gemma e riquadro spariscono
 const afterServe = p => p.evaluate(async () => {
   const E = __natpfTennis, M = E.natpfUi.serveMark;
-  if (E.__frame0){ E._natpfFrame = E.__frame0; delete E.__frame0; }
   E.persistentStateLock = false;
   const who = E.score.server === 'opponent' ? E.opponent : E.player;
   E.phase = 'SERVE_TOSS'; E.ball.pos.set(who.pos.x, 2.6, who.pos.z); E.ball.vel.set(0, 0, 0);
   E._executeServeHit(who, { speed: 1.2 });
-  await new Promise(res => { let n = 0; const f = () => (++n > 6 ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); });
+  for (let i = 0; i < 6; i++) E.update(1/60);
   return { phase: E.phase, gem: M.gem.visible, box: M.box.visible };
 });
-// costo del disegno: 30 disegni con gemma e riquadro accesi, 30 spenti (alternati a blocchi)
+// costo del disegno (ms per disegno): spenti, solo gemma, solo riquadro, tutti e due; 10 giri alternati di 10 disegni
+// ciascuno, mediana dei giri (la macchina può essere carica: la mediana regge meglio della media)
 const cost = p => p.evaluate(() => {
-  const E = __natpfTennis, M = E.natpfUi.serveMark, run = on => { M.gem.visible = M.box.visible = on; const t0 = performance.now(); for (let i = 0; i < 10; i++) E.render(); return performance.now() - t0; };
+  const E = __natpfTennis, M = E.natpfUi.serveMark, CONF = { off: [false, false], gem: [true, false], box: [false, true], on: [true, true] };
+  const run = ([g, b]) => { M.gem.visible = g; M.box.visible = b; const t0 = performance.now(); for (let i = 0; i < 10; i++) E.render(); return (performance.now() - t0)/10; };
   if (!E.__frame0){ E.__frame0 = E._natpfFrame; E._natpfFrame = () => 'paused'; }
-  run(true); run(false);
-  let on = 0, off = 0; for (let k = 0; k < 3; k++){ on += run(true); off += run(false); }
-  return { on: +(on/30).toFixed(2), off: +(off/30).toFixed(2) };
+  for (const c of Object.values(CONF)) run(c);
+  const T = Object.fromEntries(Object.keys(CONF).map(k => [k, []]));
+  for (let r = 0; r < 10; r++) for (const [k, c] of Object.entries(CONF)) T[k].push(run(c));
+  const med = a => { const s = [...a].sort((x, y) => x - y); return +((s[4] + s[5])/2).toFixed(2); };
+  return Object.fromEntries(Object.entries(T).map(([k, a]) => [k, med(a)]));
 });
 
-const rows = [];
-for (const cast of ['sempre', 'lobdrop']) for (const mode of ['cpu', 'schermo']){
-  const g = await game({ cast });
+const rows = [], COSTO = process.env.COSTO === '1';
+for (const cast of COSTO ? ['lobdrop'] : ['sempre', 'lobdrop']){
+ const g = await game({ cast });   // (una pagina per personaggi: prima contro la CPU, poi lo stesso schermo nella stessa pagina)
+ for (const mode of COSTO ? ['cpu'] : ['cpu', 'schermo']){
   for (const server of ['player', 'opponent']){
     const r = await atServe(g.p, mode, server);
     const name = `${cast === 'lobdrop' ? 'Lob & Drop' : 'Classici'}, ${mode === 'cpu' ? 'contro la CPU' : 'stesso schermo'}, batte ${server === 'player' ? (mode === 'cpu' ? 'chi gioca' : 'il Player 1') : (mode === 'cpu' ? 'la CPU' : 'il Player 2')}`;
@@ -109,12 +121,19 @@ for (const cast of ['sempre', 'lobdrop']) for (const mode of ['cpu', 'schermo'])
     const a = await afterServe(g.p);
     check(`B37 ${name}: la palla parte, gemma e riquadro spariscono`, a.phase === 'RALLY' && !a.gem && !a.box, JSON.stringify(a));
   }
-  if (cast === 'lobdrop' && mode === 'cpu'){ const c = await cost(g.p); console.log(`costo del disegno (Lob & Drop, 1920×1080, grafica in software): ${c.on} ms con gemma e riquadro, ${c.off} ms senza (${(100*(c.on - c.off)/c.off).toFixed(1)} %)`); rows.push({ cost: c }); check('B37 costo del disegno con gemma e riquadro: meno del 5 % in più', c.on <= c.off*1.05 + .3, JSON.stringify(c)); }
+  if (cast === 'lobdrop' && mode === 'cpu'){
+    const c = await cost(g.p);
+    console.log(`costo del disegno (Lob & Drop, 1920×1080, grafica in software, mediana di 10 giri): spenti ${c.off} ms, solo gemma ${c.gem} ms, solo riquadro ${c.box} ms, tutti e due ${c.on} ms (${(100*(c.on - c.off)/c.off).toFixed(1)} %)`);
+    rows.push({ cost: c });
+    // (solo nella fase del servizio; grafica in software: il caso peggiore. Soglia: al massimo 1 ms in più per disegno)
+    check('B37 costo del disegno con gemma e riquadro (solo al servizio): al massimo 1 ms in più per disegno con la grafica in software', c.on - c.off <= 1, JSON.stringify(c));
+  }
   check(`B37 chi serve, ${cast} ${mode}: nessun errore`, !g.errs.length, g.errs.join(' | ').slice(0, 300));
-  await g.ctx.close();
+ }
+ await g.ctx.close();
 }
 // area stretta (?area=…): contro la CPU con Lob & Drop e stesso schermo con i Classici
-for (const [cast, mode] of [['lobdrop', 'cpu'], ['sempre', 'schermo']]){
+for (const [cast, mode] of COSTO ? [] : [['lobdrop', 'cpu'], ['sempre', 'schermo']]){
   const g = await game({ cast, query: 'intro=0&area=0,0,640,800' });
   for (const server of ['player', 'opponent']){
     const r = await atServe(g.p, mode, server);
