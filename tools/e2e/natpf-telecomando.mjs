@@ -266,6 +266,26 @@ try {
   await game.screenshot({ path: `${SP}/telecomando-nome-1024x1024.png` });
   await tap('skip'); check('Salta → di nuovo «Pronto per la partita»', await waitPg('lobby:match'));
 
+  // 5b) B35 (collaudo dell'utente del 13/11): scambi di prova contro la CPU e telecomando. Con il telefono come racchetta
+  // gli scambi di prova si fanno prima della pagina «Pronto per la partita»; «Salta» dal telecomando porta alla pagina (non
+  // fa partire la partita), poi «Gioca!» dal telecomando la fa partire. Qui il telefono non c'è (prova del telecomando):
+  // gli scambi di prova si aprono come dopo «Collega» con un telefono pronto (trial.due forzato), il resto è vero
+  const seq0 = await ui(() => __natpfTennis.natpfMatchSeq || 0);
+  await ui(() => { const U = __natpfTennis.natpfUi; U.__due = U.trial.due; U.trial.due = () => true; U.lobby.trialPlayed = false; U.lobby._pageTrial(); });
+  check('B35: scambi di prova aperti, il telefono dello staff li vede («Salta» acceso)', await waitPg('trial') && await phone.evaluate(() => __telecomando.status.cmds.skip === 1));
+  await sleep(600); await game.screenshot({ path: `${SP}/telecomando-scambi-1024x1024.png` });
+  const sk = await tap('skip');
+  const toPage = await waitPg('lobby:match');
+  await sleep(700);
+  const after5b = await ui(() => ({ seq: __natpfTennis.natpfMatchSeq || 0, trial: __natpfTennis.natpfUi.trial.active, title: document.getElementById('lobby-t-match').textContent, demo: !!__natpfTennis.autoPlayMode }));
+  check('B35: «Salta» dal telecomando → pagina «Pronto per la partita», la partita non parte', toPage && /Pronto per la partita/.test(sk?.msg || '') && after5b.seq === seq0 && !after5b.trial && after5b.title === 'Pronto per la partita' && after5b.demo, JSON.stringify({ sk, after5b }));
+  await game.screenshot({ path: `${SP}/telecomando-pronto-dopo-scambi-1024x1024.png` });
+  await ui(() => { const U = __natpfTennis.natpfUi; U.trial.due = U.__due; delete U.__due; });
+  await tap('play');
+  check('B35: poi «Gioca!» dal telecomando → la partita parte', await waitPg('match', 25000) && await ui(n => (__natpfTennis.natpfMatchSeq || 0) === n + 1 && !__natpfTennis.natpfUi.trial.active, seq0));
+  const back5b = await tap('menu', { confirm: true });
+  check('   Torna al menu (con conferma)', !!back5b.asked && await waitPg('lobby:menu'));
+
   // 6) schermo del gioco e schermo intero (ponte del programma Windows finto)
   const s1 = await phone.evaluate(() => __telecomando.status.hints.screen);
   await tap('screen'); await sleep(500);

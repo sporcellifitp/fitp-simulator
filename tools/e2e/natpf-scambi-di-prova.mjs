@@ -3,9 +3,11 @@
 // scambio, il software deve capire bene destra e sinistra, velocità ed i parametri necessari, e poi dopo circa 10-15 secondi
 // di scambi, parte il match vero».
 //   FLOW=singolo (predefinito)  menu → Gioca → Contro la CPU → Smartphone → telefono («Attiva i sensori», «Tutto chiaro»
-//                 dalla PRIMA scheda) → pagina «Partita» senza calibrazione → «Gioca» → scambi di prova → «Si comincia!» →
-//                 partita da 0-0; poi «Gioca ancora» → di nuovo gli scambi di prova da capo (molte persone, un telefono);
-//                 «Ricalibra» dalla pausa → scambi di prova e punto rigiocato
+//                 dalla PRIMA scheda) → scambi di prova → «Pronto per la partita» → pagina «Pronto per la partita» con
+//                 «Chi gioca», «Personaggi» e «Altre impostazioni» (B35, collaudo dell'utente del 13/11: prima la partita
+//                 partiva da sola) → «Gioca» → partita da 0-0; «Ricalibra» dalla pausa a partita in corso → scambi di
+//                 prova e punto rigiocato (la stessa partita); poi menu → «Gioca» → di nuovo gli scambi di prova da capo
+//                 (molte persone, un telefono) → pagina → «Gioca» → seconda partita
 //   FLOW=stesso   Gioca → Stesso schermo → due telefoni → conto alla rovescia → scambi di prova per tutti e due → partita
 //   HAND=left     mancino (la mano si sceglie nel gioco: la prima palla va alla sua sinistra, sul dritto)
 //   HITS=all|none|one   chi gioca colpisce tutte le palle, nessuna (la partita parte lo stesso allo scadere), una per lato
@@ -13,8 +15,9 @@
 //   SHOTS=1       schermate anche durante gli scambi di prova (fermano il gioco per circa un secondo ciascuna: i secondi
 //                 misurati non valgono, la verifica del tempo si salta); senza, i secondi sono quelli veri
 //   cd tools/e2e && CHROMIUM_PATH=… GAME_PORT=… PEER_PORT=… OUT=cartella node natpf-scambi-di-prova.mjs
-// Misura i secondi da «Gioca» al primo punto vero (la partita al servizio, 0-0). Eventi devicemotion sintetici: non
-// sostituiscono un telefono vero né il tempo di una persona.
+// Misura i secondi degli scambi di prova (da «Tutto chiaro» alla pagina «Pronto per la partita»; nello stesso schermo dalla
+// fine del conto al primo punto vero). Eventi devicemotion sintetici: non sostituiscono un telefono vero né il tempo di
+// una persona.
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -138,31 +141,45 @@ try {
     await sleep(300); await shot('pc', 'tutorial'); await shot('tel1', 'tutorial');
     const tTut = Date.now();
     await ph.click('#tutOk');
-    // niente calibrazione: pagina «Partita» subito, telefono pronto con il profilo semplice
-    const atMatch = await until(pc, () => { const L = __natpfTennis.natpfUi.lobby; return L.visible && L.step === 'match' && __natpfTennis.natpfPhone.ready; }, null, 10000);
-    check('dopo «Tutto chiaro»: pagina «Partita» senza calibrazione, telefono pronto', atMatch, `${Date.now() - tTut} ms`);
-    res.tutorialToMatchMs = Date.now() - tTut;
+    // B35: niente calibrazione con i gesti: subito gli scambi di prova in campo, la partita non parte
+    check('dopo «Tutto chiaro»: scambi di prova in campo, senza calibrazione, la partita non è partita', await until(pc, () => __natpfTennis.natpfUi.trial.active && !(__natpfTennis.natpfMatchSeq > 0) && __natpfTennis.natpfPhone.soonReady, null, 10000), `${Date.now() - tTut} ms`);
+    res.tutorialToTrialMs = Date.now() - tTut;
     const seen0 = await ph.evaluate(() => ({ screens: [...window.__seen.screens], bigs: [...window.__seen.bigs] }));
     check('telefono: nessun gesto di calibrazione chiesto (mai il passo dei gesti)', !seen0.screens.some(s => /^cal:(swings|shots|review|free)/.test(s)) && !seen0.bigs.some(b => /Dritto|Rovescio|Fatto|Da rifare/.test(b)), JSON.stringify(seen0));
-    await sleep(500); await shot('pc', 'partita'); await shot('tel1', 'pronto');
-    const note = await pc.evaluate(() => document.getElementById('lobby-match-note').textContent);
-    check('pagina «Partita»: dice che si comincia con gli scambi di prova', /scambio di prova/.test(note), note);
-
-    // «Gioca» → scambi di prova → partita
+    await sleep(250);
+    const hud = await pc.evaluate(() => { const el = document.getElementById('natpf-trial'), c = el.querySelector('.trial-card').getBoundingClientRect(), t = el.querySelector('.trial-title'), k = el.querySelector('.trial-kicker'); return { vis: !el.classList.contains('hidden'), kicker: k.textContent, title: t.textContent, sub: el.querySelector('[data-trial="sub"]')?.textContent || '', fs: parseFloat(getComputedStyle(t).fontSize), kfs: parseFloat(getComputedStyle(k).fontSize), box: [c.left, c.top, c.right, c.bottom].map(Math.round), w: innerWidth, h: innerHeight,
+      skip: (() => { const b = document.getElementById('trial-skip'), r = b.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2); return { vis: r.width > 0 && r.right <= innerWidth && r.left >= c.right - 2, overPause: top !== b, text: b.textContent }; })() }; });
+    check('scritta grande «Scambi di prova · Colpisci la palla» in alto, dentro lo schermo; sotto «poi scegli la partita»', hud.vis && /Scambi di prova/.test(hud.kicker) && /Colpisci la palla/i.test(hud.title) && /poi scegli la partita/.test(hud.sub) && hud.box[0] >= 0 && hud.box[2] <= hud.w && hud.box[1] >= 0 && hud.box[3] < hud.h*.4 && hud.skip.vis && !hud.skip.overPause, JSON.stringify(hud));
+    check(`scritta leggibile da lontano: titolo ${hud.fs.toFixed(0)} px (almeno il 5 % dell’altezza), occhiello ${hud.kfs.toFixed(0)} px`, hud.fs >= hud.h*.05 && hud.kfs >= 15, JSON.stringify(hud));
+    const tTrial = Date.now();
+    let outroTitle = '';
+    // (scritta grande alla fine: data-state «go»; si guarda finché gli scambi sono aperti)
+    let trialOn = true;
+    const watchOutro = (async () => { while (trialOn && !outroTitle){ outroTitle = await pc.evaluate(() => { const el = document.getElementById('natpf-trial'); return el?.dataset.state === 'go' && !el.classList.contains('hidden') ? el.querySelector('.trial-title').textContent : ''; }).catch(() => ''); await sleep(60); } })();
+    const r = await playTrial({ tel1: ph }, hitOf);
+    trialOn = false;
+    // B35: alla fine la pagina «Pronto per la partita» con «Chi gioca», «Personaggi» e «Altre impostazioni»; la partita
+    // parte solo con «Gioca»
+    const atPage = await until(pc, () => { const L = __natpfTennis.natpfUi.lobby; return L.visible && L.step === 'match' && !__natpfTennis.natpfUi.trial.active; }, null, 10000);
+    const secs = (Date.now() - tTrial)/1000; res.trialSeconds = +secs.toFixed(1); res.trial = r;
+    await watchOutro;
+    const page = await pc.evaluate(() => { const vis = id => { const n = document.getElementById(id); return !!n && !n.classList.contains('hidden') && n.offsetParent !== null; };
+      return { title: document.getElementById('lobby-t-match').textContent, who: vis('difficulty-mode-group') && /Chi gioca/.test(document.getElementById('who-label').textContent), cast: vis('match-cast-row'), more: vis('match-more-btn') && /Altre impostazioni/.test(document.getElementById('match-more-btn').textContent),
+        result: vis('lobby-practice-result') ? document.getElementById('lobby-practice-result').textContent : '', note: document.getElementById('lobby-match-note')?.textContent || '', seq: __natpfTennis.natpfMatchSeq || 0, demo: !!__natpfTennis.autoPlayMode }; });
+    check('B35: finiti gli scambi di prova, «Pronto per la partita» e la pagina con «Chi gioca», «Personaggi», «Altre impostazioni»', atPage && page.title === 'Pronto per la partita' && page.who && page.cast && page.more, JSON.stringify({ atPage, outroTitle, ...page }));
+    check('   scritta grande alla fine «Pronto per la partita» (non «Si comincia!»)', outroTitle === 'Pronto per la partita', outroTitle);
+    check('   la partita NON è partita: si aspetta «Gioca» (dietro la partita dimostrativa)', page.seq === 0 && page.demo, JSON.stringify(page));
+    check('   riga della pagina: com’è andata e «Scegli la partita e premi «Gioca»», niente riga «con Gioca prima gli scambi»', /Scegli la partita/.test(page.result) && !/scambi? di prova/.test(page.note), JSON.stringify({ result: page.result, note: page.note }));
+    // (la prima palla aspetta il profilo da capo del telefono, chiesto alla chiusura del tutorial: qualche secondo in più
+    // di quando gli scambi partivano da «Gioca», con il telefono già pronto)
+    if (!SHOTS) check(`dalla scritta degli scambi di prova alla pagina «Pronto per la partita»: ${secs.toFixed(1)} s (${HITS === 'all' ? 'circa 10–17' : 'tetto circa 22'})`, HITS === 'all' ? secs >= 6 && secs <= 17.5 : secs <= 23, JSON.stringify(r.log));
+    await sleep(500); await shot('pc', 'pronto-dopo-scambi'); await shot('tel1', 'pronto');
+    // «Gioca» → la partita parte subito, senza altri scambi
     const tGo = Date.now();
     await pc.click('#btn-start-match');
-    check('«Gioca»: scambi di prova, la partita non è ancora partita', await until(pc, () => __natpfTennis.natpfUi.trial.active && !(__natpfTennis.natpfMatchSeq > 0), null, 5000));
-    await sleep(250);
-    const hud = await pc.evaluate(() => { const el = document.getElementById('natpf-trial'), c = el.querySelector('.trial-card').getBoundingClientRect(), t = el.querySelector('.trial-title'), k = el.querySelector('.trial-kicker'); return { vis: !el.classList.contains('hidden'), kicker: k.textContent, title: t.textContent, fs: parseFloat(getComputedStyle(t).fontSize), kfs: parseFloat(getComputedStyle(k).fontSize), box: [Math.round(c.left), Math.round(c.top), Math.round(c.right), Math.round(c.bottom)], w: innerWidth, h: innerHeight,
-      skip: (() => { const b = document.getElementById('trial-skip'), r = b.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2); return { vis: r.width > 0 && r.right <= innerWidth && r.left >= c.right - 2, overPause: top !== b, text: b.textContent }; })(), sb: getComputedStyle(document.querySelector('.natpf-scoreboard') || document.body).opacity }; });
-    check('scritta grande «Scambi di prova · Colpisci la palla» in alto, dentro lo schermo', hud.vis && /Scambi di prova/.test(hud.kicker) && /Colpisci la palla/i.test(hud.title) && hud.box[0] >= 0 && hud.box[2] <= hud.w && hud.box[1] >= 0 && hud.box[3] < hud.h*.4 && hud.skip.vis && !hud.skip.overPause, JSON.stringify(hud));
-    check(`scritta leggibile da lontano: titolo ${hud.fs.toFixed(0)} px (almeno il 5 % dell’altezza), occhiello ${hud.kfs.toFixed(0)} px`, hud.fs >= hud.h*.05 && hud.kfs >= 15, JSON.stringify(hud));
-    const r = await playTrial({ tel1: ph }, hitOf);
     const started = await until(pc, () => __natpfTennis.natpfMatchSeq === 1 && __natpfTennis.phase === 'SERVE_STANCE' && !__natpfTennis.natpfUi.trial.active, null, 8000);
-    const secs = (Date.now() - tGo)/1000; res.secondsToFirstPoint = +secs.toFixed(1); res.trial = r;
-    check('la partita vera parte da sola, al servizio', started);
-    if (SHOTS) log(`(con le schermate) da «Gioca» al primo punto vero ${secs.toFixed(1)} s: non misurato`);
-    else check(`da «Gioca» al primo punto vero: ${secs.toFixed(1)} s (${HITS === 'all' ? 'circa 10–15' : 'tetto circa 20'})`, HITS === 'all' ? secs >= 7 && secs <= 15.5 : secs <= 21, JSON.stringify(r.log));
+    const goSecs = (Date.now() - tGo)/1000; res.secondsToFirstPoint = +goSecs.toFixed(1);
+    check(`«Gioca»: la partita vera parte subito, al servizio, senza rifare gli scambi (${goSecs.toFixed(1)} s)`, started && goSecs < 4 && !(await pc.evaluate(() => __natpfTennis.natpfUi.trial.active)));
     const i1 = await gameInfo();
     check('partita da 0-0, scritta degli scambi di prova tolta', i1.score.join() === '0,0,0,0' && !i1.trialHud, JSON.stringify(i1.score));
     if (HITS === 'all'){
@@ -192,7 +209,7 @@ try {
       await until(pc, () => !__natpfTennis.natpfUi.trial.active && __natpfTennis.phase === 'SERVE_STANCE', null, 8000);
       const i2 = await gameInfo();
       check('dopo «Ricalibra»: stessa partita, punteggio com’era, punto da rigiocare', i2.seq === 1 && i2.score.join() === '2,1,0,0' && i2.phase === 'SERVE_STANCE' && r2.log.length >= 4, JSON.stringify(i2.score));
-      // «molte persone, un telefono»: menu → «Gioca» di nuovo → scambi di prova da capo
+      // «molte persone, un telefono»: menu → «Gioca» di nuovo → scambi di prova da capo → pagina → «Gioca»
       await pc.evaluate(() => __natpfTennis.natpfUi.backToMenu('match'));
       await until(pc, () => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'match', null, 5000);
       await pc.click('#btn-start-match');
@@ -201,8 +218,11 @@ try {
       const fresh = await pc.evaluate(() => { const P = __natpfTennis.natpfPhone; return { simple: !!P.profile?.simple, typical: P.typicalModel.value, seen: P.typicalModel.seen.length, aim: [P.aimModel.center(1), P.aimModel.center(-1)], ready: P.ready }; });
       check('partita nuova: il telefono riparte dal profilo semplice, niente di chi c’era prima (colpo tipico, mira)', fresh.simple && fresh.typical == null && fresh.seen === 0 && fresh.aim.every(a => a == null) && fresh.ready, JSON.stringify(fresh));
       const r3 = await playTrial({ tel1: ph }, () => true, { shots: false });
-      const again = await until(pc, () => __natpfTennis.natpfMatchSeq === 2 && __natpfTennis.phase === 'SERVE_STANCE', null, 8000);
-      check('seconda partita dopo gli scambi di prova, di nuovo imparato', again && (await gameInfo()).p1.level === 'full', JSON.stringify(r3.log));
+      const back = await until(pc, () => { const L = __natpfTennis.natpfUi.lobby; return L.visible && L.step === 'match' && !__natpfTennis.natpfUi.trial.active && (__natpfTennis.natpfMatchSeq || 0) === 1; }, null, 10000);
+      check('B35: «Gioca» senza scambi fatti: li fa e torna alla pagina «Pronto per la partita» (la partita non parte)', back, JSON.stringify(r3.log));
+      await pc.click('#btn-start-match');
+      const again = await until(pc, () => __natpfTennis.natpfMatchSeq === 2 && __natpfTennis.phase === 'SERVE_STANCE' && !__natpfTennis.natpfUi.trial.active, null, 8000);
+      check('seconda partita con «Gioca», di nuovo imparato', again && (await gameInfo()).p1.level === 'full', JSON.stringify(r3.log));
     }
   } else {
     await pc.click('[data-mode="split"]');
