@@ -235,7 +235,7 @@ della CPU 8,6 m/s, sotto quella di chi gioca (8,8). Nessun criterio allentato.
     l'accelerazione a Evento un colpo su quattro è in allungo e la scritta «allungo» copre le altre (la prova vuole
     scritte di tutti i tipi).
 - Prove nel browser (Chromium), schermate guardate una per una:
-  - **nuova** `tools/e2e/natpf-movimento.mjs`: **15/15** (partenza con split-step e accelerazione, cambio di direzione,
+  - **nuova** `tools/e2e/natpf-movimento.mjs`: **13/13** (partenza con split-step e accelerazione, cambio di direzione,
     colpo in corsa con la scritta «in corsa», piedi che corrono durante il colpo; Classici con il dritto dal video e
     Lob & Drop 3D; nessun errore in pagina);
   - `natpf-rally.mjs` **9/9**, `natpf-rete.mjs` **9/9**;
