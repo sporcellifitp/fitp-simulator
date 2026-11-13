@@ -66,7 +66,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
     const modo = split ? 'stesso-schermo' : 'cpu';
     let ek = evento ? r(tra(.4, .6), 3) : null;
     riga('partita', { n, ora: ora(), g: post, versione: '2026-11-12.4', modo, ...(split ? {} : { chi, livello: LIVELLO[chi] }), formato: 'quick', game: 2, fiera: split, batte: 'g', personaggi: prob(.5) ? 'sempre' : 'lobdrop', ctrl: 'telefono', mano: prob(.9) ? 'right' : 'left', ...(split ? { mano2: 'right' } : {}),
-      segnale: true, nomeInserito: prob(.4), ...(split ? { nomeInserito2: prob(.4) } : {}), stand: { chiosco: true, fiera: 'split', mira: 'alta', ...(split ? { caldo: false, lancioAuto: prob(.5), campoAperto } : {}) },
+      segnale: true, nomeInserito: prob(.4), ...(split ? { nomeInserito2: prob(.4) } : {}), stand: { chiosco: true, fiera: 'split', mira: 'alta', caldo: true, ...(split ? { lancioAuto: prob(.5), campoAperto } : {}) },
       ...(split ? { fasce, aiuto } : {}), ...(evento ? { ek } : {}), tel: tel(), ...(split ? { tel2: tel() } : {}) });
     V.partite++; V.perModo[modo] = (V.perModo[modo] || 0) + 1; if (chi) V.perChi[chi] = (V.perChi[chi] || 0) + 1;
     // forza di chi gioca: i bambini vincono meno punti contro la CPU; nello stesso schermo il più giovane ne vince il 40%
@@ -86,7 +86,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
         const [voto, ampiezza] = scegli(VOTI), ms = voto === 'ritardo' ? -tra(60, ampiezza) : voto === 'anticipo' ? tra(60, ampiezza) : tra(-ampiezza, ampiezza), forza = tra(.2, 1);
         const ultimo = c === nColpi, sbaglia = ultimo && vince !== (diG ? 'g' : 'a') && prob(.6);
         riga('colpo', { n, ...(diG ? {} : { chi: 'a' }), gesto: scegli(GESTI), ms: r(ms, 0), voto, f: r(forza), d: r(tra(-1, 1)), ...(sbaglia ? { e: prob(.5) ? 'rete' : 'fuori' } : {}), x: r(tra(-4, 4), 1), z: r(tra(-11.5, -2), 1),
-          ...(forza >= .8 ? (prob(.25) ? { sup: 'alta' } : { supNo: scegli(['palla bassa', 'fuori tempo', 'troppo lontano']) }) : {}), ...(prob(.08) ? { volee: true } : {}) });
+          ...(forza >= .8 ? (prob(.25) ? { sup: c >= 20 ? 'calda' : 'alta' } : { supNo: scegli(['palla bassa', 'fuori tempo', 'troppo lontano']) }) : {}), ...(prob(.08) ? { volee: true } : {}) });
         if (diG) colpi++; else colpi2++; V.colpi++;
         if (righe[righe.length - 1].includes('"sup":')) V.superRiusciti++;
       }

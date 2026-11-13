@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { giornoFinto, scriviFinto, inBlocchi, bloccoSalvato } from '../scripts/registro/finto.mjs';
-import { riassumi, Misura, Riassunto, kmhVeri, kmhVecchi, KMH_VECCHI_FINO_A } from '../scripts/registro/riassunto.mjs';
+import { riassumi, Misura, Riassunto, rapporto, kmhVeri, kmhVecchi, KMH_VECCHI_FINO_A } from '../scripts/registro/riassunto.mjs';
 import { main as scarica } from '../scripts/registro/scarica.mjs';
 import { workerLocale } from '../scripts/registro/worker-locale.mjs';
 import { controllaRiga, TIPI } from '../src/natpf/registro/registro_formato.js';
@@ -173,4 +173,20 @@ test('B34: km/h del servizio veri nel riassunto, anche dai registri delle versio
     R.aggiungi({ k: 'servizio', t: 10, q: 1, ms: 0, kmh, voto: 'p' }, ctx);
     assert.equal(R.servizio.kmh.somma, 90, versione);
   }
+});
+
+test('B42: scambi lunghi nel riassunto (scambio caldo acceso in tutti i modi, punti oltre 20 e 30 colpi, super con la «palla calda»)', () => {
+  const ctx = { giorno: '2026-11-13', postazione: 'abcd1234' }, R = new Riassunto(), L = { file: 1, blocchi: 1, righe: 1, byte: 1 };
+  R.aggiungi({ k: 'partita', t: 0, n: 1, versione: '2026-11-14.1', modo: 'cpu', stand: { chiosco: true, caldo: true } }, ctx);
+  for (const [p, colpi] of [[1, 5], [2, 25], [3, 34], [4, 12]]) R.aggiungi({ k: 'punto', t: p*10, n: 1, p, vince: 'g', fine: 'vincente', colpi }, ctx);
+  R.aggiungi({ k: 'colpo', t: 50, n: 1, gesto: 'dritto', voto: 'p', f: .9, sup: 'calda' }, ctx);
+  R.aggiungi({ k: 'partita.fine', t: 60, n: 1, vince: 'g' }, ctx);
+  R.aggiungi({ k: 'partita', t: 100, n: 2, versione: '2026-11-14.1', modo: 'due-computer', stand: { chiosco: true, caldo: false } }, ctx);
+  R.aggiungi({ k: 'punto', t: 110, n: 2, p: 1, vince: 'a', fine: 'rete', colpi: 40 }, ctx);
+  assert.deepEqual(R.lunghi, { partite: 2, caldo: 1, c: { punti: 4, oltre20: 2, oltre30: 1 }, s: { punti: 1, oltre20: 1, oltre30: 1 }, superCaldi: 1 });
+  const s = rapporto(R, L).find(x => x.titolo === 'Scambi lunghi'), testo = s?.testo.join('\n') || '';
+  assert.ok(s, 'sezione «Scambi lunghi»');
+  assert.match(testo, /acceso .*: 1 su 2\./);
+  assert.match(testo, /acceso: 50% oltre 20 colpi, 25% oltre 30 \(4 punti\); con lo scambio caldo spento: 100% oltre 20 colpi, 100% oltre 30 \(1 punti\)/);
+  assert.match(testo, /«palla calda».*: 1\./);
 });
