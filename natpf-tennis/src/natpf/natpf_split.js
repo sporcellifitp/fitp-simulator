@@ -107,7 +107,7 @@ export class NatpfSplit {
     if (!tags) return;
     const who = E.score?.server === 'opponent' ? E.opponent : E.player;
     [[E.camera, vp?.p1, tags[0]], [this.cam2, vp?.p2, tags[1]]].forEach(([cam, v, el]) => {
-      const at = on && who?.pos ? serveTagPoint(who.pos, cam, v) : null;
+      const at = on && who?.pos ? serveTagPoint(who.pos, cam, v, E.natpfUi?.serveMark?.tagHeight?.(who)) : null;   // (B37: sopra la gemma)
       if (!el) return;
       if (!at){ if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
       el.classList.remove('hidden');
@@ -120,12 +120,13 @@ export class NatpfSplit {
   hideServeTags(){ for (const el of this._tags || []) el?.classList.add('hidden'); }
 }
 
-// punto della scritta «Al servizio» in una metà: 2,25 m sopra chi batte (come _updateProjectedHUD), nella metà v
+// punto della scritta «Al servizio» in una metà: h m sopra chi batte (di base 2,25; B37: sopra la gemma, come
+// _updateProjectedHUD), nella metà v
 // ({ x, y, w, h } in px), tenuta dentro la sua metà; null se è dietro la camera. Funzione pura (la provano i test)
 const _tagP = new THREE.Vector3();
-export function serveTagPoint(pos, cam, v){
+export function serveTagPoint(pos, cam, v, h = 2.25){
   if (!pos || !cam || !v) return null;
-  _tagP.set(pos.x, (pos.y || 0) + 2.25, pos.z).project(cam);
+  _tagP.set(pos.x, (pos.y || 0) + (Number.isFinite(h) ? h : 2.25), pos.z).project(cam);
   if (!(_tagP.z >= -1 && _tagP.z <= 1)) return null;
   const x = v.x + (_tagP.x*.5 + .5)*v.w, y = v.y + (-_tagP.y*.5 + .5)*v.h;
   return { x: clamp(x, v.x + Math.min(70, v.w/2), v.x + v.w - Math.min(70, v.w/2)), y: clamp(y, v.y + Math.min(60, v.h/2), v.y + v.h - 40) };

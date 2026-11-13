@@ -6,6 +6,13 @@
 //   «Troppo lunga» per la palla corta), con il motivo quando la
 //   situazione rende il colpo debole o lo fa fallire («palla debole: in corsa», «scambio lungo»).
 // I colpi dell'avversario restano con l'anello bianco di rimbalzo del motore base.
+// B37 (collaudo dell'utente del 13/11: «aspetta che la palla vada realmente fuori … è brutto che tu anticipi la palla
+// che va fuori»): in partita il verdetto «Fuori» / «In rete» non si dice più al colpo. Al colpo una scritta e un lampo
+// neutri (nessun esito, niente anello); quando la palla tocca terra fuori o la rete (game_engine._awardPoint, motivo
+// «Out» / «Net») arrivano insieme la scritta «Fuori · …», l'anello rosso dove è caduta, l'etichetta del gesto e il
+// telefono (scritta e vibrazione dell'errore), con il punto. Se la palla cade dentro lo stesso (previsione sbagliata, o
+// servizio vicino alla riga) al primo rimbalzo si mostra l'esito in campo; se l'avversario la prende al volo, niente.
+// Allenamento, minigiochi e scambi di prova restano come prima (lì l'esito subito fa parte della lezione).
 import * as THREE from 'three';
 import { splitViewports } from './natpf_split.js';
 import { predictBall } from './natpf_impact.js';
@@ -112,7 +119,25 @@ export const cpuPopupPlace = (role = 'p1') => ({ side: role === 'p2' ? 'left' : 
 export const POPUP_MS = Object.freeze({ hit: 900, miss: 700 });
 
 // vibrazione del telefono: lunga per il perfetto, breve per il buono, doppia corta per l'errore
-export const VIBRATION = Object.freeze({ green: [70], yellow: [25], red: [25, 60, 25] });
+export const VIBRATION = Object.freeze({ green: [70], yellow: [25], red: [25, 60, 25], wait: [25] });   // wait: colpo che aspetta il verdetto (B37)
+
+// B37: verdetto rimandato. In partita, con la palla in gioco (non allenamento, minigiochi, scambi di prova né dimostrazione)
+export const VERDICT = Object.freeze({ maxWait: 6 });    // s: verdetto mai arrivato (punto interrotto): si lascia perdere
+export function defersVerdict(engine){
+  const ui = engine?.natpfUi;
+  return !!engine && engine.phase === 'RALLY' && !engine.autoPlayMode && !ui?.training?.active && !ui?.events?.active && !ui?.trial?.active;
+}
+// esito che dipende da dove cadrà la palla: «Fuori» o «In rete» (un colpo a vuoto invece è già successo)
+export const isPendingVerdict = q => !!q && q.color === 'red' && (q.label === 'Fuori' || q.label === 'In rete');
+// esito da far vedere al colpo mentre il verdetto aspetta: neutro, senza «Fuori» né «Perfetto»
+export const waitQuality = q => ({ color: 'wait', label: 'Colpita', wait: true, ...(q?.label ? { verdict: q.label } : {}) });
+// motivo del punto del motore («Out», «Net») → esito vero del colpo: quello previsto, con fuori e rete dal motore
+export function settledQuality(V, why){
+  const q = V?.q; if (!q) return null;
+  if (why === 'Net' && q.label !== 'In rete') return shotQuality(V.grade, { net: true, ...(V.drop || {}) });
+  if (why === 'Out' && q.label !== 'Fuori') return shotQuality(V.grade, { inCourt: false });
+  return q;
+}
 
 // Lampo sulla racchetta: macchia di luce rotonda e sfumata. Diagnostica del 30/10 (C17, «rettangolo chiaro accanto alla
 // racchetta a ogni colpo»): lo sprite del lampo non aveva una texture e three.js lo disegna come un quadrato pieno, che
@@ -164,10 +189,13 @@ export function splitPhoneQuality(engine, e = {}, q = null){
 }
 // Giro dell'aptica verso i telefoni (game_engine._initNatpfPhone): l'esito di chi gioca qui (natpf_ui.feedback: anello,
 // allenamento, minigiochi) va al suo telefono; il telefono del Player 2 nello stesso schermo riceve il suo esito
+// B37: se il verdetto del colpo aspetta la palla (fuori o in rete), al telefono va l'esito neutro (wait); il verdetto
+// arriva quando la palla tocca terra o la rete (NatpfShotFeedback.settle)
 export function relayPhoneFeedback(engine, e = {}){
-  const q = engine?.natpfUi?.feedback ? engine.natpfUi.feedback(e) : null;
-  engine?.natpfPhone?.feedback?.({ ...e, quality: q });
-  engine?.natpfPhone2?.feedback?.({ ...e, quality: splitPhoneQuality(engine, e, q) });
+  const q = engine?.natpfUi?.feedback ? engine.natpfUi.feedback(e) : null, S = engine?.natpfUi?.shot;
+  const shown = v => (S?.phoneQuality ? S.phoneQuality(e, v) : v);
+  engine?.natpfPhone?.feedback?.({ ...e, quality: shown(q) });
+  engine?.natpfPhone2?.feedback?.({ ...e, quality: shown(splitPhoneQuality(engine, e, q)) });
   return q;
 }
 
@@ -187,6 +215,8 @@ export class NatpfShotFeedback {
     const flashMat = () => new THREE.SpriteMaterial({ map: flashGlowTexture(), color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
     for (let i = 0; i < 3; i++){ const s = new THREE.Sprite(flashMat()); s.visible = false; s.renderOrder = 9; engine.scene.add(s); this.flashes.push({ s, age: 0, active: false }); }
     this.last = null;
+    // B37: verdetto rimandato del colpo appena fatto { stroke, hitter, p2, q, grade, drop, at, show(q), local, phone }
+    this.verdict = null;
     // rimbalzo: l'anello del colpo appena fatto pulsa nel suo colore
     const bounce = engine._spawnBounceRing?.bind(engine);
     if (bounce) engine._spawnBounceRing = (x, z) => { bounce(x, z); this.onBounce(x, z); };
@@ -210,6 +240,8 @@ export class NatpfShotFeedback {
       const sup = /SUPER SHOT/i.test(g);
       const serve = /SERVE/i.test(g), drop = serve ? null : dropOutcome(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
       const q = sup ? { color: 'super', label: 'Super!' } : shotQuality(g, { inCourt: landsIn(landingOf(engine.ball), { towardNegativeZ: !p2, serve }), net: !!engine.ball?.natpfNetFault, ...(drop || {}) });
+      // B37: un colpo nuovo chiude il verdetto del colpo di prima (la palla è stata ripresa)
+      this.verdict = null;
       const kmh = String(o.detail || '').match(/\d+\s*KM\/H/i)?.[0] || '';
       // nell'angolo del proprio lato, mai sul campo (popupPlace); anche in prima persona (prima al centro dello sguardo)
       const place = popupPlace({ p2, role: engine.playerRole, split: !!engine.natpfSplit?.active, partner: !!o.partner });
@@ -218,10 +250,22 @@ export class NatpfShotFeedback {
       const name = shotName(g), why0 = shotWhy(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
       const why = why0 && q.why && (why0 === q.why || engine.natpfLastRacket?.out?.dropWhy === 'tempo') ? null : why0;
       const miss = q.color === 'red' && /WHIFF/.test(g.toUpperCase());
-      popup({ ...o, screenPos: null, durationMs: Math.min(o.durationMs ?? POPUP_MS.hit, miss ? POPUP_MS.miss : POPUP_MS.hit), grade: qualityText(q), detail: [who, name, why, kmh.toLowerCase()].filter(Boolean).join(' · ') });
-      const el = document.getElementById('timing-popup-grade');
-      if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red', 'q-super'); el.classList.add('q-' + q.color); }
-      this._place(document.getElementById('timing-popup'), place);
+      const dropTempo = engine.natpfLastRacket?.out?.dropWhy === 'tempo';
+      const show = (Q = q) => {
+        // (verdetto arrivato dopo: la scritta dice l'esito vero, con lo stesso nome del colpo, il motivo e i km/h)
+        const why1 = Q === q ? why : why0 && Q.why && (why0 === Q.why || dropTempo) ? null : why0;
+        popup({ ...o, screenPos: null, durationMs: Math.min(o.durationMs ?? POPUP_MS.hit, miss ? POPUP_MS.miss : POPUP_MS.hit), grade: qualityText(Q), detail: [who, name, why1, kmh.toLowerCase()].filter(Boolean).join(' · ') });
+        const el = document.getElementById('timing-popup-grade');
+        if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red', 'q-super'); el.classList.add('q-' + Q.color); }
+        this._place(document.getElementById('timing-popup'), place);
+      };
+      // B37: in partita «Fuori» e «In rete» aspettano che la palla tocchi terra o la rete (settle); adesso niente scritta
+      if (!miss && isPendingVerdict(q) && defersVerdict(engine)){
+        const b = engine.ball;
+        this.verdict = { stroke: b?.rallyStrokeCount, hitter: b?.lastHitter, p2, q, grade: g, drop, at: engine.elapsedTime, show, local: null, phone: null, settled: false };
+        return;
+      }
+      show();
     };
   }
   // Posto della scritta: si provano alcuni posti e si tiene il primo che non copre il campo, i giocatori, la palla e gli
@@ -329,15 +373,70 @@ export class NatpfShotFeedback {
     if (kind !== 'hit') return null;
     const target = landingOf(e.ball), net = !!e.ball?.natpfNetFault;
     this.pending = q; this.last = q;
+    // B37: verdetto che aspetta la palla (stesso colpo della scritta): niente anello adesso, lampo neutro
+    const V = this.verdict;
+    if (V && !V.settled && V.stroke === e.ball?.rallyStrokeCount && isPendingVerdict(q)){
+      V.local = { net };
+      this._flash('wait');
+      return q;
+    }
     // in rete: niente anello nel campo (il bersaglio del motore resta in campo)
     if (!net) this._marker(target, q.color);
     this._flash(q.color);
     return q;
   }
-  _marker(target, color){
+  // B37: esito da far vedere adesso (etichetta del gesto, telefono): neutro se il verdetto aspetta la palla
+  shown(q){
+    const V = this.verdict, b = this.engine.ball;
+    return q && V && !V.settled && V.stroke === b?.rallyStrokeCount && isPendingVerdict(q) ? waitQuality(q) : q;
+  }
+  // B37: esito per il telefono dal giro dell'aptica: se il verdetto del colpo aspetta, si ricorda il colpo (ruolo, voto,
+  // tipo) per mandargli il verdetto dopo, e al colpo va l'esito neutro
+  phoneQuality(e = {}, q = null){
+    const V = this.verdict, b = this.engine.ball;
+    if (!q || e.kind !== 'hit' || !V || V.settled || V.stroke !== b?.rallyStrokeCount || !isPendingVerdict(q)) return q;
+    V.phone = { role: e.role, kind: e.kind, grade: e.grade, shotType: e.shotType };
+    return waitQuality(q);
+  }
+  // B37: la palla ha toccato terra fuori o la rete (game_engine._awardPoint, prima del punto): adesso il verdetto.
+  // why: motivo del motore. Vale solo per la palla del colpo in attesa (non ripresa da nessuno); sul computer del P2
+  // della sfida tra due computer anche con la scritta del punto che arriva dall'host (stesso colpo, motivo dall'host)
+  settle(winner, why = '', { remote = false } = {}){
+    const V = this.verdict, E = this.engine, b = E.ball;
+    if (!V || V.settled) return false;
+    const guest = E.playerRole === 'p2' && E.isMultiplayer;
+    if (!/^(Out|Net)$/.test(why) || E.elapsedTime - V.at > VERDICT.maxWait || (!guest && !remote && (V.stroke !== b?.rallyStrokeCount || b?.lastHitter !== V.hitter))){
+      if (!remote) this.verdict = null;
+      return false;
+    }
+    V.settled = true; this.verdict = null;
+    const q = settledQuality(V, why);
+    V.show(q);
+    if (V.local){
+      if (why === 'Out' && b?.pos) this._marker({ x: b.pos.x, z: b.pos.z }, 'red', { bounced: true });
+      E.natpfUi?.gesture?.lateOutcome?.(q);
+    }
+    if (V.phone){ const ev = { ...V.phone, quality: q, late: true }; E.natpfPhone?.feedback?.(ev); E.natpfPhone2?.feedback?.(ev); }
+    return true;
+  }
+  // B37: primo rimbalzo dentro del colpo in attesa (la previsione diceva fuori: capita vicino alle righe e col servizio,
+  // che per il motore è in campo fino in fondo): l'esito in campo, adesso, dove è caduta
+  _settleIn(x, z){
+    const V = this.verdict, E = this.engine, b = E.ball;
+    if (!V || V.settled || V.stroke !== b?.rallyStrokeCount || b?.lastHitter !== V.hitter || (b.bounceCountOnCurrentSide || 0) > 0) return false;
+    if (!landsIn({ x, z, predicted: true }, { towardNegativeZ: !V.p2 }) || V.q.label === 'In rete') return false;
+    V.settled = true; this.verdict = null;
+    const q = shotQuality(V.grade, { inCourt: true, ...(V.drop || {}) });
+    V.show(q);
+    if (V.local){ this._marker({ x, z }, q.color, { bounced: true }); E.natpfUi?.gesture?.lateOutcome?.(q); }
+    if (V.phone){ const ev = { ...V.phone, quality: q, late: true }; E.natpfPhone?.feedback?.(ev); E.natpfPhone2?.feedback?.(ev); }
+    return true;
+  }
+  _marker(target, color, { bounced = false } = {}){
     if (!target) return;
     const m = this.markers.find(k => !k.active) || this.markers[0];
-    m.active = true; m.age = 0; m.bounced = 0; m.life = 3.2;
+    m.active = true; m.age = 0; m.bounced = 0; m.life = bounced ? 1.6 : 3.2;
+    if (bounced){ m.bounced = 1; m.age = m.life - .9; }
     m.mat.color.setHex(QUALITY_COLORS[color]); m.fill.color.setHex(QUALITY_COLORS[color]);
     m.g.position.set(target.x, .03, target.z); m.g.scale.setScalar(1); m.g.visible = true;
   }
@@ -347,12 +446,18 @@ export class NatpfShotFeedback {
     try { p = rk?.getRacketRimWorldPoints?.(a)?.centerWorld; } catch {}
     if (!p) return;
     const f = this.flashes.find(k => !k.active) || this.flashes[0];
-    f.active = true; f.age = 0; f.s.material.color.setHex(QUALITY_COLORS[color]); f.s.position.copy(p); f.s.visible = true;
+    f.active = true; f.age = 0; f.s.material.color.setHex(QUALITY_COLORS[color] ?? 0xffffff); f.s.position.copy(p); f.s.visible = true;   // (B37: 'wait' neutro, bianco)
   }
   onBounce(x, z){
+    this._settleIn(x, z);
     for (const m of this.markers) if (m.active && !m.bounced && Math.hypot(m.g.position.x - x, m.g.position.z - z) < 2.2){ m.bounced = 1; m.age = Math.min(m.age, m.life - .9); }
   }
   update(dt){
+    // B37: verdetto mai arrivato (palla ripresa dall'avversario, punto interrotto, menu, moviola): si lascia perdere. Sul
+    // computer del P2 della sfida tra due computer il numero del colpo arriva anche dall'host: lì contano fase e tempo
+    const V = this.verdict, E = this.engine;
+    if (V && (V.settled || E.elapsedTime - V.at > VERDICT.maxWait || !['RALLY', 'POINT_OVER', 'MATCH_OVER'].includes(E.phase)
+      || (!(E.playerRole === 'p2' && E.isMultiplayer) && E.ball?.rallyStrokeCount !== V.stroke))) this.verdict = null;
     for (const m of this.markers){
       if (!m.active) continue;
       m.age += dt;

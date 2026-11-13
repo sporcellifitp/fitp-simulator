@@ -176,6 +176,17 @@ body {
   color: var(--hud-navy);
   text-shadow: none;
 }
+/* B37 (collaudo del 13/11): chi batte lo dicono la gemma sopra la testa e il riquadro a terra (natpf_serve_marker.js);
+   la scritta «Al servizio» resta, più piccola e scura, sopra la gemma: è secondaria */
+.nt-server-tag {
+  padding: 0.2cqh 0.7cqw 0.25cqh;
+  background: rgba(7, 18, 51, 0.82);
+  box-shadow: 0 0 0 1px rgba(232, 255, 58, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.nt-server-tag .server-tag-text {
+  font-size: clamp(10px, 0.62cqw, 15px);
+  color: var(--hud-ball);
+}
 .nt-court-nameplate {
   padding: 3px 12px 3px 4px;
   border: 0;

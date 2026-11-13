@@ -1,0 +1,17 @@
+== B37 · impronte contro la CPU: 80 punti per partita, semi 31, 37, 41 ==
+casual    tennista     | punti 80+80+80 · vinti 79,76,80 · impronta f2dff33fae66
+casual    amatore      | punti 80+80+80 · vinti 73,67,67 · impronta a3ec685771f4
+casual    bambino      | punti 80+80+80 · vinti 39,40,43 · impronta c97a6b44f997
+casual    preciso      | punti 80+80+80 · vinti 79,80,80 · impronta 73669d913f95
+casual    medio        | punti 80+80+80 · vinti 75,77,77 · impronta b7a5a3f319fc
+pro       tennista     | punti 80+80+80 · vinti 72,75,72 · impronta ba10b216216c
+pro       amatore      | punti 80+80+80 · vinti 38,40,46 · impronta 6a37b679f433
+pro       bambino      | punti 80+80+80 · vinti 16,12,7 · impronta c191e3dd4778
+pro       preciso      | punti 80+80+80 · vinti 75,78,78 · impronta 6957c9d92013
+pro       medio        | punti 80+80+80 · vinti 51,42,58 · impronta 593ded2e2923
+leggenda  tennista     | punti 80+80+80 · vinti 30,22,29 · impronta 30b177b1c81b
+leggenda  amatore      | punti 80+80+80 · vinti 10,12,9 · impronta b906644cb976
+leggenda  bambino      | punti 80+80+80 · vinti 7,4,12 · impronta 0fd6a1f7d48c
+leggenda  preciso      | punti 80+80+80 · vinti 34,33,33 · impronta 4a4d50f074d3
+leggenda  medio        | punti 80+80+80 · vinti 17,14,13 · impronta 49a765e02056
+impronta di tutto: 86df03aa53e1f297
