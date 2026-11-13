@@ -138,11 +138,19 @@ Prove automatiche, tutte verdi:
 - **Accesa, cambia solo il dritto.** Le ossa diverse da prima sono solo attorno al dritto (preparazione, colpo,
   finale); attesa, rovescio, servizio ed esultanza sono identici.
 - **Prestazioni.** Nessun oggetto creato a ogni fotogramma (uno stato per personaggio, creato una volta). Costo
-  dell'animazione dei due personaggi: 70,0 µs a fotogramma con la prova, 77,8 µs senza (la differenza è rumore della
-  misura; il limite della prova era +50 µs). Fotogrammi interi (calcolo + disegno, 8 blocchi alterni, mediane): 328 al
-  secondo con la prova, 290 senza; anche qui la differenza è rumore (il browser della prova disegna senza scheda video).
+  dell'animazione dei due personaggi, in due misure: 70,0 e 83,8 µs a fotogramma con la prova, 77,8 e 78,0 µs senza
+  (differenza tra −8 e +6 µs, cioè rumore della misura; il limite della prova era +50 µs, su 16 700 µs di un
+  fotogramma). Fotogrammi interi (calcolo + disegno, 8 blocchi alterni, mediane): 328 e 317 al secondo con la prova,
+  290 e 268 senza; anche qui la differenza è rumore (il browser della prova disegna senza scheda video), ma con la
+  prova non sono mai meno del 95 % di quelli senza.
 - **Interruttore.** Di base Sì; clic su No e su Sì; la scelta resta dopo aver ricaricato; `?dritto=prima|video` vale
   più della scelta salvata e non la cambia.
+
+Verifiche finali sul ramo (dopo l'unione di `25e46ed`): `npm test` del gioco 1.364 test, 1.363 superati, 0 falliti, 1
+saltato (l'avvio LAN, che chiede le dipendenze di `tools/lan` non installate in questa cartella); test del sito 226 su 226; `npm run build` riuscita; `npm run audit:legend` con
+tutti i criteri rispettati e uscita identica a `25e46ed`; prova nel browser `natpf-dritto-video.mjs` 58 verifiche su 58;
+`natpf-menu.mjs` 45 su 45 (al primo giro una verifica delle frecce nel menu principale a 1280 × 720 non era passata
+mentre girava un'altra prova pesante; rifatta da sola è passata: la prova non tocca il menu principale).
 
 Comandi:
 
