@@ -6,7 +6,7 @@
 // preso il tempo (nel 1v1 la palla accelerava solo fino all'8° colpo e la qualità del colpo non faceva mai sbagliare).
 // Spenta: il fattore è esattamente 1, la partita è identica a prima punto per punto (scripts/audit/b20/scambio-caldo.mjs).
 // Non vale contro la CPU, nella sfida tra due computer né con la webcam per due (lì il Player 2 ha regole diverse).
-// Dove si accende: pannello dello stand (Ctrl+Maiusc+K, o 3 s sul marchio NATPF del menu) → «Scambio che si scalda»:
+// Dove si accende: pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows, o 3 s sul marchio NATPF del menu) → «Scambio che si scalda»:
 // No · Sì; resta salvata (localStorage, chiave natpf-tennis.scambioCaldo: '1' accesa). Vale dalla partita dopo.
 // Come: i colpi normali (dritto, rovescio, tagliato; non pallonetto, palla corta, schiacciata, che hanno il loro volo)
 // da `from` in poi passano ogni volta più bassi sulla rete e più carichi (il tagliato solo più basso: resta un tagliato),

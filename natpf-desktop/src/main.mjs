@@ -230,7 +230,14 @@ const ACTIONS = {
   ricarica: () => win?.webContents.reload(),
   esci: () => app.quit(),
   strumenti: () => win?.webContents.toggleDevTools(),
+  'pannello-stand': () => staffPanel(),
 };
+// B37: pannello dello stand (F9, menu NATPF): il comando va solo alla finestra del gioco e solo se mostra una pagina del
+// proprio server (stesse regole degli altri canali); la pagina lo apre o lo chiude (natpf_kiosk.js)
+function staffPanel(){
+  if (!win || !isOwnUrl(win.webContents.getURL(), addresses)) return;
+  win.webContents.send(DESKTOP.ipcStaffPanel, 'toggle');
+}
 
 // firewall: regola per questo eseguibile (l'installazione la crea; se manca il programma la chiede all'apertura)
 function netsh(args){ return new Promise(resolve => execFile('netsh', args, { windowsHide: true, timeout: 10000 }, (err, out) => resolve(err ? '' : String(out)))); }
@@ -358,6 +365,9 @@ function buildMenu(){
       // scorciatoie le esegue 'before-input-event' (che le toglie alla pagina e al menu: mai due volte)
       { id: 'schermo-intero', label: 'Schermo intero', accelerator: 'F11', click: ACTIONS['schermo-intero'] },
       { id: 'ricarica', label: 'Ricarica il gioco', accelerator: 'CmdOrCtrl+R', click: ACTIONS.ricarica },
+      // B37: F9 lo esegue 'before-input-event' (anche a schermo intero, senza la barra del menu); qui senza acceleratore,
+      // il tasto è già nel nome
+      { id: 'pannello-stand', label: 'Pannello dello stand (F9)', click: ACTIONS['pannello-stand'] },
       { type: 'separator' },
       { id: 'esci', label: 'Esci', accelerator: 'CmdOrCtrl+Q', click: ACTIONS.esci },
     ] },

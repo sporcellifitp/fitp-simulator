@@ -1,5 +1,5 @@
 // «Nuovo giocatore» (B18, difetto 5 del B16, decisione dell'utente del 10/11: «sì»): a fine partita, nel risultato dei
-// minigiochi e nel pannello dello stand (Ctrl+Maiusc+K). Prima il visitatore dopo ereditava nome, record, mano,
+// minigiochi e nel pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows). Prima il visitatore dopo ereditava nome, record, mano,
 // calibrazione e tutorial già visto («Giochi come Marco», forza tarata sul braccio di un altro, nessun tutorial).
 //
 // Cosa si azzera (resetVisitor), SENZA scollegare il telefono (niente link.forget, niente QR da rifare):

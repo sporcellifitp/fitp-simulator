@@ -1,7 +1,7 @@
 // Registro dello stand (B30, richiesta dell'utente del 12/11): collegamento con il gioco e con il pannello dello stand.
 // Il gioco annota da solo, per tutta la giornata, come vanno le partite (registro/registro_registratore.js): solo
 // gioco, niente dati di chi gioca. È SEMPRE ACCESO di base, in tutte le versioni (decisione dell'utente: «vorrei avere
-// questa modalità di default sempre attiva»); lo staff lo spegne dal pannello dello stand (Ctrl+Maiusc+K) e la scelta
+// questa modalità di default sempre attiva»); lo staff lo spegne dal pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows) e la scelta
 // resta salvata. Il PC dello stand non è dell'utente: le righe partono a blocchi verso il suo spazio Cloudflare
 // (registro/registro_invio.js → cloudflare/registro-worker.js); sul PC resta solo la coda non ancora inviata
 // (registro/registro_coda.js). L'indirizzo del Worker sta nel pacchetto: /natpf/registro.json nella versione web

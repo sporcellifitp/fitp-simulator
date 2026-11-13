@@ -41,7 +41,10 @@ Bucket degli aggiornamenti (Cloudflare R2), passi per l'utente: `docs/GUIDA_AGGI
 - **Alt da solo non mostra il menu** sopra il gioco: a schermo intero la barra non è «a scomparsa»
   (`setAutoHideMenuBar(false)` + nascosta); in finestra Alt la mostra.
 - **Scorciatoie** lette prima della pagina (`before-input-event`, `shortcutFor`), anche quando il gioco blocca i tasti:
-  F11 schermo intero, Ctrl+Maiusc+M monitor successivo, Ctrl+R ricarica, Ctrl+Q esci, Ctrl+Maiusc+I strumenti.
+  F11 schermo intero, Ctrl+Maiusc+M monitor successivo, Ctrl+R ricarica, Ctrl+Q esci, Ctrl+Maiusc+I strumenti,
+  **F9 pannello dello stand** (B37, 13/11: apre e chiude il pannello nella pagina del gioco con il canale
+  `natpf:staff-panel` del preload, `window.natpfDesktop.staffPanel.onToggle`; c'è anche la voce del menu NATPF
+  «Pannello dello stand (F9)»; Ctrl+Maiusc+K resta, ma sul PC dello stand un altro programma la prendeva).
   Esc e le lettere arrivano sempre al gioco (F è lo schermo intero del gioco, che usa `window.natpfDesktop`).
 - **Cambio di monitor** a finestra trasparente (esce dallo schermo intero, si sposta, rientra): nessuna cornice a vista.
   Solo quando il monitor è davvero un altro (`placeMode`): con un solo monitor Ctrl+Maiusc+M non fa niente, e il menu

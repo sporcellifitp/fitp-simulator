@@ -2,7 +2,8 @@
 // Chiosco (si accende dal pannello): dopo N secondi senza nessuno (nessun tasto, clic, tocco o colpo del telefono)
 // si torna al menu principale, si dimentica il nickname e si scollega il telefono, così lo stand è pronto per il
 // visitatore successivo. Durante una partita o una sfida si aspetta il doppio, poi si chiude anche quella.
-// Pannello dell'addetto: Ctrl+Maiusc+K, oppure tenere premuto 3 secondi il marchio NATPF in alto a sinistra nel menu.
+// Pannello dell'addetto: Ctrl+Maiusc+K (F9 nel programma Windows), oppure tenere premuto 3 secondi il marchio NATPF in
+// alto a sinistra nel menu.
 // Ha anche la sensibilità della mira del telefono (B16, opzione dello staff: natpf_aim_level.js).
 // E il formato in fiera (B18: punto decisivo e servizio come nel tie-break, natpf_fair_format.js): dal B20 tre valori,
 // «No · Solo stesso schermo · Sì», di base «Solo stesso schermo».
@@ -59,6 +60,9 @@ export class NatpfKiosk {
     this.el?.addEventListener('pointerdown', e => e.stopPropagation());
     this.el?.addEventListener('click', e => { const b = e.target.closest('[data-staff]'); if (b){ e.stopPropagation(); this.run(b.dataset.staff); } });
     window.addEventListener('keydown', e => { if (e.ctrlKey && e.shiftKey && e.code === 'KeyK'){ e.preventDefault(); e.stopImmediatePropagation(); this.toggle(); } }, true);
+    // B37: nel programma Windows anche F9 e la voce del menu «Pannello dello stand (F9)» (processo principale, ponte del
+    // preload: window.natpfDesktop.staffPanel). Sul PC dello stand Ctrl+Maiusc+K non arrivava al gioco
+    window.natpfDesktop?.staffPanel?.onToggle?.(a => { poke(); a === 'open' ? this.open() : a === 'close' ? this.close() : this.toggle(); });
     // tenere premuto il marchio del menu per 3 secondi
     const brand = document.querySelector('.lobby-brand');
     if (brand){

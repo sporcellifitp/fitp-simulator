@@ -23,7 +23,7 @@ per confrontare due sensibilità molte più partite (§8).
 
 È un'**opzione dello staff**: non sta nelle Opzioni del menu, dove un visitatore potrebbe cambiarla.
 
-1. Dal menu del gioco premi **Ctrl+Maiusc+K**, oppure **tieni premuto 3 secondi il marchio NATPF** in alto a sinistra:
+1. Dal menu del gioco premi **Ctrl+Maiusc+K** (**F9** nel programma Windows), oppure **tieni premuto 3 secondi il marchio NATPF** in alto a sinistra:
    si apre il **«Pannello dello stand»**.
 2. Il pulsante **«Mira del telefono»** dice quella in uso. **Ogni clic passa alla successiva**: Alta · 17° → Media · 20° →
    Bassa · 23° → di nuovo Alta. In basso compare l'avviso che dice anche cosa vuol dire, per esempio «Mira del
@@ -42,7 +42,7 @@ vecchia la riga della partita dice «**sensibilità non applicata**».
 ## 2. Accendi la registrazione
 
 1. Premi **Maiusc+D** (oppure Pausa → Diagnostica). Il pannello dice quale mira è in uso, per esempio
-   «Mira del telefono: alta (17°), si cambia nel pannello dello stand: Ctrl+Maiusc+K, o 3 s sul marchio NATPF del menu».
+   «Mira del telefono: alta (17°), si cambia nel pannello dello stand: Ctrl+Maiusc+K (F9 nel programma Windows), o 3 s sul marchio NATPF del menu».
 2. Togli la spunta a «video della webcam» e «video del gioco»: per questa misura non servono e il pacchetto resta piccolo.
    Lascia «campioni dei sensori del telefono».
 3. Nella «Nota» scrivi cosa provi, per esempio «mira alta, 4 persone».
@@ -229,7 +229,7 @@ Si può anche cambiare sensibilità tra una partita e l'altra nella stessa regis
 **08/11/2026, dopo la revisione del B16** (`tools/e2e/natpf-mira-lato.mjs`, telefono simulato, 23/23 verifiche; il
 pannello dello stand a 1366 × 657, 1024 × 600 e 1280 × 720, con «Chiudi» in vista, lo prova `natpf-menu.mjs`):
 
-1. Ctrl+Maiusc+K → «Pannello dello stand»: «Mira del telefono» dice «Alta · 17°»; un clic → «Media · 20°» con l'avviso
+1. Ctrl+Maiusc+K (F9 nel programma Windows) → «Pannello dello stand»: «Mira del telefono» dice «Alta · 17°»; un clic → «Media · 20°» con l'avviso
    «Mira del telefono: media (20°) · un po’ meno angolate dell’alta; resta salvata». Nelle Opzioni del menu la riga non
    c'è. Ricaricata la pagina, resta «Media · 20°».
 2. Maiusc+D → il pannello dice «Mira del telefono: media (20°), si cambia nel pannello dello stand: Ctrl+Maiusc+K, o 3 s

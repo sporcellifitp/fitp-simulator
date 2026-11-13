@@ -5,7 +5,7 @@
 //     Così contro la CPU batte anche la CPU e nello stesso schermo batte anche il Player 2, anche in una partita a 1 game.
 // Spenta: tutto come prima (un battitore per game, parità e vantaggi). Il primo battitore del game resta quello di prima:
 // la scelta «Chi batte per primo» del menu per il primo game, poi si alterna a ogni game.
-// Dove si accende: pannello dello stand (Ctrl+Maiusc+K, o 3 s sul marchio NATPF del menu) → «Formato in fiera»; resta
+// Dove si accende: pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows, o 3 s sul marchio NATPF del menu) → «Formato in fiera»; resta
 // salvata (localStorage, chiave natpf-tennis.formatoFiera). L'indirizzo la può forzare per quella pagina, senza salvarla:
 // ?formato=fiera (accesa) o ?formato=classico (spenta).
 // Nella sfida tra due computer decide l'host: la regola sta nel punteggio (score.fair, score.gameServer) che l'host manda
