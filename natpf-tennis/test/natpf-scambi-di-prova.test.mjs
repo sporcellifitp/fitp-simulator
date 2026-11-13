@@ -307,6 +307,31 @@ test('contro la CPU: «Collega» → scambi di prova → pagina «Pronto per la 
   marks.length = 0; P._onSwing(stroke({ dir: 1 })); assert.deepEqual(marks.filter(Boolean), []);
 });
 
+test('B35: «Ricalibra» sulla pagina «Pronto per la partita» (pannello del telefono o telecomando): scambi di prova di nuovo, poi la pagina; la partita parte con «Gioca»', async () => {
+  const w = await makeWorld({ controller: 'phone', cal: 'play' }), { E, ui, lobby, link } = w, P = ui.phone;
+  phoneLike(P, link); w.advance(200); P.markTutorialSeen('short');
+  lobby.go('mode'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); w.advance(300);
+  const seq0 = E.natpfMatchSeq || 0;
+  lobby.next(); w.advance(300);
+  const r1 = playTrial(w, (id, n, want) => stroke({ dir: want, peak: 700 }), { gioca: false });
+  assert.ok(r1.page && lobby.step === 'match' && lobby.visible, 'prima la pagina');
+  assert.equal(ui.recalPageDue(), true, '«Ricalibra» adesso farebbe gli scambi di prova e poi la pagina');
+  // «Ricalibra» (pannello del telefono): di nuovo gli scambi di prova, il profilo riparte da capo
+  const c0 = link.cmds.length;
+  assert.equal(ui.recalibrate(), true); w.advance(300);
+  assert.ok(ui.trial.active && !lobby.visible, 'scambi di prova, non la partita');
+  assert.deepEqual(link.cmds.slice(c0), ['cal', 'skip'], 'profilo da capo');
+  assert.equal(E.natpfMatchSeq || 0, seq0, 'nessuna partita partita');
+  const r2 = playTrial(w, (id, n, want) => stroke({ dir: want, peak: 640 }), { gioca: false });
+  assert.ok(r2.page && lobby.step === 'match' && lobby.visible, 'di nuovo la pagina «Pronto per la partita»');
+  assert.equal(E.natpfMatchSeq || 0, seq0); assert.equal(P.profile.refs[1], 640, 'imparato il colpo nuovo');
+  // «Gioca»: subito la partita, senza rifare gli scambi
+  assert.equal(w.pressStart(), true); w.advance(100);
+  assert.ok(!ui.trial.active); assert.equal(E.natpfMatchSeq, seq0 + 1); assert.equal(E.phase, 'SERVE_STANCE');
+  // a partita in corso «Ricalibra» resta quello del B28 (scambi e punto rigiocato), non la pagina
+  assert.equal(ui.recalPageDue(), false);
+});
+
 test('chi non colpisce mai non resta fermo: allo scadere la partita parte con il profilo semplice; chi colpisce una volta per lato impara lo stesso', async () => {
   const w = await playWorld(), { E, ui, P } = w;
   w.pressStart();
@@ -500,8 +525,9 @@ test('«Ricalibra» a partita in corso con «Giocando»: si rifanno gli scambi d
   playTrial(w, (id, n, want) => stroke({ dir: want, peak: 500 }));
   assert.ok(!ui.trial.active); assert.equal(E.natpfMatchSeq, 1, 'la stessa partita'); assert.equal(E.phase, 'SERVE_STANCE', 'il punto si rigioca');
   assert.deepEqual([E.score.playerPoints, E.score.opponentPoints], [2, 1], 'punteggio com\'era'); assert.equal(P.profile.ref, 500, 'colpo reimparato');
-  // nel menu: «Ricalibra» è il profilo da capo (gli scambi di prova partiranno con «Gioca»)
-  ui.backToMenu('match'); const c1 = link.cmds.length;
+  // B35: sulla pagina «Pronto per la partita» «Ricalibra» rifà gli scambi di prova e riporta alla pagina (test qui sopra);
+  // nel menu principale è il profilo da capo (gli scambi di prova partiranno con «Gioca»)
+  ui.backToMenu('match'); w.advance(200); ui.lobby.go('menu'); const c1 = link.cmds.length;
   assert.equal(ui.recalibrate(), false); assert.ok(!ui.trial.active); assert.deepEqual(link.cmds.slice(c1, c1 + 1), ['cal']);
   w.advance(200); assert.ok(P.ready && P.profile.simple);
 });

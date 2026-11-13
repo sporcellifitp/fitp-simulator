@@ -436,8 +436,15 @@ test('di base · telecomando dello staff negli scambi di prova: pagina «Scambi 
   assert.deepEqual(await cmd('recal'), { ok: true, msg: 'Scambi di prova: poi si rigioca il punto' }); assert.ok(ui.trial.active && ui.trial.S.resume);
   playTrial(w, (id, k, want) => stroke({ dir: want, peak: 610 })); w.advance(300);
   assert.equal(E.natpfMatchSeq, 1); assert.equal(ui.phone.profile.ref, 610);
-  // al menu: «Ricalibra il telefono» fa ripartire il profilo, senza gesti
-  ui.backToMenu('match'); w.advance(300); const c0 = w.link.cmds.length;
+  // B35: sulla pagina «Pronto per la partita» «Ricalibra il telefono» rifà gli scambi di prova e riporta alla pagina
+  ui.backToMenu('match'); w.advance(300); let c0 = w.link.cmds.length;
+  n = now(); assert.equal(n.hints.recal, 'scambi di prova, poi la pagina «Pronto per la partita»');
+  assert.deepEqual(await cmd('recal'), { ok: true, msg: 'Scambi di prova: poi la pagina «Pronto per la partita»' }); w.advance(300);
+  assert.ok(ui.trial.active && ui.trial.S.toPage && !ui.trial.S.resume); assert.deepEqual(w.link.cmds.slice(c0), ['cal', 'skip'], 'profilo da capo');
+  playTrial(w, (id, k, want) => stroke({ dir: want, peak: 580 }), { gioca: false }); w.advance(300);
+  assert.ok(!ui.trial.active && ui.lobby.visible && ui.lobby.step === 'match' && E.natpfMatchSeq === 1, 'di nuovo la pagina, nessuna partita nuova');
+  // al menu principale: «Ricalibra il telefono» fa ripartire il profilo, senza gesti (gli scambi di prova con «Gioca»)
+  ui.lobby.go('menu'); w.advance(300); c0 = w.link.cmds.length;
   n = now(); assert.match(n.hints.recal, /impara dai prossimi scambi/);
   assert.equal((await cmd('recal')).ok, true); w.advance(300);
   assert.deepEqual(w.link.cmds.slice(c0), ['cal', 'skip']); assert.ok(ui.phone.ready && ui.phone.profile.simple);

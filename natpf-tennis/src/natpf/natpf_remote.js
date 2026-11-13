@@ -166,7 +166,7 @@ export class NatpfRemote {
       training: { active: !!T?.active, lesson: !!T?.lesson, cal: !!T?.cal, mode: L?.mode },
       minigame: ui.events?.active ? (ui.events.active.c?.label || 'in corso') : null,
       inField: !!ui.pause?.inGame,
-      trial, recalTrial: !!ui.recalTrialDue?.(), calMode: ui.phone?.calMode || null,
+      trial, recalTrial: !!ui.recalTrialDue?.(), recalPage: !!ui.recalPageDue?.(), calMode: ui.phone?.calMode || null,
       split: !!ui.split?.session, versus: !!ui.versus?.hostActive || E.playerRole === 'p2',
       controller: ui.controller,
       phone: { connected: !!ui.phone?.connected, ready: !!ui.phone?.ready },
@@ -334,9 +334,10 @@ export class NatpfRemote {
       case 'recal': {
         // come «Ricalibra» del pannello del telefono (B28): in partita con «Calibrazione: Giocando» sono gli scambi
         // di prova e poi si rigioca il punto; altrimenti il profilo riparte (o si rifanno i gesti) con il pannello aperto
-        const field = s.inField || screen.id === 'pause';
+        const field = s.inField || screen.id === 'pause', live = ui.matchLive();
         if (field) ui.pause.close();
-        if (ui.recalibrate()) return { ok: true, msg: 'Scambi di prova: poi si rigioca il punto' };
+        // (B35: sulla pagina «Pronto per la partita» gli scambi di prova riportano alla pagina)
+        if (ui.recalibrate()) return { ok: true, msg: live ? 'Scambi di prova: poi si rigioca il punto' : 'Scambi di prova: poi la pagina «Pronto per la partita»' };
         if (field) ui.openPhone();
         return { ok: true, msg: ui.phone.autoSimple ? 'Profilo del telefono da capo: il gioco impara dai colpi' : 'Il telefono del giocatore ricalibra' };
       }

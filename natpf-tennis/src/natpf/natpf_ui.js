@@ -752,6 +752,12 @@ export class NatpfUi {
     const inMatch = this.matchLive() && E.playerRole !== 'p2' && (split || !E.isMultiplayer);
     return readCalMode() === 'play' && this.controller === 'phone' && inMatch && !!this.phone.soonReady && !(split && this.split?.webcam);
   }
+  // B35 (collaudo dell'utente del 13/11): sulla pagina «Pronto per la partita» contro la CPU, con «Giocando», «Ricalibra»
+  // rifà gli scambi di prova e riporta alla pagina (la partita parte con «Gioca», come dopo «Collega»)
+  recalPageDue(){
+    const L = this.lobby;
+    return readCalMode() === 'play' && this.controller === 'phone' && !!L?.visible && L.mode === 'cpu' && L.step === 'match' && !this.trial?.active && !!this.phone.soonReady;
+  }
   recalibrate(){
     const E = this.engine, split = !!E.natpfSplit?.active;
     if (this.recalTrialDue()){
@@ -759,6 +765,12 @@ export class NatpfUi {
       this.trial.start({ split, resume: true, force: true, then: () => { E._setupPointServe({ showBanner: true }); this._syncPause(); } });
       this.toast('Scambi di prova: poi si rigioca il punto');
       return true;
+    }
+    // (B35) gli scambi di prova fatti prima valgono per chi c'era: dopo «Ricalibra» il «Gioca» li rifà e torna alla pagina
+    if (this.lobby?.mode === 'cpu') this.lobby.trialPlayed = false;
+    if (this.recalPageDue()){
+      this.closePhone();
+      if (this.lobby._pageTrial({ force: true })){ this.wipe('Scambi di prova'); this.toast('Scambi di prova: poi la pagina «Pronto per la partita»'); return true; }
     }
     this.phone.recalibrate();
     return false;
