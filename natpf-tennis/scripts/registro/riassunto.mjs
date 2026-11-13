@@ -12,6 +12,8 @@
 // Regge migliaia di partite (una riga alla volta, memoria costante: di ogni misura si tengono conti e un campione) e
 // file tronchi (ultima riga a metà, gzip interrotto): quello che si legge si usa, il resto si conta e si dice.
 // Lo stesso blocco trovato due volte (scaricato due volte, o in coda e nello spazio) si conta una volta sola.
+// B36.0: sezione «Direzione» (quanto si gira la cima, quanto pesa il tempo, Precision «zona chiesta → dove è caduta», gli
+// obiettivi dello stand E1–E5 per modello della direzione e livello; come leggerla: docs/b36/misure-b36-0.md).
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -19,6 +21,8 @@ import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { controllaRiga, eErrore, FINI, REGISTRO } from '../../src/natpf/registro/registro_formato.js';
 import { readZip } from '../../src/natpf/diag/diag_zip.js';
+import { sideJudge, SIDE } from '../../src/natpf/diag/diag_metrics.js';
+import { PRECISION_ZONES, precisionPoints } from '../../src/natpf/natpf_arcade.js';
 
 /* ---------- lettura: una riga alla volta ---------- */
 const NEL_PERCORSO = /(?:^|[\\/])registro[\\/](\d{4}-\d{2}-\d{2})[\\/]([a-z0-9]{8})[\\/](\d{5,7}-[a-z0-9]{4})\.jsonl(?:\.gz)?$/;
@@ -109,6 +113,34 @@ export class Misura {
   // quota dei valori del campione che soddisfano la condizione
   quota(fn){ return this.campione.length ? this.campione.filter(fn).length/this.campione.length : null; }
 }
+// B36.0: coppie di valori (per la correlazione di rango), con un campione limitato come Misura
+export class Coppie {
+  constructor(){ this.n = 0; this.a = []; this.b = []; this._s = 88675123; }
+  metti(x, y){
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    this.n++;
+    if (this.a.length < 4096){ this.a.push(x); this.b.push(y); return; }
+    let s = this._s; s ^= s << 13; s ^= s >>> 17; s ^= s << 5; this._s = s >>> 0; const i = this._s % this.n; if (i < 4096){ this.a[i] = x; this.b[i] = y; }
+  }
+  // correlazione di rango (Spearman, ranghi medi per i pari merito): 1 = l'una cresce sempre con l'altra
+  get rango(){ return spearman(this.a, this.b); }
+}
+const ranghi = v => { const o = v.map((x, i) => [x, i]).sort((p, q) => p[0] - q[0]), r = new Array(v.length); for (let i = 0; i < o.length;){ let j = i; while (j + 1 < o.length && o[j + 1][0] === o[i][0]) j++; for (let k = i; k <= j; k++) r[o[k][1]] = (i + j)/2 + 1; i = j + 1; } return r; };
+export function spearman(a, b){
+  if (a.length < 3 || a.length !== b.length) return null;
+  const ra = ranghi(a), rb = ranghi(b), m = (a.length + 1)/2; let sab = 0, saa = 0, sbb = 0;
+  for (let i = 0; i < a.length; i++){ const x = ra[i] - m, y = rb[i] - m; sab += x*y; saa += x*x; sbb += y*y; }
+  return saa && sbb ? sab/Math.sqrt(saa*sbb) : null;
+}
+// retta dei minimi quadrati y = a + b·x: pendenza, dispersione dei residui (deviazione standard) e R²
+export function retta(xs, ys){
+  const n = xs.length; if (n < 3) return null;
+  const mx = xs.reduce((s, v) => s + v, 0)/n, my = ys.reduce((s, v) => s + v, 0)/n;
+  let sxx = 0, sxy = 0, syy = 0; for (let i = 0; i < n; i++){ const dx = xs[i] - mx, dy = ys[i] - my; sxx += dx*dx; sxy += dx*dy; syy += dy*dy; }
+  if (!sxx) return null;
+  const b = sxy/sxx, res = Math.max(0, syy - b*sxy);
+  return { n, pendenza: b, dispersione: Math.sqrt(res/Math.max(1, n - 2)), r2: syy ? 1 - res/syy : null };
+}
 const piu = (map, k, n = 1) => { if (k == null) return; map[k] = (map[k] || 0) + n; };
 const somma = (dst, src) => { for (const [k, v] of Object.entries(src || {})) if (typeof v === 'number') piu(dst, k, v); };
 const voce = (map, k, fn) => map[k] || (map[k] = fn());
@@ -135,8 +167,11 @@ export class Riassunto {
     this.fps = { medi: new Misura(), peggiori: new Misura(), maxMs: new Misura(), lunghi: 0, costo: new Misura(), sotto30: 0, n: 0 };
     this.avvii = { n: 0, improvvise: 0, ricaricamenti: 0, crash: 0, schermi: {}, gpu: {}, dove: {} };
     this.errori = new Map(); this.altro = { allenamenti: 0, allenamentiFiniti: 0, minigiochi: {}, note: 0, perse: 0 };
+    // B36.0: direzione dei colpi del telefono (docs/b36/misure-b36-0.md): per modello della direzione e livello, partite
+    // con e senza i campi nuovi, partite a Precision (zona chiesta → dove è caduta)
+    this.dir = { gruppi: {}, partite: { conCampi: 0, vecchie: 0, senzaCampi: 0 }, colpiRacchetta: 0, colpiConTempo: 0, precision: [], precisionSenzaFine: 0 };
   }
-  _ctx(c){ const k = `${c.giorno || ''}|${c.postazione || ''}`; let x = this.ctx.get(k); if (!x){ x = { P: null, orologio: null, fuso: 60, ordineEvento: 0 }; this.ctx.set(k, x); } return x; }
+  _ctx(c){ const k = `${c.giorno || ''}|${c.postazione || ''}`; let x = this.ctx.get(k); if (!x){ x = { P: null, orologio: null, fuso: 60, ordineEvento: 0, formato: null, prec: [], postazione: c.postazione || null }; this.ctx.set(k, x); } return x; }
   // ora locale dello stand di una riga: dall'ultima riga con l'ora (avvio, partita) e dai ms trascorsi
   _quando(x, row){ if (!x.orologio) return null; return new Date(x.orologio.wall + (row.t - x.orologio.t) + x.fuso*60000); }
   aggiungi(row, c = {}){
@@ -146,7 +181,7 @@ export class Riassunto {
     const fn = this[`_${row.k.replace('.', '_')}`];
     if (fn) fn.call(this, row, x);
   }
-  _avvio(r){ const A = this.avvii; A.n++; if (r.prima === 'improvvisa') A.improvvise++; if (r.pagina === 'reload') A.ricaricamenti++; piu(A.dove, r.dove); if (Array.isArray(r.area)) piu(A.schermi, r.area.join(' × ')); piu(A.gpu, r.gpu === true ? `sì${r.gpuTipo ? ` · ${r.gpuTipo}` : ''}` : r.gpu === false ? 'no (disegno dal processore)' : 'non letta'); }
+  _avvio(r, x){ if (x) x.formato = Number.isFinite(r.v) ? r.v : null; const A = this.avvii; A.n++; if (r.prima === 'improvvisa') A.improvvise++; if (r.pagina === 'reload') A.ricaricamenti++; piu(A.dove, r.dove); if (Array.isArray(r.area)) piu(A.schermi, r.area.join(' × ')); piu(A.gpu, r.gpu === true ? `sì${r.gpuTipo ? ` · ${r.gpuTipo}` : ''}` : r.gpu === false ? 'no (disegno dal processore)' : 'non letta'); }
   _crash(){ this.avvii.crash++; }
   _nota(r){ this.altro.note++; this.altro.perse += r.perse || 0; }
   _partita(r, x){
@@ -154,7 +189,9 @@ export class Riassunto {
     const d = this._quando(x, r), giorno = d ? d.toISOString().slice(0, 10) : 'senza data', G = voce(this.giorni, giorno, () => ({ partite: 0, finite: 0, abbandonate: 0, ore: {} }));
     G.partite++; if (d) piu(G.ore, d.getUTCHours());
     const T = this.partite; T.n++; piu(T.modo, r.modo); piu(T.ctrl, r.ctrl); piu(T.personaggi, r.personaggi); piu(T.versioni, r.versione); if (r.nomeInserito) T.nomeInserito++;
-    x.P = { r, giorno, sup: 0, puntiAiuto: 0, punti: 0 };
+    x.P = { r, giorno, sup: 0, puntiAiuto: 0, punti: 0, dir: { g: this._dirPartita(), a: this._dirPartita() } };
+    // B36.0: i campi della direzione ci sono? (un gioco nuovo, formato 2, senza «dir» = Worker non ricaricato)
+    const D = this.dir.partite; if (r.dir != null) D.conCampi++; else if ((x.formato ?? 0) >= 2) D.senzaCampi++; else D.vecchie++;
     for (const t of [r.tel, r.tel2]) if (t){ piu(this.tel.strade, t.strada); piu(this.tel.so, t.so); piu(this.tel.browser, t.browser); }
     if (r.modo === 'stesso-schermo'){ const S = this.split; S.n++; if (Array.isArray(r.fasce)) piu(S.fasce, r.fasce.join(' · ')); if (r.stand?.caldo) S.caldo++; if (r.stand?.lancioAuto) S.lancioAuto++; }
     this.lunghi.partite++; if (r.stand?.caldo) this.lunghi.caldo++;
@@ -172,6 +209,7 @@ export class Riassunto {
     if (P.r.modo === 'stesso-schermo'){ const k = P.r.stand?.campoAperto ? 'aperto' : 'chiuso', C = this.split.campo[k] || (this.split.campo[k] = { partite: 0, colpiAPunto: new Misura(), durataPunto: new Misura(), nonRaggiunte: 0, punti: 0 }); C.colpiAPunto.metti(r.colpi); C.durataPunto.metti(r.durS); C.punti++; if (r.fine === 'vincente' || r.fine === 'passata' || r.fine === 'ace') C.nonRaggiunte++; }
   }
   _colpo(r, x){
+    this._direzione(r, x);
     if (r.amb === 'prova'){ this.prova.colpi++; this.prova.ms.metti(r.ms); return; }
     if (r.amb) return;                                                       // colpi dell'allenamento e dei minigiochi: fuori dalle misure di partita
     const g = voce(this.gesti, r.gesto || '—', () => ({ n: 0, voti: {}, ms: new Misura(), esiti: {}, forza: new Misura() }));
@@ -188,6 +226,7 @@ export class Riassunto {
   _vuoto(r){ if (!r.amb) piu(this.vuoti, r.perche || '—'); }
   _chiudi(x, r){
     const P = x.P; x.P = null; if (!P) return;
+    this._dirFine(P, r);
     const T = this.partite, G = this.giorni[P.giorno], Gp = this._gruppo(P); Gp.partite++;
     this.sup.partite++; this.sup.perPartita.metti(P.sup);
     if (!r){ T.senzaFine++; return; }
@@ -212,12 +251,61 @@ export class Riassunto {
     const C = this.cal; C.n++; if (r.finita) C.finite++; C.durata.metti(r.durS); C.prove += r.prove || 0; C.fallite += r.fallite || 0; C.ripartenze += r.ripartenze || 0; somma(C.perche, r.perche);
     for (const [k, v] of Object.entries(r.passi || {})) if (Array.isArray(v)){ const p = voce(C.passi, k, () => [0, 0]); p[0] += v[0] || 0; p[1] += v[1] || 0; } }
   _allenamento(r){ this.altro.allenamenti++; if (r.finito) this.altro.allenamentiFiniti++; somma(this.scartati, r.scartati); }
-  _minigioco(r){ const m = voce(this.altro.minigiochi, r.gioco || '—', () => [0, 0]); m[0]++; if (r.finito) m[1]++; somma(this.scartati, r.scartati); }
+  _minigioco(r, x){
+    const m = voce(this.altro.minigiochi, r.gioco || '—', () => [0, 0]); m[0]++; if (r.finito) m[1]++; somma(this.scartati, r.scartati);
+    // B36.0: una partita a Precision con i suoi colpi (scritti prima della riga del minigioco)
+    if (x && x.prec.length){
+      if (r.gioco === 'precision' && this.dir.precision.length < 2000){ const d = this._quando(x, x.prec[0]); this.dir.precision.push({ ora: d ? d.toISOString().slice(0, 16).replace('T', ' ') : '—', postazione: x.postazione || null, dir: r.dir || 'classica', finito: !!r.finito, punti: r.punti ?? null, colpi: x.prec }); }
+      x.prec = [];
+    }
+  }
   _visita(r){ const V = this.visite; V.n++; V.durata.metti(r.durS); somma(this.scartati, r.scartati); if (r.abbandono){ V.senzaGiocare++; piu(V.dove, r.abbandono); piu(this.abbandoni, `prima di giocare · ${r.abbandono}${r.come === 'chiosco' ? ' (chiosco)' : ''}`); } }
   _tel(r, x){ const T = this.tel; piu(T.stati, r.stato); if (r.strada) piu(T.strade, r.strada); if (r.stato === 'caduto'){ const d = this._quando(x, r); piu(T.cadutePerOra, d ? `${d.toISOString().slice(0, 10)} · ore ${String(d.getUTCHours()).padStart(2, '0')}` : 'senza ora'); } if (r.stato === 'ricollegato') T.dopoS.metti(r.dopoS); }
   _errore(r, x){ const k = `${r.msg}|${r.file}|${r.riga}`, e = this.errori.get(k) || { msg: r.msg, file: r.file, riga: r.riga, tipo: r.tipo, volte: 0, per: new Map() }; this.errori.set(k, e); e.per.set(x, Math.max(e.per.get(x) || 0, r.volte || 1)); }
+  /* ---------- B36.0: direzione dei colpi ---------- */
+  _dirPartita(){ return { colpi: 0, xs: [], piatti: [], dv: [], primi: 0, primi05: 0 }; }
+  _dirGruppo(modello, chiave){
+    return voce(this.dir.gruppi, `${modello} · ${chiave}`, () => ({ modello, chiave, colpi: 0, conDv: 0, dv: new Misura(), absDv: new Misura(), oltre45: 0, oltre60: 0, conPf: 0, sommaTempo: 0, sommaPiatto: 0,
+      tempo: new Misura(), cima: new Coppie(), tempoX: new Coppie(), conRimbalzo: 0, scarto: new Misura(), nellaFinestra: 0, fuoriFinestra: 0, largo: 0, primi: 0, primi05: 0,
+      partite: 0, giudicate: 0, storte: 0, durata: new Misura(), seme: new Misura() }));
+  }
+  // un colpo della racchetta: misure del gruppo (modello della direzione · chi gioca · livello) e della partita
+  _direzione(r, x){
+    if (Number.isFinite(r.ms) && !r.amb){ this.dir.colpiRacchetta++; if (Number.isFinite(r.tu)) this.dir.colpiConTempo++; }
+    if (r.amb === 'minigioco' && Number.isInteger(r.zp)){ if (x.prec.length < 40) x.prec.push(r); return; }   // Precision: aspetta la riga del minigioco
+    const P = x.P; if (r.amb || !P) return;
+    const G = this._dirGruppo(P.r.dir || 'classica', this._chiave(P)), M = P.dir[r.chi === 'a' ? 'a' : 'g'], lato = r.chi === 'a' ? -1 : 1;
+    G.colpi++; M.colpi++;
+    if (Number.isFinite(r.dv)){ G.conDv++; G.dv.metti(r.dv); G.absDv.metti(Math.abs(r.dv)); if (Math.abs(r.dv) > 45) G.oltre45++; if (Math.abs(r.dv) > 60) G.oltre60++; if (M.dv.length < 20) M.dv.push(r.dv); }
+    if (Number.isFinite(r.pf)){
+      G.conPf++; M.piatti.push(r.pf);
+      if (M.primi < 10){ M.primi++; G.primi++; if (Math.abs(r.pf) >= .5){ M.primi05++; G.primi05++; } }
+      // quanto pesa il tempo nella mira di oggi: la mira totale (d) meno il piatto (pf) è la parte del tempo
+      if (Number.isFinite(r.d)){ G.sommaTempo += Math.abs(r.d - r.pf); G.sommaPiatto += Math.abs(r.pf); }
+    }
+    if (Number.isFinite(r.tu)) G.tempo.metti(Math.abs(r.tu));
+    if (Number.isFinite(r.rx)){
+      const xr = lato*r.rx;                                                   // nel riferimento di chi colpisce (+ alla sua destra)
+      G.conRimbalzo++; M.xs.push(xr);
+      if (Number.isFinite(r.pf)) G.cima.metti(r.pf, xr);
+      if (Number.isFinite(r.tu) && Number.isFinite(r.lato)) G.tempoX.metti(-r.lato*r.tu, xr);   // in anticipo l'incrociato: −lato·tempo
+      if (Number.isFinite(r.x)) G.scarto.metti(Math.abs(r.rx - r.x));       // rimbalzo vero − bersaglio del motore, di lato
+      if (Math.abs(xr) > 2.5) G.largo++;
+      if (Number.isFinite(r.tu) && Math.abs(r.tu) <= 1){ G.nellaFinestra++; if (r.fu) G.fuoriFinestra++; }
+    }
+  }
+  // fine di una partita: partite storte (E5, come la diagnostica: almeno il 70 % dei colpi in una metà), durata, centro
+  // della mira (mediana dello scarto della cima nei primi 20 colpi: stima dell'errore del seme, mire volute comprese)
+  _dirFine(P, r){
+    const G = this._dirGruppo(P.r.dir || 'classica', this._chiave(P));
+    G.partite++; if (r?.esito === 'finita' && Number.isFinite(r.durS)) G.durata.metti(r.durS);
+    for (const M of Object.values(P.dir)){
+      if (M.xs.length >= SIDE.min){ G.giudicate++; if (sideJudge(M.xs).verdetto === 'sbilanciata') G.storte++; }
+      if (M.dv.length >= 10){ const s = [...M.dv].sort((a, b) => a - b), k = s.length >> 1; G.seme.metti(Math.abs(s.length % 2 ? s[k] : (s[k - 1] + s[k])/2)); }
+    }
+  }
   // fine della lettura: le partite rimaste aperte (registro tronco) si chiudono come «senza fine»
-  fine(){ for (const x of this.ctx.values()) if (x.P) this._chiudi(x, null); for (const e of this.errori.values()) e.volte = [...e.per.values()].reduce((a, b) => a + b, 0); return this; }
+  fine(){ for (const x of this.ctx.values()){ if (x.P) this._chiudi(x, null); if (x.prec.length){ this.dir.precisionSenzaFine++; x.prec = []; } } for (const e of this.errori.values()) e.volte = [...e.per.values()].reduce((a, b) => a + b, 0); return this; }
 }
 
 /* ---------- rapporto ---------- */
@@ -286,6 +374,7 @@ export function rapporto(R, L){
     `Punti nelle partite con lo scambio caldo acceso: ${lg('c')}; con lo scambio caldo spento: ${lg('s')}.`,
     `Colpi super con la «palla calda» (possibili solo nello scambio caldo): ${N(Lg.superCaldi)}.`,
   ]);
+  sezioneDirezione(R, sez);
   sez('Servizio', [
     `Punti: ${N(sv.punti)}. Lanci: ${N(sv.lanci)} (${N(sv.punti ? sv.lanci/sv.punti : null, 2)} a punto); lanci a vuoto: ${N(sv.lanciVuoti)} (${pc(sv.lanciVuoti, sv.lanci, 1)} dei lanci).`,
     `Servizio in rete o fuori (una palla sola: vale come un doppio fallo): ${N(sv.doppiFalli)} (${pc(sv.doppiFalli, sv.punti, 1)} dei punti). Ace: ${N(sv.ace)} (${pc(sv.ace, sv.punti, 1)}).`,
@@ -345,6 +434,60 @@ export function rapporto(R, L){
     `Errori JavaScript diversi: ${N(err.length)}.`,
   ], [{ titolo: 'Errori più frequenti', colonne: ['Volte (almeno)', 'Tipo', 'Messaggio', 'File', 'Riga'], righe: err.slice(0, 15).map(e => [N(e.volte), e.tipo || '—', e.msg || '—', e.file || '—', e.riga ?? '—']) }]);
   return S;
+}
+// B36.0 · sezione «Direzione» (docs/b36/misure-b36-0.md): quanto si gira la cima, quanto pesa il tempo, Precision (zona
+// chiesta → dove è caduta) e gli obiettivi dello stand E1–E5 del piano (docs/b36/piano-direzionalita.md §7.6), per modello
+// della direzione e livello. Con meno di DIR_MIN colpi per riga i numeri si leggono come indizi
+export const DIR_MIN = 200;
+const zonaX = c => PRECISION_ZONES[c.zp]?.x ?? null;
+// verso la zona: segno giusto e oltre la soglia (cima: oltre la zona morta di 3°; tempo: oltre 0,1 della finestra)
+const versoZona = (v, zx, soglia) => Number.isFinite(v) && Math.abs(v) > soglia && Math.sign(v) === Math.sign(zx);
+export function precisionRiga(run){
+  const C = run.colpi, lat = C.filter(c => Math.abs(zonaX(c) ?? 0) >= 2), rim = C.filter(c => Number.isFinite(c.rx) && Number.isFinite(c.rz));
+  const conDv = lat.filter(c => Number.isFinite(c.dv)), conTu = lat.filter(c => Number.isFinite(c.tu) && Number.isFinite(c.lato));
+  const giro = s => { const v = lat.filter(c => Number.isFinite(c.dv) && Math.sign(zonaX(c)) === s).map(c => c.dv); return v.length ? v.reduce((a, b) => a + b, 0)/v.length : null; };
+  const dist = rim.map(c => { const z = PRECISION_ZONES[c.zp]; return Math.hypot(c.rx - z.x, c.rz - z.z); });
+  const punti = rim.reduce((a, c) => a + precisionPoints({ x: c.rx, z: c.rz }, PRECISION_ZONES[c.zp], !c.fu), 0);
+  return { palle: C.length, rimbalzi: rim.length, laterali: lat.length, cima: conDv.length ? conDv.filter(c => versoZona(c.dv, zonaX(c), 3)).length/conDv.length : null, nCima: conDv.length,
+    tempo: conTu.length ? conTu.filter(c => versoZona(-c.lato*c.tu, zonaX(c), .1)).length/conTu.length : null, giroSx: giro(-1), giroDx: giro(1),
+    distanza: dist.length ? dist.reduce((a, b) => a + b, 0)/dist.length : null, punti };
+}
+export function sezioneDirezione(R, sez){
+  const D = R.dir, gruppi = Object.values(D.gruppi).sort((a, b) => (a.modello + a.chiave < b.modello + b.chiave ? -1 : 1)), P = D.partite, tot = P.conCampi + P.senzaCampi + P.vecchie;
+  const pochi = g => (g.colpi < DIR_MIN ? ` (pochi colpi: ${N(g.colpi)} < ${DIR_MIN})` : '');
+  const nome = g => `${g.modello} · ${g.chiave}`;
+  const corr = v => (v == null ? '—' : N(v, 2));
+  // Precision: tutte le palle insieme, per modello
+  const prec = D.precision, palle = prec.flatMap(p => p.colpi.map(c => ({ ...c, modello: p.dir })));
+  const fit = (pred, f) => { const v = palle.filter(c => pred(c) && Number.isFinite(f(c)) && zonaX(c) != null); return retta(v.map(zonaX), v.map(f)); };
+  const testoFit = (modello) => {
+    const c = fit(x => x.modello === modello, x => x.dv), t = fit(x => x.modello === modello && Number.isFinite(x.lato), x => Number.isFinite(x.tu) ? -x.lato*x.tu : NaN);
+    const n = palle.filter(x => x.modello === modello).length, dv = palle.filter(x => x.modello === modello && Number.isFinite(x.dv)), o45 = dv.filter(x => Math.abs(x.dv) > 45).length;
+    return `Precision con «${modello}»: ${N(n)} palle in ${N(prec.filter(p => p.dir === modello).length)} partite. Cima → zona: ${c ? `${N(c.pendenza, 1)}° per metro di zona, il giro voluto sparge ±${N(c.dispersione, 1)}° (R² ${N(c.r2, 2)}, ${N(c.n)} palle)` : '—'}. Tempo → zona: ${t ? `R² ${N(t.r2, 2)} (${N(t.n)} palle)` : '—'}. Scarti della cima oltre 45°: ${pc(o45, dv.length, 1)}.`;
+  };
+  const modelli = [...new Set(prec.map(p => p.dir))].sort();
+  sez('Direzione (B36.0: misure, il gioco non cambia)', [
+    `Partite con i campi della direzione: ${N(P.conCampi)} su ${N(tot)}${P.vecchie ? `; ${N(P.vecchie)} di versioni del gioco di prima del B36.0` : ''}. Colpi della racchetta in partita con il tempo in finestre: ${N(D.colpiConTempo)} su ${N(D.colpiRacchetta)}.`,
+    P.senzaCampi ? `ATTENZIONE: ${N(P.senzaCampi)} partite di un gioco con il formato delle righe 2 senza i campi della direzione: il Worker del registro non è stato ricaricato e li ha tolti (docs/b36/misure-b36-0.md, «Ricaricare il Worker»).` : '',
+    'Cima: scarto in gradi dal proprio colpo abituale (+ a destra). Tempo: unità della finestra (+ anticipo). Rimbalzo: dove la palla tocca terra davvero, nel riferimento di chi colpisce (+ alla sua destra). Gruppi: modello della direzione · chi gioca · livello.',
+    ...modelli.map(testoFit),
+    prec.length ? 'Precision, come leggere: nella prova dello stand ognuno fa due partite «come ti viene» e poi due «gira la cima verso la zona», in quest’ordine; le righe qui sotto sono in ordine di tempo. «Cima verso la zona»: palle delle zone laterali con la cima girata dalla parte della zona (oltre 3°). Il cancello della B36.0: giro voluto entro ±15° su almeno 100 palle di 3 persone, nei blocchi «gira la cima» almeno 8 palle su 10 verso la zona, scarti oltre 45° al più il 5%.' : 'Nessuna partita a Precision con i campi della direzione.',
+    D.precisionSenzaFine ? `Colpi di Precision senza la riga di fine del minigioco (registro tronco): ${N(D.precisionSenzaFine)} partite, lasciate fuori.` : '',
+  ], [
+    { titolo: 'Quanto si gira la cima (colpi del telefono con lo scarto)', colonne: ['Gruppo', 'Colpi', 'Con lo scarto', 'Mediana (°)', 'Metà entro ±°', '9 su 10 entro ±°', 'Dispersione (°)', 'Oltre 45°', 'Oltre 60°'],
+      righe: gruppi.map(g => [nome(g) + pochi(g), N(g.colpi), pc(g.conDv, g.colpi), N(g.dv.p(.5), 1), N(g.absDv.p(.5), 1), N(g.absDv.p(.9), 1), g.dv.n > 1 ? N(Math.sqrt(g.dv.campione.reduce((a, v) => a + (v - g.dv.media)**2, 0)/(g.dv.campione.length - 1)), 1) : '—', pc(g.oltre45, g.conDv, 1), pc(g.oltre60, g.conDv, 1)]) },
+    { titolo: 'Tempo e cima: chi decide dove va la palla', colonne: ['Gruppo', 'Peso del tempo nella mira', '|Tempo| (metà sotto)', 'Cima → rimbalzo (rango)', 'Tempo → rimbalzo (rango)', 'Con il rimbalzo', 'Rimbalzo − bersaglio di lato (95% entro, m)'],
+      righe: gruppi.map(g => [nome(g), g.sommaTempo + g.sommaPiatto ? pc(g.sommaTempo, g.sommaTempo + g.sommaPiatto) : '—', N(g.tempo.p(.5), 2), corr(g.cima.rango), corr(g.tempoX.rango), pc(g.conRimbalzo, g.colpi), N(g.scarto.p(.95), 2)]) },
+    { titolo: 'Obiettivi dello stand (piano B36 §7.6; almeno 200 colpi per riga)', colonne: ['Gruppo', 'E1 cima conta (≥ 0,8 con «nuova»)', 'E2 oltre 2,5 m (Evento: non sotto «classica»)', 'E3 fuori con il tempo nella finestra (≤ 3% a Bambini ed Evento)', 'E4 primi 10 colpi con |piatto| ≥ 0,5 (≥ 30%)', 'E5 partite storte (≤ 10%)', 'Durata della partita (media)'],
+      righe: gruppi.map(g => [nome(g) + pochi(g), corr(g.cima.rango), pc(g.largo, g.conRimbalzo, 1), pc(g.fuoriFinestra, g.nellaFinestra, 1), pc(g.primi05, g.primi, 1), g.giudicate ? `${pc(g.storte, g.giudicate, 1)} (${N(g.giudicate)} partite)` : '—', g.durata.n ? `${N(g.durata.media)} s` : '—']) },
+    { titolo: 'Centro della mira per partita: |mediana dello scarto| nei primi 20 colpi (stima dell’errore del seme, mire volute comprese)', colonne: ['Gruppo', 'Partite', 'Metà sotto (°)', '9 su 10 sotto (°)'],
+      righe: gruppi.filter(g => g.seme.n).map(g => [nome(g), N(g.seme.n), N(g.seme.p(.5), 1), N(g.seme.p(.9), 1)]) },
+    { titolo: 'Precision: una riga per partita, in ordine di tempo', colonne: ['Ora', 'Modello', 'Palle', 'Con il rimbalzo', 'Cima verso la zona', 'Tempo verso la zona', 'Giro medio zone a sinistra / a destra (°)', 'Distanza dal centro della zona (m)', 'Punti col rimbalzo vero', 'Punti del gioco'],
+      righe: prec.map(p => { const x = precisionRiga(p); return [p.ora, p.dir, N(x.palle), N(x.rimbalzi), x.cima == null ? '—' : `${pc(x.cima*x.nCima, x.nCima)} di ${N(x.nCima)}`, x.tempo == null ? '—' : pc(x.tempo, 1), `${N(x.giroSx, 1)} / ${N(x.giroDx, 1)}`, N(x.distanza, 2), N(x.punti), p.punti == null ? '—' : N(p.punti)]; }) },
+    { titolo: 'Precision: zona chiesta → dove è caduta (tutte le partite)', colonne: ['Zona', 'Centro x, z (m)', 'Palle', 'Caduta media x, z (m)', 'Distanza media (m)', 'Nella zona'],
+      righe: PRECISION_ZONES.map((z, i) => { const v = palle.filter(c => c.zp === i && Number.isFinite(c.rx) && Number.isFinite(c.rz)), m = k => v.reduce((a, c) => a + c[k], 0)/Math.max(1, v.length), d = v.map(c => Math.hypot(c.rx - z.x, c.rz - z.z));
+        return [`${i + 1} · ${z.label}`, `${N(z.x, 1)}, ${N(z.z, 1)}`, N(palle.filter(c => c.zp === i).length), v.length ? `${N(m('rx'), 2)}, ${N(m('rz'), 2)}` : '—', d.length ? N(d.reduce((a, b) => a + b, 0)/d.length, 2) : '—', pc(d.filter(x => x <= z.r).length, d.length)]; }).filter((_, i) => palle.some(c => c.zp === i)) },
+  ]);
 }
 const md = v => String(v).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 export function inMarkdown(sezioni, { titolo = 'Registro dello stand · riassunto', quando = null } = {}){
