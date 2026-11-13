@@ -92,7 +92,7 @@ export class NatpfUi {
     this.shot = new NatpfShotFeedback(engine);
     this.power = new NatpfPowerHud(engine);          // potenza del colpo, colpo super ed energia (stanchezza)
     this.cue = new NatpfTimingCue(engine);           // B18.2 gruppo 3: segnale del momento giusto (anello sulla palla)
-    this.serveMark = new NatpfServeMarker(engine);   // B37: chi batte (gemma sopra la testa) e riquadro di servizio a terra
+    this.serveMark = new NatpfServeMarker(engine);   // B37: riquadro di servizio a terra e punto della casella «Al servizio» (B37.1: senza gemma)
     this.superHint = new NatpfSuperHint(engine);     // B18.2 gruppo 3: perché il colpo super non è scattato
     this.machine = new NatpfBallMachine(engine);      // lanciapalle 3D del riscaldamento e dei minigiochi
     this.training = new NatpfTraining(engine, this);

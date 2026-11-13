@@ -105,9 +105,11 @@ export class NatpfSplit {
     const E = this.e, on = !!vp && ['SERVE_STANCE', 'SERVE_TOSS'].includes(E.phase) && E.cameraMode !== 'REPLAY_CAM';
     const tags = this._tags || (on ? (this._tags = serveTagEls()) : null);
     if (!tags) return;
-    const who = E.score?.server === 'opponent' ? E.opponent : E.player;
+    const who = E.score?.server === 'opponent' ? E.opponent : E.player, M = E.natpfUi?.serveMark;
+    // (B37.1: appena sopra la testa misurata di chi batte, lo stesso punto per le due camere: natpf_serve_marker.tagPoint)
+    const base = on && who?.pos ? (M?.tagPoint ? M.tagPoint(who, _base) : who.pos) : null, h = M?.tagPoint ? 0 : undefined;
     [[E.camera, vp?.p1, tags[0]], [this.cam2, vp?.p2, tags[1]]].forEach(([cam, v, el]) => {
-      const at = on && who?.pos ? serveTagPoint(who.pos, cam, v, E.natpfUi?.serveMark?.tagHeight?.(who, cam)) : null;   // (B37: sopra la gemma vista da questa camera)
+      const at = base ? serveTagPoint(base, cam, v, h) : null;
       if (!el) return;
       if (!at){ if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
       el.classList.remove('hidden');
@@ -120,10 +122,10 @@ export class NatpfSplit {
   hideServeTags(){ for (const el of this._tags || []) el?.classList.add('hidden'); }
 }
 
-// punto della scritta «Al servizio» in una metà: h m sopra chi batte (di base 2,25; B37: sopra la gemma, come
-// _updateProjectedHUD), nella metà v
+// punto della scritta «Al servizio» in una metà: h m sopra pos (di base 2,25 sopra i piedi di chi batte; B37.1: pos è già il
+// punto appena sopra la sua testa, natpf_serve_marker.tagPoint, con h 0, come _updateProjectedHUD), nella metà v
 // ({ x, y, w, h } in px), tenuta dentro la sua metà; null se è dietro la camera. Funzione pura (la provano i test)
-const _tagP = new THREE.Vector3();
+const _tagP = new THREE.Vector3(), _base = new THREE.Vector3();
 export function serveTagPoint(pos, cam, v, h = 2.25){
   if (!pos || !cam || !v) return null;
   _tagP.set(pos.x, (pos.y || 0) + (Number.isFinite(h) ? h : 2.25), pos.z).project(cam);

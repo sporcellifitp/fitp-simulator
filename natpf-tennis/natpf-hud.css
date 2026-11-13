@@ -176,16 +176,21 @@ body {
   color: var(--hud-navy);
   text-shadow: none;
 }
-/* B37 (collaudo del 13/11): chi batte lo dicono la gemma sopra la testa e il riquadro a terra (natpf_serve_marker.js);
-   la scritta «Al servizio» resta, più piccola e scura, sopra la gemma: è secondaria */
+/* B37.1 (13/11 sera, l'utente: «il triangolino in alto è orribile, meglio la casella tonda che usavi prima "al
+   servizio"»): chi batte lo dice di nuovo questa casella gialla tonda del B35b (sopra; angoli in natpf-round.css),
+   appena sopra la testa di chi batte (natpf_serve_marker.js, tagPoint). La gemma 3D del B37 non c'è più (e con lei la
+   casella piccola e scura), il riquadro di servizio a terra resta. Misura: 14 px come nel B35b sugli schermi normali
+   (fino a 1280×720 e nelle aree strette), poi cresce con lo schermo (ledwall): circa 21 px a 1920×1080, al più 24 px.
+   Margini e bordo sono quelli del B35b (3/12/4 px e 2 px a 14 px) e crescono con lei */
 .nt-server-tag {
-  padding: 0.2cqh 0.7cqw 0.25cqh;
-  background: rgba(7, 18, 51, 0.82);
-  box-shadow: 0 0 0 1px rgba(232, 255, 58, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  font-size: clamp(14px, min(1.09cqw, 1.94cqh), 24px);
+  padding: calc(3em / 14) calc(12em / 14) calc(4em / 14);
+  box-shadow:
+    0 0 0 calc(2em / 14) rgba(5, 10, 28, 0.9),
+    0 calc(3em / 14) calc(10em / 14) rgba(0, 0, 0, 0.45);
 }
 .nt-server-tag .server-tag-text {
-  font-size: clamp(10px, 0.62cqw, 15px);
-  color: var(--hud-ball);
+  font-size: 1em;
 }
 .nt-court-nameplate {
   padding: 3px 12px 3px 4px;
