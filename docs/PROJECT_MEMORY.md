@@ -825,3 +825,10 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - Dopo un limite d'uso: rilanciare lo script del workflow facendolo continuare nella worktree esistente (senza
   `isolation: 'worktree'`), e far unire prima il ramo principale aggiornato se nel frattempo è andato avanti.
 
+## Decisioni dell'utente del 13/11/2026 (revisione finale della serie B23–B33)
+- Classifica delle partite: prima le partite vinte, poi le perse (dentro ciascun gruppo per punteggio).
+- Velocità dei colpi: km/h veri della palla (× 3,6), stessa scala per servizio e scambio; il «colpo più veloce» di fine
+  partita conta solo colpi finiti in campo.
+- Leggenda: chi gioca non sale a rete da solo dopo un attacco (la salita automatica del B31 vale agli altri livelli).
+- Scritte «in corsa / in allungo»: solo con la corsa forte.
+

@@ -422,6 +422,14 @@ finestra che si stringe negli scambi lunghi solo a Leggenda (forse da far decide
       **versione 2026-11-13.5** (`ff67126`; controllo rapido gioco 1411/1411, sito 226/226, Windows 42/42, build ok; zip
       23.840.848 B, sha256 `0457a434f553aad8e7e9ad6b5b7da024f18c56d462e189f672746e980c872e4e`; installer:
       `scratchpad/attesa-installer.sh`). Documento con le **13 decisioni per l'utente**: `docs/revisione-finale-2026-11-13.md` §3.
+- **DECISIONI DELL'UTENTE del 13/11 (07:45 UTC) sulla revisione finale** (`docs/revisione-finale-2026-11-13.md` §3):
+  - decisione 9, classifica delle partite: **prima le vittorie** (in cima le vinte per punteggio, sotto le perse);
+  - decisione 10, km/h: **km/h veri** (velocità della palla × 3,6, stessa scala per servizio e scambio; il «colpo più
+    veloce» conta solo colpi finiti in campo);
+  - decisione 1, Leggenda e gioco a rete: **a Leggenda niente salita a rete automatica** dopo un attacco;
+  - decisioni 2 e 11, scritte «in corsa / in allungo»: **solo con la corsa forte** (soglia da 0,5 a 0,8);
+  - le altre (3–8, 12, 13) non chieste: **restano come sono** (opzione «tenere»).
+  → blocco **B34** (un agente, senza revisore), poi versione e pacchetti.
 - [~] Prove complete della 2026-11-13.5 (dalle 07:30 UTC del 13/11): `scratchpad/v1113e/prove.sh` → `prove.txt`.
 - Il disco era pieno (100%, l'agente di correzioni ha fatto la build in `/dev/shm`): liberati 10 GB togliendo
   `node_modules` e `dist` dalle worktree già unite (si rigenerano con `npm ci`) e vecchie cartelle dello scratchpad.
