@@ -227,7 +227,7 @@ export const directionSpan = level => assistOf(level).span || level?.timingSpan 
 // e un solo lungolinea su 13, e il lungolinea voluto non usciva mai
 // B35a (collaudo del 13/11: «dritto incrociato → lungolinea» e «molti colpi uscivano»): il RITARDO ABITUALE. Il tempo è
 // in unità della finestra e la finestra in ritardo (lateSpanOf: la palla passa il corpo) è circa metà di quella in
-// anticipo: con il tetto di ±0,6 unità il ritmo prendeva fino a circa 90 ms di anticipo ma solo 40 ms di ritardo, e i
+// anticipo: con il tetto di ±0,6 unità il ritmo prendeva fino a circa 90 ms di anticipo ma solo 45 ms di ritardo, e i
 // colpi oltre 1,3 unità in ritardo non contavano. Chi colpisce SEMPRE un poco tardi (schermo in ritardo non misurato:
 // televisore, programma Windows) mandava tutto lungolinea e, oltre la finestra, fuori di lato dalla parte del lungolinea
 // (banco scripts/audit/direzione-telefono.mjs --fuori, tempo −1,2 finestre: 25% fuori o in rete con il gesto buono).

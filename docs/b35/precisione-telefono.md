@@ -135,14 +135,14 @@ prima. Commit `fb4ee73`.
 
 Il tempo si misura in «finestre»: in anticipo la finestra è di circa 0,15 s, in ritardo solo di circa 0,08 s (la palla
 passa il corpo). Il gioco già si adattava al ritmo di chi gioca, ma con un tetto uguale in finestre: prendeva fino a 90 ms
-di anticipo e **solo 40 ms di ritardo**. Chi vede la palla in ritardo (televisore, programma Windows, schermo non
+di anticipo e **solo circa 45 ms di ritardo**. Chi vede la palla in ritardo (televisore, programma Windows, schermo non
 misurato: «Ritardo dello schermo» è 0 finché non lo si misura) colpisce sempre un po' tardi: tutto lungolinea, e oltre la
 finestra la palla viene spinta fuori di lato. È il difetto 1 *e* il difetto 2 insieme.
 
 Correzione: **ritardo abituale** (`natpf_stroke_outcome.js`, `RHYTHM` e `createRhythm().lag`; motore in
 `game_engine.js`). Il gioco guarda gli ultimi 10 colpi **in secondi**; se anche i colpi più in anticipo (il 90°
 percentile) arrivano più di 45 ms in ritardo, è un ritardo che sposta tutti i colpi, non una scelta: il gioco toglie il
-ritardo mediano × 0,8 (al massimo 0,1 s) per la direzione, per la spinta fuori e per l'aiuto che tiene la palla in campo.
+ritardo mediano × 0,8 (al massimo 0,1 s; da 45 a 75 ms comincia piano, poi per intero) per la direzione, per la spinta fuori e per l'aiuto che tiene la palla in campo.
 Servono almeno 8 colpi; si ricomincia a ogni partita. Il voto e la qualità del tempo restano sul tempo vero. Chi va
 lungolinea apposta colpendo tardi ha anche colpi in tempo o in anticipo, quindi la regola non scatta. Commit `e47d200`.
 
@@ -271,11 +271,15 @@ sicuro serve girare il telefono di più (circa 15°) o colpire un attimo più ta
 
 ### 6.8 Il resto del gioco non cambia
 
-- **Impronte delle partite** a sorteggi fissi: stesso schermo (test `natpf-b25-stesso-schermo`, partite identiche a
-  `f08243a` punto per punto) uguali; partite simulate dei profili `tennista` a Casual, Pro e Leggenda (semi 1–5, 7)
-  identiche alla base, colpo per colpo. I profili simulati dei banchi (tennista, amatore, bambino, umano, due umani) non
-  attivano mai il ritardo abituale.
-- `npm run audit:legend`: vedi §8.
+- **Impronte delle partite** a sorteggi fissi, prima (`d152035`) e dopo: partite simulate dei profili `tennista`,
+  `amatore`, `bambino`, `umano` e `medio` a Casual, Pro e Leggenda (semi 3 e 11, 40 punti, banco `rally-balance`):
+  **identiche** (stessa impronta per tutte le 30 partite). Stesso schermo tra due persone: test
+  `natpf-b25-stesso-schermo` (partite identiche a `f08243a` punto per punto) verde. I profili simulati dei banchi non
+  attivano mai il ritardo abituale (controllato colpo per colpo: 0 colpi su 4452 nel banco dei due umani).
+- `npm run audit:legend`: **uscita identica** a quella di `d152035`, tutti i criteri rispettati (Leggenda contro
+  «tennista» 86,6% dei game alla CPU, Pro contro «medio» 75,2% al giocatore, Casual contro «medio» 100%).
+- Casual e 1v1 nel banco della direzione: stessi numeri di Pro (la direzione è in finestre, uguale a tutti i livelli),
+  0% fuori con il gesto buono, prima e dopo.
 
 ---
 
@@ -284,13 +288,28 @@ sicuro serve girare il telefono di più (circa 15°) o colpire un attimo più ta
 La prova guidata (diagnostica, Maiusc+D → «Prova guidata dei colpi»), richiesta «Dritti incrociati» con il suggerimento
 nuovo (prova nel browser `tools/e2e/natpf-diag-session.mjs`, parte C, telefono simulato):
 
-![Prova guidata: dritti incrociati](img/b35-prova-guidata-incrociato.jpg)
+![Prova guidata: dritti incrociati](img/b35-prova-guidata-incrociato.png)
 
 ---
 
 ## 8. Verifiche fatte
 
-VERIFICHE_DA_COMPLETARE
+| Verifica | Risultato |
+|---|---|
+| `cd natpf-tennis && npm test` | 1426 test: 1425 verdi, 1 saltato (era già saltato), 0 rossi |
+| test nuovi `test/natpf-b35-direzione.test.mjs` | 10 verdi: segno dei sensori, profilo degli scambi di prova, messaggio «sw», centro della mira, tutte le combinazioni mano/colpo/calibrazione, motore, analisi della sessione, ritardo abituale (misura, esito, tetto, identico a prima senza ritardo, mancino allo specchio, banco con 1,2 finestre di ritardo) |
+| `npm run build` | riuscita |
+| `npm run audit:legend` | tutti i criteri rispettati, uscita identica a `d152035` |
+| `node --test tools/test/*.test.mjs` (sito e pagina del telefono) | 226 verdi |
+| prove nel browser (telefono simulato) | `natpf-gesti-speciali` 9 OK, `natpf-rally` 9 OK, `natpf-training-flow` 21 OK, `natpf-tutorial-phone` 46 OK, `natpf-scambi-di-prova` 25 OK, `natpf-phone-keep` 13 OK, `natpf-diag-session` parti B e C (con la prova nuova del suggerimento) e parte A tutte OK |
+| impronte delle partite e banco dei due umani | identiche alla base (§6.8) |
+
+Nota onesta sulla prova `natpf-diag-session`, parte A: due volte su tre è uscito un KO sul «costo del registratore»
+(massimo 20,2 ms al secondo con soglia 20; scrittura più lunga 8,2 ms con soglia 8) mentre sulla macchina (4 processori)
+lavorava un altro agente (carico 7–8). Rifatta da sola: OK (massimo 10 ms al secondo, scrittura 4,7 ms). Questo blocco
+aggiunge al registro solo un campo (`ritardoAbitualeMs`) e solo quando il ritardo abituale è attivo.
+
+Il programma Windows (`natpf-desktop`) non è stato toccato e non è stato provato.
 
 ---
 
@@ -299,7 +318,7 @@ VERIFICHE_DA_COMPLETARE
 - **Non provato con un telefono vero, né sul programma Windows.** Tutte le misure sono del telefono simulato e del motore
   senza grafica. Non so quale delle tre cause valeva per il telefono del collaudo: lo dirà la sessione registrata (§1).
 - **Il ritardo dello schermo vero non è misurato**: la correzione automatica lo compensa solo in parte (circa l'80%, al
-  massimo 0,1 s) e solo dopo 8 colpi; con un ritardo molto grande (oltre 140 ms) metà dei lungolinea voluti esce ancora.
+  massimo 0,1 s) e solo dopo 8 colpi; con un ritardo molto grande (circa 140 ms) quasi metà dei lungolinea voluti esce ancora (41–47%).
   La cura vera è misurarlo e scriverlo in «Ritardo dello schermo».
 - **Il lungolinea tenuto** con un piatto di 12° finisce al centro circa una volta su due: è la sensibilità della mira
   (17° per la riga), non l'ho cambiata.
