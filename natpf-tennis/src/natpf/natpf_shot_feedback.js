@@ -102,6 +102,10 @@ export function popupPlace({ p2 = false, role = 'p1', split = false, partner = f
   const mine = split || p2 === (role === 'p2');
   return { side: split ? (p2 ? 'right' : 'left') : mine ? 'left' : 'right', kind: !mine ? 'other' : partner ? 'partner' : 'mine' };
 }
+// revisione finale B31: scritta che annuncia un colpo della CPU («CPU DROP SHOT»), non l'esito di un colpo di chi gioca
+export const isCpuGrade = (grade = '') => /^CPU\b/i.test(String(grade));
+// … sta nell'angolo dell'avversario (la CPU), piccola come il colpo dell'altro giocatore
+export const cpuPopupPlace = (role = 'p1') => ({ side: role === 'p2' ? 'left' : 'right', kind: 'other' });
 // durata della scritta (ms): più breve di prima (1,1 s il colpo, 0,75 s l'errore)
 export const POPUP_MS = Object.freeze({ hit: 900, miss: 700 });
 
@@ -189,6 +193,17 @@ export class NatpfShotFeedback {
     // (il motore mostra il messaggio subito dopo aver lanciato la palla: il punto di arrivo è già noto)
     if (popup) engine.hud.showTimingPopup = (o = {}) => {
       const g = String(o.grade || ''), p2 = /^P2\b/.test(g);
+      // revisione finale B31: le scritte della CPU («CPU DROP SHOT» → «Palla corta della CPU») non sono un colpo di chi
+      // gioca. Prima passavano dall'esito: la palla della CPU cade nella metà di chi gioca, landsIn la dava «Fuori» e chi
+      // gioca leggeva in rosso «Fuori · Palla corta» nel proprio angolo, come un suo errore. Ora: la scritta tradotta, in
+      // bianco, nell'angolo dell'avversario, senza esito dentro/fuori
+      if (isCpuGrade(g)){
+        popup({ ...o, screenPos: null, detail: '' });
+        const el = document.getElementById('timing-popup-grade');
+        if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red', 'q-super'); el.classList.add('q-cpu'); }
+        this._place(document.getElementById('timing-popup'), cpuPopupPlace(engine.playerRole));
+        return;
+      }
       // colpo super potente: «Super!» in oro (prima l'esito breve copriva la scritta «SUPER SHOT» del motore)
       const sup = /SUPER SHOT/i.test(g);
       const serve = /SERVE/i.test(g), drop = serve ? null : dropOutcome(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });

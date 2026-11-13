@@ -189,3 +189,47 @@ test('registro: il campo «rete» del colpo è previsto (gioco e Worker) e il ri
   assert.deepEqual([R.rete.colpi, R.rete.aRete, R.rete.volee], [3, 1, 1]);
   assert.deepEqual(R.rete.cpu, { schiacciata: 1, 'palla corta': 1 });
 });
+
+/* ---------- revisione finale: la scritta della palla corta della CPU passa dall'esito senza diventare «Fuori» ---------- */
+// Difetto bloccante della revisione finale: l'involucro dell'esito (NatpfShotFeedback) trattava «CPU DROP SHOT» come un
+// colpo di chi gioca; la palla della CPU cade nella metà di chi gioca, landsIn la dava fuori e la scritta diceva in rosso
+// «Fuori · Palla corta» nell'angolo di chi gioca. Chiamata vera del motore (_executeOpponentReturn) con l'involucro
+// installato, la palla che cade dentro e il generatore delle scelte a rete fissato perché la palla corta scatti
+test('palla corta della CPU nel motore con l\'involucro dell\'esito: «Palla corta della CPU», bianca, lato della CPU, mai «Fuori»', async () => {
+  const { NatpfShotFeedback, isCpuGrade, cpuPopupPlace } = await import('../src/natpf/natpf_shot_feedback.js');
+  const had = globalThis.document, real = Math.random;
+  const els = {}, cls = () => { const s = new Set(); return { add: (...c) => c.forEach(x => s.add(x)), remove: (...c) => c.forEach(x => s.delete(x)), toggle: (c, f) => ((f ?? !s.has(c)) ? s.add(c) : s.delete(c)), contains: c => s.has(c) }; };
+  globalThis.document = { getElementById: id => (els[id] ||= { id, classList: cls(), style: {} }), querySelectorAll: () => [] };
+  try {
+    assert.equal(isCpuGrade('CPU DROP SHOT'), true);
+    assert.equal(isCpuGrade('PERFECT • DROP SHOT!'), false); assert.equal(isCpuGrade('P2 PERFECT • DROP SHOT!'), false);
+    assert.deepEqual(cpuPopupPlace('p1'), { side: 'right', kind: 'other' });
+    for (const level of ['pro', 'evento', 'casual']){
+      const e = createHeadlessEngine({ difficulty: level }), shown = [];
+      e.startNewMatch({ showStartBanner: false });
+      e.scene = { add(){} };
+      e.hud = { showTimingPopup: o => shown.push(o) };
+      new NatpfShotFeedback(e);
+      for (const k of ['timing-popup', 'timing-popup-grade']) for (const c of ['side-right', 'other', 'q-red', 'q-cpu']) document.getElementById(k).classList.remove(c);
+      e.phase = 'RALLY'; e.natpfCpuNet = e.natpfCpuOver = e.natpfCpuShot = e.natpfCpuDrops = null;
+      e.player.pos.set(.3, 0, 12.4); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
+      e.opponent.pos.set(.4, 0, -9.2); e.opponent.targetPos.copy(e.opponent.pos);
+      Object.assign(e.ball, { inPlay: true, lastHitter: 'player', bounceCountOnCurrentSide: 1, rallyStrokeCount: 5, shotType: 'TOPSPIN', isPowerShot: false });
+      e.ball.pos.set(.6, 1, -8.9); e.ball.vel.set(0, -1, -6);
+      const seq = [.01, .5, .9, .5]; let k = 0; e.natpfNetRng = () => (k < seq.length ? seq[k++] : .99);
+      Math.random = () => .97;
+      try { e._executeOpponentReturn(e.opponent); } finally { Math.random = real; }
+      assert.equal(e.natpfCpuShot?.kind, 'drop', `${level}: la palla corta della CPU è scattata`);
+      assert.equal(e.natpfCpuShot.net, false, `${level}: palla corta dentro (non in rete)`);
+      assert.ok(e.ball.targetLanding.z > 0 && e.ball.targetLanding.z < 6.4, `${level}: cade nella metà di chi gioca, ${e.ball.targetLanding.z}`);
+      const o = shown.at(-1);
+      assert.equal(o.grade, 'CPU DROP SHOT', `${level}: la scritta della CPU, non un esito (${o.grade})`);
+      assert.equal(tr(o.grade), 'PALLA CORTA DELLA CPU');
+      assert.equal(o.detail, '', `${level}: niente «Fuori» né «Palla corta» come esito (${o.grade} | ${o.detail})`);
+      assert.equal(o.screenPos, null);
+      const g = document.getElementById('timing-popup-grade').classList, p = document.getElementById('timing-popup').classList;
+      assert.ok(g.contains('q-cpu') && !g.contains('q-red'), `${level}: colore neutro`);
+      assert.ok(p.contains('side-right') && p.contains('other'), `${level}: nell'angolo della CPU`);
+    }
+  } finally { Math.random = real; if (had === undefined) delete globalThis.document; else globalThis.document = had; }
+});

@@ -1515,6 +1515,9 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 /* esito del colpo super: in oro */
 .timing-grade.q-super { color: #ffb020 !important; text-shadow: 0 0 0.5em rgba(255, 150, 20, 0.9); }
 .nt-timing-popup:has(.q-super) { box-shadow: inset 0 0 0 2px #ffb020, 0 0 1.2em rgba(255, 150, 20, 0.7) !important; }
+/* revisione finale B31: scritta della CPU («Palla corta della CPU»): bianca, non è l'esito di un colpo di chi gioca */
+.timing-grade.q-cpu { color: #ffffff !important; }
+.nt-timing-popup:has(.q-cpu) { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55) !important; }
 /* stesso schermo: sopra le etichette dei giocatori (.natpf-split-hud), che occupano il fondo di ogni metà */
 .natpf-meters.split { padding-bottom: clamp(56px, 10cqh, 120px); }
 /* B18.2 gruppo 3: perché il colpo super non è scattato (natpf_super_hint.js), sopra le barre di potenza ed energia */
