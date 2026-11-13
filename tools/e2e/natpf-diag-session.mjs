@@ -235,6 +235,14 @@ try {
     await game.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 15000 });
     await game.evaluate(() => { const d = __natpfTennis.natpfUi.diag; d.opts.webcamVideo = false; d.opts.gameVideo = false; return d.startProtocol(); });
     await game.waitForFunction(() => __natpfTennis.natpfUi.diag.recorder.active && __natpfTennis.natpfUi.training.active, null, { timeout: 20000 });
+    // B35a: le richieste dei colpi incrociati e lungolinea dicono dove puntare il telefono (prima solo il tempo): si passa
+    // alla richiesta «Dritti incrociati» e la si guarda (schermata), poi si torna alla prima
+    const at = await game.evaluate(() => { const t = __natpfTennis.natpfUi.training, i = t.drills.findIndex(d => d.id === 'diag-fh-cross'); t.idx = i; t.progress = { done: 0, tries: 0 }; return i; });
+    await game.waitForFunction(() => /cima del telefono verso il centro/.test(document.body.innerText), null, { timeout: 15000 }).catch(() => {});
+    const hint = await game.evaluate(() => document.body.innerText.match(/[^\n]*cima del telefono[^\n]*/)?.[0] || '');
+    await game.screenshot({ path: path.join(SP, 'b35-prova-guidata-incrociato.png') });
+    check('prova guidata (B35a): la richiesta del dritto incrociato dice dove puntare il telefono', at >= 0 && /cima del telefono verso il centro/.test(hint), hint || 'testo non trovato');
+    await game.evaluate(() => { const t = __natpfTennis.natpfUi.training; t.idx = 0; t.progress = { done: 0, tries: 0 }; });
     await swingLoop(phone, 25000);
     await game.evaluate(() => __natpfTennis.natpfUi.training.skip());
     await game.waitForFunction(() => !__natpfTennis.natpfUi.diag.recorder.active && !__natpfTennis.natpfUi.diag.busy, null, { timeout: 60000 });
