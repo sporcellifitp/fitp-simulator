@@ -20,6 +20,9 @@
 //   ripiego); la parte 6 prova i modelli: caricati solo con «Lob & Drop», ripiego con il file bloccato, partite a
 //   sorteggi fissi identiche, impatto sulla palla, palmo sul manico, piedi a terra, niente scatti; la parte 5 misura
 //   il costo dei tre aspetti (classici, mascotte nel codice, modelli 3D).
+// B35 (collaudo dell'utente del 13/11: «con Lob & Drop non si vede chi serve»), parte 7: chi serve si vede come con i
+//   Classici, contro la CPU (scritta «Al servizio» sopra chi batte, pallina del tabellone) e nello stesso schermo (una
+//   scritta per metà); schermate b35-servizio-*.png. SERVIZIO=1: solo la parte 7
 //   TRE_D=1: solo le parti 6 e 5 · FOGLI3D=cartella: solo i fogli di docs/b29/img · MODELLI=cartella: modelli da
 //   un'altra cartella al posto di quelli del gioco (per confrontare texture diverse) · SEMI=cpu:777,schermo:2024,demo:9090:
 //   partite della parte 6 con altri sorteggi (il confronto con il commit di prima si salta: le impronte salvate sono
@@ -45,6 +48,7 @@ process.on('exit', () => { try { vite.kill(); } catch {} });
 const up = async url => { for (let i = 0; i < 120; i++){ const ok = await new Promise(r => http.get(url, res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false))); if (ok) return true; await sleep(500); } return false; };
 check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 const B = await launch();
+const SERVIZIO = !!process.env.SERVIZIO;
 
 // pagina del gioco pronta; cast: valore salvato dell'opzione prima dell'avvio ('lobdrop', 'sempre' o null = niente)
 // mascotte: 'codice' (di base: le mascotte costruite nel codice, come prima del B29) o '3d' (i modelli: si aspetta che
@@ -334,7 +338,7 @@ const RUNS = { cpu: { mode: 'cpu', seed: 31337, steps: 2600 }, schermo: { mode: 
 const SEMI = Object.fromEntries((process.env.SEMI || '').split(',').filter(Boolean).map(x => x.split(':')).map(([k, v]) => [k, +v]));
 
 /* ---------- fogli di immagini (docs/b24/img): solo con FOGLI=cartella ---------- */
-if (FOGLI || FOGLI3D){
+if (!SERVIZIO && (FOGLI || FOGLI3D)){
   mkdirSync(FOGLI3D || FOGLI, { recursive: true });
   const photo = `data:image/webp;base64,${readFileSync(PHOTO).toString('base64')}`;
   const png = async (p) => `data:image/png;base64,${(await p.locator('canvas').first().screenshot()).toString('base64')}`;
@@ -561,7 +565,7 @@ const MASCOT = /^Natpf(Drop|Lob)|^NatpfOcchio|^NatpfBoccaAperta|^NatpfLingua/;
 /* ---------- 1) scene ferme: «Classici» identico a prima, «Lob & Drop» diverso, ritorno identico ---------- */
 
 const prints = {}, partite = {};
-if (!process.env.COSTO && !process.env.TESTA && !TRE_D && !FOGLI3D){
+if (!SERVIZIO && !process.env.COSTO && !process.env.TESTA && !TRE_D && !FOGLI3D){
   const g = await game({ cast: BASELINE ? null : 'sempre' }), p = g.p;
   // la partita si gioca per prima, a pagina appena aperta: una seconda partita nella stessa pagina parte da uno stato
   // diverso (resti della prima) e non è confrontabile; il confronto si fa tra pagine nuove (qui sotto, con Lob & Drop)
@@ -626,7 +630,7 @@ if (!process.env.COSTO && !process.env.TESTA && !TRE_D && !FOGLI3D){
 // CPU, seme 31337, 2600 passi, un robot al posto di chi gioca): quanti passi con il telaio dentro la testa prima e dopo,
 // quanto si scosta la racchetta, e al colpo le corde sono dove erano. La partita è la stessa con i due valori
 // dell'opzione, contro la CPU e nello stesso schermo (con il disegno a vuoto prima del seme: vedi play).
-if (!process.env.COSTO && !TRE_D && !FOGLI3D){
+if (!SERVIZIO && !process.env.COSTO && !TRE_D && !FOGLI3D){
   const ref = CONFRONTA && existsSync(CONFRONTA) ? JSON.parse(readFileSync(CONFRONTA, 'utf8')) : {};
   for (const [name, run] of Object.entries(RUNS)){
     if (process.env.TESTA && process.env.TESTA !== '1' && process.env.TESTA !== name) continue;
@@ -663,7 +667,7 @@ if (!process.env.COSTO && !TRE_D && !FOGLI3D){
 }
 
 /* ---------- 2) opzione e parametro ---------- */
-if (!process.env.COSTO && !TRE_D && !FOGLI3D){
+if (!SERVIZIO && !process.env.COSTO && !TRE_D && !FOGLI3D){
   const def = await game({ cast: null }), p = def.p;
   const d0 = await p.evaluate(K => ({ saved: localStorage.getItem(K), looks: [__natpfTennis.player.natpfLook, __natpfTennis.opponent.natpfLook] }), KEY);
   check('niente di salvato: personaggi classici', d0.saved == null && d0.looks.join() === 'p1,cpu', JSON.stringify(d0));
@@ -717,7 +721,7 @@ if (!process.env.COSTO && !TRE_D && !FOGLI3D){
 }
 
 /* ---------- 6) B29 · modelli 3D di Lob e di Drop ---------- */
-if (!process.env.COSTO && !process.env.TESTA){
+if (!SERVIZIO && !process.env.COSTO && !process.env.TESTA){
   const ref = CONFRONTA && existsSync(CONFRONTA) ? JSON.parse(readFileSync(CONFRONTA, 'utf8')) : {};
   const CODE = /^Natpf(Drop|Lob)[A-Z]|^NatpfOcchio|^NatpfBoccaAperta|^NatpfLingua|^Natpf(Braccio|Avambraccio|Coscia|Stinco)/;
   // a) con «Lob & Drop» i due modelli si caricano e sono loro in campo; niente pezzi costruiti nel codice
@@ -805,6 +809,66 @@ if (!process.env.COSTO && !process.env.TESTA){
     check(`3D, partita ${name}: la racchetta non fa scatti (al più 22 cm tra due passi)`, Math.max(c3.salto.player, c3.salto.opponent)*160 <= 22, `${(c3.salto.player*160).toFixed(1)} e ${(c3.salto.opponent*160).toFixed(1)} cm`);
     await g3.ctx.close();
   }
+}
+
+/* ---------- 7) B35 · chi serve si vede anche con Lob & Drop ---------- */
+// Collaudo dell'utente del 13/11: «con i personaggi Lob & Drop non si vede chi serve». Partita vera (ciclo del gioco
+// acceso, modelli 3D come nel programma), al servizio: contro la CPU la scritta «Al servizio» del motore sopra chi batte
+// e la pallina del tabellone sulla sua riga; nello stesso schermo una scritta per metà (prima mancava, con tutti e due
+// i personaggi), dentro la sua metà, sopra chi batte. Con «Classici» e con «Lob & Drop», battitore Player e CPU/Player 2.
+if (!process.env.COSTO && !process.env.TESTA && !TRE_D && !FOGLI3D){
+  for (const cast of ['sempre', 'lobdrop']) for (const mode of ['cpu', 'schermo']){
+    const g = await game({ cast, mascotte: cast === 'lobdrop' ? '3d' : 'codice' }), p = g.p;
+    for (const server of ['player', 'opponent']){
+      const r = await p.evaluate(async ({ mode, server }) => {
+        const E = __natpfTennis, ui = E.natpfUi;
+        ui.lobby.visible = false; E.hud.hideTitleModal?.(); ui.onboarding?.close?.();
+        E.autoPlayMode = false; E.userHasInteracted = true;
+        if (mode === 'schermo'){ E.natpfSplitNames = { p1: 'Giulia', p2: 'Marco' }; if (!E.natpfSplit.active) E.startSplit(); }
+        E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = false;
+        E.score.server = server; E._setupPointServe?.({ showBanner: false }); ui.onScore(E.score, E.matchConfig.gamesToWin);
+        // qualche fotogramma vero (il ciclo del gioco è acceso): la scritta segue chi batte
+        await new Promise(res => { let n = 0; const f = () => (++n > 20 ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); });
+        const box = el => { if (!el || el.classList.contains('hidden')) return null; const b = el.getBoundingClientRect(); return b.width > 0 ? { x: Math.round(b.left + b.width/2), y: Math.round(b.top + b.height/2), w: Math.round(b.width), h: Math.round(b.height), text: el.textContent.trim() } : null; };
+        const who = server === 'opponent' ? E.opponent : E.player;
+        const head = (cam, vp) => { const v = who.pos.clone(); v.y += 1.6; v.project(cam); return { x: Math.round(vp.x + (v.x*.5 + .5)*vp.w), y: Math.round(vp.y + (-v.y*.5 + .5)*vp.h) }; };
+        const W = innerWidth, H = innerHeight;
+        const sb = [...document.querySelectorAll('.sb-row')].filter(r => r.offsetParent).map(r => { const ball = r.querySelector('.sb-serve'), cs = ball && getComputedStyle(ball); return { side: r.dataset.sbRow, serving: r.classList.contains('serving'), look: r.dataset.sbLook || '', ball: !!ball && cs.display !== 'none' && cs.visibility !== 'hidden' && +cs.opacity > .5 && ball.getBoundingClientRect().width > 3}; });
+        // (ciclo del gioco fermo fino alla schermata: la CPU batterebbe subito e la scritta sparirebbe)
+        if (!E.__frame0){ E.__frame0 = E._natpfFrame; E._natpfFrame = () => 'paused'; }
+        const out = { phase: E.phase, server: E.score.server, looks: [E.player.natpfLook, E.opponent.natpfLook], sb, W, H };
+        if (mode === 'schermo'){
+          const S = E.natpfSplit, vp = (await import('/src/natpf/natpf_split.js')).splitViewports(S.size.x, S.size.y);
+          out.tags = ['p1', 'p2'].map(id => box(document.getElementById(`server-tag-${id}`)));
+          out.engineTag = box(document.getElementById('server-tag'));
+          out.heads = [head(E.camera, vp.p1), head(S.cam2, vp.p2)];
+        } else {
+          out.tag = box(document.getElementById('server-tag'));
+          out.head = head(E.camera, { x: 0, y: 0, w: W, h: H });
+        }
+        return out;
+      }, { mode, server });
+      const name = `${cast === 'lobdrop' ? 'Lob & Drop' : 'Classici'}, ${mode === 'cpu' ? 'contro la CPU' : 'stesso schermo'}, batte ${server === 'player' ? (mode === 'cpu' ? 'chi gioca' : 'il Player 1') : (mode === 'cpu' ? 'la CPU' : 'il Player 2')}`;
+      // (righe del tabellone dal lato di chi guarda: «me» è chi gioca o il Player 1, «them» la CPU o il Player 2; nello
+      // stesso schermo la stessa tabella anche nella metà del Player 2)
+      const mine = server === 'player' ? 'me' : 'them', rows = r.sb.filter(x => x.side === mine), others = r.sb.filter(x => x.side !== mine);
+      const sbOk = rows.length >= 1 && rows.every(x => x.serving && x.ball) && others.every(x => !x.serving && !x.ball);
+      const looksOk = cast === 'lobdrop' ? r.looks.join() === 'drop,lob' : !r.looks.includes('drop');
+      if (mode === 'cpu'){
+        const near = r.tag && Math.abs(r.tag.x - r.head.x) < 90 && r.tag.y < r.head.y + 10 && r.head.y - r.tag.y < 160;
+        check(`B35 ${name}: «Al servizio» sopra chi batte e pallina del tabellone sulla sua riga`, ['SERVE_STANCE', 'SERVE_TOSS'].includes(r.phase) && looksOk && near && /Al servizio/.test(r.tag?.text || '') && sbOk, JSON.stringify({ tag: r.tag, head: r.head, sb: r.sb, phase: r.phase, looks: r.looks }));
+      } else {
+        const inHalf = (t, k) => !!t && (k === 0 ? t.x < r.W/2 : t.x > r.W/2) && t.y > 0 && t.y < r.H && /Al servizio/.test(t.text);
+        const over = (t, h) => !!t && !!h && Math.abs(t.x - h.x) < 110 && t.y < h.y + 10;
+        check(`B35 ${name}: «Al servizio» in tutte e due le metà, sopra chi batte; pallina del tabellone sulla sua riga`, ['SERVE_STANCE', 'SERVE_TOSS'].includes(r.phase) && looksOk && inHalf(r.tags[0], 0) && inHalf(r.tags[1], 1) && over(r.tags[0], r.heads[0]) && over(r.tags[1], r.heads[1]) && !r.engineTag && sbOk, JSON.stringify({ tags: r.tags, heads: r.heads, engineTag: r.engineTag, sb: r.sb, looks: r.looks }));
+      }
+      await p.screenshot({ path: path.join(SHOTS, `b35-servizio-${cast}-${mode}-${server}.png`) });
+      await p.evaluate(() => { const E = __natpfTennis; if (E.__frame0){ E._natpfFrame = E.__frame0; delete E.__frame0; } });
+    }
+    check(`B35 chi serve, ${cast} ${mode}: nessun errore`, !g.errs.length, g.errs.join(' | ').slice(0, 300));
+    await g.ctx.close();
+  }
+  if (SERVIZIO){ await B.close(); summary(); process.exit(process.exitCode || 0); }
 }
 
 /* ---------- 5) costo: stesso fotogramma disegnato con i tre aspetti, fotogrammi al secondo ---------- */
