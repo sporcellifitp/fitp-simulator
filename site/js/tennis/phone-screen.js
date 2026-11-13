@@ -174,6 +174,8 @@ export function eventFlash(d = {}){
   if (d.k === 'contact'){
     const name = SHOT_FLASH[d.shot] || '';
     if (d.net || d.out) return { ring: 'miss', big: d.net ? 'In rete' : 'Fuori', sub: [cap(why), name.replace('!', '')].filter(Boolean).join(' · '), ms: 900, buzz: d.label === 'perfetto' ? [40] : [20] };
+    // palla corta troppo lunga (B18.2 passo 3): la palla resta in gioco, ma lenta a metà campo; sotto il perché
+    if (d.long) return { ring: 'hit', big: 'Troppo lunga', sub: [cap(why), name.replace('!', '')].filter(Boolean).join(' · '), ms: 900, buzz: [20] };
     return { ring: 'hit', big: name || LABEL_FLASH[d.label] || 'Colpo!', sub: '', ms: 650, buzz: d.label === 'perfetto' ? [40] : [20] };
   }
   if (d.k === 'miss') return { ring: 'miss', big: MISS_FLASH[d.why] || 'Mancata', sub: MISS_SUB[d.why] || '', ms: d.why === 'lancio' ? 1800 : 650, buzz: [90] };
