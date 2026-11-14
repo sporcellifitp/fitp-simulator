@@ -5,12 +5,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld, $, visible } from './ui-world.mjs';
-import { ranked, addMatch, freshBoard, topMatches, GUEST_KEY } from '../src/natpf/natpf_events.js';
+import { ranked, addMatch, freshBoard, topMatches, GUEST_KEY, validNickname } from '../src/natpf/natpf_events.js';
 import { cpuPill } from '../src/natpf/natpf_match_stats.js';
 
 test('regola: in classifica solo con un nome; la pillola finale dell\'ospite dice «fuori classifica»', () => {
   assert.equal(ranked(''), false); assert.equal(ranked('   '), false); assert.equal(ranked(null), false);
   assert.equal(ranked('Marco'), true);
+  // «Ospite» non si sceglie come nome (in classifica non compare mai)
+  for (const n of ['Ospite', ' ospite ', 'OSPITE']) assert.equal(validNickname(n).ok, false, n);
+  assert.match(validNickname('Ospite').why, /senza nome/);
+  assert.equal(validNickname('Ospite 2').ok, true, 'un nome che contiene la parola va bene');
   assert.equal(cpuPill({ won: true, rank: { guest: true, score: 312 } }), '312 punti · Ospite, fuori classifica');
   assert.equal(cpuPill({ won: true, rank: { guest: true, score: 0 } }), 'Ospite, fuori classifica');
   assert.equal(cpuPill({ won: true, rank: { rank: 2, total: 5, score: 300 } }), '2° posto nella classifica di oggi', 'con il nome come prima');

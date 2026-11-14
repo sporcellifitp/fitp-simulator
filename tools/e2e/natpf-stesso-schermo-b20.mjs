@@ -89,7 +89,7 @@ try {
   for (const [w, h] of [[1280, 720], [1920, 540], [1024, 600], [1366, 657], [1920, 1080], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: tredici pulsanti (dodici dal B25, dal B28 anche «Calibrazione»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 13 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: quattordici pulsanti (dodici dal B25, dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 14 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
     if (w === 1920 && h === 540 || w === 1024) await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -169,13 +169,16 @@ try {
     await until(g, who => { const t = document.getElementById(who === 'opponent' ? 'server-tag-p2' : 'server-tag-p1'); return !!t && t.classList.contains('with-hint') && !t.classList.contains('hidden'); }, who, 5000);
     await draw(); await sleep(120);
   };
+  // (con il disegno spento le caselle delle due metà le rimette a posto solo un disegno: se l'icona non c'è ancora, un altro
+  // disegno e di nuovo la misura, al più tre volte)
+  const hintNow = async who => { let m = await hintOf(g, who); for (let k = 0; k < 3 && !m.box; k++){ await draw(); await sleep(250); m = await hintOf(g, who); } return m; };
   for (const [w, h] of SIZES){
     await g.setViewportSize({ width: w, height: h }); await sleep(500);
     const res = {};
-    for (const who of ['player', 'opponent']){ await serveBy(who); res[who] = await hintOf(g, who); }
+    for (const who of ['player', 'opponent']){ await serveBy(who); res[who] = await hintNow(who); }
     const L = res.player, R = res.opponent, half = w/2;
     check(`3. ${w}×${h}: B44 · al servizio l'icona del lancio solo nella metà di chi batte, senza scritte, niente riquadro di testo`, !!L.box && !!R.box && !L.other && !R.other && !L.main && !R.main && !L.coach && !R.coach && L.text === '' && R.text === '' && L.box.r <= half && R.box.l >= half, fmt({ sinistra: L.box, destra: R.box, altre: [L.other, R.other, L.main, R.main], riquadro: [L.coach, R.coach] }));
-    check(`   ${w}×${h}: l'icona non copre nessun tabellone, sta nello schermo, alta almeno 28 px`, !covered(L).length && !covered(R).length && L.box.t >= 0 && R.box.t >= 0 && L.box.b <= h && R.box.b <= h && L.box.h >= 28 && R.box.h >= 28, fmt({ sinistra: L.box, destra: R.box, coperti: [...covered(L), ...covered(R)], tabelloni: L.boards.map(b => `${b.t}-${b.b}`) }));
+    check(`   ${w}×${h}: l'icona non copre nessun tabellone, sta nello schermo, alta almeno 28 px`, !!L.box && !!R.box && !covered(L).length && !covered(R).length && L.box.t >= 0 && R.box.t >= 0 && L.box.b <= h && R.box.b <= h && L.box.h >= 28 && R.box.h >= 28, fmt({ sinistra: L.box, destra: R.box, coperti: [...covered(L), ...covered(R)], tabelloni: L.boards.map(b => `${b.t}-${b.b}`) }));
     await shot(`3-icona-${w}x${h}-destra`);
     // richiamo per nome: chi batte (Giulia) resta ferma oltre 9 s
     await g.evaluate(() => { __natpfTennis.natpfUi.serveCoach.state.idle = 9.2; });

@@ -1060,3 +1060,50 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - **B39 (domande a scelta del 14/11)**: il tasto destro nel programma apre il **menu di Windows** al puntatore con le voci
   dello staff (pannello, schermo intero, ricarica, esci…); nella pagina del nome c'è **«Gioca come Ospite»** (un clic, senza
   nome; il punteggio dell'ospite resta fuori classifica). Allo stand solo il ledwall: niente icona nell'area di notifica.
+
+## B38 · Tastiera a schermo e «Gioca come Ospite» (14/11/2026; documento `docs/b38/tastiera-a-schermo.md`)
+- **Tastiera del gioco** (`natpf_tastiera.js`, `natpf-tastiera.css`): la crea `NatpfUi` subito dopo lo schermo (il suo
+  ascoltatore dei tasti in cattura sta prima del menu e dei fogli: Esc chiude la tastiera e non il foglio). Copre ogni
+  `input`/`textarea` di testo del gioco: le regole vengono da `OSK_FIELDS` (nome, codice, nota, ritardo) o dal campo
+  (`maxlength`, `type=number`); `data-osk="no"` esclude un campo, `data-osk="name|text|code|digits"` sceglie le regole.
+  Chi aggiunge un campo di testo non deve fare altro.
+- **Eventi come una tastiera vera**: `beforeinput` (annullabile) e `input` a ogni tasto, `change` alla chiusura se il testo
+  è cambiato; mai `keydown` finti (Maiusc+D aprirebbe la diagnostica). I tasti scattano al `pointerdown`, con
+  `preventDefault` anche su `mousedown`: il fuoco resta nel campo (lo stesso schermo conta su `document.activeElement`).
+  «Fatto» chiude e basta: niente invio automatico del modulo.
+- **Quando si apre** (`oskOpens`): Automatica = clic o tocco sul campo, non nei 30 s dopo un tasto vero (`OSK.quietMs`);
+  Sempre = anche con il fuoco dato in altro modo; Mai = mai. Un tasto vero la chiude (Automatica). Opzione dello stand
+  `natpf-tennis.tastiera` (`auto` | `sempre` | `mai`), di base `auto`.
+- **Dove sta** (`oskLayout`, pura): px dall'area di `viewport()`, tasti alti il 7,5% dell'area (30–92 px), in basso; se
+  coprirebbe il campo il contenitore del campo (`.natpf-sheet`, `.lobby-page`, `.natpf-diag`…) sale con la proprietà CSS
+  `translate` (si somma alle animazioni dei fogli, che usano `transform`); nomi dello stesso schermo nella metà di chi
+  scrive se la metà è larga almeno 560 px. Il foglio di stile ha i valori di riserva in `cqw`/`cqh`.
+- **Doppio clic su «Fatto»**: per 450 ms si scartano (in cattura sulla finestra) i clic veri nel rettangolo del tasto più
+  24 px: solo lì, così un clic subito dopo su «Avanti ›» passa. Chi aggiunge la guardia del doppio clic del B39 non deve
+  contare i tasti della tastiera (scattano al `pointerdown`, i doppi tasti come «nn» sono voluti).
+- **Senza nome = «Ospite» = fuori classifica** (`natpf_events.ranked`; decisione dell'utente del 14/11 su «Gioca come
+  Ospite», resa regola): niente righe senza nome nelle classifiche del giorno (minigiochi, partite contro la CPU) e nel
+  CSV; record, medaglie ed esperienza dell'ospite restano nel contenitore «Ospite» di oggi. `events.guest` (sessione della
+  pagina, `natpf-tennis.ospite`) = ha scelto «Gioca come Ospite»: il nome non si chiede più ai minigiochi; lo azzerano un
+  nome, «Nuovo giocatore» e il chiosco (il setter del nickname). Nel passo di «Nuovo giocatore» «Salta» è nascosto ma fa
+  la stessa cosa (il telecomando lo usa per «Salta il nome»). «Ospite» non passa `validNickname` (in classifica non c'è
+  mai una riga «Ospite» nuova; quelle di prima dell'aggiornamento restano fino al giorno dopo).
+- **Pannello dello stand**: «Tastiera a schermo» è la penultima voce della griglia, prima di «Mira del telefono» (che il
+  test `natpf-mira-sensibilita` vuole ultima); più in alto spostava le voci alte di due righe in righe diverse. A 720 × 720 con chiosco, lancio automatico e campo aperto accesi il foglio scorre di 38 px già
+  sulla base 2026-11-14.1 (misurato con e senza la voce nuova: prova `natpf-stesso-schermo-b25`, da sistemare con il B39).
+
+## B44 · Servizio: icona al posto del riquadro di testo (14/11/2026; documento `docs/b44/servizio-animato.md`)
+- **Icona del lancio** (`natpf_serve_hint.js`, `natpf-servizio.css`): SVG nella pagina (telefono che sale con la palla
+  sopra, loop di 1,6 s), senza scritte, **dentro la casella «Al servizio»** di chi batte (`#server-tag`, e
+  `#server-tag-p1/p2` dello stesso schermo, solo quella della metà di chi batte), di lato verso il centro della sua vista
+  (`hintSide`); in prima persona, senza casella, in basso al centro (`#natpf-serve-hint`). Niente posizioni calcolate a
+  parte: segue la casella che il motore e lo stesso schermo già proiettano.
+- **Quando** (`serveCoachView` → `icon`): ai primi `SERVE_COACH.firstServes` (2) servizi di **ogni giocatore nuovo** (conto
+  per lato; `NatpfServeCoach.newPlayer()` da «Nuovo giocatore» e dal chiosco; la partita nuova non lo azzera più), poi
+  dopo `idleS` (6 s) fermi o un lancio a vuoto; mai per la CPU (non è «mine»). Nell'esercizio «Servizio»
+  dell'allenamento a ogni servizio (quei servizi non contano per la partita).
+- **Testi rimasti**: «Colpisci!» e «Aspetta che salga…» durante il lancio dei primi servizi, «Colpisci quando la palla è in
+  alto · Lancio a vuoto: riprova», il richiamo per nome dello stesso schermo (B20) e l'avviso del lancio automatico (B25)
+  senza il testo del lancio. Il riquadro `#natpf-serve-coach` compare solo con una scritta (`big`).
+- **Stessa cosa ovunque**: la stessa icona (classe `in-card`) nella scheda «Servizio» del tutorial, nel «Guarda e
+  ripeti» dell'esercizio «Servizio» e nella guida «Come si gioca» (che ora dice «sopra di te compare «Al servizio»»).

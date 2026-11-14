@@ -105,7 +105,8 @@ try {
   await game.waitForFunction(() => __natpfTennis.natpfPhone.lastPhase === 'serve', null, { timeout: 3000 }).catch(() => {});
   await tap();
   check('lancio dal telefono', await game.waitForFunction(() => __natpfTennis.phase === 'SERVE_TOSS', null, { timeout: 3000 }).then(() => true, () => false));
-  check('B44 · con la palla in aria l\'icona sparisce', !(await hint()).on);
+  // (l'icona la ridisegna il gioco al fotogramma dopo il cambio di fase: si aspetta al più un attimo)
+  check('B44 · con la palla in aria l\'icona sparisce (entro un attimo)', await game.waitForFunction(() => !__hint().on, null, { timeout: 1000, polling: 16 }).then(() => true, () => false));
   const go = await game.waitForFunction(() => __coach().state === 'go', null, { timeout: 2000, polling: 16 }).then(() => game.evaluate(() => ({ ...__coach(), y: +__natpfTennis.ball.pos.y.toFixed(2), vy: +__natpfTennis.ball.vel.y.toFixed(2) })), () => null);
   check('vicino al punto più alto: «Colpisci!»', !!go && go.big === 'Colpisci!' && go.y > 2.3, JSON.stringify(go));
   if (go){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/servizio-2-colpisci.png` }); }

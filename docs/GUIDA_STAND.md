@@ -50,8 +50,9 @@ va — 12 · Con una tastiera — Appendice: solo per la versione web — Per ch
    - **«Gioca ancora»**, stessa persona: prima di nuovo gli scambi di prova (circa 10 secondi; «Salta ›» li salta), poi
      «Pronto per la partita» → «Gioca ›».
    - **«Nuovo giocatore»**, persona nuova: il telefono resta collegato e «Collega il telefono» si salta. Nel foglio
-     «Come ti chiami?» scegli la mano («Destra» o «Sinistra») e clicca «Salta»: con il solo mouse il nome non si
-     scrive, il visitatore gioca come «Ospite». Poi tutorial corto, scambi di prova e «Pronto per la partita».
+     «Come ti chiami?» scegli la mano («Destra» o «Sinistra»), poi clicca il campo del nome: compare la **tastiera a
+     schermo**, scrivi cliccando i tasti, «Fatto», «Avanti ›». Oppure **«Gioca come Ospite»** (accanto al campo): senza
+     nome, fuori classifica. Poi tutorial corto, scambi di prova e «Pronto per la partita».
 6. Se apri «Collega il telefono» con il telefono **già collegato** (per esempio tornando dal menu), il gioco non va avanti
    da solo: clicca il pulsante in basso a destra, «In campo ›» (o «Alla partita ›»).
 
@@ -127,10 +128,11 @@ avviso breve che dice cosa cambia. Per il chiosco e il suo tempo cambia solo la 
 | **Stesso schermo: campo aperto** | **No** · Sì · il piazzamento conta | Solo stesso schermo **con i due telefoni**: i personaggi corrono come persone e non arrivano più su ogni palla; la palla angolata si prende in allungo o non si prende. Il servizio passa ogni due punti anche con il formato classico. Chi batte è un po' sfavorito. | dalla partita dopo |
 | **Calibrazione** | **Giocando** · Con i gesti · Nessuna | Giocando: niente gesti a vuoto; prima di ogni partita circa 10 secondi di «Scambi di prova» (4 palle, dritti e rovesci) e il gioco impara il colpo di chi gioca. Con i gesti: la calibrazione di prima (telefono fermo, poi un dritto e un rovescio a vuoto); quel profilo resta fino a «Nuovo giocatore». Nessuna: si gioca subito e il gioco impara dai primi colpi veri (all'inizio la forza è meno precisa). Giro: Giocando → Con i gesti → Nessuna → Giocando. | dal prossimo «Gioca» |
 | **Mira del telefono** | **Alta · 17°** · Media · 20° · Bassa · 23° | Quanto girare il telefono per mandare la palla sulla riga. Alta: più palle angolate; Media e Bassa un po' meno. Vale per i telefoni di questo PC. | dal colpo dopo |
+| **Tastiera a schermo** | **Automatica** · Sempre · Mai | La tastiera del gioco per scrivere nomi, codice della sfida e campi della diagnostica (capitolo 3.6). Automatica: compare cliccando un campo con il mouse (o toccandolo), sparisce se si usa una tastiera vera. Sempre: compare in ogni campo, anche con una tastiera vera. Mai: non compare. Giro: Automatica → Sempre → Mai → Automatica. | subito |
 | **Registro di gioco** | **Sì** · No | Il gioco annota da solo come vanno le partite (solo dati di gioco, mai i nomi) e le manda allo spazio Cloudflare. Sotto c'è lo stato in parole, con «Invia adesso» e «Scarica la coda» (capitolo 9). | subito |
 | **Telecomando dello staff** | «Abbina» · «Abbinato, non collegato» · «Collegato ✓» | Apre il foglio del telecomando: QR, codice, «Conferma», «Abbina un altro telefono», «Scollega il telecomando» (capitolo 6). «Indietro» riporta al pannello. | — |
 | **Schermo del gioco** | lo schermo di adesso, per esempio «Monitor 2 · 1024×1024 · probabile ledwall ›» (con «(principale)» o «· scala 125%» quando valgono) | Sposta il gioco sullo schermo successivo; la scelta resta salvata. C'è solo nel programma Windows; serve con due o più schermi. | subito |
-| **Nuovo giocatore** | — | Per chi arriva: azzera nome, mano (torna «Destra»), tutorial visto, quello che il gioco ha imparato dal telefono, «Chi gioca» (torna «Adulto») e i record dell'«Ospite»; nello stesso schermo anche nomi e fasce. Il telefono **resta collegato**. Porta al passo giusto: contro la CPU il foglio «Come ti chiami?» (mano e «Salta»), poi tutorial corto, scambi di prova e «Pronto per la partita»; con un minigioco scelto lo stesso foglio, poi lo stesso minigioco (capitolo 3.4); nello stesso schermo la pagina dei due telefoni; dal menu principale e dall'allenamento il menu. Nella sfida tra due computer azzera chi gioca su questo PC e torna al menu: la sfida si chiude. | subito · **secondo clic in partita** |
+| **Nuovo giocatore** | — | Per chi arriva: azzera nome, mano (torna «Destra»), tutorial visto, quello che il gioco ha imparato dal telefono, «Chi gioca» (torna «Adulto»), i record dell'«Ospite» e l'icona del servizio (di nuovo ai primi 2 servizi); nello stesso schermo anche nomi e fasce. Il telefono **resta collegato**. Porta al passo giusto: contro la CPU il foglio «Come ti chiami?» (mano, nome con la tastiera a schermo o «Gioca come Ospite»), poi tutorial corto, scambi di prova e «Pronto per la partita»; con un minigioco scelto lo stesso foglio, poi lo stesso minigioco (capitolo 3.4); nello stesso schermo la pagina dei due telefoni; dal menu principale e dall'allenamento il menu. Nella sfida tra due computer azzera chi gioca su questo PC e torna al menu: la sfida si chiude. | subito · **secondo clic in partita** |
 | **Chiudi** | — | Chiude il pannello; la partita riparte. | — |
 
 **Il secondo clic in partita (dalla versione del 13/11, B43).** In partita (anche negli scambi di prova, nell'allenamento
@@ -200,7 +202,8 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
   rivincita, subito.
 - **«Nuovo giocatore»**: una persona nuova; il telefono resta collegato. Si apre il foglio «Come ti chiami?»:
   1. «Giochi con la mano»: clicca «Sinistra» per un mancino (per ogni persona nuova torna «Destra»).
-  2. «Salta»: il visitatore gioca come «Ospite». Il nome si scrive solo con una tastiera (poi «Avanti ›»).
+  2. Il nome: clic sul campo → tastiera a schermo → clic sui tasti → «Fatto» → «Avanti ›» (capitolo 3.6). Oppure
+     **«Gioca come Ospite»** accanto al campo: un clic, senza nome; il punteggio resta **fuori classifica**.
   3. Poi tutorial corto, scambi di prova e «Pronto per la partita».
 
   Nella sfida tra due computer questo pulsante non c'è.
@@ -208,25 +211,26 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
 
 ### 3.4 Minigiochi con il solo mouse
 
-Dalla pagina «Minigiochi» il foglio «Il tuo nickname» vuole un nome di almeno 2 caratteri: senza tastiera «Avanti ›» non
-basta. Con il solo mouse si passa da «Nuovo giocatore»:
+Dalla pagina «Minigiochi» il foglio «Il tuo nickname» chiede un nome (almeno 2 caratteri, per la classifica del giorno):
 
 1. Menu principale → «Minigiochi» → clic sul minigioco.
-2. Sul foglio «Il tuo nickname» clicca «Indietro»: il minigioco resta scelto.
-3. Tieni premuto 3 secondi il marchio in alto a sinistra → nel pannello «Nuovo giocatore».
-4. Nel foglio «Come ti chiami?» scegli la mano → «Salta».
-5. Se il telefono non è collegato, prima «Collega il telefono»; poi tutorial corto, scambi di prova e il minigioco. Il
-   visitatore gioca come «Ospite».
+2. Clic sul campo → tastiera a schermo → scrivi il nome cliccando i tasti → «Fatto» → «Avanti ›» (capitolo 3.6).
+3. Oppure **«Gioca come Ospite»** (accanto al campo): un clic, senza nome. Il punteggio resta **fuori classifica**; il
+   risultato lo dice («Fuori classifica: hai giocato come Ospite»). Record e medaglie dell'ospite si vedono lo stesso.
+   Per i minigiochi dopo il nome non viene più chiesto, fino a «Nuovo giocatore».
+4. Se il telefono non è collegato, prima «Collega il telefono»; poi il minigioco.
 
-Sul risultato: «Riprova ›» per la stessa persona; «Nuovo giocatore» → «Salta» per la persona dopo, con lo stesso
-minigioco. **Telecomando:** «Nuovo giocatore», poi «Salta».
+Sul risultato: «Riprova ›» per la stessa persona; «Nuovo giocatore» per la persona dopo, con lo stesso minigioco (nel
+foglio «Come ti chiami?» nome o «Gioca come Ospite»). **Telecomando:** «Nuovo giocatore», poi «Salta il nome» (è «Gioca
+come Ospite»), oppure le frecce fino a «Gioca come Ospite» e OK. Il telecomando non scrive i nomi.
 
 ### 3.5 Due visitatori sullo stesso schermo
 
 «Gioca» → «Stesso schermo» → pagina «Collega i due telefoni».
 
-- In alto: i due nomi (si scrivono solo con una tastiera; senza, restano «Player 1» e «Player 2») e la scelta **«Due
-  telefoni»** · «Una webcam per due».
+- In alto: i due nomi (clic sul campo: la tastiera a schermo compare nella metà di chi scrive, capitolo 3.6; senza nome
+  restano «Player 1» e «Player 2») e la scelta **«Due telefoni»** · «Una webcam per due». Mentre la tastiera è aperta su
+  un nome il conto alla rovescia aspetta.
 - Ogni scheda (Player 1 a sinistra, Player 2 a destra) ha il suo QR, la mano (Destra · Sinistra) e «Bambino · Ragazzo ·
   Adulto». Con fasce diverse il più giovane ha un aiuto di gioco, mai punti regalati.
 - «Gioca senza calibrare» compare su una scheda solo mentre quel telefono calibra con i gesti: si gioca subito e il gioco
@@ -242,6 +246,26 @@ minigioco. **Telecomando:** «Nuovo giocatore», poi «Salta».
 - Opzioni dello stand che contano qui: «Formato in fiera» (di base acceso solo qui), «Lancio automatico» e «Stesso
   schermo: campo aperto» (spenti di base). Lancio automatico, campo aperto e l'aiuto al più giovane valgono **solo con
   «Due telefoni»**: con «Una webcam per due» restano spenti, e non vale nemmeno «Scambio che si scalda».
+
+### 3.6 Scrivere con il solo mouse: la tastiera a schermo (B38)
+
+- **Dove:** il nome del giocatore («Come ti chiami?» e «Il tuo nickname»), i due nomi dello stesso schermo, il codice della
+  sfida tra due computer, la nota e il ritardo dello schermo della diagnostica.
+- **Come:** clic sul campo → la tastiera compare in basso (il foglio sale se serve: il campo resta in vista) → clic sui
+  tasti → **«Fatto»** chiude la tastiera → poi il pulsante del foglio («Avanti ›», «Entra ›»). Esc o un clic fuori la
+  chiudono anche loro.
+- **Tasti:** cifre, lettere, **à è é ì ò ù**, punto, trattino, **⇧** (maiuscola per la lettera dopo; nei nomi la prima
+  lettera e quella dopo uno spazio sono già maiuscole), spazio, **⌫** (cancella). Nel codice della sfida solo maiuscole,
+  cifre e trattino; nel ritardo dello schermo un tastierino con le cifre.
+- **Stesso schermo:** la tastiera sta nella metà di chi scrive (Player 1 a sinistra, Player 2 a destra); sugli schermi
+  stretti sta sotto i due nomi.
+- **Con una tastiera vera:** basta scrivere; la tastiera a schermo sparisce al primo tasto.
+- **Doppio clic su «Fatto»:** il secondo clic non arriva al pulsante sotto.
+- **Opzione** nel pannello: «Tastiera a schermo: Automatica · Sempre · Mai» (capitolo 2).
+- **Senza nome = Ospite = fuori classifica.** «Gioca come Ospite» (accanto al campo del nome) gioca senza nome: il
+  punteggio non entra nella classifica del giorno (minigiochi e partite contro la CPU) né nel CSV. Anche chi gioca
+  contro la CPU dal menu senza scrivere il nome è fuori classifica: per entrarci serve il nome («Nuovo giocatore» lo
+  chiede). «Ospite» non si può scrivere come nome.
 
 ---
 
@@ -495,8 +519,8 @@ disinstalli il programma. Per aprirla: **Tastiera:** in finestra Alt → Aiuto �
   torna al menu. Come uscire: capitolo 11.
 - **Telefoni dello staff:** spegnimento dello schermo al massimo (Android 10 minuti, iPhone «Mai»), niente PIN, risparmio
   energetico spento.
-- **Minigiochi:** dalla loro pagina chiedono un nome; con il solo mouse si passa da «Nuovo giocatore» → «Salta»
-  (capitolo 3.4).
+- **Minigiochi:** dalla loro pagina chiedono un nome: si scrive con la tastiera a schermo, oppure «Gioca come Ospite»
+  (fuori classifica; capitolo 3.4).
 
 ### 8.3 In arrivo
 
@@ -518,18 +542,20 @@ possono cambiare.
 
 **Altri blocchi:**
 
-- **Tastiera a schermo (B38):** compare quando clicchi un campo di testo (nome, nomi dello stesso schermo, codice della
-  sfida). Opzione nel pannello «Tastiera a schermo: Automatica · Sempre · Mai».
 - **Stand con il solo mouse (B39, proposte):** marchio attivo anche nel menu principale con un anello che si riempie; ❚❚
   tenuto 3 secondi apre il pannello in partita; menu del tasto destro (pannello, diagnostica, schermo, ricarica, rete,
   esci); niente doppio clic che salta pagine; puntatore grande; uscita dalla classifica a schermo intero; conferme e
   salvataggi dentro il gioco al posto delle finestre di Windows; messaggio italiano con la porta vera quando è occupata.
-- **Servizio (B44).** Oggi, con il telefono, ai primi 2 servizi di ogni partita (e di nuovo dopo 6 secondi senza lancio)
-  un riquadro dice «Alza il telefono: lanci la palla» e «Poi colpisci quando la palla è in alto»; nello stesso schermo,
-  dopo 9 secondi fermi, «<nome>, batti tu». B44 toglie le scritte del riquadro (anche nelle versioni per webcam e per
-  tastiera) e mette una piccola icona di telefono che sale con la palla, accanto a chi batte: ai primi 2 servizi di ogni
-  giocatore nuovo, e di nuovo se chi batte non lancia per qualche secondo. («Premi ↑ o W: lanci la palla» oggi si vede
-  solo con la racchetta «Mouse e tastiera» della modalità prova, capitolo 12.)
+- **Servizio (B44, fatto).** Al posto del riquadro «Alza il telefono: lanci la palla / Poi colpisci quando la palla è in
+  alto» (e delle versioni per webcam e tastiera) accanto alla casella gialla «Al servizio» di chi batte c'è una **piccola
+  icona: un telefono che sale con la palla sopra, in loop, senza scritte**. Si vede ai primi 2 servizi di ogni giocatore
+  nuovo («Nuovo giocatore» e chiosco la rimettono; «Gioca ancora» no) e di nuovo se chi batte resta fermo 6 secondi; mai
+  quando batte la CPU. Nello stesso schermo solo nella metà di chi batte; nella sfida tra due computer sul computer di chi
+  batte. Restano la casella «Al servizio», il riquadro di servizio a terra, «Colpisci!» vicino al punto più alto (ai primi
+  servizi), «Colpisci quando la palla è in alto · Lancio a vuoto: riprova» dopo un lancio a vuoto e, nello stesso
+  schermo, «<nome>, batti tu» dopo 9 secondi (senza più il testo del lancio) e l'avviso del lancio automatico («Tra 8 s
+  la lancia il gioco»). La stessa icona è nel tutorial (scheda «Servizio»), nell'allenamento (esercizio «Servizio») e
+  nella guida «Come si gioca».
 
 ---
 
@@ -575,7 +601,7 @@ in rosso. Guida completa (bucket, Worker, chiave, costi): vedi «Per chi svilupp
 
 ---
 
-## 10. Cosa oggi non si fa con il solo mouse (in arrivo con B38/B39/B44)
+## 10. Cosa oggi non si fa con il solo mouse (in arrivo con B39)
 
 Per ogni punto: cosa fare intanto, e quale blocco lo risolve. B39 è ancora una proposta.
 
@@ -586,9 +612,7 @@ Per ogni punto: cosa fare intanto, e quale blocco lo risolve. B39 è ancora una 
   se il puntatore esce. *Intanto:* «Opzioni» → marchio 3 secondi, mouse fermo. *In arrivo:* B39, marchio in ogni pagina
   con un anello che si riempie.
 - **Scrivere un testo** (nome, nomi dello stesso schermo, codice della sfida tra due computer, campi della
-  diagnostica). *Intanto:* «Salta» (il visitatore è «Ospite»); minigiochi: capitolo 3.4; una tastiera. Ultima risorsa,
-  non provata con il gioco: la Tastiera su schermo di Windows (Start → Tutte le app → cartella «Accessibilità», in
-  Windows 10 «Accessibilità Windows» → «Tastiera su schermo»). *In arrivo:* B38.
+  diagnostica): **fatto con il B38**, tastiera a schermo del gioco (capitolo 3.6) e «Gioca come Ospite» (capitolo 3.4).
 - **Menu del programma** (Rete, Aiuto, Ricarica, Esci, Cartella dei dati, Scheda grafica): compare solo con Alt, e nel
   gioco non c'è né «Esci» né «Ricarica». *Intanto:* rete ai telefoni: chiudi e riapri il programma (se la regola del
   firewall manca, la domanda torna); uscire: capitolo 7.6; ricaricare: chiudi e riapri. *In arrivo:* B39, menu del
@@ -624,7 +648,7 @@ Per ogni punto: cosa fare intanto, e quale blocco lo risolve. B39 è ancora una 
   Impostazioni → Accessibilità → «Puntatore del mouse» (in Windows 11 «Puntatore del mouse e tocco») ingrandiscilo e
   coloralo (consiglio, non provato con il gioco). *In arrivo:* B39, puntatore grande.
 
-B44 non riguarda il mouse: cambia le istruzioni del servizio sul ledwall (capitolo 8.3).
+B44 (fatto) non riguarda il mouse: cambia le istruzioni del servizio sul ledwall (capitolo 8.3).
 
 ---
 
@@ -637,7 +661,9 @@ B44 non riguarda il mouse: cambia le istruzioni del servizio sul ledwall (capito
 | «Collega il telefono»: il telefono è collegato ma non succede niente | Con il telefono già collegato quando la pagina si apre, il gioco non va avanti da solo: clicca «In campo ›» (o «Alla partita ›») in basso a destra. |
 | In partita un clic su «Nuovo giocatore», «Classifica · A schermo intero» o «Telefono · Scollega» non parte | È la conferma: il pulsante è rosa con «Sicuro? Clicca ancora». Clicca ancora, una volta, entro 5 secondi. Lo stesso per «Torna al menu» della pausa. |
 | Un'opzione è saltata di due valori | Doppio clic. Clicca ancora, un clic alla volta, fino al valore giusto. |
-| Un minigioco non parte: chiede il nickname | Capitolo 3.4: «Indietro» → marchio 3 secondi → «Nuovo giocatore» → «Salta». |
+| Un minigioco non parte: chiede il nickname | Clic sul campo → tastiera a schermo → nome → «Fatto» → «Avanti ›»; oppure «Gioca come Ospite» (capitolo 3.4). |
+| Clic sul campo del nome ma la tastiera a schermo non compare | Pannello → «Tastiera a schermo»: se dice «Mai», cliccala fino ad «Automatica». Se al PC qualcuno ha appena usato una tastiera vera, per 30 secondi il clic non la apre (si scrive con quella). |
+| Un nome non compare nella classifica | Chi gioca senza nome («Gioca come Ospite», o contro la CPU senza il passo del nome) è fuori classifica: per entrarci serve il nome («Nuovo giocatore» lo chiede). |
 | Classifica a schermo intero senza «‹ Indietro» | Telecomando «Indietro» o «Torna al menu»; tastiera Esc. Con il solo mouse: marchio 3 secondi → «Nuovo giocatore» (si esce dalla classifica e parte il percorso di un visitatore nuovo). Con il chiosco acceso si torna al menu da soli dopo il suo tempo. |
 | Il telefono dice «connessione non sicura» o non si collega | Certificato: «Collega il telefono» → «Prima volta su questo telefono». Stessa Wi-Fi del PC, rete che non isola i dispositivi. Firewall: chiudi e riapri il programma e rispondi «Apri la rete ai telefoni» → «Sì». |
 | In partita compare «Telefono in pausa» | Il telefono si è fermato (schermo spento, rete). Riaccendi lo schermo del telefono: si riparte da soli con il conto alla rovescia e il punto si rigioca. Se non torna: «Ricollega il telefono» nel riquadro. |

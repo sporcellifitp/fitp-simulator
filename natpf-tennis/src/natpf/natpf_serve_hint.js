@@ -10,9 +10,11 @@
 //   • la stessa icona sta nella scheda «Servizio» del tutorial, nell'esercizio «Servizio» dell'Allenamento (in campo e nella
 //     scheda «Guarda e ripeti») e nella guida «Come si gioca»: il tutorial e l'allenamento dicono la stessa cosa del gioco.
 // Quando si vede lo decide natpf_serve_coach.js (serveCoachView: icon).
-const SVG = '<svg class="sh-svg" viewBox="0 0 40 80" aria-hidden="true" focusable="false">'
-  + '<g class="sh-ball"><circle cx="20" cy="38" r="6"/></g>'
-  + '<g class="sh-phone"><rect class="sh-body" x="10" y="46" width="20" height="30" rx="5"/><rect class="sh-screen" x="13.5" y="50" width="13" height="19" rx="2"/><circle class="sh-dot" cx="20" cy="72.3" r="1.4"/></g>'
+// (telefono e palla grandi nel riquadro: piccoli, con la palla sopra, sembravano una «i»; la scia sotto la palla mentre vola
+// dice «su»)
+const SVG = '<svg class="sh-svg" viewBox="0 0 48 80" aria-hidden="true" focusable="false">'
+  + '<g class="sh-ball"><path class="sh-trail" d="M24 43v11"/><circle cx="24" cy="33" r="7.5"/></g>'
+  + '<g class="sh-phone"><rect class="sh-body" x="12" y="42" width="24" height="34" rx="5"/><rect class="sh-screen" x="15.5" y="46" width="17" height="22" rx="2"/><circle class="sh-dot" cx="24" cy="72" r="1.6"/></g>'
   + '</svg>';
 // markup dell'icona; cls: classi in più (in-card: dentro una scheda, accanto al testo)
 export const serveHintHtml = (cls = '') => `<i class="natpf-serve-hint${cls ? ` ${cls}` : ''}" aria-hidden="true">${SVG}</i>`;

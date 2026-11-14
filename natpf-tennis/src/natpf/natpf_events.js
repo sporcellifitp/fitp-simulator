@@ -48,6 +48,8 @@ export function validNickname(raw){
   if (!/^[\p{L}\p{N} ._-]+$/u.test(nick)) return { ok: false, nick, why: 'Solo lettere, numeri, spazio, punto e trattino' };
   const f = fold(nick).replace(/[ ._-]/g, '');
   if (BLOCKED.some(w => f.includes(w))) return { ok: false, nick, why: 'Scegli un altro nickname' };
+  // B38: «Ospite» è chi gioca senza nome (fuori classifica): non si sceglie come nome, così in classifica non c'è mai
+  if (f === 'ospite') return { ok: false, nick, why: '«Ospite» è per chi gioca senza nome: scegline un altro' };
   return { ok: true, nick };
 }
 

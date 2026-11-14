@@ -77,7 +77,7 @@ try {
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720], [1920, 1080]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: tredici pulsanti (dal B28 anche «Calibrazione»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 13 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: quattordici pulsanti (dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 14 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -99,7 +99,7 @@ try {
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 13 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 14 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     if (h === 720 && w === 720 || h === 540) await shot(`1c-pannello-stand-accesi-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -261,7 +261,9 @@ try {
   /* 6: «Nuovo giocatore» */
   await openStaff();
   await shot('6-pannello-stand-in-partita');
-  await g.click('#natpf-staff [data-staff="newplayer"]');
+  // (B43: in partita «Nuovo giocatore» vuole il secondo clic, dopo almeno mezzo secondo)
+  await g.click('#natpf-staff [data-staff="newplayer"]'); await sleep(700);
+  if (!(await g.evaluate(() => __natpfTennis.natpfUi.lobby.visible))) await g.click('#natpf-staff [data-staff="newplayer"]');
   await g.waitForFunction(() => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'connect', null, { timeout: 10000 });
   await sleep(400);
   bd = await bands();
