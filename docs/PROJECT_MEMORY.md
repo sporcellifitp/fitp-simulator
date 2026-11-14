@@ -1060,3 +1060,7 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - **B39 (domande a scelta del 14/11)**: il tasto destro nel programma apre il **menu di Windows** al puntatore con le voci
   dello staff (pannello, schermo intero, ricarica, esci…); nella pagina del nome c'è **«Gioca come Ospite»** (un clic, senza
   nome; il punteggio dell'ospite resta fuori classifica). Allo stand solo il ledwall: niente icona nell'area di notifica.
+- **Telefoni dello stand e calibrazione (confermata dall'utente il 14/11 con le domande a scelta)**: lo staff prepara i
+  telefoni una volta (abbinamento al posto, verso del telefono salvato, nessun QR, nessun tutorial per i visitatori) e
+  **ogni visitatore fa i suoi scambi di prova** (circa 10 s) prima della partita; né la calibrazione dello staff riusata per
+  tutti né «Nessuna». Interruttore e foglio con il mouse: B41 seconda parte, subito dopo il B39.
