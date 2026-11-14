@@ -80,12 +80,6 @@ export function batteryAlert(views = []){
   if (!low.length) return '';
   return `${low.map(v => `${v.label}: batteria ${v.battery}%`).join(' · ')} · ${low.length > 1 ? 'mettili' : 'mettilo'} in carica`;
 }
-// ultimo colpo letto dal telefono di un posto, per la prova dello staff nel foglio (dir del colpo con il segno già
-// corretto, mano di chi lo tiene): «dritto» o «rovescio»; '' se non c'è
-export function strokeOfDir(dir, hand = 'right'){
-  if (dir !== 1 && dir !== -1) return '';
-  return dir === (hand === 'left' ? -1 : 1) ? 'dritto' : 'rovescio';
-}
 
 /* ---------- B41.5 · visitatori numerati («Visitatore 12», da capo ogni giorno) ---------- */
 export const VISITOR_KEY = 'natpf-tennis.fiera.visitatori';

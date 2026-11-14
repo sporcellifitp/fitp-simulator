@@ -37,7 +37,7 @@ export function fairGate({ mode = 'cpu', phones = {} } = {}){
 // riga sotto la pagina (funzione pura): il perché quando non si può partire, altrimenti come si parte
 export function fairNote({ mode = 'cpu', gate = { ok: true }, trial = true } = {}){
   if (!gate.ok) return gate.why;
-  const start = mode === 'split' ? '«Sono pronto» su tutti e due i telefoni, oppure «Gioca ›»' : '«Sono pronto» sul telefono, oppure «Gioca ›»';
+  const start = mode === 'split' ? '«Sono pronto» su tutti e due i telefoni, oppure «Gioca»' : '«Sono pronto» sul telefono, oppure «Gioca»';
   return `${start}: ${trial ? 'qualche scambio di prova, poi ' : ''}il conto alla rovescia e la partita.`;
 }
 // chi gioca adesso, come lo dice la pagina (funzione pura): il nome scritto, «Ospite», o il numero del visitatore

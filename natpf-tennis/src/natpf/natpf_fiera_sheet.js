@@ -2,8 +2,7 @@
 // docs/b41/modalita-fiera-2.md). Si apre dal pannello dello stand (voce «Telefoni dello stand ›», o da sola accendendo la
 // «Modalità fiera») e dalla pagina della fiera quando un telefono non è pronto. Tutto con il solo mouse dello staff:
 //   · per il Telefono 1 (Player 1: contro la CPU e a sinistra) e il Telefono 2 (Player 2, a destra) lo stato in parole
-//     (natpf_fiera.standSlotView), la batteria (Android: iPhone non la dà) e l'ultimo colpo letto (prova dello staff: un
-//     dritto e un rovescio);
+//     (natpf_fiera.standSlotView) e la batteria (Android: iPhone non la dà);
 //   · «Abbina» (o «Abbina un altro telefono»): il QR dell'abbinamento compare solo qui, a foglio aperto e per un posto alla
 //     volta (stand-pairing.js: 5 minuti, un uso); chiudendo il foglio non vale più;
 //   · chi inquadra il QR non entra: compare il numero (lo stesso sul telefono) con «Rifiuta» e «Conferma»; «Conferma» vale
@@ -13,27 +12,23 @@
 // Il foglio è dello staff come il pannello: la partita resta ferma finché è aperto (natpf_ui.staffOpen), Esc lo chiude
 // (natpf_lobby._key), il chiosco aspetta (natpf_kiosk.check). «‹ Pannello» (o Esc, o Indietro del telecomando) torna al
 // pannello dello stand.
-import { batteryText, strokeOfDir } from './natpf_fiera.js';
+import { batteryText } from './natpf_fiera.js';
 import { TwoStep } from './natpf_confirm.js';
 
 const NATPF_BASE = '/natpf/';
 const $ = id => (typeof document !== 'undefined' ? document.getElementById(id) : null);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const SLOTS = ['p1', 'p2'];
-// quanto resta scritto l'ultimo colpo letto nella scheda
-export const LAST_SWING_MS = 6000;
 
 // Che cosa mostra la scheda di un posto (funzione pura). v: standSlotView (con url del QR); pairing: questo posto è quello
-// con il QR aperto qui; swing: { dir, at } dell'ultimo colpo (dir con il segno corretto), hand: mano del telefono
-// → { view, word, batt, qr, num, actions: [...] , swing }
+// con il QR aperto qui → { view, word, note, batt, low, qr, num, actions: [...], pairLabel }
 // closed: perché l'ultimo QR di questo posto non vale più ('expired' 5 minuti, 'attempts' troppi tentativi sbagliati)
 export const CLOSED_TEXT = Object.freeze({ expired: 'Tempo scaduto (5 minuti): «Abbina» per un QR nuovo', attempts: 'Troppi tentativi sbagliati: «Abbina» per un QR nuovo' });
-export function sheetSlotView(v, { pairing = false, swing = null, hand = 'right', now = 0, closed = null } = {}){
+export function sheetSlotView(v, { pairing = false, closed = null } = {}){
   const st = v?.state || 'off';
   const paired = st === 'lost' || st === 'prep' || st === 'ready';
   const ask = st === 'ask', open = st === 'pairing' && pairing;
   const actions = ask ? ['refuse', 'confirm'] : open ? ['cancel'] : st === 'off' ? [] : paired ? ['pair', 'forget'] : ['pair'];
-  const sw = swing && now - swing.at < LAST_SWING_MS && st === 'ready' ? strokeOfDir(swing.dir, hand) : '';
   return {
     view: ask ? 'ask' : open ? 'qr' : st,
     word: v?.word || '',
@@ -44,7 +39,6 @@ export function sheetSlotView(v, { pairing = false, swing = null, hand = 'right'
     num: ask ? String(v.word.match(/(\d+)\s*$/)?.[1] || '') : '',
     actions,
     pairLabel: paired ? 'Abbina un altro telefono' : 'Abbina',
-    swing: sw ? `Ultimo colpo letto: ${sw}` : st === 'ready' ? 'Prova: fai un dritto e un rovescio con il telefono' : '',
   };
 }
 
@@ -54,8 +48,7 @@ export class NatpfFieraSheet {
     this.el = $('natpf-fiera');
     this.el?.classList?.add?.('hidden');       // (chiuso all'avvio, anche dove la pagina non lo dice)
     this.pairing = null;                       // posto con il QR aperto in questo foglio
-    this.swing = { p1: null, p2: null };       // ultimo colpo letto per posto
-    this._bound = new WeakSet(); this._timer = null; this._keys = {};
+    this._timer = null;
     // «Scollega»: primo clic arma («Sicuro? Clicca ancora»), il secondo scollega (niente finestre di Windows)
     this.confirm2 = new TwoStep({ onChange: on => { if (!on) this.paint(); } });
     this.el?.addEventListener?.('pointerdown', e => e.stopPropagation());
@@ -97,15 +90,6 @@ export class NatpfFieraSheet {
     if (typeof window === 'undefined' || window.qrcode || this._libsP || typeof document?.createElement !== 'function') return;
     this._libsP = new Promise(r => { const s = document.createElement('script'); s.src = `${NATPF_BASE}js/vendor/qrcode.js`; s.onload = () => { r(); this.paint(); }; s.onerror = () => { this._libsP = null; r(); }; document.head?.appendChild?.(s); });
   }
-  // colpi dei telefoni dello stand (prova dello staff): l'ultimo per posto, con il verso già corretto
-  _watch(){
-    for (const slot of SLOTS){
-      const p = this.F?.phone?.(slot, { make: false });
-      if (!p || this._bound.has(p)) continue;
-      this._bound.add(p);
-      p.onSwing?.((ev, s) => { if (!ev?.ignored && p.standSlot === slot && (s?.dir === 1 || s?.dir === -1)) this.swing[slot] = { dir: s.dir, at: performance.now() }; });
-    }
-  }
   async act(cmd, slot, e, btn){
     const F = this.F; if (!F) return false;
     if (cmd !== 'forget') this.confirm2.disarm();
@@ -115,7 +99,6 @@ export class NatpfFieraSheet {
       // un posto alla volta: il QR dell'altro si chiude
       if (this.pairing && this.pairing !== slot) F.closePairing(this.pairing);
       this.pairing = slot; this._opening = slot;
-      this.swing[slot] = null;
       let ok = false;
       try { ok = await F.openPairing(slot); } finally { if (this._opening === slot) this._opening = null; }
       if (!ok && this.pairing === slot) this.pairing = null;
@@ -144,7 +127,6 @@ export class NatpfFieraSheet {
   }
   paint(now = performance.now()){
     const el = this.el; if (!el || !this.isOpen) return;
-    this._watch();
     const F = this.F;
     // il QR chiuso da sé (5 minuti, troppi tentativi, telefono confermato): niente più posto in abbinamento
     // (non mentre si apre: il collegamento del posto parte e solo dopo dice «in abbinamento»)
@@ -152,14 +134,13 @@ export class NatpfFieraSheet {
     for (const slot of SLOTS){
       const card = el.querySelector?.(`[data-fiera-slot="${slot}"]`); if (!card) continue;
       const p = F?.phone?.(slot, { make: false });
-      const v = sheetSlotView(F?.status?.(slot), { pairing: this.pairing === slot, swing: this.swing[slot], hand: p?.hand || 'right', now, closed: p?.link?.L?.stand?.closedWhy || null });
+      const v = sheetSlotView(F?.status?.(slot), { pairing: this.pairing === slot, closed: p?.link?.L?.stand?.closedWhy || null });
       if (card.dataset) card.dataset.view = v.view;
       card.classList?.toggle?.('low', v.low);
       const set = (sel, t) => { const n = card.querySelector?.(sel); if (n && n.textContent !== t) n.textContent = t; return n; };
       set('[data-fiera="word"]', v.word);
       show(set('[data-fiera="note"]', v.note), !!v.note);
       show(set('[data-fiera="batt"]', v.batt), !!v.batt);
-      show(set('[data-fiera="swing"]', v.swing), !!v.swing);
       show(set('[data-fiera="num"]', v.num), !!v.num);
       show(card.querySelector?.('[data-fiera="ask"]'), v.view === 'ask');
       // QR solo a foglio aperto e solo per il posto in abbinamento; fuori da lì si toglie dalla pagina

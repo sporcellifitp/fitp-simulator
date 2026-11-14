@@ -126,7 +126,7 @@ test('stesso schermo: un telefono dello stand scollegato non chiede di inquadrar
    B41 seconda parte (B41.4–B41.5, docs/b41/modalita-fiera-2.md): interruttore del pannello, foglio «Telefoni dello stand»,
    avviso della batteria, pagina della fiera, «Prossimo giocatore», visitatori numerati, battuta al visitatore
    =================================================================================================================== */
-import { fairPanelButton, fairPanelToast, batteryText, batteryAlert, strokeOfDir, nextVisitor, peekVisitor, visitorName, VISITOR_KEY, FAIR_PLAY_KEY } from '../src/natpf/natpf_fiera.js';
+import { fairPanelButton, fairPanelToast, batteryText, batteryAlert, nextVisitor, peekVisitor, visitorName, VISITOR_KEY, FAIR_PLAY_KEY } from '../src/natpf/natpf_fiera.js';
 import { sheetSlotView, CLOSED_TEXT } from '../src/natpf/natpf_fiera_sheet.js';
 import { fairGate, fairNote, visitorLine } from '../src/natpf/natpf_fiera_page.js';
 import { standPanelSummary } from '../src/natpf/natpf_kiosk.js';
@@ -141,7 +141,7 @@ import { readFileSync } from 'node:fs';
 
 const PAIRED2 = JSON.stringify({ session: 'racchetta-stand-zyxwvutsrqpnmkjihgfedcba32', key: 'zyxwvutsrqpnmkjihgfedcba32', pairedAt: 2 });
 
-test('B41.4 · funzioni pure: voce del pannello, batteria nella scheda, avviso del ledwall, ultimo colpo letto', () => {
+test('B41.4 · funzioni pure: voce del pannello, batteria nella scheda, avviso del ledwall, voce «Telefoni dello stand»', () => {
   assert.deepEqual([fairPanelButton(false), fairPanelButton(true), fairPanelButton(true, true)], ['No', 'Sì', 'Sì (indirizzo)']);
   assert.match(fairPanelToast(true, { calSet: true }), /pagina della fiera.*«Giocando».*Resta salvata/);
   assert.match(fairPanelToast(false), /menu di sempre/);
@@ -159,8 +159,6 @@ test('B41.4 · funzioni pure: voce del pannello, batteria nella scheda, avviso d
   assert.equal(batteryAlert([low1, low]), 'Telefono 1: batteria 9% · Telefono 2: batteria 15% · mettili in carica');
   assert.equal(batteryAlert([ready, standSlotView({ on: true, slot: 'p2', paired: true, connected: true, ready: true, battery: 15, charging: true })]), '');
   assert.equal(batteryAlert([standSlotView({ on: false, battery: 5 })]), '', 'modalità spenta: niente');
-  // prova dello staff nel foglio: il verso letto, con la mano
-  assert.deepEqual([strokeOfDir(1), strokeOfDir(-1), strokeOfDir(1, 'left'), strokeOfDir(-1, 'left'), strokeOfDir(0)], ['dritto', 'rovescio', 'rovescio', 'dritto', '']);
   assert.deepEqual([standPanelSummary(ready, standSlotView({ on: true, slot: 'p2' })), standPanelSummary(standSlotView({ on: true, paired: true }), standSlotView({ on: true, slot: 'p2', request: { num: 4 } }))],
     ['1 ✓ · 2 da abbinare ›', '1 scollegato · 2 da confermare ›']);
 });
@@ -174,9 +172,8 @@ test('B41.4 · scheda del foglio: QR solo per il posto in abbinamento, numero co
   assert.equal(S(pairing, { pairing: false }).qr, null, 'un QR aperto altrove (o da un altro foglio) non si mostra qui');
   const ask = S(standSlotView({ on: true, request: { num: 482 } }), {});
   assert.deepEqual([ask.view, ask.num, ask.actions], ['ask', '482', ['refuse', 'confirm']]);
-  const ok = S({ ...standSlotView({ on: true, paired: true, connected: true, ready: true, battery: 60 }), url: null }, { swing: { dir: -1, at: 1000 }, now: 2000 });
-  assert.deepEqual([ok.actions, ok.pairLabel, ok.swing, ok.batt], [['pair', 'forget'], 'Abbina un altro telefono', 'Ultimo colpo letto: rovescio', 'Batteria 60%']);
-  assert.match(S(standSlotView({ on: true, paired: true, connected: true, ready: true }), { swing: { dir: 1, at: 0 }, now: 99999 }).swing, /Prova: fai un dritto e un rovescio/);
+  const ok = S({ ...standSlotView({ on: true, paired: true, connected: true, ready: true, battery: 60 }), url: null }, {});
+  assert.deepEqual([ok.actions, ok.pairLabel, ok.batt], [['pair', 'forget'], 'Abbina un altro telefono', 'Batteria 60%']);
   assert.equal(S(standSlotView({ on: true }), { closed: 'expired' }).note, CLOSED_TEXT.expired);
   assert.deepEqual(S(standSlotView({ on: false }), {}).actions, [], 'modalità spenta: niente da fare');
 });
@@ -190,7 +187,7 @@ test('B41.5 · funzioni pure: si parte solo con i telefoni dello stand pronti; r
   assert.match(fairGate({ mode: 'cpu', phones: { p1: { paired: true, connected: true } } }).why, /«Attiva i sensori»/);
   assert.equal(fairGate({ mode: 'split', phones: { p1: ok, p2: { paired: true } } }).slot, 'p2');
   assert.equal(fairGate({ mode: 'split', phones: { p1: ok, p2: ok } }).ok, true);
-  assert.match(fairNote({ mode: 'cpu', trial: true }), /«Sono pronto» sul telefono, oppure «Gioca ›»: qualche scambio di prova, poi il conto alla rovescia e la partita/);
+  assert.match(fairNote({ mode: 'cpu', trial: true }), /«Sono pronto» sul telefono, oppure «Gioca»: qualche scambio di prova, poi il conto alla rovescia e la partita/);
   assert.match(fairNote({ mode: 'split', trial: false }), /tutti e due i telefoni.*: il conto alla rovescia e la partita/);
   assert.deepEqual([visitorLine({ label: 'Visitatore 3' }), visitorLine({ nickname: 'Marco', label: 'Visitatore 3' }), visitorLine({ guest: true })], ['Visitatore 3', 'Marco', 'Ospite · fuori classifica']);
   assert.equal(visitorName(12), 'Visitatore 12');
@@ -405,4 +402,20 @@ test('B41.4 · avviso della batteria sul ledwall: telefono dello stand collegato
   ui.fiera.setOn(false); link.L = { ...link.L, charging: false };
   ui.fiera._alertAt = 0; ui.fiera.tick();
   assert.ok(!visible('natpf-fiera-alert'), 'modalità spenta: niente avviso');
+});
+
+test('B41.5 · «Sono pronto» sulla pagina della fiera: gli scambi di prova partono e non si saltano da soli con lo stesso tocco', async () => {
+  const w = await fairWorld(), { E, ui } = w, P = ui.phone;
+  // gli scambi di prova hanno già ascoltato il telefono una volta (il visitatore di prima), poi «Sono pronto» lo ascolta
+  ui.trial._bindNext?.(P);
+  w.advance(300);
+  assert.ok(P.nextExtra?.rd, '«Sono pronto» offerto al Telefono 1');
+  // il tocco arriva come «next» (link.js → NatpfPhoneRacket, come nel gioco: ogni ascoltatore lo riceve)
+  if (P.nextOffer) for (const fn of P.nextListeners) fn(P);
+  w.advance(100);
+  assert.ok(ui.trial.active, 'scambi di prova partiti');
+  w.advance(2500);
+  assert.ok(ui.trial.active && ui.trial.S.phase !== 'outro', 'non saltati dal tocco di «Sono pronto»');
+  assert.equal(ui.events.nickname, 'Visitatore 1');
+  assert.equal(E.natpfMatchSeq || 0, 0, 'la partita dopo gli scambi di prova');
 });

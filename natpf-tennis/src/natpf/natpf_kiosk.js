@@ -291,6 +291,10 @@ export class NatpfKiosk {
     set('fiera', fairPanelButton(fon, !!F?.forced), fon);
     const ph = this.el.querySelector('[data-staff="phone"] span'), pt = fon ? 'Telefoni dello stand' : 'Telefono';
     if (ph && ph.textContent !== pt) ph.textContent = pt;
+    // (B41.5: in fiera «Nuovo giocatore» è «Prossimo giocatore»: i telefoni dello stand restano collegati, pagina della fiera;
+    // armato per il secondo clic in partita tiene «Sicuro? Clicca ancora»)
+    const nb = this.el.querySelector('[data-staff="newplayer"]'), nt = fon ? 'Prossimo giocatore' : 'Nuovo giocatore';
+    if (nb && !this.confirm?.isArmed('newplayer') && nb.textContent !== nt) nb.textContent = nt;
     // (la riga sotto le voci spiega la voce sotto il puntatore dal title, se c'è: natpf_stand_mouse.staffHint)
     const pb = ph?.parentElement;
     if (pb){ if (fon) pb.setAttribute?.('title', 'Telefoni dello stand: abbina il Telefono 1 e il Telefono 2 una volta (QR, numero, «Conferma» qui sul PC), stato, batteria e «Scollega». I telefoni restano collegati.'); else pb.removeAttribute?.('title'); }

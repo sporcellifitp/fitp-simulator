@@ -9,6 +9,14 @@
 //   FLOW=stesso   Gioca → Stesso schermo → due telefoni (ognuno il suo tutorial) → conto alla rovescia → prima palla
 //   FLOW=1v1      host: Gioca → Sfida un amico → Smartphone → telefono → in campo → «Partita»; Player 2: link d'invito →
 //                 «Sono pronto» → telefono → calibrazione; l'host «Gioca» → prima palla
+//   FLOW=fiera    (B41.5) modalità fiera contro la CPU: lo staff prepara una volta il Telefono 1 dello stand (non contato);
+//                 poi VISITORS visitatori di fila (di base 10): «Prossimo giocatore» → «Chi gioca» → «Sono pronto» sul telefono
+//                 (o «Gioca») → scambi di prova → conto alla rovescia → partita (chiusa dalla prova) → di nuovo. Per ciascuno
+//                 al massimo MAX_CLICKS clic (di base 2) e MAX_PHONE_TAPS tocchi (di base 1), nessun QR, nessuna
+//                 calibrazione né tutorial, i telefoni sempre collegati (stesso collegamento). Doppio clic (il secondo clic
+//                 110, 250 e 300 ms dopo) su «Prossimo giocatore» e su «Gioca»: non fa niente. Pagina con ?guardia=1 (la
+//                 guardia del doppio clic del B39 come nel gioco vero)
+//   FLOW=fiera-due  (B41.5) lo stesso in due nello stesso schermo (Telefono 1 e 2), di base 3 coppie, al massimo 3 clic
 //   cd tools/e2e && GAME_PORT=… PEER_PORT=… FLOW=singolo CHROMIUM_PATH=… node natpf-flusso-tocchi.mjs   (schermate in $OUT)
 //   MAX_TAPS=n: verifica che il percorso non superi n tocchi (prova nel browser del flusso).
 //   CAL=gesti|play|none (B28, th.mjs): opzione dello stand «Calibrazione»; senza, quella del gioco («Giocando»: niente gesti
@@ -58,9 +66,11 @@ const until = (p, fn, arg, ms = 30000) => p.waitForFunction(fn, arg, { timeout: 
 const taps = [];
 let shotN = 0;
 const pages = {};
-async function shot(who, name){
+// render: il campo si ridisegna prima della schermata (nel Chromium senza scheda video un fotogramma intero ferma la pagina
+// per secondi: nella modalità fiera, con i telefoni dello stand sempre collegati, le schermate sono senza ridisegno)
+async function shot(who, name, { render = true } = {}){
   const p = pages[who]; if (!p) return;
-  if (who.startsWith('pc')) await p.evaluate(() => { try { __natpfTennis.__render?.(); } catch {} });
+  if (who.startsWith('pc') && render) await p.evaluate(() => { try { __natpfTennis.__render?.(); } catch {} });
   const file = `${FLOW}-${String(++shotN).padStart(2, '0')}-${who}-${name}.png`;
   await p.screenshot({ path: `${OUT}/${file}` }).catch(e => log('schermata non riuscita ' + e.message));
 }
@@ -146,6 +156,109 @@ async function toMatch(who, { warmupShot = true } = {}){
   return w;
 }
 
+// B41.5 · modalità fiera: lo staff prepara i telefoni dello stand una volta, poi un visitatore dopo l'altro
+async function fieraFlow(two){
+  const VIS = +(process.env.VISITORS || (two ? 3 : 10));
+  const MAXC = +(process.env.MAX_CLICKS || (two ? 3 : 2)), MAXT = +(process.env.MAX_PHONE_TAPS || (two ? 2 : 1));
+  const { errs } = await gamePage('pc', '&intro=0&guardia=1');
+  const pc = pages.pc;
+  /* preparazione dello staff (una volta, non contata: è la prova natpf-fiera-telefoni a farla con il mouse) */
+  await pc.evaluate(() => __natpfTennis.natpfUi.fiera.setOn(true));
+  const slots = two ? [['p1', 'tel1', 'natpfPhone'], ['p2', 'tel2', 'natpfPhone2']] : [['p1', 'tel1', 'natpfPhone']];
+  for (const [slot, who, w] of slots){
+    await pc.evaluate(s => __natpfTennis.natpfUi.fiera.openPairing(s), slot);
+    await until(pc, w => !!__natpfTennis[w]?.standPairingUrl, w, 20000);
+    const url = await pc.evaluate(w => __natpfTennis[w].standPairingUrl, w);
+    const { p } = await page(B, url, { w: 390, h: 844, mobile: true, init: PHONE_INIT });
+    pages[who] = p;
+    await until(pc, s => /numero/.test(__natpfTennis.natpfUi.fiera.status(s).word), slot, 20000);
+    await pc.evaluate(s => __natpfTennis.natpfUi.fiera.confirm(s, { isTrusted: true }), slot);
+    await until(pc, w => __natpfTennis[w].connected, w, 20000);
+    await p.waitForSelector('#enable:not(.hidden)', { timeout: 15000 }).catch(() => {});
+    await p.click('#enable');
+    check(`preparazione: ${slot === 'p2' ? 'Telefono 2' : 'Telefono 1'} dello stand abbinato e pronto`, await until(pc, w => __natpfTennis[w].ready, w, 20000));
+  }
+  await pc.evaluate(two => { const F = __natpfTennis.natpfUi.fiera; F.setPlay(two ? 'split' : 'cpu'); __natpfTennis.natpfUi.lobby.go('menu'); }, two);
+  check('pagina della fiera', await until(pc, () => document.getElementById('title-modal').dataset.fair === '1' && __natpfTennis.natpfUi.lobby.step === 'match', null, 10000));
+  // spie: pagine del menu visitate, allenamento o calibrazione in campo (tutorial, gesti), QR in vista
+  await pc.evaluate(() => {
+    const ui = __natpfTennis.natpfUi, L = ui.lobby, go = L.go.bind(L), T = ui.training, ts = T.start.bind(T);
+    window.__steps = []; window.__train = 0;
+    L.go = (...a) => { const r = go(...a); window.__steps.push(L.step); return r; };
+    T.start = (...a) => { window.__train++; return ts(...a); };
+  });
+  const joins0 = await pc.evaluate(() => [__natpfTennis.natpfPhone, __natpfTennis.natpfPhone2].map(P => P?.link?.L?.joins || 0));
+  const qrShown = () => pc.evaluate(() => [...document.querySelectorAll('#connect-qr svg, #natpf-qr svg, .hold-qr svg, [id^="split-qr-"] svg')].some(s => s.getClientRects().length > 0) || !!__natpfTennis.natpfPhone.pairingUrl || !!__natpfTennis.natpfPhone2?.pairingUrl);
+  const per = [];
+  // un clic vero del mouse su un elemento (dopo 0,6 s: una persona non clicca prima, e la guardia scarta i clic arrivati
+  // meno di 0,45 s dopo un cambio di schermata); dbl: un secondo clic di doppio clic tanti ms dopo, nello stesso punto
+  const click = async (vt, label, sel, { dbl = 0 } = {}) => {
+    await sleep(600);
+    const r = await pc.evaluate(sel => { const e = document.querySelector(sel); if (!e) return null; const q = e.getBoundingClientRect(); return { x: q.left + q.width/2, y: q.top + q.height/2 }; }, sel);
+    if (!r) throw new Error(`non trovato: ${sel}`);
+    vt.clicks++; taps.push({ who: 'pc', label }); log(`clic [visitatore ${per.length + 1}] ${label}${dbl ? ` (doppio clic, ${dbl} ms)` : ''}`);
+    await pc.mouse.move(r.x, r.y, { steps: 3 }); await pc.mouse.click(r.x, r.y);
+    if (dbl){ await sleep(dbl); await pc.mouse.down({ clickCount: 2 }); await pc.mouse.up({ clickCount: 2 }); }
+  };
+  const phoneTap = async (vt, who, label, sel) => {
+    const ph = pages[who];
+    const ok = await until(ph, sel => { const b = document.querySelector(sel); return b && !b.classList.contains('hidden') && !b.disabled; }, sel, 15000);
+    if (!ok) throw new Error(`${who}: «${label}» non offerto`);
+    vt.taps++; taps.push({ who, label }); log(`tocco [visitatore ${per.length + 1}] [${who}] ${label}`);
+    await ph.click(sel);
+  };
+  const dblNext = { 2: 110, 3: 250, 4: 300 }, dblPlay = { 3: 110, 6: 250, 9: 300 };
+  for (let v = 1; v <= VIS; v++){
+    const vt = { v, clicks: 0, taps: 0 }, seq0 = await pc.evaluate(() => __natpfTennis.natpfMatchSeq || 0);
+    if (v > 1){
+      await click(vt, 'Prossimo giocatore', '#btn-new-player', { dbl: dblNext[v] || 0 });
+      const back = await until(pc, () => { const ui = __natpfTennis.natpfUi; return ui.lobby.visible && ui.lobby.step === 'match' && document.getElementById('title-modal').dataset.fair === '1'; }, null, 10000);
+      if (dblNext[v]){
+        await sleep(700);
+        const st = await pc.evaluate(seq => { const ui = __natpfTennis.natpfUi; return { page: ui.lobby.visible && ui.lobby.step === 'match', more: !!ui.lobby.matchMore, level: ui.lobby.cpuLevel, mode: ui.lobby.mode, seq: __natpfTennis.natpfMatchSeq || 0, trial: !!ui.trial.active, dropped: ui.mouse?.guard?.dropped?.slice(-2) || [] }; }, seq0);
+        check(`doppio clic su «Prossimo giocatore» (secondo clic ${dblNext[v]} ms dopo): una volta sola, il secondo clic non tocca la pagina della fiera`, back && st.page && !st.more && st.level === 'evento' && st.seq === seq0 && !st.trial && st.mode === (two ? 'split' : 'cpu'), JSON.stringify(st));
+      } else check(`visitatore ${v}: «Prossimo giocatore» → pagina della fiera`, back);
+    }
+    if (v === 1 || v === 2) await shot('pc', `fiera-visitatore-${v}`, { render: false });
+    // la scelta del livello (un clic, non sempre: «Adulto» è già scelto)
+    if (!two){ const level = ['evento', 'bambini', 'casual'][v % 3]; if (level !== 'evento') await click(vt, `Chi gioca: ${level === 'bambini' ? 'Bambino' : 'Ragazzo'}`, `#difficulty-mode-group [data-difficulty="${level}"]`); }
+    else if (v >= 2) await click(vt, 'Fascia del Player 2: Bambino', '[data-fiera-band="p2:bambino"]');
+    // partenza: «Sono pronto» sui telefoni, o «Gioca» dello staff
+    const useGioca = two ? v % 2 === 1 : v % 3 === 0;
+    if (useGioca){
+      await until(pc, () => !document.getElementById('btn-start-match').disabled, null, 10000);
+      await click(vt, 'Gioca', '#btn-start-match', { dbl: two ? 0 : dblPlay[v] || 0 });
+    } else for (const [, who] of slots) await phoneTap(vt, who, 'Sono pronto', '#next');
+    const tGo = Date.now();
+    const trial = await until(pc, () => !!__natpfTennis.natpfUi.trial.active, null, 8000);
+    if (v === 1) { await sleep(1500); await shot('pc', 'fiera-scambi-di-prova', { render: false }); }
+    const started = await until(pc, seq => (__natpfTennis.natpfMatchSeq || 0) === seq + 1 && !__natpfTennis.natpfUi.trial.active, seq0, 45000);
+    vt.seconds = +((Date.now() - tGo)/1000).toFixed(1);
+    if (!two && dblPlay[v]){
+      const st = await pc.evaluate(seq => ({ seq: (__natpfTennis.natpfMatchSeq || 0) - seq, lobby: __natpfTennis.natpfUi.lobby.visible }), seq0);
+      check(`doppio clic su «Gioca» (secondo clic ${dblPlay[v]} ms dopo): una partita sola, dopo gli scambi di prova`, trial && started && st.seq === 1 && !st.lobby, JSON.stringify(st));
+    }
+    // (senza colpire gli scambi di prova durano fino allo scadere, circa 14 s: anche dopo «Sono pronto», che non li salta)
+    check(`visitatore ${v}: scambi di prova interi, poi la partita (${vt.seconds} s, senza colpire: finiscono allo scadere)`, trial && started && vt.seconds >= 8);
+    await until(pc, () => !__natpfTennis.natpfUi.prematch.active, null, 10000);
+    if (v === 1) await shot('pc', 'fiera-partita', { render: false });
+    const nick = await pc.evaluate(() => __natpfTennis.natpfUi.events.nickname);
+    vt.nick = nick;
+    await pc.evaluate(() => { const E = __natpfTennis; E.matchConfig.gamesToWin = 1; for (let i = 0; i < 4; i++) E._awardPoint('opponent', 'Out'); });
+    const over = await until(pc, () => !document.getElementById('victory-modal').classList.contains('hidden'), null, 12000);
+    const sp = await pc.evaluate(() => ({ steps: [...new Set(window.__steps)], train: window.__train, conn: [__natpfTennis.natpfPhone, __natpfTennis.natpfPhone2].map(P => P ? P.connected : null), joins: [__natpfTennis.natpfPhone, __natpfTennis.natpfPhone2].map(P => P?.link?.L?.joins || 0) }));
+    vt.qr = await qrShown(); vt.steps = sp.steps; vt.train = sp.train; vt.joins = sp.joins;
+    check(`visitatore ${v}${two ? '' : ` (${nick})`}: ${vt.clicks} clic e ${vt.taps} tocchi (al massimo ${MAXC} e ${MAXT}), nessun QR, nessuna calibrazione né tutorial, sempre la pagina della fiera, telefoni sempre collegati`,
+      over && vt.clicks <= MAXC && vt.taps <= MAXT && !vt.qr && sp.train === 0 && sp.steps.every(s => s === 'match') && sp.conn.filter(c => c !== null).every(Boolean) && sp.joins.every((j, i) => j === joins0[i]),
+      JSON.stringify({ ...vt, conn: sp.conn, joins0 }));
+    if (!two) check(`   … con il suo numero: Visitatore ${v}`, nick === `Visitatore ${v}`, nick);
+    per.push(vt);
+  }
+  await shot('pc', 'fiera-fine-partita', { render: false });
+  res.visitors = per;
+  check('nessun errore nella pagina del gioco', !errs.length, errs.slice(0, 3).join(' | '));
+}
+
 const B = await launch();
 const res = { flow: FLOW };
 try {
@@ -203,6 +316,8 @@ try {
     await sleep(1200); await shot('pc', 'prima-palla'); await shot('tel1', 'prima-palla');
     if (FLOW === '1v1') await shot('pc2', 'prima-palla');
     check('nessun errore nella pagina del gioco', !errs.length, errs.slice(0, 3).join(' | '));
+  } else if (FLOW === 'fiera' || FLOW === 'fiera-due'){
+    await fieraFlow(FLOW === 'fiera-due');
   } else if (FLOW === 'stesso'){
     const { errs } = await gamePage('pc', '');
     await intro('pc');
