@@ -15,7 +15,9 @@
 //     partita ferma e senza la pausa; riquadro «Telefono in pausa» sotto la pausa (non copre «Riprendi ›»);
 //   • puntatore (B39.5): Opzioni → «Puntatore: Grande», nascosto dopo 10 s fermo nel menu e di nuovo visibile con un
 //     anello, mai nascosto con la racchetta mouse, freccia sul bordo di un'area calibrata quando il puntatore è fuori
-//     (schermate composte: il cursore vero non compare nelle schermate, lì c'è la sua immagine).
+//     (schermate composte: il cursore vero non compare nelle schermate, lì c'è la sua immagine);
+//   • calibrazione dello schermo (B39.6) a 1920 × 1080 con la parte visibile di 1000 × 1000 in alto a sinistra: si
+//     cliccano i due angoli, «Salva» è nella parte visibile, una freccia si trascina, salvata in meno di 8 azioni.
 //   (Il nome dei minigiochi, i due nomi dello stesso schermo e il codice della sfida sono del B38: tastiera a schermo e
 //   «Gioca come Ospite»; uscire e ricaricare il programma si provano nel programma: natpf-desktop/scripts/prova-linux.mjs,
 //   scenario solo-mouse.)
@@ -289,12 +291,54 @@ try {
   await g.mouse.move(400, 360, { steps: 6 }); await g.waitForTimeout(300);
   check('… e sparisce quando il puntatore torna dentro', await g.evaluate(() => document.querySelector('.natpf-edge-arrow').classList.contains('hidden')));
   await g.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.screen.save({ preset: 'full', margins: { t: 0, r: 0, b: 0, l: 0 } }); });
-  await clickAt('[data-natpf-pointer="normale"]', { wait: 500 });
-  check('«Puntatore: Normale»: di nuovo la freccia di sistema', await g.evaluate(() => !document.documentElement.classList.contains('cursor-big') && localStorage.getItem('natpf-tennis.puntatore') === 'normale'));
+  await g.waitForTimeout(600);
+  const nb = await clickAt('[data-natpf-pointer="normale"]', { wait: 500 });
+  const nres = await g.evaluate(() => ({ big: document.documentElement.classList.contains('cursor-big'), saved: localStorage.getItem('natpf-tennis.puntatore') }));
+  check('«Puntatore: Normale»: di nuovo la freccia di sistema', !nres.big && nres.saved === 'normale', JSON.stringify({ nb, nres, scartati: (await dropped()).slice(-3) }));
 
   check('nessuna finestra di Windows (confirm, alert) in tutto il percorso', !dialogs.length, dialogs.join(' | '));
   check('nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 400));
   await ctx.close();
+
+  /* ---------- 11. calibrazione dello schermo con il mouse (B39.6): 1000 × 1000 in alto a sinistra di 1920 × 1080 ---------- */
+  {
+    const ctx2 = await B.newContext({ viewport: { width: 1920, height: 1080 } }), c = await ctx2.newPage(), errs2 = [];
+    c.on('pageerror', e => errs2.push(e.message));
+    await c.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ body: '', contentType: 'text/css' }));
+    await c.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0&guardia=1&peer=127.0.0.1:${PEER_PORT}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await c.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby?.visible && window.__natpfTennis.player?.model, null, { timeout: 180000 });
+    await c.evaluate(() => { const E = __natpfTennis; E.__render = E.render.bind(E); E.render = () => {}; });
+    await c.waitForTimeout(800);
+    const at = sel => c.evaluate(sel => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(), x = b.left + b.width/2, y = b.top + b.height/2, t = document.elementFromPoint(x, y); return { x, y, l: b.left, r: b.right, t: b.top, b: b.bottom, onTop: !!t && (t === el || el.contains(t)) }; }, sel);
+    let clicks = 0;
+    const click = async (x, y) => { await c.mouse.move(x, y, { steps: 4 }); await c.mouse.click(x, y); clicks++; await c.waitForTimeout(700); };
+    const o = await at('[data-page="menu"] [data-menu="options"]'); await click(o.x, o.y);
+    const k = await at('[data-option="calibra"]'); await click(k.x, k.y);
+    await c.mouse.move(300, 260, { steps: 5 }); await c.waitForTimeout(300);
+    const hint = await c.evaluate(() => { const h = document.querySelector('.natpf-cal-hint'); const b = h?.getBoundingClientRect(); return h && !h.classList.contains('hidden') ? { text: h.textContent, l: Math.round(b.left), t: Math.round(b.top) } : null; });
+    await c.evaluate(() => { try { __natpfTennis.__render(); } catch {} }); await c.screenshot({ path: `${SP}/b39-calibra-due-angoli-1920x1080.png` }); console.log(`     schermata: ${SP}/b39-calibra-due-angoli-1920x1080.png`);
+    check('calibrazione aperta: si comincia dai due angoli, la scritta segue il puntatore', !!hint && /alto a sinistra/.test(hint.text) && Math.abs(hint.l - 322) < 30 && Math.abs(hint.t - 282) < 30, JSON.stringify(hint));
+    await click(0, 0);
+    const hint2 = await c.evaluate(() => document.querySelector('.natpf-cal-hint')?.textContent || '');
+    await click(999, 999);
+    await c.waitForTimeout(400);
+    const area = await c.evaluate(() => { const b = document.body.getBoundingClientRect(); return { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) }; });
+    const save = await at('[data-cal="save"]'), cancel = await at('[data-cal="cancel"]');
+    await c.evaluate(() => { try { __natpfTennis.__render(); } catch {} }); await c.screenshot({ path: `${SP}/b39-calibra-dopo-due-angoli-1920x1080.png` }); console.log(`     schermata: ${SP}/b39-calibra-dopo-due-angoli-1920x1080.png`);
+    check('due clic (angolo in alto a sinistra, angolo in basso a destra): area 1000 × 1000 in alto a sinistra, «Salva» e «Annulla» dentro la parte che si vede', /basso a destra/.test(hint2) && Math.abs(area.w - 998) <= 12 && Math.abs(area.h - 998) <= 12 && area.x === 0 && area.y === 0 && save.onTop && save.r <= 1000 && save.b <= 1000 && cancel.onTop, JSON.stringify({ area, save, hint2 }));
+    // freccia del bordo destro trascinata verso sinistra di 40 px
+    const mr = await at('.cal-mark-r');
+    await c.mouse.move(mr.x, mr.y, { steps: 3 }); await c.mouse.down(); await c.mouse.move(mr.x - 20, mr.y, { steps: 3 }); await c.mouse.move(mr.x - 40, mr.y, { steps: 3 }); await c.mouse.up(); clicks++;
+    await c.waitForTimeout(400);
+    const area2 = await c.evaluate(() => Math.round(document.body.getBoundingClientRect().width));
+    check('freccia del bordo destro trascinata: l\'area si stringe con il mouse', area2 < area.w - 25 && area2 > area.w - 60, JSON.stringify({ prima: area.w, dopo: area2 }));
+    const sv = await at('[data-cal="save"]'); await click(sv.x, sv.y);
+    const saved = await c.evaluate(() => ({ open: __natpfTennis.natpfUi.calibra.isOpen, cal: JSON.parse(localStorage.getItem('natpf-tennis.screen.cal') || 'null') }));
+    check(`«Salva»: calibrazione salvata, ${clicks} azioni del mouse in tutto (prima circa 110 clic)`, !saved.open && saved.cal && saved.cal.margins.r > 47 && saved.cal.margins.b >= 7 && clicks <= 7, JSON.stringify({ ...saved, clicks }));
+    await c.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.screen.save({ preset: 'full', margins: { t: 0, r: 0, b: 0, l: 0 } }); });
+    check('calibrazione con il mouse: nessun errore JavaScript', !errs2.length, errs2.join(' | ').slice(0, 300));
+    await ctx2.close();
+  }
 } finally {
   await B.close();
 }

@@ -268,3 +268,64 @@ test('B39.5 · in campo il puntatore sparisce dopo 3 s fermo e appena la partita
   w.pressStart(); w.advance(600);
   assert.equal(html.classList.contains('cursor-hidden'), true, 'partita partita: nascosto subito');
 });
+
+/* ---------- B39.6 · calibrazione dello schermo con il mouse ---------- */
+import { cornersMargins, edgeMargin, REPEAT, repeatPlan, CORNER_TEXT } from '../src/natpf/natpf_calibra.js';
+import { viewport, CAL_KEY } from '../src/natpf/natpf_screen.js';
+
+test('B39.6 · geometria: due angoli → bordi in % (1000 × 1000 in alto a sinistra di 1920 × 1080 → destra 48 %, sotto 7,5 %); freccia trascinata → margine', () => {
+  assert.deepEqual(cornersMargins({ x: 0, y: 0 }, { x: 999, y: 999 }, 1920, 1080), { t: 0, r: 48, b: 7.5, l: 0 });
+  assert.deepEqual(cornersMargins({ x: 999, y: 999 }, { x: 0, y: 0 }, 1920, 1080), { t: 0, r: 48, b: 7.5, l: 0 }, 'in qualunque ordine');
+  assert.deepEqual(cornersMargins({ x: 96, y: 54 }, { x: 1823, y: 1025 }, 1920, 1080), { t: 5, r: 5, b: 5, l: 5 });
+  assert.deepEqual(cornersMargins({ x: -40, y: -10 }, { x: 5000, y: 5000 }, 1920, 1080), { t: 0, r: 0, b: 0, l: 0 }, 'fuori dalla finestra: il bordo della finestra');
+  assert.equal(cornersMargins(null, { x: 1, y: 1 }, 1920, 1080), null);
+  assert.equal(edgeMargin('r', 1000, 0, 1920, 1080), 48); assert.equal(edgeMargin('l', 192, 0, 1920, 1080), 10);
+  assert.equal(edgeMargin('t', 0, 54, 1920, 1080), 5); assert.equal(edgeMargin('b', 0, 1000, 1920, 1080), 7.5);
+  assert.equal(edgeMargin('b', 0, 2000, 1920, 1080), 0, 'oltre il bordo: zero'); assert.equal(edgeMargin('x', 0, 0, 1920, 1080), null);
+  assert.deepEqual([REPEAT.firstMs, REPEAT.everyMs, REPEAT.bigAfter], [450, 90, 12]);
+  assert.deepEqual(repeatPlan(0), { wait: 450, big: false }); assert.deepEqual(repeatPlan(5), { wait: 90, big: false }); assert.deepEqual(repeatPlan(12), { wait: 90, big: true });
+  assert.match(CORNER_TEXT[0], /alto a sinistra/); assert.match(CORNER_TEXT[1], /basso a destra/);
+});
+
+const fakeDown = (x, y, target = null) => ({ button: 0, isTrusted: true, clientX: x, clientY: y, target: target || { closest: () => null }, prevented: false, preventDefault(){ this.prevented = true; }, stopPropagation(){} });
+test('B39.6 · nel gioco: si apre con i due angoli; due clic → area = rettangolo, «Salva»; freccia trascinata; «+» tenuto premuto ripete e accelera', async () => {
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  w.ui.screen.fullscreen.disarm(); w.lobby.go('options'); w.lobby.option('calibra');
+  const cal = w.ui.calibra;
+  assert.ok(cal.isOpen && Array.isArray(cal.corners) && cal.corners.length === 0, 'si comincia dai due angoli');
+  assert.ok(cal.hintEl && !cal.hintEl.classList.contains('hidden') && /alto a sinistra/.test(cal.hintEl.textContent), 'la scritta dice cosa cliccare');
+  // un clic sul riquadro dei comandi non è un angolo (e smette di chiedere gli angoli, salvo «Clicca i due angoli»)
+  const panelBtn = { closest: sel => (sel.includes('.cal-panel') ? {} : sel.includes('corners') ? {} : null) };
+  cal._corner(fakeDown(5, 5, panelBtn)); assert.equal(cal.corners.length, 0, '«Clicca i due angoli» non conta come angolo');
+  let e = fakeDown(0, 0); cal._corner(e);
+  assert.ok(e.prevented && cal.corners.length === 1 && /basso a destra/.test(cal.hintEl.textContent));
+  e = fakeDown(767, 719); cal._corner(e);
+  assert.equal(cal.corners, null, 'finito con gli angoli');
+  assert.deepEqual(viewport(), { x: 0, y: 0, w: 768, h: 720, full: false }, 'area = il rettangolo tra i due clic (1280 × 720 della finestra di prova)');
+  assert.deepEqual(cal.margins, { t: 0, r: 40, b: 0, l: 0 });
+  // freccia del bordo destro trascinata fino a x = 1000: margine destro 22 %
+  const mark = { dataset: { calEdge: 'r' }, setPointerCapture(){} };
+  cal._press({ button: 0, target: { closest: sel => (sel.includes('.cal-mark') ? mark : null) }, pointerId: 1 });
+  cal._dragTo({ clientX: 1000, clientY: 300 });
+  assert.equal(cal.margins.r, 22); assert.equal(cal.edge, 'r');
+  cal._release(); w.advance(10);
+  // «+» (verso il centro) tenuto premuto sul bordo destro: un passo subito, poi ripete; dopo 12 ripetizioni a passi da 5 %
+  const plus = { dataset: { calStep: '1' } };
+  cal._press({ button: 0, target: { closest: sel => (sel.includes('[data-cal-step]') ? plus : null) } });
+  assert.equal(cal.margins.r, 22.5, 'un passo alla pressione');
+  w.advance(440); assert.equal(cal.margins.r, 22.5, 'prima di 0,45 s nessuna ripetizione');
+  w.advance(20); assert.equal(cal.margins.r, 23, 'poi ripete');
+  // passi registrati ogni 90 ms: prima piccoli (0,5 %), dopo una dozzina di ripetizioni grandi (5 %)
+  const seen = []; let last = cal.margins.r;
+  for (let i = 0; i < 16; i++){ w.advance(90); seen.push(+(cal.margins.r - last).toFixed(1)); last = cal.margins.r; }
+  const firstBig = seen.indexOf(5);
+  assert.ok(firstBig >= 8 && seen.slice(0, firstBig).every(d => d === 0.5 || d === 0) && seen.slice(firstBig).every(d => d === 5 || d === 0), JSON.stringify(seen));
+  cal._release(); const r = cal.margins.r; w.advance(1000);
+  assert.equal(cal.margins.r, r, 'rilasciato: si ferma');
+  cal.save();
+  assert.equal(JSON.parse(localStorage.getItem(CAL_KEY)).margins.r, r, 'salvata');
+  // con la tastiera niente angoli
+  w.lobby.option('calibra'); assert.ok(Array.isArray(cal.corners));
+  w.key('ArrowDown', 'ArrowDown'); assert.equal(cal.corners, null);
+  cal.cancel();
+});

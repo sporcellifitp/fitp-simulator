@@ -1059,7 +1059,10 @@
       <div class="cal-panel">
         <p class="cal-kicker">Opzioni · Schermo</p>
         <h2 class="cal-title" id="cal-title">Calibra lo schermo</h2>
-        <p class="cal-help">Regola finché le frecce toccano i bordi visibili. Il cerchio deve essere rotondo: se è ovale l’immagine è stirata.</p>
+        <!-- B39.6: con il mouse, i due angoli (la scritta segue il puntatore), le frecce dei bordi si trascinano, − e + si
+             tengono premuti; «Schermo intero» anche qui -->
+        <button type="button" class="cal-fs" data-cal="fullscreen" title="Schermo intero (F)">Schermo intero</button>
+        <p class="cal-help">Clicca l’angolo in alto a sinistra e quello in basso a destra che vedi sul ledwall, poi regola finché le frecce toccano i bordi visibili (si trascinano). Il cerchio deve essere rotondo: se è ovale l’immagine è stirata. <button type="button" class="cal-btn cal-btn-corners" data-cal="corners">Clicca i due angoli</button></p>
         <div class="cal-row">
           <span class="cal-label">Formato</span>
           <div class="cal-seg" role="radiogroup" aria-label="Formato">
@@ -1099,7 +1102,7 @@
           <div><dt>Bordi</dt><dd id="cal-i-margins"></dd></div>
         </dl>
         <p class="cal-note" id="cal-note" role="status"></p>
-        <p class="cal-keys">1–6 formato · Tab bordo · frecce sposta (Maiusc 5 %) · R azzera · F schermo intero · Invio salva · Esc annulla</p>
+        <p class="cal-keys">Mouse: due angoli · trascina le frecce · tieni premuto − o + · Tasti: 1–6 formato · Tab bordo · frecce sposta (Maiusc 5 %) · R azzera · F schermo intero · Invio salva · Esc annulla</p>
         <div class="cal-actions">
           <button type="button" class="cal-btn" data-cal="reset">Azzera</button
           ><button type="button" class="cal-btn" data-cal="cancel">Annulla</button
