@@ -778,4 +778,12 @@ notte: i controlli della 14.1 erano finiti prima, salvi in `scratchpad/v1401/`.)
       correzioni), aggiornata alla 14.1. Lacune del solo mouse trovate dalla guida: `docs/b39/controllo-solo-mouse/dalla-guida-dello-stand.md`.
 - **Decisioni dell'utente (domande a scelta)**: B39 tasto destro = **menu di Windows** con le voci dello staff; **«Gioca
   come Ospite»** sì (fuori classifica).
-- [ ] Push, zip, installer; poi B38 + B44 e B39 (due agenti).
+- [x] Push (`889cb25`), zip 23.871.347 B, sha256 `ebe0cb7a882d9e256076fcc4b5d4d8f0927a222f18cbcec60b88f0a26dec8727`,
+      provato estratto; mandati all'utente zip, file nuovo del Worker e guida dello stand. [~] Installer: in attesa.
+- [~] **B38 + «Gioca come Ospite» + B44** (workflow `b38-b44-tastiera-ospite-servizio`, run `wf_a9ff8e57-823`), worktree
+      `scratchpad/b38/wt`, ramo `b38-tastiera`, porte 4100–4149.
+- [~] **B39 stand con il solo mouse** (workflow `b39-stand-solo-mouse`, run `wf_9888a904-9b5`), worktree `scratchpad/b39/wt`,
+      ramo `b39-solo-mouse`, porte 4150–4199; 8443/8080/8081 e 4902/4903 con `flock` sui file `scratchpad/lan.lock` e
+      `scratchpad/telecomando.lock`.
+- Se il contenitore si riavvia: nelle due worktree `git log`/`git status`, appunti `scratchpad/b38/notes.md` e
+  `scratchpad/b39/notes.md`, lavoro non salvato in un commit «IN CORSO», poi rilanciare lo script con una sezione «RIPRESA».
