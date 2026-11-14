@@ -3,7 +3,7 @@
 // se la pausa è arrivata nello scambio.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { phoneHealth, createPhoneWatch, holdText, phoneHoldText, WATCH } from '../src/natpf/natpf_phone_watch.js';
+import { phoneHealth, createPhoneWatch, holdText, phoneHoldText, phoneHoldView, holdHead, telLabel, PANEL_AFTER_MS, WATCH } from '../src/natpf/natpf_phone_watch.js';
 
 const ok = { connected: true, phone: 'ready', vis: true, rates: { fo: { ageMs: 16 }, bin: { ageMs: 20 } } };
 test('salute del telefono: collegamento, telefono pronto, pagina in primo piano, sensori che arrivano', () => {
@@ -81,8 +81,40 @@ test('pausa per lo schermo spento: da quanto, e cosa fare; collegamento caduto c
   assert.doesNotMatch(holdText('pagina nascosta', { hiddenMs: 400 }), / da \d+ s/, 'meno di un secondo: niente durata');
   assert.match(holdText('pagina nascosta', { hiddenMs: 12400 }), / da 12 s: /);
   assert.match(holdText('scollegato', { wasHidden: true, hiddenMs: 7000 }), /schermo spento da 7 s: riaccendilo.*si ricollega da solo/);
-  assert.match(holdText('scollegato'), /^Telefono scollegato/);
+  // (B45.1: scollegato a schermo acceso: si ricollega da solo con la sua chiave, il QR solo se la pagina è chiusa)
+  assert.match(holdText('scollegato'), /^Il telefono si ricollega da solo appena torna la rete/);
   const p = { state: { vis: false, hiddenAt: 1000 } };
   assert.match(phoneHoldText(p, 'pagina nascosta', 31000), / da 30 s/);
   assert.doesNotMatch(phoneHoldText({ state: { vis: true } }, 'scollegato', 5000), /schermo spento/);
+});
+
+// B45.1 «telefono che non si scollega» (urgenza della fiera del 14/11: «la ledwall si disconnette e dice "scollegato"»): con
+// il telefono che tace (buco della Wi-Fi tra la folla) il riquadro della pausa dice «segnale debole, aspetto che torni…»
+// finché il controllo di vita non chiude (10 s), poi «scollegato · si ricollega da solo» con da quanto tace; niente «Riattiva
+// i sensori» (non sono i sensori) e il pannello con il QR solo dopo PANEL_AFTER_MS
+test('B45.1 · telefono che tace: «segnale debole, aspetto che torni…», poi «scollegato · si ricollega da solo» con il tempo', () => {
+  const stale = { fo: { ageMs: 3000 }, bin: { ageMs: 3100 } };
+  const silent = phoneHealth({ connected: true, phone: 'ready', vis: true, rates: stale, sensorAge: 30, beatAgeMs: WATCH.beatMs + 300, rtt: 9 });
+  assert.deepEqual([silent.ok, silent.why, silent.silent, silent.answers], [false, 'segnale debole', true, false]);
+  // sensori fermi sul telefono (segnale recente, campioni vecchi): resta «sensori fermi» con «Riattiva i sensori»
+  assert.equal(phoneHealth({ connected: true, phone: 'ready', vis: true, rates: stale, sensorAge: 5000, beatAgeMs: 300 }).why, 'sensori fermi');
+  assert.match(holdText('sensori fermi'), /Riattiva i sensori/);
+  assert.doesNotMatch(holdText('segnale debole'), /Riattiva|QR|scollegat/i);
+  // titoli: «Telefono 1» fuori dallo stesso schermo, il nome dentro
+  assert.equal(holdHead('segnale debole'), 'Telefono 1: segnale debole, aspetto che torni…');
+  assert.equal(holdHead('segnale debole', { name: 'Giulia', slot: 'p2' }), 'Telefono di Giulia: segnale debole, aspetto che torni…');
+  assert.equal(holdHead('scollegato'), 'Telefono 1 scollegato · si ricollega da solo');
+  assert.equal(holdHead('scollegato', { wasHidden: true }), 'Telefono in pausa', 'schermo spento: il testo di sempre');
+  assert.equal(holdHead('pagina nascosta'), 'Telefono in pausa');
+  assert.equal(telLabel('', 'p2'), 'Telefono 2'); assert.equal(telLabel('Player 2', 'p2'), 'Telefono del Player 2');
+  // da quanto tace (dal suo ultimo segnale), aggiornato a ogni lettura
+  const p = { state: { vis: true, beatAt: 1000 } };
+  const v = phoneHoldView(p, 'scollegato', { now: 13400 });
+  assert.equal(v.title, 'Telefono 1 scollegato · si ricollega da solo');
+  assert.match(v.text, /^Senza segnale da 12 s: si ricollega da solo/);
+  assert.equal(v.line, 'Telefono 1 scollegato · si ricollega da solo (da 12 s)');
+  assert.match(phoneHoldView(p, 'scollegato', { now: 21400 }).text, /da 20 s/);
+  assert.equal(phoneHoldView(p, 'segnale debole', { now: 4000 }).line, 'Telefono 1: segnale debole, aspetto che torni…');
+  assert.equal(phoneHoldView(p, 'pagina nascosta', { now: 4000 }).line, null, 'altri motivi: la riga di sempre');
+  assert.ok(PANEL_AFTER_MS >= 15000, 'il pannello con il QR non subito');
 });

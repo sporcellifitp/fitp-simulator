@@ -40,7 +40,7 @@ test('tentativi del telefono: senza fine in LAN e per il telefono dello stand, 1
 test('rete tornata o cambiata: subito un tentativo solo fuori da «collegato» e mai a canale aperto (prova della chiave dello stand)', () => {
   assert.equal(kickNow({ linkState: 'lost' }), true);
   assert.equal(kickNow({ linkState: 'lost', hidden: true }), false, 'pagina nascosta: al ritorno');
-  assert.equal(kickNow({ linkState: 'connecting', channel: false }), true, 'tentativo appeso alla rete di prima');
+  assert.equal(kickNow({ linkState: 'connecting' }), false, 'tentativo in corso: ha il suo tempo (mai troncato)');
   assert.equal(kickNow({ linkState: 'connecting', channel: true }), false, 'benvenuto o prova HMAC in corso');
   assert.equal(kickNow({ linkState: 'on' }), false, 'collegato: decide il controllo di vita');
   assert.equal(kickNow({ linkState: 'denied' }), false);

@@ -467,12 +467,12 @@ $('#standTag')?.addEventListener('pointerdown', e => {
 for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('#standTag')?.addEventListener(ev, () => { clearTimeout(staffT); $('#standTag').classList.remove('holding'); });
 // rete tornata, pagina ripresa dalla cache del browser: subito un tentativo (B41.3; il telecomando lo fa già). Anche la
 // racchetta normale: se aspettava un nuovo tentativo, lo fa subito
-// B45.1 (link-life.kickNow): anche con un tentativo in corso ma ancora appeso alla rete di prima (canale non aperto), e
-// anche quando cambia il TIPO di rete (navigator.connection, Chrome su Android: wifi ↔ cellular…; le stime che cambiano
-// di continuo no). Mai da collegato (decide il controllo di vita) né a canale aperto (benvenuto, prova della chiave dello
-// stand). netChangedAt: per il racconto della caduta («rete cambiata»)
+// B45.1 (link-life.kickNow): anche quando cambia il TIPO di rete (navigator.connection, Chrome su Android: wifi ↔
+// cellular…; le stime che cambiano di continuo no). Solo in attesa del prossimo tentativo: mai da collegato (decide il
+// controllo di vita) né a tentativo in corso (benvenuto, prova della chiave dello stand). netChangedAt: per il racconto
+// della caduta («rete cambiata»)
 let netChangedAt = null, pageHiddenAt = null, pageVisibleAt = null;
-const kick = () => { if (pair && kickNow({ linkState, channel: !!pendingConn?.open, hidden: document.hidden })){ tries = 0; connect(); } };
+const kick = () => { if (pair && kickNow({ linkState, hidden: document.hidden })){ tries = 0; connect(); } };
 addEventListener('online', () => { netChangedAt = performance.now(); kick(); });
 addEventListener('offline', () => { netChangedAt = performance.now(); });
 addEventListener('pageshow', kick);

@@ -16,10 +16,11 @@ test('salute: movimento che non arriva con il telefono che dice di avere i senso
   // telefono aggiornato: ultimo campione 30 ms fa, segnale di 400 ms fa, collegamento rapido
   const h = phoneHealth({ connected: true, phone: 'ready', rates: stale, sensorAge: 30, beatAgeMs: 400, rtt: 9 });
   assert.equal(h.ok, true); assert.equal(h.degraded, 'canale');
-  // sensori fermi sul telefono, segnale vecchio o collegamento lento: pausa
+  // sensori fermi sul telefono, segnale vecchio o collegamento lento: pausa (B45.1: segnale vecchio o collegamento lento con i
+  // sensori che sul telefono vanno è la rete, «segnale debole»; «sensori fermi» solo per i sensori fermi sul telefono)
   assert.equal(phoneHealth({ connected: true, phone: 'ready', rates: stale, sensorAge: WATCH.phoneSensorMs + 500, beatAgeMs: 400 }).why, 'sensori fermi');
-  assert.equal(phoneHealth({ connected: true, phone: 'ready', rates: stale, sensorAge: 30, beatAgeMs: WATCH.beatMs + 100 }).why, 'sensori fermi');
-  assert.equal(phoneHealth({ connected: true, phone: 'ready', rates: stale, sensorAge: 30, beatAgeMs: 400, rtt: WATCH.rttMax + 50 }).why, 'sensori fermi');
+  assert.equal(phoneHealth({ connected: true, phone: 'ready', rates: stale, sensorAge: 30, beatAgeMs: WATCH.beatMs + 100 }).why, 'segnale debole');
+  assert.equal(phoneHealth({ connected: true, phone: 'ready', rates: stale, sensorAge: 30, beatAgeMs: 400, rtt: WATCH.rttMax + 50 }).why, 'segnale debole');
   // flusso regolare: nessun degrado
   assert.deepEqual(phoneHealth({ connected: true, phone: 'ready', rates: { fo: { ageMs: 20 } }, sensorAge: 30, beatAgeMs: 400 }), { ok: true, why: null });
 });
@@ -57,7 +58,7 @@ test('B45.1 · ricollegamento automatico solo se il telefono risponde ancora (ca
   assert.equal(asked, 0, 'buio totale: nessun «Ricollega» (decide il controllo di vita)');
   // telefono che risponde con i sensori che vanno, collegamento lento (non «canale»): sì
   const slow = phoneHealth({ connected: true, phone: 'ready', rates: stale, sensorAge: 30, beatAgeMs: 400, rtt: WATCH.rttMax + 50 });
-  assert.equal(slow.why, 'sensori fermi'); assert.equal(slow.answers, true);
+  assert.equal(slow.why, 'segnale debole'); assert.equal(slow.answers, true);
   const S = createResync(); S.update(slow, { paused: true, now: 0 });
   assert.equal(S.update(slow, { paused: true, now: RESYNC.afterMs }), true);
   // sensori fermi sul telefono (segnale recente, campioni vecchi): no (ripartono con «Riattiva i sensori» sul telefono)
@@ -265,7 +266,8 @@ test('B20 A3: telefono del Player 2 scollegato → riquadro con il nome e il suo
   assert.ok(ui.split.hold, 'pausa per il P2'); assert.equal(E.natpfPaused, true);
   assert.equal(hint(), null, 'in pausa niente icona del servizio sotto il riquadro');
   const el = holdEl();
-  assert.equal(el.querySelector('b').textContent, 'Telefono di Giulia in pausa');
+  // (B45.1: «scollegato · si ricollega da solo», non più «in pausa» con «riapri la pagina»)
+  assert.equal(el.querySelector('b').textContent, 'Telefono di Giulia scollegato · si ricollega da solo');
   // QR del telefono caduto dentro il riquadro, con il nome; quello del P1 (collegato) resta nascosto
   assert.equal(el.querySelector('[data-hold-qrs]').classList.contains('hidden'), false);
   assert.equal(el.querySelector('[data-hold-qr="p2"]').classList.contains('hidden'), false);
@@ -296,7 +298,7 @@ test('B20 A3: telefono del Player 1 scollegato nello stesso schermo → QR nel r
   w.advance(1500);
   assert.ok(ui.phoneHold, 'pausa per il P1');
   const el = holdEl();
-  assert.equal(el.querySelector('b').textContent, 'Telefono di Marco in pausa');
+  assert.equal(el.querySelector('b').textContent, 'Telefono di Marco scollegato · si ricollega da solo');
   assert.equal(el.querySelector('[data-hold-qr="p1"]').classList.contains('hidden'), false);
   assert.equal(el.querySelector('[data-hold-qr="p2"]').classList.contains('hidden'), true);
   assert.ok(!ui.phoneDropOpened, 'il pannello del telefono non si apre sopra le due metà');

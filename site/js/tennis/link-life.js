@@ -28,14 +28,12 @@ export function retryPlan({ tries = 0, stand = false, lan = false } = {}){
 export const lostText = (why, again) => `${why ? `${why} ` : ''}${again ? 'Riprovo da solo tra poco.' : 'Tocca «Riprova».'}`;
 
 // Rete tornata o cambiata sul telefono (evento 'online', o cambio del TIPO di navigator.connection: Chrome su Android; le
-// stime rtt/downlink/effectiveType cambiano di continuo e non contano): si riprova subito? Solo fuori dallo stato 'on'
-// (collegato: decide il controllo di vita) e con la pagina in vista; con un tentativo in corso solo se non ha ancora aperto
-// il canale con il computer (appeso alla rete di prima): mai a metà del benvenuto o della prova della chiave dello stand.
-export function kickNow({ linkState = 'off', channel = false, hidden = false } = {}){
-  if (hidden) return false;
-  if (linkState === 'lost') return true;
-  if (linkState === 'connecting') return !channel;
-  return false;
+// stime rtt/downlink/effectiveType cambiano di continuo e non contano): si riprova subito? Solo in attesa del prossimo
+// tentativo ('lost') e con la pagina in vista. Mai da collegato ('on': decide il controllo di vita) e mai a tentativo in
+// corso ('connecting': ha il suo tempo, LINK_TIMES.phoneMs, e a canale aperto ci sono il benvenuto e la prova della chiave
+// del telefono dello stand, che un tentativo nuovo troncherebbe; revisione dell'analisi B45)
+export function kickNow({ linkState = 'off', hidden = false } = {}){
+  return !hidden && linkState === 'lost';
 }
 // tipo di rete cambiato davvero (prima e dopo noti: un browser che non lo dà non fa mai ripartire niente)
 export const netTypeChanged = (prev, next) => typeof prev === 'string' && typeof next === 'string' && !!next && prev !== next;

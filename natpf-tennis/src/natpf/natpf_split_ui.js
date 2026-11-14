@@ -15,7 +15,7 @@
 //     lo fermano. Prima la lobby saltava muta a «Partita» dopo 0,7 s, dove serviva comunque «Gioca».
 import { NatpfPhoneRacket } from './natpf_phone_racket.js';
 import { calPrompt } from './natpf_cal_view.js';
-import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText, phoneOf, holdTitle, WATCH } from './natpf_phone_watch.js';
+import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldView, phoneOf, holdTitle, WATCH } from './natpf_phone_watch.js';
 import { splitVisible } from './natpf_split.js';
 import { webcamOpenError } from './natpf_webcam_watch.js';
 
@@ -73,7 +73,9 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = fals
   if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})`, detail: 'Collegamento non disponibile' };
   // (B41.2: telefono dello stand, modalità fiera: niente QR da inquadrare, si ricollega da solo al suo posto)
   if (!p.connected && p.standSlot) return { state: 'qr', lost: true, title: `Telefono ${p.standSlot === 'p2' ? 2 : 1} scollegato`, sub: 'Telefono dello stand: si ricollega da solo. Se non torna, chiama lo staff', detail: 'Telefono scollegato' };
-  if (!p.connected) return L.state === 'lost' ? { state: 'qr', lost: true, title: 'Inquadra il QR', sub: 'Telefono scollegato: riapri la pagina sul telefono', detail: 'Telefono scollegato' }
+  // (B45.1: il telefono col QR si ricollega da solo con la sua chiave, anche dopo un buco lungo della Wi-Fi; il QR solo se la
+  // pagina è stata chiusa)
+  if (!p.connected) return L.state === 'lost' ? { state: 'qr', lost: true, title: 'Inquadra il QR', sub: 'Telefono scollegato: si ricollega da solo. Pagina chiusa? Inquadra il QR', detail: 'Telefono scollegato' }
     : { state: 'qr', title: 'Inquadra il QR', sub: 'Con la fotocamera del telefono, poi tocca il link', detail: 'Inquadra il QR' };
   if (PHONE_ERR[L.phone]) return { state: 'ko', title: 'Sensori non disponibili', sub: PHONE_ERR[L.phone], detail: 'Sensori non disponibili' };
   // tutorial aperto nella sua metà (B9): scheda mostrata e schede viste (avanzamento mandato al telefono, tutProgress);
@@ -87,6 +89,8 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = fals
   }
   if (unseen) return { state: 'tut', title: 'Tutorial da vedere', sub: 'Si apre nella pagina dei telefoni («Racchette»)', detail: 'Tutorial da vedere' };
   if (L.vis === false || health?.why === 'pagina nascosta') return { state: 'ko', title: 'Schermo del telefono spento', sub: 'Riaccendi lo schermo e tocca la pagina del gioco', detail: 'Schermo spento' };
+  // (B45.1: i dati del telefono non arrivano ma i suoi sensori vanno, o tace del tutto: è la rete, si aspetta)
+  if (p.ready && health?.why === 'segnale debole' && !(health.gapMs < SPLIT_STALL_MS)) return { state: 'ko', title: 'Segnale debole', sub: 'Aspetto che il telefono torni: si riprende da solo', detail: 'Segnale debole' };
   if (p.ready && health?.why === 'sensori fermi' && !(health.gapMs < SPLIT_STALL_MS)) return { state: 'ko', title: 'Sensori del telefono fermi', sub: 'Sul telefono tocca «Riattiva i sensori»', detail: 'Sensori fermi' };
   // (B28: con la calibrazione «Giocando» il profilo semplice è voluto: si calibra con gli scambi di prova)
   if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? (p.calMode === 'play' ? 'Si calibra giocando' : 'Senza calibrazione: si gioca lo stesso') : 'Racchetta calibrata', detail: p.simple ? (p.calMode === 'play' ? 'Si calibra giocando' : 'Senza calibrazione') : 'Calibrato' };
@@ -315,6 +319,10 @@ export class NatpfSplitUi {
   // pagina «Collega»: si chiede la calibrazione appena il telefono ha i sensori attivi
   _drive(id){
     const p = this.phone(id); if (!p) return;
+    // (B45.1: niente al menu principale e nella classifica. Il chiosco ora lascia i telefoni collegati e la loro calibrazione
+    // nuova ridisegna questa pagina anche da lì (_onCal): il tutorial si apriva al menu e i telefoni lo aspettavano)
+    const lobby = this.ui.lobby;
+    if (lobby?.visible && (lobby.step === 'menu' || lobby.step === 'ranking')) return;
     const L = p.state;
     // telefono collegato: prima il tutorial nella sua metà (una volta per abbinamento); il telefono aspetta «ho capito».
     // Telefono che cade a tutorial aperto: la metà torna al QR e la modale ricorda la scheda raggiunta (stesso telefono
@@ -654,13 +662,15 @@ export class NatpfSplitUi {
     const a = this.watch.update(h, { inField, rally, now });
     const R = this.ui.diag?.recorder;
     if (inField && this.resync.update(h, { paused: this.watch.state !== 'ok', busy: rally, now }) && p.relink()) R?.log?.('tel.ricollega', { chi: 'p2', motivo: h.why || h.degraded, auto: true });
-    // schermo del telefono del P2 spento: il riquadro dice da quanto (ogni secondo)
-    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold(holdTitle(this.name('p2')), text, this.ui.relinkAction?.(p, this.name('p2')), 'p2', { phone: p }); } }
+    // schermo del telefono del P2 spento: il riquadro dice da quanto (ogni secondo). B45.1: anche la rete («segnale debole»,
+    // poi «scollegato» con da quanto tace), come per il Player 1 (natpf_ui._refreshPhoneHold)
+    const paintP2 = why => { const v = phoneHoldView(p, why, { name: this.name('p2'), slot: 'p2', now }); this.holdShown = `${v.title}\n${v.text}`; this.ui._paintHold(v.title, v.text, this.ui.relinkAction?.(p, this.name('p2')), 'p2', { phone: p, row: v.line }); };
+    if (!a && this.hold && this.watch.state === 'paused' && ['pagina nascosta', 'scollegato', 'segnale debole'].includes(this.hold.why)){ const v = phoneHoldView(p, this.hold.why, { name: this.name('p2'), slot: 'p2', now }); if (`${v.title}\n${v.text}` !== this.holdShown) paintP2(this.hold.why); }
     if (!a) return;
     if (a.kind === 'pause' || a.kind === 'wait'){
       this.hold = { why: a.why };
       // B20 (audit B19, punto 10): nome nei testi, QR del telefono scollegato dentro il riquadro, avviso all'altro telefono
-      this.ui._paintHold(holdTitle(this.name('p2')), phoneHoldText(p, a.why), this.ui.relinkAction?.(p, this.name('p2')), 'p2', { phone: p });
+      paintP2(a.why);
       this.ui._tellOtherPhone?.('p2', true);
       R?.log?.('tel.pausa', { chi: 'p2', motivo: a.why, fase: E.phase, ...(h.gapMs ? { gapMs: h.gapMs } : {}), ...(Number.isFinite(p.state.sensorAge) ? { sensoriTelefonoMs: p.state.sensorAge } : {}) });
       if (p.connected){ p.link.send({ t: 'ph', ph: 'pause' }); p.lastPhase = 'pause'; }

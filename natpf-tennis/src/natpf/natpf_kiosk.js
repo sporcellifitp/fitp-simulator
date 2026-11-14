@@ -173,11 +173,15 @@ export class NatpfKiosk {
     // B45.1: i telefoni restano collegati (prima la racchetta col QR si scollegava: in fiera sembrava una caduta della rete).
     // Chi arriva dopo non eredita niente: tutorial visto, profilo e calibrazione, colpi e segno imparati (resetPlayer, come
     // «Nuovo giocatore» dal menu: il telefono ricalibra da solo; con «Giocando» riceve subito il profilo semplice)
-    for (const p of [ui.phone, ui.engine?.natpfPhone2]){
-      if (!p) continue;
+    const phones = [ui.phone, ui.engine?.natpfPhone2].filter(Boolean);
+    for (const p of phones){
       if (p.resetPlayer) p.resetPlayer({ gate: false, causa: 'chiosco' }); else p.forgetTutorial?.();
     }
     if (!stay) ui.lobby.go('menu');
+    // (B45.1: con i telefoni ancora collegati, la pagina «Collega»/«Partita» dello stesso schermo lasciata in vista ha già
+    // riaperto il tutorial nelle due metà appena è stato dimenticato, e i telefoni lo aspettavano con il menu sullo schermo.
+    // Si chiude: lo riapre la metà di ciascuno quando il visitatore dopo arriva nella pagina «Collega»)
+    if (ui.split){ ui.split.closeTutorials?.(); for (const p of phones) p.forgetTutorial?.(); }
     // pausa ricalcolata a pannelli chiusi: prima restava attiva e il visitatore successivo trovava il gioco fermo
     ui._syncPause?.();
     this.last = performance.now(); this.clean = true;
