@@ -9,6 +9,8 @@ const { skillLevel } = await import('../../../src/natpf/natpf_skill.js');
 const { strokePower } = await import('../../../src/natpf/natpf_stroke_intent.js');
 const NO = await import('../../../src/natpf/natpf_stroke_outcome.js');
 const NI = await import('../../../src/natpf/natpf_impact.js');
+// B36.0: scarto della cima e mira piena dagli stessi sorteggi; colpi con la regola nuova della direzione (../b36/simulati.mjs)
+const { cimaSimulata, contaColpo } = await import('../b36/simulati.mjs');
 export { PROFILES, createHeadlessEngine, mulberry32, gauss, NO, NI };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const IDEAL_R = -.45, DT = 1/120;
@@ -21,8 +23,9 @@ const side = (e, who) => { const s = who === 'p1' ? 1 : -1, me = who === 'p1' ? 
 export function mkIntent(e, who, P, rng, opts = {}){
   const V = side(e, who), lv = skillLevel(e.matchConfig.difficulty), span = NO.directionSpan(lv), xMax = NO.assistOf(lv).xMax;
   const open = V.oppX >= 0 ? -1 : 1, contact = V.landX >= V.meX ? 1 : -1;
-  let tau = 0, face = 0;
+  let tau = 0, face = 0, aimed = false;
   if (rng() < P.intent){
+    aimed = true;
     const aim = NO.aimForLanding(open*(.7 + rng()*.3)*xMax, NO.neutralX(V.landX, xMax), xMax);
     const u = clamp(-aim*.85/(contact*NO.OUTCOME.timingAim), -1, 1);
     tau = u*(u >= 0 ? span : NO.lateSpanOf(V.vz, lv))*.9;
@@ -32,11 +35,13 @@ export function mkIntent(e, who, P, rng, opts = {}){
   const special = rng() < (P.specials || 0);
   const shot = opts.shot || (special ? (V.oppZ > -9 ? 'lob' : 'slice') : 'topspin');
   const rise = opts.rise ?? (shot === 'lob' ? .8 : shot === 'slice' ? -.4 : shot === 'flat' ? 0 : .3);
-  const intent = { shot, power: +power.toFixed(3), depth: +(power*.91).toFixed(3), rise, face: clamp(face + gauss(rng)*P.wristSd, -1, 1) };
+  // B36.0: piatto letto (lo stesso sorteggio di sempre) e, dagli stessi numeri, scarto della cima e mira piena
+  const cima = cimaSimulata(P, face, aimed, gauss(rng));
+  const intent = { shot, power: +power.toFixed(3), depth: +(power*.91).toFixed(3), rise, face: cima.face };
   if (opts.riseRef != null) intent.riseRef = opts.riseRef;
   return { error: -tau + gauss(rng)*P.timingSd + (-.1 - IDEAL_R)/18, sent: false, after: P.afterBounce ? P.afterBounce - tau + gauss(rng)*(P.afterBounceSd || 0) : null,
     swing: { source: 'natpf-phone', side: contact > 0 ? 'forehand' : 'backhand', shotType: shot, speed: .8 + power*.85, dirX: 0,
-      natpf: { aim: 'swing', shot, intent, power, peak: Math.round(peak), latency: 0, hand: 'right', prepCapable: true, prep: rng() < (P.prep || 0) ? { lead: .35, amount: .8 } : null } } };
+      natpf: { aim: 'swing', shot, intent, power, peak: Math.round(peak), latency: 0, hand: 'right', aimDev: cima.aimDev, aimFull: cima.aimFull, prepCapable: true, prep: rng() < (P.prep || 0) ? { lead: .35, amount: .8 } : null } } };
 }
 function serveEvt(P, rng){
   const peak = Math.max(250, P.peak + gauss(rng)*P.peakSd), power = strokePower(peak);
@@ -47,7 +52,7 @@ function serveEvt(P, rng){
 export function match({ p1 = 'amatore', p2 = 'amatore', fair = false, games = 1, seed = 1, serveDelay = 1.5, first = 'player', speed = null, cap = 80, returnShot = null, returnEvt = null, allEvt = null, serveEvtOf = null, tune = null, idle = null, cpu = null }){
   const P = { p1: typeof p1 === 'string' ? PROFILES[p1] : p1, p2: typeof p2 === 'string' ? PROFILES[p2] : p2 };
   const rng = mulberry32(seed*2654435761 % 4294967296), erng = mulberry32(seed*40503 + 977), real = Math.random; Math.random = erng;
-  const out = { points: [], strokes: [], seconds: 0, pauses: [], capped: 0, speedEnd: null };
+  const out = { points: [], strokes: [], seconds: 0, pauses: [], capped: 0, speedEnd: null, direzione: { colpi: 0, nuova: 0 } };
   try {
     const e = createHeadlessEngine({ difficulty: cpu || 'casual' });
     if (!cpu) e.startSplit();
@@ -107,7 +112,7 @@ export function match({ p1 = 'amatore', p2 = 'amatore', fair = false, games = 1,
       if (e.phase === 'RALLY' && e.ball.rallyStrokeCount >= cap){ out.capped++; e._awardPoint(rng() < .5 ? 'opponent' : 'player', 'scambio infinito'); }
       e.step(DT);
       const lr = e.natpfLastRacket;
-      if (lr && lr !== lastRacket){ lastRacket = lr; const w = lr.who === 'p2' ? 'p2' : 'p1', a = w === 'p2' ? e.opponent : e.player;
+      if (lr && lr !== lastRacket){ lastRacket = lr; contaColpo(lr.out, out.direzione); const w = lr.who === 'p2' ? 'p2' : 'p1', a = w === 'p2' ? e.opponent : e.player;
         curStroke = { who: w, n: e.ball.rallyStrokeCount, shot: lr.out?.shot, gesture: lr.intent?.shot, by: +e.ball.pos.y.toFixed(2), hz: +Math.abs(a.pos.z).toFixed(1), q: lr.quality, kmh: lr.out?.kmh ?? null, failed: !!lr.out?.failed, weak: !!lr.out?.weak, volley: !!lr.volley, landX: +e.ball.targetLanding.x.toFixed(2), landZ: +e.ball.targetLanding.z.toFixed(2), res: null };
         out.strokes.push(curStroke); }
     }

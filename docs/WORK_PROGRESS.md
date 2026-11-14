@@ -1883,3 +1883,48 @@ due telefoni, telefono che cade durante il conto), prove di prima verdi, `audit:
 - [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.
   Poi la B41 seconda parte (B41.4 foglio e interruttore, B41.5 pagina della fiera e «Prossimo giocatore») dopo i blocchi
   dello stand con il solo mouse.
+
+## B36.0 · Misurare prima: misure della direzione dei colpi, il gioco non cambia (13–14/11) · [x] verificato sul ramo, da unire
+Obiettivo: le misure che servono a scrivere la regola della direzione del B36 (piano `docs/b36/piano-direzionalita.md` §3)
+prima di cambiare il gioco. Criterio di fine: impronte e `audit:legend` identici alla base; Worker compatibile nei due versi;
+documento con i passi del Worker e la prova a Precision. Ramo `b36-0-misure` (base `0035e02`, 2026-11-13.12). Documento:
+`docs/b36/misure-b36-0.md`.
+- [x] B36.0.1 · registro (commit `6563e45`). File: `registro_formato.js` (CAMPI + `pf dv tu rx rz fu nr zp dir`,
+  `CAMPI_B36`, formato delle righe 2), `cloudflare/registro-worker.js` (stessi campi, `FORMATO` 2, «Formato delle righe: 2»
+  nella pagina e `formato` nello stato), `registro_registratore.js` (riga «colpo» che aspetta il primo rimbalzo vero:
+  aggancio `_spawnBounceRing`, `_apri`/`_forseChiudi`/`_chiudiColpo`, `LINEE` dell'arbitro; `dir` in «partita» e
+  «minigioco»; `zp` da Precision), `natpf_direction.js` (nuovo: modello della direzione, oggi «classica»;
+  `usedNewRule`), `docs/b30/registro-dello-stand.md`. Test: `natpf-registro.test.mjs` (+4), `registro-worker.test.mjs`
+  (+1, Worker di prima ricostruito dal file), `natpf-b36-misure.test.mjs` (nuovo, motore vero). Gioco 1499/1499, sito
+  226/226, Windows 43/43. Prova una tantum con il file vero del Worker della base: righe nuove accettate (200, 6/6) senza i
+  campi nuovi; Worker nuovo: campi salvati; righe di prima: identiche (`scripts/audit/b36/risultati/worker-compatibilita.txt`).
+- [x] B36.0.2 · riassunto (commit `ac1ad05`): `scripts/registro/riassunto.mjs` sezione «Direzione» (giro della cima, peso
+  del tempo, correlazione di rango cima/tempo → rimbalzo, E1–E5 e durata, centro della mira per partita, Precision per
+  partita e per zona, retta cima → zona, avviso del Worker non ricaricato); `finto.mjs` con i campi della direzione e
+  qualche Precision da un generatore a parte (righe di prima identiche su 4 semi). Test `registro-riassunto.test.mjs` (+2).
+- [x] B36.0.3 · giocatori simulati (commit `30bce76`): `scripts/audit/b36/simulati.mjs` (nuovo: `cimaSimulata`,
+  `contaColpo`), `rally-balance.mjs`, `b19/due-umani.mjs`, `b19/due-umani-distanza.mjs` (aimDev e aimFull dallo stesso
+  sorteggio; `out.direzione`; profili `medioTel`, `giraTanto`, `giraTanto40` in fondo), `natpf_direction.devOfFace`.
+  Impronte sulla base e sul ramo, confrontate riga per riga: b20, b25, b37, palla corta, fine partita, evento-bambini, B42
+  (`--cpu --stesso`) e `audit:legend` identiche (solo la riga `[B36] … 0 su N` in più e i secondi di B42).
+- [x] B36.0.4 · banco della direzione (commit `e4f94ff`): `direzione-telefono.mjs --b36` (giudice sul rimbalzo vero con la
+  regola dell'arbitro, tre posizioni, serie su 20 semi, partite con il rumore, seme degli scambi di prova, posa «pronto»,
+  colpi con la regola nuova), `colpi.mjs` (`partite({ su: 'rimbalzo' })`, `bx` nei colpi della persona vera),
+  `scambi-di-prova.mjs` (`settled` esportato). Di base il banco resta sul bersaglio (test del B35a invariati).
+  Primi numeri simulati (61 s): matrice sul rimbalzo vero, gesto «piatto» buono 69/64/63% giusti (centro/destra/sinistra),
+  persona vera 48/49/48%; serie incrociato 69% ± 3, lungolinea 48% ± 3; seme degli scambi 2+2 adulto 5,8° medio (9 su 10
+  sotto 13,5°), bambino 6,8°, impreciso 11,3°; posa «pronto» ferma 0,5/1/2 s: 91/79/61% del giro, −0,27/−0,66/−1,32 m;
+  regola nuova 0 colpi su 21.904. Profili nuovi (`rally-balance`, 150 punti × 3 semi): «gira tanto» ammucchia le palle
+  verso le righe (tre celle più colpite 35% a casual, 27% a pro, contro il 15–18% degli altri).
+- [x] B36.0.5 · documenti: `docs/b36/misure-b36-0.md`, questa voce, `docs/PROJECT_MEMORY.md`,
+  `docs/GUIDA_REGISTRO_CLOUDFLARE.md` (§I), risultati in `natpf-tennis/scripts/audit/b36/risultati/`.
+  Non verificato: Cloudflare vero (ricaricamento del Worker fatto solo in node), telefono vero, programma Windows, ledwall,
+  persone; nessuna prova nel browser per questo blocco; la riga di Precision vera nel browser.
+- [x] B36.0.6 · unione di `natpf-simulator` (`c47a1ff`, solo documenti: traccia e coda B44) nel ramo, conflitto in
+  `PROJECT_MEMORY.md` risolto tenendo le due parti; verifiche sul codice unito: gioco **1504/1504**, Worker 21/21, sito
+  226/226, programma Windows 43/43, LAN 12/12, build riuscito, `npm run audit:legend` identico alla base (tutti i
+  criteri), prova nel browser `natpf-registro` 39/39 (porte 4110/4111; riga «avvio» con `v: 2`). Documento: prova a
+  Precision con «Nuovo giocatore» tra una persona e l'altra e «Riprova ›» tra le partite.
+- [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti (il file del Worker da mandare all'utente è
+  `natpf-tennis/cloudflare/registro-worker.js`), `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`; poi dire all'utente i passi del
+  Worker (documento §3) e la prova a Precision (§6).

@@ -145,6 +145,13 @@ anche installer e trailer).
   per milione di scritture: impostate l'avviso di spesa come nella guida del TURN, punto 17). Il piano gratuito dei
   Worker comprende 100.000 richieste al giorno.
 
+## I · Ricaricare il Worker quando cambia (dal B36.0)
+
+Quando una versione del gioco aggiunge campi al registro, il Worker va ricaricato **una volta** con il file nuovo, se no
+accetta le righe ma toglie i campi nuovi (il riassunto lo dice). Variabili, chiave e collegamento al bucket restano. La
+prima volta è il B36.0 (campi della direzione dei colpi, formato delle righe 2): passi con il solo mouse in
+`docs/b36/misure-b36-0.md` §3. Dopo il Deploy la pagina del Worker dice **«Formato delle righe: 2»**.
+
 ## Sicurezza in breve
 
 - Il bucket `natpf-registro` è **privato e separato**: mai «Public access», mai un dominio pubblico, mai il bucket

@@ -1,0 +1,48 @@
+difficoltà  profilo     punti  colpi/punto  mediana  max  infiniti  punti vinti
+casual      medio         450         6.68        5   31         0        92.2%
+casual      medioTel      450         6.61        5   33         0        82.2%
+casual      amatore       450         8.24        6   31         0          86%
+casual      giraTanto     450         4.29        3   24         0        88.4%
+casual      giraTanto40    450         3.96        3   17         0        89.8%
+pro         medio         450        10.76        9   33         0        59.6%
+pro         medioTel      450         9.51        7   31         0        52.2%
+pro         amatore       450        12.42       11   30         0        51.3%
+pro         giraTanto     450         6.52        5   27         0        54.9%
+pro         giraTanto40    450         6.28        5   26         0        53.6%
+
+casual/medio: vinto: Nice Shot! 239 · vinto: Out 147 · perso: Point 30 · vinto: Net 29 · perso: Out 3 · perso: Net 2
+
+casual/medioTel: vinto: Nice Shot! 230 · vinto: Out 119 · perso: Out 42 · perso: Point 38 · vinto: Net 21
+
+casual/amatore: vinto: Nice Shot! 203 · vinto: Out 150 · perso: Out 47 · vinto: Net 34 · perso: Point 16
+
+casual/giraTanto: vinto: Nice Shot! 289 · vinto: Out 95 · perso: Out 47 · vinto: Net 14 · perso: Point 4 · perso: Net 1
+
+casual/giraTanto40: vinto: Nice Shot! 282 · vinto: Out 104 · perso: Out 37 · vinto: Net 18 · perso: Point 9
+
+pro/medio: vinto: Nice Shot! 182 · perso: Point 100 · vinto: Out 71 · perso: Out 47 · perso: Net 31 · vinto: Net 15 · perso: Nice Shot! 4
+
+pro/medioTel: vinto: Nice Shot! 171 · perso: Point 112 · perso: Out 87 · vinto: Out 48 · vinto: Net 16 · perso: Net 11 · perso: Nice Shot! 5
+
+pro/amatore: vinto: Nice Shot! 158 · perso: Out 99 · perso: Point 92 · vinto: Out 59 · perso: Net 25 · vinto: Net 14 · perso: Nice Shot! 3
+
+pro/giraTanto: vinto: Nice Shot! 197 · perso: Out 160 · perso: Point 41 · vinto: Out 39 · vinto: Net 11 · perso: Net 2
+
+pro/giraTanto40: vinto: Nice Shot! 193 · perso: Out 168 · perso: Point 38 · vinto: Out 34 · vinto: Net 14 · perso: Net 3
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 15033 (con «Classica» sono sempre 0)
+difficoltà  profilo     colpi  celle  3 celle  profondità p10/p50/p90  lato p10/p50/p90  verso la rete (dal fondo)  volée  impatto z p10/p50
+casual      tennista      858     44    21.8%        9.13/10.09/10.79     -3.2/0.3/3.43          22.4% (12.9%)    7.7%  10.05/11.6
+casual      amatore      1644     68    17.8%          6.66/8.19/9.21  -3.68/-0.07/3.76           7.3% (1.2%)    4.1%  10.24/12.09
+casual      bambino      1223     57    17.8%          5.18/6.42/7.35   -3.93/0.13/3.91           1.5% (0%)    1.5%  10.61/12.38
+casual      umano        1736     75    17.5%          6.72/8.59/9.38   -3.37/0.18/3.59           3.9% (0.5%)    2.2%  10.33/12.21
+casual      medioTel     1292     60      17%          7.03/8.52/9.51   -3.79/0.13/3.61           9.1% (2.2%)      5%  10.23/12
+casual      giraTanto     799     61    35.2%          6.43/7.39/9.02         -4/0.48/4           2.5% (0.6%)      1%  10.49/11.65
+casual      giraTanto40    714     59    34.9%          6.42/7.26/8.93         -4/0.81/4           2.2% (0.6%)      1%  10.59/11.7
+pro         tennista     1486     52    18.8%         8.72/9.96/10.76    -3.6/0.17/3.66          10.6% (4.2%)    4.8%  10.63/12.32
+pro         amatore      2599     75    14.8%          6.37/7.93/9.11   -3.7/-0.03/3.78           5.2% (0.3%)    3.2%  9.9/12.46
+pro         bambino      1442     60    16.2%          4.85/6.27/7.23   -3.96/0.05/3.96           0.4% (0%)    0.4%  10.36/12.46
+pro         umano        2907     88    16.8%          6.48/8.55/9.33  -3.65/-0.11/3.59           3.1% (0.1%)    1.8%  10.44/12.49
+pro         medioTel     1934     67    16.6%          6.67/8.37/9.38   -3.86/0.28/3.92           6.5% (0.9%)    3.9%  10.09/12.41
+pro         giraTanto    1304     65    26.6%          6.12/7.24/8.92      -4/0.12/4.14           1.8% (0.2%)    0.6%  10.4/12.22
+pro         giraTanto40   1247     65      27%          6.07/7.16/8.92      -4.43/0.36/4           1.9% (0.3%)    0.9%  10.47/12.24
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 21185 (con «Classica» sono sempre 0)

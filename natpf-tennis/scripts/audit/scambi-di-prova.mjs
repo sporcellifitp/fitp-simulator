@@ -84,8 +84,9 @@ function shots(seed, person, n){
   for (let i = 0; i < n; i++) out.push({ side: R() < .6 ? 'forehand' : 'backhand', ...draw(person, R), seed: seed*100 + i });
   return out;
 }
-// telefono assestato della persona: gesti della calibrazione uguali al suo colpo e 24 colpi giocati
-function settled({ seed, hand, person }){
+// telefono assestato della persona: gesti della calibrazione uguali al suo colpo e 24 colpi giocati (B36.0: anche per
+// direzione-telefono.mjs --b36, errore del seme degli scambi di prova)
+export function settled({ seed, hand, person }){
   const C = gesturePhone({ seed, hand, kc: person.k }), R = rng(900 + seed);
   for (let i = 0; i < 24; i++) play(C, { side: i % 2 ? 'backhand' : 'forehand', ...draw(person, R) }, R);
   return C;

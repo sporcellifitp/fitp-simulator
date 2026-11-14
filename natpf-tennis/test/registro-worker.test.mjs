@@ -6,7 +6,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import worker, { LIMITI, TIPI, CAMPI, MAPPE, CAMPI_VIETATI, CONTI, pulisci, righeBuone, dimentica, oggiItalia } from '../cloudflare/registro-worker.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import worker, { LIMITI, TIPI, CAMPI, MAPPE, CAMPI_VIETATI, CONTI, FORMATO, pulisci, righeBuone, dimentica, oggiItalia } from '../cloudflare/registro-worker.js';
 import * as F from '../src/natpf/registro/registro_formato.js';
 import { r2Finto } from '../scripts/registro/r2-finto.mjs';
 
@@ -40,6 +44,9 @@ test('Worker del registro: gli elenchi e i limiti sono la copia esatta di quelli
   assert.deepEqual([...MAPPE], [...F.MAPPE]);
   assert.deepEqual([...CAMPI_VIETATI], [...F.CAMPI_VIETATI]);
   for (const k of ['maxBlocco', 'maxRiga', 'maxTesto', 'maxMessaggio']) assert.equal(LIMITI[k], F.REGISTRO[k], k);
+  // B36.0: il formato delle righe del Worker è quello del gioco (campo «v» della riga «avvio») e i campi della direzione ci sono
+  assert.equal(FORMATO, F.REGISTRO.versione); assert.equal(FORMATO, 2);
+  for (const c of F.CAMPI_B36) assert.ok(CAMPI.includes(c), c);
   assert.equal(LIMITI.maxTotale, 2*1024*1024*1024, 'tetto di base del registro: 2 GB');
   // la stessa riga, pulita dal gioco e dal Worker, dà lo stesso risultato
   const sporca = { k: 'errore', t: 5, msg: 'TypeError a http://192.168.1.20:8443/natpf/tennis/racchetta.html?room=AB12 di mario@example.com', file: 'main.js', riga: 12, nome: 'Mario', boh: 1,
@@ -192,7 +199,7 @@ test('Worker del registro: senza il collegamento al bucket non parte (stato chia
   assert.equal(pagina.res.status, 503); assert.match(pagina.text, /NON è pronto/);
   // con il bucket: pronto
   const ok = await leggi(env(), '/', { chiave: null });
-  assert.equal(ok.res.status, 200); assert.deepEqual(ok.body, { ok: true, registro: 'pronto', spazio: true, chiave: true });
+  assert.equal(ok.res.status, 200); assert.deepEqual(ok.body, { ok: true, registro: 'pronto', spazio: true, chiave: true, formato: 2 });
 });
 
 test('Worker del registro: senza la chiave niente lettura, niente elenco, niente cancellazione', async () => {
@@ -398,4 +405,57 @@ test('Worker del registro: la pagina dell’utente mostra lo spazio, scarica e c
   assert.equal(p.res.status, 200);
   for (const pezzo of ['Spazio occupato dal registro', 'Cancella tutto', 'Ricalcola lo spazio', '.jsonl.gz', "'DELETE'", 'type="password"']) assert.ok(p.text.includes(pezzo), pezzo);
   assert.ok(!p.text.includes(CHIAVE)); assert.equal(p.res.headers.get('Cache-Control'), 'no-store'); assert.equal(p.res.headers.get('Referrer-Policy'), 'no-referrer');
+  // B36.0: chi ricarica il Worker vede subito la versione nuova (il Worker di prima non ha questa riga)
+  assert.match(p.text, /Formato delle righe: <b class="ok" id="formato">2<\/b>/);
+});
+
+// B36.0 (docs/b36/misure-b36-0.md): campi nuovi della direzione dei colpi, un solo ricaricamento del Worker. Compatibilità
+// nei due versi, con il Worker di PRIMA ricostruito da questo file (gli stessi elenchi senza i campi del B36.0):
+//   - Worker di prima + righe del gioco nuovo: accettate tutte (200, nessuna scartata), senza i campi nuovi (tolti in
+//     silenzio, come ogni campo che il Worker non conosce); le righe non restano in coda sul PC;
+//   - Worker nuovo + righe dei giochi di prima: accettate e scritte identiche.
+const RIGHE_B36 = [
+  { k: 'avvio', t: 0, v: 2, versione: '2026-11-14.1', g: 'abcdefgh' },
+  { k: 'partita', t: 100, n: 1, modo: 'cpu', chi: 'adulto', livello: 'evento', dir: 'classica' },
+  { k: 'colpo', t: 2300, n: 1, gesto: 'topspin', ms: -40, voto: 'ritardo', f: .55, d: .31, x: 1.6, z: -9.1, pf: .42, dv: 8.9, tu: -.38, rx: 1.41, rz: -8.62 },
+  { k: 'colpo', t: 4100, n: 1, gesto: 'topspin', ms: 25, voto: 'anticipo', f: .7, d: -.9, x: -3.9, z: -10.2, pf: -1, dv: -21.5, tu: .6, rx: -4.48, rz: -9.7, fu: 1 },
+  { k: 'colpo', t: 6000, amb: 'minigioco', gesto: 'topspin', ms: 5, voto: 'perfetto', f: .5, d: .6, x: 2.4, z: -9, pf: .6, dv: 11.4, tu: .05, rx: 2.2, rz: -8.8, zp: 2 },
+  { k: 'minigioco', t: 9000, gioco: 'precision', finito: true, punti: 312, durS: 61.2, dir: 'classica' },
+];
+async function workerDiPrima(){
+  const src = fs.readFileSync(new URL('../cloudflare/registro-worker.js', import.meta.url), 'utf8');
+  const lista = `,\n  ${F.CAMPI_B36.map(c => `'${c}'`).join(', ')}]);`;
+  assert.equal(src.split(lista).length, 2, 'i campi del B36.0 stanno in fondo a CAMPI, in una riga sola');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'registro-worker-prima-')), f = path.join(dir, 'registro-worker-prima.mjs');
+  fs.writeFileSync(f, src.replace(lista, ']);'));
+  const W = await import(pathToFileURL(f).href);
+  assert.deepEqual([...W.CAMPI], CAMPI.filter(c => !F.CAMPI_B36.includes(c)), 'il Worker di prima: gli stessi campi, senza quelli del B36.0');
+  return W;
+}
+const oggettiDi = E => [...E.REGISTRO.oggetti.entries()].filter(([k]) => k.endsWith('.jsonl.gz')).map(([, o]) => zlib.gunzipSync(Buffer.from(o.bytes)).toString('utf8').trim().split('\n').slice(1).map(l => JSON.parse(l)));
+test('Worker del registro, B36.0: il Worker di prima accetta le righe del gioco nuovo (senza i campi della direzione); il nuovo accetta quelle di prima', async () => {
+  const prima = await workerDiPrima();
+  // Worker di prima, righe del gioco nuovo
+  prima.dimentica?.(); const Ep = env();
+  const u = new URL(BASE + '/'); u.search = new URLSearchParams({ giorno: oggi, postazione: 'abcdefgh', parte: '00001-ab12' }).toString();
+  const rp = await prima.default.fetch(new Request(u, { method: 'POST', headers: { Origin: GAME, 'CF-Connecting-IP': '203.0.113.7' }, body: testo(RIGHE_B36) }), Ep);
+  assert.equal(rp.status, 200); assert.deepEqual(await rp.json(), { ok: true, righe: RIGHE_B36.length, scartate: 0 });
+  const [scritteP] = oggettiDi(Ep);
+  assert.equal(scritteP.length, RIGHE_B36.length);
+  for (const [i, r] of scritteP.entries()){
+    for (const c of F.CAMPI_B36) assert.equal(r[c], undefined, `${r.k}.${c} tolto dal Worker di prima`);
+    const senza = Object.fromEntries(Object.entries(RIGHE_B36[i]).filter(([k]) => !F.CAMPI_B36.includes(k)));
+    assert.deepEqual(r, senza, 'il resto della riga resta com’era');
+  }
+  // Worker nuovo, righe del gioco nuovo: tutto, campi della direzione compresi
+  const En = env(), rn = await manda(En, { body: testo(RIGHE_B36) });
+  assert.equal(rn.res.status, 200); assert.deepEqual(rn.body, { ok: true, righe: RIGHE_B36.length, scartate: 0 });
+  assert.deepEqual(oggettiDi(En)[0], RIGHE_B36);
+  // Worker nuovo, righe di un gioco di prima (formato 1, senza campi nuovi): accettate e identiche
+  const vecchie = [{ k: 'avvio', t: 0, v: 1, versione: '2026-11-13.12', g: 'abcdefgh' }, ...RIGHE.map(r => ({ ...r }))];
+  const Ev = env(), rv = await manda(Ev, { body: testo(vecchie) });
+  assert.equal(rv.res.status, 200); assert.deepEqual(rv.body, { ok: true, righe: vecchie.length, scartate: 0 });
+  assert.deepEqual(oggettiDi(Ev)[0], vecchie);
+  // il gioco e il Worker nuovo puliscono le righe nuove allo stesso modo
+  for (const r of RIGHE_B36) assert.deepEqual(pulisci(r), F.pulisci(r));
 });

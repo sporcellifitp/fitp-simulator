@@ -27,7 +27,8 @@
 
 const MB = 1024*1024;
 export const REGISTRO = Object.freeze({
-  versione: 1,
+  // formato delle righe (campo «v» della riga «avvio»): 2 dal B36.0, con i campi della direzione dei colpi (CAMPI_B36)
+  versione: 2,
   chiave: 'natpf-tennis.registro',          // scelta dello staff (Sì/No) e contatori della giornata, nel browser
   config: '/natpf/registro.json',           // {"url": "https://…workers.dev/"}: indirizzo del Worker (pacchetto)
   maxRiga: 2000,                            // caratteri per riga: oltre, la riga si accorcia ai campi essenziali
@@ -51,7 +52,17 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'attesaS', 'pt', 'lanci', 'lanciVuoti', 'battutaAuto', 'esito', 'come', 'punti', 'puntiVinti', 'fps', 'medi', 'peggiori', 'maxMs', 'lunghi', 'cadute', 'riprese', 'rttMax', 'errori',
   'scartati', 'amb', 'gesto', 'voluto', 'ms', 'voto', 'f', 'd', 'e', 'x', 'z', 'sup', 'supNo', 'volee', 'rete', 'mov', 'lato', 'fonte', 'causa', 'aiutato', 'tipo', 'q', 'kmh', 'auto', 'perche',
   'serie', 'schede', 'viste', 'tutte', 'chiusura', 'finita', 'prove', 'fallite', 'passi', 'ripartenze', 'revisioni', 'revisioniNo', 'semplice', 'finito', 'saltato', 'perfetti', 'gioco',
-  'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in']);
+  'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in',
+  // B36.0 (misurare prima la direzione dei colpi, docs/b36/misure-b36-0.md), tutti insieme perché il Worker si ricarichi
+  // una volta sola. Riga «colpo» del telefono: pf piatto (mira della cima −1…+1, telefoni con la forma del colpo) · dv
+  // scarto della cima in gradi dal proprio colpo abituale · tu tempo in unità della finestra della direzione (+ anticipo) ·
+  // rx, rz primo rimbalzo vero della palla (m, come x e z) · fu 1 = fuori al rimbalzo vero (regola dell'arbitro del motore)
+  // · nr 1 = colpo giocato con la regola nuova della direzione (dalla B36.1) · zp zona chiesta da Precision (0–9).
+  // Righe «partita» e «minigioco»: dir modello della direzione ('classica', 'nuova')
+  'pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr', 'zp', 'dir']);
+// i campi del B36.0 (sopra, in fondo a CAMPI): un Worker non ancora ricaricato li toglie in silenzio dalle righe e le
+// accetta lo stesso (lo strumento di riassunto lo dice: «campi della direzione assenti»)
+export const CAMPI_B36 = Object.freeze(['pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr', 'zp', 'dir']);
 // campi che sono un elenco «voce: quante volte» (motivi dei gesti scartati, posti della visita, passi della
 // calibrazione): le voci le decide il gioco, i valori sono solo numeri (o un elenco di numeri)
 export const MAPPE = Object.freeze(['scartati', 'posti', 'passi', 'perche']);

@@ -9,7 +9,8 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { giornoFinto, scriviFinto, inBlocchi, bloccoSalvato } from '../scripts/registro/finto.mjs';
-import { riassumi, Misura, Riassunto, rapporto, kmhVeri, kmhVecchi, KMH_VECCHI_FINO_A } from '../scripts/registro/riassunto.mjs';
+import { riassumi, Misura, Riassunto, rapporto, kmhVeri, kmhVecchi, KMH_VECCHI_FINO_A, spearman, retta, precisionRiga, DIR_MIN } from '../scripts/registro/riassunto.mjs';
+import { PRECISION_ZONES } from '../src/natpf/natpf_arcade.js';
 import { main as scarica } from '../scripts/registro/scarica.mjs';
 import { workerLocale } from '../scripts/registro/worker-locale.mjs';
 import { controllaRiga, TIPI } from '../src/natpf/registro/registro_formato.js';
@@ -54,7 +55,9 @@ test('riassunto: stessi numeri dallo scarico del Worker, dall’albero dello spa
       assert.match(html, /^<!doctype html>/); assert.ok(!/<script|src=|href=/.test(html), 'niente da scaricare da fuori');
     }
     // le sezioni che servono a tarare il gioco ci sono tutte
-    for (const t of ['In breve', 'Partite per giorno e per ora', 'Abbandoni', 'Per «Chi gioca»', 'Colpi di chi gioca', 'Colpo super', 'Servizio', 'Tutorial e calibrazione', 'Stesso schermo', 'Livello Evento', 'Collegamento', 'Prestazioni', 'Errori']) assert.ok(sezione(ris.scarico, t), t);
+    for (const t of ['In breve', 'Partite per giorno e per ora', 'Abbandoni', 'Per «Chi gioca»', 'Colpi di chi gioca', 'Colpo super', 'Direzione', 'Servizio', 'Tutorial e calibrazione', 'Stesso schermo', 'Livello Evento', 'Collegamento', 'Prestazioni', 'Errori']) assert.ok(sezione(ris.scarico, t), t);
+    // B36.0: i registri finti hanno i campi della direzione e qualche Precision
+    const D = ris.scarico.R.dir; assert.equal(D.partite.conCampi, V.partite); assert.equal(D.partite.senzaCampi, 0); assert.equal(D.precision.length, somma(verita, 'precision'));
     assert.match(sezione(ris.scarico, 'Stesso schermo').testo.join(' '), /38–42%/);
     const chi = sezione(ris.scarico, 'Per «Chi gioca»').tabelle[0].righe.map(r => r[0]);
     assert.deepEqual(chi, ['adulto · evento', 'bambino · bambini', 'ragazzo · casual', 'stesso schermo']);
@@ -189,4 +192,51 @@ test('B42: scambi lunghi nel riassunto (scambio caldo acceso in tutti i modi, pu
   assert.match(testo, /acceso .*: 1 su 2\./);
   assert.match(testo, /acceso: 50% oltre 20 colpi, 25% oltre 30 \(4 punti\); con lo scambio caldo spento: 100% oltre 20 colpi, 100% oltre 30 \(1 punti\)/);
   assert.match(testo, /«palla calda».*: 1\./);
+});
+
+/* ---------- B36.0: sezione «Direzione» (docs/b36/misure-b36-0.md) ---------- */
+test('B36.0: correlazione di rango e retta dei minimi quadrati', () => {
+  assert.equal(spearman([1, 2, 3, 4], [10, 20, 30, 40]), 1); assert.equal(spearman([1, 2, 3, 4], [4, 3, 2, 1]), -1);
+  assert.equal(spearman([1, 2, 3, 4], [1, 4, 9, 16]), 1, 'di rango: conta l’ordine, non la retta');
+  assert.ok(Math.abs(spearman([1, 2, 2, 3], [1, 2, 3, 4]) - .9487) < 1e-3, 'pari merito con il rango medio');
+  assert.equal(spearman([1, 2], [1, 2]), null); assert.equal(spearman([1, 1, 1], [1, 2, 3]), null);
+  const f = retta([0, 1, 2, 3], [1, 3, 5, 7]); assert.equal(f.pendenza, 2); assert.equal(f.dispersione, 0); assert.equal(f.r2, 1);
+  const g = retta([-3, -2, 2, 3, 0, 0], [-30, -18, 22, 28, 4, -4]); assert.ok(g.pendenza > 9 && g.pendenza < 11 && g.dispersione > 2 && g.r2 > .9, JSON.stringify(g));
+});
+
+test('B36.0: riassunto «Direzione» — giro della cima, tempo, E1–E5, Precision, Worker non ricaricato', () => {
+  const ctx = { giorno: '2026-11-14', postazione: 'abcd1234' }, R = new Riassunto(), L = { file: 1, blocchi: 1, righe: 1, byte: 1 };
+  R.aggiungi({ k: 'avvio', t: 0, v: 2, ora: '2026-11-14T09:00:00.000Z', fuso: 60 }, ctx);
+  // una partita con «classica» a Evento: 30 colpi; la palla va dove gira la cima (rx = 3·pf), un colpo su dieci fuori
+  R.aggiungi({ k: 'partita', t: 10, n: 1, modo: 'cpu', chi: 'adulto', livello: 'evento', dir: 'classica' }, ctx);
+  for (let i = 0; i < 30; i++){
+    const pf = ((i % 7) - 3)/3, dv = 3 + 14*pf, tu = i % 3 ? .4 : -1.4, rx = 3*pf;
+    R.aggiungi({ k: 'colpo', t: 100 + i, n: 1, gesto: 'topspin', ms: 20, voto: 'perfetto', d: pf - .4, x: rx/.86, z: -9, lato: 1, pf, dv, tu, rx, rz: -8.8, ...(i % 10 === 9 ? { fu: 1 } : {}) }, ctx);
+  }
+  R.aggiungi({ k: 'partita.fine', t: 500, n: 1, esito: 'finita', vince: 'g', durS: 140 }, ctx);
+  // una partita di un gioco nuovo (formato 2) SENZA i campi: Worker non ricaricato
+  R.aggiungi({ k: 'partita', t: 600, n: 2, modo: 'cpu', chi: 'adulto', livello: 'evento' }, ctx);
+  R.aggiungi({ k: 'colpo', t: 610, n: 2, gesto: 'topspin', ms: 5, voto: 'perfetto' }, ctx);
+  R.aggiungi({ k: 'partita.fine', t: 700, n: 2, esito: 'finita', vince: 'a', durS: 100 }, ctx);
+  // Precision: 10 palle con la cima verso la zona (zp 0–9), poi la riga del minigioco
+  for (const [zp, z] of PRECISION_ZONES.entries()) R.aggiungi({ k: 'colpo', t: 800 + zp, amb: 'minigioco', gesto: 'topspin', ms: 0, lato: zp % 2 ? 1 : -1, pf: z.x/3, dv: 4*z.x, tu: 0, rx: z.x, rz: z.z, zp }, ctx);
+  R.aggiungi({ k: 'minigioco', t: 900, gioco: 'precision', finito: true, punti: 1000, durS: 60, dir: 'classica' }, ctx);
+  R.fine();
+  const D = R.dir, G = D.gruppi['classica · adulto · evento'];
+  assert.deepEqual(D.partite, { conCampi: 1, vecchie: 0, senzaCampi: 1 });
+  assert.equal(G.colpi, 31); assert.equal(G.conDv, 30); assert.equal(G.oltre45, 0);
+  assert.equal(G.cima.rango, 1, 'E1: la palla segue sempre la cima');
+  assert.equal(G.fuoriFinestra, 2); assert.equal(G.nellaFinestra, 20, 'E3: solo i colpi con il tempo nella finestra (|tu| ≤ 1)');
+  assert.equal(G.primi, 10); assert.equal(G.primi05, 6, 'E4: |piatto| ≥ 0,5 nei primi 10 colpi');
+  assert.equal(G.giudicate, 1); assert.equal(G.storte, 0, 'E5: 30 colpi sparsi nelle due metà');
+  assert.equal(G.durata.n, 2); assert.equal(D.precision.length, 1);
+  const P = precisionRiga(D.precision[0]); assert.equal(P.palle, 10); assert.equal(P.laterali, 7); assert.equal(P.cima, 1); assert.equal(P.distanza, 0); assert.equal(P.punti, 1000);
+  const S = rapporto(R, L).find(x => x.titolo.startsWith('Direzione')), testo = S.testo.join('\n');
+  assert.ok(S, 'sezione «Direzione»');
+  assert.match(testo, /ATTENZIONE: 1 partite di un gioco con il formato delle righe 2 senza i campi della direzione: il Worker del registro non è stato ricaricato/);
+  assert.match(testo, /Precision con «classica»: 10 palle in 1 partite\. Cima → zona: 4,0° per metro di zona, il giro voluto sparge ±0,0°/);
+  const tab = t => S.tabelle.find(x => x.titolo.startsWith(t));
+  assert.equal(tab('Obiettivi').righe[0][0], `classica · adulto · evento (pochi colpi: 31 < ${DIR_MIN})`);
+  assert.deepEqual(tab('Precision: una riga').righe[0].slice(1, 5), ['classica', '10', '10', '100% di 7']);
+  assert.equal(tab('Precision: zona chiesta').righe.length, 10);
 });
