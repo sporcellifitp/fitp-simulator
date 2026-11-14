@@ -242,6 +242,7 @@
           ><button type="button" data-staff="phone"><span>Telefono</span><b>Scollega</b></button
           ><button type="button" data-staff="music"><span>Musica</span><b>Sì</b></button
           ><button type="button" data-staff="fair" title="No · Solo stesso schermo · Sì. Punto decisivo sul 40-40 e servizio che passa ogni due punti: con «Solo stesso schermo» vale tra due persone nello stesso schermo, con «Sì» anche contro la CPU. Vale dalla prossima partita e resta salvata."><span>Formato in fiera</span><b>Solo stesso schermo</b></button
+          ><button type="button" data-staff="battuta" title="Sempre lo stesso (di base): il servizio non passa all’altro, per tutta la partita e in tutti i formati. Contro la CPU batte sempre chi gioca, nello stesso schermo chi batte il primo game («Chi serve»). Alternata: il servizio passa all’altro a ogni game (ogni due punti con il formato veloce). Nella sfida tra due computer resta alternata. Vale dalla prossima partita e resta salvata."><span>Battuta</span><b>Sempre lo stesso</b></button
           ><button type="button" data-staff="hot" title="Sì (di base): in ogni partita, dal 20° colpo dello scambio colpi sempre più forti e colpo super più facile per tutti e due, finché lo scambio finisce; compare la scritta «Scambio caldo». No: scambi come sempre. Vale dalla prossima partita e resta salvata."><span>Scambio che si scalda</span><b>Sì · dal 20° colpo</b></button
           ><button type="button" data-staff="autotoss" title="Sì: nello stesso schermo, se chi deve battere resta fermo 30 secondi il gioco lancia la palla da solo; dopo due lanci automatici a vuoto batte il gioco un servizio morbido. Vale dalla prossima partita e resta salvata."><span>Lancio automatico</span><b>No</b></button
           ><button type="button" data-staff="open" title="Sì: nello stesso schermo i personaggi corrono come persone e non arrivano più su ogni palla: la palla angolata e lontana si prende in allungo o non si prende. Il servizio passa ogni due punti, come nel formato in fiera, anche con il formato classico: con il campo aperto chi batte è un po' sfavorito. Vale dalla prossima partita e resta salvata."><span>Stesso schermo: campo aperto</span><b>No</b></button
@@ -858,6 +859,22 @@
         </div>
       </div>
     </div>
+    <!-- B47: «Rivincita» → scelta del livello, grande e con il mouse, già segnata con quello di prima (natpf_rematch.js):
+         contro la CPU «Chi gioca», nello stesso schermo la fascia di ciascun giocatore. Poi «Gioca» e il conto grande -->
+    <div id="natpf-rematch" class="natpf-rematch hidden" role="dialog" aria-modal="true" aria-labelledby="rematch-title" data-mode="cpu">
+      <div class="rematch-card">
+        <p class="rematch-kicker" data-rematch="kicker">Rivincita</p>
+        <h2 class="rematch-title" id="rematch-title" data-rematch="title">Chi gioca?</h2>
+        <p class="rematch-sub" data-rematch="sub"></p>
+        <div class="rematch-body" data-rematch="body"></div>
+        <p class="rematch-auto hidden" data-rematch="auto" aria-live="polite"></p>
+        <div class="rematch-btns">
+          <button type="button" class="rematch-btn ghost" data-rematch-act="cancel">‹ Indietro</button
+          ><button type="button" class="rematch-btn ghost" data-rematch-act="more">Altre impostazioni</button
+          ><button type="button" class="rematch-btn primary" data-rematch-act="play">Gioca</button>
+        </div>
+      </div>
+    </div>
     <!-- NATPF: smartphone come racchetta (QR, impugnatura, calibrazione di NATPF Simulator) -->
     <div id="natpf-phone-modal" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-phone-title">
       <div class="natpf-sheet natpf-phone-dialog">
@@ -1002,6 +1019,16 @@
         <div class="trial-rows" data-trial="rows"></div>
       </div>
       <button type="button" id="trial-skip" class="btn btn-ghost btn-sm trial-skip" title="La partita parte subito con quello che il gioco ha imparato">Salta ›</button>
+    </div>
+    <!-- B47: conto alla rovescia grande prima del primo punto (natpf_prematch.js), al centro dello schermo intero (anche
+         nello stesso schermo: uno solo). «Preparati · La partita sta per cominciare · 3 · 2 · 1» e chi batte -->
+    <div id="natpf-prematch" class="natpf-prematch hidden" role="status" aria-live="assertive">
+      <div class="prematch-box">
+        <p class="prematch-kicker" data-prematch="kicker">Preparati</p>
+        <p class="prematch-title" data-prematch="title">La partita sta per cominciare</p>
+        <b class="prematch-num" data-prematch="num">3</b>
+        <p class="prematch-serve" data-prematch="serve"></p>
+      </div>
     </div>
     <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite" data-mode="drill">
       <div class="coach-top">

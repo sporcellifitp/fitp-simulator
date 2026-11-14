@@ -49,7 +49,10 @@ const tap = P => { if (P.nextOffer) for (const fn of P.nextListeners) fn(P); };
 const offers = link => link.sent.filter(m => m.t === 'nx');
 const counts = link => link.sent.filter(m => m.t === 'ev' && m.k === 'count');
 
-test('contro la CPU («Nessuna»): sulla pagina il telefono riceve «Sono pronto»; al tocco la spunta, il conto di 3 s e la partita da sola', async () => {
+// B47 (richiesta dell'utente del 14/11): il conto di 3 s della pagina non c'è più: al tocco di tutti la partita parte
+// subito e il conto è quello grande al centro del campo («Preparati, la partita sta per cominciare», natpf_prematch.js),
+// annunciato ai telefoni con gli stessi messaggi (3, 2, 1, 0). Prima i test qui sotto provavano il conto della pagina
+test('contro la CPU («Nessuna»): sulla pagina il telefono riceve «Sono pronto»; al tocco la partita parte con il conto grande in campo', async () => {
   const w = await playWorld({ cal: 'none' }), { E, ui, lobby, link, P } = w;
   assert.ok(lobby.visible && lobby.step === 'match' && P.ready, 'pagina «Pronto per la partita»');
   w.advance(300);
@@ -57,66 +60,72 @@ test('contro la CPU («Nessuna»): sulla pagina il telefono riceve «Sono pronto
   assert.ok(!$('ready-go').classList.contains('hidden'));
   assert.match($('ready-go').innerHTML, /tocca «Sono pronto»/);
   assert.equal(E.natpfMatchSeq || 0, 0);
+  assert.equal(READY_GO.ms, 0, 'niente conto sulla pagina');
   tap(P); w.advance(200);
-  assert.deepEqual(offers(link).at(-1), { t: 'nx', on: 1, lb: READY_GO.done, rd: 1, me: 1, tx: 'Si parte tra poco…' });
-  assert.match($('ready-go').innerHTML, /Telefono pronto ✓/);
-  assert.ok(ui.readyGo.cd.running && !$('ready-go-count').classList.contains('hidden'), 'conto alla rovescia in vista');
+  assert.equal(E.natpfMatchSeq, 1, 'la partita parte subito');
+  assert.ok(!lobby.visible && $('ready-go-count').classList.contains('hidden'), 'niente conto piccolo');
+  assert.ok(ui.prematch.active && !$('natpf-prematch').classList.contains('hidden'), 'conto grande in campo');
+  assert.equal($('natpf-prematch').querySelector('[data-prematch="num"]').textContent, '3');
+  assert.ok(E.natpfPaused && E.phase === 'SERVE_STANCE', 'partita ferma al primo servizio');
   assert.deepEqual(counts(link).map(m => m.n), [3], 'annunciato al telefono');
-  w.advance(1500); assert.equal(E.natpfMatchSeq || 0, 0, 'non prima dei 3 s');
-  w.advance(1800);
-  assert.equal(E.natpfMatchSeq, 1, 'la partita è partita da sola');
-  assert.ok(!lobby.visible);
-  assert.deepEqual(counts(link).map(m => m.n), [3, 2, 1, 0]);
   assert.deepEqual(offers(link).at(-1), { t: 'nx', on: 0 }, 'offerta tolta');
-  assert.ok($('ready-go').classList.contains('hidden') && $('ready-go-count').classList.contains('hidden'));
+  w.advance(1500); assert.ok(ui.prematch.active && E.natpfPaused, 'non prima dei 3 s');
+  w.advance(1500);
+  assert.ok(!ui.prematch.active && !E.natpfPaused && $('natpf-prematch').classList.contains('hidden'), 'si gioca');
+  assert.deepEqual(counts(link).map(m => m.n), [3, 2, 1, 0]);
+  assert.ok($('ready-go').classList.contains('hidden'));
   // un tocco fuori dalla pagina non fa niente
   const seq = E.natpfMatchSeq; tap(P); w.advance(4000); assert.equal(E.natpfMatchSeq, seq);
 });
 
-test('il telefono che cade durante il conto lo ferma (e il suo tocco non vale più); «Gioca» resta per lo staff', async () => {
+test('il telefono che cade durante il conto grande: il conto aspetta e riprende da dove era (non da 3); «Gioca» resta per lo staff', async () => {
   const w = await playWorld({ cal: 'none' }), { E, ui, lobby, link, P } = w;
-  w.advance(300); tap(P); w.advance(1200);
-  assert.ok(ui.readyGo.cd.running);
+  // un telefono scollegato non può toccare: «Gioca» resta per lo staff e fa partire la stessa partita con il conto
   link.connected = false; link.ready = false; link.L = { state: 'lost', phone: null }; w.advance(300);
-  assert.ok(!ui.readyGo.cd.running && $('ready-go-count').classList.contains('hidden'), 'conto fermato');
-  assert.match($('ready-go').innerHTML, /Conto annullato · telefono: telefono scollegato/);
-  w.advance(4000); assert.equal(E.natpfMatchSeq || 0, 0, 'nessuna partita');
-  // torna: deve toccare di nuovo
+  assert.match($('ready-go').innerHTML, /telefono scollegato/);
   link.connected = true; link.ready = true; link.L = { state: 'connected', phone: 'ready' }; w.advance(300);
-  assert.equal(ui.readyGo.taps.p1, false); assert.ok(!ui.readyGo.cd.running);
-  assert.deepEqual(offers(link).at(-1), { t: 'nx', on: 1, lb: READY_GO.label, rd: 1, me: 0 });
-  // lo staff può sempre premere «Gioca»
+  tap(P); w.advance(1200);
+  assert.equal(E.natpfMatchSeq, 1); assert.ok(ui.prematch.active && ui.prematch.left === 2);
+  // il telefono cade durante il conto: pausa per il telefono, il conto aspetta (riquadro nascosto, telefono avvisato)
+  link.connected = false; link.ready = false; link.L = { state: 'lost', phone: null }; P._changed(); w.advance(900);
+  assert.ok(ui.phoneHold && ui.prematch.active && ui.prematch._held && $('natpf-prematch').classList.contains('hidden'));
+  const left = ui.prematch.elapsed;
+  w.advance(2000); assert.equal(ui.prematch.elapsed, left, 'fermo');
+  // torna: la pausa del telefono finisce con il suo conto, poi il conto grande riprende da dove era
+  link.connected = true; link.ready = true; link.L = { state: 'connected', phone: 'ready' }; P._changed();
+  for (let i = 0; i < 80 && ui.phoneHold; i++) w.advance(100);
+  w.advance(200);
+  assert.ok(!ui.phoneHold && ui.prematch.active && !$('natpf-prematch').classList.contains('hidden'));
+  assert.ok(ui.prematch.left <= 2, `riprende da ${ui.prematch.left}, non da 3`);
+  w.advance(2200);
+  assert.ok(!ui.prematch.active && !E.natpfPaused);
+  // staff: «Gioca» senza tocchi del telefono (partita nuova dal menu)
+  ui.backToMenu('match'); w.advance(300);
   assert.equal(w.pressStart(), true); w.advance(300);
-  assert.equal(E.natpfMatchSeq, 1); assert.ok(!lobby.visible);
+  assert.equal(E.natpfMatchSeq, 2); assert.ok(ui.prematch.active, 'anche da «Gioca» il conto grande');
 });
 
-test('computer fermo per un attimo: i sensori «fermi» per meno di 300 ms non annullano il tocco; fermi davvero sì', async () => {
-  const w = await playWorld({ cal: 'none' }), { ui, P } = w;
-  w.advance(300); tap(P); w.advance(200);
-  assert.ok(ui.readyGo.cd.running);
-  const real = P.link.stats;
-  // il flusso dei sensori sembra fermo da 1,2 s (il computer era occupato): un giro solo, poi i dati arrivano
-  P.link.stats = () => ({ rates: { sm: { ageMs: 1200 } }, rtt: 20 });
-  ui.readyGo.tick(); P.link.stats = real; w.advance(200);
-  assert.ok(ui.readyGo.taps.p1 && ui.readyGo.cd.running, 'il tocco resta e il conto continua');
-  // fermi davvero (più di 300 ms): il tocco non vale più
-  P.link.stats = () => ({ rates: { sm: { ageMs: 1500 } }, rtt: 20 });
-  w.advance(500);
-  assert.ok(!ui.readyGo.taps.p1 && !ui.readyGo.cd.running, 'annullato');
-  assert.match($('ready-go').innerHTML, /sensori fermi/);
-  P.link.stats = real;
-});
-
-test('«Aspetta» (o Esc) ferma il conto: tutti ritoccano; Esc senza conto resta «indietro»', async () => {
+test('pausa durante il conto grande: il conto aspetta e a «Riprendi» continua, non si ripete; Esc sulla pagina resta «indietro»', async () => {
   const w = await playWorld({ cal: 'none' }), { E, ui, link, P } = w;
-  w.advance(300); tap(P); w.advance(500);
-  assert.ok(ui.readyGo.cd.running);
+  w.advance(300); tap(P); w.advance(1300);
+  assert.ok(ui.prematch.active && ui.prematch.left === 2);
   key('Escape', 'Escape'); w.advance(200);
-  assert.ok(!ui.readyGo.cd.running && !ui.readyGo.taps.p1);
-  assert.deepEqual(counts(link).at(-1), { t: 'ev', k: 'count', stop: 1, soft: 1, txt: 'Partenza fermata sul computer.' });
-  assert.equal(w.lobby.step, 'match', 'Esc ha fermato il conto, non è tornato indietro');
-  w.advance(4000); assert.equal(E.natpfMatchSeq || 0, 0);
-  tap(P); w.advance(3400); assert.equal(E.natpfMatchSeq, 1, 'ritoccato: parte');
+  assert.ok(ui.pause.isOpen && ui.prematch._held && $('natpf-prematch').classList.contains('hidden'), 'pausa sopra, conto fermo');
+  assert.deepEqual(counts(link).at(-1), { t: 'ev', k: 'count', stop: 1, soft: 1, txt: 'Partita ferma sul computer: il conto riprende dopo.' });
+  w.advance(5000); assert.ok(ui.prematch.active, 'aspetta la ripresa');
+  key('Escape', 'Escape'); w.advance(200);
+  assert.ok(!ui.pause.isOpen && ui.prematch.active && ui.prematch.left === 2, 'riprende dal 2');
+  w.advance(1800);
+  assert.ok(!ui.prematch.active && !E.natpfPaused);
+  const n = counts(link).filter(m => m.n === 3).length;
+  // un'altra pausa a partita in corso: niente conto grande alla ripresa
+  key('Escape', 'Escape'); w.advance(300); key('Escape', 'Escape'); w.advance(300);
+  assert.ok(!ui.prematch.active);
+  assert.equal(counts(link).filter(m => m.n === 3).length, n, 'nessun conto nuovo');
+  // sulla pagina, senza partita, Esc resta «indietro» (non c'è più un conto da fermare lì)
+  ui.backToMenu('match'); w.advance(300);
+  key('Escape', 'Escape'); w.advance(200);
+  assert.notEqual(w.lobby.step, 'match');
 });
 
 test('«Giocando»: gli scambi di prova restano PRIMA della pagina; durante non c\'è «Sono pronto», dopo sì e la partita parte senza rifarli', async () => {
@@ -148,10 +157,37 @@ test('stesso schermo: tutti e due devono toccare; la spunta di chi è pronto; po
   assert.match($('ready-go').innerHTML, /Player 1 pronto ✓/); assert.match($('ready-go').innerHTML, /Player 2: tocca «Sono pronto»/);
   assert.ok(!ui.readyGo.cd.running, 'manca il Player 2');
   w.advance(4000); assert.equal(E.natpfMatchSeq || 0, 0);
+  // (prima del tocco i telefoni hanno avuto il conto della pagina dei telefoni, fermato andando a «Partita»: qui contano i nuovi)
+  const c1 = counts(link).length, c2 = counts(l2).length, fresh = () => [counts(link).slice(c1), counts(l2).slice(c2)];
   tap(P2); w.advance(200);
-  assert.ok(ui.readyGo.cd.running);
-  w.advance(3300);
+  // B47: tutti e due pronti → la partita parte subito, con il conto grande (uno solo, al centro dello schermo intero)
   assert.equal(E.natpfMatchSeq, 1); assert.ok(E.natpfSplit?.active, 'partita nello stesso schermo');
+  assert.ok(ui.prematch.active && E.natpfPaused);
+  for (const c of fresh()) assert.deepEqual(c.map(m => m.n), [3], 'annunciato ai due telefoni');
+  w.advance(3300);
+  assert.ok(!ui.prematch.active && !E.natpfPaused);
+  for (const c of fresh()) assert.deepEqual(c.map(m => m.n), [3, 2, 1, 0]);
+});
+
+test('stesso schermo: i sensori «fermi» per un attimo non annullano il tocco di chi aspetta l\'altro; fermi davvero sì', async () => {
+  const w = await makeWorld({ controller: 'phone', cal: 'none' }), { E, ui, lobby, link } = w, P1 = ui.phone;
+  const { P2, l2 } = secondPhone(E, NatpfPhoneRacket);
+  phoneLike(P1, link); P1.markTutorialSeen('short'); P2.markTutorialSeen('short');
+  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint(); w.advance(300);
+  link.cmd('skip'); l2.cmd('skip'); w.advance(300);
+  lobby.go('match'); w.advance(300);
+  tap(P1); w.advance(200);
+  assert.ok(ui.readyGo.taps.p1);
+  const real = P1.link.stats;
+  P1.link.stats = () => ({ rates: { sm: { ageMs: 1200 } }, rtt: 20 });
+  ui.readyGo.tick(); P1.link.stats = real; w.advance(200);
+  assert.ok(ui.readyGo.taps.p1, 'il tocco resta');
+  P1.link.stats = () => ({ rates: { sm: { ageMs: 1500 } }, rtt: 20 });
+  w.advance(500);
+  assert.ok(!ui.readyGo.taps.p1, 'annullato');
+  assert.match($('ready-go').innerHTML, /sensori fermi/);
+  P1.link.stats = real;
+  assert.equal(E.natpfMatchSeq || 0, 0);
 });
 
 test('un telefono di prima (che non conosce «Sono pronto») non rompe niente: resta «Gioca»; i tocchi senza offerta non contano', async () => {

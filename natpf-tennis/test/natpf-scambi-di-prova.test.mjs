@@ -472,10 +472,13 @@ test('stesso schermo: scambi di prova per tutti e due con un palleggio assistito
   assert.equal(P1.profile.trialLevel, 'full'); assert.equal(P2.profile.trialLevel, 'full');
   assert.equal(P1.profile.ref, 820); assert.equal(P2.profile.ref, 380, 'ognuno il suo colpo');
   assert.deepEqual([E.score.playerPoints, E.score.opponentPoints], [0, 0]);
-  // rivincita dai telefoni (le stesse due persone): partita subito, senza scambi di prova e senza perdere il profilo
+  // rivincita dai telefoni (le stesse due persone): senza scambi di prova e senza perdere il profilo. B47: prima la scelta
+  // delle fasce sul computer, che parte da sola dopo 10 s se nessuno la tocca (natpf_rematch.js)
   for (let i = 0; i < 8 && E.phase !== 'MATCH_OVER'; i++) E._awardPoint('player', 'Nice Shot!');
   assert.equal(E.phase, 'MATCH_OVER'); w.advance(300);
   ui.split._onRematch('p1'); ui.split._onRematch('p2'); w.advance(300);
+  assert.ok(ui.rematch.isOpen); assert.equal(E.natpfMatchSeq, 1);
+  w.advance(10000);
   assert.equal(E.natpfMatchSeq, 2); assert.ok(!ui.trial.active); assert.equal(P1.profile.ref, 820); assert.equal(P2.profile.ref, 380);
 });
 

@@ -324,6 +324,7 @@ test('di base · in partita sul profilo imparato: caduta e ricollegamento, scher
   const w = await playWorld(), { E, ui, link, P } = w;
   w.pressStart(); playTrial(w, (id, n, want) => stroke({ dir: -want, peak: 700 }));           // telefono al contrario: verso girato
   assert.deepEqual([P.profile.ref, P.learner.sign, P.madeBy], [700, -1, 'prova']);
+  w.advance(3100);   // B47: prima del primo punto il conto alla rovescia grande (3 s, natpf_prematch.js), con la partita ferma
   for (const how of ['relink', 'schermo']){
     w.advance(600); E.phase = 'RALLY'; const c0 = link.cmds.length;
     if (how === 'schermo') link.L.vis = false; else drop(w);

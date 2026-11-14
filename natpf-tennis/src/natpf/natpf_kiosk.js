@@ -30,6 +30,8 @@ import { readOskMode, writeOskMode, nextOskMode, oskButton, oskToast } from './n
 import { HoldPress } from './natpf_hold.js';
 // B46: chi arriva dopo parte destro (Player 1 e Player 2), come con «Nuovo giocatore»
 import { resetHands } from './natpf_hand.js';
+// B47: «Battuta: Sempre lo stesso · Alternata» (natpf_battuta.js), di base «Sempre lo stesso»
+import { readServeRule, writeServeRule, nextServeRule, serveRuleButton, serveRuleToast, serveRuleForcedByUrl } from './natpf_battuta.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -225,6 +227,12 @@ export class NatpfKiosk {
         p._autoProfile?.();
       }
     }
+    // B47: battuta, sempre lo stesso ↔ alternata, salvata; vale dalla partita dopo
+    if (cmd === 'battuta'){
+      const forced = serveRuleForcedByUrl(), rule = writeServeRule(nextServeRule(readServeRule({ search: '' })));
+      ui.toast?.(serveRuleToast(rule, forced));
+      ui.diag?.recorder?.log?.('stand.battuta', { regola: rule, indirizzo: forced });
+    }
     if (cmd === 'open'){
       const on = writeOpenCourt(!readOpenCourt());
       ui.toast?.(openCourtToast(on));
@@ -244,6 +252,7 @@ export class NatpfKiosk {
     set('aim', aimLevelButton(readAimLevel()));
     const osk = readOskMode(); set('osk', oskButton(osk), osk !== 'mai');
     const fair = readFairMode(); set('fair', fairButton(fair, fairForcedByUrl()), fair !== 'no');
+    const bt = readServeRule(); set('battuta', serveRuleButton(bt, serveRuleForcedByUrl()), bt === 'fissa');
     const hot = readHotRally(); set('hot', hotButton(hot), hot);
     const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);
     const open = readOpenCourt(); set('open', openCourtButton(open), open);

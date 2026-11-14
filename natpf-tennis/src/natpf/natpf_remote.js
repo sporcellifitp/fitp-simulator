@@ -35,7 +35,7 @@ export const NO_REMOTE = 'a, [href], [target="_blank"], [data-no-remote], [data-
 // strato aperto → elemento (per il fuoco) e azione «indietro»
 const LAYER_EL = { staff: () => $('natpf-staff'), remote: () => $('natpf-remote'), dialog: () => document.querySelector('dialog[open]'), nick: () => $('natpf-nick'),
   diag: () => document.querySelector('.natpf-diag:not(.hidden)'), hold: () => $('natpf-phone-hold'), phonePanel: () => $('natpf-phone-modal'), pause: () => $('natpf-pause'),
-  victory: () => $('victory-modal'), guest: () => $('natpf-guest-modal') };
+  victory: () => $('victory-modal'), rematch: () => $('natpf-rematch'), guest: () => $('natpf-guest-modal') };
 const KEY_OF = { ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', Enter: 'Enter', Escape: 'Escape' };
 
 export class NatpfRemote {
@@ -168,6 +168,7 @@ export class NatpfRemote {
       phonePanel: visible($('natpf-phone-modal')),
       pause: !!ui.pause?.isOpen,
       victory: visible($('victory-modal')),
+      rematch: !!ui.rematch?.isOpen,   // B47: scelta del livello dopo «Rivincita»
       guest: visible($('natpf-guest-modal')),
       lobby: { visible: !!L?.visible, step: L?.step, mode: L?.mode, splitTutorial: splitTut },
       training: { active: !!T?.active, lesson: !!T?.lesson, cal: !!T?.cal, mode: L?.mode },
@@ -298,6 +299,7 @@ export class NatpfRemote {
       case 'phonePanel': click('natpf-phone-close'); return { ok: true };
       case 'pause': this.ui.pause.close(); return { ok: true, msg: 'Si riprende' };
       case 'victory': click('btn-return-title'); return { ok: true, msg: 'Menu' };
+      case 'rematch': this.ui.rematch.cancel(); return { ok: true, msg: 'Schermata finale' };
       case 'hold': this.ui.pause.open(); return { ok: true, msg: 'Pausa' };
       default: this._key('Escape'); return { ok: true };
     }
@@ -319,7 +321,8 @@ export class NatpfRemote {
     const ui = this.ui, L = ui.lobby;
     switch (c){
       case 'play': {
-        if (screen.id === 'victory'){ $('btn-play-again')?.click(); return { ok: true, msg: 'Gioca ancora' }; }
+        if (screen.id === 'victory'){ $('btn-play-again')?.click(); return { ok: true, msg: this.ui.rematch?.isOpen ? 'Scegli il livello, poi Gioca' : 'Gioca ancora' }; }
+        if (screen.id === 'rematch'){ this.ui.rematch.play(); return { ok: true, msg: 'Si gioca!' }; }
         const step = L.step;
         if (step === 'menu' || !['mode', 'controller', 'connect', 'match', 'result'].includes(step)){ L.setMode('cpu'); L.go(ui.controller === 'phone' && ui.phone?.connected ? 'connect' : 'controller'); return { ok: true, msg: 'Contro la CPU' }; }
         if (step === 'mode'){ L.setMode('cpu'); L.go('controller'); return { ok: true }; }

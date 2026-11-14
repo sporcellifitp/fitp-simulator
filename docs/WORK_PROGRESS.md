@@ -2060,3 +2060,39 @@ dice quale se ricapita.
   con la versione di prima. Punto aperto per il coordinatore: segno imparato rimesso a +1 (deciso) o girato (esatto se
   il telefono passa da giusto a sbagliato tra gli scambi di prova e la partita: documento, «Limiti»).
 
+
+## B47 · Fiera subito: battuta a un solo giocatore, conto alla rovescia grande, livello dopo «Rivincita» (14/11, ramo `b47-fiera-subito`) · [x] verificato sul ramo, da unire
+
+Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`), decisioni del coordinatore, documento
+`docs/b47/fiera-subito.md`. Ramo da `int-b38-b39` (`55e818a`); niente push, niente file di versione.
+- [x] B47.1 · battuta (`8a04040`, `769b5f6`): `natpf_battuta.js` (nuovo), `natpf_fair_format.nextServe` (fixed),
+  `game_engine.startNewMatch`/`_awardPoint` (`score.fixed`), `natpf_kiosk.js` e `index.html` (voce «Battuta»),
+  `natpf_point_call.firstServeText`, `natpf_fiera.js` (riesporta `fairServer`), `natpf_ui.backToMenu`,
+  `scripts/audit/headless-engine.mjs` («Alternata» per il banco). Test `natpf-b47-battuta.test.mjs` (9). Il primo commit
+  aveva sovrascritto per sbaglio `test/natpf-battuta.test.mjs` («Chi batte per primo»): ripristinato nel secondo.
+- [x] B47.2 · conto alla rovescia grande (`bee2f74`): `natpf_prematch.js` (nuovo), `#natpf-prematch`, `natpf-ui.css`,
+  `game_engine.startNewMatch`/`natpfStartCall`, `natpf_ui._syncPause`, `natpf_ready_go.js` (conto piccolo tolto). Test
+  `natpf-b47-conto.test.mjs` (6) e test aggiornati (partita ferma 3 s all'inizio; `natpf-ready-go` riscritto).
+- [x] B47.3 · livello dopo «Rivincita» (`f1015d7`): `natpf_rematch.js` (nuovo), `#natpf-rematch`, `natpf-ui.css`,
+  `natpf_ui.js`, `natpf_split_ui.js`, `natpf_lobby.js`, `natpf_remote_map.js`, `natpf_remote.js`. Test
+  `natpf-b47-rivincita.test.mjs` (10) e test aggiornati («Rivincita» non riparte subito né va al menu).
+- [x] B47.4 · prove nel browser e documenti: pannello dello stand a 720 × 720 con 15 voci (pulsanti più bassi, foglio in
+  alto: con il foglio al centro la spiegazione della voce sotto il puntatore lo spostava e il clic andava fuori);
+  prove aggiornate `natpf-formato-fiera`, `natpf-stesso-schermo-b20`, `natpf-stesso-schermo-b25`, `natpf-scambi-di-prova`,
+  `natpf-telecomando`; prova nuova `natpf-b47-fiera`; `docs/GUIDA_STAND.md`, `docs/b47/fiera-subito.md`,
+  `docs/PROJECT_MEMORY.md`.
+- [x] Verifiche sul codice finale del ramo: gioco **1585/1585** (base `int-b38-b39` 1560; 25 nuovi), sito 248/248, build
+  riuscito, `npm run audit:legend` **identico** a quello di `int-b38-b39` (69 OK, tutti i criteri: il banco usa la
+  battuta «Alternata»). Nel browser (Chromium senza GPU, `scratchpad/b47/e2e/`): natpf-chi-serve 64/64,
+  natpf-fine-partita 47/47, natpf-stesso-schermo-b20 52/52 (rifatta due volte: 51/52, il KO è il richiamo «Giulia,
+  batti tu» a 1920×1080 mentre il telefono simulato di Giulia era in pausa per il carico: schermata con «Telefono di
+  Giulia di nuovo pronto»), natpf-stesso-schermo-b25 55/55, natpf-split-ready 34/34, natpf-scambi-di-prova 30/30,
+  natpf-formato-fiera 29/29, natpf-tabellone 41/41, natpf-servizio-lancio 17/17, natpf-menu 45/45, natpf-telecomando
+  91/91 (con `flock`), natpf-solo-mouse 42/42, natpf-b47-fiera 20/20. Con la macchina carica (carico 12) alcune prove
+  dello stesso schermo perdono i telefoni simulati («Telefono scollegato»): rifatte da sole, verdi.
+- Schermate guardate: conto alla rovescia (stesso schermo 1280×720, 1920×1080 e 720×720), scelta del livello dopo
+  «Rivincita» (contro la CPU 1920×1080 e 1024×1024 dal telecomando, stesso schermo 1280×720, 1920×1080 e 720×720),
+  pannello con «Battuta» (1920×1080, 720×720 anche con le opzioni accese), tabellone con la pallina e «Al servizio»
+  su «Tu» nel secondo game vinto dalla CPU.
+- Non verificato: telefoni veri, ledwall vero, programma Windows, mouse fisico; il conto alla rovescia nella sfida tra
+  due computer non c'è (escluso apposta).

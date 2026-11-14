@@ -570,7 +570,8 @@ export class NatpfSplitUi {
   }
   /* ---------- rivincita dai telefoni (B20) ---------- */
   // si può chiedere: partita finita nello stesso schermo, con i due telefoni (non con la webcam per due)
-  get rematchOffer(){ const E = this.engine; return this.session && !this.webcam && E.phase === 'MATCH_OVER' && !E.autoPlayMode; }
+  // (B47: non con la scelta del livello aperta: la rivincita è già chiesta)
+  get rematchOffer(){ const E = this.engine; return this.session && !this.webcam && E.phase === 'MATCH_OVER' && !E.autoPlayMode && !this.ui.rematch?.isOpen; }
   _onRematch(id){
     if (!this.rematchOffer || this.rematch[id]) return;
     this.rematch[id] = true;
@@ -601,9 +602,11 @@ export class NatpfSplitUi {
     this._paintRematch();
   }
   // tutti e due l'hanno chiesta: stessa partita da capo (stesse impostazioni; chi batte si sorteggia di nuovo)
+  // B47: prima la scelta delle fasce sul computer (natpf_rematch.js), che parte da sola dopo 10 s se nessuno la tocca
   _rematchGo(){
     const E = this.engine;
     this._rematchClear();
+    if (this.ui.rematch?.open({ origin: 'phones' })) return;
     this.ui.diag?.recorder?.log?.('split.rivincita', { stato: 'si gioca' });
     this.ui.wipe?.('Rivincita');
     E.hud?.hideVictoryModal?.();

@@ -365,6 +365,8 @@ async function phoneMatch(){
   const { ui, lobby } = w;
   lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next();
   calibrate(w); w.cal({ kind: 'done', profile: { hand: 'right' } }); ui.training.skip(); w.pressStart(); w.advance(500);
+  // B47: prima del primo punto il conto alla rovescia grande (3 s, natpf_prematch.js), con la partita ferma
+  assert.ok(ui.prematch.active && w.E.natpfPaused); w.advance(2700); assert.ok(!ui.prematch.active && !w.E.natpfPaused);
   return w;
 }
 const drop = w => { Object.assign(w.link, { connected: false, ready: false, L: { ...w.link.L, state: 'lost', phone: null } }); w.E.natpfPhone._changed(); };
@@ -478,12 +480,17 @@ test('Blocco dello schermo del telefono: avviso una volta per collegamento, mai 
 
 // Richiesta del 28/10 sera: «Gioca ancora» deve far scegliere di nuovo le impostazioni della partita (prima ripartiva
 // subito la stessa partita)
-test('fine partita, «Gioca ancora»: si torna alla pagina «Partita» con le impostazioni, la partita non riparte da sola', async () => {
-  const { E, lobby, pressStart } = await makeWorld({ controller: 'mouse' });
+// B47 (richiesta dell'utente del 14/11): «Gioca ancora» apre prima la scelta del livello (natpf_rematch.js); la pagina
+// «Partita» con tutte le impostazioni resta dietro «Altre impostazioni». Prima il pulsante portava subito alla pagina
+test('fine partita, «Gioca ancora»: scelta del livello, poi «Altre impostazioni» → pagina «Partita»; la partita non riparte da sola', async () => {
+  const { E, ui, lobby, pressStart } = await makeWorld({ controller: 'mouse' });
   pressStart();
   let restarted = 0; const real = E.startNewMatch.bind(E); E.startNewMatch = o => { restarted++; return real(o); };
   E.hud.showVictoryModal();
   document.getElementById('btn-play-again').click();
+  assert.equal(restarted, 0);
+  assert.ok(ui.rematch.isOpen && !lobby.visible, 'scelta del livello');
+  ui.rematch.more();
   assert.equal(restarted, 0);
   assert.ok(lobby.visible, 'menu aperto'); assert.equal(lobby.step, 'match');
   assert.ok(!visible('victory-modal'));
