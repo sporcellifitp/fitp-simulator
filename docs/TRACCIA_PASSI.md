@@ -853,4 +853,13 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
       Installer **2026-11-14.2** pubblicato su R2 alle 14:16 UTC e verificato dal link fisso: 128.094.408 B, sha256
       `f4d1b8e750b869faea95284cf4857a4810bb0c1e380a71bbfb2279d6383d5881`. «Come si attiva» mandato all'utente.
 - [~] B47 (fiera) in chiusura, poi 14.3 (con il tasto Alt in finestra del programma da sistemare).
+- [x] Revisioni indipendenti (`scratchpad/b45/revisione.md`): B46 senza difetti nel gioco (testi troppo forti nel documento,
+      fase REPLAY che vota il segno, righe del registro da precisare); analisi B45 con una causa nuova e sicura: **il chiosco
+      scollega di proposito il telefono col QR** dopo 45 s senza attività sul computer (natpf_kiosk.js ≈152), poi la
+      racchetta col QR che smette di riprovare dopo 10 tentativi, la pagina del gioco ricaricata, i sensori fermi.
+- [~] Workflow `b45-1-collegamento-solido` (run `wf_b9d78382-3b3`): **B45.1** chiosco che non scollega, ricollegamento
+      senza fine in LAN, controllo di vita a 10 s con ogni messaggio come segno di vita, «Ricollega» solo se il telefono
+      risponde, motivo di ogni caduta nel registro e nel pannello; più le rifiniture della 14.2 (revisione B46, tasto Alt in
+      finestra). Ramo `b45-1-collegamento` da natpf-simulator 14.2, worktree `scratchpad/b451/wt`, porte 4100–4149,
+      appunti `scratchpad/b451/notes.md`. Rilasci: 14.3 = B47 appena pronto, 14.4 = B45.1.
 
