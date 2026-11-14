@@ -177,7 +177,7 @@ test('B39.2 · regola del doppio clic: secondo clic e clic entro 450 ms da un ca
   assert.equal(clickVerdict({ detail: 2, late: false }), 'doppio', '… il doppio clic vale sempre');
   assert.equal(lateRule({}), true); assert.equal(lateRule({ webdriver: true }), false); assert.equal(lateRule({ webdriver: true, search: '?guardia=1&x=2' }), true);
   for (const s of ['button', '.lobby-tile', '.menu-item']) assert.ok(GUARDED.includes(s));
-  for (const s of ['#natpf-calibra', 'input', 'textarea']) assert.ok(EXEMPT.includes(s));
+  for (const s of ['#natpf-calibra', '#natpf-tastiera', 'input', 'textarea']) assert.ok(EXEMPT.includes(s), s);
 });
 
 test('B39.2 · ClickGuard: in cattura sulla finestra ferma il clic scartato prima di ogni gestore e lo annota', () => {

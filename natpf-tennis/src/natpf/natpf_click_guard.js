@@ -13,7 +13,9 @@
 // intero automatico (natpf_screen.autoFullscreen): le prove cliccano subito dopo aver cambiato pagina dal codice.
 export const GUARD = Object.freeze({ ms: 450 });
 export const GUARDED = 'button, [role="button"], .lobby-tile, .menu-item, a[href]';
-export const EXEMPT = '#natpf-calibra, input, textarea, select, [data-allow-dbl]';
+// (anche la tastiera a schermo del B38, #natpf-tastiera: le lettere doppie si scrivono con due clic veloci, e i suoi tasti
+// hanno una guardia loro)
+export const EXEMPT = '#natpf-calibra, #natpf-tastiera, input, textarea, select, [data-allow-dbl]';
 // Regola pura. → false (il clic passa), 'doppio' o 'tardi' (il clic non conta)
 export function clickVerdict({ trusted = true, detail = 1, now = 0, changedAt = -Infinity, guarded = true, exempt = false, ms = GUARD.ms, late = true } = {}){
   if (!trusted || !guarded || exempt) return false;
