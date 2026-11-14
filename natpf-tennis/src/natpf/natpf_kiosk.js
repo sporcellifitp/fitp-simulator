@@ -27,6 +27,7 @@ import { readSavedCalMode, writeCalMode, nextCalMode, calModeButton, calModeToas
 import { TwoStep } from './natpf_confirm.js';
 // B38: «Tastiera a schermo: Automatica · Sempre · Mai» (natpf_tastiera.js), di base «Automatica»
 import { readOskMode, writeOskMode, nextOskMode, oskButton, oskToast } from './natpf_tastiera.js';
+import { HoldPress } from './natpf_hold.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -62,6 +63,10 @@ export class NatpfKiosk {
     this.last = performance.now();
     const poke = () => { this.last = performance.now(); };
     for (const ev of ['pointerdown', 'keydown', 'touchstart', 'wheel']) window.addEventListener(ev, poke, { capture: true, passive: true });
+    // B39.5 (controllo «solo mouse», A4): anche il mouse che si muove (lo staff che legge o cerca una voce senza cliccare),
+    // al più una volta al secondo e solo per spostamenti veri (non il tremolio di un mouse fermo)
+    let moveAt = 0;
+    window.addEventListener('pointermove', e => { const now = performance.now(); if (now - moveAt < 1000 || Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0) < 3) return; moveAt = now; poke(); }, { capture: true, passive: true });
     ui.phone?.onSwing?.(poke);
     this.el = $('natpf-staff');
     this.el?.addEventListener('pointerdown', e => e.stopPropagation());
@@ -74,13 +79,10 @@ export class NatpfKiosk {
     // B37: nel programma Windows anche F9 e la voce del menu «Pannello dello stand (F9)» (processo principale, ponte del
     // preload: window.natpfDesktop.staffPanel). Sul PC dello stand Ctrl+Maiusc+K non arrivava al gioco
     window.natpfDesktop?.staffPanel?.onToggle?.(a => { poke(); a === 'open' ? this.open() : a === 'close' ? this.close() : this.toggle(); });
-    // tenere premuto il marchio del menu per 3 secondi
-    const brand = document.querySelector('.lobby-brand');
-    if (brand){
-      let t = null;
-      brand.addEventListener('pointerdown', () => { clearTimeout(t); t = setTimeout(() => this.open(), 3000); });
-      for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) brand.addEventListener(ev, () => clearTimeout(t));
-    }
+    // tenere premuto il marchio del menu per 3 secondi. B39: anche il titolo grande della pagina principale (lì il marchio
+    // piccolo è nascosto), con l'anello che si riempie e una pressione che tollera piccoli spostamenti (natpf_hold.js);
+    // in campo ❚❚ tenuto 3 secondi (natpf_stand_mouse.js)
+    for (const brand of document.querySelectorAll?.('.lobby-brand, .menu-brand') || []) new HoldPress(brand, { onDone: () => { poke(); this.open(); } });
     setInterval(() => this.check(), 1000);
   }
   _save(){ try { localStorage.setItem(KIOSK_KEY, JSON.stringify({ enabled: this.enabled, limit: this.limit })); } catch {} }
@@ -92,7 +94,10 @@ export class NatpfKiosk {
   get gameRunning(){ return !!this.ui.pause?.inGame && this.engine.phase !== 'MATCH_OVER'; }
   // voci che in campo vogliono il secondo clic: chiudono la partita («Nuovo giocatore», «Classifica a schermo intero»)
   // o tolgono il telefono a chi gioca («Telefono: Scollega», solo con un telefono collegato)
-  needsConfirm(cmd){ return this.gameRunning && (cmd === 'newplayer' || cmd === 'ranking' || (cmd === 'phone' && !!this.ui.phone?.connected)); }
+  // B39: «Classifica · Azzera oggi» sempre (prima una finestra confirm() di Windows, piccola e fuori stile sul ledwall)
+  needsConfirm(cmd){ return cmd === 'reset' || (this.gameRunning && (cmd === 'newplayer' || (cmd === 'ranking' && !this.rankingFull) || (cmd === 'phone' && !!this.ui.phone?.connected))); }
+  // classifica a schermo intero in vista (B33): la stessa voce del pannello la chiude (B39)
+  get rankingFull(){ return !!document.documentElement?.classList?.contains('ranking-full'); }
   // clic su una voce (mouse, tastiera o OK del telecomando sul pulsante a fuoco): dove serve, prima la conferma. true se
   // la voce è partita
   press(b, cmd = b?.dataset?.staff){
@@ -104,11 +109,17 @@ export class NatpfKiosk {
   }
   toggle(){ this.isOpen ? this.close() : this.open(); }
   check(){
-    if (this.isOpen) return;
+    // B39.5 (A4): niente azzeramento con un foglio dello staff aperto (pannello, telecomando con l'abbinamento in corso,
+    // diagnostica): prima il chiosco chiudeva l'abbinamento del telecomando di chi aveva in mano il telefono e non il mouse.
+    // La calibrazione dello schermo no (B8: lasciata aperta, il chiosco la annulla); chi la sta facendo muove il mouse, e
+    // dal B39.5 il movimento conta come attività
+    const ui0 = this.ui;
+    if (this.isOpen || ui0.remote?.isOpen || ui0.remote?.opening || ui0.diag?.isOpen){ this.last = performance.now(); return; }
     const E = this.engine, ui = this.ui, lobby = ui.lobby;
     const inGame = !lobby.visible && (!E.autoPlayMode || ui.training.active || !!ui.events.active);
     // (B41.2: il telefono dello stand resta sempre collegato, non vuol dire che c'è qualcuno)
-    const atRest = lobby.visible && lobby.step === 'menu' && !ui.events.nickname && (!ui.phone.connected || !!ui.phone.standSlot);
+    // (B39.5, A4: anche la classifica a schermo intero lasciata in vista per chi è in fila)
+    const atRest = lobby.visible && (lobby.step === 'menu' || (lobby.step === 'ranking' && this.rankingFull)) && !ui.events.nickname && (!ui.phone.connected || !!ui.phone.standSlot);
     const a = kioskAction({ enabled: this.enabled, idle: (performance.now() - this.last)/1000, limit: this.limit, inGame, atRest });
     if (a === 'end-game'){ ui.backToMenu(); this.reset(); }
     else if (a === 'reset') this.reset();
@@ -147,9 +158,14 @@ export class NatpfKiosk {
     if (cmd === 'kiosk'){ this.enabled = !this.enabled; this._save(); }
     if (cmd === 'idle'){ this.limit = IDLE_STEPS[(IDLE_STEPS.indexOf(this.limit) + 1) % IDLE_STEPS.length]; this._save(); }
     // B33: a schermo intero si apre sulla classifica delle partite (le schede dei minigiochi restano accanto)
+    // (B39: con la classifica già a schermo intero la stessa voce la chiude e torna al menu, come Esc)
+    if (cmd === 'ranking' && this.rankingFull){ this.close(); ui.lobby.go('menu'); return; }
     if (cmd === 'ranking'){ this.close(); if (!ui.lobby.visible) ui.backToMenu(); ui.lobby.rankingTab = 'partite'; ui.lobby.go('ranking'); document.documentElement.classList.add('ranking-full'); return; }
     if (cmd === 'export') ui.events.exportCsv();
-    if (cmd === 'reset'){ if (confirm('Azzerare la classifica di oggi?')) ui.events.resetBoard(); }
+    // (B39: la conferma è il secondo clic sul pulsante, needsConfirm)
+    if (cmd === 'reset'){ ui.events.resetBoard(); ui.toast?.('Classifica di oggi azzerata'); }
+    // B39: diagnostica dal pannello (prima solo Maiusc+D o dalla pausa in campo): alla chiusura si torna al pannello
+    if (cmd === 'diag'){ this.close(); ui.diag?.open?.({ back: 'staff' }); return; }
     if (cmd === 'phone'){ ui.phone.forget?.(); }
     // B27: telecomando dello staff (natpf_remote.js: QR dello staff, codice, «Scollega») e monitor del gioco (programma
     // Windows: window.natpfDesktop.displays, monitor successivo; la scelta resta salvata)
@@ -219,6 +235,7 @@ export class NatpfKiosk {
     set('idle', `${this.limit} s`);
     const audio = this.engine.audioEngine; set('music', audio && audio.muted ? 'No' : 'Sì', !(audio && audio.muted));
     set('phone', this.ui.phone.connected ? 'Scollega' : 'Nessuno collegato');
+    set('ranking', this.rankingFull ? 'Chiudi lo schermo intero' : 'A schermo intero', this.rankingFull);
     set('aim', aimLevelButton(readAimLevel()));
     const osk = readOskMode(); set('osk', oskButton(osk), osk !== 'mai');
     const fair = readFairMode(); set('fair', fairButton(fair, fairForcedByUrl()), fair !== 'no');

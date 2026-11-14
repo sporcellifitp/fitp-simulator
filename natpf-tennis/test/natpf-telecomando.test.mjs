@@ -204,7 +204,9 @@ test('revisione: controlli che il telecomando salta (finestre di Windows, link, 
   // ogni confirm() del gioco è di un controllo dell'elenco: chi ne aggiunge uno lo aggiunge anche a NO_REMOTE
   const dir = new URL('../src/natpf/', import.meta.url);
   const native = fs.readdirSync(dir).filter(f => f.endsWith('.js')).flatMap(f => [...fs.readFileSync(new URL(f, dir), 'utf8').matchAll(/(?<![\w.])(confirm|alert|prompt)\(\s*['"`]/g)].map(() => f)).sort();
-  assert.deepEqual(native, ['natpf_diag.js', 'natpf_kiosk.js'], 'finestre native: solo «Elimina» della diagnostica e «Azzera oggi» (saltati dal telecomando)');
+  // (B39: anche «Elimina» della diagnostica e «Azzera oggi» chiedono il secondo clic sul pulsante, natpf_confirm.js: nel gioco
+  // nessuna finestra nativa; i due controlli restano comunque saltati dal telecomando)
+  assert.deepEqual(native, [], 'nessuna finestra nativa nel gioco');
   const remote = fs.readFileSync(new URL('../src/natpf/natpf_remote.js', import.meta.url), 'utf8');
   assert.ok(!/(?<![\w.])confirm\(\s*['"`]/.test(remote), '«Scollega» senza finestra di Windows');
   assert.match(remote, /cmd === 'confirm'\)\{ if \(e\.isTrusted && this\.link\.confirm\(\)\)/, '«Conferma» solo con un clic o un tasto veri');
@@ -245,6 +247,9 @@ test('revisione: «Conferma» dell\'abbinamento solo da un clic vero sul compute
   const b = sheet.querySelector('[data-remote="forget"]');
   const press = () => { const ev = mkEvent('click', { closest: () => b }, { isTrusted: true }); for (const l of sheet.ls.click) l.fn(ev); };
   press(); assert.deepEqual([forgot, b.dataset.armed], [0, '1']); assert.match(b.textContent, /ancora/);
+  // (B39: un doppio clic non basta, il secondo clic conta dopo mezzo secondo, come le conferme del B43)
+  press(); assert.deepEqual([forgot, b.dataset.armed], [0, '1'], 'doppio clic: non scollega');
+  w.advance(500);
   press(); assert.deepEqual([forgot, b.dataset.armed], [1, '']);
   // comando diretto che va in errore: il telefono riceve l'esito con il motivo (prima niente)
   const acks = [];

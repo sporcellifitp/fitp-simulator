@@ -190,7 +190,7 @@
       <div class="intro-stage">
         <h1 class="intro-title"><span class="intro-ball" aria-hidden="true"></span><b>NATPF</b><i>Simulator</i></h1>
         <p class="intro-tag">Tennis 3D · il telefono è la racchetta</p>
-        <button type="button" class="intro-start" id="intro-start">Premi un tasto per iniziare</button>
+        <button type="button" class="intro-start" id="intro-start">Clicca o premi un tasto per iniziare</button>
       </div>
       <footer class="intro-partners"><span>Un progetto</span><img src="./natpf/assets/brand/esports-fitp-neg.png" alt="Esports FITP" /><span>per le</span><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="Nitto ATP Finals" /></footer>
       <button type="button" class="intro-skip" id="intro-skip">Salta ›</button>
@@ -224,6 +224,9 @@
       <div class="natpf-sheet staff-sheet">
         <p class="sheet-kicker">Riservato all’addetto</p>
         <h2 class="sheet-title" id="staff-title">Pannello dello stand</h2>
+        <!-- B39: diagnostica dal pannello (prima solo Maiusc+D o Pausa → Diagnostica in campo), in alto a destra sulla riga
+             del titolo: il foglio non cresce. Alla chiusura della diagnostica si torna qui -->
+        <button type="button" class="lobby-ghost staff-diag" data-staff="diag">Diagnostica</button>
         <!-- «Mira del telefono» (B16, decisione dell'utente: opzione dello staff, non dei visitatori): gradi di piatto girato
              per mandare la palla sulla riga, alta 17° · media 20° · bassa 23° (natpf_aim_level.js); un clic passa alla successiva.
              Cosa vuol dire lo spiegano l'avviso dopo il clic e il title del pulsante, non un paragrafo: a 1024 × 600 il foglio
@@ -279,7 +282,7 @@
           <div class="remote-info">
             <p class="sheet-desc">Inquadra il QR con il <b>telefono dello staff</b> (non quello dei visitatori), poi <b>conferma qui sul computer</b> il numero che compare sul telefono.</p>
             <p class="remote-code-line">Oppure, sulla pagina del telecomando, scrivi il codice <b id="remote-code">—</b></p>
-            <p class="sheet-desc remote-tip">Prima volta su un telefono: certificato della rete NATPF come per la racchetta (QR «Certificato» della pagina «Collega»). QR e codice valgono solo con questo foglio aperto, per 5 minuti.</p>
+            <p class="sheet-desc remote-tip">Prima volta su un telefono: certificato della rete NATPF come per la racchetta (pulsante «Prima volta su questo telefono» della pagina «Collega il telefono»). QR e codice valgono solo con questo foglio aperto, per 5 minuti.</p>
           </div>
         </div>
         <div class="remote-request hidden" data-remote-view="request" role="alert">
@@ -445,6 +448,15 @@
             </div>
           </div>
           <p class="lobby-note lobby-status lobby-status-ok" id="screen-cal-sum" role="status"></p>
+          <!-- B39.5: puntatore del mouse per il ledwall (natpf_cursor.js). Grande (di base nel programma Windows): freccia
+               gialla con il bordo nero, alta circa il 5 % dell'area; in campo il puntatore sparisce dopo 3 secondi fermo -->
+          <div class="lobby-row">
+            <span class="lobby-label">Puntatore</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Puntatore del mouse">
+              <button type="button" class="seg-btn" data-natpf-pointer="normale" role="radio">Normale</button
+              ><button type="button" class="seg-btn" data-natpf-pointer="grande" role="radio">Grande</button>
+            </div>
+          </div>
           <div class="lobby-row">
             <span class="lobby-label">Giochi con la mano</span>
             <div class="lobby-seg" role="radiogroup" aria-label="Mano">
@@ -924,7 +936,7 @@
       </div>
     </div>
     <!-- NATPF: pausa (src/natpf/natpf_pause.js): in partita l'HUD mostra solo tabellone, game ed esito del colpo -->
-    <button id="natpf-pause-btn" class="natpf-pause-btn" type="button" aria-label="Pausa (Esc)" title="Pausa (Esc)"><span aria-hidden="true">❚❚</span></button>
+    <button id="natpf-pause-btn" class="natpf-pause-btn" type="button" aria-label="Pausa (Esc)" title="Pausa (Esc) · tenuto premuto 3 secondi: pannello dello stand"><span aria-hidden="true">❚❚</span></button>
     <div id="natpf-pause" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-pause-title">
       <div class="natpf-sheet natpf-pause-sheet">
         <p class="sheet-kicker">Partita in pausa</p>
@@ -1051,7 +1063,10 @@
       <div class="cal-panel">
         <p class="cal-kicker">Opzioni · Schermo</p>
         <h2 class="cal-title" id="cal-title">Calibra lo schermo</h2>
-        <p class="cal-help">Regola finché le frecce toccano i bordi visibili. Il cerchio deve essere rotondo: se è ovale l’immagine è stirata.</p>
+        <!-- B39.6: con il mouse, i due angoli (la scritta segue il puntatore), le frecce dei bordi si trascinano, − e + si
+             tengono premuti; «Schermo intero» anche qui -->
+        <button type="button" class="cal-fs" data-cal="fullscreen" title="Schermo intero (F)">Schermo intero</button>
+        <p class="cal-help">Clicca l’angolo in alto a sinistra e quello in basso a destra che vedi sul ledwall, poi regola finché le frecce toccano i bordi visibili (si trascinano). Il cerchio deve essere rotondo: se è ovale l’immagine è stirata. <button type="button" class="cal-btn cal-btn-corners" data-cal="corners">Clicca i due angoli</button></p>
         <div class="cal-row">
           <span class="cal-label">Formato</span>
           <div class="cal-seg" role="radiogroup" aria-label="Formato">
@@ -1091,7 +1106,7 @@
           <div><dt>Bordi</dt><dd id="cal-i-margins"></dd></div>
         </dl>
         <p class="cal-note" id="cal-note" role="status"></p>
-        <p class="cal-keys">1–6 formato · Tab bordo · frecce sposta (Maiusc 5 %) · R azzera · F schermo intero · Invio salva · Esc annulla</p>
+        <p class="cal-keys">Mouse: due angoli · trascina le frecce · tieni premuto − o + · Tasti: 1–6 formato · Tab bordo · frecce sposta (Maiusc 5 %) · R azzera · F schermo intero · Invio salva · Esc annulla</p>
         <div class="cal-actions">
           <button type="button" class="cal-btn" data-cal="reset">Azzera</button
           ><button type="button" class="cal-btn" data-cal="cancel">Annulla</button

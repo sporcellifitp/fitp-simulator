@@ -447,6 +447,8 @@ try {
   await ui(() => __natpfTennis.natpfUi.remote.open()); await sleep(500);
   await game.click('[data-remote="forget"]'); await sleep(300);
   const armed = await ui(() => ({ text: document.querySelector('[data-remote="forget"]').textContent, paired: __natpfTennis.natpfUi.remote.link.paired }));
+  // (B39: come le conferme del B43, il secondo clic conta solo dopo mezzo secondo: un doppio clic non scollega)
+  await sleep(400);
   await game.click('[data-remote="forget"]');
   check('«Scollega il telecomando» in due passi: il telefono lo sa e chiede di abbinarsi di nuovo; indirizzo e chiave del gioco buttati', /ancora/.test(armed.text) && armed.paired && await phone.waitForFunction(() => __telecomando.state === 'unpaired' && !localStorage.getItem('natpf-telecomando'), null, { timeout: 10000 }).then(() => true, () => false) && await ui(() => { const v = JSON.parse(localStorage.getItem('natpf-tennis.telecomando')); return !__natpfTennis.natpfUi.remote.link.paired && v.session === null && v.key === null; }), JSON.stringify(armed));
   await phone.screenshot({ path: `${SP}/telecomando-telefono-non-abbinato.png` });

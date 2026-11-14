@@ -23,6 +23,7 @@ import { writeDisplayLagMs } from './natpf_phone_racket.js';
 import { aimLevelLabel } from './natpf_aim_level.js';
 import { gestureMeasures, gestureMeasureLines } from './diag/diag_gesture.js';
 import { isTextField } from './natpf_tastiera.js';
+import { TwoStep } from './natpf_confirm.js';
 const MEASURE_KINDS = new Set(['tel.colpo', 'rimbalzo', 'piano', 'punto', 'colpo.gioco', 'partita']);
 
 const $ = id => document.getElementById(id);
@@ -65,11 +66,11 @@ export class NatpfDiag {
     phone.onSwing?.((ev, s) => this._onSwing(ev, s));
     this.recorder.onChange(() => this._paintRec());
     this.recorder.notify = text => this.ui?.toast?.(text);
-    this.recorder.autoStop = async () => { await this.stop(); this.ui?.toast?.('Diagnostica chiusa: spazio su disco finito. Maiusc+D per scaricare la sessione'); };
+    this.recorder.autoStop = async () => { await this.stop(); this.ui?.toast?.('Diagnostica chiusa: spazio su disco finito. Per scaricare la sessione: pannello dello stand → Diagnostica (o Maiusc+D)'); };
     this._frame();
     if (this.on) this._build();
     // sessioni interrotte da recuperare: si avvisa una volta all'avvio
-    this._store().then(st => st.list()).then(list => { const lost = list.filter(s => !s.ended && !s.live && !s.broken); if (lost.length) this.ui?.toast?.(`Sessione diagnostica interrotta da recuperare: Maiusc+D`); }).catch(() => {});
+    this._store().then(st => st.list()).then(list => { const lost = list.filter(s => !s.ended && !s.live && !s.broken); if (lost.length) this.ui?.toast?.(`Sessione diagnostica interrotta da recuperare: pannello dello stand → Diagnostica (o Maiusc+D)`, 6000); }).catch(() => {});
   }
   _store(){ return this.storeP || (this.storeP = createDiagStore().then(st => { this.store = this.recorder.store = st; return st; })); }
   toggle(){ this.on ? this.close() : this.open(); }
@@ -86,6 +87,8 @@ export class NatpfDiag {
     const back = this._back; this._back = null;
     this.on = false; this.el?.classList.add('hidden'); this.ui?._syncPause?.();
     if (!quiet && back === 'pause' && this.ui?.pause?.inGame && !this.ui.pause.isOpen) this.ui.pause.open();
+    // B39: aperta dal pannello dello stand (voce «Diagnostica», o tasto destro con il pannello aperto): si torna al pannello
+    else if (!quiet && back === 'staff' && !this.ui?.kiosk?.isOpen) this.ui?.kiosk?.open?.();
   }
   _build(){
     if (this.el) return;
@@ -103,11 +106,11 @@ export class NatpfDiag {
       e.stopPropagation();
       const id = b.dataset.id;
       ({ close: () => this.close(), start: () => this.start(), stop: () => this.stop(), mark: () => this.recorder.mark('segno'), protocol: () => this.startProtocol(),
-        save: () => this.save(id), del: () => this.remove(id), recover: () => this.recover(id), lag: () => this.saveLag() }[b.dataset.diag] || (() => {}))();
+        save: () => this.save(id), del: () => this._del(b, id), recover: () => this.recover(id), lag: () => this.saveLag() }[b.dataset.diag] || (() => {}))();
     });
     document.body.appendChild(el);
     const rec = this.recEl = document.createElement('button');
-    rec.type = 'button'; rec.className = 'natpf-rec hidden'; rec.title = 'Registrazione diagnostica in corso (Maiusc+D)';
+    rec.type = 'button'; rec.className = 'natpf-rec hidden'; rec.title = 'Registrazione diagnostica in corso: clicca per aprire la diagnostica (Maiusc+D)';
     rec.addEventListener('pointerdown', e => e.stopPropagation()); rec.addEventListener('click', e => { e.stopPropagation(); this.open(); });
     document.body.appendChild(rec);
   }
@@ -119,7 +122,7 @@ export class NatpfDiag {
       await this._store();
       const label = this.el?.querySelector('[data-label]')?.value || protocol?.label || '';
       await this.recorder.start({ ...this.opts, label, protocol });
-      this.summary = null; this.ui?.toast?.('Registrazione avviata: gioca normalmente, poi Maiusc+D → Ferma');
+      this.summary = null; this.ui?.toast?.('Registrazione avviata: gioca normalmente, poi ● REC in alto (o Maiusc+D) → Ferma', 5000);
     } catch (e){ this.ui?.toast?.(`Registrazione non avviata: ${e?.message || e}`); }
     this.busy = ''; this._paintRec(); this.refresh();
   }
@@ -171,8 +174,14 @@ export class NatpfDiag {
     catch (e){ this.ui?.toast?.(`Recupero non riuscito: ${e?.message || e}`); }
     this.busy = ''; this.refresh();
   }
+  // B39: «Elimina» vuole il secondo clic sul pulsante («Sicuro? Clicca ancora», natpf_confirm.js) al posto della finestra
+  // confirm() di Windows (piccola, fuori stile e, con un'area calibrata, magari fuori dalla parte visibile del ledwall)
+  _del(b, id){
+    this.confirmDel ||= new TwoStep();
+    if (this.confirmDel.click(b, `del:${id}`)) this.remove(id);
+  }
   async remove(id){
-    if (!id || !confirm('Eliminare questa sessione diagnostica?')) return;
+    if (!id) return;
     try { await this.store.remove(id); this.selected.delete(id); } catch (e){ this.ui?.toast?.(`Eliminazione non riuscita: ${e?.message || e}`); }
     this.refresh();
   }

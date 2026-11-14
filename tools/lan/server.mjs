@@ -37,6 +37,11 @@ const server=tls?https.createServer({cert:fs.readFileSync(options.cert),key:fs.r
 // computer del P2 apriva spesso una connessione TLS nuova (due andate e ritorno in Wi-Fi e una firma TLS sul PC).
 server.keepAliveTimeout=65000;server.headersTimeout=66000;
 const wss=new WebSocketServer({server,path:'/lan-signal',maxPayload:32768});
+// NATPF B39 (14/11): ws ripete sul proprio oggetto gli errori del server HTTP (per esempio EADDRINUSE, porta occupata).
+// Senza un ascoltatore quell'errore diventava un'eccezione non gestita: nel programma Windows la finestra inglese «A
+// JavaScript error occurred in the main process» con il solo «OK», e il gioco fermo su «Avvio del gioco…». L'errore
+// arriva già a chi chiama listen() (promessa rifiutata): qui basta non farlo esplodere
+wss.on('error',()=>{});
 // NATPF (31/10): ping della segnalazione. Prima un id restava registrato finché il TCP non si chiudeva: dopo
 // un'interruzione della Wi-Fi il telefono o il computer del P2 che si ricollegava riceveva «id-unavailable» e i segnali
 // verso di lui finivano nel socket morto. Ora chi non risponde al ping precedente viene chiuso (al massimo ~2 giri).

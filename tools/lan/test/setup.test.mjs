@@ -72,3 +72,32 @@ test('a custom request handler (natpf-tennis) replaces the site files but keeps 
     assert.equal((await fetch(base+'/lan/status').then(r=>r.json())).registered,0);
   }finally{await app.close();}
 });
+
+// NATPF B39 (14/11): porta occupata. Prima ws ripeteva l'errore del server HTTP (EADDRINUSE) sul WebSocketServer senza
+// ascoltatore: un'eccezione non gestita (nel programma Windows la finestra inglese con il solo «OK»). Ora listen() si
+// rifiuta con l'errore, il processo va avanti e l'avvio guidato dice quale porta è occupata
+test('busy port: listen() rejects with EADDRINUSE without an uncaught exception, for the setup page and the game server',async()=>{
+  const net=await import('node:net');
+  const blocker=net.createServer();await new Promise(r=>blocker.listen(0,'127.0.0.1',r));const busy=blocker.address().port;
+  const uncaught=[];const onUncaught=e=>uncaught.push(e);process.on('uncaughtException',onUncaught);
+  try{
+    const app=createLanServer({port:busy,host:'127.0.0.1'});
+    await assert.rejects(app.listen(),e=>e.code==='EADDRINUSE'&&new RegExp(`:${busy}\\b`).test(e.message));
+    await new Promise(r=>setTimeout(r,50));
+    assert.deepEqual(uncaught,[],'nessuna eccezione non gestita');
+    // avvio guidato con la sua pagina sulla porta occupata: launchLan si rifiuta con l'errore (prima: eccezione)
+    await assert.rejects(launchLan({setupPort:busy,port:0,open:false,cert:'/nessun/cert.pem',key:'/nessuna/key.pem'}),e=>e.code==='EADDRINUSE');
+    await new Promise(r=>setTimeout(r,50));
+    assert.deepEqual(uncaught,[],'nessuna eccezione non gestita (avvio guidato)');
+    // server HTTPS del gioco sulla porta occupata: il launcher resta in piedi e lo dice, con la porta
+    const temp=fs.mkdtempSync(path.join(os.tmpdir(),'natpf-busy-')),cert=path.join(temp,'cert.pem'),key=path.join(temp,'key.pem');
+    execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=NATPF-test','-addext','subjectAltName=IP:127.0.0.1','-keyout',key,'-out',cert],{stdio:'ignore'});
+    const launcher=await launchLan({setupPort:0,port:busy,open:false,cert,key});
+    try{
+      assert.equal(launcher.game,null);
+      const s=launcher.status();assert.equal(s.ready,false);assert.match(s.message,new RegExp(`EADDRINUSE[^]*porta ${busy}`));
+      await new Promise(r=>setTimeout(r,50));
+      assert.deepEqual(uncaught,[],'nessuna eccezione non gestita (server del gioco)');
+    }finally{await launcher.close();fs.rmSync(temp,{recursive:true,force:true});}
+  }finally{process.off('uncaughtException',onUncaught);await new Promise(r=>blocker.close(r));}
+});

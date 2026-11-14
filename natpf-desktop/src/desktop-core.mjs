@@ -5,7 +5,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export const DESKTOP = Object.freeze({
-  port: 8443, caPort: 8081, setupPort: 8080,
+  // B39 (stand con il solo mouse): la pagina dell'avvio guidato della LAN (tools/lan/launcher.mjs) nel programma non
+  // serve (certificato e indirizzi li fa il programma): porta scelta dal sistema, solo su 127.0.0.1. Prima era la 8080
+  // fissa e, se un altro programma la teneva, il gioco non partiva («EADDRINUSE» in inglese con il solo «OK»)
+  port: 8443, caPort: 8081, setupPort: 0,
   gamePath: '/?lan=1',
   ruleName: 'NATPF Simulator',
   settingsFile: 'desktop-app.json',
@@ -24,8 +27,22 @@ export const DESKTOP = Object.freeze({
   // pannello dello stand dalla tastiera del programma (B37, 13/11): F9 e la voce del menu lo aprono e lo chiudono nella
   // pagina del gioco (window.natpfDesktop.staffPanel.onToggle); sul PC dello stand Ctrl+Maiusc+K non arrivava al gioco
   ipcStaffPanel: 'natpf:staff-panel',
+  // B39: comandi dello staff dal menu del tasto destro verso la pagina del gioco (solo quelli di PAGE_COMMANDS:
+  // window.natpfDesktop.commands.onCommand) e avvisi del programma alla pagina (file salvato, link negato:
+  // window.natpfDesktop.notices.onNotice). Tutti e due vanno solo alla finestra del gioco con una pagina del proprio server
+  ipcCommand: 'natpf:command',
+  ipcNotice: 'natpf:notice',
   // domanda all'avvio «Su quale schermo mostro il gioco?»: senza risposta entro questo tempo vale la proposta
   askDisplayMs: 30000,
+  // B39: domanda del firewall all'avvio senza risposta entro questo tempo → «Più tardi» (prima il gioco restava fermo
+  // su «Avvio del gioco…» finché qualcuno non rispondeva, e la domanda poteva stare su un altro schermo)
+  firewallAskMs: 60000,
+  // B39: pagina del gioco che non risponde: dopo hangDialogMs dall'evento 'unresponsive' la finestra «Il gioco non
+  // risponde» (Ricarica · Aspetta · Chiudi il programma); senza risposta entro hangReloadMs il gioco si ricarica da solo
+  hangDialogMs: 10000,
+  hangReloadMs: 60000,
+  // B39: file salvati dal gioco (classifica, coda del registro, diagnostica) senza «Salva con nome»: Download\NATPF
+  downloadsFolder: 'NATPF',
   // disinstallazione scritta dall'installer accanto al programma: c'è solo nel programma installato
   uninstaller: 'Disinstalla NATPF Simulator.exe',
 });
@@ -244,3 +261,168 @@ export function trailerFiles(dir){
 // il nome porta l'impronta del contenuto: true se i primi 12 caratteri dello sha256 (esadecimale) sono quelli del nome
 export const trailerNameMatches = (name, sha256) => TRAILER_RE.exec(String(name))?.[1] === String(sha256 || '').slice(0, 12).toLowerCase();
 export const readBuild = versionJs => /NATPF_BUILD\s*=\s*'([^']+)'/.exec(String(versionJs))?.[1] || null;
+
+// ---------------------------------------------------------------------------------------------------------------------
+// B39 · Stand con il solo mouse (14/11/2026). Allo stand si vede solo il ledwall e il mouse è solo dello staff: niente
+// icona nell'area di notifica (decisione dell'utente del 13-14/11). Il tasto destro nel programma apre al puntatore il menu
+// di Windows con i comandi dello staff: si apre dove c'è il puntatore, quindi nella parte visibile del ledwall anche con
+// un'area calibrata male. Un solo elenco di comandi (COMMANDS) per la barra del menu (Alt, in finestra), il menu del tasto
+// destro e le scorciatoie (shortcutFor): main.mjs li esegue per id (ACTIONS).
+
+// comandi che il programma manda alla pagina del gioco (window.natpfDesktop.commands.onCommand): elenco congelato, il
+// preload consegna alla pagina solo questi. Il pannello dello stand passa dal canale del B37 (ipcStaffPanel, 'open')
+export const PAGE_COMMANDS = Object.freeze(['diagnostica', 'calibra', 'azzera-calibrazione']);
+// id → nome nel menu, scorciatoia (scritta accanto al nome; le esegue 'before-input-event') e comando della pagina
+export const COMMANDS = Object.freeze({
+  'pannello-stand': Object.freeze({ label: 'Pannello dello stand', accel: 'F9' }),
+  diagnostica: Object.freeze({ label: 'Diagnostica', page: 'diagnostica' }),
+  calibra: Object.freeze({ label: 'Calibra lo schermo…', page: 'calibra' }),
+  'azzera-calibrazione': Object.freeze({ label: 'Azzera la calibrazione dello schermo', page: 'azzera-calibrazione' }),
+  'schermo-intero': Object.freeze({ label: 'Schermo intero', accel: 'F11' }),
+  monitor: Object.freeze({ label: 'Monitor' }),
+  'monitor-successivo': Object.freeze({ label: 'Monitor successivo', accel: 'CmdOrCtrl+Shift+M' }),
+  ricarica: Object.freeze({ label: 'Ricarica il gioco', accel: 'CmdOrCtrl+R' }),
+  riavvia: Object.freeze({ label: 'Riavvia il programma' }),
+  esci: Object.freeze({ label: 'Esci', accel: 'CmdOrCtrl+Q' }),
+  'rete-apri': Object.freeze({ label: 'Apri la rete ai telefoni (firewall)…' }),
+  'rete-indirizzi': Object.freeze({ label: 'Indirizzi e certificato per i telefoni…' }),
+  aggiornamenti: Object.freeze({ label: 'Cerca aggiornamenti…' }),
+  'cartella-salvati': Object.freeze({ label: 'Cartella dei file salvati (Download › NATPF)' }),
+  'cartella-dati': Object.freeze({ label: 'Cartella dei dati (certificati, registri)' }),
+  'scheda-grafica': Object.freeze({ label: 'Scheda grafica in uso…' }),
+  strumenti: Object.freeze({ label: 'Strumenti per sviluppatori', accel: 'CmdOrCtrl+Shift+I' }),
+});
+export const SEPARATOR = Object.freeze({ type: 'separator' });
+// voce di un comando: { cmd, label, accel?, arg?, type?, checked?, enabled? } (main.mjs la trasforma in una voce di Electron)
+export function commandItem(cmd, extra = {}){
+  const c = COMMANDS[cmd];
+  if (!c) throw new Error(`comando sconosciuto: ${cmd}`);
+  return { cmd, label: c.label, ...(c.accel ? { accel: c.accel } : {}), ...extra };
+}
+// monitor: uno per riga (quello del gioco spuntato), poi «Monitor successivo»
+export function displayItems(displays = [], { currentId = null, primaryId = null } = {}){
+  return [
+    ...displays.map((d, i) => commandItem('monitor', { arg: d.id, type: 'radio', checked: String(d.id) === String(currentId), label: displayLabel(d, i, primaryId) })),
+    SEPARATOR,
+    commandItem('monitor-successivo', { enabled: displays.length > 1 }),
+  ];
+}
+// Menu del tasto destro (B39, decisione dell'utente: menu di Windows al puntatore). gamePage: la pagina del gioco (con i
+// comandi della pagina); false sulla pagina «Avvio del gioco…» (solo i comandi del programma). editable: tasto destro in un
+// campo di testo (Taglia, Copia, Incolla in cima). «Riavvia» ed «Esci» chiedono conferma con un sottomenu, che si apre
+// accanto al puntatore (una finestra di Windows al centro potrebbe cadere fuori dalla parte visibile del ledwall); «Esci»
+// non tocca la scelta dello schermo intero
+export function staffMenu({ gamePage = true, fullscreen = true, displays = [], currentId = null, primaryId = null, editable = false, version = '' } = {}){
+  const out = [];
+  if (editable) out.push({ role: 'cut', label: 'Taglia' }, { role: 'copy', label: 'Copia' }, { role: 'paste', label: 'Incolla' }, SEPARATOR);
+  if (gamePage) out.push(commandItem('pannello-stand', { arg: 'open' }), commandItem('diagnostica'), SEPARATOR, commandItem('calibra'), commandItem('azzera-calibrazione'), SEPARATOR);
+  out.push(commandItem('schermo-intero', { type: 'checkbox', checked: !!fullscreen }));
+  out.push({ label: 'Schermo del gioco', submenu: displayItems(displays, { currentId, primaryId }) });
+  out.push(SEPARATOR);
+  if (gamePage) out.push(commandItem('ricarica'));
+  out.push({ label: 'Rete per i telefoni', submenu: [commandItem('rete-apri'), commandItem('rete-indirizzi')] });
+  out.push({ label: 'Programma', submenu: [commandItem('aggiornamenti'), commandItem('cartella-salvati'), commandItem('cartella-dati'), commandItem('scheda-grafica'), SEPARATOR, { label: `Versione ${version || '?'}`, enabled: false }] });
+  out.push(SEPARATOR);
+  out.push({ label: 'Riavvia il programma', submenu: [commandItem('riavvia', { label: 'Sì, riavvia adesso' })] });
+  out.push({ label: 'Esci', submenu: [commandItem('esci', { label: 'Sì, chiudi NATPF Simulator' })] });
+  return out;
+}
+// Barra del menu del programma (in finestra con Alt): le voci di sempre, dallo stesso elenco. «Esci» qui resta diretto
+// (Ctrl+Q, chi usa la tastiera); la voce del pannello dice il tasto nel nome (B37: F9 lo esegue 'before-input-event')
+export function appMenu({ displays = [], currentId = null, primaryId = null, version = '' } = {}){
+  return [
+    { label: 'NATPF', submenu: [commandItem('schermo-intero'), commandItem('ricarica'), commandItem('pannello-stand', { label: 'Pannello dello stand (F9)', accel: undefined, arg: 'toggle' }), commandItem('diagnostica'), SEPARATOR, commandItem('esci')] },
+    { label: 'Schermo', submenu: [...displayItems(displays, { currentId, primaryId }), SEPARATOR, commandItem('calibra'), commandItem('azzera-calibrazione')] },
+    { label: 'Rete', submenu: [commandItem('rete-apri'), commandItem('rete-indirizzi')] },
+    { label: 'Aiuto', submenu: [commandItem('aggiornamenti'), commandItem('cartella-salvati'), commandItem('cartella-dati'), commandItem('scheda-grafica'), commandItem('strumenti'), { label: `Versione ${version || '?'}`, enabled: false }] },
+  ];
+}
+// tutti i comandi di un menu (anche nei sottomenu), per le prove e per il controllo all'avvio
+export function menuCommands(items = []){
+  return items.flatMap(i => [...(i.cmd ? [i.cmd] : []), ...(Array.isArray(i.submenu) ? menuCommands(i.submenu) : [])]);
+}
+// Tasto destro: 'gioco' sulle pagine del proprio server, 'avvio' sulla pagina «Avvio del gioco…» che il programma stesso
+// carica (data:, comandi del programma soltanto; nessun'altra pagina può arrivare nella finestra: will-navigate),
+// altrimenti nessun menu
+export function contextMenuMode(url, addresses = [], { loading = false } = {}){
+  if (isOwnUrl(url, addresses, { ports: [DESKTOP.port] })) return 'gioco';
+  if (loading && String(url || '').startsWith('data:')) return 'avvio';
+  return null;
+}
+// La finestra del gioco va solo sulle pagine del proprio server (https, porta del gioco): niente file trascinati, link
+// esterni o pagine di altri siti al posto del gioco (will-navigate)
+export function navigationAllowed(url, addresses = []){
+  let u; try { u = new URL(url); } catch { return false; }
+  return u.protocol === 'https:' && isOwnUrl(url, addresses, { ports: [DESKTOP.port] });
+}
+
+// --- file salvati dal gioco senza «Salva con nome» (B39 n. 16) ---------------------------------------------------------
+// Il gioco salva classifica (CSV), coda del registro (zip) e sessioni della diagnostica (zip) con un link «download» su un
+// blob: della pagina. Nel programma si salvano subito in Download\NATPF (niente finestra di Windows sul ledwall, che con
+// un'area calibrata può cadere fuori dalla parte visibile) e la pagina lo dice con un avviso. Il nome lo propone la pagina:
+// qui diventa solo un nome di file (mai un percorso), senza caratteri vietati da Windows, e non sovrascrive niente.
+const RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+export function safeFileName(name, fallback = 'file-natpf'){
+  let n = String(name ?? '').split(/[\\/]/).pop();
+  n = n.replace(/[\u0000-\u001f\u007f<>:"|?*]/g, '').replace(/\s+/g, ' ').replace(/^[.\s]+|[.\s]+$/g, '');
+  if (!n) n = fallback;
+  const dot = n.lastIndexOf('.');
+  let base = dot > 0 ? n.slice(0, dot) : n, ext = dot > 0 ? n.slice(dot) : '';
+  if (!/^\.[a-z0-9]{1,8}$/i.test(ext)){ base = n; ext = ''; }
+  if (RESERVED_NAMES.test(base)) base = `_${base}`;
+  return base.slice(0, 120 - ext.length).replace(/[.\s]+$/, '') + ext;
+}
+// nome libero nella cartella: «nome (2).csv», «nome (3).csv»… (taken(nome) dice se c'è già)
+export function uniqueName(name, taken = () => false){
+  if (!taken(name)) return name;
+  const dot = name.lastIndexOf('.'), base = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
+  for (let i = 2; i < 1000; i++){ const n = `${base} (${i})${ext}`; if (!taken(n)) return n; }
+  return `${base} (${Date.now()})${ext}`;
+}
+// percorso completo del file da salvare in dir (la cartella la sceglie il programma, mai la pagina)
+export function downloadTarget(dir, suggested, taken = () => false){
+  return path.join(dir, uniqueName(safeFileName(suggested), n => taken(path.join(dir, n))));
+}
+// download accettato solo dalla pagina del gioco: un blob: del proprio server o una pagina del proprio server
+export function downloadAllowed(url, addresses = []){
+  const u = String(url || '');
+  if (u.startsWith('blob:')) return navigationAllowed(u.slice(5), addresses);
+  return navigationAllowed(u, addresses);
+}
+
+// --- porta occupata all'avvio (B39 n. 5) --------------------------------------------------------------------------------
+// numero della porta da un errore «EADDRINUSE» (Node: «listen EADDRINUSE: address already in use 0.0.0.0:8443»), null se
+// non è una porta occupata
+export function busyPort(message){
+  const m = /EADDRINUSE\b[^\n]*?:(\d{2,5})\b/.exec(String(message || ''));
+  return m ? Number(m[1]) : null;
+}
+// chi tiene la porta (Windows, «netstat -ano»): PID della riga TCP in ascolto su quella porta, null se non si trova.
+// Funziona con le colonne in qualunque lingua (LISTENING, ABHÖREN, IN ASCOLTO): una porta in ascolto ha l'indirizzo
+// remoto «0.0.0.0:0» o «[::]:0»
+export function netstatListener(output, port){
+  for (const line of String(output || '').split(/\r?\n/)){
+    const c = line.trim().split(/\s+/);
+    if (c.length < 4 || !/^TCP$/i.test(c[0])) continue;
+    const pid = Number(c[c.length - 1]);
+    if (!c[1].endsWith(`:${port}`) || !/:0$/.test(c[2]) || !Number.isInteger(pid) || pid <= 0) continue;
+    return pid;
+  }
+  return null;
+}
+// nome del programma dalla riga di «tasklist /FI "PID eq N" /FO CSV /NH» («"node.exe","4321",…»), null se non c'è
+export function tasklistImage(csv){
+  const m = /^"([^"]+)","(\d+)"/m.exec(String(csv || ''));
+  return m ? m[1] : null;
+}
+// Testo della finestra quando il gioco non parte. Porta occupata: quale porta, chi la tiene (se si sa), cosa fare; i
+// pulsanti sono «Riprova» e «Chiudi il programma» (main.mjs). Altrimenti l'errore e dove sta il registro
+export function startupProblem(message, { port = null, owner = null, logPath = '' } = {}){
+  if (port){
+    const who = owner?.name ? ` da «${owner.name}»${owner.pid ? ` (PID ${owner.pid})` : ''}` : owner?.pid ? ` dal programma con PID ${owner.pid}` : ' da un altro programma';
+    const what = port === DESKTOP.port ? 'il gioco e i telefoni' : port === DESKTOP.caPort ? 'la pagina del certificato dei telefoni' : 'il gioco';
+    return { busy: true, port, message: `La porta ${port} è già in uso${who}.`,
+      detail: `NATPF Simulator usa la porta ${port} per ${what}. Chiudi l'altro programma (per esempio una finestra «AVVIA NATPF LAN» o un altro server) e clicca «Riprova». Se non sai quale programma è, riavvia il computer.` };
+  }
+  return { busy: false, port: null, message: 'Il gioco non è partito.', detail: `${String(message || 'errore sconosciuto').slice(0, 400)}\n\nRegistro: ${logPath}` };
+}

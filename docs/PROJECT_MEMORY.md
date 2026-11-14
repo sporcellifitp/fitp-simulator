@@ -1111,3 +1111,42 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   senza il testo del lancio. Il riquadro `#natpf-serve-coach` compare solo con una scritta (`big`).
 - **Stessa cosa ovunque**: la stessa icona (classe `in-card`) nella scheda «Servizio» del tutorial, nel «Guarda e
   ripeti» dell'esercizio «Servizio» e nella guida «Come si gioca» (che ora dice «sopra di te compare «Al servizio»»).
+
+## Stand con il solo mouse (B39, 14/11/2026; documento `docs/b39/stand-solo-mouse.md`)
+
+- **Comandi del programma in un solo elenco**: `COMMANDS` in `natpf-desktop/src/desktop-core.mjs` (id → nome, scorciatoia
+  scritta, comando della pagina). La barra del menu (`appMenu`), il menu del tasto destro (`staffMenu`) e le scorciatoie
+  (`shortcutFor`) usano gli stessi id; `main.mjs` li esegue con `ACTIONS[id](arg)` (`runCommand`). Un comando nuovo si
+  aggiunge a `COMMANDS` e ad `ACTIONS` (la prova `test/solo-mouse.test.mjs` controlla che ogni id abbia la sua azione).
+- **Menu del tasto destro** (decisione dell'utente): `Menu.popup({ window })` senza coordinate (si apre dove c'è il
+  puntatore, quindi nella parte visibile del ledwall anche con un'area calibrata male); solo sulle pagine del proprio
+  server, sulla pagina di avvio i soli comandi del programma. Azioni distruttive del programma (Esci, Riavvia) con un
+  sottomenu di conferma, non con una finestra di Windows al centro (può cadere fuori dalla parte visibile).
+- **Canali programma → pagina**: `natpf:command` solo con i nomi di `PAGE_COMMANDS` (ricontrollati dal preload, che ha lo
+  stesso elenco congelato) e `natpf:notice` con i soli campi previsti, mai percorsi. Regola di sempre: solo
+  `win.webContents` e solo con `isOwnUrl(win.webContents.getURL())`. Le cartelle le apre il programma per chiave dal menu.
+- **Download nel programma**: `will-download` → `Download\NATPF` (`downloadTarget`, nome solo da `safeFileName`, mai
+  sovrascrivere); la pagina riceve `{ kind: 'download', ok, name, folder }` e lo dice con un avviso. Niente più
+  `confirm()` nel gioco: le voci distruttive usano `TwoStep` (`natpf_confirm.js`, secondo clic dopo 450 ms).
+- **Navigazione nel programma**: `setWindowOpenHandler` nega tutto; `will-navigate` solo `https` del proprio server sulla
+  porta del gioco; `did-navigate` svuota la cronologia sulle pagine del gioco (tasto «indietro» del mouse).
+- **Porta occupata**: l'errore di `listen` arriva solo come promessa rifiutata (`wss.on('error')` in `tools/lan`); il
+  programma chiude i server del tentativo fallito e chiede «Riprova» · «Chiudi il programma». Il programma non usa più la
+  8080 (`DESKTOP.setupPort = 0`). `process.on('uncaughtException')` scrive nel registro e mostra una finestra italiana.
+- **Guardia del doppio clic** (`natpf_click_guard.js`): in cattura sulla finestra, solo clic veri (`isTrusted`) con
+  `detail ≥ 1` sui pulsanti (`GUARDED`), mai calibrazione, campi e cursori (`EXEMPT`). La lobby segna i cambi di pagina
+  (`lobby.go` avvolta da `natpf_stand_mouse.js`), i fogli li vede un `MutationObserver` (classe `hidden` dei
+  `.natpf-sheet-backdrop`/`.nt-modal-backdrop`). Nelle prove automatiche (`navigator.webdriver`) la regola del clic in
+  ritardo vale solo con `?guardia=1`: le prove che cliccano subito dopo un `lobby.go()` fatto dal codice restano come sono.
+  Nelle prove nel browser il doppio clic si simula con `mouse.click()` e poi `mouse.down/up({ clickCount: 2 })`
+  (`mouse.click({ clickCount: 2 })` di Playwright fa da solo due clic).
+- **Pressione lunga** (`natpf_hold.js`): 3 s, tolleranza 24 px, anello unico figlio del body, il clic che segue non arriva
+  al bersaglio. È la strada del mouse al pannello dello stand nel browser (nel programma c'è anche il tasto destro).
+- **Puntatore** (`natpf_cursor.js`): cursore CSS da un SVG generato (misura dall'altezza dell'area, 48–128 px: oltre
+  Chromium lo ignora), classe `cursor-big` / `cursor-hidden` su `<html>`; la freccia sul bordo usa `viewport()`; gli
+  elementi fuori dall'area (scritta dei due angoli della calibrazione) sono figli di `<html>`, non del body (che con
+  un'area è ritagliato).
+- **Chiosco**: il movimento del mouse conta (al più una volta al secondo); fermo con pannello, telecomando o diagnostica
+  aperti; la calibrazione dello schermo lasciata aperta la annulla ancora (B8, prova `natpf-calibra.test.mjs`).
+- **Da decidere con l'utente** (non fatto): audio spento salvato, «Chi gioca» salvato, «Schermo intero» premuto per
+  sbaglio che resta salvato nel programma, tasto «indietro» del mouse come «‹ Indietro» nel menu.

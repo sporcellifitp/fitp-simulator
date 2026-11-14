@@ -6,7 +6,8 @@
 //     updates: { state(), check(), download(), install(), onChange(cb) },             (aggiornamenti, 07/11)
 //     displays: { list(), next(), choose(id), onChange(cb) },                         (monitor del gioco, B27, 12/11)
 //     registro: { put(id, testo), list(), read(id), remove(id), state(), open() },    (registro dello stand, B30, 12/11)
-//     staffPanel: { onToggle(cb) } }                                                   (pannello dello stand, B37, 13/11)
+//     staffPanel: { onToggle(cb) },                                                    (pannello dello stand, B37, 13/11)
+//     commands: { onCommand(cb) }, notices: { onNotice(cb) } }                         (stand con il solo mouse, B39, 14/11)
 // Schermo intero: le prime tre rispondono con lo stato nuovo (Promise<boolean>). Nel programma il gioco non usa
 // requestFullscreen di HTML: Electron consumerebbe il primo Esc per uscirne.
 // Aggiornamenti (src/aggiornamenti.mjs): state/check/download → Promise<S>, install → Promise<{ ok, error? }>,
@@ -22,6 +23,10 @@
 // state → Promise<{ blocchi, byte, righe, scartati, cartella }>, open → apre la cartella in Esplora file.
 // Pannello dello stand (B37): F9 o la voce del menu NATPF «Pannello dello stand (F9)» nel processo principale;
 // onToggle(cb) chiama cb('toggle') (oppure 'open' / 'close') e risponde con la funzione che toglie l'ascolto.
+// Comandi dello staff (B39): dal menu del tasto destro del programma. onCommand(cb) chiama cb con uno solo dei nomi
+// dell'elenco congelato COMMANDS qui sotto (uguale a PAGE_COMMANDS di desktop-core.mjs, provato); ogni altro valore si
+// scarta. Avvisi (B39): onNotice(cb) chiama cb({ kind: 'download', ok, name, folder }) per un file salvato dal gioco in
+// Download\NATPF, o cb({ kind: 'link' }) per una finestra nuova negata; solo questi campi, come testo.
 // Nomi dei canali uguali a DESKTOP.ipc* in desktop-core.mjs (provato).
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
@@ -34,6 +39,22 @@ const DISPLAYS = 'natpf:displays';
 const DISPLAYS_CHANGED = 'natpf:displays-changed';
 const REGISTRO = 'natpf:registro';
 const STAFF_PANEL = 'natpf:staff-panel';
+const COMMAND = 'natpf:command';
+const NOTICE = 'natpf:notice';
+const COMMANDS = Object.freeze(['diagnostica', 'calibra', 'azzera-calibrazione']);
+// avviso alla pagina: solo i campi previsti, come testo o vero/falso (mai l'evento di Electron)
+const notice = n => {
+  if (!n || typeof n !== 'object') return null;
+  if (n.kind === 'link') return { kind: 'link' };
+  if (n.kind === 'download') return { kind: 'download', ok: n.ok === true, name: String(n.name || '').slice(0, 200), folder: String(n.folder || '').slice(0, 100) };
+  return null;
+};
+const listen = (channel, wrap) => cb => {
+  if (typeof cb !== 'function') return () => {};
+  const listener = (_event, v) => { const x = wrap(v); if (x == null) return; try { cb(x); } catch (e) { console.error(e); } };
+  ipcRenderer.on(channel, listener);
+  return () => { ipcRenderer.removeListener(channel, listener); };
+};
 const registro = (action, ...a) => ipcRenderer.invoke(REGISTRO, action, ...a).then(copy);
 const ask = action => ipcRenderer.invoke(FULLSCREEN, action);
 const copy = v => (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v);
@@ -41,7 +62,7 @@ const update = action => ipcRenderer.invoke(UPDATES, action);
 
 contextBridge.exposeInMainWorld('natpfDesktop', {
   shell: 'electron',
-  version: 5,
+  version: 6,
   isFullScreen: () => ask('get'),
   setFullScreen: on => ask(on ? 'on' : 'off'),
   toggleFullScreen: () => ask('toggle'),
@@ -92,4 +113,7 @@ contextBridge.exposeInMainWorld('natpfDesktop', {
       return () => { ipcRenderer.removeListener(STAFF_PANEL, listener); };
     },
   },
+  // B39: comandi del menu del tasto destro (solo quelli dell'elenco) e avvisi del programma
+  commands: { onCommand: listen(COMMAND, v => (COMMANDS.includes(v) ? v : null)) },
+  notices: { onNotice: listen(NOTICE, notice) },
 });

@@ -770,7 +770,7 @@ body.natpf-trial-on #timing-popup { display: none !important; }
 .ranking-full #title-modal .ranking-list li span,
 .ranking-full #title-modal .ranking-list li b,
 .ranking-full #title-modal .ranking-list li em { font-size: clamp(14px, min(3.6cqh, 2.3cqw), 36px); }
-.ranking-full #title-modal .ranking-list li.empty { grid-column: 1 / -1; }
+.ranking-full #title-modal .ranking-list li.empty { grid-column: 1 / -1; grid-template-columns: 1fr; }
 @container natpf (max-aspect-ratio: 5/4) {
   .ranking-full #title-modal .ranking-list { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: minmax(0, 1fr); }
 }
@@ -826,6 +826,10 @@ body.natpf-trial-on #timing-popup { display: none !important; }
 /* ---------- telefono o webcam in pausa (natpf_ui._paintHold): titolo, testo, pulsante facoltativo ---------- */
 .natpf-phone-hold { position: fixed; left: 50%; top: 22cqh; transform: translateX(-50%); z-index: 60; width: max-content; max-width: min(540px, 90cqw); padding: 16px 20px; border-radius: 14px; background: rgba(7, 18, 51, 0.94); color: #f3f6fb; text-align: center; font: 600 clamp(15px, 2.2cqh, 22px)/1.4 system-ui, sans-serif; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); }
 .natpf-phone-hold.hidden { display: none; }
+/* B39.3 (controllo «solo mouse», n. 13): con un foglio aperto (pausa, pannello del telefono, pannello dello stand) il
+   riquadro «Telefono in pausa» va sotto: prima copriva le voci della pausa (a 1280 × 720 anche «Torna al menu» e
+   «Riprendi ›») e l'angolo del QR del pannello del telefono. Torna sopra quando il foglio si chiude */
+html:has(.natpf-sheet-backdrop:not(.hidden)) .natpf-phone-hold { z-index: 55; }
 .natpf-phone-hold p { margin: 6px 0 0; font-weight: 500; }
 .natpf-phone-hold button { margin-top: 12px; padding: 0.55em 1.2em; border: 0; border-radius: var(--r-pill); background: var(--ball); color: var(--ball-ink); font: 700 1em/1.2 system-ui, sans-serif; cursor: pointer; }
 .natpf-phone-hold button.hidden { display: none; }
@@ -920,6 +924,10 @@ body.natpf-trial-on #timing-popup { display: none !important; }
   .natpf-sheet.staff-sheet .sheet-desc { margin-bottom: 4px; }
 }
 @container natpf (max-width: 640px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: 1fr; } }
+/* B39: «Diagnostica» in alto a destra del pannello dello stand, nella fascia della scritta «Riservato all'addetto» (il foglio
+   non cresce: «Chiudi» resta in vista a 1024 × 600, 1366 × 657 e 720 × 720, prova natpf-menu) */
+.natpf-sheet.staff-sheet { position: relative; }
+.natpf-sheet.staff-sheet .staff-diag { position: absolute; top: 8px; right: 12px; height: clamp(28px, 4cqh, 40px); min-height: 0; padding: 0 clamp(10px, 1.4cqh, 16px); font: 600 clamp(12px, 1.5cqh, 15px)/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
 .natpf-sheet .pause-grid button {
   display: flex;
   flex-direction: column;
@@ -1457,6 +1465,8 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .natpf-calibra .cal-seg button:hover, .natpf-calibra .cal-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
 .natpf-calibra .cal-seg button.selected { background: var(--text); color: var(--ink-900); }
 .natpf-calibra .cal-step button { width: max(30px, 4.4cqmin); padding: 0; background: rgba(255, 255, 255, 0.1); color: var(--text); font: 700 1.3em/1 var(--font-text); }
+/* B39.6: «−» e «+» più grandi (si tengono premuti; nelle aree piccole restano quelli di sempre, regola più sotto) */
+.natpf-calibra .cal-step button { width: max(36px, 5.2cqmin); height: max(36px, 5.2cqmin); }
 .natpf-calibra .cal-step output { min-width: 5.2em; text-align: center; font: 700 1.15em/1 var(--font-display); color: var(--ball); }
 .natpf-calibra .cal-arrows { color: var(--text-3); font-size: 0.9em; }
 .natpf-calibra .cal-info { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8cqmin 1.6cqmin; padding: 1.1cqmin 1.4cqmin; border-radius: 1.2cqmin; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
@@ -2005,3 +2015,66 @@ html.remote-nav :is(button, a, input, [tabindex]):focus { outline: 3px solid var
 .natpf-qr-stand { display: grid; gap: 6px; padding: 8px; text-align: center; color: #0b1433; }
 .natpf-qr-stand b { font: 800 italic clamp(18px, 3cqh, 34px)/1 var(--font-display); text-transform: uppercase; }
 .natpf-qr-stand span { font: 600 clamp(11px, 1.6cqh, 18px)/1.25 var(--font-text); color: #3b4a6b; }
+
+/* =====================================================================================================================
+   B39 · Stand con il solo mouse (docs/b39/stand-solo-mouse.md)
+   ===================================================================================================================== */
+/* B39.1: immagini e link non si trascinano (nel programma un'immagine fantasma sopra il gioco) */
+img, a { -webkit-user-drag: none; }
+/* B39.3: pressione lunga (natpf_hold.js) sul marchio del menu e su ❚❚: anello che si riempie dove si è premuto, con la
+   scritta di cosa si apre. Il bersaglio non seleziona il testo e non scorre la pagina mentre si tiene premuto */
+.natpf-hold-target { -webkit-user-select: none; user-select: none; touch-action: none; }
+.natpf-hold { position: fixed; z-index: 400; width: clamp(64px, 12cqmin, 150px); aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none; }
+.natpf-hold.hidden { display: none; }
+.natpf-hold::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(closest-side, rgba(7, 14, 38, 0.55), rgba(7, 14, 38, 0.25) 80%, transparent); }
+.natpf-hold i { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(var(--ball) calc(var(--hold, 0) * 1turn), rgba(255, 255, 255, 0.22) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - max(7px, 1.3cqmin)), #000 calc(100% - max(7px, 1.3cqmin) + 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - max(7px, 1.3cqmin)), #000 calc(100% - max(7px, 1.3cqmin) + 1px)); }
+.natpf-hold b { position: absolute; top: calc(100% + 0.5em); left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 0.4em 0.9em; border-radius: var(--r-pill, 999px); background: rgba(7, 14, 38, 0.92); border: 1px solid var(--line-strong); color: var(--text); font: 700 italic clamp(14px, 2.4cqmin, 26px)/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; }
+.natpf-hold.at-right b { left: auto; right: 0; transform: none; }
+.natpf-hold.at-left b { left: 0; transform: none; }
+.natpf-hold.done i { background: var(--ball); opacity: 0; transition: opacity 0.25s; }
+.natpf-hold.done b { opacity: 0; transition: opacity 0.25s; }
+/* B39.3: classifica a schermo intero (dal pannello dello stand): «× Chiudi» in alto a destra, al posto dei comandi
+   nascosti; compare quando si muove il mouse (html.mouse-active, natpf_stand_mouse.js) e torna al menu, come Esc */
+#title-modal .ranking-exit { display: none; }
+.ranking-full #title-modal .ranking-exit { display: inline-flex; position: absolute; top: clamp(12px, 2.4cqh, 28px); right: clamp(12px, 2.4cqw, 32px); z-index: 5; align-items: center;
+  height: clamp(40px, 6cqh, 64px); padding: 0 clamp(14px, 2.2cqh, 26px); border-radius: var(--r-pill, 999px); border: 1px solid var(--line-strong); background: rgba(7, 14, 38, 0.86);
+  color: var(--text); font: 700 italic clamp(15px, 2.4cqh, 26px)/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; opacity: 0; transition: opacity 0.3s; }
+.ranking-full.mouse-active #title-modal .ranking-exit, .ranking-full #title-modal .ranking-exit:hover, .ranking-full #title-modal .ranking-exit:focus-visible { opacity: 1; }
+/* B39.5: puntatore per il ledwall (natpf_cursor.js). Grande: la freccia gialla (--natpf-cursor, misura dall'area) al posto
+   di quella di sistema e del mirino sul campo (i campi di testo tengono il cursore del testo); nascosto: dopo 3 s fermo
+   in campo, 10 s altrove */
+html.cursor-big, html.cursor-big body, html.cursor-big body * { cursor: var(--natpf-cursor, auto) !important; }
+html.cursor-big input:not([type="range"]):not([type="checkbox"]), html.cursor-big textarea { cursor: text !important; }
+html.cursor-hidden, html.cursor-hidden body, html.cursor-hidden body * { cursor: none !important; }
+/* anello breve dove il puntatore ricompare (per trovarlo da lontano) */
+.natpf-pointer-ring { position: fixed; z-index: 410; width: clamp(60px, 11cqmin, 160px); aspect-ratio: 1; margin: 0; border-radius: 50%; border: max(4px, 0.6cqmin) solid var(--ball); transform: translate(-50%, -50%) scale(0.2); opacity: 0; pointer-events: none; }
+.natpf-pointer-ring.run { animation: natpf-pointer-ring 0.7s ease-out; }
+@keyframes natpf-pointer-ring { 0% { opacity: 1; transform: translate(-50%, -50%) scale(0.2); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
+/* freccia sul bordo dell'area: il puntatore è fuori dalla parte che si vede (area calibrata) o fuori dalla finestra */
+.natpf-edge-arrow { position: fixed; z-index: 410; width: clamp(40px, 7cqmin, 96px); aspect-ratio: 1; transform: translate(-50%, -50%) rotate(var(--angle, 0deg)); pointer-events: none; filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8)); animation: natpf-edge-pulse 0.9s ease-in-out infinite alternate; }
+.natpf-edge-arrow.hidden { display: none; }
+.natpf-edge-arrow i { position: absolute; inset: 12%; background: var(--ball); clip-path: polygon(0 30%, 55% 30%, 55% 0, 100% 50%, 55% 100%, 55% 70%, 0 70%); }
+@keyframes natpf-edge-pulse { from { opacity: 0.55; } to { opacity: 1; } }
+/* B39.5 (controllo n. 12): bersagli più grandi sul ledwall: ❚❚ legato all'altezza dell'area (prima 52 px fissi, su
+   un'uscita 4K metà); con il mouse in movimento il pulsante sotto il puntatore ha lo stesso anello della tastiera */
+.natpf-pause-btn { width: clamp(52px, 7cqh, 96px); height: clamp(52px, 7cqh, 96px); font-size: clamp(15px, 2cqh, 28px); }
+/* B39.7: con il mouse (ultimo comando un clic) la riga dei tasti in basso nel menu si nasconde; un tasto la rimette */
+html.input-mouse #title-modal .lobby-keys { visibility: hidden; }
+html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal .lobby-tile:hover, html.mouse-active .natpf-sheet .pause-grid button:hover { outline: 3px solid var(--ball); outline-offset: 2px; }
+/* B39.6: calibrazione dello schermo con il mouse (natpf_calibra.js). La scritta dei due angoli e il segno del primo angolo
+   sono figli di <html>, fuori dall'area (l'area di adesso può non coincidere con la parte che si vede): fuori dal contenitore
+   natpf le misure cq valgono sulla finestra */
+.natpf-cal-hint { position: fixed; z-index: 600; max-width: 420px; padding: 10px 16px; border-radius: 14px; background: var(--ball, #e3ff36); color: #0b1433; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55), 0 0 0 2px #000;
+  font: 700 italic clamp(16px, 2.4cqmin, 28px)/1.2 var(--font-display, system-ui, sans-serif); text-transform: uppercase; letter-spacing: 0.02em; pointer-events: none; transform: translate(22px, 22px); }
+.natpf-cal-hint.left { transform: translate(calc(-100% - 22px), 22px); }
+.natpf-cal-hint.up { transform: translate(22px, calc(-100% - 22px)); }
+.natpf-cal-hint.left.up { transform: translate(calc(-100% - 22px), calc(-100% - 22px)); }
+.natpf-cal-hint.hidden, .natpf-cal-dot.hidden { display: none; }
+.natpf-cal-dot { position: fixed; z-index: 600; width: 28px; height: 28px; transform: translate(-50%, -50%); border: 4px solid var(--ball, #e3ff36); border-radius: 50%; box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #000; pointer-events: none; }
+.natpf-calibra.corners .cal-mark { opacity: 0.45; }
+/* frecce dei bordi: si trascinano (bersaglio un po' più grande, nessuno scorrimento della pagina mentre si trascina) */
+.natpf-calibra .cal-mark { touch-action: none; padding: 1cqmin; cursor: grab; }
+.natpf-calibra .cal-btn-corners { display: inline-flex; align-items: center; margin-left: 0.4em; vertical-align: middle; height: max(28px, 3.8cqmin); background: var(--ball); color: var(--ball-ink); border-color: transparent; }
+.natpf-calibra .cal-fs { position: absolute; top: 1.4cqmin; right: 1.6cqmin; height: max(26px, 3.6cqmin); padding: 0 1.2cqmin; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.08); color: var(--text-2); font: 600 0.8em/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
