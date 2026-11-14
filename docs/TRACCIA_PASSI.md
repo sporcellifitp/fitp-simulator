@@ -901,9 +901,72 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
       **2026-11-14.3** pubblicato su R2 alle 18:14 UTC e verificato dal link fisso: 128.127.554 B, sha256
       `411ea0192563bab87c133ffbafb4906db3598ffd2358f786e4fb3b98c3e70432`. «Come si attiva» mandato all'utente (dopo
       l'aggiornamento il telefono rifà il QR: la correzione sta anche nella pagina del telefono).
-- [~] Altre prove nel browser sul codice pubblicato (`scratchpad/v1403b/e2e.log`): b20, b25, training-reconnect,
-      tutorial-relink, fiera-telefoni, nuovo-giocatore, menu, tabellone, solo-mouse, tastiera-schermo, telecomando, chi-serve.
+- [x] Altre prove nel browser sul codice pubblicato (`scratchpad/v1403b/e2e.log`, carico della macchina 9–10): verdi
+      training-reconnect 6/6, tutorial-relink 9/9, nuovo-giocatore 28/28, menu 45/45, tabellone 41/41, solo-mouse 42/42,
+      tastiera-schermo 53/53. **Da sistemare nella 14.4** (difetti veri, piccoli):
+      1. `natpf-stesso-schermo-b20` punto 6 (50/52): con la pagina di un telefono CHIUSA in partita il riquadro ora dice
+         «Telefono di Giulia scollegato · si ricollega da solo» (B45.1) e la prova aspetta «…in pausa»; con la parola «cl»
+         `pagina` il computer sa che la pagina è stata chiusa: titolo giusto («pagina chiusa · inquadra il QR») e prova
+         aggiornata. Il B45.1 non aveva la b20 tra le sue prove.
+      2. `natpf-stesso-schermo-b25` (54/55): pannello dello stand a 1024×600 con quattro opzioni accese che scorre di 5 px
+         (voce «Battuta» del B47 + riga delle cadute del B45.1); «Chiudi» resta in vista.
+      3. `natpf-fiera-telefoni` (28/33): la prova aspetta ancora il conto piccolo dopo «Sono pronto», tolto dal B47; la
+         modalità fiera oggi si accende solo da console: la aggiorna la B41 seconda parte (già fatto nel suo ramo, 2ffa80f).
+      Di tempi sotto carico (da rifare da sole): b20 «richiamo per nome» (il riquadro è giusto, manca solo il tempo
+      `called`), telecomando 90/91 («Salta» dal telecomando, già visto e passato da solo due volte), chi-serve 63/64
+      (costo del disegno 1,34 ms contro 1 ms con la grafica in software).
 - [~] In corso: B45.1 fase B (motivi delle cadute nel pannello e nel registro, rifiniture della 14.2, tasto Alt in
       finestra, documenti) → 14.4; B41 seconda parte (`b41-fiera-2`).
 - Non provato: rete vera di una fiera, telefoni veri, Windows, ledwall. La 14.3 va confermata dall'utente allo stand.
+
+**14/11, 19:10 UTC · dopo la 14.3: revisione indipendente del B45.1 e blocco B45.2.**
+- [x] B45.1 fase B pronta (`f20d647`, ramo `b45-1-collegamento`, NON ancora unita): motivi delle cadute nel registro e nel
+      pannello («Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s»), rifiniture della 14.2 (revisione del
+      B46), prova di Windows con il tasto Alt, documenti; gioco 1584, sito 265, Windows 51, LAN 13, Electron Linux 101/101.
+- [x] Revisione indipendente del B45.1: **non ok**, testo in `scratchpad/b451/revisione-b45-1.md` (prove in
+      `scratchpad/rev-b451/`). Difetti veri, in parte già nella 14.3 pubblicata (nessuno fa tornare le cadute): «Scollega»
+      dal computer contato come caduta; schermo del telefono spento scritto come «Wi-Fi ferma» e contato due volte; pagina
+      del telefono chiusa con la scritta «si ricollega da solo» e QR dopo 20 s (prova b20 rossa); racconto `pagina`
+      sovrascritto; `relinkAt` mai azzerato; riga delle cadute tagliata nel pannello; nessun test del chiosco che conta i
+      messaggi del telefono; con i telefoni dei visitatori il chiosco non libera più il posto (da scrivere nella guida:
+      «Scollega» nel riquadro del telefono); tasto Alt corretto solo nella prova.
+- [~] Workflow `b45-2-rifiniture-collegamento` (run `wf_9a2e841a-941`): **B45.2** = i dieci punti (revisione + pannello a
+      1024×600 che scorre di 5 px + prove instabili sotto carico rese robuste), sullo stesso ramo `b45-1-collegamento` dopo
+      aver unito natpf-simulator; worktree `scratchpad/b451/wt`, porte 4100–4149, appunti `scratchpad/b451/notes.md`
+      (sezione «B45.2»); poi revisore.
+- [~] B41 seconda parte (`wf_5bb13fa8-3f0`, ramo `b41-fiera-2`): B41.4–B41.5 scritti (`2f8c5f0`, `2ffa80f`), 14.3 unita nel
+      ramo (`af42330`), prove e correzioni in corso (titolo di fine partita con «Visitatore N» tagliato a 1280×720).
+- Prossimo rilascio: **2026-11-14.4** = B41 seconda parte + B45.1 fase B + B45.2, quando i due revisori dicono ok (se uno
+  dei due tarda, esce prima l'altro).
+
+## >>> 14/11, 22:10 UTC · ISTRUZIONE DELL'UTENTE: «Riprendi il lavoro da dove hai interrotto e torna da me solo quando
+## sarà tutta finita l'intera roadmap». Si va avanti da soli, blocco dopo blocco, con le versioni pubblicate come sempre;
+## all'utente si scrive una volta sola, alla fine, con il riepilogo di tutte le versioni e «come si attiva». <<<
+
+- Terzo limite d'uso alle 19:50 UTC (si azzera ogni 5 ore circa): B45.2 e B41.2 fermati a metà, salvati in commit «IN
+  CORSO» (`de60c12` su `b45-1-collegamento`, `8c37a98` su `b41-fiera-2`) e ripresi con il workflow
+  `ripresa-b45-2-e-b41-2` (run `wf_2e24e751-b16`), ognuno con il suo revisore appena finisce.
+- Tavola grafica del B40 (artifact PMb2Gg3ZiakcHuqynZ2pJL): NON si apre più da questa sessione (404). Il B40 segue la
+  descrizione scritta (`docs/coda/B40-fine-partita-v2.md`, `TRACCIA` riga ≈551) e fissa le soglie dei 12 trofei dai dati
+  del gioco simulato, scritte nel documento.
+
+**Coda fino alla fine della roadmap (in ordine; al massimo due blocchi di sviluppo insieme):**
+1. [~] **2026-11-14.4** = B41 seconda parte + B45.1 fase B + B45.2 (dopo i due revisori).
+2. [ ] **B40** fine partita v2: card della partita, trofei, contatori nuovi, personaggi 3D che esultano in loop.
+3. [ ] **B48** tappa 3.5 del gameplay, prima parte: difetto 16 (giudicare «palla passata» con la posizione della palla al
+       momento del gesto, togliendo il ritardo), servizio con scelte (prima del punto più alto verso il centro, dopo verso
+       l'esterno; una riga nella scheda del servizio), servizio della CPU vario (a Casual non più veloce di chi gioca,
+       niente scossa della telecamera, km/h veri al posto dei 194 fissi), Leggenda più da campione (al più una smorzata
+       ogni 8 colpi, da ricontrollare con `audit:legend`).
+4. [ ] **B49** tappa 3.4: doppio 2 contro 2 con lo stesso colpo e lo stesso posizionamento del singolo, compagno spiegato o
+       autonomo (decisione del coordinatore: compagno che gioca da solo le sue palle, con un anello sotto di lui quando la
+       palla va a lui; opzione nel pannello per tornare «con il tuo gesto»).
+5. [ ] **B50** prova del ritardo del ledwall per lo staff (20 s, dopo il difetto 16) e pulizie trovate per strada:
+       `racchetta.js` `let screen` che nasconde `window.screen` (blocco dell'orientamento mai attivo dal B9); dubbi del
+       B43 (Parità/Vantaggio, istruzioni del servizio a 720×720, pause della diagnostica); prova della Leggenda con il
+       riferimento per lato; avviso della mano a 720×720 (se non già nel B45.2).
+6. [ ] **Revisore indipendente finale** della serie (B37–B50), correzioni, versione finale.
+7. Restano all'utente (da dire nel riepilogo finale): ricaricare il Worker del registro e la prova a Precision con 3
+   persone (sblocca B36.1+), il parere sul dritto del B23 (estenderlo o no), le decisioni aperte (Musica e «Chi gioca»
+   salvati, «Schermo intero» salvato, chiosco e calibrazione, tasto «indietro» del mouse), il collaudo allo stand.
 
