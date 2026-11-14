@@ -236,6 +236,12 @@ test('computer: motivo della caduta dalla parola del telefono, dal «Ricollega»
     h.main.emit('data', { t: 'st', s: 'ready', vis: 0 }); h.main.close();
     assert.deepEqual(h.drops.map(d => [d.motivo, d.causa]), [['telefono: pagina nascosta', 'telefono']]);
   } finally { h.done(); }
+  // il telefono taceva da 9 s e il canale si chiude (il suo controllo di vita, la parola «cl» persa con la rete): silenzio
+  h = await computer();
+  try {
+    h.step(9000); h.main.close();
+    assert.deepEqual(h.drops.map(d => [d.motivo, d.causa]), [['silenzio', 'telefono']]);
+  } finally { h.done(); }
   h = await computer();
   try {
     h.main.close();

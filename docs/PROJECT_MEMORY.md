@@ -1013,7 +1013,7 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - **Indirizzo ancora occupato** dopo un riavvio (`unavailable-id`/`id-unavailable`): si riprova ogni `STAND.idRetryMs`
   (3 s) finché il server lo libera, come `remote-link.js`.
 - **Pagina del telefono dello stand**: riprova senza fine (1–6 s) e subito su `online`, `pageshow` e ritorno in primo
-  piano; la racchetta normale resta a 10 tentativi. Il pezzo di `racchetta.js` tra `async function connect(){` e
+  piano; la racchetta normale resta a 10 tentativi (dal B45.1 solo via internet: in LAN anche lei senza fine). Il pezzo di `racchetta.js` tra `async function connect(){` e
   `// messaggi che valgono solo se arrivano subito` gira nella sandbox dei test (`phone-reconnect`, `stand-phone`):
   lì dentro solo variabili che la sandbox ha, gli aiuti dello stand vanno **dopo** quel commento.
 - **Telefono dello stand = tutorial visto** (`tutorialSeen` vero); il chiosco non lo scollega e non lo conta come
@@ -1029,7 +1029,7 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - **In fiera contro la CPU batte sempre il visitatore** (decisione del 13/11): regola pura `fairServer` in
   `natpf_fiera.js`, da collegare alla pagina della fiera (B41.5).
 - **Prove nel browser**: un fotogramma intero ridisegnato (`__render`) a 1920 × 1080 nel Chromium senza scheda video ferma
-  la pagina per secondi; oltre 5 s i telefoni cadono (controllo di vita di `link.js`), come deve. Nelle prove dei tocchi
+  la pagina per secondi; oltre 10 s (dal B45.1; prima 5) i telefoni cadono (controllo di vita di `link.js`), come deve. Nelle prove dei tocchi
   e dei conti alla rovescia niente `__render` (`tools/e2e/natpf-fiera-telefoni.mjs`).
 
 ## B36.0 · Misure della direzione dei colpi (13–14/11/2026; documento `docs/b36/misure-b36-0.md`)
@@ -1071,8 +1071,10 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   «Giocando», dal primo colpo). Indagine con prove ripetibili (`scratchpad/swap/split-ruoli-mano/`): il percorso dello
   stesso schermo è giusto (uguale dalla 12.5 alla 14.1); la segnalazione esatta viene fuori con la **mano del Player 1
   salvata «sinistra»** (basta un tocco su «Sinistra» nella pagina «Attiva i sensori» del telefono; resta dopo un riavvio;
-  negli scambi di prova non si nota) oppure con il **segno del telefono cambiato dopo gli scambi di prova** (doppia
-  inversione). L'utente non ha potuto dire quale: la B46 li chiude tutti e tre e li scrive nel registro.
+  negli scambi di prova non si nota) oppure con il **segno del telefono cambiato dopo gli scambi di prova** (correzione
+  della revisione: con la pagina vera il danno era un'inversione singola dei tocchi fatti con il telefono storto, la
+  «doppia inversione» non si produceva). L'utente non ha potuto dire quale: la B46 chiude la mano e i tocchi, rende
+  visibile il voto del rilevatore (non lo chiude) e li scrive nel registro.
 - **Fiera (in coda con la B41 seconda parte, `docs/coda/B41-parte-2-richieste-14-11.md`)**: livelli scelti dopo
   «Rivincita»; battuta a un solo giocatore per tutta la partita (contro la CPU il visitatore; nello stesso schermo chi
   batte il primo game, decisione del coordinatore); conto alla rovescia grande «Preparati, la partita sta per
@@ -1191,9 +1193,48 @@ Tre casi danno quelle scritte esatte (indagine `scratchpad/swap/split-ruoli-mano
   `sg`), azzera i riferimenti per verso e si registra; **non** tocca il segno imparato (lo corregge, non lo raddoppia).
   Punto aperto: +1 o girato quando il telefono passa da giusto a sbagliato tra scambi di prova e partita (documento).
 - **Registro dello stand**: riga `tel` con `motivo: 'mano'` (mano, causa, ruolo) o `motivo: 'segno'` (stato = segno
-  nuovo, causa 'tocchi' | 'pagina' | 'rilevatore' | 'prova' | 'calibrazione', ruolo), solo campi già in CAMPI (il Worker
+  nuovo, causa 'tocchi' | 'pagina' | 'telefono nuovo' | 'rilevatore' | 'prova' | 'calibrazione' | 'nuovo giocatore' |
+  'chiosco', ruolo; dal B45.1 `inPartita` solo con la partita davvero in corso), solo campi già in CAMPI (il Worker
   non va ricaricato); nel riassunto le tabelle «Mano cambiata» e «Segno del verso del telefono cambiato». Diagnostica:
   `tel.mano`, `tel.verso` (e `tel2.*`), righe nel riassunto in parole.
 - **Prove**: `natpf-b46-lato-sicuro`, `natpf-b46-caso-utente` (il caso dell'utente con la pagina del telefono simulata dalle
   sue funzioni pure), `tools/test/b46-lato-sicuro`, nel browser `natpf-mano-sicura` (anche `AREA=720`).
+
+## B45.1 · Telefono che non si scollega (14/11/2026 sera; documento `docs/b45/b45-1-collegamento.md`)
+Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi in `docs/b45/telefono-che-si-scollega.md`.
+- **Il chiosco non scollega mai i telefoni** (col QR o dello stand): azzera chi gioca come «Nuovo giocatore»
+  (`resetPlayer({ gate: false, causa: 'chiosco' })`). Attività per il chiosco anche dal telefono: gesti, tocchi, sensori
+  attivati, telefono preso in mano (`NatpfPhoneRacket.onActivity`, `link.L.movedAt` oltre `link-life.MOVE.dps`). Chi
+  aggiunge un'interazione dal telefono la passa da `_activity()`.
+- **Regole del collegamento in `site/js/tennis/link-life.js`** (funzioni pure, una sola fonte per computer e telefono):
+  `LIFE` (controllo di vita **10 s** di silenzio vero, controllo in ritardo oltre 2,5 s che non giudica), `retryPlan`
+  (attese 1–6 s, **senza fine in LAN** e per lo stand, 10 via internet), `kickNow` (subito su `online` e cambio del **tipo**
+  di rete, solo in `lost`: mai a tentativo in corso), racconto della caduta (`createDropStory`/`readStory`, campo `cd` del
+  `dev`), parola breve prima di chiudere (`cl`), motivo di una chiusura (`closeMotivo`). Non tornare ai 5 s.
+- **Sandbox dei test della pagina del telefono** (`phone-reconnect`, `stand-phone`, `phone-link-net`, `b45-collegamento`):
+  il pezzo di `racchetta.js` da `async function connect(){` a `// messaggi che valgono solo se arrivano subito` usa anche
+  `retryPlan`, `lostText` e `story` (racconto della caduta): chi lo cambia aggiunge alla sandbox quello che usa.
+- **Ogni messaggio vale come segno di vita** sui due lati: sul computer anche sensori e percorso veloce, dove il computer
+  manda il battito `hb` (il telefono lo conta). Le pagine di prima ignorano `hb`, `cl` e `cd`.
+- **«Ricollega» automatico solo se il telefono risponde** (`phoneHealth.answers`: segnale recente e sensori che vanno).
+  Motivo di pausa **«segnale debole»** quando i dati non arrivano ma il telefono non dice sensori fermi (tace, o risponde
+  lento): testi calmi («Telefono 1: segnale debole, aspetto che torni…», poi «Telefono 1 scollegato · si ricollega da
+  solo» con il tempo: `holdHead`, `phoneHoldView`); «sensori fermi» solo per i sensori fermi sul telefono. Il pannello del
+  telefono con il QR si apre da solo solo dopo `PANEL_AFTER_MS` (20 s) da scollegato.
+- **Motivo di ogni caduta** (`natpf_cadute.js`): evento `drop` di `link.js`, motivo finale con il racconto del telefono,
+  righe `tel` del registro con `motivo`, `causa`, `ms`, `dove` (e al ritorno `prove`, `fallite`, `tipo`), riassunto, riga del
+  pannello dello stand nella riga dei pulsanti in basso (una riga per telefono, testi brevi: a 1024 × 600 «Chiudi» resta in
+  vista). Solo campi già in `CAMPI`: il Worker non va ricaricato.
+- **Stesso schermo**: `NatpfSplitUi._drive` non fa niente al menu e nella classifica (con i telefoni collegati la
+  calibrazione nuova ridisegnava la pagina «Collega» e riapriva il tutorial al menu).
+- **Prove Electron su Linux (`prova-linux`), Alt in finestra**: sotto Xvfb, con i tasti mandati da `sendInputEvent`, dopo
+  una barra del menu chiusa con Alt il fuoco resta alla barra nascosta e gli Alt dopo non la riaprono; ridare il fuoco
+  alla pagina dal programma (`webContents.focus()`) con la barra aperta la chiude. La prova aspetta la fine dell'intro (che
+  alla fine del trailer sposta il fuoco su «Premi un tasto»), dà il fuoco alla pagina solo per aprire la barra e non lo
+  tocca per chiuderla; con la macchina molto carica un Alt mandato così a volte si perde (la barra resta aperta e nella
+  pagina non cambia niente): per chiuderla la prova riprova una volta e lo scrive nel dettaglio («riprovato»). Il gioco non
+  blocca Alt (niente `preventDefault`) e un `focus()` di un elemento dentro la pagina (come quello dell'intro) con la barra
+  aperta non la chiude.
+- **Prova nel browser**: `tools/e2e/natpf-phone-blackout.mjs` parte D (partita contro la CPU, rete che trattiene e consegna
+  i messaggi: bui di 3, 7 e 12 s) e la verifica dei motivi nel registro e nel pannello.
 

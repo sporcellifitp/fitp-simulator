@@ -2030,8 +2030,10 @@ Segnalazione dell'utente sulla 2026-11-14.1 (Android, stesso schermo, Player 1, 
 a fare un rovescio mi veniva fuori un dritto lungolinea, se facevo un dritto veniva fuori un rovescio incrociato».
 L'indagine (`scratchpad/swap/split-ruoli-mano/`) ha trovato tre casi con quelle scritte esatte: mano del Player 1 salvata
 «sinistra» (un tocco sul telefono), segno dell'accelerazione del telefono cambiato dopo gli scambi di prova (tocchi al
-servizio), segno del rilevatore cambiato dopo. Base `int-b38-b39` (`55e818a`). Chiusi tutti e tre, con il registro che
-dice quale se ricapita.
+servizio), segno del rilevatore cambiato dopo. Base `int-b38-b39` (`55e818a`). Chiusi la mano e i tocchi, il voto del
+rilevatore reso visibile (correzione della revisione del 14/11: non «chiusi tutti e tre»; e il caso del segno cambiato dopo
+gli scambi di prova non era una doppia inversione, perché la pagina vera si ricalibra), con il registro che dice quale se
+ricapita.
 - [x] B46.1 · telefono (commit `b4a2ea8`): `phone-screen.js` `handTap`/`handLabel` (mano con due tocchi, «Mancino? Tocca di
   nuovo» per 4 s) e `tapVotesSign` (tocchi che votano il segno solo in «Attiva i sensori», tutorial, calibrazione e
   «Pronto» al menu; mai in serve/toss/play né negli scambi di prova); `racchetta.js` (riga della mano, voto con la regola,
@@ -2059,4 +2061,48 @@ dice quale se ricapita.
   Non verificato: telefoni veri (Android, iPhone), programma Windows, ledwall vero, pagine del telefono rimaste in cache
   con la versione di prima. Punto aperto per il coordinatore: segno imparato rimesso a +1 (deciso) o girato (esatto se
   il telefono passa da giusto a sbagliato tra gli scambi di prova e la partita: documento, «Limiti»).
+
+## B45.1 · Telefono che non si scollega (14/11 sera, ramo `b45-1-collegamento`, documento `docs/b45/b45-1-collegamento.md`) · [x] verificato sul ramo, da unire
+Urgenza della fiera: «se faccio giocare la gente con un solo cellulare molte volte la connessione e la ledwall si
+disconnette e dice "scollegato"». Base natpf-simulator `84992ae` (2026-11-14.2). Ripreso dal commit `6358611` «IN CORSO»
+(lavoro interrotto dal limite d'uso, non verificato).
+- [x] **Fase A** (commit `506ec41`, «B45.1 FASE A PRONTA»): `site/js/tennis/link-life.js` (nuovo: `LIFE` 10 s,
+  `lifeCheck` con il lato fermo, `retryPlan` senza fine in LAN, `kickNow` solo in attesa, racconto della caduta,
+  `closeMotivo`), `link.js` (ogni messaggio come segno di vita, battito `hb` sul percorso veloce, evento `drop`, `cl`, `cd`,
+  `movedAt`), `racchetta.js` (tentativi, ripartenza su `online` e cambio del tipo di rete, controllo di vita a 10 s, `cl`,
+  racconto nel `dev`), `lan-transport.js` (`failed`), `natpf_kiosk.js` (non scollega, attività dal telefono, tutorial dello
+  stesso schermo chiuso dopo l'azzeramento), `natpf_split_ui.js` (`_drive` fermo al menu, scheda «Segnale debole», riquadro
+  del P2), `natpf_phone_watch.js` («segnale debole», «Ricollega» solo se il telefono risponde, `holdHead`,
+  `phoneHoldView`, `PANEL_AFTER_MS`), `natpf_ui.js` (riquadro e pannello dopo 20 s), `natpf_ready_go.js`, `natpf_versus.js`;
+  test `tools/test/b45-collegamento.test.mjs` (nuovo), `natpf-b45-cadute`, `natpf-phone-watch`, `natpf-split-ricollega`,
+  `natpf-flows`, chiosco (`natpf-fiera`, `natpf-giocando-revisione`, `natpf-b46-caso-utente`); `tools/e2e/natpf-phone-blackout.mjs`
+  parte D. Verifiche: gioco 1584/1584, sito 265/265, Windows 51/51, LAN 13/13, build, audit:legend uguale alla base; nel
+  browser natpf-phone-blackout 10/10 (3 e 7 s nessuna caduta né «Ricollega», 12 s caduta a 10,3–10,6 s e ritorno da solo,
+  la partita riprende 3,2 s dopo), training-reconnect 6/6, tutorial-relink 9/9, split-ready 34/34, scambi-di-prova 30/30,
+  fiera-telefoni 38/38, mano-sicura 17/17, telecomando 88/88 (due giri sotto carico 87/88: «Salta» degli scambi di prova
+  arriva alla pagina dopo più di 15 s con la grafica software lenta, non tocca il collegamento), swing-loss nessuna caduta
+  a 0/3/8 % (ritardi fuori limite a 0 e 3 % con la macchina a load 10: misura, da rifare scarica).
+- [x] **Fase B**: motivo delle cadute verificato nel browser (riga `tel` «caduto» con `motivo: 'silenzio'`, `causa:
+  'computer'`, `ms`, `dove: 'partita'`; «ricollegato» con il motivo e i tentativi del telefono; riga del pannello) e riga del
+  pannello spostata nella riga dei pulsanti in basso con testi brevi (1024×600: «Chiudi» in vista); rifiniture della 14.2
+  (moviola → `pause`, righe del registro, `telefono nuovo`, test 4 del caso dell'utente con la ricalibrazione della pagina
+  vera, `docs/b46/lato-sicuro.md` corretto con la schermata nuova); programma Windows: Alt in finestra (causa nella prova
+  sotto Xvfb, non nel gioco: dopo una barra chiusa con Alt il fuoco resta alla barra nascosta e gli Alt mandati con
+  `sendInputEvent` non la riaprono, e l'aiuto `key()` ridava il fuoco alla pagina con la barra aperta chiudendola; in più
+  l'intro sposta il fuoco alla fine del trailer, che con il B38 cadeva durante la prova. `natpf-desktop/scripts/prova-linux.mjs`
+  aspetta l'intro, dà il fuoco alla pagina solo per aprire la barra, non lo tocca per chiuderla e dice chi ha spostato il
+  fuoco se il controllo non riesce); motivo «silenzio» anche quando il canale lo chiude il controllo di vita del telefono
+  (il computer non lo sentiva da almeno 5 s: `closeMotivo`); documenti (`docs/GUIDA_STAND.md` §2, §4, §8.2, §8.4,
+  §11; `docs/b45/b45-1-collegamento.md`; correzioni a `docs/b45/telefono-che-si-scollega.md`; `docs/PROJECT_MEMORY.md`).
+  Verifiche della fase B: gioco 1584/1584, sito 265/265 (due giri sotto carico 264/265 su `remote-pairing` «chiave
+  sbagliata, risposta riusata», attese fisse di 30 ms nel test: da solo 18/18 tre volte, una prova alla volta 265/265, a
+  confronto alla stessa ora con i file della fase A 265/265 due volte con gli uni e due con gli altri; non tocca il codice
+  del B45.1), Windows 51/51, LAN 13/13, build (stessi file di quella nel
+  programma provato), `audit:legend` uguale alla base; nel browser natpf-phone-blackout 11/11 (motivi nel registro e riga
+  del pannello «Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s»), natpf-menu 45/45, pannello con due
+  telefoni a 1024×600, 1280×720 e 1920×1080; `prova-linux` (8 scenari) 101/101 nell'ultimo giro (giri di prima 100/101:
+  Alt che chiude la barra in «predefinito», una volta un tasto destro mancato in «solo-mouse» a load 14; ora l'Alt che
+  chiude si riprova una volta e il dettaglio lo dice, «riprovato», non servito nell'ultimo giro).
+- Non verificato: rete vera della fiera, router veri, telefoni veri (Android e iPhone), Windows vero e ledwall; la prova del
+  buio nel browser usa la versione web (PeerJS), i tentativi senza fine della LAN sono provati con i test di unità.
 

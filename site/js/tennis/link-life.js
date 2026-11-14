@@ -83,14 +83,17 @@ export function readStory(cd){
 export const CLOSE_WORDS = Object.freeze(['silenzio', 'ricollega', 'pagina', 'scollega']);
 // Motivo di una chiusura del canale vista dal computer (evento «drop» di link.js), dal più sicuro: «Ricollega» chiesto dal
 // gioco da poco (causa computer), la parola breve del telefono («cl») appena arrivata, la pagina del telefono nascosta nel
-// suo ultimo segnale, la strada diretta che il browser ha dato per persa (failed: se n'è accorto il computer); altrimenti
-// «chiuso» dal telefono. → { motivo, causa } con i motivi di natpf_cadute.js
-export const CLOSE_RECENT_MS = Object.freeze({ said: 5000, relink: 15000 });
+// suo ultimo segnale; poi il silenzio: se il computer non sentiva il telefono da almeno CLOSE_RECENT_MS.silent, il canale
+// l'ha chiuso il controllo di vita del telefono (la sua parola «cl» si è persa con la rete) o il browser che ha dato la
+// strada per persa (failed: causa computer). Altrimenti «chiuso» dal telefono. silentMs: da quanto il computer non sentiva
+// il telefono. → { motivo, causa } con i motivi di natpf_cadute.js
+export const CLOSE_RECENT_MS = Object.freeze({ said: 5000, relink: 15000, silent: LIFE.silentMs/2 });
 const SAID = Object.freeze({ ricollega: 'ricollega', pagina: 'telefono: pagina chiusa', silenzio: 'silenzio', scollega: 'telefono: scollegato' });
-export function closeMotivo({ said = null, saidAgeMs = Infinity, relinkAgeMs = Infinity, hidden = false, failed = false } = {}){
+export function closeMotivo({ said = null, saidAgeMs = Infinity, relinkAgeMs = Infinity, hidden = false, failed = false, silentMs = 0 } = {}){
   if (relinkAgeMs <= CLOSE_RECENT_MS.relink) return { motivo: 'ricollega', causa: 'computer' };
   if (SAID[said] && saidAgeMs <= CLOSE_RECENT_MS.said) return { motivo: SAID[said], causa: 'telefono' };
   if (hidden) return { motivo: 'telefono: pagina nascosta', causa: 'telefono' };
+  if (Number.isFinite(silentMs) && silentMs >= CLOSE_RECENT_MS.silent) return { motivo: 'silenzio', causa: failed ? 'computer' : 'telefono' };
   return { motivo: 'chiuso', causa: failed ? 'computer' : 'telefono' };
 }
 // Telefono che si muove (per il chiosco: chi prende in mano il telefono è qualcuno allo stand): velocità di rotazione oltre

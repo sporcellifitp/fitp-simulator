@@ -398,7 +398,7 @@ export function createPhoneLink({ stand = null } = {}){
         conn = null; stopRoute(); gate.release();
         // B45.1: perché (link-life.closeMotivo): «Ricollega» chiesto da qui, la parola del telefono, pagina nascosta, strada persa
         const now = Date.now();
-        dropped({ ...closeMotivo({ said: clSaid?.w, saidAgeMs: clSaid ? now - clSaid.at : Infinity, relinkAgeMs: now - relinkAt, hidden: L.vis === false, failed: !!c.failed }), ms: Math.round(now - lastSeen) });
+        dropped({ ...closeMotivo({ said: clSaid?.w, saidAgeMs: clSaid ? now - clSaid.at : Infinity, relinkAgeMs: now - relinkAt, hidden: L.vis === false, failed: !!c.failed, silentMs: now - lastSeen }), ms: Math.round(now - lastSeen) });
         clSaid = null;
         set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null });
       }

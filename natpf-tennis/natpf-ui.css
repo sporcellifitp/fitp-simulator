@@ -1962,9 +1962,10 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
    Una riga sola e bassa (il foglio deve restare nello schermo a 1024 × 600: prova natpf-menu); su aree strette va a capo.
    Misure legate all'area del gioco (cqh con un minimo e un massimo): a 720 px di altezza come prima (14 e 13 px), su un
    ledwall grande crescono con il resto del pannello (revisione: erano px fissi) */
-/* B45.1: riga delle cadute dei telefoni di oggi, sotto la nota del chiosco (piccola, una riga) */
-.natpf-sheet.staff-sheet .staff-cadute { margin: -4px 0 8px; font-size: 0.86em; color: var(--ball); }
-.natpf-sheet.staff-sheet .staff-cadute.hidden { display: none; }
+/* B45.1: cadute dei telefoni di oggi nello spazio libero della riga dei pulsanti in basso (una riga per telefono, al più
+   tre righe): il foglio non si allunga e «Chiudi» resta in vista a 1024 × 600 (prova natpf-menu) */
+.natpf-sheet.staff-sheet .staff-actions .staff-cadute { flex: 1 1 0; min-width: 0; margin: 0; align-self: center; font-size: clamp(11px, 1.7cqh, 22px); line-height: 1.25; color: var(--ball); white-space: pre-line; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.natpf-sheet.staff-sheet .staff-actions .staff-cadute.hidden { display: none; }
 .natpf-sheet.staff-sheet .staff-registro { display: flex; align-items: center; gap: max(8px, 1.1cqh); margin: -6px 0 0; padding: max(6px, 0.8cqh) max(8px, 1.1cqh); border: 1px solid color-mix(in srgb, var(--text) 16%, transparent); border-radius: max(12px, 1.6cqh); }
 .natpf-sheet.staff-sheet .staff-registro.hidden { display: none; }
 .natpf-sheet.staff-sheet .staff-registro button { flex: none; min-height: 0; padding: max(6px, 0.8cqh) max(12px, 1.7cqh); font-size: clamp(13px, 1.95cqh, 30px); line-height: 1.15; white-space: nowrap; }

@@ -133,8 +133,10 @@ async function launch(seed, extraEnv = {}){
   // (NativeWindowViews::OnWidgetActivationChanged → ResetAltState) e un Alt a metà non mostrerebbe il menu. Con la
   // finestra attiva il fuoco non si tocca: dopo Alt ce l'ha la barra del menu, e toglierglielo la nasconde
   // (MenuBar::OnDidChangeFocus → RestoreFocus)
-  const key = async (keyCode, modifiers = []) => {
-    const focused = await main(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0], f = w.isFocused(); if (!f){ w.focus(); w.webContents.focus(); } return f; });
+  // keep (B45.1): con la barra del menu aperta il fuoco non si tocca nemmeno se la finestra dice di non averlo (sotto Xvfb
+  // senza gestore delle finestre capita): ridarlo alla pagina chiudeva la barra e l'Alt dopo la riapriva
+  const key = async (keyCode, modifiers = [], { keep = false } = {}) => {
+    const focused = await main(({ BrowserWindow }, k) => { const w = BrowserWindow.getAllWindows()[0], f = w.isFocused(); if (!f && !k){ w.focus(); w.webContents.focus(); } return f || k; }, keep);
     if (!focused) await sleep(300);
     await main(({ BrowserWindow }, [k, m]) => {
       const w = BrowserWindow.getAllWindows()[0];
@@ -146,15 +148,31 @@ async function launch(seed, extraEnv = {}){
   const newLog = () => readLog().slice(logStart);
   // Alt fa il giro della pagina (il menu di Electron vede solo i tasti che la pagina non blocca): con il gioco in WebGL
   // software sotto Xvfb il menu cambia anche 400 ms dopo. menuAfterAlt aspetta lo stato voluto (al più 3 s)
-  const menuAfterAlt = async visible => { await key('Alt'); return until(async () => { const x = await state(); return x.menuVisible === visible && x; }, 3000); };
+  // B45.1 (Alt in finestra che a volte non mostrava o non nascondeva il menu, sotto Xvfb): per mostrarlo il fuoco va alla
+  // pagina, perché dopo una barra chiusa con Alt Electron lo lascia alla barra nascosta e un Alt mandato con sendInputEvent
+  // non la riapre più; per nasconderlo il fuoco non si tocca (è della barra: ridarlo alla pagina la chiude e l'Alt dopo la
+  // riapre). E prima di provare Alt l'intro deve aver finito: alla fine del trailer sposta il fuoco su «Premi un tasto»
+  // (natpf_intro.finishAnimation), e un cambio di fuoco durante la prova la confonde
+  const introSettled = () => until(async () => (await page('!window.__natpfTennis?.natpfUi?.intro?.active || !!window.__natpfTennis.natpfUi.intro.ready')) && true, 40000, 250);
+  // (per nasconderla: con la macchina carica un Alt mandato con sendInputEvent a volte si perde, la barra resta aperta e non
+  // cambia altro; si riprova una volta e il dettaglio del controllo lo dice, «riprovato»)
+  const menuAfterAlt = async visible => {
+    if (visible) await main(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; if (!w.isMenuBarVisible() && !w.webContents.isFocused()) w.webContents.focus(); return true; });
+    await key('Alt', [], { keep: !visible });
+    const got = await until(async () => { const x = await state(); return x.menuVisible === visible && x; }, 3000);
+    if (got || visible) return got;
+    await key('Alt', [], { keep: true });
+    const again = await until(async () => { const x = await state(); return x.menuVisible === visible && x; }, 3000);
+    return again && { ...again, riprovato: true };
+  };
   const first = await until(async () => { const s = await state(); return s?.visible && s; }, 30000);
   const gameLoaded = () => until(async () => { const s = await state(); return s && s.url.startsWith(GAME) && !s.loading && s; }, 120000, 250);
-  return { main, state, key, page, newLog, first, gameLoaded, menuAfterAlt };
+  return { main, state, key, page, newLog, first, gameLoaded, menuAfterAlt, introSettled };
 }
 
 // --- predefinito: nessuna impostazione salvata ---------------------------------------------------------------------
 async function predefinito(){
-  const { main, state, key, page, newLog, first, gameLoaded, menuAfterAlt } = await launch(null);
+  const { main, state, key, page, newLog, first, gameLoaded, menuAfterAlt, introSettled } = await launch(null);
   // 1. finestra visibile e a schermo intero già dalla pagina di avvio
   check('finestra visibile', first?.visible, first);
   check('schermo intero già alla prima comparsa della finestra', first?.fullscreen, { url: first?.url?.slice(0, 40) });
@@ -197,9 +215,13 @@ async function predefinito(){
   s = await until(async () => { const x = await state(); return !x.fullscreen && x; }, 3000);
   check('F11 esce dallo schermo intero (pagina che blocca i tasti)', s && !s.fullscreen && s.menuAutoHide && !s.menuVisible, s);
   const blockedKeys = await page('__prova.block = false; __prova.keys.slice()');
+  await introSettled();
+  // (B45.1: chi sposta il fuoco nella pagina mentre si prova Alt: se il controllo non riesce, lo dice)
+  await page(`window.__foc = []; if (!window.__focSpy){ window.__focSpy = 1; const f = HTMLElement.prototype.focus; HTMLElement.prototype.focus = function(...a){ window.__foc.push([Math.round(performance.now()), this.id || String(this.className || '').slice(0, 30)]); return f.apply(this, a); }; } true`);
   const altShown = await menuAfterAlt(true);
   const altHidden = await menuAfterAlt(false);
-  check('in finestra Alt mostra il menu e Alt lo nasconde', altShown?.menuVisible && altHidden && !altHidden.menuVisible && !altHidden.fullscreen, { dopoAlt: altShown?.menuVisible, dopoAltAncora: altHidden?.menuVisible });
+  const altFoc = await page('JSON.stringify(window.__foc || [])');
+  check('in finestra Alt mostra il menu e Alt lo nasconde', altShown?.menuVisible && altHidden && !altHidden.menuVisible && !altHidden.fullscreen, { dopoAlt: altShown?.menuVisible, dopoAltAncora: altHidden?.menuVisible, ...(altHidden?.riprovato ? { riprovato: true } : {}), fuocoNellaPagina: altFoc });
   await page('__prova.block = true; true');
   await key('F11');
   s = await until(async () => { const x = await state(); return x.fullscreen && x; }, 3000);
@@ -314,15 +336,18 @@ async function ledwallSpento(){
 
 // --- finestra: avvio in finestra scelto l'ultima volta -------------------------------------------------------------
 async function finestra(){
-  const { state, key, page, first, gameLoaded, menuAfterAlt } = await launch({ fullscreen: false });
+  const { state, key, page, first, gameLoaded, menuAfterAlt, introSettled } = await launch({ fullscreen: false });
   check('avvio in finestra (scelta salvata)', first?.visible && !first.fullscreen && first.menuAutoHide && !first.menuVisible, first);
   const loaded = await gameLoaded();
   check('pagina del gioco caricata', loaded, loaded?.url);
   if (!loaded) throw new Error('pagina del gioco non caricata');
   await sleep(1000);
+  await introSettled();
+  await page(`window.__foc = []; if (!window.__focSpy){ window.__focSpy = 1; const f = HTMLElement.prototype.focus; HTMLElement.prototype.focus = function(...a){ window.__foc.push([Math.round(performance.now()), this.id || String(this.className || '').slice(0, 30)]); return f.apply(this, a); }; } true`);
   const shown = await menuAfterAlt(true);
   const hidden = await menuAfterAlt(false);
-  check('Alt mostra il menu, Alt di nuovo lo nasconde', shown?.menuVisible && hidden && !hidden.menuVisible && !hidden.fullscreen, { dopoAlt: shown?.menuVisible, dopoAltAncora: hidden?.menuVisible });
+  const foc = await page('JSON.stringify(window.__foc || [])');
+  check('Alt mostra il menu, Alt di nuovo lo nasconde', shown?.menuVisible && hidden && !hidden.menuVisible && !hidden.fullscreen, { dopoAlt: shown?.menuVisible, dopoAltAncora: hidden?.menuVisible, ...(hidden?.riprovato ? { riprovato: true } : {}), fuocoNellaPagina: foc });
   await key('F11');
   const s = await until(async () => { const x = await state(); return x.fullscreen && x; }, 3000);
   check('F11 va a schermo intero, menu nascosto e non a scomparsa', s?.fullscreen && !s.menuVisible && !s.menuAutoHide, s);
