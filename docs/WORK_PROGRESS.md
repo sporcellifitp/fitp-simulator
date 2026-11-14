@@ -1962,8 +1962,9 @@ Compiti: `docs/coda/B38-tastiera-a-schermo.md`, `docs/coda/B44-servizio-animato.
   nuovo §3.6, voce del pannello, §8, §10, §11), `docs/PROJECT_MEMORY.md`.
 - Verifiche sul codice finale (dopo l'unione): gioco **1543/1543**, sito **248/248**, Windows **43/43**, build ok,
   `npm run audit:legend` **identico** alla base `889cb25` (69 OK, «Tutti i criteri rispettati», 93 righe uguali).
-  Nel browser (porte 4100–4149; telecomando 4902/4903 con `flock`): `natpf-tastiera-schermo` **53/53** (due giri),
-  `natpf-servizio-lancio` **17/17**, `natpf-stesso-schermo-b20` **49/49**, `natpf-chi-serve` **64/64**,
+  Nel browser (porte 4100–4149; telecomando 4902/4903 con `flock`), tutte rilanciate dopo l'ultimo cambio del codice
+  (la voce del pannello spostata prima di «Mira del telefono»), 09:13–10:06 UTC: `natpf-tastiera-schermo` **53/53** (tre
+  giri), `natpf-servizio-lancio` **17/17**, `natpf-stesso-schermo-b20` **49/49**, `natpf-chi-serve` **64/64**,
   `natpf-formato-fiera` **25/25**, `natpf-tabellone` **41/41**, `natpf-menu` **45/45**, `natpf-nuovo-giocatore`
   **28/28**, `natpf-1v1-p2p` **39/39**, `natpf-telecomando` **88/88**, `natpf-stesso-schermo-b25` **53/54**: il KO è il
   pannello dello stand a 720 × 720 con chiosco, lancio automatico e campo aperto accesi che scorre di 38 px, **uguale
