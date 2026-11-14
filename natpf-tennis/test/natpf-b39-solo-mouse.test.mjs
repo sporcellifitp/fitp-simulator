@@ -197,7 +197,7 @@ test('B39.2 · ClickGuard: in cattura sulla finestra ferma il clic scartato prim
 });
 
 /* ---------- B39.5 · puntatore per il ledwall e chiosco ---------- */
-import { POINTER, pointerPref, pointerSize, pointerSvg, pointerCss, hideAfterMs, edgeArrow, exitArrow } from '../src/natpf/natpf_cursor.js';
+import { POINTER, pointerPref, pointerSize, pointerSvg, pointerCss, hideAfterMs, edgeArrow, exitArrow, leftWindow } from '../src/natpf/natpf_cursor.js';
 
 test('B39.5 · puntatore grande: Grande di base nel programma, Normale nel browser; misura dal 5,5 % dell\'area tra 48 e 128 px', () => {
   assert.equal(pointerPref(null, { desktop: true }), 'grande'); assert.equal(pointerPref(null, { desktop: false }), 'normale');
@@ -229,6 +229,10 @@ test('B39.5 · freccia sul bordo dell\'area: puntatore fuori dalla parte che si 
   // uscito dalla finestra dal bordo destro a metà altezza: freccia sul bordo destro dell'area
   assert.deepEqual(exitArrow(1919, 540, { x: 0, y: 0, w: 1920, h: 1080 }), { x: 1910, y: 540, angle: 0 });
   assert.deepEqual(exitArrow(960, 0, { x: 0, y: 0, w: 1920, h: 1080 }), { x: 960, y: 10, angle: -90 });
+  // uscito davvero solo se l'ultima posizione era vicina al bordo (un menu del programma aperto in mezzo non conta)
+  assert.equal(leftWindow({ x: 1900, y: 500 }, 1920, 1080), true); assert.equal(leftWindow({ x: 960, y: 30 }, 1920, 1080), true);
+  assert.equal(leftWindow({ x: 960, y: 540 }, 1920, 1080), false, 'in mezzo: il menu del tasto destro, non un\'uscita');
+  assert.equal(leftWindow(null, 1920, 1080), false);
 });
 
 test('B39.5 · chiosco: fermo con il telecomando dello staff o la diagnostica aperti, classifica intera come riposo', async () => {

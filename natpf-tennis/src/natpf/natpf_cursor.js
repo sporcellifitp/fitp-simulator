@@ -46,6 +46,14 @@ export function edgeArrow(x, y, a, margin = POINTER.edgeMargin){
   const angle = Math.round(Math.atan2(y - cy, x - cx)*180/Math.PI);
   return { x: Math.round(cx - a.x), y: Math.round(cy - a.y), angle };
 }
+// Il puntatore è uscito dalla finestra? Solo se l'ultima posizione vera (pointermove) era vicina a un bordo della finestra
+// (entro l'8 % della misura, almeno 40 px): un menu che si apre sopra la pagina (il tasto destro del programma) o la
+// finestra che perde il fuoco mandano anche loro «pointerout», con il puntatore in mezzo (e Chromium con le coordinate 0, 0)
+export function leftWindow(p, w, h){
+  if (!p || !(w > 0) || !(h > 0)) return false;
+  const mx = Math.max(40, w*0.08), my = Math.max(40, h*0.08);
+  return p.x < mx || p.y < my || p.x > w - mx || p.y > h - my;
+}
 // puntatore uscito dalla finestra (o dal monitor) passando per (x, y): freccia sul bordo dell'area dalla parte del centro
 // verso quel punto
 export function exitArrow(x, y, a, margin = POINTER.edgeMargin){
@@ -76,7 +84,12 @@ export class NatpfCursor {
     win?.addEventListener?.('pointermove', e => this.moved(e), { passive: true, capture: true });
     win?.addEventListener?.('pointerdown', e => this.moved(e), { passive: true, capture: true });
     // puntatore uscito dalla finestra (verso un altro monitor, o fuori dalla parte che si vede)
-    doc?.addEventListener?.('pointerout', e => { if (!e.relatedTarget && (e.pointerType || 'mouse') === 'mouse'){ this.outside = true; this.pos = { x: e.clientX, y: e.clientY }; this.paintArrow(); } });
+    // (si usa l'ultima posizione vera, non quella dell'evento: vedi leftWindow)
+    doc?.addEventListener?.('pointerout', e => {
+      if (e.relatedTarget || (e.pointerType || 'mouse') !== 'mouse') return;
+      if (!leftWindow(this.pos, globalThis.innerWidth || 0, globalThis.innerHeight || 0)) return;
+      this.outside = true; this.paintArrow();
+    });
     // scelta in Opzioni
     doc?.addEventListener?.('click', e => { const b = e.target?.closest?.('[data-natpf-pointer]'); if (b){ e.stopPropagation(); this.set(b.dataset.natpfPointer); } });
     ui.screen?.onApply?.(() => this.apply());
