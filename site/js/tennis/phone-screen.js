@@ -60,7 +60,7 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
     '#rematch': S('ready') && phase === 'over' && !!rematch,
     // B28, niente blocchi: «Avanti ›» offerto dal computer dove chiede un gesto (esercizi, scambi di prova) e «Salta la
     // calibrazione» durante la calibrazione con i gesti (profilo semplice: si gioca subito)
-    '#next': S('ready') && !!next && phase !== 'over',
+    '#next': S('ready') && !!next && phase !== 'over' && !(next.ready && phase !== 'menu'),
     // B41.3: numero grande del posto dello stand, sempre in vista (anche mentre si ricollega)
     '#standTag': !!stand,
     '#calSkip': S('cal') && !touch && ['still', 'grip', 'swings', 'shots', 'review'].includes(calStep),

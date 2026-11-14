@@ -456,7 +456,7 @@ export class NatpfUi {
   // natpf_versus_ui), perché alla partenza l'altro computer aspetta
   _bindStart(){
     $('btn-start-match')?.addEventListener('click', e => {
-      if (this._trialPass){ this.wipe(this.lobby?.mode === 'split' ? 'Stesso schermo' : 'Si gioca'); return; }
+      if (this._trialPass){ this.readyGo?.matchStarted(); this.wipe(this.lobby?.mode === 'split' ? 'Stesso schermo' : 'Si gioca'); return; }
       // (B35: scambi di prova in corso, la pagina non è in vista: niente partita sopra gli scambi)
       if (this.trial?.active){ e.stopImmediatePropagation(); return; }
       const mode = this.lobby?.mode;
@@ -469,7 +469,7 @@ export class NatpfUi {
         this.split.start();
         if (this.trial.due({ split: true })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: true, then: () => this._startMatchNow() }); return; }
         if (!this.split.webcam) this.freshForActivity([this.split.phone('p1'), this.split.phone('p2')]);
-        this.wipe('Stesso schermo'); return;
+        this.readyGo?.matchStarted(); this.wipe('Stesso schermo'); return;
       }
       // sfida tra due computer: si parte solo con il Player 2 entrato e pronto
       if (mode === 'friend' && this.versus?.hostActive && !this.versus.canStart()){ e.stopImmediatePropagation(); this.toast(this.versus.state === 'waiting' ? 'Manda il link al Player 2: la partita parte quando è pronto' : 'Il Player 2 sta scegliendo la racchetta: aspetta «pronto»'); return; }
@@ -493,6 +493,7 @@ export class NatpfUi {
       // «Nessuna»: profilo semplice da capo a ogni partita (non chi ha appena calibrato apposta con i gesti: per questa
       // partita). Anche nella sfida tra due computer (B28.1: lì non ripartiva mai; la rivincita non passa da qui)
       if (!warmed) this.freshForActivity();
+      this.readyGo?.matchStarted();
       this.wipe(mode === 'friend' ? 'Sfida 1v1' : 'Si gioca');
     }, true);
   }

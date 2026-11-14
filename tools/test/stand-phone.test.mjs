@@ -182,3 +182,13 @@ test('abbinamento dal QR dello stand: codice del QR, numero da confermare, poi p
   await k.api.connect(); k.peers.at(-1).emit('error', { type: 'peer-unavailable' });
   assert.equal(k.api.state, 'denied'); assert.match(k.texts.at(-1)[1], /chiuso/);
 });
+
+test('«Sono pronto» solo sulla pagina: a partita partita (fase serve/play) il pulsante sparisce anche se l\'offerta non è ancora ritirata', () => {
+  const offer = nextOnMsg({ on: 1, lb: 'Sono pronto', rd: 1, me: 0 });
+  const base = { linkState: 'on', sensor: 'ready', gate: null, inputMode: 'sensors', calStep: 'done', hasPair: true, intentGate: null, rematch: null, next: offer };
+  assert.equal(phoneView({ ...base, phase: 'menu' }).show['#next'], true);
+  for (const phase of ['serve', 'toss', 'play']) assert.equal(phoneView({ ...base, phase }).show['#next'], false, phase);
+  // le altre offerte («Avanti ›», «Salta ›» degli scambi di prova) restano anche in campo
+  const skip = nextOnMsg({ on: 1, lb: 'Salta ›' });
+  assert.equal(phoneView({ ...base, next: skip, phase: 'play' }).show['#next'], true);
+});

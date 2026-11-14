@@ -255,6 +255,7 @@ try {
     } else if (HITS === 'none') check('nessun colpo: la partita parte lo stesso, profilo semplice (il gioco impara dai primi colpi veri)', i1.p1.simple && i1.p1.ready, JSON.stringify(i1.p1));
     else check('una palla per lato: profilo «ok» (come i due gesti di prima)', !i1.p1.simple && i1.p1.level === 'ok', JSON.stringify(i1.p1));
     check(`mano del gioco: ${HAND}`, i1.p1.hand === HAND);
+    await until(ph, () => /servizio|Pronto/i.test(document.getElementById('big')?.textContent || ''), null, 1500);
     const seen1 = await ph.evaluate(() => ({ screens: [...window.__seen.screens], bigs: [...window.__seen.bigs], big: document.getElementById('big').textContent }));
     check('telefono: «Scambi di prova» durante gli scambi, poi lo schermo di gioco (al servizio)', seen1.bigs.includes('Scambi di prova') && /servizio|Pronto/i.test(seen1.big) && !seen1.screens.some(s => /^cal:(swings|review|free)/.test(s)), JSON.stringify(seen1));
     await sleep(600); await shot('pc', 'partita-0-0'); await shot('tel1', 'al-servizio');

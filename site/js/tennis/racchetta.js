@@ -147,7 +147,8 @@ function paint(){
     // fine partita nello stesso schermo (B20): «Rivincita» e chi l'ha già chiesta
     const rv = phase === 'over' ? rematchView(rematch) : null, rb = $('#rematch');
     // B41.6: pagina «Pronto per la partita» sul computer: «Sono pronto» al posto di «Pronto»
-    const rd = phase !== 'over' ? readyView(nextOffer) : null;
+    // (solo sulla pagina, fase «menu»: appena la partita parte, «Al servizio» anche se il ritiro dell'offerta arriva un attimo dopo)
+    const rd = phase === 'menu' ? readyView(nextOffer) : null;
     // B41.3: telefono dello stand tra una persona e l'altra (menu, partita finita): «Dai il telefono al prossimo giocatore»
     const sv = standOn ? standView({ slot: stand.slot, linkState, sensor, phase }) : null;
     if (rv){ rb.textContent = rv.label; rb.disabled = rv.disabled; ui(rv.big, rv.sub, 'ready'); }

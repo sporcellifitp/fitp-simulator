@@ -154,6 +154,8 @@ export class NatpfReadyGo {
     this._leave();
     const b = $('btn-start-match'); if (b){ b.disabled = false; b.click(); }
   }
+  // la partita parte (dal conto, da «Gioca» o dal telecomando): l'offerta si ritira subito, insieme alla fase «al servizio»
+  matchStarted(){ this._leave(); }
   // fuori dalla pagina (o «Gioca»): niente offerte, niente spunte, niente conto
   _leave(){
     if (!this.active && !this.cd.running) return;
