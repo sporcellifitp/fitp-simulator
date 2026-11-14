@@ -919,3 +919,23 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
       finestra, documenti) → 14.4; B41 seconda parte (`b41-fiera-2`).
 - Non provato: rete vera di una fiera, telefoni veri, Windows, ledwall. La 14.3 va confermata dall'utente allo stand.
 
+**14/11, 19:10 UTC · dopo la 14.3: revisione indipendente del B45.1 e blocco B45.2.**
+- [x] B45.1 fase B pronta (`f20d647`, ramo `b45-1-collegamento`, NON ancora unita): motivi delle cadute nel registro e nel
+      pannello («Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s»), rifiniture della 14.2 (revisione del
+      B46), prova di Windows con il tasto Alt, documenti; gioco 1584, sito 265, Windows 51, LAN 13, Electron Linux 101/101.
+- [x] Revisione indipendente del B45.1: **non ok**, testo in `scratchpad/b451/revisione-b45-1.md` (prove in
+      `scratchpad/rev-b451/`). Difetti veri, in parte già nella 14.3 pubblicata (nessuno fa tornare le cadute): «Scollega»
+      dal computer contato come caduta; schermo del telefono spento scritto come «Wi-Fi ferma» e contato due volte; pagina
+      del telefono chiusa con la scritta «si ricollega da solo» e QR dopo 20 s (prova b20 rossa); racconto `pagina`
+      sovrascritto; `relinkAt` mai azzerato; riga delle cadute tagliata nel pannello; nessun test del chiosco che conta i
+      messaggi del telefono; con i telefoni dei visitatori il chiosco non libera più il posto (da scrivere nella guida:
+      «Scollega» nel riquadro del telefono); tasto Alt corretto solo nella prova.
+- [~] Workflow `b45-2-rifiniture-collegamento` (run `wf_9a2e841a-941`): **B45.2** = i dieci punti (revisione + pannello a
+      1024×600 che scorre di 5 px + prove instabili sotto carico rese robuste), sullo stesso ramo `b45-1-collegamento` dopo
+      aver unito natpf-simulator; worktree `scratchpad/b451/wt`, porte 4100–4149, appunti `scratchpad/b451/notes.md`
+      (sezione «B45.2»); poi revisore.
+- [~] B41 seconda parte (`wf_5bb13fa8-3f0`, ramo `b41-fiera-2`): B41.4–B41.5 scritti (`2f8c5f0`, `2ffa80f`), 14.3 unita nel
+      ramo (`af42330`), prove e correzioni in corso (titolo di fine partita con «Visitatore N» tagliato a 1280×720).
+- Prossimo rilascio: **2026-11-14.4** = B41 seconda parte + B45.1 fase B + B45.2, quando i due revisori dicono ok (se uno
+  dei due tarda, esce prima l'altro).
+
