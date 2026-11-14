@@ -193,6 +193,13 @@ test('pagina: clic sul campo → tastiera; i tasti scrivono con gli eventi di un
   assert.equal(second._stop && second.defaultPrevented, true, 'clic scartato');
   const elsewhere = P.fire('click', P.evt({ target: {}, clientX: 50, clientY: 50 }));
   assert.equal(elsewhere._stop, false, 'fuori dalla tastiera: passa');
+  // «Fatto» cliccato con il mouse: si scarta solo il punto del tasto (più 24 px), un clic altrove sotto la tastiera passa
+  T.open(nick); assert.equal(T.visible, true, 'riaperta: lo scarto di prima non c\'è più');
+  const doneKey = { getBoundingClientRect: () => ({ left: 1300, right: 1700, top: 960, bottom: 1040 }) };
+  T.press('done', doneKey);
+  assert.equal(P.fire('click', P.evt({ target: {}, clientX: 1500, clientY: 1000 }))._stop, true, 'secondo clic su «Fatto»: scartato');
+  assert.equal(P.fire('click', P.evt({ target: {}, clientX: 1310, clientY: 1060 }))._stop, true, 'poco fuori dal tasto (24 px): scartato');
+  assert.equal(P.fire('click', P.evt({ target: {}, clientX: 1000, clientY: 700 }))._stop, false, '«Avanti ›» sotto la tastiera di prima: passa');
 });
 
 test('pagina: un tasto vero la chiude (e per 30 s non torna), Esc la chiude senza arrivare al foglio, il clic fuori la chiude', async () => {

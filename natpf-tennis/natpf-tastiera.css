@@ -22,7 +22,8 @@
   padding: var(--osk-pad);
   border-radius: calc(var(--osk-k) * 0.42 + var(--osk-pad));
   border: max(1px, 0.18cqh) solid rgba(77, 215, 255, 0.42);
-  background: linear-gradient(180deg, rgba(19, 33, 79, 0.97) 0%, rgba(10, 19, 48, 0.97) 100%);
+  /* (piena: sotto i tasti non si deve leggere il foglio) */
+  background: linear-gradient(180deg, #13214f 0%, #0a1330 100%);
   box-shadow: 0 2cqh 5cqh rgba(2, 6, 22, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   font-family: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   user-select: none;
@@ -44,7 +45,7 @@
   padding: 0;
   border-radius: calc(var(--osk-k) * 0.3);
   border: max(1px, 0.14cqh) solid rgba(176, 194, 255, 0.24);
-  background: rgba(255, 255, 255, 0.08);
+  background: #1d2b5e;
   color: #f4f6fc;
   font: 600 calc(var(--osk-k) * 0.5) / 1 "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   letter-spacing: 0.01em;
@@ -52,8 +53,8 @@
   transition: background-color 0.1s, transform 0.08s, box-shadow 0.1s;
 }
 /* da lontano il passaggio del mouse si vede: anello giallo come con la tastiera */
-.natpf-tastiera .osk-k:hover { background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 0 0 max(2px, 0.28cqh) #e8ff3a; }
-.natpf-tastiera .osk-k.down { background: #e8ff3a; color: #0a1330; transform: scale(0.95); box-shadow: none; }
+.natpf-tastiera .osk-k:hover { background: #2a3b78; box-shadow: inset 0 0 0 max(2px, 0.28cqh) #e8ff3a; }
+.natpf-tastiera .osk-k.down { background: #e8ff3a; color: #0a1330; transform: scale(0.95); box-shadow: none; transition: none; }
 .natpf-tastiera.shift .osk-letter, .natpf-tastiera.code .osk-letter { text-transform: uppercase; }
 .natpf-tastiera.code [data-nocode] { visibility: hidden; }
 .natpf-tastiera .osk-back { color: #ff4d94; font-size: calc(var(--osk-k) * 0.56); border-color: rgba(255, 77, 148, 0.5); }
@@ -78,16 +79,16 @@
 /* «Gioca come Ospite» (decisione dell'utente del 14/11): accanto al campo del nome, nel foglio «Come ti chiami?» e in
    quello dei minigiochi; un clic e si gioca senza nome, fuori classifica. Nelle aree strette va sotto il campo */
 .natpf-sheet .nick-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
-.natpf-sheet .nick-row .nick-input { flex: 1 1 14em; min-width: 0; width: auto; }
+.natpf-sheet .nick-row .nick-input { flex: 1 1 7.5em; min-width: 0; width: auto; }
 .natpf-sheet .nick-row .nick-guest {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 56px;
-  padding: 0 22px;
+  padding: 0 18px;
   border-radius: 999px;
   border: 2px solid rgba(77, 215, 255, 0.7);
   background: rgba(77, 215, 255, 0.1);
   color: #4dd7ff;
-  font: 700 italic 21px/1 var(--font-display, "Barlow Condensed", sans-serif);
+  font: 700 italic 20px/1 var(--font-display, "Barlow Condensed", sans-serif);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -96,3 +97,6 @@
 .natpf-sheet .nick-row .nick-guest:hover { background: rgba(77, 215, 255, 0.2); color: #ffffff; box-shadow: 0 0 0 3px rgba(232, 255, 58, 0.85); }
 .natpf-sheet .nick-row .nick-guest:focus-visible { outline: 3px solid #e8ff3a; outline-offset: 2px; }
 @container natpf (max-width: 520px) { .natpf-sheet .nick-row .nick-guest { flex: 1 1 100%; } }
+
+/* codice della sfida: il campo era largo 10ch e mostrava 5 caratteri su 7 («AT-K3»): ora il codice intero (B38) */
+#title-modal .lobby-join #join-code { width: 9.5em; }

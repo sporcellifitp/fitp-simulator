@@ -20,8 +20,8 @@
 //     non mandano tasti finti (Maiusc+D aprirebbe la diagnostica);
 //   • il campo resta in vista sopra la tastiera: se la tastiera lo coprirebbe, il suo foglio sale (translate) e torna giù
 //     alla chiusura;
-//   • dopo «Fatto» per mezzo secondo i clic dove c'era la tastiera si scartano: il secondo clic di un doppio clic non
-//     arriva al pulsante sotto (B39, n. 10).
+//   • dopo «Fatto» per mezzo secondo i clic proprio dove c'era «Fatto» si scartano: il secondo clic di un doppio clic non
+//     arriva al pulsante sotto (B39, n. 10); un clic altrove («Avanti ›», «Entra ›») passa subito.
 // Opzione dello stand «Tastiera a schermo: Automatica · Sempre · Mai» (natpf_kiosk.js, localStorage OSK.key):
 //   Automatica (di base) = compare con il mouse o il tocco sul campo, sparisce con un tasto vero (e per 30 s dopo un tasto
 //   vero non compare); Sempre = compare anche quando il campo prende il fuoco in altro modo e resta anche con i tasti veri;
@@ -33,7 +33,8 @@ import { viewport } from './natpf_screen.js';
 export const OSK = Object.freeze({
   key: 'natpf-tennis.tastiera',
   quietMs: 30000,    // «Automatica»: dopo un tasto vero la tastiera non si apre da sola per 30 s
-  shieldMs: 450,     // dopo «Fatto»: clic scartati dove c'era la tastiera (doppio clic)
+  shieldMs: 450,     // dopo «Fatto»: clic scartati dove c'era «Fatto» (doppio clic)
+  shieldPx: 24,      // px attorno al tasto «Fatto» in cui il secondo clic si scarta
   gap: 12,           // px tra il fondo del campo e la tastiera
   halfMin: 560,      // px: larghezza minima della metà per la tastiera di un nome dello stesso schermo
   watchMs: 250,      // ms: controllo del campo (ancora in vista e con il fuoco) e della posizione
@@ -231,7 +232,7 @@ export class NatpfTastiera {
       if (e.button > 0) return;
       const b = e.target?.closest?.('[data-k]'); if (!b) return;
       b.classList.add('down'); setTimeout(() => b.classList.remove('down'), 140);
-      this.press(b.dataset.k);
+      this.press(b.dataset.k, b);
     });
     // (il tasto destro resta libero: nel programma Windows apre il menu dello staff, B39)
     for (const t of ['mousedown', 'click', 'dblclick']) el.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); });
@@ -306,10 +307,14 @@ export class NatpfTastiera {
     this.onChange?.(true);
     return true;
   }
-  // chiude: con un tasto della tastiera («Fatto») i clic dove era la tastiera si scartano per un attimo
+  // chiude. shield: chiusa da «Fatto» (il tasto premuto, o true dal codice: tutta la tastiera): per un attimo i clic in quel
+  // punto si scartano (il secondo clic di un doppio clic)
   hide({ shield = false } = {}){
     if (!this.el) return;
-    if (shield && this.visible){ const r = this.el.getBoundingClientRect?.(); if (r) this.shield = { until: now() + OSK.shieldMs, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } }; }
+    if (shield && this.visible){
+      const r = (shield !== true && shield.getBoundingClientRect?.()) || this.el.getBoundingClientRect?.(), m = shield !== true ? OSK.shieldPx : 0;
+      if (r) this.shield = { until: now() + OSK.shieldMs, rect: { left: r.left - m, right: r.right + m, top: r.top - m, bottom: r.bottom + m } };
+    }
     const was = this.visible;
     this._finish();
     this.el.classList.add('hidden');
@@ -325,9 +330,10 @@ export class NatpfTastiera {
     const im = this._im; this._im = null;
     if (im?.el){ if (im.prev == null) im.el.removeAttribute('inputmode'); else im.el.setAttribute('inputmode', im.prev); }
   }
-  press(k){
+  // un tasto (key: il pulsante premuto, per lo scarto del doppio clic su «Fatto»)
+  press(k, key = null){
     const f = this.field; if (!f) return false;
-    if (k === 'done'){ this.hide({ shield: true }); return true; }
+    if (k === 'done'){ this.hide({ shield: key || true }); return true; }
     if (k === 'shift'){ this.shift = !this.shift; this._paintShift(); return true; }
     const r = this.rules || fieldRules(f), v = String(f.value ?? '');
     const s = r.numeric ? { value: v, start: v.length, end: v.length } : { value: v, start: f.selectionStart ?? v.length, end: f.selectionEnd ?? v.length };
