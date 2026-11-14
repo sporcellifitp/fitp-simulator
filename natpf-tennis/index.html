@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="./natpf-round.css" />
     <link rel="stylesheet" href="./natpf-flow.css" />
     <link rel="stylesheet" href="./natpf-ui.css" />
+    <link rel="stylesheet" href="./natpf-tastiera.css" />
   </head>
   <body>
     <div id="root" class="hidden" aria-hidden="true"></div>
@@ -199,7 +200,8 @@
         <p class="sheet-kicker" id="nick-kicker">Classifica del giorno</p>
         <h2 class="sheet-title" id="nick-title">Il tuo nickname</h2>
         <p class="sheet-desc" id="nick-desc">Solo per la classifica: niente email, niente dati personali.</p>
-        <input id="nick-input" class="nick-input" maxlength="14" spellcheck="false" placeholder="Es. Ace99" />
+        <!-- B38: «Gioca come Ospite» accanto al campo (un clic, senza nome, fuori classifica: natpf_lobby.askNickname) -->
+        <div class="nick-row"><input id="nick-input" class="nick-input" maxlength="14" spellcheck="false" placeholder="Es. Ace99" /><button type="button" class="nick-guest" id="nick-guest">Gioca come Ospite</button></div>
         <p class="natpf-warn hidden" id="nick-warn"></p>
         <!-- «Nuovo giocatore» (B18): anche la mano, che torna «Destra» per chi arriva -->
         <div class="lobby-row nick-hand hidden" id="nick-hand">
@@ -235,6 +237,7 @@
           ><button type="button" data-staff="reset"><span>Classifica</span><b>Azzera oggi</b></button
           ><button type="button" data-staff="phone"><span>Telefono</span><b>Scollega</b></button
           ><button type="button" data-staff="music"><span>Musica</span><b>Sì</b></button
+          ><button type="button" data-staff="osk" title="Automatica (di base): la tastiera a schermo compare cliccando con il mouse (o toccando) un campo di testo e sparisce se si usa una tastiera vera. Sempre: compare in ogni campo di testo, anche con una tastiera vera. Mai: non compare. Resta salvata."><span>Tastiera a schermo</span><b>Automatica</b></button
           ><button type="button" data-staff="fair" title="No · Solo stesso schermo · Sì. Punto decisivo sul 40-40 e servizio che passa ogni due punti: con «Solo stesso schermo» vale tra due persone nello stesso schermo, con «Sì» anche contro la CPU. Vale dalla prossima partita e resta salvata."><span>Formato in fiera</span><b>Solo stesso schermo</b></button
           ><button type="button" data-staff="hot" title="Sì (di base): in ogni partita, dal 20° colpo dello scambio colpi sempre più forti e colpo super più facile per tutti e due, finché lo scambio finisce; compare la scritta «Scambio caldo». No: scambi come sempre. Vale dalla prossima partita e resta salvata."><span>Scambio che si scalda</span><b>Sì · dal 20° colpo</b></button
           ><button type="button" data-staff="autotoss" title="Sì: nello stesso schermo, se chi deve battere resta fermo 30 secondi il gioco lancia la palla da solo; dopo due lanci automatici a vuoto batte il gioco un servizio morbido. Vale dalla prossima partita e resta salvata."><span>Lancio automatico</span><b>No</b></button

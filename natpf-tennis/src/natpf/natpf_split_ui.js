@@ -485,7 +485,8 @@ export class NatpfSplitUi {
   }
   playNow(){ this.cd.held = false; this.cd.back = false; this._fire(); }
   // si sta scrivendo un nome (campo attivo nella pagina «Collega» e un tasto da poco)
-  get typing(){ return typeof document !== 'undefined' && !!document.activeElement?.matches?.('.split-name-input') && performance.now() - (this._typedAt ?? -1e9) < SPLIT_TYPING_MS; }
+  // (B38: anche con la tastiera a schermo aperta su un nome: con il mouse si scrive piano, una lettera ogni qualche secondo)
+  get typing(){ return typeof document !== 'undefined' && (!!this.ui?.tastiera?.isOpenOn?.('.split-name-input') || (!!document.activeElement?.matches?.('.split-name-input') && performance.now() - (this._typedAt ?? -1e9) < SPLIT_TYPING_MS)); }
   // a zero (o «Gioca» dopo «Aspetta»): lo stesso «Gioca» della pagina «Partita» (natpf_ui._bindStart ricontrolla che
   // tutti e due siano pronti, poi la sessione split e il passaggio al campo)
   _fire(){

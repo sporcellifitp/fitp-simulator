@@ -298,26 +298,35 @@ export class NatpfLobby {
     this.askNickname(() => this.go('controller'));
   }
   // newPlayer («Nuovo giocatore», natpf_new_player.js, B18): il passo del nome di chi arriva, con la mano; il nome serve
-  // anche alla schermata finale («Vince Marco!»). «Salta» va avanti senza nome (in classifica «Ospite»)
+  // anche alla schermata finale («Vince Marco!»).
+  // B38 (decisione dell'utente del 14/11): accanto al campo «Gioca come Ospite»: un clic, niente nome, si gioca come
+  // «Ospite» e il punteggio resta fuori classifica (natpf_events.playAsGuest, ranked). Nel passo di «Nuovo giocatore» prende
+  // il posto di «Salta» (che faceva la stessa cosa: il pulsante resta nascosto, il telecomando lo usa ancora per «Salta il
+  // nome»); nei minigiochi resta «Indietro». Chi ha scelto «Ospite» non si sente chiedere il nome al minigioco dopo
   askNickname(then, { newPlayer = false } = {}){
     const ev = this.ui.events, box = $('natpf-nick'), input = $('nick-input'), warn = $('nick-warn');
-    if (ev.nickname && !newPlayer){ then(); return; }
+    if ((ev.nickname || ev.guest) && !newPlayer){ then(); return; }
     const text = (id, t) => { const el = $(id); if (el && el.textContent !== t) el.textContent = t; };
     text('nick-kicker', newPlayer ? 'Nuovo giocatore' : 'Classifica del giorno');
     text('nick-title', newPlayer ? 'Come ti chiami?' : 'Il tuo nickname');
     text('nick-desc', newPlayer ? 'Il nome va sulla schermata finale e nella classifica del giorno. Niente email, niente dati personali.' : 'Solo per la classifica: niente email, niente dati personali.');
     text('nick-cancel', newPlayer ? 'Salta' : 'Indietro');
+    show($('nick-cancel'), !newPlayer);
     show($('nick-hand'), newPlayer);
     this._nickThen = then; this._nickSkip = newPlayer ? then : null; input.value = ''; show(warn, false); show(box); setTimeout(() => input.focus(), 50);
     if (!this._nickBound){
       this._nickBound = true;
       box.addEventListener('pointerdown', e => e.stopPropagation());
       box.addEventListener('keydown', e => e.stopPropagation());
-      $('nick-cancel').addEventListener('click', e => { e.stopPropagation(); show(box, false); const skip = this._nickSkip; this._nickThen = this._nickSkip = null; skip?.(); });
+      // «Gioca come Ospite» (e «Salta» di «Nuovo giocatore», nascosto): senza nome, fuori classifica, si va avanti
+      const asGuest = () => { this.ui.tastiera?.hide?.(); show(box, false); this.ui.events.playAsGuest?.(); const t = this._nickThen; this._nickThen = this._nickSkip = null; t?.(); };
+      $('nick-guest')?.addEventListener('click', e => { e.stopPropagation(); asGuest(); });
+      $('nick-cancel').addEventListener('click', e => { e.stopPropagation(); if (this._nickSkip){ asGuest(); return; } this.ui.tastiera?.hide?.(); show(box, false); this._nickThen = this._nickSkip = null; });
       $('nick-form').addEventListener('submit', e => {
         e.preventDefault(); e.stopPropagation();
         const v = validNickname(input.value);
         if (!v.ok){ warn.textContent = v.why; show(warn); return; }
+        this.ui.tastiera?.hide?.();
         this.ui.events.nickname = v.nick; show(box, false); const t = this._nickThen; this._nickThen = this._nickSkip = null; t?.();
       });
     }
@@ -342,7 +351,7 @@ export class NatpfLobby {
     const L = ev.level || { level: 1, into: 0, next: 500 }, mc = medalCount(ev.records || {});
     const head = $('arcade-progress');
     if (head) head.innerHTML = `<span class="ap-level"><b>Livello ${L.level}</b><i style="--p:${Math.round(100*L.into/L.next)}%"></i><small>${L.into}/${L.next} XP</small></span><span class="ap-medals"><i data-medal="gold">${mc.gold}</i><i data-medal="silver">${mc.silver}</i><i data-medal="bronze">${mc.bronze}</i></span>`;
-    const note = $('challenge-nick-note'); if (note) note.textContent = ev.nickname ? `Giochi come ${ev.nickname}` : 'Serve solo un nickname per la classifica.';
+    const note = $('challenge-nick-note'); if (note) note.textContent = ev.nickname ? `Giochi come ${ev.nickname}` : ev.guest ? 'Giochi come Ospite: fuori classifica.' : 'Serve solo un nickname per la classifica (o «Gioca come Ospite»).';
   }
   _paintRanking(){
     const tabs = $('ranking-tabs'), list = $('ranking-list'); if (!tabs || !list) return;
@@ -371,7 +380,8 @@ export class NatpfLobby {
     const badges = [r.isRecord && r.prevBest != null ? '<span class="rb rb-record">Nuovo record personale</span>' : r.best != null ? `<span class="rb">Record personale ${r.best} ${r.unit}</span>` : '',
       r.xp ? `<span class="rb rb-xp">+${r.xp} XP · livello ${r.level?.level ?? 1}</span>` : '', ...(r.stats || []).map(x => `<span class="rb">${esc(x)}</span>`)].filter(Boolean);
     const b = $('result-badges'); if (b) b.innerHTML = badges.join('');
-    $('result-rank').textContent = `${r.rank}° posto su ${r.total} di oggi`;
+    // (B38: chi gioca come «Ospite», senza nome, resta fuori classifica: lo si dice al posto della posizione)
+    $('result-rank').textContent = r.guest ? 'Fuori classifica: hai giocato come Ospite' : `${r.rank}° posto su ${r.total} di oggi`;
     const c = challengeById(r.id);
     $('result-top').innerHTML = this.ui.events.top(r.id, 5).map((e, i) => `<li class="${i + 1 === r.rank ? 'me' : ''}"><b>${i + 1}</b><span>${esc(e.nick)}</span><em>${e.score} ${c.unit}</em></li>`).join('');
   }

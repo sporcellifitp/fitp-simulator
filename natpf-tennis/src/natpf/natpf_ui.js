@@ -45,6 +45,7 @@ import { NatpfUpdates } from './natpf_updates.js';
 import { resetVisitor } from './natpf_new_player.js';
 import { NatpfTrial } from './natpf_trial.js';
 import { readCalMode } from './natpf_trial_learn.js';
+import { NatpfTastiera } from './natpf_tastiera.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -79,6 +80,9 @@ export class NatpfUi {
     // resto: l'apertura automatica dello schermo intero ascolta il primo tasto in cattura prima del menu, che lo ferma
     this.screen = new NatpfScreen(engine);
     this.screen.onHint = t => this.toast(t);
+    // B38: tastiera a schermo per i campi di testo (stand con il solo mouse). Presto, così Esc e i tasti veri la vedono
+    // prima del menu e dei fogli
+    this.tastiera = new NatpfTastiera();
     // calibrazione dello schermo (Opzioni → Schermo → «Calibra lo schermo…»): alla chiusura si torna al suo pulsante
     this.calibra = new NatpfCalibra(this.screen, {
       toast: t => this.toast(t),
@@ -281,8 +285,8 @@ export class NatpfUi {
     const p = m.s.player, o = m.s.opponent, g = m.games, mine = g.filter(x => x.winner === 'player').length;
     const r = this.events.recordMatch({ level: m.level, won: p.points, lost: o.points, games: [mine, g.length - mine], win: m.winner === 'player' });
     // (B35: la schermata finale scrive la pillola da questi numeri, natpf_match_stats.cpuPill: «3° posto nella classifica
-    // di oggi»; fuori dalle prime solo i punti, mai «fuori»)
-    this.stats.rank = { rank: r.rank | 0, total: r.total | 0, score: r.score | 0 };
+    // di oggi»; fuori dalle prime solo i punti, mai «fuori». B38: senza nome, «Ospite», fuori classifica: guest)
+    this.stats.rank = { rank: r.rank | 0, total: r.total | 0, score: r.score | 0, ...(r.guest ? { guest: true } : {}) };
     return r;
   }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer

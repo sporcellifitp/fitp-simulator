@@ -25,6 +25,8 @@ import { readAutoToss, writeAutoToss, autoTossButton, autoTossToast, readOpenCou
 // B28: «Calibrazione: Giocando · Con i gesti · Nessuna» (natpf_trial_learn.js), di base «Giocando»
 import { readSavedCalMode, writeCalMode, nextCalMode, calModeButton, calModeToast, calModeFromUrl } from './natpf_trial_learn.js';
 import { TwoStep } from './natpf_confirm.js';
+// B38: «Tastiera a schermo: Automatica · Sempre · Mai» (natpf_tastiera.js), di base «Automatica»
+import { readOskMode, writeOskMode, nextOskMode, oskButton, oskToast } from './natpf_tastiera.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -125,7 +127,7 @@ export class NatpfKiosk {
     // B25: le fasce dei due giocatori dello stesso schermo tornano «Adulto» (sono di chi gioca, non dello stand)
     ui.split?.resetBands?.();
     // B18.2 gruppo 3: «Chi gioca» al valore di base, livello Evento da capo, spiegazione del colpo super da rivedere
-    ui.lobby?.resetWho?.(); ui.superHint?.reset?.();
+    ui.lobby?.resetWho?.(); ui.superHint?.reset?.(); ui.serveCoach?.newPlayer?.();   // (B44: l'icona del lancio di nuovo ai primi servizi)
     // il visitatore successivo rivede il tutorial prima di calibrare (gioco singolo e stesso schermo)
     // (il tutorial visto è segnato sul telefono, per abbinamento: si dimentica anche con lo stesso telefono)
     if (ui.split) ui.split.closeTutorials?.();
@@ -159,6 +161,8 @@ export class NatpfKiosk {
       return;
     }
     if (cmd === 'music') $('btn-audio-toggle')?.click();
+    // B38: tastiera a schermo, automatica → sempre → mai → automatica; salvata, vale subito
+    if (cmd === 'osk'){ const m = ui.tastiera?.setMode ? ui.tastiera.setMode(nextOskMode(readOskMode())) : writeOskMode(nextOskMode(readOskMode())); ui.toast?.(oskToast(m)); }
     // mira del telefono: alta → media → bassa → alta; vale dal colpo successivo (anche per il secondo telefono). L'avviso
     // dice anche cosa vuol dire (nel foglio non c'è posto per un paragrafo: a 1024 × 600 «Chiudi» finiva fuori vista)
     if (cmd === 'aim'){ const v = writeAimLevel(nextAimLevel(readAimLevel())); ui.toast?.(`Mira del telefono: ${aimLevelLabel(v)} · ${AIM_HINT[v]}; resta salvata`); }
@@ -216,6 +220,7 @@ export class NatpfKiosk {
     const audio = this.engine.audioEngine; set('music', audio && audio.muted ? 'No' : 'Sì', !(audio && audio.muted));
     set('phone', this.ui.phone.connected ? 'Scollega' : 'Nessuno collegato');
     set('aim', aimLevelButton(readAimLevel()));
+    const osk = readOskMode(); set('osk', oskButton(osk), osk !== 'mai');
     const fair = readFairMode(); set('fair', fairButton(fair, fairForcedByUrl()), fair !== 'no');
     const hot = readHotRally(); set('hot', hotButton(hot), hot);
     const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);

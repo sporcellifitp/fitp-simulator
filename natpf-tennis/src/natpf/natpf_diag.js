@@ -22,6 +22,7 @@ import { DIAG_PROTOCOLS, protocolDrills, expectedFor } from './diag/diag_protoco
 import { writeDisplayLagMs } from './natpf_phone_racket.js';
 import { aimLevelLabel } from './natpf_aim_level.js';
 import { gestureMeasures, gestureMeasureLines } from './diag/diag_gesture.js';
+import { isTextField } from './natpf_tastiera.js';
 const MEASURE_KINDS = new Set(['tel.colpo', 'rimbalzo', 'piano', 'punto', 'colpo.gioco', 'partita']);
 
 const $ = id => document.getElementById(id);
@@ -54,6 +55,9 @@ export class NatpfDiag {
     // video del gioco spento all'inizio: è quello che pesa sulle prestazioni (vedi compareNote); si accende quando serve
     this.opts = { webcamVideo: true, gameVideo: false, phoneSamples: true };
     window.addEventListener('keydown', e => {
+      // B38 (B39, controllo «solo mouse» n. 2): mentre si scrive in un campo Maiusc+D e Maiusc+M sono lettere, non comandi
+      // (prima «Dario» diventava «ario» e si apriva la diagnostica)
+      if (isTextField(e.target) || isTextField(document.activeElement)) return;
       if (e.shiftKey && e.code === 'KeyD'){ e.preventDefault(); e.stopImmediatePropagation(); this.toggle(); }
       else if (e.shiftKey && e.code === 'KeyM' && this.recorder.active){ e.preventDefault(); e.stopImmediatePropagation(); this.recorder.mark('segno da tastiera'); this.ui?.toast?.('Momento segnato nella registrazione'); }
     }, true);

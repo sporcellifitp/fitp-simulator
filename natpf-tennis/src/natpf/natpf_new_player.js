@@ -16,7 +16,9 @@
 //   - nello stesso schermo i nomi dei due giocatori (tornano Player 1 e Player 2) e le loro fasce (B25: tornano «Adulto»,
 //     cioè nessun aiuto: natpf_duo_rules.js).
 //   - «Chi gioca» (B18.2 gruppo 3): torna al valore di base (Adulto, o il livello chiesto dall'indirizzo della pagina), il
-//     livello Evento riparte dal suo valore di base e la spiegazione del colpo super si rivede (natpf_lobby.resetWho).
+//     livello Evento riparte dal suo valore di base e la spiegazione del colpo super si rivede (natpf_lobby.resetWho);
+//   - B38: «Ospite» (chi arriva sceglie di nuovo: nome o «Gioca come Ospite»); B44: l'icona del lancio torna ai primi servizi
+//     (natpf_serve_coach.newPlayer).
 // Cosa resta: la durata e il formato della partita, la mira del telefono, il chiosco, il segnale del momento giusto e la
 // musica: sono scelte dello staff, non del visitatore.
 //
@@ -66,6 +68,8 @@ export function resetVisitor(ui){
   ui.events.forgetLearned?.();
   // B18.2 gruppo 3: «Chi gioca» al valore di base, livello Evento da capo, spiegazione del colpo super da rivedere
   L?.resetWho?.(); ui.superHint?.reset?.(); ui.cue?.resetHint?.();   // (B37: la scritta del segnale del momento giusto si rivede)
+  // B44: l'icona del lancio (telefono che sale con la palla) torna ai primi servizi di chi arriva
+  ui.serveCoach?.newPlayer?.();
   if (route === 'split'){
     const S = ui.split;
     // nomi, caselle e targhette in campo (prima restavano le targhette di chi aveva giocato prima: revisione B18)
