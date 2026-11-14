@@ -1265,8 +1265,8 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   telefono con il QR si apre da solo solo dopo `PANEL_AFTER_MS` (20 s) da scollegato.
 - **Motivo di ogni caduta** (`natpf_cadute.js`): evento `drop` di `link.js`, motivo finale con il racconto del telefono,
   righe `tel` del registro con `motivo`, `causa`, `ms`, `dove` (e al ritorno `prove`, `fallite`, `tipo`), riassunto, riga del
-  pannello dello stand nella riga dei pulsanti in basso (una riga per telefono, testi brevi: a 1024 × 600 «Chiudi» resta in
-  vista). Solo campi già in `CAMPI`: il Worker non va ricaricato.
+  pannello dello stand (dalla B45.2 una riga sua sotto la nota del chiosco, vedi sotto). Solo campi già in `CAMPI`: il
+  Worker non va ricaricato.
 - **Stesso schermo**: `NatpfSplitUi._drive` non fa niente al menu e nella classifica (con i telefoni collegati la
   calibrazione nuova ridisegnava la pagina «Collega» e riapriva il tutorial al menu).
 - **Prove Electron su Linux (`prova-linux`), Alt in finestra**: sotto Xvfb, con i tasti mandati da `sendInputEvent`, dopo
@@ -1279,4 +1279,35 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   aperta non la chiude.
 - **Prova nel browser**: `tools/e2e/natpf-phone-blackout.mjs` parte D (partita contro la CPU, rete che trattiene e consegna
   i messaggi: bui di 3, 7 e 12 s) e la verifica dei motivi nel registro e nel pannello.
+
+## B45.2 · Rifiniture del collegamento dopo la revisione (14/11/2026 sera; `docs/b45/b45-1-collegamento.md`, sezione «B45.2»)
+- **Chiudere di proposito non è una caduta**: in `link.js` chi chiude il collegamento dal computer (`forget`, `stop`, il
+  ramo dello stand, il controllo di vita) toglie `conn` **prima** di `close()`: PeerJS e `LanConnection` emettono «close»
+  subito, e il gestore della chiusura conterebbe una caduta. La racchetta ascolta i «drop» solo del suo collegamento
+  (`this.link === link`: `useStand` ne cambia uno con un altro).
+- **Racconto del telefono e caduta del computer si abbinano per collegamento, non per tempo**: il racconto arriva nel primo
+  «dev» dell'ingresso nuovo e parla del collegamento di prima (`drop.link === this.link && drop.joins === joins − 1`); una
+  caduta nuova solo se il computer non ne ha già una di quel telefono dall'ultimo collegamento. Niente più finestre di 20 s
+  (`STORY_MATCH_MS` tolto). Il controllo di vita del computer con l'ultimo «st» a pagina nascosta dà «telefono: pagina
+  nascosta» (`link-life.silenceMotivo`), non «silenzio».
+- **Pagina del telefono che si chiude** (`pagehide`): `racchetta.pageGoing()` manda «cl pagina» e chiama `lost('pagina')`
+  prima di chiudere; chiudere prima faceva passare la chiusura da `lost()` senza motivo e il racconto diventava «chiuso».
+  `relinkAt` si azzera a ogni collegamento nuovo (`enter()`).
+- **Motivi da cui il telefono non torna da solo** (`natpf_phone_watch.GONE_HOLDS`: «telefono: pagina chiusa», «telefono:
+  scollegato»): titolo e testo da `goneHold` (mai «si ricollega da solo»), QR subito (`NatpfPhoneRacket.dropMotivo`, che vale
+  solo finché il telefono non rientra e solo per la caduta vista da questo computer). Anche l'avviso di «Ricollega il
+  telefono» (`relinkAction`) lo dice.
+- **Pannello dello stand**: la riga delle cadute ha un posto suo sotto la nota del chiosco, una riga intera per telefono
+  (due colonne nelle aree larghe e basse), carattere con un massimo; quando c'è, le file dei pulsanti si stringono un poco
+  dove l'altezza è poca (regole `:has(.staff-cadute:not(.hidden))` in `natpf-ui.css`): senza cadute il foglio è quello di
+  prima. La nota del chiosco deve stare su una riga a 1024 × 600 (≤ ~129 caratteri: con due righe il foglio scorre con le
+  opzioni accese). Prova: `tools/e2e/natpf-pannello-cadute.mjs` (web e programma, uno e due telefoni, sei misure).
+- **Il body non scorre mai** (`overflow: clip`, anche `html.natpf-area body`): con `hidden` il body era un riquadro che
+  scorre e un campo che prende il fuoco in fondo all'area lo faceva scorrere; nell'area del ledwall il body è il riferimento
+  degli elementi `fixed` (transform), che salivano con lui. Le pagine lunghe scorrono nei loro riquadri.
+- **`prova-linux`**: i controlli che hanno dovuto riprovare (dettaglio `riprovato`) si contano e vanno nel riepilogo
+  («controlli riprovati: N»).
+- **Prove sotto carico**: aspettare la condizione, mai un tempo fisso; dove si misura un costo, misure appaiate nello stesso
+  giro e mediana delle differenze (`natpf-chi-serve`); `remote-pairing` aspetta le risposte del gioco (la prova della chiave
+  è asincrona).
 

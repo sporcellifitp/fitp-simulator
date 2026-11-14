@@ -7,7 +7,9 @@ ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazion
 3.6) e l'icona del servizio (B44, capitolo 8.3). Le voci segnate **(B45.1)** sono del blocco «telefono che non si
 scollega» (capitolo 8.4 e `docs/b45/b45-1-collegamento.md`): chiosco che non scollega più il telefono, telefono che si
 ricollega da solo e scritte calme sul ledwall dalla 2026-11-14.3; i motivi delle cadute nel pannello e nel registro dalla
-versione che contiene il resto del blocco.
+versione che contiene il resto del blocco. Le voci segnate **(B45.2)** (rifiniture dopo la revisione del B45.1: «Scollega»
+che non è una caduta, schermo spento contato bene, pagina chiusa detta sul ledwall, chiosco e telefono del visitatore)
+valgono dalla versione che le contiene.
 
 Per chi gestisce lo stand di **NATPF Simulator** con il programma Windows, il ledwall e **solo il mouse**. Ogni voce è
 controllata sul codice di questa versione.
@@ -130,7 +132,7 @@ fa. (B39) **Un doppio clic vale un clic solo** (prima faceva due passi: «Calibr
 
 | Voce | Valori | Cosa fa | Da quando vale |
 |---|---|---|---|
-| **Modalità chiosco** | **No** · Sì | Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu principale, cancella il nome, rimette «Chi gioca: Adulto» e (B45.1) **azzera chi gioca come «Nuovo giocatore»** (mano destra, calibrazione e tutorial da capo): **il telefono resta collegato**, niente QR da rifare (prima il chiosco scollegava il telefono col QR, e in fiera sembrava una caduta della rete). Contano come attività clic (anche sui tasti della tastiera a schermo), tasti, rotellina, tocchi, colpi del telefono e comandi del telecomando; (B45.1) anche i gesti e i tocchi sul telefono e il telefono preso in mano; (B39) anche muovere il mouse, e con il pannello, l'abbinamento del telecomando o la diagnostica aperti il chiosco aspetta. Durante una partita aspetta il doppio del tempo, poi chiude la partita. Sotto le voci una riga dice se il chiosco è acceso; (B45.1) nella riga dei pulsanti in basso, solo se oggi un telefono è caduto, «Telefono 1: N cadute oggi · motivo più frequente: …» (capitolo 8.4). | subito |
+| **Modalità chiosco** | **No** · Sì | Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu principale, cancella il nome, rimette «Chi gioca: Adulto» e (B45.1) **azzera chi gioca come «Nuovo giocatore»** (mano destra, calibrazione e tutorial da capo): **il telefono resta collegato**, niente QR da rifare (prima il chiosco scollegava il telefono col QR, e in fiera sembrava una caduta della rete). Contano come attività clic (anche sui tasti della tastiera a schermo), tasti, rotellina, tocchi, colpi del telefono e comandi del telecomando; (B45.1) anche i gesti e i tocchi sul telefono e il telefono preso in mano; (B39) anche muovere il mouse, e con il pannello, l'abbinamento del telecomando o la diagnostica aperti il chiosco aspetta. Durante una partita aspetta il doppio del tempo, poi chiude la partita. Sotto le voci una riga dice se il chiosco è acceso; (B45.2) sotto di lei, solo se oggi un telefono è caduto, una riga per telefono «Telefono 1: N cadute oggi · motivo più frequente: …» (capitolo 8.4). (B45.2) Con il telefono di un visitatore (QR) il chiosco **non libera il posto**: per collegare un altro telefono serve «Scollega» (capitolo 8.2). | subito |
 | **Ritorno al menu dopo** | 30 s · **45 s** · 60 s · 90 s | Il tempo del chiosco. Giro dei valori: 45 → 60 → 90 → 30 → 45. | subito; conta solo con il chiosco acceso |
 | **Classifica · A schermo intero** | — | Chiude il pannello e mostra in grande la classifica di oggi (scheda «Partite», 10 righe). Le schede dei minigiochi si cliccano, ma non fanno uscire. In partita chiude la partita. (B39) Per uscire: **«× Chiudi»** in alto a destra (compare muovendo il mouse) o di nuovo questa voce, che diventa «Chiudi lo schermo intero»; si torna al menu. Con il chiosco acceso la classifica lasciata in vista resta. | subito · **secondo clic in partita** |
 | **Classifica · Scarica CSV** | — | Salva il file «classifica-natpf-AAAA-MM-GG.csv» con partite e minigiochi di oggi. (B39) Nel programma si salva da solo in **Download › NATPF** (un file con lo stesso nome non si sovrascrive: «… (2).csv»); un avviso nel gioco dice il nome. Nel browser decide il browser. | subito · non dal telecomando |
@@ -574,6 +576,11 @@ e menu del programma: capitolo 12.
 
 - **Un telefono che passa di mano.** Lascialo collegato. Tra un visitatore e l'altro usa «Nuovo giocatore» (o lascia fare
   al chiosco, che dalla B45.1 non scollega più il telefono): non «Telefono · Scollega», che fa rifare il QR.
+- **(B45.2) Con il telefono del visitatore il chiosco non libera il posto.** Azzera chi gioca ma il telefono resta
+  collegato: chi se ne va con la pagina del gioco aperta tiene il posto, e chi arriva dopo vede «C'è già un altro
+  telefono collegato» (e un telefono che si muove in tasca tiene sveglio il chiosco).
+- **(B45.2) Per collegare un altro telefono:** «Scollega» nel riquadro del telefono (pausa → «Telefono · Ricalibra») oppure
+  pannello dello stand → «Telefono: Scollega»; poi il visitatore nuovo inquadra il QR.
 - **Due visitatori insieme.** «Gioca» → «Stesso schermo» → ognuno inquadra il suo QR (Player 1 a sinistra, Player 2 a
   destra). Quando sono pronti tutti e due: conto alla rovescia di 3 secondi, poi (con «Calibrazione: Giocando») gli
   scambi di prova per tutti e due, poi il conto alla rovescia grande e la partita. Il formato in fiera qui è acceso di
@@ -634,11 +641,17 @@ possono cambiare.
 - Oltre i 10 secondi il telefono **si ricollega da solo** appena la rete torna (programma Windows: riprova senza fine;
   versione web: 10 tentativi, poi «Riprova» sul telefono), senza QR e senza rifare la calibrazione. Sul ledwall «Telefono 1
   scollegato · si ricollega da solo» con da quanti secondi.
-- **Perché è caduto.** Pannello dello stand (F9): nella riga dei pulsanti in basso, solo se è successo, «Telefono 1: 3
-  cadute oggi · motivo più frequente: Wi-Fi ferma 10 s» (una riga per telefono). Gli altri motivi: «rete cambiata» (dati
-  mobili, un'altra Wi-Fi), «pagina nascosta» (schermo spento, altra app), «pagina chiusa», ««Ricollega»», «gioco
-  ricaricato», «collegamento chiuso». Il conto riparte ogni giorno. Il dettaglio sta nel registro dello stand (capitolo 9:
-  righe «tel» con motivo, chi se n'è accorto e dove si era).
+- **(B45.2) Pagina del telefono chiusa o «Scollega» toccato sul telefono:** questi non tornano da soli, e il ledwall lo
+  dice: «Telefono 1: pagina chiusa» con «Se non torna tra pochi secondi (pagina ricaricata), inquadra di nuovo il QR», oppure
+  «Telefono 1 scollegato dal telefono · inquadra il QR»; il QR compare subito (nello stesso schermo dentro il riquadro),
+  senza aspettare i 20 secondi degli altri casi.
+- **Perché è caduto.** Pannello dello stand (F9): (B45.2) sotto la riga del chiosco, solo se è successo, «Telefono 1: 3
+  cadute oggi · motivo più frequente: Wi-Fi ferma 10 s» (una riga per telefono, sempre intera). Gli altri motivi: «rete
+  cambiata» (dati mobili, un'altra Wi-Fi), «pagina nascosta» (schermo spento, altra app), «pagina chiusa», ««Ricollega»»,
+  «gioco ricaricato», «collegamento chiuso», ««Scollega» sul telefono». Il conto riparte ogni giorno. Il dettaglio sta nel
+  registro dello stand (capitolo 9: righe «tel» con motivo, chi se n'è accorto e dove si era). (B45.2) «Scollega» fatto
+  dal computer (pannello, telecomando, riquadro del telefono) **non è una caduta** e non si conta; lo schermo del telefono
+  spento conta come «pagina nascosta» (non «Wi-Fi ferma»), una volta sola anche se il telefono torna dopo minuti.
 
 **La rete dello stand** (vale con e senza il B45.1; dall'analisi `docs/b45/telefono-che-si-scollega.md` §6):
 

@@ -2142,3 +2142,40 @@ disconnette e dice "scollegato"». Base natpf-simulator `84992ae` (2026-11-14.2)
 - Non verificato: rete vera della fiera, router veri, telefoni veri (Android e iPhone), Windows vero e ledwall; la prova del
   buio nel browser usa la versione web (PeerJS), i tentativi senza fine della LAN sono provati con i test di unità.
 
+
+## B45.2 · Rifiniture del collegamento dopo la revisione del B45.1 (14/11 sera, ramo `b45-1-collegamento`, documento `docs/b45/b45-1-collegamento.md` §B45.2) · [x] verificato sul ramo, da unire
+Revisione indipendente del B45.1: non ok (`scratchpad/b451/revisione-b45-1.md`, prove del revisore in `scratchpad/rev-b451/`).
+Sul ramo unito con natpf-simulator `401a6d6` (B47 e 2026-11-14.3). Ripreso dal commit `de60c12` «IN CORSO» (limite d'uso,
+salvato dal coordinatore: punti 1–5 e i test nuovi), verificato e completato.
+- [x] **Collegamento** (`site/js/tennis/link.js`, `link-life.js`, `racchetta.js`, `natpf_phone_racket.js`,
+  `natpf_phone_watch.js`, `natpf_ui.js`): «Scollega» dal computer e `useStand` non sono cadute (`conn` tolto prima di
+  chiudere; «drop» di un collegamento vecchio ignorato); controllo di vita con la pagina nascosta → «telefono: pagina
+  nascosta»; racconto del telefono abbinato per collegamento (`link`, `joins`), non entro 20 s (una caduta sola con lo
+  schermo spento a lungo); pagina chiusa e «Scollega» sul telefono: «Telefono 1: pagina chiusa» / «Telefono 1 scollegato
+  dal telefono · inquadra il QR» con il QR subito (gioco singolo), anche l'avviso di «Ricollega il telefono» nel riquadro;
+  `pageGoing` per `pagehide` (racconto «pagina» non sovrascritto); `relinkAt` azzerato a ogni collegamento nuovo.
+- [x] **Pannello dello stand** (`index.html`, `natpf-ui.css`, `natpf_kiosk.js`, `natpf_stand_mouse.js`): riga delle cadute
+  sotto la nota del chiosco, una riga intera per telefono (due colonne a 1920 × 540), file dei pulsanti un poco più strette
+  solo quando c'è (`:has()`); nota del chiosco di nuovo su una riga a 1024 × 600; spiegazione della voce «Modalità
+  chiosco» senza «scollega il telefono».
+- [x] **Body che non scorre** (`natpf-ui.css`, `overflow: clip`): a 720 × 720 il fuoco sul nome faceva scorrere il body di
+  45 px e con lui il gioco e l'avviso della mano (natpf-mano-sicura `AREA=720` 16/17 già sulla 14.3).
+- [x] **Test e prove**: `natpf-tennis/test/natpf-b45-2-rifiniture.test.mjs` (14: punti 1, 2, 3, 6, 7, 11),
+  `tools/test/b45-collegamento.test.mjs` (4 nuovi: forget/stop, pagina nascosta, `relinkAt`, `pagehide`); e2e nuova
+  `tools/e2e/natpf-pannello-cadute.mjs`; `natpf-stesso-schermo-b20` punto 6 al testo nuovo. Prove instabili rese robuste
+  senza indebolirle: `remote-pairing` (aspetta le risposte del gioco; con la firma HMAC rallentata di 60 ms la versione di
+  prima falliva proprio lì, la nuova 18/18), `natpf-telecomando` B35 (la pagina dopo «Salta» fino a 45 s: falliva per
+  `toPage`, non per la partita), `natpf-stesso-schermo-b20` richiamo per nome (pausa «segnale debole» che azzerava il tempo
+  fermo), `natpf-chi-serve` costo del disegno (mediana delle differenze appaiate di 20 giri, stessa soglia).
+- [x] **Programma Windows**: `prova-linux.mjs` conta i controlli riprovati («controlli riprovati: N» nel riepilogo).
+- [x] **Documenti**: `docs/GUIDA_STAND.md` (8.2: con il telefono del visitatore il chiosco non libera il posto, «Scollega»
+  per un altro telefono; 8.4; tabella del pannello), `docs/b45/b45-1-collegamento.md` §B45.2, `docs/PROJECT_MEMORY.md`.
+- Verifiche (commit `7d45ada`, `e3a9429`, `22131ef`; carico della macchina condivisa tra 7 e 11 nelle prove nel browser):
+  gioco 1623/1623, sito 269/269, Windows 51/51, LAN 13/13, build, `audit:legend` uguale alla fase B e alla base; programma
+  Windows su Linux (`prova-linux`, 8 scenari, con `app/registro.json` vuoto) 101/101 · controlli riprovati: 0; nel browser
+  natpf-phone-blackout 11/11, natpf-stesso-schermo-b20 52/52 (due giri), natpf-stesso-schermo-b25 55/55 (prima 54/55),
+  natpf-menu 45/45, natpf-b47-fiera 20/20, natpf-split-ready 34/34, natpf-scambi-di-prova 30/30, natpf-training-reconnect
+  6/6, natpf-tutorial-relink 9/9, natpf-nuovo-giocatore 28/28, natpf-mano-sicura 17/17 e con `AREA=720` 17/17 (prima
+  16/17), natpf-telecomando 91/91, natpf-chi-serve 64/64 (costo +0,1 ms), natpf-fine-partita 47/47, natpf-pannello-cadute
+  33/33. Il solo `de60c12`: gioco 1620/1620, sito 269/269.
+- Non verificato: telefoni veri, rete vera della fiera, Windows vero con tastiera vera, ledwall.

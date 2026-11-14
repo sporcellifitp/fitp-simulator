@@ -193,3 +193,115 @@ riaccendere il chiosco (pannello → «Modalità chiosco: Sì»), il telefono co
 - La prova nel browser del buio usa la versione web (PeerJS) e non il server LAN del programma Windows: il controllo di
   vita e le scritte sono gli stessi, i tentativi senza fine della LAN sono provati con i test di unità.
 - Su Chrome per Android il tipo di rete (`navigator.connection.type`) c'è; su iPhone no: lì vale solo l'evento `online`.
+
+---
+
+## B45.2 · dopo la revisione (14/11, sera)
+
+La revisione indipendente del B45.1 (fase A e fase B) ha detto **non ok**: nessun difetto fa tornare le cadute, ma alcuni
+motivi erano sbagliati o contati due volte, una scritta del ledwall non era vera e una prova del repository era rossa.
+Il blocco B45.2 li sistema tutti, sullo stesso ramo (`b45-1-collegamento`), con natpf-simulator unito prima (B47 e la
+2026-11-14.3). I punti 1–3 erano già nella 14.3 pubblicata.
+
+### In breve (per l'utente)
+
+- **«Scollega» fatto dallo staff non è più una caduta.** Prima «Telefono: Scollega» (pannello, telecomando) e
+  «Scollega» del riquadro del telefono contavano una caduta «collegamento chiuso» nel pannello e una riga «caduto» nel
+  registro.
+- **Schermo del telefono spento: il motivo giusto, una volta sola.** Prima il pannello diceva «Wi-Fi ferma 10 s» (lo staff
+  avrebbe cercato il problema nella rete) e, se lo schermo restava spento più di mezzo minuto, la stessa caduta si contava
+  due volte. Ora «pagina nascosta», una volta.
+- **Pagina del telefono chiusa: il ledwall lo dice.** «Telefono 1: pagina chiusa» con «Se non torna tra pochi secondi
+  (pagina ricaricata), inquadra di nuovo il QR», e il QR subito; «Scollega» toccato sul telefono: «Telefono 1 scollegato
+  dal telefono · inquadra il QR». Prima diceva «si ricollega da solo» e il QR arrivava dopo 20 s.
+- **Pannello dello stand:** la riga delle cadute ha un posto suo sotto la nota del chiosco, una riga intera per telefono,
+  mai tagliata (anche nel programma Windows e con due telefoni); il foglio non scorre a 1024 × 600.
+- **Guida dello stand:** con il telefono del visitatore il chiosco non libera il posto: per un altro telefono «Scollega»
+  (capitolo 8.2).
+
+### I punti, uno per uno
+
+| # | Cosa non andava | Correzione | Dove | Prova |
+|---|---|---|---|---|
+| 1 | «Scollega» dal computer (`link.forget()`, `link.stop()` di `useStand`) passava dal gestore della chiusura con `conn` ancora impostato (PeerJS e la LAN chiudono subito): caduta «chiuso» contata e stato «lost» → riga «caduto» | `conn` tolto prima di chiudere (come già nel ramo dello stand e nel controllo di vita); la racchetta ignora i «drop» di un collegamento che non è più il suo (`this.link !== link`) | `site/js/tennis/link.js`, `natpf_phone_racket.js` | `tools/test/b45-collegamento.test.mjs` (forget/stop: nessun «drop», mai «lost»); `natpf-b45-2-rifiniture.test.mjs` 1 (pannello, riquadro del telefono, `useStand`: niente nel pannello, nel registro «scollegato») |
+| 2 | Silenzio di 10 s con l'ultimo segnale del telefono a pagina nascosta: motivo «silenzio» («Wi-Fi ferma 10 s»); il racconto del telefono si abbinava solo entro 20 s, e con lo schermo spento più a lungo diventava una seconda caduta | `silenceMotivo({ hidden: L.vis === false })` → «telefono: pagina nascosta»; il racconto (`_onStory`) chiarisce la caduta del collegamento di prima (stesso `link`, ingresso `joins − 1`) a qualunque distanza; diventa una caduta nuova solo se il computer non ne ha già una di quel telefono dall'ultimo collegamento. Tolto `STORY_MATCH_MS` | `link-life.js`, `link.js`, `natpf_phone_racket.js` | test di unità di `silenceMotivo` e del controllo di vita con `vis 0`; `natpf-b45-2-rifiniture` 2 (schermo spento un minuto: una caduta, «pagina nascosta» anche al ritorno; «rete cambiata» chiarita dopo 2 minuti senza doppioni; racconto di una caduta che il computer non ha visto) |
+| 3 | Pagina chiusa (`cl pagina`) o «Scollega» sul telefono (`cl scollega`): il riquadro diceva «scollegato · si ricollega da solo», QR dopo 20 s; prova `natpf-stesso-schermo-b20` rossa al punto 6 | `goneHold`/`GONE_HOLDS` in `natpf_phone_watch.js`: titolo e testo dal motivo (`dropMotivo` della racchetta, solo finché il telefono non rientra); gioco singolo: pannello con il QR subito; stesso schermo: QR nel riquadro come prima. Anche l'avviso di «Ricollega il telefono» nel riquadro non dice più «si ricollega da solo» in questi due casi | `natpf_phone_watch.js`, `natpf_phone_racket.js`, `natpf_ui.js` | `natpf-b45-2-rifiniture` 3 (quattro casi); e2e b20 punto 6 aggiornato: «Telefono di Giulia: pagina chiusa» con il QR |
+| 4 | `pagehide` scriveva il racconto «pagina» e poi chiudeva: la chiusura (sincrona) passava da `lost()`, che lo riscriveva «chiuso» o «nascosta» | `pageGoing()`: «cl», poi `lost('pagina')` (stesso lavoro di prima: canali chiusi, stato «lost», nuovo tentativo se la pagina torna dalla memoria del browser), poi la chiusura, che ormai non è più del collegamento | `racchetta.js` | `b45-collegamento.test.mjs` (racconto salvato «pagina» anche a pagina nascosta, detto una volta al rientro) |
+| 5 | `relinkAt` mai azzerato: per 15 s dopo un «Ricollega» ogni chiusura del collegamento nuovo risultava «ricollega» | azzerato in `enter()` (collegamento nuovo) | `link.js` | `b45-collegamento.test.mjs` |
+| 6 | Riga delle cadute nella riga dei pulsanti in basso: tagliata con due telefoni, con «Schermo del gioco», a 1920 × 1080 e a 720 × 720 (larga 6 px nel programma); a 1024 × 600 con il chiosco e tre opzioni accese il foglio scorreva di 5 px | riga sua sotto la nota del chiosco, una riga intera per telefono (nelle aree larghe e basse in due colonne), carattere con un massimo; con la riga in vista le file dei pulsanti si stringono un poco dove l'altezza è poca (`:has()`); nota del chiosco di nuovo su una riga a 1024 × 600 (la frase della B45.1 andava a capo) | `index.html`, `natpf-ui.css`, `natpf_kiosk.js` | e2e nuova `tools/e2e/natpf-pannello-cadute.mjs` (web e programma, uno e due telefoni, opzioni spente e accese, sei misure); `natpf-stesso-schermo-b25` 55/55 |
+| 7 | Nessun test del repository per il chiosco che conta gesti, tocchi e telefono mosso | tre test (attività dal telefono, telefono mosso, collegamento vero con i messaggi del telefono; «a riposo»; il chiosco non scollega) | — | `natpf-b45-2-rifiniture` 7 |
+| 8 | La guida non diceva che con il telefono del visitatore il chiosco non libera più il posto | capitolo 8.2: due righe (il posto resta, «C'è già un altro telefono collegato»; per un altro telefono «Scollega» nel riquadro del telefono o «Telefono: Scollega» nel pannello); tabella del pannello e 8.4 | `docs/GUIDA_STAND.md` | — |
+| 9 | Alt in finestra corretto solo nella prova: un Alt riprovato diventava un «ok» | `prova-linux.mjs` conta i controlli riprovati e li scrive nel riepilogo («controlli riprovati: N», con i nomi). Il gioco non blocca Alt; **con un Windows vero e una tastiera vera non è provato** | `natpf-desktop/scripts/prova-linux.mjs` | giro completo della prova |
+| 10 | Prove instabili sotto carico | vedi sotto: si aspetta la condizione, la misura è la stessa | test e prove nel browser | — |
+| 11 | (dalla B41) `natpf-mano-sicura` con `AREA=720` 16/17: avviso della mano a y 256 invece che al centro | causa: il fuoco sul nome in fondo alla pagina dei telefoni faceva scorrere il **body** (che con `overflow: hidden` è un riquadro che scorre) di 45 px; nell'area del ledwall il body è il riferimento degli elementi `fixed`, quindi l'avviso saliva con tutto il gioco (testata tagliata, fascia vuota in basso). Ora `overflow: clip`: il body non scorre più, le pagine lunghe scorrono nei loro riquadri come prima | `natpf-ui.css` | `natpf-mano-sicura` con `AREA=720` 17/17; `natpf-b45-2-rifiniture` 11 |
+
+In più, trovato strada facendo: la spiegazione della voce «Modalità chiosco» (riga sotto le voci, B39.3) diceva ancora
+«… e scollega il telefono»; ora «… azzera chi gioca …; il telefono resta collegato».
+
+### Prove instabili sotto carico (punto 10)
+
+Per ognuna: cosa cambia e perché non nasconde un difetto.
+
+- **`tools/test/remote-pairing.test.mjs` «chiave sbagliata, risposta riusata».** Le risposte del gioco passano dalla prova
+  della chiave (HMAC, asincrona); il test le leggeva dopo 30–40 ms fissi e con la macchina carica non c'erano ancora
+  («got[0] undefined»). Ora aspetta che arrivino (al più 4 s) e controlla gli stessi messaggi nello stesso ordine; i
+  comandi mandati prima della prova ora si guardano dopo che il gioco ha chiuso il collegamento (prima dopo 30 ms: il
+  controllo poteva passare anche senza che il gioco li avesse letti). Più severo di prima, non meno.
+- **`tools/e2e/natpf-telecomando.mjs` «B35: Salta dal telecomando».** Il controllo falliva per `toPage` (la pagina
+  «Pronto per la partita» non arrivava entro 15 s), non per la partita: dopo «Salta» gli scambi di prova si chiudono in
+  0,35 s di tempo del *gioco*, e con la grafica in software a pochi fotogrammi al secondo (ognuno al più 0,08 s di gioco)
+  ci volevano più di 15 s. Si aspetta la stessa pagina fino a 45 s; il dettaglio del controllo ora scrive anche `toPage` e
+  il numero delle partite di partenza. Se la pagina non arriva o una partita parte, fallisce come prima.
+- **`tools/e2e/natpf-stesso-schermo-b20.mjs` «richiamo per nome».** La prova metteva il tempo fermo a 9,2 s e aspettava
+  5 s il ciclo del gioco; sotto carico la pagina di un telefono tarda, la partita va in pausa «segnale debole» (B45.1) e il
+  tempo fermo riparte da zero, e la scritta (giusta) arrivava dopo i 5 s. Ora aspetta la partita non in pausa al servizio,
+  dà al riquadro il tempo fermo e lo fa girare una volta, poi aspetta la scritta (al più tre volte se una pausa la toglie;
+  il numero di giri va nel dettaglio). Le misure (a tutta larghezza, sotto i tabelloni, centrata) sono le stesse; i 9 s
+  veri li provano i test del gioco (`natpf-b20-stesso-schermo`).
+- **`tools/e2e/natpf-chi-serve.mjs` «B37.1 costo del disegno».** Prima: mediana di 10 giri del disegno con il riquadro
+  spento, mediana di 10 con il riquadro acceso, e la differenza delle due (prese in momenti diversi: il carico che sale e
+  scende tra una e l'altra pesava, 1,34 ms contro la soglia di 1 ms). Ora 20 giri, in ogni giro le due misure una dopo
+  l'altra (una volta prima lo spento, una volta prima l'acceso), e il costo in più è la mediana delle differenze di ogni
+  giro. Stessa soglia (1 ms): un costo vero in più c'è in ogni giro e resta nella mediana; si toglie solo il carico che
+  pesa uguale sulle due misure di un giro.
+
+### Prove della B45.2
+
+Sul codice finale del ramo (commit `7d45ada`, `e3a9429`, `22131ef`), macchina condivisa con un altro agente (carico
+indicato per le prove nel browser):
+- **Gioco 1623/1623, sito 269/269**, `natpf-b45-2-rifiniture` 14/14, Windows 51/51, LAN 13/13, build, `audit:legend`
+  uguale alla fase B e alla base («Tutti i criteri rispettati»). Il commit «IN CORSO» `de60c12` da solo: gioco 1620/1620,
+  sito 269/269.
+- **Programma Windows su Linux** (`prova-linux`, 8 scenari, dopo `prepara.mjs` e `app/registro.json` vuoto, con il lucchetto
+  della LAN): **101/101 · controlli riprovati: 0**.
+- **Nel browser** (porte 4101–4108; telecomando con il suo lucchetto): natpf-phone-blackout 11/11, natpf-stesso-schermo-b20
+  52/52 due volte (carico 1–5 e 8), natpf-stesso-schermo-b25 **55/55** (prima 54/55: il
+  foglio a 1024 × 600 con le opzioni accese scorreva di 5 px), natpf-menu 45/45, natpf-b47-fiera 20/20, natpf-split-ready
+  34/34, natpf-scambi-di-prova 30/30, natpf-training-reconnect 6/6, natpf-tutorial-relink 9/9, natpf-nuovo-giocatore 28/28,
+  natpf-mano-sicura 17/17 e con `AREA=720` **17/17** (prima 16/17), natpf-telecomando **91/91** (carico 7–11; «Salta» con `toPage` vero), natpf-chi-serve **64/64** (costo del
+  disegno: in più 0,1 ms, mediana delle differenze di 20 giri), natpf-fine-partita 47/47, natpf-pannello-cadute **33/33** (nuova),
+  quasi tutte con il carico della macchina tra 7 e 11.
+- **Schermate guardate**: pannello dello stand a 1024 × 600, 720 × 720, 1920 × 540 (due colonne) e 1920 × 1080, web e
+  programma, con due telefoni e le opzioni accese (`OUT/pannello-cadute/`); riquadro «Telefono di Giulia: pagina chiusa» con
+  il QR (`OUT/stesso-schermo-b20/6-telefono-caduto-1280.png`); avviso della mano al centro a 720 × 720
+  (`OUT/mano-sicura-720/2-avviso-mano-telefono-1.png`).
+- **Le prove del revisore** (`scratchpad/rev-b451/`): `forget-drop`, `forget-states`, `nascosta-silenzio`, `relink-stale` e
+  `chiosco-attivita` ora danno il comportamento giusto. `doppia-caduta` simula il racconto del telefono senza un ingresso
+  nuovo del telefono (nel gioco vero il racconto arriva solo nel primo «dev» dopo un benvenuto): con l'abbinamento per
+  collegamento conta due cadute, ed è giusto, perché senza un ingresso nuovo il racconto non può essere di quella caduta; il
+  caso vero (cade, resta via un minuto, rientra, racconta) è nel test 2 di `natpf-b45-2-rifiniture` con il collegamento vero:
+  una caduta. `pagehide-story` cercava il vecchio gestore in linea di `pagehide` (ora `pageGoing`): lo stesso controllo è
+  nel test B45.2 di `b45-collegamento.test.mjs`.
+
+### Non fatto, e perché
+
+- Un telefono col QR che passa al posto dello stand (`useStand`) nella **stessa scheda** entro 10 minuti potrebbe ancora
+  raccontare al posto nuovo la chiusura di prima come caduta «chiuso» (fonte telefono): `link.stop()` non lo dice al
+  telefono (un «bye» farebbe dimenticare la chiave anche ai telefoni dello stand quando si spegne la modalità fiera). Caso
+  raro (si fa una volta, all'allestimento); il computer non la conta più come sua caduta.
+- Un telefono **a riposo** (chiosco già azzerato) che cade e si ricollega da solo passa da «sensori» a «pronto» e questo
+  conta come attività: il chiosco rifà un azzeramento 30–45 s dopo (nota del revisore, senza danni: chi gioca è già
+  azzerato). Lasciato com'è: distinguere un ricollegamento da una persona che prende il telefono vuole una regola in più.
+- Non provato: telefoni veri (Android, iPhone), la rete vera della fiera, Windows vero con una tastiera vera (Alt in
+  finestra), il ledwall. Le prove nel browser usano pagine del telefono simulate e una rete finta nella pagina; il
+  programma Windows è provato su Linux con Xvfb.
