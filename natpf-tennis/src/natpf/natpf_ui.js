@@ -660,12 +660,16 @@ export class NatpfUi {
   _refreshPhoneHold(){
     const why = this.phoneHold?.why;
     if (this.phoneWatch.state !== 'paused' || !why) return;
+    let gone = false;
     if (why === 'pagina nascosta' || why === 'scollegato' || why === 'segnale debole'){
-      const v = this._phoneHoldView(why);
+      const v = this._phoneHoldView(why); gone = !!v.gone;
       if (`${v.title}\n${v.text}` !== this.phoneHoldShown) this._paintPhoneHold(why, v);
     }
-    if (why === 'scollegato' && !this.phone.connected && this.phone.state.vis !== false && !this.phoneDropOpened && !this.engine.natpfSplit?.active
-      && this.modal?.classList.contains('hidden') && performance.now() - (this.phoneHold.at ?? 0) >= PANEL_AFTER_MS){ this.phoneDropOpened = true; this.openPhone(); }
+    // B45.2 (revisione del B45.1, punto 3): pagina del telefono chiusa o «Scollega» toccato sul telefono (gone: il computer
+    // lo sa dalla parola «cl»): il telefono non torna da solo, il pannello con il QR si apre subito, anche se prima la pagina
+    // era nascosta. Una pagina solo ricaricata rientra in pochi secondi e il pannello aperto così si chiude da solo
+    if (why === 'scollegato' && !this.phone.connected && (gone || this.phone.state.vis !== false) && !this.phoneDropOpened && !this.engine.natpfSplit?.active
+      && this.modal?.classList.contains('hidden') && (gone || performance.now() - (this.phoneHold.at ?? 0) >= PANEL_AFTER_MS)){ this.phoneDropOpened = true; this.openPhone(); }
   }
   // B45.1: titolo, testo e riga del riquadro della pausa del telefono (natpf_phone_watch.phoneHoldView: «Telefono 1: segnale
   // debole, aspetto che torni…», «Telefono 1 scollegato · si ricollega da solo» con il tempo; nello stesso schermo il nome)

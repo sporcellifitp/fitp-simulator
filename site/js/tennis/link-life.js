@@ -96,6 +96,13 @@ export function closeMotivo({ said = null, saidAgeMs = Infinity, relinkAgeMs = I
   if (Number.isFinite(silentMs) && silentMs >= CLOSE_RECENT_MS.silent) return { motivo: 'silenzio', causa: failed ? 'computer' : 'telefono' };
   return { motivo: 'chiuso', causa: failed ? 'computer' : 'telefono' };
 }
+// B45.2 (revisione del B45.1, punto 2) · Motivo di una caduta decisa dal controllo di vita del computer (silenzio per
+// LIFE.silentMs): se l'ultimo segnale del telefono diceva pagina nascosta (hidden: schermo spento, altra app) il motivo è
+// quello, non la rete. Prima era sempre «silenzio» («Wi-Fi ferma 10 s» nel pannello): in fiera lo schermo spento tra un
+// visitatore e l'altro mandava lo staff a cercare nella rete. → { motivo, causa } come closeMotivo
+export function silenceMotivo({ hidden = false } = {}){
+  return hidden ? { motivo: 'telefono: pagina nascosta', causa: 'telefono' } : { motivo: 'silenzio', causa: 'computer' };
+}
 // Telefono che si muove (per il chiosco: chi prende in mano il telefono è qualcuno allo stand): velocità di rotazione oltre
 // MOVE.dps gradi al secondo su un asse. Un telefono sul tavolo sta sotto 1, in una mano ferma qualche grado al secondo
 export const MOVE = Object.freeze({ dps: 25 });
