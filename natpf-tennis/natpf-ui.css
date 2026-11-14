@@ -2262,3 +2262,10 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
   #title-modal[data-fair="1"] [data-page="match"] .lobby-row { min-height: 44px; padding-block: 4px; }
   #title-modal[data-fair="1"] .fiera-bar .lobby-seg .seg-btn { height: clamp(36px, 6cqh, 60px); }
 }
+/* B41.4: con «Modalità fiera» le voci del pannello dello stand sono 16 e a 720 × 720 (tre colonne) le file diventano sei:
+   con le quattro opzioni del B25 accese (scritte più lunghe, nota del chiosco su due righe) il foglio scorreva di 28 px e
+   «Chiudi» finiva sotto il bordo (con 15 voci e cinque file stava). Pulsanti un poco più bassi in quell'area: restano
+   bersagli di 48 px (più di 5,5 cqh), «Chiudi» con 50 px di margine (sonda del pannello, prova natpf-stesso-schermo-b25) */
+@container natpf (max-width: 820px) and (max-height: 760px) {
+  .natpf-sheet.staff-sheet .pause-grid button { min-height: 48px; padding: 5px 10px; }
+}

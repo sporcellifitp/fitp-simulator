@@ -74,10 +74,14 @@ try {
     const cut = btn.filter(x => x.scrollWidth > x.clientWidth + 1 || x.scrollHeight > x.clientHeight + 1).map(x => x.dataset.staff);
     return { scroll: s.scrollHeight - s.clientHeight, top: Math.round(r.top), bottom: Math.round(r.bottom), close: [Math.round(c.top), Math.round(c.bottom)], nuovo: [Math.round(n.top), Math.round(n.bottom)], file: tops.size, pulsanti: btn.length, H: innerHeight, margine: Math.round(innerHeight - Math.max(c.bottom, n.bottom)), tagliati: cut };
   });
+  // (B41: misure con il puntatore fuori dal pannello. La riga sotto le voci spiega la voce sotto il puntatore, B39.3, e
+  // allunga il foglio: dopo i clic e i cambi di misura il puntatore restava su una voce a caso e la misura dipendeva da
+  // quale. Quel caso è un difetto a parte, già della 14.3: docs/b41/modalita-fiera-2.md §6)
+  await g.mouse.move(1, 1);
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720], [1920, 1080]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: quindici pulsanti (dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo», dal B47 «Battuta»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 15 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: sedici pulsanti (dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo», dal B47 «Battuta», dalla B41 «Modalità fiera»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 16 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -96,10 +100,11 @@ try {
   // revisione: anche con le opzioni ACCESE (scritte più lunghe) e il chiosco acceso (nota su due righe): a 720×720 il
   // foglio scorreva di 6 px
   for (const k of ['hot', 'kiosk', 'autotoss', 'open']){ await g.click(`#natpf-staff [data-staff="${k}"]`); await sleep(120); }
+  await g.mouse.move(1, 1);
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 15 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 16 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     if (h === 720 && w === 720 || h === 540) await shot(`1c-pannello-stand-accesi-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);

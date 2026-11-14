@@ -86,10 +86,12 @@ try {
     const c = b('[data-staff="close"]'), n = b('[data-staff="newplayer"]'), tops = new Set([...s.querySelectorAll('.pause-grid > button')].map(x => Math.round(x.getBoundingClientRect().top)));
     return { scroll: s.scrollHeight - s.clientHeight, top: Math.round(r.top), bottom: Math.round(r.bottom), close: [Math.round(c.top), Math.round(c.bottom)], nuovo: [Math.round(n.top), Math.round(n.bottom)], file: tops.size, pulsanti: s.querySelectorAll('.pause-grid > button').length, H: innerHeight, margine: Math.round(innerHeight - r.bottom) };
   });
+  // (B41: puntatore fuori dal pannello: la spiegazione della voce sotto il puntatore, B39.3, allunga il foglio)
+  await g.mouse.move(1, 1);
   for (const [w, h] of [[1280, 720], [1920, 540], [1024, 600], [1366, 657], [1920, 1080], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: quindici pulsanti (dodici dal B25, dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo», dal B47 «Battuta»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 15 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: sedici pulsanti (dodici dal B25, dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo», dal B47 «Battuta», dalla B41 «Modalità fiera»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 16 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
     if (w === 1920 && h === 540 || w === 1024) await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
