@@ -86,7 +86,11 @@ const SETTINGS = path.join(NATPF, DESKTOP.settingsFile);
 const LOGFILE = path.join(NATPF, 'log/programma.log');
 const results = [];
 let current = '';
-const check = (name, ok, detail = '') => { results.push({ name: `${current}: ${name}`, ok: !!ok, detail }); console.log(`${ok ? 'ok    ' : 'NON OK'} ${name}${detail ? ` · ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`); };
+// B45.2 (revisione del B45.1, punto 9): un controllo che ha dovuto riprovare (dettaglio «riprovato», per ora l'Alt che
+// nasconde la barra del menu) si conta e si scrive nel riepilogo finale, «controlli riprovati: N», anche se è passato:
+// un Alt perso ogni tanto non deve sparire dentro un «ok». Con un Windows vero e una tastiera vera non è provato
+const retried = [];
+const check = (name, ok, detail = '') => { results.push({ name: `${current}: ${name}`, ok: !!ok, detail }); if (detail && typeof detail === 'object' && detail.riprovato) retried.push(`${current}: ${name}`); console.log(`${ok ? 'ok    ' : 'NON OK'} ${name}${detail ? ` · ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`); };
 const readLog = () => { try { return fs.readFileSync(LOGFILE, 'utf8'); } catch { return ''; } };
 const readSaved = () => { try { return JSON.parse(fs.readFileSync(SETTINGS, 'utf8')); } catch { return {}; } };
 const count = (text, what) => text.split(what).length - 1;
@@ -718,5 +722,6 @@ try {
 }
 const bad = results.filter(r => !r.ok);
 if (bad.length) console.log(`\nNon superati:\n${bad.map(r => `  ${r.name}`).join('\n')}`);
-console.log(`\n${results.length - bad.length}/${results.length} controlli superati (${chosen.join(', ')})${ownData && !args['tieni-dati'] ? '' : ` · dati in ${DATI}`}`);
+if (retried.length) console.log(`\nRiprovati (passati al secondo tentativo):\n${retried.map(r => `  ${r}`).join('\n')}`);
+console.log(`\n${results.length - bad.length}/${results.length} controlli superati (${chosen.join(', ')}) · controlli riprovati: ${retried.length}${ownData && !args['tieni-dati'] ? '' : ` · dati in ${DATI}`}`);
 process.exit(bad.length ? 1 : 0);
