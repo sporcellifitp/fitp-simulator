@@ -119,7 +119,7 @@ SEGNO; `causa: 'calibrazione'` con `inPartita` = la calibrazione rifatta a metà
   servizio, `sgn` nel collegamento, i pezzi di `racchetta.js`). `tools/e2e/gesture-calibration.mjs` aggiornato ai due tocchi.
 - **Nel browser**: `tools/e2e/natpf-mano-sicura.mjs` (nuova; gioco vero e due pagine vere del telefono, «Giocando»): 17/17 a
   1280×720 e a 720×720 (`AREA=720`). Le schermate qui sopra vengono da lì.
-- Numeri della verifica finale: in fondo.
+- Numeri della verifica finale: qui sotto.
 
 ## Non verificato
 
@@ -149,3 +149,20 @@ SEGNO; `causa: 'calibrazione'` con `inPartita` = la calibrazione rifatta a metà
   della pagina) nasconde `window.screen`, quindi `lockOrientation()` non blocca mai l'orientamento (`screen.orientation`
   è `undefined`) e il messaggio «dev» manda `or: null` e `sc: [undefined, undefined, dpr]`. Da sistemare a parte, con una
   prova su telefoni veri (bloccare davvero l'orientamento cambia il comportamento a schermo intero).
+
+## Verifica finale (14/11, sul ramo, `09a97ed`)
+
+- Gioco **1576/1576** (`npm test`; in un giro con il carico della macchina a 11 due prove a tempo del registro, «testi enormi»,
+  erano andate oltre il limite: da sole 48/48, e nel giro dopo tutte verdi). Sito **254/254**. Build riuscito.
+- `npm run audit:legend`: **identico** all'uscita di `int-b38-b39` (`scratchpad/int/legend-unito.txt`), 69 criteri OK.
+- Nel browser (`CHROMIUM_PATH=/opt/pw-browsers/chromium`, porte 4110–4115, una prova alla volta): natpf-stesso-schermo-b20
+  **49/49** (con il carico a 7–13 due giri a 41/49 e 34/49 su richiamo e icona del servizio, che sono passeggeri; la base
+  nello stesso momento 46/49 sugli stessi controlli; da sola verde), natpf-stesso-schermo-b25 **53/54** (lo stesso KO della
+  base: pannello dello stand a 720×720 con 4 opzioni accese, scorre di 38 px), natpf-split-ready **34/34**,
+  natpf-scambi-di-prova **30/30**, natpf-nuovo-giocatore **28/28**, natpf-tutorial-phone **46/46**, natpf-phone-upright
+  **10/10**, natpf-flusso-tocchi **5/5**, natpf-fiera-telefoni **38/38**, natpf-menu **45/45**, natpf-tastiera-schermo
+  **53/53** (con il carico a 8–12 la schermata andava oltre i 30 s: rilanciata da sola), natpf-solo-mouse **42/42**,
+  natpf-mano-sicura **17/17** (1280×720) e **17/17** (720×720), gesture-calibration **21/21** (con copie temporanee sulle porte
+  4114/4115: lo script usa 8765/9000).
+- Non eseguiti: test del server LAN e del programma Windows (il B46 non li tocca).
+

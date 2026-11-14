@@ -2051,6 +2051,11 @@ dice quale se ricapita.
   parole). Verifiche: test della diagnostica 43/43, `natpf-b46-lato-sicuro` 10/10.
 - [x] B46.5 · documenti: `docs/b46/lato-sicuro.md` (perché, cosa cambia, come si attiva, prove, limiti), questa voce,
   `docs/PROJECT_MEMORY.md` (sezione B46), `docs/GUIDA_STAND.md` (riga «Giochi con la mano»).
+- [x] Verifica finale sul ramo (`09a97ed`): gioco **1576/1576**, sito **254/254**, build ok, `audit:legend` identico a quello di
+  `int-b38-b39`; nel browser stesso-schermo-b20 49/49 (da sola: sotto carico 41/49, come la base sugli stessi controlli
+  passeggeri), stesso-schermo-b25 53/54 (KO della base), split-ready 34/34, scambi-di-prova 30/30, nuovo-giocatore 28/28,
+  tutorial-phone 46/46, phone-upright 10/10, flusso-tocchi 5/5, fiera-telefoni 38/38, menu 45/45, tastiera-schermo 53/53
+  (rilanciata da sola), solo-mouse 42/42, mano-sicura 17/17 e 17/17 (720×720), gesture-calibration 21/21.
   Non verificato: telefoni veri (Android, iPhone), programma Windows, ledwall vero, pagine del telefono rimaste in cache
   con la versione di prima. Punto aperto per il coordinatore: segno imparato rimesso a +1 (deciso) o girato (esatto se
   il telefono passa da giusto a sbagliato tra gli scambi di prova e la partita: documento, «Limiti»).
