@@ -883,3 +883,21 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
 - Dal 14/11 pomeriggio i commit del coordinatore finiscono con «Co-Authored-By: Claude Fable 5.2» (modello cambiato
   dall'utente); gli agenti già partiti tengono la riga di prima.
 
+**14/11, 18:15 UTC · versione 2026-11-14.3 = B47 (fiera subito) + B45.1 fase A (telefono che non si scollega).**
+- [x] B45.1 fase A pronta (`506ec41`, ramo `b45-1-collegamento`): controllo di vita a 10 s con ogni messaggio come segno
+      di vita sui due lati (`site/js/tennis/link-life.js`), lato fermo che prima legge la coda, «Ricollega» automatico solo
+      se il telefono risponde, racchetta col QR che riprova senza fine in LAN, chiosco che non scollega più i telefoni
+      (azzera solo chi gioca) e conta i messaggi del telefono come attività, riquadro «Telefono 1: segnale debole, aspetto
+      che torni…» e poi «scollegato · si ricollega da solo», primo racconto dei motivi delle cadute (`natpf_cadute.js`).
+- [x] Unita in natpf-simulator sopra B47 (`beaeead`; un solo conflitto, gli import di natpf_kiosk.js). Sul codice unito:
+      gioco 1609/1609, sito 265/265, Windows 51/51, LAN 13/13, build ok; nel browser natpf-phone-blackout 10/10 (bui di 3 e
+      7 s: nessuna caduta, la partita riprende da sola; 12 s: caduta dopo 10 s e ritorno da solo in ~3 s senza QR),
+      split-ready 34/34, scambi-di-prova 30/30, b47-fiera 20/20, mano-sicura 17/17, fine-partita 47/47. Schermate guardate
+      (conto alla rovescia, scelta del livello). Sul solo B47 unito: chi-serve 64/64, `audit:legend` 69 OK; b20 51/52, b25
+      54/55 e split-ready 32/34 sotto carico 10 (controlli di tempi: split-ready rifatta 34/34; b20 e b25 da rifare da sole).
+- [~] Versione 2026-11-14.3 (controllo dopo il cambio: sito 265, Windows 51, 55 test del gioco sulla versione, build ok):
+      push, zip Cloudflare, installer dal link fisso, «come si attiva» all'utente (la pagina del telefono va ricaricata).
+- [~] In corso: B45.1 fase B (motivi delle cadute nel pannello e nel registro, rifiniture della 14.2, tasto Alt in
+      finestra, documenti) → 14.4; B41 seconda parte (`b41-fiera-2`).
+- Non provato: rete vera di una fiera, telefoni veri, Windows, ledwall. La 14.3 va confermata dall'utente allo stand.
+
