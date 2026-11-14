@@ -798,4 +798,17 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
       voto del rilevatore del telefono con il verso atteso (`swing-detect.js` ≈414, messaggio «ex» con il segno del gioco),
       segno degli scambi di prova (`natpf_trial_learn.js`, `natpf_phone_racket.js` ≈800 `ballSideNow`). Bisezione tra le
       versioni 13.7 → 14.1 con il telefono simulato. Worktree e appunti in `scratchpad/swap/`, porte 4300–4499.
-- Poi: correzione con test (blocco piccolo), versione nuova, zip, installer, «come si attiva». B38+B44 e B39 continuano.
+- **Risposte dell'utente (domande a scelta)**: telefono **Android**; modalità **stesso schermo**; giocatore con il problema
+      **quello di sinistra (Telefono 1 = Player 1)**; **dal primo colpo**; «Calibrazione» **Giocando**. Prima indagine
+      fermata e rilanciata con questi dati: workflow `dritto-rovescio-scambiati-stesso-schermo` (run `wf_a5f1f725-dce`),
+      cinque indagini → sintesi → tre verifiche; risultati in `scratchpad/swap/<nome>/RISULTATO.md`.
+- [x] B38 + «Gioca come Ospite» + B44 finiti sul ramo `b38-tastiera` (`c81b3d5`; gioco 1543, sito 248, Windows 43, 11 prove
+      nel browser verdi, b25 53/54 come sulla base). B39 finito sul ramo `b39-solo-mouse` (`f5046fb`; gioco 1542, sito 248,
+      Windows 51, LAN 13, Electron Linux 101/101, natpf-solo-mouse 42/42). Schermate guardate: a posto.
+- [~] Unione B38+B39 (workflow `unione-b38-b39`, run `wf_dfd6c3fe-395`) nel ramo nuovo `int-b38-b39`, worktree
+      `scratchpad/int/wt`, porte 4100–4199, poi revisione indipendente. Niente push del ramo: si porta in natpf-simulator
+      con la versione.
+- Poi: correzione di dritto e rovescio con test sopra `int-b38-b39`, versione 2026-11-14.2 con tutto (se l'indagine va per
+  le lunghe: prima B38+B39, poi la correzione), zip, installer, «come si attiva». Poi la B41 seconda parte.
+- Se il contenitore si riavvia: `git -C scratchpad/int/wt log`/`status`, `scratchpad/int/notes.md`; risultati delle
+  indagini in `scratchpad/swap/`; rilanciare gli script con una sezione «RIPRESA».
