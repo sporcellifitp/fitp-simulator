@@ -32,7 +32,7 @@ import { NatpfKiosk } from './natpf_kiosk.js';
 import { NatpfRemote } from './natpf_remote.js';
 import { NatpfFiera } from './natpf_fiera.js';
 import { NatpfReadyGo } from './natpf_ready_go.js';
-import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldView, phoneOf, holdTitle, otherPhoneNote, PANEL_AFTER_MS } from './natpf_phone_watch.js';
+import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldView, phoneOf, holdTitle, otherPhoneNote, PANEL_AFTER_MS, GONE_HOLDS, goneHold } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
 import { PHOTOS } from './natpf_media.js';
@@ -790,6 +790,9 @@ export class NatpfUi {
     return { label: 'Ricollega il telefono', who, run: () => {
       if (phone?.relink?.()) this.toast(`${who ? who + ': ' : ''}ricollego il telefono…`);
       else if (phone === this.phone && !this.engine.natpfSplit?.active) this.openPhone();
+      // B45.2: pagina del telefono chiusa o «Scollega» toccato sul telefono (stesso schermo: il QR è nel riquadro): non
+      // torna da solo, l'avviso dice quello che dice il riquadro (prima «si ricollega da solo» anche qui)
+      else if (GONE_HOLDS.includes(phone?.dropMotivo)){ const t = goneHold(phone.dropMotivo, { stand: !!phone.standSlot }).text; this.toast(who ? `${who}: ${t[0].toLowerCase()}${t.slice(1)}` : t); }
       else this.toast(`${who ? who + ': ' : ''}telefono scollegato, riapri la pagina del gioco sul telefono (si ricollega da solo)`);
     } };
   }

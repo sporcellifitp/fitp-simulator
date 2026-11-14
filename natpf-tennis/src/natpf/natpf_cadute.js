@@ -24,7 +24,7 @@ import { giornoDi } from './registro/registro_formato.js';
 
 export const MOTIVI = Object.freeze(['silenzio', 'rete cambiata', 'telefono: pagina nascosta', 'telefono: pagina chiusa', 'ricollega', 'pagina del gioco ricaricata', 'chiuso', 'telefono: scollegato', 'chiosco']);
 // parole per lo staff (pannello dello stand)
-// (brevi: stanno nella riga dei pulsanti in basso del pannello)
+// (brevi: una riga intera per telefono sotto la nota del chiosco, B45.2; prima nello spazio della riga dei pulsanti in basso)
 export const MOTIVO_TESTO = Object.freeze({
   silenzio: 'Wi-Fi ferma 10 s',
   'rete cambiata': 'rete cambiata',

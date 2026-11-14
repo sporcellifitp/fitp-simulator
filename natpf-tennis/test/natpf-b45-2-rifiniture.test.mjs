@@ -7,11 +7,16 @@
 //   2. schermo del telefono spento: motivo «telefono: pagina nascosta» e una caduta sola anche se il telefono la racconta
 //      un minuto dopo; un racconto è una caduta nuova solo se il computer non ne ha già una dall'ultimo collegamento;
 //   3. pagina del telefono chiusa o «Scollega» sul telefono in partita: il riquadro lo dice e il QR si apre subito;
+//   6. pannello dello stand: la riga delle cadute sta sotto la nota del chiosco (non più nella riga dei pulsanti in
+//      basso), la nota del chiosco è corta e la spiegazione della voce non dice più «scollega il telefono» (le misure nel
+//      browser: tools/e2e/natpf-pannello-cadute.mjs);
 //   7. chiosco: gesti, tocchi sul telefono e telefono mosso contano come attività; «a riposo»; il chiosco non scollega.
+//  11. il body non scorre mai (overflow: clip): l'avviso della mano resta al centro dell'area anche a 720×720.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld, $, visible } from './ui-world.mjs';
 import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
+import { readFileSync } from 'node:fs';
 const { leggiCadute, rigaCadute } = await import('../src/natpf/natpf_cadute.js');
 const { PANEL_AFTER_MS } = await import('../src/natpf/natpf_phone_watch.js');
 const { LIFE, MOVE } = await import('@natpf/tennis/link-life.js');
@@ -241,6 +246,63 @@ test('3 · gli altri motivi come prima: «scollegato · si ricollega da solo», 
   Object.assign(w.link, { connected: false, ready: false, L: { ...w.link.L, state: 'lost', phone: null } }); P._changed(); w.advance(600);
   assert.equal(P.dropMotivo, null, 'caduta di un altro ingresso: motivo non noto');
   assert.equal(hold().title, 'Telefono 1 scollegato · si ricollega da solo');
+});
+
+test('3 · «Ricollega il telefono» del riquadro con la pagina chiusa o «Scollega» sul telefono: l\'avviso dice di inquadrare il QR, non «si ricollega da solo»', async () => {
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const toasts = [], t = w.ui.toast.bind(w.ui); w.ui.toast = (m, ...a) => { toasts.push(m); return t(m, ...a); };
+  // un telefono che non è quello della racchetta (il Player 2 dello stesso schermo): «Ricollega» non può, il QR è nel riquadro
+  const p2 = (motivo, standSlot = null) => ({ relink: () => false, dropMotivo: motivo, standSlot });
+  w.ui.relinkAction(p2('telefono: pagina chiusa'), 'Giulia').run();
+  w.ui.relinkAction(p2('telefono: scollegato'), 'Giulia').run();
+  w.ui.relinkAction(p2('silenzio'), 'Giulia').run();
+  w.ui.relinkAction(p2('telefono: pagina chiusa', 'p2'), 'Telefono 2').run();
+  w.ui.relinkAction(p2('telefono: scollegato'), '').run();
+  assert.deepEqual(toasts, [
+    'Giulia: se non torna tra pochi secondi (pagina ricaricata), inquadra di nuovo il QR.',
+    'Giulia: sul telefono è stato toccato «Scollega»: per giocare ancora inquadra di nuovo il QR.',
+    'Giulia: telefono scollegato, riapri la pagina del gioco sul telefono (si ricollega da solo)',
+    'Telefono 2: riapri la pagina del gioco sul telefono: si ricollega da solo.',
+    'Sul telefono è stato toccato «Scollega»: per giocare ancora inquadra di nuovo il QR.',
+  ]);
+});
+
+/* ---------- 6 · pannello dello stand: riga delle cadute, nota del chiosco ---------- */
+
+test('6 · pannello dello stand: riga delle cadute sotto la nota del chiosco (non nella riga dei pulsanti), una riga per telefono; nota del chiosco corta, spiegazione della voce senza «scollega»', async () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), css = readFileSync(new URL('../natpf-ui.css', import.meta.url), 'utf8');
+  const at = s => html.indexOf(s);
+  const note = at('id="staff-note"'), cad = at('id="staff-cadute"'), reg = at('id="staff-registro"'), actions = at('class="sheet-actions staff-actions"');
+  assert.ok(note > 0 && cad > note && cad < reg && cad < actions, 'nel foglio: nota del chiosco, cadute, registro, pulsanti in basso');
+  assert.equal(html.split('id="staff-cadute"').length, 2, 'una riga sola');
+  // la riga non si taglia più (niente line-clamp né overflow nascosto) e il foglio si stringe solo quando c'è
+  const rule = css.match(/\.natpf-sheet\.staff-sheet \.staff-cadute \{[^}]*\}/)?.[0] || '';
+  assert.ok(rule && !/line-clamp|overflow/.test(rule), rule);
+  assert.ok(!/\.staff-actions \.staff-cadute/.test(css), 'niente più regole della riga dei pulsanti');
+  assert.match(css, /:has\(\.staff-cadute:not\(\.hidden\)\) \.pause-grid button/);
+  // nel gioco: chiosco acceso, due telefoni con cadute oggi
+  const w = await makeWorld({ controller: 'phone', cal: 'play' }), { ui } = w;
+  const { segnaCaduta } = await import('../src/natpf/natpf_cadute.js');
+  for (let i = 0; i < 3; i++) segnaCaduta('p1', 'silenzio');
+  segnaCaduta('p2', 'telefono: pagina nascosta');
+  ui.kiosk.enabled = true; ui.kiosk.open();
+  assert.equal($('staff-cadute').textContent, 'Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s\nTelefono 2: 1 caduta oggi · motivo più frequente: pagina nascosta');
+  assert.ok(visible('staff-cadute'));
+  const n = $('staff-note').textContent;
+  assert.equal(n, 'Chiosco attivo: dopo 45 s senza nessuno si torna al menu e chi gioca si azzera, il telefono resta collegato (in partita 90 s).');
+  assert.ok(n.length <= 129, `nota su una riga a 1024 × 600 (${n.length} caratteri, come prima della B45.1)`);
+  const { STAFF_HINTS } = await import('../src/natpf/natpf_stand_mouse.js');
+  assert.ok(!/scollega/.test(STAFF_HINTS.kiosk) && /il telefono resta collegato/.test(STAFF_HINTS.kiosk), STAFF_HINTS.kiosk);
+  // senza cadute la riga non c'è
+  localStorage.removeItem('natpf-tennis.cadute'); ui.kiosk.close(); ui.kiosk.open();
+  assert.ok(!visible('staff-cadute'));
+});
+
+test('11 · il body non scorre mai (overflow: clip, anche nell\'area del ledwall): un campo che prende il fuoco non sposta il gioco né gli avvisi', () => {
+  const css = readFileSync(new URL('../natpf-ui.css', import.meta.url), 'utf8');
+  assert.match(css, /\nbody \{ overflow: clip; \}/);
+  assert.match(css, /html\.natpf-area body \{[^}]*overflow: clip;[^}]*\}/);
+  assert.ok(!/html\.natpf-area body \{[^}]*overflow: hidden/.test(css));
 });
 
 /* ---------- 7 · chiosco: attività dal telefono, «a riposo», niente scollegamento ---------- */
