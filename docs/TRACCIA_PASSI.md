@@ -895,8 +895,14 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
       split-ready 34/34, scambi-di-prova 30/30, b47-fiera 20/20, mano-sicura 17/17, fine-partita 47/47. Schermate guardate
       (conto alla rovescia, scelta del livello). Sul solo B47 unito: chi-serve 64/64, `audit:legend` 69 OK; b20 51/52, b25
       54/55 e split-ready 32/34 sotto carico 10 (controlli di tempi: split-ready rifatta 34/34; b20 e b25 da rifare da sole).
-- [~] Versione 2026-11-14.3 (controllo dopo il cambio: sito 265, Windows 51, 55 test del gioco sulla versione, build ok):
-      push, zip Cloudflare, installer dal link fisso, «come si attiva» all'utente (la pagina del telefono va ricaricata).
+- [x] Versione 2026-11-14.3 (controllo dopo il cambio: sito 265, Windows 51, 55 test del gioco sulla versione, build ok):
+      push (`bb9a4b3`). Zip Cloudflare 23.908.079 B, sha256
+      `941eb4d9bb3aa5e385dfb0de564e7589f636a8902553df161743a3f2bfb73764`, provato estratto, mandato all'utente. Installer
+      **2026-11-14.3** pubblicato su R2 alle 18:14 UTC e verificato dal link fisso: 128.127.554 B, sha256
+      `411ea0192563bab87c133ffbafb4906db3598ffd2358f786e4fb3b98c3e70432`. «Come si attiva» mandato all'utente (dopo
+      l'aggiornamento il telefono rifà il QR: la correzione sta anche nella pagina del telefono).
+- [~] Altre prove nel browser sul codice pubblicato (`scratchpad/v1403b/e2e.log`): b20, b25, training-reconnect,
+      tutorial-relink, fiera-telefoni, nuovo-giocatore, menu, tabellone, solo-mouse, tastiera-schermo, telecomando, chi-serve.
 - [~] In corso: B45.1 fase B (motivi delle cadute nel pannello e nel registro, rifiniture della 14.2, tasto Alt in
       finestra, documenti) → 14.4; B41 seconda parte (`b41-fiera-2`).
 - Non provato: rete vera di una fiera, telefoni veri, Windows, ledwall. La 14.3 va confermata dall'utente allo stand.
