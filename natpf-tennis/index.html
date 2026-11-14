@@ -859,6 +859,22 @@
         </div>
       </div>
     </div>
+    <!-- B47: «Rivincita» → scelta del livello, grande e con il mouse, già segnata con quello di prima (natpf_rematch.js):
+         contro la CPU «Chi gioca», nello stesso schermo la fascia di ciascun giocatore. Poi «Gioca» e il conto grande -->
+    <div id="natpf-rematch" class="natpf-rematch hidden" role="dialog" aria-modal="true" aria-labelledby="rematch-title" data-mode="cpu">
+      <div class="rematch-card">
+        <p class="rematch-kicker" data-rematch="kicker">Rivincita</p>
+        <h2 class="rematch-title" id="rematch-title" data-rematch="title">Chi gioca?</h2>
+        <p class="rematch-sub" data-rematch="sub"></p>
+        <div class="rematch-body" data-rematch="body"></div>
+        <p class="rematch-auto hidden" data-rematch="auto" aria-live="polite"></p>
+        <div class="rematch-btns">
+          <button type="button" class="rematch-btn ghost" data-rematch-act="cancel">‹ Indietro</button
+          ><button type="button" class="rematch-btn ghost" data-rematch-act="more">Altre impostazioni</button
+          ><button type="button" class="rematch-btn primary" data-rematch-act="play">Gioca</button>
+        </div>
+      </div>
+    </div>
     <!-- NATPF: smartphone come racchetta (QR, impugnatura, calibrazione di NATPF Simulator) -->
     <div id="natpf-phone-modal" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-phone-title">
       <div class="natpf-sheet natpf-phone-dialog">

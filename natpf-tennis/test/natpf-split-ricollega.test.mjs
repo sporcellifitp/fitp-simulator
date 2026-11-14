@@ -307,8 +307,13 @@ test('B20 E: a fine partita i due telefoni ricevono «Rivincita»; parte quando 
   assert.equal(E.phase, 'MATCH_OVER', 'con uno solo non parte');
   tap(w.P2); w.advance(200);   // un secondo tocco non cambia niente
   assert.equal(E.phase, 'MATCH_OVER');
-  // la chiede anche Marco: partita nuova, stesso schermo, punteggio da capo, pulsante tolto dai telefoni
+  // la chiede anche Marco: B47, prima la scelta delle fasce sul computer (natpf_rematch.js), pulsante tolto dai telefoni;
+  // parte da sola dopo 10 s se nessuno la tocca (o con «Gioca»): partita nuova, stesso schermo, punteggio da capo
   tap(E.natpfPhone); w.advance(200);
+  assert.ok(ui.rematch.isOpen && ui.rematch.origin === 'phones', 'scelta delle fasce');
+  assert.deepEqual(link.sent.filter(m => m.t === 'rm').at(-1), { t: 'rm', on: 0 });
+  assert.equal(E.natpfMatchSeq, seq, 'non ancora');
+  w.advance(10000);
   assert.equal(E.natpfMatchSeq, seq + 1, 'partita nuova');
   assert.ok(['SERVE_STANCE', 'SERVE_TOSS'].includes(E.phase), E.phase);
   assert.equal(E.natpfSplit.active, true);
@@ -319,7 +324,7 @@ test('B20 E: a fine partita i due telefoni ricevono «Rivincita»; parte quando 
   assert.equal(line.classList.contains('hidden'), true);
 });
 
-test('B20 E: «Gioca ancora» sul computer resta com\'era (pagina «Partita») e toglie la rivincita dai telefoni', async () => {
+test('B20 E, B47: «Gioca ancora» sul computer apre la scelta delle fasce («Altre impostazioni» è la pagina «Partita» di prima) e toglie la rivincita dai telefoni', async () => {
   const w = await splitMatch(), { E, ui, link, l2 } = w;
   w.advance(500);
   E.score.playerGames = 1; E.phase = 'MATCH_OVER';
@@ -330,6 +335,10 @@ test('B20 E: «Gioca ancora» sul computer resta com\'era (pagina «Partita») e
   link.sent.length = 0; l2.sent.length = 0;
   document.getElementById('btn-play-again').click();
   w.advance(300);
+  // B47: prima la scelta delle fasce (la sessione resta); «Altre impostazioni» è la pagina «Partita» di prima
+  assert.ok(ui.rematch.isOpen && ui.rematch.origin === 'computer' && E.natpfSplit.active);
+  assert.deepEqual(l2.sent.filter(m => m.t === 'rm').at(-1), { t: 'rm', on: 0 }, 'rivincita tolta dai telefoni');
+  ui.rematch.more(); w.advance(300);
   assert.equal(E.natpfSplit.active, false, 'si torna al menu, pagina «Partita»');
   assert.equal(ui.lobby.step, 'match');
   assert.deepEqual(ui.split.rematch, { p1: false, p2: false });

@@ -49,6 +49,8 @@ import { NatpfTastiera } from './natpf_tastiera.js';
 import { NatpfStandMouse } from './natpf_stand_mouse.js';
 // B47: conto alla rovescia grande prima del primo punto (natpf_prematch.js)
 import { NatpfPrematch } from './natpf_prematch.js';
+// B47: «Rivincita» → scelta del livello (natpf_rematch.js)
+import { NatpfRematch } from './natpf_rematch.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -149,6 +151,8 @@ export class NatpfUi {
     this.readyGo = new NatpfReadyGo(engine, this);
     // B47: conto alla rovescia grande prima del primo punto di ogni partita con il telefono (lo chiede startNewMatch)
     this.prematch = new NatpfPrematch(engine, this);
+    // B47: «Rivincita» a fine partita apre la scelta del livello (contro la CPU «Chi gioca», nello stesso schermo le fasce)
+    this.rematch = new NatpfRematch(engine, this);
     // B39: stand con il solo mouse (comandi del tasto destro del programma, avvisi, trappole del mouse): natpf_stand_mouse.js
     this.mouse = new NatpfStandMouse(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
@@ -161,9 +165,12 @@ export class NatpfUi {
     // computer resta la rivincita immediata: l'altro computer aspetta la stessa partita
     // B35: contro la CPU con «Calibrazione: Giocando» prima gli scambi di prova (molte persone, un telefono: come dal B28 a
     // ogni partita), poi la pagina «Pronto per la partita»; la partita parte con «Gioca»
+    // B47 (richiesta dell'utente del 14/11): contro la CPU e nello stesso schermo prima la scelta del livello, grande e con
+    // il mouse, già segnata con quello di prima (natpf_rematch.js); la pagina «Partita» resta dietro «Altre impostazioni»
     $('btn-play-again')?.addEventListener('click', e => {
       if (this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || this.versus?.hostActive){ this.wipe('Rivincita'); return; }
       e.stopImmediatePropagation();
+      if (this.rematch?.open({ origin: 'computer' })) return;
       this.backToMenu('match');
       if (this.lobby?.mode === 'cpu' && this.lobby._pageTrial?.()) this.wipe('Scambi di prova');
     }, true);
@@ -195,7 +202,7 @@ export class NatpfUi {
     this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
     // (B43: con un foglio dello staff aperto la pausa si ricalcola anche qui: una partita che parte con la diagnostica già
     // aperta, ?diag=1, resta ferma come le altre; B41.6: «Sono pronto» dei telefoni sulla pagina «Pronto per la partita»)
-    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); this.readyGo?.tick(); } catch (e){ console.error(e); } }, 100);
+    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); this.readyGo?.tick(); this.rematch?.tick(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -316,6 +323,7 @@ export class NatpfUi {
     // B43: la diagnostica aperta dalla pausa di questa partita, chiusa dopo, non riapre la pausa nella partita di un altro
     if (this.diag) this.diag._back = null;
     this.prematch?.cancel();   // B47: il conto alla rovescia grande non fa partire niente dopo il ritorno al menu
+    this.rematch?.close();     // B47: e la scelta del livello dopo «Rivincita» si chiude
     this.trial?.abort();
     if (this.training.active) this.training.stop({ completed: false, silent: true });
     this.events.abort();
