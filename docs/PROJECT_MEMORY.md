@@ -1057,3 +1057,6 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - **Prova allo stand**: Precision con il registro (zona chiesta nota). Il registro non sa chi gioca né cosa gli è stato
   detto: la prova si fa in ordine (due «come ti viene», poi due «gira la cima» per persona) e il riassunto elenca le partite
   a Precision in ordine di tempo.
+- **B39 (domande a scelta del 14/11)**: il tasto destro nel programma apre il **menu di Windows** al puntatore con le voci
+  dello staff (pannello, schermo intero, ricarica, esci…); nella pagina del nome c'è **«Gioca come Ospite»** (un clic, senza
+  nome; il punteggio dell'ospite resta fuori classifica). Allo stand solo il ledwall: niente icona nell'area di notifica.

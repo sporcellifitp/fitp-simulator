@@ -757,3 +757,25 @@ cambiano le tappe (cade B36.2; B36.4 senza rientro verso l'angolo).
       `scratchpad/b36/wt`, ramo `b36-0-misure`, base `0035e02`, porte 4100–4149. Il gioco non cambia; servirà ricaricare
       una volta il Worker del registro.
 - [~] **B41 prima parte + B28.1** (run `wf_c35c3067-84a`): B28.1 fatto sul ramo; in corso B41.1.
+
+**14/11, 07:05 UTC · versione 2026-11-14.1 = B41 prima parte (+ B28.1) + B36.0.** (Il contenitore si è riavviato nella
+notte: i controlli della 14.1 erano finiti prima, salvi in `scratchpad/v1401/`.)
+- [x] B41 prima parte + B28.1 (`0452d93`): B28.1 portato con cherry-pick; telefoni dello stand abbinati una volta (posti
+      Telefono 1/2, conferma dello staff, prova HMAC come il telecomando, nessun indirizzo fisso nei QR), collegamento
+      fisso senza QR dopo ricariche e riavvii, chiosco che non scollega, pagina del telefono dello stand, «Sono pronto» dal
+      telefono con conto di 3 s e partenza da sola; regola pura «in fiera batte sempre il visitatore». L'interruttore e il
+      foglio con il mouse arrivano con la B41 seconda parte (per ora da console, `?stand=fiera`).
+- [x] B36.0 (`430af1d`): nove campi della direzione nel registro (formato delle righe 2; il Worker va ricaricato una volta,
+      il vecchio accetta le righe e toglie i campi nuovi), sezione «Direzione» del riassunto, giocatori simulati con lo
+      scarto della cima, banco della direzione esteso; impronte e `audit:legend` identici. Primi numeri simulati: gesto
+      «piatto» buono 69% dove voluto (persona simulata 48%); errore del seme degli scambi di prova 5,8° (il piano chiede
+      4°); posa «pronto» tenuta 1 s → −0,66 m (serve la B36.9).
+- [x] Uniti (`e02ddd7`, `76a6d2e`). Sul codice unito `natpf-scambi-di-prova` dava 29/30: con «Gioca» sul computer il
+      telefono restava su «Sono pronto» per un giro del controllo. Corretto (offerta ritirata alla partenza e pulsante solo
+      in fase «menu», test nuovo) → 30/30, fiera-telefoni 38/38. Controllo rapido finale: gioco 1525/1525, sito 248/248,
+      Windows 43/43, LAN 12/12, build ok; prima anche `audit:legend` 69 OK, registro 39/39, menu 45/45.
+- [x] Guida dello stand `docs/GUIDA_STAND.md` (tutte le opzioni con il solo mouse; scrittore + verificatore indipendente +
+      correzioni), aggiornata alla 14.1. Lacune del solo mouse trovate dalla guida: `docs/b39/controllo-solo-mouse/dalla-guida-dello-stand.md`.
+- **Decisioni dell'utente (domande a scelta)**: B39 tasto destro = **menu di Windows** con le voci dello staff; **«Gioca
+  come Ospite»** sì (fuori classifica).
+- [ ] Push, zip, installer; poi B38 + B44 e B39 (due agenti).
