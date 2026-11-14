@@ -828,4 +828,12 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
 - [~] Coordinatore: prove nel browser e Electron del ramo `int-b38-b39` (porte 4150–4199), uscite in `scratchpad/int/`.
 - Poi: unire B46 sopra `int-b38-b39`, versione 2026-11-14.2 (B38+B44+B39+B46), zip, installer, «come si attiva»; poi
   B41 seconda parte con le richieste del 14/11; poi B45 (misure e correzioni delle cadute).
+- [~] L'utente ha gente allo stand adesso («ottimizza i tempi senza essere superficiale»): avviato in parallelo il
+      workflow `b47-fiera-subito` (run `wf_dfd8c0f1-4f5`): **B47** battuta sempre allo stesso giocatore (opzione del
+      pannello «Battuta: Sempre lo stesso · Alternata», di base «Sempre lo stesso»), conto alla rovescia grande «Preparati,
+      la partita sta per cominciare», livelli dopo «Rivincita». Ramo `b47-fiera-subito` da `int-b38-b39`, worktree
+      `scratchpad/b47/wt`, porte 4250–4299, appunti `scratchpad/b47/notes.md`.
+- Ordine dei rilasci: **2026-11-14.2** appena B46 è finito (B38+B44+B39+B46, senza aspettare l'analisi B45), poi
+  **2026-11-14.3** con B47. Rimedio subito per l'utente: «Nuovo giocatore» dal pannello (rimette destri i due giocatori e
+  azzera quello che il telefono ha imparato); se resta girato, ricaricare la pagina del telefono.
 
