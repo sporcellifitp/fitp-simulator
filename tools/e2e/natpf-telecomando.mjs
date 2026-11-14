@@ -389,6 +389,16 @@ try {
   await ui(() => __natpfTennis.hud.showVictoryModal({ playerWon: true, playerGames: 1, opponentGames: 0 }));
   check('fine partita: riconosciuta, «Gioca ancora» acceso', await waitPg('victory') && await phone.evaluate(() => __telecomando.status.labels.play === 'Gioca ancora'));
   await game.screenshot({ path: `${SP}/telecomando-fine-1024x1024.png` });
+  // B47: «Gioca ancora» apre la scelta del livello (strato «rematch»): frecce tra le tessere, Indietro torna alla schermata
+  // finale; «Chi gioca» cambia il livello anche da qui
+  await tap('play');
+  const rem = await waitPg('rematch') && await phone.evaluate(() => { const s = __telecomando.status; return s.label === 'Rivincita: scegli il livello' && s.labels.play === 'Gioca!' && s.cmds.cpu === 1; });
+  check('B47 fine partita: Gioca → «Rivincita: scegli il livello», «Gioca!» acceso, «Chi gioca» acceso', rem);
+  await tap('left'); await tap('left');
+  const foc = await ui(() => document.activeElement?.dataset?.rematchLevel || document.activeElement?.dataset?.rematchAct || '');
+  await game.screenshot({ path: `${SP}/telecomando-rivincita-1024x1024.png` });
+  check('B47: le frecce del telecomando spostano il fuoco nella scelta del livello', !!foc && foc !== 'play', foc);
+  await tap('back'); check('B47: Indietro torna alla schermata finale', await waitPg('victory'));
   await tap('back'); check('fine partita: Indietro = Menu', await waitPg('lobby:menu'));
   // minigioco: Indietro = pausa, Torna al menu con conferma
   // (dalla pagina «Minigiochi»: il primo minigioco, con il nome già scritto; poi Avanti dal telefono fino al campo)
