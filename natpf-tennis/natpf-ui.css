@@ -770,7 +770,7 @@ body.natpf-trial-on #timing-popup { display: none !important; }
 .ranking-full #title-modal .ranking-list li span,
 .ranking-full #title-modal .ranking-list li b,
 .ranking-full #title-modal .ranking-list li em { font-size: clamp(14px, min(3.6cqh, 2.3cqw), 36px); }
-.ranking-full #title-modal .ranking-list li.empty { grid-column: 1 / -1; }
+.ranking-full #title-modal .ranking-list li.empty { grid-column: 1 / -1; grid-template-columns: 1fr; }
 @container natpf (max-aspect-ratio: 5/4) {
   .ranking-full #title-modal .ranking-list { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: minmax(0, 1fr); }
 }
@@ -826,6 +826,10 @@ body.natpf-trial-on #timing-popup { display: none !important; }
 /* ---------- telefono o webcam in pausa (natpf_ui._paintHold): titolo, testo, pulsante facoltativo ---------- */
 .natpf-phone-hold { position: fixed; left: 50%; top: 22cqh; transform: translateX(-50%); z-index: 60; width: max-content; max-width: min(540px, 90cqw); padding: 16px 20px; border-radius: 14px; background: rgba(7, 18, 51, 0.94); color: #f3f6fb; text-align: center; font: 600 clamp(15px, 2.2cqh, 22px)/1.4 system-ui, sans-serif; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); }
 .natpf-phone-hold.hidden { display: none; }
+/* B39.3 (controllo «solo mouse», n. 13): con un foglio aperto (pausa, pannello del telefono, pannello dello stand) il
+   riquadro «Telefono in pausa» va sotto: prima copriva le voci della pausa (a 1280 × 720 anche «Torna al menu» e
+   «Riprendi ›») e l'angolo del QR del pannello del telefono. Torna sopra quando il foglio si chiude */
+html:has(.natpf-sheet-backdrop:not(.hidden)) .natpf-phone-hold { z-index: 55; }
 .natpf-phone-hold p { margin: 6px 0 0; font-weight: 500; }
 .natpf-phone-hold button { margin-top: 12px; padding: 0.55em 1.2em; border: 0; border-radius: var(--r-pill); background: var(--ball); color: var(--ball-ink); font: 700 1em/1.2 system-ui, sans-serif; cursor: pointer; }
 .natpf-phone-hold button.hidden { display: none; }
@@ -920,6 +924,10 @@ body.natpf-trial-on #timing-popup { display: none !important; }
   .natpf-sheet.staff-sheet .sheet-desc { margin-bottom: 4px; }
 }
 @container natpf (max-width: 640px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: 1fr; } }
+/* B39: «Diagnostica» in alto a destra del pannello dello stand, nella fascia della scritta «Riservato all'addetto» (il foglio
+   non cresce: «Chiudi» resta in vista a 1024 × 600, 1366 × 657 e 720 × 720, prova natpf-menu) */
+.natpf-sheet.staff-sheet { position: relative; }
+.natpf-sheet.staff-sheet .staff-diag { position: absolute; top: 8px; right: 12px; height: clamp(28px, 4cqh, 40px); min-height: 0; padding: 0 clamp(10px, 1.4cqh, 16px); font: 600 clamp(12px, 1.5cqh, 15px)/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
 .natpf-sheet .pause-grid button {
   display: flex;
   flex-direction: column;
@@ -2011,3 +2019,24 @@ html.remote-nav :is(button, a, input, [tabindex]):focus { outline: 3px solid var
    ===================================================================================================================== */
 /* B39.1: immagini e link non si trascinano (nel programma un'immagine fantasma sopra il gioco) */
 img, a { -webkit-user-drag: none; }
+/* B39.3: pressione lunga (natpf_hold.js) sul marchio del menu e su ❚❚: anello che si riempie dove si è premuto, con la
+   scritta di cosa si apre. Il bersaglio non seleziona il testo e non scorre la pagina mentre si tiene premuto */
+.natpf-hold-target { -webkit-user-select: none; user-select: none; touch-action: none; }
+.natpf-hold { position: fixed; z-index: 400; width: clamp(64px, 12cqmin, 150px); aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none; }
+.natpf-hold.hidden { display: none; }
+.natpf-hold::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(closest-side, rgba(7, 14, 38, 0.55), rgba(7, 14, 38, 0.25) 80%, transparent); }
+.natpf-hold i { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(var(--ball) calc(var(--hold, 0) * 1turn), rgba(255, 255, 255, 0.22) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - max(7px, 1.3cqmin)), #000 calc(100% - max(7px, 1.3cqmin) + 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - max(7px, 1.3cqmin)), #000 calc(100% - max(7px, 1.3cqmin) + 1px)); }
+.natpf-hold b { position: absolute; top: calc(100% + 0.5em); left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 0.4em 0.9em; border-radius: var(--r-pill, 999px); background: rgba(7, 14, 38, 0.92); border: 1px solid var(--line-strong); color: var(--text); font: 700 italic clamp(14px, 2.4cqmin, 26px)/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; }
+.natpf-hold.at-right b { left: auto; right: 0; transform: none; }
+.natpf-hold.at-left b { left: 0; transform: none; }
+.natpf-hold.done i { background: var(--ball); opacity: 0; transition: opacity 0.25s; }
+.natpf-hold.done b { opacity: 0; transition: opacity 0.25s; }
+/* B39.3: classifica a schermo intero (dal pannello dello stand): «× Chiudi» in alto a destra, al posto dei comandi
+   nascosti; compare quando si muove il mouse (html.mouse-active, natpf_stand_mouse.js) e torna al menu, come Esc */
+#title-modal .ranking-exit { display: none; }
+.ranking-full #title-modal .ranking-exit { display: inline-flex; position: absolute; top: clamp(12px, 2.4cqh, 28px); right: clamp(12px, 2.4cqw, 32px); z-index: 5; align-items: center;
+  height: clamp(40px, 6cqh, 64px); padding: 0 clamp(14px, 2.2cqh, 26px); border-radius: var(--r-pill, 999px); border: 1px solid var(--line-strong); background: rgba(7, 14, 38, 0.86);
+  color: var(--text); font: 700 italic clamp(15px, 2.4cqh, 26px)/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; opacity: 0; transition: opacity 0.3s; }
+.ranking-full.mouse-active #title-modal .ranking-exit, .ranking-full #title-modal .ranking-exit:hover, .ranking-full #title-modal .ranking-exit:focus-visible { opacity: 1; }

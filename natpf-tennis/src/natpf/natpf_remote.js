@@ -16,6 +16,7 @@ import { nearestTile } from './natpf_lobby.js';
 import { phonePageUrl } from './natpf_phone_racket.js';
 import { lanOrigin } from './natpf_lan.js';
 import { isLanMode } from '@natpf/tennis/lan-transport.js';
+import { CONFIRM } from './natpf_confirm.js';
 
 const NATPF_BASE = '/natpf/';
 const loadScript = src => new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = () => reject(new Error(src)); document.head.appendChild(s); });
@@ -60,8 +61,10 @@ export class NatpfRemote {
       if (cmd === 'refuse') this.link.refuse();
       // «Scollega»: due passi nella pagina (niente finestre di Windows: dal telefono non si chiuderebbero)
       if (cmd === 'forget'){
-        if (b.dataset.armed === '1'){ this._disarm(); this.link.forget(); this.ui.toast?.('Telecomando scollegato: per usarlo di nuovo va abbinato da capo'); }
-        else { b.dataset.armed = '1'; b.textContent = 'Sicuro? Premi ancora per scollegare'; clearTimeout(this._armT); this._armT = setTimeout(() => this._disarm(), 5000); }
+        // (B39: come le conferme del B43, natpf_confirm.js, il secondo clic conta solo dopo CONFIRM.gapMs: un doppio clic
+        // non scollega)
+        if (b.dataset.armed === '1'){ if (performance.now() - (this._armAt || 0) < CONFIRM.gapMs) return; this._disarm(); this.link.forget(); this.ui.toast?.('Telecomando scollegato: per usarlo di nuovo va abbinato da capo'); }
+        else { b.dataset.armed = '1'; this._armAt = performance.now(); b.textContent = 'Sicuro? Premi ancora per scollegare'; clearTimeout(this._armT); this._armT = setTimeout(() => this._disarm(), 5000); }
       } else this._disarm();
       if (cmd === 'new') this._libs().then(() => { this.link.pairing(true); this.paint(); });
       this.paint();

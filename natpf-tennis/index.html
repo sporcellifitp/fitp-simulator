@@ -221,6 +221,9 @@
       <div class="natpf-sheet staff-sheet">
         <p class="sheet-kicker">Riservato all’addetto</p>
         <h2 class="sheet-title" id="staff-title">Pannello dello stand</h2>
+        <!-- B39: diagnostica dal pannello (prima solo Maiusc+D o Pausa → Diagnostica in campo), in alto a destra sulla riga
+             del titolo: il foglio non cresce. Alla chiusura della diagnostica si torna qui -->
+        <button type="button" class="lobby-ghost staff-diag" data-staff="diag">Diagnostica</button>
         <!-- «Mira del telefono» (B16, decisione dell'utente: opzione dello staff, non dei visitatori): gradi di piatto girato
              per mandare la palla sulla riga, alta 17° · media 20° · bassa 23° (natpf_aim_level.js); un clic passa alla successiva.
              Cosa vuol dire lo spiegano l'avviso dopo il clic e il title del pulsante, non un paragrafo: a 1024 × 600 il foglio
@@ -275,7 +278,7 @@
           <div class="remote-info">
             <p class="sheet-desc">Inquadra il QR con il <b>telefono dello staff</b> (non quello dei visitatori), poi <b>conferma qui sul computer</b> il numero che compare sul telefono.</p>
             <p class="remote-code-line">Oppure, sulla pagina del telecomando, scrivi il codice <b id="remote-code">—</b></p>
-            <p class="sheet-desc remote-tip">Prima volta su un telefono: certificato della rete NATPF come per la racchetta (QR «Certificato» della pagina «Collega»). QR e codice valgono solo con questo foglio aperto, per 5 minuti.</p>
+            <p class="sheet-desc remote-tip">Prima volta su un telefono: certificato della rete NATPF come per la racchetta (pulsante «Prima volta su questo telefono» della pagina «Collega il telefono»). QR e codice valgono solo con questo foglio aperto, per 5 minuti.</p>
           </div>
         </div>
         <div class="remote-request hidden" data-remote-view="request" role="alert">

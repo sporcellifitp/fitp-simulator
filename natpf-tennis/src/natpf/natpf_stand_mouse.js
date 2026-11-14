@@ -6,9 +6,35 @@
 //   • trappole (B39.1): nel programma i tasti laterali «indietro» e «avanti» del mouse e il tasto centrale non fanno niente
 //     (prima «indietro» riportava alla pagina «Avvio del gioco…» e il gioco spariva; il programma svuota anche la
 //     cronologia), i link per il telefono non aprono una seconda finestra sopra il gioco (avviso al posto), file e immagini
-//     trascinati sulla pagina non la cambiano.
+//     trascinati sulla pagina non la cambiano;
+//   • pannello dello stand da ogni pagina (B39.3): ❚❚ tenuto 3 secondi in campo lo apre (il clic breve resta la pausa; i
+//     marchi del menu li collega natpf_kiosk.js, tutti con natpf_hold.js); uscita dalla classifica a schermo intero con
+//     «× Chiudi» in alto a destra, che compare quando si muove il mouse; nel pannello la riga sotto le voci spiega la voce
+//     sotto il puntatore (prima le spiegazioni stavano solo nei fumetti).
 // Funzioni pure in testa (provate con node:test); la classe tocca il DOM solo nel costruttore e nei gestori.
+import { HoldPress } from './natpf_hold.js';
 export const LINK_TEXT = 'Il link è per il telefono: inquadra il QR con la fotocamera del telefono';
+// spiegazione di ogni voce del pannello dello stand, nella riga sotto le voci quando il puntatore ci passa sopra (le voci con
+// un fumetto, title, usano quello)
+export const STAFF_HINTS = Object.freeze({
+  kiosk: 'Modalità chiosco · Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu, cancella il nome e scollega il telefono.',
+  idle: 'Ritorno al menu dopo · il tempo del chiosco senza nessuno: 30, 45, 60 o 90 secondi.',
+  ranking: 'Classifica · la classifica di oggi in grande sul ledwall. Per uscire: questa voce, oppure «× Chiudi» in alto a destra (muovi il mouse).',
+  export: 'Classifica · salva le partite e i minigiochi di oggi in un file CSV (nel programma Windows in Download › NATPF).',
+  reset: 'Classifica · cancella la classifica di oggi su questo PC. Chiede un secondo clic.',
+  phone: 'Telefono · scollega il telefono di chi gioca: per giocare va rifatto il QR. Tra un visitatore e l’altro usa «Nuovo giocatore».',
+  music: 'Musica · spegne o riaccende tutto l’audio del gioco (musica, effetti e voce).',
+  diag: 'Diagnostica · registra la sessione e la prova guidata, per chi sviluppa. Chiusa, torni qui.',
+  remote: 'Telecomando dello staff · abbina il telefono dello staff (QR, codice, «Conferma» qui sul PC).',
+  display: 'Schermo del gioco · sposta il gioco sullo schermo successivo; la scelta resta salvata.',
+  newplayer: 'Nuovo giocatore · per chi arriva: nome, mano e tutorial da capo, il telefono resta collegato.',
+  close: 'Chiudi · chiude il pannello; la partita riparte da dove era.',
+  'registro-invia': 'Registro di gioco · manda subito le righe in coda.',
+  'registro-scarica': 'Registro di gioco · salva la coda non ancora inviata in uno zip.',
+});
+export const staffHint = (cmd, title = '') => String(title || STAFF_HINTS[cmd] || '');
+// quanto resta in vista «× Chiudi» della classifica a schermo intero dopo l'ultimo movimento del mouse
+export const MOUSE_ACTIVE_MS = 4000;
 // tasti del mouse che nel programma non fanno niente: 3 «indietro», 4 «avanti», 1 centrale (scorrimento automatico e link
 // in una finestra nuova). Il tasto sinistro (0) e il destro (2, menu dello staff) restano
 export const blockedMouseButton = e => !!e && (e.button === 3 || e.button === 4 || (e.button === 1 && /down$|auxclick/.test(e.type || '')));
@@ -44,6 +70,35 @@ export class NatpfStandMouse {
     win?.addEventListener?.('dragover', e => e.preventDefault());
     win?.addEventListener?.('drop', e => e.preventDefault());
     doc?.addEventListener?.('dragstart', e => { if (e.target?.closest?.('img, a')) e.preventDefault(); }, true);
+    // B39.3 · ❚❚ tenuto 3 secondi in campo: pannello dello stand (il clic breve resta la pausa)
+    const pauseBtn = doc?.getElementById?.('natpf-pause-btn');
+    if (pauseBtn) this.pauseHold = new HoldPress(pauseBtn, { onDone: () => this.ui.kiosk?.open?.() });
+    // mouse in movimento: html.mouse-active per MOUSE_ACTIVE_MS (mostra «× Chiudi» della classifica a schermo intero)
+    const html = doc?.documentElement;
+    win?.addEventListener?.('pointermove', e => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+      html?.classList?.add('mouse-active');
+      clearTimeout(this._moveT); this._moveT = setTimeout(() => html?.classList?.remove('mouse-active'), MOUSE_ACTIVE_MS);
+    }, { passive: true });
+    // B39.3 · uscita dalla classifica a schermo intero (prima: nessun pulsante, solo Esc o «Nuovo giocatore»)
+    const title = doc?.getElementById?.('title-modal');
+    if (title && doc.createElement){
+      const b = this.rankingExit = doc.createElement('button');
+      b.type = 'button'; b.className = 'ranking-exit'; b.textContent = '× Chiudi'; b.setAttribute?.('aria-label', 'Chiudi la classifica a schermo intero');
+      b.addEventListener?.('click', e => { e.stopPropagation(); this.ui.lobby?.go?.('menu'); });
+      title.appendChild?.(b);
+    }
+    // B39.3 · nel pannello dello stand la riga sotto le voci spiega la voce sotto il puntatore; uscendo torna com'era
+    const staff = doc?.getElementById?.('natpf-staff');
+    staff?.addEventListener?.('pointerover', e => {
+      const b = e.target?.closest?.('[data-staff]'), note = doc.getElementById('staff-note');
+      const t = b && staffHint(b.dataset.staff, b.getAttribute?.('title'));
+      if (note && t){ note.textContent = t; this._hinting = true; }
+    });
+    staff?.addEventListener?.('pointerout', e => {
+      if (!this._hinting || e.relatedTarget?.closest?.('[data-staff]')) return;
+      this._hinting = false; this.ui.kiosk?.paint?.();
+    });
   }
   // comandi del menu del tasto destro (elenco congelato nel preload: PAGE_COMMANDS di natpf-desktop/src/desktop-core.mjs)
   command(cmd){

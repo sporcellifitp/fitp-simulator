@@ -10,9 +10,10 @@ NATPF Simulator (e anche con il gioco sul web). Dettagli tecnici e tutte le sche
 ospiti). Android con Chrome o iPhone con Safari.
 
 1. **Certificato** (come per i telefoni dei giocatori; se questo telefono ha già fatto da racchetta, salta il passo):
-   sul gioco, pagina «Collega» → «Certificato», oppure dal menu del programma (F11 per uscire dallo schermo intero, poi
-   Alt) **Rete → Indirizzi e certificato per i telefoni**: sul telefono apri l'indirizzo `http://<indirizzo del PC>:8081` e installa il certificato della rete
-   NATPF. Senza, il telefono vede «connessione non sicura» e il telecomando non si apre.
+   sul gioco, pagina «Collega il telefono» → **«Prima volta su questo telefono»** (sotto il QR, quando il PC è in rete),
+   oppure nel programma Windows tasto destro sul gioco → **Rete per i telefoni → Indirizzi e certificato per i telefoni**
+   (B39; con una tastiera anche F11, poi Alt → Rete): sul telefono apri l'indirizzo `http://<indirizzo del PC>:8081` e
+   installa il certificato della rete NATPF. Senza, il telefono vede «connessione non sicura» e il telecomando non si apre.
 2. **Abbinamento, confermato sul PC**: sul PC premi **Ctrl+Maiusc+K** (**F9** nel programma Windows; oppure tieni premuto 3 secondi il marchio NATPF
    in alto a sinistra nel menu) → **Telecomando dello staff**. Compare un QR (diverso da quello dei giocatori) e un
    codice come `K3ZQ-7M2P`. Valgono solo finché questo foglio è aperto, per 5 minuti.
@@ -78,7 +79,7 @@ il giocatore), **Indietro** e **Pausa** mettono in pausa, **Salta gli scambi di 
 
 | Cosa vedi | Cosa fare |
 |---|---|
-| «Mi ricollego…» che non finisce | Il gioco è aperto? Telefono e PC sulla stessa Wi-Fi? Sul PC (F11, poi Alt) menu **Rete → Apri la rete ai telefoni** (firewall). |
+| «Mi ricollego…» che non finisce | Il gioco è aperto? Telefono e PC sulla stessa Wi-Fi? Sul PC tasto destro sul gioco → **Rete per i telefoni → Apri la rete ai telefoni** (firewall; con una tastiera anche F11, poi Alt → Rete). |
 | «Mi ricollego…» dopo che il PC ha cambiato rete o indirizzo | L'icona ricorda l'indirizzo del PC: rifai l'abbinamento (§1.2, il QR ha l'indirizzo nuovo). Consiglio: nel router dai al PC un indirizzo fisso (prenotazione DHCP). |
 | Pagina «connessione non sicura» | Manca il certificato sul telefono (§1.1), o il certificato è stato rifatto: installalo di nuovo. |
 | «Il gioco non si trova… questo telefono non è più il telecomando» | Se il gioco è acceso: qualcuno ha abbinato un altro telefono o ha premuto «Scollega il telecomando». Rifai l'abbinamento (§1.2). Se il gioco era solo spento, alla riaccensione il telefono rientra da solo. |
