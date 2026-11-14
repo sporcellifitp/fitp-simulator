@@ -939,3 +939,34 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
 - Prossimo rilascio: **2026-11-14.4** = B41 seconda parte + B45.1 fase B + B45.2, quando i due revisori dicono ok (se uno
   dei due tarda, esce prima l'altro).
 
+## >>> 14/11, 22:10 UTC · ISTRUZIONE DELL'UTENTE: «Riprendi il lavoro da dove hai interrotto e torna da me solo quando
+## sarà tutta finita l'intera roadmap». Si va avanti da soli, blocco dopo blocco, con le versioni pubblicate come sempre;
+## all'utente si scrive una volta sola, alla fine, con il riepilogo di tutte le versioni e «come si attiva». <<<
+
+- Terzo limite d'uso alle 19:50 UTC (si azzera ogni 5 ore circa): B45.2 e B41.2 fermati a metà, salvati in commit «IN
+  CORSO» (`de60c12` su `b45-1-collegamento`, `8c37a98` su `b41-fiera-2`) e ripresi con il workflow
+  `ripresa-b45-2-e-b41-2` (run `wf_2e24e751-b16`), ognuno con il suo revisore appena finisce.
+- Tavola grafica del B40 (artifact PMb2Gg3ZiakcHuqynZ2pJL): NON si apre più da questa sessione (404). Il B40 segue la
+  descrizione scritta (`docs/coda/B40-fine-partita-v2.md`, `TRACCIA` riga ≈551) e fissa le soglie dei 12 trofei dai dati
+  del gioco simulato, scritte nel documento.
+
+**Coda fino alla fine della roadmap (in ordine; al massimo due blocchi di sviluppo insieme):**
+1. [~] **2026-11-14.4** = B41 seconda parte + B45.1 fase B + B45.2 (dopo i due revisori).
+2. [ ] **B40** fine partita v2: card della partita, trofei, contatori nuovi, personaggi 3D che esultano in loop.
+3. [ ] **B48** tappa 3.5 del gameplay, prima parte: difetto 16 (giudicare «palla passata» con la posizione della palla al
+       momento del gesto, togliendo il ritardo), servizio con scelte (prima del punto più alto verso il centro, dopo verso
+       l'esterno; una riga nella scheda del servizio), servizio della CPU vario (a Casual non più veloce di chi gioca,
+       niente scossa della telecamera, km/h veri al posto dei 194 fissi), Leggenda più da campione (al più una smorzata
+       ogni 8 colpi, da ricontrollare con `audit:legend`).
+4. [ ] **B49** tappa 3.4: doppio 2 contro 2 con lo stesso colpo e lo stesso posizionamento del singolo, compagno spiegato o
+       autonomo (decisione del coordinatore: compagno che gioca da solo le sue palle, con un anello sotto di lui quando la
+       palla va a lui; opzione nel pannello per tornare «con il tuo gesto»).
+5. [ ] **B50** prova del ritardo del ledwall per lo staff (20 s, dopo il difetto 16) e pulizie trovate per strada:
+       `racchetta.js` `let screen` che nasconde `window.screen` (blocco dell'orientamento mai attivo dal B9); dubbi del
+       B43 (Parità/Vantaggio, istruzioni del servizio a 720×720, pause della diagnostica); prova della Leggenda con il
+       riferimento per lato; avviso della mano a 720×720 (se non già nel B45.2).
+6. [ ] **Revisore indipendente finale** della serie (B37–B50), correzioni, versione finale.
+7. Restano all'utente (da dire nel riepilogo finale): ricaricare il Worker del registro e la prova a Precision con 3
+   persone (sblocca B36.1+), il parere sul dritto del B23 (estenderlo o no), le decisioni aperte (Musica e «Chi gioca»
+   salvati, «Schermo intero» salvato, chiosco e calibrazione, tasto «indietro» del mouse), il collaudo allo stand.
+
