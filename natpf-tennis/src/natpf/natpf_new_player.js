@@ -135,7 +135,8 @@ export function resetFairVisitor(ui, causa = 'fiera'){
   if (L) L.trialPlayed = false;
   // quello che il gioco ha imparato dai telefoni: da capo (collegati restano collegati; uno scollegato in questo momento lo fa
   // appena torna, NatpfPhoneRacket.recalPending)
-  for (const p of [ui.phone, E.natpfPhone2]) if (p?.standSlot) p.resetPlayer?.({ gate: false });
+  // (causa, B45.1: per la riga del segno nel registro dello stand)
+  for (const p of [ui.phone, E.natpfPhone2]) if (p?.standSlot) p.resetPlayer?.({ gate: false, causa: causa === 'chiosco' ? 'chiosco' : 'fiera' });
   ui.diag?.recorder?.log?.('stand.prossimo', { causa });
   ui.backToMenu('menu');
   return 'fiera';

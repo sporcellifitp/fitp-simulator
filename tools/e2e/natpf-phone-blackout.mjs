@@ -4,8 +4,14 @@
 //      sempre: il computer riceveva ancora i suoi ping e nessuno chiudeva);
 //   B. tutte e due le direzioni mentre chi gioca finisce i gesti della calibrazione sul telefono: alla ripresa il
 //      computer torna allo stesso passo del telefono e passa agli esercizi (prima restava al gesto di prima);
-//   C. durante gli esercizi: pausa con il pannello del telefono, poi si riprende da solo quando il telefono torna.
-//   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-phone-blackout.mjs
+//   C. durante gli esercizi: pausa con il riquadro «segnale debole» (B45.1: niente pannello con il QR), poi si riprende da
+//      solo quando il telefono torna.
+//   D. B45.1 «telefono che non si scollega» (urgenza della fiera del 14/11): in partita contro la CPU bui di 3, 7 e 12 s
+//      (la rete trattiene i messaggi e li consegna al ritorno, come le ritrasmissioni di una Wi-Fi vera; il canale dei
+//      sensori li perde). 3 e 7 s: nessuna caduta né «Ricollega», «segnale debole, aspetto che torni…», la partita
+//      riprende da sola. 12 s: caduta dopo 10 s, «scollegato · si ricollega da solo», il telefono torna da solo senza QR
+//      né calibrazione, la partita riprende.
+//   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-phone-blackout.mjs   (BUI=3,7,12 per scegliere i bui di D)
 // Eventi devicemotion sintetici e rete simulata nelle pagine: non sostituiscono la prova con un telefono e un Wi-Fi veri.
 // B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
 process.env.CAL ||= 'gesti';
@@ -40,8 +46,20 @@ const PHONE_INIT = () => {
   };
   window.__hold = setInterval(() => { if (!window.__busy) window.__up.emit([0.4*Math.sin(performance.now()), -0.4, 0.3]); }, 16);
 };
-const DROP = () => { const send = RTCDataChannel.prototype.send; window.__drop = false; RTCDataChannel.prototype.send = function(d){ if (window.__drop) return; return send.call(this, d); }; };
+// __netHold (B45.1, parte D): la rete trattiene i messaggi dei canali e della segnalazione e li consegna al ritorno (come le
+// ritrasmissioni del canale affidabile e del TCP su una Wi-Fi vera); quelli verso un canale ormai chiuso si perdono
+const DROP = () => {
+  const send = RTCDataChannel.prototype.send, wsSend = WebSocket.prototype.send, held = [];
+  window.__drop = false; window.__netHold = false;
+  RTCDataChannel.prototype.send = function(d){ if (window.__drop) return; if (window.__netHold && this.ordered !== false){ held.push([this, send, d]); return; } if (window.__netHold) return; return send.call(this, d); };
+  WebSocket.prototype.send = function(d){ if (window.__netHold){ held.push([this, wsSend, d]); return; } return wsSend.call(this, d); };
+  // (verso un canale o una segnalazione ormai chiusi i messaggi si perdono, come in rete: niente invio, niente errore)
+  window.__netRelease = () => { window.__netHold = false; for (const [o, f, d] of held.splice(0)){ if (o.readyState !== 'open' && o.readyState !== 1) continue; try { f.call(o, d); } catch {} } };
+};
 const setDrop = (pages, on) => Promise.all(pages.map(p => p.evaluate(v => { window.__drop = v; }, on)));
+const setHold = (pages, on) => Promise.all(pages.map(p => p.evaluate(v => { if (v) window.__netHold = true; else window.__netRelease(); }, on)));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const BUI = (process.env.BUI || '3,7,12').split(',').map(Number).filter(n => n > 0);
 
 const B = await launch();
 try {
@@ -80,7 +98,8 @@ try {
     const lostAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'lost', null, { timeout: 15000, polling: 100 }).then(() => Date.now() - tA, () => null);
     await setDrop([game], false);
     const backAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'on', null, { timeout: 30000, polling: 100 }).then(() => Date.now() - tA, () => null);
-    check('A · il computer non arriva più al telefono: il telefono se ne accorge da solo e si ricollega', lostAt != null && lostAt <= 8000 && backAt != null, `perso dopo ${lostAt} ms, di nuovo collegato dopo ${backAt} ms`);
+    // (B45.1: il controllo di vita aspetta 10 s di silenzio vero, prima 5)
+    check('A · il computer non arriva più al telefono: il telefono se ne accorge da solo (dopo 10 s) e si ricollega', lostAt != null && lostAt >= 9500 && lostAt <= 14000 && backAt != null, `perso dopo ${lostAt} ms, di nuovo collegato dopo ${backAt} ms`);
 
     // B. rete ferma nei due sensi mentre chi gioca finisce i gesti sul telefono
     await phone.waitForFunction(() => __racchetta.cal.state.step === 'swings' && __racchetta.cal.state.idx === 1, null, { timeout: 10000 });
@@ -88,6 +107,10 @@ try {
     for (const w of QUICK_PLAN.slice(1)) await gesture(w === 'L' ? 1 : -1, true);
     const phoneStep = await phone.evaluate(() => __racchetta.cal.state.step);
     const pcBefore = await game.evaluate(() => ({ stage: __natpfTennis.natpfUi.training.view.stage, idx: __natpfTennis.natpfUi.training.view.idx }));
+    // (B45.1: il controllo di vita aspetta 10 s di silenzio vero. Qui la rete butta i messaggi, non li consegna dopo: si
+    // lascia ferma finché il telefono non si accorge della caduta, così si prova il riallineamento dopo il ricollegamento,
+    // lo scopo di questa parte. Una rete vera ritrasmette i messaggi del canale affidabile: parte D)
+    await phone.waitForFunction(() => __racchetta.state.linkState !== 'on', null, { timeout: 20000, polling: 100 }).catch(() => {});
     await setDrop([game, phone], false);
     const drills = await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal && __natpfTennis.natpfPhone.ready ? T.drill?.id : null; }, null, { timeout: 40000, polling: 100 }).then(h => h.jsonValue(), () => null);
     check('B · gesti finiti sul telefono a rete ferma: alla ripresa il computer si riallinea e passa agli esercizi', /review|free/.test(phoneStep) && drills === 'forehand', `telefono ${phoneStep}, computer prima della ripresa ${JSON.stringify(pcBefore)}, poi ${drills}`);
@@ -103,18 +126,64 @@ try {
     const lostAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'lost', null, { timeout: 15000, polling: 100 }).then(() => Date.now() - tA, () => null);
     await setDrop([game], false);
     const backAt = await phone.waitForFunction(() => __racchetta.state.linkState === 'on', null, { timeout: 30000, polling: 100 }).then(() => Date.now() - tA, () => null);
-    check('A · il computer non arriva più al telefono: il telefono se ne accorge da solo e si ricollega', lostAt != null && lostAt <= 8000 && backAt != null, `perso dopo ${lostAt} ms, di nuovo collegato dopo ${backAt} ms`);
+    check('A · il computer non arriva più al telefono: il telefono se ne accorge da solo (dopo 10 s) e si ricollega', lostAt != null && lostAt >= 9500 && lostAt <= 14000 && backAt != null, `perso dopo ${lostAt} ms, di nuovo collegato dopo ${backAt} ms`);
     const again = await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal && __natpfTennis.natpfPhone.ready && !__natpfTennis.natpfPaused; }, null, { timeout: 40000, polling: 100 }).then(() => true, () => false);
     check('A · (calibrazione di base) dopo il ricollegamento il telefono è di nuovo pronto senza gesti e gli esercizi continuano', again, JSON.stringify(await game.evaluate(() => ({ ready: __natpfTennis.natpfPhone.ready, phone: __natpfTennis.natpfPhone.state.phone, paused: !!__natpfTennis.natpfPaused, cal: !!__natpfTennis.natpfUi.training.cal }))));
     console.log('     B · non si applica alla calibrazione di base (riguarda i gesti della calibrazione finiti a rete ferma)');
   }
 
-  // C. rete ferma durante gli esercizi
+  // C. rete ferma durante gli esercizi (B45.1: pausa con il riquadro «segnale debole», niente pannello con il QR)
   await setDrop([game, phone], true);
-  const paused = await game.waitForFunction(() => !document.getElementById('natpf-phone-modal').classList.contains('hidden') && __natpfTennis.natpfPaused, null, { timeout: 15000, polling: 100 }).then(() => true, () => false);
+  const paused = await game.waitForFunction(() => { const h = document.getElementById('natpf-phone-hold'); return __natpfTennis.natpfPaused && !!h && !h.classList.contains('hidden') && /segnale debole/.test(h.querySelector('b').textContent); }, null, { timeout: 15000, polling: 100 }).then(() => true, () => false);
+  const panelC = await game.evaluate(() => !document.getElementById('natpf-phone-modal').classList.contains('hidden'));
   await setDrop([game, phone], false);
   const resumed = await game.waitForFunction(() => document.getElementById('natpf-phone-modal').classList.contains('hidden') && !__natpfTennis.natpfPaused && __natpfTennis.natpfPhone.ready, null, { timeout: 40000, polling: 100 }).then(() => true, () => false);
-  check('C · telefono perso durante gli esercizi: pausa con il pannello del telefono, poi si riprende da solo', paused && resumed, JSON.stringify({ paused, resumed }));
+  check('C · telefono che tace durante gli esercizi: pausa con «segnale debole» (niente pannello con il QR), poi si riprende da solo', paused && !panelC && resumed, JSON.stringify({ paused, panelC, resumed }));
+
+  // D. B45.1: partita contro la CPU con bui di 3, 7 e 12 s (la rete trattiene i messaggi e li consegna al ritorno)
+  await game.evaluate(() => __natpfTennis.natpfUi.backToMenu('match'));
+  await game.waitForFunction(() => { const L = __natpfTennis.natpfUi.lobby; return L.visible && L.step === 'match'; }, null, { timeout: 10000 });
+  await game.click('#btn-start-match');
+  const FIELD = ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'];
+  const inMatch = await game.waitForFunction(f => (__natpfTennis.natpfMatchSeq || 0) >= 1 && !__natpfTennis.natpfUi.trial.active && !__natpfTennis.natpfUi.lobby.visible && f.includes(__natpfTennis.phase), FIELD, { timeout: 20000, polling: 100 }).then(() => true, () => false);
+  check('D · partita contro la CPU partita con il telefono', inMatch, JSON.stringify(await game.evaluate(() => ({ seq: __natpfTennis.natpfMatchSeq, phase: __natpfTennis.phase, lobby: __natpfTennis.natpfUi.lobby.visible, step: __natpfTennis.natpfUi.lobby.step }))));
+  // registro di ogni 100 ms: stato del collegamento sul computer, pausa, titolo del riquadro, pannello del telefono; «Ricollega»
+  // chiesti dal gioco; stato del collegamento sul telefono
+  await game.evaluate(() => {
+    const E = __natpfTennis, P = E.natpfPhone, link = P.link, r = link.relink.bind(link);
+    window.__relinks = 0; link.relink = () => { window.__relinks++; return r(); };
+    window.__mon = [];
+    setInterval(() => { const h = document.getElementById('natpf-phone-hold'); window.__mon.push({ t: Math.round(performance.now() - (window.__t0 || 0)), st: link.L.state, ph: link.L.phone, paused: !!E.natpfPaused, title: h && !h.classList.contains('hidden') ? h.querySelector('b').textContent : '', text: h && !h.classList.contains('hidden') ? h.querySelector('p').textContent : '', modal: !document.getElementById('natpf-phone-modal').classList.contains('hidden'), seq: E.natpfMatchSeq || 0 }); if (window.__mon.length > 900) window.__mon.shift(); }, 100);
+  });
+  await phone.evaluate(() => { window.__ph = []; setInterval(() => { window.__ph.push(__racchetta.state.linkState); if (window.__ph.length > 900) window.__ph.shift(); }, 100); });
+  for (const secs of BUI){
+    const steady = await game.waitForFunction(f => { const E = __natpfTennis; return E.natpfPhone.ready && E.natpfPhone.connected && !E.natpfPaused && !E.natpfUi.phoneHold && f.includes(E.phase) && !E.natpfUi.lobby.visible; }, FIELD, { timeout: 40000, polling: 100 }).then(() => true, () => false);
+    if (!steady){ check(`D · buio di ${secs} s: partita in corso prima del buio`, false, JSON.stringify(await game.evaluate(() => ({ phase: __natpfTennis.phase, paused: __natpfTennis.natpfPaused, ready: __natpfTennis.natpfPhone.ready })))); continue; }
+    await sleep(1500);
+    await game.evaluate(() => { window.__t0 = performance.now(); window.__mon.length = 0; window.__relinks = 0; });
+    await phone.evaluate(() => { window.__ph.length = 0; });
+    await setHold([game, phone], true);
+    await sleep(secs*1000);
+    await setHold([game, phone], false);
+    const tBack = Date.now();
+    const back = await game.waitForFunction(f => { const E = __natpfTennis; return E.natpfPhone.ready && E.natpfPhone.connected && !E.natpfPaused && !E.natpfUi.phoneHold && f.includes(E.phase); }, FIELD, { timeout: 40000, polling: 100 }).then(() => Date.now() - tBack, () => null);
+    const mon = await game.evaluate(() => window.__mon.slice()), relinks = await game.evaluate(() => window.__relinks);
+    const ph = await phone.evaluate(() => ({ seen: [...new Set(window.__ph)], sensor: __racchetta.state.sensor, linkState: __racchetta.state.linkState }));
+    const lostAt = mon.find(m => m.st !== 'connected')?.t ?? null, titles = [...new Set(mon.map(m => m.title).filter(Boolean))];
+    const info = JSON.stringify({ back, lostAt, relinks, titles, phone: ph, modal: mon.some(m => m.modal), phases: [...new Set(mon.map(m => m.ph))], seq: [...new Set(mon.map(m => m.seq))], last: mon.at(-1) });
+    const common = back != null && relinks === 0 && !mon.some(m => m.modal) && !mon.some(m => m.ph === 'cal') && ph.sensor === 'ready' && new Set(mon.map(m => m.seq)).size === 1;
+    if (secs < 10){
+      const calm = !titles.some(t => /scollegat/i.test(t)) && !mon.some(m => /Riattiva i sensori|QR/.test(m.text));
+      const pausedSeen = mon.some(m => m.paused) && titles.some(t => /segnale debole, aspetto che torni/.test(t));
+      check(`D · buio di ${secs} s in partita: nessuna caduta né «Ricollega», niente «scollegato»${secs >= 5 ? ', pausa con «segnale debole, aspetto che torni…»' : ''}, la partita riprende da sola (${back} ms dopo)`,
+        common && lostAt == null && ph.seen.every(s => s === 'on') && calm && (secs < 5 || pausedSeen), info);
+    } else {
+      const order = titles.findIndex(t => /segnale debole/.test(t)) >= 0 && titles.some(t => /scollegato · si ricollega da solo/.test(t));
+      const timed = mon.some(m => /Senza segnale da \d+ s/.test(m.text));
+      check(`D · buio di ${secs} s in partita: caduta dopo 10 s (non prima), «scollegato · si ricollega da solo» con il tempo, il telefono torna da solo senza QR né calibrazione e la partita riprende (${back} ms dopo)`,
+        common && lostAt != null && lostAt >= 9500 && order && timed && ph.seen.includes('lost') && !ph.seen.includes('denied') && ph.linkState === 'on', info);
+    }
+  }
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 400));
 } finally {
   await B.close();

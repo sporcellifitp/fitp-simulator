@@ -8,6 +8,8 @@ import { createCalibration, PLAN, GESTURE_PLAN, calibrationPlan, CAL } from './c
 import { LanPeer, isLanMode } from './lan-transport.js';
 import { encodeSensor, SENSOR_HZ } from './sensor-packet.js';
 import { peerConfig, loadPeer, LINK_TIMES, netWhy, iceReady } from './link.js';
+// B45.1: controllo di vita a 10 s, tentativi senza fine in LAN, ripartenza sulla rete che torna, racconto della caduta
+import { LIFE, lifeCheck, retryPlan, lostText, kickNow, netTypeChanged, storyWord, createDropStory } from './link-life.js';
 import { createFaceTracker } from './face-tracker.js';
 import { strokeShape } from './stroke-shape.js';
 import { swingMessage } from './swing-message.js';
@@ -249,6 +251,9 @@ async function connect(){
         const r = ss.get('resume'); c.send(r ? { t: 'hello', v: 2, r, ...(relinking ? { rl: 1 } : {}) } : { t: 'hello', v: 2, k: pair.token }); relinking = false;
       });
       c.on('data', d => { if (current() && (c === conn || c === pendingConn)) onData(c, d); });
+      // B45.1: anche il canale veloce del computer (in LAN il canale dei sensori, con il suo battito «hb») vale come segno di
+      // vita: con la rete che perde pacchetti il canale affidabile tace più a lungo
+      c.on('fast', () => { if (current() && c === conn) lastRx = performance.now(); });
       c.on('close', () => { if (current() && (c === conn || c === pendingConn)) lost(); });
       c.on('error', () => { if (current() && (c === conn || c === pendingConn)) lost(); });
     });
@@ -271,7 +276,8 @@ async function connect(){
 // Diagnostica del 29/10 (stesso schermo): il computer non riceveva più il movimento del Player 2 per 16 s mentre il
 // telefono era su «Pronto»
 let relinking = false;
-function relink(){ if (!pair || (!pair.stand && !ss.get('resume'))) return; relinking = true; tries = 0; connect(); }
+// (B45.1: prima di chiudere il telefono lo dice al computer, «cl», e lo tiene nel racconto della caduta)
+function relink(){ if (!pair || (!pair.stand && !ss.get('resume'))) return; if (linkState === 'on'){ send({ t: 'cl', w: 'ricollega' }); story.drop('ricollega'); } relinking = true; tries = 0; connect(); }
 // errori della sola segnalazione: con il canale aperto non lo chiudono. 'id-unavailable' è il nome della LAN
 // (lan-transport.js) per l'id ancora registrato dal socket di prima: prima chiudeva un canale WebRTC buono
 const SIGNAL_ERRORS = new Set(['network', 'disconnected', 'socket-error', 'socket-closed', 'server-error', 'unavailable-id', 'id-unavailable', 'lan-signaling']);
@@ -291,6 +297,8 @@ function onData(c, d){
       // (stand: il benvenuto vale solo dopo che il gioco ha provato la chiave)
       if (pair?.stand && !c.standLink?.proved) return;
       clearTimeout(connect.t); clearTimeout(retryT); pendingConn = null;
+      // (B45.1: tentativo riuscito, nel racconto della caduta che sendDevice manda subito al computer)
+      story.attempt(true);
       conn = c; linkState = 'on'; tries = 0; nextOffer = null; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast(); sendDevice();
       // ripresa a calibrazione in corso: gli eventi fatti mentre il collegamento era giù sono andati persi, il computer
       // riceve il passo attuale (prima restava al gesto di prima mentre il telefono era già alla verifica)
@@ -354,9 +362,12 @@ function onData(c, d){
 // motivo di un collegamento non riuscito, da quello che il tentativo ha visto (connect: netInfo). Prima il telefono
 // diceva sempre «Connessione persa», anche quando la rete bloccava la strada diretta e riprovare non serviva
 let netInfo = null;
-function lost(){
+// cause (B45.1): perché il collegamento è caduto, per il racconto al computer (silenzio, chiuso, ricollega, pagina…)
+function lost(cause = null){
   if (linkState === 'denied' || linkState === 'lost') return;
   const why = linkState === 'connecting' ? netWhy(netInfo) : null;
+  // B45.1: la caduta di un collegamento che andava entra nel racconto per il computer; un tentativo non riuscito si conta
+  if (linkState === 'on') story.drop(cause || 'chiuso'); else if (linkState === 'connecting') story.attempt(false);
   clearTimeout(retryT); clearTimeout(connect.t); ++connectEpoch;
   const previous = peer; peer = null; pendingConn = null;
   closeFast(); conn = null; linkState = 'lost';
@@ -364,9 +375,12 @@ function lost(){
   paint();
   // (telefono dello stand: il motivo della rete sì, «inquadra di nuovo il QR» no: il posto si riprende da solo)
   if (pair?.stand && stand){ const v = standView({ slot: stand.slot, linkState: 'lost' }), w = why && !/QR/.test(why) ? why : null; ui(v.big, w ? `${w} ${v.sub}` : v.sub); }
-  else ui('Connessione persa', why ? `${why} Riprovo da solo tra poco.` : 'Riprovo da solo tra poco.');
-  // (telefono dello stand, B41.3: riprova senza fine, ogni 1–6 s: il gioco può restare spento o in riavvio a lungo)
-  if (tries++ < 10 || pair?.stand) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
+  // B45.1 (link-life.retryPlan): attese di 1, 2, … fino a 6 s; senza fine in LAN e per il telefono dello stand (B41.3), via
+  // internet 10 tentativi e poi «Riprova». Prima la racchetta col QR si fermava a 10 anche in LAN, dicendo ancora «Riprovo
+  // da solo tra poco»: un buco lungo della Wi-Fi diventava una caduta per sempre
+  const plan = retryPlan({ tries, stand: !!pair?.stand, lan: isLanMode() }); tries++;
+  if (!(pair?.stand && stand)) ui('Connessione persa', lostText(why, plan.again));
+  if (plan.again) retryT = setTimeout(connect, plan.waitMs);
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
 // messaggi che valgono solo se arrivano subito: su una strada senza ordine, così un pacchetto perso non ferma quelli
@@ -388,6 +402,8 @@ function openFast(){
     const f = fast = peer.connect(pair.session, { reliable: false, serialization: 'json', label: 'fast-' + Math.random().toString(36).slice(2, 10) });
     f.on('close', () => { if (fast === f) fast = null; });
     f.on('error', () => {});
+    // (B45.1: il battito del computer anche su questa strada vale come segno di vita)
+    f.on('data', () => { if (fast === f && conn?.open) lastRx = performance.now(); });
   } catch (e){ fast = null; }
 }
 function closeFast(){ const f = fast; fast = null; if (f) try { f.close(); } catch (e){} }
@@ -451,8 +467,26 @@ $('#standTag')?.addEventListener('pointerdown', e => {
 for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('#standTag')?.addEventListener(ev, () => { clearTimeout(staffT); $('#standTag').classList.remove('holding'); });
 // rete tornata, pagina ripresa dalla cache del browser: subito un tentativo (B41.3; il telecomando lo fa già). Anche la
 // racchetta normale: se aspettava un nuovo tentativo, lo fa subito
-const kick = () => { if (pair && linkState === 'lost' && !document.hidden){ tries = 0; connect(); } };
-addEventListener('online', kick); addEventListener('pageshow', kick);
+// B45.1 (link-life.kickNow): anche quando cambia il TIPO di rete (navigator.connection, Chrome su Android: wifi ↔
+// cellular…; le stime che cambiano di continuo no). Solo in attesa del prossimo tentativo: mai da collegato (decide il
+// controllo di vita) né a tentativo in corso (benvenuto, prova della chiave dello stand). netChangedAt: per il racconto
+// della caduta («rete cambiata»)
+let netChangedAt = null, pageHiddenAt = null, pageVisibleAt = null;
+const kick = () => { if (pair && kickNow({ linkState, hidden: document.hidden })){ tries = 0; connect(); } };
+addEventListener('online', () => { netChangedAt = performance.now(); kick(); });
+addEventListener('offline', () => { netChangedAt = performance.now(); });
+addEventListener('pageshow', kick);
+const netConn = navigator.connection;
+let netKind = netConn?.type;
+try { netConn?.addEventListener?.('change', () => { const t = netConn.type; if (netTypeChanged(netKind, t)){ netChangedAt = performance.now(); netKind = t; kick(); } else if (typeof t === 'string') netKind = t; }); } catch (e){}
+// B45.1 · racconto della caduta per il computer (link-life.js): perché, da quanto, tentativi, rete. Nella memoria della
+// scheda (resta se la pagina si ricarica) e detto una volta sola, nel primo «dev» dopo il benvenuto
+const drops = createDropStory({ store: ss, now: () => Date.now() });
+const story = {
+  drop: cause => drops.drop(storyWord(cause, { now: performance.now(), hidden: document.hidden, hiddenAt: pageHiddenAt, visibleAt: pageVisibleAt, netAt: netChangedAt }), typeof netConn?.type === 'string' ? { tipo: netConn.type } : {}),
+  attempt: ok => drops.attempt(ok),
+  tell: () => drops.tell(),
+};
 // vis: pagina in primo piano (0 = nascosta: schermo spento, altra app); wk: blocco dello schermo attivo (1), non
 // attivo (0, negato o perso: lo schermo può spegnersi dopo il tempo del telefono), non supportato dal browser (-1)
 const wakeState = () => awake.state;
@@ -466,7 +500,8 @@ try { navigator.getBattery?.().then(b => { battery = b; }, () => {}); } catch (e
 const batteryState = () => battery && Number.isFinite(battery.level) ? { bt: Math.round(battery.level*100), bc: battery.charging ? 1 : 0 } : {};
 const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batteryState(), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
-const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign });
+// (B45.1: cd = il racconto dell'ultima caduta, una volta sola; i computer di prima ignorano il campo)
+const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, ...(cd ? { cd } : {}) }); };
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
 // secondo (un tremolio continuo non deve intasare il collegamento)
 let discardWin = { at: 0, n: 0 };
@@ -478,14 +513,18 @@ function sendDiscard(why, d = {}){
   send({ t: 'gx', r: why, v: Number.isFinite(d.peak) ? d.peak : null, a: Number.isFinite(d.angle) ? d.angle : null, d: d.dir ?? null, pk: Number.isFinite(d.peakT) ? d.peakT : now });
 }
 det.on('discard', d => { if (sensor === 'ready' && inputMode === 'motion') sendDiscard(d.why, d); });
+let prevTick = null;
 setInterval(() => {
+  const now = performance.now(), life = lifeCheck({ now, lastSeen: lastRx, prevTick }); prevTick = now;
   if (!(conn && conn.open)) return;
-  // il computer manda qualcosa ogni secondo (risposte ai ping, misure dell'orologio): 5 s di silenzio vogliono dire
-  // collegamento morto anche se il canale non si è chiuso (rete persa). Prima il telefono restava «collegato» per sempre,
-  // non si ricollegava e i colpi si perdevano; ora si chiude e si riprende con la chiave di ripresa
-  if (performance.now() - lastRx > 5000){ const c = conn; conn = null; try { c.close(); } catch (e){} lost(); return; }
-  send({ t: 'ping', c: performance.now() }); sendState();
-}, 1000);
+  // il computer manda qualcosa ogni secondo (risposte ai ping, misure dell'orologio, il battito sul canale veloce): un
+  // silenzio lungo vuol dire collegamento morto anche se il canale non si è chiuso (rete persa). Prima il telefono restava
+  // «collegato» per sempre, non si ricollegava e i colpi si perdevano; ora si chiude e si riprende con la chiave di ripresa.
+  // B45.1 (link-life.lifeCheck): dopo 10 s di silenzio vero (prima 5: un buco della Wi-Fi di 5 s faceva sempre cadere il
+  // telefono); con questo controllo in ritardo (pagina ferma) prima si legge la coda. Prima di chiudere lo si dice («cl»)
+  if (life.drop){ const c = conn; conn = null; try { c.send({ t: 'cl', w: 'silenzio' }); } catch (e){} try { c.close(); } catch (e){} lost('silenzio'); return; }
+  send({ t: 'ping', c: now }); sendState();
+}, LIFE.tickMs);
 const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e){} };
 
 /* ---------- sensori ---------- */
@@ -701,6 +740,8 @@ $('#tutPrev').addEventListener('click', e => { e.stopPropagation(); if (gateNav(
 $('#tutNext').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).next) send({ t: 'tut', nav: 1 }); });
 $('#bye').addEventListener('click', () => {
   const wasStand = !!pair?.stand;
+  // (B45.1: il computer sa che non è una caduta della rete)
+  try { conn?.open && conn.send({ t: 'cl', w: 'scollega' }); } catch (e){}
   linkState = 'denied'; ++connectEpoch; clearTimeout(retryT); clearTimeout(connect.t); pendingConn = null;
   ss.del('resume'); ss.del('pair'); ss.del('profile'); pair = null; closeFast();
   try { conn && conn.close(); } catch (e){} conn = null; linkState = 'denied';
@@ -715,7 +756,11 @@ $('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sen
 // schermo sempre acceso durante il gioco (il telefono non si tocca): phone-keep.js riprende il blocco al ritorno in primo
 // piano, dopo un rilascio o un rifiuto a pagina visibile e a ogni tocco. Pagina nascosta: il computer lo sa subito
 // (prima che il telefono si sospenda) e mette in pausa
-document.addEventListener('visibilitychange', () => { if (document.hidden || sensor === 'off') sendState(); else onVisible(); });
+document.addEventListener('visibilitychange', () => {
+  // (B45.1: per il racconto di una caduta con la pagina nascosta)
+  if (document.hidden) pageHiddenAt = performance.now(); else pageVisibleAt = performance.now();
+  if (document.hidden || sensor === 'off') sendState(); else onVisible();
+});
 // pagina sospesa dal browser e ripresa (Android): come il ritorno in primo piano
 document.addEventListener('resume', () => { if (!document.hidden && sensor !== 'off') onVisible(); });
 document.addEventListener('pointerdown', () => {
@@ -735,15 +780,17 @@ document.addEventListener('pointerdown', () => {
   sendDevice();
   if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); face.reset(); needCal(); sendState(); paint(); }
 }, { passive: true });
-addEventListener('pagehide', () => { try { conn && conn.close(); } catch (e){} });
+// (B45.1: prima di chiudere lo si dice al computer, «cl», e la caduta resta nel racconto della scheda)
+addEventListener('pagehide', () => { try { if (conn?.open){ conn.send({ t: 'cl', w: 'pagina' }); story.drop('pagina'); } } catch (e){} try { conn && conn.close(); } catch (e){} });
 // di nuovo in primo piano: prima si riprende il blocco, poi si manda lo stato (il computer non deve vedere per un attimo
 // un blocco che manca); i sensori hanno il tempo di ripartire. Il computer non ha potuto rispondere mentre la pagina era
-// sospesa: un ping subito e 2 s per la risposta, poi il controllo dei 5 s (prima si chiudeva e riapriva anche un
+// sospesa: un ping subito e 2 s per la risposta, poi il controllo di vita (B45.1: 10 s) (prima si chiudeva e riapriva anche un
 // collegamento vivo). Collegamento perso mentre il telefono dormiva: si riprova subito, con la chiave di ripresa
 function onVisible(){
   const now = performance.now();
   sensorWatch.restart(now);
-  if (conn?.open){ lastRx = Math.max(lastRx, now - 3000); send({ t: 'ping', c: now }); }
+  // (B45.1: 2 s per la risposta prima del controllo di vita, che ora aspetta LIFE.silentMs)
+  if (conn?.open){ lastRx = Math.max(lastRx, now - (LIFE.silentMs - 2000)); send({ t: 'ping', c: now }); }
   else if (linkState === 'lost' && pair){ tries = 0; connect(); }
   awake.visible().then(sendState);
   veil.back(now); fsAfterVisible = true;

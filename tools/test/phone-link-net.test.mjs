@@ -111,6 +111,7 @@ test('telefono in LAN: a 12 s con la strada ancora in prova rinuncia come prima 
   const { readFileSync } = await import('node:fs');
   const vm = await import('node:vm');
   const { LINK_TIMES: T, netWhy: why } = await import('../../site/js/tennis/link.js');
+  const { retryPlan, lostText } = await import('../../site/js/tennis/link-life.js');
   const source = readFileSync(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
   const section = source.slice(source.indexOf('async function connect(){'), source.indexOf('// messaggi che valgono solo se arrivano subito'));
   for (const lan of [true, false]){
@@ -118,7 +119,7 @@ test('telefono in LAN: a 12 s con la strada ancora in prova rinuncia come prima 
     class Conn extends Emitter { send(){} }
     class P extends Emitter { constructor(){ super(); this.destroyed = false; peers.push(this); } connect(){ const c = new Conn(); this.c = c; return c; } destroy(){ this.destroyed = true; } }
     const sandbox = { LanPeer: P, isLanMode: () => lan, loadPeer: async () => P, iceReady: async () => null,
-      peerConfig: () => ({}), LINK_TIMES: T, netWhy: n => why(n, { lan }), performance: { now: () => 0 }, ss: { get(){}, set(){}, del(){} },
+      peerConfig: () => ({}), LINK_TIMES: T, retryPlan, lostText, story: { drop(){}, attempt(){}, tell(){ return null; } }, netWhy: n => why(n, { lan }), performance: { now: () => 0 }, ss: { get(){}, set(){}, del(){} },
       setTimeout: (f, ms) => { timers.push({ f, ms }); return timers.length; }, clearTimeout(){}, paint(){}, bar(){}, ui: (a, b) => shown.push(b), show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){} };
     vm.createContext(sandbox);
     vm.runInContext("let peer=null,conn=null,pendingConn=null,connectEpoch=0,retryT=null,tries=0,linkState='off',pair={session:'game',token:'token'},lastRx=0,fastOk=false,sensor='ready',rtt=80;\n" + section + "\nglobalThis.api={connect,get state(){return linkState}};", sandbox);
@@ -369,13 +370,14 @@ test('telefono: loadPeer e iceReady partono insieme', async () => {
   const { readFileSync } = await import('node:fs');
   const vm = await import('node:vm');
   const { LINK_TIMES: T, netWhy: why } = await import('../../site/js/tennis/link.js');
+  const { retryPlan, lostText } = await import('../../site/js/tennis/link-life.js');
   const source = readFileSync(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
   const section = source.slice(source.indexOf('async function connect(){'), source.indexOf('// messaggi che valgono solo se arrivano subito'));
   let lib = null, iceCalls = 0;
   const peers = [];
   class P extends Emitter { constructor(o){ super(); this.o = o; this.destroyed = false; peers.push(this); } destroy(){ this.destroyed = true; } }
   const sandbox = { LanPeer: P, isLanMode: () => false, loadPeer: () => new Promise(r => { lib = r; }), iceReady: () => { iceCalls++; return new Promise(() => {}); },
-    peerConfig: () => ({}), LINK_TIMES: T, netWhy: why, performance: { now: () => 0 }, ss: { get(){}, set(){}, del(){} },
+    peerConfig: () => ({}), LINK_TIMES: T, retryPlan, lostText, story: { drop(){}, attempt(){}, tell(){ return null; } }, netWhy: why, performance: { now: () => 0 }, ss: { get(){}, set(){}, del(){} },
     setTimeout: () => 0, clearTimeout(){}, paint(){}, bar(){}, ui(){}, show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){} };
   vm.createContext(sandbox);
   vm.runInContext("let peer=null,conn=null,pendingConn=null,connectEpoch=0,retryT=null,tries=0,linkState='off',pair={session:'game',token:'token'},lastRx=0,fastOk=false,sensor='ready',rtt=80;\n" + section + "\nglobalThis.api={connect};", sandbox);

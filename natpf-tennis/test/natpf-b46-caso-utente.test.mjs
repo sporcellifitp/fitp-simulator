@@ -169,15 +169,17 @@ test('caso dell\'utente 3 · il chiosco (nessuno per un po\') rimette destri tut
   page.tapHand('left'); page.tapHand('left'); page2.tapHand('left'); page2.tapHand('left');
   assert.equal(readHand(), 'left'); assert.equal(readP2Hand(), 'left');
   // il visitatore se ne va lasciando il gioco nella pagina «Partita» dello stesso schermo; nessuno tocca niente per il tempo
-  // del chiosco (con i telefoni collegati il menu non è «a riposo»: il chiosco riparte)
+  // del chiosco (fuori dal menu non è «a riposo»: il chiosco riparte)
   let resets = 0; const reset = w.ui.kiosk.reset.bind(w.ui.kiosk); w.ui.kiosk.reset = () => { resets++; return reset(); };
   w.ui.kiosk.enabled = true; w.ui.kiosk.last = performance.now(); w.lobby.go('mode'); w.lobby.setMode('split'); w.lobby.go('match'); w.advance(200);
   w.advance((w.ui.kiosk.limit + 2)*1000);
   assert.ok(resets >= 1, 'il chiosco è ripartito'); assert.equal(w.lobby.step, 'menu', 'di nuovo al menu');
   assert.equal(w.P1.hand, 'right'); assert.equal(w.P2.hand, 'right'); assert.equal(readHand(), 'right'); assert.equal(readP2Hand(), 'right');
-  // il visitatore dopo: il chiosco ha scollegato il Telefono 1 (racchetta normale, non dello stand): lo ricollega con il QR;
+  // il visitatore dopo: dal B45.1 il chiosco non scollega più i telefoni (prima il Telefono 1, racchetta normale, andava
+  // ricollegato con il QR): restano collegati, azzerati come con «Nuovo giocatore» (profilo da capo, tutorial da rivedere)
+  assert.ok(w.P1.connected && w.P2.connected, 'i due telefoni restano collegati');
+  assert.equal(w.P1.tutorialSeen, false); assert.equal(w.P2.tutorialSeen, false);
   // il tutorial lo ha già visto (qui si salta)
-  Object.assign(w.link, { connected: true, ready: false, L: { state: 'connected', phone: 'cal', joins: 2 } });
   w.P1.markTutorialSeen('short'); w.P2.markTutorialSeen('short'); w.advance(300);
   const { rowsSeen } = playTrial(w);
   assert.doesNotMatch(rowsSeen, /Mancino/);

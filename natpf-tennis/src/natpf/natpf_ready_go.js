@@ -38,6 +38,8 @@ export function readyGoWhy({ connected = false, ready = false, health = null } =
   if (!connected) return 'telefono scollegato';
   if (health?.why === 'pagina nascosta') return 'schermo del telefono spento';
   if (health?.why === 'sensori fermi' && !(health.gapMs < READY_GO.stallMs)) return 'sensori fermi';
+  // (B45.1: la rete del telefono, natpf_phone_watch.phoneHealth)
+  if (health?.why === 'segnale debole' && !(health.gapMs < READY_GO.stallMs)) return 'segnale debole';
   if (!ready) return 'telefono non pronto';
   return '';
 }
@@ -118,7 +120,7 @@ export class NatpfReadyGo {
       // «sensori fermi» deve durare WATCH.graceMs: il computer fermo per un attimo (un fotogramma pesante, la memoria che
       // si libera) fa sembrare fermi i sensori di tutti i telefoni, poi i dati arrivano insieme. Scollegato, schermo
       // spento e non pronto valgono subito
-      if (why === 'sensori fermi'){ this._stall[id] ??= now; if (now - this._stall[id] < WATCH.graceMs) why = ''; }
+      if (why === 'sensori fermi' || why === 'segnale debole'){ this._stall[id] ??= now; if (now - this._stall[id] < WATCH.graceMs) why = ''; }
       else this._stall[id] = null;
       if (why) this.taps[id] = false;                 // chi cade deve toccare di nuovo
       return { id, name: this._name(id), why, tapped: this.taps[id] };
