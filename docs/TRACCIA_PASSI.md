@@ -848,5 +848,9 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
       browser verdi (natpf-mano-sicura nuova 17/17 a 1280×720 e 720×720). Revisore del B46 ancora in corso.
 - [x] Unione in natpf-simulator (`1f0beb6`, conflitto solo in PROJECT_MEMORY: tenute le due parti), versione 2026-11-14.2,
       controllo rapido: gioco 1576/1576, sito 254/254, Windows 51/51, LAN 13/13, build ok.
-- [~] Push, zip Cloudflare, installer dal link fisso, «come si attiva» all'utente. B47 (fiera) in corso, poi 14.3.
+- [x] Push (`b98530d`). Zip Cloudflare 23.891.833 B, sha256 `9d55a3f91ab457a3d6f9c669f3ce8a285286c0fdd6fff2062920a2c3936d46ad`,
+      provato estratto (versione 2026-11-14.2, voce 47 clip, QR dei due telefoni, stesso schermo), mandato all'utente.
+      Installer **2026-11-14.2** pubblicato su R2 alle 14:16 UTC e verificato dal link fisso: 128.094.408 B, sha256
+      `f4d1b8e750b869faea95284cf4857a4810bb0c1e380a71bbfb2279d6383d5881`. «Come si attiva» mandato all'utente.
+- [~] B47 (fiera) in chiusura, poi 14.3 (con il tasto Alt in finestra del programma da sistemare).
 
