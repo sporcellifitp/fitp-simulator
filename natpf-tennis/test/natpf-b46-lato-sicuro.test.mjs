@@ -215,3 +215,18 @@ test('B46 registro: righe «tel» con soli campi già previsti; diagnostica: tel
   const viewer = readFileSync(new URL('../src/natpf/diag/diag_viewer.js', import.meta.url), 'utf8');
   for (const k of ['tel.mano', 'tel2.mano', 'tel.verso', 'tel2.verso']) assert.ok(viewer.includes(`'${k}'`), k);
 });
+
+test('B46 diagnostica: il riassunto della registrazione dice se la mano o un segno sono cambiati, e perché', async () => {
+  const { computeMetrics, summaryLines, METRIC_KINDS } = await import('../src/natpf/diag/diag_metrics.js');
+  for (const k of ['tel.mano', 'tel.verso', 'tel2.mano', 'tel2.verso']) assert.ok(METRIC_KINDS.has(k), k);
+  const ev = [{ t: 10, k: 'tel.mano', mano: 'left', causa: 'telefono', ruolo: 'p1' }, { t: 30, k: 'tel.verso', causa: 'tocchi', stato: -1, ruolo: 'p1' },
+    { t: 20, k: 'tel2.mano', mano: 'right', causa: 'chiosco', ruolo: 'p2' }, { t: 40, k: 'tel.verso', causa: 'rilevatore', stato: 1, ruolo: 'p1' }];
+  const T = computeMetrics(ev).telefono;
+  assert.deepEqual(T.mano, ['sinistra · telefono · p1', 'destra · chiosco · p2']);
+  assert.deepEqual(T.segnoVerso, ['tocchi · −1 · p1', 'rilevatore · +1 · p1']);
+  const L = summaryLines(computeMetrics(ev)).join('\n');
+  assert.match(L, /Mano cambiata: sinistra · telefono · p1, destra · chiosco · p2/);
+  assert.match(L, /Segno del verso del telefono cambiato: tocchi · −1 · p1, rilevatore · \+1 · p1/);
+  // registrazioni senza cambi: nessuna riga in più
+  assert.ok(!('mano' in (computeMetrics([{ t: 1, k: 'tel.dispositivo', ua: 'x' }]).telefono || {})));
+});

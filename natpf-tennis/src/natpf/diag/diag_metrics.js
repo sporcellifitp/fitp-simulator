@@ -112,7 +112,9 @@ function webcamStates(changes, pauses){
 }
 // tipi di evento che le metriche leggono: l'analisi a righe (diag_analysis.js) tiene in memoria solo questi
 export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'webcam.camera', 'webcam.ritmo', 'webcam.carico', 'webcam.stato', 'webcam.modello', 'webcam.riapertura', 'webcam.pausa', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.link', 'tel2.colpo', 'prestazioni',
-  'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca', 'sfida.colpo', 'sfida.colpo_vecchio', 'popup', 'partita']);
+  'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca', 'sfida.colpo', 'sfida.colpo_vecchio', 'popup', 'partita',
+  // B46: mano e segno del verso dei telefoni cambiati (natpf_phone_racket: setHand, _signEvent)
+  'tel.mano', 'tel.verso', 'tel2.mano', 'tel2.verso']);
 // ms dal rimbalzo della palla dell'avversario al colpo di chi gioca qui (evento racchetta entro 1,5 s, prima di un altro
 // rimbalzo o di un punto)
 function bounceToContact(events){
@@ -344,7 +346,9 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
   // ---- telefono ----
   const colpi = by('tel.colpo');
   // anche senza colpi arrivati (il telefono li ha scartati tutti, o non ne sono partiti): conta cosa è successo là
-  if (colpi.length || raw.length || by('tel.orologio').length || by('tel.scartato').length || by('tel.link').length || by('tel.dispositivo').length){
+  // (B46: anche solo un cambio di mano o del segno del verso)
+  const manoTel = [...by('tel.mano'), ...by('tel2.mano')], versoTel = [...by('tel.verso'), ...by('tel2.verso')];
+  if (colpi.length || raw.length || by('tel.orologio').length || by('tel.scartato').length || by('tel.link').length || by('tel.dispositivo').length || manoTel.length || versoTel.length){
     const ok = colpi.filter(c => !c.scartato), ns = colpi.map(c => c.n);
     const tipi = {}; for (const c of ok){ const k = `${c.lato || '?'}/${c.tipo || '?'}`; tipi[k] = (tipi[k] || 0) + 1; }
     const ts = raw.map(k => k.k).filter(Number.isFinite), dts = ts.slice(1).map((t, i) => t - ts[i]).filter(d => d > 0);
@@ -378,6 +382,9 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       ...(scartatiTel.length ? { scartatiSulTelefono: tally(scartatiTel, x => x.perche || '?') } : {}),
       ...(by('tel.prep').length ? { preparazioni: by('tel.prep').length } : {}),
       ...(disp ? { dispositivo: { browser: disp.ua || null, versione: disp.version || null, bloccoSchermo: disp.wakeLock ?? null, sensori: disp.motion ?? null } } : {}),
+      // B46: cambi di mano (mano · causa · ruolo) e del segno del verso (causa · segno nuovo · ruolo), in ordine
+      ...(manoTel.length ? { mano: manoTel.sort((a, b) => a.t - b.t).map(x => `${x.mano === 'left' ? 'sinistra' : 'destra'} · ${x.causa || '?'} · ${x.ruolo || 'p1'}`) } : {}),
+      ...(versoTel.length ? { segnoVerso: versoTel.sort((a, b) => a.t - b.t).map(x => `${x.causa || '?'} · ${x.stato === -1 ? '−1' : '+1'} · ${x.ruolo || 'p1'}`) } : {}),
       tipi,
       // racchetta virtuale: quanti colpi portano la forma del gesto (telefono aggiornato) e come è fatta (salita della
       // testa −1…+1, |piano| 1 = orizzontale, 0 = verticale); intenzione letta dal computer
@@ -639,6 +646,9 @@ export function summaryLines(m = {}){
     if (k.sensoriBuco?.n) L.push(`Messaggi dei sensori: buco più lungo al secondo mediana ${k.sensoriBuco.p50} ms, massimo ${k.sensoriBuco.max} ms · secondi con buchi oltre 100 ms: ${k.secondiConBuchiOltre100ms} · arrivi a grappolo ${k.grappoli}`);
     if (T.scartatiSulTelefono) L.push(`Gesti scartati sul telefono: ${Object.entries(T.scartatiSulTelefono).map(([x, v]) => `${x} ${v}`).join(', ')}${T.preparazioni ? ` · preparazioni ${T.preparazioni}` : ''}`);
     if (T.dispositivo?.browser) L.push(`Telefono: ${T.dispositivo.browser}${T.dispositivo.versione ? ' · pagina ' + T.dispositivo.versione : ''}`);
+    // B46: se dritto e rovescio escono scambiati, qui si vede se la mano o un segno sono cambiati e perché
+    if (T.mano?.length) L.push(`Mano cambiata: ${T.mano.join(', ')}`);
+    if (T.segnoVerso?.length) L.push(`Segno del verso del telefono cambiato: ${T.segnoVerso.join(', ')}`);
   }
   if (W) L.push(`Webcam: ${W.fpsElaborazione ?? '–'} fotogrammi elaborati/s · riconoscimento mediana ${W.inferenzaMs?.p50 ?? '–'} ms · perdite ${W.perdite} (${W.perditeS} s) · più mani ${W.piuManiPercento ?? 0}% del tempo`);
   if (W?.fpsCamera) L.push(`Webcam: camera ${W.fpsCamera.p50} fotogrammi/s (5° percentile ${W.fpsCamera.p5}, buco più lungo ${W.bucoCameraMs ?? '–'} ms)${W.camera?.ottenuto ? `, ${W.camera.ottenuto.w}×${W.camera.ottenuto.h} a ${W.camera.ottenuto.fps ?? '?'} fps ottenuti` : ''} · inferenze ${W.inferenzeAlSecondo}/s, mediana ${W.inferenzaMs.p50} ms (p95 ${W.inferenzaMs.p95}) · ${W.worker ? "worker" : "thread del gioco"} occupato ${W.caricoPercento.p50}% · età del dato ${W.etaDatoMs.p50 ?? '–'} ms`);
