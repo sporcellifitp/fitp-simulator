@@ -10,7 +10,8 @@ export class LanConnection extends Events {
     super();this.id=id||crypto.randomUUID();this.localCandidates=[];this.signaled=false;this.owner=owner;this.peer=remote;this.open=false;this.closed=false;this.pending=[];
     this.pc=new RTCPeerConnection({iceServers:[],iceTransportPolicy:'all'});
     this.pc.onicecandidate=e=>{if(e.candidate){const candidate=e.candidate.toJSON();if(this.signaled)this.signal({candidate});else this.localCandidates.push(candidate);}};
-    this.pc.onconnectionstatechange=()=>{if(['failed','closed'].includes(this.pc.connectionState))this.close();};
+    // (failed: la strada diretta data per persa dal browser; B45.1, per il motivo della caduta: link-life.closeMotivo)
+    this.pc.onconnectionstatechange=()=>{if(['failed','closed'].includes(this.pc.connectionState)){this.failed=this.pc.connectionState==='failed';this.close();}};
     // stato della strada diretta, come l'evento di PeerJS: il telefono lo usa per dire perché il collegamento non riesce
     // (netWhy). Prima in LAN restava 'new' e diceva «inquadra di nuovo il QR» anche quando era la rete a bloccare
     this.pc.oniceconnectionstatechange=()=>this.emit('iceStateChanged',this.pc.iceConnectionState);

@@ -165,7 +165,9 @@ export class Riassunto {
     this.evento = { n: 0, inizio: new Misura(), fine: new Misura(), delta: new Misura(), sale: 0, scende: 0, uguale: 0, perOrdine: [] };
     this.tel = { stati: {}, cadutePerOra: {}, strade: {}, rtt: new Misura(), rttMax: new Misura(), so: {}, browser: {}, cadutePartite: 0, dopoS: new Misura(),
       // B46: cambi di mano (mano · causa) e del segno del verso (causa · segno), con quanti in partita
-      mano: {}, segno: {}, manoInPartita: 0, segnoInPartita: 0 };
+      mano: {}, segno: {}, manoInPartita: 0, segnoInPartita: 0,
+      // B45.1: perché cadono (motivo · chi se n'è accorto), dove si era, motivo chiarito al ritorno; righe di prima: «chiosco»
+      perche: {}, dove: {}, ritorno: {} };
     this.fps = { medi: new Misura(), peggiori: new Misura(), maxMs: new Misura(), lunghi: 0, costo: new Misura(), sotto30: 0, n: 0 };
     this.avvii = { n: 0, improvvise: 0, ricaricamenti: 0, crash: 0, schermi: {}, gpu: {}, dove: {} };
     this.errori = new Map(); this.altro = { allenamenti: 0, allenamentiFiniti: 0, minigiochi: {}, note: 0, perse: 0 };
@@ -267,6 +269,10 @@ export class Riassunto {
     // B46: righe con un motivo (cambio di mano o del segno del verso del telefono), contate a parte
     if (r.motivo === 'mano'){ piu(T.mano, `${r.mano === 'left' ? 'sinistra' : 'destra'} · ${r.causa || '?'}${r.ruolo === 'p2' ? ' (Player 2)' : ''}`); if (r.inPartita) T.manoInPartita++; return; }
     if (r.motivo === 'segno'){ piu(T.segno, `${r.causa || '?'} · ${r.stato === -1 ? '−1' : '+1'}${r.ruolo === 'p2' ? ' (Player 2)' : ''}`); if (r.inPartita) T.segnoInPartita++; return; }
+    // B45.1: motivo della caduta e chi se n'è accorto (righe dalla 2026-11-14.4; prima della B45.1 le righe «scollegato» insieme a
+    // una visita finita con il chiosco erano il chiosco che scollegava il telefono col QR)
+    if (r.stato === 'caduto'){ piu(T.perche, `${r.motivo || '(senza motivo: versione di prima)'}${r.causa ? ` · ${r.causa}` : ''}${r.fonte === 'telefono' ? ' (solo dal telefono)' : ''}`); if (r.dove) piu(T.dove, r.dove); }
+    if ((r.stato === 'ricollegato' || r.stato === 'collegato') && r.motivo) piu(T.ritorno, `${r.motivo}${r.causa ? ` · ${r.causa}` : ''}`);
     piu(T.stati, r.stato); if (r.strada) piu(T.strade, r.strada); if (r.stato === 'caduto'){ const d = this._quando(x, r); piu(T.cadutePerOra, d ? `${d.toISOString().slice(0, 10)} · ore ${String(d.getUTCHours()).padStart(2, '0')}` : 'senza ora'); } if (r.stato === 'ricollegato') T.dopoS.metti(r.dopoS); }
   _errore(r, x){ const k = `${r.msg}|${r.file}|${r.riga}`, e = this.errori.get(k) || { msg: r.msg, file: r.file, riga: r.riga, tipo: r.tipo, volte: 0, per: new Map() }; this.errori.set(k, e); e.per.set(x, Math.max(e.per.get(x) || 0, r.volte || 1)); }
   /* ---------- B36.0: direzione dei colpi ---------- */
@@ -423,6 +429,10 @@ export function rapporto(R, L){
   ], [
     { titolo: 'Strada del collegamento', colonne: ['Strada', 'Volte', 'Quota'], righe: elenco(te.strade, Object.values(te.strade).reduce((a, b) => a + b, 0)) },
     { titolo: 'Cadute per ora', colonne: ['Giorno e ora', 'Cadute'], righe: Object.entries(te.cadutePerOra).sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, v]) => [k, N(v)]) },
+    // B45.1 «telefono che non si scollega»: perché cade (visto dal computer), dove si era, motivo chiarito dal telefono al ritorno
+    { titolo: 'Perché cadono (motivo · chi se n\'è accorto)', colonne: ['Motivo', 'Cadute'], righe: elenco(te.perche) },
+    { titolo: 'Dove si era alla caduta', colonne: ['Posto', 'Cadute'], righe: elenco(te.dove) },
+    { titolo: 'Motivo chiarito al ritorno (racconto del telefono)', colonne: ['Motivo', 'Volte'], righe: elenco(te.ritorno) },
     { titolo: 'Telefoni (a grandi linee)', colonne: ['Sistema', 'Volte'], righe: elenco(te.so) },
     { titolo: 'Browser del telefono', colonne: ['Browser', 'Volte'], righe: elenco(te.browser) },
     // B46 «dritto e rovescio al sicuro»: perché dritto e rovescio possono uscire scambiati (mano sinistra, segno girato)

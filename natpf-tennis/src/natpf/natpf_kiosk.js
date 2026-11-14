@@ -1,7 +1,14 @@
 // Stand per eventi: modalità chiosco e pannello dell'addetto.
-// Chiosco (si accende dal pannello): dopo N secondi senza nessuno (nessun tasto, clic, tocco o colpo del telefono)
-// si torna al menu principale, si dimentica il nickname e si scollega il telefono, così lo stand è pronto per il
-// visitatore successivo. Durante una partita o una sfida si aspetta il doppio, poi si chiude anche quella.
+// Chiosco (si accende dal pannello): dopo N secondi senza nessuno (nessun tasto, clic, tocco, né gesti o tocchi sul telefono
+// o telefono mosso) si torna al menu principale e si azzera chi gioca, così lo stand è pronto per il visitatore successivo.
+// Durante una partita o una sfida si aspetta il doppio, poi si chiude anche quella.
+// B45.1 «telefono che non si scollega» (14/11): il chiosco NON scollega più i telefoni (Player 1 e Player 2, col QR o dello
+// stand). Prima scollegava di proposito la racchetta col QR, e il telefono diceva «Scollegato – Il computer ha scollegato il
+// telefono… inquadra il nuovo QR» a schermo acceso: in fiera sembrava una caduta della rete. Ora azzera solo il giocatore
+// come «Nuovo giocatore» (nome, mano destra per tutti e due, profilo imparato e calibrazione, tutorial, nomi dello stesso
+// schermo); «Telefono: Scollega» del pannello e del telecomando resta. Anche i messaggi del telefono contano come attività
+// (gesti della calibrazione, tocchi, «Sono pronto», sensori attivati, telefono mosso: natpf_phone_racket.onActivity e
+// movedAt), non solo i colpi. «A riposo» (niente da azzerare) = al menu senza nome e senza nessuno dall'ultimo azzeramento.
 // Pannello dell'addetto: Ctrl+Maiusc+K (F9 nel programma Windows), oppure tenere premuto 3 secondi il marchio NATPF in
 // alto a sinistra nel menu.
 // Ha anche la sensibilità della mira del telefono (B16, opzione dello staff: natpf_aim_level.js).
@@ -30,6 +37,8 @@ import { readOskMode, writeOskMode, nextOskMode, oskButton, oskToast } from './n
 import { HoldPress } from './natpf_hold.js';
 // B46: chi arriva dopo parte destro (Player 1 e Player 2), come con «Nuovo giocatore»
 import { resetHands } from './natpf_hand.js';
+// B45.1: cadute del collegamento di oggi nella riga sotto le voci
+import { rigaCadute, leggiCadute } from './natpf_cadute.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -63,13 +72,17 @@ export class NatpfKiosk {
     let saved = {}; try { saved = JSON.parse(localStorage.getItem(KIOSK_KEY) || '{}'); } catch {}
     this.enabled = !!saved.enabled; this.limit = IDLE_STEPS.includes(saved.limit) ? saved.limit : 45;
     this.last = performance.now();
-    const poke = () => { this.last = performance.now(); };
+    // B45.1: niente da azzerare (nessuno dall'avvio o dall'ultimo azzeramento): al menu il chiosco non riparte di continuo
+    this.clean = true;
+    const poke = this.poke = () => { this.last = performance.now(); this.clean = false; };
     for (const ev of ['pointerdown', 'keydown', 'touchstart', 'wheel']) window.addEventListener(ev, poke, { capture: true, passive: true });
     // B39.5 (controllo «solo mouse», A4): anche il mouse che si muove (lo staff che legge o cerca una voce senza cliccare),
     // al più una volta al secondo e solo per spostamenti veri (non il tremolio di un mouse fermo)
     let moveAt = 0;
     window.addEventListener('pointermove', e => { const now = performance.now(); if (now - moveAt < 1000 || Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0) < 3) return; moveAt = now; poke(); }, { capture: true, passive: true });
     ui.phone?.onSwing?.(poke);
+    // B45.1: gesti della calibrazione, tocchi sul telefono, «Sono pronto», sensori attivati (il Telefono 2 nasce dopo: check)
+    ui.phone?.onActivity?.(poke);
     this.el = $('natpf-staff');
     this.el?.addEventListener('pointerdown', e => e.stopPropagation());
     // B43: conferma in due passi (solo i clic: run() dal codice resta immediato) per le voci che in campo chiudono la
@@ -118,16 +131,23 @@ export class NatpfKiosk {
     const ui0 = this.ui;
     if (this.isOpen || ui0.remote?.isOpen || ui0.remote?.opening || ui0.diag?.isOpen){ this.last = performance.now(); return; }
     const E = this.engine, ui = this.ui, lobby = ui.lobby;
+    // B45.1: il Telefono 2 (stesso schermo, fiera) nasce dopo il chiosco: i suoi gesti e tocchi contano anche loro
+    const p2 = E.natpfPhone2;
+    if (p2 && p2 !== this._p2){ this._p2 = p2; p2.onActivity?.(this.poke); p2.onSwing?.(this.poke); }
+    // telefono preso in mano (sensori in movimento): qualcuno c'è
+    for (const p of [ui.phone, p2]){ const m = p?.connected ? p.movedAt : null; if (m != null && m > this.last) this.poke(); }
     const inGame = !lobby.visible && (!E.autoPlayMode || ui.training.active || !!ui.events.active);
-    // (B41.2: il telefono dello stand resta sempre collegato, non vuol dire che c'è qualcuno)
-    // (B39.5, A4: anche la classifica a schermo intero lasciata in vista per chi è in fila)
-    const atRest = lobby.visible && (lobby.step === 'menu' || (lobby.step === 'ranking' && this.rankingFull)) && !ui.events.nickname && (!ui.phone.connected || !!ui.phone.standSlot);
+    // (B41.2: il telefono dello stand resta sempre collegato, non vuol dire che c'è qualcuno; B45.1: neanche quello col QR)
+    // (B39.5, A4: anche la classifica a schermo intero lasciata in vista per chi è in fila: si azzera chi gioca ma la
+    // classifica resta)
+    const atMenu = lobby.visible && (lobby.step === 'menu' || (lobby.step === 'ranking' && this.rankingFull));
+    const atRest = atMenu && !ui.events.nickname && this.clean;
     const a = kioskAction({ enabled: this.enabled, idle: (performance.now() - this.last)/1000, limit: this.limit, inGame, atRest });
     if (a === 'end-game'){ ui.backToMenu(); this.reset(); }
-    else if (a === 'reset') this.reset();
+    else if (a === 'reset') this.reset({ stay: atMenu && lobby.step === 'ranking' });
   }
-  // stand libero per il prossimo visitatore
-  reset(){
+  // stand libero per il prossimo visitatore. stay: resta la pagina in vista (classifica a schermo intero)
+  reset({ stay = false } = {}){
     const ui = this.ui;
     // guida chiusa con la sua funzione prima di nascondere i pannelli (dopo, per lei, è già chiusa)
     if (ui.onboarding?.isOpen) ui.onboarding.close();
@@ -137,23 +157,30 @@ export class NatpfKiosk {
     // imparati da un ospite senza nome (il setter del nickname li toglie solo se c'era un nome; revisione dell'insieme B18.1)
     ui.events.forgetGuest?.();
     ui.events.forgetLearned?.();
-    // B25: le fasce dei due giocatori dello stesso schermo tornano «Adulto» (sono di chi gioca, non dello stand)
-    ui.split?.resetBands?.();
+    // B25: le fasce dei due giocatori dello stesso schermo tornano «Adulto» (sono di chi gioca, non dello stand). B45.1: anche
+    // i nomi dei due giocatori, come «Nuovo giocatore» (natpf_split_ui.resetNames rimette anche le fasce)
+    if (ui.split?.resetNames) ui.split.resetNames(); else ui.split?.resetBands?.();
+    if (ui.split?.fails) ui.split.fails = { p1: 0, p2: 0 };
     // B46 «dritto e rovescio al sicuro»: la mano torna «Destra» per tutti e due (è di chi gioca: una mano sinistra rimasta da
     // chi c'era prima dava a un destro ogni dritto come rovescio). Non al riavvio del programma: lì resta quella salvata
     resetHands(ui, 'chiosco');
     // B18.2 gruppo 3: «Chi gioca» al valore di base, livello Evento da capo, spiegazione del colpo super da rivedere
     ui.lobby?.resetWho?.(); ui.superHint?.reset?.(); ui.serveCoach?.newPlayer?.();   // (B44: l'icona del lancio di nuovo ai primi servizi)
+    ui.cue?.resetHint?.();   // (B45.1: come «Nuovo giocatore», la scritta del segnale del momento giusto si rivede)
     // il visitatore successivo rivede il tutorial prima di calibrare (gioco singolo e stesso schermo)
     // (il tutorial visto è segnato sul telefono, per abbinamento: si dimentica anche con lo stesso telefono)
     if (ui.split) ui.split.closeTutorials?.();
-    ui.phone?.forgetTutorial?.(); ui.engine?.natpfPhone2?.forgetTutorial?.();
-    // (B41.2: modalità fiera, il telefono dello stand non si scollega: resta al suo posto per il prossimo visitatore)
-    if (ui.phone.connected && !ui.phone.standSlot) ui.phone.forget?.();
-    ui.lobby.go('menu');
+    // B45.1: i telefoni restano collegati (prima la racchetta col QR si scollegava: in fiera sembrava una caduta della rete).
+    // Chi arriva dopo non eredita niente: tutorial visto, profilo e calibrazione, colpi e segno imparati (resetPlayer, come
+    // «Nuovo giocatore» dal menu: il telefono ricalibra da solo; con «Giocando» riceve subito il profilo semplice)
+    for (const p of [ui.phone, ui.engine?.natpfPhone2]){
+      if (!p) continue;
+      if (p.resetPlayer) p.resetPlayer({ gate: false, causa: 'chiosco' }); else p.forgetTutorial?.();
+    }
+    if (!stay) ui.lobby.go('menu');
     // pausa ricalcolata a pannelli chiusi: prima restava attiva e il visitatore successivo trovava il gioco fermo
     ui._syncPause?.();
-    this.last = performance.now();
+    this.last = performance.now(); this.clean = true;
   }
   run(cmd){
     const ui = this.ui;
@@ -256,6 +283,9 @@ export class NatpfKiosk {
     set('display', d?.current ? `${d.current.label}${d.list?.length > 1 ? ' ›' : ''}` : '—', false);
     show($('staff-registro'), !!this.ui.registro); this.ui.registro?.dipingi();
     const n = $('staff-note');
-    if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
+    if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu e chi gioca si azzera (nome, mano, calibrazione, tutorial); il telefono resta collegato (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
+    // B45.1: cadute del collegamento di oggi, per posto, con il motivo più frequente (natpf_cadute.js); niente se nessuna
+    const c = $('staff-cadute');
+    if (c){ const t = rigaCadute(leggiCadute()); c.textContent = t; show(c, !!t); }
   }
 }

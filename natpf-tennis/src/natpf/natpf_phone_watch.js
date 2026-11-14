@@ -28,6 +28,10 @@ const STREAMS = ['fo', 'bin', 'sm', 'rs'];
 // degraded 'canale' se il flusso dei sensori non arriva ma il telefono dice di averli (vedi WATCH.beatMs).
 // touch: si gioca con i tocchi, senza sensori (non si giudicano). sensorAge: ms dall'ultimo campione sul telefono, nel suo
 // ultimo segnale; beatAgeMs: ms da quel segnale (telefoni di prima: null, si giudica solo il flusso)
+// B45.1: con il movimento che non arriva, answers dice se il telefono risponde ancora sul canale affidabile (segnale di
+// meno di WATCH.beatMs) con i sensori che sul telefono vanno (sensorAge entro WATCH.phoneSensorMs): è il caso del solo
+// canale veloce bloccato, l'unico in cui il «Ricollega» automatico serve (createResync). silent: il telefono tace del tutto
+// (segnale vecchio): rete ferma o telefono fermo, decide il controllo di vita (link-life.LIFE)
 export function phoneHealth({ connected = false, phone = null, vis = null, rates = null, touch = false, gapMs = WATCH.sensorGapMs, sensorAge = null, beatAgeMs = null, rtt = null } = {}){
   if (!connected) return { ok: false, why: 'scollegato' };
   if (phone !== 'ready') return { ok: false, why: 'non pronto' };
@@ -35,10 +39,11 @@ export function phoneHealth({ connected = false, phone = null, vis = null, rates
   const ages = touch ? [] : STREAMS.map(k => rates?.[k]?.ageMs).filter(Number.isFinite);
   // nessuno stream visto (telefono di prima): non si giudica
   if (ages.length && Math.min(...ages) > gapMs){
-    const gap = Math.round(Math.min(...ages));
-    if (Number.isFinite(sensorAge) && sensorAge <= WATCH.phoneSensorMs && Number.isFinite(beatAgeMs) && beatAgeMs <= WATCH.beatMs && !(Number.isFinite(rtt) && rtt > WATCH.rttMax))
-      return { ok: true, why: null, degraded: 'canale', gapMs: gap };
-    return { ok: false, why: 'sensori fermi', gapMs: gap };
+    const gap = Math.round(Math.min(...ages)), beat = Number.isFinite(beatAgeMs) && beatAgeMs <= WATCH.beatMs;
+    const answers = beat && Number.isFinite(sensorAge) && sensorAge <= WATCH.phoneSensorMs;
+    if (answers && !(Number.isFinite(rtt) && rtt > WATCH.rttMax))
+      return { ok: true, why: null, degraded: 'canale', gapMs: gap, answers };
+    return { ok: false, why: 'sensori fermi', gapMs: gap, answers, ...(Number.isFinite(beatAgeMs) && !beat ? { silent: true } : {}) };
   }
   return { ok: true, why: null };
 }
@@ -53,13 +58,18 @@ export function phoneHealthOf(p, now = globalThis.performance?.now?.() ?? 0){
 // «sensori fermi», o partita che va avanti con il canale veloce bloccato) da afterMs. Si chiede al telefono di rifare il
 // collegamento (link.relink) al massimo ogni everyMs; con la partita che va avanti, solo tra un punto e l'altro (rifare
 // il collegamento lo interrompe per un attimo). update(h, { paused, busy, now }) → true quando chiederlo.
+// B45.1: solo se il telefono risponde ancora sul canale affidabile con i sensori che vanno (h.answers: il caso del canale
+// veloce bloccato per cui è nato, diagnostica del 29/10). Prima scattava a ~2,9 s anche quando taceva tutto (un buco della
+// Wi-Fi di 3 s in partita, docs/b45/telefono-che-si-scollega.md tab. 4): il comando restava in coda e il telefono, al
+// ritorno della rete, rifaceva il collegamento, con una caduta nel registro; e con i sensori fermi sul telefono il
+// ricollegamento non li fa ripartire (lì serve «Riattiva i sensori» sul telefono)
 export const RESYNC = Object.freeze({ afterMs: 2500, everyMs: 12000 });
 export function createResync({ afterMs = RESYNC.afterMs, everyMs = RESYNC.everyMs } = {}){
   let since = null, last = -Infinity;
   return {
     reset(){ since = null; },
     update(h, { paused = false, busy = false, now = 0 } = {}){
-      const stuck = !!h && ((h.ok && h.degraded === 'canale') || (!h.ok && h.why === 'sensori fermi'));
+      const stuck = !!h && !!h.answers && ((h.ok && h.degraded === 'canale') || (!h.ok && h.why === 'sensori fermi'));
       if (!stuck){ since = null; return false; }
       if (since == null) since = now;
       if (now - since < afterMs || now - last < everyMs) return false;
@@ -115,10 +125,12 @@ export function createPhoneWatch({ steadyMs = WATCH.steadyMs, countdownMs = WATC
 // testo per chi gioca, dal motivo della pausa. hiddenMs: da quanto la pagina del telefono è nascosta (B9: lo si dice, e si
 // aggiorna ogni secondo); wasHidden: il telefono si è scollegato con la pagina nascosta (schermo spento): si ricollega
 // da solo quando torna, il QR serve solo se la pagina è stata chiusa
-export function holdText(why, { hiddenMs = null, wasHidden = false } = {}){
+export function holdText(why, { hiddenMs = null, wasHidden = false, silent = false } = {}){
   const since = Number.isFinite(hiddenMs) && hiddenMs >= 1000 ? ` da ${Math.round(hiddenMs/1000)} s` : '';
   if (why === 'pagina nascosta') return `Schermo del telefono spento${since}: riaccendi lo schermo e tocca la pagina del gioco, si riprende da solo.`;
   if (why === 'scollegato' && wasHidden) return `Telefono scollegato con lo schermo spento${since}: riaccendilo e torna alla pagina, si ricollega da solo. Pagina chiusa? Inquadra di nuovo il QR.`;
+  // B45.1: il telefono tace del tutto (silent: niente movimento e niente segnale): rete ferma, non i sensori
+  if (why === 'sensori fermi' && silent) return 'Il telefono non risponde (rete ferma?): si riprende da solo appena torna.';
   return {
     scollegato: 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo.',
     'non pronto': 'Telefono non pronto: finisci la calibrazione sul telefono.',
@@ -135,5 +147,6 @@ export const otherPhoneNote = name => `Partita in pausa: aspetto il telefono ${p
 // testo della pausa per questo telefono adesso (da quanto è nascosto, se si è scollegato con lo schermo spento)
 export function phoneHoldText(p, why, now = globalThis.performance?.now?.() ?? 0){
   const L = p?.state || {}, hidden = L.vis === false;
-  return holdText(why, { hiddenMs: hidden && Number.isFinite(L.hiddenAt) ? now - L.hiddenAt : null, wasHidden: hidden });
+  // (B45.1: segnale del telefono più vecchio di WATCH.beatMs: tace del tutto)
+  return holdText(why, { hiddenMs: hidden && Number.isFinite(L.hiddenAt) ? now - L.hiddenAt : null, wasHidden: hidden, silent: Number.isFinite(L.beatAt) && now - L.beatAt > WATCH.beatMs });
 }

@@ -42,6 +42,8 @@ const CPU_NET = Object.freeze({ volley: 'volée', smash: 'schiacciata', drop: 'p
 export const LINEE = Object.freeze({ x: 4.115 + .22, z: 11.89 + .28 });
 // colpo rimasto in attesa del rimbalzo oltre questo tempo: si scrive senza (il volo più lungo, un pallonetto, dura meno di 3 s)
 const ATTESA_RIMBALZO_MS = 6000;
+// cause delle righe «tel» che chiudono la visita (mai «in partita»: B45.1, revisione del B46 punto 5)
+const FUORI_PARTITA = new Set(['chiosco', 'nuovo giocatore', 'fiera']);
 export class RegistroStand {
   constructor({ engine, ui = null, coda, invio = null, storage = globalThis.localStorage, now = () => performance.now(), wallNow = () => Date.now(), programma = false, win = null, raf = null, timers = true, area = null } = {}){
     this.engine = engine; this.ui = ui; this.coda = coda; this.invio = invio; this.storage = storage; this.now = now; this.wallNow = wallNow; this.programma = !!programma; this.win = win; this.area = area;
@@ -259,6 +261,10 @@ export class RegistroStand {
       if (kind === 'scartato') R._scarto(`telefono: ${d?.why || 'gesto scartato'}`);
       // B46: mano o segno del telefono cambiati (natpf_phone_racket: setHand, _signEvent)
       else if ((kind === 'mano' || kind === 'verso') && R.on){ const t = R.now(); try { R._telMotivo(chi, kind, d || {}); } catch {} R._costo(t); }
+      // B45.1: caduta che il computer non ha visto, raccontata dal telefono rientrato prima del controllo di vita (fonte
+      // 'telefono'); quelle viste dal computer si scrivono al cambio di stato (_telCambio), quelle della pagina del gioco
+      // ricaricata nella riga «collegato» (_telRiga)
+      else if (kind === 'caduta' && R.on && d?.fonte === 'telefono' && !d.before){ const t = R.now(); try { R._riga('tel', { chi, stato: 'caduto', motivo: d.motivo, causa: d.causa, fonte: 'telefono', dove: R._posto(), ...(R._inPartita() ? { inPartita: true } : {}) }); } catch {} R._costo(t); }
     });
   }
   // B46 «dritto e rovescio al sicuro» (14/11): una riga «tel» per ogni cambio di mano (motivo 'mano': mano, causa, ruolo)
@@ -266,8 +272,15 @@ export class RegistroStand {
   // quale dei casi è successo: mano sinistra (dal telefono, dal gioco…), segno dei sensori cambiato dai tocchi o con una
   // pagina nuova, voto del rilevatore, segno degli scambi di prova, calibrazione che lo rimette a +1. Solo campi già
   // previsti (CAMPI): il Worker non va ricaricato
+  // B45.1 (revisione del B46, punto 5): inPartita solo con la partita davvero in corso. Il chiosco a metà partita (backToMenu,
+  // poi reset) e «Nuovo giocatore» premuto in partita (resetHands prima di backToMenu) chiudono la partita: le loro righe non
+  // sono «in partita» anche se this.partita si chiude solo al controllo del secondo dopo
+  _inPartita(causa = null){
+    const E = this.engine;
+    return !!this.partita && !FUORI_PARTITA.has(causa) && !E?.autoPlayMode && E?.phase !== 'MATCH_OVER' && !this.ui?.lobby?.visible;
+  }
   _telMotivo(chi, kind, d){
-    const causa = String(d.causa || '').slice(0, 24) || null, ruolo = d.ruolo === 'p2' ? 'p2' : 'p1', dove = this.partita ? { inPartita: true } : {};
+    const causa = String(d.causa || '').slice(0, 24) || null, ruolo = d.ruolo === 'p2' ? 'p2' : 'p1', dove = this._inPartita(causa) ? { inPartita: true } : {};
     if (kind === 'mano') this._riga('tel', { chi, motivo: 'mano', mano: d.mano === 'left' ? 'left' : 'right', causa, ruolo, ...dove });
     else this._riga('tel', { chi, motivo: 'segno', stato: d.stato === -1 ? -1 : 1, causa, ruolo, ...dove });
   }
@@ -541,13 +554,27 @@ export class RegistroStand {
     } else if (prima === 'on'){
       T.daScrivere = null;
       if (st === 'caduto'){ T.cadutoAt = now; if (this.partita) this.partita.cadute++; }
-      this._riga('tel', { chi, stato: st === 'caduto' ? 'caduto' : 'scollegato', ...(this.partita ? { inPartita: true } : {}) });
+      // B45.1: perché (motivo e chi se n'è accorto, evento «drop» di link.js: natpf_phone_racket.drop), dove si era e da
+      // quanto il telefono taceva (ms). Solo campi già in CAMPI: il Worker non va ricaricato
+      const D = st === 'caduto' && ph.drop && !ph.drop.fonte && now - ph.drop.at < 3000 ? ph.drop : null;
+      this._riga('tel', { chi, stato: st === 'caduto' ? 'caduto' : 'scollegato', ...(D ? { motivo: D.motivo, causa: D.causa ?? undefined, ms: D.ms ?? undefined } : {}), dove: this._posto(), ...(this._inPartita() ? { inPartita: true } : {}) });
       if (st === 'off') this._fineCal(chi, false);
     } else if (st === 'caduto') T.cadutoAt = T.cadutoAt ?? now;
   }
+  // B45.1: al ritorno, il motivo chiarito dal racconto del telefono (natpf_cadute.motivoFinale: rete cambiata, pagina del
+  // telefono nascosta o chiusa, «Ricollega» toccato, silenzio visto prima dal telefono), i tentativi del telefono (prove,
+  // fallite) e il tipo di rete (solo Chrome su Android); in una pagina del gioco appena ricaricata la riga «collegato» dice
+  // «pagina del gioco ricaricata» e da quanto il telefono era caduto
+  _telRitorno(chi){
+    const D = this.tel[chi]?.ph?.drop, E = D?.end;
+    if (!E || D.scritta || D.fonte === 'telefono' && !D.before) return {};
+    D.scritta = true;
+    return { motivo: E.motivo, causa: E.causa ?? undefined, prove: E.prove || undefined, fallite: E.fallite || undefined, tipo: E.tipo || undefined };
+  }
   _telRiga(chi){
     const T = this.tel[chi], D = T?.daScrivere; if (!D) return; T.daScrivere = null;
-    this._riga('tel', { chi, stato: D.stato, dopoS: D.dopoS, ...(this._infoTel(chi) || {}), ...(this.partita ? { inPartita: true } : {}) });
+    const back = this._telRitorno(chi), before = !!T.ph?.drop?.before && back.motivo, dopoS = D.dopoS ?? (before && Number.isFinite(T.ph.drop.at) ? r((this.now() - T.ph.drop.at)/1000, 1) : undefined);
+    this._riga('tel', { chi, stato: D.stato, dopoS, ...back, ...(this._infoTel(chi) || {}), ...(this._inPartita() ? { inPartita: true } : {}) });
   }
 
   /* ---------- errori ---------- */

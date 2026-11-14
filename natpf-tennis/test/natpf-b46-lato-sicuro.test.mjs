@@ -143,11 +143,19 @@ test('B46 segno dell\'accelerazione cambiato (messaggio «dev»): verso imparato
   // pagina nuova (collegamento nuovo) con il segno di prima: «pagina»
   w.link.L.joins = 2; assert.equal(P._accSignSeen(1), true);
   assert.deepEqual(ev.at(-1), { kind: 'verso', causa: 'pagina', stato: 1, ruolo: 'p1' });
+  // B45.1 (revisione del B46, punto 6): un altro telefono tra due visitatori (abbinamento nuovo col QR, o telefono e browser
+  // diversi nel «dev») è un «telefono nuovo», non una pagina ricaricata (un iPhone dopo un Android è normale)
+  w.link.L.joins = 3; w.link.L.pairs = (w.link.L.pairs || 0) + 1; assert.equal(P._accSignSeen(-1), true);
+  assert.deepEqual(ev.at(-1), { kind: 'verso', causa: 'telefono nuovo', stato: -1, ruolo: 'p1' });
+  w.link.L.joins = 4; assert.equal(P._accSignSeen(1, { ua: 'Mozilla/5.0 (iPhone)', prevUa: 'Mozilla/5.0 (Linux; Android 14)' }), true);
+  assert.deepEqual(ev.at(-1), { kind: 'verso', causa: 'telefono nuovo', stato: 1, ruolo: 'p1' });
+  w.link.L.joins = 5; assert.equal(P._accSignSeen(-1, { ua: 'stesso', prevUa: 'stesso' }), true);
+  assert.deepEqual(ev.at(-1), { kind: 'verso', causa: 'pagina', stato: -1, ruolo: 'p1' }, 'stesso telefono: pagina');
   // segni che non sono segni: niente
   assert.equal(P._accSignSeen(null), false); assert.equal(P._accSignSeen(0), false);
   // il «dev» del collegamento arriva qui
   const src = readFileSync(new URL('../src/natpf/natpf_phone_racket.js', import.meta.url), 'utf8');
-  assert.match(src, /link\.on\('device', d => \{ this\.device = d; this\._diag\('dispositivo', d\); this\._accSignSeen\(d\?\.accSign\); \}\);/);
+  assert.match(src, /link\.on\('device', d => \{ const prevUa = this\.device\?\.ua \?\? null; this\.device = d; this\._diag\('dispositivo', d\); this\._accSignSeen\(d\?\.accSign, \{ ua: d\?\.ua \?\? null, prevUa \}\);/);
   assert.match(src, /link\.on\('sign', e => this\._detectorSign\(e\?\.detector\)\);/);
 });
 
