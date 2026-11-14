@@ -789,10 +789,12 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+/* (B41.5: --fit, di base 1, lo mette hud_ui._fitEndTitle quando il titolo su una riga non ci sta: «Bella sfida, Visitatore
+   12!» della fiera o un nome lungo a 16:9 andavano su due righe e la scheda tagliava la pillola in alto e i pulsanti) */
 #victory-modal.has-stats .victory-result-banner {
   margin: 0;
   color: var(--hud-ball);
-  font: italic 800 calc(var(--eu) * 13.5) / 0.95 "Barlow Condensed", var(--hud-font);
+  font: italic 800 calc(var(--eu) * 13.5 * var(--fit, 1)) / 0.95 "Barlow Condensed", var(--hud-font);
   text-align: left;
   text-transform: none;
   overflow-wrap: anywhere;
@@ -948,7 +950,7 @@ body {
 #victory-modal.has-stats.stats-split .end-head { justify-content: center; }
 #victory-modal.has-stats.stats-split .end-titles { align-items: center; }
 #victory-modal.has-stats.stats-split .end-titles .skill-card-header { align-self: center; }
-#victory-modal.has-stats.stats-split .victory-result-banner { font-size: calc(var(--eu) * 12.5); text-align: center; }
+#victory-modal.has-stats.stats-split .victory-result-banner { font-size: calc(var(--eu) * 12.5 * var(--fit, 1)); text-align: center; }
 .end-players {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

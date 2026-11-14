@@ -275,6 +275,14 @@ export function statsHtml(v, base = {}){
     + `<div class="end-tiles" data-n="${p.tiles.length}">${p.tiles.map(t => tileHtml(t, true)).join('')}</div></section>`).join('')}</div>`;
   return `<div class="end-tiles" data-n="${S.tiles.length}">${S.tiles.map(t => tileHtml(t)).join('')}</div>`;
 }
+// B41.5 · titolo della schermata finale su una riga (funzione pura): natural, larghezza del titolo scritto su una riga;
+// avail, larghezza che ha (accanto alla pillola dei game) → 1 se ci sta, altrimenti di quanto rimpicciolirlo (con un po'
+// di margine, mai sotto min). In fiera il nome di base è «Visitatore 12» e «Bella sfida, Visitatore 12!» a 16:9 andava
+// su due righe: la scheda (centrata, senza scorrere) tagliava la pillola in alto e i pulsanti in basso
+export function titleFit({ natural = 0, avail = 0, margin = 0.97, min = 0.5 } = {}){
+  if (!(natural > 0) || !(avail > 0) || natural <= avail) return 1;
+  return Math.max(min, Math.min(1, (avail / natural) * margin));
+}
 
 /* ---------- collegamento al motore ---------- */
 // counts(): facoltativa, false quando i colpi e i punti non sono di una partita (allenamento, minigiochi, scambi di prova)

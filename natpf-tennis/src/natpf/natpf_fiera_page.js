@@ -3,7 +3,7 @@
 // per la partita» (passo `match` della lobby, #title-modal[data-fair="1"]) in versione fiera, così motore, «Sono pronto»
 // dei telefoni (natpf_ready_go.js), scambi di prova e telecomando dello staff la conoscono già. Tutto con il mouse:
 //   · «1 giocatore · contro la CPU» o «2 giocatori · stesso schermo» (scelta dello staff, salvata: natpf_fiera.setPlay);
-//   · contro la CPU «Chi gioca: Bambino · Ragazzo · Adulto» (le tessere di sempre) e la mano («Destra · Mancino»);
+//   · contro la CPU «Chi gioca: Bambino · Ragazzo · Adulto» (le tessere di sempre) e la mano («Destra · Sinistra»);
 //     nello stesso schermo per ciascuno la fascia (Bambino · Ragazzo · Adulto, natpf_duo_rules.js) e la mano;
 //   · lo stato dei telefoni dello stand e, se uno non è pronto, il perché e «Telefoni dello stand ›» (mai un QR);
 //   · il visitatore di adesso («Visitatore 12», da capo ogni giorno; «Nome» per scriverlo con la tastiera a schermo);
