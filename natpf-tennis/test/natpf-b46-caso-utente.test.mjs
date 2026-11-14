@@ -194,7 +194,10 @@ test('caso dell\'utente 3 · il chiosco (nessuno per un po\') rimette destri tut
 // semplice rimette a +1 anche il verso imparato: la «doppia inversione» non si produceva. Il B46 la scrive nel registro e
 // azzera da sé i riferimenti per verso)
 test('caso dell\'utente 4 · segno del telefono cambiato dopo gli scambi di prova: in partita il lato resta giusto (con la ricalibrazione della pagina vera)', async () => {
-  const w = await splitWorld(), recal = () => { w.link.ready = false; w.link.L.phone = 'cal'; w.advance(900); };   // (il profilo semplice si richiede al più ogni 700 ms)
+  // (il profilo semplice si richiede al più ogni 700 ms. Nel gioco lo chiede anche il segnale «st» del telefono che dice
+  // «calibrazione», evento «change» del collegamento: vale anche a partita ferma, come nel conto alla rovescia grande del
+  // B47, dove update() non gira. Il collegamento finto non ha eventi: lo si chiama come farebbe quello vero)
+  const w = await splitWorld(), recal = () => { w.link.ready = false; w.link.L.phone = 'cal'; w.advance(900); w.P1._autoProfile(); };
   const page = phonePage(w.P1, { recal }), up = [0.2, 9.5, 1.5], down = [0.3, -9.6, 1.2];
   // il telefono arriva con il segno dell'accelerazione al contrario (quattro tocchi con il telefono a testa in giù al menu)
   w.P1._accSignSeen(page.acc.sign);                                            // «dev» del collegamento
