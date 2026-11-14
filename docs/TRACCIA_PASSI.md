@@ -787,3 +787,15 @@ notte: i controlli della 14.1 erano finiti prima, salvi in `scratchpad/v1401/`.)
       `scratchpad/telecomando.lock`.
 - Se il contenitore si riavvia: nelle due worktree `git log`/`git status`, appunti `scratchpad/b38/notes.md` e
   `scratchpad/b39/notes.md`, lavoro non salvato in un commit «IN CORSO», poi rilanciare lo script con una sezione «RIPRESA».
+
+**14/11 · URGENTE: dritto e rovescio scambiati (segnalazione dell'utente sulla 2026-11-14.1).** Parole dell'utente: «se
+provavo a fare un rovescio mi veniva fuori un dritto lungolinea, se facevo un dritto veniva fuori un rovescio incrociato.
+Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lato del colpo riconosciuto (`game_engine.js`
+≈2258, `H`), «incrociato/lungolinea» dalla caduta: il lato è davvero girato.
+- [x] Installer 2026-11-14.1 su R2 verificato (`latest.json` 2026-11-14.1, 128.087.782 B, sha256 `ad98f5f2…ed7b`).
+- [~] Indagine (workflow `dritto-rovescio-scambiati`): tre meccanismi che girano il verso da soli: segno dell'accelerazione
+      votato ai tocchi dello schermo (`motion-sign.js`, `racchetta.js` ≈709, tocchi nuovi «Sono pronto» della B41.6),
+      voto del rilevatore del telefono con il verso atteso (`swing-detect.js` ≈414, messaggio «ex» con il segno del gioco),
+      segno degli scambi di prova (`natpf_trial_learn.js`, `natpf_phone_racket.js` ≈800 `ballSideNow`). Bisezione tra le
+      versioni 13.7 → 14.1 con il telefono simulato. Worktree e appunti in `scratchpad/swap/`, porte 4300–4499.
+- Poi: correzione con test (blocco piccolo), versione nuova, zip, installer, «come si attiva». B38+B44 e B39 continuano.
