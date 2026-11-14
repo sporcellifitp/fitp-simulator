@@ -12,7 +12,8 @@
 //   • misura: 14 px a 1280×720 come nel B35b e nell'area stretta, più grande a 1920×1080 (ledwall);
 //   • il riquadro di servizio a terra: nella metà di chi riceve, in diagonale rispetto a chi batte, in vista;
 //   • quando la palla parte, casella e riquadro spariscono;
-//   • costo del disegno con il riquadro acceso e spento (grafica in software del banco: il caso peggiore).
+//   • costo del disegno con il riquadro acceso e spento (grafica in software del banco: il caso peggiore; B45.2: mediana
+//     delle differenze di 20 giri, ognuno con le due misure una dopo l'altra).
 // Schermate in SP/chi-serve: 1920×1080, 1280×720 e un'area stretta (?area=0,0,720,720 in una finestra 1920×1080).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-chi-serve.mjs        (porta 3159)
 //   COSTO=1: solo il costo del disegno (Lob & Drop contro la CPU)
@@ -137,15 +138,24 @@ const afterServe = p => p.evaluate(async () => {
 const reset = p => p.evaluate(() => { const E = __natpfTennis; E.playerRole = 'p1'; E.isMultiplayer = false; });
 // costo del disegno (ms per disegno): riquadro spento e acceso; 10 giri alternati di 10 disegni ciascuno, mediana dei
 // giri (la macchina può essere carica: la mediana regge meglio della media)
+// B45.2 (prova instabile sotto carico: 1,34 ms in più con la macchina carica, 63/64): 20 giri invece di 10, e in ogni giro
+// le due misure una dopo l'altra (una volta prima lo spento, una volta prima l'acceso). Il costo in più è la mediana delle
+// differenze di ogni giro (diff): il carico della macchina, che in pochi secondi sale e scende, pesa uguale sulle due misure
+// di un giro e si toglie; prima si sottraevano due mediane prese in momenti diversi. Stessa soglia (1 ms): un costo vero
+// in più c'è in ogni giro e resta nella mediana. off e box (mediane di ciascuna) restano per il registro della prova
 const cost = p => p.evaluate(() => {
-  const E = __natpfTennis, M = E.natpfUi.serveMark, CONF = { off: false, box: true };
+  const E = __natpfTennis, M = E.natpfUi.serveMark, CONF = { off: false, box: true }, GIRI = 20;
   const run = b => { M.box.visible = b; const t0 = performance.now(); for (let i = 0; i < 10; i++) E.render(); return (performance.now() - t0)/10; };
   if (!E.__frame0){ E.__frame0 = E._natpfFrame; E._natpfFrame = () => 'paused'; }
   for (const c of Object.values(CONF)) run(c);
-  const T = Object.fromEntries(Object.keys(CONF).map(k => [k, []]));
-  for (let r = 0; r < 10; r++) for (const [k, c] of Object.entries(CONF)) T[k].push(run(c));
-  const med = a => { const s = [...a].sort((x, y) => x - y); return +((s[4] + s[5])/2).toFixed(2); };
-  return Object.fromEntries(Object.entries(T).map(([k, a]) => [k, med(a)]));
+  const T = { off: [], box: [], diff: [] };
+  for (let r = 0; r < GIRI; r++){
+    const m = {};
+    for (const k of r % 2 ? ['box', 'off'] : ['off', 'box']) m[k] = run(CONF[k]);
+    T.off.push(m.off); T.box.push(m.box); T.diff.push(m.box - m.off);
+  }
+  const med = a => { const s = [...a].sort((x, y) => x - y), h = s.length/2; return +((s[h - 1] + s[h])/2).toFixed(2); };
+  return { off: med(T.off), box: med(T.box), diff: med(T.diff), giri: GIRI };
 });
 
 // aspetto del B35b: fondo giallo accento, scritta blu scura in corsivo maiuscolo, angoli tondi (pillola), bordo scuro
@@ -198,10 +208,10 @@ for (const cast of COSTO ? ['lobdrop'] : ['sempre', 'lobdrop']){
     }
     if (cast === 'lobdrop' && mode === 'cpu'){
       const c = await cost(g.p);
-      console.log(`costo del disegno (Lob & Drop, 1920×1080, grafica in software, mediana di 10 giri): riquadro spento ${c.off} ms, acceso ${c.box} ms (${(100*(c.box - c.off)/c.off).toFixed(1)} %)`);
+      console.log(`costo del disegno (Lob & Drop, 1920×1080, grafica in software, ${c.giri} giri): riquadro spento ${c.off} ms, acceso ${c.box} ms, in più ${c.diff} ms (mediana delle differenze di ogni giro, ${(100*c.diff/c.off).toFixed(1)} %)`);
       rows.push({ cost: c });
       // (solo nella fase del servizio; grafica in software: il caso peggiore. Soglia: al massimo 1 ms in più per disegno)
-      check('B37.1 costo del disegno con il riquadro (solo al servizio): al massimo 1 ms in più per disegno con la grafica in software', c.box - c.off <= 1, JSON.stringify(c));
+      check('B37.1 costo del disegno con il riquadro (solo al servizio): al massimo 1 ms in più per disegno con la grafica in software', c.diff <= 1, JSON.stringify(c));
     }
     // 1280×720 (Classici, contro la CPU): la casella alla misura del B35b, 14 px
     if (cast === 'sempre' && mode === 'cpu'){

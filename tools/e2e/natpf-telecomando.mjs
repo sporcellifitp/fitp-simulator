@@ -282,10 +282,14 @@ try {
   check('B35: scambi di prova aperti, il telefono dello staff li vede («Salta» acceso)', await waitPg('trial') && await phone.evaluate(() => __telecomando.status.cmds.skip === 1));
   await sleep(600); await game.screenshot({ path: `${SP}/telecomando-scambi-1024x1024.png` });
   const sk = await tap('skip');
-  const toPage = await waitPg('lobby:match');
+  // (B45.2, prova instabile sotto carico: dopo «Salta» gli scambi di prova si chiudono in 0,35 s di tempo del GIOCO, e con
+  // la grafica in software e la macchina carica il gioco va a pochi fotogrammi al secondo, ognuno al più 0,08 s di gioco:
+  // la pagina arrivava dopo più di 15 s, «toPage» falso con tutto il resto giusto. Si aspetta la stessa pagina fino a 45 s:
+  // se non arriva, la prova fallisce come prima)
+  const toPage = await waitPg('lobby:match', 45000);
   await sleep(700);
   const after5b = await ui(() => ({ seq: __natpfTennis.natpfMatchSeq || 0, trial: __natpfTennis.natpfUi.trial.active, title: document.getElementById('lobby-t-match').textContent, demo: !!__natpfTennis.autoPlayMode }));
-  check('B35: «Salta» dal telecomando → pagina «Pronto per la partita», la partita non parte', toPage && /Pronto per la partita/.test(sk?.msg || '') && after5b.seq === seq0 && !after5b.trial && after5b.title === 'Pronto per la partita' && after5b.demo, JSON.stringify({ sk, after5b }));
+  check('B35: «Salta» dal telecomando → pagina «Pronto per la partita», la partita non parte', toPage && /Pronto per la partita/.test(sk?.msg || '') && after5b.seq === seq0 && !after5b.trial && after5b.title === 'Pronto per la partita' && after5b.demo, JSON.stringify({ toPage, seq0, sk, after5b }));
   await game.screenshot({ path: `${SP}/telecomando-pronto-dopo-scambi-1024x1024.png` });
   await ui(() => { const U = __natpfTennis.natpfUi; U.trial.due = U.__due; delete U.__due; });
   await tap('play');
