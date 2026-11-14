@@ -1,7 +1,7 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-14.1** (14/11/2026). Le voci segnate **(B39)** valgono dalla versione che contiene il
-blocco B39 «stand con il solo mouse» (la prima dopo la 2026-11-14.1): tasto destro con i comandi dello staff, pannello da
+**Vale per la versione 2026-11-14.2** (14/11/2026). Le voci segnate **(B39)** valgono dalla versione che contiene il
+blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i comandi dello staff, pannello da
 ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello schermo con due clic (dettagli in
 `docs/b39/stand-solo-mouse.md`). Dalla stessa versione anche la tastiera a schermo e «Gioca come Ospite» (B38, capitolo
 3.6) e l'icona del servizio (B44, capitolo 8.3).

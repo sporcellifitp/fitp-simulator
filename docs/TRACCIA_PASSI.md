@@ -837,3 +837,16 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
   **2026-11-14.3** con B47. Rimedio subito per l'utente: «Nuovo giocatore» dal pannello (rimette destri i due giocatori e
   azzera quello che il telefono ha imparato); se resta girato, ricaricare la pagina del telefono.
 
+**14/11, 14:15 UTC · versione 2026-11-14.2 = B38 + «Gioca come Ospite» + B44 + B39 + B46.**
+- [x] Unione `int-b38-b39` (prove nel browser 17 suite: tutte verdi rilanciate da sole, b25 53/54 come la base; Electron
+      98/101 sotto carico, da solo 43/44: resta «finestra: Alt mostra il menu, Alt di nuovo lo nasconde», che con il solo
+      B39 passa e con B38 unito no; non è il listener dei tasti della tastiera (provato togliendolo); solo tastiera in
+      finestra, non tocca il mouse a schermo intero: da sistemare nella 14.3).
+- [x] B46 dritto e rovescio al sicuro (`f75bc54`): mano con due tocchi sul telefono, «Mancino» in vista, avviso grande del
+      cambio di mano, destri a ogni visitatore (Nuovo giocatore e chiosco), segno dei tocchi solo nelle pagine da leggere,
+      segno imparato rimesso a +1 se cambia il segno dei sensori, righe del registro; gioco 1576, sito 254, prove nel
+      browser verdi (natpf-mano-sicura nuova 17/17 a 1280×720 e 720×720). Revisore del B46 ancora in corso.
+- [x] Unione in natpf-simulator (`1f0beb6`, conflitto solo in PROJECT_MEMORY: tenute le due parti), versione 2026-11-14.2,
+      controllo rapido: gioco 1576/1576, sito 254/254, Windows 51/51, LAN 13/13, build ok.
+- [~] Push, zip Cloudflare, installer dal link fisso, «come si attiva» all'utente. B47 (fiera) in corso, poi 14.3.
+
