@@ -32,6 +32,11 @@ import { HoldPress } from './natpf_hold.js';
 import { resetHands } from './natpf_hand.js';
 // B47: «Battuta: Sempre lo stesso · Alternata» (natpf_battuta.js), di base «Sempre lo stesso»
 import { readServeRule, writeServeRule, nextServeRule, serveRuleButton, serveRuleToast, serveRuleForcedByUrl } from './natpf_battuta.js';
+// B41.4: «Modalità fiera: No · Sì» e, con la modalità accesa, «Telefoni dello stand ›» al posto di «Telefono: Scollega»
+import { fairPanelButton, fairPanelToast } from './natpf_fiera.js';
+// riassunto dei due posti nella voce «Telefoni dello stand» (funzione pura): «1 ✓ · 2 da abbinare ›»
+const STAND_SHORT = { ready: '✓', prep: 'sensori', lost: 'scollegato', unpaired: 'da abbinare', pairing: 'abbinamento', ask: 'da confermare', off: '—' };
+export const standPanelSummary = (v1, v2) => `1 ${STAND_SHORT[v1?.state] || '—'} · 2 ${STAND_SHORT[v2?.state] || '—'} ›`;
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -90,6 +95,20 @@ export class NatpfKiosk {
     setInterval(() => this.check(), 1000);
   }
   _save(){ try { localStorage.setItem(KIOSK_KEY, JSON.stringify({ enabled: this.enabled, limit: this.limit })); } catch {} }
+  // calibrazione dello stand cambiata (voce «Calibrazione», o «Modalità fiera» accesa che la porta su «Giocando»)
+  // (revisione del B28, difetto 4) l'opzione nuova vale dal prossimo «Gioca» senza rifare il QR e niente passa a chi
+  // arriva dopo: una calibrazione con i gesti fatta prima del cambio non vale più «per la prossima partita»; con
+  // «Con i gesti» un telefono rimasto con il profilo dato dal gioco torna a calibrare (subito se si è al menu,
+  // altrimenti al prossimo «Gioca»); con le altre un telefono fermo ai gesti riceve il profilo semplice
+  _calChanged(){
+    const ui = this.ui;
+    for (const p of [ui.phone, this.engine?.natpfPhone2]){
+      if (!p) continue;
+      p.gestureAt = null;
+      if (ui.lobby?.visible && !ui.training?.active && !ui.trial?.active) p.demoteIfStale?.();
+      p._autoProfile?.();
+    }
+  }
   get isOpen(){ return !!this.el && !this.el.classList.contains('hidden'); }
   // B43: aperto o chiuso, la partita si ferma o riparte (natpf_ui._syncPause conta il pannello)
   open(){ show(this.el); this.paint(); this.ui._syncPause?.(); }
@@ -99,7 +118,8 @@ export class NatpfKiosk {
   // voci che in campo vogliono il secondo clic: chiudono la partita («Nuovo giocatore», «Classifica a schermo intero»)
   // o tolgono il telefono a chi gioca («Telefono: Scollega», solo con un telefono collegato)
   // B39: «Classifica · Azzera oggi» sempre (prima una finestra confirm() di Windows, piccola e fuori stile sul ledwall)
-  needsConfirm(cmd){ return cmd === 'reset' || (this.gameRunning && (cmd === 'newplayer' || (cmd === 'ranking' && !this.rankingFull) || (cmd === 'phone' && !!this.ui.phone?.connected))); }
+  // (B41.4: con la modalità fiera «Telefono» apre il foglio «Telefoni dello stand»: niente da confermare)
+  needsConfirm(cmd){ return cmd === 'reset' || (this.gameRunning && (cmd === 'newplayer' || (cmd === 'ranking' && !this.rankingFull) || (cmd === 'phone' && !this.ui.fiera?.on && !!this.ui.phone?.connected))); }
   // classifica a schermo intero in vista (B33): la stessa voce del pannello la chiude (B39)
   get rankingFull(){ return !!document.documentElement?.classList?.contains('ranking-full'); }
   // clic su una voce (mouse, tastiera o OK del telecomando sul pulsante a fuoco): dove serve, prima la conferma. true se
@@ -118,12 +138,15 @@ export class NatpfKiosk {
     // La calibrazione dello schermo no (B8: lasciata aperta, il chiosco la annulla); chi la sta facendo muove il mouse, e
     // dal B39.5 il movimento conta come attività
     const ui0 = this.ui;
-    if (this.isOpen || ui0.remote?.isOpen || ui0.remote?.opening || ui0.diag?.isOpen){ this.last = performance.now(); return; }
+    // (B41.4: anche il foglio «Telefoni dello stand»)
+    if (this.isOpen || ui0.remote?.isOpen || ui0.remote?.opening || ui0.fieraSheet?.isOpen || ui0.diag?.isOpen){ this.last = performance.now(); return; }
     const E = this.engine, ui = this.ui, lobby = ui.lobby;
     const inGame = !lobby.visible && (!E.autoPlayMode || ui.training.active || !!ui.events.active);
     // (B41.2: il telefono dello stand resta sempre collegato, non vuol dire che c'è qualcuno)
     // (B39.5, A4: anche la classifica a schermo intero lasciata in vista per chi è in fila)
-    const atRest = lobby.visible && (lobby.step === 'menu' || (lobby.step === 'ranking' && this.rankingFull)) && !ui.events.nickname && (!ui.phone.connected || !!ui.phone.standSlot);
+    // (B41.5: con la modalità fiera la pagina della fiera è il menu: a riposo senza un visitatore in corso)
+    const fairRest = !!ui.fieraPage?.here && ui.fiera?.visitor == null;
+    const atRest = lobby.visible && (lobby.step === 'menu' || fairRest || (lobby.step === 'ranking' && this.rankingFull)) && !ui.events.nickname && (!ui.phone.connected || !!ui.phone.standSlot);
     const a = kioskAction({ enabled: this.enabled, idle: (performance.now() - this.last)/1000, limit: this.limit, inGame, atRest });
     if (a === 'end-game'){ ui.backToMenu(); this.reset(); }
     else if (a === 'reset') this.reset();
@@ -131,6 +154,16 @@ export class NatpfKiosk {
   // stand libero per il prossimo visitatore
   reset(){
     const ui = this.ui;
+    // B41.5: con la modalità fiera è «Prossimo giocatore» (natpf_new_player.resetFairVisitor): i telefoni dello stand restano
+    // collegati e si torna alla pagina della fiera
+    if (ui.fiera?.on && ui.fieraPage){
+      if (ui.onboarding?.isOpen) ui.onboarding.close();
+      for (const m of document.querySelectorAll('.natpf-sheet-backdrop:not(#natpf-staff)')) m.classList.add('hidden');
+      ui.fieraPage.next({ causa: 'chiosco' });
+      ui._syncPause?.();
+      this.last = performance.now();
+      return;
+    }
     // guida chiusa con la sua funzione prima di nascondere i pannelli (dopo, per lei, è già chiusa)
     if (ui.onboarding?.isOpen) ui.onboarding.close();
     for (const m of document.querySelectorAll('.natpf-sheet-backdrop:not(#natpf-staff)')) m.classList.add('hidden');
@@ -173,7 +206,22 @@ export class NatpfKiosk {
     if (cmd === 'reset'){ ui.events.resetBoard(); ui.toast?.('Classifica di oggi azzerata'); }
     // B39: diagnostica dal pannello (prima solo Maiusc+D o dalla pausa in campo): alla chiusura si torna al pannello
     if (cmd === 'diag'){ this.close(); ui.diag?.open?.({ back: 'staff' }); return; }
+    // B41.4: con la modalità fiera «Telefoni dello stand ›» (foglio con QR, numero, «Conferma», «Scollega»); senza, come prima
+    if (cmd === 'phone' && ui.fiera?.on && ui.fieraSheet){ ui.fieraSheet.open(); return; }
     if (cmd === 'phone'){ ui.phone.forget?.(); }
+    // B41.4: «Modalità fiera: No · Sì», salvata. Accesa: la calibrazione va su «Giocando» se non lo era (decisione dell'utente
+    // del 14/11: ogni visitatore fa i suoi scambi di prova), si apre «Telefoni dello stand» e la pagina della fiera prende il
+    // posto del menu. Spenta: il menu di sempre
+    if (cmd === 'fiera' && ui.fiera){
+      const F = ui.fiera, on = !F.on;
+      let calSet = false;
+      if (on && !F.forced && readSavedCalMode() !== 'play' && !calModeFromUrl()){ writeCalMode('play'); this._calChanged(); calSet = true; }
+      F.setOn(on);
+      ui.toast?.(fairPanelToast(on, { forced: F.forced, calSet }), 6000);
+      const L = ui.lobby;
+      if (L?.visible && !ui.trial?.active && ['menu', 'match'].includes(L.step)) L.go('menu');
+      if (on && ui.fieraSheet){ ui.fieraSheet.open(); return; }
+    }
     // B27: telecomando dello staff (natpf_remote.js: QR dello staff, codice, «Scollega») e monitor del gioco (programma
     // Windows: window.natpfDesktop.displays, monitor successivo; la scelta resta salvata)
     if (cmd === 'remote'){ ui.remote?.open(); return; }
@@ -216,16 +264,7 @@ export class NatpfKiosk {
       const forced = !!calModeFromUrl(), mode = writeCalMode(nextCalMode(readSavedCalMode()));
       ui.toast?.(calModeToast(mode, forced));
       ui.diag?.recorder?.log?.('stand.calibrazione', { modo: mode, indirizzo: forced });
-      // (revisione del B28, difetto 4) l'opzione nuova vale dal prossimo «Gioca» senza rifare il QR e niente passa a chi
-      // arriva dopo: una calibrazione con i gesti fatta prima del cambio non vale più «per la prossima partita»; con
-      // «Con i gesti» un telefono rimasto con il profilo dato dal gioco torna a calibrare (subito se si è al menu,
-      // altrimenti al prossimo «Gioca»); con le altre un telefono fermo ai gesti riceve il profilo semplice
-      for (const p of [ui.phone, this.engine?.natpfPhone2]){
-        if (!p) continue;
-        p.gestureAt = null;
-        if (ui.lobby?.visible && !ui.training?.active && !ui.trial?.active) p.demoteIfStale?.();
-        p._autoProfile?.();
-      }
+      this._calChanged();
     }
     // B47: battuta, sempre lo stesso ↔ alternata, salvata; vale dalla partita dopo
     if (cmd === 'battuta'){
@@ -247,7 +286,15 @@ export class NatpfKiosk {
     set('kiosk', this.enabled ? 'Sì' : 'No', this.enabled);
     set('idle', `${this.limit} s`);
     const audio = this.engine.audioEngine; set('music', audio && audio.muted ? 'No' : 'Sì', !(audio && audio.muted));
-    set('phone', this.ui.phone.connected ? 'Scollega' : 'Nessuno collegato');
+    // B41.4: modalità fiera; accesa, la voce «Telefono» diventa «Telefoni dello stand ›» con lo stato dei due posti
+    const F = this.ui.fiera, fon = !!F?.on;
+    set('fiera', fairPanelButton(fon, !!F?.forced), fon);
+    const ph = this.el.querySelector('[data-staff="phone"] span'), pt = fon ? 'Telefoni dello stand' : 'Telefono';
+    if (ph && ph.textContent !== pt) ph.textContent = pt;
+    // (la riga sotto le voci spiega la voce sotto il puntatore dal title, se c'è: natpf_stand_mouse.staffHint)
+    const pb = ph?.parentElement;
+    if (pb){ if (fon) pb.setAttribute?.('title', 'Telefoni dello stand: abbina il Telefono 1 e il Telefono 2 una volta (QR, numero, «Conferma» qui sul PC), stato, batteria e «Scollega». I telefoni restano collegati.'); else pb.removeAttribute?.('title'); }
+    set('phone', fon ? standPanelSummary(F.status('p1'), F.status('p2')) : this.ui.phone.connected ? 'Scollega' : 'Nessuno collegato', fon && F.status('p1').state === 'ready');
     set('ranking', this.rankingFull ? 'Chiudi lo schermo intero' : 'A schermo intero', this.rankingFull);
     set('aim', aimLevelButton(readAimLevel()));
     const osk = readOskMode(); set('osk', oskButton(osk), osk !== 'mai');
@@ -265,6 +312,7 @@ export class NatpfKiosk {
     set('display', d?.current ? `${d.current.label}${d.list?.length > 1 ? ' ›' : ''}` : '—', false);
     show($('staff-registro'), !!this.ui.registro); this.ui.registro?.dipingi();
     const n = $('staff-note');
-    if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
+    // (B41.5: in fiera il chiosco fa «Prossimo giocatore»: i telefoni dello stand restano collegati)
+    if (n) n.textContent = this.enabled ? (fon ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna alla pagina della fiera e chi arriva riparte da capo; i telefoni dello stand restano collegati (in partita dopo ${this.limit*2} s).` : `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).`) : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
   }
 }

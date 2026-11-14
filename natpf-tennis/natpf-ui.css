@@ -2162,3 +2162,94 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
 .natpf-calibra .cal-mark { touch-action: none; padding: 1cqmin; cursor: grab; }
 .natpf-calibra .cal-btn-corners { display: inline-flex; align-items: center; margin-left: 0.4em; vertical-align: middle; height: max(28px, 3.8cqmin); background: var(--ball); color: var(--ball-ink); border-color: transparent; }
 .natpf-calibra .cal-fs { position: absolute; top: 1.4cqmin; right: 1.6cqmin; height: max(26px, 3.6cqmin); padding: 0 1.2cqmin; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.08); color: var(--text-2); font: 600 0.8em/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+
+/* =====================================================================================================================
+   B41.4–B41.5 · Modalità fiera, seconda parte (docs/b41/modalita-fiera-2.md): foglio «Telefoni dello stand», avviso della
+   batteria sul ledwall, pagina della fiera. Misure legate all'area del gioco (cqw/cqh, @container natpf): il gioco può
+   stare in un'area del ledwall. Da provare a 1024×600, 1280×720, 1920×1080 e 720×720 con «Chiudi» in vista (natpf-menu,
+   natpf-fiera-telefoni)
+   ===================================================================================================================== */
+/* foglio dello staff come il pannello e il telecomando: sopra pausa, fogli e tutorial */
+#natpf-fiera.natpf-sheet-backdrop { z-index: 250; }
+.natpf-sheet-backdrop .natpf-sheet.fiera-sheet { width: min(clamp(560px, 72cqw, 1320px), calc(100cqw - 2 * var(--gutter))); max-height: calc(100cqh - 2 * var(--gutter)); overflow: auto; padding: clamp(12px, 2.2cqh, 30px) clamp(14px, 2cqw, 34px) clamp(12px, 2cqh, 26px); }
+.fiera-sheet .sheet-kicker { font-size: clamp(11px, 1.6cqh, 18px); }
+.fiera-sheet .sheet-title { margin-bottom: clamp(6px, 1.2cqh, 16px); font-size: clamp(24px, 4.4cqh, 54px); }
+.fiera-sheet .fiera-slots { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(8px, 1.4cqw, 24px); }
+@container natpf (max-width: 600px) { .fiera-sheet .fiera-slots { grid-template-columns: 1fr; } }
+.fiera-slot { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.9cqh, 12px); min-width: 0; padding: clamp(8px, 1.6cqh, 22px) clamp(8px, 1.3cqw, 22px); border-radius: var(--r-l); border: 2px solid var(--line); background: rgba(13, 24, 56, 0.7); text-align: center; }
+.fiera-slot[data-view="ready"] { border-color: var(--ok); }
+.fiera-slot[data-view="ask"], .fiera-slot[data-view="qr"] { border-color: var(--ball); }
+.fiera-slot.low { border-color: var(--warn); }
+.fiera-slot-head { display: flex; align-items: center; gap: clamp(8px, 1cqw, 16px); align-self: stretch; text-align: left; }
+.fiera-slot-num { display: grid; flex: none; place-items: center; width: clamp(32px, 6cqh, 70px); height: clamp(32px, 6cqh, 70px); border-radius: 50%; background: var(--ball); color: #071233; font: 800 italic clamp(19px, 4cqh, 44px)/1 var(--font-display); }
+[data-fiera-slot="p2"] .fiera-slot-num { background: var(--pink); color: #fff; }
+.fiera-slot-head span { display: grid; gap: 2px; min-width: 0; }
+.fiera-slot-head span b { font: 800 italic clamp(17px, 3cqh, 36px)/1 var(--font-display); text-transform: uppercase; }
+.fiera-slot-head small { font: 500 clamp(11px, 1.6cqh, 20px)/1.25 var(--font-text); color: var(--text-2); }
+.fiera-word { margin: 0; font: 700 clamp(13px, 2.1cqh, 27px)/1.25 var(--font-text); color: var(--text); }
+.fiera-slot[data-view="ready"] .fiera-word { color: var(--ok); }
+.fiera-note, .fiera-batt, .fiera-swing, .fiera-ask-line { margin: 0; font: 500 clamp(11px, 1.75cqh, 22px)/1.3 var(--font-text); color: var(--text-2); }
+.fiera-slot.low .fiera-batt { color: var(--warn); font-weight: 700; }
+.fiera-swing { color: var(--ball); font-weight: 600; }
+.fiera-qr { box-sizing: border-box; width: clamp(130px, 31cqh, 360px); height: clamp(130px, 31cqh, 360px); padding: clamp(5px, 0.9cqh, 12px); border-radius: 10px; background: #fff; display: grid; place-items: center; }
+.fiera-qr svg { display: block; width: 100%; height: 100%; }
+.fiera-ask { display: grid; justify-items: center; gap: 2px; }
+.fiera-num { font: 800 italic clamp(60px, 15cqh, 180px)/1 var(--font-display); letter-spacing: 0.08em; color: var(--ball); }
+.fiera-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(6px, 1cqw, 14px); margin-top: auto; padding-top: clamp(2px, 0.5cqh, 8px); }
+.fiera-acts button, .fiera-sheet .sheet-actions button { min-height: clamp(40px, 6.2cqh, 70px); padding-inline: clamp(14px, 1.8cqw, 30px); font-size: clamp(14px, 2.1cqh, 26px); }
+.fiera-acts button.armed { border-color: #ff4d94; background: rgba(255, 77, 148, 0.2); color: #fff; box-shadow: 0 0 0 2px #ff4d94; }
+.fiera-sheet .fiera-tip { margin: clamp(6px, 1.2cqh, 14px) 0 0; font-size: clamp(11px, 1.65cqh, 20px); line-height: 1.35; }
+.fiera-sheet .sheet-actions { margin-top: clamp(6px, 1.2cqh, 16px); }
+
+/* avviso della batteria bassa dei telefoni dello stand: piccolo, in basso a sinistra, sopra il campo e il menu (sotto i fogli
+   dello staff e gli avvisi brevi); non prende i clic */
+.natpf-fiera-alert { position: fixed; left: var(--gutter); bottom: clamp(70px, 12cqh, 150px); z-index: 240; max-width: min(46cqw, 640px); padding: clamp(6px, 1cqh, 14px) clamp(10px, 1.4cqw, 22px); border-radius: var(--r-pill); background: rgba(40, 24, 0, 0.88); border: 2px solid var(--warn); color: var(--warn); font: 700 clamp(12px, 1.9cqh, 26px)/1.25 var(--font-text); pointer-events: none; box-shadow: var(--shadow); }
+.natpf-fiera-alert::before { content: '🔋 '; }
+
+/* pagina della fiera (#title-modal[data-fair="1"]: passo «match» con la modalità fiera accesa, natpf_fiera_page.js). Niente
+   «‹ Indietro», «Riscaldati prima», barra dei passi e ritratti; la riga «Chi gioca?» è il titolo della pagina */
+#title-modal[data-fair="1"] .lobby-progress, #title-modal[data-fair="1"] #lobby-back, #title-modal[data-fair="1"] #lobby-warmup,
+#title-modal[data-fair="1"] [data-page="match"] .lobby-versus, #title-modal[data-fair="1"] #split-ready-board,
+#title-modal[data-fair="1"] #who-label, #title-modal[data-fair="1"] #lobby-practice-result, #title-modal[data-fair="1"] #lobby-match-note { display: none !important; }
+#title-modal:not([data-fair="1"]) :is(#fiera-bar, #fiera-hand, #fiera-split, #fiera-phones) { display: none !important; }
+#title-modal[data-fair="1"] [data-page="match"] { gap: clamp(8px, 1.8cqh, 22px); }
+#title-modal[data-fair="1"] #lobby-t-match { font-size: clamp(28px, 5.6cqh, 72px); }
+#title-modal .fiera-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: clamp(6px, 1.2cqh, 16px) clamp(10px, 1.6cqw, 24px); }
+#title-modal .fiera-bar .lobby-seg .seg-btn { height: clamp(40px, 6.4cqh, 72px); padding: 0 clamp(14px, 1.8cqw, 30px); font-size: clamp(15px, 2.3cqh, 28px); }
+/* titolo «Chi gioca?» e, sulla stessa riga a destra, chi gioca adesso («Visitatore 12» · «Nome») */
+#title-modal[data-fair="1"] [data-page="match"] .page-head { grid-template-columns: auto auto 1fr; }
+#title-modal .fiera-visitor { display: flex; align-items: baseline; justify-self: end; gap: clamp(6px, 0.8cqw, 12px); margin: 0; font: 600 clamp(13px, 2cqh, 24px)/1.2 var(--font-text); color: var(--text-2); }
+#title-modal .fiera-hand { display: flex; align-items: center; gap: clamp(8px, 1cqw, 16px); }
+#title-modal .fiera-visitor b { font: 800 italic clamp(18px, 3.2cqh, 40px)/1 var(--font-display); text-transform: uppercase; color: var(--ball); }
+#title-modal .fiera-visitor .lobby-link { font-size: clamp(13px, 1.9cqh, 22px); }
+/* tessere di «Chi gioca» grandi, da cliccare con il mouse da lontano */
+#title-modal[data-fair="1"] [data-page="match"] .lobby-tile { min-height: clamp(70px, 14cqh, 200px); justify-content: center; }
+#title-modal[data-fair="1"] [data-page="match"] .lobby-tile .tile-name { font-size: clamp(22px, 4.4cqh, 56px); }
+#title-modal[data-fair="1"] [data-page="match"] .lobby-tile .tile-desc { font-size: clamp(12px, 1.9cqh, 22px); }
+#title-modal .fiera-hand .seg-btn, #title-modal .fiera-split .seg-btn { height: clamp(38px, 5.8cqh, 66px); padding: 0 clamp(10px, 1.15cqw, 26px); font-size: clamp(14px, 2.1cqh, 26px); }
+#title-modal .fiera-split { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(8px, 1.4cqw, 24px); }
+@container natpf (max-width: 640px) { #title-modal .fiera-split { grid-template-columns: 1fr; } }
+/* nome, poi fascia e mano sulla stessa riga quando c'è posto, poi lo stato del telefono */
+#title-modal .fiera-player { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(6px, 1.1cqh, 14px) clamp(6px, 0.8cqw, 12px); padding: clamp(8px, 1.5cqh, 22px) clamp(10px, 1.4cqw, 22px); border-radius: var(--r-l); border: 2px solid var(--ok); background: rgba(13, 24, 56, 0.7); border-left-width: clamp(6px, 0.7cqw, 12px); }
+#title-modal .fiera-player .fiera-pname { flex-basis: 100%; }
+#title-modal .fiera-player[data-fiera-player="p1"] { border-left-color: var(--ball); }
+#title-modal .fiera-player[data-fiera-player="p2"] { border-left-color: var(--pink); }
+#title-modal .fiera-player.ko { border-top-color: var(--warn); border-right-color: var(--warn); border-bottom-color: var(--warn); }
+#title-modal .fiera-pname { display: flex; align-items: baseline; flex-wrap: wrap; gap: clamp(6px, 0.8cqw, 12px); margin: 0; }
+#title-modal .fiera-pname b { font: 800 italic clamp(20px, 3.4cqh, 42px)/1 var(--font-display); text-transform: uppercase; }
+#title-modal .fiera-pname small { margin: 0; font: 600 clamp(12px, 1.8cqh, 22px)/1.3 var(--font-text); color: var(--warn); }
+#title-modal .fiera-player:not(.ko) .fiera-pname small { color: var(--ok); }
+#title-modal .fiera-phones { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(6px, 1cqh, 14px) clamp(10px, 1.4cqw, 22px); }
+#title-modal .fiera-phones p { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 clamp(8px, 1cqw, 16px); margin: 0; font: 500 clamp(12px, 1.9cqh, 24px)/1.3 var(--font-text); color: var(--text-2); }
+#title-modal .fiera-phones p b { white-space: pre-wrap; font-weight: 700; color: var(--ok); }
+#title-modal .fiera-phones.ko p b { color: var(--warn); }
+#title-modal .fiera-phones button { min-height: clamp(38px, 5.8cqh, 66px); font-size: clamp(14px, 2cqh, 24px); }
+#title-modal[data-fair="1"] #lobby-match-note { font-size: clamp(13px, 2cqh, 24px); }
+#title-modal[data-fair="1"] #btn-start-match { min-height: clamp(48px, 8cqh, 96px); padding-inline: clamp(22px, 3cqw, 48px); font-size: clamp(20px, 3.6cqh, 44px); }
+/* aree basse (1024×600, 1366×657, 720×720): tessere e righe più basse, la pagina della fiera sta in una schermata */
+@container natpf (max-height: 760px) {
+  #title-modal[data-fair="1"] [data-page="match"] { gap: clamp(6px, 1.3cqh, 12px); }
+  #title-modal[data-fair="1"] [data-page="match"] .lobby-tile { min-height: clamp(54px, 10cqh, 120px); padding-block: 8px; }
+  #title-modal[data-fair="1"] [data-page="match"] .lobby-row { min-height: 44px; padding-block: 4px; }
+  #title-modal[data-fair="1"] .fiera-bar .lobby-seg .seg-btn { height: clamp(36px, 6cqh, 60px); }
+}

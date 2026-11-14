@@ -12,8 +12,12 @@
 // della fiera (B41.5): opzione salvata, stato dei posti, abbinamento, conferma, «Scollega». Per le prove la modalità si
 // accende anche dall'indirizzo: ?stand=fiera (?stand=normale la spegne per quella pagina; ?formato=fiera è un'altra
 // cosa, il formato veloce: natpf_fair_format.js).
+// B41.4–B41.5 (seconda parte, docs/b41/modalita-fiera-2.md): qui anche le funzioni pure dell'interruttore del pannello, del
+// foglio «Telefoni dello stand» (natpf_fiera_sheet.js), dell'avviso della batteria e dei visitatori numerati; la pagina
+// della fiera è in natpf_fiera_page.js, «Prossimo giocatore» in natpf_new_player.resetFairVisitor.
 import { NatpfPhoneRacket } from './natpf_phone_racket.js';
 import { STAND, gameStoreKey, isSlot, slotLabel, isStandSession, isStandKey } from '@natpf/tennis/stand-pairing.js';
+import { dayKey } from './natpf_events.js';
 
 export const FAIR_MODE_KEY = 'natpf-tennis.fiera';
 // Modalità fiera da indirizzo e salvataggio (funzione pura): l'indirizzo vince (prove), poi la scelta salvata; di base spenta
@@ -41,25 +45,106 @@ export function standPaired(slot, storage = typeof localStorage !== 'undefined' 
 }
 
 // Stato di un posto per il foglio dello staff e per il ledwall (funzione pura): parola breve, frase, batteria bassa
+// (B41.4: anche la batteria e se è in carica, per il foglio e per l'avviso sul ledwall)
 export const LOW_BATTERY = 20;
 export function standSlotView({ slot = 'p1', on = false, paired = false, pairing = false, request = null, connected = false, ready = false, battery = null, charging = false } = {}){
-  const label = slotLabel(slot);
-  const low = Number.isFinite(battery) && battery < LOW_BATTERY && !charging;
-  if (!on) return { slot, label, state: 'off', word: 'Modalità fiera spenta', low: false };
-  if (request) return { slot, label, state: 'ask', word: `Un telefono chiede il posto · numero ${request.num}`, low: false };
-  if (pairing) return { slot, label, state: 'pairing', word: 'Inquadra il QR con il telefono dello stand', low: false };
-  if (!paired) return { slot, label, state: 'unpaired', word: `${label} da abbinare`, low: false };
-  if (!connected) return { slot, label, state: 'lost', word: `${label} scollegato: si ricollega da solo, se no chiama lo staff`, low: false };
-  if (!ready) return { slot, label, state: 'prep', word: `${label} collegato · sensori da attivare`, low };
-  return { slot, label, state: 'ready', word: `${label} pronto ✓${Number.isFinite(battery) ? ` · batteria ${battery}%` : ''}`, low };
+  const label = slotLabel(slot), batt = Number.isFinite(battery) ? battery : null, charge = !!charging && batt != null;
+  const low = batt != null && batt < LOW_BATTERY && !charging;
+  const base = { slot, label, battery: batt, charging: charge };
+  if (!on) return { ...base, state: 'off', word: 'Modalità fiera spenta', low: false };
+  if (request) return { ...base, state: 'ask', word: `Un telefono chiede il posto · numero ${request.num}`, low: false };
+  if (pairing) return { ...base, state: 'pairing', word: 'Inquadra il QR con il telefono dello stand', low: false };
+  if (!paired) return { ...base, state: 'unpaired', word: `${label} da abbinare`, low: false };
+  if (!connected) return { ...base, state: 'lost', word: `${label} scollegato: si ricollega da solo, se no chiama lo staff`, low: false };
+  if (!ready) return { ...base, state: 'prep', word: `${label} collegato · sensori da attivare`, low };
+  return { ...base, state: 'ready', word: `${label} pronto ✓${batt != null ? ` · batteria ${batt}%` : ''}`, low };
 }
+
+/* ---------- B41.4 · pannello dello stand, foglio «Telefoni dello stand», avviso della batteria (funzioni pure) ---------- */
+// voce del pannello «Modalità fiera: No · Sì» (forced: ?stand=… nell'indirizzo, vale per la pagina e non si salva)
+export const fairPanelButton = (on, forced = false) => `${on ? 'Sì' : 'No'}${forced ? ' (indirizzo)' : ''}`;
+export function fairPanelToast(on, { forced = false, calSet = false } = {}){
+  if (forced) return `Modalità fiera ${on ? 'accesa' : 'spenta'} solo per questa pagina: comanda l’indirizzo (?stand=…), la scelta salvata non cambia`;
+  return on ? `Modalità fiera accesa: la pagina della fiera prende il posto del menu e i telefoni dello stand restano collegati${calSet ? '. «Calibrazione» messa su «Giocando»: ogni visitatore fa i suoi scambi di prova' : ''}. Resta salvata`
+    : 'Modalità fiera spenta: torna il menu di sempre, i telefoni con il QR. Resta salvata';
+}
+// batteria nella scheda del posto: '' se il telefono non la dà (iPhone) o non è collegato
+export function batteryText(v){
+  if (!v || v.battery == null || !['prep', 'ready'].includes(v.state)) return '';
+  return `Batteria ${v.battery}%${v.charging ? ' · in carica' : v.low ? ' · bassa: mettilo in carica' : ''}`;
+}
+// Avviso sul ledwall (funzione pura): i telefoni dello stand collegati con la batteria sotto LOW_BATTERY e non in carica
+// (standSlotView.low). '' se non c'è niente da dire
+export function batteryAlert(views = []){
+  const low = views.filter(v => v && v.low && v.battery != null);
+  if (!low.length) return '';
+  return `${low.map(v => `${v.label}: batteria ${v.battery}%`).join(' · ')} · ${low.length > 1 ? 'mettili' : 'mettilo'} in carica`;
+}
+// ultimo colpo letto dal telefono di un posto, per la prova dello staff nel foglio (dir del colpo con il segno già
+// corretto, mano di chi lo tiene): «dritto» o «rovescio»; '' se non c'è
+export function strokeOfDir(dir, hand = 'right'){
+  if (dir !== 1 && dir !== -1) return '';
+  return dir === (hand === 'left' ? -1 : 1) ? 'dritto' : 'rovescio';
+}
+
+/* ---------- B41.5 · visitatori numerati («Visitatore 12», da capo ogni giorno) ---------- */
+export const VISITOR_KEY = 'natpf-tennis.fiera.visitatori';
+export const visitorName = n => `Visitatore ${n}`;
+// contatore del giorno (funzione pura): saved { day, n } → { n: il numero del prossimo visitatore, saved: il contatore
+// nuovo }. Un giorno diverso riparte da 1
+export function nextVisitor(saved, day){
+  const n = saved && saved.day === day && Number.isInteger(saved.n) && saved.n > 0 ? saved.n : 0;
+  return { n: n + 1, saved: { day, n: n + 1 } };
+}
+// il numero che avrebbe il prossimo visitatore, senza contarlo
+export const peekVisitor = (saved, day) => nextVisitor(saved, day).n;
+
+// B41.5: pagina della fiera con 1 giocatore (contro la CPU, Telefono 1) o 2 (stesso schermo, Telefono 1 e 2): la scelta
+// dello staff resta salvata (vale anche per i visitatori dopo)
+export const FAIR_PLAY_KEY = 'natpf-tennis.fiera.gioco';
+export const fairPlayOf = v => (v === 'split' ? 'split' : 'cpu');
 
 export class NatpfFiera {
   constructor(engine, ui){
     this.engine = engine; this.ui = ui;
     const m = readFairMode();
     this.on = m.on; this.forced = m.forced;
+    // B41.5: numero del visitatore di adesso (null finché non gioca la prima partita contro la CPU) e avviso della batteria
+    this.visitor = null; this.alertText = ''; this._alertAt = 0; this._lowLogged = { p1: false, p2: false };
+    let play = null; try { play = localStorage.getItem(FAIR_PLAY_KEY); } catch {}
+    this.play = fairPlayOf(play);
     if (this.on) this._apply();
+  }
+  // 1 o 2 giocatori nella pagina della fiera ('cpu' | 'split'), salvato
+  setPlay(v){ this.play = fairPlayOf(v); try { localStorage.setItem(FAIR_PLAY_KEY, this.play); } catch {} return this.play; }
+  /* ---------- visitatori numerati (B41.5) ---------- */
+  _visitors(){ try { return JSON.parse(localStorage.getItem(VISITOR_KEY) || 'null'); } catch { return null; } }
+  // nome del visitatore di adesso, o di quello che arriva (senza contarlo)
+  visitorLabel(){ return visitorName(this.visitor ?? peekVisitor(this._visitors(), dayKey())); }
+  // il visitatore comincia la sua prima partita contro la CPU: prende il numero del giorno (una volta sola)
+  claimVisitor(){
+    if (this.visitor != null) return this.visitor;
+    const r = nextVisitor(this._visitors(), dayKey());
+    try { localStorage.setItem(VISITOR_KEY, JSON.stringify(r.saved)); } catch {}
+    this.visitor = r.n;
+    this.ui.diag?.recorder?.log?.('stand.visitatore', { numero: r.n });
+    return r.n;
+  }
+  // «Prossimo giocatore» e chiosco: chi arriva prende il numero dopo, quando gioca
+  releaseVisitor(){ this.visitor = null; }
+  /* ---------- avviso della batteria sul ledwall (B41.4) ---------- */
+  // ogni 100 ms (natpf_ui), ridipinto al più una volta al secondo: telefoni dello stand collegati con la batteria sotto il 20%
+  // e non in carica. Una riga per telefono nel registro della diagnostica quando la batteria diventa bassa
+  tick(now = performance.now()){
+    if (now - this._alertAt < 1000) return;
+    this._alertAt = now;
+    const views = this.on ? STAND.slots.map(s => this.status(s)) : [];
+    for (const v of views){ if (v.low && !this._lowLogged[v.slot]) this.ui.diag?.recorder?.log?.('stand.batteria', { posto: v.slot, batteria: v.battery }); this._lowLogged[v.slot] = !!v.low; }
+    const t = batteryAlert(views), el = typeof document !== 'undefined' ? document.getElementById('natpf-fiera-alert') : null;
+    this.alertText = t;
+    if (!el) return;
+    if (el.textContent !== t) el.textContent = t;
+    el.classList.toggle('hidden', !t);
   }
   // telefono di un posto (il Telefono 2 nasce qui con la modalità accesa: prima solo con lo stesso schermo)
   phone(slot, { make = true } = {}){

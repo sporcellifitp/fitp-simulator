@@ -303,9 +303,10 @@ export class NatpfLobby {
   // «Ospite» e il punteggio resta fuori classifica (natpf_events.playAsGuest, ranked). Nel passo di «Nuovo giocatore» prende
   // il posto di «Salta» (che faceva la stessa cosa: il pulsante resta nascosto, il telecomando lo usa ancora per «Salta il
   // nome»); nei minigiochi resta «Indietro». Chi ha scelto «Ospite» non si sente chiedere il nome al minigioco dopo
-  askNickname(then, { newPlayer = false } = {}){
+  // force (B41.5, «Nome» della pagina della fiera): il foglio si apre anche con un nome già scritto
+  askNickname(then, { newPlayer = false, force = false } = {}){
     const ev = this.ui.events, box = $('natpf-nick'), input = $('nick-input'), warn = $('nick-warn');
-    if ((ev.nickname || ev.guest) && !newPlayer){ then(); return; }
+    if ((ev.nickname || ev.guest) && !newPlayer && !force){ then(); return; }
     const text = (id, t) => { const el = $(id); if (el && el.textContent !== t) el.textContent = t; };
     text('nick-kicker', newPlayer ? 'Nuovo giocatore' : 'Classifica del giorno');
     text('nick-title', newPlayer ? 'Come ti chiami?' : 'Il tuo nickname');
@@ -504,6 +505,14 @@ export class NatpfLobby {
     // calibrazione dello schermo aperta e il menu cambia pagina (chiosco che torna al menu, classifica dal pannello
     // dell'addetto): si annulla come con Esc. Prima restava aperta sopra il menu, con l'area non salvata, e prendeva i tasti
     if (this.ui.calibra?.isOpen) this.ui.calibra.cancel();
+    // B41.5: con la modalità fiera accesa la pagina della fiera prende il posto del menu principale (natpf_fiera_page.js):
+    // è la pagina «Pronto per la partita» con la modalità della fiera (contro la CPU o stesso schermo) e i telefoni dello
+    // stand. Vale anche per chi torna al menu (pausa, chiosco, «Prossimo giocatore», fine della classifica a schermo intero)
+    if (step === 'menu' && this.ui.fieraPage?.on){
+      this.wantWarmup = false; this.warmupDone = false; this.trialPlayed = false; this.ui.trialSkipOnce = false; this.releaseTutorial();
+      this.mode = this.ui.fieraPage.enter();
+      step = 'match';
+    }
     if (step === 'warmup'){ if (this.mode === 'split') step = 'match'; else { this.startWarmup(); return; } }
     if (step !== 'ranking') document.documentElement.classList.remove('ranking-full');
     if (step === 'menu' && this.step !== 'menu' && (this.mode === 'training' || this.mode === 'challenge')) this.mode = 'cpu';
@@ -522,6 +531,7 @@ export class NatpfLobby {
     // per chi non è entrato in campo («Nuovo giocatore» e poi «Menu») non aspetta più
     if (step === 'menu'){ this.wantWarmup = false; this.warmupDone = false; this.trialPlayed = false; this.ui.trialSkipOnce = false; this.releaseTutorial(); }
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
+    this.el.dataset.fair = step === 'match' && this.ui.fieraPage?.on ? '1' : '';
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);
     if (step === 'challenges') this._paintChallenges();
@@ -537,7 +547,13 @@ export class NatpfLobby {
     this.paint();
     // fuoco sulla scelta fatta o sulla prima voce; nella pagina «Partita» senza tessere (amico, stesso schermo) su «Gioca»,
     // non su «Altre impostazioni» (Invio lì le aprirebbe invece di giocare)
-    requestAnimationFrame(() => { const tiles = this._tiles(); (tiles.find(t => t.classList.contains('selected')) || (step === 'match' ? null : tiles[0]) || this._primary())?.focus({ preventScroll: true }); });
+    // (B41.5, pagina della fiera: sulla tessera di «Chi gioca» scelta o su «Gioca», non su «1 giocatore»: Invio fa partire)
+    const fairPage = step === 'match' && !!this.ui.fieraPage?.on;
+    requestAnimationFrame(() => {
+      const tiles = this._tiles();
+      const pick = fairPage ? tiles.find(t => t.classList.contains('selected') && t.classList.contains('lobby-tile')) : tiles.find(t => t.classList.contains('selected')) || (step === 'match' ? null : tiles[0]);
+      (pick || this._primary())?.focus({ preventScroll: true });
+    });
   }
   _primary(){ return this.step === 'match' ? $('btn-start-match') : $('lobby-next'); }
   // Tutorial da vedere (Allenamento, partita contro la CPU, sfida: dopo «Collega» si entra in campo e la modale del tutorial
@@ -564,10 +580,13 @@ export class NatpfLobby {
       if (bar.dataset.key !== key){ bar.dataset.key = key; bar.innerHTML = steps.map(([id, label], i) => `<li class="${i === k ? 'on' : i < k ? 'done' : ''}"><b>${i + 1}</b><span>${label}</span></li>`).join(''); }
     }
     const menu = this.step === 'menu', match = this.step === 'match', pick = ['mode', 'options', 'challenges', 'ranking', 'result'].includes(this.step);
-    show($('lobby-back'), !menu && this.step !== 'result');
+    // B41.5: pagina della fiera (niente «‹ Indietro», niente «Riscaldati prima»: natpf_fiera_page.js)
+    const fair = match && !!this.ui.fieraPage?.on;
+    if (this.el.dataset && this.el.dataset.fair !== (fair ? '1' : '')) this.el.dataset.fair = fair ? '1' : '';
+    show($('lobby-back'), !menu && this.step !== 'result' && !fair);
     show($('lobby-next'), !menu && !match && !pick);
     show($('btn-start-match'), match);
-    show($('lobby-warmup'), match && this.mode !== 'split');
+    show($('lobby-warmup'), match && this.mode !== 'split' && !fair);
     // riscaldamento già fatto da questo giocatore (dalla pagina «Partita»): lo si rifà, non ci si riscalda «prima»
     const wb = $('lobby-warmup'), wt = this.warmupDone ? 'Rifai il riscaldamento' : 'Riscaldati prima';
     if (wb && wb.textContent !== wt) wb.textContent = wt;
@@ -586,7 +605,9 @@ export class NatpfLobby {
     const other = $('connect-other');
     if (other){ show(other, st.controller !== 'mouse' && !split); other.textContent = st.controller === 'phone' ? 'Senza telefono? Usa la webcam' : 'Hai il telefono? Usalo come racchetta'; }
     $('lobby-t-connect').textContent = split ? (this.ui.split?.webcam ? 'Una webcam per due' : 'Collega i due telefoni') : st.controller === 'phone' ? 'Collega il telefono' : st.controller === 'webcam' ? 'Accendi la webcam' : 'Mouse e tastiera';
-    $('lobby-t-match').textContent = split ? 'Stesso schermo' : this.mode === 'friend' ? 'Sfida un amico' : 'Pronto per la partita';
+    const fp = fair ? this.ui.fieraPage.paint() : null;
+    const mt = fp ? fp.title : split ? 'Stesso schermo' : this.mode === 'friend' ? 'Sfida un amico' : 'Pronto per la partita';
+    if ($('lobby-t-match').textContent !== mt) $('lobby-t-match').textContent = mt;
     // B46: chi gioca con la mano sinistra lo vede qui, prima di «Gioca» («Mancino»; nello stesso schermo è nella sua metà)
     show($('match-hand'), match && !split && this.ui.hand?.hand === 'left');
     if (this.step === 'connect' && split) this.ui.split?.paint();
@@ -608,6 +629,8 @@ export class NatpfLobby {
     // fuori dalla modalità amico «Gioca» torna «Gioca» (verifica dell'integrazione B15: dopo «Sfida un amico» e poi «Contro la
     // CPU» il pulsante era attivo ma diceva ancora «In attesa del Player 2…»: la barra dell'invito non lo ridipingeva più)
     if (sb && this.mode !== 'friend' && sb.dataset.label && sb.textContent !== sb.dataset.label) sb.textContent = sb.dataset.label;
+    // B41.5: pagina della fiera, «Gioca» spento finché i telefoni dello stand che servono non sono pronti (il perché sotto)
+    if (sb && fp){ const wait = !fp.gate.ok; if (sb.disabled !== wait) sb.disabled = wait; sb.classList.toggle('is-wait', wait); }
     const note = $('lobby-match-note');
     const names = this.engine.natpfSplitNames || {}, n1 = names.p1 || 'Player 1', n2 = names.p2 || 'Player 2';
     // (B28: con la calibrazione «Giocando» si dice che la partita comincia con gli scambi di prova)
@@ -615,7 +638,8 @@ export class NatpfLobby {
     // riporta qui)
     const warmed = this._warmedOnce();
     const trialNote = !split && this.mode !== 'friend' && !this.pageTrialFresh && !warmed && this.ui.trial?.due?.({ split: false }) ? 'Con «Gioca» prima qualche scambio di prova: il gioco impara il tuo colpo, poi torni qui e scegli la partita.' : split && st.splitReady && this.ui.trial?.due?.({ split: true }) ? ' Si comincia con qualche scambio di prova.' : '';
-    if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.${trialNote}` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady && !this.ui.phone.soonReady ? 'Telefono da ricollegare: con «Gioca» compare il QR.' : trialNote;
+    if (note && fp){ if (note.textContent !== fp.note) note.textContent = fp.note; }
+    else if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.${trialNote}` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady && !this.ui.phone.soonReady ? 'Telefono da ricollegare: con «Gioca» compare il QR.' : trialNote;
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
     // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){
@@ -691,7 +715,8 @@ export class NatpfLobby {
     if (this.step === 'controller') return this.go('connect');
     if (this.step === 'connect') return this.go(this.mode === 'split' ? 'match' : 'warmup');
     // stesso schermo con un giocatore non pronto: «Gioca» è spento; Invio riporta alle schede dei telefoni
-    if (this.step === 'match' && this.mode === 'split' && !this.state().splitReady){ this.ui.toast?.(this.ui.split?.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.go('connect'); return; }
+    // (B41.5: nella pagina della fiera si resta lì: il perché è sotto, e i telefoni dello stand si sistemano dal foglio)
+    if (this.step === 'match' && this.mode === 'split' && !this.state().splitReady){ if (this.ui.fieraPage?.on){ this.ui.toast?.('Servono i due telefoni dello stand pronti'); return; } this.ui.toast?.(this.ui.split?.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.go('connect'); return; }
     if (this.step === 'match') $('btn-start-match').click();
   }
   // Esc durante il conto alla rovescia dello stesso schermo: lo ferma («Aspetta»), non cambia pagina
@@ -699,6 +724,8 @@ export class NatpfLobby {
     if (this.mode === 'split' && this.step === 'connect' && this.ui.split?.countdownRunning){ this.ui.split.holdCountdown(); return; }
     // (B41.6: … e quello di «Sono pronto» sulla pagina «Pronto per la partita»)
     if (this.step === 'match' && this.ui.readyGo?.cd?.running){ this.ui.readyGo.hold(); return; }
+    // (B41.5: la pagina della fiera è la prima pagina: niente prima)
+    if (this.step === 'match' && this.ui.fieraPage?.on) return;
     const p = previousStep(this.step, this.mode); if (p) this.go(p);
   }
   _tiles(){
@@ -713,7 +740,8 @@ export class NatpfLobby {
     // B43: i fogli dello staff stanno sopra la guida e la pausa (sotto solo la calibrazione dello schermo): Esc chiude prima
     // loro (il telecomando torna al pannello dello stand, il pannello si chiude e la partita riparte). Prima in campo Esc
     // apriva e chiudeva la pausa sotto il foglio, senza che si vedesse
-    const staffSheet = this.ui.remote?.isOpen ? this.ui.remote : this.ui.kiosk?.isOpen ? this.ui.kiosk : null;
+    // (B41.4: anche il foglio «Telefoni dello stand», che torna al pannello)
+    const staffSheet = this.ui.remote?.isOpen ? this.ui.remote : this.ui.fieraSheet?.isOpen ? this.ui.fieraSheet : this.ui.kiosk?.isOpen ? this.ui.kiosk : null;
     if (e.code === 'Escape' && staffSheet && !this.ui.calibra?.isOpen){ e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) staffSheet.close(); return; }
     // B47: scelta del livello dopo «Rivincita» aperta (natpf_rematch.js): frecce, Invio ed Esc sono suoi
     if (this.ui.rematch?.isOpen && !staffSheet && !this.ui.calibra?.isOpen){ if (this.ui.rematch.key(e)){ e.preventDefault(); e.stopImmediatePropagation(); } return; }
@@ -752,6 +780,8 @@ export class NatpfLobby {
       if (i >= 0 && ['menu', 'mode', 'controller', 'options', 'challenges', 'ranking', 'result'].includes(this.step)) tiles[i].click();
       // pagina «Partita»: Invio su «Altre impostazioni» le apre o le chiude; altrove si gioca
       else if (i >= 0 && this.step === 'match' && tiles[i].matches('[data-match-more]')) tiles[i].click();
+      // (B41.5, pagina della fiera: Invio su 1 o 2 giocatori, fasce e mani le sceglie, non fa partire la partita)
+      else if (i >= 0 && this.step === 'match' && tiles[i].matches('[data-fiera-mode], [data-fiera-band], [data-fiera-hand], [data-natpf-hand]')) tiles[i].click();
       else this.next();
     }
     // Esc tenuto premuto (per uscire dallo schermo intero del browser) ripete il tasto: indietro di una pagina sola

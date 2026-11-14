@@ -36,7 +36,8 @@ export function mkEvent(type, target, extra = {}){ return { type, target, code: 
 const els = new Map();
 export const $ = id => { if (!els.has(id)) els.set(id, new El(id)); return els.get(id); };
 // (B43: anche il foglio del telecomando dello staff, nascosto come nella pagina vera: aperto ferma la partita)
-const SHEETS = ['natpf-nick', 'natpf-staff', 'natpf-remote', 'natpf-phone-modal', 'natpf-guest-modal', 'natpf-guest-cam', 'natpf-pause', 'natpf-onboarding', 'natpf-versus-wait'];
+// (B41.4: anche il foglio «Telefoni dello stand»)
+const SHEETS = ['natpf-nick', 'natpf-staff', 'natpf-remote', 'natpf-fiera', 'natpf-phone-modal', 'natpf-guest-modal', 'natpf-guest-cam', 'natpf-pause', 'natpf-onboarding', 'natpf-versus-wait'];
 const winLs = {};
 globalThis.document = {
   getElementById: $,

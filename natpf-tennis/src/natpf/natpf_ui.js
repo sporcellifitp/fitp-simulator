@@ -30,7 +30,10 @@ import { installMatchStats } from './natpf_match_stats.js';
 import { isCpuLevel } from './natpf_who.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
 import { NatpfRemote } from './natpf_remote.js';
-import { NatpfFiera } from './natpf_fiera.js';
+import { NatpfFiera, visitorName } from './natpf_fiera.js';
+// B41.4–B41.5: foglio «Telefoni dello stand» e pagina della fiera (seconda parte della modalità fiera)
+import { NatpfFieraSheet } from './natpf_fiera_sheet.js';
+import { NatpfFieraPage } from './natpf_fiera_page.js';
 import { NatpfReadyGo } from './natpf_ready_go.js';
 import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText, phoneOf, holdTitle, otherPhoneNote } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
@@ -149,6 +152,10 @@ export class NatpfUi {
     // B41 prima parte: modalità fiera (telefoni dello stand abbinati una volta e sempre in ascolto, natpf_fiera.js) e
     // «Sono pronto» dai telefoni sulla pagina «Pronto per la partita» (natpf_ready_go.js, vale anche fuori dalla fiera)
     this.fiera = new NatpfFiera(engine, this);
+    // B41.4: foglio «Telefoni dello stand» (abbinamento con il mouse, «Conferma» solo con un clic vero); B41.5: pagina della
+    // fiera al posto del menu principale, «Prossimo giocatore»
+    this.fieraSheet = new NatpfFieraSheet(engine, this);
+    this.fieraPage = new NatpfFieraPage(engine, this);
     this.readyGo = new NatpfReadyGo(engine, this);
     // B46: avviso grande quando la mano cambia dal telefono («Telefono 1: mano sinistra (mancino)», natpf_hand_notice.js)
     this.handNotice = new NatpfHandNotice(engine, this);
@@ -206,7 +213,8 @@ export class NatpfUi {
     this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
     // (B43: con un foglio dello staff aperto la pausa si ricalcola anche qui: una partita che parte con la diagnostica già
     // aperta, ?diag=1, resta ferma come le altre; B41.6: «Sono pronto» dei telefoni sulla pagina «Pronto per la partita»)
-    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); this.readyGo?.tick(); this.handNotice?.tick(); this.rematch?.tick(); } catch (e){ console.error(e); } }, 100);
+    // (B41.4: anche l'avviso della batteria bassa dei telefoni dello stand, natpf_fiera.tick)
+    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); this.readyGo?.tick(); this.handNotice?.tick(); this.rematch?.tick(); this.fiera?.tick(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -220,6 +228,9 @@ export class NatpfUi {
     }
     // la scelta salvata vale anche per motore base (webcam accesa all'avvio della partita)
     this.selectController(this.controller, { open: false });
+    // B41.5: modalità fiera accesa all'avvio (senza intro, ?intro=0): la pagina della fiera al posto del menu principale
+    // (con l'intro ci pensa la sua fine, che torna al menu)
+    if (this.fiera?.on && this.lobby?.visible && this.lobby.step === 'menu' && !this.intro?.active) this.lobby.go('menu');
   }
 
   /* ---------- racchetta e visuale ---------- */
@@ -251,7 +262,8 @@ export class NatpfUi {
   // diagnostica): la partita resta ferma (anche scambi di prova e allenamento) e riparte quando si chiudono. Prima la CPU
   // faceva punti dietro il pannello e la diagnostica aperta dalla pausa faceva ripartire la partita
   // (B39: anche la calibrazione dello schermo, che dal tasto destro del programma si apre in campo)
-  staffOpen(){ return !!(this.kiosk?.isOpen || this.remote?.isOpen || this.remote?.opening || this.diag?.isOpen || this.calibra?.isOpen); }
+  // (B41.4: anche il foglio «Telefoni dello stand»)
+  staffOpen(){ return !!(this.kiosk?.isOpen || this.remote?.isOpen || this.remote?.opening || this.fieraSheet?.isOpen || this.diag?.isOpen || this.calibra?.isOpen); }
   // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
   _syncPause(){
     // (B47: anche il conto alla rovescia grande prima del primo punto, natpf_prematch.js)
@@ -299,7 +311,9 @@ export class NatpfUi {
   }
   // «Nuovo giocatore»: azzera nome, mano, tutorial, calibrazione e colpi imparati senza scollegare il telefono, e porta chi
   // arriva al passo giusto (natpf_new_player.js). Restituisce la strada presa ('match', 'challenge', 'split', 'versus', 'menu')
-  newPlayer(){ this.trialSkipOnce = false; return resetVisitor(this); }
+  // B41.5: con la modalità fiera accesa è «Prossimo giocatore» (natpf_new_player.resetFairVisitor): i telefoni dello stand
+  // restano collegati, niente nome né tutorial da rifare, si torna alla pagina della fiera ('fiera')
+  newPlayer(){ this.trialSkipOnce = false; return this.fiera?.on && this.fieraPage ? this.fieraPage.next() : resetVisitor(this); }
   // B33: partita singola contro la CPU finita: nella classifica delle partite di oggi; la posizione va nella schermata finale
   _matchEnded(m){
     if (m.mode !== 'cpu' || m.doubles || m.guest || !isCpuLevel(m.level)) return null;
@@ -311,9 +325,14 @@ export class NatpfUi {
     return r;
   }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer
+  // B41.5: in fiera «Nuovo giocatore» è «Prossimo giocatore ›» (il principale) e «Menu» non c'è (il menu è la pagina della
+  // fiera: «Prossimo giocatore» ci porta azzerando chi ha giocato, «Rivincita» rigioca la stessa persona)
   _paintVictory(){
-    const versus = this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || !!this.versus?.hostActive;
-    $('btn-new-player')?.classList.toggle('hidden', versus);
+    const versus = this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || !!this.versus?.hostActive, fair = !!this.fiera?.on && !versus;
+    const np = $('btn-new-player');
+    np?.classList.toggle('hidden', versus);
+    if (np){ const t = fair ? 'Prossimo giocatore ›' : 'Nuovo giocatore'; if (np.textContent !== t) np.textContent = t; np.classList.toggle('fair-next', fair); }
+    $('btn-return-title')?.classList.toggle('hidden', fair);
   }
   // dal menu di pausa (e dal chiosco): fine partita, allenamento o sfida, ritorno al menu principale. Prima, in
   // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla
@@ -489,12 +508,16 @@ export class NatpfUi {
       // (B35: scambi di prova in corso, la pagina non è in vista: niente partita sopra gli scambi)
       if (this.trial?.active){ e.stopImmediatePropagation(); return; }
       const mode = this.lobby?.mode;
+      // B41.5: dalla pagina della fiera (modalità fiera accesa): niente QR (il telefono dello stand che non è pronto si
+      // sistema dal foglio «Telefoni dello stand»), gli scambi di prova portano dritti alla partita
+      const fair = !!this.fieraPage?.here;
       // (revisione del B28, difetto 4) opzione dello stand cambiata a «Con i gesti» con un telefono rimasto con il
       // profilo dato dal gioco o imparato dagli scambi di prova: non conta come calibrato, rifà i gesti (senza QR)
       this.demoteStale(mode === 'split' ? (this.split.webcam ? [] : [this.split.phone('p1'), this.split.phone('p2')]) : [this.phone]);
       // stesso schermo: si parte con i due telefoni pronti; la sessione split nasce qui (natpf_split_ui.js)
       if (mode === 'split'){
-        if (!this.split.bothReady()){ e.stopImmediatePropagation(); this.toast(this.split.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.lobby.go('connect'); return; }
+        // (B41.5: nella pagina della fiera si resta lì, mai la pagina con i QR)
+        if (!this.split.bothReady()){ e.stopImmediatePropagation(); if (fair){ this.toast('Servono i due telefoni dello stand pronti'); return; } this.toast(this.split.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.lobby.go('connect'); return; }
         this.split.start();
         if (this.trial.due({ split: true })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: true, then: () => this._startMatchNow() }); return; }
         if (!this.split.webcam) this.freshForActivity([this.split.phone('p1'), this.split.phone('p2')]);
@@ -502,7 +525,14 @@ export class NatpfUi {
       }
       // sfida tra due computer: si parte solo con il Player 2 entrato e pronto
       if (mode === 'friend' && this.versus?.hostActive && !this.versus.canStart()){ e.stopImmediatePropagation(); this.toast(this.versus.state === 'waiting' ? 'Manda il link al Player 2: la partita parte quando è pronto' : 'Il Player 2 sta scegliendo la racchetta: aspetta «pronto»'); return; }
-      if (this.controller === 'phone' && !this.phone.soonReady){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); return; }
+      if (this.controller === 'phone' && !this.phone.soonReady){
+        e.stopImmediatePropagation();
+        if (fair){ this.toast('Il Telefono 1 non è pronto: «Telefoni dello stand»'); this.fieraSheet?.open(); return; }
+        this.openPhone({ after: () => $('btn-start-match')?.click() }); return;
+      }
+      // B41.5: contro la CPU in fiera, chi gioca senza un nome scritto prende il numero del visitatore («Visitatore 12», da
+      // capo ogni giorno): la classifica del giorno ha senso senza scrivere niente. Una volta per visitatore
+      if (fair && mode === 'cpu' && !this.events.nickname && !this.events.guest) this.events.nickname = visitorName(this.fiera.claimVisitor());
       // (appena finito «Riscaldati prima», che ha già insegnato il colpo di chi gioca: niente scambi di prova, una volta)
       // (… o chi ha calibrato apposta con i gesti e poi si è riscaldato: le stesse persone, il profilo dei gesti resta; B28.1)
       const warmed = !!this.trialSkipOnce && (!!this.phone.profile?.trial || !!this.phone.gestureProfile);
@@ -512,7 +542,8 @@ export class NatpfUi {
       const fresh = !!this.lobby?.pageTrialFresh;
       if (mode !== 'friend' && !warmed && !fresh && this.trial.due({ split: false })){
         e.stopImmediatePropagation(); this.wipe('Scambi di prova');
-        if (mode === 'cpu' && this.lobby?._pageTrial?.({ force: true })) return;
+        // (B41.5: in fiera no: «Gioca» o «Sono pronto» sono già la partita, dopo gli scambi di prova si gioca)
+        if (mode === 'cpu' && !fair && this.lobby?._pageTrial?.({ force: true })) return;
         this.trialSkipOnce = false;
         this.trial.start({ split: false, then: () => this._startMatchNow() }); return;
       }

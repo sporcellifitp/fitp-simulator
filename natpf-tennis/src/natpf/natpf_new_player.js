@@ -106,3 +106,37 @@ export function resetVisitor(ui){
   L.askNickname(go, { newPlayer: true });
   return route;
 }
+
+// B41.5 · «Prossimo giocatore» della modalità fiera (fine partita, pannello, telecomando dello staff; anche il chiosco in
+// fiera). Come «Nuovo giocatore», ma i telefoni dello stand restano collegati e pronti: niente QR, niente tutorial (i
+// telefoni dello stand lo contano già visto), niente foglio del nome, e si torna alla pagina della fiera. Si azzerano:
+// nome (e «Ospite»), record dell'ospite e colpi speciali imparati, «Chi gioca» (Adulto) e livello Evento, mano (Destra per
+// Player 1 e Player 2, causa 'fiera' nel registro: B46), nomi e fasce dello stesso schermo, il numero del visitatore (chi
+// arriva prende il prossimo quando gioca), quello che i telefoni hanno imparato da chi c'era (resetPlayer senza aspettare il
+// tutorial: profilo semplice da capo; gli scambi di prova della partita dopo imparano il colpo di chi arriva) e «Sono
+// pronto» (l'offerta riparte sulla pagina). Restano: telefoni abbinati e collegati, taratura del verso salvata sul
+// telefono, opzioni dello staff, 1 o 2 giocatori. causa: 'fiera' (pulsante, telecomando) o 'chiosco'
+export function resetFairVisitor(ui, causa = 'fiera'){
+  const E = ui.engine, L = ui.lobby;
+  if (ui.onboarding?.isOpen) ui.onboarding.close();
+  for (const id of ['natpf-nick', 'natpf-staff']) document.getElementById(id)?.classList.add('hidden');
+  ui.tastiera?.hide?.();
+  E.hud?.hideVictoryModal?.();
+  ui.events.nickname = '';
+  ui.events.forgetGuest?.();
+  ui.events.forgetLearned?.();
+  L?.resetWho?.(); ui.superHint?.reset?.(); ui.cue?.resetHint?.();
+  ui.serveCoach?.newPlayer?.();
+  // (nomi e fasce dello stesso schermo; la sessione dello stesso schermo la chiude backToMenu)
+  ui.split?.resetNames?.();
+  resetHands(ui, causa === 'chiosco' ? 'chiosco' : 'fiera');
+  ui.fiera?.releaseVisitor?.();
+  ui.trialSkipOnce = false;
+  if (L) L.trialPlayed = false;
+  // quello che il gioco ha imparato dai telefoni: da capo (collegati restano collegati; uno scollegato in questo momento lo fa
+  // appena torna, NatpfPhoneRacket.recalPending)
+  for (const p of [ui.phone, E.natpfPhone2]) if (p?.standSlot) p.resetPlayer?.({ gate: false });
+  ui.diag?.recorder?.log?.('stand.prossimo', { causa });
+  ui.backToMenu('menu');
+  return 'fiera';
+}

@@ -24,6 +24,7 @@ export const LINK_TEXT = 'Il link è per il telefono: inquadra il QR con la foto
 // un fumetto, title, usano quello)
 export const STAFF_HINTS = Object.freeze({
   kiosk: 'Modalità chiosco · Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu, cancella il nome e scollega il telefono.',
+  fiera: 'Modalità fiera · Sì: la pagina della fiera al posto del menu (chi gioca con un clic, niente QR, niente tutorial), i telefoni dello stand abbinati una volta e sempre collegati. Accesa, si apre «Telefoni dello stand».',
   idle: 'Ritorno al menu dopo · il tempo del chiosco senza nessuno: 30, 45, 60 o 90 secondi.',
   ranking: 'Classifica · la classifica di oggi in grande sul ledwall. Per uscire: questa voce, oppure «× Chiudi» in alto a destra (muovi il mouse).',
   export: 'Classifica · salva le partite e i minigiochi di oggi in un file CSV (nel programma Windows in Download › NATPF).',
