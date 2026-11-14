@@ -985,6 +985,11 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   scritta del punto la fa passare da `_natpfPointBanner` (le prove che misurano i tempi: `natpf-fuori-vero`).
 - **Mondo di prova** (`test/ui-world.mjs`): anche `#natpf-remote` parte nascosto, come nella pagina vera (aperto ferma la
   partita).
+- **Servizio senza riquadro di testo** (13/11 notte, domande a scelta): via «Premi ↑ o W: lanci la palla» / «Alza il
+  telefono…»; al suo posto una piccola icona di telefono che sale con la palla, in loop, accanto a chi batte, senza
+  scritte, solo ai primi 2 servizi di ogni giocatore nuovo (torna se non lancia per qualche secondo). Compito
+  `docs/coda/B44-servizio-animato.md`.
+- **Nomi con la tastiera a schermo** (richiesta ripetuta il 13/11 notte): è il B38, il prossimo blocco libero.
 
 ## B36.0 · Misure della direzione dei colpi (13–14/11/2026; documento `docs/b36/misure-b36-0.md`)
 - **Registro, formato delle righe 2**: campi `pf` (piatto della cima, solo telefoni con la forma), `dv` (scarto della cima
