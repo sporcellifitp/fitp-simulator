@@ -194,6 +194,29 @@ test('B42: scambi lunghi nel riassunto (scambio caldo acceso in tutti i modi, pu
   assert.match(testo, /«palla calda».*: 1\./);
 });
 
+// B46 «dritto e rovescio al sicuro»: le righe «tel» con un motivo (mano, segno del verso) si contano a parte, non come
+// stati del collegamento, e il rapporto dice da dove sono venute
+test('B46: cambi di mano e del segno del verso del telefono nel riassunto', () => {
+  const ctx = { giorno: '2026-11-14', postazione: 'abcd1234' }, R = new Riassunto(), L = { file: 1, blocchi: 1, righe: 1, byte: 1 };
+  R.aggiungi({ k: 'tel', t: 5, chi: 'g', stato: 'collegato', strada: 'lan' }, ctx);
+  R.aggiungi({ k: 'tel', t: 10, chi: 'g', motivo: 'mano', mano: 'left', causa: 'telefono', ruolo: 'p1' }, ctx);
+  R.aggiungi({ k: 'tel', t: 20, chi: 'g', motivo: 'mano', mano: 'right', causa: 'chiosco', ruolo: 'p1' }, ctx);
+  R.aggiungi({ k: 'tel', t: 21, chi: 'a', motivo: 'mano', mano: 'right', causa: 'chiosco', ruolo: 'p2' }, ctx);
+  R.aggiungi({ k: 'tel', t: 30, n: 1, chi: 'g', motivo: 'segno', stato: -1, causa: 'tocchi', ruolo: 'p1', inPartita: true }, ctx);
+  R.aggiungi({ k: 'tel', t: 31, chi: 'g', motivo: 'segno', stato: -1, causa: 'prova', ruolo: 'p1' }, ctx);
+  assert.deepEqual(R.tel.stati, { collegato: 1 }, 'i cambi non sono stati del collegamento');
+  assert.deepEqual(R.tel.mano, { 'sinistra · telefono': 1, 'destra · chiosco': 1, 'destra · chiosco (Player 2)': 1 });
+  assert.deepEqual(R.tel.segno, { 'tocchi · −1': 1, 'prova · −1': 1 }); assert.equal(R.tel.segnoInPartita, 1); assert.equal(R.tel.manoInPartita, 0);
+  const s = rapporto(R, L).find(x => x.titolo === 'Collegamento del telefono');
+  const t = n => s.tabelle.find(x => x.titolo.startsWith(n));
+  assert.ok(t('Mano cambiata')); assert.deepEqual(t('Mano cambiata').righe.map(r => r[0]).sort(), ['destra · chiosco', 'destra · chiosco (Player 2)', 'sinistra · telefono']);
+  assert.match(t('Segno del verso').titolo, /in partita: 1/);
+  // senza righe con un motivo (registri di prima): le due tabelle non ci sono
+  const R0 = new Riassunto(); R0.aggiungi({ k: 'tel', t: 5, chi: 'g', stato: 'caduto' }, ctx);
+  const s0 = rapporto(R0, L).find(x => x.titolo === 'Collegamento del telefono');
+  assert.ok(!s0.tabelle.some(x => /Mano cambiata|Segno del verso/.test(x.titolo)));
+});
+
 /* ---------- B36.0: sezione «Direzione» (docs/b36/misure-b36-0.md) ---------- */
 test('B36.0: correlazione di rango e retta dei minimi quadrati', () => {
   assert.equal(spearman([1, 2, 3, 4], [10, 20, 30, 40]), 1); assert.equal(spearman([1, 2, 3, 4], [4, 3, 2, 1]), -1);

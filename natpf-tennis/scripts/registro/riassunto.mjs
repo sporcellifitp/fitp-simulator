@@ -163,7 +163,9 @@ export class Riassunto {
     // oltre 20 e oltre 30 colpi nelle partite con l'opzione accesa (c) e spenta (s), colpi super con la «palla calda»
     this.lunghi = { partite: 0, caldo: 0, c: { punti: 0, oltre20: 0, oltre30: 0 }, s: { punti: 0, oltre20: 0, oltre30: 0 }, superCaldi: 0 };
     this.evento = { n: 0, inizio: new Misura(), fine: new Misura(), delta: new Misura(), sale: 0, scende: 0, uguale: 0, perOrdine: [] };
-    this.tel = { stati: {}, cadutePerOra: {}, strade: {}, rtt: new Misura(), rttMax: new Misura(), so: {}, browser: {}, cadutePartite: 0, dopoS: new Misura() };
+    this.tel = { stati: {}, cadutePerOra: {}, strade: {}, rtt: new Misura(), rttMax: new Misura(), so: {}, browser: {}, cadutePartite: 0, dopoS: new Misura(),
+      // B46: cambi di mano (mano · causa) e del segno del verso (causa · segno), con quanti in partita
+      mano: {}, segno: {}, manoInPartita: 0, segnoInPartita: 0 };
     this.fps = { medi: new Misura(), peggiori: new Misura(), maxMs: new Misura(), lunghi: 0, costo: new Misura(), sotto30: 0, n: 0 };
     this.avvii = { n: 0, improvvise: 0, ricaricamenti: 0, crash: 0, schermi: {}, gpu: {}, dove: {} };
     this.errori = new Map(); this.altro = { allenamenti: 0, allenamentiFiniti: 0, minigiochi: {}, note: 0, perse: 0 };
@@ -260,7 +262,12 @@ export class Riassunto {
     }
   }
   _visita(r){ const V = this.visite; V.n++; V.durata.metti(r.durS); somma(this.scartati, r.scartati); if (r.abbandono){ V.senzaGiocare++; piu(V.dove, r.abbandono); piu(this.abbandoni, `prima di giocare · ${r.abbandono}${r.come === 'chiosco' ? ' (chiosco)' : ''}`); } }
-  _tel(r, x){ const T = this.tel; piu(T.stati, r.stato); if (r.strada) piu(T.strade, r.strada); if (r.stato === 'caduto'){ const d = this._quando(x, r); piu(T.cadutePerOra, d ? `${d.toISOString().slice(0, 10)} · ore ${String(d.getUTCHours()).padStart(2, '0')}` : 'senza ora'); } if (r.stato === 'ricollegato') T.dopoS.metti(r.dopoS); }
+  _tel(r, x){
+    const T = this.tel;
+    // B46: righe con un motivo (cambio di mano o del segno del verso del telefono), contate a parte
+    if (r.motivo === 'mano'){ piu(T.mano, `${r.mano === 'left' ? 'sinistra' : 'destra'} · ${r.causa || '?'}${r.ruolo === 'p2' ? ' (Player 2)' : ''}`); if (r.inPartita) T.manoInPartita++; return; }
+    if (r.motivo === 'segno'){ piu(T.segno, `${r.causa || '?'} · ${r.stato === -1 ? '−1' : '+1'}${r.ruolo === 'p2' ? ' (Player 2)' : ''}`); if (r.inPartita) T.segnoInPartita++; return; }
+    piu(T.stati, r.stato); if (r.strada) piu(T.strade, r.strada); if (r.stato === 'caduto'){ const d = this._quando(x, r); piu(T.cadutePerOra, d ? `${d.toISOString().slice(0, 10)} · ore ${String(d.getUTCHours()).padStart(2, '0')}` : 'senza ora'); } if (r.stato === 'ricollegato') T.dopoS.metti(r.dopoS); }
   _errore(r, x){ const k = `${r.msg}|${r.file}|${r.riga}`, e = this.errori.get(k) || { msg: r.msg, file: r.file, riga: r.riga, tipo: r.tipo, volte: 0, per: new Map() }; this.errori.set(k, e); e.per.set(x, Math.max(e.per.get(x) || 0, r.volte || 1)); }
   /* ---------- B36.0: direzione dei colpi ---------- */
   _dirPartita(){ return { colpi: 0, xs: [], piatti: [], dv: [], primi: 0, primi05: 0 }; }
@@ -418,6 +425,9 @@ export function rapporto(R, L){
     { titolo: 'Cadute per ora', colonne: ['Giorno e ora', 'Cadute'], righe: Object.entries(te.cadutePerOra).sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, v]) => [k, N(v)]) },
     { titolo: 'Telefoni (a grandi linee)', colonne: ['Sistema', 'Volte'], righe: elenco(te.so) },
     { titolo: 'Browser del telefono', colonne: ['Browser', 'Volte'], righe: elenco(te.browser) },
+    // B46 «dritto e rovescio al sicuro»: perché dritto e rovescio possono uscire scambiati (mano sinistra, segno girato)
+    { titolo: `Mano cambiata (in partita: ${N(te.manoInPartita)})`, colonne: ['Mano · da chi', 'Volte'], righe: elenco(te.mano) },
+    { titolo: `Segno del verso del telefono cambiato (in partita: ${N(te.segnoInPartita)})`, colonne: ['Causa · segno nuovo', 'Volte'], righe: elenco(te.segno) },
   ]);
   const fp = R.fps, av = R.avvii;
   sez('Prestazioni', [

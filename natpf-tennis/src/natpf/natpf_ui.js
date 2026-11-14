@@ -15,6 +15,7 @@ import { NatpfTimingCue } from './natpf_timing_cue.js';
 import { NatpfSuperHint } from './natpf_super_hint.js';
 import { eventoRestart } from './natpf_skill.js';
 import { NatpfHand } from './natpf_hand.js';
+import { NatpfHandNotice } from './natpf_hand_notice.js';
 import { NatpfTraining } from './natpf_training.js';
 import { NatpfBallMachine } from './natpf_ball_machine.js';
 import { bindAudioSliders } from './natpf_audio_settings.js';
@@ -145,6 +146,8 @@ export class NatpfUi {
     // «Sono pronto» dai telefoni sulla pagina «Pronto per la partita» (natpf_ready_go.js, vale anche fuori dalla fiera)
     this.fiera = new NatpfFiera(engine, this);
     this.readyGo = new NatpfReadyGo(engine, this);
+    // B46: avviso grande quando la mano cambia dal telefono («Telefono 1: mano sinistra (mancino)», natpf_hand_notice.js)
+    this.handNotice = new NatpfHandNotice(engine, this);
     // B39: stand con il solo mouse (comandi del tasto destro del programma, avvisi, trappole del mouse): natpf_stand_mouse.js
     this.mouse = new NatpfStandMouse(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
@@ -169,7 +172,8 @@ export class NatpfUi {
     window.addEventListener('natpf:victory', () => this._paintVictory());
     this.hand.set(this.hand.hand);
     // mano cambiata sulla pagina del telefono: vale per tutto il gioco (personaggio, webcam) e torna al telefono
-    if (this.phone) this.phone.onHand = h => { this.hand.set(h); this.paintTiles(); };
+    // (B46: con la causa, per il registro dello stand e per l'avviso grande del cambio dal telefono)
+    if (this.phone) this.phone.onHand = (h, causa = 'telefono') => { this.hand.set(h, causa); this.paintTiles(); };
     this.onViewChange(engine.viewMode);
     this.phone.onChange(() => { this.paintPhone(); this.paintTiles(); if (this.lobby?.visible && this.lobby.step === 'connect') this.lobby.paint(); });
     // telefono che ricalibra in partita o in una sfida senza il pannello aperto (Ricalibra e pannello chiuso, pagina del
@@ -191,7 +195,7 @@ export class NatpfUi {
     this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
     // (B43: con un foglio dello staff aperto la pausa si ricalcola anche qui: una partita che parte con la diagnostica già
     // aperta, ?diag=1, resta ferma come le altre; B41.6: «Sono pronto» dei telefoni sulla pagina «Pronto per la partita»)
-    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); this.readyGo?.tick(); } catch (e){ console.error(e); } }, 100);
+    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); this.readyGo?.tick(); this.handNotice?.tick(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){

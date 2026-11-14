@@ -489,6 +489,9 @@ export class NatpfPhoneRacket {
     // per l'attività che segue, qualunque sia, e basta (B28.1: prima contavano solo le partite, e due minigiochi dopo
     // «Calibra con i gesti» lasciavano quel profilo anche alla partita del visitatore dopo)
     this.madeBy = null; this.gestureAt = null;
+    // B46: segno dell'accelerazione della pagina del telefono (motion-sign.js, messaggio «dev» as) e numero del collegamento
+    // in cui è arrivato; segno del rilevatore del telefono (swing-detect.js, absSign: dal colpo o dal messaggio «sgn»)
+    this.accSign = null; this.accSignJoins = null; this.phoneSign = 1;
   }
   // B28: calibrazione dello stand (natpf_trial_learn.readCalMode: 'play' giocando, 'gesti', 'none') e profilo semplice
   // automatico. Con «Giocando» e «Nessuna» il telefono non fa i gesti: appena ha i sensori attivi e comincia a calibrare il
@@ -532,16 +535,20 @@ export class NatpfPhoneRacket {
   get state(){ return this.link?.L || { state: 'off', phone: null }; }
   // presa scelta nel gioco (lobby, pannello del telefono): va al telefono, che rifà la calibrazione se serve
   // mano scelta nel gioco (NatpfHand.set): va subito al telefono, che la mostra e la usa nella calibrazione
-  setHand(h){
+  // B46: ogni cambio vero va alla diagnostica e al registro dello stand (_diag 'mano': mano, causa, ruolo) e, se viene dal
+  // telefono, all'avviso grande sul computer (natpf_hand_notice.js). causa: 'gioco' (pulsanti del gioco), 'telefono'
+  // (pagina del telefono, due tocchi), 'nuovo giocatore', 'chiosco', 'fiera' (natpf_hand.resetHands)
+  setHand(h, causa = 'gioco'){
     const next = normalizeHand(h);
     if (next === this.hand) return;
     this.hand = next; if (this.fixedRole) writeP2Hand(next); this.gripSent = false; this._sendGrip(); this._changed();
+    this._diag('mano', { mano: next, causa: String(causa || 'gioco'), ruolo: this.role });
   }
   // mano cambiata sulla pagina del telefono: la decide il gioco (onHand la applica a NatpfHand, che la rimanda qui)
   _onPhoneHand(h){
     const next = normalizeHand(h);
     if (next === this.hand) return;
-    if (this.onHand) this.onHand(next); else this.setHand(next);
+    if (this.onHand) this.onHand(next, 'telefono'); else this.setHand(next, 'telefono');
   }
   setGrip(g){
     this.grip = normalizeGrip(g); writeGrip(this.grip); this.gripSent = false; this._sendGrip(); this._changed();
@@ -615,7 +622,9 @@ export class NatpfPhoneRacket {
     link.on('dropped', d => { for (const fn of this.dropListeners) try { fn(d.reason, { seq: d.seq, path: d.path }); } catch (e){ console.error(e); } });
     link.on('discard', d => this._diag('scartato', d));
     link.on('mark', d => this._diag('segno', d));
-    link.on('device', d => { this.device = d; this._diag('dispositivo', d); });
+    link.on('device', d => { this.device = d; this._diag('dispositivo', d); this._accSignSeen(d?.accSign); });
+    // (B46: il rilevatore del telefono ha girato il suo segno, pagine dal B46; quelle di prima lo dicono solo con il colpo)
+    link.on('sign', e => this._detectorSign(e?.detector));
     await link.start();
     // (cambiato posto mentre partiva: vale il collegamento nuovo)
     if (this.link !== link){ this._starting = null; return this.start(); }
@@ -648,7 +657,11 @@ export class NatpfPhoneRacket {
       this.madeBy = !this.profile ? null : this.profile.simple ? (this.autoSimple ? 'auto' : 'salta') : 'gesti';
       // (fatta a metà di una partita, di un minigioco o di un allenamento vale per quell'attività e basta)
       this.gestureAt = this.madeBy === 'gesti' && !this.engine.natpfUi?.activityLive?.() ? this.activitySeq : null;
-      this.learner.reset(); this.gestureCal = false; this.simple = !!this.profile?.simple; this.lastExpect = null;
+      // B46: il profilo nuovo rimette a +1 anche il segno del rilevatore sul telefono (swing-detect setProfile): se uno dei
+      // due segni era girato lo si registra (una calibrazione a metà partita toglie la compensazione degli scambi di prova)
+      const turned = this.learner.sign === -1 || this.phoneSign === -1;
+      this.learner.reset(); this.phoneSign = 1; this.gestureCal = false; this.simple = !!this.profile?.simple; this.lastExpect = null;
+      if (turned) this._signEvent('calibrazione', 1);
       this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline;
       this.liftModel.reset(this.liftBaseline); this.faceModel.reset();
       // Allinea prima il collegamento: _sendGrip azzera i riferimenti di un eventuale frame precedente.
@@ -797,12 +810,16 @@ export class NatpfPhoneRacket {
     // Il lato che vota è quello che si vede al momento del colpo (ballSideNow: dove il personaggio si è messo rispetto alla
     // palla), non quello deciso al lancio: chi gioca intanto si è mosso
     const T = this.trial, probe = T && !T.keep && T.want && this._incoming() ? T.ball : null;
-    if (probe != null) this.learner.vote({ ball: probe, want: ballSideNow(this.engine, this.role, T.at), s });
+    if (probe != null){
+      const was = this.learner.sign;
+      this.learner.vote({ ball: probe, want: ballSideNow(this.engine, this.role, T.at), s });
+      if (this.learner.sign !== was) this._signEvent('prova', this.learner.sign);   // (B46: registrato)
+    }
     s = signedSwing(s, this.learner.sign);   // B35a: con il verso anche la direzione del piatto
     // B35a: il telefono ha girato da sé verso e piatto (voto del rilevatore, profilo semplice): i riferimenti per verso
     // imparati prima stanno dalla parte sbagliata e ripartono, come dopo gli scambi di prova con il segno girato
-    const phoneSign = s.absSign === -1 ? -1 : 1;
-    if (phoneSign !== (this.phoneSign ?? 1)){ this.phoneSign = phoneSign; this.aimModel.reset(); this.riseModel.reset(); this.faceModel.reset(); }
+    // (B46: _detectorSign, lo stesso del messaggio «sgn», e il cambio va nel registro)
+    this._detectorSign(s.absSign === -1 ? -1 : 1);
     // forza e profondità voluta rispetto al proprio colpo tipico imparato giocando (richiesta del 23/10, C4): un colpo più
     // forte del solito va più in fondo, uno più morbido più corto. Prima il riferimento era il gesto della calibrazione,
     // spesso un colpetto (il 23/10 143 °/s): la parte relativa della forza era sempre piena e la profondità non seguiva
@@ -854,6 +871,37 @@ export class NatpfPhoneRacket {
     this._diag('prep', p);
     const side = strokeSide(-p.dir, this.hand), actor = this.fixedRole ? this.actor : this.engine.localActor || this.engine.player;
     if (actor && side) (actor.userData || (actor.userData = {})).natpfPrep = { side, until: performance.now() + 750, amount: clamp((p.angle || 30)/50, .45, 1) };
+  }
+  /* ---------- B46 · segni coerenti ---------- */
+  // Tre segni girano il verso del colpo (e con lui dritto e rovescio): quello dell'accelerazione sulla pagina del telefono
+  // (motion-sign.js, votato dai tocchi: as nel messaggio «dev»), quello del rilevatore del telefono (swing-detect.js, voto
+  // dei colpi con il verso atteso: sg nel colpo, messaggio «sgn») e quello imparato qui dagli scambi di prova
+  // (learner.sign, natpf_trial_learn.js). Ogni cambio va alla diagnostica e al registro dello stand: _diag 'verso' con
+  // causa ('tocchi' | 'pagina' | 'rilevatore' | 'prova' | 'calibrazione'), stato (il segno nuovo, ±1) e ruolo
+  _signEvent(causa, stato){ this._diag('verso', { causa, stato: stato === -1 ? -1 : 1, ruolo: this.role }); }
+  // Segno dell'accelerazione del telefono: cambiato nello stesso collegamento (i tocchi l'hanno votato al contrario) o da
+  // un collegamento all'altro (pagina ricaricata, altro telefono). Il segno imparato dagli scambi di prova compensava quello
+  // di prima: con il segno nuovo la compensazione girerebbe di nuovo ogni colpo (il 14/11: dritto e rovescio scambiati in
+  // tutta la partita). Si riparte da +1 e da capo con i riferimenti che dipendono dal verso, come per il rilevatore. true
+  // se è cambiato
+  _accSignSeen(as){
+    if (as !== 1 && as !== -1) return false;
+    const joins = this.state.joins || 0, prev = this.accSign, same = this.accSignJoins === joins;
+    this.accSign = as; this.accSignJoins = joins;
+    if (prev == null || prev === as) return false;
+    this.learner.reset(); this.aimModel.reset(); this.riseModel.reset(); this.faceModel.reset(); this.lastExpect = null;
+    this._signEvent(same ? 'tocchi' : 'pagina', as);
+    return true;
+  }
+  // Segno del rilevatore del telefono (profilo semplice): i riferimenti per verso imparati prima stanno dalla parte
+  // sbagliata e ripartono (B35a). Il segno imparato dagli scambi di prova resta: il voto del rilevatore lo corregge, non lo
+  // raddoppia (il telefono vota con il verso atteso già girato da quel segno). true se è cambiato
+  _detectorSign(v){
+    const sign = v === -1 ? -1 : 1;
+    if (sign === (this.phoneSign ?? 1)) return false;
+    this.phoneSign = sign; this.aimModel.reset(); this.riseModel.reset(); this.faceModel.reset();
+    this._signEvent('rilevatore', sign);
+    return true;
   }
   onDiag(fn){ this.diagListeners.add(fn); return () => this.diagListeners.delete(fn); }
   _diag(kind, d){ for (const fn of this.diagListeners) try { fn(kind, d); } catch (e){ console.error(e); } }

@@ -16,7 +16,9 @@ export function sideCard(lp){
 <table><tr><th>Partita</th><th>Chi</th><th>Mano</th><th>Mira</th><th>Colpi</th><th>Metà sinistra · metà destra</th><th>Oltre ${SIDE.center} m a sinistra · al centro · oltre ${SIDE.center} m a destra</th><th>Palle angolate</th><th>|mediana x| per ${SIDE.block} colpi (m)</th><th>|piatto mediano|</th><th>Verdetto</th></tr>${rows.join('')}</table>${tot.map(l => `<p><b>${esc(l)}</b></p>`).join('')}</div>`;
 }
 // eventi che vanno nella pagina (gli altri restano in eventi.jsonl): palla solo ogni 4 campioni (~15 al secondo)
-const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sfida.colpo', 'sfida.colpo_vecchio', 'sfida.orologio', 'sfida.vista', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo', 'tel.strada', 'tel2.strada', 'sfida.strada', 'popup', 'partita']);
+const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sfida.colpo', 'sfida.colpo_vecchio', 'sfida.orologio', 'sfida.vista', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo', 'tel.strada', 'tel2.strada', 'sfida.strada', 'popup', 'partita',
+  // B46: mano e segno del verso dei telefoni cambiati
+  'tel.mano', 'tel2.mano', 'tel.verso', 'tel2.verso']);
 // filtro di un evento alla volta (anche nel worker, mentre legge il registro a righe): l'evento, la palla ridotta o null
 export function viewerFilter(){
   let i = 0;
@@ -121,6 +123,11 @@ const desc = e => ({
   piano: () => 'piano ' + (e.chi || '') + ': ' + (e.tipo || '?') + (e.contatto ? ' a z ' + e.contatto[2] + ', alta ' + e.contatto[1] + ' m' : '') + ' fra ' + (e.tc ?? '?') + ' s · corsa ' + e.corsa,
   'tel.scartato': () => 'telefono: gesto non mandato (' + (e.perche || '?') + ')' + (e.pk != null ? ' · ' + e.pk + ' °/s' : '') + (e.ampiezza != null ? ' · ' + e.ampiezza + '°' : ''),
   'tel.dispositivo': () => 'telefono: ' + (e.ua || '?') + (e.version ? ' · pagina ' + e.version : '') + (e.wakeLock === false ? ' · niente blocco dello schermo' : ''),
+  // B46: mano e segno del verso cambiati (natpf_phone_racket: setHand, _signEvent)
+  'tel.mano': () => 'mano ' + (e.ruolo === 'p2' ? 'del Player 2' : 'del Player 1') + ': ' + (e.mano === 'left' ? 'sinistra (mancino)' : 'destra') + ' · da ' + (e.causa || '?'),
+  'tel2.mano': () => 'mano del Player 2: ' + (e.mano === 'left' ? 'sinistra (mancino)' : 'destra') + ' · da ' + (e.causa || '?'),
+  'tel.verso': () => 'segno del verso ' + (e.ruolo === 'p2' ? 'del Player 2' : 'del Player 1') + ': ' + (e.stato === -1 ? '−1 (girato)' : '+1') + ' · ' + (e.causa || '?'),
+  'tel2.verso': () => 'segno del verso del Player 2: ' + (e.stato === -1 ? '−1 (girato)' : '+1') + ' · ' + (e.causa || '?'),
   servizio: () => 'servizio ' + (e.chi || '') + ': ' + (e.tipo || '?') + ' · ' + (e.voto || '') + ' · qualità ' + e.qualita + ' · dal colmo ' + e.tauMs + ' ms · ' + (e.kmh ?? '?') + ' km/h' + (e.minaccia != null ? ' · minaccia ' + e.minaccia + ' · stretto ' + e.stretto + (e.ritardoCpuMs ? ' · CPU in ritardo di ' + e.ritardoCpuMs + ' ms' : '') : ''),
   vuoto: () => 'colpo a vuoto' + (e.chi === 'p2' ? ' del Player 2' : '') + ': ' + (e.perche || '?') + (e.anticipoMs != null ? ' · ' + e.anticipoMs + ' ms prima del punto d’impatto' : ''),
   input: () => 'input ' + (e.fonte || '?') + ': ' + e.tipo + ' ' + (e.lato || '') + ' ' + (e.colpo || ''),

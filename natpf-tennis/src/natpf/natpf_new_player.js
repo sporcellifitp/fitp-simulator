@@ -19,6 +19,8 @@
 //     livello Evento riparte dal suo valore di base e la spiegazione del colpo super si rivede (natpf_lobby.resetWho);
 //   - B38: «Ospite» (chi arriva sceglie di nuovo: nome o «Gioca come Ospite»); B44: l'icona del lancio torna ai primi servizi
 //     (natpf_serve_coach.newPlayer).
+//   - B46: la mano torna «Destra» per Player 1 E Player 2 in ogni strada (natpf_hand.resetHands; prima, fuori dallo stesso
+//     schermo, solo quella del Player 1), con la causa «nuovo giocatore» nel registro dello stand.
 // Cosa resta: la durata e il formato della partita, la mira del telefono, il chiosco, il segnale del momento giusto e la
 // musica: sono scelte dello staff, non del visitatore.
 //
@@ -33,6 +35,8 @@
 //   'menu'      dal pannello dello stand con il menu principale in vista (o dall'Allenamento): si azzera e si resta (o si
 //               torna) al menu, il visitatore sceglie.
 // Con la webcam o mouse e tastiera il nome e poi subito la pagina «Partita» (o il minigioco): niente da calibrare.
+
+import { resetHands } from './natpf_hand.js';
 
 // pure: dove va chi arriva. mode: modalità della lobby; versus: sfida tra due computer (host o Player 2); atMenu: la lobby
 // mostra il menu principale
@@ -77,11 +81,11 @@ export function resetVisitor(ui){
     else { E.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' }; E.natpfSplitBands = { p1: 'adulto', p2: 'adulto' }; for (const el of document.querySelectorAll('[data-split-name]')) el.value = ''; }
     // (gate false: il tutorial lo apre la metà di ciascuno nella pagina «Collega», che fa aspettare il telefono; le verifiche
     // fallite del giocatore di prima non contano per chi arriva)
-    for (const id of ['p1', 'p2']){ S?.setHand?.(id, 'right'); S?.phone?.(id)?.resetPlayer?.({ gate: false }); if (S?.fails) S.fails[id] = 0; }
+    for (const id of ['p1', 'p2']){ S?.setHand?.(id, 'right', 'nuovo giocatore'); S?.phone?.(id)?.resetPlayer?.({ gate: false }); if (S?.fails) S.fails[id] = 0; }
     ui.backToMenu('connect');
     return route;
   }
-  ui.hand?.set?.('right'); ui.paintTiles?.();
+  resetHands(ui, 'nuovo giocatore');
   const gate = gatesTutorial(route, ui.controller) && !!ui.phone?.connected;
   ui.phone?.resetPlayer?.({ gate });
   if (route === 'versus'){

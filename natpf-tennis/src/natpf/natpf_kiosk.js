@@ -28,6 +28,8 @@ import { TwoStep } from './natpf_confirm.js';
 // B38: «Tastiera a schermo: Automatica · Sempre · Mai» (natpf_tastiera.js), di base «Automatica»
 import { readOskMode, writeOskMode, nextOskMode, oskButton, oskToast } from './natpf_tastiera.js';
 import { HoldPress } from './natpf_hold.js';
+// B46: chi arriva dopo parte destro (Player 1 e Player 2), come con «Nuovo giocatore»
+import { resetHands } from './natpf_hand.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -137,6 +139,9 @@ export class NatpfKiosk {
     ui.events.forgetLearned?.();
     // B25: le fasce dei due giocatori dello stesso schermo tornano «Adulto» (sono di chi gioca, non dello stand)
     ui.split?.resetBands?.();
+    // B46 «dritto e rovescio al sicuro»: la mano torna «Destra» per tutti e due (è di chi gioca: una mano sinistra rimasta da
+    // chi c'era prima dava a un destro ogni dritto come rovescio). Non al riavvio del programma: lì resta quella salvata
+    resetHands(ui, 'chiosco');
     // B18.2 gruppo 3: «Chi gioca» al valore di base, livello Evento da capo, spiegazione del colpo super da rivedere
     ui.lobby?.resetWho?.(); ui.superHint?.reset?.(); ui.serveCoach?.newPlayer?.();   // (B44: l'icona del lancio di nuovo ai primi servizi)
     // il visitatore successivo rivede il tutorial prima di calibrare (gioco singolo e stesso schermo)

@@ -304,8 +304,8 @@
     <!-- split screen in partita (natpf_split_ui.js): sotto ogni metà chi gioca e l'esito del suo ultimo colpo, o il suo
          telefono in pausa -->
     <div id="natpf-split-hud" class="natpf-split-hud hidden" aria-live="polite">
-      <div class="split-tag" data-split-tag="p1"><b>Player 1</b><span></span></div>
-      <div class="split-tag" data-split-tag="p2"><b>Player 2</b><span></span></div>
+      <div class="split-tag" data-split-tag="p1"><b>Player 1</b><i class="hand-tag hidden" title="Mano sinistra">Mancino</i><span></span></div>
+      <div class="split-tag" data-split-tag="p2"><b>Player 2</b><i class="hand-tag hidden" title="Mano sinistra">Mancino</i><span></span></div>
     </div>
     <div id="natpf-wipe" class="natpf-wipe" aria-hidden="true"><div class="wipe-band"><span class="wipe-mark">NATPF <i>Simulator</i></span><b id="natpf-wipe-text">Si gioca</b></div></div>
     <!-- NATPF: menu (src/natpf/natpf_lobby.js), percorso come in un gioco da console:
@@ -655,7 +655,7 @@
         </section>
 
         <section class="lobby-page" data-page="match" aria-labelledby="lobby-t-match">
-          <header class="page-head"><h2 class="lobby-title" id="lobby-t-match">Pronto per la partita</h2></header>
+          <header class="page-head"><h2 class="lobby-title" id="lobby-t-match">Pronto per la partita</h2><span class="hand-tag hidden" id="match-hand" title="Mano sinistra: dritto e rovescio da mancino">Mancino</span></header>
           <!-- stesso schermo: le schede dei due giocatori, dal vivo (natpf_split_ui.paintMatch) -->
           <div id="split-ready-board" class="ready-board" aria-live="polite"></div>
           <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
@@ -1117,6 +1117,8 @@
     <!-- messaggi brevi (toast, natpf_ui.toast): figlio diretto del body, sopra a tutto (anche alla calibrazione), così si
          vede nel menu, in campo, in pausa e nella calibrazione (dentro #title-modal in campo era nascosto con il menu) -->
     <div id="natpf-toast" class="natpf-toast hidden" role="status"></div>
+    <!-- B46: avviso grande quando la mano cambia dal telefono, 3 s (natpf_hand_notice.js) -->
+    <div id="natpf-hand-notice" class="natpf-hand-notice hidden" role="status" aria-live="assertive"><b></b><small></small></div>
     <script type="module">
       import { renderAllHudPlayerAvatars } from "./src/player_avatars.js";
       renderAllHudPlayerAvatars();

@@ -587,6 +587,8 @@ export class NatpfLobby {
     if (other){ show(other, st.controller !== 'mouse' && !split); other.textContent = st.controller === 'phone' ? 'Senza telefono? Usa la webcam' : 'Hai il telefono? Usalo come racchetta'; }
     $('lobby-t-connect').textContent = split ? (this.ui.split?.webcam ? 'Una webcam per due' : 'Collega i due telefoni') : st.controller === 'phone' ? 'Collega il telefono' : st.controller === 'webcam' ? 'Accendi la webcam' : 'Mouse e tastiera';
     $('lobby-t-match').textContent = split ? 'Stesso schermo' : this.mode === 'friend' ? 'Sfida un amico' : 'Pronto per la partita';
+    // B46: chi gioca con la mano sinistra lo vede qui, prima di «Gioca» («Mancino»; nello stesso schermo è nella sua metà)
+    show($('match-hand'), match && !split && this.ui.hand?.hand === 'left');
     if (this.step === 'connect' && split) this.ui.split?.paint();
     else if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
     if (this.step === 'options') this._paintOptions();
