@@ -192,7 +192,8 @@ partita sta su una riga a tutte le misure (rimpicciolito al 96,7 % a 16:9, inter
 
 Guardando le schermate è venuto fuori un difetto della B41, corretto: l'avviso della batteria copriva il consiglio «Prossima
 volta prova il livello Facile» della fine partita (1280×720, 1920×1080, 1366×768, 1024×600, 1920×540). Ora si vede solo
-sulla pagina della fiera (§2, B41.4).
+sulla pagina della fiera (§2, B41.4). Sonda rifatta sul codice finale (dopo l'avviso e il pannello a 720×720): di nuovo
+36/36, e la fine partita è senza avviso a tutte e sette le misure.
 
 ## 6. Trovato, non della B41 (da sistemare altrove)
 

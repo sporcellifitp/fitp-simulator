@@ -2144,7 +2144,8 @@ versione. Lavoro interrotto tre volte dal limite d'uso (salvataggi «IN CORSO»:
   `natpf-fine-partita` 47/47, `natpf-b47-fiera` 20/20, `natpf-menu` 45/45, `natpf-nuovo-giocatore` 28/28, `natpf-mano-sicura`
   17/17 e 17/17 a 720×720, `natpf-solo-mouse` 42/42, `natpf-telecomando` 91/91 (90/91 nel primo giro sotto carico),
   `natpf-stesso-schermo-b25` 54/55 e `-b20` 51/52 (restano solo difetti della 14.3 che sistema il B45.2). Sonda delle
-  misure a 7 formati con i telefoni simulati 36/36, schermate guardate.
+  misure a 7 formati con i telefoni simulati 36/36 prima e dopo le correzioni (fine partita senza avviso), schermate
+  guardate.
 - Trovato, non della B41 (in `docs/b41/modalita-fiera-2.md` §6): pannello dello stand che trema sotto il puntatore fermo
   sul confine tra due voci e che scorre mentre il puntatore è su una voce con una spiegazione lunga (B39.3, già nella 14.3:
   15 punti su 280 a 1366×657, 10 a 1024×600; 6–28 px); spiegazione della voce «Modalità chiosco» che dice ancora «scollega
