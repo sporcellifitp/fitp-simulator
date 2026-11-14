@@ -177,6 +177,40 @@ export function standSignStep({ saved = null, votes = { up: 0, down: 0 }, sign =
   return { vote: true, save: null };
 }
 
+/* ---------- B46 «dritto e rovescio al sicuro» (14/11) ---------- */
+// Segnalazione dell'utente sulla 2026-11-14.1 (stesso schermo, Player 1, Android, «Giocando»): «se provavo a fare un
+// rovescio mi veniva fuori un dritto lungolinea, se facevo un dritto veniva fuori un rovescio incrociato».
+//
+// Segno dei sensori votato dai tocchi (motion-sign.js) solo dove chi gioca tiene il telefono davanti per leggerlo:
+// «Attiva i sensori», tutorial, calibrazione e «Pronto» con il computer al menu (pagine «Collega» e «Pronto per la
+// partita», «Sono pronto»). Mai al servizio, nello scambio e negli scambi di prova (fase serve | toss | play, o tr 1): lì il
+// telefono è la racchetta e un tocco (il lancio di palla) arriva con il telefono storto. Un segno cambiato DOPO gli scambi
+// di prova gira tutti i colpi della partita (il segno imparato dagli scambi di prova compensava quello di prima).
+// screen: schermata della pagina (phoneView); phase: fase mandata dal computer; trial: scambi di prova in corso
+const GAME_PHASES = new Set(['serve', 'toss', 'play']);
+export function tapVotesSign({ screen = 'link', phase = 'menu', trial = false } = {}){
+  if (trial || GAME_PHASES.has(phase)) return false;
+  if (screen === 'enable' || screen === 'tutorial' || screen === 'cal') return true;
+  return screen === 'ready' && phase === 'menu';
+}
+// Mano dal telefono con la conferma: un tocco solo su «Sinistra» (o su «Destra») non cambia niente, il pulsante chiede
+// «Mancino? Tocca di nuovo» per HAND_CONFIRM.ms e solo il secondo tocco cambia la mano. Prima bastava un tocco (anche
+// per sbaglio, nella pagina «Attiva i sensori» o nel riepilogo della calibrazione) e la mano sinistra restava salvata sul
+// computer anche dopo un riavvio: per un destro ogni dritto diventava un rovescio, senza mai guarire.
+export const HAND_CONFIRM = Object.freeze({ ms: 4000 });
+export const HAND_LABEL = Object.freeze({ right: 'Destra', left: 'Sinistra' });
+export const HAND_ASK = Object.freeze({ right: 'Destro? Tocca di nuovo', left: 'Mancino? Tocca di nuovo' });
+// armed: domanda in corso { hand, until } o null; want: pulsante toccato; current: mano di adesso; now: ms.
+// → { armed: la domanda dopo il tocco, commit: la mano da applicare adesso o null }. Funzione pura
+export function handTap(armed = null, { want = null, current = 'right', now = 0 } = {}){
+  if (want !== 'left' && want !== 'right') return { armed: armed || null, commit: null };
+  if (want === current) return { armed: null, commit: null };
+  if (armed && armed.hand === want && now <= armed.until) return { armed: null, commit: want };
+  return { armed: { hand: want, until: now + HAND_CONFIRM.ms }, commit: null };
+}
+// scritta del pulsante di una mano: la domanda finché è aperta, altrimenti il nome
+export const handLabel = (hand, armed = null, now = 0) => (armed && armed.hand === hand && now <= armed.until ? HAND_ASK[hand] : HAND_LABEL[hand] || '');
+
 /* ---------- calibrazione giocando: scambi di prova (B28, 12/11) ---------- */
 // Il computer manda la fase con tr 1 ({ t:'ph', ph:'play', tr:1 }) mentre gioca gli scambi di prova (natpf_trial.js): il
 // telefono lo scrive al posto di «Pronto». Un computer di prima non manda tr: resta «Pronto»

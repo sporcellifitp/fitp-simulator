@@ -39,6 +39,10 @@
   #profileOptions>span{flex:1;color:var(--muted);font-weight:600}
   #profileOptions [data-hand]{min-height:44px;min-width:100px;border:1px solid #405b9b;border-radius:10px;background:transparent;color:var(--ink);font:inherit;font-weight:600}
   #profileOptions [data-hand].on{background:var(--ink);border-color:var(--ink);color:#071233}
+  /* B46: primo tocco sulla mano non scelta: il pulsante chiede conferma («Mancino? Tocca di nuovo») per 4 s */
+  #profileOptions [data-hand].ask{border:2px solid var(--warn);color:var(--warn);background:rgba(255,190,60,.12);font-size:14px;line-height:1.15;max-width:150px;white-space:normal;animation:handAsk .9s ease-in-out infinite alternate}
+  @keyframes handAsk{from{box-shadow:0 0 0 0 rgba(255,190,60,.0)}to{box-shadow:0 0 0 4px rgba(255,190,60,.35)}}
+  @media (prefers-reduced-motion:reduce){#profileOptions [data-hand].ask{animation:none}}
   #moreOpts{margin-top:4px;font-size:15px}
   #moreOpts summary{list-style:none;cursor:pointer;text-align:center;color:var(--muted);padding:10px;text-decoration:underline;text-underline-offset:3px}
   #moreOpts summary::-webkit-details-marker{display:none}
