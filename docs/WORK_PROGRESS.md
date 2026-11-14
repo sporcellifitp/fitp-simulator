@@ -2100,28 +2100,55 @@ Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`), de
 ## B41 seconda parte · Modalità fiera con il solo mouse (B41.4 + B41.5, 14/11, ramo `b41-fiera-2`) · [x] verificato sul ramo, da unire
 
 Richiesta dell'utente (in fiera): la B41 seconda parte, con le decisioni del 14/11 (scambi di prova per ogni visitatore).
-Documento `docs/b41/modalita-fiera-2.md`; guida dello stand capitolo 8.4. Ramo da `natpf-simulator` @ `6348253` (14.2 con
-il B47 unito), poi unito con `natpf-simulator` @ `ff90b5a` (14.3: B45.1 fase A); niente push, niente file di versione.
+Documento `docs/b41/modalita-fiera-2.md`; guida dello stand capitolo 8.4 (passi esatti con il solo mouse). Ramo da
+`natpf-simulator` @ `6348253` (14.2 con il B47 unito), unito con `natpf-simulator` @ `ff90b5a` (14.3: B45.1 fase A) e alla
+fine con `natpf-simulator` @ `9bfa9cf` (solo la traccia dei passi; unione `da243e0`); niente push, niente file di
+versione. Lavoro interrotto tre volte dal limite d'uso (salvataggi «IN CORSO»: `8c37a98`), ripreso da un agente nuovo alle
+21:58 UTC.
 - [x] B41.4 · interruttore e foglio (`2f8c5f0`): pannello «Modalità fiera: No · Sì» (prima voce; accesa: calibrazione
   «Giocando», foglio aperto, pagina della fiera), «Telefono» → «Telefoni dello stand ›»; foglio `natpf_fiera_sheet.js`
   (stato, batteria, «Abbina» con il QR solo a foglio aperto e un posto alla volta, numero, «Rifiuta», «Conferma» solo con un
-  clic vero e fuori dal telecomando, «Scollega» in due clic); avviso della batteria sul ledwall; strato `fiera` del
-  telecomando; `staffOpen` conta il foglio.
+  clic vero e fuori dal telecomando, «Scollega» in due clic); avviso della batteria; strato `fiera` del telecomando;
+  `staffOpen` conta il foglio.
 - [x] B41.5 · pagina della fiera e «Prossimo giocatore» (`2f8c5f0`): `natpf_fiera_page.js`, `natpf_lobby` (menu → pagina
   della fiera), `natpf_ui._bindStart` (in fiera scambi di prova → partita, niente QR), `natpf_new_player.resetFairVisitor`,
   chiosco in fiera, telecomando («Prossimo giocatore»), visitatori numerati, `matchServe({ fair })`.
-- [x] Correzioni dalle prove nel browser: «Sono pronto» sulla pagina della fiera saltava gli scambi di prova (il clic di
-  «Gioca» del conto ora arriva dopo il tocco, `natpf_ready_go._fire`; test che senza fallisce); «Sono pronto» non offerto con
-  un foglio dello staff aperto; scelte della mano «Destra · Sinistra» come nel resto del gioco; la «prova dritto e rovescio»
-  del foglio tolta (il telefono non manda colpi fuori dal gioco). Commit `2ffa80f` (correzione di «Sono pronto», prove nel
-  browser della fiera con il solo mouse).
-- [x] Unione di `natpf-simulator` (`af42330`): conflitti solo in `natpf_kiosk.js`, tenute le due parti (chiosco del B45.1
-  che non scollega più nessun telefono, con `clean` e la riga delle cadute; in fiera il chiosco fa «Prossimo giocatore» e
-  la pagina della fiera conta come menu); `resetFairVisitor` passa la causa a `resetPlayer` (B45.1).
-- [x] Dopo l'unione (VEDI_COMMIT_PROVE): `natpf-fiera-telefoni` aspettava la partita subito dopo «Sono pronto», ma accendere
-  la modalità fiera porta la calibrazione su «Giocando» e, con la correzione di `2ffa80f`, ora vengono prima gli scambi di
-  prova: la prova li controlla e li chiude con «Salta ›» dal telefono (contro la CPU e in due). Commento della pagina della
-  fiera allineato («Destra · Sinistra»).
-- Verifiche: VEDI_VERIFICHE
+- [x] Correzioni dalle prove nel browser (`2ffa80f`): «Sono pronto» sulla pagina della fiera saltava gli scambi di prova (il
+  clic di «Gioca» del conto ora arriva dopo il tocco, `natpf_ready_go._fire`; test che senza fallisce); «Sono pronto» non
+  offerto con un foglio dello staff aperto; scelte della mano «Destra · Sinistra»; la «prova dritto e rovescio» del foglio
+  tolta (il telefono non manda colpi fuori dal gioco).
+- [x] Unione di `natpf-simulator` (`af42330`): conflitti solo in `natpf_kiosk.js`, tenute le due parti; `resetFairVisitor`
+  passa la causa a `resetPlayer` (B45.1).
+- [x] Fine partita con «Visitatore N» su una riga (`77260ad`): `HudUI._fitEndTitle` + `natpf_match_stats.titleFit` +
+  `--fit` in `natpf-hud.css` (a 16:9 il titolo andava su due righe e la scheda tagliava pillola e pulsanti; sonda a 7 misure
+  e 9 titoli: 12 casi su 63 tagliati prima, 0 dopo; test `natpf-b41-fine-titolo`). `natpf-fiera-telefoni` con gli scambi di
+  prova e «Salta ›» dal telefono.
+- [x] Avviso della batteria accanto a «Gioca ›» nelle aree strette (`8c37a98`, salvato «IN CORSO» e verificato dopo) e poi
+  **solo sulla pagina della fiera** (`bee3649`): la sonda delle misure a 7 formati ha mostrato che sulla fine partita copriva
+  il consiglio «Prossima volta prova il livello Facile» (1280×720, 1920×1080, 1366×768, 1024×600, 1920×540) e che stava
+  sopra intro, scambi di prova e campo (z-index 240). Ora sparisce al giro dopo (100 ms) lasciando la pagina.
+- [x] Pannello a 720×720 con 16 voci (`202cf3f`): con le quattro opzioni del B25 accese il foglio scorreva di 28 px e
+  «Chiudi» usciva dal bordo (sulla 14.3, 15 voci, no): pulsanti più bassi in quell'area (`min-height` 48 px). Prove
+  `natpf-stesso-schermo-b25` e `-b20` aggiornate: 16 voci e puntatore fuori dal pannello prima delle misure (la spiegazione
+  della voce sotto il puntatore, B39.3, allunga il foglio: difetto a parte, già della 14.3).
+- [x] Documenti: `docs/b41/modalita-fiera-2.md` (verifiche, misure, trovato, immagini in `docs/b41/img/`),
+  `docs/GUIDA_STAND.md` (capitolo 8.4 riscritto con i passi esatti, «In breve», dove si vede il marchio),
+  `docs/PROJECT_MEMORY.md`.
+- Verifiche: gioco 1621/1621 (su `8c37a98`, dopo `bee3649` e dopo l'unione `da243e0`); sito 265/265
+  (dopo l'unione al primo giro 264/265 con la macchina carica, `remote-pairing` di tempi, da solo 18/18 tre volte); Windows
+  51/51; LAN 13/13; build ok prima e dopo l'unione; `audit:legend` 69 OK uguale alla base del B47; test che leggono
+  `natpf-ui.css` 105/105. Nel browser (porte 4250–4299, telecomando con `flock`, carico 3–11 per un altro agente):
+  `natpf-fiera-telefoni` 48/48, `natpf-flusso-tocchi` `FLOW=fiera` 46/46 (10 visitatori di fila: 1–2 clic e 0–1 tocco a
+  testa, «Visitatore 1…10», scambi di prova interi 15,7–16,3 s, nessun QR né calibrazione, telefoni sempre collegati; doppio
+  clic a 110/250/300 ms su «Prossimo giocatore» e «Gioca» innocuo) e `FLOW=fiera-due` 13/13 (3 coppie, ≤3 clic),
+  `natpf-fine-partita` 47/47, `natpf-b47-fiera` 20/20, `natpf-menu` 45/45, `natpf-nuovo-giocatore` 28/28, `natpf-mano-sicura`
+  17/17 e 17/17 a 720×720, `natpf-solo-mouse` 42/42, `natpf-telecomando` 91/91 (90/91 nel primo giro sotto carico),
+  `natpf-stesso-schermo-b25` 54/55 e `-b20` 51/52 (restano solo difetti della 14.3 che sistema il B45.2). Sonda delle
+  misure a 7 formati con i telefoni simulati 36/36, schermate guardate.
+- Trovato, non della B41 (in `docs/b41/modalita-fiera-2.md` §6): pannello dello stand che trema sotto il puntatore fermo
+  sul confine tra due voci e che scorre mentre il puntatore è su una voce con una spiegazione lunga (B39.3, già nella 14.3:
+  15 punti su 280 a 1366×657, 10 a 1024×600; 6–28 px); spiegazione della voce «Modalità chiosco» che dice ancora «scollega
+  il telefono» (dal B45.1 non è più vero); avviso della mano a 720×720 che sotto carico si misura fuori centro (anche sulla
+  base).
 - Non verificato: telefoni veri (Android, iPhone), programma Windows (tasto destro), ledwall, rete dello stand, LAN; la
   batteria vera (nella prova `navigator.getBattery` finto).

@@ -2,10 +2,10 @@
 
 Ramo `b41-fiera-2` partito da `natpf-simulator` @ `6348253` (2026-11-14.2 con il B47 unito) e poi unito con
 `natpf-simulator` @ `ff90b5a` (2026-11-14.3: B45.1 fase A, telefono che non si scollega più per un buco della Wi-Fi né per
-il chiosco). Progetto completo: `docs/b41/progetto-modalita-fiera.md` (§2, §4, §5, §6: tappe B41.4 e B41.5). Prima parte:
-`docs/b41/modalita-fiera-1.md`. Richieste dell'utente del 14/11 già fatte con il B47 (`docs/b47/fiera-subito.md`): battuta a
-un solo giocatore, conto alla rovescia grande, livello dopo «Rivincita». Niente file di versione: la versione nuova la mette
-chi unisce.
+il chiosco) e alla fine con `natpf-simulator` @ `9bfa9cf` (solo la traccia dei passi). Progetto completo:
+`docs/b41/progetto-modalita-fiera.md` (§2, §4, §5, §6: tappe B41.4 e B41.5). Prima parte: `docs/b41/modalita-fiera-1.md`.
+Richieste dell'utente del 14/11 già fatte con il B47 (`docs/b47/fiera-subito.md`): battuta a un solo giocatore, conto alla
+rovescia grande, livello dopo «Rivincita». Niente file di versione: la versione nuova la mette chi unisce.
 
 Decisione dell'utente confermata il 14/11 (domande a scelta): **lo staff prepara i telefoni una volta, ogni visitatore fa i
 suoi scambi di prova** (circa 10 s, calibrazione «Giocando»); né il profilo dello staff per tutti né «Nessuna».
@@ -15,7 +15,8 @@ suoi scambi di prova** (circa 10 s, calibrazione «Giocando»); né il profilo d
 **Una volta (all'inizio della giornata, o la prima volta)**
 1. Apri il **pannello dello stand** con il mouse: nel programma Windows tasto destro sul gioco → «Pannello dello stand»;
    ovunque, tieni premuto 3 secondi il titolo grande «NATPF Simulator» del menu (o il marchio in alto a sinistra nelle
-   altre pagine) finché l'anello giallo si riempie.
+   altre pagine) finché l'anello giallo si riempie. Con la modalità fiera già accesa il menu non c'è: il marchio «NATPF
+   Simulator» in alto a sinistra della pagina della fiera.
 2. Clicca la prima voce, **«Modalità fiera: No»** → diventa «Sì» e resta salvata. Se la «Calibrazione» non era «Giocando»
    ci va da sola (ogni visitatore fa i suoi scambi di prova). Si apre il foglio **«Telefoni dello stand»**.
 3. Nella scheda **Telefono 1** clicca **«Abbina»**: compare un QR (solo lì, solo con il foglio aperto, valido 5 minuti).
@@ -36,8 +37,8 @@ basta riaprire la pagina e, se lo chiede, «Attiva i sensori»).
 - Il visitatore tocca **«Sono pronto»** sul telefono, oppure clicchi tu **«Gioca»**.
 - Partono gli **scambi di prova** (circa 10 secondi, il gioco impara il colpo di chi gioca), poi il **conto alla rovescia
   grande** e la partita. Contro la CPU **batte sempre il visitatore**.
-- A fine partita: **«Prossimo giocatore ›»** per la persona dopo (i telefoni restano collegati), o **«Rivincita»** per la
-  stessa persona (si sceglie di nuovo il livello, B47).
+- A fine partita: **«Prossimo giocatore ›»** per la persona dopo (i telefoni restano collegati), o **«Rivincita»**
+  («Gioca ancora» se ha vinto) per la stessa persona (si sceglie di nuovo il livello, B47).
 - Chi gioca contro la CPU senza un nome scritto diventa **«Visitatore 12»** (numerati da capo ogni giorno) e va nella
   classifica del giorno con quel nome. «Nome» accanto (tastiera a schermo del B38) per scriverlo, facoltativo.
 
@@ -47,19 +48,23 @@ fascia e la mano, poi «Sono pronto» sui due telefoni o «Gioca». Al massimo 3
 **Se qualcosa non va**
 - Un telefono dello stand scollegato o con lo schermo spento: «Gioca» è grigio e la pagina dice perché, con il pulsante
   **«Telefoni dello stand ›»**; mai un QR per il pubblico. Di solito il telefono si ricollega da solo.
-- **Batteria sotto il 20 %** e non in carica (Android): in basso a sinistra sul ledwall «🔋 Telefono 2: batteria 15% ·
-  mettilo in carica», e nella scheda del foglio.
+- **Batteria sotto il 20 %** e non in carica (Android): sulla pagina della fiera, cioè tra un visitatore e l'altro, in
+  basso a sinistra (nelle aree strette come 720×720 in basso a destra, accanto a «Gioca ›») «🔋 Telefono 2: batteria 15% ·
+  mettilo in carica»; nella scheda del foglio la batteria è in arancione. In partita e sulla fine partita l'avviso non c'è.
 - Telefono perso o rotto: nel foglio «Abbina un altro telefono» su quel posto (il telefono di prima non vale più), oppure
   **«Scollega»** (due clic: «Sicuro? Clicca ancora»).
 - Per allenamento, minigiochi, sfida tra due computer, webcam o le Opzioni: pannello → «Modalità fiera: No» (il menu di
   sempre torna identico).
 
-![Pannello dello stand con «Modalità fiera»](img/pannello-modalita-fiera-1280x720.jpg)
-![Foglio «Telefoni dello stand» con il QR del Telefono 1](img/foglio-qr-1920x1080.jpg)
-![Lo stesso numero sul ledwall: «Rifiuta» o «Conferma»](img/foglio-numero-1920x1080.jpg)
-![Pagina della fiera contro la CPU, Telefono 1 pronto, avviso della batteria del Telefono 2](img/pagina-della-fiera-1920x1080.jpg)
-![Pagina della fiera in due](img/pagina-della-fiera-due-1920x1080.jpg)
-![Fine partita in fiera: «Prossimo giocatore ›» e «Rivincita»](img/fine-partita-prossimo-giocatore-720x720.jpg)
+Schermate delle prove nel browser (telefoni simulati), del 14/11 sera:
+
+![Pannello dello stand con «Modalità fiera: Sì» e «Telefoni dello stand 1 ✓ · 2 ✓ ›» (1280×720)](img/pannello-modalita-fiera-1280x720.jpg)
+![Foglio «Telefoni dello stand»: «Abbina» sul Telefono 1, il QR solo lì (1920×1080)](img/foglio-qr-1920x1080.jpg)
+![Lo stesso numero sul ledwall: «Rifiuta» o «Conferma» (1920×1080)](img/foglio-numero-1920x1080.jpg)
+![Il telefono dello stand: il numero da confermare, «Pronto ✓ · Dai il telefono al prossimo giocatore», «Sono pronto» (con i pulsanti dello staff dopo la pressione lunga)](img/telefono-dello-stand.jpg)
+![Pagina della fiera contro la CPU: «Visitatore 2», Telefono 1 pronto, avviso della batteria del Telefono 2 (1920×1080)](img/pagina-della-fiera-1920x1080.jpg)
+![Pagina della fiera in due: fascia e mano per ciascuno (1920×1080)](img/pagina-della-fiera-due-1920x1080.jpg)
+![Fine partita in fiera: «Bella sfida, Visitatore 1!» su una riga, «Prossimo giocatore ›» e «Rivincita» (1280×720)](img/fine-partita-prossimo-giocatore-1280x720.jpg)
 
 ## 2. Che cosa è stato fatto
 
@@ -70,7 +75,11 @@ fascia e la mano, poi «Sono pronto» sui due telefoni o «Gioca». Al massimo 3
   voce «Calibrazione», `_calChanged`), si apre il foglio, la pagina della fiera prende il posto del menu. Spenta: il menu di
   sempre. Con la modalità accesa la voce «Telefono» diventa **«Telefoni dello stand»** con il riassunto dei due posti
   («1 ✓ · 2 da abbinare ›») e apre il foglio (niente da confermare, niente scollegato). Le voci sono 16: stanno senza
-  scorrere a 1024×600, 1280×720, 1366×657, 1920×1080, 1024×1024 e 720×720 (prova `natpf-menu`).
+  scorrere a 1024×600, 1280×720, 1366×657, 1920×1080, 1024×1024 e 720×720 (prova `natpf-menu`). A 720×720 (tre colonne)
+  diventano sei file e con le quattro opzioni del B25 accese il foglio scorreva di 28 px con «Chiudi» sotto il bordo (con
+  15 voci stava): lì i pulsanti sono un poco più bassi (`min-height` 48 px invece di 54, sempre più di 5,5 cqh) e «Chiudi»
+  ha 50 px di margine. Le prove `natpf-stesso-schermo-b25` e `-b20` contano 16 voci e misurano con il puntatore fuori dal
+  pannello (§6).
 - **Foglio** (`natpf_fiera_sheet.js`, `#natpf-fiera`): due schede (Telefono 1 giallo, Telefono 2 rosa) con lo stato in
   parole (`natpf_fiera.standSlotView`), la batteria (`batteryText`), il perché di un QR scaduto. Azioni per scheda
   (`sheetSlotView`): «Abbina» / «Abbina un altro telefono» (QR del posto, **uno alla volta**: aprendo l'altro il primo si
@@ -79,8 +88,13 @@ fascia e la mano, poi «Sono pronto» sui due telefoni o «Gioca». Al massimo 3
   (`TwoStep`). Il foglio è un foglio dello staff come il pannello: ferma la partita (`staffOpen`), Esc e Indietro del
   telecomando tornano al pannello (strato `fiera` di `natpf_remote_map.js`), il chiosco aspetta.
 - **Avviso della batteria** (`NatpfFiera.tick`, `#natpf-fiera-alert`): telefoni dello stand collegati sotto il 20 % e non in
-  carica (`batteryAlert`), in basso a sinistra, sopra campo e menu, senza prendere i clic; una riga `stand.batteria` nella
-  diagnostica quando diventa bassa.
+  carica (`batteryAlert`), **solo sulla pagina della fiera** (tra un visitatore e l'altro, quando lo staff può mettere in
+  carica il telefono), in basso a sinistra; nelle aree strette (`@container natpf (max-width: 820px)`, classe `on-page`) in
+  basso a destra, accanto a «Gioca ›», perché a 720×720 in basso a sinistra copriva «Telefono: tocca «Sono pronto»». Non
+  prende i clic; una riga `stand.batteria` nella diagnostica quando diventa bassa. Correzione dopo la sonda delle misure:
+  prima si vedeva ovunque e sulla fine partita copriva il consiglio «Prossima volta prova il livello Facile» (1280×720,
+  1920×1080, 1366×768, 1024×600, 1920×540), stava sopra l'intro (z-index 240 contro 200), gli scambi di prova e il campo.
+  Ora lasciando la pagina sparisce al giro dopo (100 ms), e torna con la pagina.
 - **Niente «Sono pronto» con un foglio dello staff aperto** (`natpf_ready_go._ids`): un tocco del visitatore farebbe partire
   la partita sotto il pannello; l'offerta torna alla chiusura (il telefono intanto dice «Dai il telefono al prossimo
   giocatore»).
@@ -118,32 +132,91 @@ fascia e la mano, poi «Sono pronto» sui due telefoni o «Gioca». Al massimo 3
   fasce si scelgono con frecce e OK (Invio su fasce, mani e «1 o 2 giocatori» le sceglie, non fa partire).
 - **Mano**: le scelte si chiamano «Destra · Sinistra» come in tutto il gioco (test `natpf-mancini`); «Mancino» resta
   l'etichetta che si vede in campo (B46).
+- **Fine partita con «Visitatore N»** (`HudUI._fitEndTitle`, `natpf_match_stats.titleFit`, `--fit` in `natpf-hud.css`):
+  «Bella sfida, Visitatore 10!» a 16:9 (1280×720, 1920×1080, 1366×768, 1024×600) andava su due righe e la scheda della fine
+  partita (centrata, senza scorrere, B35) tagliava la pillola «Fine partita» in alto e i pulsanti in basso. Ora il titolo
+  si misura con la schermata in vista e, se su una riga non ci sta, si rimpicciolisce in proporzione (con un po' di
+  margine, mai sotto metà); si rimisura quando arrivano i caratteri e quando la scheda cambia grandezza. I titoli che ci
+  stavano non cambiano; vale anche per i nomi lunghi fuori dalla fiera. Sonda a 7 misure e 9 titoli: prima 12 casi su 63
+  tagliati, dopo 0 (test `natpf-b41-fine-titolo`).
+- **Restano sulla pagina** «Personaggi: Classici · Lob & Drop» e «Altre impostazioni» (durata, singolare o doppio, visuale,
+  livelli Esperta e Leggenda): il progetto (§4.2) le voleva nel pannello, che non le ha; restano dove lo staff le trova già.
 
 ## 3. Codice
-- Nuovi: `natpf-tennis/src/natpf/natpf_fiera_sheet.js`, `natpf_fiera_page.js`.
+- Nuovi: `natpf-tennis/src/natpf/natpf_fiera_sheet.js`, `natpf_fiera_page.js`, `test/natpf-b41-fine-titolo.test.mjs`.
 - Cambiati: `natpf_fiera.js` (funzioni pure, visitatori, avviso, 1 o 2 giocatori), `natpf_kiosk.js`, `natpf_lobby.js`,
   `natpf_ui.js`, `natpf_new_player.js`, `natpf_ready_go.js`, `natpf_remote.js`, `natpf_remote_map.js`,
   `natpf_stand_mouse.js` (spiegazione della voce), `natpf_battuta.js`, `game_engine.js` (una riga: `fair`), `index.html`,
-  `natpf-ui.css` (misure in `cqw`/`cqh` e `@container natpf`).
+  `natpf-ui.css` (misure in `cqw`/`cqh` e `@container natpf`); per il titolo della fine partita `hud_ui.js`
+  (`_fitEndTitle`), `natpf_match_stats.js` (`titleFit`) e `natpf-hud.css` (`--fit`).
 - Prove: `test/natpf-fiera.test.mjs` (+10), `test/ui-world.mjs` (foglio nuovo tra i fogli nascosti),
   `tools/e2e/natpf-fiera-telefoni.mjs` (riscritta: tutto con il mouse), `tools/e2e/natpf-flusso-tocchi.mjs` (`FLOW=fiera`,
-  `FLOW=fiera-due`).
+  `FLOW=fiera-due`), `test/natpf-b41-fine-titolo.test.mjs`, `tools/e2e/natpf-stesso-schermo-b25.mjs` e `-b20.mjs` (16 voci,
+  puntatore fuori dal pannello prima delle misure).
 
 ## 4. Verifiche
 
+Ultime corse (14/11, 22:00–23:45 UTC; la macchina era carica, 3–11, per un altro agente che lavorava in parallelo):
+
 | Prova | Esito |
 |---|---|
-| gioco, `npm test` | VEDI_GIOCO |
-| sito, `node --test tools/test/*.test.mjs` | VEDI_SITO |
-| programma Windows, `npm test` | VEDI_DESKTOP |
-| build | VEDI_BUILD |
-| `npm run audit:legend` | VEDI_LEGEND |
-| `natpf-fiera-telefoni` | VEDI_FT |
-| `natpf-flusso-tocchi` `FLOW=fiera` (10 visitatori) | VEDI_FF |
-| `natpf-flusso-tocchi` `FLOW=fiera-due` (3 coppie) | VEDI_FD |
-| regressione nel browser | VEDI_REG |
+| gioco, `npm test` | 1621/1621 tre volte: su `8c37a98`, dopo l'avviso della batteria (`bee3649`) e dopo l'unione finale (`da243e0`) |
+| sito, `node --test tools/test/*.test.mjs` | 265/265 su `8c37a98`; dopo l'unione 265/265 (al primo giro 264/265 con la macchina carica: `remote-pairing.test.mjs` «chiave sbagliata, risposta riusata», di tempi; da sola 18/18 tre volte) |
+| programma Windows (`natpf-desktop`, `npm test`) | 51/51 |
+| server LAN (`tools/lan`) | 13/13 |
+| build | ok (prima e dopo l'unione) |
+| `npm run audit:legend` | 69 OK, 0 KO: uguale alla base del B47 (tolte le righe dei tempi) |
+| test che leggono `natpf-ui.css` (dopo il pannello a 720×720) | 105/105 |
+| `natpf-fiera-telefoni` | 48/48 (nuovo: in campo nessun avviso della batteria) |
+| `natpf-flusso-tocchi` `FLOW=fiera` (10 visitatori di fila) | 46/46: 1 o 2 clic e 0 o 1 tocco a visitatore, «Visitatore 1» … «Visitatore 10», scambi di prova interi (15,7–16,3 s senza colpire), nessun QR, nessuna calibrazione né tutorial, telefoni sempre collegati (stesso collegamento); doppio clic a 110, 250 e 300 ms su «Prossimo giocatore» e su «Gioca»: un passo solo |
+| `natpf-flusso-tocchi` `FLOW=fiera-due` (3 coppie) | 13/13: da 1 a 3 clic e da 0 a 2 tocchi a coppia |
+| `natpf-fine-partita` | 47/47 |
+| `natpf-b47-fiera` | 20/20 |
+| `natpf-menu` | 45/45 (rifatta dopo il pannello a 720×720: 45/45) |
+| `natpf-nuovo-giocatore` | 28/28 |
+| `natpf-mano-sicura` (1280×720 e `AREA=720`) | 17/17 e 17/17 |
+| `natpf-solo-mouse` | 42/42 (e 42/42 dopo il pannello) |
+| `natpf-telecomando` (porte 4902/4903 con `flock`) | 91/91 da sola; 90/91 nel primo giro con il carico a 9–11 («Salta» dal telecomando, già visto sulla 14.3) |
+| `natpf-stesso-schermo-b25` | 54/55 come sulla 14.3: resta il pannello a 1024×600 con le opzioni accese (5 px, lo sistema il B45.2) |
+| `natpf-stesso-schermo-b20` | 51/52: resta il punto 6 del B45.1 (titolo «scollegato · si ricollega da solo» con la pagina del telefono chiusa, nel B45.2) |
+| sonda delle misure a 7 formati (§5) | 36/36 |
 
-## 5. Non verificato
+## 5. Misure a 7 formati (sonda con i telefoni simulati, 14/11 sera)
+
+Con il Telefono 1 e il Telefono 2 abbinati dal foglio (il 2 con la batteria al 15 %), a 1280×720, 1920×1080, 1366×768,
+1024×600, 720×720, 1920×540 e 1024×1024: pagina della fiera contro la CPU e in due, pannello dello stand con «Modalità
+fiera: Sì» (16 voci), foglio «Telefoni dello stand» con i due telefoni pronti, fine partita con «Bella sfida, Visitatore 1!».
+Per ogni stato: niente che scorre, niente fuori dallo schermo, niente sovrapposto (pulsanti, scritte, tessere, spunte di
+«Sono pronto», avviso della batteria). **36 misure su 36 a posto**, schermate guardate una per una. Il titolo della fine
+partita sta su una riga a tutte le misure (rimpicciolito al 96,7 % a 16:9, intero a 720×720, 1920×540 e 1024×1024).
+
+Guardando le schermate è venuto fuori un difetto della B41, corretto: l'avviso della batteria copriva il consiglio «Prossima
+volta prova il livello Facile» della fine partita (1280×720, 1920×1080, 1366×768, 1024×600, 1920×540). Ora si vede solo
+sulla pagina della fiera (§2, B41.4).
+
+## 6. Trovato, non della B41 (da sistemare altrove)
+
+- **Pannello dello stand che trema sotto il puntatore fermo** (B39.3, già nella 2026-11-14.3): la riga sotto le voci spiega
+  la voce sotto il puntatore; se la spiegazione cambia numero di righe il foglio, centrato, si sposta di 9–12 px, sotto il
+  puntatore arriva un'altra voce, e così via. Con il puntatore fermo su una griglia di punti del pannello: sulla 14.3 15
+  punti su 280 a 1366×657 e 10 su 280 a 1024×600; su questo ramo 17 a 1366×657 (con o senza la modalità fiera) e 0 a
+  1024×600. A 720×720 no: lì il foglio sta già in alto. Una persona che muove il mouse lo vede solo se si ferma proprio sul
+  confine tra due voci; Playwright invece aspetta che il pulsante stia fermo e non clicca. Rimedio possibile: foglio in alto
+  anche a quelle misure, o riga di altezza fissa (il pannello lo sta toccando il B45.2: meglio lì).
+- **Pannello che scorre mentre il puntatore è su una voce con una spiegazione lunga** (stessa causa, B39.3): con le quattro
+  opzioni del B25 accese e il puntatore su «Calibrazione» (spiegazione di quattro righe) il foglio scorre di 6 px a
+  1920×540 e di 28 px a 1024×600, uguale sulla 14.3; a 720×720 di 15 px sulla 14.3 e di 24 px qui (una fila in più). Passa
+  appena il puntatore lascia la voce (la riga torna quella di sempre), quindi «Chiudi» si raggiunge. A riposo, con il
+  puntatore fuori, resta solo il difetto noto della 14.3 a 1024×600 (5 px, lo sistema il B45.2). Le prove b25 e b20
+  misuravano con il puntatore rimasto dove capitava dopo i clic: ora lo spostano nell'angolo.
+- **Avviso della mano a 720×720** (`natpf-mano-sicura` con `AREA=720`): sotto carico (8–10) 16/17, con l'avviso grande del
+  cambio di mano misurato a y=256 invece che al centro, uguale sulla base `ff90b5a` senza la B41; con la macchina meno
+  carica (3) 17/17, a y=301. Dipende dai tempi della misura, non dalla B41 (in coda nel B50).
+- **Spiegazione della voce «Modalità chiosco»** nel pannello (`natpf_stand_mouse.STAFF_HINTS.kiosk`): dice ancora «…e scollega
+  il telefono», ma dal B45.1 il chiosco non scollega più nessun telefono (la riga sotto le voci quando il chiosco è acceso
+  invece è giusta).
+
+## 7. Non verificato
 - **Telefoni veri** (Android e iPhone), persone vere, **programma Windows** e **ledwall** veri, rete dello stand: tutte le
   prove sono con il telefono simulato (eventi devicemotion sintetici), la segnalazione PeerJS locale e Chromium senza
   schermo. La batteria è finta (`navigator.getBattery` sostituito nella pagina del telefono).

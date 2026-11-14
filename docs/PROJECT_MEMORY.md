@@ -1245,7 +1245,9 @@ Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`) con
   `?stand=fiera|normale` vince per la pagina). Accendendola dal pannello la calibrazione va su «Giocando» se non lo era
   (decisione dell'utente del 14/11: ogni visitatore fa i suoi scambi di prova) e si apre il foglio. Con la modalità accesa
   la voce «Telefono» è «Telefoni dello stand ›» (non scollega niente). Le voci del pannello sono 16: chi ne aggiunge una
-  riprova `natpf-menu` (1024×600, 1366×657, 720×720) e la sonda dell'impaginazione.
+  riprova `natpf-menu` (1024×600, 1366×657, 720×720), `natpf-stesso-schermo-b25` e `-b20` (contano le voci: 16) e la sonda
+  dell'impaginazione. A 720×720 (tre colonne, sei file) i pulsanti sono più bassi (`min-height` 48 px, regola in fondo a
+  `natpf-ui.css`): con 16 voci e le opzioni del B25 accese il foglio scorreva di 28 px.
 - **Foglio «Telefoni dello stand»** (`natpf_fiera_sheet.js`, `#natpf-fiera`): foglio dello staff come pannello e
   telecomando (conta in `staffOpen`, z-index 250, Esc e Indietro del telecomando tornano al pannello, strato `fiera` del
   telecomando, il chiosco aspetta). QR di un posto alla volta, solo a foglio aperto; «Conferma» vale solo con
@@ -1276,5 +1278,23 @@ Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`) con
   parte con `CAL=none`, quindi dopo «Gioca» o «Sono pronto» vengono gli scambi di prova (in `natpf-fiera-telefoni` si
   chiudono con «Salta ›» dal telefono; interi in `natpf-flusso-tocchi` `FLOW=fiera` e `FLOW=fiera-due`). Chi aspetta la
   partita dopo «Sono pronto» in fiera aspetta prima la fine degli scambi di prova.
+- **Avviso della batteria** (`#natpf-fiera-alert`, `NatpfFiera.tick`): solo sulla pagina della fiera (`fieraPage.here`),
+  nascosto al giro dopo (100 ms) appena si lascia la pagina. È `position: fixed` con z-index 240, sopra quasi tutto (anche
+  l'intro, 200): visibile ovunque copriva il consiglio del livello sulla fine partita e il gioco. Nelle aree strette
+  (`max-width: 820px`, classe `on-page`) va in basso a destra accanto a «Gioca ›». Chi aggiunge un avviso fisso sul ledwall
+  lo limiti alle schermate dove serve e lo provi sopra la fine partita.
+- **Titolo della fine partita** (B35, `#victory-result-banner`): `HudUI._fitEndTitle` lo rimpicciolisce con `--fit`
+  (`natpf_match_stats.titleFit`) quando su una riga non ci sta («Bella sfida, Visitatore 12!», nomi lunghi). La scheda è
+  centrata e senza scorrere: un titolo su due righe la fa traboccare e taglia la pillola in alto e i pulsanti in basso.
+  Chi cambia i titoli o la scheda riprova la sonda a 7 misure (test `natpf-b41-fine-titolo`, controllo `endFit` in
+  `natpf-fiera-telefoni`).
+- **Sulla pagina della fiera restano** «Personaggi» e «Altre impostazioni» (durata, singolare o doppio, visuale, Esperta e
+  Leggenda): il progetto §4.2 li voleva nel pannello, che non li ha.
+- **Pannello dello stand che trema** (difetto del B39.3, già nella 14.3, non della B41): la riga sotto le voci spiega la voce
+  sotto il puntatore e, se cambia numero di righe, il foglio centrato (1366×657, 1024×600) si sposta di 9–12 px; con il
+  puntatore fermo sul confine tra due voci il foglio va su e giù da solo. Misurato con il puntatore fermo su una griglia
+  di punti: sulla 14.3 15 punti su 280 a 1366×657 e 10 a 1024×600. A 720×720 no (lì il foglio sta in alto, B39.3). Rimedio
+  possibile: foglio in alto anche lì, o la riga di altezza fissa. Le prove che cliccano nel pannello tolgano prima il
+  puntatore (Playwright aspetta un elemento fermo).
 - **Non fatto**: la «prova dritto e rovescio» nel foglio del progetto §3.1 (il telefono manda i colpi solo in gioco: servirebbe
   cambiare `racchetta.js`).

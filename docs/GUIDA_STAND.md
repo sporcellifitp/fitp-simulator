@@ -32,6 +32,10 @@ non va — 12 · Con una tastiera — Appendice: solo per la versione web — Pe
 
 ## In breve: la giornata allo stand
 
+(B41 parte 2) Con la **modalità fiera** accesa (capitolo 8.4) i due telefoni dello stand si abbinano una volta e restano
+collegati, e al posto del menu c'è la pagina della fiera: per ogni visitatore un clic su chi gioca, «Sono pronto» sul
+telefono (o «Gioca ›»), a fine partita «Prossimo giocatore ›». Qui sotto la giornata senza la modalità fiera.
+
 **Prima di aprire (una volta al giorno)**
 
 1. Accendi il ledwall, poi il PC. Apri **NATPF Simulator** (icona sul desktop).
@@ -92,10 +96,10 @@ ledwall: lo vede anche il pubblico.
 | **Tastiera:** menu del programma | solo in finestra | Alt → NATPF → «Pannello dello stand (F9)» |
 
 **Dove si vede il marchio.** In queste pagine del menu: «Con chi giochi?», «Con cosa giochi?», «Collega il telefono» (e
-«Collega i due telefoni»), «Pronto per la partita», «Opzioni», «Classifica» (anche a schermo intero), «Minigiochi» e il
-risultato di un minigioco. **Non** c'è nel menu principale (lì è nascosto), nell'intro, in campo (partita, scambi di
-prova, allenamento, minigiochi), nella pausa, nella schermata di fine partita e quando un foglio copre la pagina (per
-esempio «Come ti chiami?»).
+«Collega i due telefoni»), «Pronto per la partita» (e la pagina della fiera, B41 parte 2: capitolo 8.4), «Opzioni»,
+«Classifica» (anche a schermo intero), «Minigiochi» e il risultato di un minigioco. **Non** c'è nel menu principale (lì
+è nascosto), nell'intro, in campo (partita, scambi di prova, allenamento, minigiochi), nella pausa, nella schermata di
+fine partita e quando un foglio copre la pagina (per esempio «Come ti chiami?»).
 
 - (B39) Mentre tieni premuto, un anello giallo si riempie con la scritta «Pannello dello stand». Un piccolo tremolio
   della mano non annulla; se rilasci prima o ti sposti di molto, ricomincia. Prima della versione B39 non c'era nessun
@@ -607,69 +611,93 @@ collegare il telefono, scansionare un QR code e fare la calibrazione: io selezio
 prepara i telefoni dello stand **una volta**; ogni visitatore fa solo i suoi scambi di prova (circa 10 secondi). Tutto con
 il **solo mouse**.
 
-**Accendere la modalità e abbinare i due telefoni (una volta sola, circa 2 minuti a telefono)**
+**Prima di cominciare**
 
-Serve: il programma aperto e i due telefoni dello stand sulla **stessa Wi-Fi** del PC (non quella per ospiti); se un
-telefono non ha mai fatto da racchetta, prima il certificato (capitolo 6.1, passo 1).
+- Il programma aperto; i due telefoni dello stand carichi e sulla **stessa Wi-Fi** del PC (non quella per ospiti), con
+  Chrome (Android) o Safari (iPhone).
+- Se un telefono non ha mai fatto da racchetta su questo PC, prima il **certificato**, con la modalità fiera ancora
+  spenta: capitolo 6.1, passo 1 (oppure tasto destro → «Rete per i telefoni» → «Indirizzi e certificato per i
+  telefoni…»).
+- Sui telefoni: spegnimento dello schermo al massimo (Android 10 minuti, iPhone «Mai»), niente PIN, risparmio energetico
+  spento (lo ricorda anche il foglio).
 
-1. **Apri il pannello dello stand**: tasto destro sul gioco → «Pannello dello stand» (programma Windows), oppure tieni
-   premuto 3 secondi il titolo grande «NATPF Simulator» del menu finché l'anello giallo si riempie.
-2. Clicca la prima voce, **«Modalità fiera: No»**: diventa **«Sì»** (resta salvata, anche dopo un riavvio). Se la
-   «Calibrazione» non era «Giocando», ci va da sola. Si apre il foglio **«Telefoni dello stand»** con due schede:
-   **Telefono 1** (gialla: Player 1, contro la CPU e a sinistra) e **Telefono 2** (rosa: Player 2, a destra).
-3. Nella scheda **Telefono 1** clicca **«Abbina»**: compare un QR (solo in questo foglio, valido 5 minuti).
-4. Con il **Telefono 1** inquadra il QR e tocca il link. Sul telefono e nella scheda compare **lo stesso numero di tre
-   cifre** (per esempio 482).
-5. Se il numero è uguale clicca **«Conferma»** con il mouse (dal telecomando non si può); se è diverso **«Rifiuta»**.
-6. Sul telefono tocca **«Attiva i sensori»** (su iPhone poi «Consenti»). La scheda dice **«Telefono 1 pronto ✓ · batteria
-   82%»** (la batteria solo con Android).
-7. Per giocare anche in due: lo stesso con la scheda **Telefono 2** («Abbina» → QR → numero → «Conferma» → «Attiva i
-   sensori»). Un QR alla volta: aprendo quello del Telefono 2 il primo si chiude.
-8. Sui telefoni: spegnimento dello schermo al massimo (Android 10 minuti, iPhone «Mai»), niente PIN, risparmio energetico
-   spento (lo ricorda anche il foglio).
-9. **«‹ Pannello»** → **«Chiudi»**. Al posto del menu c'è la **pagina della fiera**.
+**Accendere la modalità fiera e abbinare i due telefoni (una volta sola, circa 2 minuti a telefono)**
 
-Dal giorno dopo niente QR: il programma riparte in modalità fiera e i telefoni si ricollegano da soli (sul telefono basta
-riaprire la pagina dalla sua icona e, se lo chiede, «Attiva i sensori»).
+1. **Apri il pannello dello stand.** Nel programma Windows: tasto destro sul gioco → «Pannello dello stand». Oppure, nel
+   menu principale, tieni premuto il tasto sinistro per 3 secondi sul titolo grande «NATPF Simulator», finché l'anello
+   giallo si riempie.
+2. Nel pannello la prima voce è **«Modalità fiera»** e dice **«No»**: cliccala. Diventa **«Sì»** e resta salvata, anche
+   dopo un riavvio del programma. Un avviso dice «Modalità fiera accesa…»; se la «Calibrazione» non era «Giocando», ci va
+   da sola. Al posto del pannello si apre il foglio **«Telefoni dello stand»** con due schede: **Telefono 1** (numero 1 nel
+   cerchio giallo: Player 1, contro la CPU e a sinistra) e **Telefono 2** (numero 2 nel cerchio rosa: Player 2, a destra
+   nello stesso schermo). Tutte e due dicono «… da abbinare».
+3. Nella scheda **Telefono 1** clicca **«Abbina»**. Nella scheda compare un QR (solo qui, valido 5 minuti) con la scritta
+   «Inquadra il QR con il telefono dello stand».
+4. Prendi il **primo telefono**: apri la fotocamera, inquadra il QR e tocca il link. Sul telefono compare un **numero di
+   tre cifre**, grande; nella scheda «Un telefono chiede il posto · numero 482» e lo stesso numero, grande.
+5. Se i due numeri sono uguali clicca **«Conferma»** con il mouse (dal telecomando dello staff non si può); se sono
+   diversi clicca **«Rifiuta»**. Un avviso dice «Telefono 1 abbinato: ora sul telefono «Attiva i sensori»».
+6. Sul telefono tocca **«Attiva i sensori»** (su iPhone poi «Consenti»). La scheda diventa verde: **«Telefono 1 pronto ✓
+   · batteria 82%»** (la batteria solo con Android). Sul telefono: «Telefono 1» in grande, «Pronto ✓» e «Dai il telefono
+   al prossimo giocatore».
+7. Per giocare anche in due: lo stesso nella scheda **Telefono 2** con il secondo telefono («Abbina» → QR → numero →
+   «Conferma» → «Attiva i sensori»). Un QR alla volta: cliccando «Abbina» nell'altra scheda il primo QR si chiude.
+8. Clicca **«‹ Pannello»** (in basso a destra del foglio): torni al pannello, dove la voce «Telefoni dello stand» dice
+   «1 ✓ · 2 ✓ ›». Clicca **«Chiudi»**. Al posto del menu c'è la **pagina della fiera** («Chi gioca?»).
+
+Dal giorno dopo niente QR: il programma riparte in modalità fiera e i telefoni si ricollegano da soli. Sul telefono basta
+riaprire la pagina (la scheda del browser rimasta aperta; conviene aggiungerla alla schermata Home) e, se lo chiede,
+toccare «Attiva i sensori».
+
+**Riaprire il pannello con la modalità fiera accesa.** Il titolo grande del menu non c'è più: tasto destro → «Pannello
+dello stand» (programma), oppure tieni premuto 3 secondi il marchio **«NATPF Simulator» in alto a sinistra** della pagina
+della fiera. I telefoni si guardano da pannello → **«Telefoni dello stand»**.
 
 **Per ogni visitatore, contro la CPU (al massimo 2 clic e 1 tocco)**
 
-1. Nella pagina della fiera clicca **chi gioca**: Bambino, Ragazzo o **Adulto** (già scelto). Per un mancino «Sinistra»
+1. Nella pagina della fiera è scelto **«1 giocatore · contro la CPU»** (se c'è «2 giocatori», clicca «1 giocatore · contro
+   la CPU»). Clicca **chi gioca**: «Bambino», «Ragazzo» o «Adulto» (già scelto). Per un mancino clicca **«Sinistra»**
    accanto a «Mano». Dai il **Telefono 1**.
-2. Il visitatore tocca **«Sono pronto»** sul telefono, oppure clicchi tu **«Gioca»**.
-3. Partono gli **scambi di prova** (circa 10 secondi, 4 palle: il gioco impara il suo colpo), poi il **conto alla rovescia
-   grande** e la partita. Contro la CPU **batte sempre il visitatore** (anche con «Battuta: Alternata»).
-4. A fine partita: **«Prossimo giocatore ›»** per la persona dopo, oppure **«Rivincita»** per la stessa persona (si sceglie
-   di nuovo il livello). «Menu» in fiera non c'è.
+2. Il visitatore tocca **«Sono pronto»** sul telefono, oppure clicchi tu **«Gioca ›»**.
+3. Partono gli **scambi di prova** (circa 10 secondi, 4 palle: il gioco impara il suo colpo; «Salta ›» sul telefono li
+   chiude prima), poi il **conto alla rovescia grande** («Preparati, la partita sta per cominciare», 3 · 2 · 1) e la
+   partita. Contro la CPU **batte sempre il visitatore**, anche con «Battuta: Alternata».
+4. A fine partita: **«Prossimo giocatore ›»** (rosa) per la persona dopo, oppure **«Rivincita»** («Gioca ancora» se ha
+   vinto) per la stessa persona: si sceglie di nuovo il livello, poi «Gioca». In fiera «Menu» non c'è.
 
 Chi gioca contro la CPU senza un nome diventa **«Visitatore 12»** (numerati da capo ogni giorno, dal primo che gioca) e
-con quel nome va nella classifica del giorno. Per scrivere un nome: **«Nome»** accanto (tastiera a schermo, capitolo 3.6),
-facoltativo.
+con quel nome va nella classifica del giorno. Per un nome: **«Nome»** accanto a «Visitatore 12» (tastiera a schermo,
+capitolo 3.6), facoltativo.
 
-**In due (al massimo 3 clic)**: clicca **«2 giocatori · stesso schermo»** (resta scelto per i visitatori dopo). Per ciascuno
-la fascia (Bambino · Ragazzo · Adulto) e la mano; poi **«Sono pronto»** sui due telefoni oppure «Gioca». Telefono 1 a
-sinistra, Telefono 2 a destra (il numero è scritto in grande sul telefono). Per tornare a uno solo: «1 giocatore · contro
-la CPU».
+**In due, nello stesso schermo (al massimo 3 clic)**: clicca **«2 giocatori · stesso schermo»** (resta scelto anche per i
+visitatori dopo). Per ciascuno la fascia («Bambino», «Ragazzo», «Adulto») e la mano («Destra», «Sinistra»); poi «Sono
+pronto» sui due telefoni, oppure «Gioca ›». Telefono 1 a sinistra, Telefono 2 a destra (il numero è scritto in grande su
+ogni telefono). Per tornare a uno solo: «1 giocatore · contro la CPU».
 
 **«Prossimo giocatore»** (fine partita, pannello, telecomando dello staff, e il chiosco in fiera): azzera nome, mano (torna
 «Destra»), livello («Adulto»), fasce e quello che i telefoni hanno imparato da chi c'era; **i telefoni restano collegati e
-pronti**, niente QR, niente tutorial, niente nome da scrivere; si torna alla pagina della fiera.
+pronti**, niente QR, tutorial o nome da scrivere; si torna alla pagina della fiera.
 
 **Se un telefono dello stand non va**
 
-- **«Gioca» grigio**: sotto c'è il perché (per esempio «Telefono 1 scollegato: si ricollega da solo») e il pulsante
-  **«Telefoni dello stand ›»**. Di solito il telefono torna da solo in pochi secondi (riapri la pagina sul telefono se
-  serve). Il pubblico non vede mai un QR.
-- **Batteria sotto il 20 %** e non in carica (Android): in basso a sinistra sul ledwall «🔋 Telefono 2: batteria 15% ·
-  mettilo in carica», e nella scheda del foglio. Sparisce appena il telefono è in carica.
-- **Telefono rotto o perso**: pannello → «Telefoni dello stand» → nella sua scheda **«Abbina un altro telefono»** (il
-  telefono di prima non vale più), oppure **«Scollega»** (due clic: «Sicuro? Clicca ancora»).
-- **Spegnere la modalità**: pannello → «Modalità fiera: Sì» → diventa «No». Torna il menu di sempre (allenamento,
-  minigiochi, sfida tra due computer, webcam, Opzioni); i telefoni tornano racchette con il QR. Riaccesa, i telefoni già
+- **«Gioca ›» grigio**: sotto c'è il perché (per esempio «Telefono 1 scollegato: si ricollega da solo (se non torna,
+  «Telefoni dello stand ›»)») e il pulsante **«Telefoni dello stand ›»**. Di solito il telefono torna da solo in pochi
+  secondi; se no, riapri la pagina sul telefono. Il pubblico non vede mai un QR.
+- **Batteria sotto il 20 %** e non in carica (solo Android): sulla pagina della fiera, in basso a sinistra (nelle aree
+  strette, per esempio 720×720, in basso a destra accanto a «Gioca ›»), «🔋 Telefono 2: batteria 15% · mettilo in
+  carica»; nel foglio la scheda di quel telefono ha il bordo arancione e dice «Batteria 15% · bassa: mettilo in carica».
+  Durante la partita e sulla fine partita l'avviso non c'è (copriva il gioco). Sparisce appena il telefono è in carica.
+- **Telefono rotto o perso**: pannello → «Telefoni dello stand» → nella sua scheda **«Abbina un altro telefono»** e poi
+  come ai passi 3–6 (il telefono di prima non vale più appena confermi quello nuovo), oppure **«Scollega»** (due clic:
+  «Sicuro? Clicca ancora»).
+- **Il PC ha cambiato rete o indirizzo** (nel programma i telefoni usano l'indirizzo del PC): i telefoni dello stand vanno
+  abbinati di nuovo, un minuto a telefono. Consiglio: indirizzo fisso per il PC nel router dello stand.
+- **Spegnere la modalità**: pannello → «Modalità fiera · Sì» → diventa «No». Torna il menu di sempre (allenamento,
+  minigiochi, sfida tra due computer, webcam, Opzioni) e i telefoni tornano racchette con il QR. Riaccesa, i telefoni già
   abbinati si ricollegano da soli.
 
-**Cosa non provato**: telefoni veri, programma Windows vero, ledwall e rete dello stand. Provato nel browser con telefoni
-simulati (documento `docs/b41/modalita-fiera-2.md`).
+**Cosa non provato**: telefoni veri, programma Windows vero (tasto destro), ledwall e rete dello stand. Provato nel
+browser con telefoni simulati (documento `docs/b41/modalita-fiera-2.md`).
 
 ---
 
