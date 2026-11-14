@@ -812,3 +812,20 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
   le lunghe: prima B38+B39, poi la correzione), zip, installer, «come si attiva». Poi la B41 seconda parte.
 - Se il contenitore si riavvia: `git -C scratchpad/int/wt log`/`status`, `scratchpad/int/notes.md`; risultati delle
   indagini in `scratchpad/swap/`; rilanciare gli script con una sezione «RIPRESA».
+
+**14/11, 12:10 UTC · ripresa dopo il limite d'uso (11:20–11:40) e il riavvio del contenitore.**
+- L'indagine a cinque e l'unione si erano fermate per il limite d'uso. Risultati utili salvati:
+  `scratchpad/swap/split-ruoli-mano/` (prove ripetibili: lo stesso schermo legge giusto; la segnalazione esce con la mano
+  del Player 1 salvata «sinistra» o con il segno del telefono cambiato dopo gli scambi di prova; uguale dalla 12.5 alla
+  14.1). L'unione B38+B39 era già fatta: ramo `int-b38-b39` = `55e818a` (merge di b38 e b39), prove gioco 1560/1560, sito
+  248, Windows 51, LAN 13, build ok, controlli dell'unione a/b/c OK (`scratchpad/int/controlli-unito-1.txt`).
+- L'utente non ha risposto alle domande sulla mano e sul registro: ha mandato richieste nuove (fiera: livelli dopo
+  «Rivincita», battuta a un solo giocatore, conto alla rovescia grande; telefono che si scollega). Scritte in
+  `docs/coda/B41-parte-2-richieste-14-11.md` e in `docs/PROJECT_MEMORY.md`.
+- [~] Workflow `b46-lato-sicuro-e-b45-cadute` (run `wf_8a5bb805-8d4`): **B46** dritto e rovescio al sicuro (ramo
+      `b46-lato-sicuro` da `int-b38-b39`, worktree `scratchpad/b46/wt`, porte 4100–4149, appunti `scratchpad/b46/notes.md`)
+      e **B45** analisi delle cadute del telefono (sola lettura, `scratchpad/b45/`, porte 4200–4249), poi due revisori.
+- [~] Coordinatore: prove nel browser e Electron del ramo `int-b38-b39` (porte 4150–4199), uscite in `scratchpad/int/`.
+- Poi: unire B46 sopra `int-b38-b39`, versione 2026-11-14.2 (B38+B44+B39+B46), zip, installer, «come si attiva»; poi
+  B41 seconda parte con le richieste del 14/11; poi B45 (misure e correzioni delle cadute).
+

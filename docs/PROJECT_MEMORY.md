@@ -1064,3 +1064,18 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   telefoni una volta (abbinamento al posto, verso del telefono salvato, nessun QR, nessun tutorial per i visitatori) e
   **ogni visitatore fa i suoi scambi di prova** (circa 10 s) prima della partita; né la calibrazione dello staff riusata per
   tutti né «Nessuna». Interruttore e foglio con il mouse: B41 seconda parte, subito dopo il B39.
+
+## Richieste e decisioni dell'utente del 14/11/2026 (pomeriggio)
+
+- **Dritto e rovescio scambiati** (segnalazione sulla 2026-11-14.1: Android, stesso schermo, Player 1 a sinistra,
+  «Giocando», dal primo colpo). Indagine con prove ripetibili (`scratchpad/swap/split-ruoli-mano/`): il percorso dello
+  stesso schermo è giusto (uguale dalla 12.5 alla 14.1); la segnalazione esatta viene fuori con la **mano del Player 1
+  salvata «sinistra»** (basta un tocco su «Sinistra» nella pagina «Attiva i sensori» del telefono; resta dopo un riavvio;
+  negli scambi di prova non si nota) oppure con il **segno del telefono cambiato dopo gli scambi di prova** (doppia
+  inversione). L'utente non ha potuto dire quale: la B46 li chiude tutti e tre e li scrive nel registro.
+- **Fiera (in coda con la B41 seconda parte, `docs/coda/B41-parte-2-richieste-14-11.md`)**: livelli scelti dopo
+  «Rivincita»; battuta a un solo giocatore per tutta la partita (contro la CPU il visitatore; nello stesso schermo chi
+  batte il primo game, decisione del coordinatore); conto alla rovescia grande «Preparati, la partita sta per
+  cominciare» tra scambi di prova e partita.
+- **Telefono che si scollega in fiera a schermo acceso**: prima capire perché (misure su telefono e computer, motivo nel
+  pannello e nel registro), poi correggere: blocco B45 (analisi in corso).
