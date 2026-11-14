@@ -1863,6 +1863,11 @@ documento con i passi del Worker e la prova a Precision. Ramo `b36-0-misure` (ba
   `docs/GUIDA_REGISTRO_CLOUDFLARE.md` (§I), risultati in `natpf-tennis/scripts/audit/b36/risultati/`.
   Non verificato: Cloudflare vero (ricaricamento del Worker fatto solo in node), telefono vero, programma Windows, ledwall,
   persone; nessuna prova nel browser per questo blocco; la riga di Precision vera nel browser.
+- [x] B36.0.6 · unione di `natpf-simulator` (`c47a1ff`, solo documenti: traccia e coda B44) nel ramo, conflitto in
+  `PROJECT_MEMORY.md` risolto tenendo le due parti; verifiche sul codice unito: gioco **1504/1504**, Worker 21/21, sito
+  226/226, programma Windows 43/43, LAN 12/12, build riuscito, `npm run audit:legend` identico alla base (tutti i
+  criteri), prova nel browser `natpf-registro` 39/39 (porte 4110/4111; riga «avvio» con `v: 2`). Documento: prova a
+  Precision con «Nuovo giocatore» tra una persona e l'altra e «Riprova ›» tra le partite.
 - [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti (il file del Worker da mandare all'utente è
   `natpf-tennis/cloudflare/registro-worker.js`), `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`; poi dire all'utente i passi del
   Worker (documento §3) e la prova a Precision (§6).

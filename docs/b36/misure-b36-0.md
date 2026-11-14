@@ -171,18 +171,21 @@ registro acceso (lo è di base). La direzione resta quella di oggi: non c'è nie
 **Chi.** Tre persone: un tennista, una persona che non gioca, un ragazzo se c'è. Su un foglio scrivi l'ordine e l'ora di
 inizio di ognuna (nel registro non ci sono nomi).
 
-**Per ogni persona** (5–6 minuti), una dopo l'altra, senza altre partite a Precision in mezzo:
-1. Collega il suo telefono come sempre (codice QR). Se il gioco propone gli scambi di prova o la calibrazione, falli fare.
-2. Con il mouse: menu principale → **Minigiochi** → **Precision**. Il gioco chiede un soprannome per la classifica (una volta
-   sola: vale anche per le persone dopo): scrivi per esempio «Prova». Senza tastiera: con la tastiera a schermo del gioco
-   quando c'è (B38), altrimenti con la tastiera su schermo di Windows (Start → Impostazioni → Accessibilità → Tastiera →
-   «Tastiera su schermo»).
-3. **Precision 1 e 2 · «come ti viene».** Dici solo: «Manda la palla nella zona che vedi in campo, come ti viene». Dieci
-   palle, una per zona (in alto c'è scritto «Palla N di 10 · …»). Alla fine **Gioca ancora** (o Minigiochi → Precision) per
-   la seconda.
-4. **Precision 3 e 4 · «gira la cima verso la zona».** Dici: «Al momento del colpo gira la cima del telefono verso la zona:
-   a sinistra per le zone a sinistra, a destra per quelle a destra; per le zone al centro tienila dritta». Due partite.
-5. Persona dopo.
+**Per ogni persona** (5–6 minuti), una dopo l'altra, senza altre partite a Precision in mezzo. Il telefono può essere
+lo stesso per tutti (quello dello stand) o quello di ognuno.
+1. **Prima persona.** Telefono collegato come sempre (codice QR). Con il mouse: menu principale → **Minigiochi** →
+   **Precision**. Il gioco chiede il nome per la classifica: scrivi «Prova1» (senza tastiera: con la tastiera a schermo del
+   gioco quando c'è, B38, altrimenti con la tastiera su schermo di Windows: Start → Impostazioni → Accessibilità → Tastiera →
+   «Tastiera su schermo»). Se il gioco propone il tutorial corto e la calibrazione, falli fare: il gioco impara il colpo
+   normale di quella persona (il centro della mira da cui si misura lo scarto della cima).
+   **Persone dopo**: nella pagina del risultato di Precision clicca **Nuovo giocatore**: il gioco dimentica la persona di
+   prima (calibrazione compresa), chiede nome («Prova2», «Prova3») e mano, poi tutorial corto, calibrazione e di nuovo
+   Precision.
+2. **Precision 1 e 2 · «come ti viene».** Dici solo: «Manda la palla nella zona che vedi in campo, come ti viene». Dieci
+   palle, una per zona (in alto c'è scritto «Palla N di 10 · …»). Alla fine **Riprova ›** per la seconda.
+3. **Precision 3 e 4 · «gira la cima verso la zona».** Dici: «Al momento del colpo gira la cima del telefono verso la zona:
+   a sinistra per le zone a sinistra, a destra per quelle a destra; per le zone al centro tienila dritta». **Riprova ›** tra
+   la terza e la quarta.
 
 **Dopo.** Aspetta un minuto (il gioco manda le righe da solo ogni 45 secondi), poi dalla pagina del Worker: chiave →
 **Mostra i giorni** → **Scarica** sulla riga di oggi. Mandami il file `registro-AAAA-MM-GG.jsonl.gz` così com'è, con il
@@ -206,6 +209,8 @@ Facoltativo: la prova guidata della diagnostica (Maiusc+D) richiede la tastiera 
   sezione «Direzione»). Le impronte assolute dello stesso schermo (`natpf-b25-stesso-schermo.test.mjs`) passano invariate.
 - **Registri finti** (`finto.mjs`): ora anche i campi della direzione e qualche Precision, da un generatore a parte: le righe
   di prima restano identiche (controllato su quattro semi).
+- **Sul codice unito con `natpf-simulator`** (`c47a1ff`): gioco 1504/1504, Worker 21/21, sito 226/226, programma Windows
+  43/43, LAN 12/12, build riuscito, `npm run audit:legend` identico alla base, prova nel browser `natpf-registro` 39/39.
 
 ## 8. Primi numeri (SIMULATI: telefono simulato, giocatori simulati; non persone)
 
@@ -258,8 +263,9 @@ perde molti punti con la palla fuori (160–168 su 450 punti).
 - **Telefono vero, programma Windows, ledwall, persone vere**: nessuna prova. I campi `pf`, `dv`, `tu`, `rx`, `rz`, `fu` sono
   provati con il motore vero senza grafica e con un motore finto; `zp` con un minigioco finto (la riga di Precision vera nel
   browser non è stata provata).
-- **Nessuna prova nel browser** per questo blocco (il registro nel browser ha la sua prova, `tools/e2e/natpf-registro.mjs`,
-  che gioca con mouse e tastiera: non scrive i campi della racchetta).
+- **Nel browser** solo la prova del registro di sempre, `tools/e2e/natpf-registro.mjs` (39/39 sul codice unito, porte
+  4110/4111): gioca con mouse e tastiera, quindi prova righe, Worker nuovo e riga «avvio» con `v: 2`, ma non i campi della
+  racchetta. Nessuna prova nel browser con il telefono simulato per questo blocco.
 - I numeri del §8 vengono dal telefono simulato e dai giocatori simulati; il rumore vero della cima si misura con la prova del
   §6.
 - La prova del §6 richiede di scrivere un soprannome: senza tastiera serve la tastiera a schermo (B38) o quella di Windows.
