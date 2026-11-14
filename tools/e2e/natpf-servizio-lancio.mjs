@@ -1,6 +1,7 @@
 // NATPF B18 (miglioramento 2 dell'audit B16): istruzioni del primo servizio sul grande schermo, con il telefono simulato
 // (pagina del telefono, collegamento e motore veri). Prova:
-//   • al servizio lo schermo dice «Alza il telefono: lanci la palla» (prima solo «Al servizio»);
+//   • al servizio, accanto alla casella «Al servizio» di chi batte, l'icona del telefono che sale con la palla (B44: al
+//     posto del riquadro «Alza il telefono: lanci la palla», senza scritte; prima del B18 solo «Al servizio»);
 //   • lancio dal telefono (tocco sullo schermo) senza battuta: vicino al punto più alto «Colpisci!», poi la palla ricade
 //     nella mano di chi serve (prima restava a mezz'aria) e lo schermo dice «Colpisci quando la palla è in alto»; il
 //     telefono «Lancio a vuoto»;
@@ -74,12 +75,29 @@ try {
     // messaggi al telefono (per il resoconto se il telefono non mostra l'avviso)
     window.__sent = []; const L = E.natpfPhone.link, send = L.send.bind(L); L.send = m => { __sent.push(m); return send(m); };
     window.__coach = () => { const el = document.getElementById('natpf-serve-coach'); return { shown: !!el && !el.classList.contains('hidden'), state: el?.dataset.state, big: el?.querySelector('[data-c="big"]')?.textContent || '', sub: el?.querySelector('[data-c="sub"]')?.textContent || '' }; };
+    // B44: l'icona del lancio nella casella «Al servizio» (rettangoli, animazione, nessuna scritta)
+    window.__hint = () => {
+      const tag = document.getElementById('server-tag'), i = tag?.querySelector(':scope > .natpf-serve-hint'), r = e => { const q = e.getBoundingClientRect(); return { l: Math.round(q.left), t: Math.round(q.top), r: Math.round(q.right), b: Math.round(q.bottom), w: Math.round(q.width), h: Math.round(q.height) }; };
+      const on = !!i && !tag.classList.contains('hidden') && tag.classList.contains('with-hint') && getComputedStyle(i).display !== 'none';
+      return { on, icon: on ? r(i) : null, tag: tag ? r(tag) : null, text: i ? i.textContent.trim() : null, anim: i ? getComputedStyle(i.querySelector('.sh-phone')).animationName : '', inside: on ? (q => q.left >= 0 && q.right <= innerWidth && q.top >= 0 && q.bottom <= innerHeight)(i.getBoundingClientRect()) : false };
+    };
   });
   const coach = () => game.evaluate(() => __coach());
+  const hint = () => game.evaluate(() => __hint());
   await game.waitForTimeout(400);
-  const c0 = await coach();
-  check('al servizio: «Alza il telefono: lanci la palla» sul grande schermo', c0.shown && c0.big === 'Alza il telefono: lanci la palla', JSON.stringify(c0));
+  const c0 = await coach(), h0 = await hint();
+  check('B44 · al servizio niente riquadro di testo («Alza il telefono: lanci la palla» tolto)', !c0.shown, JSON.stringify(c0));
+  check('B44 · accanto alla casella «Al servizio» l\'icona del telefono che sale con la palla, animata, senza scritte', h0.on && !h0.text && /natpf-sh-phone/.test(h0.anim) && h0.inside && Math.abs((h0.icon.t + h0.icon.b)/2 - (h0.tag.t + h0.tag.b)/2) <= 2 && (h0.icon.l >= h0.tag.r || h0.icon.r <= h0.tag.l), JSON.stringify(h0));
   await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/servizio-1-lancio.png` });
+  // B44: l'icona anche a 1920×1080 e nella striscia da ledwall 1920×540 (schermate da guardare)
+  for (const [w, h] of [[1920, 1080], [1920, 540]]){
+    await game.setViewportSize({ width: w, height: h }); await game.waitForTimeout(350);
+    await game.evaluate(() => { __natpfTennis._onResize?.(); __natpfTennis.__render(); }); await game.waitForTimeout(150);
+    const hs = await hint();
+    check(`B44 · ${w}×${h}: l'icona accanto alla casella «Al servizio», dentro lo schermo`, hs.on && hs.inside && Math.abs((hs.icon.t + hs.icon.b)/2 - (hs.tag.t + hs.tag.b)/2) <= 2, JSON.stringify(hs));
+    await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/servizio-1-lancio-${w}x${h}.png` });
+  }
+  await game.setViewportSize({ width: 1280, height: 720 }); await game.waitForTimeout(300); await game.evaluate(() => __natpfTennis._onResize?.());
   // lancio dal telefono (tocco sullo schermo), senza battuta
   const tap = () => phone.evaluate(() => document.getElementById('stage').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
   // scritte grandi del telefono, in ordine (per vedere l'avviso anche se dura poco)
@@ -87,6 +105,7 @@ try {
   await game.waitForFunction(() => __natpfTennis.natpfPhone.lastPhase === 'serve', null, { timeout: 3000 }).catch(() => {});
   await tap();
   check('lancio dal telefono', await game.waitForFunction(() => __natpfTennis.phase === 'SERVE_TOSS', null, { timeout: 3000 }).then(() => true, () => false));
+  check('B44 · con la palla in aria l\'icona sparisce', !(await hint()).on);
   const go = await game.waitForFunction(() => __coach().state === 'go', null, { timeout: 2000, polling: 16 }).then(() => game.evaluate(() => ({ ...__coach(), y: +__natpfTennis.ball.pos.y.toFixed(2), vy: +__natpfTennis.ball.vel.y.toFixed(2) })), () => null);
   check('vicino al punto più alto: «Colpisci!»', !!go && go.big === 'Colpisci!' && go.y > 2.3, JSON.stringify(go));
   if (go){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/servizio-2-colpisci.png` }); }
@@ -95,7 +114,7 @@ try {
   check('lancio a vuoto: la palla ricade nella mano di chi serve, ferma', fell && after.y === 1.12 && after.dx === -0.28 && after.v === 0, JSON.stringify(after));
   await game.waitForTimeout(150);
   const c1 = await coach();
-  check('lancio a vuoto: «Colpisci quando la palla è in alto» sul grande schermo', c1.shown && c1.state === 'miss' && c1.big === 'Colpisci quando la palla è in alto', JSON.stringify(c1));
+  check('lancio a vuoto: «Colpisci quando la palla è in alto» sul grande schermo (B44: «Lancio a vuoto: riprova», senza il testo del lancio) e l\'icona torna', c1.shown && c1.state === 'miss' && c1.big === 'Colpisci quando la palla è in alto' && c1.sub === 'Lancio a vuoto: riprova' && (await hint()).on, JSON.stringify(c1));
   await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/servizio-3-lancio-a-vuoto.png` });
   const ph = await phone.waitForFunction(() => __bigs.includes('Lancio a vuoto'), null, { timeout: 2000 }).then(() => true, () => false);
   check('lancio a vuoto: il telefono dice «Lancio a vuoto»', ph, JSON.stringify({ telefono: await phone.evaluate(() => __bigs.slice(-6)), mandati: ph ? undefined : await game.evaluate(() => (window.__sent || []).filter(m => m.t === 'ev')) }));
@@ -104,6 +123,8 @@ try {
   await game.setViewportSize({ width: 1920, height: 540 }); await game.waitForTimeout(300);
   const led = await game.evaluate(() => { const el = document.getElementById('natpf-serve-coach'), r = el.getBoundingClientRect(), b = el.querySelector('b'); return { top: Math.round(r.top), h: Math.round(r.height), w: Math.round(r.width), font: parseFloat(getComputedStyle(b).fontSize), inside: r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; });
   check('ledwall 1920×540: scritta dentro lo schermo e grande (≥ 24 px)', led.inside && led.font >= 24, JSON.stringify(led));
+  const hl = await hint();
+  check('B44 · ledwall 1920×540: l\'icona dentro lo schermo, alta almeno 40 px', hl.on && hl.inside && hl.icon.h >= 40, JSON.stringify(hl));
   await game.evaluate(() => { __natpfTennis._onResize?.(); __natpfTennis.__render(); }); await game.screenshot({ path: `${SP}/servizio-4-ledwall.png` });
   await game.setViewportSize({ width: 1280, height: 720 }); await game.waitForTimeout(200);
   // si rilancia e si batte quando lo schermo dice «Colpisci!»: il servizio parte
@@ -114,7 +135,7 @@ try {
   await phone.evaluate(() => __up.swing(1, { peak: 900 }));
   const served = await game.waitForFunction(() => __natpfTennis.phase === 'RALLY' || __natpfTennis.phase === 'POINT_OVER', null, { timeout: 3000 }).then(() => true, () => false);
   const c2 = await coach();
-  check('battuta con il gesto: il servizio parte e le istruzioni spariscono', served && !c2.shown, JSON.stringify({ phase: await game.evaluate(() => __natpfTennis.phase), coach: c2 }));
+  check('battuta con il gesto: il servizio parte e le istruzioni spariscono (anche l\'icona)', served && !c2.shown && !(await hint()).on, JSON.stringify({ phase: await game.evaluate(() => __natpfTennis.phase), coach: c2 }));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
   await B.close(); stop();

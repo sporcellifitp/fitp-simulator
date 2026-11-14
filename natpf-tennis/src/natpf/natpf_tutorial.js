@@ -27,6 +27,7 @@ import { GESTURES } from './natpf_gesture_motion.js';
 import { PHOTOS } from './natpf_media.js';
 import { TutorialBackdrop } from './natpf_tutorial_bg.js';
 import { GRIP } from '@natpf/tennis/grip-art.js';
+import { serveHintHtml } from './natpf_serve_hint.js';
 
 // seenMs: tempo a schermo perché una scheda conti come vista (chi tocca ‹ › di fila non le «vede» tutte); tickMs: controllo
 export const TUTORIAL = Object.freeze({ seenMs: 1000, tickMs: 250 });
@@ -254,7 +255,8 @@ export class NatpfTutorial {
     const name = $('.tut-name'), text = $('.tut-text'), cues = $('.tut-cues');
     if (name) name.textContent = c.title;
     if (text){ text.textContent = c.text || ''; text.classList.toggle('hidden', !c.text); }
-    if (cues) cues.innerHTML = c.cues.map(x => `<li>${esc(x)}</li>`).join('');
+    // (B44: nella scheda «Servizio», accanto al lancio, la stessa icona che in partita sta accanto a chi batte)
+    if (cues) cues.innerHTML = c.cues.map((x, i) => `<li>${c.id === 'serve' && i === 0 ? serveHintHtml('in-card') : ''}${esc(x)}</li>`).join('');
     const media = $('.tut-media'), stage = $('.tut-3d');
     const mkey = `${c.id}|${hand}`;
     if (c.photo){

@@ -149,21 +149,37 @@ try {
   await shot('2b-palla-match-1280');
   await g.evaluate(() => { const E = __natpfTennis; E.score.playerPoints = 0; E.score.opponentPoints = 0; E._syncScoreboardHUD(); E.hud.hideCenterBanner(); });
 
-  /* 3: istruzioni del servizio e tabellone, alle quattro misure */
+  /* 3: B44 · l'icona del lancio (al posto delle istruzioni scritte «Alza il telefono: lanci la palla») e tabellone, alle
+     quattro misure. L'icona sta nella casella «Al servizio» della metà di chi batte (natpf_serve_hint.js); le caselle
+     delle due metà le mette a posto il disegno (qui spento: si disegna una volta prima di misurare) */
   const SIZES = [[1920, 1080], [1280, 720], [1920, 540], [720, 720]];
-  const serveBy = async who => { await g.evaluate(who => { const E = __natpfTennis; E.score.server = who; E.score.gameServer = who; E._setupPointServe({ showBanner: false }); E.hud.hideCenterBanner(); E.natpfUi.serveCoach.state.idle = 0; }, who); await until(g, who => { const el = document.getElementById('natpf-serve-coach'); return !el.classList.contains('hidden') && el.dataset.side === (who === 'opponent' ? 'right' : 'left') && !el.dataset.call; }, who, 5000); await sleep(150); };
+  const hintOf = (g, who) => g.evaluate(who => {
+    const r = el => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 ? { l: Math.round(b.left), t: Math.round(b.top), r: Math.round(b.right), b: Math.round(b.bottom), w: Math.round(b.width), h: Math.round(b.height) } : null; };
+    const ico = t => { const i = t?.querySelector(':scope > .natpf-serve-hint'); return i && t.classList.contains('with-hint') && !t.classList.contains('hidden') && getComputedStyle(i).display !== 'none' ? i : null; };
+    const mine = document.getElementById(who === 'opponent' ? 'server-tag-p2' : 'server-tag-p1'), other = document.getElementById(who === 'opponent' ? 'server-tag-p1' : 'server-tag-p2');
+    const boards = [];
+    for (const sb of ['natpf-scoreboard', 'natpf-scoreboard-p2']) boards.push({ id: `${sb} .sb-box`, ...r(document.querySelector(`#${sb} .sb-box`)) });
+    const coach = document.getElementById('natpf-serve-coach');
+    return { box: r(ico(mine)), other: !!ico(other), main: !!ico(document.getElementById('server-tag')), text: ico(mine)?.textContent.trim() ?? null, coach: !coach.classList.contains('hidden'), boards };
+  }, who);
+  const draw = () => g.evaluate(() => { try { __natpfTennis.__render(); } catch {} });
+  const serveBy = async who => {
+    await g.evaluate(who => { const E = __natpfTennis; E.score.server = who; E.score.gameServer = who; E._setupPointServe({ showBanner: false }); E.hud.hideCenterBanner(); E.natpfUi.serveCoach.state.idle = 0; E.natpfUi.serveCoach.newPlayer(); }, who);
+    await sleep(150); await draw();
+    await until(g, who => { const t = document.getElementById(who === 'opponent' ? 'server-tag-p2' : 'server-tag-p1'); return !!t && t.classList.contains('with-hint') && !t.classList.contains('hidden'); }, who, 5000);
+    await draw(); await sleep(120);
+  };
   for (const [w, h] of SIZES){
     await g.setViewportSize({ width: w, height: h }); await sleep(500);
     const res = {};
-    for (const who of ['player', 'opponent']){ await serveBy(who); res[who] = await rects(g, 'natpf-serve-coach'); }
-    check(`   ${w}×${h}: (controllo della prova) misurate le istruzioni normali, non il richiamo`, !res.player.call && !res.opponent.call && res.player.side === 'left' && res.opponent.side === 'right', fmt({ sinistra: [res.player.side, res.player.call], destra: [res.opponent.side, res.opponent.call] }));
+    for (const who of ['player', 'opponent']){ await serveBy(who); res[who] = await hintOf(g, who); }
     const L = res.player, R = res.opponent, half = w/2;
-    const inHalf = L.box && R.box && L.box.l >= 0 && L.box.r <= half && R.box.l >= half && R.box.r <= w && L.box.b < h*.6 && R.box.b < h*.6;
-    check(`3. ${w}×${h}: le istruzioni del servizio non coprono nessun tabellone (chi batte a sinistra e a destra)`, !!L.box && !!R.box && !covered(L).length && !covered(R).length && /Alza il telefono: lanci la palla/.test(L.text), fmt({ sinistra: L.box, destra: R.box, coperti: [...covered(L), ...covered(R)], tabelloni: L.boards.map(b => `${b.t}-${b.b}`) }));
-    check(`   ${w}×${h}: ognuna nella sua metà, larghe uguali e sullo stesso numero di righe (prima a destra più stretta, su 2–3 righe)`, inHalf && Math.abs(L.box.w - R.box.w) <= 2 && L.lines === R.lines && L.lines === 1, fmt({ wL: L.box?.w, wR: R.box?.w, righe: [L.lines, R.lines] }));
-    await shot(`3-istruzioni-${w}x${h}-destra`);
+    check(`3. ${w}×${h}: B44 · al servizio l'icona del lancio solo nella metà di chi batte, senza scritte, niente riquadro di testo`, !!L.box && !!R.box && !L.other && !R.other && !L.main && !R.main && !L.coach && !R.coach && L.text === '' && R.text === '' && L.box.r <= half && R.box.l >= half, fmt({ sinistra: L.box, destra: R.box, altre: [L.other, R.other, L.main, R.main], riquadro: [L.coach, R.coach] }));
+    check(`   ${w}×${h}: l'icona non copre nessun tabellone, sta nello schermo, alta almeno 28 px`, !covered(L).length && !covered(R).length && L.box.t >= 0 && R.box.t >= 0 && L.box.b <= h && R.box.b <= h && L.box.h >= 28 && R.box.h >= 28, fmt({ sinistra: L.box, destra: R.box, coperti: [...covered(L), ...covered(R)], tabelloni: L.boards.map(b => `${b.t}-${b.b}`) }));
+    await shot(`3-icona-${w}x${h}-destra`);
     // richiamo per nome: chi batte (Giulia) resta ferma oltre 9 s
     await g.evaluate(() => { __natpfTennis.natpfUi.serveCoach.state.idle = 9.2; });
+    await draw();
     const called = await until(g, () => document.getElementById('natpf-serve-coach').dataset.call === '1', null, 5000);
     await sleep(120);
     const C = await rects(g, 'natpf-serve-coach');

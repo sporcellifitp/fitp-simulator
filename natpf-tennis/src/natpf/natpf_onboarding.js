@@ -6,6 +6,7 @@
 // Esc chiude. In alto si sceglie la racchetta (smartphone, webcam, mouse e tastiera): cambiano i testi, non il passo.
 // Si apre con «Come si gioca» in alto nel menu (una voce sola, B15), con «?», con il tasto H e dalla pausa. API: open(), close(), isOpen, key(e).
 import { gripSvg, GRIP_TEXT } from '@natpf/tennis/grip-art.js';
+import { serveHintHtml } from './natpf_serve_hint.js';
 const $ = id => document.getElementById(id);
 export const GUIDE_CONTROLLERS = Object.freeze([['phone', 'Smartphone'], ['webcam', 'Webcam'], ['mouse', 'Mouse e tastiera']]);
 export const ONBOARDING_KEY = 'natpf-tennis.onboarded';
@@ -38,7 +39,9 @@ export const GUIDE = [
     phone: '<b>1</b> alza il telefono (o tocca lo schermo): lanci la palla. <b>2</b> colpisci quando è in alto.',
     webcam: '<b>1</b> alza la mano di scatto: lanci la palla. <b>2</b> swing quando è in alto.',
     mouse: '<b>1</b> <kbd>↑</kbd> o <kbd>W</kbd> lancia la palla. <b>2</b> <kbd>Spazio</kbd> quando è in alto.',
-  }, game: 'Quando servi tu, in basso compare «Al servizio».' },
+  // (B44: in campo, ai primi servizi, accanto a chi batte la stessa icona del telefono che sale con la palla; prima il testo
+  // diceva «in basso compare «Al servizio»», ma la casella è sopra chi batte dal B35b)
+  }, game: `Quando servi tu, sopra di te compare «Al servizio» e a terra il riquadro dove deve cadere la palla. Ai primi servizi, accanto, ${serveHintHtml('in-card')}un telefono che sale con la palla: fai così e la lanci.` },
   { id: 'shots', title: 'Colpi speciali', clip: 'shots', you: {
     phone: '<b>Dal basso verso l’alto</b>: pallonetto. <b>Dall’alto verso il basso</b>, lento: palla corta; deciso: tagliato (schiacciata se la palla è alta). Veloce e dritto: piatto.',
     webcam: 'Swing verso l’alto: pallonetto. Verso il basso: tagliato. Sulle palle alte la schiacciata parte da sola.',

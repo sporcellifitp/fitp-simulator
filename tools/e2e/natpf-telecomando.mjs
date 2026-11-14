@@ -265,6 +265,13 @@ try {
   check('«Salta il nome» acceso', await phone.evaluate(() => __telecomando.status.cmds.skip === 1 && /nome/.test(__telecomando.status.labels.skip)));
   await game.screenshot({ path: `${SP}/telecomando-nome-1024x1024.png` });
   await tap('skip'); check('Salta → di nuovo «Pronto per la partita»', await waitPg('lobby:match'));
+  // B38: «Gioca come Ospite» (accanto al campo del nome) con le frecce e OK del telefono dello staff
+  await tap('newplayer'); check('B38: Nuovo giocatore (di nuovo) → «Come ti chiami?»', await waitPg('nick'));
+  let onGuest = false;
+  for (let i = 0; i < 12 && !onGuest; i++){ await tap(['up', 'right', 'up', 'left'][i % 4]); onGuest = await ui(() => document.activeElement?.id === 'nick-guest'); }
+  check('B38: le frecce del telecomando arrivano a «Gioca come Ospite»', onGuest, await ui(() => document.activeElement?.id || document.activeElement?.textContent));
+  await tap('ok');
+  check('B38: OK su «Gioca come Ospite» → di nuovo «Pronto per la partita», senza nome, fuori classifica', await waitPg('lobby:match') && await ui(() => __natpfTennis.natpfUi.events.guest === true && __natpfTennis.natpfUi.events.nickname === ''));
 
   // 5b) B35 (collaudo dell'utente del 13/11): scambi di prova contro la CPU e telecomando. Con il telefono come racchetta
   // gli scambi di prova si fanno prima della pagina «Pronto per la partita»; «Salta» dal telecomando porta alla pagina (non

@@ -1,0 +1,73 @@
+/* =====================================================================================================================
+   B44 · Servizio: l'icona del lancio al posto del riquadro di testo (src/natpf/natpf_serve_hint.js, natpf_serve_coach.js).
+   Un telefono che sale con la palla sopra, in loop, accanto a chi batte, senza scritte. Il telefono sale e torna giù, la
+   palla parte con lui, continua a salire, si ferma in cima e ricade sul telefono (1,6 s). Disegno SVG nella pagina (niente
+   file): telefono bianco con lo schermo blu notte, palla #E8FF3A, cartellino blu notte con il bordo azzurro #4DD7FF, come
+   il resto del gioco. Accanto alla casella gialla «Al servizio» (stessa misura in em: cresce con lei sui ledwall); in prima
+   persona in basso al centro (cqh del contenitore natpf, l'area del gioco). Le stesse icone, piccole, nelle schede del
+   tutorial, dell'allenamento e della guida.
+   ===================================================================================================================== */
+.natpf-serve-hint { display: inline-block; box-sizing: border-box; vertical-align: middle; width: 1.3em; height: 2.4em; pointer-events: none; }
+.natpf-serve-hint .sh-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.natpf-serve-hint .sh-body { fill: #f4f6fc; stroke: #0a1330; stroke-width: 2; }
+.natpf-serve-hint .sh-screen { fill: #13214f; }
+.natpf-serve-hint .sh-dot { fill: #0a1330; }
+.natpf-serve-hint .sh-ball circle { fill: #e8ff3a; stroke: #0a1330; stroke-width: 1.6; }
+.natpf-serve-hint .sh-phone { animation: natpf-sh-phone 1.6s ease-in-out infinite; }
+.natpf-serve-hint .sh-ball { animation: natpf-sh-ball 1.6s infinite; }
+@keyframes natpf-sh-phone {
+  0%, 55%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-14px); }
+}
+@keyframes natpf-sh-ball {
+  0% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  30% { transform: translateY(-14px); animation-timing-function: ease-out; }
+  55% { transform: translateY(-30px); animation-timing-function: ease-in; }
+  80%, 100% { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .natpf-serve-hint .sh-phone, .natpf-serve-hint .sh-ball { animation: none; }
+  .natpf-serve-hint .sh-ball { transform: translateY(-20px); }
+}
+
+/* in partita: dentro la casella «Al servizio» di chi batte, di lato (verso il centro della sua vista: hint-left) */
+.nt-server-tag .natpf-serve-hint.on-tag {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 0.5em);
+  width: 2.5em;
+  height: 3.9em;
+  padding: 0.3em 0.35em 0.25em;
+  border-radius: 0.95em;
+  background: rgba(10, 19, 48, 0.94);
+  box-shadow: 0 0 0 calc(2em / 14) #4dd7ff, 0 calc(3em / 14) calc(10em / 14) rgba(0, 0, 0, 0.45);
+  transform: translateY(-50%);
+}
+.nt-server-tag.with-hint .natpf-serve-hint.on-tag { display: block; }
+.nt-server-tag.hint-left .natpf-serve-hint.on-tag { left: auto; right: calc(100% + 0.5em); }
+
+/* in prima persona (la casella di chi gioca non c'è): in basso al centro della vista */
+.natpf-serve-hint-solo {
+  position: fixed;
+  left: 50%;
+  bottom: 16cqh;
+  z-index: 31;
+  font-size: clamp(14px, min(1.09cqw, 1.94cqh), 24px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.natpf-serve-hint-solo.hidden { display: none; }
+.natpf-serve-hint-solo .natpf-serve-hint { width: 2.5em; height: 3.9em; padding: 0.3em 0.35em 0.25em; border-radius: 0.95em; background: rgba(10, 19, 48, 0.94); box-shadow: 0 0 0 calc(2em / 14) #4dd7ff; }
+
+/* nelle schede (tutorial «Servizio», «Guarda e ripeti» dell'allenamento, guida «Come si gioca»): piccola, accanto al testo */
+.natpf-serve-hint.in-card {
+  width: 1.45em;
+  height: 2.3em;
+  margin: -0.2em 0.4em -0.2em 0;
+  padding: 0.14em 0.16em 0.1em;
+  border-radius: 0.45em;
+  background: rgba(10, 19, 48, 0.94);
+  box-shadow: 0 0 0 1px #4dd7ff;
+  vertical-align: middle;
+}
