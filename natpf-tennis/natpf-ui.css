@@ -981,6 +981,13 @@ html:has(.natpf-sheet-backdrop:not(.hidden)) .natpf-phone-hold { z-index: 55; }
   .natpf-sheet.staff-sheet .pause-grid { gap: 5px; }
   .natpf-sheet.staff-sheet .sheet-actions { margin-top: 8px; }
   .natpf-sheet.staff-sheet .sheet-desc { margin-bottom: 4px; }
+  /* B47: con «Battuta» i pulsanti sono 15 (cinque file da tre): con le opzioni accese (scritte su due righe) il foglio
+     scorreva di 38 px a 720 × 720 e «Chiudi» finiva sotto il bordo. Pulsanti e foglio un poco più bassi */
+  .natpf-sheet-backdrop .natpf-sheet.staff-sheet { padding: 16px 20px 14px; }
+  .natpf-sheet.staff-sheet .pause-grid button { min-height: 54px; padding: 7px 12px; gap: 3px; }
+  /* … e il foglio sta in alto, non al centro: la riga sotto le voci spiega la voce sotto il puntatore (B39.3) e a questa
+     misura va su più righe; con il foglio al centro tutto saliva sotto il mouse e il clic finiva fuori dal pulsante */
+  #natpf-staff.natpf-sheet-backdrop { align-items: flex-start; }
 }
 @container natpf (max-width: 640px) { .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: 1fr; } }
 /* B39: «Diagnostica» in alto a destra del pannello dello stand, nella fascia della scritta «Riservato all'addetto» (il foglio

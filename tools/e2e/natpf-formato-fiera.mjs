@@ -11,6 +11,9 @@
 // I punti si assegnano con la regola del motore (_awardPoint), non giocando gli scambi: la prova guarda il formato, non
 // il gioco. Schermate in OUT (o nella cartella temporanea).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-formato-fiera.mjs
+// B47: il servizio che passa ogni due punti (A, B B, A A…) c'è solo con la battuta «Alternata» (pannello dello stand
+// «Battuta», di base «Sempre lo stesso», natpf_battuta.js): le parti 1–5 aprono il gioco con ?battuta=alternata; la parte 6
+// prova la battuta di base (sempre chi gioca contro la CPU, sempre chi batte il primo game nello stesso schermo).
 // B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
 process.env.CAL ||= 'gesti';
 import { spawn } from 'node:child_process';
@@ -51,7 +54,7 @@ const fmt = v => JSON.stringify(v);
 
 const B = await launch();
 try {
-  const { ctx, p, errs } = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0`, { w: 1280, h: 720 });
+  const { ctx, p, errs } = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0&battuta=alternata`, { w: 1280, h: 720 });
   await p.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby && window.__natpfTennis.player?.model, null, { timeout: 120000 });
   await p.evaluate(() => __natpfTennis.natpfUi.intro?.skip?.());
   await p.evaluate(() => { try { localStorage.removeItem('natpf-tennis.formatoFiera'); } catch {} __natpfTennis.natpfUi.lobby.go('menu'); });
@@ -167,7 +170,7 @@ try {
   check('nessun errore nella pagina (formato acceso)', !errs.length, errs.slice(0, 3).join(' | '));
 
   // 5. ?formato=classico: spenta per quella pagina anche se salvata accesa; tutto come prima
-  const c = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0&formato=classico`, { context: ctx });   // stesso browser: stessa scelta salvata
+  const c = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0&formato=classico&battuta=alternata`, { context: ctx });   // stesso browser: stessa scelta salvata
   await c.p.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby && window.__natpfTennis.player?.model, null, { timeout: 120000 });
   await c.p.evaluate(() => __natpfTennis.natpfUi.intro?.skip?.());
   const saved = await c.p.evaluate(() => localStorage.getItem('natpf-tennis.formatoFiera'));
@@ -188,6 +191,42 @@ try {
   check('spenta: «Al meglio di 5» c\'è, batte sempre chi gioca nel game (AAAAAA), sul 40-40 «Parità» (B43: per lo screen reader; l\'etichetta resta il formato)', five !== 'none' && cseq.join('') === 'AAAAAA' && cb.main.label === 'Parità' && cb.main.tagKind === 'format' && cb.score.fair === false, fmt({ five, seq: cseq.join(''), label: cb.main.label, tag: cb.main.tag }));
   check('B35 spenta: niente riga «Formato veloce» (né sul tabellone né nel banner d\'inizio)', cb.rule === '' && !/Formato veloce/.test(cb.sub), fmt({ rule: cb.rule, sub: cb.sub }));
   check('nessun errore nella pagina (formato spento)', !c.errs.length, c.errs.slice(0, 3).join(' | '));
+
+  // 6. B47: battuta di base «Sempre lo stesso» (niente ?battuta=), con il formato in fiera acceso (salvato «Sì»)
+  // (le due pagine di prima si chiudono: tre giochi aperti con la grafica software non caricano più in tempo)
+  await c.p.close().catch(() => {}); await p.close().catch(() => {});
+  const d = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0`, { context: ctx });
+  await d.p.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby && window.__natpfTennis.player?.model, null, { timeout: 120000 });
+  await d.p.evaluate(() => __natpfTennis.natpfUi.intro?.skip?.());
+  await d.p.evaluate(() => { localStorage.removeItem('natpf-tennis.battuta'); __natpfTennis.natpfUi.lobby.go('menu'); });
+  await d.p.keyboard.press('Control+Shift+KeyK');
+  await d.p.waitForSelector('#natpf-staff:not(.hidden) [data-staff="battuta"]', { state: 'visible', timeout: 10000 });
+  const bt = () => d.p.evaluate(() => ({ b: document.querySelector('[data-staff="battuta"] b').textContent, on: document.querySelector('[data-staff="battuta"]').classList.contains('on'), saved: localStorage.getItem('natpf-tennis.battuta') }));
+  const bt0 = await bt();
+  await d.p.click('#natpf-staff [data-staff="battuta"]'); await d.p.waitForTimeout(150); const bt1 = await bt();
+  await d.p.click('#natpf-staff [data-staff="battuta"]'); await d.p.waitForTimeout(150); const bt2 = await bt();
+  check('B47 pannello: «Battuta» di base «Sempre lo stesso»; un clic «Alternata» (salvata), un altro di nuovo «Sempre lo stesso»', bt0.b === 'Sempre lo stesso' && bt0.on && bt0.saved == null && bt1.b === 'Alternata' && !bt1.on && bt1.saved === 'alternata' && bt2.b === 'Sempre lo stesso' && bt2.saved === 'fissa', fmt({ bt0, bt1, bt2 }));
+  await d.p.screenshot({ path: `${SP}/b47-pannello-battuta.png` });
+  await d.p.click('#natpf-staff [data-staff="close"]');
+  // contro la CPU con «Batte per primo: CPU»: batte lo stesso chi gioca, in tutti i punti e nel game dopo
+  await d.p.evaluate(() => { const ui = __natpfTennis.natpfUi; if (!ui.testInput) ui.toggleTestInput(); ui.selectController('mouse', { open: false }); ui.lobby.setMode('cpu'); ui.lobby.setFormat('singles'); ui.lobby.setServe('opponent'); ui.lobby.go('match'); document.querySelector('#match-length-group [data-games="3"]').click(); });
+  await d.p.waitForTimeout(400);
+  await d.p.evaluate(() => document.getElementById('btn-start-match').click());
+  await d.p.waitForFunction(() => !__natpfTennis.autoPlayMode && __natpfTennis.phase === 'SERVE_STANCE', null, { timeout: 20000 });
+  const dseq = [];
+  for (const w of ['player', 'opponent', 'player', 'opponent', 'player', 'opponent', 'opponent', 'player', 'player', 'player']){ dseq.push(server(await board(d.p))); await award(d.p, w); if ((await d.p.evaluate(() => __natpfTennis.phase)) === 'MATCH_OVER') break; await nextServe(d.p); }
+  const db = await board(d.p);
+  check('B47 contro la CPU, formato in fiera e «Batte per primo: CPU»: batte sempre chi gioca (pallina del tabellone sempre su «Tu»), anche nel game dopo; resta il punto decisivo', dseq.every(x => x === 'A') && dseq.length >= 8 && db.score.fixed === true && db.score.fair === true && db.score.playerGames + db.score.opponentGames >= 1, fmt({ seq: dseq.join(''), score: db.score }));
+  await d.p.evaluate(() => { try { __natpfTennis.render(); } catch {} }); await d.p.screenshot({ path: `${SP}/b47-tabellone-batte-sempre-tu.png` });
+  // stesso schermo: batte per tutta la partita chi batte il primo game (qui il Player 2, «Batte per primo»)
+  await d.p.evaluate(() => { const E = __natpfTennis; E.hud.hideVictoryModal?.(); E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; E.startSplit(); E.matchConfig.gamesToWin = 2; E.autoPlayMode = false; E.userHasInteracted = true; E.natpfServeFirst = 'opponent'; E.startNewMatch({ showStartBanner: false }); });
+  await run(d.p, "E.phase === 'SERVE_STANCE'");
+  const sseq = [], sb0 = await board(d.p);
+  for (const w of ['player', 'opponent', 'player', 'opponent', 'player', 'opponent', 'player', 'player', 'opponent']){ sseq.push(server(await board(d.p))); await award(d.p, w); if ((await d.p.evaluate(() => __natpfTennis.phase)) === 'MATCH_OVER') break; await nextServe(d.p); }
+  const sb = await board(d.p);
+  check('B47 stesso schermo: batte sempre Giulia (chi batte il primo game), anche dopo il game; pallina sulla sua riga nei due tabelloni', sseq.every(x => x === 'B') && sseq.length >= 8 && sb.score.fixed === true && sb0.p2?.rows?.find(r => r.serve)?.name === 'GIU', fmt({ seq: sseq.join(''), score: sb.score, p2: sb0.p2?.rows }));
+  await d.p.evaluate(() => { __natpfTennis.hud.hideVictoryModal?.(); __natpfTennis.endSplit(); });
+  check('nessun errore nella pagina (battuta di base)', !d.errs.length, d.errs.slice(0, 3).join(' | '));
 
 } finally {
   await B.close(); stop();

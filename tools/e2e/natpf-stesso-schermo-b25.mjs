@@ -77,7 +77,7 @@ try {
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720], [1920, 1080]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: quattordici pulsanti (dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 14 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: quindici pulsanti (dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo», dal B47 «Battuta»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 15 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -99,7 +99,7 @@ try {
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 14 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 15 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     if (h === 720 && w === 720 || h === 540) await shot(`1c-pannello-stand-accesi-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -246,12 +246,15 @@ try {
   const on = await run();
   check('   acceso (dalla partita dopo): verso la palla 5,88 m/s, al rientro 1,96 m/s', on.open === true && on.toBall === 5.88 && on.back === 1.96, fmt(on));
   // revisione: con il campo aperto acceso il servizio passa ogni due punti anche nel formato classico (chi batte lì è
-  // sfavorito); spento, nel classico batte sempre lo stesso
-  const serveSeq = () => g.evaluate(() => { const E = __natpfTennis; E.natpfFair = false; E.startNewMatch({ showStartBanner: false });
+  // sfavorito); spento, nel classico batte sempre lo stesso. B47: solo con la battuta «Alternata» (rule); con quella di
+  // base, «Sempre lo stesso», il servizio non passa mai (natpf_battuta.js)
+  const serveSeq = (rule = 'alternata') => g.evaluate(rule => { const E = __natpfTennis; E.natpfFair = false; E.natpfServeRule = rule; E.startNewMatch({ showStartBanner: false });
     const s = [E.score.server]; for (const w of ['player', 'opponent', 'player']){ E._awardPoint(w, 'Out'); s.push(E.score.server); }
-    const r = { fair: E.score.fair, open: !!E.natpfDuo?.open, s: s.map(x => (x === s[0] ? 'A' : 'B')).join(' ') }; E.natpfFair = undefined; E.hud.hideCenterBanner(); return r; });
+    const r = { fair: E.score.fair, open: !!E.natpfDuo?.open, fixed: !!E.score.fixed, s: s.map(x => (x === s[0] ? 'A' : 'B')).join(' ') }; E.natpfFair = undefined; E.natpfServeRule = undefined; E.hud.hideCenterBanner(); return r; }, rule);
   const altOn = await serveSeq();
-  check('   acceso, formato classico: il servizio passa ogni due punti (A, B B, A…)', altOn.open === true && altOn.fair === false && altOn.s === 'A B B A', fmt(altOn));
+  check('   acceso, formato classico, battuta «Alternata»: il servizio passa ogni due punti (A, B B, A…)', altOn.open === true && altOn.fair === false && altOn.s === 'A B B A', fmt(altOn));
+  const fixOn = await serveSeq(null);   // (null: la regola salvata o di base del gioco; undefined prenderebbe 'alternata')
+  check('   B47: acceso, battuta di base «Sempre lo stesso»: il servizio non passa (A A A A)', fixOn.open === true && fixOn.fixed === true && fixOn.s === 'A A A A', fmt(fixOn));
   await g.evaluate(() => { localStorage.setItem('natpf-tennis.campoAperto', '0'); });
   const altOff = await serveSeq();
   check('   spento, formato classico: batte sempre lo stesso per tutto il game, come sempre', altOff.open === false && altOff.fair === false && altOff.s === 'A A A A', fmt(altOff));

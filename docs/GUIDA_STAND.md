@@ -50,10 +50,13 @@ non va — 12 · Con una tastiera — Appendice: solo per la versione web — Pe
 3. «Scambi di prova»: circa 10 secondi, 4 palle facili. Il gioco impara il colpo di chi gioca. «Salta ›» (accanto alla
    pausa, in alto a destra) per andare avanti.
 4. «Pronto per la partita»: clicca «Bambino», «Ragazzo» o «Adulto» (si parte sempre da «Adulto»). Poi **un solo clic**
-   su «Gioca ›».
+   su «Gioca ›». (B47) In campo, prima del primo punto, il **conto alla rovescia grande** al centro: «Preparati · La
+   partita sta per cominciare · 3 · 2 · 1» (3 secondi), poi si gioca. Di base **batte sempre chi gioca** (pannello →
+   «Battuta»).
 5. A fine partita:
-   - **«Gioca ancora»**, stessa persona: prima di nuovo gli scambi di prova (circa 10 secondi; «Salta ›» li salta), poi
-     «Pronto per la partita» → «Gioca ›».
+   - **«Gioca ancora»** (o **«Rivincita»**), stessa persona: (B47) si apre la **scelta del livello** grande, già segnata
+     con quello di prima: un clic su «Bambino», «Ragazzo» o «Adulto» se va cambiato, poi **«Gioca»**. Prima di nuovo gli
+     scambi di prova (circa 10 secondi; «Salta ›» li salta), poi il conto alla rovescia e la partita.
    - **«Nuovo giocatore»**, persona nuova: il telefono resta collegato e «Collega il telefono» si salta. Nel foglio
      «Come ti chiami?» scegli la mano («Destra» o «Sinistra»), poi clicca il campo del nome: compare la **tastiera a
      schermo**, scrivi cliccando i tasti, «Fatto», «Avanti ›». Oppure **«Gioca come Ospite»** (accanto al campo): senza
@@ -132,9 +135,10 @@ fa. (B39) **Un doppio clic vale un clic solo** (prima faceva due passi: «Calibr
 | **Telefono** | «Scollega» con un telefono collegato · «Nessuno collegato» | Scollega il telefono del giocatore: per giocare va rifatto il QR. | subito · **secondo clic in partita** (con un telefono collegato) |
 | **Musica** | **Sì** · No | Spegne o riaccende **tutto** l'audio del gioco: musica, effetti e la voce del punteggio. **Non resta salvata**: alla riapertura l'audio è acceso. Per spegnere solo la voce e tenere musica ed effetti: Opzioni → «Voci» (o «Voce» nella pausa). | subito |
 | **Formato in fiera** | No · **Solo stesso schermo** · Sì · punto decisivo | Punto decisivo sul 40-40 (chi lo vince vince il game) e servizio che passa ogni due punti, come nel tie-break: batte anche la CPU o il Player 2, anche in una partita a 1 game. «Solo stesso schermo»: vale solo tra due persone sullo stesso schermo; contro la CPU e tra due computer resta il formato classico. «Sì»: vale anche contro la CPU e tra due computer, e la partita più lunga è al meglio di 3. Al 40-40 il tabellone mostra «PUNTO DECISIVO» in rosa. Giro: No → Solo stesso schermo → Sì → No. | dalla partita dopo |
+| **Battuta** (B47) | **Sempre lo stesso** · Alternata | Sempre lo stesso: il servizio non passa mai all'altro, per tutta la partita e in tutti i formati (anche con il formato in fiera e il campo aperto: resta il punto decisivo, non il cambio ogni due punti). Contro la CPU batte **sempre chi gioca**, anche se «Batte per primo» dice CPU; nello stesso schermo batte per tutta la partita chi batte il primo game («Batte per primo», di base il sorteggio: «Sorteggio: batte sempre Giulia»). Il lato del servizio (destra, sinistra) cambia a ogni punto come sempre. Alternata: come prima, il servizio passa all'altro a ogni game (ogni due punti con il formato in fiera o il campo aperto). Nella sfida tra due computer resta alternata. Giro: Sempre lo stesso ↔ Alternata. | dalla partita dopo |
 | **Scambio che si scalda** | **Sì · dal 20° colpo** · No | Dal 20° colpo di uno scambio colpi sempre più forti per tutti e due, colpo super più facile, la CPU rischia di più: gli scambi lunghi finiscono e le partite durano meno. In alto la scritta «SCAMBIO CALDO · colpo 23». Non vale con «Una webcam per due». | dalla partita dopo |
 | **Lancio automatico** | **No** · Sì · 30 s | Solo stesso schermo **con i due telefoni** (non con «Una webcam per due»): se chi deve battere resta fermo 30 secondi, il gioco lancia la palla (lo schermo lo annuncia 10 secondi prima). Dopo due lanci a vuoto il gioco batte un servizio morbido. Così la fila non si blocca. | dalla partita dopo |
-| **Stesso schermo: campo aperto** | **No** · Sì · il piazzamento conta | Solo stesso schermo **con i due telefoni**: i personaggi corrono come persone e non arrivano più su ogni palla; la palla angolata si prende in allungo o non si prende. Il servizio passa ogni due punti anche con il formato classico. Chi batte è un po' sfavorito. | dalla partita dopo |
+| **Stesso schermo: campo aperto** | **No** · Sì · il piazzamento conta | Solo stesso schermo **con i due telefoni**: i personaggi corrono come persone e non arrivano più su ogni palla; la palla angolata si prende in allungo o non si prende. Con «Battuta: Alternata» il servizio passa ogni due punti anche con il formato classico (chi batte è un po' sfavorito); con «Sempre lo stesso» non passa mai. | dalla partita dopo |
 | **Calibrazione** | **Giocando** · Con i gesti · Nessuna | Giocando: niente gesti a vuoto; prima di ogni partita circa 10 secondi di «Scambi di prova» (4 palle, dritti e rovesci) e il gioco impara il colpo di chi gioca. Con i gesti: la calibrazione di prima (telefono fermo, poi un dritto e un rovescio a vuoto); quel profilo resta fino a «Nuovo giocatore». Nessuna: si gioca subito e il gioco impara dai primi colpi veri (all'inizio la forza è meno precisa). Giro: Giocando → Con i gesti → Nessuna → Giocando. | dal prossimo «Gioca» |
 | **Tastiera a schermo** | **Automatica** · Sempre · Mai | La tastiera del gioco per scrivere nomi, codice della sfida e campi della diagnostica (capitolo 3.6). Automatica: compare cliccando un campo con il mouse (o toccandolo), sparisce se si usa una tastiera vera. Sempre: compare in ogni campo, anche con una tastiera vera. Mai: non compare. Giro: Automatica → Sempre → Mai → Automatica. | subito |
 | **Mira del telefono** | **Alta · 17°** · Media · 20° · Bassa · 23° | Quanto girare il telefono per mandare la palla sulla riga. Alta: più palle angolate; Media e Bassa un po' meno. Vale per i telefoni di questo PC. | dal colpo dopo |
@@ -196,10 +200,11 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
 - In basso: «‹ Indietro», «Riscaldati prima» (facoltativo: dritto, rovescio e servizio con il lanciapalle; non nello
   stesso schermo) e «Gioca ›».
 - **«Sono pronto» dal telefono** (dalla 2026-11-14.1, non va acceso): su questa pagina il telefono di chi gioca mostra un
-  grande pulsante giallo «Sono pronto». Quando hanno toccato tutti (uno contro la CPU, due nello stesso schermo) parte un
-  conto di 3 secondi e la partita comincia da sola. Accanto a «Gioca ›» vedi chi è pronto («Telefono pronto ✓»).
-  «Gioca ›» resta sempre per te; «Aspetta» (o Esc) ferma il conto e si ritocca. Se un telefono cade durante il conto
-  (scollegato, schermo spento) il conto si ferma e il computer dice perché.
+  grande pulsante giallo «Sono pronto». Quando hanno toccato tutti (uno contro la CPU, due nello stesso schermo) la
+  partita comincia da sola. Accanto a «Gioca ›» vedi chi è pronto («Telefono pronto ✓»). «Gioca ›» resta sempre per te.
+  Se un telefono cade prima del tocco (scollegato, schermo spento) il computer dice perché e quel telefono ritocca.
+  (B47) Il conto di 3 secondi di questa pagina non c'è più: al suo posto il **conto alla rovescia grande in campo**
+  (capitolo 4), uguale per «Sono pronto» e per «Gioca ›».
 - Se sotto c'è scritto «Con «Gioca» prima qualche scambio di prova…», il primo «Gioca ›» fa gli scambi di prova e
   riporta qui: scegli e clicca di nuovo «Gioca ›».
 - (B39) Un doppio clic sul pulsante della pagina prima («Alla partita ›», nello stesso punto di «Gioca ›») non salta più
@@ -207,9 +212,15 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
 
 ### 3.3 A fine partita
 
-- **«Gioca ancora»**: la stessa persona. Con il telefono e «Calibrazione: Giocando» prima di nuovo gli scambi di prova
-  (circa 10 secondi; «Salta ›» li salta), poi «Pronto per la partita» → «Gioca ›». Nella sfida tra due computer è la
-  rivincita, subito.
+- **«Gioca ancora»** (contro la CPU, se vince chi gioca) o **«Rivincita»**: la stessa persona. (B47) Si apre la **scelta
+  del livello**, grande, già segnata con il livello di prima: contro la CPU «Chi gioca? Bambino · Ragazzo · Adulto»
+  (c'è anche «CPU Esperta» o «CPU Leggenda» se era quello il livello); nello stesso schermo la fascia di ciascun
+  giocatore con il suo nome. Un clic per cambiare, poi **«Gioca»** (un clic solo se il livello va bene così). Con il
+  telefono e «Calibrazione: Giocando» prima di nuovo gli scambi di prova (circa 10 secondi; «Salta ›» li salta), poi il
+  conto alla rovescia grande e la partita, senza ripassare dal menu. **«Altre impostazioni»** porta alla pagina «Pronto
+  per la partita» di sempre (durata, formato, chi batte…); **«‹ Indietro»** (o Esc) torna alla schermata finale.
+  **Tastiera:** frecce, Invio, Esc. **Telecomando:** frecce, OK, Indietro; «Gioca» gioca con il livello segnato; «Chi
+  gioca» cambia il livello anche da qui. Nella sfida tra due computer è la rivincita, subito.
 - **«Nuovo giocatore»**: una persona nuova; il telefono resta collegato. Si apre il foglio «Come ti chiami?»:
   1. «Giochi con la mano»: clicca «Sinistra» per un mancino (per ogni persona nuova torna «Destra»).
   2. Il nome: clic sul campo → tastiera a schermo → clic sui tasti → «Fatto» → «Avanti ›» (capitolo 3.6). Oppure
@@ -249,7 +260,13 @@ come Ospite»), oppure le frecce fino a «Gioca come Ospite» e OK. Il telecoman
   1. ognuno inquadra il suo QR e chiude il suo tutorial;
   2. quando sono pronti tutti e due, conto alla rovescia di 3 secondi. «Aspetta» lo ferma; poi «Gioca ›» fa partire;
   3. con «Calibrazione: Giocando», gli scambi di prova per tutti e due;
-  4. la partita.
+  4. (B47) il conto alla rovescia grande, **uno solo** al centro dello schermo intero: «Preparati · La partita sta per
+     cominciare · 3 · 2 · 1» con chi batte («Batte sempre Giulia»);
+  5. la partita.
+- (B47) A fine partita: «Rivincita» sul computer apre la scelta delle fasce (Bambino · Ragazzo · Adulto per ciascuno, con
+  i nomi; capitolo 3.3). Se la chiedono **tutti e due i telefoni** si apre la stessa scelta, che **parte da sola dopo 10
+  secondi** se nessuno la tocca (senza scambi di prova, come prima); un clic dello staff ferma la partenza da sola e si
+  aspetta «Gioca».
 - Per cambiare durata o chi batte: «Aspetta», poi «Impostazioni partita ›» in basso a destra (si attiva quando i due
   telefoni sono pronti). Nella pagina «Stesso schermo» che si apre, «Gioca ›» fa partire; resta grigio se un telefono
   non è pronto.
@@ -280,6 +297,13 @@ come Ospite»), oppure le frecce fino a «Gioca come Ospite» e OK. Il telecoman
 ---
 
 ## 4. In campo: la pausa e il riquadro del telefono
+
+**(B47) Il conto alla rovescia grande prima del primo punto.** A ogni partita con il telefono (contro la CPU e nello
+stesso schermo con i due telefoni, non con webcam o mouse e non nella sfida tra due computer), dopo gli scambi di prova o
+dopo «Gioca», compare al centro dello schermo «Preparati · La partita sta per cominciare · 3 · 2 · 1» con chi batte; i
+telefoni dicono «Si gioca tra 3». Intanto la partita è ferma al primo servizio: 3 secondi, poi «Start» e si gioca. Non
+si apre niente con il mouse: è solo da guardare. Se intanto si apre la pausa (o il pannello dello stand, o un telefono
+cade) il conto aspetta e poi riprende da dove era; non torna a «Riprendi» dopo una pausa a partita in corso.
 
 **Aprire la pausa.** **Mouse:** ❚❚, il pulsante tondo in alto a destra (un clic breve; tenuto 3 secondi apre il pannello
 dello stand, B39). **Tastiera:** Esc. **Telecomando:** «Pausa». La partita resta ferma finché la pausa è aperta. (B39) Il
@@ -388,7 +412,7 @@ telefono del giocatore è collegato, con la batteria su Android. Nel pannello la
 | ↑ ↓ ← → e **OK** | Come le frecce e Invio nel menu e nei fogli. **In partita non fanno niente**: non muovono il giocatore e non tirano colpi. |
 | **Indietro** | Come Esc: pagina precedente o foglio chiuso; chiude anche il pannello dello stand; in campo mette in pausa; a fine partita porta al menu. |
 | **Pausa / Riprendi** | Solo in campo. |
-| **Gioca** | Dal menu verso la partita contro la CPU; in «Pronto per la partita» è «Gioca!»; a fine partita «Gioca ancora»; sul risultato di un minigioco lo rigioca. |
+| **Gioca** | Dal menu verso la partita contro la CPU; in «Pronto per la partita» è «Gioca!»; a fine partita «Gioca ancora» (B47: apre la scelta del livello; lì «Gioca!» fa partire con il livello segnato); sul risultato di un minigioco lo rigioca. |
 | **Torna al menu** | Da dove sei; con una partita in corso il telefono chiede conferma. |
 | **Nuovo giocatore** | Come «Nuovo giocatore» del pannello; con una partita in corso chiede conferma. |
 | **Salta** | Intro, nome, scambi di prova (contro la CPU si va a «Pronto per la partita», nello stesso schermo parte la partita), riscaldamento, calibrazione con i gesti (anche nel riquadro del telefono), lezione. Negli esercizi dell'allenamento passa all'esercizio dopo. |
@@ -517,7 +541,10 @@ e menu del programma: capitolo 12.
 
 | Cosa | A cosa serve in fiera | Come si attiva |
 |---|---|---|
-| Formato in fiera | Game corti: punto decisivo sul 40-40, servizio ogni due punti | Pannello → «Formato in fiera». Di base solo nello stesso schermo; «Sì» anche contro la CPU e tra due computer |
+| Formato in fiera | Game corti: punto decisivo sul 40-40, servizio ogni due punti (con «Battuta: Alternata») | Pannello → «Formato in fiera». Di base solo nello stesso schermo; «Sì» anche contro la CPU e tra due computer |
+| Battuta: Sempre lo stesso (B47) | La gente non capisce il servizio alternato: contro la CPU batte sempre il visitatore, nello stesso schermo sempre chi batte il primo game | Di base (pannello → «Battuta») |
+| Conto alla rovescia grande (B47) | «Preparati, la partita sta per cominciare» 3 · 2 · 1 tra gli scambi di prova e la partita | Sempre, con il telefono; non va acceso |
+| Livello dopo «Rivincita» (B47) | Cambiare Bambino · Ragazzo · Adulto (o le fasce dei due) prima della rivincita, con un clic | A fine partita, «Rivincita» o «Gioca ancora» |
 | Scambio che si scalda | Scambi che finiscono, partite più corte | Acceso di base (pannello) |
 | Calibrazione: Giocando | Niente gesti a vuoto: ogni visitatore fa circa 10 secondi di scambi di prova prima di ogni partita | Di base (pannello → «Calibrazione») |
 | Chi gioca | Livello per età con un clic | Pagina «Pronto per la partita», o telecomando |
@@ -534,7 +561,9 @@ e menu del programma: capitolo 12.
   «Telefono · Scollega» né il chiosco, che lo scollegano e fanno rifare il QR.
 - **Due visitatori insieme.** «Gioca» → «Stesso schermo» → ognuno inquadra il suo QR (Player 1 a sinistra, Player 2 a
   destra). Quando sono pronti tutti e due: conto alla rovescia di 3 secondi, poi (con «Calibrazione: Giocando») gli
-  scambi di prova per tutti e due, poi la partita. Il formato in fiera qui è acceso di base. Dettagli: capitolo 3.5.
+  scambi di prova per tutti e due, poi il conto alla rovescia grande e la partita. Il formato in fiera qui è acceso di
+  base (con «Battuta: Sempre lo stesso» resta il punto decisivo, il servizio non cambia). Dettagli: capitolo 3.5.
+- **Rivincita con un livello diverso** (B47): a fine partita «Rivincita» → clic sul livello (o sulle fasce) → «Gioca».
 - **Stand senza staff per un po'.** Pannello → «Modalità chiosco: Sì». Al ritorno il telefono va ricollegato con il QR.
 - **Classifica sul ledwall.** Pannello → «Classifica · A schermo intero». (B39) Con il chiosco acceso resta in vista per
   chi è in fila. Per uscire: «× Chiudi» in alto a destra (compare muovendo il mouse), capitolo 11.
@@ -730,6 +759,7 @@ browser) si può aggiungere all'indirizzo del gioco, dopo «?», una o più di q
 |---|---|
 | formato=fiera · formato=classico | Formato in fiera acceso o spento per quella pagina. Il pannello mostra «(indirizzo)» accanto al valore: lì si cambia la scelta salvata, ma per quella pagina vale l'indirizzo. |
 | cal=giocando · cal=gesti · cal=nessuna | Calibrazione del telefono per quella pagina; anche qui «(indirizzo)» nel pannello. |
+| battuta=fissa · battuta=alternata | (B47) Battuta «Sempre lo stesso» o «Alternata» per quella pagina; anche qui «(indirizzo)» nel pannello. |
 | mode=bambini · casual · evento · pro · leggenda (o difficulty=) | Livello della CPU di base (casual = Facile, pro = Esperta); vale anche dopo «Nuovo giocatore» e il chiosco. |
 | schermo=intero · 2x2 · 3x2 (anche 16x9, 16x10, 4x3) | Area dello schermo, senza salvarla. |
 | area=x,y,larghezza,altezza | Area esatta in pixel, senza salvarla. |
@@ -774,6 +804,8 @@ browser) si può aggiungere all'indirizzo del gioco, dopo «?», una o più di q
   - Stand con il solo mouse (controllo e proposte): `docs/b39/controllo-solo-mouse/LISTA-UNICA-E-PROPOSTA-B39.md`;
     quello che è stato fatto: `docs/b39/stand-solo-mouse.md`
   - Modalità fiera (progetto): `docs/b41/progetto-modalita-fiera.md`
+  - Battuta a un solo giocatore, conto alla rovescia grande, livello dopo «Rivincita» (B47): `docs/b47/fiera-subito.md`
+    (codice `natpf_battuta.js`, `natpf_prematch.js`, `natpf_rematch.js`)
   - Tastiera a schermo e servizio animato: `docs/coda/B38-tastiera-a-schermo.md`, `docs/coda/B44-servizio-animato.md`;
     quello che è stato fatto: `docs/b38/tastiera-a-schermo.md` (codice `natpf_tastiera.js`, prova
     `tools/e2e/natpf-tastiera-schermo.mjs`) e `docs/b44/servizio-animato.md` (codice `natpf_serve_hint.js`)
