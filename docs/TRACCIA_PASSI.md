@@ -901,8 +901,20 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
       **2026-11-14.3** pubblicato su R2 alle 18:14 UTC e verificato dal link fisso: 128.127.554 B, sha256
       `411ea0192563bab87c133ffbafb4906db3598ffd2358f786e4fb3b98c3e70432`. «Come si attiva» mandato all'utente (dopo
       l'aggiornamento il telefono rifà il QR: la correzione sta anche nella pagina del telefono).
-- [~] Altre prove nel browser sul codice pubblicato (`scratchpad/v1403b/e2e.log`): b20, b25, training-reconnect,
-      tutorial-relink, fiera-telefoni, nuovo-giocatore, menu, tabellone, solo-mouse, tastiera-schermo, telecomando, chi-serve.
+- [x] Altre prove nel browser sul codice pubblicato (`scratchpad/v1403b/e2e.log`, carico della macchina 9–10): verdi
+      training-reconnect 6/6, tutorial-relink 9/9, nuovo-giocatore 28/28, menu 45/45, tabellone 41/41, solo-mouse 42/42,
+      tastiera-schermo 53/53. **Da sistemare nella 14.4** (difetti veri, piccoli):
+      1. `natpf-stesso-schermo-b20` punto 6 (50/52): con la pagina di un telefono CHIUSA in partita il riquadro ora dice
+         «Telefono di Giulia scollegato · si ricollega da solo» (B45.1) e la prova aspetta «…in pausa»; con la parola «cl»
+         `pagina` il computer sa che la pagina è stata chiusa: titolo giusto («pagina chiusa · inquadra il QR») e prova
+         aggiornata. Il B45.1 non aveva la b20 tra le sue prove.
+      2. `natpf-stesso-schermo-b25` (54/55): pannello dello stand a 1024×600 con quattro opzioni accese che scorre di 5 px
+         (voce «Battuta» del B47 + riga delle cadute del B45.1); «Chiudi» resta in vista.
+      3. `natpf-fiera-telefoni` (28/33): la prova aspetta ancora il conto piccolo dopo «Sono pronto», tolto dal B47; la
+         modalità fiera oggi si accende solo da console: la aggiorna la B41 seconda parte (già fatto nel suo ramo, 2ffa80f).
+      Di tempi sotto carico (da rifare da sole): b20 «richiamo per nome» (il riquadro è giusto, manca solo il tempo
+      `called`), telecomando 90/91 («Salta» dal telecomando, già visto e passato da solo due volte), chi-serve 63/64
+      (costo del disegno 1,34 ms contro 1 ms con la grafica in software).
 - [~] In corso: B45.1 fase B (motivi delle cadute nel pannello e nel registro, rifiniture della 14.2, tasto Alt in
       finestra, documenti) → 14.4; B41 seconda parte (`b41-fiera-2`).
 - Non provato: rete vera di una fiera, telefoni veri, Windows, ledwall. La 14.3 va confermata dall'utente allo stand.
