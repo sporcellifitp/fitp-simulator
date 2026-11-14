@@ -315,7 +315,8 @@ export class NatpfUi {
     this.events.abort();
     this.split?.end();
     E.natpfPaused = false; E.hud.hideVictoryModal?.(); E.hud.hideCenterBanner();
-    Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
+    // (B47: fixed, la battuta «Sempre lo stesso» della partita chiusa, non vale per allenamento e minigiochi)
+    Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true, fixed: false });
     E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
     E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go(step); this._syncPause();
     // B18.2 gruppo 3: tornare al menu principale chiude la serie di partite di un giocatore: il livello Evento riparte

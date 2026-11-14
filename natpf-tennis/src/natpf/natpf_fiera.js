@@ -30,12 +30,10 @@ export function readFairMode(){
 }
 export function writeFairMode(on){ try { localStorage.setItem(FAIR_MODE_KEY, on ? '1' : '0'); } catch {} }
 
-// B41 (decisione dell'utente del 13/11): in fiera contro la CPU batte SEMPRE il visitatore, in tutti i game. Funzione pura
-// per chi decide chi batte il game che comincia (la userà la pagina della fiera, B41.5): normal è chi batterebbe con le
-// regole di sempre; in due (stesso schermo, due computer) e fuori dalla fiera restano le regole
-export function fairServer({ fair = false, mode = 'cpu', normal = 'player' } = {}){
-  return fair && mode === 'cpu' ? 'player' : normal;
-}
+// B41 (decisione dell'utente del 13/11): in fiera contro la CPU batte SEMPRE il visitatore, in tutti i game. Funzione pura:
+// normal è chi batterebbe con le regole di sempre; in due (stesso schermo, due computer) restano le regole. Dal B47 sta in
+// natpf_battuta.js e la usa il punteggio (opzione dello stand «Battuta: Sempre lo stesso», di base, anche fuori dalla fiera)
+export { fairServer } from './natpf_battuta.js';
 
 // posto abbinato su questo computer (salvato dal guardiano del posto, stand-pairing.createStandGate)
 export function standPaired(slot, storage = typeof localStorage !== 'undefined' ? localStorage : null){
