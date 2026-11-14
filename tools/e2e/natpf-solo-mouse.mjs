@@ -7,6 +7,10 @@
 //     mano che trema un poco) e da un'altra pagina (marchio piccolo);
 //   • «Diagnostica» dal pannello e ritorno al pannello; «Azzera oggi» con il secondo clic, nessuna finestra di Windows;
 //   • classifica a schermo intero e uscita con «× Chiudi» (compare muovendo il mouse);
+//   • doppio clic (B39.2, secondo clic a 110, 250 e 300 ms come nel controllo) che non sceglie niente nella pagina dopo:
+//     «Gioca», «Allenamento», «Minigiochi», «Contro la CPU», «‹ Indietro», «Alla partita ›» (stesso punto di «Gioca ›»),
+//     voci a giro del pannello, «Avanti ›» della guida; un clic singolo 100 ms dopo il passaggio automatico di pagina non
+//     conta, uno dopo 700 ms sì (con ?guardia=1: nelle prove automatiche la regola del clic in ritardo vale solo così);
 //   • partita con la racchetta mouse della modalità prova: ❚❚ breve = pausa, ❚❚ tenuto 3 s = pannello dello stand con la
 //     partita ferma e senza la pausa; riquadro «Telefono in pausa» sotto la pausa (non copre «Riprendi ›»).
 //   (Il nome dei minigiochi, i due nomi dello stesso schermo e il codice della sfida sono del B38: tastiera a schermo e
@@ -45,7 +49,7 @@ try {
   await g.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ body: '', contentType: 'text/css' }));
   // racchetta mouse della modalità prova (per giocare una partita senza telefono), niente scambi di prova, batte la CPU
   await g.addInitScript(() => { try { if (!sessionStorage.getItem('b39-init')){ sessionStorage.setItem('b39-init', '1'); localStorage.setItem('natpf-tennis.controller', 'mouse'); localStorage.setItem('natpf-tennis.testInput', '1'); localStorage.setItem('natpf-tennis.calibrazione', 'none'); localStorage.setItem('natpf-tennis.serve', 'opponent'); } } catch {} });
-  await g.goto(`http://127.0.0.1:${GAME_PORT}/?peer=127.0.0.1:${PEER_PORT}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await g.goto(`http://127.0.0.1:${GAME_PORT}/?guardia=1&peer=127.0.0.1:${PEER_PORT}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await g.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby && window.__natpfTennis.player?.model, null, { timeout: 180000 });
   // grafica in software lenta: si disegna solo per le schermate (come natpf-pannello-partita)
   await g.evaluate(() => { const E = __natpfTennis; E.__render = E.render.bind(E); E.render = () => {}; });
@@ -134,12 +138,85 @@ try {
   await clickAt('#natpf-staff [data-staff="close"]');
   await clickAt('#lobby-back');
 
-  /* ---------- 7. partita con la racchetta mouse: ❚❚ breve = pausa, ❚❚ tenuto 3 s = pannello ---------- */
-  await clickAt('[data-page="menu"] [data-menu="play"]', { wait: 900 });
+  /* ---------- 7. doppio clic (B39.2): il secondo clic non sceglie niente nella pagina dopo ---------- */
+  // secondo clic dopo gap ms nello stesso punto, con clickCount 2 come lo manda il sistema in un doppio clic (premuto e
+  // rilasciato una volta: mouse.click con clickCount 2 farebbe da solo due clic, 1 e 2)
+  const dbl = async (sel, gap = 110) => {
+    const r = await where(sel); if (!r.found) return r;
+    await g.mouse.move(r.x, r.y, { steps: 3 });
+    await g.mouse.click(r.x, r.y); await g.waitForTimeout(gap); await g.mouse.down({ clickCount: 2 }); await g.mouse.up({ clickCount: 2 });
+    await g.waitForTimeout(900);
+    return r;
+  };
+  const dropped = () => g.evaluate(() => __natpfTennis.natpfUi.mouse.guard.dropped.map(d => d.v));
+  const toMenu = () => g.evaluate(() => { const u = __natpfTennis.natpfUi; u.onboarding.isOpen && u.onboarding.close(); u.lobby.go('menu'); });
+  await toMenu(); await g.waitForTimeout(600);
+  const ctrl0 = await g.evaluate(() => __natpfTennis.natpfUi.controller);
+  const d1 = [];
+  for (const gap of [110, 250, 300]){
+    await toMenu(); await g.waitForTimeout(600);
+    await dbl('[data-page="menu"] [data-menu="play"]', gap);
+    d1.push((await st()).step + ':' + (await g.evaluate(() => __natpfTennis.natpfUi.lobby.mode)));
+  }
+  check('doppio clic su «Gioca» (110, 250, 300 ms): resta «Con chi giochi?» (prima finiva in «Stesso schermo» o «Sfida un amico»)', d1.every(x => x.startsWith('mode:')) && !d1.some(x => /split|friend/.test(x)), d1.join(' '));
+  await toMenu(); await g.waitForTimeout(600);
+  await dbl('[data-page="menu"] [data-menu="training"]', 110);
+  const d2 = await g.evaluate(() => ({ step: __natpfTennis.natpfUi.lobby.step, controller: __natpfTennis.natpfUi.controller, webcam: !!__natpfTennis.motionController?.webcamActive }));
+  check('doppio clic su «Allenamento»: pagina della racchetta, racchetta invariata, webcam spenta', d2.step === 'controller' && d2.controller === ctrl0 && !d2.webcam, JSON.stringify(d2));
+  await toMenu(); await g.waitForTimeout(600);
+  await dbl('[data-page="menu"] [data-menu="challenges"]', 110);
+  const d3 = await g.evaluate(() => ({ step: __natpfTennis.natpfUi.lobby.step, nick: !document.getElementById('natpf-nick').classList.contains('hidden') }));
+  check('doppio clic su «Minigiochi»: pagina dei minigiochi, nessun foglio del nickname aperto', d3.step === 'challenges' && !d3.nick, JSON.stringify(d3));
+  const d4 = [];
+  for (const gap of [250, 300]){
+    await toMenu(); await g.waitForTimeout(600);
+    await clickAt('[data-page="menu"] [data-menu="play"]', { wait: 900 });
+    await dbl('[data-page="mode"] [data-mode="cpu"]', gap);
+    d4.push((await st()).step);
+  }
+  check('doppio clic su «Contro la CPU» a 250 e 300 ms: pagina della racchetta (prima la saltava)', d4.every(x => x === 'controller'), d4.join(' '));
+  await dbl('#lobby-back', 110);
+  check('doppio clic su «‹ Indietro» dalla racchetta: una pagina sola («Con chi giochi?»)', (await st()).step === 'mode', (await st()).step);
   await clickAt('[data-page="mode"] [data-mode="cpu"]', { wait: 1100 });
   await clickAt('[data-page="controller"] [data-natpf-controller="mouse"]', { wait: 1100 });
   s = await st();
-  if (s.step === 'connect') await clickAt('#lobby-next', { wait: 1100 });
+  check('«Mouse e tastiera»: pagina «Collega»', s.step === 'connect', s.step);
+  const nextR = await where('#lobby-next'), playR0 = await g.evaluate(() => { const b = document.getElementById('btn-start-match'); return b.getBoundingClientRect().toJSON?.() || null; });
+  await dbl('#lobby-next', 110);
+  s = await st();
+  check('doppio clic su «Alla partita ›»: «Pronto per la partita» e la partita NON parte (prima partiva senza scegliere)', s.step === 'match' && s.lobby && !s.inGame, JSON.stringify({ s, prossimo: nextR.top }));
+  // pannello: voce a giro con il doppio clic → un passo solo
+  const idle0 = await g.evaluate(() => __natpfTennis.natpfUi.kiosk.limit);
+  await g.evaluate(() => __natpfTennis.natpfUi.kiosk.open()); await g.waitForTimeout(500);
+  await dbl('#natpf-staff [data-staff="idle"]', 110);
+  const idle1 = await g.evaluate(() => __natpfTennis.natpfUi.kiosk.limit);
+  const steps = [30, 45, 60, 90], one = steps[(steps.indexOf(idle0) + 1) % 4];
+  check('doppio clic su una voce a giro del pannello («Ritorno al menu dopo»): un passo solo', idle1 === one, JSON.stringify({ prima: idle0, dopo: idle1, atteso: one }));
+  await g.evaluate(l => { const k = __natpfTennis.natpfUi.kiosk; k.limit = l; k._save(); k.paint(); k.close(); }, idle0);
+  await g.waitForTimeout(500);
+  // guida: «Avanti ›» con il doppio clic → una scheda sola
+  await clickAt('#lobby-help', { wait: 900 });
+  await dbl('#onb-next', 110);
+  const card = await g.evaluate(() => __natpfTennis.natpfUi.onboarding.index);
+  check('doppio clic su «Avanti ›» della guida: una scheda sola (prima saltava la seconda)', card === 1, String(card));
+  await clickAt('#onb-close', { wait: 700 });
+  const dd = await dropped();
+  check('la guardia ha scartato i secondi clic come «doppio»', dd.filter(v => v === 'doppio').length >= 10, dd.join(','));
+
+  /* ---------- 8. partita con la racchetta mouse: ❚❚ breve = pausa, ❚❚ tenuto 3 s = pannello ---------- */
+  // clic singolo 100 ms dopo il passaggio automatico alla pagina «Pronto per la partita» (qui fatto dal codice, come il
+  // telefono pronto): non conta; 700 ms dopo sì
+  await g.evaluate(() => __natpfTennis.natpfUi.lobby.go('connect')); await g.waitForTimeout(800);
+  const playR = await where('#btn-start-match'), nxt = await where('#lobby-next');
+  await g.mouse.move(nxt.x, nxt.y, { steps: 3 });
+  await g.evaluate(() => __natpfTennis.natpfUi.lobby.go('match'));
+  await g.waitForTimeout(100);
+  const pr = await where('#btn-start-match');
+  await g.mouse.click(pr.x, pr.y);
+  await g.waitForTimeout(800);
+  s = await st();
+  const late = (await dropped()).at(-1);
+  check('clic singolo 100 ms dopo il passaggio automatico di pagina: non conta (la partita non parte)', s.step === 'match' && s.lobby && !s.inGame && late === 'tardi', JSON.stringify({ s, ultimo: late, stessoPunto: Math.abs(nxt.x - pr.x) < 2 && Math.abs(nxt.y - pr.y) < 2 }));
   s = await st();
   check('Gioca → Contro la CPU → Mouse e tastiera → «Pronto per la partita», un clic alla volta', s.step === 'match', JSON.stringify(s));
   await clickAt('#btn-start-match', { wait: 300 });
@@ -163,7 +240,7 @@ try {
   s = await st();
   check('«Chiudi»: la partita riparte', !s.staff && !s.paused && !s.pause, JSON.stringify(s));
 
-  /* ---------- 8. riquadro «Telefono in pausa» sotto la pausa (B39.3, n. 13) ---------- */
+  /* ---------- 9. riquadro «Telefono in pausa» sotto la pausa (B39.3, n. 13) ---------- */
   await g.evaluate(() => __natpfTennis.natpfUi._paintHold('Telefono in pausa', 'Riaccendi lo schermo del telefono: si riparte da soli.', { label: 'Ricollega il telefono', run(){} }));
   await clickAt('#natpf-pause-btn', { wait: 500 });
   const resume = await where('#natpf-pause [data-pause="resume"]'), menuBtn = await where('#natpf-pause [data-pause="menu"]');

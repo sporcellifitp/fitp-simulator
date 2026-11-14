@@ -10,9 +10,12 @@
 //   • pannello dello stand da ogni pagina (B39.3): ❚❚ tenuto 3 secondi in campo lo apre (il clic breve resta la pausa; i
 //     marchi del menu li collega natpf_kiosk.js, tutti con natpf_hold.js); uscita dalla classifica a schermo intero con
 //     «× Chiudi» in alto a destra, che compare quando si muove il mouse; nel pannello la riga sotto le voci spiega la voce
-//     sotto il puntatore (prima le spiegazioni stavano solo nei fumetti).
+//     sotto il puntatore (prima le spiegazioni stavano solo nei fumetti);
+//   • guardia del doppio clic (B39.2, natpf_click_guard.js): il secondo clic di un doppio clic e il clic arrivato subito
+//     dopo un cambio di schermata non scelgono niente nella schermata nuova.
 // Funzioni pure in testa (provate con node:test); la classe tocca il DOM solo nel costruttore e nei gestori.
 import { HoldPress } from './natpf_hold.js';
+import { ClickGuard } from './natpf_click_guard.js';
 export const LINK_TEXT = 'Il link è per il telefono: inquadra il QR con la fotocamera del telefono';
 // spiegazione di ogni voce del pannello dello stand, nella riga sotto le voci quando il puntatore ci passa sopra (le voci con
 // un fumetto, title, usano quello)
@@ -51,6 +54,14 @@ export class NatpfStandMouse {
     this.engine = engine; this.ui = ui;
     const desk = globalThis.window?.natpfDesktop;
     this.desktop = !!desk;
+    // B39.2 · guardia del doppio clic, in cattura sulla finestra; ogni pagina nuova della lobby è un cambio di schermata
+    // (i fogli aperti e chiusi li vede la guardia da sé)
+    this.guard = new ClickGuard({ onDrop: (v, el) => ui.diag?.recorder?.log?.('mouse.clicScartato', { perche: v, voce: el?.id || el?.dataset?.staff || el?.dataset?.menu || '' }) });
+    const lobby = ui.lobby;
+    if (lobby?.go){
+      const go = lobby.go.bind(lobby);
+      lobby.go = (...a) => { const step = lobby.step, vis = lobby.visible, r = go(...a); if (lobby.step !== step || lobby.visible !== vis) this.guard.mark(); return r; };
+    }
     try { desk?.commands?.onCommand?.(cmd => this.command(cmd)); } catch (e){ console.warn('[natpf-mouse] comandi', e?.message || e); }
     try { desk?.notices?.onNotice?.(n => this.notice(n)); } catch (e){ console.warn('[natpf-mouse] avvisi', e?.message || e); }
     const win = globalThis.window, doc = globalThis.document;

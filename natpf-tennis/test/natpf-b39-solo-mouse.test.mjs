@@ -159,3 +159,39 @@ test('B39.3 · spiegazioni delle voci del pannello sotto il puntatore', () => {
   assert.match(staffHint('reset'), /secondo clic/);
   assert.equal(staffHint('sconosciuta'), '');
 });
+
+/* ---------- B39.2 · guardia del doppio clic ---------- */
+import { GUARD, GUARDED, EXEMPT, clickVerdict, lateRule, ClickGuard } from '../src/natpf/natpf_click_guard.js';
+
+test('B39.2 · regola del doppio clic: secondo clic e clic entro 450 ms da un cambio di schermata non contano; codice, tasti, calibrazione e campi sì', () => {
+  assert.equal(GUARD.ms, 450);
+  assert.equal(clickVerdict({ detail: 2 }), 'doppio'); assert.equal(clickVerdict({ detail: 3 }), 'doppio');
+  assert.equal(clickVerdict({ detail: 1, now: 1000, changedAt: 600 }), 'tardi', '400 ms dopo il cambio');
+  assert.equal(clickVerdict({ detail: 1, now: 1000, changedAt: 550 }), false, '450 ms dopo: conta');
+  assert.equal(clickVerdict({ detail: 1, now: 1000 }), false, 'nessun cambio');
+  assert.equal(clickVerdict({ detail: 2, trusted: false }), false, 'el.click() del codice');
+  assert.equal(clickVerdict({ detail: 0, now: 1000, changedAt: 990 }), false, 'Invio sulla voce (detail 0)');
+  assert.equal(clickVerdict({ detail: 2, exempt: true }), false, 'calibrazione dello schermo, campi');
+  assert.equal(clickVerdict({ detail: 2, guarded: false }), false, 'non un pulsante (campo da gioco)');
+  assert.equal(clickVerdict({ detail: 1, now: 1000, changedAt: 900, late: false }), false, 'prove automatiche senza ?guardia=1');
+  assert.equal(clickVerdict({ detail: 2, late: false }), 'doppio', '… il doppio clic vale sempre');
+  assert.equal(lateRule({}), true); assert.equal(lateRule({ webdriver: true }), false); assert.equal(lateRule({ webdriver: true, search: '?guardia=1&x=2' }), true);
+  for (const s of ['button', '.lobby-tile', '.menu-item']) assert.ok(GUARDED.includes(s));
+  for (const s of ['#natpf-calibra', 'input', 'textarea']) assert.ok(EXEMPT.includes(s));
+});
+
+test('B39.2 · ClickGuard: in cattura sulla finestra ferma il clic scartato prima di ogni gestore e lo annota', () => {
+  let t = 1000, listener = null;
+  const win = { addEventListener: (type, fn, cap) => { if (type === 'click' && cap === true) listener = fn; } };
+  const g = new ClickGuard({ win, doc: null, now: () => t });
+  assert.equal(typeof listener, 'function', 'ascolto in cattura sulla finestra');
+  g.late = true;
+  const btn = { id: 'lobby-next', dataset: {}, textContent: 'Avanti ›', closest: sel => (sel === GUARDED ? btn : null) };
+  const ev = (detail, trusted = true) => ({ target: btn, detail, isTrusted: trusted, stopped: 0, prevented: false, preventDefault(){ this.prevented = true; }, stopImmediatePropagation(){ this.stopped++; }, stopPropagation(){ this.stopped++; } });
+  let e = ev(1); listener(e); assert.ok(!e.prevented && !e.stopped, 'primo clic: passa');
+  e = ev(2); listener(e); assert.ok(e.prevented && e.stopped === 2, 'secondo clic: fermato');
+  g.mark(); t = 1300; e = ev(1); listener(e); assert.ok(e.prevented, 'clic 300 ms dopo il cambio di pagina: fermato');
+  t = 1460; e = ev(1); listener(e); assert.ok(!e.prevented, '460 ms dopo: passa');
+  e = ev(2, false); listener(e); assert.ok(!e.prevented, 'clic del codice: passa');
+  assert.deepEqual(g.dropped.map(d => [d.v, d.what]), [['doppio', 'lobby-next'], ['tardi', 'lobby-next']]);
+});
