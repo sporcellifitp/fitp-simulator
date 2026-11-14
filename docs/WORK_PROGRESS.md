@@ -2024,3 +2024,34 @@ documenti; unione e versione le fa chi unisce in `natpf-simulator`.
   Guardia del doppio clic con `#natpf-tastiera` (B38) tra le eccezioni, per l'unione con il B38.
 - [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`;
   decisioni da chiedere all'utente nel documento (audio salvato, «Chi gioca» salvato, «Schermo intero» per sbaglio).
+
+## B46 · Dritto e rovescio al sicuro (14/11, ramo `b46-lato-sicuro`, documento `docs/b46/lato-sicuro.md`) · [x] verificato sul ramo, da unire
+Segnalazione dell'utente sulla 2026-11-14.1 (Android, stesso schermo, Player 1, «Giocando», dal primo colpo): «se provavo
+a fare un rovescio mi veniva fuori un dritto lungolinea, se facevo un dritto veniva fuori un rovescio incrociato».
+L'indagine (`scratchpad/swap/split-ruoli-mano/`) ha trovato tre casi con quelle scritte esatte: mano del Player 1 salvata
+«sinistra» (un tocco sul telefono), segno dell'accelerazione del telefono cambiato dopo gli scambi di prova (tocchi al
+servizio), segno del rilevatore cambiato dopo. Base `int-b38-b39` (`55e818a`). Chiusi tutti e tre, con il registro che
+dice quale se ricapita.
+- [x] B46.1 · telefono (commit `b4a2ea8`): `phone-screen.js` `handTap`/`handLabel` (mano con due tocchi, «Mancino? Tocca di
+  nuovo» per 4 s) e `tapVotesSign` (tocchi che votano il segno solo in «Attiva i sensori», tutorial, calibrazione e
+  «Pronto» al menu; mai in serve/toss/play né negli scambi di prova); `racchetta.js` (riga della mano, voto con la regola,
+  messaggio `sgn` al voto del rilevatore); `link.js` (`sgn` → evento `sign`); `racchetta.html` (stile della domanda);
+  `tools/e2e/gesture-calibration.mjs` con i due tocchi. Verifiche: `tools/test/b46-lato-sicuro.test.mjs` 6/6, sito 254/254.
+- [x] B46.2 · computer (commit `4f2daf0`): `natpf_hand.js` (`set(h, causa)`, `resetHands`), `natpf_phone_racket.js`
+  (`setHand(h, causa)` → `_diag('mano')`, `_accSignSeen` dal «dev», `_detectorSign`, eventi `'prova'` e
+  `'calibrazione'` → `_diag('verso')`), `natpf_hand_notice.js` (nuovo: avviso 3 s), «Mancino» in `natpf_trial.js`,
+  `natpf_split_ui.js` (anche la mano dal telefono del P2 passa da `_applyHand`) e `natpf_lobby.js`; `natpf_kiosk.js` e
+  `natpf_new_player.js` (destri P1 e P2); registro (`registro_registratore._telMotivo`, riga `tel` con soli campi già in
+  CAMPI), riassunto (`scripts/registro/riassunto.mjs`, due tabelle), diagnostica (`diag_recorder`, `diag_viewer`);
+  `index.html` e `natpf-ui.css` (cqw/cqh). Verifiche: `natpf-b46-lato-sicuro` 9/9, `natpf-b46-caso-utente` 5/5 (dal
+  `B-stesso-schermo.mjs` dell'indagine), riassunto 12/12; gioco 1575/1575.
+- [x] B46.3 · prova nel browser (commit `e6fe721`): `tools/e2e/natpf-mano-sicura.mjs` (nuova) 17/17 a 1280×720 e a 720×720;
+  «Mancino» sulla stessa riga del titolo di «Pronto per la partita».
+- [x] B46.4 · diagnostica (commit `399107c`): `diag_metrics.js` (tel.mano, tel.verso nelle metriche e nel riassunto in
+  parole). Verifiche: test della diagnostica 43/43, `natpf-b46-lato-sicuro` 10/10.
+- [x] B46.5 · documenti: `docs/b46/lato-sicuro.md` (perché, cosa cambia, come si attiva, prove, limiti), questa voce,
+  `docs/PROJECT_MEMORY.md` (sezione B46), `docs/GUIDA_STAND.md` (riga «Giochi con la mano»).
+  Non verificato: telefoni veri (Android, iPhone), programma Windows, ledwall vero, pagine del telefono rimaste in cache
+  con la versione di prima. Punto aperto per il coordinatore: segno imparato rimesso a +1 (deciso) o girato (esatto se
+  il telefono passa da giusto a sbagliato tra gli scambi di prova e la partita: documento, «Limiti»).
+

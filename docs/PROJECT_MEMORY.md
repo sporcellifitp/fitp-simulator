@@ -1150,3 +1150,35 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   aperti; la calibrazione dello schermo lasciata aperta la annulla ancora (B8, prova `natpf-calibra.test.mjs`).
 - **Da decidere con l'utente** (non fatto): audio spento salvato, «Chi gioca» salvato, «Schermo intero» premuto per
   sbaglio che resta salvato nel programma, tasto «indietro» del mouse come «‹ Indietro» nel menu.
+
+## B46 · Dritto e rovescio al sicuro (14/11/2026; documento `docs/b46/lato-sicuro.md`)
+Segnalazione sulla 2026-11-14.1 (stesso schermo, Player 1, Android, «Giocando»): dritto e rovescio scambiati in partita.
+Tre casi danno quelle scritte esatte (indagine `scratchpad/swap/split-ruoli-mano/`): **mano** del Player 1 salvata sinistra,
+**segno dell'accelerazione** del telefono cambiato dopo gli scambi di prova, **segno del rilevatore** cambiato dopo.
+- **Mano dal telefono con due tocchi** (`phone-screen.handTap`): il primo chiede «Mancino? Tocca di nuovo» (o «Destro? …»)
+  per 4 s e non cambia niente. Chi aggiunge un altro modo di cambiare la mano dal telefono deve passare da lì.
+- **La mano sinistra si vede dove guarda chi gioca**: «Mancino» (`.hand-tag`) nella riga dei puntini degli scambi di
+  prova, nella targhetta della propria metà dello stesso schermo, accanto al titolo «Pronto per la partita»; avviso grande
+  di 3 s sul computer (`natpf_hand_notice.js`) **solo** per un cambio arrivato dal telefono.
+- **Causa del cambio di mano**: `NatpfHand.set(h, causa)`, `NatpfPhoneRacket.setHand(h, causa)`, `NatpfSplitUi.setHand(id,
+  h, causa)`: 'gioco' (di base), 'telefono', 'nuovo giocatore', 'chiosco', 'fiera'. Ogni cambio vero passa da
+  `_diag('mano', { mano, causa, ruolo })` (registro, diagnostica, avviso): chi aggiunge un modo di cambiare la mano dice
+  la causa.
+- **Ogni visitatore nuovo parte destro**, Player 1 e Player 2: `natpf_hand.resetHands(ui, causa)` da «Nuovo giocatore»
+  (ogni strada), dal chiosco e, quando ci sarà, dal «Prossimo giocatore» della fiera (`'fiera'`). **Non** al riavvio del
+  programma (la mano salvata resta).
+- **Segni coerenti**: i tocchi votano il segno dell'accelerazione (`motion-sign.js`) solo con il telefono da leggere
+  (`phone-screen.tapVotesSign`: «Attiva i sensori», tutorial, calibrazione, «Pronto» al menu; mai serve/toss/play né
+  scambi di prova, né pausa o partita finita). Chi aggiunge un tocco sul telefono in gioco non deve farlo votare. Se il
+  segno dell'accelerazione cambia (messaggio «dev» con `as` diverso: `NatpfPhoneRacket._accSignSeen`) il segno imparato
+  dagli scambi di prova torna +1 e mira, salita e piatto ripartono (causa 'tocchi' nello stesso collegamento, 'pagina'
+  con uno nuovo). Il voto del rilevatore (`absSign`) resta com'è: arriva subito con il messaggio `sgn` (o con il colpo,
+  `sg`), azzera i riferimenti per verso e si registra; **non** tocca il segno imparato (lo corregge, non lo raddoppia).
+  Punto aperto: +1 o girato quando il telefono passa da giusto a sbagliato tra scambi di prova e partita (documento).
+- **Registro dello stand**: riga `tel` con `motivo: 'mano'` (mano, causa, ruolo) o `motivo: 'segno'` (stato = segno
+  nuovo, causa 'tocchi' | 'pagina' | 'rilevatore' | 'prova' | 'calibrazione', ruolo), solo campi già in CAMPI (il Worker
+  non va ricaricato); nel riassunto le tabelle «Mano cambiata» e «Segno del verso del telefono cambiato». Diagnostica:
+  `tel.mano`, `tel.verso` (e `tel2.*`), righe nel riassunto in parole.
+- **Prove**: `natpf-b46-lato-sicuro`, `natpf-b46-caso-utente` (il caso dell'utente con la pagina del telefono simulata dalle
+  sue funzioni pure), `tools/test/b46-lato-sicuro`, nel browser `natpf-mano-sicura` (anche `AREA=720`).
+
