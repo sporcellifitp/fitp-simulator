@@ -82,6 +82,8 @@ export class NatpfDiag {
     const back = this._back; this._back = null;
     this.on = false; this.el?.classList.add('hidden'); this.ui?._syncPause?.();
     if (!quiet && back === 'pause' && this.ui?.pause?.inGame && !this.ui.pause.isOpen) this.ui.pause.open();
+    // B39: aperta dal pannello dello stand (voce «Diagnostica», o tasto destro con il pannello aperto): si torna al pannello
+    else if (!quiet && back === 'staff' && !this.ui?.kiosk?.isOpen) this.ui?.kiosk?.open?.();
   }
   _build(){
     if (this.el) return;

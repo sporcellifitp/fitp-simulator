@@ -14,9 +14,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings,
+import { DESKTOP, chooseDisplay, nextDisplay, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings,
   windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, UPDATE_ACTIONS,
-  startupDisplayQuestion, displayAnswer, displaysState, displayPixels } from './desktop-core.mjs';
+  startupDisplayQuestion, displayAnswer, displaysState, displayPixels,
+  COMMANDS, PAGE_COMMANDS, staffMenu, appMenu, menuCommands, contextMenuMode, navigationAllowed, downloadTarget, downloadAllowed,
+  busyPort, netstatListener, tasklistImage, startupProblem } from './desktop-core.mjs';
 import { UPDATES, Updater, readUpdateConfig, updateEnv, installerLaunchArgs } from './aggiornamenti.mjs';
 import { REGISTRO_PC, creaCodaRegistro, leggiIndirizzo } from './registro.mjs';
 
@@ -40,6 +42,21 @@ function log(...a){
   try { fs.mkdirSync(path.dirname(LOG), { recursive: true }); fs.appendFileSync(LOG, line); } catch {}
   console.log(line.trim());
 }
+// B39 n. 5: un errore non gestito nel processo principale (prima: la finestra inglese di Electron «A JavaScript error
+// occurred in the main process» con il solo «OK», e niente nel registro) va nel registro e in una finestra italiana con
+// «Continua», «Riavvia il programma» e «Chiudi il programma». Una finestra alla volta; gli altri errori solo nel registro
+let crashBox = false;
+process.on('uncaughtException', e => {
+  log('errore non gestito', e?.stack || String(e));
+  if (crashBox || !app.isReady()) return;
+  crashBox = true;
+  dialog.showMessageBox(win && !win.isDestroyed() ? win : undefined, { type: 'error', title: 'NATPF Simulator', message: 'Errore nel programma.',
+    detail: `${String(e?.message || e).slice(0, 300)}\n\nSe il gioco non risponde, riavvia il programma. Registro: ${LOG}`,
+    buttons: ['Continua', 'Riavvia il programma', 'Chiudi il programma'], defaultId: 0, cancelId: 0, noLink: true })
+    .then(r => { crashBox = false; if (r.response === 1) restartApp(); else if (r.response === 2) app.quit(); }, () => { crashBox = false; });
+});
+process.on('unhandledRejection', e => log('promessa rifiutata senza gestione', e?.stack || String(e)));
+function restartApp(){ log('riavvio del programma'); app.relaunch(); app.quit(); }
 
 // registro dello stand (B30): coda dei blocchi di righe di gioco non ancora inviati, accanto a programma.log. Sul PC
 // resta solo quello che non è ancora arrivato allo spazio Cloudflare dell'utente (src/registro.mjs)
@@ -106,7 +123,12 @@ app.on('certificate-error', (event, _wc, url, _error, certificate, callback) => 
   if (own){ event.preventDefault(); callback(true); } else callback(false);
 });
 
-const loading = text => `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><html lang="it"><body style="margin:0;height:100vh;display:grid;place-items:center;background:#050a1c;color:#f4f6fc;font:600 22px system-ui,sans-serif"><div style="text-align:center"><div style="font:italic 800 56px system-ui,sans-serif;letter-spacing:.02em">NATPF <span style="color:#ff3d8b;font-size:28px">SIMULATOR</span></div><p>${text}</p></div></body></html>`)}`;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// pagina «Avvio del gioco…» (e, B39, il motivo quando il gioco non parte: si legge sul ledwall anche se la finestra di
+// Windows con «Riprova» compare altrove). Tasto destro: i comandi del programma (contextMenuMode 'avvio')
+const loading = (text, note = '') => `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><html lang="it"><body style="margin:0;height:100vh;display:grid;place-items:center;background:#050a1c;color:#f4f6fc;font:600 22px system-ui,sans-serif"><div style="text-align:center;max-width:80vw"><div style="font:italic 800 56px system-ui,sans-serif;letter-spacing:.02em">NATPF <span style="color:#ff3d8b;font-size:28px">SIMULATOR</span></div><p>${esc(text)}</p>${note ? `<p style="font-weight:400;font-size:18px;color:#c9d2ee">${esc(note)}</p>` : ''}</div></body></html>`)}`;
+let loadingShown = false;
+async function showLoading(text, note = ''){ loadingShown = true; try { await win?.loadURL(loading(text, note)); } catch (e){ log('pagina di avvio non mostrata', e.message); } }
 
 async function startServers(){
   const imp = rel => import(pathToFileURL(path.join(ROOT, rel)).href);
@@ -118,13 +140,29 @@ async function startServers(){
   addresses = lanAddresses();
   log('certificato', { ips: cert.ips, nuovo: cert.renewed, cartella: certificateDir });
   const { startNatpfLan } = await imp('natpf-tennis/lan/server.mjs');
+  // (B39: la pagina dell'avvio guidato su una porta scelta dal sistema, DESKTOP.setupPort = 0: nel programma non serve)
   lan = await startNatpfLan({ open: false, upstream: false, port: DESKTOP.port, setupPort: DESKTOP.setupPort });
-  if (!lan.game){ const s = lan.status(); throw new Error(s.message || 'server del gioco non avviato'); }
+  if (!lan.game){ const s = lan.status(); await stopServers(); throw new Error(s.message || 'server del gioco non avviato'); }
   try { ca = await serveCa({ port: DESKTOP.caPort, ips: addresses.filter(ip => ip !== '127.0.0.1') }); }
   catch (e){ log('pagina del certificato non avviata', e.message); }
   const s = lan.status();
   log('server pronto', { indirizzi: s.addresses, urls: s.urls, pronto: s.ready });
   return s;
+}
+// B39: server chiusi prima di riprovare (porta occupata): la pagina dell'avvio guidato e il controllo del certificato del
+// tentativo di prima non devono restare accesi
+async function stopServers(){
+  try { await lan?.close?.(); } catch (e){ log('chiusura del server', e.message); }
+  try { ca?.server?.close(); } catch {}
+  lan = null; ca = null;
+}
+// chi tiene una porta (solo Windows, al più 5 s): { pid, name } o null
+function execText(file, args){ return new Promise(resolve => execFile(file, args, { windowsHide: true, timeout: 5000 }, (err, out) => resolve(err ? '' : String(out)))); }
+async function portOwner(port){
+  if (process.platform !== 'win32' || !port) return null;
+  const pid = netstatListener(await execText('netstat', ['-ano']), port);
+  if (!pid) return null;
+  return { pid, name: tasklistImage(await execText('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'])) };
 }
 
 // Barra del menu: a schermo intero mai visibile, nemmeno con Alt da solo (con «nascondi automaticamente» Alt la
@@ -223,20 +261,90 @@ function nextMonitor(){
   if (!next){ log('monitor successivo: c\'è un solo monitor'); return; }
   placeOn(next);
 }
-// azioni delle scorciatoie (shortcutFor in desktop-core.mjs) e delle voci del menu con lo stesso id
+// azioni delle scorciatoie (shortcutFor in desktop-core.mjs) e delle voci dei menu (COMMANDS, stesso id). B39: anche il
+// menu del tasto destro; arg: il monitor scelto, o 'open' per il pannello dello stand dal tasto destro
 const ACTIONS = {
   'schermo-intero': () => { toggleFullscreen(); },
+  monitor: id => { const d = screen.getAllDisplays().find(x => String(x.id) === String(id)); if (d) placeOn(d); },
   'monitor-successivo': () => nextMonitor(),
-  ricarica: () => win?.webContents.reload(),
-  esci: () => app.quit(),
+  ricarica: () => { log('ricarica del gioco (comando)'); win?.webContents.reload(); },
+  riavvia: () => restartApp(),
+  // (B39: «Esci» non tocca la scelta dello schermo intero; prima col solo mouse si usciva da «Esci da schermo intero» e
+  // dalla X della finestra, e il programma ripartiva in finestra)
+  esci: () => { log('uscita (comando)'); app.quit(); },
   strumenti: () => win?.webContents.toggleDevTools(),
-  'pannello-stand': () => staffPanel(),
+  'pannello-stand': arg => staffPanel(arg === 'open' ? 'open' : 'toggle'),
+  diagnostica: () => pageCommand('diagnostica'),
+  calibra: () => pageCommand('calibra'),
+  'azzera-calibrazione': () => pageCommand('azzera-calibrazione'),
+  'rete-apri': () => openFirewall({ ask: false }),
+  'rete-indirizzi': () => showAddresses(),
+  aggiornamenti: () => updatesDialog(),
+  'cartella-salvati': () => openFolder(downloadsDir()),
+  'cartella-dati': () => openFolder(DATA),
+  'scheda-grafica': () => showGpu(),
 };
-// B37: pannello dello stand (F9, menu NATPF): il comando va solo alla finestra del gioco e solo se mostra una pagina del
-// proprio server (stesse regole degli altri canali); la pagina lo apre o lo chiude (natpf_kiosk.js)
-function staffPanel(){
+// (ogni comando dei menu ha la sua azione: controllato all'avvio, e dalle prove su COMMANDS)
+for (const id of Object.keys(COMMANDS)) if (typeof ACTIONS[id] !== 'function') log('ATTENZIONE: comando senza azione', id);
+function runCommand(cmd, arg){
+  try { log('comando', { cmd, ...(arg != null ? { arg } : {}) }); ACTIONS[cmd]?.(arg); }
+  catch (e){ log('comando non riuscito', cmd, e.message); }
+}
+// B37: pannello dello stand (F9, menu NATPF; B39: tasto destro, che lo apre): il comando va solo alla finestra del gioco e
+// solo se mostra una pagina del proprio server (stesse regole degli altri canali); la pagina lo apre o lo chiude
+// (natpf_kiosk.js)
+function staffPanel(action = 'toggle'){
   if (!win || !isOwnUrl(win.webContents.getURL(), addresses)) return;
-  win.webContents.send(DESKTOP.ipcStaffPanel, 'toggle');
+  win.webContents.send(DESKTOP.ipcStaffPanel, action === 'open' ? 'open' : 'toggle');
+}
+// B39: comandi del tasto destro per la pagina (diagnostica, calibrazione dello schermo): stesse regole, e solo quelli
+// dell'elenco congelato PAGE_COMMANDS (il preload li controlla di nuovo)
+function pageCommand(cmd){
+  if (!PAGE_COMMANDS.includes(cmd) || !win || !isOwnUrl(win.webContents.getURL(), addresses)) return;
+  win.webContents.send(DESKTOP.ipcCommand, cmd);
+}
+// B39: avvisi alla pagina del gioco (file salvato, link negato): solo dati semplici, mai percorsi completi
+function pageNotice(n){
+  if (!win || !isOwnUrl(win.webContents.getURL(), addresses)) return;
+  win.webContents.send(DESKTOP.ipcNotice, n);
+}
+// cartelle che il programma apre in Esplora file: le sceglie il programma (per chiave dal menu), mai la pagina
+function downloadsDir(){
+  let base; try { base = app.getPath('downloads'); } catch { base = null; }
+  return base ? path.join(base, DESKTOP.downloadsFolder) : path.join(DATA, 'salvati');
+}
+async function openFolder(dir){
+  try { fs.mkdirSync(dir, { recursive: true }); const err = await shell.openPath(dir); if (err) log('cartella non aperta', err); }
+  catch (e){ log('cartella non aperta', e.message); }
+}
+// B39 · menu del tasto destro (decisione dell'utente: menu di Windows al puntatore, con i comandi dello staff). Le voci
+// vengono da staffMenu (desktop-core.mjs); qui diventano voci di Electron. Le scorciatoie accanto ai nomi sono solo
+// scritte: le esegue 'before-input-event'
+function electronMenu(items, { context = false } = {}){
+  return items.map(i => {
+    if (i.type === 'separator') return { type: 'separator' };
+    const out = { label: i.label };
+    if (i.role) out.role = i.role;
+    if (i.type) out.type = i.type;
+    if (i.checked != null) out.checked = !!i.checked;
+    if (i.enabled === false) out.enabled = false;
+    if (i.accel){ out.accelerator = i.accel; if (context) out.registerAccelerator = false; }
+    if (i.cmd) out.click = () => runCommand(i.cmd, i.arg);
+    if (i.submenu) out.submenu = electronMenu(i.submenu, { context });
+    return out;
+  });
+}
+function displaysForMenu(){
+  return { displays: screen.getAllDisplays(), primaryId: screen.getPrimaryDisplay().id, currentId: win ? screen.getDisplayMatching(win.getBounds()).id : null };
+}
+function showContextMenu(params = {}){
+  if (!win) return;
+  const mode = contextMenuMode(win.webContents.getURL(), addresses, { loading: loadingShown });
+  if (!mode) return;
+  const items = staffMenu({ gamePage: mode === 'gioco', fullscreen: win.isFullScreen(), editable: !!params.isEditable, version: BUILD || app.getVersion(), ...displaysForMenu() });
+  log('menu del tasto destro', { pagina: mode, voci: menuCommands(items).length });
+  // (senza x e y: si apre dove c'è il puntatore)
+  Menu.buildFromTemplate(electronMenu(items, { context: true })).popup({ window: win });
 }
 
 // firewall: regola per questo eseguibile (l'installazione la crea; se manca il programma la chiede all'apertura)
@@ -248,14 +356,23 @@ async function firewallReady(){
 async function openFirewall({ ask = true } = {}){
   if (process.platform !== 'win32') return true;
   if (ask){
-    const r = await dialog.showMessageBox(win, { type: 'question', buttons: ['Apri la rete ai telefoni', 'Più tardi'], defaultId: 0, cancelId: 1, title: 'NATPF Simulator',
-      message: 'I telefoni devono poter raggiungere questo computer.', detail: 'Windows chiederà il permesso di amministratore per aprire NATPF Simulator alla rete locale (solo dispositivi della stessa rete). Si fa una volta per ogni posizione del programma.' });
-    if (r.response !== 0) return false;
+    // B39 n. 19: senza risposta entro DESKTOP.firewallAskMs vale «Più tardi» (prima il gioco restava su «Avvio del
+    // gioco…» finché qualcuno non rispondeva, anche con la domanda su un altro schermo)
+    const waitMs = (!app.isPackaged && Number(process.env.NATPF_FIREWALL_ATTESA_MS)) || DESKTOP.firewallAskMs;
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), waitMs);
+    let r = { response: 1 };
+    try {
+      r = await dialog.showMessageBox(win, { type: 'question', buttons: ['Apri la rete ai telefoni', 'Più tardi'], defaultId: 0, cancelId: 1, title: 'NATPF Simulator', signal: ctrl.signal,
+        message: 'I telefoni devono poter raggiungere questo computer.', detail: `Windows chiederà il permesso di amministratore per aprire NATPF Simulator alla rete locale (solo dispositivi della stessa rete). Si fa una volta per ogni posizione del programma.\n\nSe nessuno risponde entro ${Math.round(waitMs/1000)} secondi il gioco parte lo stesso («Più tardi»): la rete si apre dopo con il tasto destro → «Rete per i telefoni».` });
+    } catch (e){ log('domanda del firewall non riuscita', e.message); }
+    clearTimeout(timer);
+    if (ctrl.signal.aborted) log('firewall: nessuna risposta, più tardi');
+    if (ctrl.signal.aborted || r.response !== 0) return false;
   }
   const ok = await new Promise(resolve => execFile('powershell.exe', elevatedPowershellArgs(firewallCommand(process.execPath, RULE)), { windowsHide: true, timeout: 120000 }, err => resolve(!err)));
   const ready = await firewallReady();
   log('firewall', { richiesto: ok, pronto: ready, exe: process.execPath, regola: RULE });
-  if (!ready) dialog.showMessageBox(win, { type: 'warning', title: 'NATPF Simulator', message: 'Rete non aperta.', detail: 'Il gioco funziona, ma i telefoni potrebbero non collegarsi. Riprova dal menu Rete → «Apri la rete ai telefoni», oppure chiedi a chi gestisce il PC.' });
+  if (!ready) dialog.showMessageBox(win, { type: 'warning', title: 'NATPF Simulator', message: 'Rete non aperta.', detail: 'Il gioco funziona, ma i telefoni potrebbero non collegarsi. Riprova con il tasto destro sul gioco → «Rete per i telefoni» → «Apri la rete ai telefoni», oppure chiedi a chi gestisce il PC.' });
   return ready;
 }
 
@@ -357,42 +474,78 @@ async function askDisplay(){
 }
 
 function buildMenu(){
-  const displays = screen.getAllDisplays(), primaryId = screen.getPrimaryDisplay().id;
-  const current = win ? screen.getDisplayMatching(win.getBounds()).id : null;
-  const template = [
-    { label: 'NATPF', submenu: [
-      // gli acceleratori qui servono da etichetta e quando la barra del menu ha il fuoco: con il fuoco sul gioco le
-      // scorciatoie le esegue 'before-input-event' (che le toglie alla pagina e al menu: mai due volte)
-      { id: 'schermo-intero', label: 'Schermo intero', accelerator: 'F11', click: ACTIONS['schermo-intero'] },
-      { id: 'ricarica', label: 'Ricarica il gioco', accelerator: 'CmdOrCtrl+R', click: ACTIONS.ricarica },
-      // B37: F9 lo esegue 'before-input-event' (anche a schermo intero, senza la barra del menu); qui senza acceleratore,
-      // il tasto è già nel nome
-      { id: 'pannello-stand', label: 'Pannello dello stand (F9)', click: ACTIONS['pannello-stand'] },
-      { type: 'separator' },
-      { id: 'esci', label: 'Esci', accelerator: 'CmdOrCtrl+Q', click: ACTIONS.esci },
-    ] },
-    { label: 'Schermo', submenu: [
-      ...displays.map((d, i) => ({ label: displayLabel(d, i, primaryId), type: 'radio', checked: d.id === current, click: () => placeOn(d) })),
-      { type: 'separator' },
-      { id: 'monitor-successivo', label: 'Monitor successivo', accelerator: 'CmdOrCtrl+Shift+M', click: ACTIONS['monitor-successivo'] },
-    ] },
-    { label: 'Rete', submenu: [
-      { label: 'Apri la rete ai telefoni (firewall)…', click: () => openFirewall({ ask: false }) },
-      { label: 'Indirizzi e certificato per i telefoni…', click: showAddresses },
-    ] },
-    { label: 'Aiuto', submenu: [
-      { label: 'Cerca aggiornamenti…', click: () => updatesDialog() },
-      { label: 'Cartella dei dati (certificati, registri)', click: () => shell.openPath(DATA) },
-      { label: 'Scheda grafica in uso…', click: showGpu },
-      { id: 'strumenti', label: 'Strumenti per sviluppatori', accelerator: 'CmdOrCtrl+Shift+I', click: ACTIONS.strumenti },
-      { label: `Versione ${BUILD || app.getVersion()}`, enabled: false },
-    ] },
-  ];
+  // B39: le voci vengono dallo stesso elenco del menu del tasto destro (appMenu, COMMANDS in desktop-core.mjs). Gli
+  // acceleratori qui servono da etichetta e quando la barra del menu ha il fuoco: con il fuoco sul gioco le scorciatoie le
+  // esegue 'before-input-event' (che le toglie alla pagina e al menu: mai due volte). B37: la voce del pannello è senza
+  // acceleratore, il tasto F9 è già nel nome
+  const template = electronMenu(appMenu({ version: BUILD || app.getVersion(), ...displaysForMenu() }));
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   // il menu nuovo non deve comparire sopra il gioco a schermo intero
   syncMenuBar();
   // (il menu si rifà a ogni cambio di monitor: la pagina riceve lo stato nuovo)
   notifyDisplays();
+}
+
+// B39 n. 8: pagina del gioco che non risponde (onUnresponsive / onResponsive, eventi della finestra). Nelle prove (programma
+// non costruito) NATPF_ATTESA_BLOCCO_MS e NATPF_RICARICA_BLOCCO_MS accorciano le attese
+let hangTimer = null, hang = null;
+function hangWaits(){
+  const t = name => (!app.isPackaged && Number(process.env[name])) || 0;
+  return { dialog: t('NATPF_ATTESA_BLOCCO_MS') || DESKTOP.hangDialogMs, reload: t('NATPF_RICARICA_BLOCCO_MS') || DESKTOP.hangReloadMs };
+}
+// ricarica di una pagina bloccata: il processo della pagina si chiude e il gioco si ricarica (render-process-gone)
+function reloadHung(){
+  if (!win) return;
+  try { win.webContents.forcefullyCrashRenderer(); } catch {}
+  setTimeout(() => { if (win && win.webContents.isCrashed?.()) win.webContents.reload(); }, 2500);
+}
+function onUnresponsive(){
+  if (hangTimer || hang) return;
+  log('pagina del gioco: non risponde');
+  const waits = hangWaits();
+  hangTimer = setTimeout(async () => {
+    hangTimer = null;
+    if (!win) return;
+    const h = hang = { ctrl: new AbortController(), back: false };
+    const auto = setTimeout(() => h.ctrl.abort(), waits.reload);
+    log('pagina del gioco: finestra «Il gioco non risponde»');
+    let r = null;
+    try {
+      r = await dialog.showMessageBox(win, { type: 'warning', title: 'NATPF Simulator', signal: h.ctrl.signal, noLink: true,
+        buttons: ['Ricarica il gioco', 'Aspetta', 'Chiudi il programma'], defaultId: 0, cancelId: 1,
+        message: 'Il gioco non risponde.', detail: `Ricarica il gioco: si riparte dal menu (la partita in corso si chiude). Aspetta: se il gioco torna a rispondere questa finestra si chiude da sola.\n\nSe nessuno risponde entro ${Math.round(waits.reload/1000)} secondi il gioco si ricarica da solo.` });
+    } catch (e){ log('finestra del blocco non riuscita', e.message); }
+    clearTimeout(auto);
+    hang = null;
+    if (h.back) return;
+    if (h.ctrl.signal.aborted){ log('pagina del gioco: nessuna risposta, ricarica automatica'); reloadHung(); return; }
+    log('pagina del gioco bloccata: scelta', { risposta: ['ricarica', 'aspetta', 'chiudi'][r?.response] || r?.response });
+    if (r?.response === 0) reloadHung();
+    else if (r?.response === 2) app.quit();
+  }, waits.dialog);
+}
+function onResponsive(){
+  clearTimeout(hangTimer); hangTimer = null;
+  if (hang){ hang.back = true; hang.ctrl.abort(); }
+  log('pagina del gioco: risponde di nuovo');
+}
+// B39 n. 16: i file che il gioco salva (classifica CSV, coda del registro, diagnostica) vanno subito in Download\NATPF,
+// senza la finestra «Salva con nome»; la pagina lo dice con un avviso (nome del file e cartella, mai il percorso intero).
+// Solo dalla finestra del gioco e dalle pagine del proprio server (downloadAllowed)
+function onWillDownload(event, item, wc){
+  const url = item.getURL();
+  if (!win || wc !== win.webContents || !downloadAllowed(url, addresses)){ log('download negato', String(url).slice(0, 120)); event.preventDefault(); return; }
+  let file;
+  try {
+    const dir = downloadsDir(); fs.mkdirSync(dir, { recursive: true });
+    file = downloadTarget(dir, item.getFilename(), p => fs.existsSync(p));
+    item.setSavePath(file);
+  } catch (e){ log('download: cartella non pronta', e.message); event.preventDefault(); pageNotice({ kind: 'download', ok: false, name: '', folder: '' }); return; }
+  const name = path.basename(file), folder = `Download › ${DESKTOP.downloadsFolder}`;
+  item.once('done', (_e, state) => {
+    log('file salvato', { file, stato: state, byte: item.getReceivedBytes() });
+    pageNotice({ kind: 'download', ok: state === 'completed', name, folder });
+  });
 }
 
 // Monitor cambiato con il gioco aperto (risoluzione, scala, ledwall riconfigurato): Windows non riadatta da solo lo
@@ -436,8 +589,14 @@ async function main(){
   buildMenu();
   win.on('enter-full-screen', onFullscreenChanged);
   win.on('leave-full-screen', onFullscreenChanged);
-  // in finestra l'operatore può trascinarla su un altro monitor: è lì che il gioco sta adesso
-  win.on('moved', () => { if (win && !placing && !win.isFullScreen()) placedDisplayId = screen.getDisplayMatching(win.getBounds()).id; });
+  // in finestra l'operatore può trascinarla su un altro monitor: è lì che il gioco sta adesso. B39 n. 19: e lì resta ai
+  // prossimi avvii (prima il monitor trascinato non si ricordava)
+  win.on('moved', () => {
+    if (!win || placing || win.isFullScreen()) return;
+    const d = screen.getDisplayMatching(win.getBounds());
+    placedDisplayId = d.id;
+    if (String(d.id) !== String(wantedDisplayId)){ settings.displayId = d.id; settings.display = displayPixels(d); wantedDisplayId = d.id; writeSettings(DATA, settings); log('monitor scelto trascinando la finestra', { monitor: d.id }); buildMenu(); }
+  });
   win.on('closed', () => { win = null; app.quit(); });
   win.once('ready-to-show', () => win?.show());
   // scorciatoie prima della pagina: la pagina non le riceve (Esc e le lettere sì)
@@ -447,6 +606,24 @@ async function main(){
     event.preventDefault();
     ACTIONS[action]?.();
   });
+  // B39 · tasto destro: il menu dei comandi dello staff al puntatore (pagine del proprio server; sulla pagina di avvio solo
+  // i comandi del programma). Il gioco non usa il tasto destro
+  win.webContents.on('context-menu', (_e, params) => showContextMenu(params));
+  // B39 n. 17: niente finestre nuove sopra il gioco («Apri il link del controller ↗» è per il telefono; la pagina lo dice
+  // da sé, qui la riserva per ogni altro window.open) e la finestra del gioco resta sulle pagine del proprio server
+  // (file trascinati, link esterni)
+  win.webContents.setWindowOpenHandler(({ url }) => { log('finestra nuova negata', String(url).slice(0, 120)); pageNotice({ kind: 'link' }); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (event, url) => { if (!navigationAllowed(url, addresses)){ event.preventDefault(); log('pagina negata', String(url).slice(0, 120)); } });
+  // B39 n. 3: il tasto laterale «indietro» del mouse riportava alla pagina «Avvio del gioco…» (e a schermo intero non
+  // se ne usciva): sulle pagine del gioco la cronologia si svuota, indietro non c'è niente
+  win.webContents.on('did-navigate', (_e, url) => {
+    if (isOwnUrl(url, addresses)){ loadingShown = false; try { win.webContents.navigationHistory.clear(); } catch (e){ log('cronologia non svuotata', e.message); } }
+  });
+  // B39 n. 8: pagina del gioco bloccata. Dopo DESKTOP.hangDialogMs la finestra «Il gioco non risponde» (Ricarica il gioco ·
+  // Aspetta · Chiudi il programma), che si chiude da sola se il gioco torna a rispondere; senza risposta entro
+  // DESKTOP.hangReloadMs il gioco si ricarica da solo (stand senza staff davanti)
+  win.on('unresponsive', onUnresponsive);
+  win.on('responsive', onResponsive);
   // window.natpfDesktop (preload.cjs): solo dalla finestra del gioco e dalle pagine del proprio server
   ipcMain.handle(DESKTOP.ipcFullscreen, (event, action) => {
     if (!win || event.sender?.id !== win.webContents.id || !isOwnUrl(event.senderFrame?.url || '', addresses)) throw new Error('richiesta non consentita');
@@ -482,19 +659,28 @@ async function main(){
     try { fs.mkdirSync(registro.dir, { recursive: true }); const err = await shell.openPath(registro.dir); return { ok: !err }; } catch { return { ok: false }; }
   });
   updater.onChange(onUpdateState);
-  await win.loadURL(loading('Avvio del gioco…'));
+  session.defaultSession.on('will-download', onWillDownload);
+  await showLoading('Avvio del gioco…');
   blocker = powerSaveBlocker.start('prevent-display-sleep');
   // firewall prima del server: con la regola già presente Windows non mostra il suo avviso (se lì si preme «Annulla»
   // Windows crea regole di blocco). L'installazione l'ha già creata; se qualcuno l'ha tolta, si chiede qui
   if (!(await firewallReady())) await openFirewall();
-  try {
-    await startServers();
-  } catch (e){
-    log('avvio non riuscito', e.stack || e.message);
-    const busy = /EADDRINUSE|in uso|already in use/i.test(e.message);
-    await dialog.showMessageBox(win, { type: 'error', title: 'NATPF Simulator', message: 'Il gioco non è partito.',
-      detail: busy ? 'La porta 8443 è già in uso: chiudi l\'altra finestra di NATPF (per esempio «AVVIA NATPF LAN» o un altro NATPF Simulator) e riapri.' : `${e.message}\n\nRegistro: ${LOG}` });
-    app.quit(); return;
+  // B39 n. 5: porta occupata (8443 del gioco): finestra italiana con la porta vera, chi la tiene (se si sa), «Riprova» e
+  // «Chiudi il programma»; lo stesso testo sulla pagina di avvio (sul ledwall). Prima l'errore inglese di Electron con il
+  // solo «OK» (la 8080 dell'avvio guidato) o la 8443 sempre nominata, e il programma si chiudeva
+  for (;;){
+    try { await startServers(); break; }
+    catch (e){
+      log('avvio non riuscito', e.stack || e.message);
+      const port = busyPort(e.message), owner = port ? await portOwner(port) : null;
+      const p = startupProblem(e.message, { port, owner, logPath: LOG });
+      log('motivo', { porta: p.port, chi: owner });
+      await showLoading(p.message, p.detail);
+      const r = await dialog.showMessageBox(win, { type: 'error', title: 'NATPF Simulator', message: p.message, detail: p.detail, noLink: true,
+        buttons: ['Riprova', 'Chiudi il programma'], defaultId: 0, cancelId: 1 });
+      if (r.response !== 0){ app.quit(); return; }
+      await showLoading('Avvio del gioco…');
+    }
   }
   // monitor aggiunti o tolti (ledwall acceso dopo il programma): il menu si aggiorna; se sparisce il monitor del gioco,
   // il gioco va sul principale; quando il monitor voluto (anche quello salvato e spento all'avvio) compare, ci va

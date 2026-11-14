@@ -2005,3 +2005,9 @@ html.remote-nav :is(button, a, input, [tabindex]):focus { outline: 3px solid var
 .natpf-qr-stand { display: grid; gap: 6px; padding: 8px; text-align: center; color: #0b1433; }
 .natpf-qr-stand b { font: 800 italic clamp(18px, 3cqh, 34px)/1 var(--font-display); text-transform: uppercase; }
 .natpf-qr-stand span { font: 600 clamp(11px, 1.6cqh, 18px)/1.25 var(--font-text); color: #3b4a6b; }
+
+/* =====================================================================================================================
+   B39 · Stand con il solo mouse (docs/b39/stand-solo-mouse.md)
+   ===================================================================================================================== */
+/* B39.1: immagini e link non si trascinano (nel programma un'immagine fantasma sopra il gioco) */
+img, a { -webkit-user-drag: none; }

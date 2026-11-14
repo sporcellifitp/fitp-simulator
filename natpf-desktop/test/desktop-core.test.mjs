@@ -7,7 +7,9 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { DESKTOP, UPDATE_ACTIONS, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings, windowsVersion, readBuild,
   windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, TRAILER_RE, trailerFiles, trailerNameMatches,
-  startupDisplayQuestion, displayAnswer, ledwallGuess, displayChoices, displaysState, isSquare, displayPixels } from '../src/desktop-core.mjs';
+  startupDisplayQuestion, displayAnswer, ledwallGuess, displayChoices, displaysState, isSquare, displayPixels,
+  COMMANDS, PAGE_COMMANDS, staffMenu, appMenu, menuCommands, contextMenuMode, navigationAllowed, safeFileName, uniqueName, downloadTarget, downloadAllowed,
+  busyPort, netstatListener, tasklistImage, startupProblem } from '../src/desktop-core.mjs';
 import { createHash } from 'node:crypto';
 
 const d = (id, w, h, x = 0) => ({ id, bounds: { x, y: 0, width: w, height: h }, scaleFactor: 1 });
@@ -200,18 +202,23 @@ test('scorciatoie del programma: F11, F9, Ctrl+Maiusc+M, Ctrl+R, Ctrl+Q, Ctrl+Ma
     [null, null], [{}, null],
   ];
   for (const [input, expected] of table) assert.equal(shortcutFor(input), expected, JSON.stringify(input));
-  // le azioni sono quelle del menu (id delle voci in main.mjs)
+  // le azioni sono quelle dei menu (B39: un solo elenco, COMMANDS; main.mjs le esegue per id con ACTIONS)
   const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
-  for (const id of ['schermo-intero', 'monitor-successivo', 'ricarica', 'esci', 'strumenti', 'pannello-stand']) assert.match(main, new RegExp(`id: '${id}'`), id);
-  // B37: la voce del menu dice il tasto e chiama la stessa azione di F9
-  assert.match(main, /\{ id: 'pannello-stand', label: 'Pannello dello stand \(F9\)', click: ACTIONS\['pannello-stand'\] \}/);
-  assert.match(main, /'pannello-stand': \(\) => staffPanel\(\)/);
+  for (const id of ['schermo-intero', 'monitor-successivo', 'ricarica', 'esci', 'strumenti', 'pannello-stand']){
+    assert.ok(COMMANDS[id], id);
+    assert.ok(menuCommands(appMenu()).includes(id), `${id} nella barra del menu`);
+  }
+  // B37: la voce del menu dice il tasto e chiama la stessa azione di F9 (che apre e chiude); dal tasto destro (B39) apre
+  const panel = appMenu()[0].submenu.find(i => i.cmd === 'pannello-stand');
+  assert.equal(panel.label, 'Pannello dello stand (F9)'); assert.equal(panel.accel, undefined); assert.equal(panel.arg, 'toggle');
+  assert.match(main, /'pannello-stand': arg => staffPanel\(arg === 'open' \? 'open' : 'toggle'\)/);
+  assert.match(main, /ACTIONS\[action\]\?\.\(\);/, 'scorciatoia: la stessa azione, senza argomento (F9 apre e chiude)');
 });
 
 test('pannello dello stand (B37): F9 e il menu mandano il comando solo alla pagina del gioco del proprio server', () => {
   const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
   // stessa regola degli altri canali verso la pagina: la finestra del gioco e solo con una pagina del proprio server
-  assert.match(main, /function staffPanel\(\)\{\n  if \(!win \|\| !isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) return;\n  win\.webContents\.send\(DESKTOP\.ipcStaffPanel, 'toggle'\);/);
+  assert.match(main, /function staffPanel\(action = 'toggle'\)\{\n  if \(!win \|\| !isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) return;\n  win\.webContents\.send\(DESKTOP\.ipcStaffPanel, action === 'open' \? 'open' : 'toggle'\);/);
   // F9 passa da 'before-input-event' (funziona anche a schermo intero, senza la barra del menu): azione presa da shortcutFor
   assert.match(main, /before-input-event[^\n]*\n\s*const action = shortcutFor\(input\);/);
   assert.equal(DESKTOP.ipcStaffPanel, 'natpf:staff-panel');
@@ -240,8 +247,8 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   vm.runInNewContext(code, { require, console });
   const api = exposed.natpfDesktop;
   assert.ok(api, 'natpfDesktop esposto');
-  assert.deepEqual(Object.keys(api).sort(), ['displays', 'isFullScreen', 'onFullScreenChange', 'registro', 'setFullScreen', 'shell', 'staffPanel', 'toggleFullScreen', 'updates', 'version']);
-  assert.equal(api.shell, 'electron'); assert.equal(api.version, 5);
+  assert.deepEqual(Object.keys(api).sort(), ['commands', 'displays', 'isFullScreen', 'notices', 'onFullScreenChange', 'registro', 'setFullScreen', 'shell', 'staffPanel', 'toggleFullScreen', 'updates', 'version']);
+  assert.equal(api.shell, 'electron'); assert.equal(api.version, 6);
   assert.equal(await api.isFullScreen(), true);
   assert.equal(await api.setFullScreen(false), false);
   await api.setFullScreen(true); await api.toggleFullScreen();
@@ -288,6 +295,20 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   assert.deepEqual(kseen, ['toggle', 'open', 'close', 'toggle', 'toggle']);
   koff(); assert.equal(removed.at(-1)[0], DESKTOP.ipcStaffPanel);
   assert.equal(typeof api.staffPanel.onToggle('non una funzione'), 'function');
+  // B39: comandi del tasto destro, solo quelli dell'elenco congelato (uguale a PAGE_COMMANDS); avvisi con i soli campi previsti
+  assert.deepEqual(Object.keys(api.commands), ['onCommand']); assert.deepEqual(Object.keys(api.notices), ['onNotice']);
+  const cseen = [], coff = api.commands.onCommand(c => cseen.push(c));
+  assert.equal(listeners[DESKTOP.ipcCommand].length, 1);
+  for (const c of [...PAGE_COMMANDS, 'esci', 'ricarica', '../x', { cmd: 'calibra' }, undefined]) listeners[DESKTOP.ipcCommand][0]({ sender: 'evento di Electron' }, c);
+  assert.deepEqual(cseen, [...PAGE_COMMANDS], 'alla pagina solo i comandi dell\'elenco');
+  coff(); assert.equal(removed.at(-1)[0], DESKTOP.ipcCommand);
+  assert.equal(typeof api.commands.onCommand(null), 'function');
+  const nseen = []; api.notices.onNotice(n => nseen.push(n));
+  const nfire = n => listeners[DESKTOP.ipcNotice][0]({ sender: 'evento di Electron' }, n);
+  nfire({ kind: 'download', ok: true, name: 'classifica-natpf-2026-11-14.csv', folder: 'Download › NATPF', path: 'C:\\Users\\x\\Downloads\\NATPF', extra: 1 });
+  nfire({ kind: 'link', url: 'https://example.com' }); nfire({ kind: 'altro' }); nfire('testo'); nfire(null);
+  assert.equal(JSON.stringify(nseen), JSON.stringify([{ kind: 'download', ok: true, name: 'classifica-natpf-2026-11-14.csv', folder: 'Download › NATPF' }, { kind: 'link' }]), 'solo i campi previsti, niente percorsi');
+  assert.ok(code.includes(`Object.freeze(${JSON.stringify(PAGE_COMMANDS).replace(/"/g, "'").replace(/,/g, ', ')})`), 'elenco del preload uguale a PAGE_COMMANDS');
   // il programma usa il preload e lo copia in app/; la richiesta passa dal controllo dei propri indirizzi
   const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
   const prepara = fs.readFileSync(new URL('../scripts/prepara.mjs', import.meta.url), 'utf8');
@@ -299,7 +320,11 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   assert.match(main, /isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) win\.webContents\.send\(DESKTOP\.ipcUpdatesChanged/);
   assert.match(main, /ipcMain\.handle\(DESKTOP\.ipcDisplays,[^\n]*\n[^\n]*isOwnUrl\(event\.senderFrame\?\.url/, 'monitor solo dalle pagine del gioco');
   assert.match(main, /isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) win\.webContents\.send\(DESKTOP\.ipcDisplaysChanged/);
-  for (const k of ['ipcFullscreen', 'ipcFullscreenChanged', 'ipcUpdates', 'ipcUpdatesChanged', 'ipcDisplays', 'ipcDisplaysChanged', 'ipcRegistro', 'ipcStaffPanel']) assert.ok(code.includes(`'${DESKTOP[k]}'`), `canale ${k} uguale nel preload`);
+  for (const k of ['ipcFullscreen', 'ipcFullscreenChanged', 'ipcUpdates', 'ipcUpdatesChanged', 'ipcDisplays', 'ipcDisplaysChanged', 'ipcRegistro', 'ipcStaffPanel', 'ipcCommand', 'ipcNotice']) assert.ok(code.includes(`'${DESKTOP[k]}'`), `canale ${k} uguale nel preload`);
+  // B39: comandi e avvisi alla pagina con le stesse regole degli altri canali (la finestra del gioco, solo le pagine del
+  // proprio server; i comandi solo dall'elenco congelato)
+  assert.match(main, /function pageCommand\(cmd\)\{\n  if \(!PAGE_COMMANDS\.includes\(cmd\) \|\| !win \|\| !isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) return;\n  win\.webContents\.send\(DESKTOP\.ipcCommand, cmd\);/);
+  assert.match(main, /function pageNotice\(n\)\{\n  if \(!win \|\| !isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) return;\n  win\.webContents\.send\(DESKTOP\.ipcNotice, n\);/);
   assert.match(main, /'fullscreen'/, 'permesso dello schermo intero ancora consentito');
   assert.match(prepara, /'main\.mjs', 'desktop-core\.mjs', 'aggiornamenti\.mjs', 'registro\.mjs', DESKTOP\.preload/);
   assert.match(prepara, /UPDATES\.config/, 'aggiornamenti.json nel pacchetto');
