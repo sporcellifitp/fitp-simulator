@@ -176,10 +176,11 @@ test('lancio automatico: lo schermo lo annuncia negli ultimi 10 s, dice «Lancio
   assert.equal(AUTO_WARN, 10);
   const s = { served: { player: 5, opponent: 5 }, missAt: null };
   const g = { phase: 'SERVE_STANCE', mine: true, server: 'player', controller: 'phone', name: 'Marco', idle: 12 };
-  assert.deepEqual(serveCoachView(s, { ...g, auto: { left: 18, what: 'toss' } }), { state: 'toss', call: true, big: 'Marco, batti tu', sub: 'Alza il telefono: lanci la palla' }, 'prima degli ultimi 10 s: il richiamo di sempre');
-  assert.deepEqual(serveCoachView(s, { ...g, auto: { left: 7.2, what: 'toss' } }), { state: 'toss', call: true, big: 'Marco, batti tu', sub: 'Alza il telefono: lanci la palla · tra 8 s la lancia il gioco' });
-  assert.deepEqual(serveCoachView(s, { ...g, idle: 2, auto: { left: 3, what: 'serve' } }), { state: 'toss', call: true, big: 'Marco, batti tu', sub: 'Tra 3 s batte il gioco' });
-  assert.deepEqual(serveCoachView(s, { ...g, auto: null }), { state: 'toss', call: true, big: 'Marco, batti tu', sub: 'Alza il telefono: lanci la palla' }, 'opzione spenta: come prima');
+  // (B44: il come lanciare lo dice l'icona accanto a chi batte, non più il testo sotto il nome)
+  assert.deepEqual(serveCoachView(s, { ...g, auto: { left: 18, what: 'toss' } }), { state: 'toss', call: true, icon: true, big: 'Marco, batti tu', sub: '' }, 'prima degli ultimi 10 s: il richiamo di sempre');
+  assert.deepEqual(serveCoachView(s, { ...g, auto: { left: 7.2, what: 'toss' } }), { state: 'toss', call: true, icon: true, big: 'Marco, batti tu', sub: 'Tra 8 s la lancia il gioco' });
+  assert.deepEqual(serveCoachView(s, { ...g, idle: 2, auto: { left: 3, what: 'serve' } }), { state: 'toss', call: true, icon: true, big: 'Marco, batti tu', sub: 'Tra 3 s batte il gioco' });
+  assert.deepEqual(serveCoachView(s, { ...g, auto: null }), { state: 'toss', call: true, icon: true, big: 'Marco, batti tu', sub: '' }, 'opzione spenta: come prima');
   const t = { ...g, phase: 'SERVE_TOSS' };
   assert.deepEqual(serveCoachView(s, { ...t, tossT: .5, autoLive: 'toss' }), { state: 'wait', big: 'Lancio automatico', sub: 'Colpisci quando la palla è in alto' });
   assert.deepEqual(serveCoachView(s, { ...t, tossT: .1, autoLive: 'toss' }), { state: 'go', big: 'Colpisci!', sub: 'Lancio automatico' });

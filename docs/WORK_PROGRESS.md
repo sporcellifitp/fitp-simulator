@@ -1928,3 +1928,53 @@ documento con i passi del Worker e la prova a Precision. Ramo `b36-0-misure` (ba
 - [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti (il file del Worker da mandare all'utente è
   `natpf-tennis/cloudflare/registro-worker.js`), `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`; poi dire all'utente i passi del
   Worker (documento §3) e la prova a Precision (§6).
+
+## B38 + B44 · Tastiera a schermo, «Gioca come Ospite», servizio con l'icona (14/11, ramo `b38-tastiera`) · [x] verificato sul ramo, da unire
+
+Compiti: `docs/coda/B38-tastiera-a-schermo.md`, `docs/coda/B44-servizio-animato.md`, decisione dell'utente del 14/11 su
+«Gioca come Ospite». Documenti: `docs/b38/tastiera-a-schermo.md`, `docs/b44/servizio-animato.md`. Base 2026-11-14.1
+(`889cb25`), poi unito `natpf-simulator` (`4d9228b`, solo la traccia). Il gioco non cambia (`audit:legend` identico).
+- [x] B38.1 · tastiera e Ospite (commit `5286ba5`). File: `natpf_tastiera.js` (nuovo: `applyKey`, `fieldRules`,
+  `oskOpens`, `oskLayout`, `NatpfTastiera`), `natpf-tastiera.css` (nuovo), `natpf_ui.js` (la crea presto),
+  `natpf_kiosk.js` (opzione «Tastiera a schermo: Automatica · Sempre · Mai», `natpf-tennis.tastiera`), `index.html`
+  (voce del pannello, «Gioca come Ospite» accanto al campo, foglio di stile), `natpf_split_ui.js` (il conto alla rovescia
+  aspetta con la tastiera aperta su un nome), `natpf_diag.js` (Maiusc+D/M non scattano mentre si scrive: «Dario» non
+  diventa più «ario»), `natpf_lobby.js` (foglio del nome: «Gioca come Ospite», «Salta» nascosto in «Nuovo giocatore»,
+  risultato «Fuori classifica»), `natpf_events.js` (`ranked`: senza nome = Ospite = fuori classifica; `guest`,
+  `playAsGuest`), `natpf_match_stats.js` (pillola «N punti · Ospite, fuori classifica»), `natpf_new_player.js`.
+  Test: `natpf-tastiera.test.mjs` (10), `natpf-ospite.test.mjs` (4), `natpf-nuovo-giocatore.test.mjs` (aggiornato: il
+  passo del nome con l'ospite, la classifica senza l'ospite). Gioco 1539/1539, sito 248/248, build ok.
+- [x] B38.2 · prova nel browser e correzioni (commit `48157c0`): `tools/e2e/natpf-tastiera-schermo.mjs` (nuova, solo
+  mouse); il doppio clic su «Fatto» scarta solo il punto del tasto (prima tutta la tastiera: un clic subito dopo su
+  «Avanti ›», «Entra ›» o «Indietro» si perdeva), «Gioca come Ospite» sulla stessa riga del nome, tastiera piena (sotto
+  i tasti si leggeva il foglio), campo del codice della sfida largo per il codice intero (prima «AT-K3»).
+- [x] B44 · servizio (commit `b101e47`): `natpf_serve_hint.js` (nuovo), `natpf-servizio.css` (nuovo),
+  `natpf_serve_coach.js` (icona al posto del riquadro del lancio, conto per giocatore nuovo con `newPlayer()`, esercizio
+  «Servizio» dell'allenamento), tutorial, allenamento e guida «Come si gioca» con la stessa icona. Test aggiornati:
+  `natpf-servizio-istruzioni` (11, +5 nuovi), `natpf-b20-stesso-schermo`, `natpf-b25-stesso-schermo`,
+  `natpf-split-ricollega`; prove nel browser `natpf-servizio-lancio`, `natpf-stesso-schermo-b20`, `-b25`, `natpf-telecomando`
+  (+3 verifiche: «Gioca come Ospite» con le frecce e OK del telefono dello staff) adattate.
+- [x] B38+B44 · rifiniture e documenti (ultimo commit del ramo): icona del lancio più leggibile (telefono e palla più grandi,
+  scia sotto la palla: piccola sembrava una «i»), «Ospite» non accettato come nickname, «Tastiera a schermo» penultima voce
+  della griglia del pannello (più in alto spostava le voci alte di due righe), prove nel browser con 14 voci nel pannello
+  (b20, b25), secondo clic su «Nuovo giocatore» in partita in `natpf-stesso-schermo-b25` (B43), attesa di un fotogramma
+  nel controllo dell'icona di `natpf-servizio-lancio`; `docs/b38`, `docs/b44`, `docs/GUIDA_STAND.md` (§3.3, §3.4, §3.5,
+  nuovo §3.6, voce del pannello, §8, §10, §11), `docs/PROJECT_MEMORY.md`.
+- Verifiche sul codice finale (dopo l'unione): gioco **1543/1543**, sito **248/248**, Windows **43/43**, build ok,
+  `npm run audit:legend` **identico** alla base `889cb25` (69 OK, «Tutti i criteri rispettati», 93 righe uguali).
+  Nel browser (porte 4100–4149; telecomando 4902/4903 con `flock`), tutte rilanciate dopo l'ultimo cambio del codice
+  (la voce del pannello spostata prima di «Mira del telefono»), 09:13–10:06 UTC: `natpf-tastiera-schermo` **53/53** (tre
+  giri), `natpf-servizio-lancio` **17/17**, `natpf-stesso-schermo-b20` **49/49**, `natpf-chi-serve` **64/64**,
+  `natpf-formato-fiera` **25/25**, `natpf-tabellone` **41/41**, `natpf-menu` **45/45**, `natpf-nuovo-giocatore`
+  **28/28**, `natpf-1v1-p2p` **39/39**, `natpf-telecomando` **88/88**, `natpf-stesso-schermo-b25` **53/54**: il KO è il
+  pannello dello stand a 720 × 720 con chiosco, lancio automatico e campo aperto accesi che scorre di 38 px, **uguale
+  sulla base** `889cb25` (misurato con e senza la voce nuova): da sistemare con il B39.
+- Schermate guardate: tastiera a 1920 × 1080, 720 × 720, area 720 × 720 nel 1920 × 1080, 1920 × 540, stesso schermo
+  (metà sinistra e destra, 720 × 720), codice, diagnostica, pannello, Ospite; icona contro la CPU (1280 × 720,
+  1920 × 1080, 1920 × 540), stesso schermo (quattro misure), tutorial, guida.
+- Non verificato: PC Windows vero con il mouse a qualche metro dal ledwall; schermo tattile vero (`inputmode="none"`);
+  doppio clic con i tempi di Windows; l'icona sul computer del Player 2 della sfida tra due computer e nell'esercizio
+  «Servizio» dell'allenamento nel browser (solo test di unità); telefono vero.
+- [ ] Per chi unisce: versione nuova e pacchetti (installer, zip Cloudflare); con il B39 (stessi file: `index.html`,
+  `natpf-ui.css`, `natpf_kiosk.js`, `natpf_ui.js`) guardare la griglia del pannello (14 voci più quelle del B39) e la
+  guardia del doppio clic (i tasti della tastiera scattano al `pointerdown`, non vanno scartati).

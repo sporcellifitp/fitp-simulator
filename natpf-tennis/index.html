@@ -29,6 +29,8 @@
     <link rel="stylesheet" href="./natpf-round.css" />
     <link rel="stylesheet" href="./natpf-flow.css" />
     <link rel="stylesheet" href="./natpf-ui.css" />
+    <link rel="stylesheet" href="./natpf-tastiera.css" />
+    <link rel="stylesheet" href="./natpf-servizio.css" />
   </head>
   <body>
     <div id="root" class="hidden" aria-hidden="true"></div>
@@ -199,7 +201,8 @@
         <p class="sheet-kicker" id="nick-kicker">Classifica del giorno</p>
         <h2 class="sheet-title" id="nick-title">Il tuo nickname</h2>
         <p class="sheet-desc" id="nick-desc">Solo per la classifica: niente email, niente dati personali.</p>
-        <input id="nick-input" class="nick-input" maxlength="14" spellcheck="false" placeholder="Es. Ace99" />
+        <!-- B38: «Gioca come Ospite» accanto al campo (un clic, senza nome, fuori classifica: natpf_lobby.askNickname) -->
+        <div class="nick-row"><input id="nick-input" class="nick-input" maxlength="14" spellcheck="false" placeholder="Es. Ace99" /><button type="button" class="nick-guest" id="nick-guest">Gioca come Ospite</button></div>
         <p class="natpf-warn hidden" id="nick-warn"></p>
         <!-- «Nuovo giocatore» (B18): anche la mano, che torna «Destra» per chi arriva -->
         <div class="lobby-row nick-hand hidden" id="nick-hand">
@@ -240,6 +243,7 @@
           ><button type="button" data-staff="autotoss" title="Sì: nello stesso schermo, se chi deve battere resta fermo 30 secondi il gioco lancia la palla da solo; dopo due lanci automatici a vuoto batte il gioco un servizio morbido. Vale dalla prossima partita e resta salvata."><span>Lancio automatico</span><b>No</b></button
           ><button type="button" data-staff="open" title="Sì: nello stesso schermo i personaggi corrono come persone e non arrivano più su ogni palla: la palla angolata e lontana si prende in allungo o non si prende. Il servizio passa ogni due punti, come nel formato in fiera, anche con il formato classico: con il campo aperto chi batte è un po' sfavorito. Vale dalla prossima partita e resta salvata."><span>Stesso schermo: campo aperto</span><b>No</b></button
           ><button type="button" data-staff="cal" title="Giocando: niente gesti a vuoto, ogni partita comincia con circa 10 secondi di scambi di prova in cui il gioco impara il colpo di chi gioca, poi il match da 0-0. Con i gesti: la calibrazione di prima (telefono fermo, un dritto e un rovescio). Nessuna: si gioca subito, il gioco impara dai primi colpi veri. Vale dalla prossima partita e resta salvata."><span>Calibrazione</span><b>Giocando</b></button
+          ><button type="button" data-staff="osk" title="Automatica (di base): la tastiera a schermo compare cliccando con il mouse (o toccando) un campo di testo e sparisce se si usa una tastiera vera. Sempre: compare in ogni campo di testo, anche con una tastiera vera. Mai: non compare. Resta salvata."><span>Tastiera a schermo</span><b>Automatica</b></button
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>

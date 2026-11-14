@@ -19,6 +19,7 @@ import { getGestureDemo } from './natpf_gesture_demo.js';
 import { GESTURES } from './natpf_gesture_motion.js';
 import { PHOTOS, lessonPhotos } from './natpf_media.js';
 import { NatpfTutorial, tutorialSetFor, tutorialResumeAfterShort } from './natpf_tutorial.js';
+import { serveHintHtml } from './natpf_serve_hint.js';
 export { calSide };
 
 // Esercizi del tutorial, in ordine progressivo: i colpi di base, il servizio, la direzione, la rete, il tocco, la
@@ -784,7 +785,8 @@ export class NatpfTraining {
     if (card && card.dataset.key !== key){
       card.dataset.key = key;
       if (title) title.textContent = g.label;
-      if (cues) cues.innerHTML = g.cues.map(c => `<li>${c}</li>`).join('');
+      // (B44: nell'esercizio «Servizio» accanto al lancio la stessa icona che in campo sta accanto a chi batte)
+      if (cues) cues.innerHTML = g.cues.map((c, i) => `<li>${id === 'serve' && i === 0 ? serveHintHtml('in-card') : ''}${c}</li>`).join('');
       card.classList.toggle('no-webgl', !demo.available);
     }
   }

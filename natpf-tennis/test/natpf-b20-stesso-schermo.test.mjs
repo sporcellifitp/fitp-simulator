@@ -259,13 +259,14 @@ test('A5: chi deve battere e resta fermo viene chiamato per nome dopo 9 s, solo 
   const s = { served: { player: 5, opponent: 5 }, missAt: null };
   const g = { phase: 'SERVE_STANCE', mine: true, server: 'opponent', controller: 'phone', name: 'Giulia' };
   assert.equal(serveCoachView(s, { ...g, idle: 5 }), null, 'prima niente (ha già servito)');
-  assert.deepEqual(serveCoachView(s, { ...g, idle: 6 }), { state: 'toss', big: 'Alza il telefono: lanci la palla', sub: 'Poi colpisci quando la palla è in alto' });
-  assert.deepEqual(serveCoachView(s, { ...g, idle: 9 }), { state: 'toss', call: true, big: 'Giulia, batti tu', sub: 'Alza il telefono: lanci la palla' });
-  assert.deepEqual(serveCoachView(s, { ...g, idle: 40, controller: 'webcam' }), { state: 'toss', call: true, big: 'Giulia, batti tu', sub: 'Alza la mano: lanci la palla' });
+  // B44: dopo 6 s l'icona del lancio (niente riquadro di testo), dopo 9 s il richiamo per nome senza il testo del lancio
+  assert.deepEqual(serveCoachView(s, { ...g, idle: 6 }), { state: 'toss', icon: true, big: '', sub: '' });
+  assert.deepEqual(serveCoachView(s, { ...g, idle: 9 }), { state: 'toss', call: true, icon: true, big: 'Giulia, batti tu', sub: '' });
+  assert.deepEqual(serveCoachView(s, { ...g, idle: 40, controller: 'webcam' }), { state: 'toss', call: true, icon: true, big: 'Giulia, batti tu', sub: '' });
   // anche nei primi servizi (istruzioni piene): dopo 9 s il nome
   assert.equal(serveCoachView({ served: { player: 0, opponent: 0 } }, { ...g, idle: 12 }).big, 'Giulia, batti tu');
-  // fuori dallo stesso schermo (nessun nome): come prima
-  assert.deepEqual(serveCoachView(s, { ...g, name: '', idle: 40 }), { state: 'toss', big: 'Alza il telefono: lanci la palla', sub: 'Poi colpisci quando la palla è in alto' });
+  // fuori dallo stesso schermo (nessun nome): l'icona
+  assert.deepEqual(serveCoachView(s, { ...g, name: '', idle: 40 }), { state: 'toss', icon: true, big: '', sub: '' });
   // durante il lancio niente richiamo
   assert.equal(serveCoachView(s, { ...g, phase: 'SERVE_TOSS', idle: 40, tossT: .5 }), null);
 });
