@@ -128,20 +128,28 @@ export class NatpfFiera {
   releaseVisitor(){ this.visitor = null; }
   /* ---------- avviso della batteria sul ledwall (B41.4) ---------- */
   // ogni 100 ms (natpf_ui), ridipinto al più una volta al secondo: telefoni dello stand collegati con la batteria sotto il 20%
-  // e non in carica. Una riga per telefono nel registro della diagnostica quando la batteria diventa bassa
+  // e non in carica. Una riga per telefono nel registro della diagnostica quando la batteria diventa bassa.
+  // Si vede solo sulla pagina della fiera, tra un visitatore e l'altro: è lì che lo staff può mettere in carica il telefono
+  // (in partita il telefono è in mano a chi gioca). Sulla fine partita copriva il consiglio «Prossima volta prova il livello
+  // …» (1280×720, 1024×600, 1920×540) e stava anche sopra l'intro, gli scambi di prova e il campo; lasciando la pagina
+  // sparisce subito (controllo a ogni giro, non una volta al secondo). Lo stato della batteria resta nel foglio «Telefoni
+  // dello stand» e nel registro
   tick(now = performance.now()){
+    const el = typeof document !== 'undefined' ? document.getElementById('natpf-fiera-alert') : null;
+    const here = !!this.ui.fieraPage?.here;
+    if (el && !here && !el.classList.contains('hidden')) el.classList.add('hidden');
     if (now - this._alertAt < 1000) return;
     this._alertAt = now;
     const views = this.on ? STAND.slots.map(s => this.status(s)) : [];
     for (const v of views){ if (v.low && !this._lowLogged[v.slot]) this.ui.diag?.recorder?.log?.('stand.batteria', { posto: v.slot, batteria: v.battery }); this._lowLogged[v.slot] = !!v.low; }
-    const t = batteryAlert(views), el = typeof document !== 'undefined' ? document.getElementById('natpf-fiera-alert') : null;
+    const t = batteryAlert(views);
     this.alertText = t;
     if (!el) return;
     if (el.textContent !== t) el.textContent = t;
-    el.classList.toggle('hidden', !t);
+    el.classList.toggle('hidden', !t || !here);
     // (sulla pagina della fiera in un'area stretta, 720×720: in basso a sinistra coprirebbe «Telefono: tocca «Sono
     // pronto»» sopra «Gioca»; lì va a destra, accanto a «Gioca»: natpf-ui.css)
-    el.classList.toggle('on-page', !!this.ui.fieraPage?.here);
+    el.classList.toggle('on-page', here);
   }
   // telefono di un posto (il Telefono 2 nasce qui con la modalità accesa: prima solo con lo stesso schermo)
   phone(slot, { make = true } = {}){

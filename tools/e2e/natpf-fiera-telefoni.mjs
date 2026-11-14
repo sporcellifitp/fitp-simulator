@@ -319,6 +319,10 @@ try {
   await tel2.click('#next');
   const go2 = await until(g, () => (__natpfTennis.natpfMatchSeq || 0) === 2 && __natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.trial.active, null, 10000);
   check('«Salta ›»: la partita nello stesso schermo parte (conto alla rovescia grande)', go2 && (await gameInfo(g)).prematch);
+  // l'avviso della batteria si vede solo sulla pagina della fiera (tra un visitatore e l'altro): in campo non copre il gioco
+  // (sulla fine partita copriva il consiglio del livello)
+  const inGame = await gameInfo(g);
+  check('   … in campo l\'avviso della batteria del Telefono 2 non c\'è (solo sulla pagina della fiera)', inGame.alert === '' && await g.evaluate(() => !!__natpfTennis.natpfUi.fiera.alertText), JSON.stringify({ alert: inGame.alert }));
   await g.setViewportSize({ width: 1920, height: 1080 });
   check('nessun errore nella pagina del gioco', !gameErrs.length, gameErrs.slice(0, 3).join(' | '));
   check('nessun errore nelle pagine dei telefoni', !tel1.__errs.length && !tel2.__errs.length, [...tel1.__errs, ...tel2.__errs].slice(0, 3).join(' | '));

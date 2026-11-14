@@ -2203,8 +2203,9 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
 .fiera-sheet .fiera-tip { margin: clamp(6px, 1.2cqh, 14px) 0 0; font-size: clamp(11px, 1.65cqh, 20px); line-height: 1.35; }
 .fiera-sheet .sheet-actions { margin-top: clamp(6px, 1.2cqh, 16px); }
 
-/* avviso della batteria bassa dei telefoni dello stand: piccolo, in basso a sinistra, sopra il campo e il menu (sotto i fogli
-   dello staff e gli avvisi brevi); non prende i clic */
+/* avviso della batteria bassa dei telefoni dello stand: piccolo, in basso a sinistra, solo sulla pagina della fiera
+   (NatpfFiera.tick: sulla fine partita copriva il consiglio del livello); sotto i fogli dello staff e gli avvisi brevi, non
+   prende i clic */
 .natpf-fiera-alert { position: fixed; left: var(--gutter); bottom: clamp(70px, 12cqh, 150px); z-index: 240; max-width: min(46cqw, 640px); padding: clamp(6px, 1cqh, 14px) clamp(10px, 1.4cqw, 22px); border-radius: var(--r-pill); background: rgba(40, 24, 0, 0.88); border: 2px solid var(--warn); color: var(--warn); font: 700 clamp(12px, 1.9cqh, 26px)/1.25 var(--font-text); pointer-events: none; box-shadow: var(--shadow); }
 .natpf-fiera-alert::before { content: '🔋 '; }
 /* pagina della fiera in un'area stretta (720×720: la stessa misura che manda «Telefono: tocca «Sono pronto»» sopra i

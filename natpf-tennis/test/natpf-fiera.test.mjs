@@ -397,13 +397,21 @@ test('B41.4 · avviso della batteria sul ledwall: telefono dello stand collegato
   assert.equal($('natpf-fiera-alert').textContent, 'Telefono 1: batteria 14% · mettilo in carica');
   assert.ok(visible('natpf-fiera-alert'));
   // sulla pagina della fiera la classe on-page (in un'area stretta, 720×720, l'avviso va accanto a «Gioca ›» e non copre
-  // «Telefono: tocca «Sono pronto»»: natpf-ui.css); fuori dalla pagina no
+  // «Telefono: tocca «Sono pronto»»: natpf-ui.css)
   ui.lobby.go('menu');
   ui.fiera._alertAt = 0; ui.fiera.tick();
-  assert.ok(ui.fieraPage.here && $('natpf-fiera-alert').classList.contains('on-page'), 'sulla pagina della fiera');
+  assert.ok(ui.fieraPage.here && $('natpf-fiera-alert').classList.contains('on-page') && visible('natpf-fiera-alert'), 'sulla pagina della fiera');
+  // fuori dalla pagina (in campo, scambi di prova, fine partita, intro) niente avviso: sulla fine partita copriva il consiglio
+  // del livello. Sparisce al giro dopo (100 ms), senza aspettare il ridisegno di ogni secondo
   ui.lobby.el.classList.add('hidden');   // (in campo: la pagina non c'è)
+  ui.fiera.tick();
+  assert.ok(!ui.fieraPage.here && !visible('natpf-fiera-alert'), 'fuori dalla pagina: nascosto subito');
   ui.fiera._alertAt = 0; ui.fiera.tick();
-  assert.ok(!ui.fieraPage.here && !$('natpf-fiera-alert').classList.contains('on-page') && visible('natpf-fiera-alert'), 'fuori dalla pagina');
+  assert.ok(!visible('natpf-fiera-alert') && !$('natpf-fiera-alert').classList.contains('on-page'), 'fuori dalla pagina: resta nascosto');
+  assert.equal(ui.fiera.alertText, 'Telefono 1: batteria 14% · mettilo in carica', 'la batteria resta bassa (si rivede sulla pagina)');
+  ui.lobby.el.classList.remove('hidden');   // (di nuovo la pagina della fiera)
+  ui.fiera._alertAt = 0; ui.fiera.tick();
+  assert.ok(ui.fieraPage.here && visible('natpf-fiera-alert'), 'di nuovo sulla pagina: si rivede');
   link.L = { ...link.L, charging: true };
   ui.fiera._alertAt = 0; ui.fiera.tick();
   assert.ok(!visible('natpf-fiera-alert'), 'in carica: niente avviso');
