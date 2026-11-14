@@ -124,7 +124,10 @@ export function decidingVoice({ playerGames = 0, opponentGames = 0 } = {}, games
 // stato del servizio dopo un punto: { server, gameServer }. gameOver: il punto ha chiuso il game (il game dopo lo
 // inizia l'altro di chi l'aveva iniziato). Classico: il battitore cambia solo a fine game, esattamente come prima
 // (dal battitore di quel momento: allenamento e minigiochi lo cambiano a mano senza toccare gameServer)
-export function nextServe({ server = 'player', gameServer = server, played = 0, gameOver = false, fair = false } = {}){
+// B47: fixed (opzione dello stand «Battuta: Sempre lo stesso», natpf_battuta.js): il servizio resta per tutta la partita a
+// chi ha battuto il primo game (gameServer), in tutti i formati: niente cambio a fine game né ogni due punti
+export function nextServe({ server = 'player', gameServer = server, played = 0, gameOver = false, fair = false, fixed = false } = {}){
+  if (fixed){ const gs = gameServer === 'opponent' ? 'opponent' : 'player'; return { server: gs, gameServer: gs }; }
   const sv = server === 'opponent' ? 'opponent' : 'player';
   if (!fair){ const n = gameOver ? other(sv) : sv; return { server: n, gameServer: n }; }
   const gs = gameServer === 'opponent' ? 'opponent' : 'player';

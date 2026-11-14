@@ -37,3 +37,8 @@
 2026-11-14.2: Tastiera a schermo per scrivere i nomi con il mouse, e «Gioca come Ospite».
 2026-11-14.2: Al servizio una piccola icona animata (il telefono che sale con la palla) al posto del riquadro di testo.
 2026-11-14.2: Stand con il solo mouse: tasto destro per i comandi dello staff, puntatore grande, calibrazione dello schermo con due clic, doppio clic che non salta pagine.
+2026-11-14.3: Il telefono non si scollega più per un buco della Wi-Fi: il gioco aspetta 10 secondi, la partita va in pausa e riprende da sola; se cade, il telefono riprova da solo senza fermarsi.
+2026-11-14.3: Il chiosco non scollega più i telefoni: azzera solo chi gioca.
+2026-11-14.3: Batte sempre lo stesso giocatore (pannello dello stand: «Battuta: Sempre lo stesso · Alternata»).
+2026-11-14.3: Conto alla rovescia grande prima della partita: «Preparati, la partita sta per cominciare».
+2026-11-14.3: Dopo «Rivincita» si sceglie il livello: Bambino, Ragazzo o Adulto.

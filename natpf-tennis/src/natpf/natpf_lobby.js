@@ -715,6 +715,8 @@ export class NatpfLobby {
     // apriva e chiudeva la pausa sotto il foglio, senza che si vedesse
     const staffSheet = this.ui.remote?.isOpen ? this.ui.remote : this.ui.kiosk?.isOpen ? this.ui.kiosk : null;
     if (e.code === 'Escape' && staffSheet && !this.ui.calibra?.isOpen){ e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) staffSheet.close(); return; }
+    // B47: scelta del livello dopo «Rivincita» aperta (natpf_rematch.js): frecce, Invio ed Esc sono suoi
+    if (this.ui.rematch?.isOpen && !staffSheet && !this.ui.calibra?.isOpen){ if (this.ui.rematch.key(e)){ e.preventDefault(); e.stopImmediatePropagation(); } return; }
     if (this.onboarding.isOpen){ if (this.onboarding.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
     // calibrazione dello schermo aperta: frecce, Tab, numeri, Invio ed Esc sono suoi (F11 e gli altri tasti del browser no)
     if (this.ui.calibra?.isOpen){ if (this.ui.calibra.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }

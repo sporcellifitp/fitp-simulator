@@ -29,6 +29,9 @@ export function createHeadlessEngine({ difficulty = 'casual' } = {}){
     score: { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true },
     phase: 'TITLE', phaseTimer: 0, selectedShotType: 'TOPSPIN', p2SelectedShotType: 'TOPSPIN',
     autoPlayMode: false, userHasInteracted: true, persistentStateLock: false,
+    // B47: le simulazioni restano con la battuta alternata (come prima: numeri confrontabili); la battuta «Sempre lo stesso»
+    // (di base nel gioco, natpf_battuta.js) la provano i test che la chiedono
+    natpfServeRule: 'alternata',
     pendingUserSwing: null, pendingP2Swing: null, pendingServeSwing: null,
     ball: { mesh: null, pos: new THREE.Vector3(0.85, 1.15, 11.6), vel: new THREE.Vector3(), spin: new THREE.Vector3(), inPlay: false, lastHitter: 'player',
       bounceCountOnCurrentSide: 0, shotType: 'TOPSPIN', isPowerShot: false, rallyStrokeCount: 0, targetLanding: new THREE.Vector3(0, 0, -8.5) },

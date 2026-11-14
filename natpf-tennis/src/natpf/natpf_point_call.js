@@ -62,9 +62,10 @@ export function pointCall({ winner = 'player', why = '', viewer = 'player', riva
 
 // B20 (audit B19, miglioramento 3): nello stesso schermo l'inizio della partita dice chi batte per primo, e se è uscito
 // dal sorteggio («Sorteggio: batte Giulia»; con la scelta fissa «Batte Marco»). Fuori dallo stesso schermo niente
-export function firstServeText({ sharedNames = null, server = 'player', drawn = false } = {}){
+// (B47: fixed, battuta «Sempre lo stesso»: «Sorteggio: batte sempre Giulia»)
+export function firstServeText({ sharedNames = null, server = 'player', drawn = false, fixed = false } = {}){
   const who = sharedNames?.[server === 'opponent' ? 'opponent' : 'player'];
-  return who ? `${drawn ? 'Sorteggio: batte' : 'Batte'} ${who}` : '';
+  return who ? `${drawn ? 'Sorteggio: batte' : 'Batte'}${fixed ? ' sempre' : ''} ${who}` : '';
 }
 
 // B20 (audit B19, punto 18): nello stesso schermo «Palla match», «Palla game» e «Palla break» dicono di chi sono

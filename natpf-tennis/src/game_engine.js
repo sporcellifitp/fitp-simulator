@@ -31,6 +31,8 @@ import {
 import { resolveMatchFormat, firstServer, serveChoice } from "./natpf/match_format.js";
 // NATPF B18: formato in fiera (punto decisivo e servizio come nel tie-break), opzione dello staff spenta di base
 import * as NF from "./natpf/natpf_fair_format.js";
+// NATPF B47: battuta a un solo giocatore (opzione dello stand «Battuta: Sempre lo stesso · Alternata», di base la prima)
+import * as NB from "./natpf/natpf_battuta.js";
 import * as NH from "./natpf/natpf_hot_rally.js";
 import * as ND from "./natpf/natpf_duo_rules.js";
 import { NatpfBallGlow } from "./natpf/natpf_ball_glow.js";
@@ -1217,6 +1219,10 @@ export class NatpfTennisEngine {
     }
   }
   startNewMatch({ showStartBanner: e = !0 } = {}) {
+    // NATPF B47: conto alla rovescia grande prima del primo punto (natpf_prematch.js: partita con il telefono contro la CPU
+    // o nello stesso schermo): la partita resta ferma al primo servizio e la scritta e la voce «Start» arrivano a fine conto
+    // (natpfStartCall). Solo per l'inizio vero di una partita (con la scritta d'inizio): non per test e simulazioni
+    const hold = !!e && !!this.natpfUi?.prematch?.due?.();
     NL.resetLegend(this); // NATPF Leggenda: il modello dell'avversario riparte da zero a ogni partita
     this.natpfArena.setSpeed(null); // NATPF: velocità «---» fino al primo servizio (C21: restava quella della partita prima)
     this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
@@ -1229,7 +1235,17 @@ export class NatpfTennisEngine {
       (this.score.opponentGames = 0),
       // NATPF: chi batte per primo dalla scelta del menu (match_format.firstServer; prima sempre chi gioca qui)
       // B20: sorteggio riproducibile (natpfRng a mano nei test; altrimenti Math.random come prima)
-      (this.score.server = firstServer(this.natpfServeFirst, this.natpfRng || Math.random)),
+      // B47: con la battuta «Sempre lo stesso» (natpf_battuta.matchServe; natpfServeRule a mano per test e simulazioni)
+      // contro la CPU batte sempre chi gioca e nello stesso schermo chi batte il primo game, per tutta la partita
+      // (score.fixed); nella sfida tra due computer resta alternata (decide l'host: il P2 riceve server con lo snapshot)
+      (this.natpfServe = NB.matchServe({
+        rule: typeof this.natpfServeRule == "string" ? this.natpfServeRule : NB.readServeRule(),
+        // (lo stesso schermo per primo: le regole sono quelle del 1v1 e anche lì isMultiplayer è vero)
+        mode: this.natpfSplit?.active ? "split" : this.isMultiplayer || this.playerRole === "p2" || this.natpfUi?.lobby?.mode === "friend" ? "versus" : "cpu",
+        first: firstServer(this.natpfServeFirst, this.natpfRng || Math.random),
+      })),
+      (this.score.server = this.natpfServe.server),
+      (this.score.fixed = this.natpfServe.fixed),
       // NATPF B18: formato in fiera (natpf_fair_format.js), deciso a inizio partita dal pannello dello stand o
       // dall'indirizzo (natpfFair a mano per i test e le simulazioni); il primo game lo inizia chi batte per primo
       // (sul computer del P2 della sfida tra due computer decide l'host: score.fair e gamesToWin arrivano con lo snapshot)
@@ -1257,21 +1273,34 @@ export class NatpfTennisEngine {
       this._syncScoreboardHUD(),
       this.hud.setReplayMode(!1),
       this.audioEngine &&
-        (this.audioEngine.playMusicForState("start"), this.audioEngine.announceScore("Start")),
+        (this.audioEngine.playMusicForState("start"), hold || this.audioEngine.announceScore("Start")),
+      // B20: nello stesso schermo chi batte per primo si vede («Sorteggio: batte Giulia»)
+      // B35: con il servizio che passa ogni due punti (formato in fiera, campo aperto) lo dice anche la riga sotto
+      (this.natpfStartSub = [
+        this.natpfSplit?.active
+          ? NPC.firstServeText({ ...NPC.callContext(this), server: this.score.server, drawn: serveChoice(this.natpfServeFirst) === "random", fixed: !!this.score.fixed })
+          : "",
+        // (B47: con la battuta «Sempre lo stesso» il servizio non passa mai, neanche nel formato veloce)
+        ND.altServe(this, !!this.score.fair) && !this.score.fixed ? NF.FAST_SERVE_LINE : "",
+      ].filter(Boolean).join(" · ")),
       this._setupPointServe({
-        showBanner: e,
+        showBanner: e && !hold,
         bannerText: "Start",
         bannerStyle: "style-start",
         persistentBanner: !1,
-        // B20: nello stesso schermo chi batte per primo si vede («Sorteggio: batte Giulia»)
-        // B35: con il servizio che passa ogni due punti (formato in fiera, campo aperto) lo dice anche la riga sotto
-        bannerSub: [
-          this.natpfSplit?.active
-            ? NPC.firstServeText({ ...NPC.callContext(this), server: this.score.server, drawn: serveChoice(this.natpfServeFirst) === "random" })
-            : "",
-          ND.altServe(this, !!this.score.fair) ? NF.FAST_SERVE_LINE : "",
-        ].filter(Boolean).join(" · "),
+        bannerSub: this.natpfStartSub,
       });
+    // B47: il conto alla rovescia grande (la partita resta ferma finché è in vista: natpf_ui._syncPause)
+    hold && this.natpfUi.prematch.begin();
+  }
+  // NATPF B47: fine del conto alla rovescia grande (natpf_prematch.js): la scritta e la voce «Start» di sempre, con chi
+  // batte per primo nello stesso schermo
+  natpfStartCall() {
+    if (this.phase === "MATCH_OVER" || this.autoPlayMode) return;
+    const bs = this.natpfStartSub || "";
+    this.audioEngine && this.audioEngine.announceScore("Start");
+    this._recordBannerBroadcast("Start", "style-start", bs, null);
+    this.hud.showCenterBanner("Start", { style: "style-start", durationMs: bs ? 2600 : 1800, persistent: !1, ...(bs ? { subText: bs } : {}) });
   }
   _setupPointServe({
     showBanner: e = !0,
@@ -3493,7 +3522,8 @@ export class NatpfTennisEngine {
       // (B25: con il campo aperto acceso nello stesso schermo il servizio passa ogni due punti anche nel formato classico,
       // ND.altServe: lì chi batte è sfavorito e con un battitore per game deciderebbe il sorteggio. Chi vince il game:
       // regola di sempre. Nessun punto di vantaggio a inizio game, mai: decisione dell'utente del 12/11)
-      sv = NF.nextServe({ server: this.score.server, gameServer: this.score.gameServer ?? this.score.server, played: a + s, gameOver: !!gw, fair: ND.altServe(this, fair) });
+      // B47: battuta «Sempre lo stesso» (score.fixed, deciso a inizio partita): il servizio resta a chi ha battuto il primo game
+      sv = NF.nextServe({ server: this.score.server, gameServer: this.score.gameServer ?? this.score.server, played: a + s, gameOver: !!gw, fair: ND.altServe(this, fair), fixed: !!this.score.fixed });
     (this.score.server = sv.server), (this.score.gameServer = sv.gameServer);
     // NATPF B33: il punto per la schermata finale, con come è finito e i colpi dello scambio (natpf_match_stats.js, solo lettura)
     this.natpfStats?.point(this, { winner: e, why: t, strokes: this.ball.rallyStrokeCount, whiff: !!wf && wf.side !== e && wf.stroke === this.ball.rallyStrokeCount, gameWinner: gw || null });
@@ -3901,7 +3931,7 @@ export class NatpfTennisEngine {
       : a
         ? this.score.opponentGames + 1 >= this.matchConfig.gamesToWin
           ? "Match Point"
-          : this.score.server === "player" && !ND.altServe(this, fair)
+          : this.score.server === "player" && (this.score.fixed || !ND.altServe(this, fair))
             ? "Break Point"
             : "Game Point"
         : null;

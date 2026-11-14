@@ -22,6 +22,7 @@ export const SCREEN_LABEL = Object.freeze({
   intro: 'Intro', staff: 'Pannello dello stand', remote: 'Telecomando dello staff', dialog: 'Finestra di avviso', nick: 'Nome del giocatore',
   diag: 'Diagnostica', calibra: 'Calibrazione dello schermo', guide: 'Guida «Come si gioca»', tutorial: 'Tutorial dei gesti',
   hold: 'Partita ferma: telefono scollegato', phonePanel: 'Pannello del telefono', pause: 'Pausa', victory: 'Fine partita',
+  rematch: 'Rivincita: scegli il livello',
   guest: 'Player 2: racchetta e visuale', lesson: 'Lezione: presa e posizione', cal: 'Calibrazione del telefono',
   warmup: 'Riscaldamento', training: 'Allenamento', minigame: 'Minigioco', match: 'Partita', other: 'Gioco',
 });
@@ -40,10 +41,11 @@ export const cpuName = level => { const l = cpuOk(level), w = whoOfLevel(l); ret
 export const cpuLabel = level => { const l = cpuOk(level), w = whoOfLevel(l); return w ? `Chi gioca: ${WHO_NAME[w]}` : `CPU: ${LEVEL_NAME[l]}`; };
 export const nextCpu = level => CPU_LEVELS[(CPU_LEVELS.indexOf(cpuOk(level)) + 1) % CPU_LEVELS.length];
 // strati sopra il menu e il campo, dal più in alto
-export const LAYERS = Object.freeze(['intro', 'staff', 'remote', 'dialog', 'nick', 'diag', 'calibra', 'guide', 'tutorial', 'pause', 'hold', 'phonePanel', 'victory', 'guest']);
+// (B47: «rematch», la scelta del livello dopo «Rivincita», sta sopra la schermata finale)
+export const LAYERS = Object.freeze(['intro', 'staff', 'remote', 'dialog', 'nick', 'diag', 'calibra', 'guide', 'tutorial', 'pause', 'hold', 'phonePanel', 'rematch', 'victory', 'guest']);
 const FIELD = new Set(['cal', 'trial', 'warmup', 'training', 'minigame', 'match']);
 // strati con i pulsanti in cui le frecce spostano il fuoco
-const FOCUS = new Set(['staff', 'remote', 'dialog', 'nick', 'diag', 'hold', 'phonePanel', 'pause', 'victory', 'guest']);
+const FOCUS = new Set(['staff', 'remote', 'dialog', 'nick', 'diag', 'hold', 'phonePanel', 'pause', 'victory', 'rematch', 'guest']);
 
 // s: fotografia del gioco. Campi (tutti facoltativi, falsi se mancano):
 //   intro, staff, remote, dialog, nick, diag, calibra, guide, tutorial, hold, phonePanel, pause, victory, guest   strati aperti
@@ -81,7 +83,7 @@ function underOf(s){ const rest = { ...s }; for (const k of LAYERS) delete rest[
 // una partita (o minigioco, riscaldamento…) è in corso, anche sotto la pausa o un pannello: Menu e Nuovo giocatore la
 // chiudono, quindi il telefono chiede conferma
 // (a fine partita no: la partita è finita, Menu e Nuovo giocatore non chiudono niente)
-export function gameRunning(screen){ return screen.id !== 'victory' && (FIELD.has(screen.id) || FIELD.has(screen.under) || screen.id === 'pause' || screen.id === 'hold'); }
+export function gameRunning(screen){ return screen.id !== 'victory' && screen.id !== 'rematch' && (FIELD.has(screen.id) || FIELD.has(screen.under) || screen.id === 'pause' || screen.id === 'hold'); }
 
 // Navigazione: cosa fa il comando nella schermata (null se non è un comando di navigazione)
 //   { kind: 'key', code }           tasto della tastiera (stesso effetto)
@@ -132,9 +134,10 @@ export function remoteCommands(s = {}, screen = remoteScreen(s)){
   else if (step === 'connect'){ cmds.play = s.connectReady ? on : (L.mode === 'split' ? 'Servono i due telefoni pronti' : s.controller === 'webcam' ? 'La webcam non vede ancora la mano' : 'Il telefono del giocatore non è ancora collegato'); labels.play = 'Avanti'; }
   else if (step === 'match'){ cmds.play = L.mode === 'split' && !s.splitReady ? 'Servono i due telefoni pronti' : on; labels.play = 'Gioca!'; hints.play = 'Pronto per la partita'; }
   else if (step === 'result' || screen.id === 'victory'){ cmds.play = on; labels.play = 'Gioca ancora'; }
+  else if (screen.id === 'rematch'){ cmds.play = on; labels.play = 'Gioca!'; hints.play = 'con il livello segnato'; }
   else if (step){ cmds.play = on; labels.play = 'Gioca'; hints.play = 'dal menu'; }
   else cmds.play = running ? 'La partita è già in corso' : screen.id === 'intro' ? 'Prima entra nel menu (OK)' : 'Chiudi prima la finestra aperta (Indietro)';
-  if (screen.id === 'victory') cmds.play = on;
+  if (screen.id === 'victory' || screen.id === 'rematch') cmds.play = on;
   // Torna al menu
   cmds.menu = screen.id === 'lobby:menu' ? 'Sei già al menu principale' : screen.id === 'intro' ? 'Premi OK: dopo l’intro c’è il menu' : on;
   if (cmds.menu === on && running) hints.menu = 'chiude la partita';
@@ -157,7 +160,7 @@ export function remoteCommands(s = {}, screen = remoteScreen(s)){
   // livello della CPU (vale dalla prossima partita)
   const cpuFree = !s.split && !s.versus && L.mode !== 'split' && L.mode !== 'friend';
   // (in partita no: la CPU cambierebbe a metà; sopra il menu, nella pausa del menu o a fine partita sì)
-  const atMenu = screen.id.startsWith('lobby:') || String(screen.under || '').startsWith('lobby:') || screen.id === 'victory';
+  const atMenu = screen.id.startsWith('lobby:') || String(screen.under || '').startsWith('lobby:') || screen.id === 'victory' || screen.id === 'rematch';
   cmds.cpu = !cpuFree ? 'Non c’è la CPU in questa modalità' : !atMenu ? 'Si cambia dal menu, prima o dopo la partita' : on;
   labels.cpu = cpuLabel(s.cpu);
   if (cmds.cpu === on) hints.cpu = `poi ${cpuName(nextCpu(s.cpu))}`;

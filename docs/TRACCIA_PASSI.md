@@ -863,3 +863,79 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
       finestra). Ramo `b45-1-collegamento` da natpf-simulator 14.2, worktree `scratchpad/b451/wt`, porte 4100–4149,
       appunti `scratchpad/b451/notes.md`. Rilasci: 14.3 = B47 appena pronto, 14.4 = B45.1.
 
+**14/11, 17:45 UTC · dopo il secondo limite d'uso (16:50) · priorità: il telefono che dice «scollegato».**
+- L'utente (17:00–17:40): con un solo telefono in fiera il ledwall dice spesso «scollegato»; router dedicato con il PC sul
+  cavo, risparmio energetico spento, rete come consigliato: cade lo stesso. Sul ledwall la scritta è quella dello stato
+  `lost` («Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo», `natpf_ui.js` ≈421/868).
+- [x] B47 unito in natpf-simulator (`6348253`; conflitti in natpf_kiosk.js e natpf_ui.js risolti tenendo le due parti),
+      controllo rapido: gioco 1600/1601 (l'unico KO, `natpf-webcam-load`, è di tempi sotto carico: da solo 9/9 tre volte),
+      sito 254, Windows 51, LAN 13, build ok; `audit:legend` 69 OK; push fatto. Prove nel browser in corso
+      (`scratchpad/v1403/run.log`: b47-fiera 20/20, mano-sicura 17/17, …).
+- [~] **B45.1 ripreso** (workflow `b45-1-collegamento-ripresa`, run `wf_fa4da2bf-953`; lavoro di prima salvato in `6358611`
+      «IN CORSO»). **Fase A** (chiosco che non scollega, tentativi senza fine, vita a 10 s con ogni messaggio, «Ricollega»
+      solo se il telefono risponde, scritta «segnale debole»): alle 17:29 gioco 1584/1584, sito 265, LAN 13, Windows 51,
+      `natpf-phone-blackout` 10/10 (bui di 3 e 7 s senza caduta, 12 s caduta a 10,6 s e ritorno da solo in 3,3 s); mancano
+      telecomando da solo, mano-sicura, swing-loss. Quando compare il commit «B45.1 FASE A PRONTA» (sentinella del
+      coordinatore): unirlo in natpf-simulator, controllo rapido e prove mirate, **versione 2026-11-14.3 = B47 + B45.1
+      fase A**, push, zip, installer, «come si attiva». Fase B (motivi delle cadute, rifiniture, tasto Alt) nella 14.4.
+- [~] **B41 seconda parte** (workflow `b41-parte-2-fiera-con-il-mouse`, run `wf_5bb13fa8-3f0`): ramo `b41-fiera-2` da
+      `6348253`, worktree `scratchpad/b412/wt`, porte 4250–4299, appunti `scratchpad/b412/notes.md`.
+- Dal 14/11 pomeriggio i commit del coordinatore finiscono con «Co-Authored-By: Claude Fable 5.2» (modello cambiato
+  dall'utente); gli agenti già partiti tengono la riga di prima.
+
+**14/11, 18:15 UTC · versione 2026-11-14.3 = B47 (fiera subito) + B45.1 fase A (telefono che non si scollega).**
+- [x] B45.1 fase A pronta (`506ec41`, ramo `b45-1-collegamento`): controllo di vita a 10 s con ogni messaggio come segno
+      di vita sui due lati (`site/js/tennis/link-life.js`), lato fermo che prima legge la coda, «Ricollega» automatico solo
+      se il telefono risponde, racchetta col QR che riprova senza fine in LAN, chiosco che non scollega più i telefoni
+      (azzera solo chi gioca) e conta i messaggi del telefono come attività, riquadro «Telefono 1: segnale debole, aspetto
+      che torni…» e poi «scollegato · si ricollega da solo», primo racconto dei motivi delle cadute (`natpf_cadute.js`).
+- [x] Unita in natpf-simulator sopra B47 (`beaeead`; un solo conflitto, gli import di natpf_kiosk.js). Sul codice unito:
+      gioco 1609/1609, sito 265/265, Windows 51/51, LAN 13/13, build ok; nel browser natpf-phone-blackout 10/10 (bui di 3 e
+      7 s: nessuna caduta, la partita riprende da sola; 12 s: caduta dopo 10 s e ritorno da solo in ~3 s senza QR),
+      split-ready 34/34, scambi-di-prova 30/30, b47-fiera 20/20, mano-sicura 17/17, fine-partita 47/47. Schermate guardate
+      (conto alla rovescia, scelta del livello). Sul solo B47 unito: chi-serve 64/64, `audit:legend` 69 OK; b20 51/52, b25
+      54/55 e split-ready 32/34 sotto carico 10 (controlli di tempi: split-ready rifatta 34/34; b20 e b25 da rifare da sole).
+- [x] Versione 2026-11-14.3 (controllo dopo il cambio: sito 265, Windows 51, 55 test del gioco sulla versione, build ok):
+      push (`bb9a4b3`). Zip Cloudflare 23.908.079 B, sha256
+      `941eb4d9bb3aa5e385dfb0de564e7589f636a8902553df161743a3f2bfb73764`, provato estratto, mandato all'utente. Installer
+      **2026-11-14.3** pubblicato su R2 alle 18:14 UTC e verificato dal link fisso: 128.127.554 B, sha256
+      `411ea0192563bab87c133ffbafb4906db3598ffd2358f786e4fb3b98c3e70432`. «Come si attiva» mandato all'utente (dopo
+      l'aggiornamento il telefono rifà il QR: la correzione sta anche nella pagina del telefono).
+- [x] Altre prove nel browser sul codice pubblicato (`scratchpad/v1403b/e2e.log`, carico della macchina 9–10): verdi
+      training-reconnect 6/6, tutorial-relink 9/9, nuovo-giocatore 28/28, menu 45/45, tabellone 41/41, solo-mouse 42/42,
+      tastiera-schermo 53/53. **Da sistemare nella 14.4** (difetti veri, piccoli):
+      1. `natpf-stesso-schermo-b20` punto 6 (50/52): con la pagina di un telefono CHIUSA in partita il riquadro ora dice
+         «Telefono di Giulia scollegato · si ricollega da solo» (B45.1) e la prova aspetta «…in pausa»; con la parola «cl»
+         `pagina` il computer sa che la pagina è stata chiusa: titolo giusto («pagina chiusa · inquadra il QR») e prova
+         aggiornata. Il B45.1 non aveva la b20 tra le sue prove.
+      2. `natpf-stesso-schermo-b25` (54/55): pannello dello stand a 1024×600 con quattro opzioni accese che scorre di 5 px
+         (voce «Battuta» del B47 + riga delle cadute del B45.1); «Chiudi» resta in vista.
+      3. `natpf-fiera-telefoni` (28/33): la prova aspetta ancora il conto piccolo dopo «Sono pronto», tolto dal B47; la
+         modalità fiera oggi si accende solo da console: la aggiorna la B41 seconda parte (già fatto nel suo ramo, 2ffa80f).
+      Di tempi sotto carico (da rifare da sole): b20 «richiamo per nome» (il riquadro è giusto, manca solo il tempo
+      `called`), telecomando 90/91 («Salta» dal telecomando, già visto e passato da solo due volte), chi-serve 63/64
+      (costo del disegno 1,34 ms contro 1 ms con la grafica in software).
+- [~] In corso: B45.1 fase B (motivi delle cadute nel pannello e nel registro, rifiniture della 14.2, tasto Alt in
+      finestra, documenti) → 14.4; B41 seconda parte (`b41-fiera-2`).
+- Non provato: rete vera di una fiera, telefoni veri, Windows, ledwall. La 14.3 va confermata dall'utente allo stand.
+
+**14/11, 19:10 UTC · dopo la 14.3: revisione indipendente del B45.1 e blocco B45.2.**
+- [x] B45.1 fase B pronta (`f20d647`, ramo `b45-1-collegamento`, NON ancora unita): motivi delle cadute nel registro e nel
+      pannello («Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s»), rifiniture della 14.2 (revisione del
+      B46), prova di Windows con il tasto Alt, documenti; gioco 1584, sito 265, Windows 51, LAN 13, Electron Linux 101/101.
+- [x] Revisione indipendente del B45.1: **non ok**, testo in `scratchpad/b451/revisione-b45-1.md` (prove in
+      `scratchpad/rev-b451/`). Difetti veri, in parte già nella 14.3 pubblicata (nessuno fa tornare le cadute): «Scollega»
+      dal computer contato come caduta; schermo del telefono spento scritto come «Wi-Fi ferma» e contato due volte; pagina
+      del telefono chiusa con la scritta «si ricollega da solo» e QR dopo 20 s (prova b20 rossa); racconto `pagina`
+      sovrascritto; `relinkAt` mai azzerato; riga delle cadute tagliata nel pannello; nessun test del chiosco che conta i
+      messaggi del telefono; con i telefoni dei visitatori il chiosco non libera più il posto (da scrivere nella guida:
+      «Scollega» nel riquadro del telefono); tasto Alt corretto solo nella prova.
+- [~] Workflow `b45-2-rifiniture-collegamento` (run `wf_9a2e841a-941`): **B45.2** = i dieci punti (revisione + pannello a
+      1024×600 che scorre di 5 px + prove instabili sotto carico rese robuste), sullo stesso ramo `b45-1-collegamento` dopo
+      aver unito natpf-simulator; worktree `scratchpad/b451/wt`, porte 4100–4149, appunti `scratchpad/b451/notes.md`
+      (sezione «B45.2»); poi revisore.
+- [~] B41 seconda parte (`wf_5bb13fa8-3f0`, ramo `b41-fiera-2`): B41.4–B41.5 scritti (`2f8c5f0`, `2ffa80f`), 14.3 unita nel
+      ramo (`af42330`), prove e correzioni in corso (titolo di fine partita con «Visitatore N» tagliato a 1280×720).
+- Prossimo rilascio: **2026-11-14.4** = B41 seconda parte + B45.1 fase B + B45.2, quando i due revisori dicono ok (se uno
+  dei due tarda, esce prima l'altro).
+

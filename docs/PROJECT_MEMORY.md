@@ -1200,6 +1200,48 @@ Tre casi danno quelle scritte esatte (indagine `scratchpad/swap/split-ruoli-mano
 - **Prove**: `natpf-b46-lato-sicuro`, `natpf-b46-caso-utente` (il caso dell'utente con la pagina del telefono simulata dalle
   sue funzioni pure), `tools/test/b46-lato-sicuro`, nel browser `natpf-mano-sicura` (anche `AREA=720`).
 
+## B47 · Fiera subito: battuta a un solo giocatore, conto alla rovescia grande, livello dopo «Rivincita» (14/11/2026; documento `docs/b47/fiera-subito.md`)
+
+Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`) con le decisioni del coordinatore; ramo
+`b47-fiera-subito` da `int-b38-b39`.
+- **Battuta** (`natpf_battuta.js`): opzione del pannello dello stand «Battuta: **Sempre lo stesso** · Alternata», salvata in
+  `natpf-tennis.battuta` ('fissa' | 'alternata'), di base 'fissa'; `?battuta=fissa|alternata` la forza per la pagina. Il
+  motore la legge a inizio partita (`startNewMatch` → `NB.matchServe`; `natpfServeRule` a mano per test e simulazioni) e
+  mette `score.fixed`; `_awardPoint` passa `fixed` a `natpf_fair_format.nextServe`, che con fixed lascia il servizio a
+  `gameServer` per tutta la partita (niente cambio a fine game, niente A·BB·AA del formato veloce o del campo aperto; il
+  punto decisivo resta). Contro la CPU batte sempre chi gioca anche con «Batte per primo: CPU» (`fairServer` della B41, ora
+  in `natpf_battuta.js` e riesportata da `natpf_fiera.js`); nello stesso schermo chi batte il primo game («Sorteggio: batte
+  sempre Giulia»); nella sfida tra due computer resta alternata (mode 'versus': `isMultiplayer`, P2, lobby 'friend'; lo
+  stesso schermo si riconosce prima, perché anche lì `isMultiplayer` è vero). `backToMenu` azzera `score.fixed`
+  (allenamento e minigiochi cambiano il servizio a mano). «Palla break» anche con fixed + formato veloce.
+  **Il banco delle simulazioni** (`scripts/audit/headless-engine.mjs`) usa `natpfServeRule: 'alternata'`: `audit:legend`
+  e i test che contano sul servizio della CPU restano confrontabili con prima. Il mondo di prova dei test dell'interfaccia
+  (`test/ui-world.mjs`) usa lo stesso motore: per provare la regola del gioco un test mette `E.natpfServeRule = undefined`.
+- **Conto alla rovescia grande** (`natpf_prematch.js`, `#natpf-prematch`): «Preparati · La partita sta per cominciare ·
+  3 · 2 · 1» (3 s) e chi batte, al centro dello schermo intero (uno solo nello stesso schermo), a ogni partita con il
+  telefono (CPU con `controller === 'phone'`; stesso schermo con i due telefoni); non con webcam/mouse, non nella sfida tra
+  due computer, non con `autoPlayMode`. Lo chiede `startNewMatch` solo con la scritta d'inizio (`showStartBanner`), così
+  test e simulazioni che chiamano `startNewMatch({ showStartBanner: false })` non cambiano. Intanto la partita è ferma
+  (`natpf_ui._syncPause` conta `prematch.active`); la scritta e la voce «Start» arrivano a fine conto
+  (`engine.natpfStartCall`, `natpfStartSub`). Telefoni: messaggio `{ t:'ev', k:'count', n }` dello stesso schermo (nessun
+  cambio alla pagina del telefono). Pausa, fogli dello staff, telefono caduto, guida o pannello del telefono: il conto
+  aspetta (riquadro nascosto, `stop soft` ai telefoni) e riprende da dove era; `backToMenu` lo chiude senza «Start».
+  Il conto di 3 s di «Sono pronto» (B41.6, `natpf_ready_go.js`) non c'è più (`READY_GO.ms = 0`): al tocco di tutti parte
+  la partita e il conto è quello grande. Il conto della pagina dei telefoni dello stesso schermo (B9) resta: prima degli
+  scambi di prova; senza scambi di prova (calibrazione non «Giocando») i due conti vengono di fila.
+- **Livello dopo «Rivincita»** (`natpf_rematch.js`, `#natpf-rematch`): `btn-play-again` («Rivincita» / «Gioca ancora»)
+  contro la CPU e nello stesso schermo apre la scelta (la schermata finale si nasconde, il menu no). CPU: tessere
+  Bambino · Ragazzo · Adulto (+ «CPU Esperta/Leggenda» solo se è il livello di adesso) che chiamano `lobby.setLevel`;
+  stesso schermo: fasce per giocatore con i nomi (`split.setBand`) e la frase dell'aiuto. «Gioca» = `ui._startMatchNow`
+  (CPU) o `startNewMatch` come `_rematchGo` (stesso schermo). Scambi di prova come prima: dal computer sì se dovuti
+  (CPU: `trial.due` e non `trialPlayed`/riscaldato; stesso schermo: `trial.due({ split: true })`), poi la partita
+  direttamente (non la pagina); dalla rivincita dei due telefoni no. La rivincita dei telefoni apre la stessa scelta
+  (`origin: 'phones'`) che parte da sola dopo `REMATCH.autoMs` (10 s) se nessuno la tocca; `rematchOffer` è falso con la
+  scelta aperta. «Altre impostazioni» = percorso di prima (`backToMenu('match')` + `_pageTrial`). Telefono non pronto o
+  stesso schermo con un telefono non pronto: si va per «Altre impostazioni». Sfida tra due computer: rivincita immediata.
+  Tastiera in `natpf_lobby._key` (prima della pausa: Esc è «‹ Indietro»), telecomando con lo strato `rematch` di
+  `natpf_remote_map.js` (focus, OK, Indietro = `cancel`, «Gioca!» = `play`, «Chi gioca» = livello).
+
 ## B45.1 · Telefono che non si scollega (14/11/2026 sera; documento `docs/b45/b45-1-collegamento.md`)
 Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi in `docs/b45/telefono-che-si-scollega.md`.
 - **Il chiosco non scollega mai i telefoni** (col QR o dello stand): azzera chi gioca come «Nuovo giocatore»

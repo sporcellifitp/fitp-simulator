@@ -89,7 +89,7 @@ try {
   for (const [w, h] of [[1280, 720], [1920, 540], [1024, 600], [1366, 657], [1920, 1080], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: quattordici pulsanti (dodici dal B25, dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 14 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: quindici pulsanti (dodici dal B25, dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo», dal B47 «Battuta»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 15 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
     if (w === 1920 && h === 540 || w === 1024) await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -132,12 +132,22 @@ try {
   await g.evaluate(() => { const S = __natpfTennis.natpfUi.split; for (const id of ['p1', 'p2']){ S._tutDone(id); S.phone(id).skipCalibration(); } S.paint(); });
   const started = await until(g, () => !!__natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.lobby.visible && ['SERVE_STANCE', 'SERVE_TOSS'].includes(__natpfTennis.phase), null, 30000);
   check('   i due telefoni pronti: conto alla rovescia e partita, senza toccare il computer', started);
+  // B47: prima del primo punto il conto alla rovescia grande, uno solo al centro dello schermo intero, partita ferma
+  const count = await g.evaluate(() => { const el = document.getElementById('natpf-prematch'), b = el.querySelector('.prematch-box')?.getBoundingClientRect(); return { on: !el.classList.contains('hidden') && !!b?.width, n: document.querySelectorAll('.natpf-prematch').length, kicker: el.querySelector('[data-prematch="kicker"]').textContent, title: el.querySelector('[data-prematch="title"]').textContent, serve: el.querySelector('[data-prematch="serve"]').textContent, cx: b ? Math.round(b.left + b.width/2) : null, paused: __natpfTennis.natpfPaused, W: innerWidth }; });
+  check('   B47: conto alla rovescia grande «Preparati · La partita sta per cominciare», uno solo, al centro, con chi batte; partita ferma', count.on && count.n === 1 && count.kicker === 'Preparati' && count.title === 'La partita sta per cominciare' && count.serve === 'Batte sempre Giulia' && Math.abs(count.cx - count.W/2) <= 4 && count.paused, fmt(count));
+  // (la schermata con la grafica software dura più dei 3 s del conto: il conto si ferma solo per la schermata)
+  await g.evaluate(() => { const pm = __natpfTennis.natpfUi.prematch; pm.__tick = pm.tick; pm.tick = () => {}; });
+  await sleep(400);   // (il riquadro entra con una breve animazione)
+  await shot('2-conto-grande-1280');
+  await g.evaluate(() => { const pm = __natpfTennis.natpfUi.prematch; pm.tick = pm.__tick; pm._last = performance.now(); });
+  const counted = await until(g, () => !__natpfTennis.natpfUi.prematch?.active && !__natpfTennis.natpfPaused, null, 20000);
+  check('   B47: dopo il conto si gioca (partita non più ferma)', counted);
   await sleep(250);
   let bn = await banner(g);
   const m1 = await g.evaluate(() => { const E = __natpfTennis; return { fair: E.score.fair, server: E.score.server, hot: E.natpfHot, foot: [...document.querySelectorAll('[data-sb-format]')].map(e => e.textContent), tags: [...document.querySelectorAll('.natpf-scoreboard .sb-tag')].map(e => e.offsetParent ? e.textContent : ''), serving: [...document.querySelectorAll('.sb-row.serving')].map(r => r.getAttribute('title')) }; });
   // (B35b, 13/11: con il servizio che cambia ogni 2 punti il banner d'inizio aggiunge la riga del formato veloce)
-  const FAST = 'Formato veloce: il servizio cambia ogni 2 punti';
-  check('   il sorteggio si vede: banner «Si gioca» con «Sorteggio: batte Giulia · Formato veloce…», e batte lei', bn.shown && bn.text === 'Si gioca' && bn.sub === `Sorteggio: batte Giulia · ${FAST}` && m1.server === 'opponent' && m1.serving.every(n => n === 'Giulia'), fmt({ bn, m1 }));
+  // B47: con la battuta di base «Sempre lo stesso» il servizio non passa mai (niente riga del formato veloce)
+  check('   il sorteggio si vede: banner «Si gioca» con «Sorteggio: batte sempre Giulia» (B47), e batte lei', bn.shown && bn.text === 'Si gioca' && bn.sub === 'Sorteggio: batte sempre Giulia' && m1.server === 'opponent' && m1.serving.every(n => n === 'Giulia'), fmt({ bn, m1 }));
   check('   formato in fiera acceso di base nello stesso schermo; B43: etichetta «1 GAME» dentro i due tabelloni (formato intero «1 game · punto decisivo sul 40-40» per lo screen reader)', m1.fair === true && m1.foot.length === 2 && m1.foot.every(t => t === '1 game · punto decisivo sul 40-40') && m1.tags.length === 2 && m1.tags.every(t => t === '1 game'), fmt(m1));
   check('   «Scambio che si scalda» spento dal pannello: questa partita non lo usa', m1.hot === false, String(m1.hot));
   await shot('2-inizio-sorteggio-1280');
@@ -213,13 +223,22 @@ try {
   await g.evaluate(() => { localStorage.setItem('natpf-tennis.scambioCaldo', '1'); __natpfTennis.natpfRng = () => .1; });
   const seq0 = await g.evaluate(() => __natpfTennis.natpfMatchSeq);
   await ph1.click('#rematch');
-  const again = await until(g, s => __natpfTennis.natpfMatchSeq === s + 1 && ['SERVE_STANCE', 'SERVE_TOSS'].includes(__natpfTennis.phase), seq0, 8000);
+  // B47: la rivincita dai telefoni apre la scelta delle fasce sul computer, che parte da sola dopo 10 s se nessuno la tocca
+  const pick = await until(g, () => __natpfTennis.natpfUi.rematch?.isOpen, null, 8000);
+  const pv = await g.evaluate(() => { const el = document.getElementById('natpf-rematch'); return { on: !el.classList.contains('hidden'), title: el.querySelector('[data-rematch="title"]').textContent, names: [...el.querySelectorAll('.rematch-name')].map(n => n.textContent), sel: [...el.querySelectorAll('.rematch-band.selected')].map(b => b.dataset.rematchBand), auto: el.querySelector('[data-rematch="auto"]').textContent, victory: !document.getElementById('victory-modal').classList.contains('hidden') }; });
+  check('   B47: la chiede anche Marco: sul computer la scelta delle fasce (nomi, fasce di prima segnate), che parte da sola', pick && pv.on && !pv.victory && pv.names.join('|') === 'Marco|Giulia' && pv.sel.join('|') === 'p1:adulto|p2:adulto' && /si parte da soli tra \d+ s/.test(pv.auto), fmt(pv));
+  await sleep(500);   // (il riquadro entra con una breve animazione: la schermata dopo)
+  await shot('4b2-scelta-fasce-rivincita-1280');
+  const again = await until(g, s => __natpfTennis.natpfMatchSeq === s + 1 && ['SERVE_STANCE', 'SERVE_TOSS'].includes(__natpfTennis.phase), seq0, 25000);
+  await until(g, () => !__natpfTennis.natpfUi.prematch?.active, null, 20000);
   await sleep(300);
   bn = await banner(g);
   const m2 = await g.evaluate(() => { const E = __natpfTennis; return { split: !!E.natpfSplit?.active, server: E.score.server, fair: E.score.fair, hot: E.natpfHot, pts: [E.score.playerPoints, E.score.opponentPoints, E.score.playerGames, E.score.opponentGames], modal: !document.getElementById('victory-modal').classList.contains('hidden'), lobby: __natpfTennis.natpfUi.lobby.visible }; });
-  check('   la chiede anche Marco: partita nuova senza toccare il computer (0-0, stesso schermo, scheda finale chiusa)', again && m2.split && !m2.modal && !m2.lobby && m2.pts.join('') === '0000' && m2.fair === true, fmt(m2));
-  check('   nuovo sorteggio, scritto nel banner: «Sorteggio: batte Marco · Formato veloce…»', bn.sub === `Sorteggio: batte Marco · ${FAST}` && m2.server === 'player', fmt(bn));
+  check('   partita nuova senza toccare il computer (0-0, stesso schermo, scheda finale chiusa), dopo il conto alla rovescia', again && m2.split && !m2.modal && !m2.lobby && m2.pts.join('') === '0000' && m2.fair === true, fmt(m2));
+  check('   nuovo sorteggio, scritto nel banner: «Sorteggio: batte sempre Marco»', bn.sub === 'Sorteggio: batte sempre Marco' && m2.server === 'player', fmt(bn));
   await until(ph1, () => document.getElementById('rematch').classList.contains('hidden'), null, 5000);
+  // (B47: dopo il conto alla rovescia «Si gioca!» resta 1 s sul telefono, poi la schermata di gioco)
+  await until(ph1, () => document.getElementById('big')?.textContent === 'Al servizio', null, 6000);
   v1 = await phoneView(ph1); v2 = await phoneView(ph2);
   check('   i telefoni tolgono «Rivincita» e tornano alla partita («Al servizio» per chi batte)', !v1.rematch && !v2.rematch && v1.big === 'Al servizio', fmt({ v1, v2 }));
   await shot('4c-rivincita-partita-1280');

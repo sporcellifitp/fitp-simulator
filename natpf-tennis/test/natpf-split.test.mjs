@@ -183,6 +183,8 @@ test('stesso schermo dal menu alla partita: due telefoni, calibrazione automatic
   ui.split.setHand('p2', 'left'); assert.equal(P2.hand, 'left');
   assert.equal(w.pressStart(), true);
   assert.equal(E.natpfSplit.active, true); assert.equal(E.isDoubles, false); assert.equal(E.isMultiplayer, true);
+  w.advance(3100);   // B47: prima del primo punto il conto alla rovescia grande (3 s, natpf_prematch.js), con la partita ferma
+  assert.ok(!ui.prematch.active && !E.natpfPaused);
   // esito di un colpo del P2 nell'angolo in basso della sua metà (a destra), una scritta sola: l'etichetta della metà
   // dice solo chi gioca (B10, prima l'esito c'era due volte, sopra la testa e sotto la metà)
   E.hud.showTimingPopup({ grade: 'P2 PERFECT \u2022 FOREHAND TOPSPIN!', detail: '120 KM/H', screenPos: { x: 640, y: 300, visible: true } });
@@ -219,6 +221,7 @@ test('stesso schermo: calibrazione rifatta a partita in corso (Ricalibra sul tel
   E.natpfPhone._onCal({ kind: 'review', pass: true }); P2._onCal({ kind: 'review', pass: true });
   lobby.next(); assert.equal(w.pressStart(), true); assert.equal(E.natpfSplit.active, true);
   assert.equal(lobby.visible, false);
+  w.advance(3100);   // B47: prima del primo punto il conto alla rovescia grande (3 s, natpf_prematch.js), con la partita ferma
   for (const [who, phone, link] of [['P2', P2, l2], ['P1', E.natpfPhone, w.link]]){
     // schermo spento, poi «Ricalibra» sul telefono: il telefono è in calibrazione (non pronto), la partita in pausa
     E.phase = 'RALLY'; link.ready = false; link.L = { ...link.L, phone: 'cal' };
@@ -444,10 +447,13 @@ test('stesso schermo: tutti e due pronti → conto di 3 s sul computer e sui tel
   advance(1000);
   assert.equal(E.natpfSplit?.active, true, 'si gioca da soli: sessione split avviata dal «Gioca» della lobby');
   assert.ok(!visible('split-countdown'));
-  // i due telefoni hanno avuto 3, 2, 1 e «si gioca» (0), una volta ciascuno
-  for (const l of [link, l2]) assert.deepEqual(counts(l).map(m => m.n), [3, 2, 1, 0]);
+  // i due telefoni hanno avuto 3, 2, 1 e «si gioca» (0), una volta ciascuno; B47: poi in campo il conto grande prima del
+  // primo punto («Preparati, la partita sta per cominciare», natpf_prematch.js), annunciato con gli stessi messaggi
+  for (const l of [link, l2]) assert.deepEqual(counts(l).map(m => m.n), [3, 2, 1, 0, 3]);
+  assert.ok(ui.prematch.active && visible('natpf-prematch'), 'conto grande in campo');
   advance(4000);
-  assert.deepEqual(counts(link).map(m => m.n), [3, 2, 1, 0], 'una volta sola');
+  assert.deepEqual(counts(link).map(m => m.n), [3, 2, 1, 0, 3, 2, 1, 0], 'una volta sola ciascuno');
+  assert.ok(!ui.prematch.active && !visible('natpf-prematch'));
   assert.equal(lobby.mode, 'split');
   // dopo la partita, di nuovo nella pagina dei telefoni con tutti e due pronti: il conto riparte da 3 (prova nel browser:
   // restava «già scattato» e non ripartiva)
