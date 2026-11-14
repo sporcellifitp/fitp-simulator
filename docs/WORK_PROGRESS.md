@@ -1966,5 +1966,11 @@ documenti; unione e versione le fa chi unisce in `natpf-simulator`.
   installatore, `docs/GUIDA_STAND.md` (§1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12), `docs/COLLAUDO_WINDOWS.md` (§4a nuovo, §5, §6,
   §7), `natpf-desktop/LEGGIMI.md`, `docs/GUIDA_TELECOMANDO.md`, `docs/b39/stand-solo-mouse.md`, `docs/PROJECT_MEMORY.md`.
   Non verificato: Windows vero, ledwall, mouse fisico, telefoni veri (elenco nel documento).
+- [x] Verifica finale sul codice unito con `natpf-simulator` (`c9f3fde`, solo documenti; unione `4761fb8`, poi `975d485`):
+  gioco **1542/1542**, sito 248/248, programma Windows 51/51, LAN 13/13, build riuscito, `npm run audit:legend` identico
+  alla base; Electron per Linux in Xvfb **101/101** (8 scenari); nel browser natpf-solo-mouse 42/42, natpf-menu 45/45,
+  natpf-pannello-partita 25/25, natpf-tabellone 41/41, natpf-schermo 41/41, natpf-formato-fiera 25/25,
+  natpf-diag-session 26/26, natpf-telecomando 85/85 (prova aggiornata: mezzo secondo tra i due clic di «Scollega»).
+  Guardia del doppio clic con `#natpf-tastiera` (B38) tra le eccezioni, per l'unione con il B38.
 - [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`;
   decisioni da chiedere all'utente nel documento (audio salvato, «Chi gioca» salvato, «Schermo intero» per sbaglio).

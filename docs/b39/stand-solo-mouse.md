@@ -8,7 +8,8 @@ schermo, «Gioca come Ospite»: li fa l'altro agente). Il B43 aveva già fatto i
 diagnostica che fermano la partita e stanno sopra la pausa; conferme in due clic): qui si riusa.
 
 Ramo `b39-solo-mouse`, base `889cb25` (versione 2026-11-14.1). Un commit per passo: B39.1+B39.4 `89494fb`,
-B39.3 `7c016bb`, B39.2 `49f38cf`, B39.5 `bb8d71e`, B39.6 `e6e81d1`, B39.7 (testi e guide) dopo.
+B39.3 `7c016bb`, B39.2 `49f38cf`, B39.5 `bb8d71e`, B39.6 `e6e81d1`, B39.7 `e0d8476`; unione di `natpf-simulator`
+(`c9f3fde`, solo documenti) `4761fb8`; prova del telecomando ed eccezione per la tastiera del B38 `975d485`.
 
 ## Come si usa con il solo mouse
 
@@ -117,10 +118,11 @@ posto di «tasto Alt»; `docs/GUIDA_STAND.md`, `docs/COLLAUDO_WINDOWS.md`, `natp
   tasto «indietro», window.open e link negati, pagina estranea negata, CSV salvato senza finestra e «(2)», pagina
   bloccata con finestra e ricarica da sola, errore non gestito, porta 8443 occupata → finestra e pagina italiane →
   «Riprova» → gioco partito).
-- Nel browser: `tools/e2e/natpf-solo-mouse.mjs` **42/42** (percorso dello stand solo con il mouse), `natpf-menu` 45/45,
-  `natpf-pannello-partita` 25/25, `natpf-tabellone` 41/41, `natpf-diag-session` 26/26, `natpf-schermo` 41/41,
-  `natpf-telecomando` e `natpf-formato-fiera`: vedi `docs/WORK_PROGRESS.md` (verifica finale).
-- `npm run audit:legend`: identico alla base.
+- Nel browser, sul codice unito: `tools/e2e/natpf-solo-mouse.mjs` **42/42** (percorso dello stand solo con il mouse),
+  `natpf-menu` 45/45, `natpf-pannello-partita` 25/25, `natpf-tabellone` 41/41, `natpf-diag-session` 26/26,
+  `natpf-schermo` 41/41, `natpf-formato-fiera` 25/25, `natpf-telecomando` 85/85 (dopo aver messo mezzo secondo tra i due
+  clic di «Scollega»: con 0,3 s il secondo clic ora non conta, come voluto).
+- `npm run audit:legend`: identico alla base (tutte le righe).
 
 ## Non provato
 - **Windows vero**: menu del tasto destro (posizione e misura delle scritte di sistema sul ledwall), finestre di
