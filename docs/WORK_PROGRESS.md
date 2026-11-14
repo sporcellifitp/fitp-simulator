@@ -1928,3 +1928,43 @@ documento con i passi del Worker e la prova a Precision. Ramo `b36-0-misure` (ba
 - [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti (il file del Worker da mandare all'utente è
   `natpf-tennis/cloudflare/registro-worker.js`), `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`; poi dire all'utente i passi del
   Worker (documento §3) e la prova a Precision (§6).
+
+## B39 · Stand con il solo mouse · [~] · 14/11/2026 (ramo `b39-solo-mouse`, documento `docs/b39/stand-solo-mouse.md`)
+Obiettivo: ogni «BLOCCATO» del controllo «solo mouse» del 13/11 che non è del B38 diventa OK con il solo mouse (programma
+Windows sul ledwall, mouse solo dello staff). Criterio di fine: passi B39.1–B39.7 provati (unità, Electron per Linux, browser),
+documenti; unione e versione le fa chi unisce in `natpf-simulator`.
+- [x] B39.1 + B39.4 · trappole e programma Windows (commit `89494fb`): `tools/lan/server.mjs` (`wss.on('error')`, prova a
+  porta occupata), `natpf-desktop/src/desktop-core.mjs` (`COMMANDS`, `PAGE_COMMANDS`, `staffMenu`, `appMenu`,
+  `contextMenuMode`, `navigationAllowed`, download, porta occupata; `setupPort` 0), `main.mjs` (menu del tasto destro,
+  azioni per id, canali `natpf:command` e `natpf:notice`, `will-download`, `setWindowOpenHandler`, `will-navigate`,
+  cronologia svuotata, `unresponsive`, firewall con tempo, monitor trascinato, «Riprova» con la porta occupata, errori non
+  gestiti), `preload.cjs` (versione 6), `natpf_stand_mouse.js` (pagina: comandi, avvisi, tasti 3/4/centrale, link, file
+  trascinati), `natpf_diag.js` (ritorno al pannello), `natpf_ui.js` (avvisi con durata, calibrazione che ferma la partita),
+  `prova-linux.mjs` (scenari `solo-mouse`, `porta-occupata`, `--schermate`; versione 6 del ponte nel controllo vecchio).
+  Verifiche: gioco 1525 + 4, sito 248, programma 51, LAN 13, build; Electron 45.2.2 per Linux in Xvfb **101/101** (tutti gli
+  scenari). Schermate (scratchpad): menu del tasto destro, «Il gioco non risponde», porta occupata.
+- [x] B39.3 · pannello da ogni pagina (commit `7c016bb`): `natpf_hold.js` (anello, tolleranza 24 px), marchi e titolo grande
+  (`natpf_kiosk.js`), ❚❚ tenuto 3 s, «Diagnostica» nel pannello, «× Chiudi» della classifica intera, «Azzera oggi» ed
+  «Elimina» con il secondo clic (niente più `confirm()` nel gioco), «Scollega il telecomando» con l'intervallo minimo,
+  spiegazione della voce sotto il puntatore, riquadro del telefono sotto i fogli, testi della diagnostica e del
+  certificato. Prova nuova `tools/e2e/natpf-solo-mouse.mjs`. Verifiche: gioco 1533, sito 248, build; natpf-solo-mouse 20/20,
+  natpf-menu 45/45 (pannello in vista alle 5 misure), natpf-pannello-partita 25/25, natpf-tabellone 41/41,
+  natpf-diag-session 26/26 da sola (3 KO di tempi con 4 prove in parallelo).
+- [x] B39.2 · guardia del doppio clic (commit `49f38cf`): `natpf_click_guard.js` (detail > 1; clic entro 450 ms da un cambio
+  di schermata; nelle prove automatiche la seconda regola solo con `?guardia=1`). Verifiche: gioco 1535, natpf-solo-mouse
+  31/31 (doppio clic a 110/250/300 ms su tutte le voci del controllo, clic singolo 100 ms dopo il passaggio automatico),
+  natpf-pannello-partita 25/25, natpf-menu 45/45.
+- [x] B39.5 · puntatore e bersagli (commit `bb8d71e`): `natpf_cursor.js` (Normale/Grande, nascosto in campo dopo 3 s e nei
+  menu dopo 10 s, mai con la racchetta mouse, anello, freccia sul bordo dell'area), ❚❚ in cqh, anello al passaggio del
+  mouse, chiosco che conta il mouse e resta fermo con telecomando o diagnostica aperti, classifica intera come riposo.
+  Verifiche: gioco 1540, build, natpf-solo-mouse 37/37 (schermate composte), natpf-menu 45/45 da sola (44/45 una volta con tre
+  prove in parallelo: frecce del menu a 1024×600), natpf-schermo 41/41.
+- [x] B39.6 · calibrazione con il mouse (commit `e6e81d1`): due angoli, frecce da trascinare, «−»/«+» che ripetono, «Schermo
+  intero» e istruzioni per il mouse nel riquadro. Verifiche: gioco 1542, build, natpf-solo-mouse 42/42 (1000×1000 in alto a
+  sinistra di 1920×1080 con 6 azioni del mouse), natpf-schermo 41/41.
+- [x] B39.7 · testi e guide: intro «Clicca o premi un tasto», riga dei tasti nascosta con il mouse, fumetto di ❚❚,
+  installatore, `docs/GUIDA_STAND.md` (§1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12), `docs/COLLAUDO_WINDOWS.md` (§4a nuovo, §5, §6,
+  §7), `natpf-desktop/LEGGIMI.md`, `docs/GUIDA_TELECOMANDO.md`, `docs/b39/stand-solo-mouse.md`, `docs/PROJECT_MEMORY.md`.
+  Non verificato: Windows vero, ledwall, mouse fisico, telefoni veri (elenco nel documento).
+- [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`;
+  decisioni da chiedere all'utente nel documento (audio salvato, «Chi gioca» salvato, «Schermo intero» per sbaglio).

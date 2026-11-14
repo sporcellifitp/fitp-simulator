@@ -2060,6 +2060,8 @@ html.cursor-hidden, html.cursor-hidden body, html.cursor-hidden body * { cursor:
 /* B39.5 (controllo n. 12): bersagli più grandi sul ledwall: ❚❚ legato all'altezza dell'area (prima 52 px fissi, su
    un'uscita 4K metà); con il mouse in movimento il pulsante sotto il puntatore ha lo stesso anello della tastiera */
 .natpf-pause-btn { width: clamp(52px, 7cqh, 96px); height: clamp(52px, 7cqh, 96px); font-size: clamp(15px, 2cqh, 28px); }
+/* B39.7: con il mouse (ultimo comando un clic) la riga dei tasti in basso nel menu si nasconde; un tasto la rimette */
+html.input-mouse #title-modal .lobby-keys { visibility: hidden; }
 html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal .lobby-tile:hover, html.mouse-active .natpf-sheet .pause-grid button:hover { outline: 3px solid var(--ball); outline-offset: 2px; }
 /* B39.6: calibrazione dello schermo con il mouse (natpf_calibra.js). La scritta dei due angoli e il segno del primo angolo
    sono figli di <html>, fuori dall'area (l'area di adesso può non coincidere con la parte che si vede): fuori dal contenitore

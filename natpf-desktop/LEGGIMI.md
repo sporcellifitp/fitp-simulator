@@ -20,12 +20,13 @@ Bucket degli aggiornamenti (Cloudflare R2), passi per l'utente: `docs/GUIDA_AGGI
 | `src/main.mjs` | processo principale: server, certificato, finestra, monitor, menu, scorciatoie, firewall, schermo acceso |
 | `src/desktop-core.mjs` | funzioni pure (monitor, finestra, scorciatoie, fiducia nel certificato, firewall, impostazioni, versione) |
 | `src/aggiornamenti.mjs` | aggiornamenti dal gioco: manifesto, versioni, download con ripresa, dimensione e sha256, stato (senza Electron) |
-| `src/preload.cjs` | ponte con la pagina del gioco: `window.natpfDesktop` (schermo intero, `updates`) |
+| `src/preload.cjs` | ponte con la pagina del gioco: `window.natpfDesktop` (schermo intero, `updates`, `displays`, `registro`, `staffPanel`, B39: `commands`, `notices`) |
 | `aggiornamenti.json` | indirizzo pubblico del bucket R2 degli aggiornamenti (`base`; vuoto = aggiornamenti spenti) |
 | `test/desktop-core.test.mjs` | prove con `node --test` (senza Electron), anche del preload e degli script NSIS |
 | `test/aggiornamenti.test.mjs` | prove dell'aggiornatore con un server HTTP locale, del manifesto e del workflow |
+| `test/solo-mouse.test.mjs` | B39: comandi e menu del tasto destro, pagine e download consentiti, porta occupata, collegamenti in `main.mjs` |
 | `scripts/prepara.mjs` | crea `app/`: gioco già costruito, pagine del telefono, server LAN, `main.mjs`, `preload.cjs`, `aggiornamenti.json` |
-| `scripts/prova-linux.mjs` | prova di `app/` con Electron per Linux in Xvfb (Playwright): schermo intero, tasti, ponte, aggiornamenti |
+| `scripts/prova-linux.mjs` | prova di `app/` con Electron per Linux in Xvfb (Playwright): schermo intero, tasti, ponte, aggiornamenti; B39: menu del tasto destro, porta occupata (`--scenari=solo-mouse,porta-occupata`, `--schermate=cartella` per le schermate dello schermo virtuale) |
 | `scripts/costruisci.mjs` | electron-builder → `dist/win-unpacked`, poi makensis → l'installer |
 | `scripts/manifesto.mjs` | `latest.json` per il bucket (usato dal workflow) e controllo «mai tornare indietro» |
 | `scripts/dividi.mjs` | consegna a pezzi da 45 MB (se l'installer non si scarica da un messaggio) |
@@ -190,3 +191,33 @@ senza cornice all'avvio, il cambio di monitor e i cambi di risoluzione si vedono
 
 Le parti di Windows (firewall, UAC, collegamenti, SmartScreen, aggiornamento con `/S /AGGIORNA`) si provano solo su
 Windows.
+
+## Stand con il solo mouse (B39, 14/11/2026)
+
+Allo stand si vede solo il ledwall e lo staff ha solo il mouse (decisioni dell'utente: niente icona nell'area di
+notifica, tasto destro = menu di Windows al puntatore con i comandi dello staff). Dettagli: `docs/b39/stand-solo-mouse.md`.
+
+- **Un solo elenco di comandi** (`COMMANDS` in `desktop-core.mjs`) per la barra del menu (`appMenu`), le scorciatoie
+  (`shortcutFor`) e il **menu del tasto destro** (`staffMenu`): `webContents` `'context-menu'` → `Menu.popup({ window })`
+  senza coordinate, cioè dove c'è il puntatore. Solo sulle pagine del proprio server (sulla pagina «Avvio del gioco…»
+  solo i comandi del programma: `contextMenuMode`). «Riavvia» ed «Esci» con un sottomenu di conferma; «Esci» non tocca
+  la scelta dello schermo intero. Ogni id di `COMMANDS` ha la sua azione in `ACTIONS` (controllato all'avvio e dalle prove).
+- **Canali nuovi** con le regole di sempre (solo la finestra del gioco, solo le pagine del proprio server):
+  `natpf:command` (programma → pagina, solo l'elenco congelato `PAGE_COMMANDS`, ricontrollato dal preload) e
+  `natpf:notice` (file salvato, link negato: solo i campi previsti, mai un percorso). Preload versione 6.
+- **Download** (`will-download`): subito in `Download\NATPF`, nome ripulito da `safeFileName`, «(2)» invece di
+  sovrascrivere (`downloadTarget`), solo dalla finestra del gioco e da `blob:` del proprio server (`downloadAllowed`).
+- **Navigazione**: `setWindowOpenHandler` nega ogni finestra nuova; `will-navigate` solo verso il proprio server
+  (`navigationAllowed`); `did-navigate` svuota la cronologia sulle pagine del gioco (il tasto «indietro» del mouse non
+  torna più ad «Avvio del gioco…»).
+- **Porta occupata**: `tools/lan/server.mjs` non fa più esplodere l'errore ripetuto da `ws`; qui `busyPort`,
+  `netstatListener`, `tasklistImage`, `startupProblem` → finestra italiana con «Riprova» · «Chiudi il programma» e lo
+  stesso testo sulla pagina di avvio. `DESKTOP.setupPort = 0`: la 8080 non serve più. Errori non gestiti: registro e
+  finestra italiana.
+- **Gioco bloccato** (`unresponsive`): finestra dopo `DESKTOP.hangDialogMs` (10 s), ricarica da sola dopo
+  `DESKTOP.hangReloadMs` (60 s), chiusa da `responsive`. Nelle prove (programma non costruito) `NATPF_ATTESA_BLOCCO_MS` e
+  `NATPF_RICARICA_BLOCCO_MS` accorciano le attese.
+- **Firewall**: domanda all'avvio con `DESKTOP.firewallAskMs` (60 s, poi «Più tardi»; `NATPF_FIREWALL_ATTESA_MS` nelle
+  prove). **Monitor** ricordato anche trascinando la finestra (`'moved'`).
+- Prova su Linux: `node scripts/prova-linux.mjs --scenari=solo-mouse,porta-occupata --schermate=/cartella` (le porte
+  8443 e 8081 libere; `app/registro.json` con `url` vuoto per non mandare righe allo spazio vero).

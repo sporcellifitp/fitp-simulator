@@ -5,7 +5,7 @@ Windows, il resto lo provo io, segnati i punti che devo controllare»; **07/11/2
 deve essere un unico installer che poi deve potersi aggiornare direttamente dal gioco» (niente più portatile né zip
 LAN; aggiornamenti da Cloudflare R2). Questo file è la lista dei controlli. Spunta le caselle (`[x]`) o scrivi accanto
 cosa non va; se qualcosa non va, manda anche il registro `%LOCALAPPDATA%\NATPF\log\programma.log` (dal programma: tasto
-**Alt** → Aiuto → Cartella dei dati).
+**destro** sul gioco → Programma → Cartella dei dati; con una tastiera, in finestra, **Alt** → Aiuto → Cartella dei dati).
 
 Codice: `natpf-desktop/` (Electron 45.2.2), procedura di costruzione in `natpf-desktop/LEGGIMI.md`, bucket degli
 aggiornamenti: `docs/GUIDA_AGGIORNAMENTI_R2.md`.
@@ -20,7 +20,8 @@ aggiornamenti: `docs/GUIDA_AGGIORNAMENTI_R2.md`.
   `%LOCALAPPDATA%\NATPF\portatile` e la regola del firewall «NATPF Simulator portatile» (non servono più).
 - Stesso gioco della versione browser; il server dei telefoni è quello che era nello zip LAN, dentro il programma.
 - Richiede Windows 10 o 11 a 64 bit. Su Windows più vecchi o a 32 bit si ferma con un messaggio.
-- Server e certificati: HTTPS 8443 per gioco e telefoni, pagina del certificato 8081, avvio guidato 8080 (solo sul PC).
+- Server e certificati: HTTPS 8443 per gioco e telefoni, pagina del certificato 8081 (dal B39 la 8080 non serve più:
+  l'avvio guidato usa una porta scelta dal sistema, solo sul PC).
   Dati in `%LOCALAPPDATA%\NATPF` (certificati in `certs`, impostazioni e profilo del gioco in `programma`, registri in
   `log`, aggiornamenti scaricati in `aggiornamenti`).
 - **Uno alla volta**: se il programma è già aperto, aprirlo di nuovo porta in primo piano la finestra già aperta.
@@ -130,6 +131,31 @@ pubblicata sul bucket (dimmelo e la pubblico).
       Privacy → Fotocamera → «Consenti alle app desktop di accedere alla fotocamera» attivo.
 - [ ] Alt → NATPF → Esci (o Ctrl+Q) chiude tutto; riaprendo il gioco riparte senza errori di porta occupata.
 
+## 4a. Con il solo mouse (B39, docs/b39/stand-solo-mouse.md)
+
+- [ ] **Tasto destro** sul gioco, a schermo intero: il menu di Windows si apre **dove c'è il puntatore**, sul ledwall,
+      con Pannello dello stand, Diagnostica, Calibra lo schermo, Azzera la calibrazione, Schermo intero ✓, Schermo del
+      gioco ▸, Ricarica il gioco, Rete per i telefoni ▸, Programma ▸, Riavvia il programma ▸, Esci ▸. Le scritte si
+      leggono dal posto dello staff? (le fa Windows: se sono troppo piccole, scrivimelo)
+- [ ] Ogni voce fa quello che dice; **Esci → «Sì, chiudi NATPF Simulator»** chiude e alla riapertura il gioco è ancora a
+      schermo intero; **Ricarica il gioco** riparte dal menu; **Riavvia il programma** chiude e riapre.
+- [ ] Il tasto destro sulla schermata «Avvio del gioco…» mostra solo i comandi del programma (Esci, Riavvia, Rete…).
+- [ ] Tasto laterale **«indietro»** del mouse (se c'è) nel gioco: non succede niente (prima tornava ad «Avvio del gioco…»).
+- [ ] **Porta 8443 occupata** (per esempio un vecchio «AVVIA NATPF LAN» aperto): compare in italiano «La porta 8443 è
+      già in uso da …» (con il nome del programma, se Windows lo dice) con «Riprova» e «Chiudi il programma», e lo
+      stesso testo sul ledwall; chiuso l'altro programma, «Riprova» fa partire il gioco.
+- [ ] Pannello → «Classifica · Scarica CSV»: nessuna finestra «Salva con nome»; il file è in **Download\NATPF**;
+      l'avviso nel gioco dice il nome; tasto destro → Programma → «Cartella dei file salvati» apre la cartella (su quale
+      monitor si apre Esplora file? scrivimelo).
+- [ ] Pagina «Collega il telefono» → «Apri il link del controller ↗»: nessuna seconda finestra, solo l'avviso.
+- [ ] Opzioni → **«Puntatore: Grande»**: la freccia gialla si vede bene sul ledwall? In campo sparisce dopo 3 secondi
+      fermo e ricompare muovendo il mouse? Vicino ai bordi della finestra Windows rimette per un attimo la freccia
+      normale (è previsto da Chromium): scrivimi se dà fastidio.
+- [ ] **Calibra lo schermo** con il mouse: clic sull'angolo in alto a sinistra e su quello in basso a destra che si
+      vedono sul ledwall → l'area coincide con la parte visibile e «Salva» si vede.
+- [ ] Domanda del firewall all'avvio (solo se la regola manca) senza risposta: dopo 60 secondi il gioco parte.
+- [ ] Doppio clic su «Gioca» nel menu e su «Alla partita ›»: si va avanti di una pagina sola.
+
 ## 4b. Adattamento al monitor e calibrazione dello schermo (tutte le versioni, B8)
 
 - [ ] Sul ledwall (qualsiasi proporzione: 16:9, 4:3, quadrato 2×2, 3:2) in partita si vede **tutto il campo**: righe
@@ -148,9 +174,9 @@ pubblicata sul bucket (dimmelo e la pubblico).
 
 ## 5. Telefoni
 
-- [ ] Telefoni dello staff sulla rete dello stand. Prima volta su quel PC: **Alt → Rete → Indirizzi e certificato
-      per i telefoni…** mostra `http://<indirizzo del PC>:8081`; dal telefono si apre la pagina e si installa il
-      certificato (istruzioni nella pagina, iPhone e Android).
+- [ ] Telefoni dello staff sulla rete dello stand. Prima volta su quel PC: **tasto destro → Rete per i telefoni →
+      Indirizzi e certificato per i telefoni…** (o in finestra Alt → Rete → …) mostra `http://<indirizzo del PC>:8081`;
+      dal telefono si apre la pagina e si installa il certificato (istruzioni nella pagina, iPhone e Android).
 - [ ] Il QR del gioco apre la pagina della racchetta in HTTPS senza avvisi di sicurezza sul telefono.
 - [ ] Un telefono: calibrazione, tutorial («Tutto chiaro, ho capito»), allenamento, una partita contro la CPU.
 - [ ] Due telefoni, stesso schermo: i due tutorial e le due calibrazioni nelle due metà, poi la partita.
@@ -193,11 +219,11 @@ Lo zip LAN non si consegna più dal 07/11 (è lo stesso gioco e lo stesso server
 
 ## 6. Se qualcosa non va
 
-- «Il gioco non è partito. La porta 8443 è già in uso»: è aperto un vecchio zip LAN («AVVIA NATPF LAN») o un altro
-  programma sulla 8443. Chiuderlo e riaprire.
+- «La porta 8443 è già in uso da …» (dal B39, con «Riprova»; prima un errore inglese «EADDRINUSE» con il solo «OK»): è
+  aperto un vecchio zip LAN («AVVIA NATPF LAN») o un altro programma sulla 8443. Chiuderlo e «Riprova».
 - Aggiornamento dal gioco che non parte o non riapre il gioco: aprire il gioco dal collegamento sul desktop e
   mandarmi il registro (righe «aggiornamenti»). In alternativa installare a mano l'ultimo setup (§2): aggiorna sopra.
-- Telefoni che non si collegano: Alt → Rete → Apri la rete ai telefoni; controllare la regola del firewall (punto 2) e che non ci siano regole di **blocco** per «NATPF Simulator» nelle regole in entrata; che PC e telefoni siano
+- Telefoni che non si collegano: tasto destro → Rete per i telefoni → Apri la rete ai telefoni (o Alt → Rete → …); controllare la regola del firewall (punto 2) e che non ci siano regole di **blocco** per «NATPF Simulator» nelle regole in entrata; che PC e telefoni siano
   sulla stessa rete; che la rete dello stand non isoli i dispositivi tra loro (isolamento dei client Wi-Fi). Un
   antivirus con un suo firewall (non Defender) ignora le regole di Windows: va aperto lì.
 - Schermo nero o gioco a scatti: punto «Scheda grafica in uso» del §4.
@@ -218,6 +244,11 @@ Verificato prima della consegna:
   redirect verso altri siti, download interrotto e ripreso, permesso rifiutato), prova con Electron per Linux (stato
   spento senza indirizzo, controllo all'avvio senza download, scarica → pronto, installazione simulata), script NSIS
   compilato con `/AGGIORNA`, passo di pubblicazione su R2 con un aws finto.
+
+- B39 (stand con il solo mouse): Electron 45.2.2 per Linux in Xvfb, scenari `solo-mouse` e `porta-occupata` di
+  `scripts/prova-linux.mjs` (menu del tasto destro e le sue voci, Esci con lo schermo intero salvato, Ricarica, tasto
+  «indietro», link e pagine estranee negati, CSV salvato senza finestra, pagina bloccata simulata, porta occupata con
+  «Riprova»); nel browser `tools/e2e/natpf-solo-mouse.mjs`.
 
 **Non verificato** (serve Windows): tutto quello che è in questo file. In particolare SmartScreen e antivirus,
 installazione e disinstallazione, regole del firewall, avvio senza permessi dalla pagina finale, ledwall, webcam,

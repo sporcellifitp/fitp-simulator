@@ -89,8 +89,12 @@ export class NatpfStandMouse {
     // B39.3 · ❚❚ tenuto 3 secondi in campo: pannello dello stand (il clic breve resta la pausa)
     const pauseBtn = doc?.getElementById?.('natpf-pause-btn');
     if (pauseBtn) this.pauseHold = new HoldPress(pauseBtn, { onDone: () => this.ui.kiosk?.open?.() });
-    // mouse in movimento: html.mouse-active per MOUSE_ACTIVE_MS (mostra «× Chiudi» della classifica a schermo intero)
+    // mouse in movimento: html.mouse-active per MOUSE_ACTIVE_MS (mostra «× Chiudi» della classifica a schermo intero).
+    // B39.7: html.input-mouse finché l'ultimo comando è del mouse (la riga dei tasti in basso nel menu si nasconde; un tasto
+    // la rimette)
     const html = doc?.documentElement;
+    win?.addEventListener?.('pointerdown', e => { if ((e.pointerType || 'mouse') === 'mouse') html?.classList?.add('input-mouse'); }, { capture: true, passive: true });
+    win?.addEventListener?.('keydown', () => html?.classList?.remove('input-mouse'), { capture: true, passive: true });
     win?.addEventListener?.('pointermove', e => {
       if (e.pointerType && e.pointerType !== 'mouse') return;
       html?.classList?.add('mouse-active');
