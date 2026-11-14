@@ -15,6 +15,7 @@ import { NatpfTimingCue } from './natpf_timing_cue.js';
 import { NatpfSuperHint } from './natpf_super_hint.js';
 import { eventoRestart } from './natpf_skill.js';
 import { NatpfHand } from './natpf_hand.js';
+import { NatpfHandNotice } from './natpf_hand_notice.js';
 import { NatpfTraining } from './natpf_training.js';
 import { NatpfBallMachine } from './natpf_ball_machine.js';
 import { bindAudioSliders } from './natpf_audio_settings.js';
@@ -45,6 +46,8 @@ import { NatpfUpdates } from './natpf_updates.js';
 import { resetVisitor } from './natpf_new_player.js';
 import { NatpfTrial } from './natpf_trial.js';
 import { readCalMode } from './natpf_trial_learn.js';
+import { NatpfTastiera } from './natpf_tastiera.js';
+import { NatpfStandMouse } from './natpf_stand_mouse.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -79,10 +82,14 @@ export class NatpfUi {
     // resto: l'apertura automatica dello schermo intero ascolta il primo tasto in cattura prima del menu, che lo ferma
     this.screen = new NatpfScreen(engine);
     this.screen.onHint = t => this.toast(t);
+    // B38: tastiera a schermo per i campi di testo (stand con il solo mouse). Presto, così Esc e i tasti veri la vedono
+    // prima del menu e dei fogli
+    this.tastiera = new NatpfTastiera();
     // calibrazione dello schermo (Opzioni → Schermo → «Calibra lo schermo…»): alla chiusura si torna al suo pulsante
     this.calibra = new NatpfCalibra(this.screen, {
       toast: t => this.toast(t),
-      onClose: () => { if (this.lobby?.visible){ this.lobby.paint(); document.querySelector?.('[data-option="calibra"]')?.focus?.({ preventScroll: true }); } },
+      // (B39: aperta anche dal tasto destro del programma, in campo: alla chiusura la partita riparte)
+      onClose: () => { this._syncPause(); if (this.lobby?.visible){ this.lobby.paint(); document.querySelector?.('[data-option="calibra"]')?.focus?.({ preventScroll: true }); } },
     });
     this.phone = engine.natpfPhone;
     // mouse e tastiera solo in modalità prova (easter egg «natpf» nel menu)
@@ -139,6 +146,10 @@ export class NatpfUi {
     // «Sono pronto» dai telefoni sulla pagina «Pronto per la partita» (natpf_ready_go.js, vale anche fuori dalla fiera)
     this.fiera = new NatpfFiera(engine, this);
     this.readyGo = new NatpfReadyGo(engine, this);
+    // B46: avviso grande quando la mano cambia dal telefono («Telefono 1: mano sinistra (mancino)», natpf_hand_notice.js)
+    this.handNotice = new NatpfHandNotice(engine, this);
+    // B39: stand con il solo mouse (comandi del tasto destro del programma, avvisi, trappole del mouse): natpf_stand_mouse.js
+    this.mouse = new NatpfStandMouse(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
     // aggiornamenti del programma Windows (window.natpfDesktop.updates, 07/11): avviso nel menu e sezione in Opzioni;
@@ -161,7 +172,8 @@ export class NatpfUi {
     window.addEventListener('natpf:victory', () => this._paintVictory());
     this.hand.set(this.hand.hand);
     // mano cambiata sulla pagina del telefono: vale per tutto il gioco (personaggio, webcam) e torna al telefono
-    if (this.phone) this.phone.onHand = h => { this.hand.set(h); this.paintTiles(); };
+    // (B46: con la causa, per il registro dello stand e per l'avviso grande del cambio dal telefono)
+    if (this.phone) this.phone.onHand = (h, causa = 'telefono') => { this.hand.set(h, causa); this.paintTiles(); };
     this.onViewChange(engine.viewMode);
     this.phone.onChange(() => { this.paintPhone(); this.paintTiles(); if (this.lobby?.visible && this.lobby.step === 'connect') this.lobby.paint(); });
     // telefono che ricalibra in partita o in una sfida senza il pannello aperto (Ricalibra e pannello chiuso, pagina del
@@ -183,7 +195,7 @@ export class NatpfUi {
     this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
     // (B43: con un foglio dello staff aperto la pausa si ricalcola anche qui: una partita che parte con la diagnostica già
     // aperta, ?diag=1, resta ferma come le altre; B41.6: «Sono pronto» dei telefoni sulla pagina «Pronto per la partita»)
-    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); this.readyGo?.tick(); } catch (e){ console.error(e); } }, 100);
+    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); this.readyGo?.tick(); this.handNotice?.tick(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -227,7 +239,8 @@ export class NatpfUi {
   // B43 (controllo «solo mouse», A1 e n. 14): fogli dello staff aperti (pannello dello stand, telecomando dello staff,
   // diagnostica): la partita resta ferma (anche scambi di prova e allenamento) e riparte quando si chiudono. Prima la CPU
   // faceva punti dietro il pannello e la diagnostica aperta dalla pausa faceva ripartire la partita
-  staffOpen(){ return !!(this.kiosk?.isOpen || this.remote?.isOpen || this.remote?.opening || this.diag?.isOpen); }
+  // (B39: anche la calibrazione dello schermo, che dal tasto destro del programma si apre in campo)
+  staffOpen(){ return !!(this.kiosk?.isOpen || this.remote?.isOpen || this.remote?.opening || this.diag?.isOpen || this.calibra?.isOpen); }
   // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
   _syncPause(){
     const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold || !!this.split?.hold || this.staffOpen();
@@ -281,8 +294,8 @@ export class NatpfUi {
     const p = m.s.player, o = m.s.opponent, g = m.games, mine = g.filter(x => x.winner === 'player').length;
     const r = this.events.recordMatch({ level: m.level, won: p.points, lost: o.points, games: [mine, g.length - mine], win: m.winner === 'player' });
     // (B35: la schermata finale scrive la pillola da questi numeri, natpf_match_stats.cpuPill: «3° posto nella classifica
-    // di oggi»; fuori dalle prime solo i punti, mai «fuori»)
-    this.stats.rank = { rank: r.rank | 0, total: r.total | 0, score: r.score | 0 };
+    // di oggi»; fuori dalle prime solo i punti, mai «fuori». B38: senza nome, «Ospite», fuori classifica: guest)
+    this.stats.rank = { rank: r.rank | 0, total: r.total | 0, score: r.score | 0, ...(r.guest ? { guest: true } : {}) };
     return r;
   }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer
@@ -424,9 +437,10 @@ export class NatpfUi {
     for (const b of document.querySelectorAll('[data-natpf-controller="mouse"]')) show(b, this.testInput);
     const n = $('lobby-egg-note'); if (n) n.hidden = !this.testInput;
   }
-  toast(text){
+  // ms: quanto resta (B39: i testi lunghi dello stand, per esempio il file salvato, restano di più)
+  toast(text, ms = 2600){
     const t = $('natpf-toast'); if (!t) return;
-    t.textContent = text; show(t); clearTimeout(this._toastT); this._toastT = setTimeout(() => show(t, false), 2600);
+    t.textContent = text; show(t); clearTimeout(this._toastT); this._toastT = setTimeout(() => show(t, false), ms);
   }
 
   selectController(id, { open = true } = {}){

@@ -29,6 +29,8 @@
     <link rel="stylesheet" href="./natpf-round.css" />
     <link rel="stylesheet" href="./natpf-flow.css" />
     <link rel="stylesheet" href="./natpf-ui.css" />
+    <link rel="stylesheet" href="./natpf-tastiera.css" />
+    <link rel="stylesheet" href="./natpf-servizio.css" />
   </head>
   <body>
     <div id="root" class="hidden" aria-hidden="true"></div>
@@ -188,7 +190,7 @@
       <div class="intro-stage">
         <h1 class="intro-title"><span class="intro-ball" aria-hidden="true"></span><b>NATPF</b><i>Simulator</i></h1>
         <p class="intro-tag">Tennis 3D · il telefono è la racchetta</p>
-        <button type="button" class="intro-start" id="intro-start">Premi un tasto per iniziare</button>
+        <button type="button" class="intro-start" id="intro-start">Clicca o premi un tasto per iniziare</button>
       </div>
       <footer class="intro-partners"><span>Un progetto</span><img src="./natpf/assets/brand/esports-fitp-neg.png" alt="Esports FITP" /><span>per le</span><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="Nitto ATP Finals" /></footer>
       <button type="button" class="intro-skip" id="intro-skip">Salta ›</button>
@@ -199,7 +201,8 @@
         <p class="sheet-kicker" id="nick-kicker">Classifica del giorno</p>
         <h2 class="sheet-title" id="nick-title">Il tuo nickname</h2>
         <p class="sheet-desc" id="nick-desc">Solo per la classifica: niente email, niente dati personali.</p>
-        <input id="nick-input" class="nick-input" maxlength="14" spellcheck="false" placeholder="Es. Ace99" />
+        <!-- B38: «Gioca come Ospite» accanto al campo (un clic, senza nome, fuori classifica: natpf_lobby.askNickname) -->
+        <div class="nick-row"><input id="nick-input" class="nick-input" maxlength="14" spellcheck="false" placeholder="Es. Ace99" /><button type="button" class="nick-guest" id="nick-guest">Gioca come Ospite</button></div>
         <p class="natpf-warn hidden" id="nick-warn"></p>
         <!-- «Nuovo giocatore» (B18): anche la mano, che torna «Destra» per chi arriva -->
         <div class="lobby-row nick-hand hidden" id="nick-hand">
@@ -221,6 +224,9 @@
       <div class="natpf-sheet staff-sheet">
         <p class="sheet-kicker">Riservato all’addetto</p>
         <h2 class="sheet-title" id="staff-title">Pannello dello stand</h2>
+        <!-- B39: diagnostica dal pannello (prima solo Maiusc+D o Pausa → Diagnostica in campo), in alto a destra sulla riga
+             del titolo: il foglio non cresce. Alla chiusura della diagnostica si torna qui -->
+        <button type="button" class="lobby-ghost staff-diag" data-staff="diag">Diagnostica</button>
         <!-- «Mira del telefono» (B16, decisione dell'utente: opzione dello staff, non dei visitatori): gradi di piatto girato
              per mandare la palla sulla riga, alta 17° · media 20° · bassa 23° (natpf_aim_level.js); un clic passa alla successiva.
              Cosa vuol dire lo spiegano l'avviso dopo il clic e il title del pulsante, non un paragrafo: a 1024 × 600 il foglio
@@ -240,6 +246,7 @@
           ><button type="button" data-staff="autotoss" title="Sì: nello stesso schermo, se chi deve battere resta fermo 30 secondi il gioco lancia la palla da solo; dopo due lanci automatici a vuoto batte il gioco un servizio morbido. Vale dalla prossima partita e resta salvata."><span>Lancio automatico</span><b>No</b></button
           ><button type="button" data-staff="open" title="Sì: nello stesso schermo i personaggi corrono come persone e non arrivano più su ogni palla: la palla angolata e lontana si prende in allungo o non si prende. Il servizio passa ogni due punti, come nel formato in fiera, anche con il formato classico: con il campo aperto chi batte è un po' sfavorito. Vale dalla prossima partita e resta salvata."><span>Stesso schermo: campo aperto</span><b>No</b></button
           ><button type="button" data-staff="cal" title="Giocando: niente gesti a vuoto, ogni partita comincia con circa 10 secondi di scambi di prova in cui il gioco impara il colpo di chi gioca, poi il match da 0-0. Con i gesti: la calibrazione di prima (telefono fermo, un dritto e un rovescio). Nessuna: si gioca subito, il gioco impara dai primi colpi veri. Vale dalla prossima partita e resta salvata."><span>Calibrazione</span><b>Giocando</b></button
+          ><button type="button" data-staff="osk" title="Automatica (di base): la tastiera a schermo compare cliccando con il mouse (o toccando) un campo di testo e sparisce se si usa una tastiera vera. Sempre: compare in ogni campo di testo, anche con una tastiera vera. Mai: non compare. Resta salvata."><span>Tastiera a schermo</span><b>Automatica</b></button
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
@@ -275,7 +282,7 @@
           <div class="remote-info">
             <p class="sheet-desc">Inquadra il QR con il <b>telefono dello staff</b> (non quello dei visitatori), poi <b>conferma qui sul computer</b> il numero che compare sul telefono.</p>
             <p class="remote-code-line">Oppure, sulla pagina del telecomando, scrivi il codice <b id="remote-code">—</b></p>
-            <p class="sheet-desc remote-tip">Prima volta su un telefono: certificato della rete NATPF come per la racchetta (QR «Certificato» della pagina «Collega»). QR e codice valgono solo con questo foglio aperto, per 5 minuti.</p>
+            <p class="sheet-desc remote-tip">Prima volta su un telefono: certificato della rete NATPF come per la racchetta (pulsante «Prima volta su questo telefono» della pagina «Collega il telefono»). QR e codice valgono solo con questo foglio aperto, per 5 minuti.</p>
           </div>
         </div>
         <div class="remote-request hidden" data-remote-view="request" role="alert">
@@ -297,8 +304,8 @@
     <!-- split screen in partita (natpf_split_ui.js): sotto ogni metà chi gioca e l'esito del suo ultimo colpo, o il suo
          telefono in pausa -->
     <div id="natpf-split-hud" class="natpf-split-hud hidden" aria-live="polite">
-      <div class="split-tag" data-split-tag="p1"><b>Player 1</b><span></span></div>
-      <div class="split-tag" data-split-tag="p2"><b>Player 2</b><span></span></div>
+      <div class="split-tag" data-split-tag="p1"><b>Player 1</b><i class="hand-tag hidden" title="Mano sinistra">Mancino</i><span></span></div>
+      <div class="split-tag" data-split-tag="p2"><b>Player 2</b><i class="hand-tag hidden" title="Mano sinistra">Mancino</i><span></span></div>
     </div>
     <div id="natpf-wipe" class="natpf-wipe" aria-hidden="true"><div class="wipe-band"><span class="wipe-mark">NATPF <i>Simulator</i></span><b id="natpf-wipe-text">Si gioca</b></div></div>
     <!-- NATPF: menu (src/natpf/natpf_lobby.js), percorso come in un gioco da console:
@@ -441,6 +448,15 @@
             </div>
           </div>
           <p class="lobby-note lobby-status lobby-status-ok" id="screen-cal-sum" role="status"></p>
+          <!-- B39.5: puntatore del mouse per il ledwall (natpf_cursor.js). Grande (di base nel programma Windows): freccia
+               gialla con il bordo nero, alta circa il 5 % dell'area; in campo il puntatore sparisce dopo 3 secondi fermo -->
+          <div class="lobby-row">
+            <span class="lobby-label">Puntatore</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Puntatore del mouse">
+              <button type="button" class="seg-btn" data-natpf-pointer="normale" role="radio">Normale</button
+              ><button type="button" class="seg-btn" data-natpf-pointer="grande" role="radio">Grande</button>
+            </div>
+          </div>
           <div class="lobby-row">
             <span class="lobby-label">Giochi con la mano</span>
             <div class="lobby-seg" role="radiogroup" aria-label="Mano">
@@ -639,7 +655,7 @@
         </section>
 
         <section class="lobby-page" data-page="match" aria-labelledby="lobby-t-match">
-          <header class="page-head"><h2 class="lobby-title" id="lobby-t-match">Pronto per la partita</h2></header>
+          <header class="page-head"><h2 class="lobby-title" id="lobby-t-match">Pronto per la partita</h2><span class="hand-tag hidden" id="match-hand" title="Mano sinistra: dritto e rovescio da mancino">Mancino</span></header>
           <!-- stesso schermo: le schede dei due giocatori, dal vivo (natpf_split_ui.paintMatch) -->
           <div id="split-ready-board" class="ready-board" aria-live="polite"></div>
           <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
@@ -920,7 +936,7 @@
       </div>
     </div>
     <!-- NATPF: pausa (src/natpf/natpf_pause.js): in partita l'HUD mostra solo tabellone, game ed esito del colpo -->
-    <button id="natpf-pause-btn" class="natpf-pause-btn" type="button" aria-label="Pausa (Esc)" title="Pausa (Esc)"><span aria-hidden="true">❚❚</span></button>
+    <button id="natpf-pause-btn" class="natpf-pause-btn" type="button" aria-label="Pausa (Esc)" title="Pausa (Esc) · tenuto premuto 3 secondi: pannello dello stand"><span aria-hidden="true">❚❚</span></button>
     <div id="natpf-pause" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-pause-title">
       <div class="natpf-sheet natpf-pause-sheet">
         <p class="sheet-kicker">Partita in pausa</p>
@@ -1047,7 +1063,10 @@
       <div class="cal-panel">
         <p class="cal-kicker">Opzioni · Schermo</p>
         <h2 class="cal-title" id="cal-title">Calibra lo schermo</h2>
-        <p class="cal-help">Regola finché le frecce toccano i bordi visibili. Il cerchio deve essere rotondo: se è ovale l’immagine è stirata.</p>
+        <!-- B39.6: con il mouse, i due angoli (la scritta segue il puntatore), le frecce dei bordi si trascinano, − e + si
+             tengono premuti; «Schermo intero» anche qui -->
+        <button type="button" class="cal-fs" data-cal="fullscreen" title="Schermo intero (F)">Schermo intero</button>
+        <p class="cal-help">Clicca l’angolo in alto a sinistra e quello in basso a destra che vedi sul ledwall, poi regola finché le frecce toccano i bordi visibili (si trascinano). Il cerchio deve essere rotondo: se è ovale l’immagine è stirata. <button type="button" class="cal-btn cal-btn-corners" data-cal="corners">Clicca i due angoli</button></p>
         <div class="cal-row">
           <span class="cal-label">Formato</span>
           <div class="cal-seg" role="radiogroup" aria-label="Formato">
@@ -1087,7 +1106,7 @@
           <div><dt>Bordi</dt><dd id="cal-i-margins"></dd></div>
         </dl>
         <p class="cal-note" id="cal-note" role="status"></p>
-        <p class="cal-keys">1–6 formato · Tab bordo · frecce sposta (Maiusc 5 %) · R azzera · F schermo intero · Invio salva · Esc annulla</p>
+        <p class="cal-keys">Mouse: due angoli · trascina le frecce · tieni premuto − o + · Tasti: 1–6 formato · Tab bordo · frecce sposta (Maiusc 5 %) · R azzera · F schermo intero · Invio salva · Esc annulla</p>
         <div class="cal-actions">
           <button type="button" class="cal-btn" data-cal="reset">Azzera</button
           ><button type="button" class="cal-btn" data-cal="cancel">Annulla</button
@@ -1098,6 +1117,8 @@
     <!-- messaggi brevi (toast, natpf_ui.toast): figlio diretto del body, sopra a tutto (anche alla calibrazione), così si
          vede nel menu, in campo, in pausa e nella calibrazione (dentro #title-modal in campo era nascosto con il menu) -->
     <div id="natpf-toast" class="natpf-toast hidden" role="status"></div>
+    <!-- B46: avviso grande quando la mano cambia dal telefono, 3 s (natpf_hand_notice.js) -->
+    <div id="natpf-hand-notice" class="natpf-hand-notice hidden" role="status" aria-live="assertive"><b></b><small></small></div>
     <script type="module">
       import { renderAllHudPlayerAvatars } from "./src/player_avatars.js";
       renderAllHudPlayerAvatars();

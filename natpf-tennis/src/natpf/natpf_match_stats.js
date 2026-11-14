@@ -215,6 +215,8 @@ export function bestOf(sum, { limit = 3, guest = false, vsCpu = false, split = f
 // un consiglio gentile sul livello (quello più facile, se c'è)
 export function cpuPill({ won = false, level = null, rank = null } = {}){
   if (won){
+    // (B38: chi gioca come «Ospite», senza nome, è fuori classifica: i punti e il perché)
+    if (rank?.guest) return rank.score > 0 ? `${rank.score} punti · Ospite, fuori classifica` : 'Ospite, fuori classifica';
     if (rank?.rank > 0) return `${rank.rank}° posto nella classifica di oggi`;
     if (rank?.score > 0) return `${rank.score} punti nella partita di oggi`;
     return '';

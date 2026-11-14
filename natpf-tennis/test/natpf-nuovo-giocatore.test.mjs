@@ -120,13 +120,20 @@ test('«Salta» nel passo del nome: si va avanti lo stesso, senza nome', async (
   w.pressStart(); w.advance(300);
   assert.equal(ui.newPlayer(), 'match');
   assert.ok(visible('natpf-nick'));
+  // B38: nel passo di «Nuovo giocatore» «Salta» è nascosto (al suo posto «Gioca come Ospite», accanto al campo), ma fa la
+  // stessa cosa (il telecomando lo usa per «Salta il nome»): si gioca come «Ospite», fuori classifica
+  assert.ok(!visible('nick-cancel'));
   $('nick-cancel').click();
   assert.ok(!visible('natpf-nick'));
-  assert.equal(ui.events.nickname, '');
+  assert.equal(ui.events.nickname, ''); assert.equal(ui.events.guest, true);
   assert.ok(lobby.visible && lobby.step === 'match', 'mouse e tastiera: subito la pagina «Partita»');
-  // il passo del nome delle sfide resta com'era (senza mano, «Indietro» non va avanti)
+  // B38: l'ospite non si sente chiedere il nome al minigioco
   lobby.go('menu'); lobby.menu('challenges'); lobby.pickChallenge('rush');
-  assert.ok(visible('natpf-nick') && !visible('nick-hand'));
+  assert.ok(!visible('natpf-nick')); assert.equal(lobby.step, 'controller');
+  // il passo del nome delle sfide per chi non ha scelto (senza mano, «Indietro» non va avanti)
+  ui.events.nickname = ''; assert.equal(ui.events.guest, false);
+  lobby.go('menu'); lobby.menu('challenges'); lobby.pickChallenge('rush');
+  assert.ok(visible('natpf-nick') && !visible('nick-hand') && visible('nick-cancel'));
   assert.equal($('nick-cancel').textContent, 'Indietro');
   $('nick-cancel').click();
   assert.equal(lobby.step, 'challenges');
@@ -236,7 +243,8 @@ test('«Ospite»: chi non scrive il nome dopo «Nuovo giocatore» non eredita i 
   $('nick-cancel').click(); w.advance(1000);
   assert.equal(ui.events.nickname, '');
   assert.equal(ui.events.record('rush'), null, 'l’ospite dopo parte da zero');
-  assert.equal(ui.events.top('rush').length, 1, 'la classifica del giorno resta');
+  // B38: senza nome = «Ospite» = fuori classifica (prima entrava come «Ospite»)
+  assert.equal(ui.events.top('rush').length, 0, 'l’ospite non entra nella classifica del giorno');
 });
 
 test('unione B18.1: «Nuovo giocatore» toglie anche i colpi speciali imparati da un ospite senza nome (catene della Combo)', async () => {
@@ -264,5 +272,5 @@ test('revisione dell’insieme B18.1: il reset del chiosco (stand libero dopo l�
   assert.equal(ui.events.nickname, '');
   assert.deepEqual(ui.events.learnedList, [], 'il visitatore dopo non trova le catene con i colpi dell’ospite');
   assert.equal(ui.events.record('rush'), null, 'né i suoi record');
-  assert.equal(ui.events.top('rush').length, 1, 'la classifica del giorno resta');
+  assert.equal(ui.events.top('rush').length, 0, 'B38: l’ospite non era nella classifica del giorno');
 });

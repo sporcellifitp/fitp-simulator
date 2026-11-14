@@ -255,7 +255,21 @@ export class RegistroStand {
     ph.onCal?.(e => { if (R.on){ const t = R.now(); try { R._cal(chi, e || {}); } catch {} R._costo(t); } });
     ph.onSwing?.((ev) => { if (R.on && ev?.ignored) R._scarto(ev.ignored); });
     ph.onDropped?.(why => R._scarto(why));
-    ph.onDiag?.((kind, d) => { if (kind === 'scartato') R._scarto(`telefono: ${d?.why || 'gesto scartato'}`); });
+    ph.onDiag?.((kind, d) => {
+      if (kind === 'scartato') R._scarto(`telefono: ${d?.why || 'gesto scartato'}`);
+      // B46: mano o segno del telefono cambiati (natpf_phone_racket: setHand, _signEvent)
+      else if ((kind === 'mano' || kind === 'verso') && R.on){ const t = R.now(); try { R._telMotivo(chi, kind, d || {}); } catch {} R._costo(t); }
+    });
+  }
+  // B46 «dritto e rovescio al sicuro» (14/11): una riga «tel» per ogni cambio di mano (motivo 'mano': mano, causa, ruolo)
+  // e di segno del verso (motivo 'segno': causa, stato ±1, ruolo). Se dritto e rovescio tornano scambiati, il registro dice
+  // quale dei casi è successo: mano sinistra (dal telefono, dal gioco…), segno dei sensori cambiato dai tocchi o con una
+  // pagina nuova, voto del rilevatore, segno degli scambi di prova, calibrazione che lo rimette a +1. Solo campi già
+  // previsti (CAMPI): il Worker non va ricaricato
+  _telMotivo(chi, kind, d){
+    const causa = String(d.causa || '').slice(0, 24) || null, ruolo = d.ruolo === 'p2' ? 'p2' : 'p1', dove = this.partita ? { inPartita: true } : {};
+    if (kind === 'mano') this._riga('tel', { chi, motivo: 'mano', mano: d.mano === 'left' ? 'left' : 'right', causa, ruolo, ...dove });
+    else this._riga('tel', { chi, motivo: 'segno', stato: d.stato === -1 ? -1 : 1, causa, ruolo, ...dove });
   }
 
   /* ---------- partita ---------- */

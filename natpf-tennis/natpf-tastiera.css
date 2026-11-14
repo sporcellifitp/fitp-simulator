@@ -1,0 +1,102 @@
+/* =====================================================================================================================
+   B38 · Tastiera a schermo (src/natpf/natpf_tastiera.js) e «Gioca come Ospite» nel foglio del nome.
+   Sistema grafico del gioco: blu notte, forme tondeggianti, accento #E8FF3A («Fatto», tasto premuto), rosa #FF4D94 (⌫),
+   azzurro #4DD7FF (⇧ acceso, bordo, «Gioca come Ospite»), Barlow Condensed per i tasti. Posizione e misure le mette il
+   modulo in px dall'area del gioco (viewport(): può essere un'area di ledwall) nelle variabili --osk-*; qui i valori di
+   riserva sono in cqw/cqh del contenitore natpf (il body è l'area). Tasti grandi: si cliccano con il mouse a qualche metro
+   da uno schermo grande.
+   ===================================================================================================================== */
+.natpf-tastiera {
+  --osk-k: clamp(30px, 7.5cqh, 92px);
+  --osk-gap: max(4px, 0.9cqh);
+  --osk-pad: max(6px, 1.2cqh);
+  --osk-w: min(96cqw, 160cqh);
+  --osk-x: calc((100cqw - var(--osk-w)) / 2);
+  --osk-y: calc(100cqh - 2cqh - 5 * var(--osk-k) - 4 * var(--osk-gap) - 2 * var(--osk-pad));
+  position: fixed;
+  left: var(--osk-x);
+  top: var(--osk-y);
+  z-index: 310;
+  box-sizing: border-box;
+  width: var(--osk-w);
+  padding: var(--osk-pad);
+  border-radius: calc(var(--osk-k) * 0.42 + var(--osk-pad));
+  border: max(1px, 0.18cqh) solid rgba(77, 215, 255, 0.42);
+  /* (piena: sotto i tasti non si deve leggere il foglio) */
+  background: linear-gradient(180deg, #13214f 0%, #0a1330 100%);
+  box-shadow: 0 2cqh 5cqh rgba(2, 6, 22, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-family: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  animation: osk-in 0.16s ease-out;
+}
+.natpf-tastiera.hidden { display: none; }
+@keyframes osk-in { from { opacity: 0; transform: translateY(1.2cqh); } to { opacity: 1; transform: none; } }
+.natpf-tastiera .osk-main { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: var(--osk-gap); }
+.natpf-tastiera .osk-num { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--osk-gap); }
+.natpf-tastiera.digits .osk-main { display: none; }
+.natpf-tastiera.digits .osk-num { display: grid; }
+.natpf-tastiera .osk-k {
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--osk-k);
+  margin: 0;
+  padding: 0;
+  border-radius: calc(var(--osk-k) * 0.3);
+  border: max(1px, 0.14cqh) solid rgba(176, 194, 255, 0.24);
+  background: #1d2b5e;
+  color: #f4f6fc;
+  font: 600 calc(var(--osk-k) * 0.5) / 1 "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background-color 0.1s, transform 0.08s, box-shadow 0.1s;
+}
+/* da lontano il passaggio del mouse si vede: anello giallo come con la tastiera */
+.natpf-tastiera .osk-k:hover { background: #2a3b78; box-shadow: inset 0 0 0 max(2px, 0.28cqh) #e8ff3a; }
+.natpf-tastiera .osk-k.down { background: #e8ff3a; color: #0a1330; transform: scale(0.95); box-shadow: none; transition: none; }
+.natpf-tastiera.shift .osk-letter, .natpf-tastiera.code .osk-letter { text-transform: uppercase; }
+.natpf-tastiera.code [data-nocode] { visibility: hidden; }
+.natpf-tastiera .osk-back { color: #ff4d94; font-size: calc(var(--osk-k) * 0.56); border-color: rgba(255, 77, 148, 0.5); }
+.natpf-tastiera .osk-shift { font-size: calc(var(--osk-k) * 0.56); }
+.natpf-tastiera.shift .osk-shift { background: #4dd7ff; border-color: #4dd7ff; color: #0a1330; }
+.natpf-tastiera .osk-space { border-radius: 999px; color: #b6c1e0; font-size: calc(var(--osk-k) * 0.36); letter-spacing: 0.18em; text-transform: uppercase; }
+.natpf-tastiera .osk-done {
+  border-radius: 999px;
+  border-color: #e8ff3a;
+  background: #e8ff3a;
+  color: #0a1330;
+  font: 800 italic calc(var(--osk-k) * 0.5) / 1 "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.natpf-tastiera .osk-done:hover { background: #f2ff8a; box-shadow: 0 0 0 max(2px, 0.28cqh) #ffffff; }
+/* tasto rifiutato (campo pieno, carattere che il campo non accetta): una scossa */
+.natpf-tastiera.nope { animation: osk-nope 0.22s ease-in-out; }
+@keyframes osk-nope { 0%, 100% { translate: 0 0; } 25% { translate: -0.6cqw 0; } 75% { translate: 0.6cqw 0; } }
+@media (prefers-reduced-motion: reduce) { .natpf-tastiera, .natpf-tastiera.nope { animation: none; } }
+
+/* «Gioca come Ospite» (decisione dell'utente del 14/11): accanto al campo del nome, nel foglio «Come ti chiami?» e in
+   quello dei minigiochi; un clic e si gioca senza nome, fuori classifica. Nelle aree strette va sotto il campo */
+.natpf-sheet .nick-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.natpf-sheet .nick-row .nick-input { flex: 1 1 7.5em; min-width: 0; width: auto; }
+.natpf-sheet .nick-row .nick-guest {
+  flex: 0 0 auto;
+  min-height: 56px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(77, 215, 255, 0.7);
+  background: rgba(77, 215, 255, 0.1);
+  color: #4dd7ff;
+  font: 700 italic 20px/1 var(--font-display, "Barlow Condensed", sans-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.natpf-sheet .nick-row .nick-guest:hover { background: rgba(77, 215, 255, 0.2); color: #ffffff; box-shadow: 0 0 0 3px rgba(232, 255, 58, 0.85); }
+.natpf-sheet .nick-row .nick-guest:focus-visible { outline: 3px solid #e8ff3a; outline-offset: 2px; }
+@container natpf (max-width: 520px) { .natpf-sheet .nick-row .nick-guest { flex: 1 1 100%; } }
+
+/* codice della sfida: il campo era largo 10ch e mostrava 5 caratteri su 7 («AT-K3»): ora il codice intero (B38) */
+#title-modal .lobby-join #join-code { width: 9.5em; }

@@ -1928,3 +1928,135 @@ documento con i passi del Worker e la prova a Precision. Ramo `b36-0-misure` (ba
 - [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti (il file del Worker da mandare all'utente è
   `natpf-tennis/cloudflare/registro-worker.js`), `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`; poi dire all'utente i passi del
   Worker (documento §3) e la prova a Precision (§6).
+
+## B38 + B44 · Tastiera a schermo, «Gioca come Ospite», servizio con l'icona (14/11, ramo `b38-tastiera`) · [x] verificato sul ramo, da unire
+
+Compiti: `docs/coda/B38-tastiera-a-schermo.md`, `docs/coda/B44-servizio-animato.md`, decisione dell'utente del 14/11 su
+«Gioca come Ospite». Documenti: `docs/b38/tastiera-a-schermo.md`, `docs/b44/servizio-animato.md`. Base 2026-11-14.1
+(`889cb25`), poi unito `natpf-simulator` (`4d9228b`, solo la traccia). Il gioco non cambia (`audit:legend` identico).
+- [x] B38.1 · tastiera e Ospite (commit `5286ba5`). File: `natpf_tastiera.js` (nuovo: `applyKey`, `fieldRules`,
+  `oskOpens`, `oskLayout`, `NatpfTastiera`), `natpf-tastiera.css` (nuovo), `natpf_ui.js` (la crea presto),
+  `natpf_kiosk.js` (opzione «Tastiera a schermo: Automatica · Sempre · Mai», `natpf-tennis.tastiera`), `index.html`
+  (voce del pannello, «Gioca come Ospite» accanto al campo, foglio di stile), `natpf_split_ui.js` (il conto alla rovescia
+  aspetta con la tastiera aperta su un nome), `natpf_diag.js` (Maiusc+D/M non scattano mentre si scrive: «Dario» non
+  diventa più «ario»), `natpf_lobby.js` (foglio del nome: «Gioca come Ospite», «Salta» nascosto in «Nuovo giocatore»,
+  risultato «Fuori classifica»), `natpf_events.js` (`ranked`: senza nome = Ospite = fuori classifica; `guest`,
+  `playAsGuest`), `natpf_match_stats.js` (pillola «N punti · Ospite, fuori classifica»), `natpf_new_player.js`.
+  Test: `natpf-tastiera.test.mjs` (10), `natpf-ospite.test.mjs` (4), `natpf-nuovo-giocatore.test.mjs` (aggiornato: il
+  passo del nome con l'ospite, la classifica senza l'ospite). Gioco 1539/1539, sito 248/248, build ok.
+- [x] B38.2 · prova nel browser e correzioni (commit `48157c0`): `tools/e2e/natpf-tastiera-schermo.mjs` (nuova, solo
+  mouse); il doppio clic su «Fatto» scarta solo il punto del tasto (prima tutta la tastiera: un clic subito dopo su
+  «Avanti ›», «Entra ›» o «Indietro» si perdeva), «Gioca come Ospite» sulla stessa riga del nome, tastiera piena (sotto
+  i tasti si leggeva il foglio), campo del codice della sfida largo per il codice intero (prima «AT-K3»).
+- [x] B44 · servizio (commit `b101e47`): `natpf_serve_hint.js` (nuovo), `natpf-servizio.css` (nuovo),
+  `natpf_serve_coach.js` (icona al posto del riquadro del lancio, conto per giocatore nuovo con `newPlayer()`, esercizio
+  «Servizio» dell'allenamento), tutorial, allenamento e guida «Come si gioca» con la stessa icona. Test aggiornati:
+  `natpf-servizio-istruzioni` (11, +5 nuovi), `natpf-b20-stesso-schermo`, `natpf-b25-stesso-schermo`,
+  `natpf-split-ricollega`; prove nel browser `natpf-servizio-lancio`, `natpf-stesso-schermo-b20`, `-b25`, `natpf-telecomando`
+  (+3 verifiche: «Gioca come Ospite» con le frecce e OK del telefono dello staff) adattate.
+- [x] B38+B44 · rifiniture e documenti (ultimo commit del ramo): icona del lancio più leggibile (telefono e palla più grandi,
+  scia sotto la palla: piccola sembrava una «i»), «Ospite» non accettato come nickname, «Tastiera a schermo» penultima voce
+  della griglia del pannello (più in alto spostava le voci alte di due righe), prove nel browser con 14 voci nel pannello
+  (b20, b25), secondo clic su «Nuovo giocatore» in partita in `natpf-stesso-schermo-b25` (B43), attesa di un fotogramma
+  nel controllo dell'icona di `natpf-servizio-lancio`; `docs/b38`, `docs/b44`, `docs/GUIDA_STAND.md` (§3.3, §3.4, §3.5,
+  nuovo §3.6, voce del pannello, §8, §10, §11), `docs/PROJECT_MEMORY.md`.
+- Verifiche sul codice finale (dopo l'unione): gioco **1543/1543**, sito **248/248**, Windows **43/43**, build ok,
+  `npm run audit:legend` **identico** alla base `889cb25` (69 OK, «Tutti i criteri rispettati», 93 righe uguali).
+  Nel browser (porte 4100–4149; telecomando 4902/4903 con `flock`), tutte rilanciate dopo l'ultimo cambio del codice
+  (la voce del pannello spostata prima di «Mira del telefono»), 09:13–10:06 UTC: `natpf-tastiera-schermo` **53/53** (tre
+  giri), `natpf-servizio-lancio` **17/17**, `natpf-stesso-schermo-b20` **49/49**, `natpf-chi-serve` **64/64**,
+  `natpf-formato-fiera` **25/25**, `natpf-tabellone` **41/41**, `natpf-menu` **45/45**, `natpf-nuovo-giocatore`
+  **28/28**, `natpf-1v1-p2p` **39/39**, `natpf-telecomando` **88/88**, `natpf-stesso-schermo-b25` **53/54**: il KO è il
+  pannello dello stand a 720 × 720 con chiosco, lancio automatico e campo aperto accesi che scorre di 38 px, **uguale
+  sulla base** `889cb25` (misurato con e senza la voce nuova): da sistemare con il B39.
+- Schermate guardate: tastiera a 1920 × 1080, 720 × 720, area 720 × 720 nel 1920 × 1080, 1920 × 540, stesso schermo
+  (metà sinistra e destra, 720 × 720), codice, diagnostica, pannello, Ospite; icona contro la CPU (1280 × 720,
+  1920 × 1080, 1920 × 540), stesso schermo (quattro misure), tutorial, guida.
+- Non verificato: PC Windows vero con il mouse a qualche metro dal ledwall; schermo tattile vero (`inputmode="none"`);
+  doppio clic con i tempi di Windows; l'icona sul computer del Player 2 della sfida tra due computer e nell'esercizio
+  «Servizio» dell'allenamento nel browser (solo test di unità); telefono vero.
+- [ ] Per chi unisce: versione nuova e pacchetti (installer, zip Cloudflare); con il B39 (stessi file: `index.html`,
+  `natpf-ui.css`, `natpf_kiosk.js`, `natpf_ui.js`) guardare la griglia del pannello (14 voci più quelle del B39) e la
+  guardia del doppio clic (i tasti della tastiera scattano al `pointerdown`, non vanno scartati).
+
+## B39 · Stand con il solo mouse · [~] · 14/11/2026 (ramo `b39-solo-mouse`, documento `docs/b39/stand-solo-mouse.md`)
+Obiettivo: ogni «BLOCCATO» del controllo «solo mouse» del 13/11 che non è del B38 diventa OK con il solo mouse (programma
+Windows sul ledwall, mouse solo dello staff). Criterio di fine: passi B39.1–B39.7 provati (unità, Electron per Linux, browser),
+documenti; unione e versione le fa chi unisce in `natpf-simulator`.
+- [x] B39.1 + B39.4 · trappole e programma Windows (commit `89494fb`): `tools/lan/server.mjs` (`wss.on('error')`, prova a
+  porta occupata), `natpf-desktop/src/desktop-core.mjs` (`COMMANDS`, `PAGE_COMMANDS`, `staffMenu`, `appMenu`,
+  `contextMenuMode`, `navigationAllowed`, download, porta occupata; `setupPort` 0), `main.mjs` (menu del tasto destro,
+  azioni per id, canali `natpf:command` e `natpf:notice`, `will-download`, `setWindowOpenHandler`, `will-navigate`,
+  cronologia svuotata, `unresponsive`, firewall con tempo, monitor trascinato, «Riprova» con la porta occupata, errori non
+  gestiti), `preload.cjs` (versione 6), `natpf_stand_mouse.js` (pagina: comandi, avvisi, tasti 3/4/centrale, link, file
+  trascinati), `natpf_diag.js` (ritorno al pannello), `natpf_ui.js` (avvisi con durata, calibrazione che ferma la partita),
+  `prova-linux.mjs` (scenari `solo-mouse`, `porta-occupata`, `--schermate`; versione 6 del ponte nel controllo vecchio).
+  Verifiche: gioco 1525 + 4, sito 248, programma 51, LAN 13, build; Electron 45.2.2 per Linux in Xvfb **101/101** (tutti gli
+  scenari). Schermate (scratchpad): menu del tasto destro, «Il gioco non risponde», porta occupata.
+- [x] B39.3 · pannello da ogni pagina (commit `7c016bb`): `natpf_hold.js` (anello, tolleranza 24 px), marchi e titolo grande
+  (`natpf_kiosk.js`), ❚❚ tenuto 3 s, «Diagnostica» nel pannello, «× Chiudi» della classifica intera, «Azzera oggi» ed
+  «Elimina» con il secondo clic (niente più `confirm()` nel gioco), «Scollega il telecomando» con l'intervallo minimo,
+  spiegazione della voce sotto il puntatore, riquadro del telefono sotto i fogli, testi della diagnostica e del
+  certificato. Prova nuova `tools/e2e/natpf-solo-mouse.mjs`. Verifiche: gioco 1533, sito 248, build; natpf-solo-mouse 20/20,
+  natpf-menu 45/45 (pannello in vista alle 5 misure), natpf-pannello-partita 25/25, natpf-tabellone 41/41,
+  natpf-diag-session 26/26 da sola (3 KO di tempi con 4 prove in parallelo).
+- [x] B39.2 · guardia del doppio clic (commit `49f38cf`): `natpf_click_guard.js` (detail > 1; clic entro 450 ms da un cambio
+  di schermata; nelle prove automatiche la seconda regola solo con `?guardia=1`). Verifiche: gioco 1535, natpf-solo-mouse
+  31/31 (doppio clic a 110/250/300 ms su tutte le voci del controllo, clic singolo 100 ms dopo il passaggio automatico),
+  natpf-pannello-partita 25/25, natpf-menu 45/45.
+- [x] B39.5 · puntatore e bersagli (commit `bb8d71e`): `natpf_cursor.js` (Normale/Grande, nascosto in campo dopo 3 s e nei
+  menu dopo 10 s, mai con la racchetta mouse, anello, freccia sul bordo dell'area), ❚❚ in cqh, anello al passaggio del
+  mouse, chiosco che conta il mouse e resta fermo con telecomando o diagnostica aperti, classifica intera come riposo.
+  Verifiche: gioco 1540, build, natpf-solo-mouse 37/37 (schermate composte), natpf-menu 45/45 da sola (44/45 una volta con tre
+  prove in parallelo: frecce del menu a 1024×600), natpf-schermo 41/41.
+- [x] B39.6 · calibrazione con il mouse (commit `e6e81d1`): due angoli, frecce da trascinare, «−»/«+» che ripetono, «Schermo
+  intero» e istruzioni per il mouse nel riquadro. Verifiche: gioco 1542, build, natpf-solo-mouse 42/42 (1000×1000 in alto a
+  sinistra di 1920×1080 con 6 azioni del mouse), natpf-schermo 41/41.
+- [x] B39.7 · testi e guide: intro «Clicca o premi un tasto», riga dei tasti nascosta con il mouse, fumetto di ❚❚,
+  installatore, `docs/GUIDA_STAND.md` (§1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12), `docs/COLLAUDO_WINDOWS.md` (§4a nuovo, §5, §6,
+  §7), `natpf-desktop/LEGGIMI.md`, `docs/GUIDA_TELECOMANDO.md`, `docs/b39/stand-solo-mouse.md`, `docs/PROJECT_MEMORY.md`.
+  Non verificato: Windows vero, ledwall, mouse fisico, telefoni veri (elenco nel documento).
+- [x] Verifica finale sul codice unito con `natpf-simulator` (`c9f3fde`, solo documenti; unione `4761fb8`, poi `975d485`):
+  gioco **1542/1542**, sito 248/248, programma Windows 51/51, LAN 13/13, build riuscito, `npm run audit:legend` identico
+  alla base; Electron per Linux in Xvfb **101/101** (8 scenari); nel browser natpf-solo-mouse 42/42, natpf-menu 45/45,
+  natpf-pannello-partita 25/25, natpf-tabellone 41/41, natpf-schermo 41/41, natpf-formato-fiera 25/25,
+  natpf-diag-session 26/26, natpf-telecomando 85/85 (prova aggiornata: mezzo secondo tra i due clic di «Scollega»).
+  Guardia del doppio clic con `#natpf-tastiera` (B38) tra le eccezioni, per l'unione con il B38.
+- [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`;
+  decisioni da chiedere all'utente nel documento (audio salvato, «Chi gioca» salvato, «Schermo intero» per sbaglio).
+
+## B46 · Dritto e rovescio al sicuro (14/11, ramo `b46-lato-sicuro`, documento `docs/b46/lato-sicuro.md`) · [x] verificato sul ramo, da unire
+Segnalazione dell'utente sulla 2026-11-14.1 (Android, stesso schermo, Player 1, «Giocando», dal primo colpo): «se provavo
+a fare un rovescio mi veniva fuori un dritto lungolinea, se facevo un dritto veniva fuori un rovescio incrociato».
+L'indagine (`scratchpad/swap/split-ruoli-mano/`) ha trovato tre casi con quelle scritte esatte: mano del Player 1 salvata
+«sinistra» (un tocco sul telefono), segno dell'accelerazione del telefono cambiato dopo gli scambi di prova (tocchi al
+servizio), segno del rilevatore cambiato dopo. Base `int-b38-b39` (`55e818a`). Chiusi tutti e tre, con il registro che
+dice quale se ricapita.
+- [x] B46.1 · telefono (commit `b4a2ea8`): `phone-screen.js` `handTap`/`handLabel` (mano con due tocchi, «Mancino? Tocca di
+  nuovo» per 4 s) e `tapVotesSign` (tocchi che votano il segno solo in «Attiva i sensori», tutorial, calibrazione e
+  «Pronto» al menu; mai in serve/toss/play né negli scambi di prova); `racchetta.js` (riga della mano, voto con la regola,
+  messaggio `sgn` al voto del rilevatore); `link.js` (`sgn` → evento `sign`); `racchetta.html` (stile della domanda);
+  `tools/e2e/gesture-calibration.mjs` con i due tocchi. Verifiche: `tools/test/b46-lato-sicuro.test.mjs` 6/6, sito 254/254.
+- [x] B46.2 · computer (commit `4f2daf0`): `natpf_hand.js` (`set(h, causa)`, `resetHands`), `natpf_phone_racket.js`
+  (`setHand(h, causa)` → `_diag('mano')`, `_accSignSeen` dal «dev», `_detectorSign`, eventi `'prova'` e
+  `'calibrazione'` → `_diag('verso')`), `natpf_hand_notice.js` (nuovo: avviso 3 s), «Mancino» in `natpf_trial.js`,
+  `natpf_split_ui.js` (anche la mano dal telefono del P2 passa da `_applyHand`) e `natpf_lobby.js`; `natpf_kiosk.js` e
+  `natpf_new_player.js` (destri P1 e P2); registro (`registro_registratore._telMotivo`, riga `tel` con soli campi già in
+  CAMPI), riassunto (`scripts/registro/riassunto.mjs`, due tabelle), diagnostica (`diag_recorder`, `diag_viewer`);
+  `index.html` e `natpf-ui.css` (cqw/cqh). Verifiche: `natpf-b46-lato-sicuro` 9/9, `natpf-b46-caso-utente` 5/5 (dal
+  `B-stesso-schermo.mjs` dell'indagine), riassunto 12/12; gioco 1575/1575.
+- [x] B46.3 · prova nel browser (commit `e6fe721`): `tools/e2e/natpf-mano-sicura.mjs` (nuova) 17/17 a 1280×720 e a 720×720;
+  «Mancino» sulla stessa riga del titolo di «Pronto per la partita».
+- [x] B46.4 · diagnostica (commit `399107c`): `diag_metrics.js` (tel.mano, tel.verso nelle metriche e nel riassunto in
+  parole). Verifiche: test della diagnostica 43/43, `natpf-b46-lato-sicuro` 10/10.
+- [x] B46.5 · documenti: `docs/b46/lato-sicuro.md` (perché, cosa cambia, come si attiva, prove, limiti), questa voce,
+  `docs/PROJECT_MEMORY.md` (sezione B46), `docs/GUIDA_STAND.md` (riga «Giochi con la mano»).
+- [x] Verifica finale sul ramo (`09a97ed`): gioco **1576/1576**, sito **254/254**, build ok, `audit:legend` identico a quello di
+  `int-b38-b39`; nel browser stesso-schermo-b20 49/49 (da sola: sotto carico 41/49, come la base sugli stessi controlli
+  passeggeri), stesso-schermo-b25 53/54 (KO della base), split-ready 34/34, scambi-di-prova 30/30, nuovo-giocatore 28/28,
+  tutorial-phone 46/46, phone-upright 10/10, flusso-tocchi 5/5, fiera-telefoni 38/38, menu 45/45, tastiera-schermo 53/53
+  (rilanciata da sola), solo-mouse 42/42, mano-sicura 17/17 e 17/17 (720×720), gesture-calibration 21/21.
+  Non verificato: telefoni veri (Android, iPhone), programma Windows, ledwall vero, pagine del telefono rimaste in cache
+  con la versione di prima. Punto aperto per il coordinatore: segno imparato rimesso a +1 (deciso) o girato (esatto se
+  il telefono passa da giusto a sbagliato tra gli scambi di prova e la partita: documento, «Limiti»).
+

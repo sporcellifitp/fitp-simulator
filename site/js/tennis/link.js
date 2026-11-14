@@ -110,7 +110,8 @@ export function createPhoneLink({ stand = null } = {}){
   // clock: ogni scambio dell'orologio { d invio, p telefono, r ricezione } (ms); state: ogni stato del telefono (st), per
   // la diagnostica
   // route: strada scelta del collegamento con il telefono (ice-route.js, routeSummary), all'apertura e a ogni cambio
-  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [], discard: [], mark: [], device: [], route: [] };
+  // sign (B46): il rilevatore del telefono ha girato il segno dei sensori ({ detector: ±1 })
+  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [], discard: [], mark: [], device: [], route: [], sign: [] };
   let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0, starting = null, startEpoch = 0;
   // stand: indirizzo del Peer fisso (cambia con un abbinamento nuovo), Peer dell'abbinamento (solo a foglio aperto),
   // telefono in attesa della conferma ({ c, num }), nuovo tentativo dell'indirizzo occupato
@@ -354,6 +355,9 @@ export function createPhoneLink({ stand = null } = {}){
         case 'gx': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); emit('discard', { why: typeof d.r === 'string' ? d.r.slice(0, 40) : '?', peak: Number.isFinite(d.v) ? d.v : null, angle: Number.isFinite(d.a) ? d.a : null, dir: [-1, 0, 1].includes(d.d) ? d.d : null, at }); break; }
         case 'mk': emit('mark', { text: typeof d.x === 'string' ? d.x.slice(0, 80) : 'segno dal telefono' }); break;
         case 'dev': emit('device', { ua: typeof d.ua === 'string' ? d.ua.slice(0, 200) : null, wakeLock: d.wl ?? null, motion: d.dm ?? null, orientation: typeof d.or === 'string' ? d.or.slice(0, 30) : null, screen: Array.isArray(d.sc) ? d.sc.slice(0, 3) : null, version: typeof d.vr === 'string' ? d.vr.slice(0, 40) : null, accSign: d.as === -1 ? -1 : d.as === 1 ? 1 : null }); break;
+        // B46: il rilevatore del telefono ha girato il suo segno (swing-detect.js vote, profilo semplice): il computer lo
+        // registra subito, senza aspettare il colpo dopo (che lo porta comunque, sg). Le pagine di prima non lo mandano
+        case 'sgn': if (d.d === 1 || d.d === -1) emit('sign', { detector: d.d }); break;
       }
     });
     c.on('motion', buffer => { if (ok && c === conn){ countMsg('bin'); const sample = decodeSensor(buffer); if (sample) racketMotion.push(sample, performance.now()); } });

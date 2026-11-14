@@ -24,6 +24,8 @@ const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const BOARD_KEY = 'natpf-tennis.classifica';
 export const NICK_KEY = 'natpf-tennis.nickname';
+// B38: «Gioca come Ospite» scelto da chi gioca adesso (sessione della pagina, come il nickname)
+export const GUEST_KEY = 'natpf-tennis.ospite';
 export const LEARNED_KEY = 'natpf-tennis.colpi-imparati';
 
 // i minigiochi che si scelgono (menu, classifica): natpf_arcade.VISIBLE_MODES, stessa forma delle sfide di prima (id,
@@ -46,8 +48,19 @@ export function validNickname(raw){
   if (!/^[\p{L}\p{N} ._-]+$/u.test(nick)) return { ok: false, nick, why: 'Solo lettere, numeri, spazio, punto e trattino' };
   const f = fold(nick).replace(/[ ._-]/g, '');
   if (BLOCKED.some(w => f.includes(w))) return { ok: false, nick, why: 'Scegli un altro nickname' };
+  // B38: «Ospite» è chi gioca senza nome (fuori classifica): non si sceglie come nome, così in classifica non c'è mai
+  if (f === 'ospite') return { ok: false, nick, why: '«Ospite» è per chi gioca senza nome: scegline un altro' };
   return { ok: true, nick };
 }
+
+/* ---------- chi entra in classifica (B38) ---------- */
+// Regola (decisione dell'utente del 14/11, «Gioca come Ospite»: il punteggio dell'ospite resta fuori classifica), resa
+// esplicita: SENZA NOME = «OSPITE» = FUORI CLASSIFICA. Vale per le classifiche del giorno dei minigiochi e delle partite
+// contro la CPU (e quindi per il CSV): una riga entra solo con un nickname. Prima ogni punteggio senza nome entrava come
+// «Ospite» (anche cinque «Ospite» di fila). Record personali, medaglie ed esperienza invece restano anche all'ospite, nel
+// contenitore «Ospite» di oggi (si vedono nella schermata del risultato e nelle tessere dei minigiochi; «Nuovo giocatore»
+// e il chiosco li cancellano: forgetGuest), come prima.
+export const ranked = nick => !!String(nick ?? '').trim();
 
 /* ---------- classifica del giorno (funzioni pure) ---------- */
 export const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -139,7 +152,12 @@ export class NatpfEvents {
   // revisione B18: nickname cambiato o dimenticato (stand di nuovo libero) = visitatore nuovo: via i colpi speciali
   // imparati da quello prima (prima restavano per tutta la sessione della scheda). Il primo nickname no: chi si è allenato
   // senza nickname e poi ne sceglie uno è la stessa persona
-  set nickname(v){ const prev = this.nickname; this._nick = v; try { v ? sessionStorage.setItem(NICK_KEY, v) : sessionStorage.removeItem(NICK_KEY); } catch {} if (prev && v !== prev) this.forgetLearned(); }
+  set nickname(v){ const prev = this.nickname; this._nick = v; try { v ? sessionStorage.setItem(NICK_KEY, v) : sessionStorage.removeItem(NICK_KEY); } catch {} if (prev && v !== prev) this.forgetLearned(); this.guest = false; }
+  // B38: chi gioca adesso ha scelto «Gioca come Ospite» (niente nome, fuori classifica): non gli si chiede il nome al
+  // minigioco dopo. Si azzera con un nickname, con «Nuovo giocatore» e con il chiosco (nickname = '')
+  get guest(){ try { return sessionStorage.getItem(GUEST_KEY) === '1'; } catch { return !!this._guest; } }
+  set guest(v){ this._guest = !!v; try { v ? sessionStorage.setItem(GUEST_KEY, '1') : sessionStorage.removeItem(GUEST_KEY); } catch {} }
+  playAsGuest(){ this.nickname = ''; this.guest = true; }
   _read(){ try { return freshBoard(JSON.parse(localStorage.getItem(BOARD_KEY) || 'null')); } catch { return freshBoard(null); } }
   _write(){ try { localStorage.setItem(BOARD_KEY, JSON.stringify(this.board)); } catch {} }
   _readRecords(){ try { return JSON.parse(localStorage.getItem(RECORDS_KEY) || '{}') || {}; } catch { return {}; } }
@@ -155,7 +173,9 @@ export class NatpfEvents {
   // B33: partita contro la CPU finita (natpf_match_stats → natpf_ui): nella classifica delle partite di oggi con il
   // nickname (o «Ospite»). Solo su questo computer (localStorage), come le sfide; il registro dello stand non la vede
   recordMatch({ level, won, lost, games, win }){
-    const r = addMatch(this.board, { nick: this.nickname || GUEST, level, won, lost, games, win });
+    // (B38: senza nome, «Ospite», fuori classifica: niente riga; restano punteggio e totale per la schermata finale)
+    if (!ranked(this.nickname)){ this.board = freshBoard(this.board); return { board: this.board, rank: 0, total: matchList(this.board).length, score: matchScore({ level, won, lost }), guest: true }; }
+    const r = addMatch(this.board, { nick: this.nickname, level, won, lost, games, win });
     this.board = r.board; this._write();
     return r;
   }
@@ -366,8 +386,11 @@ export class NatpfEvents {
   finish(){
     const A = this.active, E = this.engine; if (!A || A.over) return;
     A.over = true; A.bestStreak = Math.max(A.bestStreak, A.streak);
-    const nick = this.nickname || 'Ospite';
-    const r = addScore(this.board, A.id, nick, A.score); this.board = r.board; this._write();
+    const nick = this.nickname || GUEST, inRank = ranked(this.nickname);
+    // (B38: senza nome, «Ospite», fuori classifica; record e medaglie restano nel contenitore «Ospite» di oggi)
+    let r;
+    if (inRank){ r = addScore(this.board, A.id, nick, A.score); this.board = r.board; this._write(); }
+    else { this.board = freshBoard(this.board); r = { rank: 0, total: topScores(this.board, A.id, Infinity).length }; }
     const rec = recordGame(this.records, A.id, A.score); this.store = putRecords(this.store, nick, rec.records); this._writeRecords();
     this.active = null; this._restore();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
@@ -382,7 +405,7 @@ export class NatpfEvents {
       : A.id === 'combo' ? [`${A.chains} catene complete`, `serie migliore ${A.bestStreak}`]
       : A.id === 'survival' ? [`livello ${A.level + 1}`, `${A.returned} palle rimandate`]
       : [`${A.serves} servizi`];
-    this.ui.flow?.showResult({ id: A.id, label: A.c.label, unit: A.c.unit, score: A.score, rank: r.rank, total: r.total, nick,
+    this.ui.flow?.showResult({ id: A.id, label: A.c.label, unit: A.c.unit, score: A.score, rank: r.rank, total: r.total, nick, guest: !inRank,
       medal: rec.medal, isRecord: rec.isRecord, prevBest: rec.prevBest, best: rec.records[A.id].best, xp: rec.xp, level: levelOf(rec.records.xp), stats });
   }
   // interrotta dalla pausa («Torna al menu»): nessun risultato, ma il motore torna com'era

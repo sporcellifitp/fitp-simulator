@@ -140,8 +140,9 @@ try {
   const after = await who(g), phA = await phoneState(ph);
   check('A3. «Nuovo giocatore»: nome, tutorial visto, calibrazione e colpo tipico azzerati, mano «Destra»', after.nick === '' && !after.tutSeen && !after.ready && !after.profile && after.typical == null && after.hand === 'right', JSON.stringify(after));
   check('   telefono ancora collegato, stesso abbinamento (niente QR da rifare), in attesa del tutorial', after.connected && after.pairs === pairs0 && after.link === 'connected' && phA.link === 'on' && phA.screen === 'tutorial', JSON.stringify({ after, phA }));
-  const nickV = await g.evaluate(() => ({ open: !document.getElementById('natpf-nick').classList.contains('hidden'), hand: !document.getElementById('nick-hand').classList.contains('hidden'), title: document.getElementById('nick-title').textContent, skip: document.getElementById('nick-cancel').textContent }));
-  check('   passo del nome con la mano («Come ti chiami?», «Salta»)', nickV.open && nickV.hand && nickV.title === 'Come ti chiami?' && nickV.skip === 'Salta', JSON.stringify(nickV));
+  const nickV = await g.evaluate(() => ({ open: !document.getElementById('natpf-nick').classList.contains('hidden'), hand: !document.getElementById('nick-hand').classList.contains('hidden'), title: document.getElementById('nick-title').textContent, skip: !document.getElementById('nick-cancel').classList.contains('hidden'), guest: !document.getElementById('nick-guest').classList.contains('hidden') && document.getElementById('nick-guest').getBoundingClientRect().width > 0 }));
+  // (B38: «Gioca come Ospite» accanto al campo al posto di «Salta»)
+  check('   passo del nome con la mano («Come ti chiami?», «Gioca come Ospite» al posto di «Salta»)', nickV.open && nickV.hand && nickV.title === 'Come ti chiami?' && !nickV.skip && nickV.guest, JSON.stringify(nickV));
   await shot('A3-nome-1280');
   await g.setViewportSize({ width: 1024, height: 600 }); await sleep(500);
   const nick600 = await g.evaluate(() => { const r = document.querySelector('#nick-form .sheet-actions').getBoundingClientRect(), h = document.getElementById('nick-hand').getBoundingClientRect(); return { actions: r.bottom <= innerHeight, hand: h.height > 0 && h.bottom <= innerHeight }; });

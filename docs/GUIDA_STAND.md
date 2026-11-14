@@ -1,6 +1,10 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-14.1** (14/11/2026).
+**Vale per la versione 2026-11-14.1** (14/11/2026). Le voci segnate **(B39)** valgono dalla versione che contiene il
+blocco B39 «stand con il solo mouse» (la prima dopo la 2026-11-14.1): tasto destro con i comandi dello staff, pannello da
+ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello schermo con due clic (dettagli in
+`docs/b39/stand-solo-mouse.md`). Dalla stessa versione anche la tastiera a schermo e «Gioca come Ospite» (B38, capitolo
+3.6) e l'icona del servizio (B44, capitolo 8.3).
 
 Per chi gestisce lo stand di **NATPF Simulator** con il programma Windows, il ledwall e **solo il mouse**. Ogni voce è
 controllata sul codice di questa versione.
@@ -19,8 +23,8 @@ controllata sul codice di questa versione.
 
 Capitoli: 1 · Aprire il pannello dello stand — 2 · Le voci del pannello — 3 · Ogni visitatore — 4 · In campo: la pausa
 e il riquadro del telefono — 5 · Le Opzioni del gioco — 6 · Il telecomando dello staff — 7 · Il programma Windows —
-8 · Fiera ed eventi — 9 · Il registro dello stand — 10 · Cosa oggi non si fa con il solo mouse — 11 · Se qualcosa non
-va — 12 · Con una tastiera — Appendice: solo per la versione web — Per chi sviluppa.
+8 · Fiera ed eventi — 9 · Il registro dello stand — 10 · Il solo mouse: cosa si fa e cosa ancora no — 11 · Se qualcosa
+non va — 12 · Con una tastiera — Appendice: solo per la versione web — Per chi sviluppa.
 
 ---
 
@@ -31,10 +35,11 @@ va — 12 · Con una tastiera — Appendice: solo per la versione web — Per ch
 1. Accendi il ledwall, poi il PC. Apri **NATPF Simulator** (icona sul desktop).
 2. Se compare «Su quale schermo mostro il gioco?», clicca lo schermo con scritto «probabile ledwall». Se nessuno
    risponde, dopo 30 secondi lo sceglie il programma.
-3. Intro: due clic. Il primo (o «Salta ›» in basso a destra) mostra il titolo, il secondo su «Premi un tasto per
-   iniziare» apre il menu.
-4. Controlla le opzioni dello stand: «Opzioni» → tieni premuto 3 secondi il marchio «NATPF Simulator» in alto a
-   sinistra → controlla le voci (capitolo 2) → «Chiudi» → «‹ Indietro».
+3. Intro: due clic. Il primo (o «Salta ›» in basso a destra) mostra il titolo, il secondo su «Clicca o premi un tasto
+   per iniziare» apre il menu.
+4. Controlla le opzioni dello stand: **tasto destro sul gioco → «Pannello dello stand»** (B39), oppure tieni premuto 3
+   secondi il titolo grande «NATPF Simulator» (B39: anche nella pagina principale; prima: «Opzioni» → marchio in alto a
+   sinistra) → controlla le voci (capitolo 2) → «Chiudi».
 5. Sul telefono dello staff apri l'icona **NATPF Telecomando**: si ricollega da sola.
 
 **Per ogni visitatore, contro la CPU**
@@ -50,15 +55,18 @@ va — 12 · Con una tastiera — Appendice: solo per la versione web — Per ch
    - **«Gioca ancora»**, stessa persona: prima di nuovo gli scambi di prova (circa 10 secondi; «Salta ›» li salta), poi
      «Pronto per la partita» → «Gioca ›».
    - **«Nuovo giocatore»**, persona nuova: il telefono resta collegato e «Collega il telefono» si salta. Nel foglio
-     «Come ti chiami?» scegli la mano («Destra» o «Sinistra») e clicca «Salta»: con il solo mouse il nome non si
-     scrive, il visitatore gioca come «Ospite». Poi tutorial corto, scambi di prova e «Pronto per la partita».
+     «Come ti chiami?» scegli la mano («Destra» o «Sinistra»), poi clicca il campo del nome: compare la **tastiera a
+     schermo**, scrivi cliccando i tasti, «Fatto», «Avanti ›». Oppure **«Gioca come Ospite»** (accanto al campo): senza
+     nome, fuori classifica. Poi tutorial corto, scambi di prova e «Pronto per la partita».
 6. Se apri «Collega il telefono» con il telefono **già collegato** (per esempio tornando dal menu), il gioco non va avanti
    da solo: clicca il pulsante in basso a destra, «In campo ›» (o «Alla partita ›»).
 
 **A fine giornata**
 
 1. Pannello dello stand → guarda la riga sotto «Registro di gioco». Se dice «… in coda», clicca «Invia adesso».
-2. Classifica in un file: pannello → «Classifica · Scarica CSV» → nella finestra di Windows «Salva».
+2. Classifica in un file: pannello → «Classifica · Scarica CSV». (B39) Nel programma si salva da solo in **Download ›
+   NATPF** e un avviso nel gioco dice il nome; tasto destro → Programma → «Cartella dei file salvati» la apre. (Prima: la
+   finestra di Windows «Salva con nome».)
 3. Chiudere il programma con il mouse: capitolo 7.6.
 
 ---
@@ -70,7 +78,9 @@ ledwall: lo vede anche il pubblico.
 
 | Modo | Dove funziona | Come |
 |---|---|---|
-| **Mouse:** marchio | nelle pagine del menu, **non** nella prima | tieni premuto il tasto sinistro per 3 secondi sul marchio «NATPF Simulator» in alto a sinistra |
+| **Mouse:** tasto destro (B39) | nel programma Windows, ovunque, anche in partita e sulla pagina di avvio | tasto destro sul gioco → «Pannello dello stand» (il menu si apre dove c'è il puntatore) |
+| **Mouse:** marchio | in ogni pagina del menu (B39: anche nella pagina principale, sul titolo grande «NATPF Simulator») | tieni premuto il tasto sinistro per 3 secondi sul marchio in alto a sinistra (o sul titolo grande): un anello giallo si riempie |
+| **Mouse:** ❚❚ tenuto (B39) | in campo (partita, scambi di prova, allenamento, minigiochi) | tieni premuto 3 secondi ❚❚ in alto a destra: si apre il pannello (il clic breve resta la pausa) |
 | **Telecomando:** «Pannello dell'addetto» | ovunque, tranne l'intro | lo stesso tasto lo chiude |
 | **Tastiera:** F9 | solo nel programma Windows; ovunque, anche in partita e a schermo intero | F9 da solo (senza Ctrl, Maiusc o Alt). Un altro F9 lo chiude |
 | **Tastiera:** Ctrl+Maiusc+K | ovunque (programma e browser) | sul PC dello stand a volte un altro programma la prende: allora F9 |
@@ -82,13 +92,12 @@ risultato di un minigioco. **Non** c'è nel menu principale (lì è nascosto), n
 prova, allenamento, minigiochi), nella pausa, nella schermata di fine partita e quando un foglio copre la pagina (per
 esempio «Come ti chiami?»).
 
-- Dal menu principale la via più corta è: «Opzioni» → marchio 3 secondi.
-- Tieni il mouse fermo sul marchio per tutti i 3 secondi. Non c'è nessun segno di avanzamento. Se il puntatore esce dal
-  marchio, la pressione si annulla: riprova.
+- (B39) Mentre tieni premuto, un anello giallo si riempie con la scritta «Pannello dello stand». Un piccolo tremolio
+  della mano non annulla; se rilasci prima o ti sposti di molto, ricomincia. Prima della versione B39 non c'era nessun
+  segno e nella pagina principale il marchio era nascosto: «Opzioni» → marchio 3 secondi.
 
-**In partita, con il solo mouse.** Oggi non c'è una via diretta. Puoi: ❚❚ (pulsante tondo in alto a destra) → «Torna al
-menu» (due clic, la partita si chiude) → «Opzioni» → marchio 3 secondi. Per non perdere la partita: telecomando
-«Pannello dell'addetto», oppure F9.
+**In partita, con il solo mouse.** (B39) Tasto destro → «Pannello dello stand», oppure ❚❚ tenuto 3 secondi. Prima del B39
+non c'era una via diretta (❚❚ → «Torna al menu» chiudeva la partita): telecomando «Pannello dell'addetto», oppure F9.
 
 **Quando il pannello è aperto**
 
@@ -107,18 +116,19 @@ menu» (due clic, la partita si chiude) → «Opzioni» → marchio 3 secondi. P
 **Come funzionano.** Ogni pulsante mostra il nome e, sotto, il valore di adesso. Un clic passa al valore successivo.
 Per le opzioni di gioco (formato, scambio, lancio, campo aperto, calibrazione, mira, registro, schermo) compare anche un
 avviso breve che dice cosa cambia. Per il chiosco e il suo tempo cambia solo la riga sotto le voci; per «Musica» e
-«Telefono» solo la scritta del pulsante. **Un clic alla volta**: oggi un doppio clic fa due passi (per esempio
-«Calibrazione» passa da «Giocando» a «Nessuna»). Se succede, clicca ancora finché torna il valore giusto.
+«Telefono» solo la scritta del pulsante. (B39) Passando con il puntatore su una voce, la riga sotto le voci spiega cosa
+fa. (B39) **Un doppio clic vale un clic solo** (prima faceva due passi: «Calibrazione» passava da «Giocando» a
+«Nessuna»). In alto a destra del pannello c'è **«Diagnostica»** (B39): chiusa con ×, si torna al pannello.
 
 **Mouse, per tutte le voci:** apri il pannello (capitolo 1) → clic sulla voce.
 
 | Voce | Valori | Cosa fa | Da quando vale |
 |---|---|---|---|
-| **Modalità chiosco** | **No** · Sì | Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu principale, cancella il nome, rimette «Chi gioca: Adulto» e **scollega il telefono**: il visitatore dopo rifà il QR. Contano come attività clic, tasti, rotellina, tocchi, colpi del telefono e comandi del telecomando; muovere il mouse no. Durante una partita aspetta il doppio del tempo, poi chiude la partita. Sotto le voci una riga dice se il chiosco è acceso. | subito |
+| **Modalità chiosco** | **No** · Sì | Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu principale, cancella il nome, rimette «Chi gioca: Adulto» e **scollega il telefono**: il visitatore dopo rifà il QR. Contano come attività clic (anche sui tasti della tastiera a schermo), tasti, rotellina, tocchi, colpi del telefono e comandi del telecomando; (B39) anche muovere il mouse, e con il pannello, l'abbinamento del telecomando o la diagnostica aperti il chiosco aspetta. Durante una partita aspetta il doppio del tempo, poi chiude la partita. Sotto le voci una riga dice se il chiosco è acceso. | subito |
 | **Ritorno al menu dopo** | 30 s · **45 s** · 60 s · 90 s | Il tempo del chiosco. Giro dei valori: 45 → 60 → 90 → 30 → 45. | subito; conta solo con il chiosco acceso |
-| **Classifica · A schermo intero** | — | Chiude il pannello e mostra in grande la classifica di oggi (scheda «Partite», 10 righe). Le schede dei minigiochi si cliccano, ma non fanno uscire. In partita chiude la partita. Per uscire: capitolo 11. | subito · **secondo clic in partita** |
-| **Classifica · Scarica CSV** | — | Salva il file «classifica-natpf-AAAA-MM-GG.csv» con partite e minigiochi di oggi. Si apre la finestra di Windows «Salva con nome»: scegli la cartella → «Salva». | subito · non dal telecomando |
-| **Classifica · Azzera oggi** | — | Cancella la classifica di oggi su questo PC. Una finestra di Windows chiede «Azzerare la classifica di oggi?»: «OK» per confermare, l'altro pulsante annulla. La classifica si azzera comunque da sola ogni giorno. | subito · non dal telecomando |
+| **Classifica · A schermo intero** | — | Chiude il pannello e mostra in grande la classifica di oggi (scheda «Partite», 10 righe). Le schede dei minigiochi si cliccano, ma non fanno uscire. In partita chiude la partita. (B39) Per uscire: **«× Chiudi»** in alto a destra (compare muovendo il mouse) o di nuovo questa voce, che diventa «Chiudi lo schermo intero»; si torna al menu. Con il chiosco acceso la classifica lasciata in vista resta. | subito · **secondo clic in partita** |
+| **Classifica · Scarica CSV** | — | Salva il file «classifica-natpf-AAAA-MM-GG.csv» con partite e minigiochi di oggi. (B39) Nel programma si salva da solo in **Download › NATPF** (un file con lo stesso nome non si sovrascrive: «… (2).csv»); un avviso nel gioco dice il nome. Nel browser decide il browser. | subito · non dal telecomando |
+| **Classifica · Azzera oggi** | — | Cancella la classifica di oggi su questo PC. (B39) **Secondo clic** sul pulsante («Sicuro? Clicca ancora»), niente più finestra di Windows. La classifica si azzera comunque da sola ogni giorno. | subito · non dal telecomando |
 | **Telefono** | «Scollega» con un telefono collegato · «Nessuno collegato» | Scollega il telefono del giocatore: per giocare va rifatto il QR. | subito · **secondo clic in partita** (con un telefono collegato) |
 | **Musica** | **Sì** · No | Spegne o riaccende **tutto** l'audio del gioco: musica, effetti e la voce del punteggio. **Non resta salvata**: alla riapertura l'audio è acceso. Per spegnere solo la voce e tenere musica ed effetti: Opzioni → «Voci» (o «Voce» nella pausa). | subito |
 | **Formato in fiera** | No · **Solo stesso schermo** · Sì · punto decisivo | Punto decisivo sul 40-40 (chi lo vince vince il game) e servizio che passa ogni due punti, come nel tie-break: batte anche la CPU o il Player 2, anche in una partita a 1 game. «Solo stesso schermo»: vale solo tra due persone sullo stesso schermo; contro la CPU e tra due computer resta il formato classico. «Sì»: vale anche contro la CPU e tra due computer, e la partita più lunga è al meglio di 3. Al 40-40 il tabellone mostra «PUNTO DECISIVO» in rosa. Giro: No → Solo stesso schermo → Sì → No. | dalla partita dopo |
@@ -126,11 +136,12 @@ avviso breve che dice cosa cambia. Per il chiosco e il suo tempo cambia solo la 
 | **Lancio automatico** | **No** · Sì · 30 s | Solo stesso schermo **con i due telefoni** (non con «Una webcam per due»): se chi deve battere resta fermo 30 secondi, il gioco lancia la palla (lo schermo lo annuncia 10 secondi prima). Dopo due lanci a vuoto il gioco batte un servizio morbido. Così la fila non si blocca. | dalla partita dopo |
 | **Stesso schermo: campo aperto** | **No** · Sì · il piazzamento conta | Solo stesso schermo **con i due telefoni**: i personaggi corrono come persone e non arrivano più su ogni palla; la palla angolata si prende in allungo o non si prende. Il servizio passa ogni due punti anche con il formato classico. Chi batte è un po' sfavorito. | dalla partita dopo |
 | **Calibrazione** | **Giocando** · Con i gesti · Nessuna | Giocando: niente gesti a vuoto; prima di ogni partita circa 10 secondi di «Scambi di prova» (4 palle, dritti e rovesci) e il gioco impara il colpo di chi gioca. Con i gesti: la calibrazione di prima (telefono fermo, poi un dritto e un rovescio a vuoto); quel profilo resta fino a «Nuovo giocatore». Nessuna: si gioca subito e il gioco impara dai primi colpi veri (all'inizio la forza è meno precisa). Giro: Giocando → Con i gesti → Nessuna → Giocando. | dal prossimo «Gioca» |
+| **Tastiera a schermo** | **Automatica** · Sempre · Mai | La tastiera del gioco per scrivere nomi, codice della sfida e campi della diagnostica (capitolo 3.6). Automatica: compare cliccando un campo con il mouse (o toccandolo), sparisce se si usa una tastiera vera. Sempre: compare in ogni campo, anche con una tastiera vera. Mai: non compare. Giro: Automatica → Sempre → Mai → Automatica. | subito |
 | **Mira del telefono** | **Alta · 17°** · Media · 20° · Bassa · 23° | Quanto girare il telefono per mandare la palla sulla riga. Alta: più palle angolate; Media e Bassa un po' meno. Vale per i telefoni di questo PC. | dal colpo dopo |
 | **Registro di gioco** | **Sì** · No | Il gioco annota da solo come vanno le partite (solo dati di gioco, mai i nomi) e le manda allo spazio Cloudflare. Sotto c'è lo stato in parole, con «Invia adesso» e «Scarica la coda» (capitolo 9). | subito |
 | **Telecomando dello staff** | «Abbina» · «Abbinato, non collegato» · «Collegato ✓» | Apre il foglio del telecomando: QR, codice, «Conferma», «Abbina un altro telefono», «Scollega il telecomando» (capitolo 6). «Indietro» riporta al pannello. | — |
 | **Schermo del gioco** | lo schermo di adesso, per esempio «Monitor 2 · 1024×1024 · probabile ledwall ›» (con «(principale)» o «· scala 125%» quando valgono) | Sposta il gioco sullo schermo successivo; la scelta resta salvata. C'è solo nel programma Windows; serve con due o più schermi. | subito |
-| **Nuovo giocatore** | — | Per chi arriva: azzera nome, mano (torna «Destra»), tutorial visto, quello che il gioco ha imparato dal telefono, «Chi gioca» (torna «Adulto») e i record dell'«Ospite»; nello stesso schermo anche nomi e fasce. Il telefono **resta collegato**. Porta al passo giusto: contro la CPU il foglio «Come ti chiami?» (mano e «Salta»), poi tutorial corto, scambi di prova e «Pronto per la partita»; con un minigioco scelto lo stesso foglio, poi lo stesso minigioco (capitolo 3.4); nello stesso schermo la pagina dei due telefoni; dal menu principale e dall'allenamento il menu. Nella sfida tra due computer azzera chi gioca su questo PC e torna al menu: la sfida si chiude. | subito · **secondo clic in partita** |
+| **Nuovo giocatore** | — | Per chi arriva: azzera nome, mano (torna «Destra»), tutorial visto, quello che il gioco ha imparato dal telefono, «Chi gioca» (torna «Adulto»), i record dell'«Ospite» e l'icona del servizio (di nuovo ai primi 2 servizi); nello stesso schermo anche nomi e fasce. Il telefono **resta collegato**. Porta al passo giusto: contro la CPU il foglio «Come ti chiami?» (mano, nome con la tastiera a schermo o «Gioca come Ospite»), poi tutorial corto, scambi di prova e «Pronto per la partita»; con un minigioco scelto lo stesso foglio, poi lo stesso minigioco (capitolo 3.4); nello stesso schermo la pagina dei due telefoni; dal menu principale e dall'allenamento il menu. Nella sfida tra due computer azzera chi gioca su questo PC e torna al menu: la sfida si chiude. | subito · **secondo clic in partita** |
 | **Chiudi** | — | Chiude il pannello; la partita riparte. | — |
 
 **Il secondo clic in partita (dalla versione del 13/11, B43).** In partita (anche negli scambi di prova, nell'allenamento
@@ -157,7 +168,8 @@ secondo clic. Dal telecomando: OK due volte sul pulsante rosa.
 - Per un telefono che passa di mano la via giusta è «Nuovo giocatore» (3.3): questa pagina si salta.
 - «Prima volta su questo telefono» (sotto il QR, quando il PC è in rete): il QR della pagina del certificato
   (capitolo 7.4).
-- Non cliccare «Apri il link del controller ↗»: il link è per il telefono (capitolo 10).
+- «Apri il link del controller ↗» è per il telefono: (B39) nel programma un clic mostra solo un avviso (prima apriva una
+  seconda finestra sopra il gioco).
 - La mano si sceglie già nella pagina prima, «Con cosa giochi?» (riga «Giochi con la mano: Destra · Sinistra»).
 
 ### 3.2 La pagina «Pronto per la partita»
@@ -190,8 +202,8 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
   (scollegato, schermo spento) il conto si ferma e il computer dice perché.
 - Se sotto c'è scritto «Con «Gioca» prima qualche scambio di prova…», il primo «Gioca ›» fa gli scambi di prova e
   riporta qui: scegli e clicca di nuovo «Gioca ›».
-- **Un solo clic** sui pulsanti che vanno avanti. Oggi un doppio clic sul pulsante della pagina prima («Alla partita ›»)
-  può saltare questa pagina e far partire la partita senza scegliere.
+- (B39) Un doppio clic sul pulsante della pagina prima («Alla partita ›», nello stesso punto di «Gioca ›») non salta più
+  questa pagina: il secondo clic non conta, e nemmeno un clic arrivato meno di mezzo secondo dopo il cambio di pagina.
 
 ### 3.3 A fine partita
 
@@ -200,7 +212,8 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
   rivincita, subito.
 - **«Nuovo giocatore»**: una persona nuova; il telefono resta collegato. Si apre il foglio «Come ti chiami?»:
   1. «Giochi con la mano»: clicca «Sinistra» per un mancino (per ogni persona nuova torna «Destra»).
-  2. «Salta»: il visitatore gioca come «Ospite». Il nome si scrive solo con una tastiera (poi «Avanti ›»).
+  2. Il nome: clic sul campo → tastiera a schermo → clic sui tasti → «Fatto» → «Avanti ›» (capitolo 3.6). Oppure
+     **«Gioca come Ospite»** accanto al campo: un clic, senza nome; il punteggio resta **fuori classifica**.
   3. Poi tutorial corto, scambi di prova e «Pronto per la partita».
 
   Nella sfida tra due computer questo pulsante non c'è.
@@ -208,25 +221,26 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
 
 ### 3.4 Minigiochi con il solo mouse
 
-Dalla pagina «Minigiochi» il foglio «Il tuo nickname» vuole un nome di almeno 2 caratteri: senza tastiera «Avanti ›» non
-basta. Con il solo mouse si passa da «Nuovo giocatore»:
+Dalla pagina «Minigiochi» il foglio «Il tuo nickname» chiede un nome (almeno 2 caratteri, per la classifica del giorno):
 
 1. Menu principale → «Minigiochi» → clic sul minigioco.
-2. Sul foglio «Il tuo nickname» clicca «Indietro»: il minigioco resta scelto.
-3. Tieni premuto 3 secondi il marchio in alto a sinistra → nel pannello «Nuovo giocatore».
-4. Nel foglio «Come ti chiami?» scegli la mano → «Salta».
-5. Se il telefono non è collegato, prima «Collega il telefono»; poi tutorial corto, scambi di prova e il minigioco. Il
-   visitatore gioca come «Ospite».
+2. Clic sul campo → tastiera a schermo → scrivi il nome cliccando i tasti → «Fatto» → «Avanti ›» (capitolo 3.6).
+3. Oppure **«Gioca come Ospite»** (accanto al campo): un clic, senza nome. Il punteggio resta **fuori classifica**; il
+   risultato lo dice («Fuori classifica: hai giocato come Ospite»). Record e medaglie dell'ospite si vedono lo stesso.
+   Per i minigiochi dopo il nome non viene più chiesto, fino a «Nuovo giocatore».
+4. Se il telefono non è collegato, prima «Collega il telefono»; poi il minigioco.
 
-Sul risultato: «Riprova ›» per la stessa persona; «Nuovo giocatore» → «Salta» per la persona dopo, con lo stesso
-minigioco. **Telecomando:** «Nuovo giocatore», poi «Salta».
+Sul risultato: «Riprova ›» per la stessa persona; «Nuovo giocatore» per la persona dopo, con lo stesso minigioco (nel
+foglio «Come ti chiami?» nome o «Gioca come Ospite»). **Telecomando:** «Nuovo giocatore», poi «Salta il nome» (è «Gioca
+come Ospite»), oppure le frecce fino a «Gioca come Ospite» e OK. Il telecomando non scrive i nomi.
 
 ### 3.5 Due visitatori sullo stesso schermo
 
 «Gioca» → «Stesso schermo» → pagina «Collega i due telefoni».
 
-- In alto: i due nomi (si scrivono solo con una tastiera; senza, restano «Player 1» e «Player 2») e la scelta **«Due
-  telefoni»** · «Una webcam per due».
+- In alto: i due nomi (clic sul campo: la tastiera a schermo compare nella metà di chi scrive, capitolo 3.6; senza nome
+  restano «Player 1» e «Player 2») e la scelta **«Due telefoni»** · «Una webcam per due». Mentre la tastiera è aperta su
+  un nome il conto alla rovescia aspetta.
 - Ogni scheda (Player 1 a sinistra, Player 2 a destra) ha il suo QR, la mano (Destra · Sinistra) e «Bambino · Ragazzo ·
   Adulto». Con fasce diverse il più giovane ha un aiuto di gioco, mai punti regalati.
 - «Gioca senza calibrare» compare su una scheda solo mentre quel telefono calibra con i gesti: si gioca subito e il gioco
@@ -243,12 +257,33 @@ minigioco. **Telecomando:** «Nuovo giocatore», poi «Salta».
   schermo: campo aperto» (spenti di base). Lancio automatico, campo aperto e l'aiuto al più giovane valgono **solo con
   «Due telefoni»**: con «Una webcam per due» restano spenti, e non vale nemmeno «Scambio che si scalda».
 
+### 3.6 Scrivere con il solo mouse: la tastiera a schermo (B38)
+
+- **Dove:** il nome del giocatore («Come ti chiami?» e «Il tuo nickname»), i due nomi dello stesso schermo, il codice della
+  sfida tra due computer, la nota e il ritardo dello schermo della diagnostica.
+- **Come:** clic sul campo → la tastiera compare in basso (il foglio sale se serve: il campo resta in vista) → clic sui
+  tasti → **«Fatto»** chiude la tastiera → poi il pulsante del foglio («Avanti ›», «Entra ›»). Esc o un clic fuori la
+  chiudono anche loro.
+- **Tasti:** cifre, lettere, **à è é ì ò ù**, punto, trattino, **⇧** (maiuscola per la lettera dopo; nei nomi la prima
+  lettera e quella dopo uno spazio sono già maiuscole), spazio, **⌫** (cancella). Nel codice della sfida solo maiuscole,
+  cifre e trattino; nel ritardo dello schermo un tastierino con le cifre.
+- **Stesso schermo:** la tastiera sta nella metà di chi scrive (Player 1 a sinistra, Player 2 a destra); sugli schermi
+  stretti sta sotto i due nomi.
+- **Con una tastiera vera:** basta scrivere; la tastiera a schermo sparisce al primo tasto.
+- **Doppio clic su «Fatto»:** il secondo clic non arriva al pulsante sotto.
+- **Opzione** nel pannello: «Tastiera a schermo: Automatica · Sempre · Mai» (capitolo 2).
+- **Senza nome = Ospite = fuori classifica.** «Gioca come Ospite» (accanto al campo del nome) gioca senza nome: il
+  punteggio non entra nella classifica del giorno (minigiochi e partite contro la CPU) né nel CSV. Anche chi gioca
+  contro la CPU dal menu senza scrivere il nome è fuori classifica: per entrarci serve il nome («Nuovo giocatore» lo
+  chiede). «Ospite» non si può scrivere come nome.
+
 ---
 
 ## 4. In campo: la pausa e il riquadro del telefono
 
-**Aprire la pausa.** **Mouse:** ❚❚, il pulsante tondo in alto a destra. **Tastiera:** Esc. **Telecomando:** «Pausa».
-La partita resta ferma finché la pausa è aperta.
+**Aprire la pausa.** **Mouse:** ❚❚, il pulsante tondo in alto a destra (un clic breve; tenuto 3 secondi apre il pannello
+dello stand, B39). **Tastiera:** Esc. **Telecomando:** «Pausa». La partita resta ferma finché la pausa è aperta. (B39) Il
+riquadro «Telefono in pausa» sta sotto la pausa e sotto il pannello del telefono: non copre più «Riprendi ›» né il QR.
 
 | Voce della pausa | Cosa fa |
 |---|---|
@@ -292,8 +327,9 @@ lunga dello schermo: scorri con la rotellina.
 |---|---|---|
 | **Schermo** | «Schermo intero» / «Esci da schermo intero» | Entra o esce dallo schermo intero. Lo stesso pulsante è in alto a destra in ogni pagina del menu. **Tastiera:** F (nel programma anche F11). «All'avvio» c'è solo nella versione web: il programma ricorda da solo l'ultimo stato. |
 | **Area** | **Intero** · Ledwall 2×2 · Ledwall 3×2 | Ledwall 2×2: area quadrata al centro dello schermo; 3×2: area 3:2. |
-| Area · «Calibra lo schermo…» | — | Frecce agli angoli, cerchio e griglia. «Formato» (Intero, 16:9, 16:10, 4:3, 3:2, 1:1), «Bordo» (Tutti, Sopra, Destra, Sotto, Sinistra; oppure clic sul segno del bordo, sullo schermo), «−» e «+» (0,5 % per clic) finché le frecce toccano i bordi visibili; il cerchio deve restare rotondo. «Salva», «Annulla» o «Azzera». Con il mouse servono molti clic. Tasti: capitolo 12. |
-| **Giochi con la mano** | **Destra** · Sinistra | La mano di chi gioca. Torna «Destra» con «Nuovo giocatore». |
+| Area · «Calibra lo schermo…» | — | Frecce agli angoli, cerchio e griglia. (B39) **Clicca l'angolo in alto a sinistra e quello in basso a destra che vedi sul ledwall** (una scritta gialla accanto al puntatore dice cosa cliccare): l'area diventa quel rettangolo e «Salva» ci sta dentro. Poi, se serve, **trascina le frecce dei bordi**, o «−» e «+» (tenuti premuti ripetono, poi a passi da 5 %). «Formato» (Intero, 16:9, 16:10, 4:3, 3:2, 1:1), «Bordo», «Schermo intero», «Clicca i due angoli» (rifà i due angoli). Il cerchio deve restare rotondo. «Salva», «Annulla» o «Azzera». Nel programma anche tasto destro → «Calibra lo schermo…» o «Azzera la calibrazione dello schermo». Tasti: capitolo 12. |
+| **Puntatore** (B39) | Normale · **Grande** (nel programma; nel browser Normale) | Grande: freccia gialla con il bordo nero alta circa il 5 % dell'area, al posto della freccia di Windows e del mirino sul campo. In campo il puntatore sparisce dopo 3 secondi fermo (e quando la partita parte), nei menu dopo 10 secondi; ricompare muovendo il mouse, con un anello. Con un'area calibrata più piccola della finestra, se il puntatore esce dalla parte che si vede una freccia gialla sul bordo dice dove sta. Resta salvato. |
+| **Giochi con la mano** | **Destra** · Sinistra | La mano di chi gioca. Torna «Destra» con «Nuovo giocatore» e con il chiosco (per tutti e due i giocatori). Dal telefono si cambia con **due tocchi** («Mancino? Tocca di nuovo»): sul computer compare per 3 s «Telefono 1: mano sinistra (mancino)», e chi ha la mano sinistra ha «Mancino» accanto al nome negli scambi di prova, nella sua metà e in «Pronto per la partita». Se un destro vede «Mancino», tocca due volte «Destra» sul telefono (o cambia la mano qui). |
 | **Segnale del momento giusto** | **Di base** · Sì · No | Un anello bianco si stringe sulla palla e diventa verde quando è il momento di colpire; nelle prime 3 palle di ogni partita compare «Colpisci quando il cerchio diventa verde». Di base: acceso con «Bambino» e «Adulto», spento con «Ragazzo», Esperta e Leggenda. Solo contro la CPU. |
 | **Visuale** | **3ª persona** · 1ª persona | Camera dietro il giocatore o dai suoi occhi. |
 | **Scia della palla** | Sì · **No** | Una scia luminosa dietro la palla veloce. |
@@ -320,9 +356,8 @@ Chrome o iPhone con Safari.
 1. **Certificato** (solo la prima volta su quel telefono; se ha già fatto da racchetta, salta questo passo).
    **Mouse:** «Gioca» → «Contro la CPU» → «Smartphone» → sotto il QR clicca «Prima volta su questo telefono» (compare
    quando il PC è in rete) → il telefono inquadra il QR che compare e installa il certificato seguendo la pagina → sul
-   PC «Chiudi» → «‹ Indietro» fino al menu. **Tastiera:** in finestra Alt → Rete → «Indirizzi e certificato per i
-   telefoni…». (Il foglio del telecomando parla di un QR «Certificato»: è questo pulsante, «Prima volta su questo
-   telefono».)
+   PC «Chiudi» → «‹ Indietro» fino al menu. Oppure (B39) tasto destro → «Rete per i telefoni» → «Indirizzi e certificato
+   per i telefoni…». **Tastiera:** in finestra Alt → Rete → «Indirizzi e certificato per i telefoni…».
 2. **Abbinamento.** Pannello dello stand → «Telecomando dello staff». Compaiono un QR e un codice (per esempio
    K3ZQ-7M2P). Valgono 5 minuti e solo con questo foglio aperto.
    - **Android:** inquadra il QR. Sul telefono e sul PC compare lo stesso numero di tre cifre («Un telefono chiede di
@@ -338,7 +373,7 @@ Chrome o iPhone con Safari.
    tornare al menu e il foglio si chiude.
 5. Tempo scaduto (5 minuti) o «Troppi tentativi sbagliati: abbinamento chiuso»: «Nuovo QR». Cambiare telefono: «Abbina
    un altro telefono» (quello di prima non comanda più). Telefono perso: «Scollega il telecomando»: il primo clic chiede
-   «Sicuro? Premi ancora per scollegare», il secondo scollega. **Attenzione:** qui anche un doppio clic scollega.
+   «Sicuro? Premi ancora per scollegare», il secondo scollega (B39: un doppio clic non basta più).
 
 ### 6.2 Ogni giorno
 
@@ -395,8 +430,10 @@ telefono simulato).
   schermo solo per quella volta, e va sul ledwall appena si accende.
 - Ledwall acceso dopo il programma: il gioco ci va da solo, se è lo schermo salvato.
 
-**Cambiare schermo dopo.** **Mouse:** pannello dello stand → «Schermo del gioco» (ogni clic: schermo successivo; resta
-salvato). **Telecomando:** «Schermo del gioco». **Tastiera:** Ctrl+Maiusc+M; in finestra Alt → Schermo → il monitor.
+**Cambiare schermo dopo.** **Mouse:** tasto destro → «Schermo del gioco» → il monitor (B39), oppure pannello dello stand
+→ «Schermo del gioco» (ogni clic: schermo successivo; resta salvato). (B39) In finestra, anche trascinando la finestra su
+un altro monitor: resta salvato. **Telecomando:** «Schermo del gioco». **Tastiera:** Ctrl+Maiusc+M; in finestra Alt →
+Schermo → il monitor.
 
 ### 7.2 Schermo intero
 
@@ -404,7 +441,8 @@ salvato). **Telecomando:** «Schermo del gioco». **Tastiera:** Ctrl+Maiusc+M; i
 - **Mouse:** «Schermo intero» / «Esci da schermo intero» in alto a destra in ogni pagina del menu (accanto a «Come si
   gioca»); oppure Opzioni → Schermo; in partita ❚❚ → «Schermo». **Telecomando:** «Schermo intero». **Tastiera:** F11
   (programma) o F (gioco).
-- A schermo intero la barra del menu del programma non si vede; in finestra compare solo premendo Alt.
+- A schermo intero la barra del menu del programma non si vede; in finestra compare solo premendo Alt. (B39) Con il mouse
+  gli stessi comandi sono nel menu del tasto destro, a schermo intero e in finestra.
 - Per far stare il gioco nel ledwall: Opzioni → Area, o «Calibra lo schermo…» (capitolo 5).
 
 ### 7.3 Aggiornamenti
@@ -424,10 +462,10 @@ salvato). **Telecomando:** «Schermo del gioco». **Tastiera:** Ctrl+Maiusc+M; i
 - I telefoni devono stare sulla stessa Wi-Fi del PC, e la rete non deve isolare i dispositivi tra loro.
 - **Firewall.** La regola «NATPF Simulator» la crea l'installazione. Se manca, il programma lo chiede all'avvio: «I
   telefoni devono poter raggiungere questo computer.» → **Mouse:** «Apri la rete ai telefoni» → Windows chiede il
-  permesso → «Sì». Finché non rispondi, il gioco aspetta su «Avvio del gioco…». Con «Più tardi» il gioco parte, ma i
-  telefoni potrebbero non collegarsi.
-- Riaprire la rete più tardi: **Tastiera:** in finestra Alt → Rete → «Apri la rete ai telefoni (firewall)…». Con il solo
-  mouse: chiudi e riapri il programma (se la regola manca, la domanda torna).
+  permesso → «Sì». Con «Più tardi» il gioco parte, ma i telefoni potrebbero non collegarsi. (B39) Se nessuno risponde
+  entro 60 secondi vale «Più tardi» (prima il gioco aspettava su «Avvio del gioco…» per sempre).
+- Riaprire la rete più tardi: **Mouse (B39):** tasto destro → «Rete per i telefoni» → «Apri la rete ai telefoni
+  (firewall)…». **Tastiera:** in finestra Alt → Rete → «Apri la rete ai telefoni (firewall)…».
 - **Certificato** sui telefoni, una volta per telefono: «Collega il telefono» → «Prima volta su questo telefono» → il
   telefono inquadra il QR e installa il certificato. **Tastiera:** Alt → Rete → «Indirizzi e certificato per i
   telefoni…».
@@ -436,33 +474,40 @@ salvato). **Telecomando:** «Schermo del gioco». **Tastiera:** Ctrl+Maiusc+M; i
 
 ### 7.5 Porta occupata
 
-- Il programma usa tre porte: **8443** (gioco e telefoni), **8081** (pagina del certificato), **8080** (avvio guidato,
-  solo sul PC).
-- Se la 8443 o la 8080 è occupata, il gioco resta fermo su «Avvio del gioco…». Secondo una prova del programma su Linux
-  (controllo «solo mouse» del 13/11) compare un errore in inglese («A JavaScript error occurred in the main process …
-  EADDRINUSE») con il solo «OK», non il messaggio italiano «La porta 8443 è già in uso». Su Windows non provato.
+- Il programma usa due porte: **8443** (gioco e telefoni) e **8081** (pagina del certificato). (B39) La 8080 non serve
+  più (prima la usava l'avvio guidato e, se era occupata, il gioco non partiva).
+- (B39) Se la 8443 è occupata compaiono, in italiano, la finestra «La porta 8443 è già in uso da …» (con il nome del
+  programma che la tiene, se Windows lo dice) e lo stesso testo sulla pagina di avvio, con **«Riprova»** e **«Chiudi il
+  programma»**. Prima: un errore in inglese («A JavaScript error occurred in the main process … EADDRINUSE») con il solo
+  «OK». Provato su Linux, su Windows non provato.
 - Cosa fare: chiudi l'altro programma che usa la porta (per esempio una vecchia finestra «AVVIA NATPF LAN» o un altro
-  server), poi chiudi e riapri NATPF Simulator (7.6). Se non sai quale programma è, riavvia il PC.
+  server), poi «Riprova». Se non sai quale programma è, «Chiudi il programma» e riavvia il PC.
 - Se è occupata solo la 8081, il gioco parte ma la pagina del certificato no: i telefoni che hanno già il certificato
   funzionano.
 - Aprire il programma due volte non occupa le porte: la seconda volta porta davanti la finestra già aperta.
 
 ### 7.6 Chiudere e ricaricare
 
-- **Mouse:** in una pagina del menu «Esci da schermo intero» (in alto a destra) → la finestra diventa normale → X in alto
-  a destra della finestra. **Attenzione:** così il programma si ricorda «finestra» e la volta dopo si apre in finestra:
-  clicca «Schermo intero» e la scelta torna salvata.
-- **Mouse**, se vedi lo schermo del portatile con la barra delle applicazioni: tasto destro sull'icona di NATPF Simulator
-  → «Chiudi finestra». Lo schermo intero resta salvato. Non provato.
+- **Mouse (B39):** tasto destro sul gioco → **«Esci» → «Sì, chiudi NATPF Simulator»**. Lo schermo intero resta salvato.
+  **«Ricarica il gioco»** ricarica il gioco (si riparte dal menu); **«Riavvia il programma» → «Sì, riavvia adesso»**
+  chiude e riapre il programma (per esempio dopo un cambio di rete). Il menu del tasto destro c'è anche sulla pagina
+  «Avvio del gioco…».
+- Prima del B39, con il solo mouse: «Esci da schermo intero» → X della finestra (e il programma si ricordava
+  «finestra»).
 - **Tastiera:** Ctrl+Q esce, Ctrl+R ricarica il gioco; in finestra Alt → NATPF → «Esci» o «Ricarica il gioco».
-- Ricaricare il gioco con il solo mouse non si può: chiudi e riapri il programma.
 - Se il gioco si chiude per un errore, il programma lo ricarica da solo dopo un secondo: si riparte dall'inizio.
+- (B39) Se il gioco si blocca (non risponde), dopo 10 secondi compare «Il gioco non risponde» con «Ricarica il gioco»,
+  «Aspetta» e «Chiudi il programma»; la finestra sparisce da sola se il gioco torna a rispondere, e se nessuno risponde
+  entro un minuto il gioco si ricarica da solo.
+- (B39) Il tasto laterale «indietro» del mouse non fa più sparire il gioco.
 
 ### 7.7 Dove sono i dati
 
 Impostazioni del gioco, certificati, registri e aggiornamenti scaricati stanno in una cartella del PC e restano anche se
-disinstalli il programma. Per aprirla: **Tastiera:** in finestra Alt → Aiuto → «Cartella dei dati». (Il percorso è in
-«Per chi sviluppa».) Tasti e menu del programma: capitolo 12.
+disinstalli il programma. Per aprirla: **Mouse (B39):** tasto destro → Programma → «Cartella dei dati». **Tastiera:** in
+finestra Alt → Aiuto → «Cartella dei dati». (Il percorso è in «Per chi sviluppa».) I file salvati dal gioco (classifica,
+coda del registro, diagnostica) vanno in Download › NATPF: tasto destro → Programma → «Cartella dei file salvati». Tasti
+e menu del programma: capitolo 12.
 
 ---
 
@@ -491,12 +536,12 @@ disinstalli il programma. Per aprirla: **Tastiera:** in finestra Alt → Aiuto �
   destra). Quando sono pronti tutti e due: conto alla rovescia di 3 secondi, poi (con «Calibrazione: Giocando») gli
   scambi di prova per tutti e due, poi la partita. Il formato in fiera qui è acceso di base. Dettagli: capitolo 3.5.
 - **Stand senza staff per un po'.** Pannello → «Modalità chiosco: Sì». Al ritorno il telefono va ricollegato con il QR.
-- **Classifica sul ledwall.** Pannello → «Classifica · A schermo intero». Con il chiosco acceso, dopo il suo tempo si
-  torna al menu. Come uscire: capitolo 11.
+- **Classifica sul ledwall.** Pannello → «Classifica · A schermo intero». (B39) Con il chiosco acceso resta in vista per
+  chi è in fila. Per uscire: «× Chiudi» in alto a destra (compare muovendo il mouse), capitolo 11.
 - **Telefoni dello staff:** spegnimento dello schermo al massimo (Android 10 minuti, iPhone «Mai»), niente PIN, risparmio
   energetico spento.
-- **Minigiochi:** dalla loro pagina chiedono un nome; con il solo mouse si passa da «Nuovo giocatore» → «Salta»
-  (capitolo 3.4).
+- **Minigiochi:** dalla loro pagina chiedono un nome: si scrive con la tastiera a schermo, oppure «Gioca come Ospite»
+  (fuori classifica; capitolo 3.4).
 
 ### 8.3 In arrivo
 
@@ -518,18 +563,20 @@ possono cambiare.
 
 **Altri blocchi:**
 
-- **Tastiera a schermo (B38):** compare quando clicchi un campo di testo (nome, nomi dello stesso schermo, codice della
-  sfida). Opzione nel pannello «Tastiera a schermo: Automatica · Sempre · Mai».
-- **Stand con il solo mouse (B39, proposte):** marchio attivo anche nel menu principale con un anello che si riempie; ❚❚
-  tenuto 3 secondi apre il pannello in partita; menu del tasto destro (pannello, diagnostica, schermo, ricarica, rete,
-  esci); niente doppio clic che salta pagine; puntatore grande; uscita dalla classifica a schermo intero; conferme e
-  salvataggi dentro il gioco al posto delle finestre di Windows; messaggio italiano con la porta vera quando è occupata.
-- **Servizio (B44).** Oggi, con il telefono, ai primi 2 servizi di ogni partita (e di nuovo dopo 6 secondi senza lancio)
-  un riquadro dice «Alza il telefono: lanci la palla» e «Poi colpisci quando la palla è in alto»; nello stesso schermo,
-  dopo 9 secondi fermi, «<nome>, batti tu». B44 toglie le scritte del riquadro (anche nelle versioni per webcam e per
-  tastiera) e mette una piccola icona di telefono che sale con la palla, accanto a chi batte: ai primi 2 servizi di ogni
-  giocatore nuovo, e di nuovo se chi batte non lancia per qualche secondo. («Premi ↑ o W: lanci la palla» oggi si vede
-  solo con la racchetta «Mouse e tastiera» della modalità prova, capitolo 12.)
+- **Tastiera a schermo e «Gioca come Ospite» (B38): fatto** nella versione che li contiene (capitoli 3.3, 3.4, 3.5 e
+  3.6; `docs/b38/tastiera-a-schermo.md`).
+- **Stand con il solo mouse (B39): fatto** nella versione che lo contiene (voci segnate «(B39)» in questa guida e
+  `docs/b39/stand-solo-mouse.md`).
+- **Servizio (B44, fatto).** Al posto del riquadro «Alza il telefono: lanci la palla / Poi colpisci quando la palla è in
+  alto» (e delle versioni per webcam e tastiera) accanto alla casella gialla «Al servizio» di chi batte c'è una **piccola
+  icona: un telefono che sale con la palla sopra, in loop, senza scritte**. Si vede ai primi 2 servizi di ogni giocatore
+  nuovo («Nuovo giocatore» e chiosco la rimettono; «Gioca ancora» no) e di nuovo se chi batte resta fermo 6 secondi; mai
+  quando batte la CPU. Nello stesso schermo solo nella metà di chi batte; nella sfida tra due computer sul computer di chi
+  batte. Restano la casella «Al servizio», il riquadro di servizio a terra, «Colpisci!» vicino al punto più alto (ai primi
+  servizi), «Colpisci quando la palla è in alto · Lancio a vuoto: riprova» dopo un lancio a vuoto e, nello stesso
+  schermo, «<nome>, batti tu» dopo 9 secondi (senza più il testo del lancio) e l'avviso del lancio automatico («Tra 8 s
+  la lancia il gioco»). La stessa icona è nel tutorial (scheda «Servizio»), nell'allenamento (esercizio «Servizio») e
+  nella guida «Come si gioca».
 
 ---
 
@@ -557,9 +604,9 @@ Finché non lo fai il registro non si ferma: il Worker vecchio accetta le righe 
   coda.» Altri casi: «indirizzo dello spazio non configurato…», «invio non riuscito: …; si riprova da solo», «… con un
   giorno non accettato (orologio del computer?)».
 - «Invia adesso»: manda subito la coda (di solito non serve). È grigio con il registro spento e la coda vuota.
-- «Scarica la coda»: uno zip con quello che non è ancora partito («natpf-registro-coda-AAAAMMGG-HHMM.zip»), con la
-  finestra «Salva con nome». Serve solo se lo stand è rimasto senza rete e il PC va restituito. È grigio quando la coda
-  è vuota. Non dal telecomando.
+- «Scarica la coda»: uno zip con quello che non è ancora partito («natpf-registro-coda-AAAAMMGG-HHMM.zip»); (B39) nel
+  programma si salva da solo in Download › NATPF (prima la finestra «Salva con nome»). Serve solo se lo stand è rimasto
+  senza rete e il PC va restituito. È grigio quando la coda è vuota. Non dal telecomando.
 
 **Leggere i dati** (da un tuo computer, non serve lo stand)
 
@@ -575,56 +622,40 @@ in rosso. Guida completa (bucket, Worker, chiave, costi): vedi «Per chi svilupp
 
 ---
 
-## 10. Cosa oggi non si fa con il solo mouse (in arrivo con B38/B39/B44)
+## 10. Il solo mouse: cosa si fa e cosa ancora no
 
-Per ogni punto: cosa fare intanto, e quale blocco lo risolve. B39 è ancora una proposta.
+**Con il B38 (tastiera a schermo) e il B39 (stand con il solo mouse) si fanno con il mouse** (dettagli nei capitoli
+indicati, in `docs/b38/tastiera-a-schermo.md` e in `docs/b39/stand-solo-mouse.md`):
 
-- **Pannello in partita.** In campo il marchio non c'è e la pausa non ha la voce. *Intanto:* telecomando «Pannello
-  dell'addetto» o F9; con il solo mouse ❚❚ → «Torna al menu» (la partita si chiude). *In arrivo:* B39, ❚❚ tenuto 3
-  secondi.
-- **Pannello dal menu principale.** Lì il marchio è nascosto; altrove la pressione non mostra avanzamento e si annulla
-  se il puntatore esce. *Intanto:* «Opzioni» → marchio 3 secondi, mouse fermo. *In arrivo:* B39, marchio in ogni pagina
-  con un anello che si riempie.
 - **Scrivere un testo** (nome, nomi dello stesso schermo, codice della sfida tra due computer, campi della
-  diagnostica). *Intanto:* «Salta» (il visitatore è «Ospite»); minigiochi: capitolo 3.4; una tastiera. Ultima risorsa,
-  non provata con il gioco: la Tastiera su schermo di Windows (Start → Tutte le app → cartella «Accessibilità», in
-  Windows 10 «Accessibilità Windows» → «Tastiera su schermo»). *In arrivo:* B38.
-- **Menu del programma** (Rete, Aiuto, Ricarica, Esci, Cartella dei dati, Scheda grafica): compare solo con Alt, e nel
-  gioco non c'è né «Esci» né «Ricarica». *Intanto:* rete ai telefoni: chiudi e riapri il programma (se la regola del
-  firewall manca, la domanda torna); uscire: capitolo 7.6; ricaricare: chiudi e riapri. *In arrivo:* B39, menu del
-  tasto destro.
-- **Uscire dalla classifica a schermo intero.** Non c'è un pulsante. *Intanto:* marchio 3 secondi → «Nuovo giocatore»
-  (parte il percorso di un visitatore nuovo), o il chiosco dopo il suo tempo, o telecomando «Indietro». *In arrivo:* B39.
-- **Porta 8443 o 8080 occupata.** Errore in inglese (EADDRINUSE) con il solo «OK»; il gioco resta su «Avvio del
-  gioco…». *Intanto:* capitolo 7.5. *In arrivo:* B39, messaggio italiano con la porta.
-- **Doppio clic.** Fa due passi nelle voci a giro del pannello; «Alla partita ›» e «Gioca ›» stanno nello stesso punto,
-  quindi può saltare «Pronto per la partita». *Intanto:* un clic alla volta. *In arrivo:* B39, guardia del doppio clic.
-- **Diagnostica.** Non è nel menu né nel pannello. *Intanto:* in campo ❚❚ → «Diagnostica · Registra la sessione».
-  *In arrivo:* B39.
-- **Tasto laterale «indietro» del mouse.** Riporta alla pagina «Avvio del gioco…» e il gioco sparisce; Ctrl+R non lo
-  risolve. *Intanto:* non usarlo. Se succede: tasto laterale «avanti», se il mouse ce l'ha; altrimenti chiudi il
-  programma (barra delle applicazioni del portatile: tasto destro sull'icona → «Chiudi finestra») e riaprilo.
-  *In arrivo:* B39.
-- **Finestre di Windows** («Azzerare la classifica di oggi?», «Salva con nome» di «Scarica CSV» e «Scarica la coda»).
-  Sono piccole, possono cadere fuori dalla parte visibile del ledwall e dal telecomando non si raggiungono. *Intanto:*
-  usale dal PC, a fine giornata; se la finestra non si vede, con una tastiera Invio conferma ed Esc annulla (non
-  provato). *In arrivo:* B39, conferme e salvataggi dentro il gioco.
-- **Chiosco.** Scollega il telefono (il visitatore dopo rifà il QR), non conta il movimento del mouse e, se nessuno
-  clicca, può chiudere un foglio aperto (per esempio l'abbinamento del telecomando). *Intanto:* tra un visitatore e
-  l'altro «Nuovo giocatore»; il chiosco solo con lo stand senza staff. *In arrivo:* B41 (i telefoni dello stand restano
-  collegati) e B39 (il movimento del mouse conta).
-- **Audio non salvato.** «Musica» del pannello e «Audio» delle Opzioni tornano «Sì» a ogni avvio. *Intanto:* se vuoi il
-  silenzio, pannello → «Musica: No» dopo ogni avvio. *In arrivo:* segnalato per il B39, da decidere.
-- **«Certificato» o «Prima volta su questo telefono»?** Il foglio del telecomando parla di un QR «Certificato»; il
-  pulsante vero si chiama «Prima volta su questo telefono». *Intanto:* usa quello. *In arrivo:* segnalato per il B39.
-- **«Apri il link del controller ↗»** nella pagina «Collega il telefono»: nel programma apre una seconda finestra sopra
-  il gioco. *Intanto:* non cliccarlo (il link è per il telefono); se succede, chiudi quella finestra con la sua X.
-  *In arrivo:* B39.
-- **Puntatore piccolo sul ledwall** e mirino sottile sul campo; nel gioco non c'è un'opzione. *Intanto:* in Windows →
-  Impostazioni → Accessibilità → «Puntatore del mouse» (in Windows 11 «Puntatore del mouse e tocco») ingrandiscilo e
-  coloralo (consiglio, non provato con il gioco). *In arrivo:* B39, puntatore grande.
+  diagnostica): tastiera a schermo del gioco (B38, capitolo 3.6); senza nome, «Gioca come Ospite» (fuori classifica,
+  capitolo 3.4).
+- **Pannello in partita e dal menu principale**: tasto destro → «Pannello dello stand», ❚❚ tenuto 3 secondi, titolo
+  grande o marchio tenuto 3 secondi con l'anello che si riempie (capitolo 1).
+- **Menu del programma** (Esci, Ricarica, Riavvia, Rete, Schermo, Aggiornamenti, Cartelle, Scheda grafica): tasto destro
+  sul gioco, anche a schermo intero e sulla pagina «Avvio del gioco…» (capitolo 7).
+- **Uscire dalla classifica a schermo intero**: «× Chiudi» in alto a destra (capitolo 2).
+- **Porta occupata**: finestra e pagina in italiano con la porta, «Riprova» e «Chiudi il programma» (7.5).
+- **Doppio clic**: il secondo clic non conta più, nemmeno un clic arrivato subito dopo un cambio di pagina (2, 3.2).
+- **Diagnostica**: pannello → «Diagnostica», o tasto destro → «Diagnostica».
+- **Tasto laterale «indietro» del mouse**: non fa più sparire il gioco (7.6).
+- **Finestre di Windows**: «Azzera oggi» ed «Elimina» con il secondo clic sul pulsante; «Scarica CSV», «Scarica la
+  coda» e il pacchetto della diagnostica si salvano da soli in Download › NATPF (2, 9).
+- **Chiosco**: il movimento del mouse conta come attività; non chiude l'abbinamento del telecomando né la diagnostica;
+  la classifica a schermo intero lasciata in vista resta (2).
+- **«Apri il link del controller ↗»**: nel programma non apre più una seconda finestra; un avviso dice che il link è per
+  il telefono.
+- **Puntatore piccolo**: Opzioni → «Puntatore: Grande» (5).
+- **Calibrare lo schermo**: due clic sugli angoli che si vedono, frecce da trascinare (5).
+- **«Certificato» o «Prima volta su questo telefono»**: il foglio del telecomando ora dice il pulsante vero.
 
-B44 non riguarda il mouse: cambia le istruzioni del servizio sul ledwall (capitolo 8.3).
+**Ancora no con il solo mouse:**
+
+- **Audio non salvato.** «Musica» del pannello e «Audio» delle Opzioni tornano «Sì» a ogni avvio (il pannello ora lo
+  dice). *Intanto:* se vuoi il silenzio, pannello → «Musica: No» dopo ogni avvio. *Da decidere* con l'utente.
+- **«Chi gioca» non salvato** (torna «Adulto» a ogni avvio): *da decidere* con l'utente.
+
+B44 (fatto) non riguarda il mouse: cambia le istruzioni del servizio sul ledwall (capitolo 8.3).
 
 ---
 
@@ -632,18 +663,23 @@ B44 non riguarda il mouse: cambia le istruzioni del servizio sul ledwall (capito
 
 | Cosa vedi | Cosa fare |
 |---|---|
-| Tengo premuto il marchio ma il pannello non si apre | Nel menu principale il marchio è nascosto: clicca «Opzioni» e riprova. Tieni il mouse fermo 3 secondi. In partita il marchio non c'è: telecomando o F9. |
+| Tengo premuto il marchio ma il pannello non si apre | Tieni premuto finché l'anello giallo si riempie (3 secondi), senza spostarti di molto. Nel programma: tasto destro → «Pannello dello stand». In partita: ❚❚ tenuto 3 secondi. (Prima del B39 nel menu principale il marchio era nascosto: «Opzioni» e riprova.) |
 | F9 non fa niente | Clicca prima su una parte vuota del gioco (la finestra del gioco deve essere attiva). Nel browser F9 non vale: Ctrl+Maiusc+K. |
 | «Collega il telefono»: il telefono è collegato ma non succede niente | Con il telefono già collegato quando la pagina si apre, il gioco non va avanti da solo: clicca «In campo ›» (o «Alla partita ›») in basso a destra. |
 | In partita un clic su «Nuovo giocatore», «Classifica · A schermo intero» o «Telefono · Scollega» non parte | È la conferma: il pulsante è rosa con «Sicuro? Clicca ancora». Clicca ancora, una volta, entro 5 secondi. Lo stesso per «Torna al menu» della pausa. |
-| Un'opzione è saltata di due valori | Doppio clic. Clicca ancora, un clic alla volta, fino al valore giusto. |
-| Un minigioco non parte: chiede il nickname | Capitolo 3.4: «Indietro» → marchio 3 secondi → «Nuovo giocatore» → «Salta». |
-| Classifica a schermo intero senza «‹ Indietro» | Telecomando «Indietro» o «Torna al menu»; tastiera Esc. Con il solo mouse: marchio 3 secondi → «Nuovo giocatore» (si esce dalla classifica e parte il percorso di un visitatore nuovo). Con il chiosco acceso si torna al menu da soli dopo il suo tempo. |
+| Un'opzione è saltata di due valori | Doppio clic, prima del B39 (dal B39 il secondo clic non conta). Clicca ancora, un clic alla volta, fino al valore giusto. |
+| Un minigioco non parte: chiede il nickname | Clic sul campo → tastiera a schermo → nome → «Fatto» → «Avanti ›»; oppure «Gioca come Ospite» (capitolo 3.4). |
+| Clic sul campo del nome ma la tastiera a schermo non compare | Pannello → «Tastiera a schermo»: se dice «Mai», cliccala fino ad «Automatica». Se al PC qualcuno ha appena usato una tastiera vera, per 30 secondi il clic non la apre (si scrive con quella). |
+| Un nome non compare nella classifica | Chi gioca senza nome («Gioca come Ospite», o contro la CPU senza il passo del nome) è fuori classifica: per entrarci serve il nome («Nuovo giocatore» lo chiede). |
+| Classifica a schermo intero senza «‹ Indietro» | (B39) Muovi il mouse: in alto a destra compare «× Chiudi». Oppure pannello → «Classifica · Chiudi lo schermo intero». Telecomando «Indietro»; tastiera Esc. |
 | Il telefono dice «connessione non sicura» o non si collega | Certificato: «Collega il telefono» → «Prima volta su questo telefono». Stessa Wi-Fi del PC, rete che non isola i dispositivi. Firewall: chiudi e riapri il programma e rispondi «Apri la rete ai telefoni» → «Sì». |
 | In partita compare «Telefono in pausa» | Il telefono si è fermato (schermo spento, rete). Riaccendi lo schermo del telefono: si riparte da soli con il conto alla rovescia e il punto si rigioca. Se non torna: «Ricollega il telefono» nel riquadro. |
 | I colpi sono letti male | ❚❚ → «Telefono · Ricalibra»: si apre il riquadro del telefono. Quando dice «Pronto», clicca **«Ricalibra»** (con «Giocando»: scambi di prova, poi si rigioca il punto). Telecomando: «Ricalibra il telefono», un tasto solo. |
-| Il gioco è sullo schermo sbagliato, in finestra o tagliato | Pannello → «Schermo del gioco» (clic finché è sul ledwall); «Schermo intero» in alto a destra nel menu; Opzioni → Area o «Calibra lo schermo…». |
-| All'avvio resta «Avvio del gioco…» | Una finestra di Windows aspetta una risposta (la domanda del firewall, forse sullo schermo del portatile): rispondi. Con un errore «EADDRINUSE»: porta occupata (7.5). |
+| Il gioco è sullo schermo sbagliato, in finestra o tagliato | Tasto destro → «Schermo del gioco» → il monitor, e «Schermo intero»; oppure pannello → «Schermo del gioco» (clic finché è sul ledwall); Opzioni → Area o «Calibra lo schermo…». |
+| All'avvio resta «Avvio del gioco…» | Una finestra di Windows aspetta una risposta (la domanda del firewall, forse sullo schermo del portatile): rispondi; (B39) dopo 60 secondi vale «Più tardi». Porta occupata: la pagina lo dice, «Riprova» (7.5). Tasto destro: Esci, Riavvia. |
+| «Il gioco non risponde» (B39) | «Aspetta» qualche secondo; se resta bloccato «Ricarica il gioco». Senza risposta il gioco si ricarica da solo dopo un minuto. |
+| Il puntatore non si vede sul ledwall | Muovi il mouse: ricompare con un anello (in campo sparisce dopo 3 secondi fermo). Se una freccia gialla sul bordo indica una direzione, il puntatore è fuori dalla parte visibile: muovilo da quella parte al contrario. Opzioni → «Puntatore: Grande». |
+| L'area del gioco è sbagliata (tagliata, spostata) | Tasto destro → «Azzera la calibrazione dello schermo», poi tasto destro → «Calibra lo schermo…» → clicca i due angoli che vedi → «Salva». |
 | Il gioco sparisce e ricomincia da solo | Si è chiuso per un errore e il programma l'ha ricaricato: riparti dal menu. Se capita spesso, segnalalo. |
 | Il telecomando dice «Mi ricollego…» | Gioco aperto? Stessa Wi-Fi? Firewall (come per il telefono, sopra). PC con un indirizzo nuovo: rifai l'abbinamento. |
 | Il telecomando dice «Il gioco non si trova…» | Gioco spento o Wi-Fi diversa. Se è tutto a posto, quel telefono non è più il telecomando: inquadra di nuovo il QR dello staff o tocca «Scrivi il codice». |
@@ -660,6 +696,7 @@ gioco è quella attiva: se non rispondono, clicca prima su una parte vuota del g
 
 | Tasto | Cosa fa |
 |---|---|
+| Tasto destro del mouse (B39) | Menu dei comandi dello staff, dove c'è il puntatore (solo nel programma) |
 | F9 | Pannello dello stand, apre e chiude (solo nel programma; anche in partita) |
 | Ctrl+Maiusc+K | Pannello dello stand, apre e chiude (anche nel browser) |
 | Esc | Menu: pagina precedente (anche Backspace) · in campo: pausa sì / no · chiude il pannello dello stand e la guida |
@@ -667,14 +704,14 @@ gioco è quella attiva: se non rispondono, clicca prima su una parte vuota del g
 | F | Schermo intero sì / no |
 | F11 | Schermo intero sì / no (programma) |
 | H | Menu: «Come si gioca» |
-| Maiusc+D | Diagnostica, apre e chiude |
-| Maiusc+M | Segna il momento nella registrazione della diagnostica |
+| Maiusc+D | Diagnostica, apre e chiude (non mentre si scrive in un campo di testo: lì è una «D») |
+| Maiusc+M | Segna il momento nella registrazione della diagnostica (non mentre si scrive in un campo di testo) |
 | Ctrl+Maiusc+M | Gioco sullo schermo successivo (programma) |
 | Ctrl+R | Ricarica il gioco (programma) |
 | Ctrl+Q | Esce dal programma |
 | Ctrl+Maiusc+I | Strumenti per sviluppatori (programma) |
 | Alt, in finestra | Mostra il menu del programma: **NATPF** (Schermo intero, Ricarica il gioco, Pannello dello stand, Esci) · **Schermo** (gli schermi, Monitor successivo) · **Rete** (Apri la rete ai telefoni, Indirizzi e certificato per i telefoni) · **Aiuto** (Cerca aggiornamenti, Cartella dei dati, Scheda grafica in uso, Strumenti per sviluppatori, Versione) |
-| In «Calibra lo schermo…» | 1–6 formato · Tab bordo · frecce (con Maiusc 5 %) · R azzera · F schermo intero · Invio salva · Esc annulla |
+| In «Calibra lo schermo…» | 1–6 formato · Tab bordo · frecce (con Maiusc 5 %) · R azzera · F schermo intero · Invio salva · Esc annulla (con il mouse: due angoli, frecce da trascinare, − e + tenuti premuti) |
 
 **Modalità prova «Mouse e tastiera».** Nel menu scrivi «natpf»: compare l'avviso «Modalità prova: mouse e tastiera
 attivi» e in «Con cosa giochi?» c'è una racchetta in più, «Mouse e tastiera» (Spazio colpisce, ↑ lancia, Q/E mirano).
@@ -712,10 +749,13 @@ browser) si può aggiungere all'indirizzo del gioco, dopo «?», una o più di q
   programma (`log\programma.log`), coda del registro dello stand (`log\registro`), aggiornamenti scaricati
   (`aggiornamenti`), scelta dello schermo (`desktop-app.json`). Resta anche se si disinstalla.
 - Cloudflare: Worker `natpf-registro` e bucket privato `natpf-registro`.
-- Da decidere o sistemare (segnalati per il B39): «Chi gioca» / livello della CPU non salvati
-  (`hud_ui.js` `selectedDifficulty`, `natpf_lobby.js` `resetWho`); audio non salvato; «Scollega il telecomando» senza la
-  guardia del doppio clic (`natpf_remote.js`, a differenza di `TwoStep` in `natpf_confirm.js`); testo «QR Certificato»
-  nel foglio del telecomando (`index.html`) e in `docs/GUIDA_TELECOMANDO.md`.
+- Da decidere (dopo il B39): «Chi gioca» / livello della CPU non salvati (`hud_ui.js` `selectedDifficulty`,
+  `natpf_lobby.js` `resetWho`); audio non salvato. Sistemati dal B39: «Scollega il telecomando» con l'intervallo minimo
+  delle conferme; «QR Certificato» → «Prima volta su questo telefono».
+- B39 (stand con il solo mouse): `docs/b39/stand-solo-mouse.md`; codice `natpf-tennis/src/natpf/natpf_stand_mouse.js`,
+  `natpf_click_guard.js`, `natpf_hold.js`, `natpf_cursor.js`, `natpf_calibra.js`; programma `natpf-desktop/src/desktop-core.mjs`
+  (`COMMANDS`, `staffMenu`) e `main.mjs`; prove `tools/e2e/natpf-solo-mouse.mjs` e `natpf-desktop/scripts/prova-linux.mjs`
+  (scenari `solo-mouse`, `porta-occupata`).
 - Codice di riferimento: pannello `natpf-tennis/src/natpf/natpf_kiosk.js`; pagine del menu `natpf_lobby.js`; «Nuovo
   giocatore» `natpf_new_player.js`; pausa `natpf_pause.js`; riquadro del telefono e «Gioca ancora» `natpf_ui.js`;
   telecomando `natpf_remote.js` e `site/js/tennis/telecomando.js`; stesso schermo `natpf_split_ui.js`,
@@ -731,6 +771,9 @@ browser) si può aggiungere all'indirizzo del gioco, dopo «?», una o più di q
   - Pannello dal programma (F9), fuori e chi serve: `docs/b37/collaudo-13-11-bis.md`
   - Mira del telefono (come misurarla): `docs/GUIDA_MISURA_MIRA.md`
   - Telefoni dello staff con lo schermo acceso: `docs/b9/schermo-spento.md`
-  - Stand con il solo mouse (controllo e proposte): `docs/b39/controllo-solo-mouse/LISTA-UNICA-E-PROPOSTA-B39.md`
+  - Stand con il solo mouse (controllo e proposte): `docs/b39/controllo-solo-mouse/LISTA-UNICA-E-PROPOSTA-B39.md`;
+    quello che è stato fatto: `docs/b39/stand-solo-mouse.md`
   - Modalità fiera (progetto): `docs/b41/progetto-modalita-fiera.md`
-  - Tastiera a schermo e servizio animato: `docs/coda/B38-tastiera-a-schermo.md`, `docs/coda/B44-servizio-animato.md`
+  - Tastiera a schermo e servizio animato: `docs/coda/B38-tastiera-a-schermo.md`, `docs/coda/B44-servizio-animato.md`;
+    quello che è stato fatto: `docs/b38/tastiera-a-schermo.md` (codice `natpf_tastiera.js`, prova
+    `tools/e2e/natpf-tastiera-schermo.mjs`) e `docs/b44/servizio-animato.md` (codice `natpf_serve_hint.js`)

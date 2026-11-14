@@ -1079,3 +1079,121 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   cominciare» tra scambi di prova e partita.
 - **Telefono che si scollega in fiera a schermo acceso**: prima capire perché (misure su telefono e computer, motivo nel
   pannello e nel registro), poi correggere: blocco B45 (analisi in corso).
+
+## B38 · Tastiera a schermo e «Gioca come Ospite» (14/11/2026; documento `docs/b38/tastiera-a-schermo.md`)
+- **Tastiera del gioco** (`natpf_tastiera.js`, `natpf-tastiera.css`): la crea `NatpfUi` subito dopo lo schermo (il suo
+  ascoltatore dei tasti in cattura sta prima del menu e dei fogli: Esc chiude la tastiera e non il foglio). Copre ogni
+  `input`/`textarea` di testo del gioco: le regole vengono da `OSK_FIELDS` (nome, codice, nota, ritardo) o dal campo
+  (`maxlength`, `type=number`); `data-osk="no"` esclude un campo, `data-osk="name|text|code|digits"` sceglie le regole.
+  Chi aggiunge un campo di testo non deve fare altro.
+- **Eventi come una tastiera vera**: `beforeinput` (annullabile) e `input` a ogni tasto, `change` alla chiusura se il testo
+  è cambiato; mai `keydown` finti (Maiusc+D aprirebbe la diagnostica). I tasti scattano al `pointerdown`, con
+  `preventDefault` anche su `mousedown`: il fuoco resta nel campo (lo stesso schermo conta su `document.activeElement`).
+  «Fatto» chiude e basta: niente invio automatico del modulo.
+- **Quando si apre** (`oskOpens`): Automatica = clic o tocco sul campo, non nei 30 s dopo un tasto vero (`OSK.quietMs`);
+  Sempre = anche con il fuoco dato in altro modo; Mai = mai. Un tasto vero la chiude (Automatica). Opzione dello stand
+  `natpf-tennis.tastiera` (`auto` | `sempre` | `mai`), di base `auto`.
+- **Dove sta** (`oskLayout`, pura): px dall'area di `viewport()`, tasti alti il 7,5% dell'area (30–92 px), in basso; se
+  coprirebbe il campo il contenitore del campo (`.natpf-sheet`, `.lobby-page`, `.natpf-diag`…) sale con la proprietà CSS
+  `translate` (si somma alle animazioni dei fogli, che usano `transform`); nomi dello stesso schermo nella metà di chi
+  scrive se la metà è larga almeno 560 px. Il foglio di stile ha i valori di riserva in `cqw`/`cqh`.
+- **Doppio clic su «Fatto»**: per 450 ms si scartano (in cattura sulla finestra) i clic veri nel rettangolo del tasto più
+  24 px: solo lì, così un clic subito dopo su «Avanti ›» passa. Chi aggiunge la guardia del doppio clic del B39 non deve
+  contare i tasti della tastiera (scattano al `pointerdown`, i doppi tasti come «nn» sono voluti).
+- **Senza nome = «Ospite» = fuori classifica** (`natpf_events.ranked`; decisione dell'utente del 14/11 su «Gioca come
+  Ospite», resa regola): niente righe senza nome nelle classifiche del giorno (minigiochi, partite contro la CPU) e nel
+  CSV; record, medaglie ed esperienza dell'ospite restano nel contenitore «Ospite» di oggi. `events.guest` (sessione della
+  pagina, `natpf-tennis.ospite`) = ha scelto «Gioca come Ospite»: il nome non si chiede più ai minigiochi; lo azzerano un
+  nome, «Nuovo giocatore» e il chiosco (il setter del nickname). Nel passo di «Nuovo giocatore» «Salta» è nascosto ma fa
+  la stessa cosa (il telecomando lo usa per «Salta il nome»). «Ospite» non passa `validNickname` (in classifica non c'è
+  mai una riga «Ospite» nuova; quelle di prima dell'aggiornamento restano fino al giorno dopo).
+- **Pannello dello stand**: «Tastiera a schermo» è la penultima voce della griglia, prima di «Mira del telefono» (che il
+  test `natpf-mira-sensibilita` vuole ultima); più in alto spostava le voci alte di due righe in righe diverse. A 720 × 720 con chiosco, lancio automatico e campo aperto accesi il foglio scorre di 38 px già
+  sulla base 2026-11-14.1 (misurato con e senza la voce nuova: prova `natpf-stesso-schermo-b25`, da sistemare con il B39).
+
+## B44 · Servizio: icona al posto del riquadro di testo (14/11/2026; documento `docs/b44/servizio-animato.md`)
+- **Icona del lancio** (`natpf_serve_hint.js`, `natpf-servizio.css`): SVG nella pagina (telefono che sale con la palla
+  sopra, loop di 1,6 s), senza scritte, **dentro la casella «Al servizio»** di chi batte (`#server-tag`, e
+  `#server-tag-p1/p2` dello stesso schermo, solo quella della metà di chi batte), di lato verso il centro della sua vista
+  (`hintSide`); in prima persona, senza casella, in basso al centro (`#natpf-serve-hint`). Niente posizioni calcolate a
+  parte: segue la casella che il motore e lo stesso schermo già proiettano.
+- **Quando** (`serveCoachView` → `icon`): ai primi `SERVE_COACH.firstServes` (2) servizi di **ogni giocatore nuovo** (conto
+  per lato; `NatpfServeCoach.newPlayer()` da «Nuovo giocatore» e dal chiosco; la partita nuova non lo azzera più), poi
+  dopo `idleS` (6 s) fermi o un lancio a vuoto; mai per la CPU (non è «mine»). Nell'esercizio «Servizio»
+  dell'allenamento a ogni servizio (quei servizi non contano per la partita).
+- **Testi rimasti**: «Colpisci!» e «Aspetta che salga…» durante il lancio dei primi servizi, «Colpisci quando la palla è in
+  alto · Lancio a vuoto: riprova», il richiamo per nome dello stesso schermo (B20) e l'avviso del lancio automatico (B25)
+  senza il testo del lancio. Il riquadro `#natpf-serve-coach` compare solo con una scritta (`big`).
+- **Stessa cosa ovunque**: la stessa icona (classe `in-card`) nella scheda «Servizio» del tutorial, nel «Guarda e
+  ripeti» dell'esercizio «Servizio» e nella guida «Come si gioca» (che ora dice «sopra di te compare «Al servizio»»).
+
+## Stand con il solo mouse (B39, 14/11/2026; documento `docs/b39/stand-solo-mouse.md`)
+
+- **Comandi del programma in un solo elenco**: `COMMANDS` in `natpf-desktop/src/desktop-core.mjs` (id → nome, scorciatoia
+  scritta, comando della pagina). La barra del menu (`appMenu`), il menu del tasto destro (`staffMenu`) e le scorciatoie
+  (`shortcutFor`) usano gli stessi id; `main.mjs` li esegue con `ACTIONS[id](arg)` (`runCommand`). Un comando nuovo si
+  aggiunge a `COMMANDS` e ad `ACTIONS` (la prova `test/solo-mouse.test.mjs` controlla che ogni id abbia la sua azione).
+- **Menu del tasto destro** (decisione dell'utente): `Menu.popup({ window })` senza coordinate (si apre dove c'è il
+  puntatore, quindi nella parte visibile del ledwall anche con un'area calibrata male); solo sulle pagine del proprio
+  server, sulla pagina di avvio i soli comandi del programma. Azioni distruttive del programma (Esci, Riavvia) con un
+  sottomenu di conferma, non con una finestra di Windows al centro (può cadere fuori dalla parte visibile).
+- **Canali programma → pagina**: `natpf:command` solo con i nomi di `PAGE_COMMANDS` (ricontrollati dal preload, che ha lo
+  stesso elenco congelato) e `natpf:notice` con i soli campi previsti, mai percorsi. Regola di sempre: solo
+  `win.webContents` e solo con `isOwnUrl(win.webContents.getURL())`. Le cartelle le apre il programma per chiave dal menu.
+- **Download nel programma**: `will-download` → `Download\NATPF` (`downloadTarget`, nome solo da `safeFileName`, mai
+  sovrascrivere); la pagina riceve `{ kind: 'download', ok, name, folder }` e lo dice con un avviso. Niente più
+  `confirm()` nel gioco: le voci distruttive usano `TwoStep` (`natpf_confirm.js`, secondo clic dopo 450 ms).
+- **Navigazione nel programma**: `setWindowOpenHandler` nega tutto; `will-navigate` solo `https` del proprio server sulla
+  porta del gioco; `did-navigate` svuota la cronologia sulle pagine del gioco (tasto «indietro» del mouse).
+- **Porta occupata**: l'errore di `listen` arriva solo come promessa rifiutata (`wss.on('error')` in `tools/lan`); il
+  programma chiude i server del tentativo fallito e chiede «Riprova» · «Chiudi il programma». Il programma non usa più la
+  8080 (`DESKTOP.setupPort = 0`). `process.on('uncaughtException')` scrive nel registro e mostra una finestra italiana.
+- **Guardia del doppio clic** (`natpf_click_guard.js`): in cattura sulla finestra, solo clic veri (`isTrusted`) con
+  `detail ≥ 1` sui pulsanti (`GUARDED`), mai calibrazione, campi e cursori (`EXEMPT`). La lobby segna i cambi di pagina
+  (`lobby.go` avvolta da `natpf_stand_mouse.js`), i fogli li vede un `MutationObserver` (classe `hidden` dei
+  `.natpf-sheet-backdrop`/`.nt-modal-backdrop`). Nelle prove automatiche (`navigator.webdriver`) la regola del clic in
+  ritardo vale solo con `?guardia=1`: le prove che cliccano subito dopo un `lobby.go()` fatto dal codice restano come sono.
+  Nelle prove nel browser il doppio clic si simula con `mouse.click()` e poi `mouse.down/up({ clickCount: 2 })`
+  (`mouse.click({ clickCount: 2 })` di Playwright fa da solo due clic).
+- **Pressione lunga** (`natpf_hold.js`): 3 s, tolleranza 24 px, anello unico figlio del body, il clic che segue non arriva
+  al bersaglio. È la strada del mouse al pannello dello stand nel browser (nel programma c'è anche il tasto destro).
+- **Puntatore** (`natpf_cursor.js`): cursore CSS da un SVG generato (misura dall'altezza dell'area, 48–128 px: oltre
+  Chromium lo ignora), classe `cursor-big` / `cursor-hidden` su `<html>`; la freccia sul bordo usa `viewport()`; gli
+  elementi fuori dall'area (scritta dei due angoli della calibrazione) sono figli di `<html>`, non del body (che con
+  un'area è ritagliato).
+- **Chiosco**: il movimento del mouse conta (al più una volta al secondo); fermo con pannello, telecomando o diagnostica
+  aperti; la calibrazione dello schermo lasciata aperta la annulla ancora (B8, prova `natpf-calibra.test.mjs`).
+- **Da decidere con l'utente** (non fatto): audio spento salvato, «Chi gioca» salvato, «Schermo intero» premuto per
+  sbaglio che resta salvato nel programma, tasto «indietro» del mouse come «‹ Indietro» nel menu.
+
+## B46 · Dritto e rovescio al sicuro (14/11/2026; documento `docs/b46/lato-sicuro.md`)
+Segnalazione sulla 2026-11-14.1 (stesso schermo, Player 1, Android, «Giocando»): dritto e rovescio scambiati in partita.
+Tre casi danno quelle scritte esatte (indagine `scratchpad/swap/split-ruoli-mano/`): **mano** del Player 1 salvata sinistra,
+**segno dell'accelerazione** del telefono cambiato dopo gli scambi di prova, **segno del rilevatore** cambiato dopo.
+- **Mano dal telefono con due tocchi** (`phone-screen.handTap`): il primo chiede «Mancino? Tocca di nuovo» (o «Destro? …»)
+  per 4 s e non cambia niente. Chi aggiunge un altro modo di cambiare la mano dal telefono deve passare da lì.
+- **La mano sinistra si vede dove guarda chi gioca**: «Mancino» (`.hand-tag`) nella riga dei puntini degli scambi di
+  prova, nella targhetta della propria metà dello stesso schermo, accanto al titolo «Pronto per la partita»; avviso grande
+  di 3 s sul computer (`natpf_hand_notice.js`) **solo** per un cambio arrivato dal telefono.
+- **Causa del cambio di mano**: `NatpfHand.set(h, causa)`, `NatpfPhoneRacket.setHand(h, causa)`, `NatpfSplitUi.setHand(id,
+  h, causa)`: 'gioco' (di base), 'telefono', 'nuovo giocatore', 'chiosco', 'fiera'. Ogni cambio vero passa da
+  `_diag('mano', { mano, causa, ruolo })` (registro, diagnostica, avviso): chi aggiunge un modo di cambiare la mano dice
+  la causa.
+- **Ogni visitatore nuovo parte destro**, Player 1 e Player 2: `natpf_hand.resetHands(ui, causa)` da «Nuovo giocatore»
+  (ogni strada), dal chiosco e, quando ci sarà, dal «Prossimo giocatore» della fiera (`'fiera'`). **Non** al riavvio del
+  programma (la mano salvata resta).
+- **Segni coerenti**: i tocchi votano il segno dell'accelerazione (`motion-sign.js`) solo con il telefono da leggere
+  (`phone-screen.tapVotesSign`: «Attiva i sensori», tutorial, calibrazione, «Pronto» al menu; mai serve/toss/play né
+  scambi di prova, né pausa o partita finita). Chi aggiunge un tocco sul telefono in gioco non deve farlo votare. Se il
+  segno dell'accelerazione cambia (messaggio «dev» con `as` diverso: `NatpfPhoneRacket._accSignSeen`) il segno imparato
+  dagli scambi di prova torna +1 e mira, salita e piatto ripartono (causa 'tocchi' nello stesso collegamento, 'pagina'
+  con uno nuovo). Il voto del rilevatore (`absSign`) resta com'è: arriva subito con il messaggio `sgn` (o con il colpo,
+  `sg`), azzera i riferimenti per verso e si registra; **non** tocca il segno imparato (lo corregge, non lo raddoppia).
+  Punto aperto: +1 o girato quando il telefono passa da giusto a sbagliato tra scambi di prova e partita (documento).
+- **Registro dello stand**: riga `tel` con `motivo: 'mano'` (mano, causa, ruolo) o `motivo: 'segno'` (stato = segno
+  nuovo, causa 'tocchi' | 'pagina' | 'rilevatore' | 'prova' | 'calibrazione', ruolo), solo campi già in CAMPI (il Worker
+  non va ricaricato); nel riassunto le tabelle «Mano cambiata» e «Segno del verso del telefono cambiato». Diagnostica:
+  `tel.mano`, `tel.verso` (e `tel2.*`), righe nel riassunto in parole.
+- **Prove**: `natpf-b46-lato-sicuro`, `natpf-b46-caso-utente` (il caso dell'utente con la pagina del telefono simulata dalle
+  sue funzioni pure), `tools/test/b46-lato-sicuro`, nel browser `natpf-mano-sicura` (anche `AREA=720`).
+

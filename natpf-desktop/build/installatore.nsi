@@ -54,7 +54,7 @@ BrandingText "${NOME} ${BUILD}"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_TITLE "${NOME} è installato"
-!define MUI_FINISHPAGE_TEXT "Avvialo dal collegamento sul desktop o dal menu Start.$\r$\n$\r$\nIl gioco si apre a schermo intero sul monitor più grande (il ledwall, se collegato come monitor esteso). Menu nascosto: tasto Alt. F11 schermo intero, Ctrl+Maiusc+M monitor successivo.$\r$\n$\r$\nCertificati e impostazioni: %LOCALAPPDATA%\NATPF (restano anche se disinstalli)."
+!define MUI_FINISHPAGE_TEXT "Avvialo dal collegamento sul desktop o dal menu Start.$\r$\n$\r$\nIl gioco si apre a schermo intero sul monitor più grande (il ledwall, se collegato come monitor esteso). Con il solo mouse: tasto destro sul gioco per i comandi del programma (pannello dello stand, schermo, rete, ricarica, esci). Con una tastiera: F9 pannello, F11 schermo intero, Ctrl+Maiusc+M monitor successivo.$\r$\n$\r$\nCertificati e impostazioni: %LOCALAPPDATA%\NATPF (restano anche se disinstalli)."
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_TEXT "Avvia NATPF Simulator"
 !define MUI_FINISHPAGE_RUN_FUNCTION Avvia
@@ -203,7 +203,7 @@ Section "NATPF Simulator"
   nsExec::ExecToLog 'netsh advfirewall firewall add rule name="${REGOLA}" dir=in action=allow program="$INSTDIR\${EXE}" enable=yes profile=any remoteip=localsubnet'
   Pop $0
   ${If} $0 != 0
-    MessageBox MB_ICONEXCLAMATION "Regola del firewall non creata (codice $0).$\r$\nIl gioco funziona; per i telefoni, nel programma: tasto Alt → Rete → Apri la rete ai telefoni." /SD IDOK
+    MessageBox MB_ICONEXCLAMATION "Regola del firewall non creata (codice $0).$\r$\nIl gioco funziona; per i telefoni, nel programma: tasto destro sul gioco → Rete per i telefoni → Apri la rete ai telefoni." /SD IDOK
   ${EndIf}
 
   WriteRegStr HKLM "${CHIAVE}" "DisplayName" "${NOME}"

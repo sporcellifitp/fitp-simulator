@@ -27,6 +27,21 @@ export function leftySide(evt = {}, { ballX = 0, actorX = 0, facingNegativeZ = t
   const ballOnLeft = facingNegativeZ ? ballX < actorX - .05 : ballX > actorX + .05;
   return ballOnLeft ? 'forehand' : 'backhand';
 }
+// B46 «dritto e rovescio al sicuro» (14/11): ogni visitatore nuovo parte destro, Player 1 e Player 2 («Nuovo giocatore»,
+// chiosco che torna al menu per inattività, «Prossimo giocatore» della fiera quando ci sarà). La mano sinistra rimasta
+// salvata da chi c'era prima (anche solo per un tocco sul telefono) dava a un destro ogni dritto come rovescio, per tutta
+// la partita. Non al riavvio del programma: lì la mano salvata resta (decisione del coordinatore). causa: per il registro
+// dello stand ('nuovo giocatore' | 'chiosco' | 'fiera'). ui: NatpfUi (hand, engine con i telefoni)
+export function resetHands(ui, causa = 'nuovo giocatore'){
+  const E = ui?.engine;
+  ui?.hand?.set?.('right', causa);
+  const p2 = E?.natpfPhone2;
+  if (p2?.setHand) p2.setHand('right', causa); else writeP2Hand('right');
+  // (stesso schermo in corso: personaggio e piano del Player 2, come NatpfSplitUi.setHand)
+  if (E?.natpfSplit?.active) E._natpfSetP2Hand?.('right');
+  if (E?.motionController) E.motionController.p2HandPreference = 'right';
+  ui?.paintTiles?.();
+}
 // serve con la mano libera in vista?
 export const isLocalServing = engine => ['SERVE_STANCE', 'SERVE_TOSS'].includes(engine.phase) && engine.score?.server === (engine.playerRole === 'p2' ? 'opponent' : 'player');
 
@@ -66,10 +81,12 @@ export class NatpfHand {
     };
   }
   // una sola mano per tutto il gioco: personaggio, telefono (che la riceve e la mostra) e webcam
-  set(h){
+  // causa (B46): chi l'ha cambiata, per il registro dello stand, la diagnostica e l'avviso grande del cambio dal telefono
+  // ('gioco' | 'telefono' | 'nuovo giocatore' | 'chiosco' | 'fiera'; NatpfPhoneRacket.setHand)
+  set(h, causa = 'gioco'){
     this.hand = normalizeHand(h); writeHand(this.hand);
     const phone = this.engine.natpfPhone;
-    if (phone){ if (phone.setHand) phone.setHand(this.hand); else phone.hand = this.hand; }
+    if (phone){ if (phone.setHand) phone.setHand(this.hand, causa); else phone.hand = this.hand; }
     const mc = this.engine.motionController;
     if (mc){
       if (mc.handPreference !== this.hand){ mc._resetHandTracking?.(); mc.handTracker?.reset?.(); }

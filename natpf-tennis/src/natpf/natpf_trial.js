@@ -26,6 +26,7 @@
 // «lato delle palle».
 import * as THREE from 'three';
 import { TRIAL, trialSide, trialDone, readCalMode } from './natpf_trial_learn.js';
+import { LEFTY_TAG, LEFTY_HINT } from './natpf_hand_notice.js';
 
 const $ = id => (typeof document !== 'undefined' ? document.getElementById(id) : null);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -269,15 +270,17 @@ export class NatpfTrial {
     const now = performance.now(), flash = S.flash && now < S.flash.until && !outro ? S.flash : null;
     set('[data-trial="sub"]', outro ? S.outro || '' : flash && !S.split ? flash.text : S.toPage ? TRIAL_TEXT.subPage : TRIAL_TEXT.sub);
     // avanzamento: per ogni giocatore due puntini per il dritto e due per il rovescio (pieni quelli imparati)
+    // B46: chi ha la mano sinistra lo vede qui («Mancino»): i puntini si riempiono anche con la mano sbagliata (il verso del
+    // gesto segue il lato della palla, non la mano), ed era in partita che dritto e rovescio uscivano scambiati
     const rows = $q('[data-trial="rows"]');
     if (rows){
       const ids = Object.keys(S.players);
-      const data = ids.map(id => { const c = outro && S.result?.[id] ? outroCounts(S.result[id]) : this.counts(id); return { id, name: this._name(id), dots: trialDots(c) }; });
-      const key = data.map(d => `${d.id}:${d.name}:${d.dots.join('')}`).join('|');
+      const data = ids.map(id => { const c = outro && S.result?.[id] ? outroCounts(S.result[id]) : this.counts(id); return { id, name: this._name(id), dots: trialDots(c), lefty: this._phone(id)?.hand === 'left' }; });
+      const key = data.map(d => `${d.id}:${d.name}:${d.lefty ? 'L' : 'R'}:${d.dots.join('')}`).join('|');
       if (rows.dataset.key !== key){
         rows.dataset.key = key;
         const dots = (d, k, label) => `<span class="trial-side"><em>${label}</em>${d.dots.slice(k, k + TRIAL.perSide).map(x => `<i class="${x}"></i>`).join('')}</span>`;
-        rows.innerHTML = data.map(d => `<div class="trial-row" data-trial-player="${d.id}">${d.name ? `<b>${String(d.name).replace(/[&<>"]/g, '')}</b>` : ''}${dots(d, 0, 'Dritto')}${dots(d, TRIAL.perSide, 'Rovescio')}</div>`).join('');
+        rows.innerHTML = data.map(d => `<div class="trial-row" data-trial-player="${d.id}"${d.lefty ? ' data-hand="left"' : ''}>${d.name ? `<b>${String(d.name).replace(/[&<>"]/g, '')}</b>` : ''}${d.lefty ? `<span class="hand-tag" title="${LEFTY_HINT}">${LEFTY_TAG}</span>` : ''}${dots(d, 0, 'Dritto')}${dots(d, TRIAL.perSide, 'Rovescio')}</div>`).join('');
       }
     }
     show($q('#trial-skip') || $('trial-skip'), !outro);

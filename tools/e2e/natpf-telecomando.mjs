@@ -265,6 +265,13 @@ try {
   check('«Salta il nome» acceso', await phone.evaluate(() => __telecomando.status.cmds.skip === 1 && /nome/.test(__telecomando.status.labels.skip)));
   await game.screenshot({ path: `${SP}/telecomando-nome-1024x1024.png` });
   await tap('skip'); check('Salta → di nuovo «Pronto per la partita»', await waitPg('lobby:match'));
+  // B38: «Gioca come Ospite» (accanto al campo del nome) con le frecce e OK del telefono dello staff
+  await tap('newplayer'); check('B38: Nuovo giocatore (di nuovo) → «Come ti chiami?»', await waitPg('nick'));
+  let onGuest = false;
+  for (let i = 0; i < 12 && !onGuest; i++){ await tap(['up', 'right', 'up', 'left'][i % 4]); onGuest = await ui(() => document.activeElement?.id === 'nick-guest'); }
+  check('B38: le frecce del telecomando arrivano a «Gioca come Ospite»', onGuest, await ui(() => document.activeElement?.id || document.activeElement?.textContent));
+  await tap('ok');
+  check('B38: OK su «Gioca come Ospite» → di nuovo «Pronto per la partita», senza nome, fuori classifica', await waitPg('lobby:match') && await ui(() => __natpfTennis.natpfUi.events.guest === true && __natpfTennis.natpfUi.events.nickname === ''));
 
   // 5b) B35 (collaudo dell'utente del 13/11): scambi di prova contro la CPU e telecomando. Con il telefono come racchetta
   // gli scambi di prova si fanno prima della pagina «Pronto per la partita»; «Salta» dal telecomando porta alla pagina (non
@@ -440,6 +447,8 @@ try {
   await ui(() => __natpfTennis.natpfUi.remote.open()); await sleep(500);
   await game.click('[data-remote="forget"]'); await sleep(300);
   const armed = await ui(() => ({ text: document.querySelector('[data-remote="forget"]').textContent, paired: __natpfTennis.natpfUi.remote.link.paired }));
+  // (B39: come le conferme del B43, il secondo clic conta solo dopo mezzo secondo: un doppio clic non scollega)
+  await sleep(400);
   await game.click('[data-remote="forget"]');
   check('«Scollega il telecomando» in due passi: il telefono lo sa e chiede di abbinarsi di nuovo; indirizzo e chiave del gioco buttati', /ancora/.test(armed.text) && armed.paired && await phone.waitForFunction(() => __telecomando.state === 'unpaired' && !localStorage.getItem('natpf-telecomando'), null, { timeout: 10000 }).then(() => true, () => false) && await ui(() => { const v = JSON.parse(localStorage.getItem('natpf-tennis.telecomando')); return !__natpfTennis.natpfUi.remote.link.paired && v.session === null && v.key === null; }), JSON.stringify(armed));
   await phone.screenshot({ path: `${SP}/telecomando-telefono-non-abbinato.png` });

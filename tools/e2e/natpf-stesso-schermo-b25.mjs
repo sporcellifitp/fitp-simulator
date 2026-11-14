@@ -77,7 +77,7 @@ try {
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720], [1920, 1080]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: tredici pulsanti (dal B28 anche «Calibrazione»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 13 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: quattordici pulsanti (dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta tagliata`, s.pulsanti === 14 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -99,7 +99,7 @@ try {
   for (const [w, h] of [[1920, 540], [1024, 600], [1280, 720], [1366, 657], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 13 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
+    check(`   pannello dello stand a ${w}×${h} con chiosco, scambio caldo, lancio automatico e campo aperto accesi: niente scorrimento, «Chiudi» e «Nuovo giocatore» interi, nessuna scritta tagliata`, s.pulsanti === 14 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom && !s.tagliati.length, fmt(s));
     if (h === 720 && w === 720 || h === 540) await shot(`1c-pannello-stand-accesi-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -191,7 +191,7 @@ try {
   const idle = s => g.evaluate(s => { const E = __natpfTennis; E.phaseTimer = s; E.natpfUi.serveCoach.state.idle = s; }, s);
   await idle(45); await sleep(1500);
   let c = await coach();
-  check('4. lancio automatico spento: dopo 45 s chi batte è ancora fermo, il gioco aspetta e lo chiama per nome', c.phase === 'SERVE_STANCE' && c.shown && c.big === 'Giulia, batti tu' && c.sub === 'Alza il telefono: lanci la palla' && c.tossMisses === 0, fmt(c));
+  check('4. lancio automatico spento: dopo 45 s chi batte è ancora fermo, il gioco aspetta e lo chiama per nome', c.phase === 'SERVE_STANCE' && c.shown && c.big === 'Giulia, batti tu' && c.sub === '' && c.tossMisses === 0, fmt(c));   // (B44: niente testo del lancio, lo dice l'icona)
   await shot('4-lancio-automatico-spento');
   // lo staff lo accende dal pannello (in partita il pannello si apre lo stesso): vale dalla partita dopo
   await g.evaluate(() => { localStorage.setItem('natpf-tennis.lancioAuto', '1'); });
@@ -203,7 +203,7 @@ try {
   check('   partita dopo: lancio automatico acceso', m.duo.autoToss === true && m.phase === 'SERVE_STANCE' && m.server === 'opponent', fmt({ autoToss: m.duo.autoToss, phase: m.phase }));
   await idle(22.5); await sleep(700);
   c = await coach();
-  check('   negli ultimi 10 s il richiamo dice che la palla la lancia il gioco, con i secondi', c.phase === 'SERVE_STANCE' && c.shown && c.big === 'Giulia, batti tu' && /^Alza il telefono: lanci la palla · tra [5-8] s la lancia il gioco$/.test(c.sub) && c.call === '1', fmt(c));
+  check('   negli ultimi 10 s il richiamo dice che la palla la lancia il gioco, con i secondi', c.phase === 'SERVE_STANCE' && c.shown && c.big === 'Giulia, batti tu' && /^Tra [5-8] s la lancia il gioco$/.test(c.sub) && c.call === '1', fmt(c));
   await shot('4b-lancio-automatico-annuncio');
   await idle(29.6);
   const tossed = await until(g, () => __natpfTennis.phase === 'SERVE_TOSS', null, 5000);
@@ -261,7 +261,9 @@ try {
   /* 6: «Nuovo giocatore» */
   await openStaff();
   await shot('6-pannello-stand-in-partita');
-  await g.click('#natpf-staff [data-staff="newplayer"]');
+  // (B43: in partita «Nuovo giocatore» vuole il secondo clic, dopo almeno mezzo secondo)
+  await g.click('#natpf-staff [data-staff="newplayer"]'); await sleep(700);
+  if (!(await g.evaluate(() => __natpfTennis.natpfUi.lobby.visible))) await g.click('#natpf-staff [data-staff="newplayer"]');
   await g.waitForFunction(() => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'connect', null, { timeout: 10000 });
   await sleep(400);
   bd = await bands();

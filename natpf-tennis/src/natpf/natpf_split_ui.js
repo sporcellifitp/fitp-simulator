@@ -169,6 +169,9 @@ export class NatpfSplitUi {
       p2.onTutorial?.(() => this._tutDone('p2'));
       p2.onTutorialNav?.(d => { if (this.tutOpen.p2) this.tut.p2?.step(d); });
       p2.onRematch?.(() => this._onRematch('p2'));
+      // B46: mano cambiata dalla pagina del telefono del Player 2: come dalla casella del computer (personaggio, piano
+      // d'intercetto e webcam del P2 compresi; prima cambiava solo il telefono), senza ridisegnare la pagina «Collega»
+      p2.onHand = (h, causa = 'telefono') => this._applyHand('p2', h, causa);
     }
     if (!this.p1Bound){
       this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => { this._resetIfNew('p1'); this._repaint(); }); this.ui.phone.onTutorial?.(() => this._tutDone('p1'));
@@ -270,17 +273,23 @@ export class NatpfSplitUi {
     const id = this.helpedId();
     return id ? helpSentence(helpFor(this.engine.natpfSplitBands || {}, undefined, readOpenCourt())[id], this.name(id)) : '';
   }
-  setHand(id, hand){
-    // (natpfP2Hand: il piano d'intercetto del P2 sa da che lato è il suo dritto prima del primo colpo, natpf_impact.handOf).
-    // Nel motore (natpfP2Hand, personaggio specchiato) solo a sessione in corso: prima di «Gioca» è la preferenza del P2,
-    // che start() applica; prima restava anche tornando al menu (CPU o P2 del 1v1 in rete mancini, B15)
+  // causa (B46): chi la cambia, per il registro dello stand ('gioco': caselle della pagina «Collega»; 'telefono': pagina del
+  // telefono del Player 2; 'nuovo giocatore')
+  setHand(id, hand, causa = 'gioco'){
+    this._applyHand(id, hand, causa);
+    this.paint();
+  }
+  // (natpfP2Hand: il piano d'intercetto del P2 sa da che lato è il suo dritto prima del primo colpo, natpf_impact.handOf).
+  // Nel motore (natpfP2Hand, personaggio specchiato) solo a sessione in corso: prima di «Gioca» è la preferenza del P2,
+  // che start() applica; prima restava anche tornando al menu (CPU o P2 del 1v1 in rete mancini, B15)
+  _applyHand(id, hand, causa = 'gioco'){
     if (id === 'p2'){
-      this.engine.natpfPhone2?.setHand(hand);
+      this.engine.natpfPhone2?.setHand(hand, causa);
       if (this.session) this.engine._natpfSetP2Hand?.(hand);
       if (this.engine.motionController) this.engine.motionController.p2HandPreference = hand;
     }
-    else { this.ui.hand.set(hand); this.ui.paintTiles?.(); }
-    this.paint();
+    else { this.ui.hand.set(hand, causa); this.ui.paintTiles?.(); }
+    this._paintNames();
   }
   // nuovo collegamento (pagina del telefono ricaricata o altro telefono): la calibrazione si chiede di nuovo
   _resetIfNew(id){
@@ -389,9 +398,14 @@ export class NatpfSplitUi {
   name(id){ return this.engine.natpfSplitNames?.[id] || defaultName(id); }
   // targhette dei nomi sotto le due metà del campo, dai nomi correnti (scritte anche da tick: un nome cambiato senza
   // l'evento 'input', come con «Nuovo giocatore», non lascia in campo il nome di chi ha giocato prima, revisione B18)
+  // (B46: accanto al nome «Mancino» per chi ha la mano sinistra: si vede dove guarda chi gioca, durante tutta la partita)
   _paintNames(){
     const hud = typeof document !== 'undefined' ? $('natpf-split-hud') : null; if (!hud) return;
-    for (const id of SPLIT_PLAYERS){ const b = hud.querySelector(`[data-split-tag="${id}"] b`), t = this.name(id); if (b && b.textContent !== t) b.textContent = t; }
+    for (const id of SPLIT_PLAYERS){
+      const b = hud.querySelector(`[data-split-tag="${id}"] b`), t = this.name(id); if (b && b.textContent !== t) b.textContent = t;
+      const h = hud.querySelector(`[data-split-tag="${id}"] .hand-tag`), lefty = this.hand(id) === 'left';
+      if (h && h.classList.contains('hidden') === lefty) show(h, lefty);
+    }
   }
   // «Nuovo giocatore» (natpf_new_player.resetVisitor): nomi da capo, caselle vuote, targhette in campo riscritte
   resetNames(){
@@ -485,7 +499,8 @@ export class NatpfSplitUi {
   }
   playNow(){ this.cd.held = false; this.cd.back = false; this._fire(); }
   // si sta scrivendo un nome (campo attivo nella pagina «Collega» e un tasto da poco)
-  get typing(){ return typeof document !== 'undefined' && !!document.activeElement?.matches?.('.split-name-input') && performance.now() - (this._typedAt ?? -1e9) < SPLIT_TYPING_MS; }
+  // (B38: anche con la tastiera a schermo aperta su un nome: con il mouse si scrive piano, una lettera ogni qualche secondo)
+  get typing(){ return typeof document !== 'undefined' && (!!this.ui?.tastiera?.isOpenOn?.('.split-name-input') || (!!document.activeElement?.matches?.('.split-name-input') && performance.now() - (this._typedAt ?? -1e9) < SPLIT_TYPING_MS)); }
   // a zero (o «Gioca» dopo «Aspetta»): lo stesso «Gioca» della pagina «Partita» (natpf_ui._bindStart ricontrolla che
   // tutti e due siano pronti, poi la sessione split e il passaggio al campo)
   _fire(){

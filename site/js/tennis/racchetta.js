@@ -15,7 +15,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample, SIGN } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, readyView, standView, STAFF_HOLD, batteryAlert, standSignStep } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, readyView, standView, STAFF_HOLD, batteryAlert, standSignStep, tapVotesSign, handTap, handLabel, HAND_CONFIRM } from './phone-screen.js';
 import { parseStandPairing, createStandStore, standHello, standWelcome, standAnswer, standDenyText, newStandNonce, slotLabel } from './stand-pairing.js';
 
 const $ = s => document.querySelector(s);
@@ -54,7 +54,9 @@ let lastRawG = null;
 // ogni gesto porta con sé il piatto all'istante del picco (l'impatto)
 // … e la forma del colpo (stroke-shape.js): piano, verso della testa della racchetta, rotazione sul manico
 det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); s.shape = strokeShape(face.history(), face.up, { peakT: s.peakT }); } });
-det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
+// (B46: il voto del rilevatore sul segno dei sensori, swing-detect.js vote, arriva subito al computer, che lo registra;
+// i computer di prima ignorano il messaggio e lo vedono dal colpo, sg)
+det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); if (s.s === 'sign') send({ t: 'sgn', d: s.sign === -1 ? -1 : 1 }); });
 const cal = createCalibration(det);
 let lastFaceSent = -Infinity, lastFacePaint = -Infinity, lastAttemptOk = false;
 let sensorSequence = 0, lastSensorSent = -Infinity;
@@ -92,12 +94,22 @@ const ARROW = { L: '←', R: '→', '?': '?' };
 // mano scelta nel gioco (o qui, e confermata dal gioco): menu, calibrazione in corso e profilo salvato. Il verso del
 // gesto non dipende dalla mano: cambia solo quale verso è il dritto, quindi il profilo resta valido
 // pulsanti Destra / Sinistra sopra «Attiva i sensori» (la scelta vera è il <select id="hand"> nascosto)
+// B46: cambiare mano vuole due tocchi (phone-screen.handTap): al primo il pulsante chiede «Mancino? Tocca di nuovo» (o
+// «Destro? Tocca di nuovo») per HAND_CONFIRM.ms, il secondo la cambia; handArm = la domanda aperta
+let handArm = null, handArmT = null;
 function paintHand(){
-  const hand = $('#hand').value;
-  for (const b of document.querySelectorAll('#profileOptions [data-hand]')){ const on = b.dataset.hand === hand; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }
+  const hand = $('#hand').value, now = performance.now();
+  if (handArm && now > handArm.until) handArm = null;
+  for (const b of document.querySelectorAll('#profileOptions [data-hand]')){
+    const on = b.dataset.hand === hand, ask = !!handArm && handArm.hand === b.dataset.hand, t = handLabel(b.dataset.hand, handArm, now);
+    b.classList.toggle('on', on); b.classList.toggle('ask', ask); b.setAttribute('aria-checked', String(on));
+    if (b.textContent !== t) b.textContent = t;
+  }
 }
 function applyHand(h){
   const hand = h === 'left' ? 'left' : 'right';
+  // (la mano decisa dal computer chiude la domanda aperta sul telefono)
+  handArm = null; clearTimeout(handArmT);
   if ($('#hand').value !== hand) $('#hand').value = hand;
   paintHand();
   const art = $('#grip');
@@ -656,7 +668,15 @@ $('#touchHit').addEventListener('click', () => {
 $('#gripMode').addEventListener('change', e => setGrip(e.target.value));
 // mano: una sola per tutto il gioco. Cambiata qui va al computer, che la applica e la rimanda (cfg)
 $('#hand').addEventListener('change', e => { applyHand(e.target.value); send({ t: 'hand', h: $('#hand').value }); });
-$('#profileOptions').addEventListener('click', e => { const b = e.target.closest('[data-hand]'); if (!b || $('#hand').value === b.dataset.hand) return; $('#hand').value = b.dataset.hand; $('#hand').dispatchEvent(new Event('change')); });
+// B46: due tocchi per cambiare mano (handTap): il primo chiede conferma, il secondo entro HAND_CONFIRM.ms la cambia
+$('#profileOptions').addEventListener('click', e => {
+  const b = e.target.closest('[data-hand]'); if (!b) return;
+  const r = handTap(handArm, { want: b.dataset.hand, current: $('#hand').value, now: performance.now() });
+  handArm = r.armed; clearTimeout(handArmT);
+  if (handArm){ buzz([25]); handArmT = setTimeout(() => { handArm = null; paintHand(); }, HAND_CONFIRM.ms + 60); }
+  if (r.commit){ $('#hand').value = r.commit; $('#hand').dispatchEvent(new Event('change')); }
+  paintHand();
+});
 $('#enableTouch').addEventListener('click', () => { lockOrientation(); inputMode='touch'; selectedShot='drive'; det.stop(); needCal(); sendState(); paint(); });
 det.on('phase', value => {
   // (niente «Pronto» qui: lo dice già la schermata, prima compariva due volte)
@@ -706,7 +726,9 @@ document.addEventListener('pointerdown', () => {
 // il segno di prima non vale: si rifà
 document.addEventListener('pointerdown', () => {
   // (telefono dello stand, B41.3: confermato da SIGN.votes tocchi concordi, il segno si salva e non si vota più)
-  if (!lastRawG || (pair?.stand && stand && !standSignStep({ saved: stand.as ?? null }).vote)) return;
+  // (B46: si vota solo dove il telefono si tiene davanti per leggere, phone-screen.tapVotesSign: mai al servizio, nello
+  // scambio o negli scambi di prova, dove il tocco del lancio arriva con il telefono tenuto come una racchetta)
+  if (!lastRawG || !tapVotesSign({ screen, phase, trial }) || (pair?.stand && stand && !standSignStep({ saved: stand.as ?? null }).vote)) return;
   const changed = accSign.vote(lastRawG);
   if (pair?.stand && stand){ const st = standSignStep({ votes: accSign.votes, sign: accSign.sign, need: SIGN.votes, agree: SIGN.agree }); if (st.save){ stand = { ...stand, as: st.save }; standStore.save(stand); } }
   if (!changed) return;
