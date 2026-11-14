@@ -12,7 +12,10 @@
 //     voci a giro del pannello, «Avanti ›» della guida; un clic singolo 100 ms dopo il passaggio automatico di pagina non
 //     conta, uno dopo 700 ms sì (con ?guardia=1: nelle prove automatiche la regola del clic in ritardo vale solo così);
 //   • partita con la racchetta mouse della modalità prova: ❚❚ breve = pausa, ❚❚ tenuto 3 s = pannello dello stand con la
-//     partita ferma e senza la pausa; riquadro «Telefono in pausa» sotto la pausa (non copre «Riprendi ›»).
+//     partita ferma e senza la pausa; riquadro «Telefono in pausa» sotto la pausa (non copre «Riprendi ›»);
+//   • puntatore (B39.5): Opzioni → «Puntatore: Grande», nascosto dopo 10 s fermo nel menu e di nuovo visibile con un
+//     anello, mai nascosto con la racchetta mouse, freccia sul bordo di un'area calibrata quando il puntatore è fuori
+//     (schermate composte: il cursore vero non compare nelle schermate, lì c'è la sua immagine).
 //   (Il nome dei minigiochi, i due nomi dello stesso schermo e il codice della sfida sono del B38: tastiera a schermo e
 //   «Gioca come Ospite»; uscire e ricaricare il programma si provano nel programma: natpf-desktop/scripts/prova-linux.mjs,
 //   scenario solo-mouse.)
@@ -249,6 +252,45 @@ try {
   check('pausa aperta con il riquadro del telefono: il riquadro sta sotto, «Riprendi ›» e «Torna al menu» si cliccano', resume.onTop && menuBtn.onTop && +zHold < 60, JSON.stringify({ resume: resume.top, menu: menuBtn.top, zHold }));
   await clickAt('#natpf-pause [data-pause="resume"]', { wait: 400 });
   await g.evaluate(() => __natpfTennis.natpfUi._paintHold(null));
+
+  /* ---------- 10. puntatore per il ledwall (B39.5) ---------- */
+  // con la racchetta mouse il puntatore in campo resta (è la racchetta)
+  await g.mouse.move(600, 500, { steps: 4 }); await g.waitForTimeout(3600);
+  const keep = await g.evaluate(() => document.documentElement.classList.contains('cursor-hidden'));
+  check('in campo con la racchetta «Mouse e tastiera» il puntatore non sparisce', !keep);
+  await g.evaluate(() => __natpfTennis.natpfUi.backToMenu()); await g.waitForTimeout(800);
+  await clickAt('[data-page="menu"] [data-menu="options"]', { wait: 900 });
+  const optRow = await where('[data-natpf-pointer="grande"]');
+  await clickAt('[data-natpf-pointer="grande"]', { wait: 600 });
+  const big = await g.evaluate(() => ({ cls: document.documentElement.classList.contains('cursor-big'), cur: getComputedStyle(document.querySelector('#title-modal')).cursor.slice(0, 40), saved: localStorage.getItem('natpf-tennis.puntatore'), sel: document.querySelector('[data-natpf-pointer="grande"]').classList.contains('selected') }));
+  check('Opzioni → «Puntatore: Grande»: freccia gialla al posto di quella di sistema, scelta salvata', optRow.onTop && big.cls && /^url\("data:image\/svg\+xml/.test(big.cur) && big.saved === 'grande' && big.sel, JSON.stringify(big));
+  // fermo 10 s nel menu: sparisce; al primo movimento ricompare con l'anello
+  await g.waitForTimeout(10500);
+  const hid = await g.evaluate(() => document.documentElement.classList.contains('cursor-hidden'));
+  await g.mouse.move(640, 300, { steps: 3 });
+  const back = await g.evaluate(() => ({ hidden: document.documentElement.classList.contains('cursor-hidden'), ring: document.querySelector('.natpf-pointer-ring')?.classList.contains('run') }));
+  check('nel menu fermo 10 s il puntatore sparisce; muovendo il mouse ricompare con un anello', hid && !back.hidden && back.ring, JSON.stringify({ hid, back }));
+  // schermata composta: il cursore vero non compare nelle schermate, qui l'immagine dello stesso cursore dove sta il mouse
+  const composite = async (name, x, y) => {
+    await g.evaluate(([x, y]) => { const css = getComputedStyle(document.documentElement).getPropertyValue('--natpf-cursor'); const m = /url\("([^"]+)"\)/.exec(css); if (!m) return; const img = document.createElement('img'); img.id = '__cursore'; img.src = m[1]; img.style.cssText = `position:fixed;left:${x - 3}px;top:${y - 3}px;z-index:9999;pointer-events:none`; document.documentElement.appendChild(img); }, [x, y]);
+    await g.waitForTimeout(200); await snap(name);
+    await g.evaluate(() => document.getElementById('__cursore')?.remove());
+  };
+  await g.mouse.move(700, 330, { steps: 3 }); await g.waitForTimeout(300);
+  await composite('b39-puntatore-grande-1280x720.png', 700, 330);
+  // area calibrata più piccola della finestra (1000 × 1000 in alto a sinistra di 1920 × 1080, qui in scala: bordo destro
+  // 40 %): puntatore fuori dall'area → freccia sul bordo destro dell'area
+  await g.evaluate(() => __natpfTennis.natpfUi.screen.preview({ preset: 'full', margins: { t: 0, r: 40, b: 0, l: 0 } }));
+  await g.waitForTimeout(500);
+  await g.mouse.move(1100, 360, { steps: 6 }); await g.waitForTimeout(400);
+  const arr = await g.evaluate(() => { const a = document.querySelector('.natpf-edge-arrow'), b = a.getBoundingClientRect(); return { shown: !a.classList.contains('hidden'), x: Math.round(b.left + b.width/2), y: Math.round(b.top + b.height/2), right: Math.round(b.right), angle: a.style.getPropertyValue('--angle'), areaW: Math.round(document.body.getBoundingClientRect().width) }; });
+  await composite('b39-freccia-bordo-area-1280x720.png', 1100, 360);
+  check('area calibrata: con il puntatore fuori dall\'area una freccia sul bordo destro dell\'area indica dove sta', arr.shown && arr.right <= arr.areaW && arr.x > arr.areaW - 80 && Math.abs(arr.y - 360) < 4 && arr.angle === '0deg', JSON.stringify(arr));
+  await g.mouse.move(400, 360, { steps: 6 }); await g.waitForTimeout(300);
+  check('… e sparisce quando il puntatore torna dentro', await g.evaluate(() => document.querySelector('.natpf-edge-arrow').classList.contains('hidden')));
+  await g.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.screen.save({ preset: 'full', margins: { t: 0, r: 0, b: 0, l: 0 } }); });
+  await clickAt('[data-natpf-pointer="normale"]', { wait: 500 });
+  check('«Puntatore: Normale»: di nuovo la freccia di sistema', await g.evaluate(() => !document.documentElement.classList.contains('cursor-big') && localStorage.getItem('natpf-tennis.puntatore') === 'normale'));
 
   check('nessuna finestra di Windows (confirm, alert) in tutto il percorso', !dialogs.length, dialogs.join(' | '));
   check('nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 400));

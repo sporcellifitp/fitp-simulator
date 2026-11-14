@@ -12,10 +12,13 @@
 //     «× Chiudi» in alto a destra, che compare quando si muove il mouse; nel pannello la riga sotto le voci spiega la voce
 //     sotto il puntatore (prima le spiegazioni stavano solo nei fumetti);
 //   • guardia del doppio clic (B39.2, natpf_click_guard.js): il secondo clic di un doppio clic e il clic arrivato subito
-//     dopo un cambio di schermata non scelgono niente nella schermata nuova.
+//     dopo un cambio di schermata non scelgono niente nella schermata nuova;
+//   • puntatore per il ledwall (B39.5, natpf_cursor.js): grande, nascosto in campo dopo 3 s fermo, freccia sul bordo
+//     dell'area quando esce dalla parte che si vede.
 // Funzioni pure in testa (provate con node:test); la classe tocca il DOM solo nel costruttore e nei gestori.
 import { HoldPress } from './natpf_hold.js';
 import { ClickGuard } from './natpf_click_guard.js';
+import { NatpfCursor } from './natpf_cursor.js';
 export const LINK_TEXT = 'Il link è per il telefono: inquadra il QR con la fotocamera del telefono';
 // spiegazione di ogni voce del pannello dello stand, nella riga sotto le voci quando il puntatore ci passa sopra (le voci con
 // un fumetto, title, usano quello)
@@ -26,7 +29,7 @@ export const STAFF_HINTS = Object.freeze({
   export: 'Classifica · salva le partite e i minigiochi di oggi in un file CSV (nel programma Windows in Download › NATPF).',
   reset: 'Classifica · cancella la classifica di oggi su questo PC. Chiede un secondo clic.',
   phone: 'Telefono · scollega il telefono di chi gioca: per giocare va rifatto il QR. Tra un visitatore e l’altro usa «Nuovo giocatore».',
-  music: 'Musica · spegne o riaccende tutto l’audio del gioco (musica, effetti e voce).',
+  music: 'Musica · spegne o riaccende tutto l’audio del gioco (musica, effetti e voce). Non resta salvata: alla riapertura del gioco l’audio è acceso.',
   diag: 'Diagnostica · registra la sessione e la prova guidata, per chi sviluppa. Chiusa, torni qui.',
   remote: 'Telecomando dello staff · abbina il telefono dello staff (QR, codice, «Conferma» qui sul PC).',
   display: 'Schermo del gioco · sposta il gioco sullo schermo successivo; la scelta resta salvata.',
@@ -81,6 +84,8 @@ export class NatpfStandMouse {
     win?.addEventListener?.('dragover', e => e.preventDefault());
     win?.addEventListener?.('drop', e => e.preventDefault());
     doc?.addEventListener?.('dragstart', e => { if (e.target?.closest?.('img, a')) e.preventDefault(); }, true);
+    // B39.5 · puntatore del mouse per il ledwall
+    try { this.cursor = new NatpfCursor(engine, ui); } catch (e){ console.warn('[natpf-mouse] puntatore', e?.message || e); }
     // B39.3 · ❚❚ tenuto 3 secondi in campo: pannello dello stand (il clic breve resta la pausa)
     const pauseBtn = doc?.getElementById?.('natpf-pause-btn');
     if (pauseBtn) this.pauseHold = new HoldPress(pauseBtn, { onDone: () => this.ui.kiosk?.open?.() });

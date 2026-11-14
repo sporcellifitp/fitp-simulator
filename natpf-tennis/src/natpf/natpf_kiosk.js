@@ -61,6 +61,10 @@ export class NatpfKiosk {
     this.last = performance.now();
     const poke = () => { this.last = performance.now(); };
     for (const ev of ['pointerdown', 'keydown', 'touchstart', 'wheel']) window.addEventListener(ev, poke, { capture: true, passive: true });
+    // B39.5 (controllo «solo mouse», A4): anche il mouse che si muove (lo staff che legge o cerca una voce senza cliccare),
+    // al più una volta al secondo e solo per spostamenti veri (non il tremolio di un mouse fermo)
+    let moveAt = 0;
+    window.addEventListener('pointermove', e => { const now = performance.now(); if (now - moveAt < 1000 || Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0) < 3) return; moveAt = now; poke(); }, { capture: true, passive: true });
     ui.phone?.onSwing?.(poke);
     this.el = $('natpf-staff');
     this.el?.addEventListener('pointerdown', e => e.stopPropagation());
@@ -103,11 +107,17 @@ export class NatpfKiosk {
   }
   toggle(){ this.isOpen ? this.close() : this.open(); }
   check(){
-    if (this.isOpen) return;
+    // B39.5 (A4): niente azzeramento con un foglio dello staff aperto (pannello, telecomando con l'abbinamento in corso,
+    // diagnostica): prima il chiosco chiudeva l'abbinamento del telecomando di chi aveva in mano il telefono e non il mouse.
+    // La calibrazione dello schermo no (B8: lasciata aperta, il chiosco la annulla); chi la sta facendo muove il mouse, e
+    // dal B39.5 il movimento conta come attività
+    const ui0 = this.ui;
+    if (this.isOpen || ui0.remote?.isOpen || ui0.remote?.opening || ui0.diag?.isOpen){ this.last = performance.now(); return; }
     const E = this.engine, ui = this.ui, lobby = ui.lobby;
     const inGame = !lobby.visible && (!E.autoPlayMode || ui.training.active || !!ui.events.active);
     // (B41.2: il telefono dello stand resta sempre collegato, non vuol dire che c'è qualcuno)
-    const atRest = lobby.visible && lobby.step === 'menu' && !ui.events.nickname && (!ui.phone.connected || !!ui.phone.standSlot);
+    // (B39.5, A4: anche la classifica a schermo intero lasciata in vista per chi è in fila)
+    const atRest = lobby.visible && (lobby.step === 'menu' || (lobby.step === 'ranking' && this.rankingFull)) && !ui.events.nickname && (!ui.phone.connected || !!ui.phone.standSlot);
     const a = kioskAction({ enabled: this.enabled, idle: (performance.now() - this.last)/1000, limit: this.limit, inGame, atRest });
     if (a === 'end-game'){ ui.backToMenu(); this.reset(); }
     else if (a === 'reset') this.reset();

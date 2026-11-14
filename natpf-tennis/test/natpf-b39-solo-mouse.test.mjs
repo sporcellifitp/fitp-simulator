@@ -195,3 +195,76 @@ test('B39.2 · ClickGuard: in cattura sulla finestra ferma il clic scartato prim
   e = ev(2, false); listener(e); assert.ok(!e.prevented, 'clic del codice: passa');
   assert.deepEqual(g.dropped.map(d => [d.v, d.what]), [['doppio', 'lobby-next'], ['tardi', 'lobby-next']]);
 });
+
+/* ---------- B39.5 · puntatore per il ledwall e chiosco ---------- */
+import { POINTER, pointerPref, pointerSize, pointerSvg, pointerCss, hideAfterMs, edgeArrow, exitArrow } from '../src/natpf/natpf_cursor.js';
+
+test('B39.5 · puntatore grande: Grande di base nel programma, Normale nel browser; misura dal 5,5 % dell\'area tra 48 e 128 px', () => {
+  assert.equal(pointerPref(null, { desktop: true }), 'grande'); assert.equal(pointerPref(null, { desktop: false }), 'normale');
+  assert.equal(pointerPref('normale', { desktop: true }), 'normale'); assert.equal(pointerPref('altro', { desktop: false }), 'normale');
+  assert.equal(pointerSize(1080), 58); assert.equal(pointerSize(1024), 56); assert.equal(pointerSize(720), 48); assert.equal(pointerSize(600), 48);
+  assert.equal(pointerSize(2160), 118); assert.equal(pointerSize(5000), 128); assert.equal(pointerSize(0), 48);
+  for (const h of [600, 1080, 2160, 5000]) assert.equal(pointerSize(h) % 2, 0, 'pari');
+  assert.match(pointerSvg(58), /width="58" height="58"[^]*fill="#e3ff36" stroke="#000"/);
+  const css = pointerCss(58);
+  assert.match(css, /^url\("data:image\/svg\+xml,%3Csvg[^"]+"\) 4 4, auto$/, 'punta in alto a sinistra, riserva la freccia di sistema');
+  assert.equal(pointerCss(128).match(/\) (\d+) /)[1], '8');
+});
+
+test('B39.5 · puntatore nascosto: in campo dopo 3 s, altrove dopo 10 s, mai con il mouse come racchetta', () => {
+  assert.deepEqual([POINTER.fieldMs, POINTER.menuMs], [3000, 10000]);
+  assert.equal(hideAfterMs({ inField: true }), 3000); assert.equal(hideAfterMs({ inField: false }), 10000);
+  assert.equal(hideAfterMs({ inField: true, mouseRacket: true }), null); assert.equal(hideAfterMs({ inField: false, mouseRacket: true }), 10000);
+});
+
+test('B39.5 · freccia sul bordo dell\'area: puntatore fuori dalla parte che si vede o uscito dalla finestra', () => {
+  const a = { x: 0, y: 0, w: 1000, h: 1000 };           // 1000 × 1000 in alto a sinistra di 1920 × 1080
+  assert.equal(edgeArrow(500, 500, a), null, 'dentro: niente freccia');
+  assert.deepEqual(edgeArrow(1500, 100, a), { x: 990, y: 100, angle: 0 }, 'a destra fuori dall\'area: sul bordo destro, verso destra');
+  assert.deepEqual(edgeArrow(1500, 1060, a), { x: 990, y: 990, angle: 8 });
+  assert.deepEqual(edgeArrow(300, 1050, a), { x: 300, y: 990, angle: 90 }, 'sotto: verso il basso');
+  const c = { x: 460, y: 40, w: 1000, h: 1000 };         // area al centro: coordinate dell'area
+  assert.deepEqual(edgeArrow(100, 540, c), { x: 10, y: 500, angle: 180 });
+  assert.equal(edgeArrow(1, 1, { x: 0, y: 0, w: 0, h: 0 }), null);
+  // uscito dalla finestra dal bordo destro a metà altezza: freccia sul bordo destro dell'area
+  assert.deepEqual(exitArrow(1919, 540, { x: 0, y: 0, w: 1920, h: 1080 }), { x: 1910, y: 540, angle: 0 });
+  assert.deepEqual(exitArrow(960, 0, { x: 0, y: 0, w: 1920, h: 1080 }), { x: 960, y: 10, angle: -90 });
+});
+
+test('B39.5 · chiosco: fermo con il telecomando dello staff o la diagnostica aperti, classifica intera come riposo', async () => {
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const k = w.ui.kiosk; let resets = 0; k.reset = () => { resets++; k.last = performance.now(); };
+  k.enabled = true; k.limit = 30;
+  w.ui.lobby.go('options');
+  const R = w.ui.remote; Object.defineProperty(R, 'isOpen', { value: true, configurable: true });
+  w.advance(40000);
+  assert.equal(resets, 0, 'abbinamento del telecomando aperto: nessun azzeramento dopo 40 s');
+  delete R.isOpen;
+  w.advance(29000); assert.equal(resets, 0, 'il tempo riparte dalla chiusura');
+  w.advance(3000); assert.equal(resets, 1, 'poi il chiosco azzera');
+  // classifica a schermo intero lasciata in vista: è riposo
+  resets = 0; w.ui.lobby.go('ranking'); document.documentElement.classList.add('ranking-full');
+  w.advance(40000); assert.equal(resets, 0, 'classifica intera in vista: resta');
+  document.documentElement.classList.remove('ranking-full');
+});
+
+test('B39.5 · in campo il puntatore sparisce dopo 3 s fermo e appena la partita parte; nei fogli aspetta 10 s', async () => {
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const c = w.ui.mouse.cursor, html = document.documentElement;
+  assert.ok(c, 'puntatore del B39.5 creato');
+  w.pressStart(); w.advance(500);
+  assert.ok(w.ui.pause.inGame);
+  // con la racchetta mouse resta
+  w.advance(5000); assert.equal(html.classList.contains('cursor-hidden'), false, 'racchetta mouse: resta');
+  // con il telefono (o la webcam) sparisce in campo dopo 3 s fermo
+  w.ui.controller = 'webcam';
+  c.moved({ pointerType: 'mouse', clientX: 10, clientY: 10 });
+  w.advance(2500); assert.equal(html.classList.contains('cursor-hidden'), false, '2,5 s: ancora visibile');
+  w.advance(800); assert.equal(html.classList.contains('cursor-hidden'), true, '3,3 s: nascosto');
+  c.moved({ pointerType: 'mouse', clientX: 20, clientY: 20 });
+  assert.equal(html.classList.contains('cursor-hidden'), false, 'mosso: di nuovo visibile');
+  // tornati al menu e di nuovo in campo: sparisce subito
+  w.ui.backToMenu(); w.advance(500); c.moved({ pointerType: 'mouse', clientX: 30, clientY: 30 });
+  w.pressStart(); w.advance(600);
+  assert.equal(html.classList.contains('cursor-hidden'), true, 'partita partita: nascosto subito');
+});
