@@ -10,6 +10,8 @@ export const NO = await import("../../../src/natpf/natpf_stroke_outcome.js");
 export const NS = await import("../../../src/natpf/natpf_skill.js");
 export const SI = await import("../../../src/natpf/natpf_stroke_intent.js");
 const { strokePower, INTENT } = SI;
+// B36.0: scarto della cima e mira piena dagli stessi sorteggi; colpi con la regola nuova della direzione (../b36/simulati.mjs)
+const { cimaSimulata, contaColpo } = await import("../b36/simulati.mjs");
 export const mulberry32 = H.mulberry32, gauss = H.gauss;
 const cl = (v, a, b) => Math.max(a, Math.min(b, v));
 const DT = 1/120;
@@ -21,6 +23,9 @@ export const PROF = {
   umano:     { prep: .55, intent: .5,  tSd: .075, wSd: .3,  peak: 700,  pSd: 160, spec: .04, after: .25, afterSd: .05 },
   impreciso: { prep: .2,  intent: .1,  tSd: .16,  wSd: .55, peak: 535,  pSd: 200, spec: 0 },
   bambino:   { prep: .1,  intent: 0,   tSd: .14,  wSd: .45, peak: 380,  pSd: 90,  spec: 0 },
+  // B36.0 (docs/b36/misure-b36-0.md): «gira tanto», quando mira gira la cima di giro ± giroSd gradi (oltre la mira piena)
+  giraTanto:   { prep: .55, intent: .8, tSd: .075, wSd: .3, peak: 700, pSd: 160, spec: .04, giro: 30, giroSd: 12 },
+  giraTanto40: { prep: .55, intent: .8, tSd: .075, wSd: .3, peak: 700, pSd: 160, spec: .04, giro: 40, giroSd: 12 },
 };
 const P_ = p => (typeof p === 'string' ? { name: p, ...PROF[p] } : { name: p.name || (p.base || 'x') + (p.tac ? '+' + p.tac : ''), ...(p.base ? PROF[p.base] : {}), ...p });
 
@@ -56,10 +61,12 @@ function makeSwing(e, me, other, sgn, P, rng){
   else if (tac !== 'solotop' && rng() < (P.spec || 0)){ shot = Math.abs(other.pos.z) < 9 ? 'lob' : 'slice'; rise = shot === 'lob' ? .8 : -.4; }
   if (live && shot !== 'lob' && peak >= 200){ live.push(peak); if (live.length > 24) live.shift(); }
   const power = strokePower(peak, typ), typePower = strokePower(peak, typ, INTENT.classGain);
-  const intent = { shot, power: +power.toFixed(3), typePower: +typePower.toFixed(3), depth: +(power*.91).toFixed(3), rise, conf: 1, face: cl(face + gauss(rng)*P.wSd, -1, 1) };
+  // B36.0: piatto letto (lo stesso sorteggio di sempre) e, dagli stessi numeri, scarto della cima e mira piena
+  const cima = cimaSimulata(P, face, aims, gauss(rng), { sd: P.wSd });
+  const intent = { shot, power: +power.toFixed(3), typePower: +typePower.toFixed(3), depth: +(power*.91).toFixed(3), rise, conf: 1, face: cima.face };
   return { lead: tau + gauss(rng)*P.tSd + (P.bias || 0) + (P.netLag || 0), after: P.after ? P.after - tau + gauss(rng)*(P.afterSd || 0) : null, sent: false,
     ev: { source: 'natpf-phone', side: side > 0 ? 'forehand' : 'backhand', hand: 'right', shotType: shot === 'drop' ? 'slice' : shot, speed: .8 + power*.85, dirX: 0,
-      natpf: { aim: 'swing', shot, intent, power, peak: Math.round(peak), typical: typ || undefined, angle, latency: 0, hand: 'right', prepCapable: true, prep: rng() < (P.prep || 0) ? { lead: .35, amount: .8 } : null } } };
+      natpf: { aim: 'swing', shot, intent, power, peak: Math.round(peak), typical: typ || undefined, angle, latency: 0, hand: 'right', aimDev: cima.aimDev, aimFull: cima.aimFull, prepCapable: true, prep: rng() < (P.prep || 0) ? { lead: .35, amount: .8 } : null } } };
 }
 function makeServe(P, rng){
   let peak = Math.max(150, P.peak + gauss(rng)*P.pSd);
@@ -74,7 +81,7 @@ function makeServe(P, rng){
 export function play({ a = 'medio', b = 'medio', mode = 'split', fair = false, gamesToWin = 1, matches = 100, seed = 1, first = 'alt', cap = 150, tweak = null, hook = null, maxPts = Infinity } = {}){
   const A = P_(a), B = P_(b), rng = mulberry32(seed), eng = mulberry32((seed*104729 + 17) >>> 0), R0 = Math.random;
   Math.random = eng;
-  const out = { a: A.name, b: B.name, pts: [], games: [], matches: [], shots: [], serves: [] };
+  const out = { a: A.name, b: B.name, pts: [], games: [], matches: [], shots: [], serves: [], direzione: { colpi: 0, nuova: 0 } };
   try {
     const e = H.createHeadlessEngine({ difficulty: '1v1' });
     if (mode === 'split') e.startSplit(); else { e.versus = { active: true }; e.roomId = 'AT-ZZ99'; }
@@ -86,7 +93,7 @@ export function play({ a = 'medio', b = 'medio', mode = 'split', fair = false, g
     const rs = e._natpfRacketShot.bind(e);
     e._natpfRacketShot = (ev, p, o) => { const y0 = e.ball.pos.y, z0 = e.ball.pos.z, n0 = e.ball.rallyStrokeCount, r = rs(ev, p, o), L = e.natpfLastRacket; if (L){ const s = byActor(p);
       const rec = { k: s.k, pt: ptN, n: n0 + 1, shot: L.out.shot, grade: L.out.grade, q: L.out.q, t: L.out.t, excess: L.out.excess, failed: !!L.out.failed, weak: !!L.out.weak, pressured: !!L.out.pressured, sup: !!L.super, supWhy: L.superWhy?.[0] || null, y: +y0.toFixed(2), z: +Math.abs(z0).toFixed(2), x: L.out.x, depth: L.out.depth, power: L.intent?.power, tp: L.intent?.typePower, plan: NI.planOf(e, p)?.kind || null, cause: L.cause, flight: L.flight, iShot: ev.natpf?.intent?.shot };
-      lastShotOf[s.k] = rec; out.shots.push(rec); hook?.(e, s, rec, L); } return r; };
+      lastShotOf[s.k] = rec; out.shots.push(rec); contaColpo(L.out, out.direzione); hook?.(e, s, rec, L); } return r; };
     const ew = e._natpfEarlyWhiff.bind(e); e._natpfEarlyWhiff = ps => { const s = byActor(ps?.actor || e.player); whiff[s.k] = { pt: ptN, why: ps?.natpfWhy || 'presto' }; return ew(ps); };
     const wd = e._natpfWeakDropped.bind(e); e._natpfWeakDropped = ps => { const s = byActor(ps?.actor || e.player); whiff[s.k] = { pt: ptN, why: 'debole' }; return wd(ps); };
     const aw = e._awardPoint.bind(e);
@@ -157,7 +164,8 @@ export function play({ a = 'medio', b = 'medio', mode = 'split', fair = false, g
 }
 export const pc = (a, n) => (n ? +(100*a/n).toFixed(1) : null);
 export const qt = (arr, f) => { const s = [...arr].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(f*s.length))] : null; };
-export function many(opts, seeds){ const R = seeds.map(seed => play({ ...opts, seed })); return { pts: R.flatMap(r => r.pts), games: R.flatMap(r => r.games), matches: R.flatMap(r => r.matches), shots: R.flatMap(r => r.shots), serves: R.flatMap(r => r.serves) }; }
+export function many(opts, seeds){ const R = seeds.map(seed => play({ ...opts, seed })); return { pts: R.flatMap(r => r.pts), games: R.flatMap(r => r.games), matches: R.flatMap(r => r.matches), shots: R.flatMap(r => r.shots), serves: R.flatMap(r => r.serves),
+  direzione: { colpi: R.reduce((a, r) => a + r.direzione.colpi, 0), nuova: R.reduce((a, r) => a + r.direzione.nuova, 0) } }; }
 export function sum(r){
   const P = r.pts, G = r.games, M = r.matches, kinds = {};
   for (const p of P) kinds[p.kind] = (kinds[p.kind] || 0) + 1;

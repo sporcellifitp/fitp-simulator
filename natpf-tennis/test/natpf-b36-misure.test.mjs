@@ -67,3 +67,43 @@ test('B36.0: sul motore vero il registro scrive il primo rimbalzo vero e «fuori
     assert.ok(colpi.every(c => c.nr === undefined), 'nessun colpo con la regola nuova');
   } finally { Math.random = real; }
 });
+
+/* ---------- giocatori simulati che vedono la direzione (scripts/audit/b36/simulati.mjs) ---------- */
+test('B36.0: scarto della cima dei giocatori simulati — inversa esatta del piatto del gioco, senza il tetto; «gira tanto» oltre la mira piena', async () => {
+  const { devOfFace, FACE_DEAD } = await import('../src/natpf/natpf_direction.js');
+  const { faceAimFromDev, INTENT } = await import('../src/natpf/natpf_stroke_intent.js');
+  const { cimaSimulata } = await import('../scripts/audit/b36/simulati.mjs');
+  assert.equal(FACE_DEAD, INTENT.faceDead);
+  for (const full of [17, 20, 23]) for (let f = -1; f <= 1.0001; f += .05) assert.ok(Math.abs(faceAimFromDev(devOfFace(f, full), full) - Math.max(-1, Math.min(1, f))) < 1e-9, `${f} ${full}`);
+  assert.equal(devOfFace(0), 0); assert.equal(devOfFace(1.5, 17), 3 + 1.5*14, 'oltre la mira piena, senza tetto');
+  // stesso sorteggio, stesso piatto di sempre (clamp(face + g·sd)); lo scarto viene dallo stesso numero
+  const P = { wristSd: .3 }, a = cimaSimulata(P, .4, true, 1.5);
+  assert.equal(a.face, Math.max(-1, Math.min(1, .4 + 1.5*.3))); assert.equal(a.aimFull, 17); assert.equal(a.aimDev, +(3 + (.4 + 1.5*.3)*14).toFixed(1));
+  assert.equal(cimaSimulata(P, 0, false, 0).aimDev, 0);
+  // «gira tanto» (30 ± 12°): quando mira la cima gira di 30° (piatto di oggi tagliato a 1), quando non mira come gli altri
+  const G = { wristSd: .3, giro: 30, giroSd: 12 };
+  assert.equal(cimaSimulata(G, -.6, true, 0).aimDev, -30); assert.equal(cimaSimulata(G, -.6, true, 0).face, -1);
+  assert.equal(cimaSimulata(G, .6, true, 1).aimDev, 42); assert.equal(cimaSimulata(G, .6, false, 0).aimDev, +(3 + .6*14).toFixed(1));
+});
+
+// Impronte prese sulla base 0035e02 (2026-11-13.12) con gli stessi argomenti: con «Classica» i profili del telefono, che
+// ora mandano anche natpf.aimDev e natpf.aimFull, giocano identici, punto per punto e colpo per colpo
+test('B36.0: rally-balance con lo scarto della cima — partite identiche alla base, colpi contati, nessuno con la regola nuova', async () => {
+  const { createHash } = await import('node:crypto');
+  const { simulate, PHONE_PROFILES } = await import('../scripts/audit/rally-balance.mjs');
+  const sha = x => createHash('sha1').update(JSON.stringify(x)).digest('hex').slice(0, 12);
+  const BASE = { 'tennista/pro': '39e0eab60444', 'amatore/casual': '3c9754821f05', 'bambino/bambini': '3e60257b2773', 'umano/leggenda': '3d0b93d57253', 'medio/evento': '71ff6a88fcb7' };
+  for (const [k, atteso] of Object.entries(BASE)){
+    const [profile, difficulty] = k.split('/'), r = simulate({ profile, difficulty, points: 40, seed: 7 });
+    assert.equal(sha([r.points, r.won, r.rallies, r.reasons, r.grades, r.racket, r.landings, r.whiffs, r.shots]), atteso, k);
+    if (PHONE_PROFILES[profile]){ assert.ok(r.direzione.colpi > 30, `${k}: colpi della racchetta ${r.direzione.colpi}`); assert.equal(r.direzione.nuova, 0); }
+  }
+  // i primi tre profili del telefono restano quelli delle impronte (b20, b25, b37); i nuovi in fondo
+  assert.deepEqual(Object.keys(PHONE_PROFILES).slice(0, 4), ['tennista', 'amatore', 'bambino', 'umano']);
+  for (const k of ['medioTel', 'giraTanto', 'giraTanto40']) assert.ok(PHONE_PROFILES[k]?.swing, k);
+  // il gesto arriva al motore con lo scarto della cima e la mira piena
+  let visto = null;
+  simulate({ profile: 'giraTanto', difficulty: 'pro', points: 12, seed: 3, onStep: e => { const L = e.natpfLastRacket; if (L?.who === 'player' && L.aimFull) visto = L; } });
+  assert.equal(visto?.aimFull, 17);
+});
+

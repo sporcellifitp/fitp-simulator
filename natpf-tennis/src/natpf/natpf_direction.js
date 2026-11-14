@@ -11,3 +11,8 @@ export const DIR_MODELS = Object.freeze(['classica', 'nuova']);
 export const DIR_DEFAULT = 'classica';
 export const dirModelOf = engine => (DIR_MODELS.includes(engine?.natpfDirModel) ? engine.natpfDirModel : DIR_DEFAULT);
 export const usedNewRule = out => out?.rule === 'nuova';
+// Giocatori simulati dei banchi (B36.0): lo scarto della cima in gradi (natpf.aimDev) che dà un piatto f, l'inversa di
+// natpf_stroke_intent.faceAimFromDev (zona morta INTENT.faceDead, mira piena a `full` gradi). Senza il tetto: f oltre ±1
+// (il piatto che il gioco di oggi taglia a ±1) è uno scarto oltre la mira piena, come una persona che gira di più
+export const FACE_DEAD = 3;
+export const devOfFace = (f, full = 17) => (Number.isFinite(f) && f ? Math.sign(f)*(FACE_DEAD + Math.abs(f)*(full - FACE_DEAD)) : 0);

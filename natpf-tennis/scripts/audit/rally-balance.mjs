@@ -9,6 +9,7 @@ import { createHeadlessEngine, mulberry32, gauss } from './headless-engine.mjs';
 import { skillLevel } from '../../src/natpf/natpf_skill.js';
 import { strokePower } from '../../src/natpf/natpf_stroke_intent.js';
 import { OUTCOME, lateSpanOf, directionSpan, assistOf, neutralX, aimForLanding } from '../../src/natpf/natpf_stroke_outcome.js';
+import { cimaSimulata, contaColpo } from './b36/simulati.mjs';
 
 // Profili: errore di tempo (s, deviazione standard), mira (quanto cerca il campo aperto e con che dispersione),
 // forza del gesto (velocità del motore base 0,8…1,65) e uso dei colpi speciali.
@@ -29,6 +30,14 @@ export const PHONE_PROFILES = {
   // secondi (± afterBounceSd), quando la palla arriva all'altezza comoda. Dato della partita del 23/10 (video): chi gioca
   // faceva il gesto 0,2–0,3 s dopo il rimbalzo. Sulle palle al volo vale il tempo del motore
   umano:    { swing: true, prep: .55, intent: .5, timingSd: .075, wristSd: .3,  peak: 700,  peakSd: 160, rel: .7, specials: .04, afterBounce: .25, afterBounceSd: .05 },
+  // B36.0 (docs/b36/misure-b36-0.md), in fondo perché i banchi delle impronte prendono i primi tre profili:
+  //   medioTel     «medio con il telefono»: il «medio» dei banchi (qui sopra solo con mouse e tastiera, cieco alla regola
+  //                del telefono) con il telefono, come b19/due-umani.PROF.medio;
+  //   giraTanto    «gira tanto»: quando mira gira la cima di giro ± giroSd gradi (30 ± 12°, oltre la mira piena di 17°),
+  //   giraTanto40  e 40 ± 12° (criterio 5 del piano B36: calamite con «gira tanto»)
+  medioTel:    { swing: true, prep: .55, intent: .55, timingSd: .09,  wristSd: .3, peak: 790, peakSd: 155, rel: .7, specials: .06 },
+  giraTanto:   { swing: true, prep: .55, intent: .8,  timingSd: .075, wristSd: .3, peak: 700, peakSd: 160, rel: .7, specials: .04, giro: 30, giroSd: 12 },
+  giraTanto40: { swing: true, prep: .55, intent: .8,  timingSd: .075, wristSd: .3, peak: 700, peakSd: 160, rel: .7, specials: .04, giro: 40, giroSd: 12 },
 };
 Object.assign(PROFILES, PHONE_PROFILES);
 const RALLY_CAP = 60;
@@ -42,8 +51,9 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function phoneIntent(e, P, rng){
   const lv = skillLevel(e.matchConfig.difficulty), span = directionSpan(lv), open = e.opponent.pos.x >= 0 ? -1 : 1, xMax = assistOf(lv).xMax;
   const contact = e.ball.targetLanding.x >= e.player.pos.x ? 1 : -1;
-  let tau = 0, face = 0;
+  let tau = 0, face = 0, aimed = false;
   if (rng() < P.intent){
+    aimed = true;
     // punto voluto sul lato libero (dal 70% della mira piena alla mira piena), come mira attorno al punto neutro, che
     // segue la palla (natpf_stroke_outcome.js). Dal 23/10 il tempo copre da una riga all'altra: si mira soprattutto con
     // il tempo (in anticipo l'incrociato, in ritardo il lungolinea, dentro la finestra del livello) e il piatto
@@ -56,11 +66,13 @@ function phoneIntent(e, P, rng){
   const peak = Math.max(150, P.peak + gauss(rng)*P.peakSd), power = strokePower(peak);
   const special = rng() < (P.specials || 0);
   const shot = special ? (e.opponent.pos.z > -9 ? 'lob' : 'slice') : 'topspin';
-  const intent = { shot, power: +power.toFixed(3), depth: +(power*.91).toFixed(3), rise: shot === 'lob' ? .8 : shot === 'slice' ? -.4 : .3, face: clamp(face + gauss(rng)*P.wristSd, -1, 1) };
+  // B36.0: piatto letto (lo stesso sorteggio di sempre) e, dagli stessi numeri, scarto della cima e mira piena (b36/simulati.mjs)
+  const cima = cimaSimulata(P, face, aimed, gauss(rng));
+  const intent = { shot, power: +power.toFixed(3), depth: +(power*.91).toFixed(3), rise: shot === 'lob' ? .8 : shot === 'slice' ? -.4 : .3, face: cima.face };
   // error > 0 = in ritardo (come negli altri profili): per anticipare di tau si colpisce tau secondi prima dello sweet spot
   return { error: -tau + gauss(rng)*P.timingSd + (-.1 - IDEAL_R)/18, sent: false, after: P.afterBounce ? P.afterBounce - tau + gauss(rng)*(P.afterBounceSd || 0) : null,
     swing: { source: 'audit', side: contact > 0 ? 'forehand' : 'backhand', shotType: shot, speed: .8 + power*.85, dirX: 0,
-      natpf: { aim: 'swing', shot, intent, power, peak: Math.round(peak), latency: 0, hand: 'right',
+      natpf: { aim: 'swing', shot, intent, power, peak: Math.round(peak), latency: 0, hand: 'right', aimDev: cima.aimDev, aimFull: cima.aimFull,
         prepCapable: true, prep: rng() < (P.prep || 0) ? { lead: .35, amount: .8 } : null } } };
 }
 
@@ -80,7 +92,10 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
     moves: [],
     // campo aperto: ogni colpo di chi gioca con dove cade, dov'era la CPU quando è partito e com'è finito (vincente,
     // errore della CPU, ripresa, errore proprio); se la CPU l'ha presa, dove l'ha colpita e quanto ha corso di lato
-    shots: [] };
+    shots: [],
+    // B36.0: colpi della racchetta di chi gioca e quanti con la regola nuova della direzione (b36/regola-nuova.mjs; fuori da
+    // racket, che entra nelle impronte)
+    direzione: { colpi: 0, nuova: 0 } };
   let pending = null;
   try {
     const e = createHeadlessEngine({ difficulty });
@@ -146,7 +161,7 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
       // la CPU l'ha presa: dove (distanza dalla rete) e quanto ha corso di lato da quando il colpo è partito
       if (pending && pending.res == null && e.ball.lastHitter === 'opponent'){ pending.res = 'ripresa'; pending.hitZ = +Math.abs(e.opponent.pos.z).toFixed(2); pending.run = +Math.abs(e.opponent.pos.x - pending.cpuX).toFixed(2); }
       if (pending && pending.res === 'ripresa' && e.ball.lastHitter === 'player') pending = null;
-      if (lr && lr !== lastSeenRacket && lr.who === 'player'){ lastSeenRacket = lr; const k = lr.out?.shot || '?'; K.shots[k] = (K.shots[k] || 0) + 1; if (lr.volley) K.volleys++; if (lr.out?.failed) K.failed++;
+      if (lr && lr !== lastSeenRacket && lr.who === 'player'){ lastSeenRacket = lr; const k = lr.out?.shot || '?'; K.shots[k] = (K.shots[k] || 0) + 1; if (lr.volley) K.volleys++; if (lr.out?.failed) K.failed++; contaColpo(lr.out, out.direzione);
         out.shots.push(pending = { x: +e.ball.targetLanding.x.toFixed(2), z: +e.ball.targetLanding.z.toFixed(2), cpuX: +e.opponent.pos.x.toFixed(2), cpuZ: +e.opponent.pos.z.toFixed(2), res: null });
         out.moves.push({ contactX: +e.player.pos.x.toFixed(2), contactZ: +e.player.pos.z.toFixed(2), targetX: +e.player.targetPos.x.toFixed(2), targetZ: +e.player.targetPos.z.toFixed(2), volley: !!lr.volley, landingX: +e.ball.targetLanding.x.toFixed(2), landingZ: +e.ball.targetLanding.z.toFixed(2) }); }
       const pl = e.natpfPlan;
