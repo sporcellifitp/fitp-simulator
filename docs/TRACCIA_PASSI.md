@@ -863,3 +863,23 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
       finestra). Ramo `b45-1-collegamento` da natpf-simulator 14.2, worktree `scratchpad/b451/wt`, porte 4100–4149,
       appunti `scratchpad/b451/notes.md`. Rilasci: 14.3 = B47 appena pronto, 14.4 = B45.1.
 
+**14/11, 17:45 UTC · dopo il secondo limite d'uso (16:50) · priorità: il telefono che dice «scollegato».**
+- L'utente (17:00–17:40): con un solo telefono in fiera il ledwall dice spesso «scollegato»; router dedicato con il PC sul
+  cavo, risparmio energetico spento, rete come consigliato: cade lo stesso. Sul ledwall la scritta è quella dello stato
+  `lost` («Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo», `natpf_ui.js` ≈421/868).
+- [x] B47 unito in natpf-simulator (`6348253`; conflitti in natpf_kiosk.js e natpf_ui.js risolti tenendo le due parti),
+      controllo rapido: gioco 1600/1601 (l'unico KO, `natpf-webcam-load`, è di tempi sotto carico: da solo 9/9 tre volte),
+      sito 254, Windows 51, LAN 13, build ok; `audit:legend` 69 OK; push fatto. Prove nel browser in corso
+      (`scratchpad/v1403/run.log`: b47-fiera 20/20, mano-sicura 17/17, …).
+- [~] **B45.1 ripreso** (workflow `b45-1-collegamento-ripresa`, run `wf_fa4da2bf-953`; lavoro di prima salvato in `6358611`
+      «IN CORSO»). **Fase A** (chiosco che non scollega, tentativi senza fine, vita a 10 s con ogni messaggio, «Ricollega»
+      solo se il telefono risponde, scritta «segnale debole»): alle 17:29 gioco 1584/1584, sito 265, LAN 13, Windows 51,
+      `natpf-phone-blackout` 10/10 (bui di 3 e 7 s senza caduta, 12 s caduta a 10,6 s e ritorno da solo in 3,3 s); mancano
+      telecomando da solo, mano-sicura, swing-loss. Quando compare il commit «B45.1 FASE A PRONTA» (sentinella del
+      coordinatore): unirlo in natpf-simulator, controllo rapido e prove mirate, **versione 2026-11-14.3 = B47 + B45.1
+      fase A**, push, zip, installer, «come si attiva». Fase B (motivi delle cadute, rifiniture, tasto Alt) nella 14.4.
+- [~] **B41 seconda parte** (workflow `b41-parte-2-fiera-con-il-mouse`, run `wf_5bb13fa8-3f0`): ramo `b41-fiera-2` da
+      `6348253`, worktree `scratchpad/b412/wt`, porte 4250–4299, appunti `scratchpad/b412/notes.md`.
+- Dal 14/11 pomeriggio i commit del coordinatore finiscono con «Co-Authored-By: Claude Fable 5.2» (modello cambiato
+  dall'utente); gli agenti già partiti tengono la riga di prima.
+
