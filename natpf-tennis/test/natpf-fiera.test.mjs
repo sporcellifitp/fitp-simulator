@@ -109,9 +109,9 @@ test('telefono dello stand: niente QR pubblico (nemmeno nel riquadro), tutorial 
   let resets = 0; const r = ui.kiosk.reset.bind(ui.kiosk); ui.kiosk.reset = () => { resets++; r(); };
   ui.lobby.go('menu'); ui.kiosk.check();
   assert.equal(resets, 0);
-  // la racchetta normale, come prima: il chiosco la scollega
+  // B45.1: anche la racchetta normale (col QR) resta collegata; si azzera solo chi gioca
   P.standSlot = null; ui.kiosk.reset = r; ui.kiosk.reset();
-  assert.equal(link.connected, false);
+  assert.equal(link.connected, true, 'il chiosco non scollega più il telefono col QR');
 });
 
 test('stesso schermo: un telefono dello stand scollegato non chiede di inquadrare il QR (si ricollega da solo)', () => {

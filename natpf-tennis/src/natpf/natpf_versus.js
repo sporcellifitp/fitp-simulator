@@ -291,6 +291,8 @@ export function hostHoldText(why, { p2Name = 'Player 2' } = {}){
     case 'non pronto': return { title: `Il telefono di ${p2Name} non è pronto`, text: `Sta finendo la calibrazione. ${resume}` };
     case 'pagina nascosta': return { title: `Il telefono di ${p2Name} ha lo schermo spento`, text: `O un’altra app aperta. ${resume}` };
     case 'sensori fermi': return { title: `Il telefono di ${p2Name} non manda il movimento`, text: resume };
+    // (B45.1: la rete del telefono, non i suoi sensori: natpf_phone_watch.phoneHealth)
+    case 'segnale debole': return { title: `Il telefono di ${p2Name} ha il segnale debole`, text: resume };
     case 'webcam spenta': return { title: `La webcam di ${p2Name} è spenta`, text: resume };
     case 'webcam ferma': return { title: `La webcam di ${p2Name} non manda immagini`, text: resume };
     case 'mano persa': return { title: `La webcam di ${p2Name} non vede la mano`, text: resume };

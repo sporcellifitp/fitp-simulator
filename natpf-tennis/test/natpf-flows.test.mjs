@@ -372,17 +372,33 @@ async function phoneMatch(){
 const drop = w => { Object.assign(w.link, { connected: false, ready: false, L: { ...w.link.L, state: 'lost', phone: null } }); w.E.natpfPhone._changed(); };
 const back = w => { Object.assign(w.link, { connected: true, ready: true, L: { ...w.link.L, state: 'connected', phone: 'ready' } }); w.E.natpfPhone._changed(); };
 
-test('Partita: telefono che cade → pausa con il pannello del telefono; quando torna pronto si riprende da solo, dopo il conto alla rovescia', async () => {
+// B45.1 (urgenza della fiera del 14/11): alla caduta niente pannello con il QR e «Scollegato» sopra il campo: il riquadro
+// dice «Telefono 1 scollegato · si ricollega da solo» con il tempo (il telefono torna da solo con la sua chiave); il
+// pannello del telefono si apre da solo solo dopo PANEL_AFTER_MS, se il telefono non torna (pagina chiusa: serve il QR)
+test('Partita: telefono che cade → pausa con «scollegato · si ricollega da solo» (pannello del telefono solo se non torna); quando torna pronto si riprende da solo, dopo il conto alla rovescia', async () => {
   const w = await phoneMatch(), { E } = w;
   assert.ok(E.natpfPhone.ready && !E.natpfPaused && !E.autoPlayMode);
   drop(w); w.advance(200);
   assert.ok(!visible('natpf-phone-modal') && !E.natpfPaused, 'non subito: un ricollegamento lampo dura meno');
   w.advance(300);
-  assert.ok(visible('natpf-phone-modal') && E.natpfPaused);
-  assert.ok(visible('natpf-phone-hold'), 'il riquadro della pausa dice perché');
+  assert.ok(E.natpfPaused && visible('natpf-phone-hold'), 'il riquadro della pausa dice perché');
+  assert.ok(!visible('natpf-phone-modal'), 'niente pannello con il QR alla caduta');
+  assert.equal($('natpf-phone-hold').querySelector('b').textContent, 'Telefono 1 scollegato · si ricollega da solo');
+  assert.match($('natpf-phone-hold').querySelector('p').textContent, /si ricollega da solo appena torna la rete/);
   back(w); w.advance(300);
   assert.ok(E.natpfPaused, 'non si riparte appena torna: prima un tratto regolare e il conto alla rovescia');
   w.advance(3200);
+  assert.ok(!visible('natpf-phone-modal') && !E.natpfPaused && !visible('natpf-phone-hold'));
+});
+
+test('Partita: telefono che non torna (pagina chiusa) → dopo PANEL_AFTER_MS il pannello del telefono con il QR; quando torna si chiude da solo', async () => {
+  const { PANEL_AFTER_MS } = await import('../src/natpf/natpf_phone_watch.js');
+  const w = await phoneMatch(), { E } = w;
+  drop(w); w.advance(PANEL_AFTER_MS - 1000);
+  assert.ok(E.natpfPaused && !visible('natpf-phone-modal'), 'prima: solo il riquadro');
+  w.advance(1600);
+  assert.ok(visible('natpf-phone-modal') && E.natpfPaused, 'poi il pannello con il QR');
+  back(w); w.advance(3600);
   assert.ok(!visible('natpf-phone-modal') && !E.natpfPaused && !visible('natpf-phone-hold'));
 });
 

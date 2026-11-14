@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { phoneView, nextOnMsg, readyView, standView, STAFF_HOLD, batteryAlert, standSignStep } from '../../site/js/tennis/phone-screen.js';
 import { standHello, standWelcome, standAnswer, standProof, standDenyText, newStandNonce, slotLabel } from '../../site/js/tennis/stand-pairing.js';
 import { LINK_TIMES, netWhy } from '../../site/js/tennis/link.js';
+import { retryPlan, lostText } from '../../site/js/tennis/link-life.js';
 import { SIGN } from '../../site/js/tennis/motion-sign.js';
 
 /* ---------- funzioni pure della pagina ---------- */
@@ -69,7 +70,7 @@ const source = readFileSync(process.env.NATPF_PHONE_SOURCE || new URL('../../sit
 const section = source.slice(source.indexOf('async function connect(){'), source.indexOf('// messaggi che valgono solo se arrivano subito'));
 const helpers = source.slice(source.indexOf('async function standProofIn('), source.indexOf('// numero grande del posto in cima alla pagina'));
 const SESSION = 'racchetta-stand-abcdefghijkmnpqrstuvwxyz23', KEY = 'abcdefghijkmnpqrstuvwxyz23';
-function setup({ mode = 'stand' } = {}){
+function setup({ mode = 'stand', lan = true } = {}){
   const timers = new Map(), peers = [], texts = [], saved = { v: { slot: 'p1', session: SESSION, key: KEY, at: 1 } }; let seq = 0;
   class Emitter { constructor(){ this.handlers = {}; } on(k, f){ (this.handlers[k] ||= []).push(f); } emit(k, v){ for (const f of this.handlers[k] || []) f(v); } }
   class Conn extends Emitter { constructor(){ super(); this.open = true; this.sent = []; } send(d){ this.sent.push(d); } close(){ this.open = false; this.emit('close'); } }
@@ -80,7 +81,7 @@ function setup({ mode = 'stand' } = {}){
     reconnect(){ this.emit('open'); }
   }
   const store = new Map();
-  const sandbox = { LanPeer: Peer, isLanMode: () => true, loadPeer: async () => Peer, iceReady: async () => null, peerConfig: () => ({}), LINK_TIMES, netWhy, performance: { now: () => 100 }, Date,
+  const sandbox = { LanPeer: Peer, isLanMode: () => lan, loadPeer: async () => Peer, iceReady: async () => null, peerConfig: () => ({}), LINK_TIMES, netWhy, retryPlan, lostText, story: { drop(){}, attempt(){}, tell(){ return null; } }, performance: { now: () => 100 }, Date,
     ss: { get: k => store.get(k), set: (k, v) => store.set(k, v), del: k => store.delete(k) },
     setTimeout: (f, ms) => { timers.set(++seq, { f, ms }); return seq; }, clearTimeout: id => timers.delete(id),
     paint(){}, bar(){}, ui: (big, sub) => texts.push([big, sub]), show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){},
@@ -127,7 +128,7 @@ test('prova sbagliata o rifiuto prima della prova: la chiave resta e si riprova;
   assert.equal(h.api.state, 'lost'); assert.ok(h.saved.v, 'la chiave resta');
 });
 
-test('riprova senza fine (gioco spento o in riavvio), ogni 1–6 s; la racchetta normale si ferma dopo 10', async () => {
+test('riprova senza fine (gioco spento o in riavvio), ogni 1–6 s; la racchetta normale anche in LAN (B45.1), via internet si ferma dopo 10', async () => {
   const h = setup();
   for (let i = 0; i < 25; i++){
     await h.api.connect(); const p = h.peers.at(-1);
@@ -141,14 +142,17 @@ test('riprova senza fine (gioco spento o in riavvio), ogni 1–6 s; la racchetta
   assert.ok(h.api.tries >= 25 && h.saved.v, 'dopo 25 giri ancora il suo posto');
   assert.match(h.texts.at(-1)[1], /ricollego da solo/);
   assert.ok(h.texts.every(([, sub]) => !/QR/.test(sub || '')), 'mai «inquadra il QR» sul telefono dello stand');
-  // la racchetta normale (con la chiave di ripresa): come prima, 10 tentativi e poi «Riprova»
-  const n = setup({ mode: 'normal' }); let scheduled = 0;
-  for (let i = 0; i < 12; i++){
-    await n.api.connect(); n.peers.at(-1).emit('error', { type: 'network' });
-    if ([...n.timers.values()].some(t => t.ms >= 1000 && t.ms <= 6000 && t.ms !== LINK_TIMES.phoneMs)) scheduled++;
-    for (const id of [...n.timers.keys()]) n.timers.delete(id);
+  // la racchetta normale (con la chiave di ripresa): dal B45.1 in LAN anche lei senza fine; via internet, come prima, 10
+  // tentativi e poi «Riprova» (b45-collegamento.test.mjs)
+  for (const lan of [true, false]){
+    const n = setup({ mode: 'normal', lan }); let scheduled = 0;
+    for (let i = 0; i < 12; i++){
+      await n.api.connect(); n.peers.at(-1).emit('error', { type: 'network' });
+      if ([...n.timers.values()].some(t => t.ms >= 1000 && t.ms <= 6000 && t.ms !== LINK_TIMES.phoneMs)) scheduled++;
+      for (const id of [...n.timers.keys()]) n.timers.delete(id);
+    }
+    assert.equal(scheduled, lan ? 12 : 10, lan ? 'LAN' : 'internet');
   }
-  assert.equal(scheduled, 10);
 });
 
 test('posto dato a un altro telefono o scollegato dallo staff (dopo la prova): niente più tentativi, lo dice; «other»: la scheda si ferma', async () => {

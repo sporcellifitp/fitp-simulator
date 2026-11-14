@@ -345,7 +345,8 @@ test('di base · in partita sul profilo imparato: caduta e ricollegamento, scher
   assert.equal(w.pressStart(), false); assert.ok(ui.trial.active);
 });
 
-test('di base · chiosco: stand fermo durante gli scambi di prova → menu, telefono dimenticato, niente partita; il visitatore dopo riparte da capo', async () => {
+// (B45.1: il chiosco non scollega più il telefono col QR: lo azzera come «Nuovo giocatore», il telefono resta collegato)
+test('di base · chiosco: stand fermo durante gli scambi di prova → menu, telefono azzerato ma collegato, niente partita; il visitatore dopo riparte da capo', async () => {
   const w = await playWorld(), { E, ui, lobby, P } = w;
   ui.kiosk.close(); ui.remote?.close?.({ toStaff: false });
   ui.kiosk.enabled = true; ui.kiosk.limit = 30;
@@ -354,7 +355,10 @@ test('di base · chiosco: stand fermo durante gli scambi di prova → menu, tele
   ui.kiosk.last = performance.now() - 61000; ui.kiosk.check(); w.advance(300);
   assert.ok(!ui.trial.active && !P.trialOn && lobby.visible && lobby.step === 'menu', 'tornati al menu');
   assert.equal(E.natpfMatchSeq || 0, 0); assert.ok(hidden('natpf-trial') && !E.natpfPaused);
-  assert.ok(!P.connected, 'telefono scollegato: il prossimo visitatore inquadra il QR');
+  assert.ok(P.connected, 'B45.1: il telefono resta collegato (niente QR da rifare)');
+  assert.equal(P.learner.sign, 1); assert.ok(!P.trialOn);
+  assert.ok(!P.profile || P.profile.simple, 'niente profilo imparato dal visitatore di prima');
+  assert.equal(P.tutorialSeen, false, 'il tutorial si rivede');
 });
 
 test('di base · stesso schermo: «Ricalibra» a partita in corso rifà gli scambi di prova per tutti e due e si rigioca il punto con il punteggio com\'era', async () => {

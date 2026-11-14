@@ -33,9 +33,15 @@ import { aimFullNow } from './natpf_aim_level.js';
 import { weakSwing, livePlan, planOf } from './natpf_impact.js';
 import { SMASH_FROM } from './natpf_stroke_outcome.js';
 import { createTrialLearner, readCalMode, phoneThresholds, TRIAL, signedSwing } from './natpf_trial_learn.js';
+// B45.1: perché cade il collegamento (motivo finale, cadute di oggi per la riga del pannello dello stand)
+import { MOTIVI, motivoFinale, cadutaPrimaDellaPagina, segnaCaduta, chiarisciCaduta } from './natpf_cadute.js';
 // tempo concesso al telefono per tornare «pronto» dopo il profilo da capo chiesto dal gioco (freshPlayer): tre richieste
 // del profilo semplice a 700 ms l'una. Oltre, vale la pausa «telefono non pronto» di sempre
 export const RESET_GRACE_MS = 2500;
+// B45.1: caduta raccontata dal telefono e caduta vista dal computer sono la stessa se distano al più STORY_MATCH_MS (i due
+// controlli di vita scattano a 10 s dallo stesso silenzio, con un secondo di passo e il lato fermo che legge prima la coda);
+// un racconto più vecchio di STORY_MAX_MS (scheda del telefono rimasta aperta) non si usa
+export const STORY_MATCH_MS = 20000, STORY_MAX_MS = 10*60*1000;
 
 const NATPF_BASE = '/natpf/';
 // B18 (difetto 10): voto del colpo per il telefono dall'esito del computer (natpf_shot_feedback.shotQuality); senza esito
@@ -326,9 +332,15 @@ export function phoneGamePhase(engine, role = engine.playerRole){
     case 'SERVE_TOSS': return engine.score.server === local ? 'toss' : 'play';
     case 'RALLY': case 'POINT_OVER': return engine.autoPlayMode ? 'menu' : 'play';
     case 'MATCH_OVER': return 'over';
+    // B45.1 (revisione del B46, punto 4): la moviola a metà partita (natpf_replay.js) è una pausa, non il menu: con 'menu'
+    // i tocchi sullo schermo votavano ancora il segno dei sensori (phone-screen.tapVotesSign) con il telefono in mano come
+    // una racchetta. 'pause' non vota e non riconosce colpi, come 'menu'
+    case 'REPLAY': return engine.autoPlayMode ? 'menu' : 'pause';
     default: return 'menu';
   }
 }
+// testo per il telefono in pausa per la moviola (riga sotto «Partita in pausa»; le pagine di prima lo ignorano)
+export const REPLAY_NOTE = 'Moviola del punto: guarda il computer, si riprende da solo.';
 
 // Palla da schiacciata: alta sopra la testa del giocatore locale, o in arrivo e ancora in salita sopra i 2 m
 // Palla alta per chi gioca qui: alta E vicina (entro 6 m). Prima contava solo l'altezza: a metà volo la palla è sempre
@@ -492,6 +504,12 @@ export class NatpfPhoneRacket {
     // B46: segno dell'accelerazione della pagina del telefono (motion-sign.js, messaggio «dev» as) e numero del collegamento
     // in cui è arrivato; segno del rilevatore del telefono (swing-detect.js, absSign: dal colpo o dal messaggio «sgn»)
     this.accSign = null; this.accSignJoins = null; this.phoneSign = 1;
+    // B46 (revisione, punto 6): telefono (ua) e abbinamento (pairs) del segno visto per ultimo: un telefono diverso tra due
+    // visitatori è un «telefono nuovo», non una «pagina» ricaricata
+    this.accSignUa = null; this.accSignPairs = null;
+    // B45.1: attività di chi ha in mano il telefono (gesti e tocchi arrivati dal telefono: il chiosco la conta) e ultima
+    // caduta del collegamento con il suo motivo (natpf_cadute.js: { motivo, causa, ms, at, counted, end, before, fonte })
+    this.activityListeners = new Set(); this.drop = null;
   }
   // B28: calibrazione dello stand (natpf_trial_learn.readCalMode: 'play' giocando, 'gesti', 'none') e profilo semplice
   // automatico. Con «Giocando» e «Nessuna» il telefono non fa i gesti: appena ha i sensori attivi e comincia a calibrare il
@@ -609,20 +627,33 @@ export class NatpfPhoneRacket {
     this.lanOrigin = await lanOrigin();
     // (posto dello stand con la modalità fiera, B41.2: niente QR, indirizzo fisso e prova della chiave)
     const link = this.link = createPhoneLink(this.standSlot ? { stand: { slot: this.standSlot } } : undefined);
-    link.on('change', () => { if (this.link !== link) return; this._sendGrip(); this._autoProfile(); this._syncPhoneState(); this._changed(); });
-    link.on('cal', e => this._onCal(e));
-    link.on('tut', e => this._onTut(e));
-    link.on('swing', s => this._onSwing(s));
-    link.on('toss', () => this._onToss());
-    link.on('prep', p => this._onPrep(p));
-    link.on('hand', e => this._onPhoneHand(e.hand));
-    link.on('rematch', () => { for (const fn of this.rematchListeners) try { fn(this); } catch (e){ console.error(e); } });
-    link.on('next', () => { if (this.nextOffer) for (const fn of this.nextListeners) try { fn(this); } catch (e){ console.error(e); } });
+    // (B45.1: sensori attivati sul telefono, «Attiva i sensori», o telefono abbinato con il QR: c'è qualcuno, per il chiosco)
+    let seenPhone = link.L.phone, seenPairs = link.L.pairs || 0;
+    link.on('change', () => {
+      if (this.link !== link) return;
+      const ph = link.L.phone, pairs = link.L.pairs || 0;
+      if (pairs > seenPairs || ((seenPhone === 'off' || seenPhone === 'sensors') && ph && ph !== 'off' && ph !== 'sensors')) this._activity();
+      seenPhone = ph; seenPairs = pairs;
+      this._sendGrip(); this._autoProfile(); this._syncPhoneState(); this._changed();
+    });
+    // B45.1: anche i gesti della calibrazione, i tocchi sul telefono («Tutto chiaro», frecce, «Sono pronto», «Avanti ›»,
+    // mano, rivincita, segno «qui è successo un problema») e i colpi valgono come attività per il chiosco
+    link.on('cal', e => { if (['attempt', 'free', 'selection'].includes(e?.kind)) this._activity(); this._onCal(e); });
+    link.on('tut', e => { if (e?.ok || e?.nav) this._activity(); this._onTut(e); });
+    link.on('swing', s => { this._activity(); this._onSwing(s); });
+    link.on('toss', () => { this._activity(); this._onToss(); });
+    link.on('prep', p => { this._activity(); this._onPrep(p); });
+    link.on('hand', e => { this._activity(); this._onPhoneHand(e.hand); });
+    link.on('rematch', () => { this._activity(); for (const fn of this.rematchListeners) try { fn(this); } catch (e){ console.error(e); } });
+    link.on('next', () => { this._activity(); if (this.nextOffer) for (const fn of this.nextListeners) try { fn(this); } catch (e){ console.error(e); } });
     link.on('raw', k => { for (const fn of this.rawListeners) try { fn(k); } catch (e){ console.error(e); } });
     link.on('dropped', d => { for (const fn of this.dropListeners) try { fn(d.reason, { seq: d.seq, path: d.path }); } catch (e){ console.error(e); } });
     link.on('discard', d => this._diag('scartato', d));
-    link.on('mark', d => this._diag('segno', d));
-    link.on('device', d => { this.device = d; this._diag('dispositivo', d); this._accSignSeen(d?.accSign); });
+    link.on('mark', d => { this._activity(); this._diag('segno', d); });
+    // (B46: il segno dei sensori; B45.1: il racconto della caduta del telefono, una volta dopo il benvenuto)
+    link.on('device', d => { const prevUa = this.device?.ua ?? null; this.device = d; this._diag('dispositivo', d); this._accSignSeen(d?.accSign, { ua: d?.ua ?? null, prevUa }); this._onStory(d?.story); });
+    // B45.1: il collegamento è caduto, con il motivo visto da questo computer (link.js, evento «drop»)
+    link.on('drop', d => this._onDrop(d));
     // (B46: il rilevatore del telefono ha girato il suo segno, pagine dal B46; quelle di prima lo dicono solo con il colpo)
     link.on('sign', e => this._detectorSign(e?.detector));
     await link.start();
@@ -884,13 +915,17 @@ export class NatpfPhoneRacket {
   // di prima: con il segno nuovo la compensazione girerebbe di nuovo ogni colpo (il 14/11: dritto e rovescio scambiati in
   // tutta la partita). Si riparte da +1 e da capo con i riferimenti che dipendono dal verso, come per il rilevatore. true
   // se è cambiato
-  _accSignSeen(as){
+  // B45.1 (revisione del B46, punto 6): la causa 'telefono nuovo' quando cambia il telefono (abbinamento nuovo o telefono e
+  // browser diversi nel «dev»: tra due visitatori un iPhone dopo un Android è normale), 'pagina' solo per lo stesso telefono
+  // con la pagina ricaricata. ua, prevUa: telefono di questo «dev» e di quello prima
+  _accSignSeen(as, { ua = null, prevUa = null } = {}){
     if (as !== 1 && as !== -1) return false;
-    const joins = this.state.joins || 0, prev = this.accSign, same = this.accSignJoins === joins;
-    this.accSign = as; this.accSignJoins = joins;
+    const joins = this.state.joins || 0, pairs = this.state.pairs || 0, prev = this.accSign, same = this.accSignJoins === joins;
+    const other = (this.accSignPairs != null && pairs !== this.accSignPairs) || (!!ua && !!prevUa && ua !== prevUa);
+    this.accSign = as; this.accSignJoins = joins; this.accSignPairs = pairs; this.accSignUa = ua ?? this.accSignUa;
     if (prev == null || prev === as) return false;
     this.learner.reset(); this.aimModel.reset(); this.riseModel.reset(); this.faceModel.reset(); this.lastExpect = null;
-    this._signEvent(same ? 'tocchi' : 'pagina', as);
+    this._signEvent(same ? 'tocchi' : other ? 'telefono nuovo' : 'pagina', as);
     return true;
   }
   // Segno del rilevatore del telefono (profilo semplice): i riferimenti per verso imparati prima stanno dalla parte
@@ -908,6 +943,41 @@ export class NatpfPhoneRacket {
   onRaw(fn){ this.rawListeners.add(fn); return () => this.rawListeners.delete(fn); }
   onDropped(fn){ this.dropListeners.add(fn); return () => this.dropListeners.delete(fn); }
   onSwing(fn){ this.swingListeners.add(fn); return () => this.swingListeners.delete(fn); }
+  /* ---------- B45.1 · attività e cadute ---------- */
+  // attività di chi ha in mano il telefono (gesti, tocchi, sensori attivati): il chiosco la conta come un clic sul computer
+  onActivity(fn){ this.activityListeners.add(fn); return () => this.activityListeners.delete(fn); }
+  _activity(){ for (const fn of this.activityListeners) try { fn(this); } catch (e){ console.error(e); } }
+  // ultimo istante (performance.now) in cui il telefono si è mosso (link.js: sensori oltre MOVE.dps), null se mai
+  get movedAt(){ return Number.isFinite(this.link?.L?.movedAt) ? this.link.L.movedAt : null; }
+  // posto per le cadute di oggi: il telefono di sempre è il Telefono 1, il secondo telefono dello stesso schermo il Telefono 2
+  get dropSlot(){ return this.fixedRole === 'p2' ? 'p2' : 'p1'; }
+  // caduta vista da questo computer (evento «drop» di link.js): contata subito con il suo motivo
+  _onDrop(d){
+    const motivo = MOTIVI.includes(d?.motivo) ? d.motivo : 'chiuso', causa = d?.causa === 'computer' || d?.causa === 'telefono' ? d.causa : null;
+    this.drop = { motivo, causa, ms: Number.isFinite(d?.ms) ? Math.round(d.ms) : null, at: performance.now(), counted: motivo, end: null };
+    segnaCaduta(this.dropSlot, motivo);
+    this._diag('caduta', { motivo, causa, ms: this.drop.ms });
+  }
+  // Racconto della caduta del telefono (messaggio «dev» dopo il benvenuto, link-life.readStory): chiarisce il motivo della
+  // caduta che questo computer ha visto; se il computer non l'ha vista, è una caduta del telefono che il computer non ha
+  // fatto in tempo a vedere (fonte 'telefono'), oppure, se è di prima che partisse questa pagina del gioco, l'ha fatta la
+  // pagina del gioco ricaricata (o il programma chiuso e riaperto)
+  _onStory(tel, now = performance.now()){
+    if (!tel || !Number.isFinite(tel.ms)) return;
+    const d = this.drop, telAt = now - tel.ms, extra = { prove: tel.prove ?? 0, fallite: tel.fallite ?? 0, ...(tel.tipo ? { tipo: tel.tipo } : {}) };
+    if (d && !d.end && Math.abs(d.at - telAt) <= STORY_MATCH_MS){
+      const end = motivoFinale(d, tel);
+      d.end = { ...end, ...extra };
+      if (end.motivo !== d.counted){ chiarisciCaduta(this.dropSlot, d.counted, end.motivo); d.counted = end.motivo; }
+      return;
+    }
+    if (tel.ms > STORY_MAX_MS) return;                     // racconto troppo vecchio (scheda rimasta aperta): non si sa
+    const before = cadutaPrimaDellaPagina({ tel, now, pageStart: 0 });
+    const end = before ? { motivo: 'pagina del gioco ricaricata', causa: 'computer' } : { ...motivoFinale(null, tel), causa: 'telefono' };
+    this.drop = { motivo: end.motivo, causa: end.causa, ms: null, at: telAt, counted: end.motivo, end: { ...end, ...extra }, before, fonte: 'telefono' };
+    segnaCaduta(this.dropSlot, end.motivo);
+    this._diag('caduta', { motivo: end.motivo, causa: end.causa, fonte: 'telefono', before, dopoS: Math.round(tel.ms/100)/10 });
+  }
   _onToss(){
     const mc = this.engine.motionController;
     if (!mc || !this.ready) return;
@@ -944,7 +1014,10 @@ export class NatpfPhoneRacket {
   // (keep: chi ha un profilo fatto con i gesti lo tiene: gioca gli scambi di prova ma il gioco non ne impara niente)
   beginTrial({ keep = this.keepsGesture } = {}){
     if (!keep){ this.gestureCal = false; this.freshPlayer(); }
+    // (revisione del B46, punto 7: il segno imparato dagli scambi di prova di prima che torna a +1 si scrive)
+    const turned = this.learner.sign === -1;
     this.learner.reset(); this.trial = { ball: 0, want: 0, keep }; this.lastPhase = null; this.lastExpect = null;
+    if (turned) this._signEvent('prova', 1);
     this._changed();
   }
   // palla nuova in arrivo: want = +1 alla destra di chi gioca, −1 alla sinistra (0: non si sa, il colpo non vota)
@@ -1001,12 +1074,16 @@ export class NatpfPhoneRacket {
   // visitatore in campo: natpf_training, o la metà dello stesso schermo). Telefono non collegato in quel momento (schermo
   // spento, pagina ricaricata): la calibrazione si chiede appena torna (_sendGrip), anche se il telefono ha ancora il
   // profilo di prima. La mano non si tocca qui: la decide il gioco (natpf_new_player)
-  resetPlayer({ gate = true } = {}){
+  // causa (B45.1): chi lo chiede, per la riga del segno del registro ('nuovo giocatore' | 'chiosco')
+  resetPlayer({ gate = true, causa = 'nuovo giocatore' } = {}){
     this.forgetTutorial();
     this.profile = null; this.madeBy = null; this.gestureAt = null; this.liftBaseline = 0; this.lastExpect = null;
     this.liftModel.reset(null); this.faceModel.reset(); this.aimModel.reset(); this.headModel.reset(0);
     this.riseModel.reset(); this.typicalModel.reset(); this.shapeModel.reset(); this.resetSpecials();
+    // (revisione del B46, punto 7: il segno imparato che torna a +1 si scrive, come con la calibrazione)
+    const turned = this.learner.sign === -1;
     this.learner.reset(); this.trial = null;
+    if (turned) this._signEvent(String(causa || 'nuovo giocatore'), 1);
     this.recalPending = !this.connected;
     if (this.connected && gate) this.waitTutorial(true);
     this.recalibrate();
@@ -1053,7 +1130,8 @@ export class NatpfPhoneRacket {
     if (!this.link) return;
     const phase = this.connected ? phoneGamePhase(this.engine, this.role) : null;
     // (tr, B28: scambi di prova in corso, il telefono lo scrive; le pagine di prima lo ignorano)
-    if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase, ...(this.trial ? { tr: 1 } : {}) }); }
+    // (B45.1: la moviola è una pausa con il suo testo, REPLAY_NOTE)
+    if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase, ...(this.trial ? { tr: 1 } : {}), ...(phase === 'pause' && this.engine.phase === 'REPLAY' ? { txt: REPLAY_NOTE } : {}) }); }
     this._autoProfile(); this._sendNext();
     // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo. Con il verso corretto
     // dagli scambi di prova (dirSign −1) va al telefono girato: per lui dritto e rovescio sono scambiati

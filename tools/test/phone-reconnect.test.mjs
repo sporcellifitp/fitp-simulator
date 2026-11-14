@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { LINK_TIMES, netWhy } from '../../site/js/tennis/link.js';
+import { retryPlan, lostText } from '../../site/js/tennis/link-life.js';
 const source = readFileSync(process.env.NATPF_PHONE_SOURCE || new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
 const section = source.slice(source.indexOf('async function connect(){'), source.indexOf('// messaggi che valgono solo se arrivano subito'));
 function setup({ lan = true } = {}){
@@ -16,7 +17,7 @@ function setup({ lan = true } = {}){
     reconnect(){ this.emit('open'); }
   }
   const store = new Map([['resume', 'key']]);
-  const sandbox = { LanPeer: Peer, isLanMode: () => lan, loadPeer: async () => Peer, iceReady: async () => null, peerConfig: () => ({}), LINK_TIMES, netWhy, performance: { now: () => 100 },
+  const sandbox = { LanPeer: Peer, isLanMode: () => lan, loadPeer: async () => Peer, iceReady: async () => null, peerConfig: () => ({}), LINK_TIMES, netWhy, retryPlan, lostText, story: { drop(){}, attempt(){}, tell(){ return null; } }, performance: { now: () => 100 },
     ss: { get: k => store.get(k), set: (k,v) => store.set(k,v), del: k => store.delete(k) },
     setTimeout: (f, ms) => { timers.set(++seq, { f, ms }); return seq; }, clearTimeout: id => timers.delete(id),
     paint(){}, bar(){}, ui(){}, show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){} };

@@ -16,6 +16,12 @@
 // arriva con la prima copia buona e le altre si scartano con il numero del colpo (n). Il computer lo annuncia nel
 // benvenuto (f: 1): un telefono aggiornato con un gioco più vecchio usa solo il canale affidabile, come prima. Il
 // controllo di vita resta sul canale principale (ping e stato ogni secondo).
+// B45.1 (14/11, docs/b45/b45-1-collegamento.md): ogni messaggio del telefono vale come segno di vita (anche i sensori e il
+// percorso veloce), il computer manda il suo battito anche sul percorso veloce («hb»: le pagine di prima lo ignorano) e il
+// collegamento si dà per perso dopo LIFE.silentMs (10 s) di silenzio vero, non più 5; un controllo arrivato in ritardo
+// (pagina del gioco ferma) prima legge la coda. A ogni caduta l'evento «drop» { motivo, causa, ms } dice perché
+// (link-life.closeMotivo; la parola breve «cl» del telefono prima di chiudere), e il «dev» del telefono porta il suo
+// racconto (cd → story). Telefono che si muove (sensori): L.movedAt, per il chiosco.
 // Orologi: ogni secondo il computer chiede l'ora al telefono e tiene la stima col viaggio più breve; così l'istante del
 // colpo (il picco del movimento, misurato sul telefono) si porta sull'orologio del computer senza dipendere da quando il
 // computer, magari impegnato a disegnare, riesce a leggere il messaggio.
@@ -27,6 +33,8 @@ import { parseSwingMessage } from './swing-message.js';
 import { createGate, newSessionId, pairingUrl, createClock, same } from './pairing.js';
 import { STAND, createStandGate, gameStoreKey, newStandNonce, newPairNumber, NONCE, hasSubtle } from './stand-pairing.js';
 import { iceReady, ourIceServers, mergeIceServers, followIce, watchRoute } from './ice-route.js';
+// B45.1 «telefono che non si scollega»: controllo di vita a 10 s con ogni messaggio come segno di vita, motivo di ogni caduta
+import { LIFE, lifeCheck, readStory, closeMotivo, CLOSE_WORDS, moving } from './link-life.js';
 export { iceReady } from './ice-route.js';
 
 // Strade per il collegamento diretto (ICE) via internet. Prima quelle di serie di PeerJS: STUN di Google e i TURN
@@ -111,8 +119,13 @@ export function createPhoneLink({ stand = null } = {}){
   // la diagnostica
   // route: strada scelta del collegamento con il telefono (ice-route.js, routeSummary), all'apertura e a ogni cambio
   // sign (B46): il rilevatore del telefono ha girato il segno dei sensori ({ detector: ±1 })
-  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [], discard: [], mark: [], device: [], route: [], sign: [] };
+  // drop (B45.1): il collegamento è caduto, con il motivo ({ motivo, causa, ms })
+  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [], discard: [], mark: [], device: [], route: [], sign: [], drop: [] };
   let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0, starting = null, startEpoch = 0;
+  // B45.1: controllo di prima (lato fermo), parola breve del telefono prima di chiudere, «Ricollega» chiesto da qui, seconda
+  // connessione del telefono via internet (per il battito sul percorso veloce)
+  let prevTick = null, clSaid = null, relinkAt = -Infinity, fastConn = null;
+  const dropped = d => emit('drop', d);
   // stand: indirizzo del Peer fisso (cambia con un abbinamento nuovo), Peer dell'abbinamento (solo a foglio aperto),
   // telefono in attesa della conferma ({ c, num }), nuovo tentativo dell'indirizzo occupato
   let peerId = null, pairPeer = null, pairPending = null, idRetry = null;
@@ -198,15 +211,25 @@ export function createPhoneLink({ stand = null } = {}){
       if (sgate && L.stand.pairing && sgate.expired) endPairing('expired');
       if (gate.expired && !conn) gate.rotate();
       if (gate.token !== lastTok){ lastTok = gate.token; emit('change', L); }                 // QR nuovo
-      if (conn) conn.send({ t: 'dp', d: performance.now() });
-      // il telefono manda un segnale ogni secondo: se tace per 5 s (schermo spento, rete persa) è scollegato
-      if (conn && Date.now() - lastSeen > 5000){ const c = conn; conn = null; gate.release(); try { c.close(); } catch (e){} set({ state: 'lost', phone: null }); }
-    }, 1000);
+      const now = Date.now(), life = lifeCheck({ now, lastSeen, prevTick }); prevTick = now;
+      if (conn){
+        conn.send({ t: 'dp', d: performance.now() });
+        // B45.1: battito anche sul percorso veloce (in LAN il canale dei sensori, senza ritrasmissioni: arriva anche quando il
+        // canale affidabile è in coda); il telefono lo conta come segno di vita. Le pagine di prima lo ignorano
+        if (conn.sendFast) conn.sendFast({ t: 'hb' });
+        else if (fastConn?.open && fastConn.peer === conn.peer) try { fastConn.send({ t: 'hb' }); } catch (e){}
+      }
+      // il telefono manda un segnale ogni secondo (e i sensori): se tace per LIFE.silentMs (schermo spento, rete persa) è
+      // scollegato. B45.1: 10 s (prima 5) e, con questo controllo in ritardo (pagina del gioco ferma), prima si legge la coda
+      if (conn && life.drop){ const c = conn; conn = null; gate.release(); dropped({ motivo: 'silenzio', causa: 'computer', ms: Math.round(life.silence) }); try { c.close(); } catch (e){} set({ state: 'lost', phone: null }); }
+    }, LIFE.tickMs);
     tick.unref?.();
   }
   // via internet: seconda connessione non ordinata dello stesso telefono (stesso peer della connessione principale)
   function acceptFast(c){
-    c.on('data', d => { if (conn && conn.open && c.peer === conn.peer && d && typeof d === 'object') onTimely(d, 'fast'); });
+    // (B45.1: è la strada veloce del telefono collegato: ogni messaggio vale come segno di vita, e ci passa il battito)
+    if (conn && c.peer === conn.peer) fastConn = c;
+    c.on('data', d => { if (conn && conn.open && c.peer === conn.peer && d && typeof d === 'object'){ lastSeen = Date.now(); fastConn = c; onTimely(d, 'fast'); } });
     c.on('error', () => {});
     setTimeout(() => { if (!conn || c.peer !== conn.peer) try { c.close(); } catch (e){} }, 6000);
   }
@@ -257,7 +280,7 @@ export function createPhoneLink({ stand = null } = {}){
       // (stand: la stessa chiave entrata da un'altra scheda; lo stesso telefono che si ricollega lo ignora, come il telecomando)
       if (previous && previous !== c && sgate) try { previous.send({ t: 'bye', why: 'other' }); } catch (e){}
       if (previous && previous !== c) try { previous.close(); } catch (e){}
-      conn = c; lastSeen = Date.now(); clock.reset(); faceSample = null; lastFaceK = -Infinity; seen.clear(); seenOrder.length = 0; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send(welcome);
+      conn = c; lastSeen = Date.now(); clSaid = null; fastConn = null; clock.reset(); faceSample = null; lastFaceK = -Infinity; seen.clear(); seenOrder.length = 0; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send(welcome);
       // strada di questo collegamento (via internet c.peerConnection di PeerJS, in LAN c.pc)
       stopRoute(); L.route = null;
       stopRoute = watchRoute(c.peerConnection || c.pc, r => { if (c === conn){ L.route = r; emit('route', r); } });
@@ -338,7 +361,7 @@ export function createPhoneLink({ stand = null } = {}){
         case 'cal': if (d.e?.kind === 'done') racketMotion.setBias(d.e.profile?.bias || [0,0,0]); emit('cal', d.e || {}); break;
         // facoltativi: preparazione del colpo (pr) e giroscopio in JSON quando non c'è il canale binario (sm)
         case 'pr': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: d.lat }); if (at != null && (d.dir === 1 || d.dir === -1)) emit('prep', { dir: d.dir, peak: typeof d.v === 'number' ? d.v : null, angle: typeof d.a === 'number' ? d.a : null, at }); break; }
-        case 'sm': if (Array.isArray(d.r) && d.r.length === 3 && Number.isInteger(d.q) && typeof d.k === 'number') racketMotion.push({ sequence: d.q, t: d.k, rot: d.r.map(Number), acc: null, accG: null }, performance.now()); break;
+        case 'sm': if (Array.isArray(d.r) && d.r.length === 3 && Number.isInteger(d.q) && typeof d.k === 'number'){ racketMotion.push({ sequence: d.q, t: d.k, rot: d.r.map(Number), acc: null, accG: null }, performance.now()); if (moving(d.r)) L.movedAt = performance.now(); } break;
         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
         // mano cambiata sulla pagina del telefono (la decide il gioco: il computer la applica e la rimanda)
         case 'hand': if (d.h === 'left' || d.h === 'right') emit('hand', { hand: d.h }); break;
@@ -354,20 +377,31 @@ export function createPhoneLink({ stand = null } = {}){
         // secondo); segno «qui è successo un problema» toccato sul telefono; telefono e browser (una volta per collegamento)
         case 'gx': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); emit('discard', { why: typeof d.r === 'string' ? d.r.slice(0, 40) : '?', peak: Number.isFinite(d.v) ? d.v : null, angle: Number.isFinite(d.a) ? d.a : null, dir: [-1, 0, 1].includes(d.d) ? d.d : null, at }); break; }
         case 'mk': emit('mark', { text: typeof d.x === 'string' ? d.x.slice(0, 80) : 'segno dal telefono' }); break;
-        case 'dev': emit('device', { ua: typeof d.ua === 'string' ? d.ua.slice(0, 200) : null, wakeLock: d.wl ?? null, motion: d.dm ?? null, orientation: typeof d.or === 'string' ? d.or.slice(0, 30) : null, screen: Array.isArray(d.sc) ? d.sc.slice(0, 3) : null, version: typeof d.vr === 'string' ? d.vr.slice(0, 40) : null, accSign: d.as === -1 ? -1 : d.as === 1 ? 1 : null }); break;
+        case 'dev': emit('device', { ua: typeof d.ua === 'string' ? d.ua.slice(0, 200) : null, wakeLock: d.wl ?? null, motion: d.dm ?? null, orientation: typeof d.or === 'string' ? d.or.slice(0, 30) : null, screen: Array.isArray(d.sc) ? d.sc.slice(0, 3) : null, version: typeof d.vr === 'string' ? d.vr.slice(0, 40) : null, accSign: d.as === -1 ? -1 : d.as === 1 ? 1 : null, ...(readStory(d.cd) ? { story: readStory(d.cd) } : {}) }); break;
         // B46: il rilevatore del telefono ha girato il suo segno (swing-detect.js vote, profilo semplice): il computer lo
         // registra subito, senza aspettare il colpo dopo (che lo porta comunque, sg). Le pagine di prima non lo mandano
         case 'sgn': if (d.d === 1 || d.d === -1) emit('sign', { detector: d.d }); break;
+        // B45.1: il telefono sta per chiudere il canale e dice perché (silenzio, ricollega, pagina, scollega): il motivo della
+        // caduta che si vede subito dopo. Le pagine di prima non lo mandano
+        case 'cl': if (CLOSE_WORDS.includes(d.w)) clSaid = { w: d.w, at: Date.now() }; break;
       }
     });
-    c.on('motion', buffer => { if (ok && c === conn){ countMsg('bin'); const sample = decodeSensor(buffer); if (sample) racketMotion.push(sample, performance.now()); } });
+    // (B45.1: anche i sensori valgono come segno di vita; il telefono che si muove lo dice al chiosco, L.movedAt)
+    c.on('motion', buffer => { if (ok && c === conn){ lastSeen = Date.now(); countMsg('bin'); const sample = decodeSensor(buffer); if (sample){ racketMotion.push(sample, performance.now()); if (moving(sample.rot)) L.movedAt = performance.now(); } } });
     // LAN: percorso veloce sul canale dei sensori
-    c.on('fast', d => { if (ok && c === conn && d && typeof d === 'object') onTimely(d, 'fast'); });
+    c.on('fast', d => { if (ok && c === conn && d && typeof d === 'object'){ lastSeen = Date.now(); onTimely(d, 'fast'); } });
     c.on('close', () => {
       clearTimeout(timer);
       // (stand: il telefono in attesa della conferma se n'è andato: si torna al QR, la finestra non si allunga)
       if (pairPending?.c === c){ pairPending = null; sgate.rejectPairing(); setStand({ request: null }); syncPairPeer(); }
-      if (c === conn){ conn = null; stopRoute(); gate.release(); set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null }); }
+      if (c === conn){
+        conn = null; stopRoute(); gate.release();
+        // B45.1: perché (link-life.closeMotivo): «Ricollega» chiesto da qui, la parola del telefono, pagina nascosta, strada persa
+        const now = Date.now();
+        dropped({ ...closeMotivo({ said: clSaid?.w, saidAgeMs: clSaid ? now - clSaid.at : Infinity, relinkAgeMs: now - relinkAt, hidden: L.vis === false, failed: !!c.failed }), ms: Math.round(now - lastSeen) });
+        clSaid = null;
+        set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null });
+      }
     });
     c.on('error', () => {});
   }
@@ -462,7 +496,7 @@ export function createPhoneLink({ stand = null } = {}){
     send(m){ if (conn && conn.open) try { conn.send(m); } catch (e){} },
     cmd(c){ this.send({ t: 'cmd', c }); },
     // «Ricollega»: il telefono rifà il collegamento (canali nuovi) con la sua chiave di ripresa, senza ricaricare la pagina
-    relink(){ if (!this.connected) return false; this.cmd('relink'); return true; },
+    relink(){ if (!this.connected) return false; relinkAt = Date.now(); this.cmd('relink'); return true; },
     // «Scollega»: il telefono perde la chiave di ripresa, per ricollegarsi serve un QR nuovo. Posto dello stand: indirizzo
     // e chiave buttati (il telefono dice «non sei più il Telefono N»), per riaverlo serve un abbinamento nuovo
     forget(){

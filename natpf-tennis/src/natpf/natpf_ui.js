@@ -32,7 +32,7 @@ import { NatpfKiosk } from './natpf_kiosk.js';
 import { NatpfRemote } from './natpf_remote.js';
 import { NatpfFiera } from './natpf_fiera.js';
 import { NatpfReadyGo } from './natpf_ready_go.js';
-import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText, phoneOf, holdTitle, otherPhoneNote } from './natpf_phone_watch.js';
+import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldView, phoneOf, holdTitle, otherPhoneNote, PANEL_AFTER_MS } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
 import { PHOTOS } from './natpf_media.js';
@@ -653,20 +653,36 @@ export class NatpfUi {
     if (on){ other.link.send({ t: 'ph', ph: 'pause', txt: otherPhoneNote(this._splitName(owner)) }); other.lastPhase = 'pause'; }
     else other.lastPhase = null;
   }
-  // pausa per lo schermo del telefono spento: il riquadro dice da quanto (ogni secondo)
+  // pausa per lo schermo del telefono spento: il riquadro dice da quanto (ogni secondo). B45.1: anche per la rete
+  // («segnale debole», poi «scollegato» con da quanto tace), e il pannello del telefono con il QR (gioco singolo) si apre da
+  // solo solo dopo PANEL_AFTER_MS da scollegato: di solito il telefono torna prima, da solo (prima si apriva subito alla
+  // caduta, sopra il campo, con «Scollegato»)
   _refreshPhoneHold(){
     const why = this.phoneHold?.why;
-    if (this.phoneWatch.state !== 'paused' || !(why === 'pagina nascosta' || why === 'scollegato') || this.phone.state.vis !== false) return;
-    const text = phoneHoldText(this.phone, why);
-    if (text !== this.phoneHoldShown){ this.phoneHoldShown = text; this._paintHold(this._phoneHoldTitle(), text, this.relinkAction(this.phone, this._splitName('p1')), 'p1', { phone: this.phone }); }
+    if (this.phoneWatch.state !== 'paused' || !why) return;
+    if (why === 'pagina nascosta' || why === 'scollegato' || why === 'segnale debole'){
+      const v = this._phoneHoldView(why);
+      if (`${v.title}\n${v.text}` !== this.phoneHoldShown) this._paintPhoneHold(why, v);
+    }
+    if (why === 'scollegato' && !this.phone.connected && this.phone.state.vis !== false && !this.phoneDropOpened && !this.engine.natpfSplit?.active
+      && this.modal?.classList.contains('hidden') && performance.now() - (this.phoneHold.at ?? 0) >= PANEL_AFTER_MS){ this.phoneDropOpened = true; this.openPhone(); }
+  }
+  // B45.1: titolo, testo e riga del riquadro della pausa del telefono (natpf_phone_watch.phoneHoldView: «Telefono 1: segnale
+  // debole, aspetto che torni…», «Telefono 1 scollegato · si ricollega da solo» con il tempo; nello stesso schermo il nome)
+  _phoneHoldView(why){ return phoneHoldView(this.phone, why, { name: this._splitName('p1'), slot: 'p1' }); }
+  _paintPhoneHold(why, v = this._phoneHoldView(why)){
+    this.phoneHoldShown = `${v.title}\n${v.text}`;
+    this._paintHold(v.title, v.text, this.relinkAction(this.phone, this._splitName('p1')), 'p1', { phone: this.phone, row: v.line });
   }
   // pausa e ripresa per il telefono o la webcam: riquadro sopra il campo, registro, colpi in sospeso cancellati, punto
   // rigiocato se la pausa è arrivata nello scambio o nel lancio
   _holdAction(a, src = 'telefono'){
     const E = this.engine, R = this.diag?.recorder, phone = src === 'telefono';
     if (a.kind === 'pause' || a.kind === 'wait'){
-      if (phone) this.phoneHold = { why: a.why }; else this.webcamHold = { why: a.why };
-      this._paintHold(this._phoneHoldTitle(phone), phone ? phoneHoldText(this.phone, a.why) : webcamHoldText(a.why), phone ? this.relinkAction(this.phone, this._splitName('p1')) : null, 'p1', { phone: phone ? this.phone : null });
+      // (at, B45.1: da quando vale questo motivo, per il pannello del telefono che si apre solo dopo PANEL_AFTER_MS)
+      if (phone) this.phoneHold = { why: a.why, at: performance.now() }; else this.webcamHold = { why: a.why };
+      if (phone) this._paintPhoneHold(a.why);
+      else this._paintHold(this._phoneHoldTitle(false), webcamHoldText(a.why), null, 'p1', { phone: null });
       if (phone) this._tellOtherPhone('p1', true);
       R?.log?.(phone ? 'tel.pausa' : 'webcam.pausa', { ...(phone ? { chi: 'p1' } : {}), motivo: a.why, fase: E.phase });
       // il telefono lo sa (se è collegato): niente colpi durante la pausa, e lo dice sullo schermo
@@ -675,7 +691,8 @@ export class NatpfUi {
       // telefono si ricollega da solo appena torna (B9), lo dice il riquadro della pausa, e il suo pulsante apre il QR
       // Nello stesso schermo niente pannello (B20): il QR sta dentro il riquadro della pausa, uguale per i due giocatori;
       // prima il riquadro copriva un quarto del QR del pannello, e per il Player 2 il QR non c'era
-      if (phone && a.why === 'scollegato' && this.phone.state.vis !== false && this.modal?.classList.contains('hidden') && !this.engine.natpfSplit?.active){ this.phoneDropOpened = true; this.openPhone(); }
+      // B45.1: non più subito alla caduta, ma dopo PANEL_AFTER_MS da scollegato (_refreshPhoneHold): il telefono si ricollega
+      // da solo con la sua chiave, e il riquadro lo dice («scollegato · si ricollega da solo», con il tempo)
     }
     if (a.kind === 'countdown') this._paintHold(phone ? holdTitle(this._splitName('p1'), 'ready') : 'Webcam di nuovo pronta', `Si riprende tra ${a.left}…`, null, 'p1', { count: a.left });
     if (a.kind === 'resume'){
@@ -705,10 +722,11 @@ export class NatpfUi {
   // dice di chi è e chi si aspetta (prima «Telefono di nuovo pronto: Si riprende tra 3…» con il P2 ancora spento)
   // phone (B20, audit B19 punto 10): nello stesso schermo il telefono di questa pausa; finché è scollegato il riquadro
   // mostra il suo QR, con il nome, per il Player 1 e per il Player 2 (_paintHoldQr)
-  _paintHold(title, text = '', action = null, owner = 'p1', { count = 0, phone = null } = {}){
+  // row (B45.1): la riga di questa pausa quando ce ne sono due (per la rete il titolo dice già tutto, con il tempo)
+  _paintHold(title, text = '', action = null, owner = 'p1', { count = 0, phone = null, row = null } = {}){
     this._holds ||= { p1: null, p2: null };
     const key = owner === 'p2' ? 'p2' : 'p1';
-    this._holds[key] = title ? { key, title, text, action, count, phone: this.engine.natpfSplit?.active ? phone : null } : null;
+    this._holds[key] = title ? { key, title, text, action, count, row, phone: this.engine.natpfSplit?.active ? phone : null } : null;
     const list = ['p1', 'p2'].map(k => this._holds[k]).filter(Boolean);
     let el = $('natpf-phone-hold');
     if (!list.length){ show(el, false); return; }
@@ -732,7 +750,7 @@ export class NatpfUi {
     const line = h => {
       const other = list.find(o => o !== h);
       if (h.count && other && !other.count) return `${h.title}: aspetto il telefono ${phoneOf(this._splitName(other.key) || (other.key === 'p2' ? 'Player 2' : 'Player 1'))}`;
-      return `${h.title}: ${h.text}`;
+      return h.row || `${h.title}: ${h.text}`;
     };
     el.querySelector('p').textContent = two ? list.map(line).join('\n') : list[0].text;
     el.classList.toggle('two', two);
