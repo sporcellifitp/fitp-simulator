@@ -1380,6 +1380,8 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 .hand-tag { display: inline-flex; align-items: center; padding: 0.22em 0.62em 0.18em; border-radius: var(--r-pill); background: var(--ball); color: #071233; font: 800 italic 0.8em/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
 .natpf-split-hud .split-tag .hand-tag { font-size: 0.72em; }
 .trial-row .hand-tag { font-size: clamp(12px, max(1cqw, 1.6cqh), 22px); }
+/* (accanto al titolo, sulla stessa riga: la pagina non si allunga per chi è mancino, anche a 1024×600 e 720×720) */
+#title-modal [data-page="match"] .page-head { grid-template-columns: auto auto; justify-content: start; align-items: center; column-gap: clamp(10px, 1.2cqw, 18px); }
 #title-modal .page-head .hand-tag { justify-self: start; font-size: clamp(14px, max(1.3cqw, 2cqh), 24px); }
 .natpf-hand-notice { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 330; pointer-events: none; box-sizing: border-box; width: max-content; max-width: calc(100cqw - 2 * var(--gutter));
   display: grid; justify-items: center; gap: clamp(6px, 1cqh, 14px); text-align: center; padding: clamp(16px, 3cqh, 44px) clamp(22px, 3.4cqw, 64px);
