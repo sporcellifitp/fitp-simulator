@@ -131,6 +131,7 @@ test('riprova senza fine (gioco spento o in riavvio), ogni 1–6 s; la racchetta
   const h = setup();
   for (let i = 0; i < 25; i++){
     await h.api.connect(); const p = h.peers.at(-1);
+    if (i % 2) p.emit('open');                              // (segnalazione raggiunta: «il computer non risponde»)
     p.emit('error', { type: 'peer-unavailable' });         // indirizzo del posto che non risponde
     assert.equal(h.api.state, 'lost', `giro ${i}`);
     const waits = [...h.timers.values()].map(t => t.ms);
@@ -139,6 +140,7 @@ test('riprova senza fine (gioco spento o in riavvio), ogni 1–6 s; la racchetta
   }
   assert.ok(h.api.tries >= 25 && h.saved.v, 'dopo 25 giri ancora il suo posto');
   assert.match(h.texts.at(-1)[1], /ricollego da solo/);
+  assert.ok(h.texts.every(([, sub]) => !/QR/.test(sub || '')), 'mai «inquadra il QR» sul telefono dello stand');
   // la racchetta normale (con la chiave di ripresa): come prima, 10 tentativi e poi «Riprova»
   const n = setup({ mode: 'normal' }); let scheduled = 0;
   for (let i = 0; i < 12; i++){

@@ -182,6 +182,9 @@ export class NatpfReadyGo {
         if (num && num.textContent !== n){ num.textContent = n; num.classList.remove('tick'); void num.offsetWidth; num.classList.add('tick'); }
         const names = ov.querySelector('[data-ready-go-names]'), t = solo ? 'Tieni il telefono come in partita.' : `${st.list.map(p => p.name).join(' e ')}, tenete il telefono come in partita.`;
         if (names && names.textContent !== t) names.textContent = t;
+        // (contro la CPU un telefono solo: «Pronto», non «Tutti pronti»)
+        const kick = ov.querySelector('.split-countdown-kicker'), k = solo ? 'Pronto · si gioca tra' : 'Tutti pronti · si gioca tra';
+        if (kick && kick.textContent !== k) kick.textContent = k;
       }
     }
   }

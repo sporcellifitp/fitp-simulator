@@ -71,6 +71,8 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = fals
   const L = p?.state || { state: 'off' };
   if (!p?.link || L.state === 'off' || L.state === 'starting') return { state: 'wait', title: 'Preparo il QR…', sub: '', detail: 'Preparo il QR' };
   if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})`, detail: 'Collegamento non disponibile' };
+  // (B41.2: telefono dello stand, modalità fiera: niente QR da inquadrare, si ricollega da solo al suo posto)
+  if (!p.connected && p.standSlot) return { state: 'qr', lost: true, title: `Telefono ${p.standSlot === 'p2' ? 2 : 1} scollegato`, sub: 'Telefono dello stand: si ricollega da solo. Se non torna, chiama lo staff', detail: 'Telefono scollegato' };
   if (!p.connected) return L.state === 'lost' ? { state: 'qr', lost: true, title: 'Inquadra il QR', sub: 'Telefono scollegato: riapri la pagina sul telefono', detail: 'Telefono scollegato' }
     : { state: 'qr', title: 'Inquadra il QR', sub: 'Con la fotocamera del telefono, poi tocca il link', detail: 'Inquadra il QR' };
   if (PHONE_ERR[L.phone]) return { state: 'ko', title: 'Sensori non disponibili', sub: PHONE_ERR[L.phone], detail: 'Sensori non disponibili' };

@@ -349,7 +349,8 @@ function lost(){
   closeFast(); conn = null; linkState = 'lost';
   if (previous && !previous.destroyed) previous.destroy();
   paint();
-  if (pair?.stand && stand){ const v = standView({ slot: stand.slot, linkState: 'lost' }); ui(v.big, why ? `${why} ${v.sub}` : v.sub); }
+  // (telefono dello stand: il motivo della rete sì, «inquadra di nuovo il QR» no: il posto si riprende da solo)
+  if (pair?.stand && stand){ const v = standView({ slot: stand.slot, linkState: 'lost' }), w = why && !/QR/.test(why) ? why : null; ui(v.big, w ? `${w} ${v.sub}` : v.sub); }
   else ui('Connessione persa', why ? `${why} Riprovo da solo tra poco.` : 'Riprovo da solo tra poco.');
   // (telefono dello stand, B41.3: riprova senza fine, ogni 1–6 s: il gioco può restare spento o in riavvio a lungo)
   if (tries++ < 10 || pair?.stand) retryT = setTimeout(connect, Math.min(6000, 1000*tries));

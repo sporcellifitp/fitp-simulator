@@ -413,6 +413,11 @@ Il lavoro del 12/11 (`763e338`, `88cf743` del ramo `b28-cal-giocando`) è stato 
   all'avversario, e due verifiche dopo fallivano (11/13, anche da sola). Il gioco non c'entra: la pausa arriva fino a
   2,1 s dopo lo stop dei sensori (il conto è accanto alla soglia). Nel caso A la palla della prova ora vola 2,5 s
   (0,2 s di attesa + 2,1 s = 2,3 s prima del rimbalzo): **13/13** con `CAL=gesti` e **13/13** con `CAL=base`.
+- Di nuovo sul codice unito con la 2026-11-13.12 (B43) e la B41 prima parte (ramo `b41-fiera-1`, 14/11): gioco
+  1513/1513 (i 6 test del B28.1 compresi), sito 247/247; nel browser `natpf-scambi-di-prova` 30/30 e `FLOW=minigioco`
+  10/10, `natpf-phone-keep` 13/13 in tutti e due i modi, `natpf-nuovo-giocatore` 28/28, `natpf-formato-fiera` 25/25.
+  Con la B41 sulla pagina «Pronto per la partita» il telefono riceve anche «Sono pronto» (`docs/b41/modalita-fiera-1.md`):
+  gli scambi di prova restano prima di quella pagina.
 
 ## 7. Limiti e cose non provate
 

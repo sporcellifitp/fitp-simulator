@@ -185,6 +185,7 @@ try {
   const t2 = await phoneInfo(tel1);
   check('tocco su «Sono pronto»: spunta sul computer e conto alla rovescia di 3 s', counting && g2.chips.join() === 'is-ok:Telefono pronto ✓' && g2.count === '3', JSON.stringify(g2));
   check('   sul telefono «Pronto ✓», pulsante spento', t2.next?.disabled && /Pronto ✓/.test(t2.next.text), JSON.stringify(t2));
+  await sleep(350);   // (il riquadro entra con un'animazione di 0,2 s)
   await shot(g, 'cpu-conto-alla-rovescia-1920');
   const tS = Date.now();
   const started = await until(g, () => (__natpfTennis.natpfMatchSeq || 0) === 1 && !__natpfTennis.natpfUi.lobby.visible, null, 8000);
@@ -216,6 +217,7 @@ try {
   const c2 = await until(g, () => __natpfTennis.natpfUi.readyGo.cd.running, null, 5000);
   check('   tutti e due pronti: conto alla rovescia', c2, c2 ? '' : await rgLog(g));
   // (schermate senza ridisegnare il campo: il conto dura 3 s)
+  await sleep(350);
   await shot(g, 'stesso-schermo-conto-1920');
   // «Aspetta» (Esc): il conto si ferma, si ritocca
   await g.keyboard.press('Escape');
@@ -229,6 +231,7 @@ try {
   await shot(g, 'stesso-schermo-uno-pronto-720');
   await tel2.click('#next');
   await until(g, () => __natpfTennis.natpfUi.readyGo.cd.running, null, 5000);
+  await sleep(350);
   await shot(g, 'stesso-schermo-conto-720');
   await shot(tel2, 'telefono2-conto');
   // il telefono 2 si spegne durante il conto
@@ -253,4 +256,4 @@ try {
   res.shots = shots;
   writeFileSync(`${OUT}/fiera-telefoni.json`, JSON.stringify(res, null, 1));
 } catch (e){ check('prova senza eccezioni', false, e.stack || String(e)); }
-finally { await B.close(); stop(); summary(); }
+finally { await B.close(); stop(); summary(); process.exit(process.exitCode || 0); }

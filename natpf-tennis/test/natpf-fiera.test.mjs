@@ -8,6 +8,7 @@ import { makeWorld, $ } from './ui-world.mjs';
 import { NatpfPhoneRacket } from '../src/natpf/natpf_phone_racket.js';
 import { NatpfFiera, fairModeFrom, fairServer, standSlotView, standPaired, FAIR_MODE_KEY, LOW_BATTERY } from '../src/natpf/natpf_fiera.js';
 import { gameStoreKey } from '@natpf/tennis/stand-pairing.js';
+import { splitPlayerStatus } from '../src/natpf/natpf_split_ui.js';
 
 const PAIRED = JSON.stringify({ session: 'racchetta-stand-abcdefghijkmnpqrstuvwxyz23', key: 'abcdefghijkmnpqrstuvwxyz23', pairedAt: 1 });
 
@@ -111,4 +112,12 @@ test('telefono dello stand: niente QR pubblico (nemmeno nel riquadro), tutorial 
   // la racchetta normale, come prima: il chiosco la scollega
   P.standSlot = null; ui.kiosk.reset = r; ui.kiosk.reset();
   assert.equal(link.connected, false);
+});
+
+test('stesso schermo: un telefono dello stand scollegato non chiede di inquadrare il QR (si ricollega da solo)', () => {
+  const p = { link: {}, state: { state: 'waiting' }, connected: false, standSlot: 'p2' };
+  const st = splitPlayerStatus(p);
+  assert.deepEqual([st.state, st.lost, st.title, st.detail], ['qr', true, 'Telefono 2 scollegato', 'Telefono scollegato']);
+  assert.doesNotMatch(st.sub, /QR/);
+  assert.equal(splitPlayerStatus({ ...p, standSlot: null }).title, 'Inquadra il QR', 'la racchetta normale come prima');
 });
