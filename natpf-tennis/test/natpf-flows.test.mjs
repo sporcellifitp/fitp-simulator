@@ -365,6 +365,8 @@ async function phoneMatch(){
   const { ui, lobby } = w;
   lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next();
   calibrate(w); w.cal({ kind: 'done', profile: { hand: 'right' } }); ui.training.skip(); w.pressStart(); w.advance(500);
+  // B47: prima del primo punto il conto alla rovescia grande (3 s, natpf_prematch.js), con la partita ferma
+  assert.ok(ui.prematch.active && w.E.natpfPaused); w.advance(2700); assert.ok(!ui.prematch.active && !w.E.natpfPaused);
   return w;
 }
 const drop = w => { Object.assign(w.link, { connected: false, ready: false, L: { ...w.link.L, state: 'lost', phone: null } }); w.E.natpfPhone._changed(); };

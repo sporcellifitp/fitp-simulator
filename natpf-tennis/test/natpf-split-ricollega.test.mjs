@@ -62,6 +62,7 @@ async function splitMatch(){
   lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
   E.natpfPhone._onCal({ kind: 'review', pass: true });
   lobby.next(); assert.equal(w.pressStart(), true); assert.equal(E.natpfSplit.active, true);
+  w.advance(3100);   // B47: prima del primo punto il conto alla rovescia grande (3 s, natpf_prematch.js), con la partita ferma
   return { ...w, P2, l2 };
 }
 const holdEl = () => document.getElementById('natpf-phone-hold');

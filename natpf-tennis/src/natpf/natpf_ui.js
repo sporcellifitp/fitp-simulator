@@ -47,6 +47,8 @@ import { NatpfTrial } from './natpf_trial.js';
 import { readCalMode } from './natpf_trial_learn.js';
 import { NatpfTastiera } from './natpf_tastiera.js';
 import { NatpfStandMouse } from './natpf_stand_mouse.js';
+// B47: conto alla rovescia grande prima del primo punto (natpf_prematch.js)
+import { NatpfPrematch } from './natpf_prematch.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -145,6 +147,8 @@ export class NatpfUi {
     // «Sono pronto» dai telefoni sulla pagina «Pronto per la partita» (natpf_ready_go.js, vale anche fuori dalla fiera)
     this.fiera = new NatpfFiera(engine, this);
     this.readyGo = new NatpfReadyGo(engine, this);
+    // B47: conto alla rovescia grande prima del primo punto di ogni partita con il telefono (lo chiede startNewMatch)
+    this.prematch = new NatpfPrematch(engine, this);
     // B39: stand con il solo mouse (comandi del tasto destro del programma, avvisi, trappole del mouse): natpf_stand_mouse.js
     this.mouse = new NatpfStandMouse(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
@@ -239,7 +243,8 @@ export class NatpfUi {
   staffOpen(){ return !!(this.kiosk?.isOpen || this.remote?.isOpen || this.remote?.opening || this.diag?.isOpen || this.calibra?.isOpen); }
   // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
   _syncPause(){
-    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold || !!this.split?.hold || this.staffOpen();
+    // (B47: anche il conto alla rovescia grande prima del primo punto, natpf_prematch.js)
+    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold || !!this.split?.hold || this.staffOpen() || !!this.prematch?.active;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
     // B20 (revisione): a partita ferma il gioco non ridisegna le scritte del campo; le istruzioni del servizio e «Scambio
     // caldo» si tolgono subito (restavano sotto il riquadro della pausa) e tornano da sole alla ripresa
@@ -310,6 +315,7 @@ export class NatpfUi {
     this.versus?.clearCheckpoint?.();     // tornare al menu chiude la partita: il punteggio salvato serve solo a un ricaricamento
     // B43: la diagnostica aperta dalla pausa di questa partita, chiusa dopo, non riapre la pausa nella partita di un altro
     if (this.diag) this.diag._back = null;
+    this.prematch?.cancel();   // B47: il conto alla rovescia grande non fa partire niente dopo il ritorno al menu
     this.trial?.abort();
     if (this.training.active) this.training.stop({ completed: false, silent: true });
     this.events.abort();

@@ -10,6 +10,9 @@
 // «Gioca» sul computer resta per lo staff. Un telefono che cade (scollegato, pagina nascosta, sensori fermi, non più
 // pronto) ferma il conto e deve toccare di nuovo; «Aspetta» (o Esc) ferma il conto e tutti ritoccano.
 // Con la calibrazione «Giocando» gli scambi di prova restano PRIMA di questa pagina (B35): qui non si tocca il loro ordine.
+// B47 (richiesta dell'utente del 14/11: conto alla rovescia grande «Preparati, la partita sta per cominciare»): il conto di
+// 3 s di questa pagina non c'è più. Quando sono pronti tutti la partita parte subito e il conto è quello grande al centro
+// del campo (natpf_prematch.js, annunciato anche sui telefoni): prima c'erano due conti di fila (READY_GO.ms = 0).
 // Funzioni pure in cima (test in test/natpf-ready-go.test.mjs), poi il controllore.
 import { createCountdown, READY_COUNTDOWN_MS, defaultName } from './natpf_ready.js';
 import { phoneHealthOf, WATCH } from './natpf_phone_watch.js';
@@ -19,7 +22,7 @@ const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 // stallMs: sensori fermi da così (ms senza dati dal telefono pronto) prima che il tocco non valga più: lo stesso tempo della
 // pausa in partita e delle schede dello stesso schermo (natpf_split_ui.SPLIT_STALL_MS), così un pacchetto in ritardo (o il
 // computer sotto carico) non annulla il conto
-export const READY_GO = Object.freeze({ label: 'Sono pronto', done: 'Pronto ✓', ms: READY_COUNTDOWN_MS, stallMs: WATCH.sensorGapMs + WATCH.graceMs });
+export const READY_GO = Object.freeze({ label: 'Sono pronto', done: 'Pronto ✓', ms: 0, pageMs: READY_COUNTDOWN_MS, stallMs: WATCH.sensorGapMs + WATCH.graceMs });
 
 // Chi gioca con il telefono su questa pagina (funzione pura): [] se «Sono pronto» qui non vale. Solo contro la CPU e
 // nello stesso schermo con i due telefoni; non nella sfida tra due computer (lì c'è il «Sono pronto» del Player 2), non
@@ -147,9 +150,9 @@ export class NatpfReadyGo {
     if (was){ this._announce({ stop: 1, soft: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('pronto.conto', { stato: 'fermato' }); }
     this.tick();
   }
-  // a zero: lo stesso «Gioca» della pagina (natpf_ui._bindStart fa i controlli di sempre)
+  // a zero: lo stesso «Gioca» della pagina (natpf_ui._bindStart fa i controlli di sempre). B47: «Si gioca!» sul telefono lo
+  // dice la fine del conto grande in campo (natpf_prematch.js), non più questo
   _fire(){
-    this._announce({ n: 0 });
     this.ui.diag?.recorder?.log?.('pronto.conto', { stato: 'si gioca' });
     this._leave();
     const b = $('btn-start-match'); if (b){ b.disabled = false; b.click(); }

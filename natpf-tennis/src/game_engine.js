@@ -1219,6 +1219,10 @@ export class NatpfTennisEngine {
     }
   }
   startNewMatch({ showStartBanner: e = !0 } = {}) {
+    // NATPF B47: conto alla rovescia grande prima del primo punto (natpf_prematch.js: partita con il telefono contro la CPU
+    // o nello stesso schermo): la partita resta ferma al primo servizio e la scritta e la voce «Start» arrivano a fine conto
+    // (natpfStartCall). Solo per l'inizio vero di una partita (con la scritta d'inizio): non per test e simulazioni
+    const hold = !!e && !!this.natpfUi?.prematch?.due?.();
     NL.resetLegend(this); // NATPF Leggenda: il modello dell'avversario riparte da zero a ogni partita
     this.natpfArena.setSpeed(null); // NATPF: velocità «---» fino al primo servizio (C21: restava quella della partita prima)
     this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
@@ -1269,22 +1273,34 @@ export class NatpfTennisEngine {
       this._syncScoreboardHUD(),
       this.hud.setReplayMode(!1),
       this.audioEngine &&
-        (this.audioEngine.playMusicForState("start"), this.audioEngine.announceScore("Start")),
+        (this.audioEngine.playMusicForState("start"), hold || this.audioEngine.announceScore("Start")),
+      // B20: nello stesso schermo chi batte per primo si vede («Sorteggio: batte Giulia»)
+      // B35: con il servizio che passa ogni due punti (formato in fiera, campo aperto) lo dice anche la riga sotto
+      (this.natpfStartSub = [
+        this.natpfSplit?.active
+          ? NPC.firstServeText({ ...NPC.callContext(this), server: this.score.server, drawn: serveChoice(this.natpfServeFirst) === "random", fixed: !!this.score.fixed })
+          : "",
+        // (B47: con la battuta «Sempre lo stesso» il servizio non passa mai, neanche nel formato veloce)
+        ND.altServe(this, !!this.score.fair) && !this.score.fixed ? NF.FAST_SERVE_LINE : "",
+      ].filter(Boolean).join(" · ")),
       this._setupPointServe({
-        showBanner: e,
+        showBanner: e && !hold,
         bannerText: "Start",
         bannerStyle: "style-start",
         persistentBanner: !1,
-        // B20: nello stesso schermo chi batte per primo si vede («Sorteggio: batte Giulia»)
-        // B35: con il servizio che passa ogni due punti (formato in fiera, campo aperto) lo dice anche la riga sotto
-        bannerSub: [
-          this.natpfSplit?.active
-            ? NPC.firstServeText({ ...NPC.callContext(this), server: this.score.server, drawn: serveChoice(this.natpfServeFirst) === "random", fixed: !!this.score.fixed })
-            : "",
-          // (B47: con la battuta «Sempre lo stesso» il servizio non passa mai, neanche nel formato veloce)
-          ND.altServe(this, !!this.score.fair) && !this.score.fixed ? NF.FAST_SERVE_LINE : "",
-        ].filter(Boolean).join(" · "),
+        bannerSub: this.natpfStartSub,
       });
+    // B47: il conto alla rovescia grande (la partita resta ferma finché è in vista: natpf_ui._syncPause)
+    hold && this.natpfUi.prematch.begin();
+  }
+  // NATPF B47: fine del conto alla rovescia grande (natpf_prematch.js): la scritta e la voce «Start» di sempre, con chi
+  // batte per primo nello stesso schermo
+  natpfStartCall() {
+    if (this.phase === "MATCH_OVER" || this.autoPlayMode) return;
+    const bs = this.natpfStartSub || "";
+    this.audioEngine && this.audioEngine.announceScore("Start");
+    this._recordBannerBroadcast("Start", "style-start", bs, null);
+    this.hud.showCenterBanner("Start", { style: "style-start", durationMs: bs ? 2600 : 1800, persistent: !1, ...(bs ? { subText: bs } : {}) });
   }
   _setupPointServe({
     showBanner: e = !0,

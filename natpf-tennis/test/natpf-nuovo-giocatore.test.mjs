@@ -83,6 +83,7 @@ test('fine partita contro la CPU → «Nuovo giocatore»: nome e mano, poi in ca
   assert.ok(P.ready && P.tutorialSeen, 'calibrato e tutorial visto');
   assert.equal(lobby.step, 'match');
   w.pressStart(); E.matchConfig.gamesToWin = 1;
+  w.advance(3100);   // B47: prima del primo punto il conto alla rovescia grande (3 s, natpf_prematch.js), con la partita ferma
   for (let i = 0; i < 4; i++) E._awardPoint('player', 'Out');
   w.advance(2500);
   assert.ok(visible('victory-modal'));

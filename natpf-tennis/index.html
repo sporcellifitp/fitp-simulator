@@ -1004,6 +1004,16 @@
       </div>
       <button type="button" id="trial-skip" class="btn btn-ghost btn-sm trial-skip" title="La partita parte subito con quello che il gioco ha imparato">Salta ›</button>
     </div>
+    <!-- B47: conto alla rovescia grande prima del primo punto (natpf_prematch.js), al centro dello schermo intero (anche
+         nello stesso schermo: uno solo). «Preparati · La partita sta per cominciare · 3 · 2 · 1» e chi batte -->
+    <div id="natpf-prematch" class="natpf-prematch hidden" role="status" aria-live="assertive">
+      <div class="prematch-box">
+        <p class="prematch-kicker" data-prematch="kicker">Preparati</p>
+        <p class="prematch-title" data-prematch="title">La partita sta per cominciare</p>
+        <b class="prematch-num" data-prematch="num">3</b>
+        <p class="prematch-serve" data-prematch="serve"></p>
+      </div>
+    </div>
     <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite" data-mode="drill">
       <div class="coach-top">
         <span class="coach-kicker" id="coach-kicker">Riscaldamento</span>
