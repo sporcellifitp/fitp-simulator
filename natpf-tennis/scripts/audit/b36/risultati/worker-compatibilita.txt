@@ -1,0 +1,5 @@
+Worker di BASE (0035e02) · righe del gioco nuovo: HTTP 200 {"ok":true,"righe":6,"scartate":0} · righe scritte 6/6 · campi della direzione salvati: nessuno
+Worker di BASE (0035e02) · righe di un gioco di prima: HTTP 200 {"ok":true,"righe":3,"scartate":0} · righe scritte 3/3 · campi della direzione salvati: nessuno
+Worker NUOVO (B36.0) · righe del gioco nuovo: HTTP 200 {"ok":true,"righe":6,"scartate":0} · righe scritte 6/6 · campi della direzione salvati: pf, dv, tu, rx, rz, fu, zp, dir
+Worker NUOVO (B36.0) · righe di un gioco di prima: HTTP 200 {"ok":true,"righe":3,"scartate":0} · righe scritte 3/3 · campi della direzione salvati: nessuno
+pagina del Worker di base con «Formato delle righe»: false · pagina del Worker nuovo: 2

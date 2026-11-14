@@ -985,3 +985,29 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   scritta del punto la fa passare da `_natpfPointBanner` (le prove che misurano i tempi: `natpf-fuori-vero`).
 - **Mondo di prova** (`test/ui-world.mjs`): anche `#natpf-remote` parte nascosto, come nella pagina vera (aperto ferma la
   partita).
+
+## B36.0 · Misure della direzione dei colpi (13–14/11/2026; documento `docs/b36/misure-b36-0.md`)
+- **Registro, formato delle righe 2**: campi `pf` (piatto della cima, solo telefoni con la forma), `dv` (scarto della cima
+  in gradi), `tu` (tempo in finestre, tempo vero), `rx`/`rz` (primo rimbalzo vero), `fu` (fuori al rimbalzo vero per
+  l'arbitro del motore), `nr` (regola nuova, dalla B36.1), `zp` (zona di Precision 0–9) nella riga «colpo»; `dir` (modello
+  della direzione) nelle righe «partita» e «minigioco». Le due copie (`registro_formato.js`, `cloudflare/registro-worker.js`)
+  restano uguali (test). Chi aggiunge campi li mette tutti insieme in fondo a CAMPI, alza il formato e scrive i passi per
+  ricaricare il Worker: un Worker di prima **accetta** le righe nuove togliendo solo i campi che non conosce (il gioco non
+  le tiene in coda); il riassunto avvisa se il formato è nuovo e i campi mancano.
+- **La riga «colpo» della racchetta aspetta il primo rimbalzo** (aggancio `_spawnBounceRing`, che il motore chiama prima di
+  contare il rimbalzo) e si scrive allora o appena la palla non può più rimbalzare; `t` e `n` restano quelli del colpo.
+  La regola del fuori è copiata da `game_engine.js` (`registro_registratore.LINEE`, test sul testo del motore): se
+  l'arbitro del motore cambia, cambia anche lì.
+- **Modello della direzione**: `natpf_direction.js` (`dirModelOf(engine)` legge `engine.natpfDirModel`, oggi mai scritto:
+  «classica»; colpo con la regola nuova = esito con `rule: 'nuova'`). La B36.1 riempie questi nomi senza cambiare il
+  registro. Niente campi nuovi in `out.racket` dei banchi: entra nelle impronte (b37, fine partita).
+- **Giocatori simulati**: `scripts/audit/b36/simulati.mjs` (`cimaSimulata`: scarto della cima dallo stesso sorteggio del
+  piatto, senza tetto; `contaColpo`: riga `[B36] … su N` alla fine di ogni banco, sull'uscita degli errori). Profili nuovi
+  solo in fondo agli elenchi (i banchi delle impronte prendono i primi tre profili del telefono). Impronte leggere della
+  base nel test `natpf-b36-misure.test.mjs`.
+- **Banco della direzione**: di base sul bersaglio (B35a); `--b36` misura sul rimbalzo vero, con tre posizioni, serie,
+  partite, seme e posa «pronto». Con il telefono simulato la posa «pronto» toglie 0,66 m a 1 s di attesa: la B36.9 serve
+  (soglia del piano 0,5 m), da confermare con la prova vera.
+- **Prova allo stand**: Precision con il registro (zona chiesta nota). Il registro non sa chi gioca né cosa gli è stato
+  detto: la prova si fa in ordine (due «come ti viene», poi due «gira la cima» per persona) e il riassunto elenca le partite
+  a Precision in ordine di tempo.

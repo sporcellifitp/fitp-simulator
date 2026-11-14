@@ -1,0 +1,68 @@
+== B36.0 · misure della direzione dei colpi. SIMULAZIONE: telefono simulato con il braccio, motore vero senza grafica, Esperta (pro); non sono persone ==
+
+-- Matrice della direzione, tre posizioni della palla, sul RIMBALZO VERO (fuori con la regola dell'arbitro del motore); semi 1,2,3,4, destri e mancini, calibrazioni rapida, salta, prova, 4 colpi per voluto e lato --
+gesto                     posizione  giusti  fuori/rete  incrociato→lungolinea  lungolinea→incrociato  colpi
+piatto (gesto buono)      centro        69%         0%                   0%                     0%     576
+piatto (gesto buono)      destra        64%         0%                   1%                     2%     576
+piatto (gesto buono)      sinistra      63%         0%                   2%                     3%     576
+naturale (gesto buono)    centro        74%         0%                   0%                     0%     576
+naturale (gesto buono)    destra        71%         0%                   0%                     0%     576
+naturale (gesto buono)    sinistra      69%         0%                   1%                     0%     576
+tempo (gesto buono)       centro        58%         0%                   0%                     1%     576
+tempo (gesto buono)       destra        56%         0%                   4%                     7%     576
+tempo (gesto buono)       sinistra      53%         0%                   3%                     6%     576
+riga (gesto buono)        centro        93%         0%                   0%                     0%     576
+riga (gesto buono)        destra        84%         0%                   0%                     0%     576
+riga (gesto buono)        sinistra      82%         0%                   0%                     0%     576
+piatto (persona vera)     centro        48%         0%                   7%                    20%     576
+piatto (persona vera)     destra        49%         0%                  16%                    19%     576
+piatto (persona vera)     sinistra      48%         0%                  11%                    26%     576
+naturale (persona vera)   centro        53%         0%                   4%                    19%     576
+naturale (persona vera)   destra        52%         0%                   7%                    14%     576
+naturale (persona vera)   sinistra      52%         0%                   8%                    22%     576
+tempo (persona vera)      centro        42%         0%                  12%                    27%     576
+tempo (persona vera)      destra        43%         0%                  18%                    31%     576
+tempo (persona vera)      sinistra      39%         0%                  19%                    25%     576
+riga (persona vera)       centro        64%         0%                   1%                     2%     576
+riga (persona vera)       destra        66%         0%                   3%                     6%     576
+riga (persona vera)       sinistra      60%         0%                   2%                     2%     576
+confronto, gesto «piatto» buono al centro: giusti 69% sul bersaglio del motore (come il B35a) e 69% sul rimbalzo vero; fuori 0% e 0%
+
+-- Serie: lo stesso voluto 14 volte di fila dopo 8 colpi normali, come quote su 20 serie con semi diversi (dritto del destro, scambi di prova, gesto buono, rimbalzo vero) --
+piatto    voluto incrociato  giusti  69% ± 3  fuori/rete   0%  (280 colpi)
+piatto    voluto centro      giusti  67% ± 3  fuori/rete   0%  (280 colpi)
+piatto    voluto lungolinea  giusti  48% ± 3  fuori/rete   0%  (280 colpi)
+naturale  voluto incrociato  giusti  68% ± 3  fuori/rete   0%  (280 colpi)
+naturale  voluto centro      giusti  67% ± 3  fuori/rete   0%  (280 colpi)
+naturale  voluto lungolinea  giusti  47% ± 3  fuori/rete   0%  (280 colpi)
+
+-- Partite con il rumore (persona vera di colpi.mjs: piatto ±12°, tempo +0,35 ±0,45; 24 partite da 80 colpi, livello casual) sul rimbalzo vero, centro della mira seminato sbagliato --
+  per blocco di colpi: |mediana x| della partita (media, m) · partite oltre 1 m da una parte · errore del centro a fine blocco (°)
+  seme    0°  colpi 21-40: 0,55 m, oltre 1 m 3/24, centro 1,4° · colpi 41-60: 0,64 m, oltre 1 m 5/24, centro 1,6° · colpi 61-80: 0,55 m, oltre 1 m 3/24, centro 1,7°
+  seme   +4°  colpi 21-40: 0,56 m, oltre 1 m 5/24, centro 2,2° · colpi 41-60: 0,65 m, oltre 1 m 4/24, centro 1,8° · colpi 61-80: 0,52 m, oltre 1 m 4/24, centro 1,6°
+  seme   -4°  colpi 21-40: 0,55 m, oltre 1 m 3/24, centro 1,7° · colpi 41-60: 0,63 m, oltre 1 m 4/24, centro 1,8° · colpi 61-80: 0,51 m, oltre 1 m 4/24, centro 1,9°
+  seme   +8°  colpi 21-40: 0,66 m, oltre 1 m 7/24, centro 2,7° · colpi 41-60: 0,68 m, oltre 1 m 5/24, centro 2,0° · colpi 61-80: 0,53 m, oltre 1 m 4/24, centro 1,7°
+  seme   -8°  colpi 21-40: 0,69 m, oltre 1 m 5/24, centro 2,9° · colpi 41-60: 0,70 m, oltre 1 m 6/24, centro 2,3° · colpi 61-80: 0,52 m, oltre 1 m 5/24, centro 2,2°
+  seme  +15°  colpi 21-40: 0,73 m, oltre 1 m 9/24, centro 3,6° · colpi 41-60: 0,74 m, oltre 1 m 6/24, centro 2,5° · colpi 61-80: 0,54 m, oltre 1 m 3/24, centro 1,7°
+  seme  -15°  colpi 21-40: 0,81 m, oltre 1 m 11/24, centro 4,1° · colpi 41-60: 0,75 m, oltre 1 m 8/24, centro 2,9° · colpi 61-80: 0,58 m, oltre 1 m 6/24, centro 2,6°
+
+-- Errore del seme degli scambi di prova (telefono simulato con rumore di posa e di velocità, 20 telefoni per riga, destri): centro della mira dopo gli scambi contro quello del telefono assestato --
+adulto           scambi di prova 2+2  |errore| medio 5,8°, metà sotto 4,9°, 9 su 10 sotto 13,5°, massimo 22,6°, oltre 8° 20% (40 versi)
+adulto           scambi di prova 1+1  |errore| medio 8,9°, metà sotto 8,7°, 9 su 10 sotto 18,1°, massimo 21,0°, oltre 8° 53% (40 versi)
+bambino debole   scambi di prova 2+2  |errore| medio 6,8°, metà sotto 5,8°, 9 su 10 sotto 15,6°, massimo 26,8°, oltre 8° 35% (40 versi)
+bambino debole   scambi di prova 1+1  |errore| medio 10,5°, metà sotto 9,7°, 9 su 10 sotto 22,0°, massimo 23,8°, oltre 8° 58% (40 versi)
+gesto impreciso  scambi di prova 2+2  |errore| medio 11,3°, metà sotto 9,6°, 9 su 10 sotto 25,2°, massimo 30,9°, oltre 8° 55% (40 versi)
+gesto impreciso  scambi di prova 1+1  |errore| medio 15,9°, metà sotto 16,3°, 9 su 10 sotto 30,1°, massimo 32,3°, oltre 8° 72% (36 versi, senza seme 4)
+
+-- Stessa mira con l'attesa della posa «pronto»: cima girata di 15° verso l'incrociato e tenuta ferma prima del colpo (tempo a 0, 8 telefoni, dritti e rovesci, rimbalzo vero) --
+attesa 0,0 s: scarto letto 15,2° (100% di quello senza attesa), palla a 2,88 m verso l'incrociato (+0,00 m)
+attesa 0,5 s: scarto letto 13,9° (91% di quello senza attesa), palla a 2,62 m verso l'incrociato (-0,27 m)
+attesa 1,0 s: scarto letto 12,1° (79% di quello senza attesa), palla a 2,22 m verso l'incrociato (-0,66 m)
+attesa 2,0 s: scarto letto 9,3° (61% di quello senza attesa), palla a 1,56 m verso l'incrociato (-1,32 m)
+
+-- Colpi con la regola nuova della direzione: 0 su 21904 (oggi c'è solo «Classica»: 0). Tempo del banco: 61 s --
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 21904 (con «Classica» sono sempre 0)
+
+real	1m1.514s
+user	0m56.606s
+sys	0m0.662s

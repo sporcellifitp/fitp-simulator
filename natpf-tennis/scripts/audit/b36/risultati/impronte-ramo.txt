@@ -1,0 +1,359 @@
+== b20 (ramo b36-0-misure; uguale alla base 0035e02 tranne la riga [B36] e i secondi)
+== Contro la CPU: impronta di 120 punti per riga (semi 7 e 11) ==
+casual    tennista     | punti 120 + 120 · vinti 97.5%, 100% · colpi a scambio 4.13, 4.66 · impronta 4abb86e91d90
+casual    amatore      | punti 120 + 120 · vinti 85.8%, 84.2% · colpi a scambio 7.91, 8.88 · impronta 2117d9736d00
+casual    bambino      | punti 120 + 120 · vinti 51.7%, 44.2% · colpi a scambio 6.88, 6.11 · impronta 93d550b217a7
+casual    preciso      | punti 120 + 120 · vinti 100%, 100% · colpi a scambio 3.88, 3.77 · impronta be5362f87a0f
+pro       tennista     | punti 120 + 120 · vinti 95%, 93.3% · colpi a scambio 6.89, 6.97 · impronta 6a53013f98d2
+pro       amatore      | punti 120 + 120 · vinti 48.3%, 49.2% · colpi a scambio 12.32, 12.63 · impronta 91931c95e708
+pro       bambino      | punti 120 + 120 · vinti 15.8%, 10.8% · colpi a scambio 7.15, 8.16 · impronta 526631a3c2c1
+pro       preciso      | punti 120 + 120 · vinti 96.7%, 95.8% · colpi a scambio 7.37, 6.85 · impronta 15bb2be0a639
+leggenda  tennista     | punti 120 + 120 · vinti 32.5%, 26.7% · colpi a scambio 15.71, 16.44 · impronta c3c3b076f755
+leggenda  amatore      | punti 120 + 120 · vinti 19.2%, 10.8% · colpi a scambio 12.65, 11.82 · impronta b4fab5173f70
+leggenda  bambino      | punti 120 + 120 · vinti 7.5%, 5.8% · colpi a scambio 5.86, 5.81 · impronta 5b0f9028fb56
+leggenda  preciso      | punti 120 + 120 · vinti 30%, 34.2% · colpi a scambio 19.46, 20.74 · impronta 6bda12ef7e3f
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 12077 (con «Classica» sono sempre 0)
+
+== b25 (ramo b36-0-misure; uguale alla base 0035e02 tranne la riga [B36] e i secondi)
+== Stesso schermo, super e preparazione come prima: impronta di 20 partite per seme (semi 7001, 7103, 7207), 1 game ==
+bambino contro bambino fiera    | punti 353 · colpi 2045 · del P1 174 · super 0 · impronta 0211ef1b4818
+bambino contro bambino classico | punti 359 · colpi 2014 · del P1 177 · super 0 · impronta 757d4c035c50
+medio contro medio     fiera    | punti 358 · colpi 3381 · del P1 175 · super 7 · impronta ec3dac1704b2
+medio contro medio     classico | punti 409 · colpi 3608 · del P1 206 · super 8 · impronta ae69617d6c90
+amatore contro amatore fiera    | punti 353 · colpi 4561 · del P1 177 · super 13 · impronta 598374db6b27
+amatore contro amatore classico | punti 421 · colpi 5375 · del P1 209 · super 14 · impronta 11c31136203a
+bambino contro medio   fiera    | punti 317 · colpi 2303 · del P1 87 · super 2 · impronta f0aff480aea0
+bambino contro medio   classico | punti 354 · colpi 2572 · del P1 105 · super 4 · impronta 9a948c1695c8
+medio contro amatore   fiera    | punti 351 · colpi 3663 · del P1 152 · super 6 · impronta 1f50dd8fa66c
+medio contro amatore   classico | punti 372 · colpi 3987 · del P1 145 · super 10 · impronta 84469d47c37d
+preciso contro medio   fiera    | punti 287 · colpi 3590 · del P1 240 · super 26 · impronta 8c0580c925d6
+preciso contro medio   classico | punti 304 · colpi 3897 · del P1 246 · super 29 · impronta b00abd2d7ce3
+== Stesso schermo, regole di oggi (opzioni spente, fasce uguali): impronta di 20 partite per seme (semi 7001, 7103, 7207), 1 game ==
+bambino contro bambino fiera    | punti 355 · colpi 2122 · del P1 179 · super 32 · impronta 07c7dbe5685d
+bambino contro bambino classico | punti 414 · colpi 2438 · del P1 221 · super 44 · impronta 26b6f881a1b3
+medio contro medio     fiera    | punti 343 · colpi 2999 · del P1 186 · super 28 · impronta d02e4f20ff67
+medio contro medio     classico | punti 444 · colpi 3957 · del P1 229 · super 34 · impronta 664db40704f1
+amatore contro amatore fiera    | punti 360 · colpi 4444 · del P1 176 · super 80 · impronta 052df5dae2a3
+amatore contro amatore classico | punti 398 · colpi 5230 · del P1 189 · super 106 · impronta 4a1eba8eb2c6
+bambino contro medio   fiera    | punti 323 · colpi 2386 · del P1 98 · super 13 · impronta 7b92e9cf8f3d
+bambino contro medio   classico | punti 328 · colpi 2390 · del P1 87 · super 24 · impronta e7da66f6cb43
+medio contro amatore   fiera    | punti 329 · colpi 3363 · del P1 134 · super 49 · impronta 0ef3bbce0759
+medio contro amatore   classico | punti 385 · colpi 4081 · del P1 168 · super 53 · impronta 04023550f676
+preciso contro medio   fiera    | punti 294 · colpi 3719 · del P1 237 · super 24 · impronta 3a6b658b0601
+preciso contro medio   classico | punti 299 · colpi 3889 · del P1 246 · super 30 · impronta d35f95e5612b
+== Contro la CPU: impronta di 120 punti per riga (semi 7 e 11) ==
+casual    tennista     | punti 120 + 120 · vinti 97.5%, 100% · colpi a scambio 4.13, 4.66 · impronta 4abb86e91d90
+casual    amatore      | punti 120 + 120 · vinti 85.8%, 84.2% · colpi a scambio 7.91, 8.88 · impronta 2117d9736d00
+casual    bambino      | punti 120 + 120 · vinti 51.7%, 44.2% · colpi a scambio 6.88, 6.11 · impronta 93d550b217a7
+casual    preciso      | punti 120 + 120 · vinti 100%, 100% · colpi a scambio 3.88, 3.77 · impronta be5362f87a0f
+pro       tennista     | punti 120 + 120 · vinti 95%, 93.3% · colpi a scambio 6.89, 6.97 · impronta 6a53013f98d2
+pro       amatore      | punti 120 + 120 · vinti 48.3%, 49.2% · colpi a scambio 12.32, 12.63 · impronta 91931c95e708
+pro       bambino      | punti 120 + 120 · vinti 15.8%, 10.8% · colpi a scambio 7.15, 8.16 · impronta 526631a3c2c1
+pro       preciso      | punti 120 + 120 · vinti 96.7%, 95.8% · colpi a scambio 7.37, 6.85 · impronta 15bb2be0a639
+leggenda  tennista     | punti 120 + 120 · vinti 32.5%, 26.7% · colpi a scambio 15.71, 16.44 · impronta c3c3b076f755
+leggenda  amatore      | punti 120 + 120 · vinti 19.2%, 10.8% · colpi a scambio 12.65, 11.82 · impronta b4fab5173f70
+leggenda  bambino      | punti 120 + 120 · vinti 7.5%, 5.8% · colpi a scambio 5.86, 5.81 · impronta 5b0f9028fb56
+leggenda  preciso      | punti 120 + 120 · vinti 30%, 34.2% · colpi a scambio 19.46, 20.74 · impronta 6bda12ef7e3f
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 94091 (con «Classica» sono sempre 0)
+
+== b37 (ramo b36-0-misure; uguale alla base 0035e02 tranne la riga [B36] e i secondi)
+== B37 · impronte contro la CPU: 80 punti per partita, semi 7, 11, 23 ==
+casual    tennista     | punti 80+80+80 · vinti 78,80,79 · impronta d33051dd882e
+casual    amatore      | punti 80+80+80 · vinti 67,68,69 · impronta c06240daa08e
+casual    bambino      | punti 80+80+80 · vinti 43,34,35 · impronta 3a9c181d2649
+casual    preciso      | punti 80+80+80 · vinti 80,80,80 · impronta 17488d3663ae
+casual    medio        | punti 80+80+80 · vinti 74,76,74 · impronta ae0d842388f0
+pro       tennista     | punti 80+80+80 · vinti 78,73,76 · impronta 8d2b10a94a24
+pro       amatore      | punti 80+80+80 · vinti 38,39,39 · impronta bccd2f62ba0a
+pro       bambino      | punti 80+80+80 · vinti 14,11,10 · impronta e1a51590f708
+pro       preciso      | punti 80+80+80 · vinti 77,77,75 · impronta e856d1c5641f
+pro       medio        | punti 80+80+80 · vinti 43,52,43 · impronta feae5344c511
+leggenda  tennista     | punti 80+80+80 · vinti 28,20,25 · impronta e4661ae6a62d
+leggenda  amatore      | punti 80+80+80 · vinti 17,9,13 · impronta 8531fcaa96c9
+leggenda  bambino      | punti 80+80+80 · vinti 8,7,6 · impronta ddefb7b9ca79
+leggenda  preciso      | punti 80+80+80 · vinti 28,27,21 · impronta 0d02190b20ab
+leggenda  medio        | punti 80+80+80 · vinti 8,7,9 · impronta 5ae59b1a2cf7
+impronta di tutto: 2bc31fcb58bb5aa7
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 15232 (con «Classica» sono sempre 0)
+
+== palla-corta (ramo b36-0-misure; uguale alla base 0035e02 tranne la riga [B36] e i secondi)
+== impronte contro la CPU: 120 punti per riga, semi 7, 11 ==
+casual    tennista  | vinti 97.5%, 100% · colpi a scambio 4.13, 4.66 · palle corte 0 · impronta 4abb86e91d90
+casual    amatore   | vinti 85.8%, 84.2% · colpi a scambio 7.91, 8.88 · palle corte 0 · impronta 2117d9736d00
+casual    bambino   | vinti 51.7%, 44.2% · colpi a scambio 6.88, 6.11 · palle corte 0 · impronta 93d550b217a7
+casual    medio     | vinti 88.3%, 95% · colpi a scambio 6.72, 6.97 · palle corte 41 · impronta e2ac89bc2950
+pro       tennista  | vinti 95%, 93.3% · colpi a scambio 6.89, 6.97 · palle corte 0 · impronta 6a53013f98d2
+pro       amatore   | vinti 48.3%, 49.2% · colpi a scambio 12.32, 12.63 · palle corte 0 · impronta 91931c95e708
+pro       bambino   | vinti 15.8%, 10.8% · colpi a scambio 7.15, 8.16 · palle corte 0 · impronta 526631a3c2c1
+pro       medio     | vinti 54.2%, 66.7% · colpi a scambio 9.5, 12.57 · palle corte 72 · impronta d46c517fa174
+bambini   tennista  | vinti 100%, 100% · colpi a scambio 3.96, 3.93 · palle corte 0 · impronta 03ec0c2193b5
+bambini   amatore   | vinti 98.3%, 100% · colpi a scambio 8.43, 9.3 · palle corte 0 · impronta 6acd40af56e5
+bambini   bambino   | vinti 84.2%, 77.5% · colpi a scambio 8.74, 9.92 · palle corte 0 · impronta 487d6c03d4cb
+bambini   medio     | vinti 99.2%, 97.5% · colpi a scambio 7.32, 6.9 · palle corte 44 · impronta ea914d12808c
+evento    tennista  | vinti 91.7%, 90.8% · colpi a scambio 7.91, 8.93 · palle corte 0 · impronta 3c5fb6a8e2ac
+evento    amatore   | vinti 61.7%, 65.8% · colpi a scambio 11.22, 12.55 · palle corte 0 · impronta 9696be64cbcf
+evento    bambino   | vinti 45.8%, 51.7% · colpi a scambio 7.51, 6.68 · palle corte 0 · impronta 56025be4d0f0
+evento    medio     | vinti 72.5%, 69.2% · colpi a scambio 10.88, 11.43 · palle corte 67 · impronta fddc80ea5d0e
+leggenda  tennista  | vinti 32.5%, 26.7% · colpi a scambio 15.71, 16.44 · palle corte 0 · impronta c3c3b076f755
+leggenda  amatore   | vinti 19.2%, 10.8% · colpi a scambio 12.65, 11.82 · palle corte 0 · impronta b4fab5173f70
+leggenda  bambino   | vinti 7.5%, 5.8% · colpi a scambio 5.86, 5.81 · palle corte 0 · impronta 5b0f9028fb56
+leggenda  medio     | vinti 10%, 11.7% · colpi a scambio 12.19, 11.26 · palle corte 71 · impronta 35b025f84423
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 19092 (con «Classica» sono sempre 0)
+
+== fine-partita (ramo b36-0-misure; uguale alla base 0035e02 tranne la riga [B36] e i secondi)
+umano     evento    seme  7  impronta 72d8850a4c35c08c  con le statistiche 72d8850a4c35c08c uguale  punti 83/120
+tennista  leggenda  seme 11  impronta e58c6db64e5931f8  con le statistiche e58c6db64e5931f8 uguale  punti 32/120
+bambino   bambini   seme 23  impronta 5ec5939115f10aeb  con le statistiche 5ec5939115f10aeb uguale  punti 96/120
+medio     pro       seme 31  impronta a6d57269ec174fbf  con le statistiche a6d57269ec174fbf uguale  punti 85/120
+amatore   casual    seme 37  impronta 26af0465935d7241  con le statistiche 26af0465935d7241 uguale  punti 102/120
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 6978 (con «Classica» sono sempre 0)
+
+== evento (ramo b36-0-misure; uguale alla base 0035e02 tranne la riga [B36] e i secondi)
+{
+ "casual/medio/7": "ff8c3433063f58be 74/80",
+ "casual/medio/2001": "518cf804d75ca60d 71/80",
+ "casual/umano/7": "73246f47c030f231 68/80",
+ "casual/umano/2001": "56c6d5acbab62bb8 70/80",
+ "casual/bambino/7": "605a6b9a6f3b97bb 43/80",
+ "casual/bambino/2001": "88925b8420201f11 38/80",
+ "casual/tennista/7": "9afd17127c6919ee 78/80",
+ "casual/tennista/2001": "7223161a14b284a1 77/80",
+ "pro/medio/7": "099aa44c30c437e0 43/80",
+ "pro/medio/2001": "2358c55e5c62a779 52/80",
+ "pro/umano/7": "dfcd1b47feb342d4 50/80",
+ "pro/umano/2001": "b8514de87fbf576c 47/80",
+ "pro/bambino/7": "7dcfafdc8acf1189 14/80",
+ "pro/bambino/2001": "ca874ce214410e44 19/80",
+ "pro/tennista/7": "d7a9e8d984877573 78/80",
+ "pro/tennista/2001": "63b335c43f9035ca 73/80",
+ "leggenda/medio/7": "a250db445ef75a2b 8/80",
+ "leggenda/medio/2001": "9d6ac2d1e13ce6c5 8/80",
+ "leggenda/umano/7": "c76de288a8406d86 18/80",
+ "leggenda/umano/2001": "303c17909fae7cb7 19/80",
+ "leggenda/bambino/7": "9ff3792c097c3c2b 8/80",
+ "leggenda/bambino/2001": "6b39bd870d68de24 6/80",
+ "leggenda/tennista/7": "b936bfc353adb4a4 28/80",
+ "leggenda/tennista/2001": "b23ee315e2e7a326 26/80",
+ "1v1/medio/7": "417be38b00136870 4/4",
+ "1v1/medio/2001": "417be38b00136870 4/4",
+ "1v1/umano/7": "417be38b00136870 4/4",
+ "1v1/umano/2001": "417be38b00136870 4/4",
+ "1v1/bambino/7": "417be38b00136870 4/4",
+ "1v1/bambino/2001": "417be38b00136870 4/4",
+ "1v1/tennista/7": "417be38b00136870 4/4",
+ "1v1/tennista/2001": "417be38b00136870 4/4"
+}
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 8381 (con «Classica» sono sempre 0)
+
+== b42 (ramo b36-0-misure; uguale alla base 0035e02 tranne la riga [B36] e i secondi)
+
+### Contro la CPU (al meglio di 3 game) · scambio caldo: base
+
+| riga | serie | punti (interrotti a 150 colpi) | colpi: media · metà · 9 su 10 · max | oltre 20 | oltre 30 | scambi oltre 20 chiusi entro il 35° | vincenti chi gioca · CPU | in rete chi gioca · CPU | fuori chi gioca · CPU | punti vinti chi gioca | s a punto | partita: media · 9 su 10 (s) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| bambini · bambino | A | 360 (0) | 9,6 · 8 · 22 · 32 | 11,9% | 0,3% | 100% | 43,6 · 14,2% | 0 · 4,4% | 6,4 · 31,4% | 79,4% | 15,8 | 167,3 · 219,4 |
+| bambini · bambino | B | 360 (0) | 8,9 · 7 · 20 · 35 | 9,7% | 0,6% | 100% | 41,9 · 15,3% | 0 · 8,1% | 5 · 29,7% | 79,7% | 14,8 | 154,1 · 199 |
+| bambini · amatore | A | 360 (0) | 8,8 · 7 · 21 · 41 | 10,3% | 0,3% | 97,3% | 62,2 · 0,6% | 0 · 5,8% | 1,4 · 30% | 98,1% | 13,8 | 113,6 · 141,9 |
+| bambini · amatore | B | 360 (0) | 9,4 · 7 · 22 · 35 | 12,5% | 0,3% | 100% | 63,6 · 0,6% | 0 · 5,8% | 1,4 · 28,6% | 98,1% | 14,6 | 119,7 · 147,3 |
+| bambini · umano | A | 360 (0) | 8,6 · 6 · 19 · 34 | 8,1% | 1,1% | 100% | 52,8 · 5,3% | 0 · 5,3% | 3,9 · 32,8% | 90,8% | 13,6 | 120,6 · 162,9 |
+| bambini · umano | B | 360 (0) | 8,5 · 6 · 20 · 32 | 9,7% | 0,6% | 100% | 51,7 · 6,1% | 0 · 8,3% | 3,6 · 30,3% | 90,3% | 13,5 | 119,6 · 152 |
+| bambini · tennista | A | 360 (0) | 4,2 · 3 · 7 · 21 | 0,3% | 0% | 100% | 71,7 · 0% | 0 · 4,7% | 0 · 23,6% | 100% | 7,9 | 62,8 · 74,5 |
+| bambini · tennista | B | 360 (0) | 4,2 · 3 · 8 · 17 | 0% | 0% | 0% | 71,1 · 0% | 0 · 4,4% | 0 · 24,4% | 100% | 7,8 | 62,7 · 75,8 |
+| evento · bambino | A | 360 (0) | 7,4 · 6 · 16 · 31 | 4,7% | 0,3% | 100% | 12,5 · 38,3% | 0 · 5% | 15,8 · 28,3% | 45,8% | 12,5 | 206 · 279 |
+| evento · bambino | B | 360 (0) | 7,2 · 5 · 16 · 30 | 6,7% | 0% | 100% | 13,6 · 37,8% | 0 · 7,2% | 13,3 · 28,1% | 48,9% | 12,3 | 198,7 · 301,3 |
+| evento · amatore | A | 360 (0) | 11,4 · 10 · 25 · 32 | 18,3% | 1,1% | 100% | 38,1 · 11,9% | 0,3 · 5,8% | 22,5 · 21,4% | 65,3% | 15,9 | 223,7 · 345,1 |
+| evento · amatore | B | 360 (0) | 12,6 · 11 · 25 · 34 | 23,3% | 1,1% | 100% | 33,3 · 13,6% | 0,8 · 7,5% | 21,4 · 23,3% | 64,2% | 17,2 | 243,6 · 356,7 |
+| evento · umano | A | 360 (0) | 14,9 · 14 · 26 · 39 | 34,2% | 2,2% | 98,4% | 37,2 · 6,7% | 3,3 · 6,9% | 22,8 · 23,1% | 67,2% | 19,5 | 269,5 · 416 |
+| evento · umano | B | 360 (0) | 14,9 · 15 · 27 · 37 | 34,2% | 2,2% | 99,2% | 39,2 · 8,3% | 2,2 · 5,6% | 19,7 · 25% | 69,7% | 19,3 | 237,5 · 296,7 |
+| evento · tennista | A | 360 (0) | 8,7 · 7 · 19 · 33 | 7,2% | 0,8% | 100% | 81,1 · 0,6% | 0 · 0,8% | 6,7 · 10,8% | 92,8% | 12,1 | 104,2 · 131,6 |
+| evento · tennista | B | 360 (0) | 8,6 · 7 · 19 · 33 | 7,5% | 1,1% | 100% | 83,3 · 1,1% | 0,3 · 0,8% | 7,2 · 7,2% | 91,4% | 12,1 | 106 · 137,9 |
+| casual · bambino | A | 360 (0) | 6,6 · 5 · 15 · 29 | 3,1% | 0% | 100% | 13,3 · 35% | 0 · 5,3% | 18,3 · 28,1% | 46,7% | 11,7 | 203,7 · 309,5 |
+| casual · bambino | B | 360 (0) | 7 · 6 · 16 · 27 | 3,1% | 0% | 100% | 14,4 · 34,7% | 0 · 6,1% | 14,4 · 30,3% | 50,8% | 12,1 | 216,2 · 317,8 |
+| casual · amatore | A | 360 (0) | 8,8 · 7 · 19 · 28 | 6,9% | 0% | 100% | 40,8 · 5% | 0 · 9,4% | 8,1 · 36,7% | 86,9% | 13,7 | 128,6 · 165,4 |
+| casual · amatore | B | 360 (0) | 8,6 · 6 · 20 · 35 | 9,2% | 0,6% | 100% | 42,2 · 5,3% | 0 · 9,2% | 8,6 · 34,7% | 86,1% | 13,4 | 127,2 · 176,8 |
+| casual · umano | A | 360 (0) | 8,8 · 7 · 20 · 31 | 9,2% | 0,3% | 100% | 50,8 · 1,1% | 0,3 · 7,2% | 8,3 · 32,2% | 90,3% | 13,7 | 122,9 · 160,8 |
+| casual · umano | B | 360 (0) | 7,7 · 6 · 17 · 33 | 6,4% | 0,6% | 100% | 51,1 · 1,4% | 0,3 · 5% | 8,3 · 33,9% | 90% | 12,3 | 109,8 · 155,1 |
+| casual · tennista | A | 360 (0) | 4,4 · 3 · 8 · 21 | 0,3% | 0% | 100% | 69,2 · 0% | 0 · 2,8% | 2,2 · 25,8% | 97,8% | 8,1 | 66 · 80,8 |
+| casual · tennista | B | 360 (0) | 4,1 · 3 · 7 · 28 | 0,3% | 0% | 100% | 68,9 · 0,3% | 0 · 4,2% | 1,1 · 25,6% | 98,6% | 7,7 | 62 · 74,3 |
+| pro · bambino | A | 360 (0) | 7,2 · 5 · 16 · 28 | 5,3% | 0% | 100% | 4,4 · 63,1% | 0,3 · 2,8% | 23,3 · 6,1% | 13,3% | 11,7 | 110,2 · 147,3 |
+| pro · bambino | B | 360 (0) | 7,4 · 5 · 17 · 28 | 5% | 0% | 100% | 6,1 · 59,4% | 0 · 1,1% | 25,6 · 7,8% | 15% | 12 | 114 · 158,1 |
+| pro · amatore | A | 360 (0) | 12,8 · 11 · 25 · 30 | 25% | 0% | 100% | 40,3 · 18,6% | 5,6 · 3,9% | 19,4 · 12,2% | 56,4% | 17,4 | 284 · 442,9 |
+| pro · amatore | B | 360 (0) | 12,7 · 12 · 25 · 31 | 22,2% | 0,6% | 100% | 35,6 · 19,7% | 5,3 · 3,3% | 22,5 · 13,6% | 52,5% | 17,3 | 277,4 · 398,5 |
+| pro · umano | A | 360 (0) | 13,1 · 12 · 25 · 30 | 24,7% | 0% | 100% | 40,6 · 11,4% | 7,2 · 5,8% | 21,4 · 13,6% | 60% | 17,7 | 264,1 · 401,1 |
+| pro · umano | B | 360 (0) | 13,9 · 13 · 25 · 31 | 26,9% | 0,6% | 100% | 44,2 · 11,4% | 7,8 · 3,6% | 17,5 · 15,6% | 63,3% | 18,5 | 269,2 · 400,4 |
+| pro · tennista | A | 360 (0) | 8,2 · 6 · 17 · 30 | 4,7% | 0% | 100% | 82,2 · 1,4% | 1,9 · 1,1% | 6,4 · 6,9% | 90,3% | 11,7 | 103,8 · 131,9 |
+| pro · tennista | B | 360 (0) | 8,1 · 7 · 18 · 30 | 6,9% | 0% | 100% | 83,1 · 1,4% | 0,8 · 1,7% | 6,1 · 6,9% | 91,7% | 11,7 | 102,2 · 122,9 |
+| leggenda · bambino | A | 360 (0) | 6,5 · 5 · 15 · 27 | 4,4% | 0% | 100% | 1,9 · 63,3% | 0,8 · 0% | 29,4 · 4,4% | 6,4% | 11,3 | 95,6 · 128,8 |
+| leggenda · bambino | B | 360 (0) | 6,7 · 5 · 15 · 25 | 3,3% | 0% | 100% | 4,2 · 60% | 0,6 · 0,3% | 27,5 · 7,5% | 11,9% | 11,4 | 104,4 · 136,9 |
+| leggenda · amatore | A | 360 (0) | 11,9 · 10 · 25 · 30 | 22,2% | 0% | 100% | 4,4 · 42,8% | 6,4 · 0% | 34,4 · 11,9% | 16,4% | 16,6 | 162,4 · 216,9 |
+| leggenda · amatore | B | 360 (0) | 12,1 · 10 · 25 · 29 | 23,6% | 0% | 100% | 4,2 · 46,7% | 8,1 · 0,3% | 30,8 · 10% | 14,4% | 16,8 | 160,3 · 205,8 |
+| leggenda · umano | A | 360 (0) | 15,2 · 16 · 27 · 31 | 38,9% | 0,3% | 100% | 5 · 38,1% | 22,2 · 0,6% | 16,9 · 17,2% | 22,8% | 19,7 | 210,2 · 292,1 |
+| leggenda · umano | B | 360 (0) | 15,6 · 16 · 27 · 30 | 40,3% | 0% | 100% | 7,2 · 35% | 21,9 · 0% | 17,8 · 18,1% | 25,3% | 20,1 | 227,2 · 346,2 |
+| leggenda · tennista | A | 360 (0) | 16,6 · 19 · 28 · 31 | 45,6% | 0,3% | 100% | 11,9 · 18,1% | 23,9 · 1,7% | 24,7 · 19,7% | 33,3% | 19,7 | 250 · 355,4 |
+| leggenda · tennista | B | 360 (0) | 16,7 · 18 · 27 · 29 | 46,4% | 0% | 100% | 13,1 · 14,7% | 26,9 · 2,5% | 24,2 · 18,6% | 34,2% | 19,7 | 254,5 · 362,8 |
+
+### Stesso schermo (formato in fiera, 1 game) · scambio caldo: base
+
+| riga | serie | punti (interrotti a 150 colpi) | colpi: media · metà · 9 su 10 · max | oltre 20 | oltre 30 | scambi oltre 20 chiusi entro il 35° | vincenti P1 · P2 | in rete P1 · P2 | fuori P1 · P2 | punti vinti P1 | s a punto | partita: media · 9 su 10 (s) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| bambino | A | 713 (0) | 6,9 · 5 · 15 · 30 | 4,5% | 0% | 100% | 33 · 35,3% | 0,1 · 0,4% | 14,9 · 16,3% | 49,6% | 12,1 | 72 · 107,1 |
+| bambino | B | 674 (0) | 6,3 · 5 · 13 · 29 | 2,5% | 0% | 100% | 32,8 · 34% | 0 · 0,1% | 16,8 · 16,3% | 49,3% | 11,4 | 63,8 · 92,6 |
+| amatore | A | 708 (0) | 14,3 · 12 · 29 · 34 | 28% | 6,2% | 100% | 21,3 · 18,1% | 6,1 · 4,7% | 24,7 · 25,1% | 51,1% | 18,9 | 111,8 · 150,1 |
+| amatore | B | 693 (0) | 14,9 · 13 · 30 · 34 | 32,8% | 7,9% | 100% | 17 · 20,3% | 6,6 · 6,5% | 25,4 · 24,1% | 47,6% | 19,6 | 113,4 · 156,5 |
+| medio | A | 695 (0) | 10,1 · 8 · 22 · 34 | 12,9% | 1,3% | 100% | 24,5 · 23,7% | 1,7 · 3,3% | 20,3 · 26,5% | 54,2% | 14,3 | 82,6 · 119,3 |
+| medio | B | 707 (0) | 10,4 · 8 · 24 · 34 | 14,6% | 1,7% | 100% | 20,9 · 26% | 2,3 · 3,4% | 21,1 · 26,3% | 50,6% | 14,6 | 85,9 · 113,8 |
+| tennista | A | 259 (0) | 25,8 · 29 · 33 · 34 | 79,5% | 34,4% | 100% | 4,2 · 2,7% | 26,6 · 32% | 18,1 · 16,2% | 52,5% | 27,1 | 156,2 · 199,5 |
+| tennista | B | 260 (0) | 26,1 · 30 · 33 · 34 | 80,4% | 36,9% | 100% | 4,2 · 3,8% | 33,1 · 30,8% | 13,8 · 14,2% | 49,2% | 27,5 | 158,9 · 202,9 |
+| preciso | A | 423 (0) | 22,9 · 27 · 33 · 34 | 63,8% | 31% | 100% | 8,5 · 10,4% | 21 · 23,9% | 18,7 · 17,5% | 49,9% | 25,4 | 143,2 · 187,4 |
+| preciso | B | 425 (0) | 22,7 · 26 · 33 · 34 | 63,8% | 27,8% | 100% | 8,7 · 7,5% | 23,5 · 21,9% | 19,3 · 19,1% | 49,6% | 25,1 | 142,4 · 183,6 |
+| bambino/medio | A | 641 (0) | 8,2 · 6 · 18 · 32 | 7,3% | 0,5% | 100% | 12,2 · 49,8% | 0,8 · 1,4% | 20 · 15,9% | 29,5% | 13 | 69,4 · 105,2 |
+| bambino/medio | B | 638 (0) | 8 · 6 · 18 · 33 | 6,3% | 0,6% | 100% | 11,3 · 49,7% | 0,5 · 0,9% | 21,2 · 16,5% | 28,7% | 12,7 | 67,6 · 96,6 |
+
+colpi super dei telefoni (quota dei colpi): prima del 20° colpo → dal 20° in poi; perché no, dal 20° in poi
+cpu|bambini|bambino|A: 0% → 0% (124 colpi) · gesto non abbastanza forte 100%
+cpu|bambini|bambino|B: 0% → 0% (101 colpi) · gesto non abbastanza forte 100%
+cpu|bambini|amatore|A: 0,1% → 0,9% (113 colpi) · gesto non abbastanza forte 94,7%, colpo slice 4,4%
+cpu|bambini|amatore|B: 0,1% → 0,7% (145 colpi) · gesto non abbastanza forte 93,1%, colpo slice 6,2%
+cpu|bambini|umano|A: 0% → 0% (100 colpi) · gesto non abbastanza forte 96%, colpo drop 2%, colpo slice 2%
+cpu|bambini|umano|B: 0% → 1% (101 colpi) · gesto non abbastanza forte 98%, colpo slice 1%
+cpu|bambini|tennista|A: 14,2% → 0% (1 colpi) · gesto non abbastanza forte 100%
+cpu|bambini|tennista|B: 15,5% → 0% (0 colpi) · 
+cpu|evento|bambino|A: 0% → 0% (38 colpi) · gesto non abbastanza forte 100%
+cpu|evento|bambino|B: 0% → 0% (56 colpi) · gesto non abbastanza forte 100%
+cpu|evento|amatore|A: 0,1% → 0% (208 colpi) · gesto non abbastanza forte 96,2%, colpo slice 2,4%, palla né alta, né lenta, né corta 0,5%, in corsa o in allungo 0,5%
+cpu|evento|amatore|B: 0% → 0% (233 colpi) · gesto non abbastanza forte 93,6%, colpo slice 4,7%, fuori tempo 0,4%, in corsa o in allungo 0,4%
+cpu|evento|umano|A: 0% → 0% (384 colpi) · gesto non abbastanza forte 95,6%, colpo slice 1,8%, colpo non riuscito 1,6%, colpo lob 0,8%
+cpu|evento|umano|B: 0% → 0% (386 colpi) · gesto non abbastanza forte 96,1%, colpo drop 1,6%, colpo slice 1,3%, colpo non riuscito 0,8%
+cpu|evento|tennista|A: 5,5% → 7,8% (90 colpi) · gesto non abbastanza forte 35,6%, in corsa o in allungo 31,1%, fuori tempo 16,7%, colpo slice 7,8%
+cpu|evento|tennista|B: 4,7% → 11,3% (80 colpi) · gesto non abbastanza forte 36,3%, in corsa o in allungo 23,8%, fuori tempo 17,5%, colpo slice 7,5%
+cpu|casual|bambino|A: 0% → 0% (18 colpi) · gesto non abbastanza forte 100%
+cpu|casual|bambino|B: 0% → 0% (25 colpi) · gesto non abbastanza forte 100%
+cpu|casual|amatore|A: 0% → 0% (76 colpi) · gesto non abbastanza forte 90,8%, colpo slice 7,9%, in corsa o in allungo 1,3%
+cpu|casual|amatore|B: 0% → 0% (95 colpi) · gesto non abbastanza forte 95,8%, colpo slice 3,2%, in corsa o in allungo 1,1%
+cpu|casual|umano|A: 0% → 0% (91 colpi) · gesto non abbastanza forte 96,7%, colpo slice 3,3%
+cpu|casual|umano|B: 0,1% → 0% (68 colpi) · gesto non abbastanza forte 89,7%, colpo drop 7,4%, colpo non riuscito 1,5%, colpo lob 1,5%
+cpu|casual|tennista|A: 13% → 0% (1 colpi) · gesto non abbastanza forte 100%
+cpu|casual|tennista|B: 16,7% → 0% (5 colpi) · gesto non abbastanza forte 60%, fuori tempo 20%, in corsa o in allungo 20%
+cpu|pro|bambino|A: 0% → 0% (45 colpi) · gesto non abbastanza forte 91,1%, colpo non riuscito 8,9%
+cpu|pro|bambino|B: 0% → 0% (40 colpi) · gesto non abbastanza forte 95%, colpo non riuscito 5%
+cpu|pro|amatore|A: 0% → 0% (254 colpi) · gesto non abbastanza forte 89,8%, colpo non riuscito 8,3%, colpo slice 1,2%, fuori tempo 0,4%
+cpu|pro|amatore|B: 0,1% → 0% (241 colpi) · gesto non abbastanza forte 87,6%, colpo non riuscito 8,3%, colpo slice 3,3%, colpo lob 0,8%
+cpu|pro|umano|A: 0% → 0% (251 colpi) · gesto non abbastanza forte 88%, colpo non riuscito 8%, colpo drop 2,8%, colpo slice 0,8%
+cpu|pro|umano|B: 0% → 0% (292 colpi) · gesto non abbastanza forte 90,1%, colpo non riuscito 7,9%, colpo drop 1%, colpo slice 1%
+cpu|pro|tennista|A: 6% → 10,7% (56 colpi) · gesto non abbastanza forte 42,9%, in corsa o in allungo 14,3%, colpo non riuscito 10,7%, palla né alta, né lenta, né corta 8,9%
+cpu|pro|tennista|B: 6,3% → 11,1% (63 colpi) · gesto non abbastanza forte 46%, in corsa o in allungo 14,3%, fuori tempo 12,7%, palla né alta, né lenta, né corta 9,5%
+cpu|leggenda|bambino|A: 0% → 0% (38 colpi) · gesto non abbastanza forte 78,9%, colpo non riuscito 21,1%
+cpu|leggenda|bambino|B: 0% → 0% (23 colpi) · gesto non abbastanza forte 100%
+cpu|leggenda|amatore|A: 0% → 0% (229 colpi) · gesto non abbastanza forte 83,8%, colpo non riuscito 14%, colpo slice 1,7%, colpo lob 0,4%
+cpu|leggenda|amatore|B: 0% → 0% (249 colpi) · gesto non abbastanza forte 79,1%, colpo non riuscito 16,9%, colpo slice 3,2%, colpo lob 0,8%
+cpu|leggenda|umano|A: 0% → 0% (444 colpi) · gesto non abbastanza forte 79,7%, colpo non riuscito 18,9%, colpo drop 0,7%, colpo slice 0,7%
+cpu|leggenda|umano|B: 0% → 0% (488 colpi) · gesto non abbastanza forte 80,3%, colpo non riuscito 17,6%, colpo drop 1,8%, colpo lob 0,2%
+cpu|leggenda|tennista|A: 2,1% → 5,6% (558 colpi) · gesto non abbastanza forte 34,1%, fuori tempo 15,8%, colpo non riuscito 15,6%, in corsa o in allungo 10,6%
+cpu|leggenda|tennista|B: 2,1% → 5,8% (586 colpi) · gesto non abbastanza forte 30,2%, fuori tempo 17,4%, colpo non riuscito 16,6%, in corsa o in allungo 14,7%
+stesso|bambino|A: 1,3% → 5,1% (156 colpi) · gesto non abbastanza forte 76,9%, fuori tempo 10,3%, palla né alta, né lenta, né corta 2,6%, in corsa o in allungo 1,9%
+stesso|bambino|B: 0,8% → 3,3% (91 colpi) · gesto non abbastanza forte 86,8%, fuori tempo 4,4%, palla né alta, né lenta, né corta 3,3%, colpo non riuscito 2,2%
+stesso|amatore|A: 0,7% → 7,8% (1594 colpi) · gesto non abbastanza forte 75,7%, colpo non riuscito 5%, fuori tempo 4%, colpo slice 3,5%
+stesso|amatore|B: 0,7% → 8,5% (1915 colpi) · gesto non abbastanza forte 75,2%, colpo non riuscito 4,6%, fuori tempo 4,6%, colpo slice 3%
+stesso|medio|A: 0,5% → 7,1% (603 colpi) · gesto non abbastanza forte 76,9%, colpo slice 4,3%, colpo non riuscito 4%, fuori tempo 3,6%
+stesso|medio|B: 0,2% → 6,4% (732 colpi) · gesto non abbastanza forte 76,4%, colpo slice 4,9%, fuori tempo 4,4%, colpo non riuscito 4%
+stesso|tennista|A: 0% → 3,4% (2192 colpi) · gesto non abbastanza forte 78,9%, colpo non riuscito 6,9%, colpo slice 6,6%, colpo lob 2,1%
+stesso|tennista|B: 0% → 4,8% (2225 colpi) · gesto non abbastanza forte 76,8%, colpo non riuscito 7,6%, colpo slice 6,6%, colpo lob 2,1%
+stesso|preciso|A: 0% → 0,3% (2854 colpi) · gesto non abbastanza forte 81,1%, colpo slice 9,6%, colpo non riuscito 6,7%, colpo lob 2,1%
+stesso|preciso|B: 0% → 0,6% (2750 colpi) · gesto non abbastanza forte 81,6%, colpo slice 8,3%, colpo non riuscito 7,1%, colpo lob 2,3%
+stesso|bambino/medio|A: 0,6% → 4,2% (263 colpi) · gesto non abbastanza forte 78,7%, fuori tempo 5,7%, colpo non riuscito 3,8%, palla né alta, né lenta, né corta 3,4%
+stesso|bambino/medio|B: 0,5% → 8,3% (230 colpi) · gesto non abbastanza forte 78,7%, colpo slice 4,3%, fuori tempo 3,9%, colpo non riuscito 2,6%
+
+impronte: cpu|bambini|bambino|A af5b6f450914 · cpu|bambini|bambino|B 045ee8cd0433 · cpu|bambini|amatore|A c437c5977324 · cpu|bambini|amatore|B a3fa66a6065e · cpu|bambini|umano|A 46f60156b384 · cpu|bambini|umano|B 42b05a1fa297 · cpu|bambini|tennista|A 7b4179b63c4b · cpu|bambini|tennista|B 3dc2676d2ff8 · cpu|evento|bambino|A f96973388317 · cpu|evento|bambino|B 0e2d78b18aee · cpu|evento|amatore|A 0ef5985483ea · cpu|evento|amatore|B bf8920808d10 · cpu|evento|umano|A 9a60eac96d89 · cpu|evento|umano|B 6029266664db · cpu|evento|tennista|A cb5f8cfa90c6 · cpu|evento|tennista|B b88e86fae50f · cpu|casual|bambino|A e74e992d3ff3 · cpu|casual|bambino|B afa4e0be47f7 · cpu|casual|amatore|A 244625bedb5d · cpu|casual|amatore|B 3b7e0b45c6b9 · cpu|casual|umano|A 4a0e6f82f82e · cpu|casual|umano|B fa4e20e26e46 · cpu|casual|tennista|A ca6dc4b68626 · cpu|casual|tennista|B 4efa734a93d2 · cpu|pro|bambino|A b1a392791c65 · cpu|pro|bambino|B 9f929b5f028a · cpu|pro|amatore|A e35f8ec57bcf · cpu|pro|amatore|B 61b09c1d4a54 · cpu|pro|umano|A 95c2f77407c5 · cpu|pro|umano|B 5acaa790e260 · cpu|pro|tennista|A 1098ef528b2b · cpu|pro|tennista|B cbe96a40bad0 · cpu|leggenda|bambino|A aee2533efe46 · cpu|leggenda|bambino|B ddf250cee3d5 · cpu|leggenda|amatore|A 6985142340ef · cpu|leggenda|amatore|B 193e3e4c4daf · cpu|leggenda|umano|A bc75e181931e · cpu|leggenda|umano|B ca367a4cca6a · cpu|leggenda|tennista|A 61aa640dc35a · cpu|leggenda|tennista|B 1ffc8cc597f0 · stesso|bambino|A 77d039f7ae7c · stesso|bambino|B 30eee0e9c31f · stesso|amatore|A 39985e5ddabc · stesso|amatore|B 55360bb43318 · stesso|medio|A 86b6878f62f9 · stesso|medio|B 5a34934200f6 · stesso|tennista|A fbc250f24961 · stesso|tennista|B c30f8150c10b · stesso|preciso|A 729e7243a811 · stesso|preciso|B bd8fd5cb1f99 · stesso|bambino/medio|A 9ecbd385eb7c · stesso|bambino/medio|B cc0a61161778
+(110 s)
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 143116 (con «Classica» sono sempre 0)
+
+== legend (ramo b36-0-misure; uguale alla base 0035e02 tranne la riga [B36] e i secondi)
+
+Leggenda contro «medio» (412 game, punti di chi gioca 14.4% ± 0.93 con 8 semi (deviazione tra i semi 2.62), 11.74 colpi per punto, schemi {"tagliato":19.2,"corpo":14,"smorzata":13.8,"lungolinea":13.3,"incrociato":12.3,"incrociatoStretto":12.3,"campoAperto":7.6,"chiusura":5.3,"alta":1.4,"passanteLungo":0.5,"contropiede":0.2,"pallonetto":0.2,"passante":0}, distanza all'impatto p50/p95/max 0.34/0.7/2.2 m, affondi 1601, palle lasciate passare 1)
+  OK  game vinti dalla CPU ≥ 90%                       98.5%
+  OK  errori della CPU 2–6% per colpo                  2.3%
+  OK  incrociati 30–50%                                39%
+  OK  lungolinea ≥ 10%                                 26.7%
+  OK  almeno 6 schemi sopra il 3%                      8
+  OK  nessuno schema sopra il 35%                      19.2%
+  OK  entropia ≥ 2,3 bit                               2.81
+  OK  ripetizioni ≤ 20%                                9.5%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+  OK  vincenti ≥ errori                                2.53
+
+Leggenda contro «amatore» (401 game, punti di chi gioca 13.9% ± 0.83 con 8 semi (deviazione tra i semi 2.36), 11.92 colpi per punto, schemi {"corpo":17.7,"tagliato":16,"incrociatoStretto":14.9,"smorzata":14.2,"incrociato":12.1,"lungolinea":7.9,"alta":7.1,"chiusura":4.8,"campoAperto":3.9,"contropiede":0.4,"passanteLungo":0.4,"pallonetto":0.3,"passante":0.1}, distanza all'impatto p50/p95/max 0.36/0.66/1.86 m, affondi 1139, palle lasciate passare 2)
+  OK  game vinti dalla CPU ≥ 90%                       99.8%
+  OK  errori della CPU 2–6% per colpo                  2.1%
+  OK  incrociati 30–50%                                40.9%
+  OK  lungolinea ≥ 10%                                 19%
+  OK  almeno 6 schemi sopra il 3%                      9
+  OK  nessuno schema sopra il 35%                      17.7%
+  OK  entropia ≥ 2,3 bit                               2.8
+  OK  ripetizioni ≤ 20%                                9.9%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Leggenda contro «tennista» (281 game, punti di chi gioca 28.1% ± 1.21 con 8 semi (deviazione tra i semi 3.42), 16.83 colpi per punto, schemi {"incrociatoStretto":19.5,"incrociato":12.9,"corpo":12.9,"tagliato":12.6,"chiusura":11.7,"smorzata":8.7,"campoAperto":5.3,"lungolinea":4.8,"alta":4.7,"passanteLungo":4.1,"passante":1.4,"contropiede":1.3,"pallonetto":0.1}, distanza all'impatto p50/p95/max 0.41/1.19/2.3 m, affondi 5347, palle lasciate passare 0)
+  OK  game vinti dalla CPU ≥ 85%                       92.2%
+  OK  errori della CPU 2–6% per colpo                  2.5%
+  OK  incrociati 30–50%                                47%
+  OK  lungolinea ≥ 10%                                 22.4%
+  OK  almeno 6 schemi sopra il 3%                      10
+  OK  nessuno schema sopra il 35%                      19.5%
+  OK  entropia ≥ 2,3 bit                               2.85
+  OK  ripetizioni ≤ 20%                                10.5%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Leggenda contro «preciso» (229 game, punti di chi gioca 32.4% ± 1.92 con 8 semi (deviazione tra i semi 5.43), 20.11 colpi per punto, schemi {"tagliato":17.8,"incrociatoStretto":15.9,"chiusura":13.6,"smorzata":12.4,"corpo":11.9,"incrociato":10.7,"lungolinea":7.8,"campoAperto":6.5,"passanteLungo":1.3,"alta":0.8,"contropiede":0.8,"passante":0.4,"pallonetto":0.1}, distanza all'impatto p50/p95/max 0.29/0.97/2.3 m, affondi 3573, palle lasciate passare 0)
+  OK  game vinti dalla CPU ≥ 60%                       83.4%
+  OK  errori della CPU 2–6% per colpo                  2.7%
+  OK  incrociati 30–50%                                40.4%
+  OK  lungolinea ≥ 10%                                 28%
+  OK  almeno 6 schemi sopra il 3%                      8
+  OK  nessuno schema sopra il 35%                      17.8%
+  OK  entropia ≥ 2,3 bit                               2.88
+  OK  ripetizioni ≤ 20%                                10.5%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Leggenda contro «bambino» (557 game, punti di chi gioca 6.9% ± 0.46 con 8 semi (deviazione tra i semi 1.31), 6.18 colpi per punto, schemi {"corpo":20.1,"tagliato":20,"incrociatoStretto":14,"incrociato":13.9,"lungolinea":12.5,"smorzata":10.8,"campoAperto":6.3,"alta":1.6,"chiusura":0.7,"contropiede":0.2,"pallonetto":0,"passanteLungo":0}, distanza all'impatto p50/p95/max 0.38/0.6/1.23 m, affondi 340, palle lasciate passare 0)
+  OK  game vinti dalla CPU ≥ 98%                       99.8%
+  OK  errori della CPU 2–6% per colpo                  2.4%
+  OK  incrociati 30–50%                                44.4%
+  OK  lungolinea ≥ 10%                                 18.9%
+  OK  almeno 6 schemi sopra il 3%                      7
+  OK  nessuno schema sopra il 35%                      20.1%
+  OK  entropia ≥ 2,3 bit                               2.74
+  OK  ripetizioni ≤ 20%                                9.2%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+Leggenda contro «impreciso» (564 game, punti di chi gioca 5.6% ± 0.64 con 8 semi (deviazione tra i semi 1.8), 5.05 colpi per punto, schemi {"corpo":20.8,"tagliato":20.2,"incrociato":20.1,"lungolinea":16.3,"campoAperto":7.8,"smorzata":5.2,"incrociatoStretto":5.2,"alta":3.8,"contropiede":0.2,"pallonetto":0.2,"chiusura":0.1,"passanteLungo":0.1,"passante":0}, distanza all'impatto p50/p95/max 0.41/0.64/1.6 m, affondi 782, palle lasciate passare 0)
+  OK  game vinti dalla CPU ≥ 98%                       100%
+  OK  errori della CPU 2–6% per colpo                  2.2%
+  OK  incrociati 30–50%                                41%
+  OK  lungolinea ≥ 10%                                 23.3%
+  OK  almeno 6 schemi sopra il 3%                      8
+  OK  nessuno schema sopra il 35%                      20.8%
+  OK  entropia ≥ 2,3 bit                               2.41
+  OK  ripetizioni ≤ 20%                                14.2%
+  OK  scambi chiusi a 60 colpi ≤ 1%                    0%
+  OK  velocità massima ≤ 8.8 m/s (giocatore)           8.6
+  OK  reazione p10 ≥ 0,12 s                            0.125
+
+pro contro «medio» (non regressione)
+  OK  pro contro medio: il giocatore vince 70–85% dei game 75.9%
+
+casual contro «medio» (non regressione)
+  OK  casual contro medio: il giocatore vince ≥ 95% dei game 100%
+
+Tutti i criteri rispettati
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 74351 (con «Classica» sono sempre 0)
+
