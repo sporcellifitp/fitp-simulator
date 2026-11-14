@@ -2,6 +2,7 @@
 // eventi devicemotion sintetici, comandi veri dell'interfaccia). Richiesta dell'utente allo stand: «si parte con qualche
 // scambio, il software deve capire bene destra e sinistra, velocità ed i parametri necessari, e poi dopo circa 10-15 secondi
 // di scambi, parte il match vero».
+//   FLOW=minigioco (B28.1): Minigiochi → minigioco → scambi di prova → minigioco, «Riprova», di nuovo dal menu
 //   FLOW=singolo (predefinito)  menu → Gioca → Contro la CPU → Smartphone → telefono («Attiva i sensori», «Tutto chiaro»
 //                 dalla PRIMA scheda) → scambi di prova → «Pronto per la partita» → pagina «Pronto per la partita» con
 //                 «Chi gioca», «Personaggi» e «Altre impostazioni» (B35, collaudo dell'utente del 13/11: prima la partita
@@ -124,6 +125,56 @@ try {
   await pc.waitForFunction(() => window.__natpfTennis?.natpfPhone && window.__natpfTennis.natpfUi?.lobby && window.__natpfTennis.player?.model, null, { timeout: 120000 });
   await pc.evaluate(() => { const E = __natpfTennis; E.__render = E.render.bind(E); E.render = () => {}; });
   check('opzione dello stand di base: «Giocando»', (await gameInfo()).cal === 'play');
+  if (FLOW === 'minigioco'){
+    // B28.1 · minigioco nella modalità di base: Minigiochi → un minigioco → nome → Smartphone → telefono → tutorial corto →
+    // scambi di prova → minigioco; «Riprova» senza rifarli; dal menu un altro minigioco (un'altra persona, per quel che
+    // ne sa il gioco) li rifà da un profilo nuovo
+    await pc.click('[data-menu="challenges"]');
+    await until(pc, () => __natpfTennis.natpfUi.lobby.step === 'challenges' && document.querySelector('[data-challenge="rush"]'), null, 8000);
+    await pc.click('[data-challenge="rush"]');
+    await until(pc, () => !document.getElementById('natpf-nick').classList.contains('hidden'), null, 5000);
+    await pc.fill('#nick-input', 'Marta'); await pc.click('#nick-form button[type="submit"]');
+    await until(pc, () => __natpfTennis.natpfUi.lobby.step === 'controller', null, 8000);
+    await pc.click('[data-page="controller"] [data-natpf-controller="phone"]');
+    await until(pc, () => __natpfTennis.natpfPhone.link?.L.state === 'waiting' && __natpfTennis.natpfPhone.pairingUrl, null, 30000);
+    const ph = await phoneFlow('tel1', await pc.evaluate(() => __natpfTennis.natpfPhone.pairingUrl));
+    check('minigioco: tutorial corto aperto in campo', await until(pc, () => __natpfTennis.natpfUi.training.tutorialOpen, null, 15000));
+    await until(ph, () => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden') && !b.disabled; }, null, 5000);
+    const tGo = Date.now();
+    await ph.click('#tutOk');
+    const cmdsOf = () => pc.evaluate(() => (window.__cmds ||= (() => { const L = __natpfTennis.natpfPhone.link, a = [], c = L.cmd.bind(L); L.cmd = x => { a.push(x); return c(x); }; return a; })()).slice());
+    check('dopo «Tutto chiaro»: scambi di prova in campo, il minigioco non è ancora partito', await until(pc, () => __natpfTennis.natpfUi.trial.active && !__natpfTennis.natpfUi.events.active, null, 12000));
+    await cmdsOf();
+    const r = await playTrial({ tel1: ph }, hitOf);
+    const started = await until(pc, () => !!__natpfTennis.natpfUi.events.active && !__natpfTennis.natpfUi.trial.active, null, 8000);
+    const secs = (Date.now() - tGo)/1000; res.secondsToFirstPoint = +secs.toFixed(1); res.trial = r;
+    const i1 = await gameInfo(), ev1 = await pc.evaluate(() => ({ id: __natpfTennis.natpfUi.events.active?.id, seq: __natpfTennis.natpfUi.activitySeq, score: __natpfTennis.natpfUi.events.active?.score }));
+    check(`il minigioco parte da solo dopo gli scambi di prova (${secs.toFixed(1)} s da «Tutto chiaro»), punteggio 0`, started && ev1.id === 'rush' && ev1.score === 0 && ev1.seq === 1, JSON.stringify(ev1));
+    check('profilo imparato dagli scambi di prova, scritta tolta', !i1.p1.simple && i1.p1.level === 'full' && !i1.trialHud, JSON.stringify(i1.p1));
+    await sleep(500); await shot('pc', 'minigioco');
+    // «Riprova» (la stessa persona): il minigioco riparte subito, niente scambi di prova e niente profilo da capo
+    await pc.evaluate(() => { const L = __natpfTennis.natpfUi.lobby; __natpfTennis.natpfUi.events.abort(); L._resultAction('again'); });
+    const again = await until(pc, () => !!__natpfTennis.natpfUi.events.active && !__natpfTennis.natpfUi.trial.active, null, 5000);
+    await sleep(600);
+    const i2 = await gameInfo(), c2 = await cmdsOf();
+    check('«Riprova»: minigioco subito, senza scambi di prova, con lo stesso profilo', again && !i2.p1.simple && i2.p1.level === 'full' && c2.length === 0, JSON.stringify({ p1: i2.p1, cmds: c2 }));
+    // menu → lo stesso minigioco di nuovo: scambi di prova da un profilo nuovo
+    await pc.evaluate(() => __natpfTennis.natpfUi.backToMenu());
+    await until(pc, () => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'menu', null, 5000);
+    await pc.click('[data-menu="challenges"]');
+    await until(pc, () => __natpfTennis.natpfUi.lobby.step === 'challenges', null, 5000);
+    await pc.click('[data-challenge="rush"]');
+    await until(pc, () => __natpfTennis.natpfUi.lobby.step === 'controller', null, 8000);
+    await pc.evaluate(() => { const L = __natpfTennis.natpfUi.lobby; L.go('connect'); });
+    await sleep(400);
+    await pc.evaluate(() => { const L = __natpfTennis.natpfUi.lobby; if (L.visible && L.step === 'connect') L.next(); });
+    const trial2 = await until(pc, () => __natpfTennis.natpfUi.trial.active && !__natpfTennis.natpfUi.events.active, null, 10000);
+    await sleep(400);
+    const i3 = await gameInfo(), c3 = await cmdsOf();
+    check('dal menu un altro minigioco: scambi di prova di nuovo, da un profilo semplice nuovo', trial2 && c3.join() === 'cal,skip' && i3.p1.simple, JSON.stringify({ cmds: c3, p1: i3.p1 }));
+    await pc.evaluate(() => document.getElementById('trial-skip').click());
+    check('«Salta ›»: il minigioco parte subito', await until(pc, () => !!__natpfTennis.natpfUi.events.active && !__natpfTennis.natpfUi.trial.active, null, 5000));
+  } else {
   await pc.click('[data-menu="play"]');
   if (FLOW === 'singolo'){
     await pc.click('[data-mode="cpu"]');
@@ -268,6 +319,7 @@ try {
       check('tutti e due hanno imparato (profilo non semplice)', !i1.p1.simple && !i1.p2.simple && ['full', 'ok'].includes(i1.p1.level) && ['full', 'ok'].includes(i1.p2.level), JSON.stringify([i1.p1, i1.p2]));
     }
     await sleep(600); await shot('pc', 'partita-0-0');
+  }
   }
   check('nessun errore nella pagina del gioco', !errs.length, errs.slice(0, 3).join(' | '));
   writeFileSync(`${OUT}/prova-${TAG}.json`, JSON.stringify(res, null, 1));

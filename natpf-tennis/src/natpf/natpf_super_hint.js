@@ -90,7 +90,9 @@ export class NatpfSuperHint {
   reset(){ this.seen = false; this._inPoint = false; this.until = 0; this.text = ''; this.el?.classList.add('hidden'); }
   update(dt, now = this.engine.elapsedTime){
     const E = this.engine, shot = E.natpfLastRacket;
-    const solo = !E.isMultiplayer && !E.natpfSplit?.active && E.playerRole !== 'p2' && !E.autoPlayMode;
+    // (B28.1: non negli scambi di prova. Lì i colpi non si giudicano e nessuna scritta dell'esito esce; «Super mancato»
+    // sopra il cartello «Scambi di prova» parlerebbe di un colpo che non conta e brucerebbe la spiegazione lunga)
+    const solo = !E.isMultiplayer && !E.natpfSplit?.active && E.playerRole !== 'p2' && !E.autoPlayMode && !E.natpfUi?.trial?.active;
     // punto nuovo (si torna a servire): la scritta può uscire di nuovo
     // (anche quando il conto dei colpi dello scambio riparte: riscaldamento e sfide con il lanciapalle, senza servizio)
     const strokes = E.ball?.rallyStrokeCount || 0;

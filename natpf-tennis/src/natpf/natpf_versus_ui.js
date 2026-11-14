@@ -268,6 +268,10 @@ export class NatpfVersusUi {
     if (ui.controller === 'phone') phone.demoteIfStale?.();
     // B28: telefono già pronto con la calibrazione «Giocando»: prima gli scambi di prova in campo (una volta), poi pronto
     if (ui.controller === 'phone' && phone.ready && !this.trialPlayed && ui.trial?.due?.({ split: false })){ this.startCal(); return; }
+    // B28.1, «Nessuna»: il Player 2 riparte dal profilo semplice una volta, quando si dichiara pronto (prima non
+    // ripartiva mai: giocava con il colpo tipico di chi aveva usato quel computer prima). Il telefono torna pronto in
+    // un attimo (NatpfPhoneRacket.resetting): si è pronti subito
+    if (ui.controller === 'phone' && phone.ready && !this.freshDone && ui.freshForActivity?.()){ this.freshDone = true; this.setReady(true); return; }
     if (ui.controller !== 'phone' || phone.ready){ this.setReady(true); return; }
     this.awaitPhone = true;
     show($('natpf-guest-modal'), false);

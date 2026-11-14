@@ -1826,3 +1826,60 @@ Ramo `b43-tabellone-pannello` (base `fd71f91` = 2026-11-13.10, con dentro la 13.
 - [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`. Da
   chiedere all'utente (domanda a scelta): le istruzioni del servizio a 720×720 contro la CPU (sotto il tabellone o più
   strette).
+
+## B28.1 · Il profilo del telefono vale per l'attività che segue (13/11, ramo `b41-fiera-1`) · [x] verificato sul ramo, da unire
+Obiettivo: i 5 punti di `docs/coda/B28.1-profilo-per-attivita.md`. Criterio di fine: un test per punto che fallisce
+senza la correzione, suite verdi, prove nel browser `natpf-scambi-di-prova` (anche `FLOW=minigioco`) e `natpf-phone-keep`
+nei due modi.
+- [x] B28.1.a · codice e test, ripresi da `763e338` (ramo `b28-cal-giocando`, fermo alla 2026-11-12.5) sopra la
+  2026-11-13.11 con `git cherry-pick`. File: `natpf_lobby.js` (`startWarmup`: `demoteStale`; `_startChallenge`:
+  `freshForActivity` e `activityStarted`; `_warmedOnce`), `natpf_phone_racket.js` (`activitySeq`, `gestureAt` per
+  attività, `endTrial` con `keep`), `natpf_super_hint.js` (niente «Super mancato» negli scambi di prova),
+  `natpf_training.js` (esercizi = attività), `natpf_trial.js` (`trialOutro` con «gesti», `outroCounts`), `natpf_ui.js`
+  (`activityStarted`, `activityLive`, `demoteStale`, `freshForActivity`; `_bindStart` del B35 unito a mano),
+  `natpf_versus_ui.js` (Player 2 con «Nessuna»), `test/natpf-giocando-revisione.test.mjs` (6 test B28.1, adattati al
+  flusso del B35), `tools/e2e/natpf-phone-keep.mjs` (soglia 2100 ms con il conto).
+  Verifiche: test B28.1 6/6 (6/6 rossi sulla stessa base senza la correzione), gioco 1482/1482, sito 226/226.
+- [x] B28.1.b · documenti e prova del minigioco (da `88cf743`), numeri in `docs/b28/calibrazione-giocando.md`;
+  `natpf-phone-keep`: nel caso A la palla vola 2,5 s (con la palla tesa la pausa a 1,9–2,0 s trovava lo scambio già
+  finito, 11/13 anche da sola).
+  Verifiche nel browser (porte 4150–4157): `natpf-scambi-di-prova` `FLOW=minigioco` 10/10 e `FLOW=singolo` 30/30;
+  `natpf-phone-keep` `CAL=gesti` 13/13 e `CAL=base` 13/13.
+  Non verificato: telefoni e persone vere; `natpf-nuovo-giocatore` e `natpf-formato-fiera` girano con la verifica finale
+  del B41 (stesso ramo).
+
+## B41 prima parte · Telefoni dello stand abbinati una volta e «Sono pronto» dal telefono (13–14/11, ramo `b41-fiera-1`) · [x] verificato sul ramo, da unire
+Obiettivo: tappe B41.1, B41.2, B41.3 e B41.6 di `docs/b41/progetto-modalita-fiera.md` più la regola «in fiera contro la
+CPU batte sempre il visitatore» (funzione e test). Criterio di fine: test di unità e suite verdi, prova nel browser con
+i telefoni simulati (abbinamento una volta, gioco ricaricato senza QR, chiosco che non scollega, «Sono pronto» con uno e
+due telefoni, telefono che cade durante il conto), prove di prima verdi, `audit:legend` uguale alla base. Documento:
+`docs/b41/modalita-fiera-1.md`.
+- [x] B41.a · codice (commit `0022d5a`). File nuovi: `site/js/tennis/stand-pairing.js` (guardiano del posto, QR, prove
+  HMAC «stand-game»/«stand-phone», dati del telefono), `natpf-tennis/src/natpf/natpf_fiera.js` (modalità fiera,
+  `?stand=fiera`, posti in ascolto all'avvio, funzioni per la B41.4, `fairServer`), `natpf_ready_go.js` («Sono pronto»).
+  Cambiati: `link.js` (stand: indirizzo fisso, ingresso con la prova, indirizzo occupato riprovato, abbinamento con la
+  conferma; la racchetta normale rifiuta `role: 'stand'`), `racchetta.js`, `phone-screen.js`, `racchetta.html` (pagina
+  del telefono dello stand, «Sono pronto» grande), `natpf_phone_racket.js` (`useStand`, `standPairingUrl`, offerta con
+  dati in più, tutorial visto per lo stand), `natpf_ui.js` (costruzione e giro dei 100 ms, riquadro del QR del telefono
+  dello stand), `natpf_kiosk.js` (due righe: niente «Scollega» per il telefono dello stand, non conta come visitatore),
+  `natpf_lobby.js` (Esc con il conto di «Sono pronto»), `index.html` e `natpf-ui.css` (spunte accanto a «Gioca», riquadro
+  del conto). Test: `tools/test/stand-pairing` (11), `stand-phone` (10), `natpf-tennis/test/natpf-fiera` (6),
+  `natpf-ready-go` (9); `natpf-niente-blocchi` aggiornato (dopo l'allenamento la pagina offre «Sono pronto»).
+- [x] B41.b · unione di `natpf-simulator` (`c47a1ff`: B43 e versione 2026-11-13.12), commit `09c7ad8`: conflitti in
+  `natpf_ui.js` (giro dei 100 ms del B43 più «Sono pronto»), `natpf-ui.css` e questo registro, tenute le due parti.
+- [x] B41.c · ritocchi dopo le prove nel browser: «Sono pronto» non si perde per i sensori «fermi» meno di 0,3 s (il
+  computer occupato un attimo li fa sembrare fermi tutti); riquadro del conto «Pronto · si gioca tra» contro la CPU;
+  stesso schermo e telefono dello stand scollegato senza «Inquadra il QR»; sul telefono dello stand niente «inquadra di
+  nuovo il QR» nei motivi della rete; la prova nuova esce da sola (`process.exit`).
+  Verifiche: (codice unito con la 13.12) gioco 1513/1513, sito 247/247, programma Windows 43/43, LAN 12/12, build ok,
+  `audit:legend` uguale byte per byte alla base `c47a1ff`. Nel browser (porte 4150–4171; `natpf-telecomando` con `flock`):
+  `natpf-fiera-telefoni` 38/38 (due volte, l'ultima sul codice finale), `natpf-scambi-di-prova` 30/30 e `FLOW=minigioco`
+  10/10, `natpf-phone-keep` `CAL=gesti` 13/13 e `CAL=base` 13/13, `natpf-stesso-schermo-b20` 53/53, `natpf-menu` 45/45,
+  `natpf-nuovo-giocatore` 28/28, `natpf-formato-fiera` 25/25, `natpf-telecomando` 85/85. Schermate del telefono e della
+  pagina «Pronto per la partita» a 1920 × 1080 e 720 × 720 guardate.
+  Non verificato: telefoni veri, persone, Windows, ledwall, LAN con il collegamento fisso (provato via PeerJS locale),
+  PeerJS pubblico dopo un riavvio, batteria vera; il foglio «Telefoni dello stand» (B41.4) non c'è ancora: l'abbinamento
+  si prova con le funzioni del gioco.
+- [ ] Da fare per chi unisce in `natpf-simulator`: versione nuova, pacchetti, `PIANO_LAVORI.md` e `TRACCIA_PASSI.md`.
+  Poi la B41 seconda parte (B41.4 foglio e interruttore, B41.5 pagina della fiera e «Prossimo giocatore») dopo i blocchi
+  dello stand con il solo mouse.

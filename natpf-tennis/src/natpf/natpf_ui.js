@@ -29,6 +29,8 @@ import { installMatchStats } from './natpf_match_stats.js';
 import { isCpuLevel } from './natpf_who.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
 import { NatpfRemote } from './natpf_remote.js';
+import { NatpfFiera } from './natpf_fiera.js';
+import { NatpfReadyGo } from './natpf_ready_go.js';
 import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText, phoneOf, holdTitle, otherPhoneNote } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
@@ -133,6 +135,10 @@ export class NatpfUi {
     try { this.registro = new NatpfRegistro(engine, this); } catch (e){ this.registro = null; console.warn('[natpf-registro] non avviato', e?.message || e); }
     // telecomando dello staff (B27): telefono dello staff abbinato una volta, frecce, OK, Pausa, Menu… (natpf_remote.js)
     this.remote = new NatpfRemote(engine, this);
+    // B41 prima parte: modalità fiera (telefoni dello stand abbinati una volta e sempre in ascolto, natpf_fiera.js) e
+    // «Sono pronto» dai telefoni sulla pagina «Pronto per la partita» (natpf_ready_go.js, vale anche fuori dalla fiera)
+    this.fiera = new NatpfFiera(engine, this);
+    this.readyGo = new NatpfReadyGo(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
     // aggiornamenti del programma Windows (window.natpfDesktop.updates, 07/11): avviso nel menu e sezione in Opzioni;
@@ -176,8 +182,8 @@ export class NatpfUi {
     // webcam in campo: lo stesso per la mano persa a lungo e la camera ferma (natpf_webcam_watch.js)
     this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
     // (B43: con un foglio dello staff aperto la pausa si ricalcola anche qui: una partita che parte con la diagnostica già
-    // aperta, ?diag=1, resta ferma come le altre)
-    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); } catch (e){ console.error(e); } }, 100);
+    // aperta, ?diag=1, resta ferma come le altre; B41.6: «Sono pronto» dei telefoni sulla pagina «Pronto per la partita»)
+    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); this._paintHoldQr(); if (this.staffOpen()) this._syncPause(); this.readyGo?.tick(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -355,6 +361,8 @@ export class NatpfUi {
     const L = p.state, url = p.pairingUrl;
     if (!box) return;
     if (p.connected){ if (box.dataset.token !== 'ok'){ box.innerHTML = '<div class="natpf-qr-ok">✓</div>'; box.dataset.token = 'ok'; } }
+    // B41.2: telefono dello stand (modalità fiera) scollegato: niente QR per il pubblico, si ricollega da solo
+    else if (p.standSlot){ const k = `stand:${p.standSlot}`; if (box.dataset.token !== k){ box.innerHTML = `<div class="natpf-qr-stand"><b>${p.standSlot === 'p2' ? 'Telefono 2' : 'Telefono 1'}</b><span>Telefono dello stand scollegato: si ricollega da solo. Se non torna, chiama lo staff.</span></div>`; box.dataset.token = k; } }
     else if (url && (L.state === 'waiting' || L.state === 'lost') && box.dataset.token !== p.link.token && window.qrcode){
       const q = window.qrcode(0, 'M'); q.addData(url); q.make();
       box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); box.dataset.url = url; box.dataset.token = p.link.token;
@@ -451,23 +459,24 @@ export class NatpfUi {
       if (this._trialPass){ this.wipe(this.lobby?.mode === 'split' ? 'Stesso schermo' : 'Si gioca'); return; }
       // (B35: scambi di prova in corso, la pagina non è in vista: niente partita sopra gli scambi)
       if (this.trial?.active){ e.stopImmediatePropagation(); return; }
-      const mode = this.lobby?.mode, cal = readCalMode();
+      const mode = this.lobby?.mode;
       // (revisione del B28, difetto 4) opzione dello stand cambiata a «Con i gesti» con un telefono rimasto con il
       // profilo dato dal gioco o imparato dagli scambi di prova: non conta come calibrato, rifà i gesti (senza QR)
-      if (cal === 'gesti' && this.controller === 'phone') for (const p of mode === 'split' ? (this.split.webcam ? [] : [this.split.phone('p1'), this.split.phone('p2')]) : [this.phone]) p?.demoteIfStale?.();
+      this.demoteStale(mode === 'split' ? (this.split.webcam ? [] : [this.split.phone('p1'), this.split.phone('p2')]) : [this.phone]);
       // stesso schermo: si parte con i due telefoni pronti; la sessione split nasce qui (natpf_split_ui.js)
       if (mode === 'split'){
         if (!this.split.bothReady()){ e.stopImmediatePropagation(); this.toast(this.split.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.lobby.go('connect'); return; }
         this.split.start();
         if (this.trial.due({ split: true })){ e.stopImmediatePropagation(); this.wipe('Scambi di prova'); this.trial.start({ split: true, then: () => this._startMatchNow() }); return; }
-        if (cal === 'none' && !this.split.webcam) for (const id of ['p1', 'p2']){ const p = this.split.phone(id); if (!p?.keepsGesture) p?.freshPlayer?.(); }
+        if (!this.split.webcam) this.freshForActivity([this.split.phone('p1'), this.split.phone('p2')]);
         this.wipe('Stesso schermo'); return;
       }
       // sfida tra due computer: si parte solo con il Player 2 entrato e pronto
       if (mode === 'friend' && this.versus?.hostActive && !this.versus.canStart()){ e.stopImmediatePropagation(); this.toast(this.versus.state === 'waiting' ? 'Manda il link al Player 2: la partita parte quando è pronto' : 'Il Player 2 sta scegliendo la racchetta: aspetta «pronto»'); return; }
       if (this.controller === 'phone' && !this.phone.soonReady){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); return; }
       // (appena finito «Riscaldati prima», che ha già insegnato il colpo di chi gioca: niente scambi di prova, una volta)
-      const warmed = !!this.trialSkipOnce && !!this.phone.profile?.trial;
+      // (… o chi ha calibrato apposta con i gesti e poi si è riscaldato: le stesse persone, il profilo dei gesti resta; B28.1)
+      const warmed = !!this.trialSkipOnce && (!!this.phone.profile?.trial || !!this.phone.gestureProfile);
       // B35: contro la CPU gli scambi di prova si fanno prima di questa pagina (natpf_lobby._pageTrial): appena fatti,
       // «Gioca» fa partire subito la partita. Se mancano (pagina raggiunta per un'altra strada), «Gioca» li fa adesso e
       // riporta alla pagina «Pronto per la partita»: la partita parte sempre e solo con «Gioca» (collaudo del 13/11)
@@ -481,8 +490,9 @@ export class NatpfUi {
       this.trialSkipOnce = false;
       // la partita parte: gli scambi di prova di prima valgono per questa (la partita dopo li rifà, come dal B28)
       if (mode === 'cpu' && this.lobby) this.lobby.trialPlayed = false;
-      // «Nessuna»: profilo semplice da capo a ogni partita (non chi ha appena calibrato apposta con i gesti: per questa partita)
-      if (mode !== 'friend' && !warmed && cal === 'none' && this.controller === 'phone' && !this.phone.keepsGesture) this.phone.freshPlayer?.();
+      // «Nessuna»: profilo semplice da capo a ogni partita (non chi ha appena calibrato apposta con i gesti: per questa
+      // partita). Anche nella sfida tra due computer (B28.1: lì non ripartiva mai; la rivincita non passa da qui)
+      if (!warmed) this.freshForActivity();
       this.wipe(mode === 'friend' ? 'Sfida 1v1' : 'Si gioca');
     }, true);
   }
@@ -750,6 +760,27 @@ export class NatpfUi {
   // la CPU o nello stesso schermo, si rifanno gli scambi di prova (per tutti e due nello stesso schermo) e poi si rigioca
   // il punto, con il punteggio com'era; altrove (menu, minigiochi, sfida tra due computer) il telefono riparte dal profilo
   // semplice e il gioco reimpara dai colpi. Con «Con i gesti» la calibrazione di sempre. true se sono partiti gli scambi di prova
+  // B28.1 · Attività: partita, minigioco, allenamento o riscaldamento. Il profilo del telefono vale per chi comincia
+  // un'attività, non per chi viene dopo: all'inizio di ognuna (non di «Gioca ancora» e delle rivincite: le stesse
+  // persone) con «Con i gesti» un telefono rimasto con il profilo dato dal gioco rifà i gesti (demoteStale), con «Nessuna»
+  // riparte dal profilo semplice (freshForActivity), con «Giocando» ci pensano gli scambi di prova o i primi esercizi; e
+  // una calibrazione con i gesti fatta apposta vale per l'attività che segue e basta (activityStarted la consuma:
+  // NatpfPhoneRacket.activitySeq). Le partite le conta il motore (natpfMatchSeq)
+  activityStarted(){ this.activitySeq = (this.activitySeq || 0) + 1; }
+  // un'attività è in corso adesso (partita, minigioco, esercizi dell'allenamento o del riscaldamento)
+  activityLive(){ return this.matchLive() || !!this.events?.active || (!!this.training?.active && (this.training.drills?.length || 0) > 0); }
+  // «Con i gesti»: i telefoni di chi gioca rimasti con un profilo che non conta tornano a calibrare. true se è successo
+  demoteStale(phones = [this.phone]){
+    if (this.controller !== 'phone' || readCalMode() !== 'gesti') return false;
+    let any = false; for (const p of phones) if (p?.demoteIfStale?.()) any = true;
+    return any;
+  }
+  // «Nessuna»: profilo semplice da capo per chi comincia (non chi ha appena calibrato apposta con i gesti)
+  freshForActivity(phones = [this.phone]){
+    if (this.controller !== 'phone' || readCalMode() !== 'none') return false;
+    let any = false; for (const p of phones) if (p && !p.keepsGesture && p.freshPlayer?.()) any = true;
+    return any;
+  }
   // una partita è in corso adesso (non il menu, l'allenamento, un minigioco, gli scambi di prova, la schermata finale)
   matchLive(){
     const E = this.engine;

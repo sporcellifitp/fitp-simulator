@@ -36,7 +36,9 @@ export const tutConfirmable = gate => !!gate;
 // cosa mostra la pagina: { screen, show: { selettore: visibile }, tutOk: { on, lit } } (lit: appena acceso)
 // phase, rematch (B20): a fine partita nello stesso schermo il computer offre la rivincita (rematchOn) e sotto «Pronto»
 // compare il pulsante «Rivincita»
-export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false, phase = null, rematch = null, next = null } = {}){
+// stand, staff (B41.3): telefono dello stand; Ricalibra, Ricollega e Scollega solo dopo la pressione lunga dello staff
+// (un visitatore non li tocca per sbaglio). «Riprova» resta: il telefono dello stand riprova comunque da solo
+export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false, phase = null, rematch = null, next = null, stand = false, staff = false } = {}){
   const screen = screenOf({ linkState, sensor, gate });
   const S = s => screen === s, touch = inputMode === 'touch';
   const show = {
@@ -54,11 +56,13 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
     '#touchHit': touch || !!intentGate,
     '#shotChoices': touch,
     // Ricalibra, Ricollega, Scollega: solo sotto «Pronto» (scelta del 05/11: nella calibrazione bloccata decide il computer)
-    '#tools': S('ready'),
+    '#tools': S('ready') && (!stand || !!staff),
     '#rematch': S('ready') && phase === 'over' && !!rematch,
     // B28, niente blocchi: «Avanti ›» offerto dal computer dove chiede un gesto (esercizi, scambi di prova) e «Salta la
     // calibrazione» durante la calibrazione con i gesti (profilo semplice: si gioca subito)
     '#next': S('ready') && !!next && phase !== 'over',
+    // B41.3: numero grande del posto dello stand, sempre in vista (anche mentre si ricollega)
+    '#standTag': !!stand,
     '#calSkip': S('cal') && !touch && ['still', 'grip', 'swings', 'shots', 'review'].includes(calStep),
     '#tutOk': S('tutorial'),
     '#tutBox': S('tutorial'),
@@ -130,7 +134,47 @@ export const pauseNote = d => (d && d.ph === 'pause' && typeof d.txt === 'string
 // computer di prima non manda niente: nessun pulsante
 export function nextOnMsg(d = {}){
   if (!d || !d.on) return null;
-  return { label: typeof d.lb === 'string' && d.lb.trim() ? d.lb.slice(0, 24) : 'Avanti ›' };
+  const label = typeof d.lb === 'string' && d.lb.trim() ? d.lb.slice(0, 24) : 'Avanti ›';
+  // B41.6: «Sono pronto» sulla pagina «Pronto per la partita» (rd 1): grande, al posto di «Pronto»; me 1 = già toccato
+  // (pulsante spento con la spunta), tx = riga sotto («Aspetto Player 2», «Si parte tra poco…»)
+  if (d.rd === 1) return { label, ready: true, me: d.me === 1, note: typeof d.tx === 'string' ? d.tx.slice(0, 80) : '' };
+  return { label };
+}
+// Cosa dice il telefono con «Sono pronto» offerto (B41.6, funzione pura): scritte dell'anello e del pulsante
+export function readyView(next){
+  if (!next?.ready) return null;
+  if (next.me) return { ring: 'ready', big: 'Pronto ✓', sub: next.note || 'Si parte tra poco…', label: 'Pronto ✓', disabled: true };
+  return { ring: '', big: 'Partita', sub: 'Quando sei pronto tocca «Sono pronto»: la partita parte da sola.', label: next.label || 'Sono pronto', disabled: false };
+}
+
+/* ---------- telefono dello stand (B41.3, modalità fiera) ---------- */
+// Scritte del telefono dello stand tra una persona e l'altra e mentre si ricollega (funzione pura). slot 'p1' | 'p2'.
+// Partita finita o menu: «Dai il telefono al prossimo giocatore»; collegamento giù: si ricollega da solo, senza QR
+export function standView({ slot = 'p1', linkState = 'on', sensor = 'ready', phase = 'menu' } = {}){
+  const n = slot === 'p2' ? 2 : 1, tag = `Telefono ${n}`;
+  if (linkState !== 'on') return { tag, big: tag, sub: 'Cerco il gioco: mi ricollego da solo. Se non torna, chiama lo staff.', bar: `${tag} · mi ricollego…` };
+  if (sensor === 'off') return { tag, big: tag, sub: 'Telefono dello stand: lo staff tocca «Attiva i sensori».', bar: `${tag} · collegato` };
+  if (phase === 'over') return { tag, big: 'Partita finita', sub: 'Dai il telefono al prossimo giocatore.', bar: `${tag} · collegato` };
+  if (phase === 'menu') return { tag, big: 'Pronto ✓', sub: 'Dai il telefono al prossimo giocatore.', bar: `${tag} · collegato` };
+  return { tag, big: null, sub: null, bar: `${tag} · collegato` };
+}
+// pressione lunga sul numero del posto per i pulsanti dello staff (ms) e per quanto restano in vista (ms)
+export const STAFF_HOLD = Object.freeze({ holdMs: 3000, showMs: 20000 });
+// Batteria bassa (B41.3, solo dove il browser la dà: Chrome su Android; Safari no). level in 0…1. Funzione pura
+export const LOW_BATTERY = 0.2;
+export function batteryAlert({ level = null, charging = false } = {}){
+  if (!Number.isFinite(level) || charging || level >= LOW_BATTERY) return null;
+  return { t: `Batteria bassa · ${Math.round(level*100)}%`, p: 'Metti in carica il telefono dello stand (o dallo allo staff).' };
+}
+// Segno dei sensori del telefono dello stand («taratura», motion-sign.js): confermato da SIGN.votes tocchi concordi si
+// salva sul telefono e non si vota più (un visitatore che tocca «Sono pronto» con il telefono storto non deve far
+// ricalibrare). saved: segno salvato (1 | -1 | null); votes { up, down }; need, agree: SIGN.votes e SIGN.agree.
+// → { vote: si vota ancora?, save: segno da salvare adesso o null }
+export function standSignStep({ saved = null, votes = { up: 0, down: 0 }, sign = 1, need = 4, agree = .8 } = {}){
+  if (saved === 1 || saved === -1) return { vote: false, save: null };
+  const up = votes?.up || 0, down = votes?.down || 0, n = up + down;
+  if (n >= need && Math.max(up, down)/n >= agree) return { vote: false, save: sign === -1 ? -1 : 1 };
+  return { vote: true, save: null };
 }
 
 /* ---------- calibrazione giocando: scambi di prova (B28, 12/11) ---------- */

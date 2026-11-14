@@ -150,11 +150,15 @@ e la calibrazione con i gesti come percorso di base.
   rivincita della sfida tra due computer.
 - **Il profilo ricorda come è stato fatto, e niente passa da un visitatore al successivo** (revisione del 12/11, giro 2):
   `NatpfPhoneRacket.madeBy` = `gesti` | `salta` | `auto` | `prova`. «Giocando»: ogni «Gioca» rifà gli scambi di prova da
-  un profilo nuovo; una calibrazione con i gesti fatta apposta dopo la fine dell'ultima partita vale **per la partita che
-  segue e basta** (`gestureAt`, `keepsGesture`). «Con i gesti»: conta come calibrato solo un profilo `gesti` o `salta`,
-  con la durata di prima del B28; un telefono rimasto `auto` o `prova` rifà i gesti senza QR (`calStale`,
-  `demoteIfStale`: subito al menu, altrimenti al prossimo «Gioca»). «Nessuna»: profilo semplice da capo a ogni partita.
-  Cambiare l'opzione vale dal prossimo «Gioca» e annulla il «vale per la prossima partita». Chi aggiunge un modo di
+  un profilo nuovo; una calibrazione con i gesti fatta apposta fuori da un'attività vale **per l'attività che segue e
+  basta** (`gestureAt`, `keepsGesture`). **Attività = partita, minigioco, allenamento, riscaldamento** (B28.1:
+  `NatpfUi.activityStarted` / `activityLive` / `demoteStale` / `freshForActivity`, `NatpfPhoneRacket.activitySeq`; le
+  partite le conta il motore con `natpfMatchSeq`): chi aggiunge un modo di cominciare a giocare deve chiamare
+  `demoteStale()` e `freshForActivity()` prima e `activityStarted()` all'inizio, tranne dove le persone sono le stesse.
+  «Con i gesti»: conta come calibrato solo un profilo `gesti` o `salta`, con la durata di prima del B28; un telefono
+  rimasto `auto` o `prova` rifà i gesti senza QR (`calStale`, `demoteIfStale`: subito al menu, altrimenti all'inizio
+  dell'attività dopo). «Nessuna»: profilo semplice da capo a ogni attività, anche nella sfida tra due computer.
+  Cambiare l'opzione vale dalla prossima attività e annulla il «vale per la prossima attività». Chi aggiunge un modo di
   fare o tenere un profilo deve dire come è stato fatto (`madeBy`) e passare da `keepsGesture`.
 - **Il verso si controlla con il lato della palla**, uguale per destri e mancini: palla alla destra di chi gioca = gesto
   +1. Il lato è quello del piano d'intercetto al momento del colpo (`ballSideNow`), non quello deciso al lancio. Il segno
@@ -990,3 +994,40 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   scritte, solo ai primi 2 servizi di ogni giocatore nuovo (torna se non lancia per qualche secondo). Compito
   `docs/coda/B44-servizio-animato.md`.
 - **Nomi con la tastiera a schermo** (richiesta ripetuta il 13/11 notte): è il B38, il prossimo blocco libero.
+
+## Telefoni dello stand e «Sono pronto» (B41 prima parte, 13/11/2026; `docs/b41/modalita-fiera-1.md`)
+- **Posti fissi**: Telefono 1 = `ui.phone` (Player 1, contro la CPU e a sinistra), Telefono 2 = `engine.natpfPhone2`
+  (Player 2, a destra). Con la modalità fiera (`natpf-tennis.fiera` = `1`, oppure `?stand=fiera` per le prove;
+  `?stand=normale` la spegne per la pagina; `?formato=fiera` è il formato veloce, un'altra cosa) un posto abbinato è un
+  **telefono dello stand** (`NatpfPhoneRacket.standSlot`, `useStand`): `link.js` con `stand`, niente QR pubblico
+  (`pairingUrl` null), in ascolto all'avvio. Un posto non abbinato resta la racchetta normale con il QR.
+- **Abbinamento e ripresa come il telecomando** (`stand-pairing.js`): QR `#sp=racchetta-stand-abbina-…&k=…` solo a foglio
+  aperto (5 minuti, un uso), numero da confermare con un clic vero (`NatpfFiera.confirm(slot, ev)` vuole
+  `ev.isTrusted === true`), indirizzo fisso `racchetta-stand-…` e chiave salvati (`natpf-tennis.stand.p1|p2` sul computer,
+  `natpf-racchetta-stand` sul telefono), ripresa con la prova reciproca HMAC (`standProof`: nomi «stand-game» e
+  «stand-phone», mai scambiabili con quelli del telecomando). La chiave non viaggia mai dopo la conferma. Riabbinare
+  cambia indirizzo e chiave (`bye replaced` al telefono di prima), «Scollega» li butta (`bye unpaired`), la stessa
+  chiave in due schede ferma la prima (`bye other`). Un `deny` o un `bye` arrivato **prima** della prova del gioco non
+  fa dimenticare niente al telefono. Hello separati: `role: 'stand'` rifiutato dalla racchetta normale e dal
+  telecomando; la racchetta normale rifiutata dal posto dello stand.
+- **Indirizzo ancora occupato** dopo un riavvio (`unavailable-id`/`id-unavailable`): si riprova ogni `STAND.idRetryMs`
+  (3 s) finché il server lo libera, come `remote-link.js`.
+- **Pagina del telefono dello stand**: riprova senza fine (1–6 s) e subito su `online`, `pageshow` e ritorno in primo
+  piano; la racchetta normale resta a 10 tentativi. Il pezzo di `racchetta.js` tra `async function connect(){` e
+  `// messaggi che valgono solo se arrivano subito` gira nella sandbox dei test (`phone-reconnect`, `stand-phone`):
+  lì dentro solo variabili che la sandbox ha, gli aiuti dello stand vanno **dopo** quel commento.
+- **Telefono dello stand = tutorial visto** (`tutorialSeen` vero); il chiosco non lo scollega e non lo conta come
+  visitatore presente. Il segno dei sensori confermato si salva sul telefono (`as`) e non si vota più (`standSignStep`).
+- **«Sono pronto»** (`natpf_ready_go.js`, anche fuori dalla fiera): solo sulla pagina «Pronto per la partita» (passo
+  `match`) contro la CPU e nello stesso schermo con i telefoni. Offerta con `offerNext('Sono pronto', { rd: 1, me, tx })`
+  (pagine del telefono di prima: «Avanti ›» con la stessa scritta, funziona); un tocco conta solo con la nostra offerta
+  (`nextExtra.rd`). Conto di 3 s (`createCountdown`), annunci con `ev count` come lo stesso schermo; a zero lo stesso
+  «Gioca». Il tocco si perde se il telefono è scollegato, ha lo schermo spento, non è pronto, o ha i sensori fermi da
+  almeno 0,7 s **per almeno 0,3 s di fila** (il computer fermo un attimo fa sembrare fermi tutti i telefoni). Esc con il
+  conto in corso lo ferma (`NatpfLobby.back`). Chi offre un pulsante al telefono con `offerNext` non deve togliere
+  quello di «Sono pronto» (si toglie solo se `nextExtra.rd`).
+- **In fiera contro la CPU batte sempre il visitatore** (decisione del 13/11): regola pura `fairServer` in
+  `natpf_fiera.js`, da collegare alla pagina della fiera (B41.5).
+- **Prove nel browser**: un fotogramma intero ridisegnato (`__render`) a 1920 × 1080 nel Chromium senza scheda video ferma
+  la pagina per secondi; oltre 5 s i telefoni cadono (controllo di vita di `link.js`), come deve. Nelle prove dei tocchi
+  e dei conti alla rovescia niente `__render` (`tools/e2e/natpf-fiera-telefoni.mjs`).

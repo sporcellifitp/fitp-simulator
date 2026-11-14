@@ -14,8 +14,9 @@ import { swingMessage } from './swing-message.js';
 import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
-import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg } from './phone-screen.js';
+import { platformAccSign, createAccSign, normalizeSample, SIGN } from './motion-sign.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, readyView, standView, STAFF_HOLD, batteryAlert, standSignStep } from './phone-screen.js';
+import { parseStandPairing, createStandStore, standHello, standWelcome, standAnswer, standDenyText, newStandNonce, slotLabel } from './stand-pairing.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -23,10 +24,18 @@ const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
 { const g = $('#grip'); if (g) g.outerHTML = gripSvg({ id: 'grip', cls: g.getAttribute('class') || 'hidden', compact: true }); }
 const ss = { get(k){ try { return JSON.parse(sessionStorage.getItem('natpf-simulator.' + k)); } catch (e){ return null; } }, set(k, v){ try { sessionStorage.setItem('natpf-simulator.' + k, JSON.stringify(v)); } catch (e){} }, del(k){ try { sessionStorage.removeItem('natpf-simulator.' + k); } catch (e){} } };
 
+// B41 · telefono dello stand (modalità fiera): il posto abbinato resta su questo telefono (localStorage: tra un giorno e
+// l'altro e dopo una ricarica), con l'indirizzo fisso e la chiave che non viaggia mai (stand-pairing.js). Il QR
+// dell'abbinamento (#sp=…) vale solo a foglio aperto sul computer
+const standStore = createStandStore((() => { try { return localStorage; } catch (e){ return null; } })());
+let stand = standStore.load();
+const standQr = parseStandPairing(location.hash);
 // i dati del QR: si leggono e si tolgono subito dalla barra degli indirizzi (restano solo in questa scheda)
 let pair = parsePairing(location.hash);
-if (pair){ ss.set('pair', pair); ss.del('resume'); ss.del('profile'); ss.del('gate'); history.replaceState(null, '', location.pathname + location.search); }
-else pair = ss.get('pair');
+if (standQr){ pair = { session: standQr.pair, token: standQr.token, standPair: true }; ss.del('pair'); ss.del('resume'); ss.del('gate'); history.replaceState(null, '', location.pathname + location.search); }
+else if (pair){ ss.set('pair', pair); ss.del('resume'); ss.del('profile'); ss.del('gate'); history.replaceState(null, '', location.pathname + location.search); }
+// (senza QR: la racchetta di questa scheda, se c'era; se no il posto dello stand salvato)
+else pair = ss.get('pair') || (stand ? { session: stand.session, stand: true } : null);
 
 // Presa: «upright» (predefinita, telefono in verticale come il manico) o «flat» (telefono in orizzontale nel palmo,
 // display verso di sé: il dorso è il piatto). La sceglie il computer (messaggio grip) o chi gioca qui sotto.
@@ -39,7 +48,8 @@ const ALLOW_FLAT = false;
 const det = createSwingDetector(), face = createFaceTracker(ALLOW_FLAT ? {} : { quietHold: 400, relax: 2.5 });
 // accelerazione con il segno di Android su tutti i telefoni (motion-sign.js: Safari su iPhone la dà al contrario, e
 // dritto e rovescio risultavano invertiti); il segno si conferma con i tocchi sullo schermo
-const accSign = createAccSign({ prior: platformAccSign(navigator.userAgent, navigator.maxTouchPoints || 0) });
+// (telefono dello stand: il segno confermato e salvato su questo telefono, B41.3)
+const accSign = createAccSign({ prior: stand?.as ?? platformAccSign(navigator.userAgent, navigator.maxTouchPoints || 0) });
 let lastRawG = null;
 // ogni gesto porta con sé il piatto all'istante del picco (l'impatto)
 // … e la forma del colpo (stroke-shape.js): piano, verso della testa della racchetta, rotazione sul manico
@@ -75,6 +85,8 @@ let rematch = null, phaseNote = '';
 let trial = false;
 // niente blocchi (B28): «Avanti ›» offerto dal computer ({ label }) dove chiede un gesto
 let nextOffer = null;
+// B41.3: pulsanti dello staff sul telefono dello stand, in vista fino a staffUntil dopo la pressione lunga sul numero
+let staffUntil = 0, staffT = null;
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
 const ARROW = { L: '←', R: '→', '?': '?' };
 // mano scelta nel gioco (o qui, e confermata dal gioco): menu, calibrazione in corso e profilo salvato. Il verso del
@@ -98,7 +110,9 @@ function applyHand(h){
 function ui(big, sub, ring = '', arrow = ''){ $('#big').textContent = big; $('#sub').textContent = sub; $('#ring').className = ring; $('#arrow').textContent = arrow; }
 function bar(){
   const b = $('#bar');
-  const txt = { off: 'Non collegato', connecting: 'Collegamento…', on: 'Collegato al computer', lost: 'Connessione persa', denied: 'Non collegato' }[linkState] || linkState;
+  let txt = { off: 'Non collegato', connecting: 'Collegamento…', on: 'Collegato al computer', lost: 'Connessione persa', denied: 'Non collegato' }[linkState] || linkState;
+  // (telefono dello stand: il posto sempre davanti, e «mi ricollego» al posto di «Connessione persa»)
+  if (pair?.stand && stand && linkState !== 'denied') txt = standView({ slot: stand.slot, linkState, sensor, phase }).bar;
   b.className = linkState === 'on' ? 'ok' : linkState === 'lost' || linkState === 'denied' ? 'bad' : '';
   $('#barTxt').textContent = txt; $('#lat').textContent = linkState === 'on' ? Math.round(rtt) + ' ms' : '';
 }
@@ -107,8 +121,12 @@ function setGate(g){ gate = g; if (g) ss.set('gate', g); else ss.del('gate'); }
 // «Pronto». Prima ogni elemento aveva la sua condizione e «Tutto chiaro» compariva sopra «Pronto»
 function paint(){
   bar();
-  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch, next: nextOffer });
+  const standOn = !!pair?.stand && !!stand;
+  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch, next: nextOffer, stand: standOn, staff: staffOn() });
   if (nextOffer && $('#next').textContent !== nextOffer.label) $('#next').textContent = nextOffer.label;
+  // B41.6: «Sono pronto» grande e pieno (le altre offerte, «Avanti ›» e «Salta ›», restano piccole); spento dopo il tocco
+  { const nb = $('#next'), big = !!nextOffer?.ready; nb.classList.toggle('alt', !big); nb.classList.toggle('big', big); nb.disabled = big && !!nextOffer.me; }
+  paintStandTag(standOn);
   if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
   for (const [sel, on] of Object.entries(v.show)) show(sel, on);
   if (v.show['#profileOptions']) paintHand();
@@ -128,8 +146,14 @@ function paint(){
   else if (screen === 'ready'){
     // fine partita nello stesso schermo (B20): «Rivincita» e chi l'ha già chiesta
     const rv = phase === 'over' ? rematchView(rematch) : null, rb = $('#rematch');
+    // B41.6: pagina «Pronto per la partita» sul computer: «Sono pronto» al posto di «Pronto»
+    const rd = phase !== 'over' ? readyView(nextOffer) : null;
+    // B41.3: telefono dello stand tra una persona e l'altra (menu, partita finita): «Dai il telefono al prossimo giocatore»
+    const sv = standOn ? standView({ slot: stand.slot, linkState, sensor, phase }) : null;
     if (rv){ rb.textContent = rv.label; rb.disabled = rv.disabled; ui(rv.big, rv.sub, 'ready'); }
+    else if (rd) ui(rd.big, rd.sub, rd.ring);
     else if (trial && phase === 'play') ui(TRIAL_TEXT.big, TRIAL_TEXT.sub, 'ready');
+    else if (sv?.big) ui(sv.big, sv.sub, 'ready');
     else ui(phase === 'serve' ? 'Al servizio' : phase === 'pause' && phaseNote ? 'Pausa' : 'Pronto', phaseText(), 'ready');
   }
 }
@@ -177,7 +201,9 @@ async function connect(){
   peer = null; conn = null; pendingConn = null; closeFast();
   if (previous && !previous.destroyed) previous.destroy();
   if (!pair){ linkState = 'denied'; bar(); ui('Nessuna partita', 'Inquadra il QR sul computer.'); show('#retry', false); return; }
-  linkState = 'connecting'; paint(); ui('Collegamento…', 'Mi collego al gioco sul computer.');
+  linkState = 'connecting'; paint();
+  if (pair.stand && stand){ const v = standView({ slot: stand.slot, linkState: 'connecting' }); ui(v.big, v.sub); }
+  else ui(pair.standPair ? 'Collegamento…' : 'Collegamento…', pair.standPair ? 'Mi collego al computer per diventare un telefono dello stand.' : 'Mi collego al gioco sul computer.');
   // a che punto è il collegamento di questo tentativo: server di segnalazione raggiunto, risposta del computer e stato
   // della strada diretta (ICE). A 12 s, se la strada si sta ancora cercando (il computer ha risposto), si aspetta fino a
   // 30 s invece di ricominciare da capo (LINK_TIMES); se non riesce, il motivo (netWhy)
@@ -203,7 +229,12 @@ async function connect(){
       if (!current() || conn?.open || pendingConn) return;
       const c = pendingConn = p.connect(pair.session, { reliable: true, serialization: 'json' });
       c.on('iceStateChanged', st => { if (current()) net.ice = String(st); });
-      c.on('open', () => { if (!current() || pendingConn !== c) return; const r = ss.get('resume'); c.send(r ? { t: 'hello', v: 2, r, ...(relinking ? { rl: 1 } : {}) } : { t: 'hello', v: 2, k: pair.token }); relinking = false; });
+      c.on('open', () => {
+        if (!current() || pendingConn !== c) return;
+        // B41: telefono dello stand: all'abbinamento il codice del QR; all'indirizzo fisso un numero casuale, la chiave mai
+        if (pair.stand || pair.standPair){ c.standLink = { nonce: pair.standPair ? null : newStandNonce(), proved: false }; c.send(standHello(pair.standPair ? { token: pair.token } : { nonce: c.standLink.nonce, relink: relinking })); relinking = false; return; }
+        const r = ss.get('resume'); c.send(r ? { t: 'hello', v: 2, r, ...(relinking ? { rl: 1 } : {}) } : { t: 'hello', v: 2, k: pair.token }); relinking = false;
+      });
       c.on('data', d => { if (current() && (c === conn || c === pendingConn)) onData(c, d); });
       c.on('close', () => { if (current() && (c === conn || c === pendingConn)) lost(); });
       c.on('error', () => { if (current() && (c === conn || c === pendingConn)) lost(); });
@@ -211,7 +242,9 @@ async function connect(){
     p.on('error', e => {
       if (!current()) return;
       if (conn?.open && SIGNAL_ERRORS.has(e.type)) return;
-      if (e.type === 'peer-unavailable' && !ss.get('resume')){ linkState = 'denied'; clearTimeout(connect.t); paint(); ui('Partita non trovata', 'Il gioco sul computer è stato chiuso o ricaricato. Inquadra di nuovo il codice QR.'); return; }
+      // (stand: l'indirizzo dell'abbinamento non c'è più, foglio chiuso o scaduto; quello fisso si riprova senza fine)
+      if (e.type === 'peer-unavailable' && pair.standPair){ standPairDenied('closed'); return; }
+      if (e.type === 'peer-unavailable' && !pair.stand && !ss.get('resume')){ linkState = 'denied'; clearTimeout(connect.t); paint(); ui('Partita non trovata', 'Il gioco sul computer è stato chiuso o ricaricato. Inquadra di nuovo il codice QR.'); return; }
       lost();
     });
     p.on('disconnected', () => {
@@ -225,7 +258,7 @@ async function connect(){
 // Diagnostica del 29/10 (stesso schermo): il computer non riceveva più il movimento del Player 2 per 16 s mentre il
 // telefono era su «Pronto»
 let relinking = false;
-function relink(){ if (!pair || !ss.get('resume')) return; relinking = true; tries = 0; connect(); }
+function relink(){ if (!pair || (!pair.stand && !ss.get('resume'))) return; relinking = true; tries = 0; connect(); }
 // errori della sola segnalazione: con il canale aperto non lo chiudono. 'id-unavailable' è il nome della LAN
 // (lan-transport.js) per l'id ancora registrato dal socket di prima: prima chiudeva un canale WebRTC buono
 const SIGNAL_ERRORS = new Set(['network', 'disconnected', 'socket-error', 'socket-closed', 'server-error', 'unavailable-id', 'id-unavailable', 'lan-signaling']);
@@ -235,7 +268,15 @@ function onData(c, d){
   if (!d || typeof d !== 'object') return;
   if (c === conn || d.t === 'welcome') lastRx = performance.now();
   switch (d.t){
+    // B41 · abbinamento dello stand: il numero da confermare sul computer (lo stesso sul computer e qui)
+    case 'wait': if (pair?.standPair && Number.isInteger(d.num)){ clearTimeout(connect.t); ui(String(d.num), 'Sul computer compare lo stesso numero: lo staff preme «Conferma».', 'ready'); } break;
+    // B41 · ripresa del telefono dello stand: prima il gioco prova la chiave, poi questo telefono
+    case 'proof': if (pair?.stand) standProofIn(c, d); break;
     case 'welcome':
+      // B41: abbinamento confermato: posto, indirizzo fisso e chiave (una volta sola), poi ci si ricollega lì con la prova
+      if (pair?.standPair){ const w = standWelcome(d, Date.now()); if (w) standPaired(w); return; }
+      // (stand: il benvenuto vale solo dopo che il gioco ha provato la chiave)
+      if (pair?.stand && !c.standLink?.proved) return;
       clearTimeout(connect.t); clearTimeout(retryT); pendingConn = null;
       conn = c; linkState = 'on'; tries = 0; nextOffer = null; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast(); sendDevice();
       // ripresa a calibrazione in corso: gli eventi fatti mentre il collegamento era giù sono andati persi, il computer
@@ -243,6 +284,10 @@ function onData(c, d){
       if (sensor === 'cal') for (const e of cal.replay()) sendCal(e);
       paint(); break;
     case 'deny':
+      // B41: telefono dello stand. Un rifiuto prima che il gioco abbia provato la chiave lo può mandare chiunque: la chiave
+      // resta e si riprova; dopo la prova vuol dire che il posto ha un'altra chiave (riabbinato o scollegato dallo staff)
+      if (pair?.stand){ if (c.standLink?.proved) standLost('unpaired'); else { try { c.close(); } catch (e){} lost(); } break; }
+      if (pair?.standPair){ standPairDenied(typeof d.why === 'string' ? d.why : 'denied'); try { c.close(); } catch (e){} break; }
       linkState = 'denied'; ss.del('resume');
       ui('Non collegato', d.why === 'busy' ? 'C\'è già un altro telefono collegato.' : 'Codice scaduto o già usato: inquadra di nuovo il QR.');
       paint(); try { c.close(); } catch (e){} break;
@@ -286,7 +331,11 @@ function onData(c, d){
       if (d.k === 'count'){ const f = countFlash(d); if (f.buzz) buzz(f.buzz); flash(f.ring, f.big, f.sub, f.ms, f.arrow); }
       break;
     }
-    case 'bye': ss.del('resume'); ss.del('pair'); pair = null; closeFast(); linkState = 'denied'; paint(); ui('Scollegato', 'Il computer ha scollegato il telefono. Per giocare di nuovo inquadra il nuovo QR.'); try { c.close(); } catch (e){} break;
+    case 'bye':
+      // B41: posto dello stand (solo da un collegamento con la chiave provata): riabbinato a un altro telefono o scollegato
+      // dallo staff; «other»: la stessa chiave è entrata da un'altra scheda, questa si ferma (niente tira e molla)
+      if (pair?.stand){ if (!c.standLink?.proved) break; if (d.why === 'other') standParked(); else standLost(d.why === 'replaced' ? 'replaced' : 'unpaired'); break; }
+      ss.del('resume'); ss.del('pair'); pair = null; closeFast(); linkState = 'denied'; paint(); ui('Scollegato', 'Il computer ha scollegato il telefono. Per giocare di nuovo inquadra il nuovo QR.'); try { c.close(); } catch (e){} break;
   }
 }
 // motivo di un collegamento non riuscito, da quello che il tentativo ha visto (connect: netInfo). Prima il telefono
@@ -299,8 +348,12 @@ function lost(){
   const previous = peer; peer = null; pendingConn = null;
   closeFast(); conn = null; linkState = 'lost';
   if (previous && !previous.destroyed) previous.destroy();
-  paint(); ui('Connessione persa', why ? `${why} Riprovo da solo tra poco.` : 'Riprovo da solo tra poco.');
-  if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
+  paint();
+  // (telefono dello stand: il motivo della rete sì, «inquadra di nuovo il QR» no: il posto si riprende da solo)
+  if (pair?.stand && stand){ const v = standView({ slot: stand.slot, linkState: 'lost' }), w = why && !/QR/.test(why) ? why : null; ui(v.big, w ? `${w} ${v.sub}` : v.sub); }
+  else ui('Connessione persa', why ? `${why} Riprovo da solo tra poco.` : 'Riprovo da solo tra poco.');
+  // (telefono dello stand, B41.3: riprova senza fine, ogni 1–6 s: il gioco può restare spento o in riavvio a lungo)
+  if (tries++ < 10 || pair?.stand) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
 // messaggi che valgono solo se arrivano subito: su una strada senza ordine, così un pacchetto perso non ferma quelli
@@ -325,6 +378,68 @@ function openFast(){
   } catch (e){ fast = null; }
 }
 function closeFast(){ const f = fast; fast = null; if (f) try { f.close(); } catch (e){} }
+/* ---------- B41 · telefono dello stand ---------- */
+// prova del gioco sul numero di questo collegamento: giusta → la prova del telefono; sbagliata (non è il gioco, o il posto
+// ha un'altra chiave) → si chiude e si riprova, la chiave resta
+async function standProofIn(c, d){
+  const sl = c.standLink; if (!sl || sl.proved || sl.checking || !stand) return;
+  sl.checking = true;
+  const r = await standAnswer(stand, sl.nonce, d);
+  if (pendingConn !== c && conn !== c) return;
+  if (!r.ok){ try { c.close(); } catch (e){} lost(); return; }
+  sl.proved = true; c.send(r.reply);
+}
+// abbinamento confermato sul computer: il posto resta su questo telefono (il segno dei sensori confermato, se c'era, resta:
+// è del telefono), ci si ricollega all'indirizzo fisso
+function standPaired(w){
+  stand = { ...w, ...(stand?.as === 1 || stand?.as === -1 ? { as: stand.as } : {}) }; standStore.save(stand);
+  pair = { session: stand.session, stand: true }; tries = 0;
+  ui(slotLabel(stand.slot), 'Abbinato ✓ Mi collego al gioco…', 'ready');
+  clearTimeout(retryT); retryT = setTimeout(connect, 300);
+}
+// il posto non è più di questo telefono (riabbinato a un altro o scollegato dallo staff): niente più tentativi
+function standLost(why){
+  const slot = stand?.slot || 'p1';
+  standStore.clear(); stand = null; pair = null;
+  ++connectEpoch; clearTimeout(retryT); clearTimeout(connect.t); pendingConn = null; closeFast();
+  try { conn && conn.close(); } catch (e){} conn = null; linkState = 'denied';
+  if (peer && !peer.destroyed) peer.destroy(); peer = null;
+  paint(); ui(why === 'replaced' ? `Non sei più il ${slotLabel(slot)}` : 'Scollegato', standDenyText(why, slot), 'miss');
+}
+// la stessa chiave è entrata da un'altra scheda: questa si ferma; «Riprova» la riprende qui
+function standParked(){
+  ++connectEpoch; clearTimeout(retryT); clearTimeout(connect.t); pendingConn = null; closeFast();
+  try { conn && conn.close(); } catch (e){} conn = null; linkState = 'denied';
+  if (peer && !peer.destroyed) peer.destroy(); peer = null;
+  paint(); ui(slotLabel(stand?.slot), standDenyText('other', stand?.slot));
+}
+// abbinamento non riuscito (rifiutato, scaduto, foglio chiuso…): un telefono che era già dello stand torna al suo posto
+function standPairDenied(why){
+  ++connectEpoch; clearTimeout(retryT); clearTimeout(connect.t); pendingConn = null; closeFast(); conn = null;
+  if (peer && !peer.destroyed) peer.destroy(); peer = null;
+  if (stand){ pair = { session: stand.session, stand: true }; linkState = 'lost'; paint(); ui('Abbinamento non riuscito', standDenyText(why, stand.slot), 'miss'); tries = 0; retryT = setTimeout(connect, 3000); return; }
+  pair = null; linkState = 'denied'; paint(); ui('Abbinamento non riuscito', standDenyText(why), 'miss');
+}
+// numero grande del posto in cima alla pagina; tenuto premuto 3 s dallo staff mostra Ricalibra, Ricollega e Scollega
+function staffOn(){ return performance.now() < staffUntil; }
+function paintStandTag(on){
+  const el = $('#standTag'); if (!el) return;
+  if (!on) return;
+  const n = stand.slot === 'p2' ? '2' : '1';
+  if (el.dataset.slot !== stand.slot){ el.dataset.slot = stand.slot; el.querySelector('b').textContent = n; el.querySelector('em').textContent = slotLabel(stand.slot); el.setAttribute('aria-label', `${slotLabel(stand.slot)} dello stand`); }
+  const staff = staffOn(), sm = el.querySelector('small'), t = staff ? 'staff: pulsanti in vista qui sotto' : 'dello stand · staff: tieni premuto 3 s';
+  el.classList.toggle('staff', staff); if (sm.textContent !== t) sm.textContent = t;
+}
+$('#standTag')?.addEventListener('pointerdown', e => {
+  if (!pair?.stand) return;
+  e.currentTarget.classList.add('holding'); clearTimeout(staffT);
+  staffT = setTimeout(() => { $('#standTag').classList.remove('holding'); staffUntil = performance.now() + STAFF_HOLD.showMs; buzz([40, 40, 40]); paint(); setTimeout(paint, STAFF_HOLD.showMs + 50); }, STAFF_HOLD.holdMs);
+});
+for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('#standTag')?.addEventListener(ev, () => { clearTimeout(staffT); $('#standTag').classList.remove('holding'); });
+// rete tornata, pagina ripresa dalla cache del browser: subito un tentativo (B41.3; il telecomando lo fa già). Anche la
+// racchetta normale: se aspettava un nuovo tentativo, lo fa subito
+const kick = () => { if (pair && linkState === 'lost' && !document.hidden){ tries = 0; connect(); } };
+addEventListener('online', kick); addEventListener('pageshow', kick);
 // vis: pagina in primo piano (0 = nascosta: schermo spento, altra app); wk: blocco dello schermo attivo (1), non
 // attivo (0, negato o perso: lo schermo può spegnersi dopo il tempo del telefono), non supportato dal browser (-1)
 const wakeState = () => awake.state;
@@ -556,7 +671,7 @@ $('#recal').addEventListener('click', () => command('cal'));
 // «Rivincita» (stesso schermo, fine partita): si chiede al computer, che parte quando l'hanno chiesta tutti e due
 $('#rematch').addEventListener('click', e => { e.stopPropagation(); if (!rematch || rematch.me || linkState !== 'on') return; rematch = { ...rematch, me: true }; send({ t: 'rm', y: 1 }); buzz([30]); paint(); });
 // «Avanti ›»: il computer va avanti senza il gesto (un tocco alla volta: l'offerta dopo arriva dal computer)
-$('#next').addEventListener('click', e => { e.stopPropagation(); if (!nextOffer || linkState !== 'on') return; send({ t: 'nx', y: 1 }); buzz([30]); });
+$('#next').addEventListener('click', e => { e.stopPropagation(); if (!nextOffer || nextOffer.me || linkState !== 'on') return; send({ t: 'nx', y: 1 }); buzz([30]); });
 // «Salta la calibrazione»: profilo semplice, si gioca subito (lo stesso di «Salta» sul computer)
 $('#calSkip').addEventListener('click', e => { e.stopPropagation(); command('skip'); });
 $('#tutOk').addEventListener('click', tutDone);
@@ -564,12 +679,15 @@ $('#tutOk').addEventListener('click', tutDone);
 $('#tutPrev').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).prev) send({ t: 'tut', nav: -1 }); });
 $('#tutNext').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).next) send({ t: 'tut', nav: 1 }); });
 $('#bye').addEventListener('click', () => {
+  const wasStand = !!pair?.stand;
   linkState = 'denied'; ++connectEpoch; clearTimeout(retryT); clearTimeout(connect.t); pendingConn = null;
   ss.del('resume'); ss.del('pair'); ss.del('profile'); pair = null; closeFast();
   try { conn && conn.close(); } catch (e){} conn = null; linkState = 'denied';
   if (peer && !peer.destroyed) peer.destroy(); peer = null;
+  // (telefono dello stand, B41.3: «Scollega» è dello staff, dietro la pressione lunga; il posto si dimentica su questo telefono)
+  if (wasStand){ standStore.clear(); stand = null; staffUntil = 0; }
   removeEventListener('devicemotion', onMotion); sensor = 'off'; paint();
-  ui('Scollegato', 'Per giocare di nuovo inquadra il codice QR sul computer.');
+  ui('Scollegato', wasStand ? 'Non è più un telefono dello stand: per rimetterlo al suo posto lo staff lo abbina di nuovo.' : 'Per giocare di nuovo inquadra il codice QR sul computer.');
 });
 // tocco sullo schermo al servizio: lancia la palla
 $('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sensor === 'ready' && !gate) send({ t: 'toss', pk: performance.now() }); });
@@ -586,7 +704,11 @@ document.addEventListener('pointerdown', () => {
 // tocco con il telefono in mano: conferma del segno dei sensori (motion-sign.js). Se cambia, la calibrazione fatta con
 // il segno di prima non vale: si rifà
 document.addEventListener('pointerdown', () => {
-  if (!lastRawG || !accSign.vote(lastRawG)) return;
+  // (telefono dello stand, B41.3: confermato da SIGN.votes tocchi concordi, il segno si salva e non si vota più)
+  if (!lastRawG || (pair?.stand && stand && !standSignStep({ saved: stand.as ?? null }).vote)) return;
+  const changed = accSign.vote(lastRawG);
+  if (pair?.stand && stand){ const st = standSignStep({ votes: accSign.votes, sign: accSign.sign, need: SIGN.votes, agree: SIGN.agree }); if (st.save){ stand = { ...stand, as: st.save }; standStore.save(stand); } }
+  if (!changed) return;
   sendDevice();
   if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); face.reset(); needCal(); sendState(); paint(); }
 }, { passive: true });
@@ -627,6 +749,8 @@ function paintAlert(){
         ? { t: 'Lo schermo può spegnersi', p: 'Questo browser non lo tiene acceso: allunga lo spegnimento automatico nelle impostazioni del telefono.' }
         : { t: 'Lo schermo può spegnersi', p: 'Tocca il pulsante; se ricapita, disattiva il risparmio energetico.', b: 'Tieni acceso lo schermo', act: 'wake' };
   }
+  // B41.3: telefono dello stand con la batteria bassa (dove il browser la dà), se non c'è un avviso più urgente
+  if (!a && !veil.shown && pair?.stand && linkState === 'on') a = batteryAlert({ level: battery?.level, charging: !!battery?.charging });
   const key = a ? a.t + a.p : '';
   if (key === alertKey) return;
   alertKey = key; show('#alert', !!a);

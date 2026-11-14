@@ -105,7 +105,8 @@ export class NatpfKiosk {
     if (this.isOpen) return;
     const E = this.engine, ui = this.ui, lobby = ui.lobby;
     const inGame = !lobby.visible && (!E.autoPlayMode || ui.training.active || !!ui.events.active);
-    const atRest = lobby.visible && lobby.step === 'menu' && !ui.events.nickname && !ui.phone.connected;
+    // (B41.2: il telefono dello stand resta sempre collegato, non vuol dire che c'è qualcuno)
+    const atRest = lobby.visible && lobby.step === 'menu' && !ui.events.nickname && (!ui.phone.connected || !!ui.phone.standSlot);
     const a = kioskAction({ enabled: this.enabled, idle: (performance.now() - this.last)/1000, limit: this.limit, inGame, atRest });
     if (a === 'end-game'){ ui.backToMenu(); this.reset(); }
     else if (a === 'reset') this.reset();
@@ -129,7 +130,8 @@ export class NatpfKiosk {
     // (il tutorial visto è segnato sul telefono, per abbinamento: si dimentica anche con lo stesso telefono)
     if (ui.split) ui.split.closeTutorials?.();
     ui.phone?.forgetTutorial?.(); ui.engine?.natpfPhone2?.forgetTutorial?.();
-    if (ui.phone.connected) ui.phone.forget?.();
+    // (B41.2: modalità fiera, il telefono dello stand non si scollega: resta al suo posto per il prossimo visitatore)
+    if (ui.phone.connected && !ui.phone.standSlot) ui.phone.forget?.();
     ui.lobby.go('menu');
     // pausa ricalcolata a pannelli chiusi: prima restava attiva e il visitatore successivo trovava il gioco fermo
     ui._syncPause?.();

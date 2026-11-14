@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { createPhoneLink, testSearch } from '@natpf/tennis/link.js';
 import { pairingUrl } from '@natpf/tennis/pairing.js';
+import { standPairingUrl, isSlot } from '@natpf/tennis/stand-pairing.js';
 import { gestureAim } from '@natpf/match/shot-quality.js';
 import { lanOrigin } from './natpf_lan.js';
 import { VIBRATION } from './natpf_shot_feedback.js';
@@ -461,6 +462,11 @@ export class NatpfPhoneRacket {
     // riscaldamento, scambi di prova) il computer offre al telefono un pulsante per andare avanti senza farlo (messaggio
     // nx: on, lb = scritta); il tocco torna come «next» (onNext). Le pagine del telefono di prima ignorano il messaggio
     this.nextListeners = new Set(); this.nextOffer = null; this.nextSent = '';
+    // B41.6: dati in più dell'offerta («Sono pronto»: rd 1, me 1 dopo il tocco, tx riga sotto), null per le altre
+    this.nextExtra = null;
+    // B41.2: posto dello stand di questo telefono ('p1' Telefono 1, 'p2' Telefono 2) con la modalità fiera, null per la
+    // racchetta normale (QR a ogni abbinamento). Lo decide natpf_fiera.js (useStand)
+    this.standSlot = null;
     // tutorial visto per questo abbinamento del telefono (link.L.pairs): si rivede solo con un abbinamento nuovo (QR), non
     // a ogni ricollegamento (pagina ricaricata, schermo spento, «Ricollega»); tutSaved = dove era arrivata la modale chiusa
     // prima della fine (stesso abbinamento: si riprende da lì). Uno per telefono: vale per Allenamento e stesso schermo.
@@ -478,8 +484,10 @@ export class NatpfPhoneRacket {
     // (revisione del B28, difetto 4) il profilo ricorda come è stato fatto: madeBy = 'gesti' (calibrazione con i gesti),
     // 'salta' («Salta» premuto apposta con «Con i gesti»), 'auto' (profilo semplice dato dal gioco con «Giocando» o
     // «Nessuna»), 'prova' (imparato dagli scambi di prova o dal riscaldamento), null (non si sa: telefono appena tornato).
-    // gestureAt: numero della partita (engine.natpfMatchSeq) in cui è finita una calibrazione con i gesti fatta fuori
-    // da una partita: con «Giocando» e «Nessuna» quel profilo vale per la partita che segue e basta
+    // gestureAt: numero dell'attività (activitySeq: partite, minigiochi, allenamenti e riscaldamenti cominciati) in cui
+    // è finita una calibrazione con i gesti fatta fuori da un'attività: con «Giocando» e «Nessuna» quel profilo vale
+    // per l'attività che segue, qualunque sia, e basta (B28.1: prima contavano solo le partite, e due minigiochi dopo
+    // «Calibra con i gesti» lasciavano quel profilo anche alla partita del visitatore dopo)
     this.madeBy = null; this.gestureAt = null;
   }
   // B28: calibrazione dello stand (natpf_trial_learn.readCalMode: 'play' giocando, 'gesti', 'none') e profilo semplice
@@ -504,8 +512,10 @@ export class NatpfPhoneRacket {
   // apposta dopo la fine dell'ultima partita, e vale per quella che segue: niente passa da un visitatore al successivo
   get keepsGesture(){
     if (!this.gestureProfile) return false;
-    return this.calMode === 'gesti' || (this.gestureAt != null && this.gestureAt === (this.engine.natpfMatchSeq || 0));
+    return this.calMode === 'gesti' || (this.gestureAt != null && this.gestureAt === this.activitySeq);
   }
+  // attività cominciate finora: partite (motore) più minigiochi, allenamenti e riscaldamenti (NatpfUi.activityStarted)
+  get activitySeq(){ return (this.engine.natpfMatchSeq || 0) + (this.engine.natpfUi?.activitySeq || 0); }
   // Con «Con i gesti» conta come calibrato solo un profilo fatto con i gesti (o saltato apposta): un profilo dato dal
   // gioco o imparato dagli scambi di prova, rimasto da quando l'opzione era un'altra, no
   get calStale(){ return this.calMode === 'gesti' && this.connected && this.ready && !this.gestureCal && !!this.profile && (!!this.profile.trial || this.madeBy === 'auto' || this.madeBy === 'prova'); }
@@ -556,7 +566,25 @@ export class NatpfPhoneRacket {
     // «Nuovo giocatore» con il telefono scollegato (resetPlayer): appena torna, la calibrazione da capo
     if (this.connected && this.recalPending){ this.recalPending = false; this.recalibrate(); }
   }
-  get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
+  // (posto dello stand: nessun QR pubblico, B41.2)
+  get pairingUrl(){ return this.link && !this.standSlot ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
+  // QR dell'abbinamento del posto dello stand, solo a foglio aperto (B41.1: lo mostra il foglio «Telefoni dello stand»)
+  get standPairingUrl(){ const i = this.standSlot ? this.link?.standInfo?.() : null; return i ? standPairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), i.pairId, i.token) : null; }
+  // B41.2 · modalità fiera: questo telefono diventa (slot) o smette di essere (null) il telefono dello stand di un posto.
+  // Il collegamento cambia: il posto dello stand si ascolta all'indirizzo fisso con la prova della chiave (link.js,
+  // stand), la racchetta normale con il QR. Promise del collegamento avviato
+  useStand(slot = null){
+    const want = isSlot(slot) ? slot : null;
+    if (want !== this.standSlot){
+      this.standSlot = want;
+      const old = this.link;
+      if (old){ this.link = null; this.gripSent = false; this.joins = undefined; this.lastPhase = null; this.nextSent = ''; try { old.stop(); } catch (e){ console.error(e); } }
+      this._changed();
+    }
+    // posto dello stand: in ascolto subito (il telefono si ricollega da solo); racchetta normale: si avvia quando serve
+    // (pagina «Collega», pannello del telefono), come prima
+    return want || this.link || this._starting ? this.start() : Promise.resolve(this);
+  }
   onChange(fn){ this.listeners.add(fn); return () => this.listeners.delete(fn); }
   _changed(){ for (const fn of this.listeners) try { fn(this); } catch (e){ console.error(e); } }
 
@@ -572,8 +600,9 @@ export class NatpfPhoneRacket {
     if (!window.qrcode) await loadScript(`${NATPF_BASE}js/vendor/qrcode.js`).catch(() => {});
     // server LAN aperto da localhost: nel QR va l'indirizzo di rete del computer
     this.lanOrigin = await lanOrigin();
-    const link = this.link = createPhoneLink();
-    link.on('change', () => { this._sendGrip(); this._autoProfile(); this._syncPhoneState(); this._changed(); });
+    // (posto dello stand con la modalità fiera, B41.2: niente QR, indirizzo fisso e prova della chiave)
+    const link = this.link = createPhoneLink(this.standSlot ? { stand: { slot: this.standSlot } } : undefined);
+    link.on('change', () => { if (this.link !== link) return; this._sendGrip(); this._autoProfile(); this._syncPhoneState(); this._changed(); });
     link.on('cal', e => this._onCal(e));
     link.on('tut', e => this._onTut(e));
     link.on('swing', s => this._onSwing(s));
@@ -588,6 +617,8 @@ export class NatpfPhoneRacket {
     link.on('mark', d => this._diag('segno', d));
     link.on('device', d => { this.device = d; this._diag('dispositivo', d); });
     await link.start();
+    // (cambiato posto mentre partiva: vale il collegamento nuovo)
+    if (this.link !== link){ this._starting = null; return this.start(); }
     this._changed();
     return this;
   }
@@ -615,7 +646,8 @@ export class NatpfPhoneRacket {
       // gesti chiesta apposta è finita
       // (come è stato fatto: prima di spegnere gestureCal, che decide autoSimple)
       this.madeBy = !this.profile ? null : this.profile.simple ? (this.autoSimple ? 'auto' : 'salta') : 'gesti';
-      this.gestureAt = this.madeBy === 'gesti' && !this.engine.natpfUi?.matchLive?.() ? (this.engine.natpfMatchSeq || 0) : null;
+      // (fatta a metà di una partita, di un minigioco o di un allenamento vale per quell'attività e basta)
+      this.gestureAt = this.madeBy === 'gesti' && !this.engine.natpfUi?.activityLive?.() ? this.activitySeq : null;
       this.learner.reset(); this.gestureCal = false; this.simple = !!this.profile?.simple; this.lastExpect = null;
       this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline;
       this.liftModel.reset(this.liftBaseline); this.faceModel.reset();
@@ -675,13 +707,16 @@ export class NatpfPhoneRacket {
   }
   onNext(fn){ this.nextListeners.add(fn); return () => this.nextListeners.delete(fn); }
   // label: scritta del pulsante («Avanti ›», «Salta ›»), null per toglierlo. Rimandato a ogni collegamento nuovo (update)
-  offerNext(label = null){ this.nextOffer = label ? String(label).slice(0, 24) : null; this._sendNext(); }
+  // extra (B41.6): campi in più del messaggio, per «Sono pronto» { rd: 1, me: 0 | 1, tx }: le pagine del telefono di oggi
+  // lo mostrano grande al posto di «Pronto», quelle di prima (B28) come il pulsante «Avanti ›» con la stessa scritta, che
+  // funziona lo stesso; quelle ancora prima lo ignorano (resta «Gioca» sul computer)
+  offerNext(label = null, extra = null){ this.nextOffer = label ? String(label).slice(0, 24) : null; this.nextExtra = this.nextOffer && extra ? { ...extra } : null; this._sendNext(); }
   _sendNext(){
     if (!this.connected){ this.nextSent = ''; return; }
-    const key = `${this.state.joins || 0}:${this.nextOffer || ''}`;
+    const key = `${this.state.joins || 0}:${this.nextOffer || ''}:${this.nextExtra ? JSON.stringify(this.nextExtra) : ''}`;
     if (key === this.nextSent) return;
     this.nextSent = key;
-    this.link.send(this.nextOffer ? { t: 'nx', on: 1, lb: this.nextOffer } : { t: 'nx', on: 0 });
+    this.link.send(this.nextOffer ? { t: 'nx', on: 1, lb: this.nextOffer, ...(this.nextExtra || {}) } : { t: 'nx', on: 0 });
   }
   // avanzamento della modale { i, n, s, m, all, nm } (NatpfTutorial.progress), mandato al telefono finché aspetta
   tutorialProgress(p){ this.tutProgress = p ? { ...p } : null; this._sendTp(); }
@@ -703,7 +738,8 @@ export class NatpfPhoneRacket {
     this._changed();
   }
   // tutorial già visto da chi tiene questo telefono (stesso abbinamento): uno qualunque, corto o completo
-  get tutorialSeen(){ return this.tutSeenPairs != null && this.tutSeenPairs === (this.state.pairs || 0); }
+  // (telefono dello stand, B41.2: conta come visto, il visitatore riceve il telefono pronto: niente tutorial)
+  get tutorialSeen(){ return !!this.standSlot || (this.tutSeenPairs != null && this.tutSeenPairs === (this.state.pairs || 0)); }
   // visto il tutorial di questa serie: il completo vale anche per il corto, il corto no per il completo (l'Allenamento dopo
   // una partita mostra le schede che mancano, natpf_tutorial.tutorialResumeAfterShort)
   tutorialSeenFor(set = 'full'){ return this.tutorialSeen && (this.tutSeenSet === 'full' || set === 'short'); }
@@ -882,7 +918,8 @@ export class NatpfPhoneRacket {
     if (!this.trial) return null;
     const keep = !!this.trial.keep;
     this.trial = null; this.lastPhase = null; this.lastExpect = null;
-    if (keep) return { level: 'gesti', n: { forehand: 0, backhand: 0 }, sign: 1, ref: this.profile?.ref ?? null, votes: { agree: 0, against: 0 } };
+    // (keep: ha tenuto il profilo dei gesti, niente da imparare: chi mostra l'esito lo dice e riempie i puntini)
+    if (keep) return { level: 'gesti', keep: true, n: { forehand: 0, backhand: 0 }, sign: 1, ref: this.profile?.ref ?? null, votes: { agree: 0, against: 0 } };
     const L = this.learner, level = L.level(), learned = L.profile(this.profile), counts = L.counts(this.hand);
     if (learned){
       this.profile = learned; this.simple = false; this.madeBy = 'prova'; this.gestureAt = null;

@@ -32,7 +32,11 @@ test('esercizi senza limite di tentativi: prima chi non riusciva restava lì; or
   const ids = [];
   for (let i = 0; i < 20 && T.active; i++){ ids.push(T.drill?.id); phoneNext(P); w.advance(800); }
   assert.deepEqual(ids, drillsFor('phone').slice(1).map(d => d.id), 'un esercizio per tocco');
-  assert.ok(!T.active, 'dopo l\'ultimo esercizio l\'allenamento è finito'); assert.deepEqual(nxOf(link), { t: 'nx', on: 0 }, 'il telefono toglie il pulsante');
+  assert.ok(!T.active, 'dopo l\'ultimo esercizio l\'allenamento è finito');
+  // il telefono toglie il pulsante; poi (B41.6) si è sulla pagina «Pronto per la partita», dove riceve «Sono pronto»
+  const nx = link.sent.filter(m => m.t === 'nx'), after = nx.slice(nx.map(m => m.lb).lastIndexOf('Avanti ›') + 1);
+  assert.deepEqual(after[0], { t: 'nx', on: 0 }, 'il telefono toglie il pulsante');
+  assert.ok(after.every(m => m.on === 0 || m.rd === 1), `dopo, solo «Sono pronto» della pagina «Pronto per la partita»: ${JSON.stringify(after)}`);
   phoneNext(P); assert.ok(!T.active, 'un tocco in ritardo non fa niente');
 });
 
