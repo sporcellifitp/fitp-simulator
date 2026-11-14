@@ -107,3 +107,24 @@ test('B36.0: rally-balance con lo scarto della cima — partite identiche alla b
   assert.equal(visto?.aimFull, 17);
 });
 
+/* ---------- banco della direzione esteso (scripts/audit/direzione-telefono.mjs --b36) ---------- */
+test('B36.0: banco della direzione sul rimbalzo vero — fuori come l’arbitro, attesa della posa «pronto», serie e seme', async () => {
+  const D = await import('../scripts/audit/direzione-telefono.mjs');
+  // stesso colpo giudicato sul bersaglio e sul rimbalzo: la palla vera cade più al centro (l'aria), la x è quella del rimbalzo
+  const e = createHeadlessEngine({ difficulty: 'pro' }); e.startNewMatch({ showStartBanner: false });
+  const tB = D.strike(colpoTel(.9, 15.6), { e, u: 0 }), tR = D.strike(colpoTel(.9, 15.6), { e, u: 0, giudice: 'rimbalzo' });
+  assert.equal(tR.xBersaglio, tB.x); assert.ok(Number.isFinite(tR.bx) && Math.abs(tR.bx) < Math.abs(tB.x) && Math.abs(tR.bx) > .7*Math.abs(tB.x), `${tR.bx} ${tB.x}`);
+  assert.equal(tR.x, tR.bx); assert.equal(tR.fuori, false);
+  const fuori = D.strike(colpoTel(1, 17), { e, u: -1.6, giudice: 'rimbalzo' });
+  assert.ok(fuori.fuori && fuori.side && Math.abs(fuori.bx) > 4.335, JSON.stringify(fuori));
+  // tre posizioni: la palla arriva a chi colpisce dove sta
+  const dx = D.strike(colpoTel(0, 3), { e, u: 0, posizione: 2.4, giudice: 'rimbalzo' }), sx = D.strike(colpoTel(0, 3), { e, u: 0, posizione: -2.4, giudice: 'rimbalzo' });
+  assert.ok(dx.hitX > 2.5 && sx.hitX < -1.5 && dx.bx > sx.bx, `${dx.hitX} ${sx.hitX} ${dx.bx} ${sx.bx}`);
+  // attesa della posa «pronto»: con la cima ferma 2 s il gioco legge meno giro (la posa «pronto» lo assorbe)
+  const A = D.attesaB36({ semi: 1, attese: [0, 2000] });
+  assert.equal(A[0].giroPct, 100); assert.ok(A[1].giroPct < 90 && A[1].dx < 0, JSON.stringify(A));
+  const S = D.serieB36({ semi: 2, models: ['piatto'], wants: ['cross'] });
+  assert.equal(S[0].colpi, 28); assert.ok(S[0].giusti >= 40, JSON.stringify(S));
+  const E = D.semeB36({ semi: 2, persone: ['adulto'], percorsi: { 'scambi 2+2': {} } });
+  assert.equal(E[0].versi, 4); assert.ok(E[0].medio >= 0 && E[0].medio < 20, JSON.stringify(E));
+});

@@ -218,7 +218,7 @@ export function reale({ hand = 'right', N = REAL.N, seed = REAL.seed, uMed = REA
       natpf: { aim: 'swing', shot: intent.shot, intent, power: intent.power, peak, typical: REAL.ref, latency: 0, hand, aimDev: a?.dev ?? null } };
     const o = strike(ev, { difficulty, u, ballY, engine: rhythm ? e : null, rally: 3 });
     shots.push(o ? { i, side, cerr, k: +k.toFixed(3), dev: +dev.toFixed(2), u: +u.toFixed(3), ballY: +ballY.toFixed(2), aimDev: a?.dev ?? null, shot: o.shot, intent: intent.shot, power: intent.power, face: intent.face,
-      x: o.x, depth: o.depth, kmh: o.kmh, net: o.net, failed: o.failed || o.netFault, super: !!o.super?.on } : { i, side, cerr, lost: true });
+      x: o.x, bx: o.bx, depth: o.depth, kmh: o.kmh, net: o.net, failed: o.failed || o.netFault, super: !!o.super?.on } : { i, side, cerr, lost: true });
   }
   const ok = shots.filter(s => !s.lost), X = ok.map(s => s.x), part = (a, b) => q(ok.slice(a, b).map(s => s.x), .5);
   return { hand, N, seedErr, devBias, rhythm, shots, rhythmEnd: rhythm ? +(e.natpfRhythm?.player?.value ?? 0).toFixed(2) : null,
@@ -261,12 +261,13 @@ export function seme({ seedErr = 0, runs = SEME.runs, n = SEME.n, hand = 'right'
 // con la mediana oltre 1 m da una parte, mediana con il segno (media sulle partite), errore del centro della mira alla
 // fine del blocco (gradi, medio assoluto e massimo). `at`: errore del centro anche a questi colpi (riferimento girato)
 export const PARTITE = Object.freeze({ runs: 24, n: 80, seed: 101, blocks: Object.freeze([[20, 40], [40, 60], [60, 80]]) });
-export function partite({ runs = PARTITE.runs, n = PARTITE.n, blocks = PARTITE.blocks, at = [], ...o } = {}){
+// su (B36.0): 'bersaglio' (di base, come sempre: la x del bersaglio del motore) o 'rimbalzo' (dove la palla rimbalza davvero)
+export function partite({ runs = PARTITE.runs, n = PARTITE.n, blocks = PARTITE.blocks, at = [], su = 'bersaglio', ...o } = {}){
   const med = v => { const s = [...v].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m])/2; };
-  const B = blocks.map(() => ({ m: [], c: [] })), A = at.map(() => []);
+  const B = blocks.map(() => ({ m: [], c: [] })), A = at.map(() => []), xOf = s => (su === 'rimbalzo' ? s.bx : s.x);
   for (let r = 0; r < runs; r++){
     const g = reale({ ...o, N: n, seed: PARTITE.seed + r });
-    blocks.forEach(([a, b], j) => { B[j].m.push(med(g.shots.slice(a, b).filter(s => !s.lost).map(s => s.x))); B[j].c.push(Math.abs(g.shots[b - 1].cerr)); });
+    blocks.forEach(([a, b], j) => { B[j].m.push(med(g.shots.slice(a, b).filter(s => !s.lost && Number.isFinite(xOf(s))).map(xOf))); B[j].c.push(Math.abs(g.shots[b - 1].cerr)); });
     at.forEach((k, j) => A[j].push(Math.abs(g.shots[k - 1].cerr)));
   }
   const r2 = v => +v.toFixed(2), r1 = v => +v.toFixed(1);
