@@ -396,6 +396,14 @@ test('B41.4 · avviso della batteria sul ledwall: telefono dello stand collegato
   ui.fiera._alertAt = 0; ui.fiera.tick();
   assert.equal($('natpf-fiera-alert').textContent, 'Telefono 1: batteria 14% · mettilo in carica');
   assert.ok(visible('natpf-fiera-alert'));
+  // sulla pagina della fiera la classe on-page (in un'area stretta, 720×720, l'avviso va accanto a «Gioca ›» e non copre
+  // «Telefono: tocca «Sono pronto»»: natpf-ui.css); fuori dalla pagina no
+  ui.lobby.go('menu');
+  ui.fiera._alertAt = 0; ui.fiera.tick();
+  assert.ok(ui.fieraPage.here && $('natpf-fiera-alert').classList.contains('on-page'), 'sulla pagina della fiera');
+  ui.lobby.el.classList.add('hidden');   // (in campo: la pagina non c'è)
+  ui.fiera._alertAt = 0; ui.fiera.tick();
+  assert.ok(!ui.fieraPage.here && !$('natpf-fiera-alert').classList.contains('on-page') && visible('natpf-fiera-alert'), 'fuori dalla pagina');
   link.L = { ...link.L, charging: true };
   ui.fiera._alertAt = 0; ui.fiera.tick();
   assert.ok(!visible('natpf-fiera-alert'), 'in carica: niente avviso');

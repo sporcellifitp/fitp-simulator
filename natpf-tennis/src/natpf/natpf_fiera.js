@@ -139,6 +139,9 @@ export class NatpfFiera {
     if (!el) return;
     if (el.textContent !== t) el.textContent = t;
     el.classList.toggle('hidden', !t);
+    // (sulla pagina della fiera in un'area stretta, 720×720: in basso a sinistra coprirebbe «Telefono: tocca «Sono
+    // pronto»» sopra «Gioca»; lì va a destra, accanto a «Gioca»: natpf-ui.css)
+    el.classList.toggle('on-page', !!this.ui.fieraPage?.here);
   }
   // telefono di un posto (il Telefono 2 nasce qui con la modalità accesa: prima solo con lo stesso schermo)
   phone(slot, { make = true } = {}){

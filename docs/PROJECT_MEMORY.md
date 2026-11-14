@@ -1239,3 +1239,42 @@ Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`) con
   stesso schermo con un telefono non pronto: si va per «Altre impostazioni». Sfida tra due computer: rivincita immediata.
   Tastiera in `natpf_lobby._key` (prima della pausa: Esc è «‹ Indietro»), telecomando con lo strato `rematch` di
   `natpf_remote_map.js` (focus, OK, Indietro = `cancel`, «Gioca!» = `play`, «Chi gioca» = livello).
+
+## B41 seconda parte · Modalità fiera con il solo mouse (14/11/2026; documento `docs/b41/modalita-fiera-2.md`)
+- **Interruttore**: pannello dello stand, prima voce «Modalità fiera: No · Sì» (`data-staff="fiera"`, `natpf-tennis.fiera`;
+  `?stand=fiera|normale` vince per la pagina). Accendendola dal pannello la calibrazione va su «Giocando» se non lo era
+  (decisione dell'utente del 14/11: ogni visitatore fa i suoi scambi di prova) e si apre il foglio. Con la modalità accesa
+  la voce «Telefono» è «Telefoni dello stand ›» (non scollega niente). Le voci del pannello sono 16: chi ne aggiunge una
+  riprova `natpf-menu` (1024×600, 1366×657, 720×720) e la sonda dell'impaginazione.
+- **Foglio «Telefoni dello stand»** (`natpf_fiera_sheet.js`, `#natpf-fiera`): foglio dello staff come pannello e
+  telecomando (conta in `staffOpen`, z-index 250, Esc e Indietro del telecomando tornano al pannello, strato `fiera` del
+  telecomando, il chiosco aspetta). QR di un posto alla volta, solo a foglio aperto; «Conferma» vale solo con
+  `ev.isTrusted` e ha `data-no-remote`; «Scollega» in due clic. Chi aggiunge un'azione che abbina o scollega la mette qui,
+  mai sulla pagina della fiera (che il pubblico vede).
+- **Pagina della fiera** = passo `match` della lobby con `#title-modal[data-fair="1"]` (`natpf_fiera_page.js`):
+  `lobby.go('menu')` con la modalità accesa porta lì (chiosco, pausa → menu, «Prossimo giocatore», fine della classifica a
+  schermo intero). Chi aggiunge una strada verso il menu non deve fare altro; chi aggiunge una pagina raggiungibile dal menu
+  sappia che in fiera il menu non c'è. «Gioca» è spento finché i telefoni dello stand che servono non sono pronti
+  (`fairGate`); con un telefono non pronto mai `openPhone` (che mostrerebbe un QR): il foglio dello staff. In fiera gli
+  scambi di prova portano dritti alla partita (fuori dalla fiera, B35, alla pagina).
+- **«Sono pronto» e scambi di prova**: il tocco del telefono è un «next» che arriva a tutti gli ascoltatori di
+  `NatpfPhoneRacket.onNext`, anche agli scambi di prova (il loro «Salta ›»). Chi fa partire qualcosa da un «next» lo fa
+  **dopo** il tocco (`setTimeout`, come `natpf_ready_go._fire`), altrimenti l'attività appena partita riceve lo stesso tocco.
+  «Sono pronto» non si offre con un foglio dello staff aperto (`natpf_ready_go._ids`).
+- **«Prossimo giocatore»** = `natpf_new_player.resetFairVisitor` (fine partita, pannello, telecomando, chiosco in fiera):
+  come «Nuovo giocatore» ma senza QR, tutorial, foglio del nome; i telefoni dello stand restano collegati
+  (`resetPlayer({ gate: false, causa: 'fiera' | 'chiosco' })`, la causa del B45.1), mani con `resetHands(ui, 'fiera')` (o
+  `'chiosco'`). `NatpfUi.newPlayer` sceglie da sé.
+- **Visitatori numerati**: `NatpfFiera.claimVisitor` al primo «Gioca» contro la CPU senza nome né «Ospite»
+  (`natpf-tennis.fiera.visitatori` = `{ day, n }`, `dayKey` di `natpf_events.js`); il nome «Visitatore N» va nella partita
+  e nella classifica del giorno. Nello stesso schermo niente numeri (non c'è classifica).
+- **Battuta in fiera**: contro la CPU `natpf_battuta.matchServe({ fair: true })` → batte sempre il visitatore, anche con
+  «Alternata». Il banco delle simulazioni non ha `natpfUi.fiera`: `audit:legend` non cambia.
+- **Mano**: le scelte della mano si chiamano «Destra · Sinistra» ovunque (test `natpf-mancini`), anche nella pagina della
+  fiera; «Mancino» è solo l'etichetta in campo (B46).
+- **Prove nel browser**: accendere la modalità fiera dal pannello porta la calibrazione su «Giocando» anche se la prova
+  parte con `CAL=none`, quindi dopo «Gioca» o «Sono pronto» vengono gli scambi di prova (in `natpf-fiera-telefoni` si
+  chiudono con «Salta ›» dal telefono; interi in `natpf-flusso-tocchi` `FLOW=fiera` e `FLOW=fiera-due`). Chi aspetta la
+  partita dopo «Sono pronto» in fiera aspetta prima la fine degli scambi di prova.
+- **Non fatto**: la «prova dritto e rovescio» nel foglio del progetto §3.1 (il telefono manda i colpi solo in gioco: servirebbe
+  cambiare `racchetta.js`).

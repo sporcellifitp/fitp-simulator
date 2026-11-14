@@ -120,6 +120,15 @@ const endFit = g => g.evaluate(() => {
   const clipped = [...card.querySelectorAll('.skill-card-header, .victory-result-banner, .end-games, .end-sub, .end-tile, .end-pill, .nt-footer-btn:not(.hidden)')].filter(el => { const b = el.getBoundingClientRect(); return b.height > 0 && (b.top < r.top - 1 || b.bottom > r.bottom + 1 || b.left < r.left - 1 || b.right > r.right + 1); }).map(el => `${el.className.split(' ')[0]}:${el.textContent.slice(0, 16)}`);
   return { title: ban.textContent, lines: Math.round(ban.getBoundingClientRect().height / lh), scroll: card.scrollHeight > card.clientHeight + 1, clipped, fit: ban.style.getPropertyValue('--fit') };
 });
+// avviso della batteria sulla pagina della fiera: dentro lo schermo e senza coprire «Gioca», le spunte di «Sono pronto» e il
+// resto della pagina (a 720×720 va accanto a «Gioca ›»: in basso a sinistra copriva «Telefono: tocca «Sono pronto»»)
+const alertFree = g => g.evaluate(() => {
+  const a = document.getElementById('natpf-fiera-alert'), ar = a.getBoundingClientRect();
+  const vis = el => { const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 && !el.closest('.hidden'); };
+  const hits = [...document.querySelectorAll('#title-modal button, #title-modal .rg-chip, #fiera-phones, #title-modal .lobby-title, #title-modal [data-difficulty]')].filter(vis)
+    .filter(el => { const b = el.getBoundingClientRect(); return b.left < ar.right - 1 && ar.left < b.right - 1 && b.top < ar.bottom - 1 && ar.top < b.bottom - 1; }).map(el => `${el.id || el.className.split(' ')[0]}:${el.textContent.trim().slice(0, 24)}`);
+  return { shown: !a.classList.contains('hidden'), rect: [ar.left, ar.top, ar.right, ar.bottom].map(Math.round), inside: ar.left >= 0 && ar.top >= 0 && ar.right <= innerWidth && ar.bottom <= innerHeight, hits };
+});
 const staffWord = (g, slot) => g.evaluate(s => document.querySelector(`#natpf-fiera [data-fiera-slot="${s}"] [data-fiera="word"]`)?.textContent || '', slot);
 // abbinamento con il foglio «Telefoni dello stand» aperto: «Abbina», QR, numero, «Conferma» con un clic vero
 async function pairPhone(g, slot, name, { battery = false } = {}){
@@ -281,7 +290,11 @@ try {
   await shot(g, 'foglio-due-telefoni-batteria-1920');
   await g.click('#natpf-fiera [data-fiera-act="close"]'); await sleep(400);
   await g.click('#natpf-staff [data-staff="close"]'); await sleep(700);
-  for (const [w, h] of [[1920, 1080], [1280, 720], [720, 720]]) await sizedShot(g, w, h, 'avviso-batteria');
+  for (const [w, h] of [[1920, 1080], [1280, 720], [720, 720]]){
+    await sizedShot(g, w, h, 'avviso-batteria');
+    const v = await alertFree(g);
+    check(`   avviso della batteria a ${w}×${h}: nello schermo, non copre «Gioca» né «Sono pronto»`, v.shown && v.inside && !v.hits.length, JSON.stringify(v));
+  }
   await g.setViewportSize({ width: 1920, height: 1080 }); await sleep(400);
   await g.click('[data-fiera-mode="split"]');
   const both = await until(g, () => { const P1 = __natpfTennis.natpfPhone, P2 = __natpfTennis.natpfPhone2; return __natpfTennis.natpfUi.lobby.mode === 'split' && P1.nextExtra?.rd && P2?.nextExtra?.rd; }, null, 8000);

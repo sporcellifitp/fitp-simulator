@@ -2096,3 +2096,32 @@ Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`), de
   su «Tu» nel secondo game vinto dalla CPU.
 - Non verificato: telefoni veri, ledwall vero, programma Windows, mouse fisico; il conto alla rovescia nella sfida tra
   due computer non c'è (escluso apposta).
+
+## B41 seconda parte · Modalità fiera con il solo mouse (B41.4 + B41.5, 14/11, ramo `b41-fiera-2`) · [x] verificato sul ramo, da unire
+
+Richiesta dell'utente (in fiera): la B41 seconda parte, con le decisioni del 14/11 (scambi di prova per ogni visitatore).
+Documento `docs/b41/modalita-fiera-2.md`; guida dello stand capitolo 8.4. Ramo da `natpf-simulator` @ `6348253` (14.2 con
+il B47 unito), poi unito con `natpf-simulator` @ `ff90b5a` (14.3: B45.1 fase A); niente push, niente file di versione.
+- [x] B41.4 · interruttore e foglio (`2f8c5f0`): pannello «Modalità fiera: No · Sì» (prima voce; accesa: calibrazione
+  «Giocando», foglio aperto, pagina della fiera), «Telefono» → «Telefoni dello stand ›»; foglio `natpf_fiera_sheet.js`
+  (stato, batteria, «Abbina» con il QR solo a foglio aperto e un posto alla volta, numero, «Rifiuta», «Conferma» solo con un
+  clic vero e fuori dal telecomando, «Scollega» in due clic); avviso della batteria sul ledwall; strato `fiera` del
+  telecomando; `staffOpen` conta il foglio.
+- [x] B41.5 · pagina della fiera e «Prossimo giocatore» (`2f8c5f0`): `natpf_fiera_page.js`, `natpf_lobby` (menu → pagina
+  della fiera), `natpf_ui._bindStart` (in fiera scambi di prova → partita, niente QR), `natpf_new_player.resetFairVisitor`,
+  chiosco in fiera, telecomando («Prossimo giocatore»), visitatori numerati, `matchServe({ fair })`.
+- [x] Correzioni dalle prove nel browser: «Sono pronto» sulla pagina della fiera saltava gli scambi di prova (il clic di
+  «Gioca» del conto ora arriva dopo il tocco, `natpf_ready_go._fire`; test che senza fallisce); «Sono pronto» non offerto con
+  un foglio dello staff aperto; scelte della mano «Destra · Sinistra» come nel resto del gioco; la «prova dritto e rovescio»
+  del foglio tolta (il telefono non manda colpi fuori dal gioco). Commit `2ffa80f` (correzione di «Sono pronto», prove nel
+  browser della fiera con il solo mouse).
+- [x] Unione di `natpf-simulator` (`af42330`): conflitti solo in `natpf_kiosk.js`, tenute le due parti (chiosco del B45.1
+  che non scollega più nessun telefono, con `clean` e la riga delle cadute; in fiera il chiosco fa «Prossimo giocatore» e
+  la pagina della fiera conta come menu); `resetFairVisitor` passa la causa a `resetPlayer` (B45.1).
+- [x] Dopo l'unione (VEDI_COMMIT_PROVE): `natpf-fiera-telefoni` aspettava la partita subito dopo «Sono pronto», ma accendere
+  la modalità fiera porta la calibrazione su «Giocando» e, con la correzione di `2ffa80f`, ora vengono prima gli scambi di
+  prova: la prova li controlla e li chiude con «Salta ›» dal telefono (contro la CPU e in due). Commento della pagina della
+  fiera allineato («Destra · Sinistra»).
+- Verifiche: VEDI_VERIFICHE
+- Non verificato: telefoni veri (Android, iPhone), programma Windows (tasto destro), ledwall, rete dello stand, LAN; la
+  batteria vera (nella prova `navigator.getBattery` finto).

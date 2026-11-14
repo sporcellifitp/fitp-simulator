@@ -2207,6 +2207,12 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
    dello staff e gli avvisi brevi); non prende i clic */
 .natpf-fiera-alert { position: fixed; left: var(--gutter); bottom: clamp(70px, 12cqh, 150px); z-index: 240; max-width: min(46cqw, 640px); padding: clamp(6px, 1cqh, 14px) clamp(10px, 1.4cqw, 22px); border-radius: var(--r-pill); background: rgba(40, 24, 0, 0.88); border: 2px solid var(--warn); color: var(--warn); font: 700 clamp(12px, 1.9cqh, 26px)/1.25 var(--font-text); pointer-events: none; box-shadow: var(--shadow); }
 .natpf-fiera-alert::before { content: '🔋 '; }
+/* pagina della fiera in un'area stretta (720×720: la stessa misura che manda «Telefono: tocca «Sono pronto»» sopra i
+   pulsanti, più giù): in basso a sinistra coprirebbe quella riga; l'avviso va in basso a destra, nella riga di «Gioca ›»
+   (classe on-page: NatpfFiera.tick) */
+@container natpf (max-width: 820px) {
+  .natpf-fiera-alert.on-page { left: auto; right: var(--gutter); bottom: clamp(14px, 3.4cqh, 40px); max-width: min(62cqw, 640px); }
+}
 
 /* pagina della fiera (#title-modal[data-fair="1"]: passo «match» con la modalità fiera accesa, natpf_fiera_page.js). Niente
    «‹ Indietro», «Riscaldati prima», barra dei passi e ritratti; la riga «Chi gioca?» è il titolo della pagina */
