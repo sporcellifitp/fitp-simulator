@@ -60,9 +60,9 @@ test('la riga sotto le voci non si stringe (il foglio è una colonna flessibile)
   assert.match(js, /this\.ui\.kiosk\?\._fitNote\?\.\(note\); note\.textContent = t;/);
   // 720 × 720: quattro colonne (16 voci in quattro file)
   assert.match(css, /@container natpf \(min-width: 701px\) and \(max-width: 820px\) and \(max-height: 760px\) \{[^}]*\}\s*[^@]*grid-template-columns: repeat\(4, 1fr\)/);
-  // 1280 × 720 con le righe delle cadute (B45.1): file più basse solo con le cadute in vista (prima scorreva di 5 e 21 px)
-  const r1280 = css.match(/@container natpf \(min-width: 821px\) and \(min-height: 681px\) and \(max-height: 760px\) \{([\s\S]*?)\n\}/);
-  assert.ok(r1280, 'regola di 1280 × 720');
-  assert.match(r1280[1], /:has\(\.staff-cadute:not\(\.hidden\)\) \.pause-grid button \{ min-height: 50px;/);
-  assert.ok(r1280[1].split('\n').filter(l => l.trim()).every(l => l.includes(':has(.staff-cadute:not(.hidden))')), 'senza cadute il foglio è quello di prima');
+  // 1280 × 720 e 1366 × 768: file più basse (prima scorreva di 5 e 21 px con le righe delle cadute, di 18 con la modalità
+  // fiera e i telefoni da abbinare); anche con le cadute in vista, dove le regole :has() del B45.2 pesano di più
+  const r1280 = css.match(/@container natpf \(min-width: 821px\) and \(min-height: 681px\) and \(max-height: 800px\) \{([\s\S]*?)\n\}/);
+  assert.ok(r1280, 'regola di 1280 × 720 e 1366 × 768');
+  assert.match(r1280[1], /\.natpf-sheet\.staff-sheet \.pause-grid button, \.natpf-sheet\.staff-sheet:has\(\.staff-cadute:not\(\.hidden\)\) \.pause-grid button \{ min-height: 50px;/);
 });
