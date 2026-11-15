@@ -970,3 +970,28 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
    persone (sblocca B36.1+), il parere sul dritto del B23 (estenderlo o no), le decisioni aperte (Musica e «Chi gioca»
    salvati, «Schermo intero» salvato, chiosco e calibrazione, tasto «indietro» del mouse), il collaudo allo stand.
 
+
+## 15/11, 00:30 UTC · B45.2 e B41.2 finite; 14.4 con la sola B45.2, la B41.2 torna in correzione (B41.3)
+
+- Workflow `ripresa-b45-2-e-b41-2` (run `wf_2e24e751-b16`) finito, 4 agenti su 4.
+  - **B45.2 approvata** dal revisore (nessun difetto del prodotto; note sulla forza di due test: chiosco col collegamento
+    vero poco stringente, guardia `d.end` non coperta; difetto di 720×720 intermittente provato solo dal CSS). Ramo
+    `b45-1-collegamento` a `41583ce`: gioco 1623/1623, sito 269/269, desktop 51/51, LAN 13/13, build, audit:legend
+    uguale, prova-linux 101/101 (riprovati 0), 15 prove nel browser verdi al primo giro (nuova: natpf-pannello-cadute 33/33).
+  - **B41.2 NON approvata**: tre difetti medi (doppio tocco su «Sono pronto» o «Gioca ›» + tocco salta gli scambi di
+    prova; «Scollega» nel foglio dal telecomando con un OK; «Torna al menu» in fiera non azzera il visitatore) e quattro
+    bassi (1920×540 con un telefono non pronto, modalità spenta che non rimette «Con cosa giochi» e «Calibrazione»,
+    «Con i gesti» in fiera, testi). Più il difetto vecchio del B39.3 (riga sotto le voci che cambia altezza).
+- Unita la B45.2 in natpf-simulator (`3d92ce1`, stesso albero di `41583ce`). Versione **2026-11-14.4** = B45.1 fase B +
+  B45.2 (la B41 seconda parte va nella versione dopo, con le correzioni).
+- Avviato il workflow `b41-3-e-b48` (run `wf_bedc7b7e-f41`): **B41.3** (unione della B45.2 nel ramo `b41-fiera-2`, otto
+  correzioni, porte 4250–4299) e **B48** (ramo nuovo `b48-servizio`, worktree `scratchpad/b48/wt`, porte 4300–4349:
+  prima controlla cosa c'è già di difetto 16 e km/h veri dal B18/B34, poi servizio con scelte, servizio della CPU vario,
+  Leggenda al più una smorzata ogni 8 colpi), ciascuno con il suo revisore.
+- Dopo: B40 (quando la B41.3 è unita: tocca anche lei la fine partita), poi B49, B50, revisore finale.
+- **2026-11-14.4 pubblicata** (`4dc7a6d`, spinta 00:37 UTC): controllo rapido gioco 1623/1623, sito 269/269, desktop
+  51/51, LAN 13/13, build ok. Zip Cloudflare `natpf-simulator-cloudflare-2026-11-14.4.zip` 23.909.825 B, sha256
+  `d9efc5387edba64578e79213aaa9bd1efaab2b09a707142474cea23789332d63`, provato estratto (versione servita 14.4, QR dei due
+  telefoni, stesso schermo, pausa), senza `natpf/registro.json`. In corso: installer dal link fisso
+  (`scratchpad/v1404/installer.log`) e prove nel browser (phone-blackout, pannello-cadute, b20, menu:
+  `scratchpad/v1404/e2e.log`).
