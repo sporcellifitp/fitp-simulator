@@ -2360,5 +2360,5 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   verificato con una worktree della 14.5) diventano «corde al più 10 cm da dove le mette il motore». Prima provata una
   correzione del codice (`natpf_racket_clear.js`: scostamento spento con la palla in arrivo entro 0,45 / 0,25 s): corde a
   posto in 30 colpi su 31 ma racchetta nella testa durante l'attesa da 18 a 284 / 172 passi; tolta. Decisione in
-  `docs/PROJECT_MEMORY.md`.
+  `docs/PROJECT_MEMORY.md`. Prova completa con il controllo nuovo: **136/136**.
 - Non verificato: come sopra (telefoni veri, Windows vero, ledwall, persone vere).

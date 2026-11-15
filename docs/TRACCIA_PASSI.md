@@ -1171,7 +1171,8 @@ senza firma di sessione, e non hanno aggiornato traccia e piano):
       phone-blackout 11/11, training-flow 21/21, telecomando 91/91. Due prove rimaste indietro rispetto al gioco, aggiornate:
       **natpf-tabellone** 36/41 → **41/41** (si aspettava il formato nella pillola a parità e vantaggio; dal B50-3 la pillola
       dice «PARITÀ»/«VANTAGGIO»; schermate guardate) e **natpf-lob-drop** 133/136 (i 3 controlli «corde» del difetto noto dal
-      B32, identici sulla 14.5: analisi e decisione in `docs/PROJECT_MEMORY.md`, «Racchetta delle mascotte al colpo»).
+      B32, identici sulla 14.5: analisi e decisione in `docs/PROJECT_MEMORY.md`, «Racchetta delle mascotte al colpo»):
+      con il controllo nuovo **136/136** (22:42 UTC).
 - [x] Resti della revisione B41.3 chiusi: n. 4 guida 8.4 (finestra con l'indirizzo, classifica a schermo intero), n. 5 la
       riga sotto le voci del pannello è ad altezza fissa apposta (difetto 8, niente tremolio): resta.
 
