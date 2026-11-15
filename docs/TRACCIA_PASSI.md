@@ -1000,3 +1000,15 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
   porte 4350–4399): piani pronti per lo sviluppo di B40 (soglie dei 12 trofei dalle partite simulate), B49 (doppio) e B50
   (prova del ritardo del ledwall e pulizie), in `scratchpad/prep/b40|b49|b50/*-piano.md`. In corso anche
   `b41-3-e-b48` (`wf_bedc7b7e-f41`).
+
+## 15/11, 07:10 UTC · quarto limite d'uso (01:40–02:50 UTC); ripresa alle 07:10 su richiesta dell'utente («Riprendi»)
+
+- Il limite ha fermato B41.3, B48 e l'analisi del B50. Salvati i commit «IN CORSO … NON verificato»: `80239be` su
+  `b41-fiera-2` (fatti e in commit: unione della B45.2, difetti 1, 2, 3, 5, 6, 8; a metà il 4) e `2750e73` su
+  `b48-servizio` (fatto il passo 1, difetto 16 su tutti i percorsi; scritti ma non verificati i passi 2–4).
+- Rilanciati: `ripresa-b41-3-e-b48` (run `wf_04e347cd-a52`, con i revisori) e `ripresa-analisi-b50` (`wf_435f2003-304`).
+- Analisi finite: piani di **B40** (soglie dei 12 trofei da 8000 partite simulate; card, contatori, esultanza e
+  applauso, ritratti resi una volta) e **B49** (doppio: colpo e posizionamento del singolo, compagno autonomo con l'anello,
+  voce del pannello, pressione contata sullo scambio di chi gioca; prototipo misurato) copiati in
+  `docs/coda/B40-piano-analisi.md` e `docs/coda/B49-piano-analisi.md`. Ordine: B40 dopo l'unione della B41.3; B49 dopo
+  l'unione del B48 (toccano le stesse funzioni del motore); B50 per ultimo.
