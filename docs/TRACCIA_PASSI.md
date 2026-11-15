@@ -1017,3 +1017,25 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
   tabellone di 12×46 px, prova della Leggenda per lato, avviso della mano già chiuso) e prova del ritardo dello schermo
   di 20 s nella diagnostica (mediana con scarto dei fuori misura, riferimento sul monitor del PC, ±20 ms con il telefono
   simulato). Nota per il revisore finale: oltre 160 ms di ritardo la palla riparte 2–4 m dietro il personaggio.
+
+## 15/11, 10:30 UTC · B41.3 finita e unita: versione 2026-11-14.5 (modalità fiera con il solo mouse)
+
+- Workflow `ripresa-b41-3-e-b48` (`wf_04e347cd-a52`) finito, 4 agenti su 4.
+  - **B41.3**: otto difetti chiusi (doppio tocco, «Scollega» in due passi, «Torna al menu» in fiera azzera, pagina della
+    fiera in due, scelte rimesse allo spegnimento, calibrazione ferma su «Giocando (fiera)», testi, pannello che non trema).
+    Revisore: nessun difetto che blocchi il visitatore; restano cose piccole che vanno nel **B50**: «o Invio» nei documenti
+    e nei commenti di «Conferma» (Invio non funziona: motion_controls.js:1620), prove del repository per il tremolio del
+    pannello e la pagina della fiera a 1920×540 (oggi solo sonde nello scratchpad), ?stand=fiera con la calibrazione «Con i
+    gesti» salvata, guida 8.4 (la finestra del certificato non ha un QR; la strada alternativa sovrascrive le scelte
+    ricordate), spazio vuoto di 45–50 px sotto la nota del chiosco. Rapporto: `scratchpad/b413/revisione-b41-3.md`.
+  - **B48**: revisore con una regressione MEDIA (a Bambini chi risponde schiaccia al volo il servizio lento della CPU,
+    natpf_impact.js:169) e cose basse (test che proteggano tarature ed effetti, firstKmh 70 sopra il servizio più lento di
+    chi gioca, servizio della CPU ancora poco vario nei rimbalzi veri e corto a Pro/Evento/Leggenda, documenti). Rapporto:
+    `scratchpad/b48/revisione-b48.md`. In correzione: **B48.1** (agente sul ramo `b48-servizio`, porte 4300–4329).
+- Unita la B41.3 (`9e19f75`). **2026-11-14.5** (`26a10ca`, spinta 10:24 UTC): gioco 1660/1660, sito 272/272, desktop
+  51/51, LAN 13/13, build ok. Zip `natpf-simulator-cloudflare-2026-11-14.5.zip` 23.920.328 B, sha256
+  `fac39ddcc4a4472b94e8840e9c00c08dcd18dda5f56c0c88d46183c8d772ab7e`, provato estratto. In corso: installer
+  (`scratchpad/v1405/installer.log`) e prove nel browser (`scratchpad/v1405/e2e.log`).
+- Avviato il **B40** (agente, ramo `b40-fine-partita`, worktree `scratchpad/b40/wt`, porte 4350–4389) dal piano
+  `docs/coda/B40-piano-analisi.md`, con le decisioni sulle proposte dell'analista scritte nel compito.
+- Da qui gli agenti si lanciano con lo strumento Agent (uno per blocco), non più con i workflow.
