@@ -115,7 +115,8 @@ export class NatpfStandMouse {
     staff?.addEventListener?.('pointerover', e => {
       const b = e.target?.closest?.('[data-staff]'), note = doc.getElementById('staff-note');
       const t = b && staffHint(b.dataset.staff, b.getAttribute?.('title'));
-      if (note && t){ note.textContent = t; this._hinting = true; }
+      // (B41.3: prima l'altezza fissa della riga, se la larghezza è cambiata: natpf_kiosk._fitNote)
+      if (note && t){ this.ui.kiosk?._fitNote?.(note); note.textContent = t; this._hinting = true; }
     });
     staff?.addEventListener?.('pointerout', e => {
       if (!this._hinting || e.relatedTarget?.closest?.('[data-staff]')) return;

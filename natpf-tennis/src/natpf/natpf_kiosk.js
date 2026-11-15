@@ -43,9 +43,20 @@ import { readServeRule, writeServeRule, nextServeRule, serveRuleButton, serveRul
 import { fairPanelButton, fairPanelToast, readFairBefore, writeFairBefore, FAIR_CAL_BUTTON, FAIR_CAL_TEXT } from './natpf_fiera.js';
 // (B41.3: nome di «Con cosa giochi» rimesso allo spegnimento della modalità fiera)
 import { CONTROLLER_TILES } from './natpf_tiles.js';
+// (B41.3: spiegazioni delle voci, per l'altezza fissa della riga sotto le voci: _fitNote)
+import { staffHint } from './natpf_stand_mouse.js';
 // riassunto dei due posti nella voce «Telefoni dello stand» (funzione pura): «1 ✓ · 2 da abbinare ›»
 const STAND_SHORT = { ready: '✓', prep: 'sensori', lost: 'scollegato', unpaired: 'da abbinare', pairing: 'abbinamento', ask: 'da confermare', off: '—' };
 export const standPanelSummary = (v1, v2) => `1 ${STAND_SHORT[v1?.state] || '—'} · 2 ${STAND_SHORT[v2?.state] || '—'} ›`;
+// riga sotto le voci con il puntatore fuori: lo stato del chiosco (funzione pura). B45.2: su una riga a 1024 × 600 (la frase
+// lunga andava a capo e il foglio scorreva di 5 px con il chiosco e le opzioni accese, prova natpf-stesso-schermo-b25); cosa
+// si azzera lo dicono la spiegazione della voce (natpf_stand_mouse.STAFF_HINTS) e la guida. B41.5: in fiera il chiosco fa
+// «Prossimo giocatore»: si torna alla pagina della fiera, i telefoni dello stand restano
+export function kioskNote({ enabled = false, limit = 45, fair = false } = {}){
+  if (!enabled) return 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
+  return fair ? `Chiosco attivo: dopo ${limit} s senza nessuno si torna alla pagina della fiera, i telefoni restano collegati (in partita ${limit*2} s).`
+    : `Chiosco attivo: dopo ${limit} s senza nessuno si torna al menu e chi gioca si azzera, il telefono resta collegato (in partita ${limit*2} s).`;
+}
 // B45.1: cadute del collegamento di oggi nella riga sotto le voci
 import { rigaCadute, leggiCadute } from './natpf_cadute.js';
 const $ = id => document.getElementById(id);
@@ -100,6 +111,8 @@ export class NatpfKiosk {
     this.confirm = new TwoStep({ onChange: on => { if (!on) this.paint(); } });
     this.el?.addEventListener('click', e => { const b = e.target.closest('[data-staff]'); if (b){ e.stopPropagation(); this.press(b); } });
     window.addEventListener('keydown', e => { if (e.ctrlKey && e.shiftKey && e.code === 'KeyK'){ e.preventDefault(); e.stopImmediatePropagation(); this.toggle(); } }, true);
+    // (B41.3: area del gioco cambiata con il pannello aperto: la riga sotto le voci si rimisura, _fitNote)
+    window.addEventListener('resize', () => { if (this.isOpen) this._fitNote(); });
     // B37: nel programma Windows anche F9 e la voce del menu «Pannello dello stand (F9)» (processo principale, ponte del
     // preload: window.natpfDesktop.staffPanel). Sul PC dello stand Ctrl+Maiusc+K non arrivava al gioco
     window.natpfDesktop?.staffPanel?.onToggle?.(a => { poke(); a === 'open' ? this.open() : a === 'close' ? this.close() : this.toggle(); });
@@ -376,13 +389,36 @@ export class NatpfKiosk {
     set('display', d?.current ? `${d.current.label}${d.list?.length > 1 ? ' ›' : ''}` : '—', false);
     show($('staff-registro'), !!this.ui.registro); this.ui.registro?.dipingi();
     const n = $('staff-note');
-    // (B45.2: su una riga a 1024 × 600, come prima della B45.1: la frase lunga andava a capo e il foglio scorreva di 5 px con
-    // il chiosco e le opzioni accese, prova natpf-stesso-schermo-b25; cosa si azzera lo dicono la spiegazione della voce,
-    // natpf_stand_mouse.STAFF_HINTS, e la guida)
-    // (B41.5: in fiera il chiosco fa «Prossimo giocatore»: si torna alla pagina della fiera, i telefoni dello stand restano)
-    if (n) n.textContent = this.enabled ? (fon ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna alla pagina della fiera, i telefoni restano collegati (in partita ${this.limit*2} s).` : `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu e chi gioca si azzera, il telefono resta collegato (in partita ${this.limit*2} s).`) : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
+    if (n) n.textContent = kioskNote({ enabled: this.enabled, limit: this.limit, fair: fon });
     // B45.1: cadute del collegamento di oggi, per posto, con il motivo più frequente (natpf_cadute.js); niente se nessuna
     const c = $('staff-cadute');
     if (c){ const t = rigaCadute(leggiCadute()); c.textContent = t; show(c, !!t); }
+    this._fitNote(n);
+  }
+  // B41.3 (revisione della B41 seconda parte, difetto 8, già nella 14.3): la riga sotto le voci spiega la voce sotto il
+  // puntatore (B39.3) e cambiava altezza da una voce all'altra: il foglio centrato si spostava sotto il puntatore fermo (fino
+  // a 24 px a 1366 × 657), il puntatore finiva su un'altra voce e la riga cambiava ancora; a 720 × 720 il foglio scorreva.
+  // Ora ha l'altezza fissa della scritta più alta tra le spiegazioni di tutte le voci e lo stato del chiosco (acceso e
+  // spento), misurata con le scritte vere alla larghezza di adesso (cambia con l'area del gioco). Si rimisura solo quando
+  // cambiano larghezza o scritte; prima di ogni spiegazione (natpf_stand_mouse) e a ogni ridisegno del pannello
+  _noteTexts(){
+    const out = new Set(), fair = !!this.ui.fiera?.on;
+    for (const enabled of [true, false]) out.add(kioskNote({ enabled, limit: this.limit, fair }));
+    for (const b of this.el?.querySelectorAll?.('[data-staff]') || []){ const t = staffHint(b.dataset?.staff, b.getAttribute?.('title')); if (t) out.add(t); }
+    return [...out];
+  }
+  _fitNote(note = $('staff-note')){
+    if (!note || !this.isOpen || typeof note.scrollHeight !== 'number' || !note.style) return false;
+    const texts = this._noteTexts(), key = `${note.clientWidth}|${texts.join('\u241f')}`;
+    if (key === this._noteKey) return false;
+    this._noteKey = key;
+    const keep = note.textContent;
+    note.style.minHeight = '0px';
+    let max = 0;
+    // (l'altezza di impaginazione, non quella disegnata: all'apertura il foglio entra con una scala del 98 %)
+    for (const t of texts){ note.textContent = t; max = Math.max(max, parseFloat(getComputedStyle(note).height) || note.scrollHeight || 0); }
+    note.textContent = keep;
+    note.style.minHeight = `${Math.ceil(max)}px`;
+    return true;
   }
 }
