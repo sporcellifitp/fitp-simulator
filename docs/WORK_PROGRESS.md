@@ -2236,3 +2236,32 @@ salvato dal coordinatore: punti 1–5 e i test nuovi), verificato e completato.
   16/17), natpf-telecomando 91/91, natpf-chi-serve 64/64 (costo +0,1 ms), natpf-fine-partita 47/47, natpf-pannello-cadute
   33/33. Il solo `de60c12`: gioco 1620/1620, sito 269/269.
 - Non verificato: telefoni veri, rete vera della fiera, Windows vero con tastiera vera, ledwall.
+
+## B41.3 · Correzioni della revisione della B41 seconda parte (15/11, ramo `b41-fiera-2`, documento `docs/b41/modalita-fiera-2.md` §8) · [x] verificato sul ramo, da unire
+Revisione indipendente della B41 seconda parte («Modalità fiera», foglio «Telefoni dello stand», pagina della fiera,
+«Prossimo giocatore»): otto difetti. Ramo unito prima con `natpf-simulator` @ `3d92ce1` (B45.1 fase B + B45.2, `5d657fd`) e
+alla fine con `natpf-simulator` (versione 2026-11-14.4, traccia, piani di B40 e B49); niente push, niente file di versione.
+Lavoro interrotto dal limite d'uso (salvataggio «IN CORSO» `80239be` del coordinatore: difetto 4 a metà), ripreso il 15/11
+alle 07:10 UTC da un agente nuovo con la macchina appena riavviata.
+- [x] Passo 0, unione di `natpf-simulator` 3d92ce1 (`5d657fd`): conflitti nel pannello dello stand (`natpf-ui.css`: righe
+  delle cadute della B45.2 e voce 16 «Modalità fiera»), `natpf_stand_mouse.js`, prove b25 e b20, documenti: tenute le due
+  parti. Gioco 1635/1635, sito 269/269; b25 55/55, b20 52/52, fiera-telefoni 48/48, pannello-cadute 27/33 (720×720 con 16
+  voci: lo sistema il difetto 8).
+- [x] Difetto 1 (`077cadc`, medio): offerte del pulsante del telefono numerate (`nx` con `id`, rimandato dal telefono con
+  il tocco), il telefono spegne il pulsante dopo il tocco, «Salta ›» degli scambi di prova non vale per il primo secondo
+  (anche con le pagine del telefono di prima). File: `natpf_phone_racket.js`, `natpf_trial.js`, `diag_recorder.js`,
+  `site/js/tennis/link.js`, `phone-screen.js`, `racchetta.js`. Test `natpf-b41-3-tocchi` 12/12, `tools/test/b41-3-tocchi`
+  3/3; nel browser `natpf-fiera-telefoni` §5b (`d7edc9d`).
+- [x] Difetti 2, 3, 5, 6 (`ee2994c`): «Scollega» in due passi anche dal telecomando; in fiera tornare al menu fa «Prossimo
+  giocatore» (`backToMenu`, `natpf_remote.js`); scelte di prima della fiera ricordate e rimesse; calibrazione ferma su
+  «Giocando (fiera)». Test `natpf-b41-3-fiera` 8/8.
+- [x] Difetto 4 (`80239be` + `c53d178`): pagina della fiera in due con un telefono non pronto senza riga in più (il perché
+  nella scheda, «Telefoni dello stand ›» accanto a «2 giocatori»). Test `natpf-b41-3-pagina` 2/2; sonda delle sette misure
+  63/63 (prima 58/63); controllo in `natpf-fiera-telefoni` §6.
+- [x] Difetto 8 (`072a474` + `3126c8f`): riga sotto le voci del pannello ad altezza fissa (`natpf_kiosk._fitNote`), aree
+  basse compatte (720×720 su quattro colonne) e, dopo l'unione con la B45.2, 1280×720 con le righe delle cadute (scorreva di
+  5 e 21 px). Test `natpf-b41-3-pannello` 3/3.
+- [x] Difetto 7 e documenti: `docs/b41/modalita-fiera-2.md` (§1 aggiornato, «Conferma» detta esatta, §6, §8 nuovo),
+  `docs/GUIDA_STAND.md` (8.4: «Gioca ›» grigio in due, certificato per un telefono nuovo, «Torna al menu» in fiera, «Salta ›»
+  dopo un secondo, «Scollega» con due OK, spegnere rimette le scelte; tabella del pannello: «Modalità fiera» e
+  «Calibrazione»), `docs/PROJECT_MEMORY.md` (B41.3).

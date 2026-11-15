@@ -2,7 +2,8 @@
 
 Ramo `b41-fiera-2` partito da `natpf-simulator` @ `6348253` (2026-11-14.2 con il B47 unito) e poi unito con
 `natpf-simulator` @ `ff90b5a` (2026-11-14.3: B45.1 fase A, telefono che non si scollega più per un buco della Wi-Fi né per
-il chiosco) e alla fine con `natpf-simulator` @ `9bfa9cf` (solo la traccia dei passi). Progetto completo:
+il chiosco) e alla fine con `natpf-simulator` @ `9bfa9cf` (solo la traccia dei passi). Correzioni della revisione
+indipendente: **B41.3**, §8 (ramo unito prima con `natpf-simulator` @ `3d92ce1`, B45.1 fase B e B45.2). Progetto completo:
 `docs/b41/progetto-modalita-fiera.md` (§2, §4, §5, §6: tappe B41.4 e B41.5). Prima parte: `docs/b41/modalita-fiera-1.md`.
 Richieste dell'utente del 14/11 già fatte con il B47 (`docs/b47/fiera-subito.md`): battuta a un solo giocatore, conto alla
 rovescia grande, livello dopo «Rivincita». Niente file di versione: la versione nuova la mette chi unisce.
@@ -22,7 +23,7 @@ suoi scambi di prova** (circa 10 s, calibrazione «Giocando»); né il profilo d
 3. Nella scheda **Telefono 1** clicca **«Abbina»**: compare un QR (solo lì, solo con il foglio aperto, valido 5 minuti).
    Inquadralo con il telefono dello stand e tocca il link.
 4. Sul telefono e nella scheda compare **lo stesso numero** (per esempio 482). Se è uguale clicca **«Conferma»** (con il
-   mouse: dal telecomando o da uno script non vale); se è diverso «Rifiuta».
+   mouse, o con Invio sulla tastiera del PC: l'OK del telecomando dello staff non vale); se è diverso «Rifiuta».
 5. Sul telefono tocca **«Attiva i sensori»**. La scheda dice «Telefono 1 pronto ✓ · batteria 82%» (la batteria solo con
    Android).
 6. Se si gioca anche in due, lo stesso con la scheda **Telefono 2**.
@@ -47,14 +48,18 @@ fascia e la mano, poi «Sono pronto» sui due telefoni o «Gioca». Al massimo 3
 
 **Se qualcosa non va**
 - Un telefono dello stand scollegato o con lo schermo spento: «Gioca» è grigio e la pagina dice perché, con il pulsante
-  **«Telefoni dello stand ›»**; mai un QR per il pubblico. Di solito il telefono si ricollega da solo.
+  **«Telefoni dello stand ›»** (in due, B41.3: il perché nella scheda di quel giocatore e il pulsante in alto a destra,
+  accanto a «2 giocatori»); mai un QR per il pubblico. Di solito il telefono si ricollega da solo.
 - **Batteria sotto il 20 %** e non in carica (Android): sulla pagina della fiera, cioè tra un visitatore e l'altro, in
   basso a sinistra (nelle aree strette come 720×720 in basso a destra, accanto a «Gioca ›») «🔋 Telefono 2: batteria 15% ·
   mettilo in carica»; nella scheda del foglio la batteria è in arancione. In partita e sulla fine partita l'avviso non c'è.
 - Telefono perso o rotto: nel foglio «Abbina un altro telefono» su quel posto (il telefono di prima non vale più), oppure
-  **«Scollega»** (due clic: «Sicuro? Clicca ancora»).
+  **«Scollega»** (due clic: «Sicuro? Clicca ancora»; dal telecomando dello staff due OK). Un telefono che non ha mai fatto
+  da racchetta su quel PC vuole prima il certificato (guida dello stand, capitolo 6.1, passo 1).
+- In fiera pausa → «Torna al menu» (o «Torna al menu» dal telecomando) fa «Prossimo giocatore» (B41.3).
 - Per allenamento, minigiochi, sfida tra due computer, webcam o le Opzioni: pannello → «Modalità fiera: No» (il menu di
-  sempre torna identico).
+  sempre torna identico; B41.3: anche «Con cosa giochi» e «Calibrazione» tornano come prima della fiera). Con la modalità
+  accesa la «Calibrazione» resta «Giocando (fiera)».
 
 Schermate delle prove nel browser (telefoni simulati), del 14/11 sera:
 
@@ -197,6 +202,9 @@ sulla pagina della fiera (§2, B41.4). Sonda rifatta sul codice finale (dopo l'a
 
 ## 6. Trovato, non della B41 (da sistemare altrove)
 
+Dopo la revisione (B41.3, §8) i primi due e l'ultimo punto sono corretti: la riga sotto le voci ha un'altezza fissa
+(difetto 8) e la spiegazione del chiosco l'ha già corretta la B45.2.
+
 - **Pannello dello stand che trema sotto il puntatore fermo** (B39.3, già nella 2026-11-14.3): la riga sotto le voci spiega
   la voce sotto il puntatore; se la spiegazione cambia numero di righe il foglio, centrato, si sposta di 9–12 px, sotto il
   puntatore arriva un'altra voce, e così via. Con il puntatore fermo su una griglia di punti del pannello: sulla 14.3 15
@@ -226,3 +234,24 @@ sulla pagina della fiera (§2, B41.4). Sonda rifatta sul codice finale (dopo l'a
   PeerJS locale.
 - La «prova dritto e rovescio» nel foglio prevista dal progetto (§3.1) **non c'è**: il telefono manda i colpi solo durante il
   gioco; servirebbe cambiare la pagina del telefono. Il verso di ogni visitatore lo imparano i suoi scambi di prova.
+
+## 8. B41.3 · dopo la revisione (15/11)
+
+Revisione indipendente della B41 seconda parte (sonde del revisore rifatte qui sul codice nuovo, §8.3). Prima di tutto il
+ramo è stato unito con `natpf-simulator` @ `3d92ce1` (B45.1 fase B e B45.2: righe delle cadute nel pannello, spiegazione
+del chiosco già corretta; conflitti nel pannello dello stand, `natpf_stand_mouse.js`, prove b25 e b20, documenti: tenute le
+due parti), e alla fine con `natpf-simulator` (versione 2026-11-14.4 e traccia). Lavoro interrotto dal limite d'uso: un
+salvataggio «IN CORSO» (`80239be`, difetto 4 a metà) verificato e chiuso dall'agente dopo.
+
+### 8.1 Difetti e correzioni
+
+| # | Difetto della revisione | Correzione | Prove |
+|---|---|---|---|
+| 1 | **Medio.** Un visitatore saltava per sbaglio i suoi scambi di prova: due tocchi su «Sono pronto» a 150 o 400 ms, o «Gioca ›» dello staff con il tocco del visitatore 60 ms dopo. Il pulsante del telefono passa da «Sono pronto» a «Salta ›» in pochi millisecondi e il tocco non diceva a quale offerta rispondeva | Ogni offerta del pulsante del telefono ha un numero (`id` nel messaggio `nx`) che il telefono rimanda con il tocco: un tocco per un'offerta che non c'è più non vale (`natpf_phone_racket.nextTapVerdict`). Il telefono spegne il pulsante dopo il tocco fino all'offerta dopo (`phone-screen.nextTap`; con un computer di prima si riaccende dopo 2,5 s). «Salta ›» degli scambi di prova non vale per il primo secondo (`graceMs` 1000, anche con le pagine del telefono di prima). Un tocco solo e «Gioca ›» da solo come prima. Tocchi scartati nella diagnostica (`tel.tocco`) | `natpf-b41-3-tocchi` 12/12 (i tre casi con la pagina nuova e con quella di prima), `tools/test/b41-3-tocchi` 3/3, `natpf-fiera-telefoni` §5b (tre visitatori, uno per caso), sonda p2 del revisore |
+| 2 | «Scollega» nel foglio «Telefoni dello stand» con un OK solo dal telecomando dello staff | Ogni clic sul pulsante vuole il secondo clic, anche quello non vero del telecomando (due OK); dal codice, senza clic, subito | `natpf-b41-3-fiera`, sonda p8 |
+| 3 | In fiera pausa → «Torna al menu» (o dal telecomando) tornava alla pagina della fiera senza azzerare il visitatore: chi arrivava dopo giocava con il nome di prima e, se destro, con la mano sinistra (il caso del B46) | `NatpfUi.backToMenu` con la modalità fiera chiude tutto e poi fa «Prossimo giocatore» (`resetFairVisitor`, causa `menu`); i telefoni restano collegati. Anche dalla pagina della fiera con «Torna al menu» del telecomando | `natpf-b41-3-fiera` (3 test), sonda p9 |
+| 4 | Pagina della fiera «2 giocatori» con un telefono non pronto: la riga «Telefono N non pronto · Telefoni dello stand ›» faceva scorrere la pagina di 26 px a 1920×540 e tagliava «Altre impostazioni» sopra «Gioca ›» | Il perché vero nella scheda di quel giocatore (`natpf_fiera_page.splitCardState`: prima uno schermo spento diceva ancora «pronto ✓»), «Telefoni dello stand ›» nella riga di «2 giocatori»; niente riga in più | `natpf-b41-3-pagina` 2/2; sonda delle sette misure (nove stati) 63/63, prima 58/63; controllo in `natpf-fiera-telefoni` §6; sonda p5 |
+| 5 | Modalità accesa e poi spenta: «Con cosa giochi» restava «Smartphone» e «Calibrazione» «Giocando» | All'accensione dal pannello si ricordano (`natpf-tennis.fiera.prima`), allo spegnimento si rimettono e l'avviso lo dice | `natpf-b41-3-fiera`, sonda p3 |
+| 6 | Con la modalità fiera un clic su «Calibrazione» la portava a «Con i gesti» e la pagina della fiera diceva il falso | In fiera la voce dice «Giocando (fiera)» e un clic lo spiega senza cambiarla; modalità già accesa all'avvio con un'altra calibrazione salvata: «Giocando», quella di prima ricordata | `natpf-b41-3-fiera`, sonda p6 |
+| 7 | Testi | §1 passo 4: «Conferma» vale con un clic vero del mouse (o Invio sul pulsante), l'OK del telecomando no. Non è una difesa contro chi usa la console del browser: `NatpfFiera.confirm` guarda solo il campo `isTrusted` dell'evento che riceve. Guida 8.4 «Telefono rotto o perso»: un telefono nuovo vuole prima il certificato (capitolo 6.1). La spiegazione di «Modalità chiosco» non dice più «scollega il telefono» (corretta dalla B45.2) | — |
+| 8 | Pannello dello stand che trema e scorre con il puntatore sulle voci (B39.3, già nella 14.3): la riga sotto le voci cambiava altezza con la spiegazione della voce sotto il puntatore | `natpf_kiosk._fitNote`: la riga ha l'altezza fissa della spiegazione più alta (misurata con le scritte vere alla larghezza di adesso, rimisurata quando cambiano); nelle aree basse foglio più compatto (720×720 quattro colonne). Dopo l'unione con la B45.2 anche 1280×720 con le righe delle cadute (§8.2) | `natpf-b41-3-pannello` 3/3; sonda del pannello con il puntatore su ogni voce (§8.2); `natpf-pannello-cadute` |

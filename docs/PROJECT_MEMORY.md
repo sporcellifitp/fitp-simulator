@@ -1292,14 +1292,40 @@ Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`) con
   `natpf-fiera-telefoni`).
 - **Sulla pagina della fiera restano** «Personaggi» e «Altre impostazioni» (durata, singolare o doppio, visuale, Esperta e
   Leggenda): il progetto §4.2 li voleva nel pannello, che non li ha.
-- **Pannello dello stand che trema** (difetto del B39.3, già nella 14.3, non della B41): la riga sotto le voci spiega la voce
-  sotto il puntatore e, se cambia numero di righe, il foglio centrato (1366×657, 1024×600) si sposta di 9–12 px; con il
-  puntatore fermo sul confine tra due voci il foglio va su e giù da solo. Misurato con il puntatore fermo su una griglia
-  di punti: sulla 14.3 15 punti su 280 a 1366×657 e 10 a 1024×600. A 720×720 no (lì il foglio sta in alto, B39.3). Rimedio
-  possibile: foglio in alto anche lì, o la riga di altezza fissa. Le prove che cliccano nel pannello tolgano prima il
-  puntatore (Playwright aspetta un elemento fermo).
+- **Pannello dello stand che trema** (difetto del B39.3, già nella 14.3): la riga sotto le voci spiega la voce sotto il
+  puntatore e, se cambiava numero di righe, il foglio centrato si spostava sotto il puntatore fermo. **Corretto nella
+  B41.3** (sotto). Le prove che cliccano nel pannello tolgano comunque prima il puntatore (Playwright aspetta un elemento
+  fermo).
 - **Non fatto**: la «prova dritto e rovescio» nel foglio del progetto §3.1 (il telefono manda i colpi solo in gioco: servirebbe
   cambiare `racchetta.js`).
+- **B41.3 (revisione, 15/11) · pulsante del telefono**: ogni offerta (`offerNext(label, extra, { graceMs })`) ha un numero
+  `id` nel messaggio `nx`; il telefono lo rimanda con il tocco e spegne il pulsante finché non arriva l'offerta dopo
+  (`phone-screen.nextTap`, riacceso dopo 2,5 s se il computer è di prima). Il gioco scarta i tocchi con il numero di
+  un'offerta vecchia e, per `graceMs` da quando l'offerta è nata, tutti i tocchi (`nextTapVerdict`; «Salta ›» degli scambi
+  di prova 1000 ms). Chi aggiunge un'offerta che segue subito un'altra sullo stesso pulsante le dia `graceMs`; la stessa
+  offerta ripetuta non cambia numero (natpf_ready_go la rinnova ogni 100 ms). Tocchi scartati: `tel.tocco` nella diagnostica.
+- **B41.3 · tornare al menu in fiera = «Prossimo giocatore»**: `NatpfUi.backToMenu('menu')` con la modalità fiera chiude
+  tutto e poi chiama `resetFairVisitor` (causa `menu`), che torna con `backToMenu('menu', { fair: false })`. Chi deve solo
+  riportare la pagina della fiera senza azzerare chi gioca passa `{ fair: false }` (il chiosco a partita in corso lo fa e
+  poi azzera con la causa `chiosco`). Anche «Torna al menu» del telecomando e «Classifica a schermo intero» del pannello
+  durante una partita in fiera azzerano il visitatore.
+- **B41.3 · scelte di prima della fiera**: accendendo la modalità dal pannello si salvano «Con cosa giochi» e «Calibrazione»
+  (`natpf-tennis.fiera.prima`, `natpf_fiera.FAIR_BEFORE_KEY`), spegnendola si rimettono (`natpf_kiosk._fairRestore`). Con la
+  modalità accesa la calibrazione resta «Giocando» (`FAIR_CAL_BUTTON`, un clic spiega soltanto); accesa già all'avvio con
+  un'altra calibrazione salvata, `NatpfFiera.ensurePlay` la porta su «Giocando» e ricorda quella di prima (non con `?cal=`).
+- **B41.3 · pagina della fiera in due**: con un telefono non pronto il perché sta nella scheda di quel giocatore
+  (`splitCardState`, gli stessi testi di `fairGate`) e «Telefoni dello stand ›» nella riga di «2 giocatori»
+  (`#fiera-bar [data-fiera-sheet]`): niente righe in più sotto le schede, che a 1920×540 facevano scorrere la pagina. Chi
+  aggiunge qualcosa alla pagina della fiera la riprova alle sette misure in tutti gli stati (sonda `b413/probe/fierapage.mjs`
+  nello scratchpad: telefoni simulati, nove stati).
+- **B41.3 · riga sotto le voci del pannello ad altezza fissa** (`natpf_kiosk._fitNote`): `min-height` = la più alta tra le
+  spiegazioni di tutte le voci e lo stato del chiosco (acceso e spento), misurata con le scritte vere alla larghezza di
+  adesso, rimisurata quando cambiano larghezza o scritte (a ogni ridisegno, prima di ogni spiegazione, al
+  ridimensionamento); la riga ha `flex: none`. Chi allunga una spiegazione (`natpf_stand_mouse.STAFF_HINTS`) o aggiunge una
+  voce allunga il foglio sempre, non solo con il puntatore sopra: riprovi `natpf-pannello-cadute`, `natpf-menu`,
+  `natpf-stesso-schermo-b25` e `-b20` e la sonda del pannello con il puntatore su ogni voce (`b413/probe/panel.mjs`). Aree
+  basse più compatte in fondo a `natpf-ui.css` (720×720 su quattro colonne; 1024×600, 1366×657, 1920×540; 1280×720 solo
+  con le righe delle cadute).
 
 ## B45.1 · Telefono che non si scollega (14/11/2026 sera; documento `docs/b45/b45-1-collegamento.md`)
 Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi in `docs/b45/telefono-che-si-scollega.md`.
