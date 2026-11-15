@@ -1045,3 +1045,19 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
 - 11:00–12:00 UTC · quinto limite d'uso: fermati B40 (fatti B40.1–B40.6 in commit fino a `401eaee`) e B48.1 (punti 2, 3,
   6 in commit e unione della 14.5 `3072637`). 12:21 UTC: ripresi tutti e due con un messaggio (stesso agente, stesso
   contesto). Prossimo controllo di sicurezza programmato alle 17:30 UTC.
+
+## >>> 15/11, 12:40 UTC · RICHIESTA URGENTE DELL'UTENTE, IN CIMA ALLA LISTA: telefono bloccato in partita (B51) <<<
+
+- Parole dell'utente: «molte persone che giocano cliccano sul display, chiudono il browser o interagiscono col
+  touchscreen… escono da Chrome e perdono la connessione al telefono… ci sarebbe una modalità dove se anche l'utente clicca
+  sul display non appare nulla, come se fosse bloccata fino alla fine del match?» (chiedeva anche se un'app/APK sarebbe più
+  stabile).
+- Decisioni (domande a scelta): **prima il blocco nella pagina** (APK solo se dopo servirà ancora); allo stand **solo
+  Android**; sblocco con **gesto dello staff sul telefono o dal PC**, da solo a fine partita.
+- **B51** avviato subito (agente, ramo `b51-telefono-bloccato`, worktree `scratchpad/b51/wt`, porte 4400–4449): schermo
+  del telefono scuro che ignora i tocchi durante scambi di prova e partita, Indietro intrappolato, schermo acceso, schermo
+  intero e verticale (con la correzione di `let screen` del piano B50 §1a), sblocco dello staff e dal PC, voce del
+  pannello «Blocco del telefono in partita» (di base Sì), guida con i passi di Android «Fissa app». Eccezione alla regola
+  dei due blocchi insieme: B48.1 è alle prove finali e il B51 è urgente.
+- Coda aggiornata: **B51** → versione appena pronto; B48.1 (prove finali) e B40 (passo B40.7) in corso; poi B49, B50,
+  revisore finale. APK Android: solo se dopo il B51 serve ancora (da chiedere all'utente nel riepilogo).
