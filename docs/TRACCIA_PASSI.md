@@ -996,3 +996,7 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
   sha256 `df052b1cef8f09d7e090b1060338821d4ba48bd0d1283eaafb7bab97fe8db004`. Prove nel browser sul checkout principale:
   natpf-phone-blackout 11/11, natpf-pannello-cadute 33/33, natpf-stesso-schermo-b20 52/52, natpf-menu 45/45 (carico
   4–9); schermate del pannello guardate (1024×600 e 720×720 con due telefoni: righe delle cadute intere, «Chiudi» in vista).
+- 01:00 UTC · avviate tre analisi senza modifiche al repository (workflow `preparazione-b40-b49-b50`, run `wf_e5a08c57-d8f`,
+  porte 4350–4399): piani pronti per lo sviluppo di B40 (soglie dei 12 trofei dalle partite simulate), B49 (doppio) e B50
+  (prova del ritardo del ledwall e pulizie), in `scratchpad/prep/b40|b49|b50/*-piano.md`. In corso anche
+  `b41-3-e-b48` (`wf_bedc7b7e-f41`).
