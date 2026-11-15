@@ -8,7 +8,8 @@
 //   · chi inquadra il QR non entra: compare il numero (lo stesso sul telefono) con «Rifiuta» e «Conferma»; «Conferma» vale
 //     solo con un clic (o un tasto) veri sul computer (NatpfFiera.confirm vuole ev.isTrusted), mai dal telecomando dello
 //     staff (data-no-remote: il telecomando non lo raggiunge né lo preme, natpf_remote.NO_REMOTE);
-//   · «Scollega» in due clic (natpf_confirm.TwoStep): il posto perde indirizzo e chiave, quel telefono non trova più il gioco.
+//   · «Scollega» in due clic (natpf_confirm.TwoStep), anche dal telecomando dello staff (due OK, B41.3): il posto perde
+//     indirizzo e chiave, quel telefono non trova più il gioco.
 // Il foglio è dello staff come il pannello: la partita resta ferma finché è aperto (natpf_ui.staffOpen), Esc lo chiude
 // (natpf_lobby._key), il chiosco aspetta (natpf_kiosk.check). «‹ Pannello» (o Esc, o Indietro del telecomando) torna al
 // pannello dello stand.
@@ -115,8 +116,10 @@ export class NatpfFieraSheet {
     }
     if (cmd === 'refuse'){ F.refuse(slot); this.paint(); return true; }
     if (cmd === 'forget'){
-      // (i clic veri vogliono il secondo clic, come le voci del pannello; dal codice e dal telecomando subito)
-      if (e?.isTrusted && !this.confirm2.click(btn, `forget:${slot}`)) return false;
+      // (ogni clic sul pulsante vuole il secondo clic, come le voci del pannello: quelli del mouse e l'OK del telecomando
+      // dello staff, che preme il pulsante con un clic non vero. B41.3, revisione della B41 seconda parte, difetto 2: prima
+      // il telecomando scollegava con un OK solo. Solo le chiamate dal codice, senza clic, subito)
+      if (e && !this.confirm2.click(btn, `forget:${slot}`)) return false;
       if (this.pairing === slot) this.pairing = null;
       const ok = F.forget(slot);
       if (ok) this.ui.toast?.(`${slot === 'p2' ? 'Telefono 2' : 'Telefono 1'} scollegato: per riaverlo serve un abbinamento nuovo`);

@@ -18,6 +18,7 @@
 import { NatpfPhoneRacket } from './natpf_phone_racket.js';
 import { STAND, gameStoreKey, isSlot, slotLabel, isStandSession, isStandKey } from '@natpf/tennis/stand-pairing.js';
 import { dayKey } from './natpf_events.js';
+import { readSavedCalMode, writeCalMode, calModeFromUrl, CAL_MODES } from './natpf_trial_learn.js';
 
 export const FAIR_MODE_KEY = 'natpf-tennis.fiera';
 // Modalità fiera da indirizzo e salvataggio (funzione pura): l'indirizzo vince (prove), poi la scelta salvata; di base spenta
@@ -33,6 +34,27 @@ export function readFairMode(){
   return fairModeFrom({ search: typeof location !== 'undefined' ? location.search : '', saved });
 }
 export function writeFairMode(on){ try { localStorage.setItem(FAIR_MODE_KEY, on ? '1' : '0'); } catch {} }
+
+/* ---------- B41.3 · revisione della B41 seconda parte, difetti 5 e 6 ---------- */
+// Accesa dal pannello, la modalità fiera porta la «Calibrazione» su «Giocando» (natpf_kiosk) e la pagina della fiera mette
+// «Con cosa giochi: Smartphone» (natpf_fiera_page.enter); spenta, tornava il menu di sempre ma con quelle due scelte. Si
+// ricordano i valori di prima (salvati: la modalità fiera dura giorni e il programma si riapre) e si rimettono allo
+// spegnimento. Funzioni pure qui, l'uso in natpf_kiosk.run('fiera')
+export const FAIR_BEFORE_KEY = 'natpf-tennis.fiera.prima';
+const CONTROLLER_IDS = Object.freeze(['phone', 'webcam', 'mouse']);
+// valori di prima ripuliti (funzione pura): { controller, cal } con quelli validi, null se non c'è niente
+export function fairBeforeOf(v){
+  if (!v || typeof v !== 'object') return null;
+  const controller = CONTROLLER_IDS.includes(v.controller) ? v.controller : null, cal = CAL_MODES.includes(v.cal) ? v.cal : null;
+  return controller || cal ? { controller, cal } : null;
+}
+export function readFairBefore(){ try { return fairBeforeOf(JSON.parse(localStorage.getItem(FAIR_BEFORE_KEY) || 'null')); } catch { return null; } }
+export function writeFairBefore(v){ try { const b = fairBeforeOf(v); if (b) localStorage.setItem(FAIR_BEFORE_KEY, JSON.stringify(b)); else localStorage.removeItem(FAIR_BEFORE_KEY); } catch {} }
+// Difetto 6: con la modalità fiera la calibrazione resta «Giocando» (ogni visitatore fa i suoi scambi di prova): la voce
+// del pannello lo dice e un clic non la cambia. Prima un clic la portava a «Con i gesti», il telefono dello stand partiva con
+// la calibrazione a gesti e la pagina della fiera diceva «sul telefono «Attiva i sensori»», che non era vero
+export const FAIR_CAL_BUTTON = 'Giocando (fiera)';
+export const FAIR_CAL_TEXT = 'Con la modalità fiera la calibrazione resta «Giocando»: ogni visitatore fa i suoi scambi di prova (circa 10 secondi). Per cambiarla spegni prima la modalità fiera.';
 
 // B41 (decisione dell'utente del 13/11): in fiera contro la CPU batte SEMPRE il visitatore, in tutti i game. Funzione pura:
 // normal è chi batterebbe con le regole di sempre; in due (stesso schermo, due computer) restano le regole. Dal B47 sta in
@@ -63,10 +85,11 @@ export function standSlotView({ slot = 'p1', on = false, paired = false, pairing
 /* ---------- B41.4 · pannello dello stand, foglio «Telefoni dello stand», avviso della batteria (funzioni pure) ---------- */
 // voce del pannello «Modalità fiera: No · Sì» (forced: ?stand=… nell'indirizzo, vale per la pagina e non si salva)
 export const fairPanelButton = (on, forced = false) => `${on ? 'Sì' : 'No'}${forced ? ' (indirizzo)' : ''}`;
-export function fairPanelToast(on, { forced = false, calSet = false } = {}){
+// (restored, B41.3: «Con cosa giochi» e «Calibrazione» rimesse come prima della fiera, per esempio «Webcam · Nessuna»)
+export function fairPanelToast(on, { forced = false, calSet = false, restored = '' } = {}){
   if (forced) return `Modalità fiera ${on ? 'accesa' : 'spenta'} solo per questa pagina: comanda l’indirizzo (?stand=…), la scelta salvata non cambia`;
   return on ? `Modalità fiera accesa: la pagina della fiera prende il posto del menu e i telefoni dello stand restano collegati${calSet ? '. «Calibrazione» messa su «Giocando»: ogni visitatore fa i suoi scambi di prova' : ''}. Resta salvata`
-    : 'Modalità fiera spenta: torna il menu di sempre, i telefoni con il QR. Resta salvata';
+    : `Modalità fiera spenta: torna il menu di sempre, i telefoni con il QR${restored ? `; «Con cosa giochi» e «Calibrazione» come prima della fiera (${restored})` : ''}. Resta salvata`;
 }
 // batteria nella scheda del posto: '' se il telefono non la dà (iPhone) o non è collegato
 export function batteryText(v){
@@ -107,7 +130,18 @@ export class NatpfFiera {
     this.visitor = null; this.alertText = ''; this._alertAt = 0; this._lowLogged = { p1: false, p2: false };
     let play = null; try { play = localStorage.getItem(FAIR_PLAY_KEY); } catch {}
     this.play = fairPlayOf(play);
+    // B41.3 (difetto 6): già accesa all'avvio (per esempio dalla console, nella prima parte) con un'altra calibrazione
+    // salvata: «Giocando», e quella di prima si ricorda per lo spegnimento
+    if (this.on && !this.forced) this.ensurePlay();
     if (this.on) this._apply();
+  }
+  // B41.3: la calibrazione «Giocando» della modalità fiera (non con ?cal=… nell'indirizzo, che comanda le prove). true se
+  // è cambiata
+  ensurePlay(){
+    if (calModeFromUrl() || readSavedCalMode() === 'play') return false;
+    if (!readFairBefore()) writeFairBefore({ controller: this.ui?.controller ?? null, cal: readSavedCalMode() });
+    writeCalMode('play');
+    return true;
   }
   // 1 o 2 giocatori nella pagina della fiera ('cpu' | 'split'), salvato
   setPlay(v){ this.play = fairPlayOf(v); try { localStorage.setItem(FAIR_PLAY_KEY, this.play); } catch {} return this.play; }

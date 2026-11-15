@@ -40,7 +40,9 @@ import { resetHands } from './natpf_hand.js';
 // B47: «Battuta: Sempre lo stesso · Alternata» (natpf_battuta.js), di base «Sempre lo stesso»
 import { readServeRule, writeServeRule, nextServeRule, serveRuleButton, serveRuleToast, serveRuleForcedByUrl } from './natpf_battuta.js';
 // B41.4: «Modalità fiera: No · Sì» e, con la modalità accesa, «Telefoni dello stand ›» al posto di «Telefono: Scollega»
-import { fairPanelButton, fairPanelToast } from './natpf_fiera.js';
+import { fairPanelButton, fairPanelToast, readFairBefore, writeFairBefore, FAIR_CAL_BUTTON, FAIR_CAL_TEXT } from './natpf_fiera.js';
+// (B41.3: nome di «Con cosa giochi» rimesso allo spegnimento della modalità fiera)
+import { CONTROLLER_TILES } from './natpf_tiles.js';
 // riassunto dei due posti nella voce «Telefoni dello stand» (funzione pura): «1 ✓ · 2 da abbinare ›»
 const STAND_SHORT = { ready: '✓', prep: 'sensori', lost: 'scollegato', unpaired: 'da abbinare', pairing: 'abbinamento', ask: 'da confermare', off: '—' };
 export const standPanelSummary = (v1, v2) => `1 ${STAND_SHORT[v1?.state] || '—'} · 2 ${STAND_SHORT[v2?.state] || '—'} ›`;
@@ -122,6 +124,19 @@ export class NatpfKiosk {
       p._autoProfile?.();
     }
   }
+  // B41.3 (difetto 5): modalità fiera spenta dal pannello: «Con cosa giochi» e «Calibrazione» come prima della fiera (la
+  // calibrazione no se l'indirizzo la comanda, ?cal=…). → le scelte di adesso in parole («Webcam · Nessuna»), '' se non
+  // c'era niente da rimettere
+  _fairRestore(){
+    const ui = this.ui, prev = readFairBefore();
+    writeFairBefore(null);
+    if (!prev) return '';
+    if (prev.cal && !calModeFromUrl() && prev.cal !== readSavedCalMode()){ writeCalMode(prev.cal); this._calChanged(); }
+    if (prev.controller && prev.controller !== ui.controller) ui.selectController?.(prev.controller, { open: false });
+    ui.diag?.recorder?.log?.('stand.fieraPrima', { controller: ui.controller, calibrazione: readSavedCalMode() });
+    const name = CONTROLLER_TILES.find(t => t.id === ui.controller)?.name || ui.controller;
+    return `${name} · ${calModeButton(readSavedCalMode())}`;
+  }
   get isOpen(){ return !!this.el && !this.el.classList.contains('hidden'); }
   // B43: aperto o chiuso, la partita si ferma o riparte (natpf_ui._syncPause conta il pannello)
   open(){ show(this.el); this.paint(); this.ui._syncPause?.(); }
@@ -168,7 +183,8 @@ export class NatpfKiosk {
     const atMenu = lobby.visible && (lobby.step === 'menu' || fairHome || (lobby.step === 'ranking' && this.rankingFull));
     const atRest = atMenu && !ui.events.nickname && this.clean && (!fairHome || ui.fiera?.visitor == null);
     const a = kioskAction({ enabled: this.enabled, idle: (performance.now() - this.last)/1000, limit: this.limit, inGame, atRest });
-    if (a === 'end-game'){ ui.backToMenu(); this.reset(); }
+    // (B41.3: in fiera backToMenu farebbe già «Prossimo giocatore»: lo fa reset, con la causa «chiosco»)
+    if (a === 'end-game'){ ui.backToMenu('menu', { fair: false }); this.reset(); }
     else if (a === 'reset') this.reset({ stay: atMenu && lobby.step === 'ranking' });
   }
   // stand libero per il prossimo visitatore. stay: resta la pagina in vista (classifica a schermo intero)
@@ -243,12 +259,16 @@ export class NatpfKiosk {
     // B41.4: «Modalità fiera: No · Sì», salvata. Accesa: la calibrazione va su «Giocando» se non lo era (decisione dell'utente
     // del 14/11: ogni visitatore fa i suoi scambi di prova), si apre «Telefoni dello stand» e la pagina della fiera prende il
     // posto del menu. Spenta: il menu di sempre
+    // B41.3 (revisione della B41 seconda parte, difetto 5): accendendola si ricordano «Con cosa giochi» e «Calibrazione» di
+    // prima (natpf_fiera.FAIR_BEFORE_KEY), spegnendola si rimettono (prima restavano «Smartphone» e «Giocando»)
     if (cmd === 'fiera' && ui.fiera){
       const F = ui.fiera, on = !F.on;
-      let calSet = false;
+      let calSet = false, restored = '';
+      if (on && !F.forced) writeFairBefore({ controller: ui.controller, cal: readSavedCalMode() });
       if (on && !F.forced && readSavedCalMode() !== 'play' && !calModeFromUrl()){ writeCalMode('play'); this._calChanged(); calSet = true; }
       F.setOn(on);
-      ui.toast?.(fairPanelToast(on, { forced: F.forced, calSet }), 6000);
+      if (!on && !F.forced) restored = this._fairRestore();
+      ui.toast?.(fairPanelToast(on, { forced: F.forced, calSet, restored }), 6000);
       const L = ui.lobby;
       if (L?.visible && !ui.trial?.active && ['menu', 'match'].includes(L.step)) L.go('menu');
       if (on && ui.fieraSheet){ ui.fieraSheet.open(); return; }
@@ -291,7 +311,12 @@ export class NatpfKiosk {
     }
     // B28: calibrazione del telefono, giocando → con i gesti → nessuna → giocando; salvata, vale dalla partita dopo (il
     // telefono già pronto resta com'è finché non si gioca o si ricalibra)
-    if (cmd === 'cal'){
+    // B41.3 (revisione della B41 seconda parte, difetto 6): con la modalità fiera resta «Giocando» e un clic lo dice soltanto
+    // (prima la portava a «Con i gesti»: il telefono dello stand partiva con la calibrazione a gesti)
+    if (cmd === 'cal' && ui.fiera?.on){
+      ui.toast?.(FAIR_CAL_TEXT, 6000);
+      ui.diag?.recorder?.log?.('stand.calibrazione', { modo: readSavedCalMode(), fiera: true, cambiata: false });
+    } else if (cmd === 'cal'){
       const forced = !!calModeFromUrl(), mode = writeCalMode(nextCalMode(readSavedCalMode()));
       ui.toast?.(calModeToast(mode, forced));
       ui.diag?.recorder?.log?.('stand.calibrazione', { modo: mode, indirizzo: forced });
@@ -338,7 +363,11 @@ export class NatpfKiosk {
     const hot = readHotRally(); set('hot', hotButton(hot), hot);
     const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);
     const open = readOpenCourt(); set('open', openCourtButton(open), open);
-    const cal = readSavedCalMode(); set('cal', calModeButton(cal, !!calModeFromUrl()), cal === 'play');
+    // (B41.3: con la modalità fiera «Giocando (fiera)», con il perché nella riga sotto le voci: il title)
+    const cal = readSavedCalMode(), calFair = fon && !calModeFromUrl();
+    set('cal', calFair ? FAIR_CAL_BUTTON : calModeButton(cal, !!calModeFromUrl()), calFair || cal === 'play');
+    const cb = this.el.querySelector('[data-staff="cal"]');
+    if (cb){ if (calFair){ if (!cb.dataset.titleBase) cb.dataset.titleBase = cb.getAttribute?.('title') || ''; cb.setAttribute?.('title', `Calibrazione · ${FAIR_CAL_TEXT}`); } else if (cb.dataset.titleBase != null){ cb.setAttribute?.('title', cb.dataset.titleBase); delete cb.dataset.titleBase; } }
     // B27: telecomando dello staff e, nel programma Windows con più monitor, il monitor del gioco
     const remote = this.ui.remote; set('remote', remote ? remote.staffLabel : '—', !!remote?.link?.connected);
     const disp = this.el.querySelector('[data-staff="display"]'), d = remote?.displays;

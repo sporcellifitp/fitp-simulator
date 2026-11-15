@@ -336,8 +336,11 @@ export class NatpfRemote {
       }
       case 'menu': {
         this._closeLayers();
-        if (L.visible && !ui.training?.active && !ui.events?.active) L.go('menu'); else ui.backToMenu();
-        return { ok: true, msg: 'Menu principale' };
+        // (B41.3: con la modalità fiera il menu è la pagina della fiera, e tornarci è «Prossimo giocatore»: backToMenu azzera
+        // chi ha giocato, anche dalla pagina stessa; prima restavano nome, mano e livello di chi c'era)
+        const fair = !!ui.fiera?.on;
+        if (L.visible && !ui.training?.active && !ui.events?.active && !fair) L.go('menu'); else ui.backToMenu();
+        return { ok: true, msg: fair ? 'Pagina della fiera: chi arriva riparte da capo, i telefoni restano collegati' : 'Menu principale' };
       }
       case 'pause': if (ui.pause.isOpen) ui.pause.close(); else ui.pause.open(); return { ok: true, msg: ui.pause.isOpen ? 'Pausa' : 'Si riprende' };
       case 'newplayer': {

@@ -338,10 +338,17 @@ export class NatpfUi {
   // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla
   // calibrazione di una sfida partiva la sfida; e il gioco poteva restare in pausa per chi arrivava dopo
   // step: la pagina del menu da aprire («match» per «Gioca ancora»: le impostazioni della partita)
-  backToMenu(step = 'menu'){
+  // fair (B41.3, revisione della B41 seconda parte, difetto 3): con la modalità fiera il menu è la pagina della fiera, e
+  // tornarci (pausa → «Torna al menu», «Menu» del telecomando, il chiosco a partita in corso) è «Prossimo giocatore»: prima
+  // restavano nome («Visitatore N»), mano e livello di chi c'era, e chi arrivava dopo giocava con il nome di prima e, se
+  // destro, con dritto e rovescio scambiati (il caso del B46). resetFairVisitor azzera il visitatore (i telefoni dello stand
+  // restano collegati) e torna qui con fair: false. Prima si chiude tutto (partita, scambi di prova, pausa) come sempre,
+  // poi il visitatore si azzera, nello stesso ordine del chiosco a partita in corso
+  backToMenu(step = 'menu', { fair = true } = {}){
     const E = this.engine;
     // Player 2 dell'invito: tornare al menu vuol dire lasciare la stanza (prima restava dentro e i suoi colpi passavano)
     if (E.playerRole === 'p2' && this.versus?.p2){ this.versus.leave(); return; }
+    if (fair && step === 'menu' && this.fiera?.on && this.fieraPage){ this.backToMenu('menu', { fair: false }); this.fieraPage.next({ causa: 'menu' }); return; }
     this.versus?.clearCheckpoint?.();     // tornare al menu chiude la partita: il punteggio salvato serve solo a un ricaricamento
     // B43: la diagnostica aperta dalla pausa di questa partita, chiusa dopo, non riapre la pausa nella partita di un altro
     if (this.diag) this.diag._back = null;

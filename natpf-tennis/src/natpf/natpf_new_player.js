@@ -138,6 +138,7 @@ export function resetFairVisitor(ui, causa = 'fiera'){
   // (causa, B45.1: per la riga del segno nel registro dello stand)
   for (const p of [ui.phone, E.natpfPhone2]) if (p?.standSlot) p.resetPlayer?.({ gate: false, causa: causa === 'chiosco' ? 'chiosco' : 'fiera' });
   ui.diag?.recorder?.log?.('stand.prossimo', { causa });
-  ui.backToMenu('menu');
+  // (fair: false, B41.3: backToMenu in fiera torna qui; questa volta va solo alla pagina della fiera)
+  ui.backToMenu('menu', { fair: false });
   return 'fiera';
 }
