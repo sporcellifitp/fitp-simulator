@@ -35,8 +35,11 @@ try {
     const mc = E.motionController, emit = mc._emitSwing.bind(mc);
     mc._emitSwing = (...a) => { window.__engineSwings++; return emit(...a); };
     E.natpfUi.diag.open();
-    E.natpfUi.diag.el.querySelector('.diag-lag').open = true;
   });
+  // il riquadro «Ritardo dello schermo» si disegna quando la diagnostica ha letto le sessioni salvate (_paintRec)
+  const openLag = () => p.evaluate(() => { const d = __natpfTennis.natpfUi.diag.el.querySelector('.diag-lag'); if (d) d.open = true; return !!d; });
+  await p.waitForFunction(() => !!__natpfTennis.natpfUi.diag.el?.querySelector('.diag-lag'), null, { timeout: 20000 });
+  await openLag();
   await sleep(600);
   const off = await p.evaluate(() => { const d = __natpfTennis.natpfUi.diag.el; return { disabled: d.querySelector('[data-diag="lagtest"]').disabled, help: !d.querySelector('[data-lag-help]').hidden }; });
   check('senza telefono pronto: pulsante spento e frase d\'aiuto visibile', off.disabled && off.help, JSON.stringify(off));
@@ -46,7 +49,9 @@ try {
     const E = __natpfTennis;
     Object.defineProperty(E.natpfPhone, 'ready', { get: () => true, configurable: true });
     E.natpfPhone.displayLagMs = 0;
-    if (!E.natpfPhone2) E.natpfPhone2 = { displayLagMs: 0, ready: false };
+    // secondo telefono finto, spento, con quello che il gioco gli chiede a ogni fotogramma (update, link, feedback…)
+    if (!E.natpfPhone2) E.natpfPhone2 = { displayLagMs: 0, ready: false, connected: false, link: null, touchLocked: false, hand: 'right',
+      update(){}, feedback(){}, setHand(){}, unlockTouch(){} };
   });
   await sleep(600);
   const on = await p.evaluate(() => { const d = __natpfTennis.natpfUi.diag.el; return { disabled: d.querySelector('[data-diag="lagtest"]').disabled, help: !d.querySelector('[data-lag-help]').hidden }; });
@@ -55,6 +60,8 @@ try {
   // una prova: clic sul pulsante come lo staff, poi i colpi della «persona» al contatto disegnato + ritardo
   const run = async (lagMs, { catches = false, seed = 7, shot = '' } = {}) => {
     await p.evaluate(s => { const L = __natpfTennis.natpfUi.diag.lagTest; L.__seed = s; const start = L.start.bind(L); L.start = (o = {}) => start({ seed: L.__seed, ...o }); }, seed);
+    await openLag();
+    await p.waitForFunction(() => { const b = __natpfTennis.natpfUi.diag.el.querySelector('[data-diag="lagtest"]'); return b && !b.disabled; }, null, { timeout: 5000 });
     await p.click('[data-diag="lagtest"]');
     await p.waitForFunction(() => !!__natpfTennis.natpfUi.diag.lagTest.layer, null, { timeout: 5000 });
     await p.evaluate(({ lagMs, catches }) => {

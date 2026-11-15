@@ -1152,3 +1152,18 @@ senza firma di sessione, e non hanno aggiornato traccia e piano):
   12/12 (con `run-local.mjs` e il sito sotto `/natpf/`), fiera-layout 63/63, fiera-telefoni 61/61, pannello-cadute 33/33,
   menu 45/45, leggenda 7/7, stand-settle ok; stesso-schermo-b25 44/55 **solo per il conto vecchio dei pulsanti** (16
   invece di 18; nessuno scorrimento, nessuna scritta tagliata): prova aggiornata, da rifare.
+
+### 15/11, 21:45 UTC · dopo il push della 14.9 (`9315b8d`)
+
+- [x] **Installer 2026-11-14.9 verificato dal link fisso**: 128.140.546 B, sha256
+      `fde90cb9a2f82b3a98713e868a80df8848045131bd9fcb5ae4fc5e58e0370f4d` (uguale a `latest.json`, pubblicato 21:24:45 UTC).
+      GitHub sulla 14.9: «NATPF Simulator tests», «eseguibili Windows» e «motore base MVP» verdi.
+- [x] **Zip Cloudflare 2026-11-14.9**: 23.942.671 B (margine 1,06 MB), sha256
+      `e0c6a17e8aa1379d854a1b026b54905e35201595f439a96a3c5b09b6e79fe735`, niente `natpf/registro.json`; provato estratto
+      (`cf-browser.mjs`, porta 4205): versione 14.9 servita, QR dei due telefoni, pausa con «Ricollega», pagina del telefono;
+      solo gli errori attesi (404 di `/api/match/state`, `registro.json`, `/lan/status`, CORS del TURN).
+      `natpf-telefono-bloccato` sullo zip estratto 11/12 (l'unico rosso è lo stesso CORS del TURN).
+- [x] `natpf-ritardo-schermo` corretta (aspetta il riquadro della diagnostica, che si disegna dopo la lettura delle
+      sessioni; secondo telefono finto con i metodi chiamati a ogni fotogramma): **13/13**, schermate guardate.
+- [~] Secondo gruppo di prove nel browser sulla 14.9: stesso-schermo-b25 55/55, stand-layout `VARIANTS=quick` 16/16,
+      stesso-schermo-b20 52/52; in corso lob-drop e le altre della lista sopra.
