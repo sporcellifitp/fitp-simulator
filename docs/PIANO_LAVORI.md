@@ -17,14 +17,14 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 15/11/2026, 16:15 UTC (ripresa dopo le versioni 14.6–14.8).** Ultima versione pubblicata:
-**2026-11-14.8** (`3149115`): B51 (14.6), B48 + B48.1, B40, B49, B50 (14.7, un solo commit), pannello dello stand
-compatto (14.8). Installer 14.8 verificato dal link fisso: 128.153.784 B, sha256 `07a0c687…34129cb8f0f`. Sulla 14.8:
-gioco 1733/1734 (un test non aggiornato al testo nuovo del pannello, corretto nel commit di questo checkpoint, solo
-test; dopo la correzione 1734/1734), sito 275/275, desktop 51/51, LAN 13/13. Il bundle `docs/consegna/2026-11-15/rami-b40-b48.bundle` è già dentro:
-**non riunirlo**. **Prossima azione esatta:** la lista «Cosa resta» in fondo a `docs/TRACCIA_PASSI.md` (sezione «15/11,
-16:15 UTC»), dal punto 1: documenti dei blocchi B40, B48, B49, B50, B51; poi i pezzi mancanti di B50, B49, B40; poi il
-revisore finale (passaggio §4.6); poi versione nuova e pacchetti. Il resto di questa sezione è storia.
+**Checkpoint del 15/11/2026, 21:20 UTC (versione 2026-11-14.9).** Revisione finale della serie 14.6–14.8 fatta in
+questa ripresa (dettaglio in fondo a `docs/TRACCIA_PASSI.md`): documenti dei blocchi B40, B48, B49, B50, B51 scritti o
+ripresi dal bundle, 6 test in più, una funzione per i trofei nel doppio (`hitCountsForStats`), frase d'aiuto della prova
+del ritardo, prova nel browser `natpf-ritardo-schermo` nuova, prove del pannello aggiornate a 18 pulsanti. Controllo
+rapido della 14.9: gioco 1740/1740, sito 275/275, desktop 51/51, LAN 13/13, build. Il bundle
+`docs/consegna/2026-11-15/rami-b40-b48.bundle` è già dentro: **non riunirlo**. **Prossima azione esatta:** verificare
+l'installer 14.9 dal link fisso, fare il secondo gruppo di prove nel browser elencato nella traccia e lo zip Cloudflare
+della 14.9, poi il riepilogo unico all'utente (passaggio §4.8). Il resto di questa sezione è storia.
 
 
 - **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a

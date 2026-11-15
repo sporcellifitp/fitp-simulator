@@ -1127,3 +1127,28 @@ senza firma di sessione, e non hanno aggiornato traccia e piano):
    browser del B40.7.
 5. [ ] **Revisore finale della serie B37–B51** (passaggio §4.6), che copre anche la revisione mirata del B48.1 mai fatta.
 6. [ ] Poi versione nuova, zip Cloudflare, installer dal link fisso, riepilogo unico all'utente (passaggio §4.8).
+
+### 15/11, 21:20 UTC · revisione finale e pezzi mancanti → versione 2026-11-14.9 (la sessione si è fermata tra le 17:00 e le 21:10 per un riavvio; il lavoro nel checkout era intatto)
+
+- [x] Versione **2026-11-14.9** (quattro file, guida «Vale per…»). Controllo rapido (21:15–21:20 UTC): gioco **1740/1740**,
+      sito 275/275, desktop 51/51, LAN 13/13, build ok. Commit e push qui sotto.
+- [ ] Dopo il push: installer dal link fisso, secondo gruppo di prove nel browser (ritardo-schermo nuova, stesso-schermo
+      b20/b25, stand-layout `VARIANTS=quick`, lob-drop, flusso-tocchi fiera, nuovo-giocatore, telecomando,
+      phone-blackout, scambi-di-prova, training-flow, servizio-peso, chi-serve, tabellone, mano-sicura), zip Cloudflare
+      provato estratto, riepilogo all'utente.
+- Nel commit della 14.9:
+  - documenti dei blocchi: `docs/b40/` e `docs/b48/` ripresi dal bundle con le prove riempite, `docs/b49/doppio-compagno.md`
+    (+ misure), `docs/b50/ritardo-e-pulizie.md`, `docs/b51/telefono-bloccato.md`, `PROJECT_MEMORY` (B40, B48–B51),
+    `NATPF_DIAGNOSTICA` (prova del ritardo, `diag=1`), riga `diag=1` della guida;
+  - test: `natpf-b50-ritardo-prova` 3 → 8, `natpf-b49-doppio` 3 → 4 (`hitCountsForStats`, nuova funzione in
+    `natpf_doubles.js` usata da `game_engine.js`: il colpo del compagno nel doppio contro la CPU non conta nei trofei);
+  - correzione: frase d'aiuto della prova del ritardo nascosta con il pulsante acceso (`natpf_diag.js`);
+  - prove nel browser: nuova `tools/e2e/natpf-ritardo-schermo.mjs` (B50-9); `natpf-fiera-layout` ora esce da sola
+    (restava appesa a risultato scritto); `natpf-stesso-schermo-b20`/`-b25` aggiornate a 18 pulsanti del pannello.
+- Misure della revisione: B49 sei obiettivi rispettati (`docs/b49/`), trofei dopo il B48 invariati (`docs/b40/`),
+  `audit:legend` tutti i criteri, mutazioni B48.1 5 su 5 prese, stima del ritardo nei criteri del piano (limite noto con
+  colpi irregolari, `docs/b50/`).
+- Primo gruppo di prove nel browser (14.8): servizio-scelta 18/18, fine-partita 56/56, ritratti 24/24, telefono-bloccato
+  12/12 (con `run-local.mjs` e il sito sotto `/natpf/`), fiera-layout 63/63, fiera-telefoni 61/61, pannello-cadute 33/33,
+  menu 45/45, leggenda 7/7, stand-settle ok; stesso-schermo-b25 44/55 **solo per il conto vecchio dei pulsanti** (16
+  invece di 18; nessuno scorrimento, nessuna scritta tagliata): prova aggiornata, da rifare.

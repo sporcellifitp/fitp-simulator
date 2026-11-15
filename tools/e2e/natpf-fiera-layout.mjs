@@ -133,4 +133,6 @@ try {
 finally { await B.close().catch(() => {}); stop(); }
 writeFileSync(`${OUT}/riassunto.txt`, rows.join('\n') + `\n${rows.length - bad}/${rows.length} senza problemi\n`);
 console.log(`${rows.length - bad}/${rows.length} senza problemi`);
-process.exitCode = bad ? 1 : 0;
+// (ripresa del 15/11) il server dei peer tiene i suoi intervalli: senza l'uscita esplicita la prova restava appesa a
+// risultato già scritto (fino al timeout di chi la lancia)
+process.exit(bad ? 1 : 0);

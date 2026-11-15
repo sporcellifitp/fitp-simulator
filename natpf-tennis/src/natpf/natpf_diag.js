@@ -223,7 +223,7 @@ export class NatpfDiag {
       <p class="diag-note" data-aim-level>Mira del telefono: ${esc(aimLevelLabel())}, si cambia nel pannello dello stand: Ctrl+Maiusc+K (F9 nel programma Windows), o 3 s sul marchio NATPF del menu. Il riassunto dice, partita per partita, da che parte vanno le palle di chi gioca con il telefono, quante sono angolate e se il riferimento della mira è storto: docs/GUIDA_MISURA_MIRA.md</p>
       <details class="diag-lag"><summary>Ritardo dello schermo: ${this.engine.natpfPhone?.displayLagMs || 0} ms</summary>
         <p class="diag-note">Lascia 0 se non l'hai misurato. Si misura con la prova guidata (mediana del «tempo dei colpi del telefono»: se è in ritardo di molti ms a ogni sessione, lo schermo è un sospetto) o meglio con un video a 240 fps del telefono e del televisore insieme. Vale solo per i colpi del telefono.</p>
-        <div class="diag-actions"><button type="button" data-diag="lagtest" ${this.lagTest?.phone ? '' : 'disabled'}>▶ Prova del ritardo (20 s)</button><span class="diag-note" data-lag-help>Collega un telefono e attiva i sensori per iniziare.</span></div>
+        <div class="diag-actions"><button type="button" data-diag="lagtest" ${this.lagTest?.phone ? '' : 'disabled'}>▶ Prova del ritardo (20 s)</button><span class="diag-note" data-lag-help ${this.lagTest?.phone ? 'hidden' : ''}>Collega un telefono e attiva i sensori per iniziare.</span></div>
         <div class="diag-actions"><input data-lag type="number" min="0" max="200" step="5" value="${this.engine.natpfPhone?.displayLagMs || 0}"><button type="button" data-diag="lag">Salva</button></div></details>
       ${this.store?.kind === 'memory' ? `<p class="diag-warn">Questo browser non permette di scrivere su disco: la sessione resta in memoria (massimo 300 MB) e si perde se la pagina si chiude.</p>` : ''}
       ${sum ? `<div class="diag-summary"><b>Sessione appena registrata</b>${sum.parts > 1 ? `<p class="diag-note">Registrazione lunga, salvata in ${sum.parts} parti (30 minuti o 1 GB ciascuna): il riassunto è dell'ultima, le altre si scaricano dall'elenco qui sotto.</p>` : ''}<ul>${summaryLines(sum.metrics || {}).map(l => `<li>${esc(l)}</li>`).join('')}</ul><button type="button" data-diag="save" data-id="${esc(sum.id)}">⬇ Scarica il pacchetto</button></div>` : ''}`;
@@ -263,8 +263,9 @@ export class NatpfDiag {
       const last = this.swings[this.swings.length - 1];
       if (last && last.hitAt != null && last.frameAt == null) last.frameAt = t/1000;
       if (this.on && (!this._painted || t - this._painted > 250)){ this._painted = t; this.paint();
-        const lagButton = this.el?.querySelector('[data-diag="lagtest"]');
-        if (lagButton) lagButton.disabled = !this.lagTest?.phone; if (this.recorder.active) this._paintRec(); }
+        // (ripresa del 15/11: la frase d'aiuto si vede solo con il pulsante spento, cioè senza un telefono pronto)
+        const lagButton = this.el?.querySelector('[data-diag="lagtest"]'), lagHelp = this.el?.querySelector('[data-lag-help]'), lagReady = !!this.lagTest?.phone;
+        if (lagButton) lagButton.disabled = !lagReady; if (lagHelp) lagHelp.hidden = lagReady; if (this.recorder.active) this._paintRec(); }
       if (this.recorder.active && this.recEl && (!this._recPainted || t - this._recPainted > 500)){ this._recPainted = t; this.recEl.textContent = `● REC ${clock((performance.now() - this.recorder.t0)/1000)}`; }
       requestAnimationFrame(loop);
     };

@@ -18,7 +18,7 @@ Serve a migliorare il gioco con dati veri invece che con impressioni. Il ciclo �
    - video della webcam del computer, che inquadra chi gioca (attivo all'inizio);
    - campioni dei sensori del telefono (attivi all'inizio);
    - video del gioco: spento all'inizio, perché pesa sulle prestazioni (vedi «Costo dei video»). Si accende quando serve vedere cosa mostrava lo schermo.
-3. Premi **● Avvia registrazione** e gioca normalmente.
+3. Premi **● Avvia registrazione**, chiudi il pannello con **×** (finché è aperto la partita resta ferma) e gioca normalmente.
    - In alto compare **● REC** con il tempo.
    - **Maiusc+M** segna un momento («qui il colpo era sbagliato»).
    - Non c'è un limite di durata.
@@ -143,9 +143,27 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
 **Video o verifica manuale**
 - se un colpo era davvero un pallonetto;
 - se la palla è andata dove chi giocava voleva;
-- il ritardo dello schermo, con un video a 240 fps del telefono e del televisore insieme;
+- il ritardo dello schermo, con un video a 240 fps del telefono e del televisore insieme (dalla 2026-11-14.7 c'è anche la
+  stima a occhio della **Prova del ritardo (20 s)**, sotto);
 - la postura;
 - la qualità della luce per la webcam.
+
+## Prova del ritardo dello schermo (B50, dalla 2026-11-14.7)
+
+Nel riquadro **Ritardo dello schermo** della diagnostica: **▶ Prova del ritardo (20 s)** (spento finché non c'è un
+telefono pronto, con la frase «Collega un telefono e attiva i sensori per iniziare»). Una palla rimbalza al centro dello
+schermo per circa 20 s dopo un conto alla rovescia di 3 s; chi tiene il telefono fa un colpo secco a ogni rimbalzo e non
+colpisce quando la palla sparisce (tre rimbalzi «nascosti» controllano che segua lo schermo e non il ritmo). I colpi
+della prova **non arrivano al gioco**. Alla fine la scheda dice il ritardo misurato, quanti colpi su 12 e la regolarità,
+oppure perché va ripetuta (pochi colpi, colpi sui rimbalzi nascosti, colpi irregolari).
+
+- **Questa era sul monitor**: salva la misura come riferimento (il tempo di chi gioca e del monitor del PC), valido 12 ore.
+- **Salva N ms**: scrive il ritardo dello schermo per tutti e due i telefoni di questo computer. Con il riferimento il
+  valore proposto è *ledwall − riferimento*; senza, è il misurato (comprende il tempo di chi gioca). Il valore proposto è
+  la mediana con le ultime due prove salvate, arrotondato a 5 ms, tra 0 e 200.
+- Se le ultime prove differiscono di oltre 40 ms la scheda chiede di ripetere: con colpi molto irregolari la stima può
+  sbagliare di 50–100 ms anche quando viene accettata (misure in `docs/b50/ritardo-e-pulizie.md`).
+- Annulla con il pulsante, con Esc o con il tasto destro. Nel registro resta la riga `stand.provaRitardo`.
 
 ## Metriche e confronto
 

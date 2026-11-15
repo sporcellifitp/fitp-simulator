@@ -42,6 +42,11 @@ export const partnerButton = (mode, forced = false) => PARTNER_LABEL[partnerMode
 export const partnerLine = mode => mode === 'gesto' ? 'Anello azzurro sotto il compagno: fai tu il gesto.' : 'Anello azzurro: il compagno colpisce da solo.';
 export const partnerFirstHint = partnerLine;
 export const newDoubles = engine => !!engine?.isDoubles && !engine.isMultiplayer && !engine.natpfSplit?.active;
+// Il colpo di chi gioca (o del compagno con il suo gesto) conta nei numeri della partita e nei trofei del B40? Nel doppio
+// contro la CPU il colpo del compagno no, nemmeno con «Con il tuo gesto» (docs/b40/fine-partita-v2.md §6); negli altri
+// doppi (sfida tra due computer, stesso schermo) come prima. Funzione a sé dalla ripresa del 15/11, per poterla provare
+// (game_engine, colpo del Player 1)
+export const hitCountsForStats = (engine, partnerHit) => !partnerHit || !newDoubles(engine);
 export const partnerMode = engine => engine?.natpfPartner ?? readPartnerMode();
 export const partnerAuto = engine => newDoubles(engine) && partnerMode(engine) === 'solo' && !engine.autoPlayMode;
 export const partnerHome = engine => ({ x: (engine?.score?.deuceSide ? -1 : 1)*PARTNER.home.x, z: PARTNER.home.z });

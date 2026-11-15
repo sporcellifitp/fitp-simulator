@@ -2371,7 +2371,7 @@ export class NatpfTennisEngine {
       /\bSMASH\b/.test(X) && this.audioEngine && this.audioEngine.playVoiceCallout("smash");
       this.hud.showTimingPopup({ grade: `${u} \u2022 ${X}!`, detail: `${F} KM/H`, screenPos: A, partner: p === this.playerPartner }), // NATPF B10: colpo del compagno (il tuo gesto)
         // NATPF B33: lo stesso colpo della scritta per la schermata finale (natpf_match_stats.js, solo lettura)
-        (!l || !NDB.newDoubles(this)) && this.natpfStats?.shot(this, { role: "p1", grade: u, kmh: F, superShot: !!racketShot?.super, failed: !!racketShot?.out?.failed }),
+        NDB.hitCountsForStats(this, l) && this.natpfStats?.shot(this, { role: "p1", grade: u, kmh: F, superShot: !!racketShot?.super, failed: !!racketShot?.out?.failed }),
         this.motionController &&
           this.motionController.triggerHapticFeedback &&
           this.motionController.triggerHapticFeedback({

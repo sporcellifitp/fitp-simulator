@@ -1396,3 +1396,106 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - **Prove sotto carico**: aspettare la condizione, mai un tempo fisso; dove si misura un costo, misure appaiate nello stesso
   giro e mediana delle differenze (`natpf-chi-serve`); `remote-pairing` aspetta le risposte del gioco (la prova della chiave
   è asincrona).
+
+
+## B48 · Servizio con delle scelte, servizio della CPU vario, Leggenda più da campione (15/11/2026; documento `docs/b48/servizio-e-leggenda.md`)
+- **Regola del servizio dal telefono** (`natpf_stroke_outcome.SERVE.choiceTau/choiceReach/choiceQ0`, `serveOutcome({ choice })`,
+  `serveChoiceOf`): il momento del colpo rispetto al punto più alto del lancio sceglie la direzione, prima → verso la «T»,
+  dopo → largo, piena a 0,15 s (dentro la finestra «perfetto»: niente qualità persa) e fino a 1,625 m dal centro del
+  quadrato (gli estremi del servizio «sulla riga» del banco B18). Fuori tempo la scelta cala con la pulizia (nulla da q
+  0,55). Profondità, velocità, effetto e voto invariati; il piano dello swing decide l'effetto, non più la direzione. La
+  **minaccia per la CPU** (`serveInfo`) ha la formula di prima ma legge il rimbalzo x, che ora sceglie il tempo: lo stesso
+  gesto (forza 0,9, 150 km/h) a ±0,15 s dal punto più alto va alla «T» o largo e passa da minaccia 0,7 a 1,0 e da «sharp»
+  0 a 1 (la CPU legge in ritardo, come sul servizio «sulla riga» del B18); nel punto più alto 0,7 (correzione B48.1). Player 1 e Player 2, destri e mancini. **Webcam (anche «movimento»), mouse e tastiera come prima**. Prove di
+  confronto: `serveChoiceRules.off` (come `netPlayRules.off`). Banco: `tightTau` batte «sulla riga» con il tempo.
+- **Testo della regola** in un posto solo: `SERVE_CHOICE` (`natpf_gesture_motion.js`), quarta riga della scheda
+  «Servizio» (tutorial e allenamento) e sottotitolo di «Colpisci!» ai primi servizi solo con il telefono
+  (`natpf_serve_coach.js`); la guida «Come si gioca» lo dice a parole. La dimostrazione 3D batte nel colmo: al centro.
+- **Servizio della CPU** (`natpf_skill.cpuServePlan`, `CPU_SERVE`, `cpuServe.dir/kind/spin/cap` per livello;
+  `game_engine._executeServeHit` con `natpfCpuServe`): direzione «T»/corpo/largo ed effetto piatto/kick/tagliato, mai tre
+  uguali di fila (`pickVaried`). **B48.1**: `x` del piano è il rimbalzo vero a ogni livello (con il limite o il servizio
+  profondo `fixAirServe`, altrimenti `aimServeX`, solo il lato) e ogni direzione sta nel suo terzo (`serveThird`), con
+  almeno 7 cm di margine: prima a Bambini il 68–72% dei rimbalzi veri cadeva al corpo (fino a 20 di fila), a Pro ed
+  Evento circa il 50% (fino a 10). Pro e Leggenda con i punti dei rimbalzi veri di prima. A Pro e Leggenda il 15% dei
+  servizi (`cpuServe.long`, Evento la media) rimbalza vicino alla riga del servizio (`CPU_SERVE.depth`), alla velocità che
+  il servizio normale avrebbe avuto. Top spin per livello: Pro 18/26/14, Leggenda
+  22/28/18, Casual e Bambini 14/24/9 (niente kick), Evento la media; volo di prima. **Non usare gli stessi valori a tutti i
+  livelli**: con 14/24/9 Pro contro «medio» scendeva a 69,9% dei game (criterio 70–85%; misura del B48: con i rimbalzi
+  nei terzi del B48.1 14/24/9 dà 74,8% e il criterio non li distingue più, li protegge il test dei valori), con 18/26/14 a Casual chi
+  risponde correva a rete (37% delle mosse invece di 19%), con 18/26/14 la Leggenda era più facile per «preciso» (35,0
+  contro 32,9% dei punti).
+- **Limite a Casual e Bambini** (`cap 1`, `cpuServeLimit`, `noteServeKmh`): mai più della media dei km/h veri dei servizi di
+  chi gioca nella partita (`engine.natpfServeKmh`, azzerato da `startNewMatch`), 88–100% di quella, arrotondato in giù.
+  Prima del suo primo servizio (`firstServeKmh`, B48.1) il servizio più lento possibile di chi gioca con la sua racchetta:
+  telefono 64 km/h (`firstKmhPhone`; misurato 64,9 a forza 0), altrimenti 59 (`firstKmh`; mouse e tastiera a forza 0 con la
+  mira verso la «T» 59,4; vale anche senza interfaccia e con la modalità prova). Prima 70: con «Batte per primo: CPU» la
+  CPU poteva battere più forte di un bambino. Su una palla così lenta chi risponde la prende in salita fino a 2–3 m più
+  avanti; **non farla rimbalzare a metà del quadrato**: chi risponde arretra e «umano» vince il 12–15% dei punti invece
+  dell'80%. La palla rimbalza a 5,6–6,1 m dalla rete (`plan.deep`) con `fixAirServe` e il
+  volo si allunga finché non scende sotto il limite. Evento: limite media/(1 − k), applicato solo se taglia.
+- **Leggenda**: `LEGEND.dropEvery` 8, `dropAllowed`: la smorzata è candidata solo se nessuno degli ultimi 7 colpi della
+  CPU (`m.last`) lo era. Contro l'adulto medio da 1 ogni 7,3 colpi a 1 ogni 13; `audit:legend` sempre verde.
+- **Difetto 16**: `natpf_diag.saveLag` mette il ritardo dello schermo in tutti e due i telefoni (anche il Player 2).
+- **Risposta al servizio dopo il rimbalzo** (B48.1, `natpf_impact.planPlayerIntercept`): sul servizio (non le palle del
+  lanciapalle, `natpfFeed`) niente schiacciata né volée al volo. Prima a Bambini il servizio lento della CPU (apice 3,8 m,
+  oltre `PLAN.lobApex`) si schiacciava al volo: 1,0% dei servizi contro «medio», 31% contro «impreciso». La schiacciata
+  voluta in risposta resta sulla palla davvero alta (sopra 2,3 m, regola del 31/10).
+- **Misure** ripetibili: `natpf-tennis/scripts/audit/b48/` (`servizio-cpu.mjs` con terzi, file di fila, profondi e colpiti al
+  volo, `smorzate.mjs`, `pro.mjs`, `difficolta.mjs`, `primo-servizio.mjs`; `ROOT=` per un altro albero). La prova nel browser `tools/e2e/natpf-servizio-scelta.mjs` (porte di base 3197/9197).
+
+## B40 · Fine partita v2: card, trofei, esultanza (15/11/2026; documento `docs/b40/fine-partita-v2.md`)
+- **Trofei**: catalogo e soglie in una sola tabella, `natpf_trofei.js` (`TROPHY_TIERS`, `LOVE_BASE`, `RE_MIN`); funzioni pure
+  `trophyTier`, `trophiesOf` (doppioni: «In serie» dentro «Game a zero» e «Rimonta»), `cardTrophies` («Prima volta» sempre in
+  vista, al posto del terzo), `nextTrophy` (testo e `short`). Banco delle soglie: `scripts/audit/b40-trofei.mjs` (8000 partite,
+  contatori e trofei veri; `--veloce` è deterministico e lo prova un test). Le soglie sono **provvisorie** (giocatori
+  simulati): rimisurare **Asso e Razzo dopo il B48** e tutte con il registro dello stand. «Asso» = servizi vincenti (ace o
+  risposta non rimandata in campo), perché l'ace con i servizi del telefono simulati non esce mai.
+- **Contatori** in `natpf_match_stats.js`, sempre in sola lettura (impronte delle partite uguali: test b33 e b40): chi
+  aggiunge un contatore lo mette in `countPoint`/`addShot` e in `sideSummary`, mai nel motore. Il colpo del compagno del
+  doppio non conta se arriva con `partner: true` (il B49 lo passerà da `natpfTeamHit`, deciso prima della chiamata).
+- **Prima partita e record di oggi**: `natpf_ui._noteDay` per tutte le partite di questo computer (prima della classifica);
+  `natpf_events.visitorMatches` (sessione) si azzera con nome diverso, `forgetGuest` (Nuovo/Prossimo giocatore, chiosco);
+  record nel tabellone del giorno (`best`, solo valori, fuori dal CSV); stesso schermo `natpf_split_ui.notePlayed`.
+- **Card** (`natpf_end_card.js`, modello e HTML puri) in `#victory-cards` dentro `.end-body` (con `display: contents` senza
+  card: schermata del B35 identica). Nello stesso schermo la card **è** la `.end-player` del B35 (`.end-pname`, `.end-chip`
+  sul nastro, i due riquadri): le prove la leggono così. Misure in `--eu` come il B35; `.end-cards` ridefinisce `--eu`
+  nelle aree quasi quadrate. La finestra del ritratto ha il colore pieno `ART_BG` della cornice, che è anche il fondo dei
+  fotogrammi 3D (il canvas del gioco non ha trasparenza).
+- **Esultanza e applauso** (`player_body_animation.js`): in `MATCH_OVER` la reazione del punto (la fa partire il motore in
+  `_awardPoint`: `lastPointWinner` nel motore non esiste) diventa `cheer`/`clap` in loop con periodo `CHEER_PERIOD`; tutto
+  quello che si muove nel loop deve essere multiplo di 9,2 rad/s (niente oscillazioni d'attesa: `loopStill`), altrimenti i
+  fotogrammi non si chiudono (test: posa dopo un periodo entro 1 mm). La racchetta della reazione vale anche con
+  `racket_kinematics`. Mascotte 3D: racchetta orizzontale e mano libera vera nell'applauso (`natpf_mascot_rig.poseArm`).
+- **Ritratti 3D** (`natpf_ritratti.js`): cattura prima di `render()` in `_natpfFrame`, finestra al centro del canvas (sotto la
+  card), layer 5 sul personaggio e sulle luci, `scene.background = null`, `shadowMap.autoUpdate = false`, scissor/viewport
+  rimessi; il personaggio fotografato non segue il motore (`natpfPortraitHold`) e avanza con
+  `_updatePlayerAnimation(a, dt, true)` (senza telefono né webcam). Chi cambia le luci dell'arena o il materiale dei
+  personaggi riguarda `programmi` nella riga `fine.ritratti` (deve restare 0).
+- **Arena ferma sotto la card**: `_natpfFrame` chiede a `ritratti.frozen()` (schermata finale con i numeri in vista) a ogni
+  fotogramma: niente strade da agganciare una per una. Ridisegno con `natpfBackdropDirty` (ridimensionamento). Una prova che
+  conta i disegni dell'arena a fine partita deve saperlo (`natpf-fine-partita-ritratti`).
+- (Ripresa del 15/11) Asso e Razzo **rimisurati con il B48 dentro**: differenze sotto 1,5 punti nella miscela delle
+  prime partite, soglie invariate (`docs/b40/b40-trofei-risultati-dopo-b48.txt`).
+
+## B49 · Doppio contro la CPU: compagno che gioca da solo (15/11/2026, versione 2026-11-14.7; documento `docs/b49/doppio-compagno.md`)
+- **Solo nel doppio contro la CPU** (`newDoubles`: non sfida tra due computer, non stesso schermo). Di base «Gioca da
+  solo» (`natpf-tennis.compagno`, `?compagno=gesto|solo`): il compagno prende le volée entro 0,5 m dalla sua posizione
+  d'attesa (1,4 m · 5,1 m), mai la risposta al servizio; «Con il tuo gesto» rimette il comportamento di prima.
+- Pressione degli scambi lunghi sullo scambio di chi gioca (`exchangeStrokes`), non sullo scambio della squadra.
+- **Il colpo del compagno non conta nei numeri della partita né nei trofei** (`hitCountsForStats`, anche con il gesto).
+- Misure (15/11): i sei obiettivi del piano rispettati; il più stretto casual · amatore −7,8 punti sul singolo (limite ±8).
+
+## B50 · Prova del ritardo dello schermo (15/11/2026, versione 2026-11-14.7; documento `docs/b50/ritardo-e-pulizie.md`)
+- Valore salvato = **ledwall − riferimento del monitor** (riferimento valido 12 ore); senza riferimento il misurato (con il
+  tempo di chi gioca). Proposta = mediana con le ultime due prove salvate, a 5 ms, tra 0 e 200; vale per i due telefoni.
+- I colpi della prova passano dalla sonda (`probeSwings`) e **non arrivano al motore**.
+- Limite noto: con colpi irregolari (σ ≥ 60 ms) la stima accettata può sbagliare di 40–100 ms; la soglia non si stringe
+  (la persona normale scenderebbe sotto il 95% di prove valide). Allo stand: 2–3 prove con la stessa persona.
+- Blocco dell'orientamento del telefono acceso davvero dalla 14.6 (correzione `let screen` → `viewScreen`, B51).
+
+## B51 · Telefono bloccato in partita (15/11/2026, versione 2026-11-14.6; documento `docs/b51/telefono-bloccato.md`)
+- Il PC chiede il blocco (`tl`) durante scambi di prova, conto alla rovescia e partita, se «Blocco del telefono in
+  partita» è Sì (di base); il telefono conferma (`lk`). Sblocco da solo quando il gioco offre un tocco; dello staff con due
+  dita ferme 3 s e «Sblocca», o dal PC. Lo sblocco manuale vale per l'attività in corso.
+- La pagina non può impedire di uscire da Chrome con i comandi di Android: per quello «Fissa app» (guida §8.6). APK solo
+  se dopo il B51 serve ancora (decisione dell'utente).

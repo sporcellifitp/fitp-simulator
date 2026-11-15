@@ -1,0 +1,93 @@
+partite simulate: 8000 (semi 7, 31, 11)
+
+## quota di partite con il trofeo: bronzo o più / oro (%)
+                            cecchino     razzo maratonet      asso  vincente     super      zero   rimonta     serie      muro   vinte
+g1 bambino/bambini              11/1      44/0       5/0       9/0       8/0       0/0      53/0       4/0       8/0       2/0   100%
+g1 bambino/casual                8/1       3/0       1/0       9/1       1/0       0/0       6/0      13/3       5/0       1/0   55%
+g1 bambino/evento                2/0       0/0       1/0       2/0       0/0       0/0       0/0       1/0       1/0       1/0   5%
+g1 principiante/bambini          2/0      61/4       5/1       7/0       8/0       0/0      75/0       1/0       5/0       2/0   100%
+g1 principiante/casual           0/0       2/0       3/0       2/0       3/0       0/0      52/0       2/1       8/0       1/0   100%
+g1 principiante/evento          15/0       2/0      12/0       1/0       9/1       0/0      12/0      18/2       6/0      15/0   90%
+g1 principiante/pro             16/2       1/1       3/0       0/0      18/2       0/0       8/0      14/2       3/0       6/1   59%
+g1 umano/casual                  0/0       3/1       3/0       2/0       5/0       1/0      59/0       3/0       7/0       1/0   100%
+g1 umano/evento                 14/1       5/0      15/1       0/0      10/0       1/0      17/0      13/2       7/0      13/0   96%
+g1 umano/pro                    20/2       2/1       8/0       0/0      21/2       1/0      15/0      12/3       7/0       7/0   78%
+g1 umano/leggenda               35/3     39/35       1/0       0/0       0/0       0/0       0/0       1/0       0/0       1/0   4%
+g1 amatore/casual                7/1       6/1       3/0       3/0       3/0       1/0      57/0       2/0       7/0       1/0   100%
+g1 amatore/evento               29/5       3/0       7/0       1/0      14/1       1/0      16/0      21/4       9/0       7/1   88%
+g1 medioTel/evento              18/1       9/1       5/0       2/0      18/2       3/0       9/0      23/2       4/0       3/0   85%
+g1 medioTel/pro                 20/4       5/2       1/0       1/0      29/4       3/0       7/0      15/3       5/0       2/0   60%
+g1 tennista/evento               0/0     56/17       4/0       0/0      38/0      56/5      82/0       0/0       5/0       0/0   100%
+g1 tennista/pro                  1/0     53/12       1/0       0/0      48/0      54/7      82/0       1/0       4/0       0/0   100%
+g1 tennista/leggenda            34/6     88/56       1/0       0/0       1/0     75/15       2/2       3/0       1/0       1/0   14%
+g2 bambino/bambini               6/0      65/1       9/1      13/0       0/0       0/0      80/0       5/0      24/1       5/1   100%
+g2 principiante/evento           5/0       3/0      22/1       0/0       0/0       0/0      35/0      29/0      11/0      22/1   99%
+g2 umano/evento                  7/0      12/1      30/3       1/0       1/0       2/0      46/0      20/0      12/0      26/2   100%
+g2 tennista/pro                  0/0     76/26       1/0       0/0      22/0     80/20     98/63       0/0       0/0       1/0   100%
+
+## trofei per partita (senza Prima volta e Re di oggi): 0 / 1 / 2 / 3+ (%) · almeno un oro (%) · media
+g1 bambino/bambini           11   46   35    8   oro   2   media 1.42
+g1 bambino/casual            64   29    6    2   oro   5   media 0.46
+g1 bambino/evento            94    5    1    0   oro   1   media 0.07
+g1 principiante/bambini       6   38   46   11   oro   5   media 1.65
+g1 principiante/casual       35   59    5    1   oro   1   media 0.72
+g1 principiante/evento       44   34   15    7   oro   2   media 0.87
+g1 principiante/pro          58   26   10    7   oro   6   media 0.67
+g1 umano/casual              29   63    7    2   oro   1   media 0.82
+g1 umano/evento              40   37   13   10   oro   4   media 0.95
+g1 umano/pro                 40   40   12    8   oro   6   media 0.91
+g1 umano/leggenda            43   39   17    1   oro  36   media 0.77
+g1 amatore/casual            25   63   10    2   oro   3   media 0.89
+g1 amatore/evento            35   39   15   12   oro   8   media 1.08
+g1 medioTel/evento           48   28   13   11   oro   5   media 0.93
+g1 medioTel/pro              50   27   13   11   oro   8   media 0.86
+g1 tennista/evento            4   26   18   51   oro  19   media 2.39
+g1 tennista/pro               3   23   26   49   oro  15   media 2.42
+g1 tennista/leggenda         10   12   48   31   oro  61   media 2.04
+g2 bambino/bambini            3   24   48   26   oro   3   media 2.05
+g2 principiante/evento       24   39   27   11   oro   2   media 1.25
+g2 umano/evento              22   31   26   22   oro   6   media 1.54
+g2 tennista/pro               0   16   10   75   oro  78   media 2.77
+
+## miscela «prima volta» (35% principiante/Evento, 25% umano/Evento, 25% bambino/Bambini, 10% principiante/Facile, 5% bambino/Facile)
+cecchino    bronzo+  11.8%   argento+   3.2%   oro   0.5%
+razzo       bronzo+  13.0%   argento+   2.8%   oro   0.1%
+maratoneta  bronzo+   9.2%   argento+   1.9%   oro   0.4%
+asso        bronzo+   3.3%   argento+   0.4%   oro   0.0%
+vincente    bronzo+   7.9%   argento+   1.1%   oro   0.3%
+super       bronzo+   0.2%   argento+   0.0%   oro   0.0%
+zero        bronzo+  27.4%   argento+   0.0%   oro   0.0%
+rimonta     bronzo+  11.2%   argento+   4.1%   oro   1.3%
+serie       bronzo+   6.7%   argento+   0.0%   oro   0.0%
+muro        bronzo+   8.9%   argento+   2.0%   oro   0.2%
+trofei del gioco per partita: 0 34.7% · 1 40.1% · 2 18.2% · 3+ 7.1%  → con «Prima volta»: 1 trofeo 34.7%, 2 trofei 40.1%, 3+ 25.3% · almeno un oro 2.4%
+«Prima volta» al posto di un terzo trofeo d'argento o d'oro: 0.4% delle prime partite
+
+## raggiungibile? miglior gruppo per ogni trofeo e livello (% di partite)
+cecchino    bronzo 34.8% (g1 umano/leggenda) · argento 14.3% (g1 tennista/leggenda) · oro 5.5% (g1 tennista/leggenda)
+razzo       bronzo 88% (g1 tennista/leggenda) · argento 61.8% (g1 tennista/leggenda) · oro 56.3% (g1 tennista/leggenda)
+maratoneta  bronzo 30% (g2 umano/evento) · argento 6.5% (g2 umano/evento) · oro 3% (g2 umano/evento)
+asso        bronzo 13% (g2 bambino/bambini) · argento 2.5% (g1 bambino/casual) · oro 0.8% (g1 bambino/casual)
+vincente    bronzo 47.5% (g1 tennista/pro) · argento 8.3% (g1 medioTel/pro) · oro 3.8% (g1 medioTel/pro)
+super       bronzo 80% (g2 tennista/pro) · argento 45% (g2 tennista/pro) · oro 19.5% (g2 tennista/pro)
+zero        bronzo 98% (g2 tennista/pro) · argento 98% (g2 tennista/pro) · oro 63% (g2 tennista/pro)
+rimonta     bronzo 29% (g2 principiante/evento) · argento 7.8% (g1 amatore/evento) · oro 4% (g1 amatore/evento)
+serie       bronzo 24% (g2 bambino/bambini) · argento 22% (g2 bambino/bambini) · oro 0.5% (g2 bambino/bambini)
+muro        bronzo 26% (g2 umano/evento) · argento 10.5% (g2 umano/evento) · oro 2% (g2 umano/evento)
+
+## distribuzioni (p50 / p90 / p95 / max) nei gruppi della miscela
+g1 principiante/evento     cecchino 10/17/19/27 · razzo 110/131/135/145 · maratoneta 25/30/32/38 · asso 0/1/2/3 · ace 0/0/0/0 · vincente 2/3/4/6 · super 0/0/0/0 · serie 3/4/4/5 · muro 24/38/42/60
+g1 umano/evento            cecchino 9/16/18/33 · razzo 115/136/139/160 · maratoneta 26/31/33/45 · asso 0/1/2/3 · ace 0/0/0/0 · vincente 2/4/4/6 · super 0/0/0/1 · serie 3/4/4/5 · muro 24/37/42/58
+g1 bambino/bambini         cecchino 9/16/19/31 · razzo 138/155/161/172 · maratoneta 20/27/29/39 · asso 1/2/3/4 · ace 0/0/0/0 · vincente 2/3/4/4 · super 0/0/0/0 · serie 4/4/4/4 · muro 14/25/29/49
+g1 principiante/casual     cecchino 4/8/10/17 · razzo 99/118/130/155 · maratoneta 19/27/28/35 · asso 1/2/2/4 · ace 0/0/0/0 · vincente 2/3/3/5 · super 0/0/0/0 · serie 4/4/4/5 · muro 14/24/29/37
+g1 bambino/casual          cecchino 7/15/17/34 · razzo 82/94/114/161 · maratoneta 17/25/27/34 · asso 1/2/3/5 · ace 0/0/0/0 · vincente 0/2/2/6 · super 0/0/0/0 · serie 2/4/4/5 · muro 12/22/26/48
+
+## Re di oggi: quota di partite con oro (1°), argento (2°), bronzo (3°)
+giornata di  20 partite: oro 4.3% · argento 6.1% · bronzo 7.1%
+giornata di  40 partite: oro 2.9% · argento 4.2% · bronzo 4.7%
+giornata di  80 partite: oro 1.6% · argento 2.2% · bronzo 2.6%
+giornata di 150 partite: oro 1% · argento 1.4% · bronzo 1.5%
+
+8000 partite in 274.7 s
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 253617 (con «Classica» sono sempre 0)
+

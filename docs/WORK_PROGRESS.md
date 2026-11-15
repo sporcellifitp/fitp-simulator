@@ -2305,3 +2305,43 @@ piano e registro: questa voce ne ricostruisce lo stato dal repository (dettaglio
   della 14.8 non risulta fatto: si fa con la versione successiva.
 - Non verificato: chi ha fatto i tre commit e con quali prove nel browser (i messaggi citano solo «servizio nel browser
   con trasporto simulato 18/18» per la 14.7); telefoni veri, Windows vero, ledwall per tutto il B51 e il B50.
+
+## Revisione finale della serie 14.6–14.8 e versione 2026-11-14.9 (15/11/2026, 16:20–21:20 UTC)
+
+Agente Claude Code nel cloud (stessa sessione della voce sopra; riavvio della sessione tra le 17:00 e le 21:10, checkout
+intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro i piani `docs/coda/B49-piano-analisi.md`,
+`B50-piano-analisi.md`, il passaggio §4.1–§4.6 e i rami del bundle.
+
+- [x] **Documenti dei blocchi** (mancavano dalla 14.7): `docs/b48/servizio-e-leggenda.md` e `docs/b40/fine-partita-v2.md`
+  + `b40-trofei-risultati.txt` ripresi dai rami del bundle con una nota in testa e i segnaposto riempiti (§7.7 del B48,
+  §5 «Misure» e §7 «Prove» del B40); nuovi `docs/b49/doppio-compagno.md` (+ `misure-b49-2026-11-15.txt`),
+  `docs/b50/ritardo-e-pulizie.md`, `docs/b51/telefono-bloccato.md`. `PROJECT_MEMORY`: sezioni B48 e B40 dei rami e nuove
+  B49, B50, B51. `NATPF_DIAGNOSTICA`: passo 3 con la partita ferma a pannello aperto (B50-4) e capitolo «Prova del ritardo
+  dello schermo»; guida dello stand, riga `diag=1`.
+- [x] **B49**: misure del piano rifatte (`sonde/b49/b49-misure.mjs`, 3 semi × 150 punti, 9 livelli × profili): i sei
+  obiettivi rispettati; il più stretto casual · amatore −7,8 punti sul singolo (limite ±8). Test nuovo e funzione
+  `hitCountsForStats` (`natpf_doubles.js`, usata in `game_engine.js` al colpo del Player 1): la mutazione «il colpo del
+  compagno conta nei trofei» prima non la prendeva nessun test, ora sì.
+- [x] **B50**: stima del ritardo misurata contro i criteri del piano (errore ≤ 6 ms con ritardi finti 0–200 ms, persona
+  simulata valide 98% e entro 30 ms 98,5%, rifiuti, colpi fuori misura 0 ms): tutti rispettati. **Limite trovato**: con
+  colpi irregolari (σ 60–120 ms) il 15–78% delle prove viene accettato con errori p95 43–87 ms; provate soglie più strette
+  (0,055 / 0,05 / 0,045 s): la persona normale scende a 94 / 90 / 84% di prove valide, sotto il criterio. Lasciato com'è,
+  scritto nel documento e nella diagnostica. Test `natpf-b50-ritardo-prova` 3 → 8. Correzione: frase d'aiuto visibile solo
+  con il pulsante spento (`natpf_diag.js`). Prova nel browser nuova `tools/e2e/natpf-ritardo-schermo.mjs` (B50-9).
+- [x] **B40**: soglie di Asso e Razzo rimisurate con il B48 dentro (8000 partite, 4 min 35 s): differenze sotto 1,5 punti,
+  soglie invariate (`docs/b40/b40-trofei-risultati-dopo-b48.txt`).
+- [x] **B48.1, revisione mirata** (mai fatta): 5 correzioni tolte a turno in una copia con `mut.sh`, tutte prese dai test.
+  `audit:legend` «Tutti i criteri rispettati», Pro 73,1%.
+- [x] **Prove nel browser** sulla 14.8 (porte 4160–4183, carico 0–5,8): servizio-scelta 18/18, fine-partita 56/56,
+  fine-partita-ritratti 24/24, fiera-layout 63/63, stand-settle ok, fiera-telefoni 61/61, pannello-cadute 33/33, menu 45/45,
+  leggenda 7/7; telefono-bloccato 12/12 con `run-local.mjs` e il sito sotto `/natpf/` (da sola falliva: cerca la pagina
+  in `/natpf/tennis/`). stesso-schermo-b25 44/55 **per il conto vecchio dei pulsanti del pannello** (16 → 18 con B51 e B49;
+  nessuno scorrimento, niente tagliato): prove `-b25` e `-b20` aggiornate. `natpf-stand-layout` completa interrotta dopo
+  12 varianti a 720×720 tutte OK (la versione completa richiede ~40 min): si rifà con `VARIANTS=quick`.
+- [x] Difetto delle prove della 14.8: `natpf-fiera-layout.mjs` restava appesa a risultato scritto (intervalli del server dei
+  peer): ora esce con `process.exit`.
+- [x] Schermate guardate: card di fine partita a 1920×1080, 720×720 e stesso schermo a 1920×540.
+- Verifiche della 14.9 (controllo rapido, 21:15–21:20 UTC, carico 0,1): gioco **1740/1740**, sito 275/275, desktop
+  51/51, LAN 13/13, build ok.
+- Non verificato: telefoni veri, Windows vero, ledwall, persone vere (trofei, doppio e prova del ritardo sono misurati con
+  giocatori simulati o un telefono finto).

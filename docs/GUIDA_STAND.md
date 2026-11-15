@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-14.8** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-14.9** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -1004,7 +1004,7 @@ browser) si può aggiungere all'indirizzo del gioco, dopo «?», una o più di q
 | view=first · view=third | Visuale in 1ª o 3ª persona. |
 | intro=0 | Niente intro. |
 | trailer=0 | Intro con il video di prima, non il trailer. |
-| diag=1 | Modalità diagnostica (senza intro). |
+| diag=1 | Modalità diagnostica (senza intro): il pannello si apre all'avvio e la partita resta ferma finché non lo chiudi con ×. |
 
 ---
 

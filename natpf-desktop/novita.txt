@@ -54,3 +54,4 @@
 2026-11-14.7: Nel doppio contro la CPU il compagno copre le sue palle, indicate con un anello azzurro. Nella diagnostica è disponibile la prova del ritardo dello schermo.
 2026-11-14.8: Direzione del servizio a tempo, battuta CPU più varia, nuova scheda di fine partita, compagno autonomo nel doppio e prova del ritardo dello schermo.
 2026-11-14.8: Il pannello dello stand ora resta intero a 720 × 720 anche con le opzioni e le segnalazioni dei due telefoni.
+2026-11-14.9: Nella diagnostica la prova del ritardo dello schermo mostra l'aiuto solo quando serve. Controlli e prove in più su doppio, prova del ritardo e fine partita.
