@@ -992,6 +992,7 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
 - **2026-11-14.4 pubblicata** (`4dc7a6d`, spinta 00:37 UTC): controllo rapido gioco 1623/1623, sito 269/269, desktop
   51/51, LAN 13/13, build ok. Zip Cloudflare `natpf-simulator-cloudflare-2026-11-14.4.zip` 23.909.825 B, sha256
   `d9efc5387edba64578e79213aaa9bd1efaab2b09a707142474cea23789332d63`, provato estratto (versione servita 14.4, QR dei due
-  telefoni, stesso schermo, pausa), senza `natpf/registro.json`. In corso: installer dal link fisso
-  (`scratchpad/v1404/installer.log`) e prove nel browser (phone-blackout, pannello-cadute, b20, menu:
-  `scratchpad/v1404/e2e.log`).
+  telefoni, stesso schermo, pausa), senza `natpf/registro.json`. **Installer verificato dal link fisso**: 128.102.449 B,
+  sha256 `df052b1cef8f09d7e090b1060338821d4ba48bd0d1283eaafb7bab97fe8db004`. Prove nel browser sul checkout principale:
+  natpf-phone-blackout 11/11, natpf-pannello-cadute 33/33, natpf-stesso-schermo-b20 52/52, natpf-menu 45/45 (carico
+  4–9); schermate del pannello guardate (1024×600 e 720×720 con due telefoni: righe delle cadute intere, «Chiudi» in vista).
