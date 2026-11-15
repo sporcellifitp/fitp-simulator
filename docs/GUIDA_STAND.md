@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-14.7** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-14.8** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -748,9 +748,11 @@ la mano e il livello di chi c'era, e chi arrivava dopo giocava con il nome di pr
   come ai passi 3–6 (il telefono di prima non vale più appena confermi quello nuovo), oppure **«Scollega»** (due clic:
   «Sicuro? Clicca ancora»; (B41.3) dal telecomando dello staff due OK). Un telefono nuovo che **non ha mai fatto da
   racchetta su questo PC** vuole prima il **certificato** (capitolo 6.1, passo 1): nel programma tasto destro → «Rete per
-  i telefoni» → «Indirizzi e certificato per i telefoni…»; la via dal menu («Gioca» → «Contro la CPU» → «Smartphone» →
-  «Prima volta su questo telefono») c'è solo con la modalità fiera spenta (pannello → «Modalità fiera · Sì» → «No»; poi di
-  nuovo «Sì»).
+  i telefoni» → «Indirizzi e certificato per i telefoni…». La finestra mostra l'indirizzo da aprire sul telefono. Per usare
+  il QR dal menu, spegni la modalità fiera e apri «Gioca» → «Contro la CPU» → «Smartphone» → «Prima volta su questo
+  telefono». Riaccendere la modalità fiera salva di nuovo le scelte correnti del controller e della calibrazione.
+- **Classifica a schermo intero durante una partita**. In modalità fiera, confermare «Classifica · A schermo intero»
+  termina la partita e azzera il visitatore prima di aprire la classifica.
 - **Il PC ha cambiato rete o indirizzo** (nel programma i telefoni usano l'indirizzo del PC): i telefoni dello stand vanno
   abbinati di nuovo, un minuto a telefono. Consiglio: indirizzo fisso per il PC nel router dello stand.
 - **Spegnere la modalità**: pannello → «Modalità fiera · Sì» → diventa «No». Torna il menu di sempre (allenamento,

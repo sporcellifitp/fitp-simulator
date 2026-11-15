@@ -52,3 +52,5 @@
 2026-11-14.6: Durante gli scambi di prova, il conto e la partita il telefono ignora i tocchi accidentali. Dal pannello dello stand puoi sbloccare ciascun telefono anche a partita in corso.
 2026-11-14.7: Scegli la direzione del servizio col tempo del gesto, sfida una battuta della CPU più varia e scopri la nuova scheda di fine partita.
 2026-11-14.7: Nel doppio contro la CPU il compagno copre le sue palle, indicate con un anello azzurro. Nella diagnostica è disponibile la prova del ritardo dello schermo.
+2026-11-14.8: Direzione del servizio a tempo, battuta CPU più varia, nuova scheda di fine partita, compagno autonomo nel doppio e prova del ritardo dello schermo.
+2026-11-14.8: Il pannello dello stand ora resta intero a 720 × 720 anche con le opzioni e le segnalazioni dei due telefoni.

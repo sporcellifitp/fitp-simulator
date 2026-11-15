@@ -22,8 +22,8 @@ suoi scambi di prova** (circa 10 s, calibrazione «Giocando»); né il profilo d
    ci va da sola (ogni visitatore fa i suoi scambi di prova). Si apre il foglio **«Telefoni dello stand»**.
 3. Nella scheda **Telefono 1** clicca **«Abbina»**: compare un QR (solo lì, solo con il foglio aperto, valido 5 minuti).
    Inquadralo con il telefono dello stand e tocca il link.
-4. Sul telefono e nella scheda compare **lo stesso numero** (per esempio 482). Se è uguale clicca **«Conferma»** (con il
-   mouse, o con Invio sulla tastiera del PC: l'OK del telecomando dello staff non vale); se è diverso «Rifiuta».
+4. Sul telefono e nella scheda compare **lo stesso numero** (per esempio 482). Se è uguale clicca **«Conferma»** con il
+   mouse del PC. Se è diverso clicca «Rifiuta».
 5. Sul telefono tocca **«Attiva i sensori»**. La scheda dice «Telefono 1 pronto ✓ · batteria 82%» (la batteria solo con
    Android).
 6. Se si gioca anche in due, lo stesso con la scheda **Telefono 2**.
@@ -253,7 +253,7 @@ salvataggio «IN CORSO» (`80239be`, difetto 4 a metà) verificato e chiuso dall
 | 4 | Pagina della fiera «2 giocatori» con un telefono non pronto: la riga «Telefono N non pronto · Telefoni dello stand ›» faceva scorrere la pagina di 26 px a 1920×540 e tagliava «Altre impostazioni» sopra «Gioca ›» | Il perché vero nella scheda di quel giocatore (`natpf_fiera_page.splitCardState`: prima uno schermo spento diceva ancora «pronto ✓»), «Telefoni dello stand ›» nella riga di «2 giocatori»; niente riga in più | `natpf-b41-3-pagina` 2/2; sonda delle sette misure (nove stati) 63/63, prima 58/63; controllo in `natpf-fiera-telefoni` §6; sonda p5 |
 | 5 | Modalità accesa e poi spenta: «Con cosa giochi» restava «Smartphone» e «Calibrazione» «Giocando» | All'accensione dal pannello si ricordano (`natpf-tennis.fiera.prima`), allo spegnimento si rimettono e l'avviso lo dice | `natpf-b41-3-fiera`, sonda p3 |
 | 6 | Con la modalità fiera un clic su «Calibrazione» la portava a «Con i gesti» e la pagina della fiera diceva il falso | In fiera la voce dice «Giocando (fiera)» e un clic lo spiega senza cambiarla; modalità già accesa all'avvio con un'altra calibrazione salvata: «Giocando», quella di prima ricordata | `natpf-b41-3-fiera`, sonda p6 |
-| 7 | Testi | §1 passo 4: «Conferma» vale con un clic vero del mouse (o Invio sul pulsante), l'OK del telecomando no. Non è una difesa contro chi usa la console del browser: `NatpfFiera.confirm` guarda solo il campo `isTrusted` dell'evento che riceve. Guida 8.4 «Telefono rotto o perso»: un telefono nuovo vuole prima il certificato (capitolo 6.1). La spiegazione di «Modalità chiosco» non dice più «scollega il telefono» (corretta dalla B45.2) | — |
+| 7 | Testi | §1 passo 4: «Conferma» vale con un clic vero del mouse, l'OK del telecomando no. Non è una difesa contro chi usa la console del browser: `NatpfFiera.confirm` guarda solo il campo `isTrusted` dell'evento che riceve. Guida 8.4 «Telefono rotto o perso»: un telefono nuovo vuole prima il certificato (capitolo 6.1). La spiegazione di «Modalità chiosco» non dice più «scollega il telefono» (corretta dalla B45.2) | — |
 | 8 | Pannello dello stand che trema e scorre con il puntatore sulle voci (B39.3, già nella 14.3): la riga sotto le voci cambiava altezza con la spiegazione della voce sotto il puntatore | `natpf_kiosk._fitNote`: la riga ha l'altezza fissa della spiegazione più alta (misurata con le scritte vere alla larghezza di adesso, rimisurata quando cambiano); nelle aree basse foglio più compatto (720×720 quattro colonne). Dopo l'unione con la B45.2 anche 1280×720 e 1366×768 più compatti (righe delle cadute, modalità fiera con i telefoni da abbinare: §8.2) | `natpf-b41-3-pannello` 3/3; sonda del pannello con il puntatore su ogni voce (§8.2); `natpf-pannello-cadute` |
 
 ### 8.2 Misure nel browser (sonde nello scratchpad, telefoni simulati)

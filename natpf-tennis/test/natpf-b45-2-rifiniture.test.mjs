@@ -169,8 +169,10 @@ test('2 · un racconto è una caduta nuova solo se il computer non ne ha già un
     assert.deepEqual(cadute().p1, { n: 1, m: { 'rete cambiata': 1 } }, 'caduta che il computer non ha visto: contata dal racconto');
     assert.deepEqual(w.diag.map(d => [d.motivo, d.fonte]), [['rete cambiata', 'telefono']]);
     // un secondo racconto nello stesso ingresso (non deve succedere: il telefono lo dice una volta) non si conta
+    const firstReport = w.P.drop.end;
     b.emit('data', { t: 'dev', ua: 'Pixel', as: 1, cd: { w: 'chiuso', ms: 500, prove: 1, fallite: 0 } });
-    assert.equal(cadute().p1.n, 1);
+    assert.equal(w.P.drop.end, firstReport, 'un racconto duplicato non riscrive il motivo della caduta');
+    assert.deepEqual(cadute().p1, { n: 1, m: { 'rete cambiata': 1 } });
     // poi una caduta vista dal computer; il telefono torna con una pagina di prima (senza racconto): resta com'è
     b.close(); w.advance(1500);
     assert.deepEqual(cadute().p1, { n: 2, m: { 'rete cambiata': 1, chiuso: 1 } });
@@ -352,7 +354,7 @@ test('7 · chiosco con il collegamento vero: i messaggi del telefono (tutorial, 
   try {
     const n = kioskOn(w), still = [0.4, -0.3, 0.2], moving = [MOVE.dps + 30, 2, 1];
     let q = 0; const sm = rot => w.c.emit('data', { t: 'sm', q: ++q, k: performance.now(), r: rot });
-    // ogni 10 s un messaggio diverso del telefono, e intanto il segnale di ogni secondo (che da solo non conta)
+    // a un secondo dallo scadere, un messaggio diverso del telefono; il segnale periodico non azzera il conto
     const tocchi = [
       () => w.c.emit('data', { t: 'tut', ok: 1 }),                               // «Tutto chiaro, ho capito»
       () => w.c.emit('data', { t: 'tut', nav: 1 }),                              // freccia del tutorial
@@ -361,8 +363,15 @@ test('7 · chiosco con il collegamento vero: i messaggi del telefono (tutorial, 
       () => w.c.emit('data', { t: 'cal', e: { kind: 'attempt', ok: true, idx: 0 } }),   // gesto della calibrazione
       () => sm(moving),                                                          // telefono preso in mano
     ];
-    for (const tocco of tocchi){ for (let s = 0; s < 10; s++){ w.advance(1000); w.beat(w.c); sm(still); } tocco(); }
-    assert.equal(n.resets, 0, '60 s con il telefono in mano: nessun azzeramento');
+    for (const tocco of tocchi){
+      const last = w.ui.kiosk.last;
+      for (let s = 0; s < 29; s++){ w.advance(1000); w.beat(w.c); sm(still); }
+      assert.equal(w.ui.kiosk.last, last, 'il segnale periodico e i sensori fermi non sono attività');
+      tocco();
+      w.ui.kiosk.check();
+      assert.ok(w.ui.kiosk.last > last, 'ogni azione del telefono rinnova il conto del chiosco');
+      assert.equal(n.resets, 0, 'il visitatore resta attivo');
+    }
     // poi il telefono resta sul tavolo: collegato, con il suo segnale e i sensori fermi. Non è «qualcuno»
     for (let s = 0; s < 33; s++){ w.advance(1000); w.beat(w.c); sm(still); }
     assert.equal(n.resets, 1, 'telefono fermo sul tavolo: il chiosco azzera');
