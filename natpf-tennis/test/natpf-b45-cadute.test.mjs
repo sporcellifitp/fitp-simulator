@@ -38,13 +38,13 @@ test('cadute di oggi per posto: conto, correzione del motivo, giorno nuovo da ze
   assert.equal(rigaCadute(s), '', 'nessuna caduta: nessuna riga');
   s = contaCaduta(s, 'p1', 'silenzio'); s = contaCaduta(s, 'p1', 'chiuso'); s = contaCaduta(s, 'p1', 'silenzio');
   assert.deepEqual(s.p1, { n: 3, m: { silenzio: 2, chiuso: 1 } });
-  assert.equal(rigaCadute(s), 'Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma (10 s senza messaggi)');
+  assert.equal(rigaCadute(s), 'Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s');
   // il racconto del telefono chiarisce l'ultima: «chiuso» era una pagina nascosta
   s = correggiCaduta(s, 'p1', 'chiuso', 'telefono: pagina nascosta');
   assert.deepEqual(s.p1.m, { silenzio: 2, 'telefono: pagina nascosta': 1 }); assert.equal(s.p1.n, 3, 'il numero non cambia');
   assert.deepEqual(correggiCaduta(s, 'p1', 'ricollega', 'silenzio').p1.m, s.p1.m, 'un motivo mai contato non si sposta');
   s = contaCaduta(s, 'p2', 'ricollega');
-  assert.equal(rigaCadute(s), 'Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma (10 s senza messaggi) · Telefono 2: 1 caduta oggi · motivo più frequente: «Ricollega»');
+  assert.equal(rigaCadute(s), 'Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s\nTelefono 2: 1 caduta oggi · motivo più frequente: «Ricollega»', 'una riga per telefono');
   assert.equal(motivoFrequente({ chiuso: 2, silenzio: 2 }), 'silenzio', 'a parità prima le cause di rete');
   // giorno nuovo, o dati rovinati: da zero
   assert.equal(cadutePulite(s, '2026-11-15').p1.n, 0);

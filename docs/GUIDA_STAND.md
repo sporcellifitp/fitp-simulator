@@ -6,7 +6,12 @@ novità). Le voci segnate **(B39)** valgono dalla versione che contiene il
 blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i comandi dello staff, pannello da
 ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello schermo con due clic (dettagli in
 `docs/b39/stand-solo-mouse.md`). Dalla stessa versione anche la tastiera a schermo e «Gioca come Ospite» (B38, capitolo
-3.6) e l'icona del servizio (B44, capitolo 8.3).
+3.6) e l'icona del servizio (B44, capitolo 8.3). Le voci segnate **(B45.1)** sono del blocco «telefono che non si
+scollega» (capitolo 8.5 e `docs/b45/b45-1-collegamento.md`): chiosco che non scollega più il telefono, telefono che si
+ricollega da solo e scritte calme sul ledwall dalla 2026-11-14.3; i motivi delle cadute nel pannello e nel registro dalla
+versione che contiene il resto del blocco. Le voci segnate **(B45.2)** (rifiniture dopo la revisione del B45.1: «Scollega»
+che non è una caduta, schermo spento contato bene, pagina chiusa detta sul ledwall, chiosco e telefono del visitatore)
+valgono dalla versione che le contiene.
 
 Per chi gestisce lo stand di **NATPF Simulator** con il programma Windows, il ledwall e **solo il mouse**. Ogni voce è
 controllata sul codice di questa versione.
@@ -134,7 +139,7 @@ fa. (B39) **Un doppio clic vale un clic solo** (prima faceva due passi: «Calibr
 | Voce | Valori | Cosa fa | Da quando vale |
 |---|---|---|---|
 | **Modalità fiera** (B41 parte 2) | **No** · Sì | La prima voce. Sì: al posto del menu c'è la **pagina della fiera** (chi gioca con un clic, niente QR, niente tutorial per i visitatori) e i telefoni dello stand sono abbinati una volta e sempre collegati; accendendola la «Calibrazione» va su «Giocando» (ogni visitatore fa i suoi scambi di prova) e si apre il foglio «Telefoni dello stand». No: il menu di sempre. Resta salvata. Tutto nel capitolo 8.4. | subito |
-| **Modalità chiosco** | **No** · Sì | Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu principale, cancella il nome, rimette «Chi gioca: Adulto» e azzera chi gioca (mano, calibrazione, tutorial). Dalla 2026-11-14.3 (B45.1) il telefono **resta collegato** (prima si scollegava e il visitatore dopo rifaceva il QR); (B41 parte 2) con la modalità fiera fa «Prossimo giocatore» e torna alla pagina della fiera. Contano come attività clic (anche sui tasti della tastiera a schermo), tasti, rotellina, tocchi, colpi del telefono e comandi del telecomando; (B39) anche muovere il mouse, e con il pannello, l'abbinamento del telecomando o la diagnostica aperti il chiosco aspetta. Durante una partita aspetta il doppio del tempo, poi chiude la partita. Sotto le voci una riga dice se il chiosco è acceso. | subito |
+| **Modalità chiosco** | **No** · Sì | Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu principale, cancella il nome, rimette «Chi gioca: Adulto» e (B45.1) **azzera chi gioca come «Nuovo giocatore»** (mano destra, calibrazione e tutorial da capo): **il telefono resta collegato**, niente QR da rifare (prima il chiosco scollegava il telefono col QR, e in fiera sembrava una caduta della rete). Contano come attività clic (anche sui tasti della tastiera a schermo), tasti, rotellina, tocchi, colpi del telefono e comandi del telecomando; (B45.1) anche i gesti e i tocchi sul telefono e il telefono preso in mano; (B39) anche muovere il mouse, e con il pannello, l'abbinamento del telecomando o la diagnostica aperti il chiosco aspetta. Durante una partita aspetta il doppio del tempo, poi chiude la partita. Sotto le voci una riga dice se il chiosco è acceso; (B45.2) sotto di lei, solo se oggi un telefono è caduto, una riga per telefono «Telefono 1: N cadute oggi · motivo più frequente: …» (capitolo 8.5). (B45.2) Con il telefono di un visitatore (QR) il chiosco **non libera il posto**: per collegare un altro telefono serve «Scollega» (capitolo 8.2). (B41 parte 2) Con la modalità fiera fa «Prossimo giocatore» e torna alla pagina della fiera (capitolo 8.4). | subito |
 | **Ritorno al menu dopo** | 30 s · **45 s** · 60 s · 90 s | Il tempo del chiosco. Giro dei valori: 45 → 60 → 90 → 30 → 45. | subito; conta solo con il chiosco acceso |
 | **Classifica · A schermo intero** | — | Chiude il pannello e mostra in grande la classifica di oggi (scheda «Partite», 10 righe). Le schede dei minigiochi si cliccano, ma non fanno uscire. In partita chiude la partita. (B39) Per uscire: **«× Chiudi»** in alto a destra (compare muovendo il mouse) o di nuovo questa voce, che diventa «Chiudi lo schermo intero»; si torna al menu. Con il chiosco acceso la classifica lasciata in vista resta. | subito · **secondo clic in partita** |
 | **Classifica · Scarica CSV** | — | Salva il file «classifica-natpf-AAAA-MM-GG.csv» con partite e minigiochi di oggi. (B39) Nel programma si salva da solo in **Download › NATPF** (un file con lo stesso nome non si sovrascrive: «… (2).csv»); un avviso nel gioco dice il nome. Nel browser decide il browser. | subito · non dal telecomando |
@@ -345,6 +350,18 @@ Verifica · Pronto. La partita resta ferma finché è aperto. I pulsanti cambian
 - In fondo «Torna al campo» chiude il riquadro (prima di una partita può dire «Continua ›»).
 
 **Telecomando:** «Ricalibra il telefono» fa tutto con un tasto solo.
+
+**(B45.1) Quando il telefono tace.** Tra la folla la Wi-Fi del telefono si ferma ogni tanto per qualche secondo. La partita
+si ferma subito e il riquadro dice, con calma:
+
+- «**Telefono 1: segnale debole, aspetto che torni…**» · «La partita è in pausa e riprende da sola appena il telefono
+  torna.» Il collegamento resta aperto per **10 secondi** di silenzio: se il telefono torna prima, conto alla rovescia e
+  si riprende (il punto interrotto si rigioca). Non serve toccare niente.
+- Dopo 10 s: «**Telefono 1 scollegato · si ricollega da solo**» · «Senza segnale da N s: …». Il telefono riprova da solo
+  senza fine e rientra con la sua chiave: **niente QR e niente calibrazione da rifare**.
+- Solo se dopo altri **20 s** non è tornato si apre il riquadro del telefono con il QR (per esempio se il visitatore ha
+  chiuso la pagina del gioco sul telefono). «Ricollega il telefono» nel riquadro della pausa resta per lo staff.
+- Nello stesso schermo il riquadro dice il nome: «Telefono di Giulia: segnale debole, aspetto che torni…».
 
 ---
 
@@ -557,7 +574,7 @@ e menu del programma: capitolo 12.
 | Calibrazione: Giocando | Niente gesti a vuoto: ogni visitatore fa circa 10 secondi di scambi di prova prima di ogni partita | Di base (pannello → «Calibrazione») |
 | Chi gioca | Livello per età con un clic | Pagina «Pronto per la partita», o telecomando |
 | Nuovo giocatore | Azzera il visitatore senza scollegare il telefono | Fine partita, risultato di un minigioco, pannello, telecomando |
-| Modalità chiosco | Stand che torna libero da solo | Pannello → «Modalità chiosco» e «Ritorno al menu dopo». Dalla 2026-11-14.3 non scollega più il telefono |
+| Modalità chiosco | Stand che torna libero da solo | Pannello → «Modalità chiosco» e «Ritorno al menu dopo». (B45.1) Il telefono resta collegato: si azzera solo chi gioca |
 | Classifica a schermo intero | Il ledwall tra un visitatore e l'altro | Pannello → «Classifica · A schermo intero» |
 | Telecomando dello staff | Comandare il gioco senza mouse, anche in partita | Capitolo 6 |
 | Lancio automatico, campo aperto | Stesso schermo con i due telefoni: niente attese al servizio, piazzamento che conta | Pannello (spenti di base) |
@@ -565,16 +582,22 @@ e menu del programma: capitolo 12.
 
 ### 8.2 Consigli per la fiera, oggi
 
-- **Un telefono che passa di mano.** Lascialo collegato. Tra un visitatore e l'altro usa «Nuovo giocatore», non
-  «Telefono · Scollega», che lo scollega e fa rifare il QR. (B41 parte 2) Meglio ancora la **modalità fiera** (capitolo 8.4):
-  telefoni dello stand sempre collegati, «Prossimo giocatore» senza nome né tutorial da rifare.
+- **Un telefono che passa di mano.** Lascialo collegato. Tra un visitatore e l'altro usa «Nuovo giocatore» (o lascia fare
+  al chiosco, che dalla B45.1 non scollega più il telefono): non «Telefono · Scollega», che fa rifare il QR. (B41 parte 2)
+  Meglio ancora la **modalità fiera** (capitolo 8.4): telefoni dello stand sempre collegati, «Prossimo giocatore» senza
+  nome né tutorial da rifare.
+- **(B45.2) Con il telefono del visitatore il chiosco non libera il posto.** Azzera chi gioca ma il telefono resta
+  collegato: chi se ne va con la pagina del gioco aperta tiene il posto, e chi arriva dopo vede «C'è già un altro
+  telefono collegato» (e un telefono che si muove in tasca tiene sveglio il chiosco).
+- **(B45.2) Per collegare un altro telefono:** «Scollega» nel riquadro del telefono (pausa → «Telefono · Ricalibra») oppure
+  pannello dello stand → «Telefono: Scollega»; poi il visitatore nuovo inquadra il QR.
 - **Due visitatori insieme.** «Gioca» → «Stesso schermo» → ognuno inquadra il suo QR (Player 1 a sinistra, Player 2 a
   destra). Quando sono pronti tutti e due: conto alla rovescia di 3 secondi, poi (con «Calibrazione: Giocando») gli
   scambi di prova per tutti e due, poi il conto alla rovescia grande e la partita. Il formato in fiera qui è acceso di
   base (con «Battuta: Sempre lo stesso» resta il punto decisivo, il servizio non cambia). Dettagli: capitolo 3.5.
 - **Rivincita con un livello diverso** (B47): a fine partita «Rivincita» → clic sul livello (o sulle fasce) → «Gioca».
-- **Stand senza staff per un po'.** Pannello → «Modalità chiosco: Sì». Dalla 2026-11-14.3 il telefono resta collegato
-  (prima andava ricollegato con il QR).
+- **Stand senza staff per un po'.** Pannello → «Modalità chiosco: Sì». (B45.1) Il telefono resta collegato e pronto per
+  chi arriva (prima andava ricollegato con il QR).
 - **Classifica sul ledwall.** Pannello → «Classifica · A schermo intero». (B39) Con il chiosco acceso resta in vista per
   chi è in fila. Per uscire: «× Chiudi» in alto a destra (compare muovendo il mouse), capitolo 11.
 - **Telefoni dello staff:** spegnimento dello schermo al massimo (Android 10 minuti, iPhone «Mai»), niente PIN, risparmio
@@ -699,6 +722,56 @@ pronti**, niente QR, tutorial o nome da scrivere; si torna alla pagina della fie
 **Cosa non provato**: telefoni veri, programma Windows vero (tasto destro), ledwall e rete dello stand. Provato nel
 browser con telefoni simulati (documento `docs/b41/modalita-fiera-2.md`).
 
+### 8.5 (B45.1) Telefono che si scollega: cosa fa il gioco e com'è fatta la rete dello stand
+
+**Cosa fa il gioco da solo** (niente da attivare):
+
+- Il **chiosco non scollega più** il telefono: azzera chi gioca e lo lascia collegato (capitolo 2).
+- Un **buco della Wi-Fi fino a 10 secondi** non fa cadere niente: la partita si ferma con «Telefono 1: segnale debole,
+  aspetto che torni…» e riprende da sola (capitolo 4). Prima bastavano 5 secondi (in partita circa 3) per vedere
+  «Scollegato».
+- Oltre i 10 secondi il telefono **si ricollega da solo** appena la rete torna (programma Windows: riprova senza fine;
+  versione web: 10 tentativi, poi «Riprova» sul telefono), senza QR e senza rifare la calibrazione. Sul ledwall «Telefono 1
+  scollegato · si ricollega da solo» con da quanti secondi.
+- **(B45.2) Pagina del telefono chiusa o «Scollega» toccato sul telefono:** questi non tornano da soli, e il ledwall lo
+  dice: «Telefono 1: pagina chiusa» con «Se non torna tra pochi secondi (pagina ricaricata), inquadra di nuovo il QR», oppure
+  «Telefono 1 scollegato dal telefono · inquadra il QR»; il QR compare subito (nello stesso schermo dentro il riquadro),
+  senza aspettare i 20 secondi degli altri casi.
+- **Perché è caduto.** Pannello dello stand (F9): (B45.2) sotto la riga del chiosco, solo se è successo, «Telefono 1: 3
+  cadute oggi · motivo più frequente: Wi-Fi ferma 10 s» (una riga per telefono, sempre intera). Gli altri motivi: «rete
+  cambiata» (dati mobili, un'altra Wi-Fi), «pagina nascosta» (schermo spento, altra app), «pagina chiusa», ««Ricollega»»,
+  «gioco ricaricato», «collegamento chiuso», ««Scollega» sul telefono». Il conto riparte ogni giorno. Il dettaglio sta nel
+  registro dello stand (capitolo 9: righe «tel» con motivo, chi se n'è accorto e dove si era). (B45.2) «Scollega» fatto
+  dal computer (pannello, telecomando, riquadro del telefono) **non è una caduta** e non si conta; lo schermo del telefono
+  spento conta come «pagina nascosta» (non «Wi-Fi ferma»), una volta sola anche se il telefono torna dopo minuti.
+
+**La rete dello stand** (vale con e senza il B45.1; dall'analisi `docs/b45/telefono-che-si-scollega.md` §6):
+
+- **Un router (o access point) solo per lo stand**, non la Wi-Fi della fiera: quella ha migliaia di persone, spesso isola
+  i dispositivi tra loro o chiede di accedere da una pagina.
+- **Vicino ai giocatori e in alto** (2–3 m, sopra le teste), in vista dei telefoni: i corpi delle persone fermano il
+  segnale. Non dietro al ledwall, non in mobili di metallo, non per terra.
+- **Computer collegato al router con il cavo** e Wi-Fi del computer spenta (con due reti il QR può indicare quella
+  sbagliata).
+- **5 GHz su un canale fisso tra 36 e 48** (niente canale automatico, niente canali da 52 a 144: con un radar il router
+  tace per almeno un minuto), larghezza 20 o 40 MHz; «smart connect» / «band steering» spenti.
+- **Il limite della 2,4 GHz:** pochi telefoni dei visitatori (vecchi o economici) vedono solo la 2,4 GHz e con una rete
+  «solo 5 GHz» non trovano lo stand. Se capita, una seconda rete a 2,4 GHz con un nome suo, **canale fisso 1, 6 o 11**
+  (il meno usato), 20 MHz; oppure fai giocare quel visitatore con un telefono dello stand. La 2,4 GHz in fiera è la più
+  affollata: è lì che i buchi di qualche secondo sono più probabili.
+- **Password** (WPA2 o WPA3), niente rete ospiti né isolamento dei client, niente pagina di accesso. **Indirizzo fisso**
+  per il computer (prenotazione DHCP nel router).
+- **Telefoni dello stand** (quelli che lo staff dà ai visitatori): dati mobili spenti (o senza SIM); «Passa ai dati
+  mobili», «Wi-Fi adattivo», «Assistenza Wi-Fi» spenti; altre reti Wi-Fi salvate dimenticate; se il router non ha
+  internet, alla domanda «Questa rete non ha accesso a internet» rispondi «Rimani connesso»; risparmio energetico spento;
+  carichi; «Non disturbare»; **app fissata** («Fissa app» su Android, «Accesso guidato» su iPhone), così un tocco sul
+  bordo non fa uscire dalla pagina del gioco.
+- **Computer** alla corrente, risparmio energetico della scheda di rete spento. **Router di riserva** configurato uguale.
+- **Prova con la gente intorno**, con i telefoni in mano come in partita.
+
+**Non provato** con la rete vera di una fiera, con telefoni veri né su Windows vero: le prove del B45.1 sono nel browser,
+con una rete finta che si ferma per 3, 7 e 12 secondi.
+
 ---
 
 ## 9. Il registro dello stand (Cloudflare)
@@ -795,6 +868,7 @@ B44 (fatto) non riguarda il mouse: cambia le istruzioni del servizio sul ledwall
 | Classifica a schermo intero senza «‹ Indietro» | (B39) Muovi il mouse: in alto a destra compare «× Chiudi». Oppure pannello → «Classifica · Chiudi lo schermo intero». Telecomando «Indietro»; tastiera Esc. |
 | Il telefono dice «connessione non sicura» o non si collega | Certificato: «Collega il telefono» → «Prima volta su questo telefono». Stessa Wi-Fi del PC, rete che non isola i dispositivi. Firewall: chiudi e riapri il programma e rispondi «Apri la rete ai telefoni» → «Sì». |
 | In partita compare «Telefono in pausa» | Il telefono si è fermato (schermo spento, rete). Riaccendi lo schermo del telefono: si riparte da soli con il conto alla rovescia e il punto si rigioca. Se non torna: «Ricollega il telefono» nel riquadro. |
+| (B45.1) In partita compare «Telefono 1: segnale debole, aspetto che torni…» o «scollegato · si ricollega da solo» | La Wi-Fi del telefono si è fermata (tra la folla capita). Non toccare niente: torna da solo e la partita riprende con il conto alla rovescia. Se succede spesso: pannello (F9) → la riga «Telefono 1: N cadute oggi · motivo più frequente» dice perché; poi la rete dello stand (capitolo 8.5). Se dopo 30 s non è tornato si apre il QR: la pagina del gioco sul telefono è stata chiusa, riaprila o inquadra il QR. |
 | I colpi sono letti male | ❚❚ → «Telefono · Ricalibra»: si apre il riquadro del telefono. Quando dice «Pronto», clicca **«Ricalibra»** (con «Giocando»: scambi di prova, poi si rigioca il punto). Telecomando: «Ricalibra il telefono», un tasto solo. |
 | Il gioco è sullo schermo sbagliato, in finestra o tagliato | Tasto destro → «Schermo del gioco» → il monitor, e «Schermo intero»; oppure pannello → «Schermo del gioco» (clic finché è sul ledwall); Opzioni → Area o «Calibra lo schermo…». |
 | All'avvio resta «Avvio del gioco…» | Una finestra di Windows aspetta una risposta (la domanda del firewall, forse sullo schermo del portatile): rispondi; (B39) dopo 60 secondi vale «Più tardi». Porta occupata: la pagina lo dice, «Riprova» (7.5). Tasto destro: Esci, Riavvia. |

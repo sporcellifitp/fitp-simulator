@@ -47,7 +47,9 @@ function strikeReal(ev, { e, realSide, lateral = .6, rally = 3 }){
 
 // Pagina del telefono simulata: due tocchi per la mano (handTap) e segno dell'accelerazione votato dai tocchi solo dove
 // tapVotesSign lo permette. phoneOk: il telefono legge il verso giusto con il segno +1 (Android)
-function phonePage(P, { now = () => performance.now() } = {}){
+// recal (revisione del B46, punto 1): come la pagina vera, a segno cambiato dai tocchi il telefono torna a calibrare
+// (racchetta.js: needCal dopo sendDevice) e il computer, con «Giocando», gli dà subito il profilo semplice (evento «done»)
+function phonePage(P, { now = () => performance.now(), recal = null } = {}){
   let armed = null;
   const acc = createAccSign({ prior: 1 }), sent = [];
   return {
@@ -62,7 +64,7 @@ function phonePage(P, { now = () => performance.now() } = {}){
     tap(raw, { screen = 'ready', phase = 'menu', trial = false } = {}){
       if (!tapVotesSign({ screen, phase, trial })) return false;
       const changed = acc.vote(raw);
-      if (changed){ sent.push({ t: 'dev', as: acc.sign }); P._accSignSeen(acc.sign); }   // racchetta.js: sendDevice()
+      if (changed){ sent.push({ t: 'dev', as: acc.sign }); P._accSignSeen(acc.sign); recal?.(); }   // racchetta.js: sendDevice(), needCal()
       return changed;
     },
     // verso letto dal telefono per un gesto vero: girato se il segno dell'accelerazione è sbagliato (Android: +1 giusto)
@@ -188,8 +190,15 @@ test('caso dell\'utente 3 · il chiosco (nessuno per un po\') rimette destri tut
   assert.deepEqual(tel.map(x => [x.mano, x.causa, x.ruolo]), [['left', 'telefono', 'p1'], ['left', 'telefono', 'p2'], ['right', 'chiosco', 'p1'], ['right', 'chiosco', 'p2']]);
 });
 
-test('caso dell\'utente 4 · segno del telefono cambiato dopo gli scambi di prova: in partita il lato resta giusto (prima: doppia inversione)', async () => {
-  const w = await splitWorld(), page = phonePage(w.P1), up = [0.2, 9.5, 1.5], down = [0.3, -9.6, 1.2];
+// (revisione del B46, punto 1: con la pagina vera il segno cambiato dai tocchi fa ricalibrare il telefono, e il profilo
+// semplice rimette a +1 anche il verso imparato: la «doppia inversione» non si produceva. Il B46 la scrive nel registro e
+// azzera da sé i riferimenti per verso)
+test('caso dell\'utente 4 · segno del telefono cambiato dopo gli scambi di prova: in partita il lato resta giusto (con la ricalibrazione della pagina vera)', async () => {
+  // (il profilo semplice si richiede al più ogni 700 ms. Nel gioco lo chiede anche il segnale «st» del telefono che dice
+  // «calibrazione», evento «change» del collegamento: vale anche a partita ferma, come nel conto alla rovescia grande del
+  // B47, dove update() non gira. Il collegamento finto non ha eventi: lo si chiama come farebbe quello vero)
+  const w = await splitWorld(), recal = () => { w.link.ready = false; w.link.L.phone = 'cal'; w.advance(900); w.P1._autoProfile(); };
+  const page = phonePage(w.P1, { recal }), up = [0.2, 9.5, 1.5], down = [0.3, -9.6, 1.2];
   // il telefono arriva con il segno dell'accelerazione al contrario (quattro tocchi con il telefono a testa in giù al menu)
   w.P1._accSignSeen(page.acc.sign);                                            // «dev» del collegamento
   for (let k = 0; k < 4; k++) page.tap(down, { screen: 'ready', phase: 'menu' });
@@ -205,10 +214,13 @@ test('caso dell\'utente 4 · segno del telefono cambiato dopo gli scambi di prov
   assert.deepEqual(rows(playMatch(w, { dir1: d => page.dir(d) })), RIGHT, 'dritto e rovescio giusti');
   const tel = w.reg.filter(x => x.k === 'tel' && x.motivo === 'segno');
   assert.deepEqual(tel.map(x => [x.causa, x.stato]), [['tocchi', -1], ['prova', -1], ['tocchi', 1]], JSON.stringify(tel));
-  // com'era prima del B46 (il segno imparato restava): ogni colpo con il nome sbagliato
+  // com'era prima del B46 (_accSignSeen che non azzera niente): la ricalibrazione della pagina vera rimette lo stesso il
+  // verso imparato a +1, e il lato resta giusto (revisione del B46, punto 1)
   w.P1.learner.vote({ ball: 900, want: 1, s: { dir: -1, peak: 700 } }); w.P1.learner.vote({ ball: 901, want: -1, s: { dir: 1, peak: 700 } });
   assert.equal(w.P1.learner.sign, -1);
-  assert.deepEqual(playMatch(w, { dir1: d => page.dir(d) }).map(x => x.read), ['backhand', 'forehand', 'backhand', 'forehand'], 'la doppia inversione che il B46 toglie');
+  recal();
+  assert.equal(w.P1.learner.sign, 1, 'il profilo semplice dopo la ricalibrazione rimette il verso a +1');
+  assert.deepEqual(rows(playMatch(w, { dir1: d => page.dir(d) })), RIGHT);
 });
 
 test('caso dell\'utente 5 · tocchi per il lancio al servizio con il telefono a testa in giù: il segno non cambia, il lato resta giusto', async () => {

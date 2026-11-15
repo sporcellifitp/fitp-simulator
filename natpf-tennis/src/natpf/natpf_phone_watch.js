@@ -131,9 +131,12 @@ export function createPhoneWatch({ steadyMs = WATCH.steadyMs, countdownMs = WATC
 // aggiorna ogni secondo); wasHidden: il telefono si è scollegato con la pagina nascosta (schermo spento): si ricollega
 // da solo quando torna, il QR serve solo se la pagina è stata chiusa
 // B45.1: silentMs, da quanto il telefono tace (il suo ultimo segnale): «scollegato» lo dice, e si aggiorna ogni secondo
-export function holdText(why, { hiddenMs = null, wasHidden = false, silentMs = null } = {}){
+// B45.2: motivo della caduta vista dal computer (GONE_HOLDS) e stand (telefono dello stand): vedi goneHold
+export function holdText(why, { hiddenMs = null, wasHidden = false, silentMs = null, motivo = null, stand = false } = {}){
   const since = Number.isFinite(hiddenMs) && hiddenMs >= 1000 ? ` da ${Math.round(hiddenMs/1000)} s` : '';
   if (why === 'pagina nascosta') return `Schermo del telefono spento${since}: riaccendi lo schermo e tocca la pagina del gioco, si riprende da solo.`;
+  const gone = why === 'scollegato' ? goneHold(motivo, { stand }) : null;
+  if (gone) return gone.text;
   if (why === 'scollegato' && wasHidden) return `Telefono scollegato con lo schermo spento${since}: riaccendilo e torna alla pagina, si ricollega da solo. Pagina chiusa? Inquadra di nuovo il QR.`;
   // B45.1: è la rete (tra la folla la Wi-Fi del telefono si ferma per qualche secondo): niente «Scollegato» né «Riattiva i
   // sensori» finché il controllo di vita non chiude (LIFE.silentMs, 10 s); poi il telefono si ricollega da solo con la sua
@@ -149,6 +152,23 @@ export function holdText(why, { hiddenMs = null, wasHidden = false, silentMs = n
     'sensori fermi': 'Il telefono non manda più il movimento: sul telefono tocca «Riattiva i sensori».',
   }[why] || 'Telefono in pausa.';
 }
+// B45.2 (revisione del B45.1, punto 3) · Motivi con cui il telefono non torna da solo con la sua chiave, o non è detto che
+// torni: la pagina del telefono chiusa o ricaricata (parola «cl» 'pagina' prima di chiudere: una pagina ricaricata rientra
+// da sola in pochi secondi, una chiusa no) e «Scollega» toccato sul telefono (la chiave è buttata: serve il QR). Prima il
+// riquadro diceva comunque «scollegato · si ricollega da solo» e il QR arrivava dopo PANEL_AFTER_MS: con la pagina chiusa
+// non era vero. Ora titolo e testo vengono dal motivo, veri in tutti e due i casi della pagina (ricaricata o chiusa), e
+// il QR si apre subito (natpf_ui._refreshPhoneHold; nello stesso schermo è già nel riquadro)
+export const GONE_HOLDS = Object.freeze(['telefono: pagina chiusa', 'telefono: scollegato']);
+// title: quello che segue «Telefono 1» nel titolo; text: il testo. stand: telefono dello stand (B41: niente QR pubblico; la
+// pagina riaperta si ricollega con la chiave del posto, «Scollega» fatto sul telefono vuole un abbinamento nuovo). null
+// per gli altri motivi
+export function goneHold(motivo, { stand = false } = {}){
+  if (motivo === 'telefono: pagina chiusa') return { title: ': pagina chiusa', text: stand ? 'Riapri la pagina del gioco sul telefono: si ricollega da solo.' : 'Se non torna tra pochi secondi (pagina ricaricata), inquadra di nuovo il QR.' };
+  if (motivo === 'telefono: scollegato') return stand
+    ? { title: ' scollegato dal telefono', text: 'Non è più un telefono dello stand: lo staff lo abbina di nuovo.' }
+    : { title: ' scollegato dal telefono · inquadra il QR', text: 'Sul telefono è stato toccato «Scollega»: per giocare ancora inquadra di nuovo il QR.' };
+  return null;
+}
 // B20 (audit B19, punto 10): nello stesso schermo i testi della pausa dicono il nome scritto nella pagina dei telefoni
 // («Telefono di Giulia in pausa»; senza nome resta «Telefono del Player 2 in pausa»)
 export const phoneOf = name => { const n = String(name || '').trim(); return !n ? '' : /^player\s*\d+$/i.test(n) ? `del ${n}` : `di ${n}`; };
@@ -159,8 +179,12 @@ export const telLabel = (name = '', slot = 'p1') => (String(name || '').trim() ?
 // (controllo di vita, 10 s), poi «Telefono 1 scollegato · si ricollega da solo» (con il tempo nel testo). Prima, dopo 5 s,
 // «Telefono scollegato: riapri la pagina» e il pannello con il QR sopra il campo: in fiera sembrava rotto. Gli altri motivi:
 // holdTitle di sempre. wasHidden: scollegato con lo schermo spento (il testo di sempre)
-export function holdHead(why, { name = '', slot = 'p1', wasHidden = false } = {}){
+// B45.2: pagina del telefono chiusa o «Scollega» sul telefono (motivo, GONE_HOLDS): «Telefono 1: pagina chiusa»,
+// «Telefono 1 scollegato dal telefono · inquadra il QR», anche se prima la pagina era nascosta
+export function holdHead(why, { name = '', slot = 'p1', wasHidden = false, motivo = null, stand = false } = {}){
   if (why === 'segnale debole') return `${telLabel(name, slot)}: segnale debole, aspetto che torni…`;
+  const gone = why === 'scollegato' ? goneHold(motivo, { stand }) : null;
+  if (gone) return `${telLabel(name, slot)}${gone.title}`;
   if (why === 'scollegato' && !wasHidden) return `${telLabel(name, slot)} scollegato · si ricollega da solo`;
   return holdTitle(name);
 }
@@ -174,16 +198,20 @@ export const PANEL_AFTER_MS = 20000;
 export const otherPhoneNote = name => `Partita in pausa: aspetto il telefono ${phoneOf(name) || 'dell’altro giocatore'}. Si riprende da soli.`;
 // testo della pausa per questo telefono adesso (da quanto è nascosto, se si è scollegato con lo schermo spento; B45.1: da
 // quanto tace, dal suo ultimo segnale)
+// (B45.2: il motivo della caduta vista dal computer, NatpfPhoneRacket.dropMotivo, e il telefono dello stand)
 export function phoneHoldText(p, why, now = globalThis.performance?.now?.() ?? 0){
   const L = p?.state || {}, hidden = L.vis === false;
-  return holdText(why, { hiddenMs: hidden && Number.isFinite(L.hiddenAt) ? now - L.hiddenAt : null, wasHidden: hidden, silentMs: Number.isFinite(L.beatAt) ? now - L.beatAt : null });
+  return holdText(why, { hiddenMs: hidden && Number.isFinite(L.hiddenAt) ? now - L.hiddenAt : null, wasHidden: hidden, silentMs: Number.isFinite(L.beatAt) ? now - L.beatAt : null, motivo: p?.dropMotivo ?? null, stand: !!p?.standSlot });
 }
 // B45.1: titolo, testo e riga (due pause insieme) del riquadro per questo telefono adesso. name: nome nello stesso schermo
 // ('' fuori: «Telefono 1»), slot: 'p1' | 'p2'
+// B45.2: gone, il telefono non torna da solo (pagina chiusa o «Scollega» sul telefono, non per il telefono dello stand):
+// chi disegna il riquadro apre subito il QR
 export function phoneHoldView(p, why, { name = '', slot = 'p1', now = globalThis.performance?.now?.() ?? 0 } = {}){
-  const L = p?.state || {}, wasHidden = L.vis === false;
-  const title = holdHead(why, { name, slot, wasHidden }), text = phoneHoldText(p, why, now);
+  const L = p?.state || {}, wasHidden = L.vis === false, motivo = p?.dropMotivo ?? null, stand = !!p?.standSlot;
+  const gone = why === 'scollegato' && GONE_HOLDS.includes(motivo);
+  const title = holdHead(why, { name, slot, wasHidden, motivo, stand }), text = phoneHoldText(p, why, now);
   const silentS = Number.isFinite(L.beatAt) ? Math.round((now - L.beatAt)/1000) : null;
-  const line = NET_HOLDS.includes(why) && !wasHidden ? (why === 'scollegato' && silentS >= 1 ? `${title} (da ${silentS} s)` : title) : null;
-  return { title, text, line };
+  const line = NET_HOLDS.includes(why) && (!wasHidden || gone) ? (why === 'scollegato' && silentS >= 1 ? `${title} (da ${silentS} s)` : title) : null;
+  return { title, text, line, gone: gone && !stand };
 }

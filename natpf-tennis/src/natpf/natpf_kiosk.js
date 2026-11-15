@@ -347,8 +347,11 @@ export class NatpfKiosk {
     set('display', d?.current ? `${d.current.label}${d.list?.length > 1 ? ' ›' : ''}` : '—', false);
     show($('staff-registro'), !!this.ui.registro); this.ui.registro?.dipingi();
     const n = $('staff-note');
-    // (B41.5: in fiera il chiosco fa «Prossimo giocatore»: si torna alla pagina della fiera)
-    if (n) n.textContent = this.enabled ? (fon ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna alla pagina della fiera e chi arriva riparte da capo; i telefoni dello stand restano collegati (in partita dopo ${this.limit*2} s).` : `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu e chi gioca si azzera (nome, mano, calibrazione, tutorial); il telefono resta collegato (in partita dopo ${this.limit*2} s).`) : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
+    // (B45.2: su una riga a 1024 × 600, come prima della B45.1: la frase lunga andava a capo e il foglio scorreva di 5 px con
+    // il chiosco e le opzioni accese, prova natpf-stesso-schermo-b25; cosa si azzera lo dicono la spiegazione della voce,
+    // natpf_stand_mouse.STAFF_HINTS, e la guida)
+    // (B41.5: in fiera il chiosco fa «Prossimo giocatore»: si torna alla pagina della fiera, i telefoni dello stand restano)
+    if (n) n.textContent = this.enabled ? (fon ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna alla pagina della fiera, i telefoni restano collegati (in partita ${this.limit*2} s).` : `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu e chi gioca si azzera, il telefono resta collegato (in partita ${this.limit*2} s).`) : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
     // B45.1: cadute del collegamento di oggi, per posto, con il motivo più frequente (natpf_cadute.js); niente se nessuna
     const c = $('staff-cadute');
     if (c){ const t = rigaCadute(leggiCadute()); c.textContent = t; show(c, !!t); }

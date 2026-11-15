@@ -382,6 +382,18 @@ function lost(cause = null){
   if (!(pair?.stand && stand)) ui('Connessione persa', lostText(why, plan.again));
   if (plan.again) retryT = setTimeout(connect, plan.waitMs);
 }
+// B45.2 (revisione del B45.1, punto 4) · La pagina del telefono si chiude o si ricarica (pagehide): lo si dice al computer
+// («cl») e la caduta resta nel racconto della scheda come «pagina». Prima il gestore chiudeva il canale da sé: la chiusura
+// è sincrona, passava da «close» a lost() senza motivo e il racconto appena scritto diventava «chiuso», o «nascosta» se la
+// pagina era già nascosta (il computer «chiariva» la pagina chiusa in pagina nascosta). lost('pagina') fa lo stesso lavoro
+// di prima (canali chiusi, stato «lost», nuovo tentativo se la pagina torna dalla memoria del browser) con il motivo giusto
+function pageGoing(){
+  if (!(conn && conn.open) || linkState !== 'on') return;
+  const c = conn;
+  try { c.send({ t: 'cl', w: 'pagina' }); } catch (e){}
+  lost('pagina');
+  try { c.close(); } catch (e){}
+}
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
 // messaggi che valgono solo se arrivano subito: su una strada senza ordine, così un pacchetto perso non ferma quelli
 // dopo. In LAN senza ritrasmissioni (canale dei sensori); via internet PeerJS 1.5.4 con reliable false imposta solo
@@ -780,8 +792,8 @@ document.addEventListener('pointerdown', () => {
   sendDevice();
   if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); face.reset(); needCal(); sendState(); paint(); }
 }, { passive: true });
-// (B45.1: prima di chiudere lo si dice al computer, «cl», e la caduta resta nel racconto della scheda)
-addEventListener('pagehide', () => { try { if (conn?.open){ conn.send({ t: 'cl', w: 'pagina' }); story.drop('pagina'); } } catch (e){} try { conn && conn.close(); } catch (e){} });
+// (B45.1: prima di chiudere lo si dice al computer, «cl», e la caduta resta nel racconto della scheda; B45.2: pageGoing)
+addEventListener('pagehide', pageGoing);
 // di nuovo in primo piano: prima si riprende il blocco, poi si manda lo stato (il computer non deve vedere per un attimo
 // un blocco che manca); i sensori hanno il tempo di ripartire. Il computer non ha potuto rispondere mentre la pagina era
 // sospesa: un ping subito e 2 s per la risposta, poi il controllo di vita (B45.1: 10 s) (prima si chiudeva e riapriva anche un

@@ -38,10 +38,11 @@ import { MOTIVI, motivoFinale, cadutaPrimaDellaPagina, segnaCaduta, chiarisciCad
 // tempo concesso al telefono per tornare «pronto» dopo il profilo da capo chiesto dal gioco (freshPlayer): tre richieste
 // del profilo semplice a 700 ms l'una. Oltre, vale la pausa «telefono non pronto» di sempre
 export const RESET_GRACE_MS = 2500;
-// B45.1: caduta raccontata dal telefono e caduta vista dal computer sono la stessa se distano al più STORY_MATCH_MS (i due
-// controlli di vita scattano a 10 s dallo stesso silenzio, con un secondo di passo e il lato fermo che legge prima la coda);
-// un racconto più vecchio di STORY_MAX_MS (scheda del telefono rimasta aperta) non si usa
-export const STORY_MATCH_MS = 20000, STORY_MAX_MS = 10*60*1000;
+// B45.1: il racconto di una caduta che questo computer non ha visto, se è più vecchio di STORY_MAX_MS (scheda del telefono
+// rimasta aperta), non si usa. (B45.2: non c'è più STORY_MATCH_MS, i 20 s entro cui racconto e caduta del computer
+// valevano come la stessa: con lo schermo del telefono spento per più di 30 s la stessa caduta si contava due volte.
+// Ora vale il collegamento, non il tempo: _onStory)
+export const STORY_MAX_MS = 10*60*1000;
 
 const NATPF_BASE = '/natpf/';
 // B18 (difetto 10): voto del colpo per il telefono dall'esito del computer (natpf_shot_feedback.shotQuality); senza esito
@@ -653,7 +654,8 @@ export class NatpfPhoneRacket {
     // (B46: il segno dei sensori; B45.1: il racconto della caduta del telefono, una volta dopo il benvenuto)
     link.on('device', d => { const prevUa = this.device?.ua ?? null; this.device = d; this._diag('dispositivo', d); this._accSignSeen(d?.accSign, { ua: d?.ua ?? null, prevUa }); this._onStory(d?.story); });
     // B45.1: il collegamento è caduto, con il motivo visto da questo computer (link.js, evento «drop»)
-    link.on('drop', d => this._onDrop(d));
+    // (B45.2: non gli eventi di un collegamento di prima, fermato da useStand)
+    link.on('drop', d => { if (this.link === link) this._onDrop(d); });
     // (B46: il rilevatore del telefono ha girato il suo segno, pagine dal B46; quelle di prima lo dicono solo con il colpo)
     link.on('sign', e => this._detectorSign(e?.detector));
     await link.start();
@@ -952,20 +954,34 @@ export class NatpfPhoneRacket {
   // posto per le cadute di oggi: il telefono di sempre è il Telefono 1, il secondo telefono dello stesso schermo il Telefono 2
   get dropSlot(){ return this.fixedRole === 'p2' ? 'p2' : 'p1'; }
   // caduta vista da questo computer (evento «drop» di link.js): contata subito con il suo motivo
+  // (link, joins, B45.2: di quale collegamento era, cioè il numero dell'ingresso del telefono che è caduto: link.L.joins)
   _onDrop(d){
     const motivo = MOTIVI.includes(d?.motivo) ? d.motivo : 'chiuso', causa = d?.causa === 'computer' || d?.causa === 'telefono' ? d.causa : null;
-    this.drop = { motivo, causa, ms: Number.isFinite(d?.ms) ? Math.round(d.ms) : null, at: performance.now(), counted: motivo, end: null };
+    this.drop = { motivo, causa, ms: Number.isFinite(d?.ms) ? Math.round(d.ms) : null, at: performance.now(), counted: motivo, end: null, link: this.link, joins: this.state.joins || 0 };
     segnaCaduta(this.dropSlot, motivo);
     this._diag('caduta', { motivo, causa, ms: this.drop.ms });
+  }
+  // B45.2: motivo della caduta del collegamento che c'era, vista da questo computer, finché il telefono non è rientrato
+  // (null da collegato, dopo «Scollega» fatto dal computer, che non è una caduta, o se non si sa): il riquadro della pausa
+  // dice «pagina chiusa» o «scollegato dal telefono» e apre subito il QR (natpf_phone_watch.GONE_HOLDS)
+  get dropMotivo(){
+    const d = this.drop;
+    return d && !d.fonte && !this.connected && d.link === this.link && d.joins === (this.state.joins || 0) ? d.motivo : null;
   }
   // Racconto della caduta del telefono (messaggio «dev» dopo il benvenuto, link-life.readStory): chiarisce il motivo della
   // caduta che questo computer ha visto; se il computer non l'ha vista, è una caduta del telefono che il computer non ha
   // fatto in tempo a vedere (fonte 'telefono'), oppure, se è di prima che partisse questa pagina del gioco, l'ha fatta la
   // pagina del gioco ricaricata (o il programma chiuso e riaperto)
+  // B45.2 (revisione del B45.1, punto 2): il racconto arriva nel primo «dev» dell'ingresso nuovo e parla della caduta del
+  // collegamento di prima. Se questo computer quella caduta l'ha già (stesso collegamento, ingresso di prima: joins − 1) il
+  // racconto la chiarisce e basta, qualunque sia il tempo passato: una caduta nuova si aggiunge solo se il computer non ne ha
+  // già una di quel telefono dall'ultimo collegamento. Prima valevano 20 s tra le due: con lo schermo del telefono spento per
+  // più di 30 s il telefono raccontava al risveglio, e la stessa caduta si contava due volte (due righe «caduto»)
   _onStory(tel, now = performance.now()){
     if (!tel || !Number.isFinite(tel.ms)) return;
-    const d = this.drop, telAt = now - tel.ms, extra = { prove: tel.prove ?? 0, fallite: tel.fallite ?? 0, ...(tel.tipo ? { tipo: tel.tipo } : {}) };
-    if (d && !d.end && Math.abs(d.at - telAt) <= STORY_MATCH_MS){
+    const d = this.drop, telAt = now - tel.ms, joins = (this.state.joins || 0) - 1, extra = { prove: tel.prove ?? 0, fallite: tel.fallite ?? 0, ...(tel.tipo ? { tipo: tel.tipo } : {}) };
+    if (d && d.link === this.link && d.joins === joins){
+      if (d.end) return;                                   // già chiarita (o già raccontata): un racconto per caduta
       const end = motivoFinale(d, tel);
       d.end = { ...end, ...extra };
       if (end.motivo !== d.counted){ chiarisciCaduta(this.dropSlot, d.counted, end.motivo); d.counted = end.motivo; }
@@ -974,7 +990,7 @@ export class NatpfPhoneRacket {
     if (tel.ms > STORY_MAX_MS) return;                     // racconto troppo vecchio (scheda rimasta aperta): non si sa
     const before = cadutaPrimaDellaPagina({ tel, now, pageStart: 0 });
     const end = before ? { motivo: 'pagina del gioco ricaricata', causa: 'computer' } : { ...motivoFinale(null, tel), causa: 'telefono' };
-    this.drop = { motivo: end.motivo, causa: end.causa, ms: null, at: telAt, counted: end.motivo, end: { ...end, ...extra }, before, fonte: 'telefono' };
+    this.drop = { motivo: end.motivo, causa: end.causa, ms: null, at: telAt, counted: end.motivo, end: { ...end, ...extra }, before, fonte: 'telefono', link: this.link, joins };
     segnaCaduta(this.dropSlot, end.motivo);
     this._diag('caduta', { motivo: end.motivo, causa: end.causa, fonte: 'telefono', before, dopoS: Math.round(tel.ms/100)/10 });
   }

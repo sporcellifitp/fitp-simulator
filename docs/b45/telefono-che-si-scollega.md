@@ -11,6 +11,16 @@ che aggiunge solo documenti): nessun file del repository è stato cambiato. Le p
 `b46-lato-sicuro` (versione 14.2) alcune righe si spostano (`main.mjs` cambia molto con la B39, `link.js` di 1–4 righe,
 `racchetta.js` con la B46): ritrovarle con le funzioni citate.
 
+> **Aggiornamento del 14/11 sera (revisione indipendente e blocco B45.1).** La revisione ha trovato cause che mancavano
+> qui (§2, righe N–Q: la più sicura è **il chiosco che scollegava di proposito il telefono col QR**) e misure deboli (§4,
+> note in fondo). L'utente in fiera ha chiesto una soluzione subito («la ledwall si disconnette e dice "scollegato"»): il
+> **B45.1** (`docs/b45/b45-1-collegamento.md`) non aspetta la giornata di misure e fa le correzioni sicure del §5 (punti
+> 1–4, il 5 in parte) più quelle delle cause nuove: chiosco che non scollega, racchetta col QR che riprova senza fine in
+> LAN, controllo di vita di **10 s** con ogni messaggio come segno di vita e il lato fermo che legge prima la coda,
+> «Ricollega» automatico solo se il telefono risponde ancora, scritte calme sul ledwall, e il motivo di ogni caduta nel
+> registro e nel pannello dello stand (versione ridotta del §4: niente `cad`/`cadOk`, il racconto del telefono va nel
+> `dev`). Le righe citate qui sono della 14.1: nella 14.2 e dopo il B45.1 si ritrovano con le funzioni.
+
 ---
 
 ## 0. In breve (per l'utente)
@@ -161,7 +171,9 @@ altro problema, non trattato qui.
 
 ## 2. Cause possibili di una caduta a schermo acceso
 
-Tutte passano dalla stessa porta: **5 s senza messaggi** su uno dei due lati (`link.js:202`, `racchetta.js:474`) o, in
+(Correzione della revisione: non tutte le cadute passano dalla stessa porta. Il chiosco, la pagina del gioco ricaricata e
+il «Ricollega» chiesto con i sensori fermi sul telefono fanno cadere il collegamento senza nessun silenzio della rete:
+righe N–Q della tabella.) Quelle della rete passano dalla stessa porta: **5 s senza messaggi** su uno dei due lati (`link.js:202`, `racchetta.js:474`) o, in
 partita, **~3 s senza movimento** con il «Ricollega» automatico (§1.6). Le prove (§3) dicono che sotto queste soglie il
 collegamento si ripara da solo e che il browser non segnala niente prima: la domanda vera è **che cosa ha prodotto un
 silenzio di 3–5 s o più**.
@@ -181,6 +193,10 @@ silenzio di 3–5 s o più**.
 | K | TURN su internet tagliato dalla rete della fiera | **non applicabile** al programma Windows |
 | L | Risparmio energetico del telefono a schermo acceso | bassa-media |
 | M | Il PC che sospende la scheda di rete | bassa |
+| N | **Il chiosco scollegava di proposito il telefono col QR** (revisione) | **sicura** con il chiosco acceso (B45.1: tolta) |
+| O | **La racchetta col QR smetteva di riprovare** dopo 10 tentativi (revisione) | alta dopo un buco lungo (B45.1: senza fine in LAN) |
+| P | **La pagina del gioco ricaricata o in crash** (revisione) | media: cadono tutti i telefoni insieme |
+| Q | **«Ricollega» con i sensori fermi a pagina visibile** (revisione) | bassa-media (B45.1: «Ricollega» solo se il telefono risponde con i sensori che vanno) |
 
 ### A · Buco nella Wi-Fi del singolo telefono (alta)
 - **Meccanismo**: il telefono, tenuto in mano e mosso tra tante persone (i corpi assorbono i 2,4 e i 5 GHz), perde il
@@ -286,6 +302,38 @@ silenzio di 3–5 s o più**.
 - Il programma tiene sveglio il PC (`main.mjs:486`); resta il risparmio energetico della Wi-Fi del PC a batteria e degli
   adattatori USB. Con il PC sul cavo è escluso.
 - **Misura**: righe nuove in `programma.log` (indirizzi, alimentazione, segnale della Wi-Fi del PC).
+
+### N · Il chiosco scollegava il telefono col QR (sicura, trovata dalla revisione)
+- **Meccanismo**: con il chiosco acceso (di base 45 s) il gioco chiamava `reset()` dopo quel tempo senza tasti, clic o colpi
+  sul computer (in partita dopo il doppio), e `reset()` chiamava `ui.phone.forget()` (`natpf_kiosk.js`, 14.2 :152). I
+  gesti della calibrazione e gli altri messaggi del telefono non contavano come attività, e con un telefono col QR
+  collegato il menu non era mai «a riposo». Il telefono riceveva `bye` e mostrava «Scollegato – Il computer ha scollegato il
+  telefono… inquadra il nuovo QR» (`racchetta.js` :339) a schermo acceso.
+- **Si vedeva già nel registro**: riga `tel` «scollegato» (non «caduto») insieme a `visita`/`partita.fine` con `come:
+  'chiosco'`.
+- **B45.1**: il chiosco non scollega più i telefoni (azzera chi gioca come «Nuovo giocatore») e conta come attività anche
+  gesti, tocchi e telefono preso in mano.
+
+### O · La racchetta col QR smetteva di riprovare (alta dopo un buco lungo)
+- `lost()` riprovava `tries++ < 10 || pair?.stand` (`racchetta.js` :357): dopo 10 tentativi falliti (1–3 minuti) non
+  riprovava più, mentre il testo diceva ancora «Riprovo da solo tra poco». `online` non scatta se resta la rete mobile, e il
+  tentativo subito valeva solo in `lost`. Un buco lungo (router riavviato, radar DFS) diventava una caduta per sempre.
+- **B45.1**: in LAN senza fine (attese fino a 6 s), via internet 10 e poi «Tocca «Riprova»»; subito su `online` e sul cambio
+  del **tipo** di rete, solo in attesa del prossimo tentativo.
+
+### P · La pagina del gioco ricaricata o in crash (media)
+- `render-process-gone` → ricarica (`main.mjs`), la voce «Ricarica» del menu e, dalla 14.2, la ricarica automatica della
+  pagina bloccata (B39: finestra dopo 10 s, ricarica dopo 60 s). Cadono **tutti** i telefoni insieme; la racchetta col QR
+  non torna da sola, perché la sessione è nuova (`netWhy`: «Il computer non risponde… inquadra di nuovo il QR»).
+- **Misura**: righe `crash`/`avvio` del registro e `programma.log`; dal B45.1 il racconto del telefono che rientra con il
+  QR nuovo dice «pagina del gioco ricaricata» (`natpf_cadute.cadutaPrimaDellaPagina`).
+
+### Q · «Ricollega» con i sensori fermi a pagina visibile (bassa-media)
+- Con il segnale `st` recente ma i campioni vecchi (`sa` oltre 700 ms) la salute era «sensori fermi» e il «Ricollega»
+  automatico partiva dopo 2,5 s: una caduta nel registro senza colpe della rete, e il ricollegamento non riavvia i sensori.
+  Possibile, da verificare: pagina visibile ma senza fuoco (tendina, finestra di sistema): `vis` resta 1.
+- **B45.1**: il «Ricollega» automatico vale solo con il segnale recente **e** i sensori che sul telefono vanno
+  (`phoneHealth.answers`); con i sensori fermi resta la pausa con «tocca Riattiva i sensori».
 
 ### Le più probabili, per questa architettura
 1. **A**, moltiplicata da **F**: tutto il collegamento passa dalla radio di un telefono mosso in mezzo alla folla, e il
@@ -497,6 +545,30 @@ senza indirizzi né nomi, e restando compatibili con telefoni e computer di prim
   sì/no» (da `netsh wlan show interfaces`, senza nomi di rete). Nel registro solo «indirizzo del PC cambiato» (sì/no).
 
 ---
+
+### 4.8 Correzioni della revisione alle misure
+- `altroTelefono` (0/1 entro 3 s) non separa A da C: meglio il silenzio dell'altro telefono in ms e la sua visibilità al
+  momento della caduta (il secondo telefono può essere fermo sul tavolo o con la pagina nascosta).
+- `ipCambiato` dal candidato remoto di getStats probabilmente non si può fare (Chrome su Android e Safari nascondono gli
+  indirizzi con nomi mDNS; i prflx remoti non hanno l'indirizzo nelle statistiche): se serve, lo confronta il server di
+  segnalazione del programma (IP del WebSocket), altrimenti si toglie.
+- B (telefono che lascia la Wi-Fi) si separa da un buco lungo solo con `navigator.connection.type`, che c'è solo su Chrome
+  per Android: su iPhone resta indistinguibile.
+- Manca `dove` (già in `CAMPI`, funzione `_posto()` pronta): è il modo più diretto per misurare F (partita contro menu,
+  calibrazione, tutorial). **B45.1: aggiunto.**
+- Il motivo `chiuso` del computer mescola chiusure diverse del telefono (controllo di vita, «Ricollega», pagina chiusa,
+  errore). **B45.1**: il telefono, quando può, dice perché prima di chiudere (`cl`) e racconta la caduta nel `dev`.
+- Passo zero a costo zero: leggere i registri veri delle giornate in fiera e `programma.log` (strada lan/internet, «caduto»
+  contro «scollegato», resi del chiosco, cadute insieme, `dopoS`, crash), e chiedere all'utente cosa mostra il telefono
+  quando «si scollega» e se usava il programma Windows o la versione web.
+- La prova riproducibile c'è ora nel repository: `tools/e2e/natpf-phone-blackout.mjs` parte D (bui di 3, 7 e 12 s in
+  partita nel gioco intero). La rete finta dell'analisi resta in `scratchpad/b45/prove` (non nel repository).
+- Correzione 5 (ripartire su `change`): `change` di `navigator.connection` scatta anche per le stime (rtt, downlink): si
+  reagisce solo al cambio del **tipo** e mai a tentativo in corso (per non troncare la prova della chiave dello stand).
+- Precisazioni al §5 e §1.6: la correzione 1 da sola serve poco (un lato fermo 5 s fa cadere l'altro per silenzio vero:
+  serve con la 4); la pausa a 1,8–2,8 s in un buio totale vale con rtt ≤ 150 ms, oltre arriva a ~0,7 s.
+- Consigli per lo stand in più: con il QR, chiosco spento o a 90 s (dal B45.1 non serve più: non scollega); «solo 5 GHz»
+  lascia fuori i rari telefoni dei visitatori che hanno solo la 2,4 GHz (guida dello stand §8.5).
 
 ## 5. Miglioramenti sicuri del collegamento
 
