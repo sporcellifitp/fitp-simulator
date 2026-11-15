@@ -1324,8 +1324,9 @@ Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`) con
   ridimensionamento); la riga ha `flex: none`. Chi allunga una spiegazione (`natpf_stand_mouse.STAFF_HINTS`) o aggiunge una
   voce allunga il foglio sempre, non solo con il puntatore sopra: riprovi `natpf-pannello-cadute`, `natpf-menu`,
   `natpf-stesso-schermo-b25` e `-b20` e la sonda del pannello con il puntatore su ogni voce (`b413/probe/panel.mjs`). Aree
-  basse più compatte in fondo a `natpf-ui.css` (720×720 su quattro colonne; 1024×600, 1366×657, 1920×540; 1280×720 solo
-  con le righe delle cadute).
+  basse più compatte in fondo a `natpf-ui.css` (720×720 su quattro colonne; 1024×600, 1366×657, 1920×540; 1280×720 e
+  1366×768). La sonda del pannello misura dopo la fine dell'animazione d'apertura del foglio (scala 0,98): sotto carico
+  dura più di 700 ms e una misura presa a metà sembra uno spostamento.
 
 ## B45.1 · Telefono che non si scollega (14/11/2026 sera; documento `docs/b45/b45-1-collegamento.md`)
 Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi in `docs/b45/telefono-che-si-scollega.md`.

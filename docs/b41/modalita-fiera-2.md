@@ -240,7 +240,7 @@ Dopo la revisione (B41.3, §8) i primi due e l'ultimo punto sono corretti: la ri
 Revisione indipendente della B41 seconda parte (sonde del revisore rifatte qui sul codice nuovo, §8.3). Prima di tutto il
 ramo è stato unito con `natpf-simulator` @ `3d92ce1` (B45.1 fase B e B45.2: righe delle cadute nel pannello, spiegazione
 del chiosco già corretta; conflitti nel pannello dello stand, `natpf_stand_mouse.js`, prove b25 e b20, documenti: tenute le
-due parti), e alla fine con `natpf-simulator` (versione 2026-11-14.4 e traccia). Lavoro interrotto dal limite d'uso: un
+due parti), e alla fine con `natpf-simulator` @ `52fb692` (versione 2026-11-14.4, traccia, piani di B40, B49 e B50). Lavoro interrotto dal limite d'uso: un
 salvataggio «IN CORSO» (`80239be`, difetto 4 a metà) verificato e chiuso dall'agente dopo.
 
 ### 8.1 Difetti e correzioni
@@ -254,4 +254,78 @@ salvataggio «IN CORSO» (`80239be`, difetto 4 a metà) verificato e chiuso dall
 | 5 | Modalità accesa e poi spenta: «Con cosa giochi» restava «Smartphone» e «Calibrazione» «Giocando» | All'accensione dal pannello si ricordano (`natpf-tennis.fiera.prima`), allo spegnimento si rimettono e l'avviso lo dice | `natpf-b41-3-fiera`, sonda p3 |
 | 6 | Con la modalità fiera un clic su «Calibrazione» la portava a «Con i gesti» e la pagina della fiera diceva il falso | In fiera la voce dice «Giocando (fiera)» e un clic lo spiega senza cambiarla; modalità già accesa all'avvio con un'altra calibrazione salvata: «Giocando», quella di prima ricordata | `natpf-b41-3-fiera`, sonda p6 |
 | 7 | Testi | §1 passo 4: «Conferma» vale con un clic vero del mouse (o Invio sul pulsante), l'OK del telecomando no. Non è una difesa contro chi usa la console del browser: `NatpfFiera.confirm` guarda solo il campo `isTrusted` dell'evento che riceve. Guida 8.4 «Telefono rotto o perso»: un telefono nuovo vuole prima il certificato (capitolo 6.1). La spiegazione di «Modalità chiosco» non dice più «scollega il telefono» (corretta dalla B45.2) | — |
-| 8 | Pannello dello stand che trema e scorre con il puntatore sulle voci (B39.3, già nella 14.3): la riga sotto le voci cambiava altezza con la spiegazione della voce sotto il puntatore | `natpf_kiosk._fitNote`: la riga ha l'altezza fissa della spiegazione più alta (misurata con le scritte vere alla larghezza di adesso, rimisurata quando cambiano); nelle aree basse foglio più compatto (720×720 quattro colonne). Dopo l'unione con la B45.2 anche 1280×720 con le righe delle cadute (§8.2) | `natpf-b41-3-pannello` 3/3; sonda del pannello con il puntatore su ogni voce (§8.2); `natpf-pannello-cadute` |
+| 8 | Pannello dello stand che trema e scorre con il puntatore sulle voci (B39.3, già nella 14.3): la riga sotto le voci cambiava altezza con la spiegazione della voce sotto il puntatore | `natpf_kiosk._fitNote`: la riga ha l'altezza fissa della spiegazione più alta (misurata con le scritte vere alla larghezza di adesso, rimisurata quando cambiano); nelle aree basse foglio più compatto (720×720 quattro colonne). Dopo l'unione con la B45.2 anche 1280×720 e 1366×768 più compatti (righe delle cadute, modalità fiera con i telefoni da abbinare: §8.2) | `natpf-b41-3-pannello` 3/3; sonda del pannello con il puntatore su ogni voce (§8.2); `natpf-pannello-cadute` |
+
+### 8.2 Misure nel browser (sonde nello scratchpad, telefoni simulati)
+
+- **Pagina della fiera** (difetto 4; `b413/probe/fierapage.mjs`): sette misure (1280×720, 1920×1080, 1366×768, 1024×600,
+  720×720, 1920×540, 1024×1024) per nove stati (contro la CPU pronto, nome lungo e mancino, schermo spento, scollegato; in
+  due pronti, fasce e mani, Telefono 1 scollegato, Telefono 2 con lo schermo spento, tutti e due spenti). Prima 58/63: in
+  due con un telefono non pronto a 1920×540 la pagina scorreva di 26 px e «Altre impostazioni» finiva sotto «Gioca ›»
+  (tre stati), a 720×720 di 4 px, a 1366×768 l'avviso della batteria copriva «Altre impostazioni». Dopo **63/63**, schermate
+  guardate (in due il perché in arancione nella scheda, «Telefoni dello stand ›» in alto a destra).
+- **Pannello dello stand** (difetto 8; `b413/probe/panel.mjs`): per ogni variante (modalità fiera sì e no, righe delle
+  cadute 0, 1 e 2, opzioni del B25 accese e spente, programma Windows sì e no) il puntatore va al centro e sui due bordi di
+  ogni voce; si misurano la posizione del foglio per sei fotogrammi, lo scorrimento e «Chiudi» in vista. Prima: il foglio
+  si spostava fino a 24 px a 1366×657 e a 720×720 scorreva fino a 178 px. Dopo, senza tremolio né scorrimento: 720×720,
+  1024×600, 1366×657, 1920×540, 1280×720 e 1366×768 24/24 ciascuna; con la modalità fiera anche 1920×1080 e 1024×1024 12/12
+  ciascuna (192 varianti). Strada facendo: a 1280×720, dopo l'unione con la B45.2, il foglio scorreva di 5 e 21 px con le
+  righe delle cadute (la sonda non misurava quella misura, l'ha trovato `natpf-pannello-cadute`) e di 18 px con la modalità
+  fiera e i telefoni da abbinare («1 da abbinare · 2 da abbinare ›» va su due righe): titolo, file e pulsanti un poco più
+  bassi da 821 px di larghezza e da 681 a 800 di altezza (`5880ca0`). Due misure «fuori» prese a metà dell'animazione
+  d'apertura del foglio (scala 0,98), sotto carico, sono state rifatte con la sonda che aspetta la fine dell'animazione.
+
+### 8.3 Sonde del revisore rifatte sul codice nuovo
+
+Copie in `b413/rev-probe` (porte 4276/4277 al posto delle 4280–4297 del revisore), sul codice di `3126c8f`:
+
+| Sonda | Revisore (prima) | Ora |
+|---|---|---|
+| p2 · visitatori (doppio tocco 150 e 400 ms, «Gioca ›» + tocco a 60 ms) | 19/22 (i tre casi KO) | 22/22. Al primo giro 16/17: la sonda cliccava «Gioca ›» con `g.click`, che sotto carico (12) aspettava il pulsante fermo, e il tocco del visitatore 60 ms dopo faceva già partire gli scambi di prova (il pulsante spariva prima del clic). Nella copia il clic è un clic vero del mouse sul punto del pulsante, subito (come in `natpf-fiera-telefoni` §5b) |
+| p3 · modalità accesa e spenta | 9/12 | 11/12: «Con cosa giochi» (webcam) e «Calibrazione» («Con i gesti») tornano come prima. Resta la «nota del chiosco come prima»: la sonda la legge prima con il puntatore su «Classifica · Scarica CSV» (la riga sotto le voci spiega la voce sotto il puntatore, B39.3) e dopo con il puntatore altrove (lo stato del chiosco): non è una scelta rimasta cambiata |
+| p5 · pagina in due con un telefono non pronto | 8/9 | 9/9 |
+| p6 · «Calibrazione» in fiera | 4/5 | 5/5 |
+| p8 · «Scollega» dal telecomando | 5/6 | 6/6 |
+| p9 · pausa → «Torna al menu» in fiera | 5/6 | 6/6 |
+
+### 8.4 Verifiche
+
+Corse del 15/11, 07:10–09:10 UTC; la macchina (4 processori) era condivisa con altri agenti, carico da 6 a 21. Il ramo
+finale è `558b106` (unito con `natpf-simulator` @ `52fb692`); «fotografia finale» = quel commit.
+
+| Prova | Esito |
+|---|---|
+| gioco, `npm test` | 1658/1658 sul salvataggio `80239be`; 1660/1660 sul ramo unito (`3403546`); sulla fotografia finale 1660/1660 (al primo giro, con il carico a 12–16, 1659/1660: `natpf-registro` «pulire un testo di 1 MB costa pochi millisecondi» a 81,8 ms; da solo 27/27 due volte, poi la suite intera di nuovo 1660/1660) |
+| sito, `node --test tools/test/*.test.mjs` | 272/272 su `80239be`, sul ramo unito e sulla fotografia finale |
+| test che leggono `natpf-ui.css` (dopo l'ultima regola del pannello) | 122/122 |
+| programma Windows (`natpf-desktop`, `npm test`) | 51/51 (su `3126c8f`) |
+| server LAN (`tools/lan`) | 13/13 (su `3126c8f`) |
+| build | ok sul ramo unito e sulla fotografia finale |
+| `npm run audit:legend` | 69 OK, 0 KO su `3126c8f`: uguale alla B41 seconda parte e alla base del B47 (tolte le righe dei tempi) |
+| programma Windows su Linux (`prova-linux`, 8 scenari, `app/registro.json` vuoto, `flock`) | 101/101 · controlli riprovati: 0 (ramo unito) |
+| `natpf-fiera-telefoni` | 54/54 due volte (48 di prima + §5b con i tre casi del difetto 1 + il controllo della pagina in due), l'ultima sulla fotografia finale |
+| `natpf-flusso-tocchi` `FLOW=fiera` (10 visitatori) | 46/46: 1 o 2 clic e 0 o 1 tocco a visitatore, scambi di prova interi (15,8–16,8 s), doppi clic a 110/250/300 ms innocui |
+| `natpf-flusso-tocchi` `FLOW=fiera-due` | 13/13 |
+| `natpf-fine-partita` | 47/47 |
+| `natpf-b47-fiera` | 20/20 |
+| `natpf-menu` | 45/45 due volte, l'ultima sulla fotografia finale |
+| `natpf-telecomando` (porte 4902/4903 con `flock`) | 91/91 (sul ramo unito, con la build: sulla fotografia senza `dist` il server LAN non ha il gioco) |
+| `natpf-nuovo-giocatore` | 28/28 |
+| `natpf-mano-sicura` (1280×720 e `AREA=720`) | 17/17 e 17/17 |
+| `natpf-solo-mouse` | 42/42 due volte, l'ultima sulla fotografia finale |
+| `natpf-stesso-schermo-b25` | 55/55 due volte, l'ultima sulla fotografia finale |
+| `natpf-stesso-schermo-b20` | 52/52 da sola sul ramo unito e sulla fotografia finale; 50/52 nel primo giro con il carico a 18 (il richiamo per nome «Giulia, batti tu» a 1920×1080 e 1920×540 non è arrivato in tre giri: tempi) |
+| `natpf-pannello-cadute` (16 voci) | 33/33 due volte, l'ultima sulla fotografia finale (dopo l'unione 27/33, dopo `072a474` 29/33) |
+| `natpf-phone-blackout` | 11/11 |
+| sonde del revisore (§8.3) | p2 22/22, p3 11/12 (resta una lettura della riga sotto le voci con il puntatore sopra una voce), p5 9/9, p6 5/5, p8 6/6, p9 6/6 |
+| sonda della pagina della fiera (§8.2) | 63/63 |
+| sonda del pannello (§8.2) | 192/192 varianti (otto misure) |
+
+### 8.5 Non verificato
+
+- Telefoni veri (Android e iPhone): i tocchi doppi del difetto 1 sono provati con la pagina vera del telefono in Chromium
+  (clic sintetici a 150, 400 e 60 ms), non con un dito su uno schermo vero; il pulsante spento dopo il tocco non è stato
+  visto su un telefono vero.
+- Programma Windows vero, ledwall, rete vera della fiera, LAN (`?lan=1`) con i telefoni dello stand.
+- Il telecomando dello staff su un telefono vero (i due OK di «Scollega» sono provati con la sonda p8 e i test).
+- Le pagine del telefono «di prima» (senza il numero dell'offerta) solo nei test di unità, non nel browser.
