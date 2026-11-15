@@ -34,7 +34,7 @@ import { createGate, newSessionId, pairingUrl, createClock, same } from './pairi
 import { STAND, createStandGate, gameStoreKey, newStandNonce, newPairNumber, NONCE, hasSubtle } from './stand-pairing.js';
 import { iceReady, ourIceServers, mergeIceServers, followIce, watchRoute } from './ice-route.js';
 // B45.1 «telefono che non si scollega»: controllo di vita a 10 s con ogni messaggio come segno di vita, motivo di ogni caduta
-import { LIFE, lifeCheck, readStory, closeMotivo, CLOSE_WORDS, moving } from './link-life.js';
+import { LIFE, lifeCheck, readStory, closeMotivo, silenceMotivo, CLOSE_WORDS, moving } from './link-life.js';
 export { iceReady } from './ice-route.js';
 
 // Strade per il collegamento diretto (ICE) via internet. Prima quelle di serie di PeerJS: STUN di Google e i TURN
@@ -221,7 +221,8 @@ export function createPhoneLink({ stand = null } = {}){
       }
       // il telefono manda un segnale ogni secondo (e i sensori): se tace per LIFE.silentMs (schermo spento, rete persa) è
       // scollegato. B45.1: 10 s (prima 5) e, con questo controllo in ritardo (pagina del gioco ferma), prima si legge la coda
-      if (conn && life.drop){ const c = conn; conn = null; gate.release(); dropped({ motivo: 'silenzio', causa: 'computer', ms: Math.round(life.silence) }); try { c.close(); } catch (e){} set({ state: 'lost', phone: null }); }
+      // B45.2: se l'ultimo segnale del telefono diceva pagina nascosta il motivo è quello, non «silenzio» (silenceMotivo)
+      if (conn && life.drop){ const c = conn; conn = null; gate.release(); dropped({ ...silenceMotivo({ hidden: L.vis === false }), ms: Math.round(life.silence) }); try { c.close(); } catch (e){} set({ state: 'lost', phone: null }); }
     }, LIFE.tickMs);
     tick.unref?.();
   }
@@ -280,7 +281,9 @@ export function createPhoneLink({ stand = null } = {}){
       // (stand: la stessa chiave entrata da un'altra scheda; lo stesso telefono che si ricollega lo ignora, come il telecomando)
       if (previous && previous !== c && sgate) try { previous.send({ t: 'bye', why: 'other' }); } catch (e){}
       if (previous && previous !== c) try { previous.close(); } catch (e){}
-      conn = c; lastSeen = Date.now(); clSaid = null; fastConn = null; clock.reset(); faceSample = null; lastFaceK = -Infinity; seen.clear(); seenOrder.length = 0; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send(welcome);
+      // (B45.2: un collegamento nuovo chiude anche il «Ricollega» chiesto prima, relinkAt: per 15 s ogni chiusura del
+      // collegamento nuovo risultava ancora «ricollega», anche con la pagina del telefono chiusa)
+      conn = c; lastSeen = Date.now(); clSaid = null; relinkAt = -Infinity; fastConn = null; clock.reset(); faceSample = null; lastFaceK = -Infinity; seen.clear(); seenOrder.length = 0; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send(welcome);
       // strada di questo collegamento (via internet c.peerConnection di PeerJS, in LAN c.pc)
       stopRoute(); L.route = null;
       stopRoute = watchRoute(c.peerConnection || c.pc, r => { if (c === conn){ L.route = r; emit('route', r); } });
@@ -398,7 +401,7 @@ export function createPhoneLink({ stand = null } = {}){
         conn = null; stopRoute(); gate.release();
         // B45.1: perché (link-life.closeMotivo): «Ricollega» chiesto da qui, la parola del telefono, pagina nascosta, strada persa
         const now = Date.now();
-        dropped({ ...closeMotivo({ said: clSaid?.w, saidAgeMs: clSaid ? now - clSaid.at : Infinity, relinkAgeMs: now - relinkAt, hidden: L.vis === false, failed: !!c.failed }), ms: Math.round(now - lastSeen) });
+        dropped({ ...closeMotivo({ said: clSaid?.w, saidAgeMs: clSaid ? now - clSaid.at : Infinity, relinkAgeMs: now - relinkAt, hidden: L.vis === false, failed: !!c.failed, silentMs: now - lastSeen }), ms: Math.round(now - lastSeen) });
         clSaid = null;
         set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null });
       }
@@ -508,12 +511,17 @@ export function createPhoneLink({ stand = null } = {}){
         setStand({}); set({ state: 'off', phone: null });
         return;
       }
-      this.send({ t: 'bye' }); gate.forget(); if (conn) try { conn.close(); } catch (e){} conn = null; stopRoute(); set({ state: peer && !peer.destroyed ? 'waiting' : 'off', phone: null });
+      // B45.2 (revisione del B45.1, punto 1): «Scollega» dal computer non è una caduta. La chiusura è sincrona (PeerJS e
+      // LanConnection emettono subito «close»): con conn ancora impostato passava dal gestore qui sopra, che contava una caduta
+      // «chiuso» del telefono e passava da «lost». conn si toglie prima, come nel ramo dello stand e nel controllo di vita
+      this.send({ t: 'bye' }); gate.forget(); { const c = conn; conn = null; stopRoute(); if (c) try { c.close(); } catch (e){} } set({ state: peer && !peer.destroyed ? 'waiting' : 'off', phone: null });
     },
     stop(){
       ++startEpoch; starting = null; clearInterval(tick); clearTimeout(idRetry); stopRoute();
       if (sgate){ if (pairPending) dropPending('closed'); sgate.closePairing(); L.stand = { ...L.stand, pairing: false, request: null }; pairSync = null; if (pairPeer){ const p = pairPeer; pairPeer = null; try { p.destroy(); } catch (e){} } }
-      if (peer) peer.destroy(); peer = null; peerId = null; conn = null; set({ state: 'off', phone: null });
+      // (B45.2: anche qui conn si toglie prima di chiudere: fermare il collegamento, useStand, non è una caduta. peer resta
+      // impostato finché destroy() non ha finito: PeerJS emette «disconnected» mentre chiude e il gestore lo legge)
+      conn = null; if (peer) peer.destroy(); peer = null; peerId = null; set({ state: 'off', phone: null });
     },
   };
 }

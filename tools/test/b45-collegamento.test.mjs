@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
-import { LIFE, lifeCheck, RETRY, retryPlan, lostText, kickNow, netTypeChanged, storyWord, createDropStory, readStory, STORY_WORDS, CLOSE_WORDS } from '../../site/js/tennis/link-life.js';
+import { LIFE, lifeCheck, RETRY, retryPlan, lostText, kickNow, netTypeChanged, storyWord, createDropStory, readStory, STORY_WORDS, CLOSE_WORDS, closeMotivo, silenceMotivo } from '../../site/js/tennis/link-life.js';
 import { LINK_TIMES, netWhy } from '../../site/js/tennis/link.js';
 
 /* ---------- funzioni pure ---------- */
@@ -81,10 +81,12 @@ test('racconto della caduta: parola del telefono, una volta sola nel «dev», le
 /* ---------- il collegamento vero del telefono (pezzo di racchetta.js, come phone-reconnect.test.mjs) ---------- */
 const source = readFileSync(process.env.NATPF_PHONE_SOURCE || new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
 const section = source.slice(source.indexOf('async function connect(){'), source.indexOf('// messaggi che valgono solo se arrivano subito'));
-function setup({ lan = true, normal = true } = {}){
+// story (B45.2): il racconto vero della pagina (createDropStory e storyWord, come in racchetta.js) al posto di quello finto
+function setup({ lan = true, normal = true, story = null } = {}){
   const timers = new Map(), peers = [], texts = []; let seq = 0;
   class Emitter { constructor(){ this.handlers = {}; } on(k, f){ (this.handlers[k] ||= []).push(f); } emit(k, v){ for (const f of this.handlers[k] || []) f(v); } }
-  class Conn extends Emitter { constructor(){ super(); this.open = true; this.sent = []; } send(d){ this.sent.push(d); } close(){ this.open = false; this.emit('close'); } }
+  // (come PeerJS e LanConnection: close() emette «close» subito, una volta sola)
+  class Conn extends Emitter { constructor(){ super(); this.open = true; this.sent = []; } send(d){ this.sent.push(d); } close(){ if (!this.open) return; this.open = false; this.emit('close'); } }
   class Peer extends Emitter {
     constructor(){ super(); this.destroyed = false; this.connections = []; peers.push(this); }
     connect(){ const c = new Conn(); this.connections.push(c); return c; }
@@ -95,12 +97,12 @@ function setup({ lan = true, normal = true } = {}){
   let clock = 100;
   const sandbox = { LanPeer: Peer, isLanMode: () => lan, loadPeer: async () => Peer, iceReady: async () => null, peerConfig: () => ({}), LINK_TIMES, netWhy, retryPlan, lostText,
     performance: { now: () => clock },
-    story: { drop: w => drops.push(w), attempt: ok => attempts.push(ok), tell: () => null },
+    story: story || { drop: w => drops.push(w), attempt: ok => attempts.push(ok), tell: () => null },
     ss: { get: k => store.get(k), set: (k, v) => store.set(k, v), del: k => store.delete(k) },
     setTimeout: (f, ms) => { timers.set(++seq, { f, ms }); return seq; }, clearTimeout: id => timers.delete(id),
     paint(){}, bar(){}, ui: (big, sub) => texts.push([big, sub]), show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){} };
   vm.createContext(sandbox);
-  vm.runInContext(`let peer=null,conn=null,pendingConn=null,connectEpoch=0,retryT=null,tries=0,linkState='off',pair=${normal ? "{session:'game',token:'token'}" : "{session:'s',stand:true}"},lastRx=0,fastOk=false,sensor='ready',rtt=80;\n` + section + "\nglobalThis.api={connect,lost,relink,get state(){return linkState},get conn(){return conn},get lastRx(){return lastRx},get tries(){return tries}};", sandbox);
+  vm.runInContext(`let peer=null,conn=null,pendingConn=null,connectEpoch=0,retryT=null,tries=0,linkState='off',pair=${normal ? "{session:'game',token:'token'}" : "{session:'s',stand:true}"},lastRx=0,fastOk=false,sensor='ready',rtt=80;\n` + section + "\nglobalThis.api={connect,lost,relink,pageGoing,get state(){return linkState},get conn(){return conn},get lastRx(){return lastRx},get tries(){return tries}};", sandbox);
   const connect = async () => { await sandbox.api.connect(); const p = peers.at(-1); p.emit('open'); const c = p.connections.at(-1); c.emit('open'); c.emit('data', { t: 'welcome', r: 'key', f: 1 }); return { p, c }; };
   return { api: sandbox.api, peers, timers, texts, connect, drops, attempts, tick: ms => { clock += ms; } };
 }
@@ -154,8 +156,10 @@ test('ogni messaggio del computer vale come segno di vita per il telefono, anche
 
 /* ---------- il computer (link.js) con un telefono finto ---------- */
 class Emitter2 { constructor(){ this.h = {}; } on(k, f){ (this.h[k] ||= []).push(f); return this; } emit(k, v){ for (const f of this.h[k] || []) f(v); } }
-class FakeConn extends Emitter2 { constructor(peer, label){ super(); this.peer = peer; this.label = label; this.open = true; this.sent = []; this.fast = []; } send(m){ this.sent.push(m); } sendFast(m){ this.fast.push(m); return true; } close(){ this.open = false; this.emit('close'); } }
-class FakePeer extends Emitter2 { constructor(){ super(); this.destroyed = false; FakePeer.last = this; setTimeout(() => this.emit('open'), 0); } destroy(){ this.destroyed = true; } }
+// (close() come PeerJS e LanConnection: «close» subito, una volta sola)
+class FakeConn extends Emitter2 { constructor(peer, label){ super(); this.peer = peer; this.label = label; this.open = true; this.sent = []; this.fast = []; } send(m){ this.sent.push(m); } sendFast(m){ this.fast.push(m); return true; } close(){ if (!this.open) return; this.open = false; this.emit('close'); } }
+// (destroy() come PeerJS 1.5: «disconnected» mentre chiude, poi i collegamenti, poi destroyed e «close»)
+class FakePeer extends Emitter2 { constructor(){ super(); this.destroyed = false; this.conns = []; FakePeer.last = this; setTimeout(() => this.emit('open'), 0); } destroy(){ if (this.destroyed) return; this.emit('disconnected'); for (const c of this.conns) c.close(); this.destroyed = true; this.emit('close'); } }
 // computer con il controllo di ogni secondo in mano alla prova (tick) e l'orologio finto (Date.now)
 async function computer(){
   globalThis.window = { Peer: FakePeer };
@@ -168,12 +172,13 @@ async function computer(){
   const link = createPhoneLink(), drops = [], devices = [];
   link.on('drop', d => drops.push(d)); link.on('device', d => devices.push(d));
   try { await link.start(); } finally { globalThis.setInterval = realInterval; }
-  const main = new FakeConn('phone-1');
-  FakePeer.last.emit('connection', main);
-  main.emit('data', { t: 'hello', v: 2, k: link.token });
+  const states = []; link.on('change', L => states.push(L.state));
+  // un telefono che si collega (hello: codice del QR di base, o la chiave di ripresa r)
+  const join = (hello = { t: 'hello', v: 2, k: link.token }, id = 'phone-1') => { const c = new FakeConn(id); FakePeer.last.conns.push(c); FakePeer.last.emit('connection', c); c.emit('data', hello); return c; };
+  const main = join();
   assert.equal(main.sent[0]?.t, 'welcome');
   const step = (ms, every = null) => { for (let t = 0; t < ms; t += 1000){ now += 1000; every?.(); tick(); } };
-  return { link, main, drops, devices, step, jump(ms){ now += ms; }, tick: () => tick(), done(){ Date.now = realDate; link.stop(); } };
+  return { link, main, drops, devices, states, join, step, jump(ms){ now += ms; }, tick: () => tick(), done(){ Date.now = realDate; link.stop(); } };
 }
 
 test('computer: 7 s senza messaggi non è una caduta, 11 s sì (motivo silenzio, se n\'è accorto il computer)', async () => {
@@ -236,6 +241,12 @@ test('computer: motivo della caduta dalla parola del telefono, dal «Ricollega»
     h.main.emit('data', { t: 'st', s: 'ready', vis: 0 }); h.main.close();
     assert.deepEqual(h.drops.map(d => [d.motivo, d.causa]), [['telefono: pagina nascosta', 'telefono']]);
   } finally { h.done(); }
+  // il telefono taceva da 9 s e il canale si chiude (il suo controllo di vita, la parola «cl» persa con la rete): silenzio
+  h = await computer();
+  try {
+    h.step(9000); h.main.close();
+    assert.deepEqual(h.drops.map(d => [d.motivo, d.causa]), [['silenzio', 'telefono']]);
+  } finally { h.done(); }
   h = await computer();
   try {
     h.main.close();
@@ -248,4 +259,104 @@ test('computer: motivo della caduta dalla parola del telefono, dal «Ricollega»
     again.emit('data', { t: 'dev', ua: 'x', as: 1 });
     assert.equal('story' in h.devices.at(-1), false, 'senza racconto: niente campo (pagine di prima)');
   } finally { h.done(); }
+});
+
+/* ---------- B45.2 · dopo la revisione del B45.1 (docs/b45/b45-1-collegamento.md, «B45.2») ---------- */
+
+test('B45.2 · «Scollega» fatto dal computer (forget) e collegamento fermato (stop) non sono cadute: nessun «drop», mai per «lost»', async () => {
+  // «Telefono: Scollega» del pannello e del telecomando, «Scollega» del riquadro del telefono
+  let h = await computer();
+  try {
+    h.states.length = 0;
+    h.link.forget();
+    assert.equal(h.drops.length, 0, 'forget non è una caduta');
+    assert.deepEqual(h.states, ['waiting'], 'da collegato a «in attesa del QR», senza passare da «lost» (nel registro: riga «scollegato», non «caduto»)');
+    assert.equal(h.link.connected, false); assert.equal(h.main.open, false, 'il canale è chiuso');
+    assert.deepEqual(h.main.sent.at(-1), { t: 'bye' }, 'il telefono lo sa');
+    // il QR di prima non vale più, e nemmeno la chiave di ripresa del telefono scollegato
+    const again = h.join({ t: 'hello', v: 2, r: h.main.sent[0].r }, 'phone-2');
+    assert.equal(again.sent[0]?.t, 'deny');
+  } finally { h.done(); }
+  // useStand → link.stop(): il Peer chiude i suoi collegamenti (PeerJS emette anche «disconnected» mentre chiude)
+  h = await computer();
+  try {
+    h.states.length = 0;
+    assert.doesNotThrow(() => h.link.stop());
+    assert.equal(h.drops.length, 0, 'stop non è una caduta');
+    assert.deepEqual(h.states, ['off']);
+    assert.equal(h.main.open, false);
+  } finally { h.done(); }
+  // una caduta vera resta una caduta: il telefono chiude da sé
+  h = await computer();
+  try { h.main.close(); assert.equal(h.drops.length, 1); assert.equal(h.link.L.state, 'lost'); } finally { h.done(); }
+});
+
+test('B45.2 · schermo del telefono spento e poi silenzio: il controllo di vita dice «telefono: pagina nascosta», non «silenzio»', async () => {
+  assert.deepEqual(silenceMotivo({ hidden: true }), { motivo: 'telefono: pagina nascosta', causa: 'telefono' });
+  assert.deepEqual(silenceMotivo({ hidden: false }), { motivo: 'silenzio', causa: 'computer' });
+  assert.deepEqual(silenceMotivo(), { motivo: 'silenzio', causa: 'computer' });
+  let h = await computer();
+  try {
+    h.main.emit('data', { t: 'st', s: 'ready', vis: 0 });          // l'ultimo segnale del telefono: pagina nascosta
+    h.step(12000);
+    assert.equal(h.link.L.state, 'lost');
+    assert.deepEqual(h.drops.map(d => [d.motivo, d.causa]), [['telefono: pagina nascosta', 'telefono']]);
+    assert.ok(h.drops[0].ms > 10000, 'con da quanto taceva');
+    assert.equal(h.link.L.vis, false, 'il riquadro della pausa sa ancora che lo schermo era spento');
+  } finally { h.done(); }
+  // pagina tornata in vista prima del silenzio: è la rete
+  h = await computer();
+  try {
+    h.main.emit('data', { t: 'st', s: 'ready', vis: 0 }); h.step(2000); h.main.emit('data', { t: 'st', s: 'ready', vis: 1 });
+    h.step(12000);
+    assert.deepEqual(h.drops.map(d => [d.motivo, d.causa]), [['silenzio', 'computer']]);
+  } finally { h.done(); }
+});
+
+test('B45.2 · un «Ricollega» vecchio non dà il nome alle cadute del collegamento nuovo (relinkAt azzerato a ogni ingresso)', async () => {
+  const h = await computer();
+  try {
+    const r = h.main.sent[0].r;
+    assert.equal(h.link.relink(), true);
+    h.main.emit('data', { t: 'cl', w: 'ricollega' }); h.main.close();               // il «Ricollega» chiesto dal gioco
+    const again = h.join({ t: 'hello', v: 2, r, rl: 1 }, 'phone-2');
+    assert.equal(again.sent[0]?.t, 'welcome');
+    h.jump(5000);
+    // 5 s dopo la pagina del telefono si chiude (pagehide: «cl pagina», poi il canale)
+    again.emit('data', { t: 'cl', w: 'pagina' }); again.close();
+    assert.deepEqual(h.drops.map(d => [d.motivo, d.causa]), [['ricollega', 'computer'], ['telefono: pagina chiusa', 'telefono']]);
+    // e senza parola del telefono, entro i 15 s di prima: «chiuso», non «ricollega»
+    const third = h.join({ t: 'hello', v: 2, r }, 'phone-3');
+    h.jump(2000); third.close();
+    assert.deepEqual(h.drops.at(-1).motivo, 'chiuso');
+  } finally { h.done(); }
+  // (la regola pura resta: un «Ricollega» chiesto da poco sullo stesso collegamento vince sulla parola del telefono)
+  assert.deepEqual(closeMotivo({ said: 'pagina', saidAgeMs: 100, relinkAgeMs: 1000 }), { motivo: 'ricollega', causa: 'computer' });
+});
+
+test('B45.2 · pagina del telefono chiusa o ricaricata (pagehide): il racconto resta «pagina», anche a pagina già nascosta', async () => {
+  for (const hidden of [false, true]){
+    const mem = new Map(), store = { get: k => mem.get(k), set: (k, v) => mem.set(k, v) };
+    const drops = createDropStory({ store, now: () => 5000 });
+    // come in racchetta.js: la parola del racconto passa da storyWord con lo stato della pagina
+    const story = { drop: c => drops.drop(storyWord(c, { now: 5000, hidden })), attempt: ok => drops.attempt(ok), tell: () => drops.tell() };
+    const h = setup({ story });
+    const { c } = await h.connect();
+    assert.equal(h.api.state, 'on');
+    h.api.pageGoing();
+    assert.equal(JSON.stringify(c.sent.filter(m => m.t === 'cl')), JSON.stringify([{ t: 'cl', w: 'pagina' }]), 'lo dice al computer prima di chiudere');
+    assert.equal(c.open, false, 'canale chiuso');
+    assert.equal(mem.get('cad').w, 'pagina', `racconto salvato nella scheda (pagina nascosta: ${hidden})`);
+    assert.equal(h.api.state, 'lost', 'se la pagina torna dalla memoria del browser si ricollega da sola');
+    assert.ok([...h.timers.values()].some(t => t.ms >= 1000 && t.ms <= 6000), 'nuovo tentativo in programma');
+    // la pagina ricaricata rientra e lo racconta una volta sola
+    const told = createDropStory({ store, now: () => 7000 }); told.attempt(true);
+    assert.deepEqual(told.tell(), { w: 'pagina', ms: 2000, prove: 1, fallite: 0 });
+  }
+  // a collegamento già caduto (in attesa del prossimo tentativo) pagehide non riscrive il racconto
+  const h = setup();
+  await h.connect(); h.api.lost('silenzio'); h.api.pageGoing();
+  assert.deepEqual(h.drops, ['silenzio']);
+  // la pagina vera usa questa funzione
+  assert.match(source, /addEventListener\('pagehide', pageGoing\);/);
 });

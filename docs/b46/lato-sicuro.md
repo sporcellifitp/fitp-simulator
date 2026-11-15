@@ -19,11 +19,13 @@ casi**:
 | Caso | Che cosa succede | Perché non guariva |
 |---|---|---|
 | **MANO** | La mano del Player 1 salvata «sinistra» (`natpf-tennis.hand`) mentre gioca un destro. Bastava **un tocco** su «Sinistra» nella pagina del telefono (riga della mano in «Attiva i sensori», in errore e nel riepilogo della calibrazione) o sulla casella della pagina «Collega» | Negli scambi di prova i puntini Dritto/Rovescio si riempiono normalmente (il verso del gesto segue il lato della palla, non la mano); la mano restava salvata anche dopo un riavvio |
-| **ACC_DOPO** | Il segno dell'accelerazione del telefono (`motion-sign.js`, votato dai tocchi sullo schermo) cambia **dopo** gli scambi di prova: per esempio i tocchi per il lancio al servizio, con il telefono tenuto come una racchetta | Il segno imparato dagli scambi di prova (`learner.sign`) restava quello di prima: doppia inversione, in partita ogni colpo con il nome sbagliato |
+| **ACC_DOPO** | Il segno dell'accelerazione del telefono (`motion-sign.js`, votato dai tocchi sullo schermo) cambia **dopo** gli scambi di prova: per esempio i tocchi per il lancio al servizio, con il telefono tenuto come una racchetta | Il danno vero era un'**inversione singola**: tocchi fatti con il telefono storto (al servizio, nello scambio) giravano il segno dell'accelerazione, e i colpi dopo uscivano con il nome sbagliato. Correzione della revisione del 14/11: la «doppia inversione» con il segno imparato dagli scambi di prova (`learner.sign`) **non** si produceva con la pagina vera, perché a segno cambiato il telefono si ricalibra (`needCal`) e la fine della calibrazione (profilo semplice con «Giocando») rimette già a +1 il segno imparato |
 | **SEGNO** | Il segno del rilevatore del telefono (`swing-detect.js`, `absSign`) cambia dopo gli scambi di prova | Il cambio arrivava al gioco solo con il colpo, senza traccia nel registro |
 
-Non sappiamo quale è successo all'utente (non ha potuto rispondere): il B46 li chiude **tutti e tre** e fa in modo che,
-se ricapita, il registro dello stand dica quale.
+Non sappiamo quale è successo all'utente (non ha potuto rispondere). Il B46 **chiude** il caso MANO e il danno dei tocchi
+(ACC_DOPO, punto 4b), mentre il caso SEGNO (voto del rilevatore del telefono, `swing-detect.js`, invariato) è **reso
+visibile**, non chiuso: il rilevatore può ancora girare il suo segno in partita, e il registro dello stand dice quale
+caso è successo se ricapita (correzione della revisione del 14/11: prima qui c'era scritto «li chiude tutti e tre»).
 
 ## In breve: che cosa cambia
 
@@ -33,7 +35,7 @@ se ricapita, il registro dello stand dica quale.
 | 2 · mano dal telefono | Un tocco su «Sinistra» (o «Destra») cambiava la mano | **Due tocchi**: al primo il pulsante dice «**Mancino? Tocca di nuovo**» (o «Destro? Tocca di nuovo») per 4 s e non cambia niente; il secondo tocco entro 4 s conferma |
 | 3 · visitatore nuovo | «Nuovo giocatore» rimetteva destro il Player 1 (nello stesso schermo anche il Player 2) | Destri **Player 1 e Player 2** con «Nuovo giocatore» in ogni strada e con il **chiosco** che torna al menu per inattività; pronto per il «Prossimo giocatore» della fiera (`resetHands(ui, 'fiera')`, il pulsante arriva con la B41 seconda parte). **Non** al riavvio del programma: lì resta la mano salvata |
 | 4a · segno dell'accelerazione cambiato | Il segno imparato dagli scambi di prova restava | Il telefono rimanda «dev» con il segno nuovo (`as`): il gioco rimette a **+1** il segno imparato da quel telefono e riparte da capo con i riferimenti che dipendono dal verso (mira, salita, piatto), come già per il segno del rilevatore |
-| 4b · tocchi che votano il segno | Ogni tocco sullo schermo votava, anche al servizio, nello scambio e negli scambi di prova | Votano **solo** nelle pagine in cui il telefono si tiene davanti per leggerlo: «Attiva i sensori», tutorial, calibrazione e «Pronto» con il computer al menu (pagine «Collega» e «Pronto per la partita», «Sono pronto»). **Mai** in `serve`, `toss`, `play`, né negli scambi di prova (e nemmeno in pausa e a partita finita) |
+| 4b · tocchi che votano il segno | Ogni tocco sullo schermo votava, anche al servizio, nello scambio e negli scambi di prova | Votano **solo** nelle pagine in cui il telefono si tiene davanti per leggerlo: «Attiva i sensori», tutorial, calibrazione e «Pronto» con il computer al menu (pagine «Collega» e «Pronto per la partita», «Sono pronto»). **Mai** in `serve`, `toss`, `play`, né negli scambi di prova (e nemmeno in pausa e a partita finita; dal B45.1 anche durante la moviola a metà partita, che al telefono ora è `pause` e non più `menu`) |
 | 4c · voto del rilevatore | Arrivava con il colpo (`sg`), senza traccia | Resta com'è, ma il telefono lo dice subito (messaggio nuovo `sgn`) e il gioco lo registra |
 | 5 · registro e diagnostica | Nessuna riga | Una riga «**tel**» per ogni cambio di mano e di segno (sotto), le tabelle nel riassunto del registro e le righe nella diagnostica (`?diag=1`) |
 
@@ -81,7 +83,10 @@ legge dal colpo, come prima) e la pagina nuova con un computer vecchio (che igno
 ### 4 · Segni coerenti (`natpf_phone_racket.js`, `racchetta.js`, `phone-screen.js`, `link.js`)
 - **(a)** `NatpfPhoneRacket._accSignSeen(as)` dal messaggio «dev»: con un segno diverso da quello di prima
   `learner.reset()` (+1), `aimModel`, `riseModel`, `faceModel` da capo, evento con causa `'tocchi'` (stesso collegamento)
-  o `'pagina'` (collegamento nuovo: pagina ricaricata o altro telefono). Il primo «dev» non è un cambio.
+  o `'pagina'` (collegamento nuovo dello stesso telefono: pagina ricaricata). Dal B45.1 un **telefono diverso** (abbinamento
+  nuovo col QR, oppure telefono e browser diversi nel «dev»: tra due visitatori un iPhone dopo un Android è normale) ha la
+  causa `'telefono nuovo'`. Il primo «dev» non è un cambio. Con la pagina vera, poi, il telefono si ricalibra da solo e la
+  fine della calibrazione rimette comunque a +1 il segno imparato: questo punto azzera i riferimenti per verso e lo scrive.
 - **(b)** `tapVotesSign({ screen, phase, trial })` sulla pagina del telefono, prima di `accSign.vote`.
 - **(c)** il rilevatore annuncia il suo voto (`status` `sign`) e la pagina manda `{ t: 'sgn', d: ±1 }`; il computer
   (`_detectorSign`, lo stesso del segno che arriva con il colpo) azzera i riferimenti per verso come prima e registra.
@@ -93,7 +98,10 @@ legge dal colpo, come prima) e la pagina nuova con un computer vecchio (che igno
 ### 5 · Registro dello stand e diagnostica
 - Riga `tel` (tipo già esistente), **solo campi già in `CAMPI`**: il Worker non va ricaricato.
   - cambio di mano: `{ k: 'tel', chi: 'g'|'a', motivo: 'mano', mano: 'left'|'right', causa: 'telefono'|'gioco'|'nuovo giocatore'|'chiosco'|'fiera', ruolo: 'p1'|'p2', inPartita? }`
-  - cambio di segno: `{ k: 'tel', chi, motivo: 'segno', stato: -1|1, causa: 'tocchi'|'pagina'|'rilevatore'|'prova'|'calibrazione', ruolo, inPartita? }`
+  - cambio di segno: `{ k: 'tel', chi, motivo: 'segno', stato: -1|1, causa: 'tocchi'|'pagina'|'telefono nuovo'|'rilevatore'|'prova'|'calibrazione'|'nuovo giocatore'|'chiosco', ruolo, inPartita? }`
+    (B45.1: `'telefono nuovo'`; il segno imparato che torna a +1 con scambi di prova nuovi (`'prova'`), «Nuovo giocatore» o
+    il chiosco ora si scrive anche lui; `inPartita` solo con la partita davvero in corso: le righe del chiosco e di «Nuovo
+    giocatore», che chiudono la partita, non lo hanno)
     (`stato` è il segno nuovo: dell'accelerazione per `tocchi`/`pagina`, del rilevatore per `rilevatore`, imparato per
     `prova`/`calibrazione`)
 - **Riassunto** (`scripts/registro/riassunto.mjs`): sezione «Collegamento del telefono» con le tabelle «Mano cambiata»
@@ -103,7 +111,9 @@ legge dal colpo, come prima) e la pagina nuova con un computer vecchio (che igno
   nel visore; nel riassunto in parole «Mano cambiata: …» e «Segno del verso del telefono cambiato: …».
 
 **Come leggerlo se ricapita**: una riga `motivo: 'mano', mano: 'left', causa: 'telefono'` prima della partita = caso MANO;
-`motivo: 'segno', causa: 'tocchi'` (o `'pagina'`) dopo `causa: 'prova'` = caso ACC_DOPO; `causa: 'rilevatore'` = caso
+`motivo: 'segno', causa: 'tocchi'` dopo `causa: 'prova'` = i tocchi hanno girato il segno dei sensori dopo gli scambi di
+prova (caso ACC_DOPO; il telefono si ricalibra e il verso riparte da +1); `causa: 'pagina'` = stesso telefono con la pagina
+ricaricata, `'telefono nuovo'` = un altro telefono (normale tra due visitatori, non un errore); `causa: 'rilevatore'` = caso
 SEGNO; `causa: 'calibrazione'` con `inPartita` = la calibrazione rifatta a metà partita ha tolto la compensazione.
 
 ## Prove
@@ -113,7 +123,8 @@ SEGNO; `causa: 'calibrazione'` con `inPartita` = la calibrazione rifatta a metà
   di prova, registro, diagnostica), `natpf-b46-caso-utente.test.mjs` (5, il caso dell'utente rifatto da `B-stesso-schermo.mjs`
   con la pagina del telefono simulata dalle sue funzioni pure: tocco singolo → mano invariata e partita giusta; doppio
   tocco → mancino con avviso e «Mancino»; chiosco → destri e il visitatore dopo gioca giusto; segno del telefono cambiato
-  dopo gli scambi di prova → in partita il lato resta giusto, e senza il B46 la doppia inversione; tocchi al servizio
+  dopo gli scambi di prova → in partita il lato resta giusto, con la ricalibrazione che fa la pagina vera (revisione del
+  14/11: anche senza il B46 il lato restava giusto, la «doppia inversione» non si produceva); tocchi al servizio
   con il telefono a testa in giù → segno invariato), `registro-riassunto.test.mjs` (+1).
 - **Sito** (`tools/test`): `b46-lato-sicuro.test.mjs` (6: due tocchi, regola dei tocchi che votano con il caso del
   servizio, `sgn` nel collegamento, i pezzi di `racchetta.js`). `tools/e2e/gesture-calibration.mjs` aggiornato ai due tocchi.

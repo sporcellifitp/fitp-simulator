@@ -24,11 +24,12 @@ import { giornoDi } from './registro/registro_formato.js';
 
 export const MOTIVI = Object.freeze(['silenzio', 'rete cambiata', 'telefono: pagina nascosta', 'telefono: pagina chiusa', 'ricollega', 'pagina del gioco ricaricata', 'chiuso', 'telefono: scollegato', 'chiosco']);
 // parole per lo staff (pannello dello stand)
+// (brevi: una riga intera per telefono sotto la nota del chiosco, B45.2; prima nello spazio della riga dei pulsanti in basso)
 export const MOTIVO_TESTO = Object.freeze({
-  silenzio: 'Wi-Fi ferma (10 s senza messaggi)',
-  'rete cambiata': 'il telefono ha cambiato rete',
-  'telefono: pagina nascosta': 'pagina del telefono nascosta',
-  'telefono: pagina chiusa': 'pagina del telefono chiusa',
+  silenzio: 'Wi-Fi ferma 10 s',
+  'rete cambiata': 'rete cambiata',
+  'telefono: pagina nascosta': 'pagina nascosta',
+  'telefono: pagina chiusa': 'pagina chiusa',
   ricollega: '«Ricollega»',
   'pagina del gioco ricaricata': 'gioco ricaricato',
   chiuso: 'collegamento chiuso',
@@ -97,8 +98,8 @@ export function motivoFrequente(m = {}){
   for (const k of MOTIVI) if ((m[k] || 0) > n){ best = k; n = m[k]; }
   return best;
 }
-// riga del pannello dello stand: «Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma (10 s senza messaggi)»;
-// un posto senza cadute non compare, '' se nessuno è caduto
+// riga del pannello dello stand: «Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s», una riga per telefono
+// (a capo tra le due); un posto senza cadute non compare, '' se nessuno è caduto
 export function rigaCadute(stato){
   const parts = [];
   for (const s of SLOTS){
@@ -106,7 +107,7 @@ export function rigaCadute(stato){
     const top = motivoFrequente(x.m);
     parts.push(`Telefono ${s === 'p2' ? 2 : 1}: ${x.n} ${x.n === 1 ? 'caduta' : 'cadute'} oggi${top ? ` · motivo più frequente: ${MOTIVO_TESTO[top]}` : ''}`);
   }
-  return parts.join(' · ');
+  return parts.join('\n');
 }
 // memoria della giornata nel browser (storage sostituibile nelle prove)
 export function leggiCadute(storage = globalThis.localStorage, giorno = giornoDi()){

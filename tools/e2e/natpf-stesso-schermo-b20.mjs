@@ -12,8 +12,8 @@
 //      l'altro: partita nuova senza toccare il computer;
 //   5. «Scambio che si scalda»: spenta dal pannello (prima partita) nessuna scritta; accesa (dalla partita dopo) la scritta
 //      piccola «Scambio caldo · colpo N» dal 20° colpo (B42), sotto i tabelloni;
-//   6. telefono del Player 2 chiuso in partita: riquadro della pausa con il nome e il QR non coperto (si legge e porta
-//      al collegamento giusto), avviso sul telefono dell'altro.
+//   6. telefono del Player 2 chiuso in partita: riquadro della pausa con il nome, «pagina chiusa» (B45.2) e il QR non
+//      coperto (si legge e porta al collegamento giusto), avviso sul telefono dell'altro.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-stesso-schermo-b20.mjs     (OUT=cartella delle schermate)
 // Eventi devicemotion sintetici e due pagine del telefono sulla stessa macchina: non sostituiscono due telefoni veri.
 // B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
@@ -190,13 +190,24 @@ try {
     check(`3. ${w}×${h}: B44 · al servizio l'icona del lancio solo nella metà di chi batte, senza scritte, niente riquadro di testo`, !!L.box && !!R.box && !L.other && !R.other && !L.main && !R.main && !L.coach && !R.coach && L.text === '' && R.text === '' && L.box.r <= half && R.box.l >= half, fmt({ sinistra: L.box, destra: R.box, altre: [L.other, R.other, L.main, R.main], riquadro: [L.coach, R.coach] }));
     check(`   ${w}×${h}: l'icona non copre nessun tabellone, sta nello schermo, alta almeno 28 px`, !!L.box && !!R.box && !covered(L).length && !covered(R).length && L.box.t >= 0 && R.box.t >= 0 && L.box.b <= h && R.box.b <= h && L.box.h >= 28 && R.box.h >= 28, fmt({ sinistra: L.box, destra: R.box, coperti: [...covered(L), ...covered(R)], tabelloni: L.boards.map(b => `${b.t}-${b.b}`) }));
     await shot(`3-icona-${w}x${h}-destra`);
-    // richiamo per nome: chi batte (Giulia) resta ferma oltre 9 s
-    await g.evaluate(() => { __natpfTennis.natpfUi.serveCoach.state.idle = 9.2; });
-    await draw();
-    const called = await until(g, () => document.getElementById('natpf-serve-coach').dataset.call === '1', null, 5000);
+    // richiamo per nome: chi batte (Giulia) resta ferma oltre 9 s.
+    // B45.2 (prova instabile sotto carico): prima si scriveva il tempo fermo e si aspettavano 5 s che il ciclo del gioco lo
+    // vedesse. Con la macchina carica la pagina di un telefono tarda, la partita va in pausa «segnale debole» (B45.1) e il
+    // tempo fermo riparte da zero (serveCoachStep: in pausa niente istruzioni): la scritta arrivava dopo i 5 s, giusta.
+    // Ora si aspetta la partita non in pausa, si dà al riquadro il tempo fermo (al servizio da 9,2 s) e lo si fa girare
+    // una volta, poi si aspetta la scritta; se una pausa la toglie si rifà, al più tre volte (il numero va nel dettaglio).
+    // La misura è la stessa di prima; i 9 s veri del richiamo li provano i test del gioco (natpf-b20-stesso-schermo)
+    let called = false, giri = 0;
+    while (!called && giri < 3){
+      giri++;
+      await until(g, () => !__natpfTennis.natpfPaused && __natpfTennis.phase === 'SERVE_STANCE', null, 20000);
+      await g.evaluate(() => { const c = __natpfTennis.natpfUi.serveCoach; c.state = { ...c.state, phase: 'SERVE_STANCE', idle: 9.2 }; c.tick(1/60); });
+      await draw();
+      called = await until(g, () => document.getElementById('natpf-serve-coach').dataset.call === '1', null, 5000);
+    }
     await sleep(120);
     const C = await rects(g, 'natpf-serve-coach');
-    check(`   ${w}×${h}: richiamo per nome «Giulia, batti tu» a tutta larghezza, sotto i due tabelloni`, called && /^Giulia, batti tu/.test(C.text) && !!C.box && !covered(C).length && C.box.l >= 0 && C.box.r <= w && Math.abs((C.box.l + C.box.r)/2 - half) <= 3, fmt({ box: C.box, testo: C.text, coperti: covered(C) }));
+    check(`   ${w}×${h}: richiamo per nome «Giulia, batti tu» a tutta larghezza, sotto i due tabelloni`, called && /^Giulia, batti tu/.test(C.text) && !!C.box && !covered(C).length && C.box.l >= 0 && C.box.r <= w && Math.abs((C.box.l + C.box.r)/2 - half) <= 3, fmt({ box: C.box, testo: C.text, coperti: covered(C), ...(giri > 1 ? { giri } : {}) }));
     await shot(`3b-richiamo-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
@@ -275,7 +286,10 @@ try {
     return { title: el.querySelector('b').textContent, text: el.querySelector('p').textContent, cap: fig.querySelector('figcaption').textContent, p1qr: !el.querySelector('[data-hold-qr="p1"]').classList.contains('hidden'), free, size: Math.round(b.width), inView: b.top >= 0 && b.bottom <= innerHeight && el.getBoundingClientRect().bottom <= innerHeight,
       decoded: r && r.data, url: __natpfTennis.natpfPhone2.pairingUrl, modal: !document.getElementById('natpf-phone-modal')?.classList.contains('hidden') && !!document.getElementById('natpf-phone-modal'), paused: __natpfTennis.natpfPaused };
   });
-  check('6. telefono di Giulia chiuso in partita: pausa «Telefono di Giulia in pausa» con il suo QR dentro il riquadro', held && hold.title === 'Telefono di Giulia in pausa' && hold.cap === 'Telefono di Giulia: inquadra questo QR' && !hold.p1qr && hold.paused, fmt({ title: hold.title, cap: hold.cap, text: hold.text }));
+  // B45.2 (revisione del B45.1, punto 3): la pagina chiusa lo dice al gioco prima di chiudere (parola «cl» 'pagina'): il
+  // riquadro non dice più «in pausa» (B20) né «scollegato · si ricollega da solo» (B45.1, non vero: una pagina chiusa non
+  // torna da sola), ma «pagina chiusa» con il QR
+  check('6. telefono di Giulia chiuso in partita: pausa «Telefono di Giulia: pagina chiusa» (niente «si ricollega da solo») con il suo QR dentro il riquadro', held && hold.title === 'Telefono di Giulia: pagina chiusa' && hold.text === 'Se non torna tra pochi secondi (pagina ricaricata), inquadra di nuovo il QR.' && hold.cap === 'Telefono di Giulia: inquadra questo QR' && !hold.p1qr && hold.paused, fmt({ title: hold.title, cap: hold.cap, text: hold.text }));
   check('   il QR non è coperto (25 punti su 25), sta nello schermo, si legge e porta al collegamento del Player 2', hold.free === 25 && hold.inView && hold.size >= 150 && !!hold.decoded && hold.decoded === hold.url, fmt({ liberi: hold.free, lato: hold.size, letto: hold.decoded === hold.url }));
   // revisione: a partita ferma le istruzioni del servizio non restano sotto il riquadro della pausa
   const coachHidden = await g.evaluate(() => document.getElementById('natpf-serve-coach').classList.contains('hidden'));

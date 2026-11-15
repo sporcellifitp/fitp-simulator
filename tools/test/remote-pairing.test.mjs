@@ -386,27 +386,38 @@ test('chiave sbagliata, risposta riusata: il gioco non fa entrare; le prove valg
   assert.ok(await until(() => wrong.C.state === 'lost' && /non ha dimostrato/.test(wrong.C.why || '')));
   assert.ok(g.link.connected && ph.C.state === 'on', 'il telecomando vero non è toccato');
   // a mano: prova sbagliata → rifiutato
+  // (B45.2, prova instabile sotto carico: le risposte del gioco passano dalla prova della chiave, che è asincrona; prima si
+  // leggevano dopo 30–40 ms fissi e con la macchina carica non c'erano ancora, «got[0] undefined». Ora si aspetta che
+  // arrivino, al più 4 s: messaggi e ordine controllati sono gli stessi di prima)
+  const reply = (x, n) => until(() => x.c.got.length >= n);
   const n1 = newNonce(), a = await raw(fixed, hello({ n: n1 }));
+  assert.ok(await reply(a, 1), 'il gioco risponde');
   assert.equal(a.c.got[0].t, 'proof');
   assert.equal(a.c.got[0].m, await remoteProof(key, 'game', n1, fixed), 'il gioco prova la chiave sul numero del telefono');
-  a.c.send({ t: 'proof', m: 'f'.repeat(64) }); await sleep(40);
+  a.c.send({ t: 'proof', m: 'f'.repeat(64) });
+  assert.ok(await reply(a, 2), 'il gioco risponde alla prova');
   assert.deepEqual(a.c.got[1], { t: 'deny', why: 'unpaired' });
   // la risposta giusta di un collegamento, riusata su un altro: il numero del gioco è diverso, non vale
   const n2 = newNonce(), b = await raw(fixed, hello({ n: n2 }));
+  assert.ok(await reply(b, 1));
   const good = await remoteProof(key, 'phone', b.c.got[0].n, fixed);
   const n3 = newNonce(), c = await raw(fixed, hello({ n: n3 }));
+  assert.ok(await reply(c, 1));
   assert.notEqual(c.c.got[0].n, b.c.got[0].n, 'un numero nuovo per ogni collegamento');
-  c.c.send({ t: 'proof', m: good }); await sleep(40);
+  c.c.send({ t: 'proof', m: good });
+  assert.ok(await reply(c, 2));
   assert.deepEqual(c.c.got[1], { t: 'deny', why: 'unpaired' });
   // la prova del gioco rimandata al gioco come prova del telefono (riflessione): non vale
   const d = await raw(fixed, hello({ n: n1 }));
-  d.c.send({ t: 'proof', m: d.c.got[0].m }); await sleep(40);
+  assert.ok(await reply(d, 1));
+  d.c.send({ t: 'proof', m: d.c.got[0].m });
+  assert.ok(await reply(d, 2));
   assert.deepEqual(d.c.got[1], { t: 'deny', why: 'unpaired' });
-  // comandi prima della prova: ignorati
+  // comandi prima della prova: ignorati (il gioco chiude subito il collegamento; si aspetta la chiusura, poi si guarda)
   const e = await raw(fixed, { t: 'cmd', c: 'menu', n: 1 });
+  assert.ok(await until(() => !e.c.open), 'il gioco chiude il collegamento');
   assert.equal(g.cmds.length, 0);
   assert.ok(g.link.connected && ph.C.state === 'on');
-  void e;
   g.link.stop(); ph.C.stop(); wrong.C.stop();
 });
 

@@ -1013,7 +1013,7 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - **Indirizzo ancora occupato** dopo un riavvio (`unavailable-id`/`id-unavailable`): si riprova ogni `STAND.idRetryMs`
   (3 s) finché il server lo libera, come `remote-link.js`.
 - **Pagina del telefono dello stand**: riprova senza fine (1–6 s) e subito su `online`, `pageshow` e ritorno in primo
-  piano; la racchetta normale resta a 10 tentativi. Il pezzo di `racchetta.js` tra `async function connect(){` e
+  piano; la racchetta normale resta a 10 tentativi (dal B45.1 solo via internet: in LAN anche lei senza fine). Il pezzo di `racchetta.js` tra `async function connect(){` e
   `// messaggi che valgono solo se arrivano subito` gira nella sandbox dei test (`phone-reconnect`, `stand-phone`):
   lì dentro solo variabili che la sandbox ha, gli aiuti dello stand vanno **dopo** quel commento.
 - **Telefono dello stand = tutorial visto** (`tutorialSeen` vero); il chiosco non lo scollega e non lo conta come
@@ -1029,7 +1029,7 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
 - **In fiera contro la CPU batte sempre il visitatore** (decisione del 13/11): regola pura `fairServer` in
   `natpf_fiera.js`, da collegare alla pagina della fiera (B41.5).
 - **Prove nel browser**: un fotogramma intero ridisegnato (`__render`) a 1920 × 1080 nel Chromium senza scheda video ferma
-  la pagina per secondi; oltre 5 s i telefoni cadono (controllo di vita di `link.js`), come deve. Nelle prove dei tocchi
+  la pagina per secondi; oltre 10 s (dal B45.1; prima 5) i telefoni cadono (controllo di vita di `link.js`), come deve. Nelle prove dei tocchi
   e dei conti alla rovescia niente `__render` (`tools/e2e/natpf-fiera-telefoni.mjs`).
 
 ## B36.0 · Misure della direzione dei colpi (13–14/11/2026; documento `docs/b36/misure-b36-0.md`)
@@ -1071,8 +1071,10 @@ come telecomando, «installato una volta per tutte», che copra tutti i casi. De
   «Giocando», dal primo colpo). Indagine con prove ripetibili (`scratchpad/swap/split-ruoli-mano/`): il percorso dello
   stesso schermo è giusto (uguale dalla 12.5 alla 14.1); la segnalazione esatta viene fuori con la **mano del Player 1
   salvata «sinistra»** (basta un tocco su «Sinistra» nella pagina «Attiva i sensori» del telefono; resta dopo un riavvio;
-  negli scambi di prova non si nota) oppure con il **segno del telefono cambiato dopo gli scambi di prova** (doppia
-  inversione). L'utente non ha potuto dire quale: la B46 li chiude tutti e tre e li scrive nel registro.
+  negli scambi di prova non si nota) oppure con il **segno del telefono cambiato dopo gli scambi di prova** (correzione
+  della revisione: con la pagina vera il danno era un'inversione singola dei tocchi fatti con il telefono storto, la
+  «doppia inversione» non si produceva). L'utente non ha potuto dire quale: la B46 chiude la mano e i tocchi, rende
+  visibile il voto del rilevatore (non lo chiude) e li scrive nel registro.
 - **Fiera (in coda con la B41 seconda parte, `docs/coda/B41-parte-2-richieste-14-11.md`)**: livelli scelti dopo
   «Rivincita»; battuta a un solo giocatore per tutta la partita (contro la CPU il visitatore; nello stesso schermo chi
   batte il primo game, decisione del coordinatore); conto alla rovescia grande «Preparati, la partita sta per
@@ -1191,12 +1193,12 @@ Tre casi danno quelle scritte esatte (indagine `scratchpad/swap/split-ruoli-mano
   `sg`), azzera i riferimenti per verso e si registra; **non** tocca il segno imparato (lo corregge, non lo raddoppia).
   Punto aperto: +1 o girato quando il telefono passa da giusto a sbagliato tra scambi di prova e partita (documento).
 - **Registro dello stand**: riga `tel` con `motivo: 'mano'` (mano, causa, ruolo) o `motivo: 'segno'` (stato = segno
-  nuovo, causa 'tocchi' | 'pagina' | 'rilevatore' | 'prova' | 'calibrazione', ruolo), solo campi già in CAMPI (il Worker
+  nuovo, causa 'tocchi' | 'pagina' | 'telefono nuovo' | 'rilevatore' | 'prova' | 'calibrazione' | 'nuovo giocatore' |
+  'chiosco', ruolo; dal B45.1 `inPartita` solo con la partita davvero in corso), solo campi già in CAMPI (il Worker
   non va ricaricato); nel riassunto le tabelle «Mano cambiata» e «Segno del verso del telefono cambiato». Diagnostica:
   `tel.mano`, `tel.verso` (e `tel2.*`), righe nel riassunto in parole.
 - **Prove**: `natpf-b46-lato-sicuro`, `natpf-b46-caso-utente` (il caso dell'utente con la pagina del telefono simulata dalle
   sue funzioni pure), `tools/test/b46-lato-sicuro`, nel browser `natpf-mano-sicura` (anche `AREA=720`).
-
 
 ## B47 · Fiera subito: battuta a un solo giocatore, conto alla rovescia grande, livello dopo «Rivincita» (14/11/2026; documento `docs/b47/fiera-subito.md`)
 
@@ -1239,3 +1241,73 @@ Richieste dell'utente del 14/11 (`docs/coda/B41-parte-2-richieste-14-11.md`) con
   stesso schermo con un telefono non pronto: si va per «Altre impostazioni». Sfida tra due computer: rivincita immediata.
   Tastiera in `natpf_lobby._key` (prima della pausa: Esc è «‹ Indietro»), telecomando con lo strato `rematch` di
   `natpf_remote_map.js` (focus, OK, Indietro = `cancel`, «Gioca!» = `play`, «Chi gioca» = livello).
+
+## B45.1 · Telefono che non si scollega (14/11/2026 sera; documento `docs/b45/b45-1-collegamento.md`)
+Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi in `docs/b45/telefono-che-si-scollega.md`.
+- **Il chiosco non scollega mai i telefoni** (col QR o dello stand): azzera chi gioca come «Nuovo giocatore»
+  (`resetPlayer({ gate: false, causa: 'chiosco' })`). Attività per il chiosco anche dal telefono: gesti, tocchi, sensori
+  attivati, telefono preso in mano (`NatpfPhoneRacket.onActivity`, `link.L.movedAt` oltre `link-life.MOVE.dps`). Chi
+  aggiunge un'interazione dal telefono la passa da `_activity()`.
+- **Regole del collegamento in `site/js/tennis/link-life.js`** (funzioni pure, una sola fonte per computer e telefono):
+  `LIFE` (controllo di vita **10 s** di silenzio vero, controllo in ritardo oltre 2,5 s che non giudica), `retryPlan`
+  (attese 1–6 s, **senza fine in LAN** e per lo stand, 10 via internet), `kickNow` (subito su `online` e cambio del **tipo**
+  di rete, solo in `lost`: mai a tentativo in corso), racconto della caduta (`createDropStory`/`readStory`, campo `cd` del
+  `dev`), parola breve prima di chiudere (`cl`), motivo di una chiusura (`closeMotivo`). Non tornare ai 5 s.
+- **Sandbox dei test della pagina del telefono** (`phone-reconnect`, `stand-phone`, `phone-link-net`, `b45-collegamento`):
+  il pezzo di `racchetta.js` da `async function connect(){` a `// messaggi che valgono solo se arrivano subito` usa anche
+  `retryPlan`, `lostText` e `story` (racconto della caduta): chi lo cambia aggiunge alla sandbox quello che usa.
+- **Ogni messaggio vale come segno di vita** sui due lati: sul computer anche sensori e percorso veloce, dove il computer
+  manda il battito `hb` (il telefono lo conta). Le pagine di prima ignorano `hb`, `cl` e `cd`.
+- **«Ricollega» automatico solo se il telefono risponde** (`phoneHealth.answers`: segnale recente e sensori che vanno).
+  Motivo di pausa **«segnale debole»** quando i dati non arrivano ma il telefono non dice sensori fermi (tace, o risponde
+  lento): testi calmi («Telefono 1: segnale debole, aspetto che torni…», poi «Telefono 1 scollegato · si ricollega da
+  solo» con il tempo: `holdHead`, `phoneHoldView`); «sensori fermi» solo per i sensori fermi sul telefono. Il pannello del
+  telefono con il QR si apre da solo solo dopo `PANEL_AFTER_MS` (20 s) da scollegato.
+- **Motivo di ogni caduta** (`natpf_cadute.js`): evento `drop` di `link.js`, motivo finale con il racconto del telefono,
+  righe `tel` del registro con `motivo`, `causa`, `ms`, `dove` (e al ritorno `prove`, `fallite`, `tipo`), riassunto, riga del
+  pannello dello stand (dalla B45.2 una riga sua sotto la nota del chiosco, vedi sotto). Solo campi già in `CAMPI`: il
+  Worker non va ricaricato.
+- **Stesso schermo**: `NatpfSplitUi._drive` non fa niente al menu e nella classifica (con i telefoni collegati la
+  calibrazione nuova ridisegnava la pagina «Collega» e riapriva il tutorial al menu).
+- **Prove Electron su Linux (`prova-linux`), Alt in finestra**: sotto Xvfb, con i tasti mandati da `sendInputEvent`, dopo
+  una barra del menu chiusa con Alt il fuoco resta alla barra nascosta e gli Alt dopo non la riaprono; ridare il fuoco
+  alla pagina dal programma (`webContents.focus()`) con la barra aperta la chiude. La prova aspetta la fine dell'intro (che
+  alla fine del trailer sposta il fuoco su «Premi un tasto»), dà il fuoco alla pagina solo per aprire la barra e non lo
+  tocca per chiuderla; con la macchina molto carica un Alt mandato così a volte si perde (la barra resta aperta e nella
+  pagina non cambia niente): per chiuderla la prova riprova una volta e lo scrive nel dettaglio («riprovato»). Il gioco non
+  blocca Alt (niente `preventDefault`) e un `focus()` di un elemento dentro la pagina (come quello dell'intro) con la barra
+  aperta non la chiude.
+- **Prova nel browser**: `tools/e2e/natpf-phone-blackout.mjs` parte D (partita contro la CPU, rete che trattiene e consegna
+  i messaggi: bui di 3, 7 e 12 s) e la verifica dei motivi nel registro e nel pannello.
+
+## B45.2 · Rifiniture del collegamento dopo la revisione (14/11/2026 sera; `docs/b45/b45-1-collegamento.md`, sezione «B45.2»)
+- **Chiudere di proposito non è una caduta**: in `link.js` chi chiude il collegamento dal computer (`forget`, `stop`, il
+  ramo dello stand, il controllo di vita) toglie `conn` **prima** di `close()`: PeerJS e `LanConnection` emettono «close»
+  subito, e il gestore della chiusura conterebbe una caduta. La racchetta ascolta i «drop» solo del suo collegamento
+  (`this.link === link`: `useStand` ne cambia uno con un altro).
+- **Racconto del telefono e caduta del computer si abbinano per collegamento, non per tempo**: il racconto arriva nel primo
+  «dev» dell'ingresso nuovo e parla del collegamento di prima (`drop.link === this.link && drop.joins === joins − 1`); una
+  caduta nuova solo se il computer non ne ha già una di quel telefono dall'ultimo collegamento. Niente più finestre di 20 s
+  (`STORY_MATCH_MS` tolto). Il controllo di vita del computer con l'ultimo «st» a pagina nascosta dà «telefono: pagina
+  nascosta» (`link-life.silenceMotivo`), non «silenzio».
+- **Pagina del telefono che si chiude** (`pagehide`): `racchetta.pageGoing()` manda «cl pagina» e chiama `lost('pagina')`
+  prima di chiudere; chiudere prima faceva passare la chiusura da `lost()` senza motivo e il racconto diventava «chiuso».
+  `relinkAt` si azzera a ogni collegamento nuovo (`enter()`).
+- **Motivi da cui il telefono non torna da solo** (`natpf_phone_watch.GONE_HOLDS`: «telefono: pagina chiusa», «telefono:
+  scollegato»): titolo e testo da `goneHold` (mai «si ricollega da solo»), QR subito (`NatpfPhoneRacket.dropMotivo`, che vale
+  solo finché il telefono non rientra e solo per la caduta vista da questo computer). Anche l'avviso di «Ricollega il
+  telefono» (`relinkAction`) lo dice.
+- **Pannello dello stand**: la riga delle cadute ha un posto suo sotto la nota del chiosco, una riga intera per telefono
+  (due colonne nelle aree larghe e basse), carattere con un massimo; quando c'è, le file dei pulsanti si stringono un poco
+  dove l'altezza è poca (regole `:has(.staff-cadute:not(.hidden))` in `natpf-ui.css`): senza cadute il foglio è quello di
+  prima. La nota del chiosco deve stare su una riga a 1024 × 600 (≤ ~129 caratteri: con due righe il foglio scorre con le
+  opzioni accese). Prova: `tools/e2e/natpf-pannello-cadute.mjs` (web e programma, uno e due telefoni, sei misure).
+- **Il body non scorre mai** (`overflow: clip`, anche `html.natpf-area body`): con `hidden` il body era un riquadro che
+  scorre e un campo che prende il fuoco in fondo all'area lo faceva scorrere; nell'area del ledwall il body è il riferimento
+  degli elementi `fixed` (transform), che salivano con lui. Le pagine lunghe scorrono nei loro riquadri.
+- **`prova-linux`**: i controlli che hanno dovuto riprovare (dettaglio `riprovato`) si contano e vanno nel riepilogo
+  («controlli riprovati: N»).
+- **Prove sotto carico**: aspettare la condizione, mai un tempo fisso; dove si misura un costo, misure appaiate nello stesso
+  giro e mediana delle differenze (`natpf-chi-serve`); `remote-pairing` aspetta le risposte del gioco (la prova della chiave
+  è asincrona).
+

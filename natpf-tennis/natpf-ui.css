@@ -1467,8 +1467,14 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
    finestra e non cambia niente.
    ===================================================================================================================== */
 body { container: natpf / size; }
+/* B45.2 (prova natpf-mano-sicura con AREA=720, 16/17 già sulla 14.3): il body non scorre mai. Con «overflow: hidden» un
+   campo che prende il fuoco in fondo all'area (il nome nella pagina dei telefoni) faceva scorrere il body di 45 px: tutto
+   il gioco saliva (testata tagliata in alto, una fascia vuota in basso) e gli avvisi «fixed», che qui hanno il body come
+   riferimento, con lui (l'avviso della mano a y 256 invece che al centro). «clip» taglia allo stesso modo ma non è un
+   riquadro che scorre, né con il fuoco né da codice: le pagine lunghe scorrono nei loro riquadri, come prima */
+body { overflow: clip; }
 html.natpf-area { background: #000; }
-html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y); width: var(--area-w); height: var(--area-h); margin: 0; overflow: hidden; transform: translateZ(0); }
+html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y); width: var(--area-w); height: var(--area-h); margin: 0; overflow: clip; transform: translateZ(0); }
 #title-modal #screen-note code { font: 600 0.92em/1 ui-monospace, monospace; color: var(--text); }
 
 /* Schermo intero senza cornici (natpf_screen.js, B8): pulsante in alto accanto a «Come si gioca» e riga «Schermo» in
@@ -2028,9 +2034,35 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
    Una riga sola e bassa (il foglio deve restare nello schermo a 1024 × 600: prova natpf-menu); su aree strette va a capo.
    Misure legate all'area del gioco (cqh con un minimo e un massimo): a 720 px di altezza come prima (14 e 13 px), su un
    ledwall grande crescono con il resto del pannello (revisione: erano px fissi) */
-/* B45.1: riga delle cadute dei telefoni di oggi, sotto la nota del chiosco (piccola, una riga) */
-.natpf-sheet.staff-sheet .staff-cadute { margin: -4px 0 8px; font-size: 0.86em; color: var(--ball); }
+/* B45.1: cadute dei telefoni di oggi (natpf_cadute.js), solo se ce ne sono state. B45.2 (revisione del B45.1, punto 6):
+   una riga sua sotto la nota del chiosco, una riga intera per telefono, mai tagliata. Prima stava nello spazio libero
+   della riga dei pulsanti in basso, al più tre righe: con due telefoni, con «Schermo del gioco» del programma Windows, a
+   1920 × 1080 (carattere che cresceva con l'altezza in un foglio largo al più 1000 px) e a 720 × 720 il motivo del
+   Telefono 2 non si leggeva. Carattere legato all'altezza con un massimo, come il foglio */
+.natpf-sheet.staff-sheet .staff-cadute { margin: 0 0 16px; font: 600 clamp(11px, 1.7cqh, 15px)/1.3 var(--font-text); color: var(--ball); white-space: pre-line; }
 .natpf-sheet.staff-sheet .staff-cadute.hidden { display: none; }
+/* … e il foglio non deve scorrere: con la riga in vista la nota le sta attaccata e, dove l'altezza è poca, le file dei
+   pulsanti si stringono un poco (misurato con due telefoni, «Schermo del gioco», il chiosco e le opzioni accese a
+   1024 × 600, 1280 × 720, 1366 × 657, 1920 × 540 e 720 × 720: sonda della B45.2). Senza cadute non cambia niente */
+.natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .sheet-desc { margin-bottom: 2px; }
+@container natpf (max-height: 760px) {
+  .natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .pause-grid button { min-height: 58px; padding-block: 9px; }
+}
+@container natpf (min-width: 821px) and (max-height: 680px) {
+  .natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .pause-grid { gap: 4px; }
+  .natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .pause-grid button { min-height: 48px; padding-block: 5px; gap: 2px; }
+  .natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .staff-cadute { margin-bottom: 6px; }
+}
+/* (aree larghe e basse, 1920 × 540: il foglio è largo 1500 px e le file sono tre; i due telefoni stanno su due colonne, una
+   riga sola; orphans e widows a 1, se no due righe non si dividono tra le colonne) */
+@container natpf (min-width: 1300px) and (max-height: 640px) {
+  .natpf-sheet.staff-sheet .staff-cadute { columns: 2; column-gap: 32px; orphans: 1; widows: 1; }
+}
+@container natpf (max-width: 820px) and (max-height: 760px) {
+  .natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .pause-grid { gap: 4px; }
+  .natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .pause-grid button { min-height: 50px; padding-block: 6px; }
+  .natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .staff-cadute { margin-bottom: 4px; }
+}
 .natpf-sheet.staff-sheet .staff-registro { display: flex; align-items: center; gap: max(8px, 1.1cqh); margin: -6px 0 0; padding: max(6px, 0.8cqh) max(8px, 1.1cqh); border: 1px solid color-mix(in srgb, var(--text) 16%, transparent); border-radius: max(12px, 1.6cqh); }
 .natpf-sheet.staff-sheet .staff-registro.hidden { display: none; }
 .natpf-sheet.staff-sheet .staff-registro button { flex: none; min-height: 0; padding: max(6px, 0.8cqh) max(12px, 1.7cqh); font-size: clamp(13px, 1.95cqh, 30px); line-height: 1.15; white-space: nowrap; }

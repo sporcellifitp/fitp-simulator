@@ -21,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
-import { launch, page, check, summary, finishLesson } from './th.mjs';
+import { launch, page, check, summary, finishLesson, SP } from './th.mjs';
 import { GESTI, phoneReadyNoGestures } from './prova.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
@@ -156,6 +156,8 @@ try {
     setInterval(() => { const h = document.getElementById('natpf-phone-hold'); window.__mon.push({ t: Math.round(performance.now() - (window.__t0 || 0)), st: link.L.state, ph: link.L.phone, paused: !!E.natpfPaused, title: h && !h.classList.contains('hidden') ? h.querySelector('b').textContent : '', text: h && !h.classList.contains('hidden') ? h.querySelector('p').textContent : '', modal: !document.getElementById('natpf-phone-modal').classList.contains('hidden'), seq: E.natpfMatchSeq || 0 }); if (window.__mon.length > 900) window.__mon.shift(); }, 100);
   });
   await phone.evaluate(() => { window.__ph = []; setInterval(() => { window.__ph.push(__racchetta.state.linkState); if (window.__ph.length > 900) window.__ph.shift(); }, 100); });
+  // (fase B: righe «tel» del registro dello stand scritte da qui in poi, per il motivo della caduta)
+  await game.evaluate(() => { const rec = __natpfTennis.natpfUi.registro?.rec; window.__tel = []; if (!rec) return; const o = rec._scrivi.bind(rec); rec._scrivi = raw => { const n = rec.buf.length; o(raw); if (rec.buf.length > n){ try { const r = JSON.parse(rec.buf[rec.buf.length - 1]); if (r.k === 'tel') window.__tel.push(r); } catch {} } }; });
   for (const secs of BUI){
     const steady = await game.waitForFunction(f => { const E = __natpfTennis; return E.natpfPhone.ready && E.natpfPhone.connected && !E.natpfPaused && !E.natpfUi.phoneHold && f.includes(E.phase) && !E.natpfUi.lobby.visible; }, FIELD, { timeout: 40000, polling: 100 }).then(() => true, () => false);
     if (!steady){ check(`D · buio di ${secs} s: partita in corso prima del buio`, false, JSON.stringify(await game.evaluate(() => ({ phase: __natpfTennis.phase, paused: __natpfTennis.natpfPaused, ready: __natpfTennis.natpfPhone.ready })))); continue; }
@@ -182,6 +184,16 @@ try {
       const timed = mon.some(m => /Senza segnale da \d+ s/.test(m.text));
       check(`D · buio di ${secs} s in partita: caduta dopo 10 s (non prima), «scollegato · si ricollega da solo» con il tempo, il telefono torna da solo senza QR né calibrazione e la partita riprende (${back} ms dopo)`,
         common && lostAt != null && lostAt >= 9500 && order && timed && ph.seen.includes('lost') && !ph.seen.includes('denied') && ph.linkState === 'on', info);
+      // fase B: perché è caduto. Riga «tel» del registro alla caduta (motivo, chi se n'è accorto, dove) e al ritorno (con il
+      // racconto del telefono), cadute di oggi nella memoria del gioco e riga del pannello dello stand
+      await sleep(1500);
+      const why = await game.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.kiosk.open(); const c = document.getElementById('staff-cadute'), out = { tel: window.__tel.filter(r => r.stato === 'caduto' || r.stato === 'ricollegato'), cadute: JSON.parse(localStorage.getItem('natpf-tennis.cadute') || 'null'), riga: c && !c.classList.contains('hidden') ? c.textContent : null }; return out; });
+      await game.screenshot({ path: `${SP}/blackout-pannello-cadute.png` });
+      await game.evaluate(() => __natpfTennis.natpfUi.kiosk.close());
+      const down = why.tel.find(r => r.stato === 'caduto'), up = why.tel.find(r => r.stato === 'ricollegato');
+      // (le cadute di oggi contano anche quelle delle parti A e B, tutte per silenzio)
+      check('D · fase B: riga «tel» della caduta con motivo «silenzio» (visto prima dal computer o dal telefono), da quanto taceva e dove si era; al ritorno il motivo e i tentativi del telefono; nel pannello «Telefono 1: N cadute oggi · motivo più frequente: Wi-Fi ferma…»',
+        !!down && down.motivo === 'silenzio' && ['computer', 'telefono'].includes(down.causa) && down.dove === 'partita' && Number.isFinite(down.ms) && down.ms >= 9500 && !!up && Number.isFinite(up.dopoS) && !!up.motivo && up.prove >= 1 && why.cadute?.p1?.n >= 1 && why.cadute.p1.m?.silenzio === why.cadute.p1.n && /^Telefono 1: \d+ cadut[ae] oggi · motivo più frequente: Wi-Fi ferma/.test(why.riga || ''), JSON.stringify(why));
     }
   }
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 400));

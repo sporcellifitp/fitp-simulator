@@ -32,7 +32,7 @@ import { NatpfKiosk } from './natpf_kiosk.js';
 import { NatpfRemote } from './natpf_remote.js';
 import { NatpfFiera } from './natpf_fiera.js';
 import { NatpfReadyGo } from './natpf_ready_go.js';
-import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldView, phoneOf, holdTitle, otherPhoneNote, PANEL_AFTER_MS } from './natpf_phone_watch.js';
+import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldView, phoneOf, holdTitle, otherPhoneNote, PANEL_AFTER_MS, GONE_HOLDS, goneHold } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
 import { PHOTOS } from './natpf_media.js';
@@ -660,12 +660,16 @@ export class NatpfUi {
   _refreshPhoneHold(){
     const why = this.phoneHold?.why;
     if (this.phoneWatch.state !== 'paused' || !why) return;
+    let gone = false;
     if (why === 'pagina nascosta' || why === 'scollegato' || why === 'segnale debole'){
-      const v = this._phoneHoldView(why);
+      const v = this._phoneHoldView(why); gone = !!v.gone;
       if (`${v.title}\n${v.text}` !== this.phoneHoldShown) this._paintPhoneHold(why, v);
     }
-    if (why === 'scollegato' && !this.phone.connected && this.phone.state.vis !== false && !this.phoneDropOpened && !this.engine.natpfSplit?.active
-      && this.modal?.classList.contains('hidden') && performance.now() - (this.phoneHold.at ?? 0) >= PANEL_AFTER_MS){ this.phoneDropOpened = true; this.openPhone(); }
+    // B45.2 (revisione del B45.1, punto 3): pagina del telefono chiusa o «Scollega» toccato sul telefono (gone: il computer
+    // lo sa dalla parola «cl»): il telefono non torna da solo, il pannello con il QR si apre subito, anche se prima la pagina
+    // era nascosta. Una pagina solo ricaricata rientra in pochi secondi e il pannello aperto così si chiude da solo
+    if (why === 'scollegato' && !this.phone.connected && (gone || this.phone.state.vis !== false) && !this.phoneDropOpened && !this.engine.natpfSplit?.active
+      && this.modal?.classList.contains('hidden') && (gone || performance.now() - (this.phoneHold.at ?? 0) >= PANEL_AFTER_MS)){ this.phoneDropOpened = true; this.openPhone(); }
   }
   // B45.1: titolo, testo e riga del riquadro della pausa del telefono (natpf_phone_watch.phoneHoldView: «Telefono 1: segnale
   // debole, aspetto che torni…», «Telefono 1 scollegato · si ricollega da solo» con il tempo; nello stesso schermo il nome)
@@ -786,6 +790,9 @@ export class NatpfUi {
     return { label: 'Ricollega il telefono', who, run: () => {
       if (phone?.relink?.()) this.toast(`${who ? who + ': ' : ''}ricollego il telefono…`);
       else if (phone === this.phone && !this.engine.natpfSplit?.active) this.openPhone();
+      // B45.2: pagina del telefono chiusa o «Scollega» toccato sul telefono (stesso schermo: il QR è nel riquadro): non
+      // torna da solo, l'avviso dice quello che dice il riquadro (prima «si ricollega da solo» anche qui)
+      else if (GONE_HOLDS.includes(phone?.dropMotivo)){ const t = goneHold(phone.dropMotivo, { stand: !!phone.standSlot }).text; this.toast(who ? `${who}: ${t[0].toLowerCase()}${t.slice(1)}` : t); }
       else this.toast(`${who ? who + ': ' : ''}telefono scollegato, riapri la pagina del gioco sul telefono (si ricollega da solo)`);
     } };
   }
