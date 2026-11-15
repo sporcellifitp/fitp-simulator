@@ -42,3 +42,6 @@
 2026-11-14.3: Batte sempre lo stesso giocatore (pannello dello stand: «Battuta: Sempre lo stesso · Alternata»).
 2026-11-14.3: Conto alla rovescia grande prima della partita: «Preparati, la partita sta per cominciare».
 2026-11-14.3: Dopo «Rivincita» si sceglie il livello: Bambino, Ragazzo o Adulto.
+2026-11-14.4: Il telefono che cade si spiega meglio: «Scollega» dello staff non conta come caduta; schermo del telefono spento e pagina chiusa detti per nome sul ledwall, con il QR subito quando la pagina è chiusa.
+2026-11-14.4: Pannello dello stand: una riga per telefono con le cadute di oggi e il motivo più frequente, sempre intera; il pannello non scorre più a 1024×600.
+2026-11-14.4: A 720×720 il gioco non si sposta più verso l'alto quando si scrive un nome; l'avviso «mano sinistra» compare al centro.

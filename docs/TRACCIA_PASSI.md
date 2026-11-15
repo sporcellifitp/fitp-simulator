@@ -970,3 +970,45 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
    persone (sblocca B36.1+), il parere sul dritto del B23 (estenderlo o no), le decisioni aperte (Musica e «Chi gioca»
    salvati, «Schermo intero» salvato, chiosco e calibrazione, tasto «indietro» del mouse), il collaudo allo stand.
 
+
+## 15/11, 00:30 UTC · B45.2 e B41.2 finite; 14.4 con la sola B45.2, la B41.2 torna in correzione (B41.3)
+
+- Workflow `ripresa-b45-2-e-b41-2` (run `wf_2e24e751-b16`) finito, 4 agenti su 4.
+  - **B45.2 approvata** dal revisore (nessun difetto del prodotto; note sulla forza di due test: chiosco col collegamento
+    vero poco stringente, guardia `d.end` non coperta; difetto di 720×720 intermittente provato solo dal CSS). Ramo
+    `b45-1-collegamento` a `41583ce`: gioco 1623/1623, sito 269/269, desktop 51/51, LAN 13/13, build, audit:legend
+    uguale, prova-linux 101/101 (riprovati 0), 15 prove nel browser verdi al primo giro (nuova: natpf-pannello-cadute 33/33).
+  - **B41.2 NON approvata**: tre difetti medi (doppio tocco su «Sono pronto» o «Gioca ›» + tocco salta gli scambi di
+    prova; «Scollega» nel foglio dal telecomando con un OK; «Torna al menu» in fiera non azzera il visitatore) e quattro
+    bassi (1920×540 con un telefono non pronto, modalità spenta che non rimette «Con cosa giochi» e «Calibrazione»,
+    «Con i gesti» in fiera, testi). Più il difetto vecchio del B39.3 (riga sotto le voci che cambia altezza).
+- Unita la B45.2 in natpf-simulator (`3d92ce1`, stesso albero di `41583ce`). Versione **2026-11-14.4** = B45.1 fase B +
+  B45.2 (la B41 seconda parte va nella versione dopo, con le correzioni).
+- Avviato il workflow `b41-3-e-b48` (run `wf_bedc7b7e-f41`): **B41.3** (unione della B45.2 nel ramo `b41-fiera-2`, otto
+  correzioni, porte 4250–4299) e **B48** (ramo nuovo `b48-servizio`, worktree `scratchpad/b48/wt`, porte 4300–4349:
+  prima controlla cosa c'è già di difetto 16 e km/h veri dal B18/B34, poi servizio con scelte, servizio della CPU vario,
+  Leggenda al più una smorzata ogni 8 colpi), ciascuno con il suo revisore.
+- Dopo: B40 (quando la B41.3 è unita: tocca anche lei la fine partita), poi B49, B50, revisore finale.
+- **2026-11-14.4 pubblicata** (`4dc7a6d`, spinta 00:37 UTC): controllo rapido gioco 1623/1623, sito 269/269, desktop
+  51/51, LAN 13/13, build ok. Zip Cloudflare `natpf-simulator-cloudflare-2026-11-14.4.zip` 23.909.825 B, sha256
+  `d9efc5387edba64578e79213aaa9bd1efaab2b09a707142474cea23789332d63`, provato estratto (versione servita 14.4, QR dei due
+  telefoni, stesso schermo, pausa), senza `natpf/registro.json`. **Installer verificato dal link fisso**: 128.102.449 B,
+  sha256 `df052b1cef8f09d7e090b1060338821d4ba48bd0d1283eaafb7bab97fe8db004`. Prove nel browser sul checkout principale:
+  natpf-phone-blackout 11/11, natpf-pannello-cadute 33/33, natpf-stesso-schermo-b20 52/52, natpf-menu 45/45 (carico
+  4–9); schermate del pannello guardate (1024×600 e 720×720 con due telefoni: righe delle cadute intere, «Chiudi» in vista).
+- 01:00 UTC · avviate tre analisi senza modifiche al repository (workflow `preparazione-b40-b49-b50`, run `wf_e5a08c57-d8f`,
+  porte 4350–4399): piani pronti per lo sviluppo di B40 (soglie dei 12 trofei dalle partite simulate), B49 (doppio) e B50
+  (prova del ritardo del ledwall e pulizie), in `scratchpad/prep/b40|b49|b50/*-piano.md`. In corso anche
+  `b41-3-e-b48` (`wf_bedc7b7e-f41`).
+
+## 15/11, 07:10 UTC · quarto limite d'uso (01:40–02:50 UTC); ripresa alle 07:10 su richiesta dell'utente («Riprendi»)
+
+- Il limite ha fermato B41.3, B48 e l'analisi del B50. Salvati i commit «IN CORSO … NON verificato»: `80239be` su
+  `b41-fiera-2` (fatti e in commit: unione della B45.2, difetti 1, 2, 3, 5, 6, 8; a metà il 4) e `2750e73` su
+  `b48-servizio` (fatto il passo 1, difetto 16 su tutti i percorsi; scritti ma non verificati i passi 2–4).
+- Rilanciati: `ripresa-b41-3-e-b48` (run `wf_04e347cd-a52`, con i revisori) e `ripresa-analisi-b50` (`wf_435f2003-304`).
+- Analisi finite: piani di **B40** (soglie dei 12 trofei da 8000 partite simulate; card, contatori, esultanza e
+  applauso, ritratti resi una volta) e **B49** (doppio: colpo e posizionamento del singolo, compagno autonomo con l'anello,
+  voce del pannello, pressione contata sullo scambio di chi gioca; prototipo misurato) copiati in
+  `docs/coda/B40-piano-analisi.md` e `docs/coda/B49-piano-analisi.md`. Ordine: B40 dopo l'unione della B41.3; B49 dopo
+  l'unione del B48 (toccano le stesse funzioni del motore); B50 per ultimo.
