@@ -1034,8 +1034,11 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
     `scratchpad/b48/revisione-b48.md`. In correzione: **B48.1** (agente sul ramo `b48-servizio`, porte 4300–4329).
 - Unita la B41.3 (`9e19f75`). **2026-11-14.5** (`26a10ca`, spinta 10:24 UTC): gioco 1660/1660, sito 272/272, desktop
   51/51, LAN 13/13, build ok. Zip `natpf-simulator-cloudflare-2026-11-14.5.zip` 23.920.328 B, sha256
-  `fac39ddcc4a4472b94e8840e9c00c08dcd18dda5f56c0c88d46183c8d772ab7e`, provato estratto. In corso: installer
-  (`scratchpad/v1405/installer.log`) e prove nel browser (`scratchpad/v1405/e2e.log`).
+  `fac39ddcc4a4472b94e8840e9c00c08dcd18dda5f56c0c88d46183c8d772ab7e`, provato estratto. **Installer verificato dal link
+  fisso**: 128.141.130 B, sha256 `7154833e43744756f1dd548a5d875c5534459216ac0bab51caf6fce42c74b490`. Prove nel browser
+  sul checkout principale: natpf-fiera-telefoni 54/54, natpf-pannello-cadute 33/33, natpf-stesso-schermo-b25 55/55,
+  natpf-menu 45/45, natpf-fine-partita 47/47 (carico 4–13); schermate della pagina della fiera e del foglio «Telefoni
+  dello stand» guardate.
 - Avviato il **B40** (agente, ramo `b40-fine-partita`, worktree `scratchpad/b40/wt`, porte 4350–4389) dal piano
   `docs/coda/B40-piano-analisi.md`, con le decisioni sulle proposte dell'analista scritte nel compito.
 - Da qui gli agenti si lanciano con lo strumento Agent (uno per blocco), non più con i workflow.
