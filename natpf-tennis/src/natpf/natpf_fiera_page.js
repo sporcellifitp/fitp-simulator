@@ -40,6 +40,13 @@ export function fairNote({ mode = 'cpu', gate = { ok: true }, trial = true } = {
   const start = mode === 'split' ? '«Sono pronto» su tutti e due i telefoni, oppure «Gioca»' : '«Sono pronto» sul telefono, oppure «Gioca»';
   return `${start}: ${trial ? 'qualche scambio di prova, poi ' : ''}il conto alla rovescia e la partita.`;
 }
+// B41.3: riga del telefono nella scheda di un giocatore dello stesso schermo (funzione pura): lo stato (con la batteria) se il
+// telefono è pronto, altrimenti il perché vero, come per la pagina contro la CPU (prima uno schermo spento diceva ancora
+// «Telefono 2 pronto ✓»). p: come in fairGate, più word (stato in parole)
+export function splitCardState(p = {}){
+  const g = fairGate({ mode: 'cpu', phones: { p1: p } });
+  return g.ok ? { ok: true, text: p.word || '' } : { ok: false, text: g.why };
+}
 // chi gioca adesso, come lo dice la pagina (funzione pura): il nome scritto, «Ospite», o il numero del visitatore
 export function visitorLine({ nickname = '', guest = false, label = '' } = {}){
   const n = String(nickname || '').trim();
@@ -105,12 +112,17 @@ export class NatpfFieraPage {
     // (pronti: lo stato di ciascuno con la batteria, e come si parte; uno non pronto: solo il perché, con il pulsante)
     const need = split ? PLAYERS : ['p1'], trial = !!ui.trial?.due?.({ split });
     // (nello stesso schermo lo stato di ciascun telefono è nella sua scheda: qui solo il perché generale e come si parte)
-    const line = gate.ok ? (split ? '' : phones.p1.word) : split && gate.slot ? `${phones[gate.slot].label} non pronto` : gate.why;
+    // B41.3 (revisione della B41 seconda parte, difetto 4): nello stesso schermo con un telefono non pronto niente riga in
+    // più sotto le schede (a 1920 × 540 faceva scorrere la pagina di 26 px e tagliava «Altre impostazioni» sopra «Gioca ›»):
+    // il perché sta nella scheda di quel giocatore (splitCardState) e «Telefoni dello stand ›» nella riga di «2 giocatori»
+    const splitKo = split && !gate.ok && !!gate.slot;
+    const line = gate.ok ? (split ? '' : phones.p1.word) : splitKo ? '' : gate.why;
     const pt = $('fiera-phones-text'); if (pt && pt.textContent !== line) pt.textContent = line;
     const how = gate.ok ? fairNote({ mode, gate, trial }) : '';
     const ph = $('fiera-phones-how'); if (ph && ph.textContent !== how) ph.textContent = how;
-    const box = $('fiera-phones'); show(box, true); box?.classList?.toggle?.('ko', !gate.ok);
-    show(box?.querySelector?.('[data-fiera-sheet]'), !gate.ok);
+    const box = $('fiera-phones'); show(box, !splitKo); box?.classList?.toggle?.('ko', !gate.ok);
+    show(box?.querySelector?.('[data-fiera-sheet]'), !gate.ok && !split);
+    show(document.querySelector?.('#fiera-bar [data-fiera-sheet]'), splitKo);
     // chi gioca (contro la CPU): il nome scritto o il numero del visitatore; «Nome» per scriverlo
     const ev = ui.events || {}, vis = $('fiera-visitor');
     const vt = split ? '' : visitorLine({ nickname: ev.nickname, guest: ev.guest, label: F?.visitorLabel?.() || '' });
@@ -123,9 +135,9 @@ export class NatpfFieraPage {
       const band = bandOf(E.natpfSplitBands?.[id]), hand = ui.split?.hand?.(id) || 'right';
       for (const b of card.querySelectorAll?.('[data-fiera-band]') || []){ const on = b.dataset.fieraBand === `${id}:${band}`; b.classList.toggle('selected', on); b.setAttribute?.('aria-checked', String(on)); }
       for (const b of card.querySelectorAll?.('[data-fiera-hand]') || []){ const on = b.dataset.fieraHand === `${id}:${hand}`; b.classList.toggle('selected', on); b.setAttribute?.('aria-checked', String(on)); }
-      const st = card.querySelector?.('[data-fiera-state]'), t = phones[id].word;
-      if (st && st.textContent !== t) st.textContent = t;
-      card.classList?.toggle?.('ko', phones[id].state !== 'ready');
+      const st = card.querySelector?.('[data-fiera-state]'), cs = splitCardState(phones[id]);
+      if (st && st.textContent !== cs.text) st.textContent = cs.text;
+      card.classList?.toggle?.('ko', !cs.ok);
     }
     const help = split ? ui.split?.helpNote?.() || '' : '';
     return { gate, note: [fairNote({ mode, gate, trial }), gate.ok ? help : ''].filter(Boolean).join(' '), title: split ? 'Chi gioca? Una fascia per ciascuno' : 'Chi gioca?' };

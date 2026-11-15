@@ -2339,3 +2339,10 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
   .natpf-sheet.staff-sheet .staff-cadute { columns: 2; column-gap: 32px; orphans: 1; widows: 1; }
   .natpf-sheet.staff-sheet .sheet-actions { margin-top: 8px; }
 }
+/* B41.3 (revisione della B41 seconda parte, difetto 4): pagina della fiera nello stesso schermo con un telefono non pronto.
+   La riga «Telefono N non pronto · Telefoni dello stand ›» sotto le schede faceva scorrere .lobby-stage di 26 px a
+   1920 × 540 e «Altre impostazioni» restava tagliata sopra «Gioca ›» (a 1366 × 768 sotto l'avviso della batteria, a 720 × 720
+   4 px). Ora il perché sta nella scheda del giocatore e «Telefoni dello stand ›» nella riga di «2 giocatori» (a destra, dove
+   contro la CPU c'è la mano): nessuna riga in più. Stessa misura dei pulsanti della riga (sonda b413/probe/fierapage.mjs:
+   sette misure, nove stati) */
+#title-modal .fiera-bar .fiera-bar-sheet { min-height: clamp(38px, 5.8cqh, 66px); padding-inline: clamp(14px, 1.8cqw, 30px); font-size: clamp(14px, 2cqh, 24px); }
