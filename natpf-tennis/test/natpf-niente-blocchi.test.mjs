@@ -10,6 +10,8 @@ import { phoneLike } from './trial-world.mjs';
 import { DRILLS, drillsFor, warmupDrills } from '../src/natpf/natpf_training.js';
 
 const nxOf = link => link.sent.filter(m => m.t === 'nx').at(-1);
+// (B41.3: ogni offerta ha il suo numero, id, che il telefono rimanda con il tocco: qui si guarda il resto del messaggio)
+const noId = m => { if (!m) return m; const { id, ...rest } = m; if (m.on === 1) assert.ok(Number.isInteger(id), `offerta con il numero: ${JSON.stringify(m)}`); return rest; };
 // «Avanti ›» toccato sul telefono (link.js: messaggio nx con y 1 → evento «next»)
 const phoneNext = P => { if (P.nextOffer) for (const fn of P.nextListeners) fn(P); };
 
@@ -22,7 +24,7 @@ test('esercizi senza limite di tentativi: prima chi non riusciva restava lì; or
   assert.equal(T.drill.id, 'forehand'); assert.equal(T.nextLabel, 'Avanti ›');
   const nb = T.coach.querySelector('#coach-next');
   assert.ok(!nb.classList.contains('hidden') && nb.textContent === 'Avanti ›', '«Avanti ›» in vista sul computer');
-  assert.deepEqual(nxOf(link), { t: 'nx', on: 1, lb: 'Avanti ›' }, 'offerto al telefono');
+  assert.deepEqual(noId(nxOf(link)), { t: 'nx', on: 1, lb: 'Avanti ›' }, 'offerto al telefono');
   // nessun colpo: le palle passano, l'esercizio resta (com'era)
   w.advance(9000); assert.equal(T.drill.id, 'forehand'); assert.equal(T.progress.done, 0);
   // «Avanti ›» sul computer

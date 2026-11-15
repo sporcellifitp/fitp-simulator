@@ -135,16 +135,31 @@ export const pauseNote = d => (d && d.ph === 'pause' && typeof d.txt === 'string
 export function nextOnMsg(d = {}){
   if (!d || !d.on) return null;
   const label = typeof d.lb === 'string' && d.lb.trim() ? d.lb.slice(0, 24) : 'Avanti ›';
+  // B41.3: numero dell'offerta (computer dalla B41.3), da rimandare con il tocco (nextTap); i computer di prima non lo mandano
+  const id = Number.isInteger(d.id) ? { id: d.id } : {};
   // B41.6: «Sono pronto» sulla pagina «Pronto per la partita» (rd 1): grande, al posto di «Pronto»; me 1 = già toccato
   // (pulsante spento con la spunta), tx = riga sotto («Aspetto Player 2», «Si parte tra poco…»)
-  if (d.rd === 1) return { label, ready: true, me: d.me === 1, note: typeof d.tx === 'string' ? d.tx.slice(0, 80) : '' };
-  return { label };
+  if (d.rd === 1) return { label, ready: true, me: d.me === 1, note: typeof d.tx === 'string' ? d.tx.slice(0, 80) : '', ...id };
+  return { label, ...id };
 }
+// B41.3 (revisione della B41 seconda parte): tocco sul pulsante (funzione pura). Il pulsante è uno solo e passa da
+// un'offerta all'altra («Sono pronto» → «Salta ›» degli scambi di prova): un doppio tocco arrivava alla seconda. Il tocco
+// vale una volta per offerta: → { msg, offer } con il messaggio per il computer (con il numero dell'offerta, se c'è) e
+// l'offerta segnata come toccata (sent: pulsante spento finché non arriva un'offerta nuova), oppure null (niente offerta,
+// già toccata, «Pronto ✓»)
+export function nextTap(offer){
+  if (!offer || offer.me || offer.sent) return null;
+  return { msg: { t: 'nx', y: 1, ...(Number.isInteger(offer.id) ? { id: offer.id } : {}) }, offer: { ...offer, sent: true } };
+}
+// pulsante spento dopo il tocco: se dal computer non arriva niente (un computer di prima, che non rinnova l'offerta dopo
+// il tocco, o un messaggio perso) si riaccende da solo dopo così tanto (ms)
+export const NEXT_REARM_MS = 2500;
 // Cosa dice il telefono con «Sono pronto» offerto (B41.6, funzione pura): scritte dell'anello e del pulsante
 export function readyView(next){
   if (!next?.ready) return null;
   if (next.me) return { ring: 'ready', big: 'Pronto ✓', sub: next.note || 'Si parte tra poco…', label: 'Pronto ✓', disabled: true };
-  return { ring: '', big: 'Partita', sub: 'Quando sei pronto tocca «Sono pronto»: la partita parte da sola.', label: next.label || 'Sono pronto', disabled: false };
+  // (B41.3: appena toccato, spento finché il computer non risponde)
+  return { ring: '', big: 'Partita', sub: 'Quando sei pronto tocca «Sono pronto»: la partita parte da sola.', label: next.label || 'Sono pronto', disabled: !!next.sent };
 }
 
 /* ---------- telefono dello stand (B41.3, modalità fiera) ---------- */

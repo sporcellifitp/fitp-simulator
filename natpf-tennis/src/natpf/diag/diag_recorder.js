@@ -468,6 +468,8 @@ export class DiagRecorder {
     else if (kind === 'dispositivo') this.log(`${who}.dispositivo`, d);
     // B46: mano cambiata (mano, causa, ruolo) e segno del verso cambiato (causa, stato, ruolo): tel.mano, tel.verso
     else if (kind === 'mano' || kind === 'verso') this.log(`${who}.${kind}`, { ...d });
+    // B41.3: tocco sul pulsante del telefono che non vale (offerta vecchia, «Salta ›» appena offerto): tel.tocco
+    else if (kind === 'tocco') this.log(`${who}.tocco`, { ...d });
   }
   _phoneRaw(k){
     this.rawBuf.push({ t: r(this.now() - this.t0, 1), k: r(k.t, 1), q: k.q ?? null, r: k.rot || null, a: k.acc || null, g: k.accG || null, via: k.path || null });

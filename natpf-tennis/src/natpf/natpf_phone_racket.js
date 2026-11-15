@@ -43,6 +43,21 @@ export const RESET_GRACE_MS = 2500;
 // valevano come la stessa: con lo schermo del telefono spento per più di 30 s la stessa caduta si contava due volte.
 // Ora vale il collegamento, non il tempo: _onStory)
 export const STORY_MAX_MS = 10*60*1000;
+// B41.3 (revisione della B41 seconda parte, difetto 1): il pulsante del telefono è uno solo (#next) e passa da un'offerta
+// all'altra in pochi millisecondi («Sono pronto» → «Salta ›» degli scambi di prova). Un doppio tocco su «Sono pronto», o il
+// tocco del visitatore mentre lo staff clicca «Gioca ›», arrivava a «Salta ›» e gli scambi di prova si saltavano. Ogni
+// offerta ha un numero (id) che il telefono rimanda con il tocco (pagine dalla B41.3): un tocco per un'offerta che non c'è
+// più non vale. In più graceMs: per così tanto da quando è offerta non vale nessun tocco, anche dalle pagine del telefono
+// di prima che non mandano il numero («Salta ›» degli scambi di prova appena offerto, natpf_trial.js)
+export const NEXT_TAP = Object.freeze({ graceMs: 1000 });
+// Il tocco vale? (funzione pura) offer: { id, at, graceMs } dell'offerta di adesso (null: nessuna); tapId: numero
+// rimandato dal telefono (null: pagina di prima); now: adesso (ms). → { ok, why }
+export function nextTapVerdict({ offer = null, tapId = null, now = 0 } = {}){
+  if (!offer) return { ok: false, why: 'nessuna offerta' };
+  if (tapId != null && tapId !== offer.id) return { ok: false, why: 'offerta vecchia' };
+  if (now - (offer.at || 0) < (offer.graceMs || 0)) return { ok: false, why: 'troppo presto' };
+  return { ok: true, why: '' };
+}
 
 const NATPF_BASE = '/natpf/';
 // B18 (difetto 10): voto del colpo per il telefono dall'esito del computer (natpf_shot_feedback.shotQuality); senza esito
@@ -475,6 +490,9 @@ export class NatpfPhoneRacket {
     // riscaldamento, scambi di prova) il computer offre al telefono un pulsante per andare avanti senza farlo (messaggio
     // nx: on, lb = scritta); il tocco torna come «next» (onNext). Le pagine del telefono di prima ignorano il messaggio
     this.nextListeners = new Set(); this.nextOffer = null; this.nextSent = '';
+    // B41.3: numero dell'offerta di adesso (nextId; nextSeq il contatore, da un punto a caso: un tocco rimasto da prima di
+    // un ricaricamento del gioco non trova lo stesso numero), quando è nata (nextAt) e per quanto non vale nessun tocco
+    this.nextSeq = 1 + Math.floor(Math.random()*1e6); this.nextId = 0; this.nextAt = 0; this.nextGrace = 0;
     // B41.6: dati in più dell'offerta («Sono pronto»: rd 1, me 1 dopo il tocco, tx riga sotto), null per le altre
     this.nextExtra = null;
     // B41.2: posto dello stand di questo telefono ('p1' Telefono 1, 'p2' Telefono 2) con la modalità fiera, null per la
@@ -646,7 +664,7 @@ export class NatpfPhoneRacket {
     link.on('prep', p => { this._activity(); this._onPrep(p); });
     link.on('hand', e => { this._activity(); this._onPhoneHand(e.hand); });
     link.on('rematch', () => { this._activity(); for (const fn of this.rematchListeners) try { fn(this); } catch (e){ console.error(e); } });
-    link.on('next', () => { this._activity(); if (this.nextOffer) for (const fn of this.nextListeners) try { fn(this); } catch (e){ console.error(e); } });
+    link.on('next', e => this._onNext(e));
     link.on('raw', k => { for (const fn of this.rawListeners) try { fn(k); } catch (e){ console.error(e); } });
     link.on('dropped', d => { for (const fn of this.dropListeners) try { fn(d.reason, { seq: d.seq, path: d.path }); } catch (e){ console.error(e); } });
     link.on('discard', d => this._diag('scartato', d));
@@ -756,14 +774,41 @@ export class NatpfPhoneRacket {
   // extra (B41.6): campi in più del messaggio, per «Sono pronto» { rd: 1, me: 0 | 1, tx }: le pagine del telefono di oggi
   // lo mostrano grande al posto di «Pronto», quelle di prima (B28) come il pulsante «Avanti ›» con la stessa scritta, che
   // funziona lo stesso; quelle ancora prima lo ignorano (resta «Gioca» sul computer)
-  offerNext(label = null, extra = null){ this.nextOffer = label ? String(label).slice(0, 24) : null; this.nextExtra = this.nextOffer && extra ? { ...extra } : null; this._sendNext(); }
+  // B41.3: ogni offerta diversa (scritta o dati) ha un numero nuovo (id nel messaggio: il telefono lo rimanda con il tocco);
+  // la stessa offerta ripetuta (natpf_ready_go la rinnova ogni 100 ms) no. graceMs: per così tanto non vale nessun tocco
+  offerNext(label = null, extra = null, { graceMs = 0 } = {}){
+    const lb = label ? String(label).slice(0, 24) : null, ex = lb && extra ? { ...extra } : null;
+    const same = lb === this.nextOffer && JSON.stringify(ex) === JSON.stringify(this.nextExtra);
+    this.nextOffer = lb; this.nextExtra = ex;
+    if (!same && lb){ this.nextId = ++this.nextSeq; this.nextAt = performance.now(); this.nextGrace = Math.max(0, +graceMs || 0); }
+    if (!lb){ this.nextId = 0; this.nextGrace = 0; }
+    this._sendNext();
+  }
   _sendNext(){
     if (!this.connected){ this.nextSent = ''; return; }
-    const key = `${this.state.joins || 0}:${this.nextOffer || ''}:${this.nextExtra ? JSON.stringify(this.nextExtra) : ''}`;
+    const key = `${this.state.joins || 0}:${this.nextId}:${this.nextOffer || ''}:${this.nextExtra ? JSON.stringify(this.nextExtra) : ''}`;
     if (key === this.nextSent) return;
     this.nextSent = key;
-    this.link.send(this.nextOffer ? { t: 'nx', on: 1, lb: this.nextOffer, ...(this.nextExtra || {}) } : { t: 'nx', on: 0 });
+    this.link.send(this.nextOffer ? { t: 'nx', on: 1, lb: this.nextOffer, ...(this.nextExtra || {}), id: this.nextId } : { t: 'nx', on: 0 });
   }
+  // B41.3: tocco sul pulsante del telefono (link.js: nx y 1, con id dalle pagine della B41.3). Vale solo per l'offerta di
+  // adesso e, se l'offerta lo chiede, non appena offerta (nextTapVerdict). Dopo il tocco il telefono spegne il pulsante
+  // finché non arriva un'offerta nuova: se il tocco arriva troppo presto, o se dopo il tocco l'offerta resta la stessa
+  // («Avanti ›» degli esercizi), la stessa offerta riparte con un numero nuovo e il telefono riaccende il pulsante (il
+  // tempo di graceMs conta sempre da quando è nata). Per un tocco con il numero di un'offerta vecchia no: quella di adesso
+  // è già in viaggio verso il telefono e lo riaccende lei
+  _onNext(e = {}){
+    this._activity();
+    if (!this.nextOffer) return false;
+    const tapId = Number.isInteger(e?.id) ? e.id : null;
+    const v = nextTapVerdict({ offer: { id: this.nextId, at: this.nextAt, graceMs: this.nextGrace }, tapId, now: performance.now() });
+    if (!v.ok){ this._diag('tocco', { valido: false, motivo: v.why, offerta: this.nextOffer, id: tapId }); if (v.why === 'troppo presto') this._renewNext(); return false; }
+    const id = this.nextId;
+    for (const fn of this.nextListeners) try { fn(this); } catch (err){ console.error(err); }
+    if (this.nextOffer && this.nextId === id) this._renewNext();
+    return true;
+  }
+  _renewNext(){ if (!this.nextOffer) return; this.nextId = ++this.nextSeq; this._sendNext(); }
   // avanzamento della modale { i, n, s, m, all, nm } (NatpfTutorial.progress), mandato al telefono finché aspetta
   tutorialProgress(p){ this.tutProgress = p ? { ...p } : null; this._sendTp(); }
   // B28 (12/11): il tutorial si chiude da qualunque scheda. «all» va al telefono sempre a 1: una pagina del telefono di
