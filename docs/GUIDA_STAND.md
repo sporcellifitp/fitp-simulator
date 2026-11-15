@@ -833,6 +833,7 @@ i comandi necessari.
   recenti, tocca l'icona di Chrome e scegli «Fissa». I nomi possono variare con il modello. Il blocco nella pagina e
   «Fissa app» operano su livelli diversi. I comandi Android e la navigazione di Chrome restano sotto il controllo del
   dispositivo. I passaggi di «Fissa app» richiedono una prova sul telefono dello stand.
+- **Con l'app Android dello stand** (8.9) «Fissa app» parte da solo: non serve fissare Chrome a mano.
 
 ### 8.7 Compagno nel doppio contro la CPU
 
@@ -845,6 +846,26 @@ Apri «Diagnostica» dal pannello dello stand, espandi «Ritardo dello schermo»
 Con un telefono pronto, chi lo impugna fa un colpo breve a ogni rimbalzo visibile. Se la palla sparisce, aspetta il
 rimbalzo successivo. Per isolare meglio il ritardo, fai una prova sul monitor del PC, scegli «Questa era sul monitor»,
 quindi ripeti sul ledwall con la stessa persona. «Salva» applica la stima ai due telefoni. Puoi annullare e ripetere.
+
+### 8.9 (B52) App Android dello stand «NATPF Racchetta»
+
+Al posto di Chrome, sui telefoni Android dello stand: la stessa pagina della racchetta in un'app che **si fissa da
+sola** (i visitatori non escono più cambiando schermata), tiene lo schermo acceso e la Wi-Fi sveglia e riapre da sola
+l'ultimo collegamento. Il blocco dei tocchi in partita (8.6) resta.
+
+- **Installare (una volta per telefono).** Copia sul telefono il file `NATPF-Racchetta-<versione>.apk` (da WhatsApp,
+  Drive o dal link fisso quando c'è) e aprilo: Android chiede di permettere l'installazione al programma da cui lo apri
+  (per esempio «File» o «Chrome») → Consenti → Installa. Sul telefono deve esserci già il certificato NATPF del PC (7.4).
+- **Abbinare.** Apri «NATPF Racchetta» → «Inquadra il QR del PC» e inquadra il QR dell'abbinamento sul PC (in fiera:
+  pannello dello stand → «Telefoni dello stand» → «Abbina»). La pagina si apre nell'app e l'app si fissa: se Android
+  chiede «Fissare l'app?» rispondi Sì. Dal giorno dopo basta aprire l'app: riapre da sola il collegamento.
+- **Se non si fissa.** Su alcuni telefoni va prima attivato «Fissa app» nelle impostazioni (passi in 8.6); poi riapri
+  l'app.
+- **Uscire o abbinare di nuovo (staff).** Tre pressioni di fila di «volume giù» portano alla schermata dell'app («Inquadra
+  il QR del PC» o «Riapri l'ultimo collegamento»). Per uscire del tutto: il gesto di Android per togliere «Fissa app»
+  (di solito Indietro e Panoramica tenuti insieme) e, se attivo, il PIN.
+- **Se il PC non risponde** l'app lo scrive in alto e riprova da sola ogni 5 secondi.
+- **Non provata su un telefono vero** (documento `docs/b52/app-android.md`, §4: cosa provare sul primo telefono).
 
 ## 9. Il registro dello stand (Cloudflare)
 

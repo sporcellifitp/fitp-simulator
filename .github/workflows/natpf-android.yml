@@ -1,0 +1,110 @@
+name: NATPF app Android
+
+# App Android dello stand «NATPF Racchetta» (B52, natpf-android/, docs/b52/app-android.md): la pagina del
+# telefono-racchetta in un'app che si fissa da sola. Si costruisce e si prova (test di unità, lint) a ogni modifica.
+# - Sempre: APK come Artifact dell'esecuzione (Actions → «NATPF app Android» → ultima esecuzione → Artifacts).
+# - Firma con la chiave dello stand solo con i segreti NATPF_ANDROID_KEYSTORE_B64 (il file .jks in base64) e
+#   NATPF_ANDROID_KEYSTORE_PASSWORD; senza, l'APK è firmato con una chiave di prova (non si installa sopra quello vero).
+# - Pubblicazione su Cloudflare R2 (android/NATPF-Racchetta-<versione>.apk e la copia con il nome fisso
+#   android/NATPF-Racchetta.apk) solo con la chiave dello stand e i segreti R2 dell'installer Windows.
+on:
+  push:
+    branches:
+      - natpf-simulator
+    paths:
+      - 'natpf-android/**'
+      - '!natpf-android/**/*.md'
+      - '.github/workflows/natpf-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: natpf-android-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+      - name: Chiave dello stand (se c'è)
+        id: key
+        env:
+          KS_B64: ${{ secrets.NATPF_ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.NATPF_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ]; then
+            printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/natpf-stand.jks"
+            echo "NATPF_KEYSTORE=$RUNNER_TEMP/natpf-stand.jks" >> "$GITHUB_ENV"
+            echo "NATPF_KEYSTORE_PASSWORD=$KS_PASS" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=APK di prova::Mancano i segreti NATPF_ANDROID_KEYSTORE_B64 e NATPF_ANDROID_KEYSTORE_PASSWORD (docs/b52/app-android.md): APK firmato con una chiave di prova, non pubblicato."
+          fi
+      - name: Test, lint e APK
+        working-directory: natpf-android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          gradle --no-daemon testReleaseUnitTest lintRelease assembleRelease
+          v=$(grep -oE "appVersion = '[^']+'" app/build.gradle | grep -oE "[0-9][^']*")
+          mkdir -p ../apk-out
+          cp app/build/outputs/apk/release/app-release.apk "../apk-out/NATPF-Racchetta-$v.apk"
+          (cd ../apk-out && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          echo "APP_VERSION=$v" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: natpf-racchetta-apk
+          path: apk-out/
+          retention-days: 30
+      - name: Segreti di Cloudflare R2
+        id: r2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          if [ -n "$R2_ACCESS_KEY_ID" ] && [ -n "$R2_SECRET_ACCESS_KEY" ] && [ -n "$R2_ACCOUNT_ID" ] && [ -n "$R2_BUCKET" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+      # come per l'installer Windows (natpf-windows.yml): API S3 di R2 con aws cli; un APK con la versione già pubblicato
+      # non si riscrive (per una versione nuova si alza appVersion in natpf-android/app/build.gradle)
+      - name: Pubblicazione su Cloudflare R2
+        if: steps.key.outputs.signed == 'true' && steps.r2.outputs.ok == 'true' && github.ref == 'refs/heads/natpf-simulator'
+        working-directory: apk-out
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+        run: |
+          set -euo pipefail
+          raw="$(printf '%s' "$R2_ACCOUNT_ID" | tr -d '[:space:]"'"'"'')"
+          acct="$(printf '%s' "$raw" | tr 'A-F' 'a-f' | grep -oE '[0-9a-f]{32}' | head -n 1 || true)"
+          [ -n "$acct" ] || { echo "::error title=R2_ACCOUNT_ID non valido::il segreto non contiene un Account ID di Cloudflare"; exit 1; }
+          bucket="$(printf '%s' "$R2_BUCKET" | tr -d '[:space:]"'"'"'' | sed -E 's#^s3://##; s#/.*$##')"
+          ep="https://${acct}.r2.cloudflarestorage.com"
+          apk="NATPF-Racchetta-$APP_VERSION.apk"
+          if aws s3api head-object --endpoint-url "$ep" --bucket "$bucket" --key "android/$apk" >/dev/null 2>&1; then
+            echo "::notice title=Già pubblicato::android/$apk c'è già: niente da caricare (alza appVersion per una versione nuova)."
+            exit 0
+          fi
+          aws s3 cp "$apk" "s3://$bucket/android/$apk" --endpoint-url "$ep" --content-type application/vnd.android.package-archive --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "$apk" "s3://$bucket/android/NATPF-Racchetta.apk" --endpoint-url "$ep" --content-type application/vnd.android.package-archive --cache-control "no-cache"
+          echo "Pubblicato: android/$apk e android/NATPF-Racchetta.apk"

@@ -17,14 +17,14 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 15/11/2026, 22:40 UTC (versione 2026-11-14.9, roadmap senza l'utente finita).** Ultima versione
-pubblicata **2026-11-14.9** (`9315b8d`): installer verificato dal link fisso (128.140.546 B, sha256 `fde90cb9…0e0370f4d`),
-zip Cloudflare 23.942.671 B (sha256 `e0c6a17e…6e79fe735`) provato estratto, GitHub verde. Controllo rapido: gioco 1740/1740,
-sito 275/275, desktop 51/51, LAN 13/13, build. Prove nel browser della 14.9 tutte verdi (elenco in fondo a
-`docs/TRACCIA_PASSI.md`). **Prossima azione esatta:** niente da sviluppare senza l'utente. Aspettare: (1) il Worker del
-registro ricaricato e la prova a Precision con 3 persone, che apre il cancello della **B36.1** (`docs/b36/piano-direzionalita.md`
-§3 e §8); (2) le decisioni del passaggio §4.7–§4.8. Il bundle `rami-b40-b48.bundle` è già dentro: non riunirlo. Il resto di
-questa sezione è storia.
+**Checkpoint del 15/11/2026, 23:15 UTC (B52 fatto, B53 da fare).** Gioco: versione **2026-11-14.9** pubblicata e
+verificata (installer, zip, GitHub, prove nel browser). Decisioni dell'utente del 15/11 sera: app Android con «Fissa app»
+automatico (**B52 fatto**: `natpf-android/`, `docs/b52/app-android.md`, APK 1.0.0 firmato consegnato, non provato su un
+telefono vero) e movenze del video del B23 estese agli altri colpi (**B53**). **Prossima azione esatta:** B53, leggendo
+prima `docs/b23/dritto-dal-video.md` e `natpf-tennis/src/natpf/natpf_forehand_video.js`: stesso interruttore, solo
+disegno, impronte delle partite identiche, prove e schermate. Restano dell'utente: Worker del registro e prova a Precision
+(cancello della B36.1), segreti della chiave dell'app su GitHub, collaudo allo stand. Il bundle `rami-b40-b48.bundle` è
+già dentro: non riunirlo. Il resto di questa sezione è storia.
 
 
 - **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- La pagina arriva dal PC dello stand: in https con il certificato NATPF installato sul telefono (autorità
+     «dell'utente», tools/lan/certificato.mjs), oppure da Cloudflare. Le app non si fidano delle autorità dell'utente se
+     non lo dicono qui. http resta permesso per la rete locale (pagina di stato, prove). -->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true">
+    <trust-anchors>
+      <certificates src="system" />
+      <certificates src="user" />
+    </trust-anchors>
+  </base-config>
+</network-security-config>

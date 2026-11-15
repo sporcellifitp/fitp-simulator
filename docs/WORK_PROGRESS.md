@@ -2362,3 +2362,18 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   posto in 30 colpi su 31 ma racchetta nella testa durante l'attesa da 18 a 284 / 172 passi; tolta. Decisione in
   `docs/PROJECT_MEMORY.md`. Prova completa con il controllo nuovo: **136/136**.
 - Non verificato: come sopra (telefoni veri, Windows vero, ledwall, persone vere).
+
+## B52 · App Android dello stand (15/11/2026, 22:50–23:15 UTC)
+
+- [x] File nuovi: `natpf-android/` (settings e build Gradle, `AndroidManifest.xml`, `MainActivity.java`, `RacketLink.java`,
+  risorse, test `RacketLinkTest`), `.github/workflows/natpf-android.yml`, `tools/e2e/natpf-app-android.mjs`,
+  `docs/b52/app-android.md`; guida dello stand 8.9 (e una riga in 8.6), `PROJECT_MEMORY` (B52), `CLAUDE.md` (comandi).
+- Costruzione nel contenitore: Android SDK (piattaforma 34, build-tools 34.0.0) e Gradle 8.14.3 con AGP 8.7.3, Java 21.
+- Verifiche: test di unità 4/4; lint 0 errori, 10 avvisi voluti; APK 1.0.0 firmato con la chiave dello stand (verificato
+  con `apksigner`; package `it.natpf.racchetta`, minSdk 26, targetSdk 34), 294.388 B, sha256
+  `eb2a99eba36145e1ee021117ed00bc0c109dcc5da0ede0241016b82387359189`; nel browser `natpf-app-android` 5/5 (dopo aver
+  corretto un'ipotesi sbagliata della prova: anche senza lo script la pagina chiede l'orientamento, ma alla WebView).
+- Pacchetti del gioco: invariati (resta la 14.9). Consegnati all'utente: APK e, in un file a parte, la chiave di firma con
+  le istruzioni per i due segreti di GitHub.
+- Non verificato: tutto su un telefono vero (installazione, QR, certificato NATPF nella WebView, sensori, «Fissa app»,
+  schermo e Wi-Fi, volume giù). Nessun emulatore nel contenitore (niente virtualizzazione).

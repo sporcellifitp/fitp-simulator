@@ -1511,3 +1511,15 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - **Riga sotto le voci del pannello dello stand**: ad altezza fissa (51 px a 720×720, 32–36 px a 1024×600 e 1366×657, 16 px
   a 1920×540) per non far tremare il pannello (B41.3 difetto 8). Lo «spazio vuoto di 45–50 px» del resto n. 5 della
   revisione B41.3 è questa riga: resta così.
+
+## B52 · App Android dello stand «NATPF Racchetta» (15/11/2026 sera; documento `docs/b52/app-android.md`)
+- Decisione dell'utente: **«Fissa app» automatico** (`startLockTask` senza Device Owner), non il chiosco completo. App
+  sottile in `natpf-android/` (Java, nessuna libreria oltre al lettore di QR `zxing-android-embedded`): WebView con la
+  pagina vera del telefono, niente copia della pagina nell'app. La pagina non sa niente dell'app, salvo lo script
+  iniettato (`ORIENTATION_SHIM`: schermo intero già concesso, orientamento al ponte `NATPFApp.lock`) e lo user agent con
+  `NATPFApp/<versione>`. Il patto è provato da `tools/e2e/natpf-app-android.mjs`, che legge lo script da `MainActivity.java`.
+- QR letto **dentro l'app** (da Android 12 i link della fotocamera vanno sempre al browser); in più «Condividi» e i link.
+- Chiave di firma **mai nel repository**: segreti `NATPF_ANDROID_KEYSTORE_B64` e `NATPF_ANDROID_KEYSTORE_PASSWORD` per il
+  workflow `natpf-android.yml`; senza, APK di prova solo negli Artifacts. Versione dell'app (`appVersion`, `appCode` in
+  `natpf-android/app/build.gradle`) indipendente da quella del gioco.
+- Non provata su un telefono vero (niente emulatore nel contenitore).

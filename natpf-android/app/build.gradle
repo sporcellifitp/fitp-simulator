@@ -1,0 +1,49 @@
+plugins { id 'com.android.application' }
+
+// Versione dell'app (non del gioco): si alza a ogni consegna dell'APK
+def appVersion = '1.0.0'
+def appCode = 1
+
+android {
+  namespace 'it.natpf.racchetta'
+  compileSdk 34
+  defaultConfig {
+    applicationId 'it.natpf.racchetta'
+    minSdk 26          // Android 8: tutti i telefoni dello stand
+    targetSdk 34
+    versionCode appCode
+    versionName appVersion
+  }
+  // Firma: la chiave NON sta nel repository (è pubblico). Con le variabili d'ambiente NATPF_KEYSTORE (percorso del file),
+  // NATPF_KEYSTORE_PASSWORD, NATPF_KEY_ALIAS e NATPF_KEY_PASSWORD si firma con la chiave dello stand, così gli
+  // aggiornamenti si installano sopra la versione di prima; senza, la build di prova usa la chiave di debug
+  signingConfigs {
+    stand {
+      def ks = System.getenv('NATPF_KEYSTORE')
+      if (ks) {
+        storeFile file(ks)
+        storePassword System.getenv('NATPF_KEYSTORE_PASSWORD')
+        keyAlias System.getenv('NATPF_KEY_ALIAS') ?: 'natpf'
+        keyPassword System.getenv('NATPF_KEY_PASSWORD') ?: System.getenv('NATPF_KEYSTORE_PASSWORD')
+      }
+    }
+  }
+  buildTypes {
+    release {
+      minifyEnabled false
+      signingConfig System.getenv('NATPF_KEYSTORE') ? signingConfigs.stand : signingConfigs.debug
+    }
+  }
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+  testOptions { unitTests.returnDefaultValues = true }
+}
+
+dependencies {
+  // lettore di QR con la fotocamera (Apache-2.0): il link del PC si prende dentro l'app (da Android 12 i link della
+  // fotocamera vanno sempre al browser)
+  implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+  testImplementation 'junit:junit:4.13.2'
+}

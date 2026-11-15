@@ -1192,3 +1192,18 @@ cose che aspettano l'utente:
    tasto «indietro» del mouse), collaudo allo stand (telefoni veri, Windows vero, ledwall, rete della fiera, «Fissa app»),
    soglie dei trofei da ritarare con il registro dopo una giornata.
 
+
+## >>> 15/11, 23:15 UTC · DECISIONI DELL'UTENTE E NUOVI BLOCCHI: B52 app Android, B53 movenze del video su tutti i colpi <<<
+
+Risposte dell'utente (domande a scelta, 15/11 sera): **app Android sì** («la gente esce da Chrome cambiando
+schermata»), con **«Fissa app» automatico** (non il chiosco completo); **dritto del B23: estenderlo agli altri colpi**.
+Ordine: B52, poi B53.
+
+- [x] **B52 · app Android dello stand** (`natpf-android/`, `docs/b52/app-android.md`, guida 8.9): WebView con la pagina
+      vera, si fissa da sola, schermo acceso, Wi-Fi a bassa latenza, riapre l'ultimo collegamento, riprova da sola, lettore
+      di QR, Indietro alla pagina, tre «volume giù» per lo staff, orientamento passato all'app. Test di unità 4/4, lint 0
+      errori, APK 1.0.0 firmato con la chiave dello stand (294.388 B, sha256
+      `eb2a99eba36145e1ee021117ed00bc0c109dcc5da0ede0241016b82387359189`), prova nel browser `natpf-app-android` 5/5.
+      Workflow `natpf-android.yml` (APK negli Artifacts; firmato e su R2 quando l'utente aggiunge i due segreti della chiave).
+      La chiave non è nel repository: consegnata all'utente. **Non provata su un telefono vero.**
+- [ ] **B53 · movenze del video su rovescio, servizio, volée, schiacciata** (stesso interruttore del B23): da fare.

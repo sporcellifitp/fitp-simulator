@@ -62,6 +62,8 @@ node --test tools/test/*.test.mjs                     # test del sito e della pa
 (cd natpf-desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci && npm test)   # programma Windows (5); eseguibili: npm run costruisci
 CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-training-flow.mjs   # prove nel browser natpf-*
 node tools/e2e/run-local.mjs <script>.mjs             # prove nel browser del sito (prima: npm ci --prefix tools/e2e)
+# app Android dello stand (B52, docs/b52/app-android.md): Android SDK con la piattaforma 34, Gradle ≥ 8.9, Java ≥ 17
+(cd natpf-android && echo "sdk.dir=$ANDROID_HOME" > local.properties && gradle testReleaseUnitTest lintRelease assembleRelease)
 ```
 
 Il controllo dei tipi (`npm run lint`) non è affidabile come gate (codice JS con JSDoc parziale): usare test e build.
