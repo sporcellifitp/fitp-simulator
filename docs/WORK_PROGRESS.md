@@ -2281,3 +2281,27 @@ alle 07:10 UTC da un agente nuovo con la macchina appena riavviata.
   (lettura della riga sotto le voci con il puntatore sopra una voce), p5 9/9, p6 5/5, p8 6/6, p9 6/6. Schermate guardate.
 - Non verificato: telefoni veri (i doppi tocchi sono clic sintetici sulla pagina vera del telefono in Chromium), Windows vero,
   ledwall, rete vera della fiera, LAN con i telefoni dello stand, telecomando dello staff su un telefono vero.
+
+## Ripresa del 15/11/2026 (16:15 UTC) · verifica della 14.6–14.8 e documenti allineati
+
+Agente Claude Code nel cloud, sessione nuova, su `3149115` (versione 2026-11-14.8). Le versioni 14.6, 14.7 e 14.8 sono
+uscite dopo il passaggio delle 13:15 con commit di `sporcellifitp` senza firma di sessione e senza aggiornare traccia,
+piano e registro: questa voce ne ricostruisce lo stato dal repository (dettaglio in `docs/TRACCIA_PASSI.md`, sezione
+«15/11, 16:15 UTC»).
+
+- [x] Contenuto: 14.6 `d77f21c` (B51, 18 file), 14.7 `8018967` (B48 + B48.1, B40, B49, B50; 76 file, +4401 −183), 14.8
+  `3149115` (pannello compatto e tre prove d'impaginazione; 12 file). Confronto con il bundle `rami-b40-b48.bundle`:
+  B48 27 file su 35 identici, B40 19 su 26 (gli altri fusi a mano o con i documenti lasciati fuori).
+- [x] Difetto della 14.8: `natpf-tennis/test/natpf-b25-stesso-schermo.test.mjs:388` cercava il suggerimento vecchio di
+  «Stesso schermo: campo aperto», accorciato in `natpf-tennis/index.html` dalla 14.8. Corretto il test sulla frase nuova.
+- Verifiche: sulla 14.8 gioco 1733/1734 (4 min 8 s; il solo rosso è quello sopra), sito 275/275, LAN 13/13, desktop 51/51;
+  dopo la correzione il file `natpf-b25-stesso-schermo` 26/26 e la suite del gioco 1734/1734 (3 min 49 s). GitHub: «NATPF motore base MVP» rosso sulla 14.8 per lo
+  stesso test (1732 ok, 1 fallito), «NATPF Simulator tests» ed «eseguibili Windows» verdi su 14.6, 14.7, 14.8.
+- [x] Installer 14.8 scaricato dal link fisso e verificato: 128.153.784 B, sha256
+  `07a0c687bad57b2cdd1d77d96573b2614c3cb43f3540ab280756534129cb8f0f` (uguale a `latest.json`, pubblicato 15:13:56 UTC).
+- Documenti: `docs/TRACCIA_PASSI.md` (intestazione e sezione nuova), Checkpoint di `docs/PIANO_LAVORI.md`, avviso in
+  testa a `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md` e a `docs/PASSAGGIO_CONSEGNE.md`.
+- Pacchetti: commit di soli test e documenti, il contenuto dei pacchetti non cambia (resta la 14.8). Lo zip Cloudflare
+  della 14.8 non risulta fatto: si fa con la versione successiva.
+- Non verificato: chi ha fatto i tre commit e con quali prove nel browser (i messaggi citano solo «servizio nel browser
+  con trasporto simulato 18/18» per la 14.7); telefoni veri, Windows vero, ledwall per tutto il B51 e il B50.

@@ -1,5 +1,14 @@
 # Passaggio di consegne · 15/11/2026, 13:15 UTC
 
+> **SUPERATO IN PARTE (aggiornamento del 15/11/2026, 16:15 UTC).** Dopo questo passaggio sono uscite tre versioni
+> (commit di `sporcellifitp`, senza firma di sessione): **2026-11-14.6** (`d77f21c`, B51 telefono bloccato),
+> **2026-11-14.7** (`8018967`, in un solo commit: B48 + B48.1, B40, B49, B50) e **2026-11-14.8** (`3149115`, pannello
+> dello stand compatto a 720×720 e tre prove di impaginazione in `tools/e2e/`). Il contenuto dei due rami del bundle è
+> già in `natpf-simulator`: **non riunire `rami-b40-b48.bundle`**. Le §0, §1, §3 e §4.1–§4.5 sotto descrivono lo stato
+> delle 13:15 e non valgono più; valgono ancora §4.6 (revisore finale), §4.7 (APK), §4.8 (cose da dire all'utente), §5
+> (procedura) e §7 (regole). Lo stato attuale e cosa resta sono in `docs/TRACCIA_PASSI.md` (sezione in fondo) e nel
+> Checkpoint di `docs/PIANO_LAVORI.md`.
+
 Scritto dall'agente coordinatore (Claude Code) su richiesta dell'utente: «salva tutto il lavoro fatto fin'ora, devo
 passarlo a un altro agente; nei minimi dettagli, soprattutto come farlo e cosa fare secondo te». Questo file è il punto
 d'ingresso: dice **dove si è arrivati**, **cosa c'è di salvato e dove**, **come riprendere ogni blocco** e **cosa farei

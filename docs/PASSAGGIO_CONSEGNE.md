@@ -1,5 +1,6 @@
-> **15/11/2026: il passaggio di consegne attuale è `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md`.** Questo file
-> racconta il lavoro fino all'08/11 e resta come storia.
+> **15/11/2026: il passaggio di consegne attuale è `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md`**, superato in
+> parte dalle versioni 14.6–14.8: lo stato attuale è nella sezione «15/11, 16:15 UTC» in fondo a `docs/TRACCIA_PASSI.md`.
+> Questo file racconta il lavoro fino all'08/11 e resta come storia.
 
 # Passaggio di consegne · NATPF Simulator (aggiornato al 07/11/2026 sera; B16 aggiunto l'08/11/2026 sera)
 

@@ -383,9 +383,10 @@ test('campo aperto e servizio: acceso, il servizio passa ogni due punti (A, B B,
   assert.deepEqual(servers(cpu, wins), Array(7).fill('player'));
   ND.openTuning.altServe = false;
   try { assert.equal(ND.altServe(on, false), false); } finally { delete ND.openTuning.altServe; }
-  // lo dicono l'avviso del pannello e il suggerimento del pulsante
+  // lo dicono l'avviso del pannello e il suggerimento del pulsante (testo accorciato nella 2026-11-14.8 per il pannello a
+  // 720×720: «Con qualunque formato si serve due punti a testa»)
   assert.match(ND.openCourtToast(true), /Il servizio passa ogni due punti, come nel formato in fiera/);
-  assert.match(html, /data-staff="open" title="[^"]*Il servizio passa ogni due punti, come nel formato in fiera, anche con il formato classico/);
+  assert.match(html, /data-staff="open" title="[^"]*Con qualunque formato si serve due punti a testa/);
 });
 
 test('campo aperto: in allungo la finestra del tempo si stringe e l\'allungo costa di più; la palla non raggiunta si tocca solo da vicino', () => {

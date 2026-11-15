@@ -6,12 +6,12 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
-## >>> 15/11/2026, 13:15 UTC · PASSAGGIO DI CONSEGNE A UN ALTRO AGENTE: leggi PRIMA `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md` <<<
+## >>> 15/11/2026, 16:15 UTC · STATO ATTUALE: versione 2026-11-14.8 pubblicata. Leggi la sezione IN FONDO («15/11, 16:15 UTC») <<<
 
-Stato: versione **2026-11-14.5** pubblicata e verificata (modalità fiera). Lavoro a metà salvato nel bundle
-`docs/consegna/2026-11-15/rami-b40-b48.bundle` (B40 fine partita v2, B48+B48.1 servizio e Leggenda). Prossimo lavoro,
-URGENTE e in cima: **B51 «Telefono bloccato»** (compito completo nel passaggio §4.1). Poi: finire e unire B48, B40,
-poi B49, B50 (+ resti B41.3), revisore finale. Le sezioni sotto sono la storia: lo stato attuale è nel passaggio e in fondo.
+Dopo il passaggio di consegne delle 13:15 sono uscite la **14.6** (B51 telefono bloccato), la **14.7** (B48 + B48.1, B40,
+B49, B50 in un solo commit) e la **14.8** (pannello dello stand compatto). Il bundle `rami-b40-b48.bundle` è già
+dentro `natpf-simulator`: **non va riunito**. Del passaggio `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md` valgono
+ancora §4.6–§4.8, §5 e §7. Cosa resta: sezione in fondo a questo file e Checkpoint di `docs/PIANO_LAVORI.md`.
 
 ## >>> RIPRESI IL 13/11/2026 ALLE 16:35 UTC (dopo l'arresto delle 16:00): lo stato attuale è nelle sezioni IN FONDO <<<
 
@@ -1076,3 +1076,54 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
   (`b40-fine-partita` dc64d2e, `b48-servizio` 450256e).
 - Scritto `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md` (stato, versioni, cosa resta di ogni blocco, ordine
   consigliato, procedura di rilascio, comandi, regole) con appunti degli agenti, revisioni, script di rilascio e sonde.
+
+## >>> 15/11, 16:15 UTC · RIPRESA DOPO LE VERSIONI 14.6–14.8 (agente Claude Code nel cloud, sessione nuova) <<<
+
+**Cosa è successo dopo il passaggio delle 13:15** (ricostruito dal repository: i tre commit sono di `sporcellifitp`,
+senza firma di sessione, e non hanno aggiornato traccia e piano):
+
+- [x] **2026-11-14.6** (`d77f21c`, 14:11 UTC) · **B51 telefono bloccato**: `site/js/tennis/phone-touch-lock.js` (stato del
+      blocco, voce di protezione nella cronologia, gesto dello staff: due dita ferme 3 s, poi «Sblocca» per 6 s),
+      `racchetta.js` (schermo scuro con «Telefono N · Gioca!», tocchi fuori dallo strato fermati in cattura, resto della
+      pagina `inert`, schermo intero all'ultimo tocco vero, `let screen` → `viewScreen`: **correzione B50 §1a fatta qui**),
+      sblocco dal PC (pannello e scheda del telefono in fiera), guida §8.6 con «Fissa app». Prove: `tools/test/phone-touch-lock`
+      (3), `natpf-b51-blocco-telefono` (gioco), `tools/e2e/natpf-telefono-bloccato.mjs`. Manifest facoltativo: non fatto.
+- [x] **2026-11-14.7** (`8018967`, 14:58 UTC) · in **un solo commit** da 76 file: **B48 + B48.1** (servizio con scelte,
+      risposta dopo il rimbalzo, servizio della CPU vario, Leggenda), **B40** (contatori, 12 trofei, card, ritratti,
+      esultanze), **B49** (compagno autonomo nel doppio, anello azzurro, voce «Doppio: compagno»), **B50** (prova del
+      ritardo di 20 s nella diagnostica, «Parità»/«Vantaggio» nella pillola, servizio a 720×720, Leggenda per lato). Il
+      codice dei rami del bundle è dentro (27 file su 35 del B48 e 19 su 26 del B40 identici; gli altri fusi a mano):
+      **il bundle non va riunito**. Dichiarato nel commit: gioco 1734/1734, sito 275/275, desktop 51/51, LAN 13/13.
+- [x] **2026-11-14.8** (`3149115`, 15:08 UTC) · pannello dello stand compatto a 720×720 (suggerimenti accorciati), tre
+      prove d'impaginazione portate dalle sonde B41.3 (`tools/e2e/natpf-fiera-layout.mjs`, `natpf-stand-layout.mjs`,
+      `natpf-stand-settle.mjs`: **resto B41.3 n. 2 chiuso**). **Installer 14.8 verificato dal link fisso** (15/11, 16:05
+      UTC): 128.153.784 B, sha256 `07a0c687bad57b2cdd1d77d96573b2614c3cb43f3540ab280756534129cb8f0f`, pubblicato 15:13:56
+      UTC. Zip Cloudflare della 14.8: nessuna traccia che sia stato fatto.
+
+**Verifica di questo agente sulla 14.8 (checkout `3149115`):**
+
+- [x] **Difetto trovato e corretto:** il commit della 14.8 ha accorciato il suggerimento di «Stesso schermo: campo
+      aperto» e `natpf-tennis/test/natpf-b25-stesso-schermo.test.mjs:388` cercava la frase vecchia: **1 test rosso** (anche
+      su GitHub, workflow «NATPF motore base MVP» fallito sulla 14.8; «NATPF Simulator tests» non esegue quel file). Test
+      aggiornato alla frase nuova («Con qualunque formato si serve due punti a testa»): il file passa 26/26, la suite del
+      gioco 1734/1734 (3 min 49 s). Solo test:
+      i pacchetti della 14.8 non cambiano.
+- [x] Sito 275/275, LAN 13/13, desktop 51/51 sulla 14.8.
+- [x] Resti B41.3 n. 1 («o Invio» tolto da documenti e commenti) e n. 3 (`?stand=fiera` con la calibrazione «Con i
+      gesti»: il pannello ora mostra il valore vero, `natpf_kiosk.js:393`) **già chiusi** nel codice.
+
+**Cosa resta (in quest'ordine):**
+
+1. [ ] **Documenti dei blocchi mancanti**: `docs/b48/servizio-e-leggenda.md` e `docs/b40/fine-partita-v2.md` +
+   `b40-trofei-risultati.txt` esistono solo nel bundle (segnaposto `__PROVE_B481__`, `MISURE_RITRATTI`, `PROVE_B40` da
+   riempire); `docs/b49/`, `docs/b50/ritardo-e-pulizie.md`, `docs/b51/telefono-bloccato.md` mai scritti; `WORK_PROGRESS`
+   e `PROJECT_MEMORY` fermi alla 14.5.
+2. [ ] **B50, parti del piano non fatte**: test `tools/test/b50-pulizie.test.mjs` (spia sul blocco dell'orientamento),
+   prova nel browser `tools/e2e/natpf-ritardo-schermo.mjs` (B50-9, ritardi finti 80/160 ms), `docs/NATPF_DIAGNOSTICA.md`
+   (B50-4), test della stima più stretti (B50-6: oggi 3 test contro i 7 gruppi del piano).
+3. [ ] **B49, parti del piano non fatte**: test del motore (`natpf-b49-doppio-motore`), misure del doppio, prova nel
+   browser.
+4. [ ] **B40**: rimisura delle soglie di Asso e Razzo con il B48 dentro (`scripts/audit/b40-trofei.mjs`), prove nel
+   browser del B40.7.
+5. [ ] **Revisore finale della serie B37–B51** (passaggio §4.6), che copre anche la revisione mirata del B48.1 mai fatta.
+6. [ ] Poi versione nuova, zip Cloudflare, installer dal link fisso, riepilogo unico all'utente (passaggio §4.8).
