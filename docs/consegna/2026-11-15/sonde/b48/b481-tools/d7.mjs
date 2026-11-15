@@ -1,0 +1,14 @@
+const ROOT = process.env.ROOT;
+const THREE = await import(`${ROOT}/node_modules/three/build/three.module.js`);
+const { createHeadlessEngine, mulberry32 } = await import(`${ROOT}/scripts/audit/headless-engine.mjs`);
+const NI = await import(`${ROOT}/src/natpf/natpf_impact.js`);
+Math.random = mulberry32(5);
+const e = createHeadlessEngine({ difficulty: 'pro' }); e.startNewMatch({ showStartBanner: false });
+e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = 1;
+e.player.pos.set(.8, 0, 8); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
+e.ball.pos.set(0, 1.2, -11);
+e._launchBallToTarget(e.ball.pos, new THREE.Vector3(.8, 0, 9.5), 2.1, { topspin: 4 });
+const path = NI.predictBall(e.ball), B = path.find(s => s.bounces === 1);
+console.log('apice', Math.max(...path.map(s => s.y)).toFixed(2), 'rimbalzo', B && [B.z.toFixed(2), B.t.toFixed(2)], 'dopo max y', Math.max(...path.filter(s => s.bounces === 1).map(s => s.y)).toFixed(2));
+e._natpfPlanPlayer();
+console.log(JSON.stringify({ kind: e.natpfPlan.kind, contact: e.natpfPlan.contact, t: e.natpfPlan.t }));

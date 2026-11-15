@@ -1,0 +1,12 @@
+casual umano: colpi della CPU nello scambio 5380 (su 5380 con i servizi) · palla corta nella sua corsia 3.1%
+   segue R0.6 22.4% · segue R0.8 31.3% · segue R1 38.8% · fisso R0.4 11.3% · fisso R0.6 18.6% · fisso R0.8 26.8% · fisso R1 34.4% · fisso R1.2 40.3%
+casual amatore: colpi della CPU nello scambio 5354 (su 5354 con i servizi) · palla corta nella sua corsia 3.4%
+   segue R0.6 22.5% · segue R0.8 31.7% · segue R1 39.2% · fisso R0.4 12.3% · fisso R0.6 20.8% · fisso R0.8 28.9% · fisso R1 36.2% · fisso R1.2 41.6%
+evento umano: colpi della CPU nello scambio 5558 (su 5558 con i servizi) · palla corta nella sua corsia 2.7%
+   segue R0.6 26.4% · segue R0.8 33.6% · segue R1 39.6% · fisso R0.4 10.6% · fisso R0.6 17.1% · fisso R0.8 24.9% · fisso R1 32.7% · fisso R1.2 39.7%
+evento amatore: colpi della CPU nello scambio 5651 (su 5651 con i servizi) · palla corta nella sua corsia 3.8%
+   segue R0.6 27.6% · segue R0.8 35.3% · segue R1 40.2% · fisso R0.4 9.5% · fisso R0.6 16.9% · fisso R0.8 25.6% · fisso R1 33.9% · fisso R1.2 40.8%
+pro umano: colpi della CPU nello scambio 5745 (su 5745 con i servizi) · palla corta nella sua corsia 4.8%
+   segue R0.6 26.5% · segue R0.8 36.6% · segue R1 42.3% · fisso R0.4 10% · fisso R0.6 17.7% · fisso R0.8 27.7% · fisso R1 36.1% · fisso R1.2 42.1%
+pro amatore: colpi della CPU nello scambio 5784 (su 5784 con i servizi) · palla corta nella sua corsia 4.8%
+   segue R0.6 27.5% · segue R0.8 37.2% · segue R1 42.8% · fisso R0.4 10.1% · fisso R0.6 18.6% · fisso R0.8 28.2% · fisso R1 37.1% · fisso R1.2 43.2%

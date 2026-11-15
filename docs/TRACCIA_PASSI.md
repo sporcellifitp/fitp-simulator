@@ -6,6 +6,13 @@ Repository: `sporcellifitp/fitp-simulator`, branch `natpf-simulator`.
 
 Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) · `[ ]` da fare.
 
+## >>> 15/11/2026, 13:15 UTC · PASSAGGIO DI CONSEGNE A UN ALTRO AGENTE: leggi PRIMA `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md` <<<
+
+Stato: versione **2026-11-14.5** pubblicata e verificata (modalità fiera). Lavoro a metà salvato nel bundle
+`docs/consegna/2026-11-15/rami-b40-b48.bundle` (B40 fine partita v2, B48+B48.1 servizio e Leggenda). Prossimo lavoro,
+URGENTE e in cima: **B51 «Telefono bloccato»** (compito completo nel passaggio §4.1). Poi: finire e unire B48, B40,
+poi B49, B50 (+ resti B41.3), revisore finale. Le sezioni sotto sono la storia: lo stato attuale è nel passaggio e in fondo.
+
 ## >>> RIPRESI IL 13/11/2026 ALLE 16:35 UTC (dopo l'arresto delle 16:00): lo stato attuale è nelle sezioni IN FONDO <<<
 
 B37 e B42 sono finiti e pubblicati (2026-11-13.10 e 2026-11-13.11); il bundle `docs/ripresa/` non serve più ed è stato
@@ -1061,3 +1068,11 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
   dei due blocchi insieme: B48.1 è alle prove finali e il B51 è urgente.
 - Coda aggiornata: **B51** → versione appena pronto; B48.1 (prove finali) e B40 (passo B40.7) in corso; poi B49, B50,
   revisore finale. APK Android: solo se dopo il B51 serve ancora (da chiedere all'utente nel riepilogo).
+
+## 15/11, 13:15 UTC · PASSAGGIO DI CONSEGNE (richiesta dell'utente: «salva tutto, devo passarlo a un altro agente»)
+
+- Fermati gli agenti in corso (B40, B48.1, B51) e il promemoria delle 17:30. B40 e B48.1 avevano tutto in commit; B51
+  non aveva ancora codice. Rami salvati nel bundle `docs/consegna/2026-11-15/rami-b40-b48.bundle`
+  (`b40-fine-partita` dc64d2e, `b48-servizio` 450256e).
+- Scritto `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md` (stato, versioni, cosa resta di ogni blocco, ordine
+  consigliato, procedura di rilascio, comandi, regole) con appunti degli agenti, revisioni, script di rilascio e sonde.

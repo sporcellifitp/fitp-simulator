@@ -1,0 +1,20 @@
+casual lead 0 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x 0.70…0.70 · z -9.74…-9.74 · a vuoto {}
+casual lead 0 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x 0.70…0.70 · z -9.74…-9.74 · a vuoto {}
+casual lead 0.05 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -0.55…-0.55 · z -9.64…-9.64 · a vuoto {}
+casual lead 0.05 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -0.55…-0.55 · z -9.64…-9.64 · a vuoto {}
+casual lead 0.15 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -2.28…-2.28 · z -9.39…-9.39 · a vuoto {}
+casual lead 0.15 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -2.28…-2.28 · z -9.39…-9.39 · a vuoto {}
+casual lead 0.25 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -3.67…-3.67 · z -7.89…-7.89 · a vuoto {}
+casual lead 0.25 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -3.67…-3.67 · z -7.89…-7.89 · a vuoto {}
+casual lead 0.35 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -4.08…-4.08 · z -6.83…-6.83 · a vuoto {}
+casual lead 0.35 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -4.08…-4.08 · z -6.83…-6.83 · a vuoto {}
+pro lead 0 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x 0.70…0.70 · z -9.74…-9.74 · a vuoto {}
+pro lead 0 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x 0.70…0.70 · z -9.74…-9.74 · a vuoto {}
+pro lead 0.05 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -0.82…-0.82 · z -9.61…-9.61 · a vuoto {}
+pro lead 0.05 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -0.82…-0.82 · z -9.61…-9.61 · a vuoto {}
+pro lead 0.15 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -3.13…-3.13 · z -9.22…-9.22 · a vuoto {}
+pro lead 0.15 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -3.13…-3.13 · z -9.22…-9.22 · a vuoto {}
+pro lead 0.25 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -4.06…-4.06 · z -6.88…-6.88 · a vuoto {}
+pro lead 0.25 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 0 · x -4.06…-4.06 · z -6.88…-6.88 · a vuoto {}
+pro lead 0.35 singolo: colpite 30/30 · racchetta virtuale 30 · fuori/rete 30 · x -4.59…-4.59 · z -6.44…-6.44 · a vuoto {}
+pro lead 0.35 DOPPIO : colpite 30/30 · racchetta virtuale 30 · fuori/rete 30 · x -4.59…-4.59 · z -6.44…-6.44 · a vuoto {}

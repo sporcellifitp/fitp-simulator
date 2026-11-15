@@ -17,6 +17,14 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 15/11/2026, 13:15 UTC (passaggio di consegne).** Ultima versione pubblicata e verificata:
+**2026-11-14.5** su `natpf-simulator` (gioco 1660/1660, sito 272/272, desktop 51/51, LAN 13/13, build; installer
+128.141.130 B dal link fisso). **Prossima azione esatta:** leggere `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md`,
+poi fare il **B51 «Telefono bloccato»** (§4.1 del passaggio) e pubblicarlo subito; poi finire e unire B48+B48.1 e B40
+dal bundle `docs/consegna/2026-11-15/rami-b40-b48.bundle`, poi B49, B50, revisore finale. Il resto di questa sezione è
+storia.
+
+
 - **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a
   ogni passo): leggerlo per primo.
 

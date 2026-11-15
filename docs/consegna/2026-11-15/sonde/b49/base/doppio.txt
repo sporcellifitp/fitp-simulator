@@ -1,0 +1,29 @@
+casual  umano    singles  punti vinti 88.9% · colpi tuoi 1736 compagno 0 (0%) · punti chiusi dal compagno: vinti 0 persi 0 · persi sul tuo colpo 42 · colpi CPU avversarie 1703
+     vinto: Nice Shot! 223 · vinto: Out 142 · perso: Out 42 · vinto: Net 35 · perso: Point 8
+casual  umano    doubles  punti vinti 76.6% · colpi tuoi 4625 compagno 513 (10%) · punti chiusi dal compagno: vinti 7 persi 6 · persi sul tuo colpo 28 · colpi CPU avversarie 5276
+     vinto: Out 211 · vinto: Net 71 · perso: Point 51 · vinto: Nice Shot! 45 · perso: scambio infinito 29 · perso: Net 12 · perso: Out 8
+casual  amatore  singles  punti vinti 86% · colpi tuoi 1644 compagno 0 (0%) · punti chiusi dal compagno: vinti 0 persi 0 · persi sul tuo colpo 47 · colpi CPU avversarie 1615
+     vinto: Nice Shot! 203 · vinto: Out 150 · perso: Out 47 · vinto: Net 34 · perso: Point 16
+casual  amatore  doubles  punti vinti 75.7% · colpi tuoi 4682 compagno 531 (10.2%) · punti chiusi dal compagno: vinti 14 persi 11 · persi sul tuo colpo 25 · colpi CPU avversarie 5341
+     vinto: Out 210 · vinto: Net 50 · vinto: Nice Shot! 48 · perso: Point 45 · perso: scambio infinito 31 · perso: Net 12 · perso: Out 11
+casual  bambino  singles  punti vinti 48.2% · colpi tuoi 1223 compagno 0 (0%) · punti chiusi dal compagno: vinti 0 persi 0 · persi sul tuo colpo 83 · colpi CPU avversarie 1307
+     perso: Point 148 · vinto: Out 129 · perso: Out 83 · vinto: Nice Shot! 62 · vinto: Net 26 · perso: Nice Shot! 2
+casual  bambino  doubles  punti vinti 40.2% · colpi tuoi 3164 compagno 289 (8.4%) · punti chiusi dal compagno: vinti 8 persi 5 · persi sul tuo colpo 10 · colpi CPU avversarie 3665
+     perso: Point 252 · vinto: Out 123 · vinto: Net 34 · vinto: Nice Shot! 24 · perso: Out 10 · perso: Net 5 · perso: scambio infinito 2
+pro     umano    singles  punti vinti 63.8% · colpi tuoi 2907 compagno 0 (0%) · punti chiusi dal compagno: vinti 0 persi 0 · persi sul tuo colpo 115 · colpi CPU avversarie 2823
+     vinto: Nice Shot! 191 · perso: Out 75 · vinto: Out 73 · perso: Point 44 · perso: Net 40 · vinto: Net 23 · perso: Nice Shot! 4
+pro     umano    doubles  punti vinti 45.8% · colpi tuoi 5324 compagno 404 (7.1%) · punti chiusi dal compagno: vinti 6 persi 1 · persi sul tuo colpo 51 · colpi CPU avversarie 5808
+     perso: Point 123 · vinto: Out 77 · vinto: Nice Shot! 54 · perso: scambio infinito 51 · vinto: Net 37 · perso: Out 13 · perso: Net 11
+pro     amatore  singles  punti vinti 51.3% · colpi tuoi 2599 compagno 0 (0%) · punti chiusi dal compagno: vinti 0 persi 0 · persi sul tuo colpo 124 · colpi CPU avversarie 2542
+     vinto: Nice Shot! 158 · perso: Out 99 · perso: Point 92 · vinto: Out 59 · perso: Net 25 · vinto: Net 14 · perso: Nice Shot! 3
+pro     amatore  doubles  punti vinti 42.1% · colpi tuoi 5235 compagno 441 (7.8%) · punti chiusi dal compagno: vinti 4 persi 9 · persi sul tuo colpo 46 · colpi CPU avversarie 5782
+     perso: Point 135 · vinto: Out 91 · perso: scambio infinito 49 · vinto: Nice Shot! 41 · vinto: Net 27 · perso: Net 23 · perso: Out 8
+pro     bambino  singles  punti vinti 14.2% · colpi tuoi 1442 compagno 0 (0%) · punti chiusi dal compagno: vinti 0 persi 0 · persi sul tuo colpo 117 · colpi CPU avversarie 1528
+     perso: Point 257 · perso: Out 116 · vinto: Nice Shot! 28 · vinto: Out 24 · vinto: Net 12 · perso: Nice Shot! 12 · perso: Net 1
+pro     bambino  doubles  punti vinti 19.1% · colpi tuoi 2602 compagno 291 (10.1%) · punti chiusi dal compagno: vinti 7 persi 3 · persi sul tuo colpo 28 · colpi CPU avversarie 3087
+     perso: Point 329 · vinto: Out 50 · vinto: Nice Shot! 20 · perso: Out 16 · vinto: Net 16 · perso: Net 15 · perso: Nice Shot! 3
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 11551 (con «Classica» sono sempre 0)
+
+real	0m36.326s
+user	0m38.500s
+sys	0m0.441s

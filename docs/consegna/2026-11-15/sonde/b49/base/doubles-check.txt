@@ -1,0 +1,13 @@
+casual  amatore  singles  vinti 86% · colpi P1 2725 (con esito B15 100%) · laterale p50 0.77 m, <0,45 m 0.4% · altezza p50 1.07 m · persi senza toccare 4%
+casual  amatore  doubles  vinti 75.8% · colpi P1 7826 (con esito B15 0%) · laterale p50 0.38 m, <0,45 m 77.3% · altezza p50 0.57 m · persi senza toccare 15.5%
+casual  medio    singles  vinti 93.5% · colpi P1 2265 (con esito B15 100%) · laterale p50 0.76 m, <0,45 m 0.7% · altezza p50 1.13 m · persi senza toccare 5.2%
+casual  medio    doubles  vinti 89.5% · colpi P1 1970 (con esito B15 0%) · laterale p50 0.4 m, <0,45 m 70.1% · altezza p50 0.68 m · persi senza toccare 0.9%
+pro     amatore  singles  vinti 51.5% · colpi P1 4408 (con esito B15 100%) · laterale p50 0.77 m, <0,45 m 1% · altezza p50 0.64 m · persi senza toccare 20.3%
+pro     amatore  doubles  vinti 46.6% · colpi P1 8734 (con esito B15 0%) · laterale p50 0.41 m, <0,45 m 66.8% · altezza p50 0.46 m · persi senza toccare 40.6%
+pro     medio    singles  vinti 58.8% · colpi P1 3592 (con esito B15 100%) · laterale p50 0.77 m, <0,45 m 0.6% · altezza p50 0.69 m · persi senza toccare 23.2%
+pro     medio    doubles  vinti 57.7% · colpi P1 3972 (con esito B15 0%) · laterale p50 0.41 m, <0,45 m 68.8% · altezza p50 0.53 m · persi senza toccare 13.5%
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 12990 (con «Classica» sono sempre 0)
+
+real	0m32.348s
+user	0m35.473s
+sys	0m0.417s

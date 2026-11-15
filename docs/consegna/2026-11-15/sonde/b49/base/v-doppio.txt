@@ -1,0 +1,41 @@
+casual  umano    singles         punti vinti 88.2% (n 450) · colpi tuoi 1978 compagno 0 (0.0%) · punti con un colpo del compagno 0.0% · vincenti tuoi 217 = 54.7% dei vinti · gesti non fatti 0
+      vinto: Nice Shot! 217 · vinto: Out 146 · perso: Out 42 · vinto: Net 34 · perso: Point 7 · perso: Net 4
+casual  umano    doubles         punti vinti 72.8% (n 393) · colpi tuoi 4922 compagno 546 (10.0%) · punti con un colpo del compagno 59.5% · vincenti tuoi 47 = 16.4% dei vinti · gesti non fatti 0
+      vinto: Out 183 · vinto: Net 56 · perso: Point 54 · vinto: Nice Shot! 47 · perso: scambio infinito 41 · perso: Net 8 · perso: Out 4
+casual  umano    doubles-noswing punti vinti 25.8% (n 450) · colpi tuoi 1996 compagno 2 (0.1%) · punti con un colpo del compagno 0.4% · vincenti tuoi 20 = 17.2% dei vinti · gesti non fatti 321
+      perso: Point 245 · perso: Nice Shot! 83 · vinto: Out 77 · vinto: Nice Shot! 20 · vinto: Net 19 · perso: Net 4 · perso: Out 2
+casual  amatore  singles         punti vinti 84.0% (n 450) · colpi tuoi 1967 compagno 0 (0.0%) · punti con un colpo del compagno 0.0% · vincenti tuoi 180 = 47.6% dei vinti · gesti non fatti 0
+      vinto: Nice Shot! 180 · vinto: Out 156 · perso: Out 43 · vinto: Net 42 · perso: Point 27 · perso: Net 2
+casual  amatore  doubles         punti vinti 74.0% (n 412) · colpi tuoi 4854 compagno 575 (10.6%) · punti con un colpo del compagno 61.7% · vincenti tuoi 41 = 13.4% dei vinti · gesti non fatti 0
+      vinto: Out 192 · vinto: Net 72 · perso: Point 55 · vinto: Nice Shot! 41 · perso: scambio infinito 35 · perso: Net 11 · perso: Out 6
+casual  amatore  doubles-noswing punti vinti 23.3% (n 450) · colpi tuoi 2115 compagno 0 (0.0%) · punti con un colpo del compagno 0.0% · vincenti tuoi 5 = 4.8% dei vinti · gesti non fatti 325
+      perso: Point 241 · perso: Nice Shot! 98 · vinto: Out 81 · vinto: Net 19 · vinto: Nice Shot! 5 · perso: Net 3 · perso: Out 3
+casual  bambino  singles         punti vinti 50.9% (n 450) · colpi tuoi 1633 compagno 0 (0.0%) · punti con un colpo del compagno 0.0% · vincenti tuoi 61 = 26.6% dei vinti · gesti non fatti 0
+      perso: Point 140 · vinto: Out 130 · perso: Out 77 · vinto: Nice Shot! 61 · vinto: Net 38 · perso: Nice Shot! 3 · perso: Net 1
+casual  bambino  doubles         punti vinti 40.2% (n 450) · colpi tuoi 3388 compagno 297 (8.1%) · punti con un colpo del compagno 41.1% · vincenti tuoi 24 = 13.3% dei vinti · gesti non fatti 0
+      perso: Point 241 · vinto: Out 111 · vinto: Net 46 · vinto: Nice Shot! 24 · perso: Net 16 · perso: Out 12
+casual  bambino  doubles-noswing punti vinti 17.8% (n 450) · colpi tuoi 1884 compagno 2 (0.1%) · punti con un colpo del compagno 0.4% · vincenti tuoi 7 = 8.8% dei vinti · gesti non fatti 250
+      perso: Point 320 · vinto: Out 51 · perso: Nice Shot! 42 · vinto: Net 22 · vinto: Nice Shot! 7 · perso: Net 6 · perso: Out 2
+pro     umano    singles         punti vinti 61.8% (n 450) · colpi tuoi 3370 compagno 0 (0.0%) · punti con un colpo del compagno 0.0% · vincenti tuoi 197 = 70.9% dei vinti · gesti non fatti 0
+      vinto: Nice Shot! 197 · perso: Out 93 · vinto: Out 57 · perso: Point 40 · perso: Net 30 · vinto: Net 24 · perso: Nice Shot! 9
+pro     umano    doubles         punti vinti 42.1% (n 394) · colpi tuoi 5506 compagno 407 (6.9%) · punti con un colpo del compagno 54.8% · vincenti tuoi 47 = 28.3% dei vinti · gesti non fatti 0
+      perso: Point 126 · vinto: Out 92 · perso: scambio infinito 60 · vinto: Nice Shot! 47 · perso: Net 29 · vinto: Net 27 · perso: Out 13
+pro     umano    doubles-noswing punti vinti 11.6% (n 450) · colpi tuoi 2641 compagno 1 (0.0%) · punti con un colpo del compagno 0.2% · vincenti tuoi 15 = 28.8% dei vinti · gesti non fatti 327
+      perso: Point 258 · perso: Nice Shot! 128 · vinto: Out 28 · vinto: Nice Shot! 15 · vinto: Net 9 · perso: Net 5 · perso: Out 5
+pro     amatore  singles         punti vinti 51.1% (n 450) · colpi tuoi 2894 compagno 0 (0.0%) · punti con un colpo del compagno 0.0% · vincenti tuoi 172 = 74.8% dei vinti · gesti non fatti 0
+      vinto: Nice Shot! 172 · perso: Point 101 · perso: Out 89 · vinto: Out 41 · perso: Net 27 · vinto: Net 17 · perso: Nice Shot! 3
+pro     amatore  doubles         punti vinti 41.7% (n 381) · colpi tuoi 5510 compagno 433 (7.3%) · punti con un colpo del compagno 59.6% · vincenti tuoi 40 = 25.2% dei vinti · gesti non fatti 0
+      perso: Point 143 · vinto: Out 81 · perso: scambio infinito 55 · vinto: Nice Shot! 40 · vinto: Net 38 · perso: Net 12 · perso: Out 11
+pro     amatore  doubles-noswing punti vinti 10.2% (n 450) · colpi tuoi 2289 compagno 0 (0.0%) · punti con un colpo del compagno 0.0% · vincenti tuoi 10 = 21.7% dei vinti · gesti non fatti 325
+      perso: Point 274 · perso: Nice Shot! 119 · vinto: Out 27 · vinto: Nice Shot! 10 · vinto: Net 9 · perso: Net 6 · perso: Out 4
+pro     bambino  singles         punti vinti 17.1% (n 450) · colpi tuoi 1871 compagno 0 (0.0%) · punti con un colpo del compagno 0.0% · vincenti tuoi 32 = 41.6% dei vinti · gesti non fatti 0
+      perso: Point 262 · perso: Out 98 · vinto: Nice Shot! 32 · vinto: Out 28 · vinto: Net 17 · perso: Nice Shot! 11 · perso: Net 2
+pro     bambino  doubles         punti vinti 18.0% (n 450) · colpi tuoi 3091 compagno 285 (8.4%) · punti con un colpo del compagno 41.8% · vincenti tuoi 19 = 23.5% dei vinti · gesti non fatti 0
+      perso: Point 338 · vinto: Out 53 · vinto: Nice Shot! 19 · perso: Net 19 · vinto: Net 9 · perso: Out 7 · perso: Nice Shot! 3
+pro     bambino  doubles-noswing punti vinti 6.9% (n 450) · colpi tuoi 1833 compagno 1 (0.1%) · punti con un colpo del compagno 0.2% · vincenti tuoi 4 = 12.9% dei vinti · gesti non fatti 254
+      perso: Point 316 · perso: Nice Shot! 91 · vinto: Out 22 · perso: Net 7 · perso: Out 5 · vinto: Net 5 · vinto: Nice Shot! 4
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 12012 (con «Classica» sono sempre 0)
+
+real	0m38.951s
+user	0m40.176s
+sys	0m0.465s

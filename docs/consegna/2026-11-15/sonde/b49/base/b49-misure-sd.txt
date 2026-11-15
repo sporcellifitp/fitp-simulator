@@ -1,0 +1,48 @@
+ 01:24:20 up  3:29,  0 user,  load average: 4.49, 4.41, 4.78
+casual  umano    singles         vinti 88.2% (n 450) · vincenti 54.7% dei vinti · compagno 0% (0/1743) · scambio media 8.7 p50 7 p90 20 · ≥60 colpi 0% · persi senza toccare 1.6% · laterale p50 0.76 m (<0,45 m 0.3%) · esito B15 100% · a vuoto 0.8/100 gesti
+      vinto: Nice Shot! 217 · vinto: Out 146 · perso: Out 42 · vinto: Net 34 · perso: Point 7 · perso: Net 4
+casual  umano    doubles         vinti 72.8% (n 393) · vincenti 16.4% dei vinti · compagno 10.3% (546/5276) · scambio media 27.9 p50 27 p90 60 · ≥60 colpi 10.4% · persi senza toccare 17.6% · laterale p50 0.38 m (<0,45 m 78.2%) · esito B15 0% · a vuoto 0/100 gesti · punti chiusi dal compagno: vinti 0% persi 0% dei punti (errori 0% dei suoi colpi)
+      regole candidate su 5380 colpi della CPU: portata 1,0 m 40.8% · 1,4 m 53.1% · 1,8 m 63.3% · corta nella sua corsia 6% · pallonetto sopra di lui 2.5%
+      vinto: Out 183 · vinto: Net 56 · perso: Point 54 · vinto: Nice Shot! 47 · perso: scambio infinito 41 · perso: Net 8 · perso: Out 4
+casual  amatore  singles         vinti 84% (n 450) · vincenti 47.6% dei vinti · compagno 0% (0/1716) · scambio media 8.6 p50 6 p90 20 · ≥60 colpi 0% · persi senza toccare 6% · laterale p50 0.77 m (<0,45 m 0.5%) · esito B15 100% · a vuoto 1.4/100 gesti
+      vinto: Nice Shot! 180 · vinto: Out 156 · perso: Out 43 · vinto: Net 42 · perso: Point 27 · perso: Net 2
+casual  amatore  doubles         vinti 74% (n 412) · vincenti 13.4% dei vinti · compagno 11% (575/5209) · scambio media 26.5 p50 24 p90 57 · ≥60 colpi 8.5% · persi senza toccare 18.9% · laterale p50 0.38 m (<0,45 m 78.9%) · esito B15 0% · a vuoto 0.1/100 gesti · punti chiusi dal compagno: vinti 0% persi 0% dei punti (errori 0% dei suoi colpi)
+      regole candidate su 5354 colpi della CPU: portata 1,0 m 41.1% · 1,4 m 53.8% · 1,8 m 62.8% · corta nella sua corsia 6.5% · pallonetto sopra di lui 2.6%
+      vinto: Out 192 · vinto: Net 72 · perso: Point 55 · vinto: Nice Shot! 41 · perso: scambio infinito 35 · perso: Net 11 · perso: Out 6
+casual  bambino  singles         vinti 50.9% (n 450) · vincenti 26.6% dei vinti · compagno 0% (0/1348) · scambio media 7.2 p50 5 p90 17 · ≥60 colpi 0% · persi senza toccare 31.8% · laterale p50 0.77 m (<0,45 m 2.2%) · esito B15 100% · a vuoto 4.4/100 gesti
+      perso: Point 140 · vinto: Out 130 · perso: Out 77 · vinto: Nice Shot! 61 · vinto: Net 38 · perso: Nice Shot! 3 · perso: Net 1
+casual  bambino  doubles         vinti 40.2% (n 450) · vincenti 13.3% dei vinti · compagno 8.7% (297/3425) · scambio media 16.7 p50 14 p90 34 · ≥60 colpi 0% · persi senza toccare 53.6% · laterale p50 0.4 m (<0,45 m 65.1%) · esito B15 0% · a vuoto 0.2/100 gesti · punti chiusi dal compagno: vinti 0% persi 0% dei punti (errori 0% dei suoi colpi)
+      regole candidate su 3626 colpi della CPU: portata 1,0 m 44.8% · 1,4 m 54.9% · 1,8 m 60.2% · corta nella sua corsia 5% · pallonetto sopra di lui 2.1%
+      perso: Point 241 · vinto: Out 111 · vinto: Net 46 · vinto: Nice Shot! 24 · perso: Net 16 · perso: Out 12
+evento  umano    singles         vinti 68.7% (n 450) · vincenti 56% dei vinti · compagno 0% (0/3065) · scambio media 14.6 p50 14 p90 27 · ≥60 colpi 0% · persi senza toccare 9.6% · laterale p50 0.75 m (<0,45 m 1.1%) · esito B15 100% · a vuoto 1.2/100 gesti
+      vinto: Nice Shot! 173 · vinto: Out 101 · perso: Out 79 · perso: Point 37 · vinto: Net 35 · perso: Net 19 · perso: Nice Shot! 6
+evento  umano    doubles         vinti 62% (n 389) · vincenti 16.6% dei vinti · compagno 10.1% (551/5481) · scambio media 29.3 p50 29 p90 60 · ≥60 colpi 12.1% · persi senza toccare 25.2% · laterale p50 0.41 m (<0,45 m 65.3%) · esito B15 0% · a vuoto 0/100 gesti · punti chiusi dal compagno: vinti 0% persi 0% dei punti (errori 0% dei suoi colpi)
+      regole candidate su 5582 colpi della CPU: portata 1,0 m 41.7% · 1,4 m 52.8% · 1,8 m 61.8% · corta nella sua corsia 6.5% · pallonetto sopra di lui 1.5%
+      vinto: Out 154 · perso: Point 76 · perso: scambio infinito 47 · vinto: Net 47 · vinto: Nice Shot! 40 · perso: Net 14 · perso: Out 11
+evento  amatore  singles         vinti 64.9% (n 450) · vincenti 53.8% dei vinti · compagno 0% (0/2590) · scambio media 12.4 p50 11 p90 25 · ≥60 colpi 0% · persi senza toccare 13.6% · laterale p50 0.76 m (<0,45 m 1.8%) · esito B15 100% · a vuoto 1.6/100 gesti
+      vinto: Nice Shot! 157 · vinto: Out 104 · perso: Out 97 · perso: Point 54 · vinto: Net 31 · perso: Nice Shot! 7
+evento  amatore  doubles         vinti 63.3% (n 390) · vincenti 19.4% dei vinti · compagno 9.6% (528/5489) · scambio media 29.3 p50 27 p90 60 · ≥60 colpi 11.5% · persi senza toccare 25.9% · laterale p50 0.42 m (<0,45 m 64.1%) · esito B15 0% · a vuoto 0/100 gesti · punti chiusi dal compagno: vinti 0% persi 0% dei punti (errori 0% dei suoi colpi)
+      regole candidate su 5589 colpi della CPU: portata 1,0 m 42.3% · 1,4 m 52.9% · 1,8 m 61.9% · corta nella sua corsia 6.6% · pallonetto sopra di lui 1.8%
+      vinto: Out 141 · perso: Point 77 · vinto: Net 58 · vinto: Nice Shot! 48 · perso: scambio infinito 45 · perso: Net 15 · perso: Out 6
+evento  bambino  singles         vinti 49.6% (n 450) · vincenti 26.9% dei vinti · compagno 0% (0/1299) · scambio media 7 p50 5 p90 16 · ≥60 colpi 0% · persi senza toccare 35.6% · laterale p50 0.77 m (<0,45 m 1.8%) · esito B15 100% · a vuoto 6.2/100 gesti
+      perso: Point 159 · vinto: Out 130 · perso: Out 67 · vinto: Nice Shot! 60 · vinto: Net 33 · perso: Nice Shot! 1
+evento  bambino  doubles         vinti 38.9% (n 450) · vincenti 10.3% dei vinti · compagno 8.6% (294/3415) · scambio media 16.6 p50 13 p90 34 · ≥60 colpi 0.4% · persi senza toccare 55.8% · laterale p50 0.41 m (<0,45 m 63.2%) · esito B15 0% · a vuoto 0.4/100 gesti · punti chiusi dal compagno: vinti 0% persi 0% dei punti (errori 0% dei suoi colpi)
+      regole candidate su 3603 colpi della CPU: portata 1,0 m 42.4% · 1,4 m 53.5% · 1,8 m 59.5% · corta nella sua corsia 5.2% · pallonetto sopra di lui 1.9%
+      perso: Point 251 · vinto: Out 116 · vinto: Net 41 · vinto: Nice Shot! 18 · perso: Net 13 · perso: Out 9 · perso: scambio infinito 2
+pro     umano    singles         vinti 61.8% (n 450) · vincenti 70.9% dei vinti · compagno 0% (0/3099) · scambio media 14.6 p50 14 p90 26 · ≥60 colpi 0% · persi senza toccare 10.9% · laterale p50 0.77 m (<0,45 m 0.5%) · esito B15 100% · a vuoto 1.4/100 gesti
+      vinto: Nice Shot! 197 · perso: Out 93 · vinto: Out 57 · perso: Point 40 · perso: Net 30 · vinto: Net 24 · perso: Nice Shot! 9
+pro     umano    doubles         vinti 42.1% (n 394) · vincenti 28.3% dei vinti · compagno 7.2% (407/5646) · scambio media 29.8 p50 29 p90 60 · ≥60 colpi 15.2% · persi senza toccare 41.9% · laterale p50 0.4 m (<0,45 m 66.2%) · esito B15 0% · a vuoto 1/100 gesti · punti chiusi dal compagno: vinti 0% persi 0% dei punti (errori 0% dei suoi colpi)
+      regole candidate su 5745 colpi della CPU: portata 1,0 m 43.8% · 1,4 m 53.3% · 1,8 m 61.8% · corta nella sua corsia 8.3% · pallonetto sopra di lui 1.6%
+      perso: Point 126 · vinto: Out 92 · perso: scambio infinito 60 · vinto: Nice Shot! 47 · perso: Net 29 · vinto: Net 27 · perso: Out 13
+pro     amatore  singles         vinti 51.1% (n 450) · vincenti 74.8% dei vinti · compagno 0% (0/2598) · scambio media 12.4 p50 11 p90 25 · ≥60 colpi 0% · persi senza toccare 23.1% · laterale p50 0.77 m (<0,45 m 1%) · esito B15 100% · a vuoto 3.4/100 gesti
+      vinto: Nice Shot! 172 · perso: Point 101 · perso: Out 89 · vinto: Out 41 · perso: Net 27 · vinto: Net 17 · perso: Nice Shot! 3
+pro     amatore  doubles         vinti 41.7% (n 381) · vincenti 25.2% dei vinti · compagno 7.6% (433/5682) · scambio media 31.1 p50 31 p90 60 · ≥60 colpi 14.4% · persi senza toccare 45.7% · laterale p50 0.41 m (<0,45 m 65.6%) · esito B15 0% · a vuoto 1.2/100 gesti · punti chiusi dal compagno: vinti 0% persi 0% dei punti (errori 0% dei suoi colpi)
+      regole candidate su 5784 colpi della CPU: portata 1,0 m 44.2% · 1,4 m 53.8% · 1,8 m 61.4% · corta nella sua corsia 7.8% · pallonetto sopra di lui 1.6%
+      perso: Point 143 · vinto: Out 81 · perso: scambio infinito 55 · vinto: Nice Shot! 40 · vinto: Net 38 · perso: Net 12 · perso: Out 11
+pro     bambino  singles         vinti 17.1% (n 450) · vincenti 41.6% dei vinti · compagno 0% (0/1508) · scambio media 7.9 p50 6 p90 17 · ≥60 colpi 0% · persi senza toccare 60.7% · laterale p50 0.77 m (<0,45 m 3.4%) · esito B15 100% · a vuoto 8/100 gesti
+      perso: Point 262 · perso: Out 98 · vinto: Nice Shot! 32 · vinto: Out 28 · vinto: Net 17 · perso: Nice Shot! 11 · perso: Net 2
+pro     bambino  doubles         vinti 18% (n 450) · vincenti 23.5% dei vinti · compagno 9.4% (285/3041) · scambio media 14.9 p50 12 p90 33 · ≥60 colpi 0.4% · persi senza toccare 76.2% · laterale p50 0.44 m (<0,45 m 54.6%) · esito B15 0% · a vuoto 3.3/100 gesti · punti chiusi dal compagno: vinti 0% persi 0% dei punti (errori 0% dei suoi colpi)
+      regole candidate su 3225 colpi della CPU: portata 1,0 m 46.4% · 1,4 m 56.2% · 1,8 m 62.4% · corta nella sua corsia 7% · pallonetto sopra di lui 1.2%
+      perso: Point 338 · vinto: Out 53 · vinto: Nice Shot! 19 · perso: Net 19 · vinto: Net 9 · perso: Out 7 · perso: Nice Shot! 3
+[B36] colpi della racchetta simulata con la regola nuova della direzione: 0 su 18966 (con «Classica» sono sempre 0)
+ 01:25:24 up  3:30,  0 user,  load average: 5.65, 4.69, 4.85
