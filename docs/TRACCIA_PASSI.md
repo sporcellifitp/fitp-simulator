@@ -1042,3 +1042,6 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
 - Avviato il **B40** (agente, ramo `b40-fine-partita`, worktree `scratchpad/b40/wt`, porte 4350–4389) dal piano
   `docs/coda/B40-piano-analisi.md`, con le decisioni sulle proposte dell'analista scritte nel compito.
 - Da qui gli agenti si lanciano con lo strumento Agent (uno per blocco), non più con i workflow.
+- 11:00–12:00 UTC · quinto limite d'uso: fermati B40 (fatti B40.1–B40.6 in commit fino a `401eaee`) e B48.1 (punti 2, 3,
+  6 in commit e unione della 14.5 `3072637`). 12:21 UTC: ripresi tutti e due con un messaggio (stesso agente, stesso
+  contesto). Prossimo controllo di sicurezza programmato alle 17:30 UTC.
