@@ -6,7 +6,8 @@
 //   animazione per indicare di salire su») non più il riquadro «Alza il telefono: lanci la palla / Poi colpisci quando la
 //   palla è in alto» (e le versioni per webcam e tastiera), ma la piccola icona del telefono che sale con la palla sopra,
 //   in loop, accanto a chi batte, senza scritte (natpf_serve_hint.js, dentro la casella «Al servizio»);
-// - durante il lancio, vicino al punto più alto: «Colpisci!» (come prima);
+// - durante il lancio, vicino al punto più alto: «Colpisci!» (come prima); B48: con il telefono, sotto, la regola della
+//   direzione (SERVE_CHOICE: prima del punto più alto al centro, dopo larga), proprio quando si sceglie;
 // - dopo un lancio a vuoto (la palla ricade): «Colpisci quando la palla è in alto» con «Lancio a vuoto: riprova», e si
 //   rilancia (anche il telefono lo dice: natpf_phone_racket.tossMissed); l'icona torna;
 // - B44: ai primi servizi di ogni GIOCATORE NUOVO (SERVE_COACH.firstServes, ognuno il suo conto; si riparte con «Nuovo
@@ -20,6 +21,7 @@
 import { autoTossNext } from './natpf_duo_rules.js';
 import { NatpfServeHint } from './natpf_serve_hint.js';
 import { viewport } from './natpf_screen.js';
+import { SERVE_CHOICE } from './natpf_gesture_motion.js'; // B48: la regola della direzione del servizio dal telefono
 export const SERVE_COACH = Object.freeze({
   firstServes: 2,      // servizi riusciti con le istruzioni piene, a ogni partita nuova
   apexBefore: .24,     // s prima del punto più alto: «Colpisci!»
@@ -72,7 +74,7 @@ export function serveCoachView(s = {}, g = {}){
   if (!learning && !missed && !g.autoLive) return null;
   const t = Number(g.tossT);
   if (!Number.isFinite(t)) return null;
-  if (t <= SERVE_COACH.apexBefore && t >= -SERVE_COACH.apexAfter) return { state: 'go', big: 'Colpisci!', sub: g.autoLive ? 'Lancio automatico' : '' };
+  if (t <= SERVE_COACH.apexBefore && t >= -SERVE_COACH.apexAfter) return { state: 'go', big: 'Colpisci!', sub: g.autoLive ? 'Lancio automatico' : g.controller === 'phone' ? SERVE_CHOICE : '' };
   if (t > SERVE_COACH.apexBefore) return { state: 'wait', big: g.autoLive ? 'Lancio automatico' : 'Aspetta che salga…', sub: 'Colpisci quando la palla è in alto' };
   return null;
 }

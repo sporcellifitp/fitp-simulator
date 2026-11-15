@@ -82,7 +82,7 @@ try {
     const exec = E._executeOpponentReturn.bind(E);
     E._executeOpponentReturn = a => {
       const gap = Math.abs(E.ball.pos.x - o.pos.x), s = Math.sign(E.ball.pos.x - o.pos.x) || 1;
-      const c = { gap: +gap.toFixed(2), forced: !!W.force, ...pose(s) };
+      const c = { gap: +gap.toFixed(2), lato: s, forced: !!W.force, ...pose(s) };
       exec(a);
       Object.assign(c, { kind: E.natpfLegend?.lastPick?.kind || null, err: E.natpfLegend?.lastPick?.err || null, kmh: Math.round(E.ball.vel.length()*3.6) });
       W.cpu.push(c);
@@ -160,11 +160,18 @@ try {
   console.log(`colpi della CPU nella partita ${play.length}: schemi ${[...kinds].join(' ')}; distanza palla–corpo ${play.map(c => c.gap).join(' ')} m; corsa massima ${m.vmax.toFixed(2)} m/s; primo affondo a ${m.lunge ? m.lunge.toFixed(2) + ' s' : '—'}`);
   // riferimento: impatti normali (palla tra 0,3 e 0,8 m dal corpo, il lato del colpo è quello della palla)
   const med = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length/2)] : NaN; };
-  const norm = m.cpu.filter(c => c.gap >= .3 && c.gap <= .8), ref = { piatto: med(norm.map(c => c.piatto)), mano: med(norm.map(c => c.mano)), testa: med(norm.map(c => c.testa)) };
+  const norm = m.cpu.filter(c => c.gap >= .3 && c.gap <= .8);
+  const refOf = impacts => ({ piatto: med(impacts.map(c => c.piatto)), mano: med(impacts.map(c => c.mano)), testa: med(impacts.map(c => c.testa)) });
+  const refAll = refOf(norm);
+  const refs = new Map([-1, 1].map(side => {
+    const sameSide = norm.filter(c => c.lato === side);
+    console.log(`Riferimento lato ${side}: ${sameSide.length >= 2 ? sameSide.length + ' impatti' : 'riferimento unico per i pochi impatti'}`);
+    return [side, sameSide.length >= 2 ? refOf(sameSide) : refAll];
+  }));
   const f2 = v => (Number.isFinite(v) ? v.toFixed(2) : '—'), sg = v => (v >= 0 ? '+' : '') + f2(v);
-  console.log(`posa all'impatto nel mondo 3D, di lato verso la palla (mediane dei ${norm.length} impatti normali, palla a 0,3–0,8 m): piatto ${f2(ref.piatto)} m, mano ${f2(ref.mano)} m, testa ${f2(ref.testa)} m dal corpo`);
   const far = m.cpu.filter(c => c.gap > 1);
   const judge = c => {
+    const ref = refs.get(c.lato);
     const r = Math.min(REACH.max, Math.max(0, c.gap - REACH.from)), d = { piatto: c.piatto - ref.piatto, mano: c.mano - ref.mano, testa: c.testa - ref.testa };
     return { ...d, r, ok: d.mano >= .4*r && d.testa >= .3*r && d.piatto >= .05, resto: c.gap - c.piatto };
   };

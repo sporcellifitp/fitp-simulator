@@ -276,9 +276,14 @@ test('servizio dal gesto: stesso gesto stesso servizio; forza, verso e momento d
   const soft = serve({ ...flat, power: .25 });
   assert.ok(soft.vel < a.vel*.8, `${soft.vel} ${a.vel}`);
   // B18 (D12): il tipo si giudica rispetto al servizio abituale (SERVE.habit, |piano| 0,55): tagliato da |piano| 0,8
+  // B48 (miglioramento 10 del rapporto B16): il verso dello swing (piano) cambia l'effetto, non più la direzione: la sceglie
+  // il momento del colpo, prima del punto più alto del lancio verso la «T», dopo largo (il lancio sale per 0,69 s)
   const left = serve({ ...flat, plane: .9 }), right = serve({ ...flat, plane: -.9 });
-  assert.ok(right.landing.x - left.landing.x > 1, `${left.landing.x} → ${right.landing.x}`);
+  assert.ok(Math.abs(right.landing.x - left.landing.x) < 1e-6, `${left.landing.x} → ${right.landing.x}`);
   assert.equal(left.serve.kind, 'slice');
+  const toT = serve(flat, .69 - .16), wide = serve(flat, .69 + .16);
+  assert.equal(toT.serve.dir, 'T'); assert.equal(wide.serve.dir, 'largo');
+  assert.ok(Math.abs(toT.landing.x) < 1.37 && Math.abs(wide.landing.x) > 2.74 && Math.sign(toT.landing.x) === Math.sign(wide.landing.x), `${toT.landing.x} / ${wide.landing.x}`);
   assert.equal(serve({ ...flat, rise: .4 }).serve.kind, 'kick');
   const early = serve(flat, .3);
   assert.ok(early.serve.q < a.serve.q, `presto q ${early.serve.q}`);
@@ -288,9 +293,12 @@ test('servizio dal gesto: stesso gesto stesso servizio; forza, verso e momento d
 });
 
 test('scambi che finiscono e dinamici: nessuno scambio infinito; palle lasciate andare, tagliati, pallonetti; volée e schiacciate quando la palla le chiede, mai la corsa a rete senza motivo', () => {
+  // B48.1: 40 punti per seme (erano 30). Con il servizio della CPU del B48.1 (rimbalzi nei terzi, servizi profondi a Pro) a
+  // Pro il seme 4 in 30 punti non ha nessuna palla fuori da lasciare andare (prima del B48.1 2); in 40 punti 1, in 100
+  // punti 12 (prima 7). Il controllo resta seme per seme, su un campione un poco più largo
   const all = { shots: {}, volleys: 0, plans: {} };
   for (const difficulty of ['casual', 'pro', 'leggenda']) for (const seed of [4, 7]){
-    const r = simulate({ profile: 'tennista', difficulty, points: 30, seed });
+    const r = simulate({ profile: 'tennista', difficulty, points: 40, seed });
     assert.equal(r.capped, 0, `${difficulty}: ${r.maxHits} colpi`);
     assert.ok(r.maxHits < 60, `${difficulty}: ${r.maxHits}`);
     // a ogni livello le palle che vanno fuori si lasciano andare
@@ -300,12 +308,13 @@ test('scambi che finiscono e dinamici: nessuno scambio infinito; palle lasciate 
     // fondo» (toNetFromBackPct 0); il tetto sul totale è di sicurezza: B17.4 (revisione, bordo laterale del colpo controllato)
     // a Leggenda con il seme 7 i colpi controllati a rete restano in campo e lo scambio continua a rete (10,8% di mosse verso
     // la rete, tutte da palla corta; era 5,6%)
-    const c = courtStats([r]);
     // B31 (gioco a rete): chi gioca sale a rete anche dopo un attacco riuscito (palla corta presa alta, tagliato o colpo
     // forte, profondo e pulito da dentro la riga di fondo, natpf_net_play.approachOf) e resta a rete dopo la volée:
     // «dal fondo» (impatto oltre 10 m) ora capita, ma solo così. Tetto: un colpo su quattro (banco audit:rete, 3 semi × 300
-    // punti: chi gioca a rete nel 2–15% dei colpi della CPU)
-    assert.ok(c.toNetPct < 25, `${difficulty}: ${JSON.stringify(c)}`);
+    // punti: chi gioca a rete nel 2–15% dei colpi della CPU), seme per seme (B48.1: ripristinato come prima del B48, che lo
+    // aveva portato sulla media dei due semi; con il codice di oggi Casual 22,7 e 23,0%, Pro 13,9 e 10,0%, Leggenda 3,7 e 8,5%)
+    const c = courtStats([r]);
+    assert.ok(c.toNetPct < 25, `${difficulty} seme ${seed}: ${JSON.stringify(c)}`);
     // revisione finale: al posto del tetto largo (< 20% «dal fondo») la regola vera: verso la rete solo da entro 11,2 m
     // dalla rete (tagliato d'approccio; il colpo forte e profondo da entro 10,8 m), mai da dietro (riga di fondo a 11,9 m)
     const far = (r.moves || []).filter(m => m.targetZ < 7 && Math.abs(m.contactZ) > NET_PLAY.approach.slice.z + .01);

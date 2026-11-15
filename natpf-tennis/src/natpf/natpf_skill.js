@@ -30,6 +30,36 @@ const EXPERT_PLAYER = Object.freeze({
   // sopra quella della CPU di Leggenda (22 m/s²): la regola «la CPU di Leggenda è più lenta di chi gioca» resta
   playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 24, decel: 32, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.0, runSay: .5, runShow: .8, stretchSay: .7 }),
 });
+// B48: direzioni del servizio della CPU per livello (cpuServePlan): per «T», «corpo» e «largo» il peso e il punto di
+// rimbalzo, come distanza dalla riga centrale (m, nel quadrato: 0 la riga centrale, 4,115 il corridoio) ± span.
+// B48.1 (revisione del B48): x è il punto dove la palla rimbalza davvero, a ogni livello (game_engine._executeServeHit: con
+// il limite di velocità o il servizio profondo fixAirServe, altrimenti aimServeX, che corregge solo il lato), e ogni
+// direzione resta tutta nel suo terzo del quadrato (serveThird: «T» fino a 1,372 m, «corpo» fino a 2,743, «largo» oltre).
+// Prima a Pro, Evento e Leggenda il servizio volava con l'aria senza correzione e rimbalzava più vicino al lato di chi batte
+// (circa 0,865 dello spostamento voluto, come LEGEND.kLat), e a Bambini «T» e «largo» erano a cavallo dei terzi: i rimbalzi
+// veri cadevano nel terzo «corpo» il 68–72% delle volte a Bambini (fino a 20 di fila) e circa il 50% a Pro ed Evento (fino a
+// 10 di fila). I punti di Pro e Leggenda sono quelli dei rimbalzi veri di prima (mediana «T» 1,14 e 0,98 m, «largo» 2,84 e
+// 3,07 m), dentro il loro terzo con almeno 7 cm di margine (il motore vede il rimbalzo al passo, fino a 5 cm dopo). A Pro con
+// «T» a 1,05 ± 0,25 e «largo» a 3,02 ± 0,2 (più angolati di prima) «medio» vinceva il 71,7% dei game invece del 74,5%
+const serveDir = (T, corpo, largo) => ({ dir: Object.freeze(Object.fromEntries([['T', T], ['corpo', corpo], ['largo', largo]].map(([k, [w, x, span]]) => [k, Object.freeze({ w, x, span })]))) });
+// B48: effetto del servizio della CPU (cpuServePlan): top spin, laterale (il tagliato) e volo, per livello (cpuServe.spin).
+// Con il servizio veloce di Pro (Evento è la media tra Casual e Pro) 18, 26 e 14: Pro contro «medio» resta come prima (74,5% dei
+// game a chi gioca, base 75,9%; con 14, 24 e 9 69,9%, sotto il criterio di audit:legend). Con il servizio lento e
+// profondo di Casual e Bambini (limite di velocità) gli effetti bassi del servizio di chi gioca, 14 e 9: con 18 e 14 la
+// palla lenta rimbalzava più alta e chi risponde avanzava verso la rete nel 37% delle mosse invece del 19% (misure:
+// scripts/audit/b48/, docs/b48/servizio-e-leggenda.md)
+const serveSpin = (flat, kick, slice) => Object.freeze({ flat: Object.freeze({ top: flat, side: 0, flight: 1 }), kick: Object.freeze({ top: kick, side: 0, flight: 1 }), slice: Object.freeze({ top: slice, side: 6, flight: 1 }) });
+// Leggenda 22, 28 e 18: il piatto come il servizio di prima (22 per tutti), il kick più alto, il tagliato con la curva. Con
+// 18, 26 e 14 «preciso» vinceva 35,0% dei punti contro 32,9 (24 semi × 300 punti): il servizio della Leggenda diventava più
+// facile da rispondere; così 33,0, e l'adulto medio 14,8 (prima 13,6; con la sola smorzata 15,2)
+const SERVE_SPIN = serveSpin(18, 26, 14), SERVE_SPIN_SLOW = serveSpin(14, 24, 9), SERVE_SPIN_LEGEND = serveSpin(22, 28, 18);
+// B48.1: parte dei servizi profondi della CPU dove il servizio è veloce (Pro, Leggenda; Evento la media con Casual): il
+// rimbalzo vicino alla riga del servizio (CPU_SERVE.depth) invece che a 3,9–4,9 m dalla rete, alla stessa velocità del
+// servizio normale (game_engine._executeServeHit). Prima il servizio di questi livelli era sempre corto (rimbalzo p50 4,3 m:
+// punto 17 del rapporto B16, «sempre uguale e corto»). 15%: con il 30% Pro contro «medio» scendeva al 70,9% dei game (8 semi
+// di audit:legend; 73,5% con 24 semi, prima 75,2) e «tennista» contro la Leggenda da 31,0 a 28,1% dei punti; con il 15% 73,1%
+// (24 semi 75,1) e i punti di chi gioca come prima (60,6 contro 60,7)
+const CPU_LONG = .15;
 // Parametri per difficoltà. «1v1» (due persone) usa solo la parte del giocatore.
 // (B18.2 gruppo 3: i livelli «Bambini» ed «Evento» si aggiungono qui sotto, dopo questi quattro, che restano identici)
 const LEVELS = {
@@ -54,7 +84,11 @@ const LEVELS = {
     // B32: movimento di chi gioca (natpf_movement.js): split-step e lettura della palla veloce, accelerazione e frenata,
     // arrivo giusto in tempo, colpo in corsa sulla palla lontana, portata della palla non raggiunta. Misure: docs/b32/movimento.md
     playerRun: Object.freeze({ split: .05, read: .04, readFrom: 18, readSpan: 14, accel: 22, decel: 30, settle: .2, jog: 2.5, through: .2, throughFrom: 3.2, reach: 2.1, runSay: .5, runShow: .8, stretchSay: .7 }),
-    cpuServe: Object.freeze({ flight: 1, wide: 0 }),     // servizio della CPU lento e al centro del quadrato (cpuServe)
+    // servizio della CPU (cpuServePlan, B48): verso la «T», al corpo o largo ma lontano dalle righe, piatto o tagliato; mai
+    // più veloce dei servizi di chi gioca (cap 1). Niente kick: così lento rimbalza oltre la testa di chi risponde, che
+    // doveva avanzare di 2–2,6 m per prenderlo (piatto 0,5–1,5 m, tagliato quasi niente). Prima: sempre al centro del
+    // quadrato, top spin 22, 97–106 km/h
+    cpuServe: Object.freeze({ flight: 1, cap: 1, long: 0, ...serveDir([.3, 1.05, .2], [.4, 2.05, .3], [.3, 3.05, .2]), kind: Object.freeze({ flat: .55, kick: 0, slice: .45 }), spin: SERVE_SPIN_SLOW }),
   }),
   pro: Object.freeze({
     ...EXPERT_PLAYER,
@@ -76,7 +110,10 @@ const LEVELS = {
     // tabelle: docs/b18/t2-2-cpu-pressione.md
     cpuErr: Object.freeze({ base: .005, stretch: .045, run: .022, speed: 0, angle: 0, pressure: 0, soft: 1, net: .2, drop: .22, lob: .2, smash: .35, sup: .25, tired: 2.5, max: .5 }),
     cpuWeak: .1, cpuAttack: .7, cpuAttackBase: .24, cpuAttackFlight: .62,
-    cpuServe: Object.freeze({ flight: .85, wide: .8 }),
+    // (B48: un terzo alla «T», un terzo al corpo, un terzo largo, e l'effetto che cambia, cpuServePlan; nessun limite di
+    // velocità. B48.1: i punti dei rimbalzi veri di prima, ognuno nel suo terzo; long: la parte dei servizi profondi,
+    // vicino alla riga del servizio, alla stessa velocità degli altri)
+    cpuServe: Object.freeze({ flight: .85, cap: 0, long: CPU_LONG, ...serveDir([1/3, 1.12, .18], [1/3, 2.05, .55], [1/3, 2.93, .12]), kind: Object.freeze({ flat: .34, kick: .33, slice: .33 }), spin: SERVE_SPIN }),
   }),
   // Leggenda: per chi gioca le regole di Esperto. La CPU non ha una probabilità d'errore propria (cpuErr): colpisce
   // con le stesse regole del giocatore e sceglie il colpo per utilità (natpf_legend.js); split-step, reazione e
@@ -88,7 +125,9 @@ const LEVELS = {
     // sempre sotto la velocità di chi gioca (8,8 m/s)
     cpuReach: 2.3, cpuSpeed: 8.0, cpuReact: .15, cpuReactSd: .03, cpuReadSd: .18, cpuReadFix: .32, cpuCenterBias: 0,
     cpuErr: null, cpuLegend: true,
-    cpuServe: Object.freeze({ flight: .9 }),           // direzione: natpf_legend.legendServe
+    // (direzione: natpf_legend.legendServe; B48: gli angoli di prima, da un angolo all'altro più qualche palla al corpo;
+    // B48.1: i punti dei rimbalzi veri di prima, ognuno nel suo terzo, e una parte dei servizi profondi come a Pro)
+    cpuServe: Object.freeze({ flight: .9, cap: 0, long: CPU_LONG, ...serveDir([.36, 1, .3], [.28, 2.05, .5], [.36, 3.12, .28]), kind: Object.freeze({ flat: .34, kick: .33, slice: .33 }), spin: SERVE_SPIN_LEGEND }),
   }),
   '1v1': Object.freeze({
     assistWindow: .22, perfectLead: .12, timingSpan: .17, autoAim: .3,
@@ -118,7 +157,9 @@ LEVELS.bambini = Object.freeze({
   lateMargin: .06, cpuFlight: 1.08,
   cpuErr: Object.freeze({ ...LEVELS.casual.cpuErr, base: .012, stretch: .2, run: .08 }),
   cpuAttack: 0, cpuAttackBase: 0,
-  cpuServe: Object.freeze({ flight: 1.15, wide: 0 }),
+  // (B48: piatto o tagliato, niente kick come a Casual; mai più veloce di chi gioca. B48.1: «T» e «largo» dentro il loro
+  // terzo, vicini al corpo; prima a cavallo dei terzi, e i rimbalzi veri cadevano al corpo il 68–72% delle volte)
+  cpuServe: Object.freeze({ flight: 1.15, cap: 1, long: 0, ...serveDir([.3, 1.1, .15], [.4, 2.05, .3], [.3, 3, .15]), kind: Object.freeze({ flat: .65, kick: 0, slice: .35 }), spin: SERVE_SPIN_SLOW }),
   playerRun: null,   // B32: il movimento di prima (velocità costante): un bambino non perde palle per l'accelerazione
 });
 // «Evento» (nel menu: Chi gioca → Adulto): il livello si regola da solo su chi gioca (natpf_evento.js). È una media,
@@ -196,12 +237,107 @@ export const cpuFlightFactor = (engine, shot = '') => (shot === 'LOB' || engine?
 // lato chi risponde. Prima la risposta si giocava correndo in avanti fino a metà campo (planPlayerIntercept), un handicap
 // nascosto che a Leggenda faceva perdere il 94% dei punti in risposta; tolto quello, la difficoltà sta qui
 export const cpuServeFlight = engine => skillLevel(engine?.matchConfig?.difficulty).cpuServe?.flight ?? 1;
+// Servizio della CPU (Casual, Pro, Bambini, Evento; Leggenda: natpf_legend.legendServe con lo stesso piano)
 export function cpuServeEvent(engine, rng = Math.random){
-  const wide = finite(skillLevel(engine?.matchConfig?.difficulty).cpuServe?.wide, 0);
-  if (!wide) return { timing: 'PERFECT' };
-  // due servizi su tre verso un angolo, gli altri al corpo
-  const r = rng(), dirX = r < .33 ? -wide : r < .66 ? wide : (rng() - .5)*.4;
-  return { timing: 'PERFECT', dirX };
+  return { timing: 'PERFECT', natpfCpuServe: cpuServePlan(engine, rng) };
+}
+
+/* ---------- B48: servizio della CPU vario (punto 17 e miglioramento 10 del rapporto B16) ---------- */
+// Prima a Casual e Bambini il servizio della CPU era sempre lo stesso (al centro del quadrato, top spin 22) e a Casual
+// andava a 97–106 km/h, più veloce del servizio di chi gioca (66–88 km/h nelle partite simulate); a Pro ed Evento
+// cambiava solo la direzione, a Leggenda direzione e forza; l'effetto era sempre lo stesso. Ora ogni servizio sceglie:
+//   • la direzione: «T» (verso la riga centrale), «corpo» (al centro del quadrato, addosso a chi risponde) o «largo»
+//     (verso il corridoio), con i pesi e i punti di rimbalzo del livello (cpuServe.dir); mai più di `repeat` volte di fila
+//     la stessa. A Pro e Leggenda pesi e angoli sono quelli di prima; a Casual più morbidi (lontani dalle righe), a
+//     Bambini quasi al centro;
+//   • l'effetto: piatto (rimbalzo basso), kick (top spin alto, rimbalzo alto) o tagliato (meno top spin e la curva da
+//     destra verso la sinistra di chi batte, che è destro), con i pesi del livello (cpuServe.kind) e mai più di `repeat`
+//     volte di fila lo stesso; top spin per livello (cpuServe.spin: SERVE_SPIN, SERVE_SPIN_SLOW, SERVE_SPIN_LEGEND), volo di prima per tutti
+//     e tre. Prima il top spin era 22 per tutti. Con i valori del servizio di chi gioca (14, 24, 9) e il piatto più
+//     veloce del 5% Pro contro «medio» scendeva da 75,9 a 69,9% dei game vinti da chi gioca (sotto il criterio 70–85% di
+//     audit:legend), con il volo uguale a 71,9%; con 18, 26 e 14 74,5% (8 semi × 300 punti, scripts/audit/b48/pro.mjs);
+//   • a Casual e Bambini (cap 1) la velocità non supera mai quella dei servizi di chi gioca in questa partita: la media
+//     dei km/h veri dei suoi servizi (game_engine: natpfServeKmh), tra slack[0] e slack[1] di quella; prima del suo primo
+//     servizio la media vale firstServeKmh (sotto). Pro e Leggenda (cap 0) senza limite. Evento: il livello è una media tra Casual e
+//     Pro, e anche cap (1 − k): il limite è media / cap, che conta solo con la CPU vicina a quella di Casual (game_engine:
+//     il servizio cambia profondità e volo solo quando il limite taglia davvero la velocità).
+//   • B48.1: prima di conoscere un servizio vero la media vale il servizio più lento possibile di chi gioca con la sua
+//     racchetta (firstServeKmh): con il telefono firstKmhPhone, altrimenti firstKmh. Revisione del B48: con 70 km/h,
+//     «Battuta: Alternata» e «Batte per primo: CPU» il primo game della CPU poteva andare più forte di un bambino che poi
+//     serviva a 64–69 km/h. Misura nel motore (test natpf-b48-servizio-cpu, slowestPlayerServe): telefono a forza 0 64,9 km/h
+//     (ogni momento, forma e mano), mouse e tastiera a forza 0 con la mira verso la «T» 59,4, webcam 66,8. La CPU serve allora
+//     a 56–64 km/h con il telefono e a 52–59 con le altre racchette (un servizio alto, apice 4–5 m, che rimbalza in fondo al
+//     quadrato come gli altri; più in basso la palla non arriva in fondo al quadrato sotto il limite: a 55 km/h 4 servizi su
+//     40 restavano sopra, il volo più lungo non basta). Su una palla così lenta chi risponde la prende in salita, fino a 2–3 m
+//     più avanti, come già con chi serve piano (provato a farla rimbalzare a metà del quadrato: chi risponde arretrava e
+//     «umano», che colpisce 0,2–0,3 s dopo il rimbalzo, vinceva il 12–15% dei punti invece dell'80%)
+//   • B48.1: a Pro, Evento e Leggenda una parte dei servizi (long) rimbalza in profondità, vicino alla riga del servizio
+//     (depth), alla stessa velocità del servizio normale.
+export const CPU_SERVE = Object.freeze({
+  firstKmh: 59, firstKmhPhone: 64, minKmh: 50, slack: Object.freeze([.88, 1]), repeat: 2,
+  // m dalla rete del rimbalzo del servizio con il limite (riga del servizio a 6,4): la palla lenta che rimbalza nella metà
+  // di fondo del quadrato arriva a chi risponde all'altezza della risposta (fino a 1,72 m, natpf_impact.PLAN.returnTop)
+  // senza farlo correre avanti (con 5–5,9 m avanzava fino a 2,9 m). B48.1: anche il servizio profondo (long) di Pro, Evento
+  // e Leggenda
+  depth: Object.freeze([5.6, 6.1]),
+  spin: SERVE_SPIN,   // effetti di base (Pro, Leggenda); il livello può avere i suoi (cpuServe.spin: Casual e Bambini SERVE_SPIN_SLOW)
+  box: Object.freeze({ min: .3, max: COURT.SINGLES_X - .45 }),   // m dalla riga centrale: il rimbalzo voluto resta nel quadrato
+});
+// scelta pesata da { chiave: peso }, senza la chiave uscita le ultime `repeat` volte di fila (hist: le ultime scelte)
+export function pickVaried(weights = {}, hist = [], rng = Math.random, repeat = CPU_SERVE.repeat){
+  let keys = Object.keys(weights).filter(k => finite(weights[k]) > 0);
+  const last = hist.slice(-repeat);
+  if (repeat > 0 && last.length === repeat && last.every(k => k === last[0]) && keys.length > 1) keys = keys.filter(k => k !== last[0]);
+  const tot = keys.reduce((s, k) => s + finite(weights[k]), 0);
+  let r = rng()*tot;
+  for (const k of keys){ if ((r -= finite(weights[k])) <= 0) return k; }
+  return keys[keys.length - 1] ?? null;
+}
+// limite di velocità del servizio della CPU (km/h veri), null senza limite: media dei servizi di chi gioca nella partita
+// (o firstServeKmh prima del primo) / cap del livello
+export function cpuServeLimit(engine, level = skillLevel(engine?.matchConfig?.difficulty)){
+  const cap = clamp(finite(level?.cpuServe?.cap));
+  if (!(cap > 0) || engine?.isMultiplayer) return null;
+  const st = engine?.natpfServeKmh, ref = st?.n > 0 && finite(st.sum) > 0 ? st.sum/st.n : firstServeKmh(engine);
+  return ref/cap;
+}
+// B48.1: il servizio più lento possibile di chi gioca contro la CPU con la sua racchetta (km/h, per il servizio della CPU
+// prima di conoscerne uno vero): con il telefono firstKmhPhone; con mouse e tastiera (anche la modalità prova, che li
+// accende accanto al telefono), con la webcam e senza interfaccia (prove, simulazioni) firstKmh, il più basso
+export const firstServeKmh = engine => {
+  const U = engine?.natpfUi;
+  return U?.controller === 'phone' && !U.testInput ? CPU_SERVE.firstKmhPhone : CPU_SERVE.firstKmh;
+};
+// I km/h veri di un servizio di chi gioca (game_engine._executeServeHit), per il limite del servizio della CPU
+export function noteServeKmh(engine, kmh){
+  if (!engine || !(finite(kmh) > 0)) return;
+  const st = engine.natpfServeKmh || (engine.natpfServeKmh = { n: 0, sum: 0 });
+  st.n++; st.sum += finite(kmh);
+}
+// Piano di un servizio della CPU: { dir, x (m dalla riga centrale nel quadrato, dove rimbalza davvero), kind, top, side,
+// flightK, maxKmh, depth (m dalla rete: con il limite o con il servizio profondo), deep, long }
+export function cpuServePlan(engine, rng = Math.random, level = skillLevel(engine?.matchConfig?.difficulty)){
+  const C = level?.cpuServe || {}, s = skillState(engine), H = s.cpuServeHist || (s.cpuServeHist = { dir: [], kind: [] });
+  const D = C.dir || { corpo: { w: 1, x: 2.05, span: .4 } };
+  const dir = pickVaried(Object.fromEntries(Object.entries(D).map(([k, v]) => [k, finite(v?.w)])), H.dir, rng) || 'corpo';
+  const d = D[dir] || { x: 2.05, span: 0 };
+  const x = clamp(finite(d.x, 2.05) + (rng()*2 - 1)*finite(d.span), CPU_SERVE.box.min, CPU_SERVE.box.max);
+  const kind = pickVaried(C.kind || { flat: 1 }, H.kind, rng) || 'flat', S = C.spin || CPU_SERVE.spin, K = S[kind] || S.flat || CPU_SERVE.spin.flat;
+  H.dir.push(dir); H.kind.push(kind); if (H.dir.length > 6) H.dir.shift(); if (H.kind.length > 6) H.kind.shift();
+  const limit = cpuServeLimit(engine, level);
+  const maxKmh = limit == null ? null : Math.max(Math.min(CPU_SERVE.minKmh, limit), limit*(CPU_SERVE.slack[0] + rng()*(CPU_SERVE.slack[1] - CPU_SERVE.slack[0])));
+  // il tagliato gira da destra verso la sinistra di chi batte: la CPU guarda verso +z, la sua sinistra è +x
+  const side = K.side*(-(Math.sign(finite(engine?.opponent?.sideSign, -1)) || -1));
+  // B48.1: servizio profondo (Pro, Evento, Leggenda: cpuServe.long); il sorteggio solo dove serve, così a Casual e Bambini
+  // la sequenza casuale resta quella di prima
+  const long = finite(C.long) > 0 && rng() < finite(C.long);
+  const depth = maxKmh == null && !long ? null : CPU_SERVE.depth[0] + rng()*(CPU_SERVE.depth[1] - CPU_SERVE.depth[0]);
+  // maxKmh arrotondato in giù (prima al decimo più vicino: 1 servizio su 500 andava 0,04 km/h sopra la media di chi gioca)
+  // deep: rimbalzo nella metà di fondo del quadrato sempre (Casual, Bambini ed Evento a k 0, cap 1: anche quando chi gioca
+  // serve così forte che il limite non taglia, il servizio della CPU è quello lento e profondo di questi livelli) o solo
+  // quando il limite taglia la velocità (Evento con k > 0, game_engine._executeServeHit)
+  return { dir, x: +x.toFixed(3), kind, top: K.top, side, flightK: K.flight, maxKmh: maxKmh == null ? null : Math.floor(maxKmh*10)/10, depth: depth == null ? null : +depth.toFixed(3),
+    deep: maxKmh != null && clamp(finite(C.cap)) >= 1, long };
 }
 
 // stato dello scambio sul motore: colpi perfetti consecutivi, pressione sulla CPU, piano di corsa della CPU
@@ -426,12 +562,12 @@ export const mistimeFlight = (flight, quality) => flight*(1 + .14*(1 - clamp(fin
 export function registerPlayerShot(engine, { grade, quality, power, landingX, landingZ = -9.5, shot = 'TOPSPIN', who = 'player', cpuZ = -11 } = {}){
   const s = skillState(engine), perfect = String(grade).toUpperCase() === 'PERFECT';
   if (who === 'p2') s.p2Streak = perfect ? s.p2Streak + 1 : 0;
-  else s.streak = perfect ? s.streak + 1 : 0;
+  else if (who !== 'partner') s.streak = perfect ? s.streak + 1 : 0; // B49: il colpo del compagno non tocca la serie di chi gioca
   const angle = clamp(Math.abs(finite(landingX))/COURT.SINGLES_X);
   s.pressure = clamp(s.pressure*.75 + clamp(finite(quality, 1))*(.1 + .45*angle + .45*clamp(finite(power, .6)))*shotThreat({ power, depth: landingZ }), 0, 3);
   // B18.2 passo 3 (D8): quante palle corte ha visto la CPU negli ultimi colpi di chi gioca (dropHabit, prima di questo colpo)
   const S = String(shot).toUpperCase(), habit = finite(s.dropHabit);
-  if (who !== 'p2') s.dropHabit = habit*DROP_READ.keep + (S === 'DROP' ? 1 : 0);
+  if (who === 'player') s.dropHabit = habit*DROP_READ.keep + (S === 'DROP' ? 1 : 0);
   s.lastQuality = quality; s.lastShot = { shot: S, grade, landingX, landingZ, power, cpuZ, dropHabit: habit };
   return s;
 }
@@ -919,6 +1055,18 @@ export function fixAirServe(ball, { from, to, topspin = 14, sidespin = 0, gravit
     const f = flyAir({ ...o, vel: ball.vel });
     if (f.net == null || f.net >= netY + netGap) break;
     ball.vel.y += (netY + netGap + .03 - f.net)/Math.max(.15, f.netT);
+  }
+  return ball;
+}
+// B48.1: solo il lato del servizio (la profondità e la velocità restano quelle del lancio): il rimbalzo cade nel punto x
+// voluto, con l'aria e l'effetto (il tagliato curva). Il servizio della CPU senza limite e non profondo (Pro, Evento,
+// Leggenda): prima rimbalzava a circa 0,865 dello spostamento voluto e le direzioni «T» e «largo» finivano al corpo
+export function aimServeX(ball, { from, x, topspin = 14, sidespin = 0, gravity = 9.15, drag = .012 } = {}){
+  const o = { from, topspin, sidespin, gravity, drag };
+  for (let i = 0; i < 8; i++){
+    const f = flyAir({ ...o, vel: ball.vel });
+    if (Math.abs(f.landX - x) < .02) break;
+    ball.vel.x += clamp((x - f.landX)/Math.max(.3, f.t), -3, 3);
   }
   return ball;
 }

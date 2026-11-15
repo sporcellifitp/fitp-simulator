@@ -310,18 +310,21 @@ export function poseMascotArms(rig, actor, dt){
   if (handA) handA.updateWorldMatrix(true, false);
   if (handB) handB.updateWorldMatrix(true, false);
   const sideA = rig.mirrored ? rig.left : rig.right, sideB = rig.mirrored ? rig.right : rig.left;
+  // B40: nell'applauso di fine partita la mano libera va dove va quella del tennista (sulle corde), senza le regole
+  // del riposo e della faccia
+  const clap = !!actor.rig?.reaction?.active && actor.rig.reaction.type === 'clap';
   poseArm(rig, sideA, handA, false, dt);
-  poseArm(rig, sideB, handB, true, dt);
+  poseArm(rig, sideB, handB, true, dt, clap);
   return true;
 }
-function poseArm(rig, side, hand, free, dt){
+function poseArm(rig, side, hand, free, dt, clap = false){
   if (!hand) return;
   const k = 1/rig.scale;
   readPart(rig, hand, _T, null);                                                     // dove va il palmo (metri)
   if (free){
     // mano libera: bassa a riposo, alla posizione vera quando la mano del tennista si allontana dal suo riposo
     const R = ENGINE_REST.handFree, dx = _T.x - R[0]*side.sx, dy = _T.y - R[1], dz = _T.z - R[2], high = _T.y;
-    const far = Math.sqrt(dx*dx + dy*dy + dz*dz), t = Math.min(1, Math.max(0, (far - FREE_HAND_BLEND[0])/(FREE_HAND_BLEND[1] - FREE_HAND_BLEND[0]))), w = t*t*(3 - 2*t);
+    const far = Math.sqrt(dx*dx + dy*dy + dz*dz), t = clap ? 1 : Math.min(1, Math.max(0, (far - FREE_HAND_BLEND[0])/(FREE_HAND_BLEND[1] - FREE_HAND_BLEND[0]))), w = t*t*(3 - 2*t);
     _w.set(FREE_HAND_REST[0]*side.sx + dx*k, FREE_HAND_REST[1] + dy*k, FREE_HAND_REST[2] + dz*k);
     _T.multiplyScalar(k).lerp(_w, 1 - w);
     // davanti alla faccia: il tennista porta la mano libera avanti all'altezza della spalla (dritto, rovescio), che
@@ -329,7 +332,7 @@ function poseArm(rig, side, hand, free, dt){
     // alza la mano sopra la testa (esultanza, lancio alto) resta dov'è. Tutto continuo: niente scatti.
     const H = rig.headShape, cx = rig.head.wp.x + H.cx + rig.hipsP.x - rig.hips.wp.x, cy = rig.head.wp.y + H.cy + rig.hipsP.y - rig.hips.wp.y, cz = rig.head.wp.z + (H.cz || 0) + rig.hipsP.z - rig.hips.wp.z;
     const chin = cy - H.ry - FREE_HAND_CHIN;
-    if (_T.y > chin){
+    if (_T.y > chin && !clap){
       const front = smooth(H.rx, 0.4*H.rx, Math.abs(_T.x - cx))*smooth(0, 0.5*H.rz, _T.z - cz), up = smooth(FREE_HAND_UP[0], FREE_HAND_UP[1], high);
       _T.y -= (_T.y - chin)*front*(1 - up);
     }

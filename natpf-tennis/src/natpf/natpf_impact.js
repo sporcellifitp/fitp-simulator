@@ -164,9 +164,16 @@ export function planPlayerIntercept(engine, actor, { groundOnly = false } = {}){
     return engine[key];
   }
   let kind = null, s = null;
+  // B48.1: la risposta al servizio si gioca dopo il rimbalzo, come nel tennis vero (il servizio va lasciato rimbalzare):
+  // niente schiacciata né volée al volo. Revisione del B48: il servizio lento e profondo della CPU a Bambini sale a circa
+  // 3,8 m, oltre lobApex, e il piano sceglieva la «schiacciata prima del rimbalzo» (1,1% dei servizi contro «medio», 1,5%
+  // contro «bambino», battuta alternata): chi rispondeva correva fino a 2,7–5,6 m dalla rete e colpiva al volo, e il punto
+  // continuava. Le palle del lanciapalle e degli scambi di prova (natpfFeed, anche loro con rallyStrokeCount 1) non sono
+  // servizi: lì la schiacciata e la volée restano
+  const serveReturn = finite(b.rallyStrokeCount) <= 1 && !b.natpfFeed, air = !groundOnly && !serveReturn;
   // schiacciata al volo: palla alta che scende nella zona della schiacciata (un pallonetto; a rete ogni palla alta)
   const low = apex >= PLAN.lobApex ? PLAN.smash[0] : Z(actor.pos.z) <= PLAN.netSmashZ ? PLAN.netSmashY : Infinity;
-  if (apex >= low && !groundOnly) s = before.find(p => p.vy < 0 && p.y >= low && p.y <= PLAN.smash[1] && Z(p.z) >= PLAN.smashMinZ && reachable(p)), kind = s ? 'smash' : null;
+  if (apex >= low && air) s = before.find(p => p.vy < 0 && p.y >= low && p.y <= PLAN.smash[1] && Z(p.z) >= PLAN.smashMinZ && reachable(p)), kind = s ? 'smash' : null;
   if (!s){
     // dopo il rimbalzo: il punto comodo raggiungibile più vicino al colmo (a parità d'altezza quello in discesa), cioè il
     // più alto entro l'altezza comoda e entro maxBack (richiesta del 23/10, C1–C2: più tempo per il colpo e la palla più
@@ -202,7 +209,7 @@ export function planPlayerIntercept(engine, actor, { groundOnly = false } = {}){
     // conveniente anche da metà campo
     const volley = before.filter(p => Z(p.z) >= PLAN.volleyMinZ && p.y >= PLAN.volley[0] && p.y <= PLAN.volley[1] && reachable(p)).reduce((b, p) => (!b || need(p) < need(b) ? p : b), null);
     const wait = serve ? ground : early;   // sulla risposta al servizio il confronto è con il punto scelto, da fondo campo
-    if (volley && !groundOnly && (!wait || need(wait) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
+    if (volley && air && (!wait || need(wait) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
     else if (ground) s = ground, kind = 'ground';
   }
   // nessun punto raggiungibile: verso il rimbalzo (o la fine della traiettoria), il più vicino possibile; mai verso un

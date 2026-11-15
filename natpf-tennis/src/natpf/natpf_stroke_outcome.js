@@ -599,7 +599,30 @@ export const SERVE = Object.freeze({
   // di averne imparato uno «Gran servizio» vuole almeno greatCold (la presa a racchetta a 1× ha forza 0,62: il primo
   // servizio di ogni partita era «Gran servizio»); la soglia non supera greatMax (chi serve sempre al massimo lo ottiene)
   learnFree: 3, greatCold: .75, greatMax: .9,
+  // B48 (miglioramento 10 del rapporto B16): un servizio con una scelta, per chi gioca col telefono (serveOutcome, choice).
+  // Il momento del colpo rispetto al punto più alto del lancio sceglie la direzione: prima (palla che sale) verso il centro,
+  // alla «T»; dopo (palla che scende) verso l'esterno, largo; al punto più alto al centro del quadrato. Scelta piena a
+  // choiceTau s dal punto più alto, dentro la finestra «perfetto» (perfect): si sceglie senza perdere qualità; a
+  // choiceReach m dal centro del quadrato (0,45 m dalla riga centrale o dal corridoio). Fuori dalla finestra la scelta
+  // cala con la pulizia del colpo, come la minaccia del servizio per la CPU (natpf_skill.SERVE_WEIGHT.qFrom: piena a q 1,
+  // nulla da q choiceQ0 in giù): colpito mezzo secondo dopo il punto più alto il servizio torna lento e centrale come
+  // prima, non diventa un servizio largo che fa correre la CPU. Prima la direzione veniva da quanto era obliquo il gesto
+  // (piano e piatto): non era una scelta e il tutorial non ne parlava. Profondità, forza ed effetto restano quelli di
+  // prima. Webcam, mouse e tastiera (choice falso, serveChoiceOf) come prima: mouse e tastiera hanno già la loro mira
+  // (Q/E, A/D: dirX), e la webcam non sa quando è il colpo con la precisione del telefono (nessuna latenza misurata; la
+  // webcam di base, «argon», batte con un'altra regola; quella «movimento» stima l'istante, anche negativo)
+  choiceTau: .15, choiceReach: 1.625, choiceQ0: .55,
 });
+// B48: il servizio ha la scelta del momento? Solo dal telefono (e dal servizio automatico dello stesso schermo, che batte
+// nel punto più alto: al centro come prima): natpf.aim «swing» e non dalla webcam
+export const serveChoiceOf = (t = {}) => t?.natpf?.aim === 'swing' && t.natpf.source !== 'webcam' && t.source !== 'webcam';
+// B48: la scelta del servizio dal telefono si spegne solo nelle prove di confronto (il gioco di prima: direzione dal piano e
+// dal piatto), come netPlayRules.off e movementRules.off; nel gioco è sempre accesa
+export const serveChoiceRules = { off: false };
+// terzo del quadrato in cui cade un servizio (x: rimbalzo laterale, m): «T» vicino alla riga centrale, «corpo» in mezzo,
+// «largo» verso il corridoio
+const SERVE_BOX_W = 4.115;   // m: larghezza del quadrato del servizio (dalla riga centrale al corridoio del singolare)
+export const serveThird = x => { const a = Math.abs(finite(x)); return a < SERVE_BOX_W/3 ? 'T' : a < 2*SERVE_BOX_W/3 ? 'corpo' : 'largo'; };
 // Riferimento del proprio servizio (SERVE.habit): media dei propri servizi, letti dal telefono con la forma (non le
 // intenzioni ricostruite di webcam, mouse e CPU): i primi SERVE.learnFree di qualunque tipo, poi solo quelli piatti
 // rispetto al riferimento. Un servizio voluto diverso (kick, tagliato) dopo i primi non lo sposta
@@ -625,14 +648,18 @@ export function serveRefOf(engine, actor){
 }
 // boxSign: −1/+1 lato del campo del quadrato (segno della x del suo centro); tau: s prima del punto più alto
 // ref: servizio abituale di chi batte ({ rise, plane, power }, createServeRef().value); senza, SERVE.habit
-export function serveOutcome({ intent = {}, tau = 0, boxSign = -1, ref = null } = {}){
+// choice (B48): servizio dal telefono, la direzione la sceglie il momento del colpo (SERVE.choiceTau); senza, come prima
+export function serveOutcome({ intent = {}, tau = 0, boxSign = -1, ref = null, choice = false } = {}){
   const S = SERVE, q = 1 - S.drop*clamp((Math.abs(finite(tau)) - S.perfect)/S.span);
+  if (serveChoiceRules.off) choice = false;
   const power = clamp(finite(intent.power, .6)), pace = power*(.55 + .45*q);
   const rise = finite(intent.rise), plane = finite(intent.plane), H = ref || S.habit;
   const kind = rise - finite(H.rise, S.habit.rise) >= S.kickRel ? 'kick' : Math.abs(plane) - finite(H.plane, S.habit.plane) >= S.sliceRel ? 'slice' : 'flat';
   // angolo: verso orizzontale dello swing (+ da destra a sinistra → palla a sinistra) e piatto; un servizio sporco va più
-  // verso il centro del quadrato
-  const xc = Math.sign(boxSign || -1)*S.boxCenter, dx = (-plane*S.planeAim + clamp(finite(intent.face), -1, 1)*S.faceAim)*q;
+  // verso il centro del quadrato. B48, dal telefono (choice): il momento del colpo, + prima del punto più alto → verso la
+  // riga centrale («T»), − dopo → verso il corridoio (largo), pieno a choiceTau; uguale per destri e mancini
+  const sb = Math.sign(boxSign || -1), xc = sb*S.boxCenter, aim = choice ? clamp(finite(tau)/S.choiceTau, -1, 1) : null;
+  const dx = choice ? -sb*aim*S.choiceReach*clamp((q - S.choiceQ0)/(1 - S.choiceQ0)) : (-plane*S.planeAim + clamp(finite(intent.face), -1, 1)*S.faceAim)*q;
   const lo = Math.min(0, xc*2) + S.margin, hi = Math.max(0, xc*2) - S.margin;
   const x = clamp(xc + dx, Math.min(lo, hi), Math.max(lo, hi));
   const depth = lerp(S.depth[0], S.depth[1], pace);
@@ -640,6 +667,8 @@ export function serveOutcome({ intent = {}, tau = 0, boxSign = -1, ref = null } 
   const cold = ref && Number(ref.n) === 0, greatAt = Math.min(S.greatMax, Math.max(finite(H.power, S.habit.power) + S.greatRel, cold ? S.greatCold : 0));
   const F = (intent.derived ? S.legacyFlight : S.flight)[kind], flight = lerp(F[0], F[1], pace);
   return { x: +x.toFixed(3), depth: +depth.toFixed(3), flight: +flight.toFixed(3), topspin: S.spin[kind], sidespin: kind === 'slice' ? -Math.sign(plane)*6 : 0,
+    // B48: scelta del momento (+1 «T», −1 largo; null senza la scelta) e terzo del quadrato
+    aim: aim == null ? null : +aim.toFixed(3), dir: serveThird(x),
     // strong: servizio potente per il motore (palla «potente»: risposta della CPU, ball.isPowerShot), con la regola di prima
     // (a tempo e ritmo ≥ 0,62): la scritta «Gran servizio» (grade) è sulla propria forza, l'effetto sulla CPU resta quello
     kind, q: +q.toFixed(3), pace: +pace.toFixed(3), strong: q >= .9 && pace >= S.strongPace, grade: q >= .9 && power >= greatAt ? 'POWER SERVE!' : q < .7 ? (tau > 0 ? 'EARLY SERVE' : 'LATE SERVE') : 'GOOD SERVE' };

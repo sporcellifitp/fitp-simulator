@@ -33,8 +33,10 @@ export function formatText(gamesToWin = 1, { fair = false, short = false } = {})
 
 // B43: l'etichetta dentro il tabellone (una sola, corta; maiuscole dal CSS): il formato, «1 game» o «Al meglio di 3»; al
 // punto decisivo del formato in fiera (40-40) «Punto decisivo», rosa. { text, kind: 'format' | 'decisive' }
-export function scoreTag(gamesToWin = 1, { decisive = false } = {}){
+export function scoreTag(gamesToWin = 1, { decisive = false, deuce = false, adv = false } = {}){
   if (decisive) return { text: 'Punto decisivo', kind: 'decisive' };
+  if (deuce) return { text: 'Parità', kind: 'deuce' };
+  if (adv) return { text: 'Vantaggio', kind: 'adv' };
   const n = Math.max(1, Math.round(Number(gamesToWin) || 1));
   return { text: n > 1 ? `Al meglio di ${n*2 - 1}` : '1 game', kind: 'format' };
 }
@@ -146,7 +148,7 @@ export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', 
       label = viewScore({ player: pts.player === 'Vant.' ? 'Ad' : '40', opponent: pts.opponent === 'Vant.' ? 'Ad' : '40' }, viewer, rival);
     }
   }
-  return { rows, format: formatText(gamesToWin, { fair: !!score.fair, short: !!label }), label, tag: scoreTag(gamesToWin, { decisive: !!(pts.deuce && score.fair) }) };
+  return { rows, format: formatText(gamesToWin, { fair: !!score.fair, short: !!label }), label, tag: scoreTag(gamesToWin, { decisive: !!(pts.deuce && score.fair), deuce: !!(pts.deuce && !score.fair), adv: !!pts.adv }) };
 }
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

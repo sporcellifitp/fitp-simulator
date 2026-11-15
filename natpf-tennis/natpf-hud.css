@@ -1008,6 +1008,333 @@ body {
 .end-player .end-num { font-size: calc(var(--eu) * 8.6); }
 .end-player .end-lab { font-size: calc(var(--eu) * 2.8); }
 #victory-modal.has-stats .victory-rematch { margin: 0 auto; }
+
+/* B40 · fine partita v2: card della partita (docs/b40/fine-partita-v2.md). La card entra tra la testa (titolo largo
+   quanto la scheda, B41.5) e i pulsanti, in una riga con i tre riquadri del B35 (che restano: in colonna accanto alla card,
+   o in fila dove c'è spazio). Senza card (#victory-cards nascosto) .end-body non conta (display: contents) e la schermata
+   è quella del B35. Misure in --eu come il B35 (cqh/cqw con @container natpf), niente vw/vh/@media */
+.end-body { display: contents; }
+#victory-modal.has-stats.has-cards .natpf-end-card {
+  gap: calc(var(--eu) * 3);
+  padding-block: calc(var(--eu) * 4.2);
+}
+#victory-modal.has-cards .end-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: calc(var(--eu) * 3.4);
+  flex: 1 1 0;
+  min-height: calc(var(--eu) * 26);
+  max-height: calc(var(--eu) * 50);
+}
+#victory-modal.has-cards.stats-split .end-body { grid-template-columns: minmax(0, 1fr); }
+#victory-modal.has-cards.stats-split .victory-stats { display: none; }
+.end-cards {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: calc(var(--eu) * 2.4);
+  min-width: 0;
+  min-height: 0;
+}
+.end-cards.hidden { display: none !important; }
+.end-vs {
+  align-self: center;
+  flex: none;
+  color: var(--hud-ball);
+  font: italic 800 calc(var(--eu) * 6) / 1 "Barlow Condensed", var(--hud-font);
+}
+/* la card: cornice del colore del livello (o della fascia), finestra del ritratto a sinistra, nome, trofei e record */
+.end-card {
+  --frame: linear-gradient(135deg, #e3ff36, #7ee04a);
+  --ink: #0b1a52;
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  align-items: stretch;
+  gap: calc(var(--eu) * 2.4);
+  min-width: 0;
+  min-height: 0;
+  max-width: calc(var(--eu) * 96);
+  box-sizing: border-box;
+  padding: calc(var(--eu) * 1.5);
+  border: 0;
+  border-radius: calc(var(--eu) * 4);
+  background: var(--frame);
+  box-shadow: 0 calc(var(--eu) * 1) calc(var(--eu) * 3.4) rgba(0, 0, 0, 0.45);
+  color: #fff;
+  text-align: left;
+}
+.end-card::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--eu) * 0.8);
+  border-radius: calc(var(--eu) * 3.3);
+  background: radial-gradient(120% 100% at 30% 0%, #1d3f9f 0%, #0d1d5a 60%, #091445 100%);
+}
+.end-card > * { position: relative; }
+.end-card[data-frame="bambini"] { --frame: linear-gradient(135deg, #b5ecff, #7fd8ff 40%, #2fa8e6); }
+.end-card[data-frame="facile"] { --frame: linear-gradient(135deg, #ffffff, #eef2f8 35%, #9fb0c8); }
+.end-card[data-frame="evento"] { --frame: linear-gradient(135deg, #f2ff8a, #e3ff36 35%, #7ee04a); }
+.end-card[data-frame="pro"] { --frame: linear-gradient(135deg, #fff1b0, #ffe27a 30%, #d4a017 70%, #fff1b0); }
+.end-card[data-frame="leggenda"] { --frame: conic-gradient(from 210deg, #ff4d6d, #ffb84d, #e3ff36, #4dd7ff, #7a5cff, #ff4dd2, #ff4d6d); }
+.card-art {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  aspect-ratio: 4 / 5;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: calc(var(--eu) * 2.8);
+  background: var(--art, #24521c);
+  box-shadow: inset 0 0 0 calc(var(--eu) * 0.35) rgba(255, 255, 255, 0.25);
+}
+/* vignetta sopra il ritratto (luce dall'alto come l'arena) */
+.card-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(90% 70% at 50% 30%, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.35) 100%);
+}
+.card-art canvas.card-portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.card-art canvas.card-portrait.hidden { display: none; }
+.card-svg {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 14%;
+  aspect-ratio: 1;
+}
+.card-svg.hidden { display: none; }
+.card-svg svg { width: 100%; height: 100%; display: block; }
+/* ripiego senza i fotogrammi 3D: il ritratto SVG salta (chi vince) o ondeggia (chi applaude); solo transform */
+@keyframes natpf-card-hop { 0%, 100% { transform: translateY(0) scale(1, 1); } 45% { transform: translateY(-9%) scale(0.98, 1.03); } 60% { transform: translateY(-10%); } }
+@keyframes natpf-card-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.end-card[data-won="1"] .card-svg { animation: natpf-card-hop 0.683s ease-in-out infinite; }
+.end-card[data-won="0"] .card-svg { animation: natpf-card-sway 1.366s ease-in-out infinite; transform-origin: 50% 90%; }
+.natpf-reduce-motion .card-svg { animation: none !important; }
+.card-badge {
+  position: absolute;
+  top: calc(var(--eu) * 1.3);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: calc(var(--eu) * 0.8) calc(var(--eu) * 2);
+  border-radius: 999px;
+  background: var(--frame);
+  color: var(--ink);
+  font: 800 calc(var(--eu) * 2) / 1.05 "Barlow", var(--hud-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 calc(var(--eu) * 0.4) calc(var(--eu) * 1.2) rgba(0, 0, 0, 0.35);
+}
+.end-card[data-won="0"] .card-badge { background: rgba(255, 255, 255, 0.88); }
+.card-crown {
+  position: absolute;
+  top: calc(var(--eu) * -3.4);
+  left: calc(var(--eu) * -2.4);
+  z-index: 2;
+  width: calc(var(--eu) * 8.4);
+  height: calc(var(--eu) * 8.4);
+  transform: rotate(-18deg);
+  filter: drop-shadow(0 calc(var(--eu) * 0.3) calc(var(--eu) * 0.6) rgba(0, 0, 0, 0.45));
+}
+.card-crown svg { width: 100%; height: 100%; fill: #ffd84d; stroke: #b88700; stroke-width: 1.4; }
+.card-band {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--eu) * 1.2);
+  transform: translateX(-50%);
+  padding: calc(var(--eu) * 0.6) calc(var(--eu) * 1.8);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: 700 calc(var(--eu) * 2) / 1.1 "Barlow", var(--hud-font);
+  white-space: nowrap;
+}
+.card-info {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--eu) * 1.5);
+  min-width: 0;
+  min-height: 0;
+  padding: calc(var(--eu) * 1.2) calc(var(--eu) * 1.6) calc(var(--eu) * 1.2) 0;
+}
+.card-head { display: flex; flex-direction: column; gap: calc(var(--eu) * 0.4); min-width: 0; }
+.end-card .card-name {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #fff;
+  font: italic 800 calc(var(--eu) * 6.2) / 1.02 "Barlow Condensed", var(--hud-font);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.end-card .card-sub {
+  margin: 0;
+  color: #c9d3f5;
+  font: 600 calc(var(--eu) * 2.5) / 1.15 "Barlow", var(--hud-font);
+}
+/* medaglie: cerchio bronzo, argento o oro con l'icona, sotto il nome e il valore */
+.card-trophies {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(var(--eu) * 1.2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.card-trophies { max-width: calc(var(--eu) * 62); }
+.card-trophies[data-n="1"] { grid-template-columns: minmax(0, 1fr); justify-items: start; }
+.card-trophies[data-n="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.trophy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--eu) * 0.5);
+  min-width: 0;
+  text-align: center;
+}
+.card-trophies[data-n="1"] .trophy { flex-direction: row; text-align: left; gap: calc(var(--eu) * 1.4); }
+.medal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: calc(var(--eu) * 7.8);
+  height: calc(var(--eu) * 7.8);
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #f6c79c, #c47f45 55%, #8a5a2b);
+  box-shadow: inset 0 0 0 calc(var(--eu) * 0.4) rgba(255, 255, 255, 0.35), 0 calc(var(--eu) * 0.3) calc(var(--eu) * 0.8) rgba(0, 0, 0, 0.35);
+}
+.medal[data-medal="argento"] { background: radial-gradient(circle at 35% 30%, #ffffff, #c9ced8 55%, #8c94a3); }
+.medal[data-medal="oro"] { background: radial-gradient(circle at 35% 30%, #fff3b0, #ffd23f 50%, #c99a00); }
+.medal svg { width: 56%; height: 56%; stroke: #2a1a08; stroke-width: 2.2; }
+.medal[data-medal="argento"] svg { stroke: #1d2433; }
+.trophy-txt { display: flex; flex-direction: column; min-width: 0; max-width: 100%; }
+.trophy-txt b {
+  max-width: 100%;
+  color: #fff;
+  font: 800 calc(var(--eu) * 2.2) / 1.05 "Barlow", var(--hud-font);
+  overflow-wrap: anywhere;
+}
+.trophy-txt em {
+  color: #c9d3f5;
+  font: 600 calc(var(--eu) * 2.1) / 1.15 "Barlow", var(--hud-font);
+  font-style: normal;
+}
+.card-record {
+  align-self: flex-start;
+  max-width: 100%;
+  margin: 0;
+  padding: calc(var(--eu) * 0.8) calc(var(--eu) * 2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: 700 calc(var(--eu) * 2.6) / 1.15 "Barlow", var(--hud-font);
+}
+.card-record[data-mine="1"] { background: var(--frame); color: var(--ink); }
+.card-next {
+  margin: 0;
+  color: #4dd7ff;
+  font: 700 calc(var(--eu) * 2.5) / 1.2 "Barlow", var(--hud-font);
+}
+/* i tre riquadri del B35 accanto alla card: in colonna, icona a sinistra */
+#victory-modal.has-cards:not(.stats-split) .victory-stats { display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+#victory-modal.has-cards:not(.stats-split) .victory-stats > .end-tiles {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: minmax(0, 1fr);
+  gap: calc(var(--eu) * 2);
+  width: auto;
+  max-height: 100%;
+  margin: 0;
+}
+#victory-modal.has-cards:not(.stats-split) .victory-stats .end-tile {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: calc(var(--eu) * 2.4);
+  min-height: 0;
+  padding: calc(var(--eu) * 1.4) calc(var(--eu) * 3);
+  border-radius: calc(var(--eu) * 4);
+  text-align: left;
+}
+#victory-modal.has-cards:not(.stats-split) .victory-stats .end-ico { flex: none; width: calc(var(--eu) * 8.2); height: calc(var(--eu) * 8.2); }
+#victory-modal.has-cards:not(.stats-split) .victory-stats .end-num { flex: none; font-size: calc(var(--eu) * 8.4); }
+#victory-modal.has-cards:not(.stats-split) .victory-stats .end-lab { flex: 1 1 0; min-width: 0; font-size: calc(var(--eu) * 2.9); }
+/* stesso schermo: la card è la scheda del giocatore (nome, nastro, due riquadri piccoli, trofei, record); finestra più
+   stretta (3:4) e riquadri piccoli con il numero accanto alla scritta */
+.end-card.end-player {
+  flex-direction: row;
+  gap: calc(var(--eu) * 2);
+  padding: calc(var(--eu) * 1.5);
+  border: 0;
+  border-radius: calc(var(--eu) * 4);
+}
+.end-card.end-player.won { background: var(--frame); }
+.end-card.end-player .card-art { aspect-ratio: 3 / 4; }
+.end-card.end-player .card-info { gap: calc(var(--eu) * 0.9); padding-block: calc(var(--eu) * 0.8); }
+.end-card.end-player .card-head { justify-content: flex-start; align-items: flex-start; }
+.end-card.end-player .card-name { font-size: calc(var(--eu) * 5); }
+.end-card .card-badge.end-chip { font-size: calc(var(--eu) * 1.9); }
+.end-card.end-player .end-tiles { grid-template-columns: minmax(0, 1fr); gap: calc(var(--eu) * 0.9); }
+.end-card.end-player .end-tile {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: calc(var(--eu) * 1);
+  padding: calc(var(--eu) * 0.5) calc(var(--eu) * 1.6);
+  border-radius: calc(var(--eu) * 2.4);
+  background: rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+.end-card.end-player .end-num { flex: none; min-width: calc(var(--eu) * 6.4); font-size: calc(var(--eu) * 4.4); }
+.end-card.end-player .end-lab { flex: 1 1 0; min-width: 0; font-size: calc(var(--eu) * 2.1); line-height: 1.12; }
+.end-card.end-player .card-trophies .trophy-txt em { display: none; }
+.end-card.end-player .medal { width: calc(var(--eu) * 4.8); height: calc(var(--eu) * 4.8); }
+.end-card.end-player .trophy { gap: calc(var(--eu) * 0.3); }
+.end-card.end-player .trophy-txt b { font-size: calc(var(--eu) * 1.85); }
+.end-card.end-player .card-record { padding: calc(var(--eu) * 0.5) calc(var(--eu) * 1.4); font-size: calc(var(--eu) * 2); }
+.end-card.end-player .card-next { font-size: calc(var(--eu) * 2); line-height: 1.15; }
+/* ledwall (1920 × 540): card di larghezza fissa, i tre riquadri del B35 in fila accanto */
+@container natpf (min-aspect-ratio: 3/1) {
+  #victory-modal.has-cards .end-body { grid-template-columns: minmax(0, calc(var(--eu) * 92)) minmax(0, 1fr); }
+  #victory-modal.has-cards.stats-split .end-body { grid-template-columns: minmax(0, 1fr); }
+  #victory-modal.has-cards.stats-split .end-card { max-width: calc(var(--eu) * 104); }
+  #victory-modal.has-cards:not(.stats-split) .victory-stats > .end-tiles { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); grid-auto-rows: auto; }
+  #victory-modal.has-cards:not(.stats-split) .victory-stats .end-tile { flex-direction: column; justify-content: center; gap: calc(var(--eu) * 1.4); padding: calc(var(--eu) * 3) calc(var(--eu) * 2.4); text-align: center; }
+  #victory-modal.has-cards:not(.stats-split) .victory-stats .end-lab { flex: none; }
+}
+/* aree quasi quadrate (720 × 720): card larga sopra, i tre riquadri del B35 in fila sotto; stesso schermo, card una sopra
+   l'altra */
+@container natpf (max-aspect-ratio: 5/4) {
+  #victory-modal.has-cards .end-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    flex: 1 1 0;
+    max-height: calc(var(--eu) * 96);
+    gap: calc(var(--eu) * 3);
+  }
+  #victory-modal.has-cards.stats-split .end-body { grid-template-rows: minmax(0, 1fr); }
+  #victory-modal.has-cards .end-card { max-width: none; }
+  /* (qui la card è larga quanto la scheda e c'è altezza: scritte della card più grandi) */
+  #victory-modal.has-cards .end-cards { --eu: min(1cqh, 0.78cqw); }
+  #victory-modal.has-cards.stats-split .end-cards { flex-direction: column; }
+  #victory-modal.has-cards.stats-split .end-card.end-player .end-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #victory-modal.has-cards.stats-split .end-vs { display: none; }
+  #victory-modal.has-cards:not(.stats-split) .victory-stats > .end-tiles { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); grid-auto-rows: auto; }
+  #victory-modal.has-cards:not(.stats-split) .victory-stats .end-tile { flex-direction: column; justify-content: center; gap: calc(var(--eu) * 1.2); padding: calc(var(--eu) * 2.6) calc(var(--eu) * 2); text-align: center; }
+  #victory-modal.has-cards:not(.stats-split) .victory-stats .end-lab { flex: none; }
+}
 /* aree molto larghe e basse (ledwall 1920 × 540): l'altezza decide le misure, la larghezza avanza */
 @container natpf (min-aspect-ratio: 3/1) {
   #victory-modal.has-stats .natpf-end-card { --eu: min(0.98cqh, 0.58cqw); padding-inline: calc(var(--eu) * 14); }

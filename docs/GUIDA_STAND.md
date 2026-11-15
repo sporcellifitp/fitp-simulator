@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-14.6** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-14.7** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -222,6 +222,19 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
   questa pagina: il secondo clic non conta, e nemmeno un clic arrivato meno di mezzo secondo dopo il cambio di pagina.
 
 ### 3.3 A fine partita
+
+**Cosa vede il visitatore (B40, fine partita v2; dettagli in `docs/b40/fine-partita-v2.md`).** Il personaggio della
+partita (Classici o Lob & Drop) fa festa in campo: chi vince salta con la racchetta alzata, chi perde dopo un secondo
+applaude battendo la mano sulle corde. Poi la schermata finale di sempre (titolo grande, game, i tre riquadri con le cose
+migliori, pulsanti) ha accanto la **card della partita**: il suo personaggio che si muove in loop, la cornice del livello
+(Bambini azzurra, Facile argento, Evento giallo-verde, Esperta oro, Leggenda arcobaleno), «MVP della partita» o «Bella
+sfida», fino a **3 trofei** con le medaglie (bronzo, argento, oro; per esempio «Razzo 142 km/h», «Prima volta» alla prima
+partita, «Re di oggi» per i primi tre della classifica di oggi con almeno 5 partite), il **record di oggi** del computer
+(«Record di oggi! 150 km/h», solo il numero, mai il nome di un altro) e, a chi perde o vince senza trofei, il **prossimo
+trofeo** detto in positivo. Nello stesso schermo le due card una contro l'altra, la corona su chi vince. Non c'è niente da
+accendere. Se il personaggio nella card è quello disegnato e non si muove come in campo: il PC non ha fatto in tempo a
+preparare i fotogrammi o l'indirizzo ha `?ritratti=svg` (va bene lo stesso). «Azzera oggi» (pannello dello stand) azzera
+anche i record di oggi.
 
 - **«Gioca ancora»** (contro la CPU, se vince chi gioca) o **«Rivincita»**: la stessa persona. (B47) Si apre la **scelta
   del livello**, grande, già segnata con il livello di prima: contro la CPU «Chi gioca? Bambino · Ragazzo · Adulto»
@@ -625,6 +638,23 @@ della fiera e «Prossimo giocatore», è descritta nel capitolo 8.4 (dalla 2026-
   schermo, «<nome>, batti tu» dopo 9 secondi (senza più il testo del lancio) e l'avviso del lancio automatico («Tra 8 s
   la lancia il gioco»). La stessa icona è nel tutorial (scheda «Servizio»), nell'allenamento (esercizio «Servizio») e
   nella guida «Come si gioca».
+- **Direzione del servizio dal telefono (B48, dalla versione che lo contiene).** Una regola sola, da dire a chi chiede
+  «come lo mando dove voglio?»: **colpire prima del punto più alto del lancio manda la palla al centro (alla «T»), dopo
+  il punto più alto larga**; nel punto più alto va al centro del quadrato. Forza e profondità non cambiano. Il gioco la
+  scrive sotto «Colpisci!» ai primi servizi, nella scheda «Servizio» del tutorial e nella guida «Come si gioca». Solo con
+  il telefono: con la webcam e con mouse e tastiera il servizio va dove andava prima (mouse e tastiera: Q/E o A/D
+  mirano). Niente da attivare.
+- **Servizio della CPU (B48 e B48.1).** Si vede solo con «Battuta: Alternata»: con «Sempre lo stesso», che è la scelta di
+  base, contro la CPU batte sempre il visitatore. La CPU serve ogni volta in modo diverso: al centro, addosso o largo,
+  piatto, con il kick o tagliato.
+  - **«Bambino» e «Ragazzo»: la CPU non serve mai più forte di chi gioca.** Va al massimo alla media dei suoi servizi
+    di quella partita. Se batte per prima, prima che il visitatore abbia servito va piano come il servizio più lento che
+    si può fare: con il telefono al massimo 64 km/h. La palla è lenta e alta: chi risponde fa qualche passo avanti e la
+    prende mentre sale.
+  - **«Adulto» (livello Evento): questo tetto in pratica non c'è.** La CPU serve forte, di solito 110–125 km/h anche se
+    il visitatore serve a 70, con più varietà e ogni tanto un servizio profondo, vicino alla riga del servizio. Il tetto
+    torna solo se la partita va così male per il visitatore da scendere fino al livello di «Ragazzo». Se a un adulto il
+    servizio della CPU sembra troppo forte, scegliete «Ragazzo» oppure lasciate «Battuta: Sempre lo stesso».
 
 ### 8.4 Modalità fiera: telefoni dello stand e pagina della fiera (B41 parte 2)
 
@@ -801,6 +831,18 @@ i comandi necessari.
   recenti, tocca l'icona di Chrome e scegli «Fissa». I nomi possono variare con il modello. Il blocco nella pagina e
   «Fissa app» operano su livelli diversi. I comandi Android e la navigazione di Chrome restano sotto il controllo del
   dispositivo. I passaggi di «Fissa app» richiedono una prova sul telefono dello stand.
+
+### 8.7 Compagno nel doppio contro la CPU
+
+Scegli «Doppio» contro la CPU. L’anello azzurro indica che la palla spetta al compagno. Dal pannello dello stand,
+«Doppio: compagno» permette di scegliere «Gioca da solo» oppure «Con il tuo gesto». La scelta vale dalla prossima partita.
+
+### 8.8 Misurare il ritardo del ledwall
+
+Apri «Diagnostica» dal pannello dello stand, espandi «Ritardo dello schermo» e avvia «Prova del ritardo (20 s)».
+Con un telefono pronto, chi lo impugna fa un colpo breve a ogni rimbalzo visibile. Se la palla sparisce, aspetta il
+rimbalzo successivo. Per isolare meglio il ritardo, fai una prova sul monitor del PC, scegli «Questa era sul monitor»,
+quindi ripeti sul ledwall con la stessa persona. «Salva» applica la stima ai due telefoni. Puoi annullare e ripetere.
 
 ## 9. Il registro dello stand (Cloudflare)
 

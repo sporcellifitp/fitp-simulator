@@ -416,7 +416,19 @@ export class NatpfSplitUi {
     }
   }
   // «Nuovo giocatore» (natpf_new_player.resetVisitor): nomi da capo, caselle vuote, targhette in campo riscritte
+  // B40: partite giocate da ciascuno dei due nello stesso schermo (per la «Prima volta» della card): a fine partita, true
+  // per chi giocava la prima (un nome diverso da quello della partita di prima conta come giocatore nuovo)
+  notePlayed(){
+    const N = this.engine.natpfSplitNames || {}, P = this._played || (this._played = { p1: { n: 0, name: null }, p2: { n: 0, name: null } }), out = {};
+    for (const id of ['p1', 'p2']){
+      const name = N[id] || defaultName(id);
+      if (P[id].name !== null && P[id].name !== name) P[id].n = 0;
+      out[id] = P[id].n === 0; P[id].n++; P[id].name = name;
+    }
+    return { player: out.p1, opponent: out.p2 };
+  }
   resetNames(){
+    this._played = null;
     this.engine.natpfSplitNames = { p1: defaultName('p1'), p2: defaultName('p2') };
     if (typeof document !== 'undefined') for (const el of document.querySelectorAll('[data-split-name]')) el.value = '';
     this._paintNames();

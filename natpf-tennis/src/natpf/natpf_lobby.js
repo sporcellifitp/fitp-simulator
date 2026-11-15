@@ -1,3 +1,4 @@
+import { readPartnerMode, partnerLine } from './natpf_doubles.js';
 // Menu di NATPF Simulator, con il percorso di un gioco da console (dopo l'intro, natpf_intro.js):
 //   menu principale ─ Gioca ─────────→ modalità (contro la CPU · sfida un amico) → racchetta (smartphone o webcam,
 //                   │                   (stesso schermo: modalità → i due telefoni → partita, natpf_split_ui.js)
@@ -640,6 +641,9 @@ export class NatpfLobby {
     const trialNote = !split && this.mode !== 'friend' && !this.pageTrialFresh && !warmed && this.ui.trial?.due?.({ split: false }) ? 'Con «Gioca» prima qualche scambio di prova: il gioco impara il tuo colpo, poi torni qui e scegli la partita.' : split && st.splitReady && this.ui.trial?.due?.({ split: true }) ? ' Si comincia con qualche scambio di prova.' : '';
     if (note && fp){ if (note.textContent !== fp.note) note.textContent = fp.note; }
     else if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.${trialNote}` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady && !this.ui.phone.soonReady ? 'Telefono da ricollegare: con «Gioca» compare il QR.' : trialNote;
+    if (note && !fp && this.format === 'doubles' && this.mode === 'cpu' && (!note.textContent || note.textContent === trialNote)){
+      note.textContent = [trialNote && 'Prima qualche scambio di prova.', partnerLine(readPartnerMode())].filter(Boolean).join(' ');
+    }
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
     // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){

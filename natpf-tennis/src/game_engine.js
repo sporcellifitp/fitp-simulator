@@ -46,6 +46,7 @@ import * as NO from "./natpf/natpf_stroke_outcome.js";
 import * as NI from "./natpf/natpf_impact.js";
 import * as NP from "./natpf/natpf_net_play.js";
 import * as NM from "./natpf/natpf_movement.js"; // B32: movimento di chi gioca con accelerazione e colpi in corsa
+import * as NDB from "./natpf/natpf_doubles.js"; // B49
 import * as NPC from "./natpf/natpf_point_call.js";
 import { NatpfReplay } from "./natpf/natpf_replay.js";
 const NR = { c: null }; // NATPF moviola: posa della telecamera
@@ -1228,6 +1229,7 @@ export class NatpfTennisEngine {
     this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
     NS.resetFatigue(this); // NATPF B18 (D6): energia piena a ogni partita nuova (prima restava quella della partita prima)
     this.natpfServeRef = null; // NATPF B18 (D12): il servizio abituale si reimpara a ogni partita (NO.serveRefOf)
+    this.natpfServeKmh = null; // NATPF B48: velocità dei servizi di chi gioca, per il servizio della CPU (si riparte a ogni partita)
     this.natpfMatchSeq = (this.natpfMatchSeq || 0) + 1; // NATPF B18: partita nuova per le istruzioni del servizio (natpf_serve_coach)
     (this.score.playerPoints = 0),
       (this.score.opponentPoints = 0),
@@ -1258,6 +1260,7 @@ export class NatpfTennisEngine {
       // «scambio che si scalda» (natpf_hot_rally.js), deciso a inizio partita. B42: acceso di base (lo staff lo spegne dal
       // pannello dello stand) in tutti i modi, tranne la webcam per due; sul computer del P2 della sfida tra due computer
       // lo manda l'host con lo snapshot (natpfHotRally a mano per i test e le simulazioni)
+      (this.natpfPartner = typeof this.natpfPartnerRule === "string" ? NDB.partnerModeOf(this.natpfPartnerRule) : NDB.readPartnerMode()),
       (this.natpfHot = NH.hotRallyFor({ split: !!this.natpfSplit?.active, webcam: !!this.natpfUi?.split?.webcam, forced: this.natpfHotRally })),
       // B25: regole della partita tra due persone nello stesso schermo (natpf_duo_rules.js), decise a inizio partita:
       // lancio automatico e campo aperto (opzioni dello staff, spente di base), colpo super sulla forza relativa,
@@ -1345,6 +1348,11 @@ export class NatpfTennisEngine {
       (this.ball.inPlay = !1),
       (this.ball.bounceCountOnCurrentSide = 0),
       (this.ball.rallyStrokeCount = 0),
+      (this.natpfOwnStrokes = 0),
+      (this.natpfPartnerStrokes = 0),
+      (this.natpfPartnerBall = null),
+      (this.natpfTeamHit = null),
+      (this.natpfTeamHitGesture = false),
       (this.ball.natpfFeed = !1),
       (this.natpfLastWhiff = null), // B20 (revisione): il colpo a vuoto vale solo per il suo punto
       (this.natpfAutoMisses = 0), // B25: lanci automatici a vuoto di fila (natpf_duo_rules.autoTossAction)
@@ -1604,7 +1612,11 @@ export class NatpfTennisEngine {
         i = String(e.shotType || this.selectedShotType || "topspin").toLowerCase();
       // NATPF racchetta virtuale: finestra d'impatto (natpf_impact.js). Lo swing resta in attesa fino all'arrivo della
       // palla al punto d'impatto, con il suo tempo vero; uno più forte lo sostituisce; mai un impatto con la palla lontana
-      if (!this.isDoubles && this.ball.lastHitter === "opponent") {
+      // B49: nel doppio contro la CPU il gesto passa dalla finestra d'impatto come nel singolo; sulla palla del
+      // compagno che gioca da solo il gesto non fa niente
+      const dblNew = NDB.newDoubles(this), mateBall = dblNew && this.ball.lastHitter === "opponent" ? NDB.partnerBallNow(this) : null;
+      if (mateBall && NDB.partnerAuto(this)) { this.natpfPartnerIgnored = (this.natpfPartnerIgnored || 0) + 1; return; }
+      if ((!this.isDoubles || (dblNew && !mateBall)) && this.ball.lastHitter === "opponent") {
         const q = NI.queueUserSwing(this, { ...e, side: t }, this.player);
         if (q === "held" || q === "late" || q === "ignored") return;
         if (q === "whiff") {
@@ -1618,9 +1630,10 @@ export class NatpfTennisEngine {
           n = this.ball.pos.z - this.playerPartner.pos.z,
           h =
             this.isDoubles &&
+            (dblNew ? !!mateBall :
             this.ball.pos.z > 0.3 &&
             this.ball.pos.z <= 7.5 &&
-            Math.abs(this.ball.pos.x - this.playerPartner.pos.x) < 3.4,
+            Math.abs(this.ball.pos.x - this.playerPartner.pos.x) < 3.4),
           r = h ? n : s;
         if (r < -0.95 && r >= -7.8) {
           const l = h ? this.playerPartner : this.player, lead = NS.leadToSweetSpot(r, this.ball.vel.z);
@@ -1694,11 +1707,13 @@ export class NatpfTennisEngine {
                 : "forehand",
           e, e.hand || this.natpfUi?.hand?.hand),
         i = String(e.shotType || this.selectedShotType || "topspin").toLowerCase();
+      const mateBall = NDB.partnerBallNow(this);
+      if (mateBall && NDB.partnerAuto(this)) return;
       if (this.ball.lastHitter === "opponent") {
         const s = this.ball.pos.z - this.player.pos.z,
           n = this.ball.pos.z - this.playerPartner.pos.z,
           // il compagno solo nel doppio (nello zip anche nel singolo, dove è nascosto: lo swing partiva subito)
-          h = this.isDoubles && this.ball.pos.z > 0.3 && this.ball.pos.z <= 7.5 && Math.abs(this.ball.pos.x - this.playerPartner.pos.x) < 3.4,
+          h = this.isDoubles && (NDB.newDoubles(this) ? !!mateBall : this.ball.pos.z > 0.3 && this.ball.pos.z <= 7.5 && Math.abs(this.ball.pos.x - this.playerPartner.pos.x) < 3.4),
           r = h ? n : s;
         if (r < -0.95 && r >= -7.8) {
           const l = h ? this.playerPartner : this.player;
@@ -1910,11 +1925,14 @@ export class NatpfTennisEngine {
     // … nel riferimento di chi batte: il Player 2 guarda verso +z (la sua destra è −x), quadrato, angolo ed effetto
     // laterale si specchiano come nei colpi dello scambio (_natpfRacketShot)
     // B18 (D12): tipo e «Gran servizio» rispetto al servizio abituale di chi batte (NO.serveRefOf), che impara dai servizi
+    // B48 (miglioramento 10 del rapporto B16): dal telefono (natpf.aim «swing», Player 1 e Player 2) la direzione la sceglie
+    // il momento del colpo: prima del punto più alto del lancio verso la «T», dopo largo (NO.SERVE.choiceTau); webcam, mouse
+    // e tastiera come prima (NO.serveChoiceOf: anche la webcam «movimento», che manda natpf.aim «swing», resta fuori)
     const natpfMir = e === this.opponent ? -1 : 1,
       natpfRef = Number.isFinite(t.natpfServeTau) ? NO.serveRefOf(this, e) : null,
       natpfIntent = natpfRef ? NO.eventIntent(t) : null,
       natpfServe0 = natpfRef
-        ? NO.serveOutcome({ intent: natpfIntent, tau: t.natpfServeTau, boxSign: natpfMir * e.sideSign * (this.score.deuceSide ? -1 : 1), ref: natpfRef.value })
+        ? NO.serveOutcome({ intent: natpfIntent, tau: t.natpfServeTau, boxSign: natpfMir * e.sideSign * (this.score.deuceSide ? -1 : 1), ref: natpfRef.value, choice: NO.serveChoiceOf(t) })
         : null,
       natpfServe = natpfServe0 && natpfMir < 0 ? { ...natpfServe0, x: -natpfServe0.x, sidespin: -natpfServe0.sidespin } : natpfServe0;
     natpfServe0 && !t.natpfAuto && natpfRef.learn(natpfIntent, natpfServe0); // (B25: il servizio automatico non è di chi batte)
@@ -1937,15 +1955,19 @@ export class NatpfTennisEngine {
           dirX: Number(t.dirX || 0),
         }),
         this.racketKinematics.triggerImpactRecoil(e, s ? 1.45 : 0.95));
+    // NATPF B48: piano del servizio della CPU (natpf_skill.cpuServePlan: direzione «T», corpo o largo, effetto, limite di
+    // velocità a Casual e Bambini); senza piano (dimostrazione del menu, Player 2) la regola di prima. Il sorteggio della
+    // regola di prima (l, y) resta, così la profondità e il resto della sequenza casuale non cambiano
+    const cpuPlan = e.role === "opponent" && !this.isMultiplayer && t.natpfCpuServe ? t.natpfCpuServe : null;
     const h = this.score.deuceSide ? -1 : 1,
       r = o.MathUtils.clamp(Number(t.dirX || 0), -1, 1) * 1.15,
       l = e.sideSign * h * (1.75 + Math.random() * 0.85),
-      p = o.MathUtils.clamp(l + r, -S.SINGLES_X + 0.45, S.SINGLES_X - 0.45),
+      p = cpuPlan ? e.sideSign * h * cpuPlan.x : o.MathUtils.clamp(l + r, -S.SINGLES_X + 0.45, S.SINGLES_X - 0.45),
       c = e.role === "opponent" && !this.isMultiplayer ? NS.cpuServeFlight(this) : 1; // NATPF: servizio della CPU per livello (natpf_skill.js)
     let y = -e.sideSign * (4.4 + Math.random() * 1.35),
-      f = s ? Math.max(0.58, 0.66 / Math.min(1.18, a * 0.92)) * c : n ? 0.94 * c : 0.8 * c,
-      m = s ? 22 : n ? 8 : 15,
-      d = Number(t.dirX || 0) * -8;
+      f = (s ? Math.max(0.58, 0.66 / Math.min(1.18, a * 0.92)) * c : n ? 0.94 * c : 0.8 * c) * (cpuPlan ? cpuPlan.flightK : 1),
+      m = cpuPlan ? cpuPlan.top : s ? 22 : n ? 8 : 15,
+      d = cpuPlan ? cpuPlan.side : Number(t.dirX || 0) * -8;
     // (B25: anche il servizio verso il più giovane aiutato vola più lento, ND.slowFor: × 1 esatto senza aiuto)
     natpfServe && ((y = -e.sideSign * natpfServe.depth), (f = natpfServe.flight * ND.slowFor(this, e)), (m = natpfServe.topspin), (d = natpfServe.sidespin));
     const b = !1,
@@ -1955,6 +1977,36 @@ export class NatpfTennisEngine {
       sidespin: d,
       allowNetFault: b,
     });
+    // NATPF B48: a Casual e Bambini il servizio della CPU non è mai più veloce di quello di chi gioca (cpuPlan.maxKmh, km/h
+    // veri). Una palla così lenta, lanciata come prima, cadeva corta (3,4–4,2 m dalla rete) e chi risponde doveva correre
+    // avanti fino a 8 m: qui rimbalza dove vuole il piano (cpuPlan.depth, nella metà di fondo del quadrato), con l'aria
+    // corretta come per il servizio dal gesto (fixAirServe), e il volo verso quel punto si allunga finché la palla non va
+    // più piano del limite (la velocità scende con il volo: ricerca a metà). A Casual e Bambini sempre (cpuPlan.deep); a
+    // Evento solo se il limite taglia davvero: lì il limite (media / (1 − k)) è quasi sempre sopra il servizio di prima,
+    // che allora resta com'era (prima della revisione del B48 cambiava profondità e aria anche lì: 127 km/h a 5,9 m invece
+    // di 117 a 4,3)
+    // NATPF B48.1 (revisione del B48): il servizio profondo di Pro, Evento e Leggenda (cpuPlan.long) rimbalza vicino alla riga
+    // del servizio (cpuPlan.depth) con la stessa ricerca, alla velocità che il servizio normale avrebbe avuto (v0: il volo si
+    // allunga finché la palla non va più piano di quella). Gli altri rimbalzano di lato dove dice il piano (NS.aimServeX:
+    // solo la velocità di lato, profondità e velocità come prima). Prima a questi livelli il rimbalzo vero era a circa 0,865
+    // dello spostamento voluto e sempre corto (p50 4,3 m): «T» e «largo» finivano al corpo, fino a 10 volte di fila
+    if (cpuPlan) {
+      const v0 = this.ball.vel.length() * 3.6,
+        max = cpuPlan.maxKmh > 0 && (cpuPlan.deep || v0 > cpuPlan.maxKmh) ? cpuPlan.maxKmh : cpuPlan.long && cpuPlan.depth > 0 ? v0 : null;
+      if (max != null) {
+        y = -e.sideSign * cpuPlan.depth;
+        const tgt = new o.Vector3(p, 0, y), opt = { topspin: m, sidespin: d, allowNetFault: b };
+        const launch = fl => (this._launchBallToTarget(this.ball.pos, tgt, fl, opt), NS.fixAirServe(this.ball, { from: u, to: { x: p, z: y }, topspin: m, sidespin: d, gravity: L.GRAVITY, drag: L.AIR_DRAG, netY: S.NET_HEIGHT_CENTER }), this.ball.vel.length() * 3.6);
+        if (launch(f) > max) {
+          let lo = f, hi = Math.max(1.9, f * 3);
+          for (let k = 0; k < 16; k++) {
+            const mid = (lo + hi) / 2;
+            launch(mid) > max ? (lo = mid) : (hi = mid);
+          }
+          launch(hi), (f = hi);
+        }
+      } else NS.aimServeX(this.ball, { from: u, x: p, topspin: m, sidespin: d, gravity: L.GRAVITY, drag: L.AIR_DRAG });
+    }
     // NATPF (diagnostiche del 30/10, C4): il servizio dal gesto cade alla profondità voluta, con l'aria come gli altri
     // colpi (prima 0,9–1,4 m più corto), e passa sopra la rete anche con l'aria
     natpfServe && NS.fixAirServe(this.ball, { from: u, to: { x: natpfServe.x, z: y }, topspin: m, sidespin: d, gravity: L.GRAVITY, drag: L.AIR_DRAG, netY: S.NET_HEIGHT_CENTER });
@@ -1967,6 +2019,10 @@ export class NatpfTennisEngine {
     !(natpfServe || cpuServe) && !s && n && Math.random();
     const w = Math.round(this.ball.vel.length() * 3.6);
     natpfServe && (this.natpfLastServe = { ...natpfServe, kmh: w, tau: +t.natpfServeTau.toFixed(3) });
+    // NATPF B48: km/h veri dei servizi di chi gioca contro la CPU in questa partita (limite del servizio della CPU a Casual
+    // e Bambini, natpf_skill.cpuServeLimit)
+    e === this.player && !this.isMultiplayer && !this.autoPlayMode && NS.noteServeKmh(this, w);
+    cpuPlan && (this.natpfLastCpuServe = { ...cpuPlan, kmh: w }); // NATPF B48: ultimo servizio della CPU (prove, diagnostica)
     this.natpfArena.setSpeed(w); // NATPF: velocità del servizio sui segnapunti dell'arena
     if (
       ((this.ball.inPlay = !0),
@@ -2061,7 +2117,7 @@ export class NatpfTennisEngine {
       n = this.ball.pos.z - this.playerPartner.pos.z,
       h = Math.abs(this.ball.pos.x - this.playerPartner.pos.x),
       r = Math.hypot(h, n),
-      l = this.isDoubles && !t && this.ball.pos.z > 0.3 && this.ball.pos.z <= 7.6 && r <= 3.95 && r < s,
+      l = this.isDoubles && !t && (NDB.newDoubles(this) ? !!NDB.partnerBallNow(this) && NDB.partnerMode(this) === "gesto" : this.ball.pos.z > 0.3 && this.ball.pos.z <= 7.6 && r <= 3.95 && r < s), // B49
       p = l ? this.playerPartner : this.player,
       g = (l ? n : i) - NS.latencyShift(e, this.ball.vel.z), // NATPF: telefono in verticale, la palla quando il telefono ha colpito
       c = l ? h : a,
@@ -2241,7 +2297,7 @@ export class NatpfTennisEngine {
       natpfErr.kind === "ok" && !_ && !l && !natpfDrop && T !== "LOB" && (N = NS.angleDepth(E, N));
       const natpfS = NS.registerPlayerShot(this, {
         grade: u, quality: natpfQ, power: NS.powerNorm(f), landingX: E, landingZ: N,
-        shot: d ? "SMASH" : natpfDrop ? "DROP" : T, cpuZ: this.opponent.pos.z,
+        shot: d ? "SMASH" : natpfDrop ? "DROP" : T, cpuZ: this.opponent.pos.z, who: l && NDB.newDoubles(this) ? "partner" : "player",
       });
       I = NS.mistimeFlight(natpfDrop || T === "LOB" ? I : NS.streakFlight(I, natpfS.streak, natpfLv), natpfQ);
       natpfDrop || (I = NS.minClearFlight({ fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: N, flight: I, topspin: C }));
@@ -2315,7 +2371,7 @@ export class NatpfTennisEngine {
       /\bSMASH\b/.test(X) && this.audioEngine && this.audioEngine.playVoiceCallout("smash");
       this.hud.showTimingPopup({ grade: `${u} \u2022 ${X}!`, detail: `${F} KM/H`, screenPos: A, partner: p === this.playerPartner }), // NATPF B10: colpo del compagno (il tuo gesto)
         // NATPF B33: lo stesso colpo della scritta per la schermata finale (natpf_match_stats.js, solo lettura)
-        this.natpfStats?.shot(this, { role: "p1", grade: u, kmh: F, superShot: !!racketShot?.super, failed: !!racketShot?.out?.failed }),
+        (!l || !NDB.newDoubles(this)) && this.natpfStats?.shot(this, { role: "p1", grade: u, kmh: F, superShot: !!racketShot?.super, failed: !!racketShot?.out?.failed }),
         this.motionController &&
           this.motionController.triggerHapticFeedback &&
           this.motionController.triggerHapticFeedback({
@@ -2335,10 +2391,13 @@ export class NatpfTennisEngine {
     return (
       this.hud.updateTimingGauge({ cursorNormalized: w, modeTitle: `${u} (${X})`, speedText: `${F} KM/H` }),
       // NATPF racchetta virtuale: dopo il colpo verso il fondo, quanto il tempo lo permette (natpf_impact.js)
-      racketShot && !l && !this.isDoubles
+      ((this.natpfTeamHit = l ? "partner" : "player"), (this.natpfTeamHitAt = this.elapsedTime), (this.natpfTeamHitGesture = !!l), (this.natpfPartnerBall = null), l && NDB.newDoubles(this) && (this.natpfPartnerStrokes = (this.natpfPartnerStrokes || 0) + 1), l || t || (this.natpfOwnStrokes = (this.natpfOwnStrokes || 0) + 1)), // B49
+      racketShot && !l && (!this.isDoubles || NDB.newDoubles(this))
         ? NI.recoverAfterShot(this, this.player, { landingX: E, flight: I, contactZ: p.pos.z, approach: NP.approachOf(racketShot.out, p.pos.z, { volley: !!this.natpfLastRacket?.volley, power: racketShot.power, contactY: this.natpfLastRacket?.contactY }) }) // B31: a rete dopo un attacco riuscito
         : this.player.targetPos.set(o.MathUtils.clamp(-E * 0.22, -1.6, 1.6), 0, S.BASELINE_Z - 0.15),
-      this.playerPartner.targetPos.set(
+      NDB.newDoubles(this)
+        ? this.playerPartner.targetPos.set(NDB.partnerHome(this).x, 0, NDB.partnerHome(this).z) // B49
+        : this.playerPartner.targetPos.set(
         o.MathUtils.clamp(E * 0.35 + (this.score.deuceSide ? -1.4 : 1.4), -2.8, 2.8),
         0,
         5.1,
@@ -2379,12 +2438,11 @@ export class NatpfTennisEngine {
       // B32: con le regole del movimento (NM.runProfile) si arriva in corsa sulla palla lontana: la corsa al contatto toglie
       // qualità come sempre (NS.reachQuality, fino a −15% a velocità piena), e la scritta dell'esito lo dice (move, sotto)
       natpfRun = NM.runProfile(this, p),
-      Q = { reach: NS.reachQuality(lateral, running), prep: duo?.noPrep ? 1 : NS.prepQuality(e.natpf), stretch: !this.isDoubles && (p === this.player || p === this.opponent) ? NI.stretchQuality(this, p) : 1, pace },
+      Q = { reach: NS.reachQuality(lateral, running), prep: duo?.noPrep ? 1 : NS.prepQuality(e.natpf), stretch: (p === this.player && (!this.isDoubles || NDB.newDoubles(this))) || (!this.isDoubles && p === this.opponent) ? NI.stretchQuality(this, p) : 1, pace },
       quality = Q.reach * Q.prep * Q.stretch * Q.pace,
-      pressure0 = NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
-      // B42: con lo scambio caldo, dal 20° colpo la pressione cresce di più (NH.hotPressure; 1 esatto prima e se spento):
-      // toglie qualità come la pressione di sempre, ma non stringe la finestra del tempo di Leggenda (strokeOutcome, hotPress)
-      hotPress = NH.hotPressure(b.rallyStrokeCount + 1, this.natpfHot),
+      rsc = p === this.player ? NDB.exchangeStrokes(this) : b.rallyStrokeCount,
+      pressure0 = NO.rallyPressure(rsc, NO.assistOf(lv).pressureFrom),
+      hotPress = NH.hotPressure(rsc + 1, this.natpfHot),
       pressure = pressure0 * hotPress,
       volley = b.bounceCountOnCurrentSide === 0 && Math.abs(p.pos.z) < 9;
     const shortBall = b.bounceCountOnCurrentSide > 0 && b.rallyStrokeCount > 1 && Math.abs(b.targetLanding.z) <= 6.4 && Math.abs(b.pos.z) <= 7;
@@ -2856,9 +2914,48 @@ export class NatpfTennisEngine {
       natpfLeg && NL.legendRecover(this, e, g, c), // NATPF Leggenda: recupero sulla bisettrice degli angoli possibili
       this._natpfPlanPlayer();
   }
+  // B49: volée del compagno che gioca da solo (modello della CPU, specchiato verso la metà della CPU)
+  _executePartnerReturn() {
+    const e = this.playerPartner, b = this.ball;
+    const P = NDB.partnerShot({ difficulty: this.matchConfig.difficulty, stretch: Math.abs(b.pos.x - e.pos.x) / NDB.PARTNER.reach, speed: b.vel.length(), running: e.vel.length() / Math.max(1, e.maxSpeed), oppX: this.opponent.pos.x });
+    const d = b.pos.clone();
+    (d.y = Math.max(0.82, Math.min(1.68, d.y))), b.pos.copy(d);
+    this._launchBallToTarget(d, new o.Vector3(P.x, 0, P.z), P.flight, { topspin: P.topspin, sidespin: 0, allowNetFault: P.net });
+    P.net || NS.fixAir(b, { from: d, to: { x: P.x, z: P.z }, topspin: P.topspin, gravity: L.GRAVITY, drag: L.AIR_DRAG });
+    (b.inPlay = !0), (b.lastHitter = "player"), (b.bounceCountOnCurrentSide = 0), (b.rallyStrokeCount += 1), (b.shotType = "SLICE"), (b.isPowerShot = !1);
+    (e.swingType = b.pos.x > e.pos.x ? "forehand" : "backhand"), (e.swingDuration = 0.36), (e.swingTimer = 0.36), (e.arcVisibleTimer = 0.36);
+    this.racketKinematics && (this.racketKinematics.triggerSwing(e, { shotType: "slice", side: e.swingType, speed: 1.1, timing: "sweet" }), this.racketKinematics.triggerImpactRecoil(e, 0.95));
+    this.audioEngine && (this.audioEngine.playSwingWhoosh(1), this.audioEngine.playRacketHit("slice", "good"));
+    this.natpfPartnerStrokes = (this.natpfPartnerStrokes || 0) + 1;
+    (this.natpfTeamHit = "partner"), (this.natpfTeamHitAt = this.elapsedTime), (this.natpfTeamHitGesture = !1), (this.natpfPartnerBall = null), (this.natpfPartnerLast = { kind: P.kind, chance: P.chance, at: this.elapsedTime });
+    NS.registerPlayerShot(this, { grade: "GOOD", quality: NDB.PARTNER.quality, power: NDB.PARTNER.power, landingX: P.x, landingZ: P.z, shot: "SLICE", cpuZ: this.opponent.pos.z, who: "partner" });
+    this.natpfUi?.diag?.recorder?.log?.("doppio.compagno", { evento: "volée", tipo: P.kind });
+    const H = NDB.partnerHome(this);
+    e.targetPos.set(H.x, 0, H.z);
+    this._natpfPlanOpponent(this.opponent);
+    NS.planCpuRun(this);
+  }
   // NATPF racchetta virtuale: chi gioca va dove prendere la palla, anche al volo (natpf_impact.js); nel doppio come prima
   _natpfPlanPlayer(opts) {
-    this.isDoubles ? this._predictBallIntercept(this.player) : NI.planPlayerIntercept(this, this.player, opts);
+    if (!this.isDoubles) return void NI.planPlayerIntercept(this, this.player, opts);
+    if (!NDB.newDoubles(this) || this.autoPlayMode) return void this._predictBallIntercept(this.player);
+    // B49: palla del compagno (traiettoria prevista vicino alla sua posizione d'attesa) o di chi gioca (come nel singolo)
+    const pb = opts?.groundOnly ? null : NDB.partnerBallPlan(this);
+    this.natpfPartnerBall = pb;
+    if (pb) {
+      if (this.natpfPartnerHintSeq !== this.natpfMatchSeq) {
+        this.natpfPartnerHintSeq = this.natpfMatchSeq;
+        this.natpfUi?.toast?.(NDB.partnerFirstHint(NDB.partnerMode(this)), 4200);
+      }
+      const pa = this.playerPartner, side = pb.contact.x >= pa.pos.x ? 1 : -1;
+      pa.targetPos.set(pb.contact.x - side * NDB.PARTNER.side, 0, pb.contact.z + 0.35);
+      this.natpfPlan = null;
+      this.player.targetPos.set(o.MathUtils.clamp(pb.contact.x * 0.3, -1.6, 1.6), 0, NI.PLAN.baseline);
+      return;
+    }
+    NI.planPlayerIntercept(this, this.player, opts);
+    const H = NDB.partnerHome(this);
+    this.playerPartner.targetPos.set(H.x, 0, H.z);
   }
   // … e il Player 2 del 1v1 allo stesso modo nella sua metà campo; la CPU e il doppio come prima
   _natpfPlanOpponent(e = this.opponent, opts) {
@@ -2869,7 +2966,7 @@ export class NatpfTennisEngine {
   // si rifà con i soli punti dopo il rimbalzo (natpf_impact.missedPlan), al massimo una volta per colpo. Prima chi gioca
   // restava fermo sotto il punto della schiacciata e la palla rimbalzava alle sue spalle. Lo decide l'host
   _natpfReplanMissed() {
-    if (this.isDoubles || (this.playerRole === "p2" && this.isMultiplayer)) return;
+    if ((this.isDoubles && (!NDB.newDoubles(this) || NDB.partnerBallNow(this))) || (this.playerRole === "p2" && this.isMultiplayer)) return; // B49
     NI.missedPlan(this, this.player) && this._natpfPlanPlayer({ groundOnly: !0 });
     this.isMultiplayer && NI.missedPlan(this, this.opponent) && this._natpfPlanOpponent(this.opponent, { groundOnly: !0 });
   }
@@ -3354,9 +3451,15 @@ export class NatpfTennisEngine {
             this.ball.pos.x - this.playerPartner.pos.x,
             this.ball.pos.z - this.playerPartner.pos.z,
           ),
-          h = this.isDoubles && this.ball.pos.z <= 7.2 && n < s && n <= 3.8 ? this.playerPartner : this.player,
+          mb = NDB.newDoubles(this) ? NDB.partnerBallNow(this) : null, // B49
+          h = (NDB.newDoubles(this) ? !!mb && NDB.partnerMode(this) === "gesto" : this.isDoubles && this.ball.pos.z <= 7.2 && n < s && n <= 3.8) ? this.playerPartner : this.player,
           r = this.ball.pos.z - h.pos.z,
           l = Math.abs(this.ball.pos.x - h.pos.x);
+        // B49: il compagno che gioca da solo colpisce quando la palla arriva al punto previsto
+        if (mb && NDB.partnerAuto(this) && this.elapsedTime >= mb.at + mb.t) {
+          if (Math.hypot(this.ball.pos.x - mb.contact.x, this.ball.pos.z - mb.contact.z) <= 1.5) { this._executePartnerReturn(); return; }
+          this.natpfPartnerBall = null; this._natpfPlanPlayer({ groundOnly: !0 });
+        }
         if (this.playerRole !== "p2") {
           const p = o.MathUtils.clamp(0.5 + r * 0.16, 0.06, 0.94);
           this.hud.updateTimingGauge({
@@ -3528,7 +3631,7 @@ export class NatpfTennisEngine {
       sv = NF.nextServe({ server: this.score.server, gameServer: this.score.gameServer ?? this.score.server, played: a + s, gameOver: !!gw, fair: ND.altServe(this, fair), fixed: !!this.score.fixed });
     (this.score.server = sv.server), (this.score.gameServer = sv.gameServer);
     // NATPF B33: il punto per la schermata finale, con come è finito e i colpi dello scambio (natpf_match_stats.js, solo lettura)
-    this.natpfStats?.point(this, { winner: e, why: t, strokes: this.ball.rallyStrokeCount, whiff: !!wf && wf.side !== e && wf.stroke === this.ball.rallyStrokeCount, gameWinner: gw || null });
+    this.natpfStats?.point(this, { winner: e, why: t, strokes: Math.max(0, this.ball.rallyStrokeCount - (NDB.newDoubles(this) ? this.natpfPartnerStrokes || 0 : 0)), whiff: !!wf && wf.side !== e && wf.stroke === this.ball.rallyStrokeCount, gameWinner: gw || null });
     if (gw) {
       if (
         (gw === "player" ? (this.score.playerGames += 1) : (this.score.opponentGames += 1),
@@ -3958,13 +4061,16 @@ export class NatpfTennisEngine {
       gamesToWin: this.matchConfig.gamesToWin,
     });
   }
-  _updatePlayerAnimation(e, t) {
-    if (!e.model) return;
+  // (NATPF B40.6: own = passo dei ritratti della card, natpf_ritratti.js: il personaggio fotografato non segue il motore
+  // (natpfPortraitHold) e non prende l'inclinazione del telefono né la mano della webcam)
+  _updatePlayerAnimation(e, t, own = !1) {
+    if (!e.model || (e.natpfPortraitHold && !own)) return;
     e.swingTimer > 0 && (e.swingTimer = Math.max(0, e.swingTimer - t)),
       e.arcVisibleTimer > 0 && (e.arcVisibleTimer = Math.max(0, e.arcVisibleTimer - t)),
       e.swingArcMesh && (e.swingArcMesh.visible = !1);
     let i = null;
     if (
+      !own &&
       this.motionController &&
       this.motionController.phoneState?.connected &&
       ((this.playerRole !== "p2" && e === this.player) || (this.playerRole === "p2" && e === this.opponent))
@@ -3980,6 +4086,7 @@ export class NatpfTennisEngine {
     // NATPF: webcam → posa continua della mano sulla racchetta e sul braccio del giocatore locale (prima e terza
     // persona), come l'inclinazione del telefono; i colpi restano quelli del motore base (src/natpf/webcam_hand_pose.js)
     !i &&
+      !own &&
       this.motionController?.webcamActive &&
       ((this.playerRole !== "p2" && e === this.player) || (this.playerRole === "p2" && e === this.opponent)) &&
       (i = this.motionController.webcamLiveInput());
@@ -4314,7 +4421,14 @@ export class NatpfTennisEngine {
     if (this._natpfBackdropFrame(dt, now)) return "backdrop";
     // partita ferma mentre si leggono le istruzioni o si collega il telefono: niente update e disegno solo quando serve
     if (this.natpfPaused) return this._natpfPauseFrame(now), "paused";
-    (this.natpfPauseSince = this.natpfPauseDrawnAt = null), this.update(dt), this.render();
+    (this.natpfPauseSince = this.natpfPauseDrawnAt = null), this.update(dt);
+    // NATPF B40.6: ritratti della card (fotogrammi resi prima del disegno dell'arena, che poi li copre) e, con la schermata
+    // finale in vista, arena ferma sotto la card: si ridisegna solo quando serve (ridimensionamento), come in pausa; chiusa
+    // la schermata, da qualunque strada, si torna a disegnare a ogni fotogramma (natpf_ritratti.js)
+    const R = this.natpfUi?.ritratti;
+    R && R.frame(now);
+    if (R && R.frozen()) return this.natpfBackdropDirty && ((this.natpfBackdropDirty = !1), this.render()), "card";
+    this.render();
     return "play";
   }
   // NATPF: un fotogramma con la partita in pausa (PAUSE_DRAW): true se ha disegnato

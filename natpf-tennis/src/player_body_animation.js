@@ -185,6 +185,19 @@ export function setupArticulatedPlayerRig(t) {
     t.rig
   );
 }
+// NATPF B40 (fine partita v2, docs/b40/fine-partita-v2.md): a fine partita chi vince ESULTA in loop («cheer»: il salto
+// con la racchetta alzata di «win», senza il calo dell'ampiezza e con tutte le oscillazioni multiple di 9,2 rad/s, così
+// il movimento si ripete uguale ogni CHEER_PERIOD = 2π/9,2 = 0,683 s) e chi perde, dopo un secondo a testa bassa («loss»),
+// APPLAUDE («clap»: la mano libera batte sulle corde della racchetta tenuta davanti al petto, due volte per periodo, con
+// un piccolo molleggio e la testa che annuisce). Si vedono in campo durante la scritta della partita e nei ritratti della
+// card (natpf_ritratti.js, che fotografa un periodo). Nei punti normali niente cambia
+export const CHEER_W = 9.2;
+export const CHEER_PERIOD = (2 * Math.PI) / CHEER_W;
+export const CLAP_AFTER = 1;
+// centro delle corde nella racchetta (natpf_character.RACKET_POINTS.center) e distanza della mano libera dalle corde
+export const CLAP_STRINGS_Y = 0.545;
+// (mascotte 3D: il palmo del modello sta qualche centimetro oltre la mano del tennista, che quindi va un filo oltre le corde)
+export const CLAP_REACH = Object.freeze({ near: 0.02, far: 0.24, nearMascot: -0.07 });
 export function triggerPointReaction(t, o = "win", s = {}) {
   if (!t) return;
   const e = t.rig || setupArticulatedPlayerRig(t);
@@ -192,10 +205,10 @@ export function triggerPointReaction(t, o = "win", s = {}) {
   const n = o === !0 ? "win" : o === !1 ? "loss" : String(o || "win").toLowerCase(),
     M = n === "win" || n === "won" || n === "victory" || n === "cheer" || n === "nice";
   (e.reaction.active = !0),
-    (e.reaction.type = M ? "win" : "loss"),
+    (e.reaction.type = n === "cheer" ? "cheer" : n === "clap" ? "clap" : M ? "win" : "loss"),
     (e.reaction.timer = 0),
     (e.reaction.duration = Number(s.duration) || (M ? 1.72 : 1.68)),
-    M
+    n === "clap" ? void 0 : M
       ? ((e.squashYVel += 2.2),
         (e.leanPitchVel -= 2.4),
         (e.headBouncePitchVel -= 4.8),
@@ -282,6 +295,13 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
       S === "SERVE_STANCE" &&
       e.reaction.timer > 0.25 &&
       (e.reaction.active = !1);
+  // NATPF B40: a fine partita la reazione del punto (la fa partire il motore in _awardPoint) diventa il loop: chi vince
+  // esulta, chi perde dopo CLAP_AFTER s a testa bassa applaude
+  S === "MATCH_OVER" &&
+    e.reaction.active &&
+    (e.reaction.type === "win"
+      ? (e.reaction.type = "cheer")
+      : e.reaction.type === "loss" && e.reaction.timer >= CLAP_AFTER && (e.reaction.type = "clap"));
   const u = t.vel ? t.vel.x : 0,
     m = t.vel ? t.vel.z : 0,
     r = Math.hypot(u, m),
@@ -448,9 +468,12 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
     e.reaction.timer += n;
     const a = e.reaction.timer,
       f = i.MathUtils.clamp(a / e.reaction.duration, 0, 1);
-    if (e.reaction.type === "win") {
+    // (B40: nel loop di fine partita niente oscillazioni d'attesa con altri periodi, così il movimento si ripete uguale)
+    (e.reaction.type === "cheer" || e.reaction.type === "clap") && loopStill(e);
+    if (e.reaction.type === "win" || e.reaction.type === "cheer") {
       const v = Math.abs(Math.sin(a * 9.2)),
-        B = Math.pow(1 - f * 0.55, 0.8);
+        B = e.reaction.type === "cheer" ? 1 : Math.pow(1 - f * 0.55, 0.8);
+      e.reaction.type === "cheer" && ((I = 0), (E = 0), (y = 0));
       (A = v * 0.16 * B),
         (p = v > 0.35 ? 1.04 : 0.94),
         ($ = Math.sin(a * 9.2) * 0.16 * B),
@@ -462,6 +485,11 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
         t.racketPivot &&
           (t.racketPivot.position.set(-0.36, 1.12 + v * 0.14, 0.18),
           t.racketPivot.rotation.set(-0.42 + v * 0.22, -0.22, 0.18));
+    } else if (e.reaction.type === "clap") {
+      // applauso: molleggio sulle ginocchia e busto un po' in avanti, allo stesso ritmo delle battute (due per periodo)
+      const v = Math.abs(Math.sin(a * CHEER_W));
+      (A = 0.018 * (1 - v)), (p = 1 - 0.02 * v), (N = 0.08), (z = 0), (F = 0.05), (y = -0.012 * v), (I = 0), (E = 0),
+        (e.footLPivot.rotation.x = 0), (e.footRPivot.rotation.x = 0);
     } else {
       if (a < 0.24) {
         const v = Math.sin((a / 0.24) * Math.PI);
@@ -524,7 +552,11 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
   if (e.reaction.active)
     e.reaction.type === "win"
       ? ((K = -0.32), (j = Math.sin(e.reaction.timer * 8) * 0.18))
-      : ((K = 0.42), (j = Math.sin(e.reaction.timer * 7.5) * 0.22));
+      : e.reaction.type === "cheer"
+        ? ((K = -0.32), (j = Math.sin(e.reaction.timer * CHEER_W) * 0.18))
+        : e.reaction.type === "clap"
+          ? ((K = -0.06 + Math.abs(Math.sin(e.reaction.timer * CHEER_W)) * 0.12), (j = 0))
+          : ((K = 0.42), (j = Math.sin(e.reaction.timer * 7.5) * 0.22));
   else if (h && h.pos) {
     const a = t.pos.y + 1.48,
       f = h.pos.x - t.pos.x,
@@ -547,7 +579,9 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
   const ie = i.MathUtils.clamp(1 + e.headScaleBounce * 0.08, 0.93, 1.08),
     oe = 1 - (ie - 1) * 0.45;
   e.headBounceGroup.scale.set(oe, ie, oe),
-    !(t.racketKinematics || (t.userData && t.userData.externalRacketKinematics)) &&
+    // (NATPF B40: esultanza e applauso di fine partita muovono la racchetta anche quando la guida racket_kinematics, e
+    // l'inclinazione del telefono non c'entra più)
+    (!(t.racketKinematics || (t.userData && t.userData.externalRacketKinematics)) || (e.reaction.active && (e.reaction.type === "cheer" || e.reaction.type === "clap"))) &&
       t.racketPivot &&
       Pe(t, e, n, M, { isSwinging: D, swingType: x, swingProgress: X, phase: S, isServer: l }),
     Me(t, e, { isSwinging: D, swingType: x, swingProgress: X, phase: S, isServer: l }),
@@ -575,11 +609,17 @@ function Pe(t, o, s, e, { isSwinging: n, swingType: M, swingProgress: w, phase: 
         (t.swingArcMesh.material.opacity = Math.min(0.88, (t.arcVisibleTimer / 0.3) * 0.85))),
     o.reaction.active)
   ) {
-    if (o.reaction.type === "win") {
+    if (o.reaction.type === "win" || o.reaction.type === "cheer") {
       const l = Math.abs(Math.sin(o.reaction.timer * 9.2));
       t.racketPivot.position.set(-0.38, 1.24 + l * 0.18, 0.18),
         t.racketPivot.rotation.set(-0.45 + l * 0.25, -0.22, 0.18);
-    } else t.racketPivot.position.set(-0.32, 0.68, 0.12), t.racketPivot.rotation.set(0.85, -0.12, 0.55);
+    } else if (o.reaction.type === "clap")
+      // racchetta davanti al petto (sotto il viso), inclinata in avanti, il piatto verso la mano libera; le mascotte 3D (Lob e
+      // Drop: testa grande, busto basso) la tengono in orizzontale all'altezza della pancia, le corde verso l'alto
+      t.natpfMascot3dOn
+        ? (t.racketPivot.position.set(-0.3, 0.58, 0.3), t.racketPivot.rotation.set(-Math.PI / 2, 0, -Math.PI / 2))
+        : (t.racketPivot.position.set(-0.2, 0.38, 0.26), t.racketPivot.rotation.set(0.35, Math.PI / 2 - 0.5, 0));
+    else t.racketPivot.position.set(-0.32, 0.68, 0.12), t.racketPivot.rotation.set(0.85, -0.12, 0.55);
     return;
   }
   if (n) {
@@ -653,6 +693,27 @@ function Me(t, o, { isSwinging: s, swingType: e, swingProgress: n, phase: M, isS
     i.MathUtils.clamp(d.z * 0.65, -0.95, 0.95),
   );
 }
+// NATPF B40: dove va la mano libera nell'applauso (spazio del modello, come le altre pose della mano): sul centro delle
+// corde e lontano dal piatto, due volte per periodo (|sin| di 9,2 rad/s: tocca a ogni mezzo periodo)
+const CT = new i.Vector3(), CN = new i.Vector3();
+// piedi fermi sulla loro base (l'attesa li fa ondeggiare con un altro periodo)
+function loopStill(e) {
+  e.footLPivot.position.copy(e.basePivots.footL), e.footRPivot.position.copy(e.basePivots.footR);
+  (e.footLPivot.rotation.z = 0), (e.footRPivot.rotation.z = 0);
+}
+export function clapTarget(t, timer, out) {
+  if (!t?.racketMesh || !t.model || !t.root) return !1;
+  t.root.updateMatrixWorld(!0);
+  CT.set(0, CLAP_STRINGS_Y, 0), t.racketMesh.localToWorld(CT), t.model.worldToLocal(CT);
+  CN.set(0, CLAP_STRINGS_Y, 1), t.racketMesh.localToWorld(CN), t.model.worldToLocal(CN), CN.sub(CT);
+  // (normale del piatto verso la mano libera: dalla parte +x del modello o verso l'alto; lo specchio del mancino è nella
+  // scala della radice)
+  CN.lengthSq() < 1e-9 ? CN.set(1, 0, 0) : (CN.normalize(), CN.x + CN.y < 0 && CN.negate());
+  const near = t.natpfMascot3dOn ? CLAP_REACH.nearMascot : CLAP_REACH.near,
+    d = near + (CLAP_REACH.far - near) * Math.abs(Math.sin(timer * CHEER_W));
+  out.copy(CT).addScaledVector(CN, d);
+  return !0;
+}
 function ue(
   t,
   o,
@@ -668,10 +729,11 @@ function ue(
     V = 0,
     U = 0;
   if (o.reaction.active)
-    if (o.reaction.type === "win") {
+    if (o.reaction.type === "win" || o.reaction.type === "cheer") {
       const c = Math.abs(Math.sin(o.reaction.timer * 9.2 + 0.5));
       (r = 0.28), (R = 1.26 + c * 0.18), (g = 0.2), (_ = -0.75), (U = -0.25);
-    } else (r = 0.28), (R = 0.64), (g = 0.18), (_ = 0.55), (U = 0.18);
+    } else if (o.reaction.type === "clap" && clapTarget(t, o.reaction.timer, pe)) (r = pe.x), (R = pe.y), (g = pe.z), (_ = -0.2), (V = -0.5), (U = 0.4);
+    else (r = 0.28), (R = 0.64), (g = 0.18), (_ = 0.55), (U = 0.18);
   else if (S === "SERVE_TOSS" && d) {
     const c = h ? i.MathUtils.clamp((h.pos.y - 1.12) / 1.95, 0, 1) : 0.75,
       p = h && h.vel && h.vel.y < -0.15 ? i.MathUtils.lerp(1, 0.58, 1 - c) : c;

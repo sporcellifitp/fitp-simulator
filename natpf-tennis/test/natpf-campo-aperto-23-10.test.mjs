@@ -144,11 +144,18 @@ test('ritmo: con chi gioca arretrato la palla è «passata» solo oltre la fines
 // della palla corta chi rispondeva correva in avanti fino a metà campo a ogni servizio, a tutti i livelli (banco: dalla
 // riga di fondo a 5,5–6,5 m dalla rete nel 100% delle risposte). Ora si prende dove arriva comodo, da fondo campo; e la
 // CPU che ha servito torna al centro (tranne Leggenda, che ha il suo modello).
-async function serveReturn(difficulty){
+// B48.1: a Casual e Bambini il primo servizio della CPU, prima di conoscerne uno di chi gioca, non va più forte del servizio
+// più lento possibile di chi gioca (natpf_skill.firstServeKmh: 52–64 km/h invece di 62–70). Una palla così lenta sale e
+// rimbalza alta: chi risponde la prende in salita, fino a 2–3 m più avanti (contatto a 8,3–10 m dalla rete), come già con
+// chi serve piano (prova di farla rimbalzare a metà del quadrato: arretrava, e «umano» vinceva il 12–15% dei punti invece
+// dell'80%). Il controllo di prima (meno di 1,5 m) resta con il servizio della CPU a velocità normale (chi gioca ha già
+// servito a 70 km/h); sul primo servizio il limite è quello della corsa a metà campo (mai oltre 3 m, impatto oltre 8 m)
+async function serveReturn(difficulty, { known = 70, seed = 9 } = {}){
   const { createHeadlessEngine, mulberry32 } = await import('../scripts/audit/headless-engine.mjs');
-  const real = Math.random; Math.random = mulberry32(9);
+  const real = Math.random; Math.random = mulberry32(seed);
   try {
     const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
+    if (known) e.natpfServeKmh = { n: 1, sum: known };
     e.score.server = 'opponent'; e._setupPointServe({ showBanner: false });
     const z0 = e.player.pos.z, cpuX0 = e.opponent.pos.x;
     // la CPU lancia e serve da sola; si segue la palla fino al colpo di chi risponde (o al rimbalzo fuori portata)
@@ -159,7 +166,7 @@ async function serveReturn(difficulty){
       if (served) minZ = Math.min(minZ, e.player.targetPos.z);
       if (served && e.ball.bounceCountOnCurrentSide >= 1 && e.ball.pos.z > 10) break;
     }
-    return { z0, minZ, plan: served?.plan, cpuX0, cpuTarget: served?.cpuTarget };
+    return { z0, minZ, plan: served?.plan, cpuX0, cpuTarget: served?.cpuTarget, kmh: e.natpfLastCpuServe?.kmh };
   } finally { Math.random = real; }
 }
 test('risposta al servizio: niente corsa verso la rete, si prende la palla da fondo campo; la CPU che ha servito torna al centro', async () => {
@@ -169,5 +176,11 @@ test('risposta al servizio: niente corsa verso la rete, si prende la palla da fo
     assert.ok(r.z0 - r.minZ < 1.5, `${lv}: chi risponde avanza al più di poco (da ${r.z0.toFixed(1)} a ${r.minZ.toFixed(1)} m dalla rete)`);
     assert.ok(Math.abs(r.plan.contact.z) > 9, `${lv}: impatto oltre 9 m dalla rete (${r.plan.contact.z})`);
     if (lv !== 'leggenda') assert.ok(Math.abs(r.cpuTarget.x) < .05 && Math.abs(r.cpuX0) > .3, `${lv}: la CPU torna al centro (da x ${r.cpuX0.toFixed(2)} verso ${r.cpuTarget.x.toFixed(2)})`);
+  }
+  // B48.1: primo servizio della partita, chi gioca non ha ancora servito (il più lento: 52–59 km/h senza interfaccia)
+  for (const lv of ['casual', 'bambini']) for (const seed of [9, 1, 2, 3, 4, 5, 6, 7, 8]){
+    const r = await serveReturn(lv, { known: 0, seed });
+    assert.ok(r.kmh < 60 && r.plan?.kind === 'ground', `${lv} seme ${seed}: ${r.kmh} km/h, ${r.plan?.kind}`);
+    assert.ok(r.z0 - r.minZ < 3 && Math.abs(r.plan.contact.z) > 8, `${lv} seme ${seed}: chi risponde avanza da ${r.z0.toFixed(1)} a ${r.minZ.toFixed(1)} m, impatto a ${r.plan.contact.z} m`);
   }
 });

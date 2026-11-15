@@ -40,7 +40,7 @@ export const PACE = 1.25;
 // regole del movimento per questo personaggio, o null (movimento di prima)
 export function runProfile(engine, actor){
   if (moveOff() || !engine || !actor || actor !== engine.player) return null;
-  if (engine.isMultiplayer || engine.isDoubles || engine.versus?.active || engine.natpfSplit?.active) return null;
+  if (engine.isMultiplayer || engine.versus?.active || engine.natpfSplit?.active) return null; // B49: anche nel doppio contro la CPU
   if (engine.autoPlayMode || engine.natpfUi?.training?.active || engine.natpfUi?.events?.active || engine.natpfUi?.trial?.active) return null;
   // (Prima del B32 finale: a rete e verso la rete, entro 7 m, si teneva il «passo corto» del B31, che però c'era solo nel
   // piano d'intercetto: il personaggio correva a velocità piena e il gioco lo trattava come lento, una regola nascosta.

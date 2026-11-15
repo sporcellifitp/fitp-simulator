@@ -10,7 +10,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { netPlayRules } from '../src/natpf/natpf_net_play.js';
+import { serveChoiceRules } from '../src/natpf/natpf_stroke_outcome.js';
 const B31_PRINTS = ['6356d1e265b8', '750b592d650e'];   // impronte con il gioco a rete (B31), prese con questo stesso test (revisione finale: senza il passo corto nascosto a rete nel piano cambiano; prima 1eb7dff8db39, 7ac4aa5b8ef1)
+// B48.1 (revisione del B48): impronte del gioco di oggi nello stesso schermo, con la scelta del servizio dal telefono accesa
+// (prima del punto più alto alla «T», dopo largo; le B31 qui sotto girano con la direzione di prima, serveChoiceRules.off):
+// le stesse due partite delle B31 e quella con tutte le regole di oggi. Prese con questo stesso test (scratchpad del B48.1)
+const B48_PRINTS = ['dce0c9a62a22', 'cfaed93ad0e7'], TODAY_PRINT = '97ae13c39fb3';
 import * as THREE from 'three';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import * as ND from '../src/natpf/natpf_duo_rules.js';
@@ -679,15 +684,26 @@ test('con le opzioni spente, le fasce uguali e le due regole nuove spente a mano
   const before = e => { e.natpfSuperRel = false; e.natpfNoPrep = false; e.natpfHotRally = false; };
   // B31: il gioco a rete vale anche nello stesso schermo (stessa regola per tutti e due): le impronte di f08243a tornano
   // con le sue regole spente (netPlayRules.off), quelle nuove sono più sotto
-  netPlayRules.off = true;
+  // B48: anche il servizio con la scelta del momento (prima del punto più alto alla «T», dopo largo) vale nello stesso
+  // schermo; per tutte le impronte di questa prova la direzione del servizio è quella di prima (serveChoiceRules.off): la
+  // regola nuova è provata in natpf-b48-servizio-scelta.test.mjs
+  netPlayRules.off = true; serveChoiceRules.off = true;
   try {
   assert.equal(print('bambino', true, before), '909a097fe488');
   assert.equal(print('bambino', false, before), 'f25564be9708');
   assert.equal(print('medio', true, e => { before(e); e.natpfSplitBands = { p1: 'ragazzo', p2: 'ragazzo' }; e.natpfAutoToss = false; e.natpfOpenCourt = false; }), 'b557aa21ae9f');
   } finally { netPlayRules.off = false; }
   // con il gioco a rete (B31) le partite cambiano: impronte nuove (scripts/audit/b25/impronte.mjs)
+  try {
   assert.equal(print('bambino', true, before), B31_PRINTS[0]);
   assert.equal(print('bambino', false, before), B31_PRINTS[1]);
-  // e con le regole di oggi cambia (il super parte anche per il bambino)
-  assert.notEqual(print('bambino', true, null), '909a097fe488');
+  } finally { serveChoiceRules.off = false; }
+  // B48.1: con la scelta del servizio accesa (il gioco di oggi) le partite cambiano: impronte proprie
+  assert.equal(serveChoiceRules.off, false);
+  assert.equal(print('bambino', true, before), B48_PRINTS[0]);
+  assert.equal(print('bambino', false, before), B48_PRINTS[1]);
+  // e con le regole di oggi cambia (il super parte anche per il bambino): impronta del gioco di oggi
+  const today = print('bambino', true, null);
+  assert.notEqual(today, '909a097fe488');
+  assert.equal(today, TODAY_PRINT);
 });

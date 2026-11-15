@@ -76,13 +76,16 @@ test('scritta dell\'esito: un colpo riuscito in corsa o in allungo lo dice; il c
   assert.equal(shotWhy({ ...L, out: { failed: true }, cause: 'palla veloce' }, { now: 3 }), 'palla veloce');
 });
 
-test('a chi valgono le regole: chi gioca contro la CPU, anche a rete; non Bambini, stesso schermo, sfida, doppio, allenamento, demo', () => {
+test('a chi valgono le regole: chi gioca contro la CPU, anche a rete; non Bambini, stesso schermo, sfida tra computer, allenamento, demo', () => {
   const e = createHeadlessEngine({ difficulty: 'pro' });
   assert.equal(NM.runProfile(e, e.player), R);
   assert.equal(NM.runProfile(e, e.opponent), null, 'la CPU ha il suo movimento');
   const off = (k, set, undo) => { set(); assert.equal(NM.runProfile(e, e.player), null, k); undo(); assert.equal(NM.runProfile(e, e.player), R, k + ' (di nuovo)'); };
   off('sfida tra due computer', () => { e.isMultiplayer = true; }, () => { e.isMultiplayer = false; });
-  off('doppio', () => { e.isDoubles = true; }, () => { e.isDoubles = false; });
+  e.isDoubles = true;
+  assert.equal(NM.runProfile(e, e.player), R, 'doppio contro la CPU');
+  off('doppio tra due computer', () => { e.isMultiplayer = true; }, () => { e.isMultiplayer = false; });
+  e.isDoubles = false;
   off('stesso schermo', () => { e.natpfSplit.active = true; }, () => { e.natpfSplit.active = false; });
   off('sfida locale', () => { e.versus = { active: true }; }, () => { e.versus = null; });
   off('demo', () => { e.autoPlayMode = true; }, () => { e.autoPlayMode = false; });

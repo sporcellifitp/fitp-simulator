@@ -1,3 +1,4 @@
+import { nextPartnerMode, partnerButton, partnerModeFromUrl, readPartnerMode, writePartnerMode } from './natpf_doubles.js';
 // Stand per eventi: modalità chiosco e pannello dell'addetto.
 // Chiosco (si accende dal pannello): dopo N secondi senza nessuno (nessun tasto, clic, tocco, né gesti o tocchi sul telefono
 // o telefono mosso) si torna al menu principale e si azzera chi gioca, così lo stand è pronto per il visitatore successivo.
@@ -340,6 +341,11 @@ export class NatpfKiosk {
       this._calChanged();
     }
     // B47: battuta, sempre lo stesso ↔ alternata, salvata; vale dalla partita dopo
+    if (cmd === 'partner'){
+      const mode = writePartnerMode(nextPartnerMode(readPartnerMode({ search: '' })));
+      ui.toast?.(`Doppio: ${partnerButton(mode)}. Vale dalla prossima partita.`);
+      ui.lobby?.paint?.();
+    }
     if (cmd === 'battuta'){
       const forced = serveRuleForcedByUrl(), rule = writeServeRule(nextServeRule(readServeRule({ search: '' })));
       ui.toast?.(serveRuleToast(rule, forced));
@@ -378,12 +384,13 @@ export class NatpfKiosk {
     set('aim', aimLevelButton(readAimLevel()));
     const osk = readOskMode(); set('osk', oskButton(osk), osk !== 'mai');
     const fair = readFairMode(); set('fair', fairButton(fair, fairForcedByUrl()), fair !== 'no');
+    const dm = readPartnerMode(); set('partner', partnerButton(dm, !!partnerModeFromUrl()), dm === 'solo');
     const bt = readServeRule(); set('battuta', serveRuleButton(bt, serveRuleForcedByUrl()), bt === 'fissa');
     const hot = readHotRally(); set('hot', hotButton(hot), hot);
     const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);
     const open = readOpenCourt(); set('open', openCourtButton(open), open);
     // (B41.3: con la modalità fiera «Giocando (fiera)», con il perché nella riga sotto le voci: il title)
-    const cal = readSavedCalMode(), calFair = fon && !calModeFromUrl();
+    const cal = readSavedCalMode(), calFair = fon && !calModeFromUrl() && cal === 'play';
     set('cal', calFair ? FAIR_CAL_BUTTON : calModeButton(cal, !!calModeFromUrl()), calFair || cal === 'play');
     const cb = this.el.querySelector('[data-staff="cal"]');
     if (cb){ if (calFair){ if (!cb.dataset.titleBase) cb.dataset.titleBase = cb.getAttribute?.('title') || ''; cb.setAttribute?.('title', `Calibrazione · ${FAIR_CAL_TEXT}`); } else if (cb.dataset.titleBase != null){ cb.setAttribute?.('title', cb.dataset.titleBase); delete cb.dataset.titleBase; } }

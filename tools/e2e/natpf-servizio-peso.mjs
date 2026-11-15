@@ -46,7 +46,9 @@ const serves = (p, opts) => p.evaluate(({ level, n, power, wide, seed }) => {
     const box = E.score.deuceSide ? -1 : 1;
     const intent = { shot: 'topspin', power, depth: power, rise: -.08, plane: wide ? -box*.55 : .5, face: wide ? box : 0 };
     E._handleUserTossInput({});
-    step(() => E.ball.vel.y/9.15 <= 0, 2);
+    // B48: dal telefono la direzione la sceglie il momento del colpo (dopo il punto più alto: largo, ancora a tempo); il
+    // piano e il piatto girati verso il corridoio non spostano più la palla
+    step(() => E.ball.vel.y/9.15 <= (wide ? -.165 : 0), 2);
     E._handleUserSwingInput({ source: 'prova', side: 'overhead', shotType: 'topspin', speed: .8 + power*.85, dirX: 0, natpf: { aim: 'swing', shot: 'topspin', intent, power, latency: 0, hand: 'right' } });
     const sv = E.natpfSkill.serve ? { ...E.natpfSkill.serve } : null, plan = !!E.natpfSkill.cpuPlan?.serve, p0 = E.opponent.pos.clone();
     // i primi passi dopo il servizio: la CPU si muove subito o resta ferma per la lettura in ritardo
@@ -56,12 +58,14 @@ const serves = (p, opts) => p.evaluate(({ level, n, power, wide, seed }) => {
     step(() => { vmax = Math.max(vmax, E.opponent.vel.length()); return E.phase !== 'RALLY'; }, 12);
     const call = E.lastBannerBroadcast?.call || {};
     const row = { rally: E.phase === 'RALLY', kmh: sv?.kmh, threat: sv?.threat, sharp: sv?.sharp, late: sv?.late, plan, still: +still.toFixed(3), vServe, vmax: +vmax.toFixed(2),
-      touched: E.ball.rallyStrokeCount > 1, winner: call.winner, why: call.why,
-      text: document.getElementById('center-banner-text')?.textContent, sub: document.getElementById('center-banner-sub')?.textContent,
-      shown: !document.getElementById('center-banner-layer')?.classList.contains('hidden') };
-    // nella pausa: fermi subito e dopo mezzo secondo
+      touched: E.ball.rallyStrokeCount > 1, winner: call.winner, why: call.why };
+    // nella pausa: fermi subito e dopo 0,6 s
     row.vEnd = A.map(x => +x.vel.length().toFixed(3));
-    step(() => false, .5);
+    step(() => false, .6);
+    // (B48: la scritta grande del punto compare 0,5 s dopo l'atterraggio, B43 _natpfPointBanner: si legge qui. Prima si
+    // leggeva subito, quando c'era ancora quella del punto prima, e la prova falliva anche sulla base del B48)
+    Object.assign(row, { text: document.getElementById('center-banner-text')?.textContent, sub: document.getElementById('center-banner-sub')?.textContent,
+      shown: !document.getElementById('center-banner-layer')?.classList.contains('hidden') });
     row.vPause = A.map(x => +x.vel.length().toFixed(3)); row.phasePause = E.phase;
     out.push(row);
     if (row.why === 'Ace!' && !window.__aceShot){ window.__aceShot = true; break; }

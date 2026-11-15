@@ -26,12 +26,18 @@
 //   ritardo           forza 0,5, colpito 0,5 s dopo il punto più alto («In ritardo»)
 //   forteRitardo      forza 0,9, colpito 0,5 s dopo il punto più alto
 //   (solo con --tipi) perfettoEsterno, perfettoT, massimoEsterno (forza 1), pianoStretto (forza 0,5 sulla riga)
+// B48 (miglioramento 10 del rapporto B16): dal telefono la direzione del servizio la sceglie il momento del colpo (prima del
+// punto più alto verso la «T», dopo largo: natpf_stroke_outcome.SERVE.choiceTau), non più il piano e il piatto. I servizi
+// «sulla riga» del banco e dei modelli si battono quindi con il tempo: 0,15–0,2 s prima del punto più alto per la «T»,
+// altrettanto dopo per l'esterno (tightTau); il piano e il piatto restano quelli di prima ma non spostano più la palla.
+// Il servizio senza scelta di tempo (tutorial, piattoForte, insegnato…) va dove porta il suo tempo: al centro se a tempo.
 // Esiti: «ace» = la CPU non tocca la palla; «risposta sbagliata» = la CPU la tocca e la manda in rete o fuori;
 // «punto diretto» = la somma; «in corsa» = CPU con più di 0,25 m/s quando parte il servizio (soglia dell'animazione
 // della corsa, player_body_animation.js).
 import { pathToFileURL } from 'node:url';
 import { simulate } from './rally-balance.mjs';
 import { gauss } from './headless-engine.mjs';
+import { SERVE } from '../../src/natpf/natpf_stroke_outcome.js';
 
 const pct = (a, n) => +(100*a/Math.max(1, n)).toFixed(1);
 export const SERVE_TYPES = {
@@ -62,12 +68,16 @@ export const PHONE_SERVES = {
   forteLinee: { p: .88, pSd: .06, tau: 0,    tauSd: .05, faceSd: .15, tight: .7 },
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+// B48: tempo del servizio «sulla riga» dal telefono: side = segno del lato del quadrato (esterno, largo) → dopo il punto più
+// alto; −segno (verso la riga centrale, «T») → prima. Quasi pieno (choiceTau ± 0,01–0,02) e a tempo (entro SERVE.perfect,
+// 0,18 s: qualità piena come il servizio «a tempo» di prima)
+export const tightTau = (side, box, rng) => (side === box ? -1 : 1)*(SERVE.choiceTau + .005 + Math.abs(gauss(rng))*.01);
 export function phoneServeOf(model, e, rng){
   const M = PHONE_SERVES[model], box = e.score.deuceSide ? -1 : 1, power = clamp(M.p + gauss(rng)*M.pSd, .1, 1);
-  let plane = .5 + gauss(rng)*.08, face = gauss(rng)*M.faceSd;
-  if (rng() < M.tight){ const side = rng() < .5 ? box : -box; plane = -side*.55; face = side*1 + gauss(rng)*M.faceSd; }
+  let plane = .5 + gauss(rng)*.08, face = gauss(rng)*M.faceSd, tau = M.tau + gauss(rng)*M.tauSd, tight = false;
+  if (rng() < M.tight){ const side = rng() < .5 ? box : -box; plane = -side*.55; face = side*1 + gauss(rng)*M.faceSd; tau = tightTau(side, box, rng); tight = true; }
   const intent = { shot: 'topspin', power, depth: power, rise: -.08, plane, face: clamp(face, -1, 1) };
-  return { tau: M.tau + gauss(rng)*M.tauSd, swing: { source: 'audit', side: 'overhead', shotType: 'topspin', speed: .8 + power*.85, dirX: 0,
+  return { tau, tight, swing: { source: 'audit', side: 'overhead', shotType: 'topspin', speed: .8 + power*.85, dirX: 0,
     natpf: { aim: 'swing', shot: 'topspin', intent, power, latency: 0, hand: 'right' } } };
 }
 // «casual.base=.17,casual.lateBase=.6» → { casual: { base: .17, lateBase: .6 } } (valori di prova per natpf_skill.serveTuning).
@@ -88,11 +98,11 @@ export const RUNNING = .25;
 // gesto del servizio per il banco: { tau, swing } (rally-balance.simulate, opzione serve)
 export function serveOf(type, e, rng){
   const T = SERVE_TYPES[type], box = e.score.deuceSide ? -1 : 1;             // lato del quadrato (segno della x del centro)
-  let plane = .5, face = gauss(rng)*.12;
-  // sulla riga: esterno (verso il corridoio) o «T» (riga centrale), una volta su due
-  if (T.tight){ const side = T.tight === 'esterno' ? box : T.tight === 'T' ? -box : rng() < .5 ? box : -box; plane = -side*.55; face = side*1; }
+  let plane = .5, face = gauss(rng)*.12, tau = null;
+  // sulla riga: esterno (verso il corridoio) o «T» (riga centrale), una volta su due; B48: con il tempo (tightTau)
+  if (T.tight){ const side = T.tight === 'esterno' ? box : T.tight === 'T' ? -box : rng() < .5 ? box : -box; plane = -side*.55; face = side*1; tau = tightTau(side, box, rng); }
   const intent = { shot: 'topspin', power: T.power, depth: T.power, rise: -.08, plane, face: Math.max(-1, Math.min(1, face)) };
-  return { tau: T.tau + gauss(rng)*.03, swing: { source: 'audit', side: 'overhead', shotType: 'topspin', speed: .8 + T.power*.85, dirX: 0,
+  return { tau: tau ?? T.tau + gauss(rng)*.03, swing: { source: 'audit', side: 'overhead', shotType: 'topspin', speed: .8 + T.power*.85, dirX: 0,
     natpf: { aim: 'swing', shot: 'topspin', intent, power: T.power, latency: 0, hand: 'right' } } };
 }
 

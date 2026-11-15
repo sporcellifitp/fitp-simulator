@@ -115,16 +115,28 @@ function overhead(who, rally){
     who === 'p2' ? e._natpfPlanOpponent(e.opponent) : e._natpfPlanPlayer();
     const plan = NI.planOf(e, A);
     for (let t = 0; t < 4; t += DT){ const ttc = NI.timeToContact(e, A); if (ttc != null && ttc <= .02) break; e.step(DT); }
-    const high = ballIsHigh(e, who), ev = phone(e, who, smashShape), yBefore = e.ball.pos.y;
+    const high = ballIsHigh(e, who), ev = phone(e, who, smashShape), yBefore = e.ball.pos.y, bounced = e.ball.bounceCountOnCurrentSide;
     send(e, who, ev);
     let from = null;
     for (let t = 0; t < 2 && e.phase === 'RALLY'; t += DT){ if (e.ball.lastHitter === ROLE[who]){ from = e.ball.pos.y; break; } e.step(DT); }
-    return { planY: plan?.contact?.y, high, read: ev.natpf.shot, shot: e.ball.lastHitter === ROLE[who] ? e.natpfLastRacket?.out?.shot : null, from, yBefore, swing: A.swingType };
+    return { planY: plan?.contact?.y, kind: plan?.kind, high, read: ev.natpf.shot, shot: e.ball.lastHitter === ROLE[who] ? e.natpfLastRacket?.out?.shot : null, from, yBefore, swing: A.swingType, bounced };
   } finally { Math.random = real; }
 }
 
-test('B20 A1: la schiacciata voluta su palla davvero alta, in risposta e nello scambio: uguale ai due lati e dalla stessa altezza', () => {
-  for (const rally of [1, 4]){
+// B48.1 (revisione del B48): la risposta al servizio si gioca dopo il rimbalzo, come nel tennis vero (natpf_impact.
+// planPlayerIntercept). Prima qui anche la risposta (colpo 1) a questa palla «a campanile» si schiacciava al volo, prima del
+// rimbalzo; ora si prende dopo il rimbalzo all'altezza della risposta, uguale ai due lati. La schiacciata voluta resta nello
+// scambio (colpo 4) e, in risposta, sulla palla davvero alta (natpf-b18-risposta, D7)
+test('B20 A1: la schiacciata voluta su palla davvero alta nello scambio, e la risposta al servizio dopo il rimbalzo: uguali ai due lati e dalla stessa altezza', () => {
+  {
+    const a = overhead('p1', 1), b = overhead('p2', 1);
+    for (const [who, r] of [['p1', a], ['p2', b]]){
+      assert.ok(r.kind === 'ground' && r.planY <= NI.PLAN.returnTop + 1e-9, `${who} (risposta): piano ${r.kind} a ${r.planY} m`);
+      assert.ok(r.bounced >= 1 && r.high === false && r.shot && r.shot !== 'SMASH', `${who} (risposta): ${JSON.stringify(r)}`);
+    }
+    assert.ok(Math.abs(a.planY - b.planY) < .02 && a.shot === b.shot && Math.abs(a.from - b.from) < .02, `risposta: P1 ${JSON.stringify(a)} / P2 ${JSON.stringify(b)}`);
+  }
+  for (const rally of [4]){
     const a = overhead('p1', rally), b = overhead('p2', rally);
     for (const [who, r] of [['p1', a], ['p2', b]]){
       assert.ok(r.planY >= SMASH_FROM.always, `${who} (colpo ${rally}): contatto previsto a ${r.planY} m`);

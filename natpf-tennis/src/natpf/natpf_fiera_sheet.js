@@ -108,7 +108,7 @@ export class NatpfFieraSheet {
       return ok;
     }
     if (cmd === 'cancel'){ if (this.pairing === slot) this._stopPairing(); this.paint(); return true; }
-    // «Conferma»: solo un clic o un tasto veri (NatpfFiera.confirm controlla isTrusted). Il posto è abbinato: il QR si chiude
+    // «Conferma»: solo un clic vero (NatpfFiera.confirm controlla isTrusted). Il posto è abbinato: il QR si chiude
     if (cmd === 'confirm'){
       const ok = F.confirm(slot, e);
       if (ok){ if (this.pairing === slot) this.pairing = null; this.ui.toast?.(`${slot === 'p2' ? 'Telefono 2' : 'Telefono 1'} abbinato: ora sul telefono «Attiva i sensori»`); }

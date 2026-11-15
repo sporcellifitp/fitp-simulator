@@ -50,3 +50,5 @@
 2026-11-14.5: Chi gioca senza nome diventa «Visitatore 1, 2, …» e va in classifica; il titolo di fine partita sta sempre su una riga.
 2026-11-14.5: Un doppio tocco su «Sono pronto» non salta più gli scambi di prova; in fiera «Torna al menu» azzera il visitatore; il pannello dello stand non trema e non scorre più con il puntatore sulle voci.
 2026-11-14.6: Durante gli scambi di prova, il conto e la partita il telefono ignora i tocchi accidentali. Dal pannello dello stand puoi sbloccare ciascun telefono anche a partita in corso.
+2026-11-14.7: Scegli la direzione del servizio col tempo del gesto, sfida una battuta della CPU più varia e scopri la nuova scheda di fine partita.
+2026-11-14.7: Nel doppio contro la CPU il compagno copre le sue palle, indicate con un anello azzurro. Nella diagnostica è disponibile la prova del ritardo dello schermo.

@@ -87,12 +87,19 @@ test('B36.0: scarto della cima dei giocatori simulati — inversa esatta del pia
 });
 
 // Impronte prese sulla base 0035e02 (2026-11-13.12) con gli stessi argomenti: con «Classica» i profili del telefono, che
-// ora mandano anche natpf.aimDev e natpf.aimFull, giocano identici, punto per punto e colpo per colpo
+// ora mandano anche natpf.aimDev e natpf.aimFull, giocano identici, punto per punto e colpo per colpo.
+// B48: impronte riprese dopo il servizio della CPU vario (direzione ed effetto a ogni livello, a Casual e Bambini mai più
+// veloce di chi gioca) e la smorzata della Leggenda al più una ogni 8 colpi: le partite cambiano per quelli (prima 39e0eab60444,
+// 3c9754821f05, 3e60257b2773, 3d0b93d57253, 71ff6a88fcb7). Lo scarto della cima continua a non cambiare niente: la regola
+// nuova della direzione resta a 0 colpi.
+// B48.1: riprese di nuovo per i rimbalzi del servizio della CPU nei terzi e i servizi profondi (Pro, Evento, Leggenda;
+// Bambini con «T» e largo nei loro terzi); Casual non cambia, e la risposta al servizio dopo il rimbalzo (natpf_impact) da
+// sola non le cambiava (prima e3ef8874f1f7, 41e2692020f2, c9a0543602ef, b56e5d5a6586)
 test('B36.0: rally-balance con lo scarto della cima — partite identiche alla base, colpi contati, nessuno con la regola nuova', async () => {
   const { createHash } = await import('node:crypto');
   const { simulate, PHONE_PROFILES } = await import('../scripts/audit/rally-balance.mjs');
   const sha = x => createHash('sha1').update(JSON.stringify(x)).digest('hex').slice(0, 12);
-  const BASE = { 'tennista/pro': '39e0eab60444', 'amatore/casual': '3c9754821f05', 'bambino/bambini': '3e60257b2773', 'umano/leggenda': '3d0b93d57253', 'medio/evento': '71ff6a88fcb7' };
+  const BASE = { 'tennista/pro': 'cd9e73f51f9c', 'amatore/casual': '373f419cc6ec', 'bambino/bambini': '0990dead2254', 'umano/leggenda': 'a3090be2bbc5', 'medio/evento': 'b4e9519bd28a' };
   for (const [k, atteso] of Object.entries(BASE)){
     const [profile, difficulty] = k.split('/'), r = simulate({ profile, difficulty, points: 40, seed: 7 });
     assert.equal(sha([r.points, r.won, r.rallies, r.reasons, r.grades, r.racket, r.landings, r.whiffs, r.shots]), atteso, k);

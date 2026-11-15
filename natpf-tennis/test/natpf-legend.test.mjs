@@ -153,10 +153,13 @@ test('Leggenda: impara quali colpi mettono in difficoltà l\'avversario', () => 
   assert.equal(e.natpfLegend, null, 'nuova partita, nuovo avversario da studiare');
 });
 
-test('Leggenda: servizio vario (da un angolo all\'altro e al corpo, velocità diverse)', () => {
-  const e = engine(), rng = mulberry32(8), dir = { neg: 0, pos: 0, mid: 0 }, speeds = [];
-  for (let i = 0; i < 200; i++){ const s = NL.legendServe(e, rng); speeds.push(s.speed); dir[s.dirX <= -.9 ? 'neg' : s.dirX >= .9 ? 'pos' : 'mid']++; }
-  assert.ok(dir.neg > 40 && dir.pos > 40 && dir.mid > 20, JSON.stringify(dir));
+test('Leggenda: servizio vario (da un angolo all\'altro e al corpo, velocità diverse; B48: anche l\'effetto)', () => {
+  // B48: la direzione viene dal piano comune del servizio della CPU (natpf_skill.cpuServePlan) con gli angoli di prima:
+  // «T» (prima dirX −1 o +1 verso la riga centrale) e largo il 36% ciascuno, al corpo il 28%
+  const e = engine(), rng = mulberry32(8), dir = { T: 0, largo: 0, corpo: 0 }, kinds = {}, speeds = [];
+  for (let i = 0; i < 200; i++){ const s = NL.legendServe(e, rng), p = s.natpfCpuServe; speeds.push(s.speed); dir[p.dir]++; kinds[p.kind] = (kinds[p.kind] || 0) + 1; }
+  assert.ok(dir.T > 40 && dir.largo > 40 && dir.corpo > 20, JSON.stringify(dir));
+  assert.ok(kinds.flat > 30 && kinds.kick > 30 && kinds.slice > 30, JSON.stringify(kinds));
   assert.ok(Math.min(...speeds) >= 1.05 && Math.max(...speeds) <= 1.45 && Math.max(...speeds) - Math.min(...speeds) > .3);
 });
 

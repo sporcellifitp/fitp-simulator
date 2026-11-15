@@ -14,6 +14,7 @@ import { netPlayRules } from '../src/natpf/natpf_net_play.js';
 import { movementRules } from '../src/natpf/natpf_movement.js';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import { bench, natural, serveOf, gamesOf, trialValues, phoneServeOf, PHONE_SERVES } from '../scripts/audit/servizio.mjs';
+import { serveOutcome, serveChoiceRules } from '../src/natpf/natpf_stroke_outcome.js';
 
 const DT = 1/120;
 const ACTORS = e => [e.player, e.playerPartner, e.opponent, e.opponentPartner];
@@ -22,8 +23,10 @@ const seeded = (seed, fn) => { const real = Math.random; Math.random = mulberry3
 // gesto del servizio con la forma del telefono: servizio insegnato (salita −0,08, |piano| 0,5), forza e direzione date
 const serveEvt = ({ power = .5, plane = .5, face = 0 } = {}) => ({ source: 'test', side: 'overhead', shotType: 'topspin', speed: .8 + power*.85, dirX: 0,
   natpf: { aim: 'swing', shot: 'topspin', intent: { shot: 'topspin', power, depth: power, rise: -.08, plane, face }, power, latency: 0, hand: 'right' } });
-// servizio sulla riga esterna del quadrato (lato pari: quadrato a sinistra, x negativa)
-const wide = e => { const box = e.score.deuceSide ? -1 : 1; return { plane: -box*.55, face: box }; };
+// servizio sulla riga esterna del quadrato (lato pari: quadrato a sinistra, x negativa). B48: dal telefono la direzione la
+// sceglie il momento del colpo (natpf_stroke_outcome.SERVE.choiceTau): largo = colpito dopo il punto più alto, ancora a
+// tempo (prima il piano e il piatto girati verso il corridoio: { plane: −box·0,55, face: box })
+const WIDE_TAU = -.165;
 function playerServe(e, evt, tau = 0){
   assert.equal(e.phase, 'SERVE_STANCE'); assert.equal(e.score.server, 'player');
   e._handleUserTossInput({});
@@ -105,8 +108,8 @@ test('D11: minaccia del servizio (serveInfo): velocità vera della palla, strett
   // nel motore: il servizio dal gesto del telefono con la forma (natpf_stroke_outcome.serveOutcome)
   const real = Math.random; Math.random = mulberry32(2);
   try {
-    const kmhOf = evt => { const e = match('pro'); for (let i = 0; i < 400 && !(e.phase === 'SERVE_STANCE' && e.phaseTimer > .3); i++) e.step(DT); playerServe(e, evt(e)); return e.natpfSkill.serve; };
-    const taught = kmhOf(() => serveEvt({ power: .5 })), flat = kmhOf(() => serveEvt({ power: .9 })), great = kmhOf(e => serveEvt({ power: .9, ...wide(e) }));
+    const kmhOf = (evt, tau = 0) => { const e = match('pro'); for (let i = 0; i < 400 && !(e.phase === 'SERVE_STANCE' && e.phaseTimer > .3); i++) e.step(DT); playerServe(e, evt(e), tau); return e.natpfSkill.serve; };
+    const taught = kmhOf(() => serveEvt({ power: .5 })), flat = kmhOf(() => serveEvt({ power: .9 })), great = kmhOf(() => serveEvt({ power: .9 }), WIDE_TAU);
     assert.ok(taught.kmh >= K(150) && taught.kmh <= K(160) && taught.threat === 0, JSON.stringify(taught));
     assert.ok(flat.kmh >= K(188) && flat.fast === 1 && flat.sharp === 0, JSON.stringify(flat));
     assert.ok(great.kmh >= K(188) && great.threat >= .97 && great.sharp >= .95, JSON.stringify(great));
@@ -178,7 +181,7 @@ test('D11: lettura in ritardo: sul servizio perfetto, forte e angolato la CPU re
     assert.ok(e.opponent.pos.distanceTo(x0) > 0, `${difficulty}: sul servizio normale la CPU parte subito`);
     // servizio perfetto, forte, sulla riga esterna
     e._setupPointServe({ showBanner: false }); e.score.server = 'player';
-    playerServe(e, serveEvt({ power: .9, ...wide(e) }));
+    playerServe(e, serveEvt({ power: .9 }), WIDE_TAU);
     const sv = e.natpfSkill.serve, plan = e.natpfSkill.cpuPlan, W = NS.SERVE_WEIGHT[difficulty];
     assert.ok(sv.sharp > .9 && sv.late > 0 && sv.late < W.read*2.5, `${difficulty}: ${JSON.stringify(sv)}`);
     assert.ok(plan && plan.serve && Math.abs(plan.readAt - e.elapsedTime - sv.late) < 1e-3, `${difficulty}: piano di lettura`);
@@ -217,7 +220,7 @@ test('D11: solo contro la CPU. Sfida tra due persone, servizio della CPU e palle
     v.opponent.vel.set(3, 0, 0);
     v._setupPointServe({ showBanner: false });
     assert.equal(v.opponent.vel.length(), 0, 'anche nel 1v1 si parte fermi');
-    playerServe(v, serveEvt({ power: .9, ...wide(v) }));
+    playerServe(v, serveEvt({ power: .9 }), WIDE_TAU);
     assert.equal(v.natpfSkill.serve, null); assert.equal(v.natpfSkill.cpuPlan, null); assert.equal(v.natpfSkill.pressure, 0);
     v._setupPointServe({ showBanner: false }); v.score.server = 'opponent'; v.phase = 'SERVE_STANCE';
     v._startServeToss(v.opponent);
@@ -233,7 +236,7 @@ test('D11: solo contro la CPU. Sfida tra due persone, servizio della CPU e palle
       for (let i = 0; i < 400 && !(r.phase === 'SERVE_STANCE' && r.phaseTimer > .3); i++) r.step(DT);
       r.isMultiplayer = true; r.score.server = 'player'; r._setupPointServe({ showBanner: false });
       assert.equal(r.isMultiplayer, true); assert.ok(NS.SERVE_WEIGHT[difficulty], `${difficulty}: il livello ha un peso del servizio`);
-      playerServe(r, serveEvt({ power: .9, ...wide(r) }));
+      playerServe(r, serveEvt({ power: .9 }), WIDE_TAU);
       assert.equal(r.ball.lastHitter, 'player');
       assert.equal(r.natpfSkill.serve, null, `${difficulty} in stanza: nessun peso del servizio`);
       assert.equal(r.natpfSkill.cpuPlan, null, `${difficulty} in stanza: nessuna lettura in ritardo`);
@@ -242,7 +245,7 @@ test('D11: solo contro la CPU. Sfida tra due persone, servizio della CPU e palle
       const c = match(difficulty);
       for (let i = 0; i < 400 && !(c.phase === 'SERVE_STANCE' && c.phaseTimer > .3); i++) c.step(DT);
       c.score.server = 'player'; c._setupPointServe({ showBanner: false });
-      playerServe(c, serveEvt({ power: .9, ...wide(c) }));
+      playerServe(c, serveEvt({ power: .9 }), WIDE_TAU);
       assert.ok(c.natpfSkill.serve && c.natpfSkill.serve.threat > .8, `${difficulty} contro la CPU: ${JSON.stringify(c.natpfSkill.serve)}`);
     }
     // servizio della CPU (formato in fiera, o game battuti dalla CPU)
@@ -269,7 +272,7 @@ test('D11: il servizio della CPU e la risposta di chi gioca non cambiano con il 
   const after = prevServe => seeded(17, () => {
     const e = match('pro');
     for (let i = 0; i < 400 && !(e.phase === 'SERVE_STANCE' && e.phaseTimer > .3); i++) e.step(DT);
-    playerServe(e, serveEvt(prevServe(e)));
+    const pv = prevServe(e); playerServe(e, serveEvt(pv), pv.tau ?? 0);
     e._awardPoint('opponent', 'prova');
     e.score.server = 'opponent'; e.score.deuceSide = true;
     Math.random = mulberry32(99);
@@ -278,7 +281,7 @@ test('D11: il servizio della CPU e la risposta di chi gioca non cambiano con il 
     return { vel: e.ball.vel.toArray().map(v => +v.toFixed(4)), land: e.ball.targetLanding.toArray().map(v => +v.toFixed(4)), power: e.ball.isPowerShot,
       plan: e.player.targetPos.toArray().map(v => +v.toFixed(4)), serve: e.natpfSkill.serve, pressure: e.natpfSkill.pressure };
   });
-  const a = after(() => ({ power: .5 })), b = after(e => ({ power: .9, ...wide(e) }));
+  const a = after(() => ({ power: .5 })), b = after(() => ({ power: .9, tau: WIDE_TAU }));
   assert.deepEqual(a, b);
   assert.equal(a.serve, null); assert.equal(a.pressure, 0);
 });
@@ -310,7 +313,13 @@ test('D11: banco sul motore vero. Punto diretto sul servizio perfetto, forte e s
   for (const difficulty of ['casual', 'pro', 'leggenda']) assert.equal(natural({ difficulty, profile: 'amatore', points: 120, seeds: [7] }).inCorsa, 0, difficulty);
   // il gesto del banco è quello che dichiara: sulla riga, nei due quadrati
   const e = match('pro');
-  for (const deuce of [true, false]){ e.score.deuceSide = deuce; const s = serveOf('perfettoEsterno', e, mulberry32(1)).swing.natpf.intent; assert.equal(Math.sign(s.face), deuce ? -1 : 1); }
+  // (B48: con il tempo, dopo il punto più alto, a tempo: largo in tutti e due i quadrati)
+  for (const deuce of [true, false]){
+    e.score.deuceSide = deuce; const s = serveOf('perfettoEsterno', e, mulberry32(1)), box = deuce ? -1 : 1;
+    assert.ok(s.tau < -.12 && s.tau > -.21, `tempo ${s.tau}`);
+    const o = serveOutcome({ intent: s.swing.natpf.intent, tau: s.tau, boxSign: box, choice: true });
+    assert.equal(o.dir, 'largo'); assert.equal(Math.sign(o.x), box); assert.ok(o.q >= .95, JSON.stringify(o));
+  }
 });
 
 test('D11 (revisione): il banco misura le partite normali con il servizio del telefono (modelli, game, valori di prova)', () => {
@@ -332,7 +341,7 @@ test('D11 (revisione): il banco misura le partite normali con il servizio del te
     for (const x of S){ const i = x.swing.natpf.intent; assert.equal(x.swing.side, 'overhead'); assert.equal(i.rise, -.08); assert.ok(i.power >= .1 && i.power <= 1 && Math.abs(i.face) <= 1); }
     assert.ok(Math.abs(mean(S.map(x => x.swing.natpf.intent.power)) - M.p) < .03, `${name}: forza media`);
     assert.ok(Math.abs(mean(S.map(x => x.tau)) - M.tau) < .04, `${name}: tempo medio`);
-    const onLine = S.filter(x => Math.abs(x.swing.natpf.intent.plane) === .55).length/S.length;
+    const onLine = S.filter(x => x.tight).length/S.length;
     assert.ok(Math.abs(onLine - M.tight) < .08, `${name}: ${onLine} dei servizi cercati sulla riga`);
   }
   // partite normali con il servizio del telefono: il servizio insegnato parte a 157 km/h a tempo (non il kick lento dei
@@ -377,11 +386,16 @@ test('D11 (revisione): a Casual chi batte tardi con il telefono non perde il ser
   // (B31: il controllo è sui pesi del servizio di allora, con il gioco di allora: regole del gioco a rete spente. Con il
   // gioco a rete «bambino» vince qualche punto in più anche dopo il servizio, docs/b31/gioco-a-rete.md)
   // (B32: e con il movimento di allora, velocità costante: movementRules.off, docs/b32/movimento.md)
-  netPlayRules.off = true; movementRules.off = true;
+  // (B48: e con la direzione di allora, dal piano e dal piatto: il servizio in ritardo del telefono oggi va largo, prima del
+  // punto più alto al centro, serveChoiceRules.off)
+  netPlayRules.off = true; movementRules.off = true; serveChoiceRules.off = true;
   try {
     const old = natural({ ...opts, serveModel: 'tardi' });
+    // (B48: soglia di prima, 11,5%, un punto sotto il criterio di oggi. Con il servizio della CPU nuovo cambia il sorteggio
+    // delle partite: la stessa misura dà 10,7% e 47,9% invece di 10,1% e 47,1%; i servizi di oggi 13,5% e 50,8% in ritardo,
+    // 13,7% e 53,5% insegnato, invece di 14,0/53,2 e 14,1/51,9)
     assert.ok(old.puntoDiretto < 11.5 && old.puntiAlServizio < 48, `con i valori di prima: ${msg(old)}`);
-  } finally { delete NS.serveTuning.casual; netPlayRules.off = false; movementRules.off = false; }
+  } finally { delete NS.serveTuning.casual; netPlayRules.off = false; movementRules.off = false; serveChoiceRules.off = false; }
   // nel banco: a Casual il servizio in ritardo resta chiaramente sotto quello perfetto, forte e stretto
   const b = type => bench({ type, difficulty: 'casual', points: 250, seeds: [7, 11] }).puntoDiretto;
   const [perfetto, ritardo] = [b('perfettoStretto'), b('ritardo')];

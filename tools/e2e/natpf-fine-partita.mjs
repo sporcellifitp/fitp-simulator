@@ -10,6 +10,10 @@
 //      sparisce con «Azzera oggi»; il registro dello stand non ha mai il nome;
 //   C. stesso schermo: due schede con i nomi e due cose belle per giocatore, lo scambio più lungo nella pillola;
 //      «Nuovo giocatore» chiude la schermata.
+//   B40 (docs/b40/fine-partita-v2.md): la card della partita (nome, cornice del livello, MVP / Bella sfida, medaglie uguali
+//   a quelle di natpf_end_card.cardModel dai numeri del motore, record di oggi); nello stesso schermo due card con la
+//   corona su chi vince; misure con #victory-cards fra le parti che non devono sovrapporsi né uscire (anche 1366×768 e
+//   1024×1024); record di oggi battuto da una seconda partita più forte.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-fine-partita.mjs      (OUT=cartella delle schermate)
 // Giocatore simulato e punti del motore: non sostituiscono un telefono vero né persone vere.
 import { spawn } from 'node:child_process';
@@ -39,16 +43,25 @@ const readModal = g => g.evaluate(async () => {
   const players = [...m.querySelectorAll('.end-player')].map(c => ({ name: c.querySelector('.end-pname')?.textContent || '', chip: c.querySelector('.end-chip')?.textContent || '', tiles: [...c.querySelectorAll('.end-tile')].map(tile) }));
   const vis = id => { const n = document.getElementById(id); return n && !n.classList.contains('hidden') && n.getBoundingClientRect().height > 0 ? n.textContent : ''; };
   // pezzi tagliati: un testo che esce dal suo riquadro o dalla scheda
-  const clipped = [...card.querySelectorAll('.end-tile, .end-lab, .end-num, .end-pill, .end-games, .end-sub, .end-pname, .end-chip, .skill-card-header, .nt-footer-btn:not(.hidden), .victory-result-banner')].filter(el => { const b = el.getBoundingClientRect(); return b.height > 0 && (b.bottom > r.bottom + 1 || b.right > r.right + 1 || b.top < r.top - 1 || b.left < r.left - 1 || el.scrollWidth > el.clientWidth + 2); }).map(el => el.className + ':' + el.textContent.slice(0, 20));
+  // (B40: anche le parti della card, dentro la loro card; il nome lungo della card finisce con «…», voluto)
+  const clipped = [...card.querySelectorAll('.end-tile, .end-lab, .end-num, .end-pill, .end-games, .end-sub, .end-pname, .end-chip, .skill-card-header, .nt-footer-btn:not(.hidden), .victory-result-banner, .end-card, .card-art, .card-badge, .card-name, .card-sub, .trophy, .card-record, .card-next')].filter(el => {
+    const b = el.getBoundingClientRect(), host = !el.classList.contains('end-card') && el.closest('.end-card') ? el.closest('.end-card').getBoundingClientRect() : r;
+    return b.height > 0 && (b.bottom > host.bottom + 1 || b.right > host.right + 1 || b.top < host.top - 1 || b.left < host.left - 1 || (el.scrollWidth > el.clientWidth + 2 && !el.classList.contains('card-name'))); }).map(el => el.className + ':' + el.textContent.slice(0, 20));
   // parti che si sovrappongono (titolo, pillola dei game, riquadri, pillola in basso, bottoni)
-  const parts = ['victory-result-banner', 'victory-games', 'victory-stats', 'victory-pill'].map(id => document.getElementById(id)).filter(n => n && !n.classList.contains('hidden')).concat([card.querySelector('.end-btns')]).map(n => n.getBoundingClientRect()).filter(b => b.height > 0);
+  const parts = ['victory-result-banner', 'victory-games', 'victory-cards', 'victory-stats', 'victory-pill', 'victory-rematch'].map(id => document.getElementById(id)).filter(n => n && !n.classList.contains('hidden')).concat([card.querySelector('.end-btns')]).map(n => n.getBoundingClientRect()).filter(b => b.height > 0);
   const overlap = parts.some((a, i) => parts.some((b, k) => k > i && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1));
-  const view = window.__endView, M = await import('/src/natpf/natpf_match_stats.js');
+  const view = window.__endView, M = await import('/src/natpf/natpf_match_stats.js'), C = await import('/src/natpf/natpf_end_card.js'), P = await import('/src/natpf/natpf_personaggi.js');
   const expect = view?.stats ? M.endScreen(view, view.stats) : null;
+  // B40: card come le vede chi guarda, e quelle che il modello dice dai numeri del motore
+  const cards = [...m.querySelectorAll('#victory-cards .end-card')].map(c => ({ side: c.dataset.side, frame: c.dataset.frame, won: c.dataset.won === '1', look: c.dataset.look,
+    name: c.querySelector('.card-name')?.textContent || '', badge: c.querySelector('.card-badge')?.textContent || '', crown: !!c.querySelector('.card-crown'),
+    trophies: [...c.querySelectorAll('.trophy')].map(t => `${t.dataset.trophy}:${t.dataset.tier}`), record: c.querySelector('.card-record')?.textContent || '', next: c.querySelector('.card-next')?.textContent || '' }));
+  const model = view?.stats ? C.cardModel(view.stats, view, { looks: P.castLooks(P.getCast(), view.stats.mode !== 'cpu'), bands: view.stats.bands }) : null;
+  const cardsExpect = (model?.cards || []).map(c => ({ side: c.side, frame: c.frame, won: c.won, look: c.look, name: c.name, badge: c.badge, crown: c.crown, trophies: c.trophies.map(t => `${t.id}:${t.tier}`), record: c.record?.text || '', next: c.next || '' }));
   return { open: !m.classList.contains('hidden'), stats: m.classList.contains('has-stats'), split: m.classList.contains('stats-split'), title: document.getElementById('victory-result-banner').textContent,
     kicker: document.getElementById('victory-kicker').textContent, sub: vis('victory-sub'), games: vis('victory-games') ? [...document.getElementById('victory-games').children].map(c => c.textContent.trim()).join(' ') : '', pill: vis('victory-pill'),
     again: document.getElementById('btn-play-again').textContent, btns: [...card.querySelectorAll('.end-btns .nt-footer-btn')].filter(b => !b.classList.contains('hidden') && b.offsetParent).map(b => b.textContent),
-    tiles, players, sums: view?.stats?.cols.map(c => c.sum) || [], expect, text: card.innerText,
+    tiles, players, sums: view?.stats?.cols.map(c => c.sum) || [], expect, cards, cardsExpect, hasCards: m.classList.contains('has-cards'), text: card.innerText,
     inView: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5, scroll: card.scrollHeight > card.clientHeight + 1, clipped, overlap, size: [innerWidth, innerHeight] };
 });
 const sameTiles = (a, b) => JSON.stringify((a || []).map(t => [t.id, t.value, t.label])) === JSON.stringify((b || []).map(t => [t.id, t.value, t.label]));
@@ -133,7 +146,13 @@ try {
   check('   pillola in basso: posizione in classifica se vince, consiglio gentile se perde', won ? v.pill === '1° posto nella classifica di oggi' : v.pill === 'Prossima volta prova il livello Facile', v.pill);
   check('   riga sotto il titolo solo quando perde', won ? v.sub === '' : v.sub === 'La CPU ha vinto questa volta. Ecco cosa ti è venuto meglio:', v.sub);
   check('   bottoni a pillola: Menu, Nuovo giocatore, Gioca ancora (Rivincita se perde)', v.btns.join('|') === `Menu|Nuovo giocatore|${won ? 'Gioca ancora' : 'Rivincita'}`, v.btns.join('|'));
-  for (const [w, h] of [[1280, 720], [1920, 1080], [1920, 540], [1024, 600], [720, 720]]){
+  // B40: card della partita
+  const cA = v.cards[0] || {};
+  check('A2c. B40: card della partita con il nome, la cornice Evento, MVP o Bella sfida, uguale al modello dai numeri del motore', v.hasCards && v.cards.length === 1 && cA.name === 'Ada' && cA.frame === 'evento' && cA.badge === (won ? 'MVP della partita' : 'Bella sfida')
+    && JSON.stringify(v.cards) === JSON.stringify(v.cardsExpect), JSON.stringify({ cards: v.cards, expect: v.cardsExpect }));
+  check('   B40: da 0 a 3 medaglie; prima partita di Ada: «Prima volta»; record di oggi (prima partita del giorno: è suo)', cA.trophies.length <= 3 && cA.trophies.includes('prima:1') && /^Record di oggi! /.test(cA.record), JSON.stringify(cA));
+  check('   B40: prossimo trofeo a chi perde o vince senza trofei della partita', (!won || cA.trophies.every(t => t.startsWith('prima'))) === !!cA.next, JSON.stringify({ won, next: cA.next, trophies: cA.trophies }));
+  for (const [w, h] of [[1280, 720], [1920, 1080], [1920, 540], [1024, 600], [720, 720], [1366, 768], [1024, 1024]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(250);
     v = await readModal(g);
     check(`A3. ${w}×${h}: scheda tutta nello schermo, senza scorrere né testi tagliati o sovrapposti`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.overlap }));
@@ -197,6 +216,20 @@ try {
   check('B5. «Azzera oggi»: classifica delle partite vuota', after.n === 0 && /nessuna partita/.test(after.rows.join()), JSON.stringify(after));
   await g.evaluate(() => { document.documentElement.classList.remove('ranking-full'); __natpfTennis.natpfUi.lobby.go('menu'); });
 
+  /* ---------- B40: record di oggi (colpo più forte), battuto dalla partita dopo ---------- */
+  const quick = kmh => g.evaluate(async kmh => {
+    const E = __natpfTennis, ui = E.natpfUi;
+    E.hud.hideVictoryModal(); ui.lobby.visible = false; E.hud.hideTitleModal?.(); E.autoPlayMode = false; E.userHasInteracted = true; E.isMultiplayer = false;
+    E.startNewMatch({ showStartBanner: false }); E.matchConfig.gamesToWin = 1;
+    E.natpfStats.shot(E, { role: 'p1', grade: 'PERFECT', kmh });
+    for (let i = 0; i < 4 && E.phase !== 'MATCH_OVER'; i++){ E.ball.rallyStrokeCount = 3; E._awardPoint('player', 'Out'); }
+    const t0 = performance.now(); while (document.getElementById('victory-modal').classList.contains('hidden') && performance.now() - t0 < 15000) await new Promise(r => setTimeout(r, 100));
+    return document.querySelector('#victory-cards .card-record')?.textContent || '';
+  }, kmh);
+  const r1 = await quick(150), r2 = await quick(120), r3 = await quick(160);
+  check('B6. B40: record di oggi del colpo più forte: suo alla prima, da battere alla seconda, battuto alla terza (solo il valore)', r1 === 'Record di oggi! 150 km/h' && r2 === 'Record di oggi: 150 km/h' && r3 === 'Record di oggi! 160 km/h', [r1, r2, r3].join(' | '));
+  await g.evaluate(() => { const E = __natpfTennis; E.hud.hideVictoryModal(); E.natpfUi.events.resetBoard(); E.natpfUi.lobby.go('menu'); });
+
   /* ---------- C. stesso schermo ---------- */
   await g.evaluate(() => {
     const E = __natpfTennis;
@@ -208,18 +241,20 @@ try {
     for (const w of ['player', 'opponent', 'opponent', 'opponent', 'player', 'opponent']) if (E.phase !== 'MATCH_OVER'){ E.ball.rallyStrokeCount = 3; E._awardPoint(w, 'Out'); }
   });
   check('C0. partita dello stesso schermo finita, schermata con due colonne', await g.waitForFunction(() => !document.getElementById('victory-modal').classList.contains('hidden') && document.getElementById('victory-modal').classList.contains('stats-split'), null, { timeout: 8000 }).then(() => true, () => false));
-  for (const [w, h] of [[1280, 720], [1920, 1080], [1920, 540], [1024, 600], [720, 720]]){
+  for (const [w, h] of [[1280, 720], [1920, 1080], [1920, 540], [1024, 600], [720, 720], [1366, 768], [1024, 1024]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(250);
     v = await readModal(g);
     if (w === 1280){
       const [a, b] = v.players, valOf = s => ({ perfetti: s.timing.perfetto, kmh: s.fastest, scambio: s.longest, punti: s.points, vincenti: s.winners, ace: s.aces, super: s.superOk });
       const real = (p, s) => !!s && p.tiles.every(t => valOf(s)[t.id] === t.value);
-      check('C1. stesso schermo: due schede con i nomi, chi vince e due cose belle ciascuno (numeri veri: 2 e 4 punti, i colpi Perfetti e i km/h dati)', v.players.length === 2 && a.name === 'Giulia' && b.name === 'Marco' && a.chip === 'Bella sfida' && b.chip === 'Vince'
+      check('C1. stesso schermo: due schede con i nomi, chi vince e due cose belle ciascuno (numeri veri: 2 e 4 punti, i colpi Perfetti e i km/h dati)', v.players.length === 2 && a.name === 'Giulia' && b.name === 'Marco' && a.chip === 'Bella sfida' && b.chip === 'MVP della partita'
         && v.sums[0]?.points === 2 && v.sums[1]?.points === 4 && v.sums[0]?.timing.perfetto === 2 && v.sums[1]?.timing.perfetto === 1
         && v.players.every(p => p.tiles.length >= 1 && p.tiles.length <= 2 && p.tiles.every(t => t.value > 0)) && real(a, v.sums[0]) && real(b, v.sums[1]) && v.title === 'Vince Marco!' && sameTiles(a.tiles, v.expect?.players?.[0]?.tiles) && sameTiles(b.tiles, v.expect?.players?.[1]?.tiles),
         JSON.stringify({ title: v.title, players: v.players, sums: v.sums.map(s => valOf(s)) }));
       check('   pillola dei game in alto, scambio più lungo nella pillola in basso, «Rivincita»', v.kicker === 'Fine partita · 1 game a 0' && v.pill === 'Scambio più lungo della partita: 3 colpi' && v.again === 'Rivincita' && !v.players.some(p => p.tiles.some(t => t.id === 'scambio')), JSON.stringify({ kicker: v.kicker, pill: v.pill, again: v.again }));
       check('   mai numeri negativi', !NEG.test(v.text), v.text.replace(/\s+/g, ' ').slice(0, 200));
+      check('C1b. B40: due card una contro l\'altra, corona solo su Marco (vince), cornici dalla fascia, uguali al modello', v.cards.length === 2 && !v.cards[0].crown && v.cards[1].crown
+        && v.cards.every(c => c.frame === 'evento') && JSON.stringify(v.cards) === JSON.stringify(v.cardsExpect), JSON.stringify({ cards: v.cards, expect: v.cardsExpect }));
     }
     check(`C2. stesso schermo ${w}×${h}: tutta nello schermo, niente tagliato né sovrapposto`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.overlap }));
     await shot(`split-${w}x${h}`);

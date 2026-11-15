@@ -3,6 +3,8 @@ import { renderAllHudPlayerAvatars as P, renderPlayerAvatar as L } from "./playe
 import { t as tr, scoreText as sc } from "./natpf/natpf_i18n.js";
 import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o area del ledwall
 import { statsHtml, endScreen, titleFit } from "./natpf/natpf_match_stats.js"; // NATPF B33/B35: i numeri veri della partita nella schermata finale
+import { cardModel, cardsHtml } from "./natpf/natpf_end_card.js"; // NATPF B40: card della partita
+import { castLooks, getCast } from "./natpf/natpf_personaggi.js";
 // NATPF: scritture nel DOM solo se il valore cambia. updateMultiplayerRoomInfo gira a ogni risposta del relay (20 al
 // secondo nella sfida) e updateTimingGauge due volte per fotogramma (passi di fisica a 120 Hz): textContent riscritto
 // uguale sostituisce comunque il nodo di testo e fa ricalcolare lo stile (come natpf_split_ui.js)
@@ -357,6 +359,14 @@ export class HudUI {
       el = (id) => document.getElementById(id),
       put = (id, text) => { const n = el(id); n && ((n.textContent = text || ""), n.classList.toggle("hidden", !text)); };
     st && ((st.innerHTML = html), st.classList.toggle("hidden", !html));
+    // NATPF B40: card della partita (natpf_end_card.js) tra la testa e i pulsanti, accanto ai riquadri; nello stesso schermo
+    // le due card prendono il posto delle schede dei giocatori del B35 (nome, nastro e due riquadri stanno nella card).
+    // Il titolo resta largo quanto la scheda (B41.5). this.endCards = false: schermata del B35
+    const cv = S && this.endCards !== false ? cardModel(w.stats, w, { looks: castLooks(getCast(), w.stats.mode !== "cpu"), bands: w.stats.bands }) : null,
+      ch = cv ? cardsHtml(cv) : "", cd = el("victory-cards");
+    cd && ((cd.innerHTML = ch), cd.classList.toggle("hidden", !ch), (cd.dataset.n = String(cv?.cards.length || 0)));
+    ch && S.players && st && ((st.innerHTML = ""), st.classList.add("hidden"));
+    this.endCardModel = cv;
     const kick = el("victory-kicker");
     kick && (kick.textContent = S ? S.kicker : "Fine partita");
     S && i && (i.textContent = S.title);
@@ -367,6 +377,7 @@ export class HudUI {
     const again = el("btn-play-again");
     again && (again.textContent = S ? S.again : "Gioca ancora");
     this.elVictoryModal.classList.toggle("has-stats", !!html),
+      this.elVictoryModal.classList.toggle("has-cards", !!ch),
       this.elVictoryModal.classList.toggle("stats-split", !!S?.players),
       this.elVictoryModal.classList.toggle("natpf-lost", !w.won || (!!S && !S.won)),
       this.elVictoryModal.classList.remove("hidden");

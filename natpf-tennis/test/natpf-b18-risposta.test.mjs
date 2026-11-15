@@ -14,7 +14,7 @@ import * as NI from '../src/natpf/natpf_impact.js';
 import { ballIsHigh, natpfSwingToEngine, isServeReturn } from '../src/natpf/natpf_phone_racket.js';
 import { readFileSync } from 'node:fs';
 import { classifyStroke, INTENT } from '../src/natpf/natpf_stroke_intent.js';
-import { SMASH_FROM } from '../src/natpf/natpf_stroke_outcome.js';
+import { SMASH_FROM, smashAt } from '../src/natpf/natpf_stroke_outcome.js';
 
 const DT = 1/120;
 // forma del n. 143 (piano e manico non registrati nella diagnostica: due varianti, una col manico alto)
@@ -71,30 +71,47 @@ test('D7: nello scambio la regola di prima resta (palla a 1,6–1,7 m alta, il t
   } finally { restore(); }
 });
 
-test('D7: la schiacciata voluta in risposta resta possibile (palla davvero alta, gesto dall\'alto in basso); un gesto che sale no', () => {
+// B48.1 (revisione del B48): la risposta al servizio si gioca dopo il rimbalzo, come nel tennis vero (natpf_impact.
+// planPlayerIntercept: niente schiacciata né volée al volo sul servizio). Prima questo test faceva schiacciare al volo un
+// servizio «a campanile» (apice 5,5 m, contatto a 2,9 m e 3,7 m dalla rete, prima del rimbalzo a 6,4 m): nel tennis vero
+// quel punto va a chi batte. La regola del 31/10 resta: in risposta la palla è «alta» (e il telefono legge la schiacciata)
+// solo sopra SMASH_FROM.always; lì la schiacciata voluta resta, un gesto che sale no
+test('D7 (B48.1): il servizio «a campanile» si risponde dopo il rimbalzo; la schiacciata voluta in risposta resta per la palla davvero alta, un gesto che sale no', () => {
   const real = Math.random; Math.random = mulberry32(5);
   try {
-    const play = shape => {
+    const serve = () => {
       const e = createHeadlessEngine({ difficulty: 'pro' }); e.startNewMatch({ showStartBanner: false });
       // risposta (rallyStrokeCount 1) a una palla alta che scende sopra la testa di chi gioca: un servizio «a campanile»
       e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = 1;
       e.player.pos.set(.8, 0, 8); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
       e.ball.pos.set(0, 1.2, -11);
       e._launchBallToTarget(e.ball.pos, new THREE.Vector3(.8, 0, 9.5), 2.1, { topspin: 4 });
+      return e;
+    };
+    const play = shape => {
+      const e = serve();
       e._natpfPlanPlayer();
       const plan = e.natpfPlan;
       for (let t = 0; t < 4; t += DT){ const ttc = NI.timeToContact(e, e.player); if (ttc != null && ttc <= .02) break; e.step(DT); }
-      const high = ballIsHigh(e, 'p1'), ev = phone(e, shape);
-      return { plan, high, read: ev.natpf.shot, shot: hit(e, ev) };
+      const bounced = e.ball.bounceCountOnCurrentSide, high = ballIsHigh(e, 'p1'), ev = phone(e, shape);
+      return { plan, bounced, high, read: ev.natpf.shot, shot: hit(e, ev), e };
     };
-    const sm = play(smashShape);
-    assert.ok(sm.plan.contact.y >= SMASH_FROM.always, `contatto previsto a ${sm.plan.contact.y} m (${sm.plan.kind})`);
-    assert.equal(sm.high, true);
-    assert.equal(sm.read, 'smash');
-    assert.equal(sm.shot, 'SMASH');
-    const lob = play(lobShape);
-    assert.equal(lob.high, true);
-    assert.notEqual(lob.read, 'smash', 'il pallonetto (gesto che sale) non è schiacciata');
+    for (const shape of [smashShape, lobShape]){
+      const r = play(shape);
+      assert.ok(r.plan.kind === 'ground' && r.plan.contact.y <= NI.PLAN.returnTop + 1e-9, `piano ${r.plan.kind} a ${r.plan.contact.y} m`);
+      assert.equal(r.bounced, 1, 'il servizio rimbalza prima della risposta');
+      assert.equal(r.high, false, `in risposta, a ${r.plan.contact.y} m la palla non è «alta»`);
+      assert.notEqual(r.read, 'smash');
+      assert.ok(r.shot && r.shot !== 'SMASH' && r.e.ball.lastHitter === 'player', `risposta giocata: ${r.shot}`);
+    }
+    // palla davvero alta in risposta (sopra «always»): la schiacciata voluta si legge e si gioca da sopra la testa, il
+    // pallonetto (gesto che sale) no
+    const e = serve(); e.natpfPlan = null; e.ball.pos.set(.8, SMASH_FROM.always + .2, 7.6);
+    assert.equal(ballIsHigh(e, 'p1'), true);
+    const sm = phone(e, smashShape), lob = phone(e, lobShape);
+    assert.equal(sm.natpf.shot, 'smash');
+    assert.notEqual(lob.natpf.shot, 'smash', 'il pallonetto (gesto che sale) non è schiacciata');
+    assert.equal(smashAt(sm, e.ball.pos.y, { serveReturn: true }), true);
   } finally { Math.random = real; }
 });
 

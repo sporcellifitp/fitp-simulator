@@ -27,6 +27,10 @@ export const NICK_KEY = 'natpf-tennis.nickname';
 // B38: «Gioca come Ospite» scelto da chi gioca adesso (sessione della pagina, come il nickname)
 export const GUEST_KEY = 'natpf-tennis.ospite';
 export const LEARNED_KEY = 'natpf-tennis.colpi-imparati';
+// B40: partite giocate da chi gioca adesso su questo computer (sessione della pagina, come il nickname): 0 = la prossima è
+// la sua prima partita (trofeo «Prima volta»). Si azzera con un nome diverso, «Nuovo giocatore», «Prossimo giocatore» e il
+// chiosco (forgetGuest)
+export const VISITOR_MATCHES_KEY = 'natpf-tennis.partite-visitatore';
 
 // i minigiochi che si scelgono (menu, classifica): natpf_arcade.VISIBLE_MODES, stessa forma delle sfide di prima (id,
 // label, unit, short, facts). ALL_CHALLENGES comprende anche quelli nascosti (HIDDEN_CHALLENGES), che restano giocabili
@@ -96,6 +100,26 @@ export function addMatch(board, { nick, level, won = 0, lost = 0, games = [0, 0]
 // (riordinata anche in lettura: un tabellone di oggi salvato prima del B34 era in ordine di solo punteggio)
 export const matchList = (board, day) => [...(freshBoard(board, day).modes[MATCH_MODE] || [])].sort(matchOrder);
 export const topMatches = (board, n = 10, day = dayKey()) => matchList(board, day).slice(0, n);
+// B40: c'è già una partita di oggi con questo nome (allora non è la prima partita di chi gioca)
+export const playedToday = (board, nick, day = dayKey()) => ranked(nick) && matchList(board, day).some(e => nickKey(e.nick) === nickKey(nick));
+
+/* ---------- B40 · record di oggi delle partite di questo computer (colpo più forte, scambio più lungo) ---------- */
+// Nel tabellone del giorno, chiave best: { kmh: { v, at }, scambio: { v, at } } (freshBoard la tiene nello stesso giorno e
+// la toglie il giorno dopo; «Azzera oggi» la azzera; il CSV non la mostra). Solo il valore, mai il nome di chi l'ha fatto.
+// Funzione pura: values { kmh, scambio } della partita appena finita → { board, kmh, scambio } con, per ciascuno,
+// { value: il record di oggi dopo questa partita, mine: questa partita l'ha fatto o pareggiato, tie: pareggiato, prev: il
+// record di prima (0 se non c'era) }
+export const BEST_KEYS = Object.freeze(['kmh', 'scambio']);
+export function noteBest(board, values = {}, { day = dayKey(), at = Date.now() } = {}){
+  const b = freshBoard(board, day), best = { ...(b.best || {}) }, out = {};
+  for (const k of BEST_KEYS){
+    const v = Math.max(0, Math.round(+values[k] || 0)), prev = Math.max(0, +best[k]?.v || 0);
+    if (v > 0 && v >= prev){ best[k] = { v, at }; out[k] = { value: v, mine: true, tie: v === prev, prev }; }
+    else out[k] = { value: prev, mine: false, tie: false, prev };
+  }
+  return { board: { ...b, best }, ...out };
+}
+export const bestOfDay = (board, day = dayKey()) => { const b = freshBoard(board, day).best || {}; return Object.fromEntries(BEST_KEYS.map(k => [k, Math.max(0, +b[k]?.v || 0)])); };
 export function boardCsv(board){
   const rows = [['giorno', 'sfida', 'posizione', 'nickname', 'punteggio', 'ora', 'livello', 'risultato', 'punti vinti']];
   const ora = e => new Date(e.at).toLocaleTimeString('it-IT');
@@ -152,7 +176,19 @@ export class NatpfEvents {
   // revisione B18: nickname cambiato o dimenticato (stand di nuovo libero) = visitatore nuovo: via i colpi speciali
   // imparati da quello prima (prima restavano per tutta la sessione della scheda). Il primo nickname no: chi si è allenato
   // senza nickname e poi ne sceglie uno è la stessa persona
-  set nickname(v){ const prev = this.nickname; this._nick = v; try { v ? sessionStorage.setItem(NICK_KEY, v) : sessionStorage.removeItem(NICK_KEY); } catch {} if (prev && v !== prev) this.forgetLearned(); this.guest = false; }
+  set nickname(v){ const prev = this.nickname; this._nick = v; try { v ? sessionStorage.setItem(NICK_KEY, v) : sessionStorage.removeItem(NICK_KEY); } catch {} if (prev && v !== prev){ this.forgetLearned(); this.visitorMatches = 0; } this.guest = false; }
+  // B40: partite giocate da chi gioca adesso (sessione della pagina). notePlayed() a fine partita: true se era la sua prima
+  // (nessuna partita prima in questa sessione e, con un nome, nessuna partita di oggi con lo stesso nome in classifica)
+  get visitorMatches(){ try { return Math.max(0, +sessionStorage.getItem(VISITOR_MATCHES_KEY) || 0); } catch { return this._vm | 0; } }
+  set visitorMatches(n){ this._vm = Math.max(0, n | 0); try { this._vm ? sessionStorage.setItem(VISITOR_MATCHES_KEY, String(this._vm)) : sessionStorage.removeItem(VISITOR_MATCHES_KEY); } catch {} }
+  notePlayed(){
+    this.board = freshBoard(this.board);
+    const first = this.visitorMatches === 0 && !playedToday(this.board, this.nickname);
+    this.visitorMatches = this.visitorMatches + 1;
+    return first;
+  }
+  // B40: record di oggi di questo computer (colpo più forte, scambio più lungo): li aggiorna con la partita finita
+  noteBest(values){ const r = noteBest(this.board, values); this.board = r.board; this._write(); return { kmh: r.kmh, scambio: r.scambio }; }
   // B38: chi gioca adesso ha scelto «Gioca come Ospite» (niente nome, fuori classifica): non gli si chiede il nome al
   // minigioco dopo. Si azzera con un nickname, con «Nuovo giocatore» e con il chiosco (nickname = '')
   get guest(){ try { return sessionStorage.getItem(GUEST_KEY) === '1'; } catch { return !!this._guest; } }
@@ -168,7 +204,8 @@ export class NatpfEvents {
   record(mode){ return this.records[mode] || null; }
   get level(){ return levelOf(this.records.xp || 0); }
   // «Nuovo giocatore» (natpf_new_player): via i record di oggi del contenitore «Ospite» (revisione B18)
-  forgetGuest(){ this.store = dropRecords(this.store, ''); this._writeRecords(); }
+  // (B40: e le partite giocate da chi c'era, per la «Prima volta» di chi arriva)
+  forgetGuest(){ this.store = dropRecords(this.store, ''); this._writeRecords(); this.visitorMatches = 0; }
   resetBoard(){ this.board = freshBoard(null); this._write(); }
   // B33: partita contro la CPU finita (natpf_match_stats → natpf_ui): nella classifica delle partite di oggi con il
   // nickname (o «Ospite»). Solo su questo computer (localStorage), come le sfide; il registro dello stand non la vede

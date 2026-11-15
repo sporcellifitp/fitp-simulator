@@ -105,6 +105,11 @@ export const LEGEND = Object.freeze({
   // B18.2 (D11 del rapporto B16): il servizio perfetto, forte e sulla riga di chi gioca toglie fino a serveQ alla qualità
   // della risposta (come il colpo super, natpfSuper.legendQ); la lettura in ritardo è in natpf_skill.SERVE_WEIGHT.leggenda
   serveQ: .15,
+  // B48 (miglioramento 8 del rapporto B16, «una Leggenda più da campione»): al più una smorzata ogni dropEvery colpi della
+  // CPU. La smorzata entra tra i candidati solo se nessuno degli ultimi dropEvery − 1 colpi della CPU nella partita lo era.
+  // Prima la sceglieva in 11–17 colpi su 100 (contro «umano» una ogni 5,9, a volte due di fila) e con il tagliato era un
+  // terzo dei suoi colpi: il livello più forte sembrava il più morbido. 0: nessun limite (solo per le prove)
+  dropEvery: 8,
 });
 // Solo per audit ed esperimenti (scripts/audit/legend.mjs): valori che sostituiscono LEGEND in tutte le partite.
 // Oltre alle chiavi di LEGEND: forceKind (sempre quel colpo), noLetGo (gioca anche le palle fuori), legacyMove (corsa
@@ -202,6 +207,12 @@ function shape(c, ctx){
 }
 
 /* ---------- scelta del colpo ---------- */
+// B48: la smorzata si può scegliere? Sì se nessuno degli ultimi dropEvery − 1 colpi della CPU (m.last, la partita) era una
+// smorzata; dropEvery 0 o assente: sempre (come prima del B48)
+export function dropAllowed(m, L = LEGEND){
+  const n = Math.max(0, Math.floor(finite(L?.dropEvery))) - 1;
+  return n <= 0 || !(m?.last || []).slice(-n).some(l => l.kind === 'smorzata');
+}
 export function legendDecide(e, actor, rng = legendRng(e)){
   // rischio stimato con le regole di Esperto (margine), salvo riskTrue (solo audit)
   const L = cfg(e), lv = L.riskTrue ? execLevel(L) : NS.skillLevel('leggenda'), b = e.ball, h = e.player, m = legendState(e);
@@ -240,8 +251,8 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   ];
   // contropiede: l'avversario corre da una parte, la palla va dove era
   if (Math.abs(hv) > 1.5) cands.push({ kind: 'contropiede', x: clamp(hx - Math.sign(hv)*R(.8, 1.8), -3.5, 3.5), z: R(9, 10.6), shot: 'TOPSPIN', power: R(.6, .8) });
-  // smorzata: avversario in fondo e CPU in equilibrio, non da dietro la riga
-  if (hz > 11 && ctx.bz > -10.6 && q > .75) cands.push({ kind: 'smorzata', x: R(-2.2, 2.2), z: R(2.4, 3.6), shot: 'DROP', power: .2 });
+  // smorzata: avversario in fondo e CPU in equilibrio, non da dietro la riga; B48: al più una ogni dropEvery colpi
+  if (hz > 11 && ctx.bz > -10.6 && q > .75 && dropAllowed(m, L)) cands.push({ kind: 'smorzata', x: R(-2.2, 2.2), z: R(2.4, 3.6), shot: 'DROP', power: .2 });
   // pallonetto: avversario a rete
   if (hz < 7.5) cands.push({ kind: 'pallonetto', x: R(-2.4, 2.4), z: R(9.6, 11), shot: 'LOB', power: .3 });
   // B31 (punto 22): passanti contro chi è a rete, basso e stretto incrociato o teso lungolinea, lontano da lui
@@ -444,10 +455,12 @@ export function legendLetGo(e, rng = legendRng(e)){
   return m.letGoVal;
 }
 
-/* ---------- servizio: direzione e velocità variate ---------- */
+/* ---------- servizio: direzione, effetto e velocità variate ---------- */
+// da un angolo all'altro, più qualche palla al corpo (B48: con il piano comune del servizio della CPU, natpf_skill.cpuServePlan:
+// gli stessi angoli di prima, l'effetto che cambia, mai tre volte di fila la stessa direzione o lo stesso effetto)
 export function legendServe(e, rng = legendRng(e)){
-  const r = rng(), dirX = r < .36 ? -1 : r < .72 ? 1 : (rng() - .5)*.6;    // da un angolo all'altro, più qualche palla al corpo
-  return { timing: 'PERFECT', dirX, speed: 1.05 + rng()*.4 };
+  const plan = NS.cpuServePlan(e, rng, NS.skillLevel('leggenda'));
+  return { timing: 'PERFECT', speed: 1.05 + rng()*.4, natpfCpuServe: plan };
 }
 
 /* ---------- fine del punto: il modello dell'avversario impara ---------- */

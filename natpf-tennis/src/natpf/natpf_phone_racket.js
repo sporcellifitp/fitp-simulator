@@ -881,6 +881,14 @@ export class NatpfPhoneRacket {
   // salita abituale del colpo nel verso dir (calibrazione o imparata giocando), per i prototipi
   profileRise(dir){ return habitualRise(this.profile, dir, this.riseModel); }
   resetSpecials(){ this.specialSamples = {}; this.personal = {}; this.ownShape = {}; writeSpecials({}, SPECIALS_KEY + this.keySuffix); }
+  probeSwings(fn){
+    this.lagProbe = fn;
+    this.lastPhase = null;
+    return () => {
+      if (this.lagProbe === fn){ this.lagProbe = null; this.lastPhase = null; }
+    };
+  }
+
   _onSwing(s){
     const mc = this.engine.motionController;
     if (!mc || !this.ready){ for (const fn of this.dropListeners) try { fn('telefono non pronto', s); } catch (e){ console.error(e); } return; }
@@ -891,6 +899,7 @@ export class NatpfPhoneRacket {
       for (const fn of this.swingListeners) try { fn({ ignored: 'arrivato in ritardo dalla rete', natpf: {} }, s); } catch (e){ console.error(e); }
       return;
     }
+    if (this.lagProbe){ this.lagProbe(s); return; }
     // la palla si allontana (l'ha appena colpita chi gioca qui): è il rientro della mano o un gesto a vuoto, non un
     // colpo. Prima il motore faceva comunque partire swing e fruscio della racchetta.
     if (ballMovingAway(this.engine, this.role)){
@@ -1220,7 +1229,7 @@ export class NatpfPhoneRacket {
   // Ogni fotogramma: fase al telefono e orientamento del telefono alla racchetta del motore base.
   update(){
     if (!this.link) return;
-    const phase = this.connected ? phoneGamePhase(this.engine, this.role) : null;
+    const phase = this.connected ? (this.lagProbe ? 'play' : phoneGamePhase(this.engine, this.role)) : null;
     // (tr, B28: scambi di prova in corso, il telefono lo scrive; le pagine di prima lo ignorano)
     // (B45.1: la moviola è una pausa con il suo testo, REPLAY_NOTE)
     if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase, ...(this.trial ? { tr: 1 } : {}), ...(phase === 'pause' && this.engine.phase === 'REPLAY' ? { txt: REPLAY_NOTE } : {}) }); }

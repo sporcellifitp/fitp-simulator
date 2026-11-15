@@ -227,7 +227,7 @@ export class NatpfFiera {
     return !!p.link?.standPairing?.(true);
   }
   closePairing(slot){ const p = this.phone(slot, { make: false }); if (!p?.standSlot) return false; p.link?.standPairing?.(false); if (!this.paired(slot)) p.useStand(null); return true; }
-  // «Conferma» del numero: SOLO con un clic o un tasto veri dello staff (ev.isTrusted: mai un clic fatto dal codice, dal
+  // «Conferma» del numero: SOLO con un clic vero dello staff (ev.isTrusted: mai un clic fatto dal codice, dal
   // telecomando o da uno script). Il telefono che chiede diventa quello del posto, il telefono di prima no
   confirm(slot, ev){
     if (!ev || ev.isTrusted !== true) return false;

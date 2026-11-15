@@ -2381,3 +2381,7 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
   .natpf-sheet.staff-sheet #staff-note { font-size: 12px; }
   .natpf-sheet.staff-sheet .sheet-actions { margin-top: 4px; }
 }
+
+@container natpf (max-width: 800px) {
+  .natpf-serve-coach { transform: translateX(calc(-50% + 4cqw)); }
+}

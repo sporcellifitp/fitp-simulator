@@ -112,10 +112,12 @@ test('doppio: la schiacciata voluta resta chiamata; quella presa dal compagno (�
     assert.ok(saysSmash(popups), popups.join(' | '));
   });
   withEngine({ doubles: true }, (e, { voice, popups }) => {
-    // il compagno è più vicino alla palla: il colpo è suo (scritta «NET VOLLEY» → «Volée»)
+    // la palla è assegnata al compagno e la modalità usa il gesto (scritta «NET VOLLEY» → «Volée»)
     e.player.pos.set(2.5, 0, 9); e.player.targetPos.copy(e.player.pos);
     e.playerPartner.pos.set(-.5, 0, 4.5); e.playerPartner.targetPos.copy(e.playerPartner.pos);
     ballAt(e, e.playerPartner, { y: 2.1 });
+    e.natpfPartner = 'gesto';
+    e.natpfPartnerBall = { stroke: e.ball.rallyStrokeCount, at: e.elapsedTime, t: 0 };
     assert.ok(e._attemptPlayerRallyStrike(phone('topspin', { tau: null }), false));
     assert.equal(e.playerPartner.swingType, 'smash');
     assert.ok(popups.some(g => /NET VOLLEY/.test(g)), popups.join(' | '));
@@ -126,6 +128,8 @@ test('doppio: la schiacciata voluta resta chiamata; quella presa dal compagno (�
     e.player.pos.set(2.5, 0, 9); e.player.targetPos.copy(e.player.pos);
     e.playerPartner.pos.set(-.5, 0, 4.5); e.playerPartner.targetPos.copy(e.playerPartner.pos);
     ballAt(e, e.playerPartner, { y: 2.1 });
+    e.natpfPartner = 'gesto';
+    e.natpfPartnerBall = { stroke: e.ball.rallyStrokeCount, at: e.elapsedTime, t: 0 };
     assert.ok(e._attemptPlayerRallyStrike(phone('smash', { tau: null }), false));
     assert.ok(popups.some(g => /NET VOLLEY/.test(g)), popups.join(' | '));
     assert.equal(smashVoice(voice), 0, voice.join(', '));

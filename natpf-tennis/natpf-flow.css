@@ -448,3 +448,12 @@
 .natpf-rec.hidden {
   display: none;
 }
+
+.natpf-lagtest { position: fixed; inset: 0; z-index: 205; background: #081022; color: #f4f7ff; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 8px; padding: 2cqh 3cqw; font: 600 clamp(15px, 2.4cqh, 26px)/1.3 system-ui; }
+.natpf-lagtest header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.natpf-lagtest canvas, .natpf-lagtest progress { display: block; width: 100%; height: 100%; min-height: 0; }
+.natpf-lagtest progress { height: 5px; accent-color: #e8fc53; }
+.natpf-lagtest p { margin: 0; }
+.natpf-lagtest button { border: 1px solid #8a98ba; border-radius: 18px; background: #202b49; color: inherit; font: inherit; padding: .45em .9em; cursor: pointer; }
+.natpf-lagtest-result { grid-row: 2; align-self: center; justify-self: center; width: min(760px, 92cqw); border: 1px solid #566888; border-radius: 24px; background: #111e39; padding: 3cqh 3cqw; }
+.natpf-lagtest-result p, .natpf-lagtest-result button { margin: .4em .25em .4em 0; }

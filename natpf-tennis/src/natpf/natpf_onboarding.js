@@ -36,7 +36,8 @@ export const GUIDE = [
     mouse: '<kbd>Q</kbd>/<kbd>E</kbd> o <kbd>A</kbd>/<kbd>D</kbd> mirano a sinistra o a destra.',
   }, game: 'Un incrociato stretto fa correre l’avversario, una palla profonda lo spinge indietro. Troppo presto o troppo tardi: palla fuori.' },
   { id: 'serve', title: 'Il servizio', clip: 'serve', you: {
-    phone: '<b>1</b> alza il telefono (o tocca lo schermo): lanci la palla. <b>2</b> colpisci quando è in alto.',
+    // (B48: la scelta della direzione, solo con il telefono: natpf_stroke_outcome.SERVE.choiceTau)
+    phone: '<b>1</b> alza il telefono (o tocca lo schermo): lanci la palla. <b>2</b> colpisci quando è in alto: <b>prima</b> del punto più alto la palla va <b>al centro</b>, <b>dopo</b> va <b>larga</b>.',
     webcam: '<b>1</b> alza la mano di scatto: lanci la palla. <b>2</b> swing quando è in alto.',
     mouse: '<b>1</b> <kbd>↑</kbd> o <kbd>W</kbd> lancia la palla. <b>2</b> <kbd>Spazio</kbd> quando è in alto.',
   // (B44: in campo, ai primi servizi, accanto a chi batte la stessa icona del telefono che sale con la palla; prima il testo

@@ -1,3 +1,4 @@
+import { NatpfPartnerRing } from './natpf_partner_ring.js';
 // Interfaccia NATPF sopra l'HUD del motore base: scelta della racchetta (smartphone NATPF, webcam del motore base,
 // mouse/tastiera del motore base) e della visuale, pannello di collegamento del telefono con le fasi della calibrazione
 // NATPF (collega → impugna → prova → verifica → pronto), invito del Player 2 per il 1v1 tra due computer.
@@ -55,6 +56,7 @@ import { NatpfStandMouse } from './natpf_stand_mouse.js';
 import { NatpfPrematch } from './natpf_prematch.js';
 // B47: «Rivincita» → scelta del livello (natpf_rematch.js)
 import { NatpfRematch } from './natpf_rematch.js';
+import { NatpfRitratti } from './natpf_ritratti.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -108,6 +110,7 @@ export class NatpfUi {
     this.power = new NatpfPowerHud(engine);          // potenza del colpo, colpo super ed energia (stanchezza)
     this.cue = new NatpfTimingCue(engine);           // B18.2 gruppo 3: segnale del momento giusto (anello sulla palla)
     this.serveMark = new NatpfServeMarker(engine);   // B37: riquadro di servizio a terra e punto della casella «Al servizio» (B37.1: senza gemma)
+    this.partnerRing = new NatpfPartnerRing(engine);
     this.superHint = new NatpfSuperHint(engine);     // B18.2 gruppo 3: perché il colpo super non è scattato
     this.machine = new NatpfBallMachine(engine);      // lanciapalle 3D del riscaldamento e dei minigiochi
     this.training = new NatpfTraining(engine, this);
@@ -163,6 +166,8 @@ export class NatpfUi {
     this.prematch = new NatpfPrematch(engine, this);
     // B47: «Rivincita» a fine partita apre la scelta del livello (contro la CPU «Chi gioca», nello stesso schermo le fasce)
     this.rematch = new NatpfRematch(engine, this);
+    // B40.6: ritratti della card della partita dai modelli 3D e arena ferma sotto la card (natpf_ritratti.js)
+    this.ritratti = new NatpfRitratti(engine, this);
     // B39: stand con il solo mouse (comandi del tasto destro del programma, avvisi, trappole del mouse): natpf_stand_mouse.js
     this.mouse = new NatpfStandMouse(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
@@ -273,7 +278,7 @@ export class NatpfUi {
     // caldo» si tolgono subito (restavano sotto il riquadro della pausa) e tornano da sole alla ripresa
     if (this.engine.natpfPaused){ this.serveCoach?.paint(null); this.hotRally?.hide(); }
   }
-  tick(dt = 1/60){ this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.cue.update(dt); this.serveMark.update(dt); this.superHint.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); }
+  tick(dt = 1/60){ this.partnerRing.update(); this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.cue.update(dt); this.serveMark.update(dt); this.superHint.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); }
   // sfondo fermo dell'arena dietro il menu (motore: _natpfBackdropFrame). Il Player 2 dell'invito vede l'arena viva
   // (riceve lo stato dell'host), e in campo (riscaldamento, sfide) il gioco gira
   menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && !this.trial?.active && this.engine.playerRole !== 'p2'; }
@@ -316,6 +321,10 @@ export class NatpfUi {
   newPlayer(){ this.trialSkipOnce = false; return this.fiera?.on && this.fieraPage ? this.fieraPage.next() : resetVisitor(this); }
   // B33: partita singola contro la CPU finita: nella classifica delle partite di oggi; la posizione va nella schermata finale
   _matchEnded(m){
+    // B40: prima partita di chi ha giocato e record di oggi di questo computer, per la card della partita (tutte le
+    // partite di questo computer; il computer del Player 2 della sfida tra due computer non passa di qui). Prima della
+    // classifica: «Prima volta» guarda anche se il nome ha già una partita di oggi
+    try { this._noteDay(m); } catch (e){ console.warn('[natpf-b40] giorno', e?.message || e); }
     if (m.mode !== 'cpu' || m.doubles || m.guest || !isCpuLevel(m.level)) return null;
     const p = m.s.player, o = m.s.opponent, g = m.games, mine = g.filter(x => x.winner === 'player').length;
     const r = this.events.recordMatch({ level: m.level, won: p.points, lost: o.points, games: [mine, g.length - mine], win: m.winner === 'player' });
@@ -323,6 +332,18 @@ export class NatpfUi {
     // di oggi»; fuori dalle prime solo i punti, mai «fuori». B38: senza nome, «Ospite», fuori classifica: guest)
     this.stats.rank = { rank: r.rank | 0, total: r.total | 0, score: r.score | 0, ...(r.guest ? { guest: true } : {}) };
     return r;
+  }
+  // B40: first { player, opponent } (prima partita, per lato) e record { kmh, scambio } (natpf_events.noteBest, con side:
+  // il lato che ha fatto il colpo più forte) nella vista della schermata finale (natpf_match_stats.endView)
+  _noteDay(m){
+    const split = m.mode === 'split';
+    const first = split ? (this.split?.notePlayed?.() || { player: false, opponent: false }) : { player: !!this.events.notePlayed(), opponent: false };
+    const sides = split ? ['player', 'opponent'] : ['player'];
+    const fast = sides.reduce((a, s) => ((m.s[s].fastest | 0) > (m.s[a].fastest | 0) ? s : a), sides[0]);
+    const rec = this.events.noteBest({ kmh: m.s[fast].fastest | 0, scambio: m.longest | 0 });
+    rec.kmh = { ...rec.kmh, side: rec.kmh.mine ? fast : null };
+    this.stats.first = first; this.stats.record = rec;
+    return { first, record: rec };
   }
   // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer
   // B41.5: in fiera «Nuovo giocatore» è «Prossimo giocatore ›» (il principale) e «Menu» non c'è (il menu è la pagina della

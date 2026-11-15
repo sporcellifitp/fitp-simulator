@@ -14,6 +14,11 @@
 // base nel palmo con lo schermo in alto): test/natpf-gesture-demo.test.mjs e test/natpf-presa-palmo-29-10.test.mjs.
 import { GRIP_STYLE } from '@natpf/tennis/grip-art.js';
 
+// B48 (miglioramento 10 del rapporto B16): la regola del servizio dal telefono in una riga, la stessa nella scheda
+// «Servizio» del tutorial, nell'esercizio «Servizio» dell'allenamento e nelle istruzioni dei primi servizi sul grande
+// schermo (natpf_serve_coach). Colpire prima del punto più alto del lancio manda la palla verso il centro (alla «T»),
+// dopo verso l'esterno (larga)
+export const SERVE_CHOICE = 'Prima del punto più alto: palla al centro · dopo: larga';
 export const GRIP_TILT = 80;     // gradi: cima del telefono in avanti dalla verticale nell'impugnatura a martello
 // Posa del telefono nella mano per l'animazione 3D, Euler XYZ in gradi a partire dal telefono dritto con lo schermo verso
 // chi gioca (come test/phone-sim.mjs): prima la rotazione attorno a z (cima verso l'interno), poi attorno a x (in avanti).
@@ -106,8 +111,10 @@ export const GESTURES = Object.freeze({
     cues: ['Dall’alto verso il basso, dal lato del rovescio', 'Deciso, non lento', 'La mano finisce bassa, davanti a te'] },
   smash: { id: 'smash', label: 'Schiacciata', stroke: S.smash, ball: 'high', ballHigh: true, expect: { shot: ['smash'] },
     cues: ['Palla alta sopra la testa', 'Braccio in alto, poi giù deciso', 'Colpisci prima del rimbalzo'] },
+  // B48: la quarta riga è la regola della direzione del servizio (natpf_stroke_outcome.SERVE.choiceTau); la dimostrazione
+  // batte nel colmo della palla (serveTimeline), cioè al centro del quadrato
   serve: { id: 'serve', label: 'Servizio', toss: S.toss, stroke: S.smash, ball: 'toss', ballHigh: true, expect: { messages: 2 },
-    cues: ['1 · Alza il telefono: lanci la palla', '2 · Aspetta che arrivi in alto', '3 · Colpisci dall’alto, deciso'] },
+    cues: ['1 · Alza il telefono: lanci la palla', '2 · Aspetta che arrivi in alto', '3 · Colpisci dall’alto, deciso', SERVE_CHOICE] },
   cross: { id: 'cross', label: 'Incrociato', stroke: S.forehand, preYaw: 22, ball: 'ground', aim: -1, expect: { shot: ['topspin'], side: 'forehand', aim: -1 },
     cues: ['Cima girata verso il centro', 'Colpisci un attimo prima del solito', 'La palla va nell’altra metà del campo'] },
   line: { id: 'line', label: 'Lungolinea', stroke: S.forehand, preYaw: -22, ball: 'ground', aim: 1, expect: { shot: ['topspin'], side: 'forehand', aim: 1 },

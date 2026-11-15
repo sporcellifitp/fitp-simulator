@@ -18,6 +18,7 @@
 // Funzioni pure in alto (le provano i test), poi la classe collegata al motore.
 import { finePunto } from './registro/registro_formato.js';
 import { CPU_LEVELS, LEVEL_NAME } from './natpf_who.js';
+import { gameWinner } from './natpf_fair_format.js';
 
 export const SIDES = Object.freeze(['player', 'opponent']);
 const other = s => (s === 'player' ? 'opponent' : 'player');
@@ -46,12 +47,18 @@ export function timingOf(grade = ''){
   return 'buono';
 }
 
+// B40 (contatori per i trofei della card, docs/b40/fine-partita-v2.md): run/streak punti vinti di fila (adesso e il
+// massimo), comeback il massimo dei punti sotto in un game poi vinto, mpSaved palle match annullate, missed gesti senza
+// palla (WHIFF, TOO LATE, TOO EARLY: prima finivano solo in shots), unreturned servizi non rimandati in campo (ace e
+// servizi vinti con la risposta in rete, fuori o a vuoto: l'«Asso»), wall colpi di gioco rimandati in campo di fila («Muro»)
 const side0 = () => ({ points: 0, aces: 0, winners: 0, net: 0, out: 0, whiff: 0, serves: 0, shots: 0, fastest: 0, supers: 0, superOk: 0,
-  timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 } });
+  timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 },
+  run: 0, streak: 0, comeback: 0, mpSaved: 0, missed: 0, unreturned: 0, wall: { run: 0, best: 0, pend: false } });
 // mode: 'cpu' | 'split' (stesso schermo) | 'versus' (sfida tra due computer); guest: computer del Player 2
-export function newMatch({ mode = 'cpu', level = null, gamesToWin = 1, doubles = false, guest = false } = {}){
-  return { mode, level, gamesToWin: Math.max(1, gamesToWin | 0), doubles: !!doubles, guest: !!guest, games: [], cur: { player: 0, opponent: 0 }, longest: 0, played: 0,
-    s: { player: side0(), opponent: side0() }, pend: { player: null, opponent: null }, over: false, winner: null };
+// fair: formato veloce (punto decisivo sul 40-40, natpf_fair_format): cambia quando un punto è palla match
+export function newMatch({ mode = 'cpu', level = null, gamesToWin = 1, doubles = false, guest = false, fair = false } = {}){
+  return { mode, level, gamesToWin: Math.max(1, gamesToWin | 0), doubles: !!doubles, guest: !!guest, fair: !!fair, games: [], cur: { player: 0, opponent: 0 }, longest: 0, played: 0,
+    s: { player: side0(), opponent: side0() }, pend: { player: null, opponent: null }, def: { player: 0, opponent: 0 }, srv: null, over: false, winner: null };
 }
 // B34 (decisione dell'utente del 13/11, revisione finale n. 10): il «colpo più veloce» conta solo i colpi finiti in campo.
 // Al momento del colpo non si sa ancora: i km/h restano in attesa (m.pend) e valgono quando la palla risulta buona, cioè
@@ -78,20 +85,53 @@ function settle(m, { shot = null, winner = null, fine = undefined } = {}){
 export function addShot(m, { side = 'player', grade = '', kmh = 0, serve = false, superShot = false, failed = false } = {}){
   if (!m || m.over || !SIDES.includes(side)) return m;
   const S = m.s[side];
-  if (serve) S.serves++;
-  else { S.shots++; const t = timingOf(grade); if (t) S.timing[t]++; }
+  if (serve){ S.serves++; m.srv = side; }
+  else {
+    S.shots++; const t = timingOf(grade); if (t) S.timing[t]++; else if (grade) S.missed++;
+    // B40 «Muro»: il colpo di prima dello stesso lato è stato rimandato (la palla è tornata): uno in più di fila (non sul
+    // computer del Player 2, dove non si sa come finiscono i punti)
+    const w = S.wall || (S.wall = { run: 0, best: 0, pend: false });
+    if (!m.guest){ if (w.pend){ w.run++; if (w.run > w.best) w.best = w.run; } w.pend = true; }
+  }
   settle(m, { shot: { side, serve: !!serve } });
   const v = num(kmh); if (v > 0) m.pend[side] = { kmh: v, serve: !!serve };   // i km/h della scritta del colpo, in attesa dell'esito
   if (superShot){ S.supers++; if (!failed) S.superOk++; }
   return m;
 }
+// B40 · contatori dei trofei a ogni punto (prima che il punto entri nel punteggio del game), solo lettura come il resto:
+// serie di punti, punti sotto nel game (rimonta), palle match annullate (l'altro avrebbe vinto la partita con questo punto,
+// formato classico o veloce: gameWinner di natpf_fair_format), servizi non rimandati in campo, muro. Sul computer del
+// Player 2 (guest) il motivo del punto non arriva: niente servizi non rimandati e niente muro, come ace e vincenti
+const WALL_BREAK = new Set(['rete', 'fuori', 'a vuoto']), OWN_ERROR = new Set(['rete', 'fuori', 'servizio.rete', 'servizio.fuori', 'a vuoto']);
+function countPoint(m, { winner, loser, fine, strokes }){
+  const W = m.s[winner], L = m.s[loser];
+  W.run = (W.run | 0) + 1; L.run = 0; if (W.run > (W.streak | 0)) W.streak = W.run;
+  if (!m.def) m.def = { player: 0, opponent: 0 };
+  for (const side of SIDES){ const d = m.cur[other(side)] - m.cur[side]; if (d > m.def[side]) m.def[side] = d; }
+  // palla match annullata: l'altro, con questo punto, avrebbe chiuso il game e la partita
+  const gw = gameWinner(m.cur.player + (loser === 'player' ? 1 : 0), m.cur.opponent + (loser === 'opponent' ? 1 : 0), { fair: !!m.fair });
+  if (gw === loser && m.games.filter(g => g.winner === loser).length + 1 >= m.gamesToWin) W.mpSaved = (W.mpSaved | 0) + 1;
+  // servizio non rimandato in campo: punto di chi ha battuto (m.srv: l'ultimo servizio contato in questo punto; quelli
+  // della CPU non arrivano qui) con al più due colpi (il servizio e la risposta sbagliata), con il motivo del motore
+  if (fine !== undefined && m.srv === winner && strokes <= 2) W.unreturned = (W.unreturned | 0) + 1;
+  m.srv = null;
+  if (fine !== undefined && !m.guest){
+    for (const side of SIDES){
+      const S = m.s[side], w = S.wall || (S.wall = { run: 0, best: 0, pend: false }), err = side === loser && OWN_ERROR.has(fine);
+      if (w.pend){ if (err && WALL_BREAK.has(fine)) w.run = 0; else { w.run++; if (w.run > w.best) w.best = w.run; } }
+      else if (err) w.run = 0;
+      w.pend = false;
+    }
+  } else for (const side of SIDES){ const w = m.s[side].wall; if (w) w.pend = false; }
+}
 // un punto, con il motivo del motore (why: 'Out', 'Net', 'Nice Shot!', 'Point', …; null se non si sa), i colpi dello
 // scambio, se chi perde ha fatto il colpo a vuoto, chi vince il game (o null) e i game dopo il punto
 export function addPoint(m, { winner, why = null, strokes = 0, whiff = false, gameWinner = null, gamesAfter = null } = {}){
   if (!m || m.over || !SIDES.includes(winner)) return m;
-  const W = m.s[winner], L = m.s[other(winner)], n = Math.max(0, strokes | 0);
+  const W = m.s[winner], L = m.s[other(winner)], n = Math.max(0, strokes | 0), loser = other(winner);
   const fine = why != null ? finePunto({ motivo: why, colpi: n, vuoto: !!whiff }) : undefined;
   settle(m, { winner, fine });
+  countPoint(m, { winner, loser, fine, strokes: n });
   W.points++; m.played++; m.cur[winner]++;
   if (n > m.longest) m.longest = n;
   if (why != null){
@@ -101,19 +141,38 @@ export function addPoint(m, { winner, why = null, strokes = 0, whiff = false, ga
     else if (fine === 'fuori' || fine === 'servizio.fuori') L.out++;
     else if (fine === 'a vuoto') L.whiff++;
   }
-  if (gameWinner){ m.games.push({ winner: gameWinner, player: m.cur.player, opponent: m.cur.opponent }); m.cur = { player: 0, opponent: 0 }; }
+  if (gameWinner){
+    m.games.push({ winner: gameWinner, player: m.cur.player, opponent: m.cur.opponent }); m.cur = { player: 0, opponent: 0 };
+    // B40: rimonta in un game (punti sotto prima di vincerlo)
+    if (!m.def) m.def = { player: 0, opponent: 0 };
+    const G = m.s[gameWinner]; if (m.def[gameWinner] > (G.comeback | 0)) G.comeback = m.def[gameWinner];
+    m.def = { player: 0, opponent: 0 };
+  }
   const g = gamesAfter || { player: m.games.filter(x => x.winner === 'player').length, opponent: m.games.filter(x => x.winner === 'opponent').length };
   if (g.player >= m.gamesToWin || g.opponent >= m.gamesToWin){ m.over = true; m.winner = g.player > g.opponent ? 'player' : 'opponent'; }
   return m;
 }
 
+// B40: game vinti a zero (dai game già contati: nessuno stato in più)
+export const loveGames = (m, side) => (m?.games || []).filter(g => g.winner === side && (g[other(side)] | 0) === 0).length;
+// B40: rimonta in game: il massimo dei game sotto prima di vincere la partita (0 se la partita non l'ha vinta side)
+export function gameComeback(m, side){
+  if (!m || m.winner !== side) return 0;
+  let mine = 0, theirs = 0, d = 0;
+  for (const g of m.games){ d = Math.max(d, theirs - mine); g.winner === side ? mine++ : theirs++; }
+  return d;
+}
 // numeri di un giocatore per la schermata (tutti contati, niente stime)
 export function sideSummary(m, side){
   const S = m.s[side], O = m.s[other(side)], t = S.timing, rated = t.perfetto + t.anticipo + t.ritardo + t.buono;
   const tot = S.points + O.points;
   return { points: S.points, lost: O.points, pct: tot ? Math.round(100*S.points/tot) : 0, aces: S.aces, winners: S.winners, errors: { net: S.net, out: S.out, whiff: S.whiff },
     hits: S.serves + S.shots, serves: S.serves, shots: S.shots, fastest: S.fastest, supers: S.supers, superOk: S.superOk, timing: { ...t }, rated,
-    longest: m.longest, games: m.games.filter(g => g.winner === side).length, won: m.winner === side };
+    longest: m.longest, games: m.games.filter(g => g.winner === side).length, won: m.winner === side,
+    // B40 (trofei della card): serie di punti, game a zero, rimonte, palle match annullate, colpi a vuoto, servizi non
+    // rimandati, muro, game giocati (per le soglie che crescono con la durata)
+    streak: S.streak | 0, love: loveGames(m, side), comeback: S.comeback | 0, mpSaved: S.mpSaved | 0, gameComeback: gameComeback(m, side), missed: S.missed | 0,
+    unreturned: S.unreturned | 0, wall: S.wall?.best | 0, gamesPlayed: m.games.length + ((m.cur?.player | 0) + (m.cur?.opponent | 0) > 0 ? 1 : 0) };
 }
 
 // Una frase su cosa è andato bene e una su cosa migliorare, dalle regole qui sotto (numeri veri, soglie semplici).
@@ -148,14 +207,16 @@ export function tipsOf(sum, { mode = 'cpu', level = null, guest = false } = {}){
 // Vista della schermata finale. cols: le colonne da mostrare (una, o due nello stesso schermo), dal lato di chi guarda.
 // names: { player, opponent } (nomi mostrati); viewer: 'player' | 'opponent'
 // (B35: rank è { rank, total, score } della classifica delle partite di oggi; nick il nome di chi gioca su questo computer)
-export function viewOf(m, { viewer = 'player', names = null, rank = null, nick = '' } = {}){
+// (B40: first { player, opponent } prima partita di chi gioca, record i record di oggi di questo computer: li scrive
+// natpf_ui._matchEnded, natpf_events.noteBest; li legge la card della partita)
+export function viewOf(m, { viewer = 'player', names = null, rank = null, nick = '', first = null, record = null, bands = null } = {}){
   if (!m || !m.played) return null;
   const sides = m.mode === 'split' ? ['player', 'opponent'] : [viewer];
   const cols = sides.map(side => { const sum = sideSummary(m, side); return { side, name: names?.[side] || '', sum, tips: tipsOf(sum, { mode: m.mode, level: m.level, guest: m.guest }) }; });
   // game dal lato di chi guarda (nello stesso schermo dal lato del Player 1, a sinistra)
-  const first = m.mode === 'split' ? 'player' : viewer;
-  const games = m.games.map(g => ({ mine: g[first], theirs: g[other(first)], win: g.winner === first }));
-  return { mode: m.mode, guest: m.guest, level: m.level, doubles: !!m.doubles, games, cols, rank, nick: m.mode === 'split' ? '' : String(nick || '') };
+  const left = m.mode === 'split' ? 'player' : viewer;
+  const games = m.games.map(g => ({ mine: g[left], theirs: g[other(left)], win: g.winner === left }));
+  return { mode: m.mode, guest: m.guest, level: m.level, doubles: !!m.doubles, games, cols, rank, nick: m.mode === 'split' ? '' : String(nick || ''), first, record, bands: m.mode === 'split' && bands ? { p1: bands.p1, p2: bands.p2 } : null };
 }
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -287,7 +348,7 @@ export function titleFit({ natural = 0, avail = 0, margin = 0.97, min = 0.5 } = 
 /* ---------- collegamento al motore ---------- */
 // counts(): facoltativa, false quando i colpi e i punti non sono di una partita (allenamento, minigiochi, scambi di prova)
 export class MatchStats {
-  constructor({ counts = null, onEnd = null } = {}){ this.m = null; this.counts = counts; this.onEnd = onEnd; this.rank = null; this._gs = null; this._gmax = 0; }
+  constructor({ counts = null, onEnd = null } = {}){ this.m = null; this.counts = counts; this.onEnd = onEnd; this.rank = null; this.first = null; this.record = null; this._gs = null; this._gmax = 0; }
   _mode(E){ return E.natpfSplit?.active ? 'split' : (E.isMultiplayer || E.versus?.active) ? 'versus' : 'cpu'; }
   _on(E){ return !!this.m && !this.m.over && !E.autoPlayMode && (!this.counts || this.counts()); }
   // game_engine.startNewMatch
@@ -297,11 +358,14 @@ export class MatchStats {
     // (sempre una partita nuova, anche se in quel momento gira ancora la dimostrazione dietro il menu: qualche strada
     // spegne autoPlayMode dopo startNewMatch. I colpi e i punti della dimostrazione non contano comunque: _on)
     this.m = newMatch({ mode, level: mode === 'cpu' ? E.matchConfig?.difficulty || null : null, gamesToWin: E.matchConfig?.gamesToWin || 1, doubles: !!E.isDoubles,
-      guest: E.playerRole === 'p2' && !!E.isMultiplayer });
+      guest: E.playerRole === 'p2' && !!E.isMultiplayer, fair: !!E.score?.fair });
+    this.first = null; this.record = null;
   }
   // colpo con la scritta del motore (role: 'p1' chi gioca qui o il Player 1, 'p2' il Player 2)
-  shot(E, { role = 'p1', grade = '', kmh = 0, serve = false, superShot = false, failed = false } = {}){
-    if (!this._on(E)) return;
+  // (B40: partner, colpo del compagno del doppio: non conta. Oggi nel doppio il compagno colpisce con il gesto di chi gioca
+  // e il motore non lo passa; il B49, con il compagno che gioca da solo, lo passerà con il suo natpfTeamHit === 'partner')
+  shot(E, { role = 'p1', grade = '', kmh = 0, serve = false, superShot = false, failed = false, partner = false } = {}){
+    if (!this._on(E) || partner) return;
     addShot(this.m, { side: role === 'p2' ? 'opponent' : 'player', grade, kmh, serve, superShot, failed });
   }
   // game_engine._awardPoint, dopo il punto e prima del game (gameWinner: chi vince il game con questo punto, o null)
@@ -309,6 +373,7 @@ export class MatchStats {
     if (!this._on(E)) return;
     const S = E.score || {}, g = { player: (S.playerGames || 0) + (gameWinner === 'player' ? 1 : 0), opponent: (S.opponentGames || 0) + (gameWinner === 'opponent' ? 1 : 0) };
     this.m.gamesToWin = Math.max(1, E.matchConfig?.gamesToWin || this.m.gamesToWin);
+    if (E.score && 'fair' in E.score) this.m.fair = !!E.score.fair;
     addPoint(this.m, { winner, why, strokes, whiff, gameWinner, gamesAfter: g });
     if (this.m.over) try { this.onEnd?.(this.m, E); } catch {}
   }
@@ -329,6 +394,7 @@ export class MatchStats {
     this._gs = { ...s };
     if (!winner || (this.counts && !this.counts())) return;
     this.m.gamesToWin = Math.max(1, E.matchConfig?.gamesToWin || n.gamesToWin || this.m.gamesToWin);
+    if (s && 'fair' in s) this.m.fair = !!s.fair; else if (E.score && 'fair' in E.score) this.m.fair = !!E.score.fair;
     addPoint(this.m, { winner, why: null, strokes: this._gmax, gameWinner: game, gamesAfter: { player: s.playerGames || 0, opponent: s.opponentGames || 0 } });
     this._gmax = 0;
   }
@@ -337,7 +403,7 @@ export class MatchStats {
     const m = this.m; if (!m) return null;
     const viewer = E.playerRole === 'p2' ? 'opponent' : 'player';
     const names = m.mode === 'split' ? { player: E.natpfSplitNames?.p1 || 'Player 1', opponent: E.natpfSplitNames?.p2 || 'Player 2' } : null;
-    return viewOf(m, { viewer, names, rank: this.rank, nick: E.natpfUi?.events?.nickname || '' });
+    return viewOf(m, { viewer, names, rank: this.rank, nick: E.natpfUi?.events?.nickname || '', first: this.first, record: this.record, bands: E.natpfSplitBands || null });
   }
 }
 // Modulo collegato a un motore (anche quello senza grafica dei banchi e dei test)

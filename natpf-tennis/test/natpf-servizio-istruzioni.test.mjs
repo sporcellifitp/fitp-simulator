@@ -16,7 +16,9 @@ test('B44: al lancio l\'icona e nessuna scritta (telefono, webcam e tastiera); �
   for (const controller of ['phone', 'webcam', 'mouse']) assert.deepEqual(serveCoachView({ served: 0 }, G({ controller })), { state: 'toss', icon: true, big: '', sub: '' }, controller);
   // lancio: in salita aspetta, vicino al punto più alto «Colpisci!», molto dopo niente
   assert.equal(serveCoachView({ served: 0 }, G({ phase: 'SERVE_TOSS', tossT: .55 })).state, 'wait');
-  assert.deepEqual(serveCoachView({ served: 0 }, G({ phase: 'SERVE_TOSS', tossT: .2 })), { state: 'go', big: 'Colpisci!', sub: '' });
+  // (B48: con il telefono sotto «Colpisci!» la regola della direzione del servizio; webcam e mouse senza)
+  assert.deepEqual(serveCoachView({ served: 0 }, G({ phase: 'SERVE_TOSS', tossT: .2 })), { state: 'go', big: 'Colpisci!', sub: 'Prima del punto più alto: palla al centro · dopo: larga' });
+  assert.deepEqual(serveCoachView({ served: 0 }, G({ phase: 'SERVE_TOSS', tossT: .2, controller: 'mouse' })), { state: 'go', big: 'Colpisci!', sub: '' });
   assert.equal(serveCoachView({ served: 0 }, G({ phase: 'SERVE_TOSS', tossT: -.3 })).state, 'go');
   assert.equal(serveCoachView({ served: 0 }, G({ phase: 'SERVE_TOSS', tossT: -.5 })), null);
   // lancio a vuoto

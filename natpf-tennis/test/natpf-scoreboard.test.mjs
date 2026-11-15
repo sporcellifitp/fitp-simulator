@@ -149,16 +149,16 @@ test('HTML del tabellone: riquadro con linguetta, pallina, sigla (nome intero in
   assert.match(html, /<\/div><span class="sb-tag" data-sb-tag="format" aria-hidden="true">1 game<\/span><\/div><span class="sb-sr"><span data-sb-format>Partita a 1 game<\/span> <span data-sb-label><\/span><\/span>$/);
   assert.doesNotMatch(html, /sb-foot|sb-rule|secco/);
   // al vantaggio la casella dice «AD» (larghezza fissa); «Vantaggio tuo» solo per lo screen reader (lo dicono la casella e
-  // la scritta grande del punto), l'etichetta resta il formato
+  // la pillola visibile dice «Vantaggio» (B50)
   const adv = scoreboardHtml(scoreboardView(sc(4, 3), { gamesToWin: 2 }));
   assert.match(adv, /data-sb-row="me"[^>]*>.*data-sb-points>AD<\/strong>/);
   assert.match(adv, /data-sb-row="them"[^>]*>.*data-sb-points>40<\/strong>/);
-  assert.match(adv, /data-sb-tag="format"[^>]*>Al meglio di 3<\/span>/);
+  assert.match(adv, /data-sb-tag="adv"[^>]*>Vantaggio<\/span>/);
   assert.match(adv, /<span class="sb-sr">.*data-sb-label>Vantaggio tuo</);
   assert.doesNotMatch(adv, /Vant\./);
 });
 
-test('B43 · etichetta del tabellone: il formato corto («1 game», «Al meglio di 3/5»); al punto decisivo del formato in fiera «Punto decisivo»; parità e vantaggio non la cambiano', () => {
+test('B43 · etichetta del tabellone: il formato corto («1 game», «Al meglio di 3/5»); al punto decisivo del formato in fiera «Punto decisivo»; parità e vantaggio nel formato classico', () => {
   assert.deepEqual(scoreTag(1), { text: '1 game', kind: 'format' });
   assert.deepEqual(scoreTag(2), { text: 'Al meglio di 3', kind: 'format' });
   assert.deepEqual(scoreTag(3), { text: 'Al meglio di 5', kind: 'format' });
@@ -167,8 +167,8 @@ test('B43 · etichetta del tabellone: il formato corto («1 game», «Al meglio 
   const fair = (p, o, extra = {}) => ({ ...sc(p, o), fair: true, ...extra });
   assert.deepEqual(scoreboardView(fair(3, 3)).tag, { text: 'Punto decisivo', kind: 'decisive' }, 'formato in fiera, 40-40');
   assert.deepEqual(scoreboardView(fair(3, 2), { gamesToWin: 2 }).tag, { text: 'Al meglio di 3', kind: 'format' }, 'formato in fiera, 40-30: il formato');
-  assert.deepEqual(scoreboardView(sc(3, 3), { gamesToWin: 2 }).tag, { text: 'Al meglio di 3', kind: 'format' }, 'classico, parità: il formato (40 · 40 nelle caselle)');
-  assert.deepEqual(scoreboardView(sc(5, 4)).tag, { text: '1 game', kind: 'format' }, 'classico, vantaggio: il formato (AD nella casella)');
+  assert.deepEqual(scoreboardView(sc(3, 3), { gamesToWin: 2 }).tag, { text: 'Parità', kind: 'deuce' }, 'classico, parità');
+  assert.deepEqual(scoreboardView(sc(5, 4)).tag, { text: 'Vantaggio', kind: 'adv' }, 'classico, vantaggio');
   assert.match(scoreboardHtml(scoreboardView(fair(3, 3), { split: true, splitNames: { p1: 'Marco', p2: 'Giulia' } })), /<span class="sb-tag" data-sb-tag="decisive" aria-hidden="true">Punto decisivo<\/span><\/div>/);
   // la riga «Formato veloce» del B35 non c'è più sul tabellone, nemmeno con il servizio che passa ogni due punti
   for (const opt of [{}, { split: true }, { altServe: true }]) assert.doesNotMatch(scoreboardHtml(scoreboardView(fair(1, 0), opt)), /Formato veloce|sb-rule|sb-foot/);
