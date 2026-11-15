@@ -1,17 +1,16 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-14.4** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
-solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla versione che contiene la B41 seconda parte (la
-prima dopo la 2026-11-14.4 che la nomina nelle novità). Le voci segnate **(B39)** valgono dalla versione che contiene il
-blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i comandi dello staff, pannello da
-ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello schermo con due clic (dettagli in
-`docs/b39/stand-solo-mouse.md`). Dalla stessa versione anche la tastiera a schermo e «Gioca come Ospite» (B38, capitolo
-3.6) e l'icona del servizio (B44, capitolo 8.3). Le voci segnate **(B45.1)** sono del blocco «telefono che non si
-scollega» (capitolo 8.5 e `docs/b45/b45-1-collegamento.md`): chiosco che non scollega più il telefono, telefono che si
-ricollega da solo e scritte calme sul ledwall dalla 2026-11-14.3; i motivi delle cadute nel pannello e nel registro dalla
-2026-11-14.4. Le voci segnate **(B45.2)** (rifiniture dopo la revisione del B45.1: «Scollega» che non è una caduta,
-schermo spento contato bene, pagina chiusa detta sul ledwall, chiosco e telefono del visitatore) valgono dalla
-2026-11-14.4. La modalità fiera con il solo mouse (B41 seconda parte, capitolo 8.4) arriva con la versione successiva.
+**Vale per la versione 2026-11-14.5** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
+valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
+comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
+schermo con due clic (dettagli in `docs/b39/stand-solo-mouse.md`). Dalla stessa versione anche la tastiera a schermo e
+«Gioca come Ospite» (B38, capitolo 3.6) e l'icona del servizio (B44, capitolo 8.3). Le voci segnate **(B45.1)** sono del
+blocco «telefono che non si scollega» (capitolo 8.5 e `docs/b45/b45-1-collegamento.md`): chiosco che non scollega più il
+telefono, telefono che si ricollega da solo e scritte calme sul ledwall dalla 2026-11-14.3; i motivi delle cadute nel
+pannello e nel registro dalla 2026-11-14.4. Le voci segnate **(B45.2)** (rifiniture dopo la revisione del B45.1:
+«Scollega» che non è una caduta, schermo spento contato bene, pagina chiusa detta sul ledwall, chiosco e telefono del
+visitatore) valgono dalla 2026-11-14.4.
 
 Per chi gestisce lo stand di **NATPF Simulator** con il programma Windows, il ledwall e **solo il mouse**. Ogni voce è
 controllata sul codice di questa versione.
@@ -608,7 +607,7 @@ e menu del programma: capitolo 12.
 ### 8.3 In arrivo
 
 **La modalità fiera (B41)**: la seconda parte, con l'interruttore nel pannello, il foglio «Telefoni dello stand», la pagina
-della fiera e «Prossimo giocatore», è descritta nel capitolo 8.4 (vale dalla versione che la contiene).
+della fiera e «Prossimo giocatore», è descritta nel capitolo 8.4 (dalla 2026-11-14.5).
 
 **Altri blocchi:**
 

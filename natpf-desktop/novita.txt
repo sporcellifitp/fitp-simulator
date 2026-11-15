@@ -45,3 +45,7 @@
 2026-11-14.4: Il telefono che cade si spiega meglio: «Scollega» dello staff non conta come caduta; schermo del telefono spento e pagina chiusa detti per nome sul ledwall, con il QR subito quando la pagina è chiusa.
 2026-11-14.4: Pannello dello stand: una riga per telefono con le cadute di oggi e il motivo più frequente, sempre intera; il pannello non scorre più a 1024×600.
 2026-11-14.4: A 720×720 il gioco non si sposta più verso l'alto quando si scrive un nome; l'avviso «mano sinistra» compare al centro.
+2026-11-14.5: Modalità fiera (pannello dello stand → «Modalità fiera: Sì»): i due telefoni dello stand si abbinano una volta sola dal foglio «Telefoni dello stand» e restano collegati; per ogni visitatore al più 2 clic e 1 tocco.
+2026-11-14.5: Pagina della fiera: scegli chi gioca (Bambino, Ragazzo, Adulto; Sinistra per i mancini), il visitatore tocca «Sono pronto» sul telefono; a fine partita «Prossimo giocatore ›» rimette tutto a zero senza scollegare i telefoni.
+2026-11-14.5: Chi gioca senza nome diventa «Visitatore 1, 2, …» e va in classifica; il titolo di fine partita sta sempre su una riga.
+2026-11-14.5: Un doppio tocco su «Sono pronto» non salta più gli scambi di prova; in fiera «Torna al menu» azzera il visitatore; il pannello dello stand non trema e non scorre più con il puntatore sulle voci.
