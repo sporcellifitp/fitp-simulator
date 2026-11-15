@@ -243,6 +243,7 @@
           ><button type="button" data-staff="export"><span>Classifica</span><b>Scarica CSV</b></button
           ><button type="button" data-staff="reset"><span>Classifica</span><b>Azzera oggi</b></button
           ><button type="button" data-staff="phone"><span>Telefono</span><b>Scollega</b></button
+          ><button type="button" data-staff="touchlock" title="Blocca i tocchi durante gli scambi di prova, il conto alla rovescia e la partita. Lo staff può sbloccare il telefono dal PC o con due dita sul telefono. Resta salvata."><span>Blocco del telefono in partita</span><b>Sì</b></button
           ><button type="button" data-staff="music"><span>Musica</span><b>Sì</b></button
           ><button type="button" data-staff="fair" title="No · Solo stesso schermo · Sì. Punto decisivo sul 40-40 e servizio che passa ogni due punti: con «Solo stesso schermo» vale tra due persone nello stesso schermo, con «Sì» anche contro la CPU. Vale dalla prossima partita e resta salvata."><span>Formato in fiera</span><b>Solo stesso schermo</b></button
           ><button type="button" data-staff="battuta" title="Sempre lo stesso (di base): il servizio non passa all’altro, per tutta la partita e in tutti i formati. Contro la CPU batte sempre chi gioca, nello stesso schermo chi batte il primo game («Chi serve»). Alternata: il servizio passa all’altro a ogni game (ogni due punti con il formato veloce). Nella sfida tra due computer resta alternata. Vale dalla prossima partita e resta salvata."><span>Battuta</span><b>Sempre lo stesso</b></button
@@ -252,6 +253,10 @@
           ><button type="button" data-staff="cal" title="Giocando: niente gesti a vuoto, ogni partita comincia con circa 10 secondi di scambi di prova in cui il gioco impara il colpo di chi gioca, poi il match da 0-0. Con i gesti: la calibrazione di prima (telefono fermo, un dritto e un rovescio). Nessuna: si gioca subito, il gioco impara dai primi colpi veri. Vale dalla prossima partita e resta salvata."><span>Calibrazione</span><b>Giocando</b></button
           ><button type="button" data-staff="osk" title="Automatica (di base): la tastiera a schermo compare cliccando con il mouse (o toccando) un campo di testo e sparisce se si usa una tastiera vera. Sempre: compare in ogni campo di testo, anche con una tastiera vera. Mai: non compare. Resta salvata."><span>Tastiera a schermo</span><b>Automatica</b></button
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
+          <div class="staff-touch-status hidden" id="staff-touch-status">
+            <button type="button" class="lobby-ghost hidden" data-staff="unlock-touch-p1">Sblocca Telefono 1</button>
+            <button type="button" class="lobby-ghost hidden" data-staff="unlock-touch-p2">Sblocca Telefono 2</button>
+          </div>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
         <!-- B45.1: cadute del collegamento dei telefoni oggi, per posto, con il motivo più frequente (natpf_cadute.js), solo se
@@ -331,6 +336,7 @@
               ><button type="button" class="lobby-primary hidden" data-fiera-act="confirm" data-slot="p1" data-no-remote>Conferma</button
               ><button type="button" class="lobby-secondary hidden" data-fiera-act="pair" data-slot="p1">Abbina</button
               ><button type="button" class="lobby-ghost hidden" data-fiera-act="cancel" data-slot="p1">Annulla</button
+              ><button type="button" class="lobby-ghost hidden" data-fiera-act="unlock" data-slot="p1">Sblocca il telefono</button
               ><button type="button" class="lobby-ghost hidden" data-fiera-act="forget" data-slot="p1">Scollega</button></div>
           </section>
           <section class="fiera-slot" data-fiera-slot="p2" data-view="off">
@@ -344,6 +350,7 @@
               ><button type="button" class="lobby-primary hidden" data-fiera-act="confirm" data-slot="p2" data-no-remote>Conferma</button
               ><button type="button" class="lobby-secondary hidden" data-fiera-act="pair" data-slot="p2">Abbina</button
               ><button type="button" class="lobby-ghost hidden" data-fiera-act="cancel" data-slot="p2">Annulla</button
+              ><button type="button" class="lobby-ghost hidden" data-fiera-act="unlock" data-slot="p2">Sblocca il telefono</button
               ><button type="button" class="lobby-ghost hidden" data-fiera-act="forget" data-slot="p2">Scollega</button></div>
           </section>
         </div>

@@ -15,7 +15,7 @@
 //   4. pagina del telefono: numero del posto, «Dai il telefono al prossimo giocatore», pulsanti dello staff solo dopo la
 //      pressione lunga
 //   5. contro la CPU: «Bambino» con il mouse, «Sono pronto» sul telefono → scambi di prova del visitatore, «Salta ›» dal
-//      telefono → la partita parte (B47: conto alla rovescia grande), il visitatore numerato; a fine partita «Prossimo
+//      computer → la partita parte (B47: conto alla rovescia grande), il visitatore numerato; a fine partita «Prossimo
 //      giocatore ›» (schermate a 1920×1080, 1280×720, 720×720: «Bella sfida, Visitatore 1!» su una riga, niente tagliato)
 //   5b. (B41.3, revisione, difetto 1) tre visitatori: doppio tocco su «Sono pronto» a 150 ms, due tocchi a 400 ms, «Gioca ›»
 //      dello staff con il tocco del visitatore a 60 ms: gli scambi di prova restano (non saltati), il pulsante del telefono
@@ -27,7 +27,7 @@
 //   cd tools/e2e && CHROMIUM_PATH=… GAME_PORT=… PEER_PORT=… OUT=cartella node natpf-fiera-telefoni.mjs
 // e (pagina del telefono con la batteria finta) la batteria al 15 % del Telefono 2
 // Calibrazione dello stand «Nessuna» all'avvio (CAL=none, di base qui): accendere la «Modalità fiera» la porta su «Giocando»
-// (decisione dell'utente del 14/11: scambi di prova per ogni visitatore). Qui si chiudono con «Salta ›» dal telefono; interi,
+// (decisione dell'utente del 14/11: scambi di prova per ogni visitatore). Qui si chiudono con «Salta ›» dal computer; interi,
 // fino allo scadere, in natpf-flusso-tocchi con FLOW=fiera e FLOW=fiera-due, e nei test di unità (natpf-fiera.test.mjs).
 process.env.CAL ||= 'none';
 import { spawn } from 'node:child_process';
@@ -247,16 +247,24 @@ try {
   await sleep(2000);
   check('   senza tocco la partita non parte', (await gameInfo(g)).seq === 0);
   await tel1.click('#next');
-  // (in fiera ogni visitatore fa gli scambi di prova: prima della partita; «Salta ›» dal telefono li chiude)
+  // (in fiera ogni visitatore fa gli scambi di prova: prima della partita; «Salta ›» dal computer li chiude)
   const tr1 = await until(g, () => __natpfTennis.natpfUi.trial.active, null, 8000);
-  const skip1 = await until(tel1, () => { const b = document.getElementById('next'); return !!b && !b.classList.contains('hidden') && /Salta/.test(b.textContent); }, null, 8000);
+  const locked1 = await until(tel1, () => __racchetta.state.touchLocked, null, 8000);
   const gt = await gameInfo(g);
-  check('tocco su «Sono pronto»: prima gli scambi di prova del visitatore (con «Salta ›» sul telefono), la partita non è ancora partita', tr1 && skip1 && gt.seq === 0 && /^Visitatore \d+$/.test(gt.nick), JSON.stringify({ trial: tr1, skip: skip1, seq: gt.seq, nick: gt.nick }));
+  check('tocco su «Sono pronto»: prima gli scambi di prova del visitatore (telefono bloccato), la partita non è ancora partita', tr1 && locked1 && gt.seq === 0 && /^Visitatore \d+$/.test(gt.nick), JSON.stringify({ trial: tr1, locked: locked1, seq: gt.seq, nick: gt.nick }));
   await sleep(1500);
-  await tel1.click('#next');
+  await tel1.evaluate(() => { document.getElementById('next').click(); document.getElementById('bye').click(); history.back(); });
+  await sleep(300);
+  check('B51 · indietro torna alla racchetta e i clic sotto il blocco sono ignorati',
+    await tel1.evaluate(() => history.state.natpfTouchLock === 'guard' && __racchetta.state.linkState === 'on' && __racchetta.state.touchLocked)
+    && await g.evaluate(() => __natpfTennis.natpfUi.trial.active));
+  await g.click('#trial-skip');
   const started = await until(g, () => (__natpfTennis.natpfMatchSeq || 0) === 1 && !__natpfTennis.natpfUi.lobby.visible && !__natpfTennis.natpfUi.trial.active, null, 10000);
   const g2 = await gameInfo(g);
-  check('«Salta ›» dal telefono: la partita parte con il conto alla rovescia grande; il visitatore ha il suo numero', started && g2.prematch && /^Visitatore \d+$/.test(g2.nick), JSON.stringify({ seq: g2.seq, prematch: g2.prematch, nick: g2.nick }));
+  check('«Salta ›» dal computer: la partita parte con il conto alla rovescia grande; il visitatore ha il suo numero', started && g2.prematch && /^Visitatore \d+$/.test(g2.nick), JSON.stringify({ seq: g2.seq, prematch: g2.prematch, nick: g2.nick }));
+  check('B51 · conto alla rovescia e partita: niente comandi sul telefono', await until(tel1, () =>
+    __racchetta.state.touchLocked && document.getElementById('phoneTouchLock').querySelectorAll('button:not(.hidden)').length === 0, null, 3500));
+  await shot(tel1, 'telefono-bloccato');
   res.visitor = g2.nick;
   await sleep(350);
   await shot(g, 'cpu-conto-alla-rovescia-1920');
@@ -265,6 +273,7 @@ try {
   await g.evaluate(() => { const E = __natpfTennis; E.matchConfig.gamesToWin = 1; for (let i = 0; i < 4; i++) E._awardPoint('opponent', 'Out'); });
   const over = await until(g, () => !document.getElementById('victory-modal').classList.contains('hidden'), null, 10000);
   await sleep(600);
+  check('B51 · fine partita: il telefono si sblocca da solo', await until(tel1, () => !__racchetta.state.touchLocked, null, 4000));
   const end = await g.evaluate(() => { const v = id => { const el = document.getElementById(id); return !!el && !el.classList.contains('hidden') && el.getClientRects().length > 0; }; return { next: document.getElementById('btn-new-player').textContent, nextShown: v('btn-new-player'), again: v('btn-play-again'), menu: v('btn-return-title') }; });
   check('fine partita in fiera: «Prossimo giocatore ›» e «Rivincita», niente «Menu»', over && end.next === 'Prossimo giocatore ›' && end.nextShown && end.again && !end.menu, JSON.stringify(end));
   for (const [w, h] of [[1920, 1080], [1280, 720], [720, 720]]){
@@ -291,10 +300,9 @@ try {
     const r = await g.evaluate(s => ({ active: __natpfTennis.natpfUi.trial.active, seq: __natpfTennis.natpfMatchSeq || 0, nick: __natpfTennis.natpfUi.events.nickname }), seq);
     return { on, held: on && r.active && r.seq === seq, ...r };
   };
-  // chiude il visitatore: «Salta ›» dal telefono, partita (4 punti alla CPU), «Prossimo giocatore ›», telefono di nuovo pronto
+  // chiude il visitatore: «Salta ›» dal computer, partita (4 punti alla CPU), «Prossimo giocatore ›», telefono di nuovo pronto
   const nextVisitor = async seq => {
-    await until(tel1, () => { const b = document.getElementById('next'); return !!b && !b.classList.contains('hidden') && /Salta/.test(b.textContent) && !b.disabled; }, null, 8000);
-    await tel1.click('#next');
+    await g.click('#trial-skip');
     await until(g, s => (__natpfTennis.natpfMatchSeq || 0) === s + 1 && !__natpfTennis.natpfUi.trial.active, seq, 10000);
     await until(g, () => !__natpfTennis.natpfUi.prematch.active, null, 8000);
     await g.evaluate(() => { const E = __natpfTennis; E.matchConfig.gamesToWin = 1; for (let i = 0; i < 4; i++) E._awardPoint('opponent', 'Out'); });
@@ -329,7 +337,7 @@ try {
   const trD = await trialHeld(seqT);
   check('B41.3 · «Gioca ›» e il tocco su «Sono pronto» quasi insieme (60 ms): gli scambi di prova restano (3 s)', trD.held, JSON.stringify(trD));
   seqT = await nextVisitor(seqT);
-  check('   … dopo i tre visitatori «Salta ›» dal telefono (dopo 1 s) ha fatto partire ogni partita, e si è tornati alla pagina della fiera', (await gameInfo(g)).lobby === 'match' && seqT === seq0 + 3, `partite ${seqT}`);
+  check('   … dopo i tre visitatori «Salta ›» dal computer (dopo 1 s) ha fatto partire ogni partita, e si è tornati alla pagina della fiera', (await gameInfo(g)).lobby === 'match' && seqT === seq0 + 3, `partite ${seqT}`);
 
   /* ---------- 6. Telefono 2 dal foglio, batteria bassa, due giocatori ---------- */
   check('pannello dello stand con il mouse dalla pagina della fiera', await openPanel(g));
@@ -375,15 +383,30 @@ try {
   await tel2.click('#next');
   const tr2 = await until(g, () => __natpfTennis.natpfUi.trial.active && !!__natpfTennis.natpfUi.trial.S?.split, null, 10000);
   check('tutti e due «Sono pronto»: prima gli scambi di prova dei due giocatori', tr2 && (await gameInfo(g)).seq === seqT);
-  await until(tel2, () => { const b = document.getElementById('next'); return !!b && !b.classList.contains('hidden') && /Salta/.test(b.textContent); }, null, 8000);
-  await sleep(1500);
-  await tel2.click('#next');
+  await g.click('#trial-skip');
   const go2 = await until(g, s => (__natpfTennis.natpfMatchSeq || 0) === s + 1 && __natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.trial.active, seqT, 10000);
   check('«Salta ›»: la partita nello stesso schermo parte (conto alla rovescia grande)', go2 && (await gameInfo(g)).prematch);
   // l'avviso della batteria si vede solo sulla pagina della fiera (tra un visitatore e l'altro): in campo non copre il gioco
   // (sulla fine partita copriva il consiglio del livello)
   const inGame = await gameInfo(g);
   check('   … in campo l\'avviso della batteria del Telefono 2 non c\'è (solo sulla pagina della fiera)', inGame.alert === '' && await g.evaluate(() => !!__natpfTennis.natpfUi.fiera.alertText), JSON.stringify({ alert: inGame.alert }));
+  check('B51 · i due telefoni comunicano lo stato di blocco al PC', await until(g, () =>
+    __natpfTennis.natpfPhone.touchLocked && __natpfTennis.natpfPhone2.touchLocked, null, 8000));
+  await g.evaluate(() => __natpfTennis.natpfUi.kiosk.open());
+  await g.click('[data-staff="unlock-touch-p1"]');
+  check('B51 · sblocco dal pannello, solo il Telefono 1', await until(g, () =>
+    !__natpfTennis.natpfPhone.touchLocked && __natpfTennis.natpfPhone2.touchLocked, null, 4000));
+  await g.click('[data-staff="close"]');
+  const cdp = await tel2.context().newCDPSession(tel2);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [
+    { x: 105, y: 190, id: 1 }, { x: 245, y: 190, id: 2 },
+  ] });
+  await sleep(3150);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  check('B51 · due dita dal telefono mostrano il comando staff', await until(tel2, () =>
+    !document.getElementById('phoneStaffUnlock').classList.contains('hidden'), null, 3000));
+  await tel2.tap('#phoneStaffUnlock');
+  check('B51 · sblocco locale confermato anche sul PC', await until(g, () => !__natpfTennis.natpfPhone2.touchLocked, null, 4000));
   await g.setViewportSize({ width: 1920, height: 1080 });
   check('nessun errore nella pagina del gioco', !gameErrs.length, gameErrs.slice(0, 3).join(' | '));
   check('nessun errore nelle pagine dei telefoni', !tel1.__errs.length && !tel2.__errs.length, [...tel1.__errs, ...tel2.__errs].slice(0, 3).join(' | '));

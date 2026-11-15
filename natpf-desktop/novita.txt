@@ -49,3 +49,4 @@
 2026-11-14.5: Pagina della fiera: scegli chi gioca (Bambino, Ragazzo, Adulto; Sinistra per i mancini), il visitatore tocca «Sono pronto» sul telefono; a fine partita «Prossimo giocatore ›» rimette tutto a zero senza scollegare i telefoni.
 2026-11-14.5: Chi gioca senza nome diventa «Visitatore 1, 2, …» e va in classifica; il titolo di fine partita sta sempre su una riga.
 2026-11-14.5: Un doppio tocco su «Sono pronto» non salta più gli scambi di prova; in fiera «Torna al menu» azzera il visitatore; il pannello dello stand non trema e non scorre più con il puntatore sulle voci.
+2026-11-14.6: Durante gli scambi di prova, il conto e la partita il telefono ignora i tocchi accidentali. Dal pannello dello stand puoi sbloccare ciascun telefono anche a partita in corso.

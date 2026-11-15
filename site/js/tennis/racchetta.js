@@ -18,6 +18,7 @@ import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-k
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample, SIGN } from './motion-sign.js';
 import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, nextTap, NEXT_REARM_MS, readyView, standView, STAFF_HOLD, batteryAlert, standSignStep, tapVotesSign, handTap, handLabel, HAND_CONFIRM } from './phone-screen.js';
+import { touchLockActive, createTouchLockHistory, installStaffTouch } from './phone-touch-lock.js';
 import { parseStandPairing, createStandStore, standHello, standWelcome, standAnswer, standDenyText, newStandNonce, slotLabel } from './stand-pairing.js';
 
 const $ = s => document.querySelector(s);
@@ -69,7 +70,7 @@ let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase
 // Tutorial sul computer (cfg tut, phone-screen.js): il «cancello» { v, i, n, s, m, all } che il computer apre e chiude e di
 // cui manda l'avanzamento (tp). Resta nella scheda (pagina ricaricata, ricollegamento): niente lampo di «Pronto» e niente
 // ritorno alla prima scheda. screen: la schermata mostrata (una sola alla volta, phoneView)
-let gate = pair ? gateRestore(ss.get('gate')) : null, screen = 'link', tutLitT = null, wantFs = false;
+let gate = pair ? gateRestore(ss.get('gate')) : null, viewScreen = 'link', tutLitT = null, wantFs = false;
 // schermo acceso e sensori vivi (phone-keep.js): ogni cambio del blocco va al computer e sullo schermo (avvisi più giù)
 const awake = createWakeKeeper({ onChange: () => { sendState(); paintAlert(); } }), sensorWatch = createSensorWatch();
 let revivedAt = null, alertKey = '';
@@ -132,6 +133,60 @@ function bar(){
   b.className = linkState === 'on' ? 'ok' : linkState === 'lost' || linkState === 'denied' ? 'bad' : '';
   $('#barTxt').textContent = txt; $('#lat').textContent = linkState === 'on' ? Math.round(rtt) + ' ms' : '';
 }
+let touchRequest = false, touchOverride = false, touchLocked = false, touchSlot = 'p1';
+const touchOverlay = $('#phoneTouchLock'), touchHit = $('#touchHit'), touchHome = touchHit.parentElement;
+const touchHistory = createTouchLockHistory(window, history, () => touchLocked);
+const resetStaffTouch = installStaffTouch(touchOverlay, $('#phoneStaffUnlock'), unlockTouch);
+const madeInert = new Set();
+
+function unlockTouch(){
+  if (!touchLocked) return;
+  touchOverride = true;
+  if (pair?.stand){
+    staffUntil = performance.now() + STAFF_HOLD.showMs;
+    setTimeout(paint, STAFF_HOLD.showMs + 50);
+  }
+  paint();
+}
+function paintTouchLock(){
+  const on = touchLockActive({ requested: touchRequest, overridden: touchOverride, paired: !!pair && linkState !== 'denied',
+    sensor, gate, readyTap: phase === 'menu' && !!nextOffer?.ready && !nextOffer.me && !nextOffer.sent });
+  if (on){
+    touchOverlay.dataset.slot = touchSlot;
+    $('#phoneTouchSlot').textContent = slotLabel(touchSlot);
+    const label = linkState !== 'on' ? 'Ricollegamento…' : phase === 'pause' ? 'In pausa' : 'Gioca!';
+    if ($('#phoneTouchPhase').textContent !== label) $('#phoneTouchPhase').textContent = label;
+    const actionHome = linkState === 'on' && (inputMode === 'touch' || det.profile.intentGate) ? touchOverlay : touchHome;
+    if (touchHit.parentElement !== actionHome) actionHome.append(touchHit);
+  }
+  if (on === touchLocked) return;
+  touchLocked = on;
+  document.body.classList.toggle('phone-locked', on);
+  show('#phoneTouchLock', on);
+  if (on){
+    touchHistory.arm();
+    for (const el of document.body.children){
+      if (el !== touchOverlay && !el.inert){ el.inert = true; madeInert.add(el); }
+    }
+    awake.visible();
+  } else {
+    resetStaffTouch();
+    for (const el of madeInert) el.inert = false;
+    madeInert.clear();
+    touchHome.append(touchHit);
+  }
+  sendState();
+}
+for (const type of ['pointerdown', 'pointerup', 'click', 'dblclick', 'auxclick', 'contextmenu', 'selectstart', 'dragstart']){
+  document.addEventListener(type, event => {
+    if (!touchLocked) return;
+    const blocked = !touchOverlay.contains(event.target) || ['contextmenu', 'selectstart', 'dragstart'].includes(type);
+    if (!blocked) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+}
+
 function setGate(g){ gate = g; if (g) ss.set('gate', g); else ss.del('gate'); }
 // UNA schermata alla volta (phone-screen.js): collegamento, errore dei sensori, «Attiva i sensori», tutorial, calibrazione,
 // «Pronto». Prima ogni elemento aveva la sua condizione e «Tutto chiaro» compariva sopra «Pronto»
@@ -144,7 +199,7 @@ function paint(){
   // (B41.3: spento anche appena toccato, finché il computer non manda l'offerta dopo: un doppio tocco non arriva a «Salta ›»)
   { const nb = $('#next'), big = !!nextOffer?.ready; nb.classList.toggle('alt', !big); nb.classList.toggle('big', big); nb.disabled = !!nextOffer && (!!nextOffer.sent || (big && !!nextOffer.me)); }
   paintStandTag(standOn);
-  if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
+  if (v.screen !== viewScreen){ viewScreen = v.screen; document.body.dataset.screen = viewScreen; }
   for (const [sel, on] of Object.entries(v.show)) show(sel, on);
   if (v.show['#profileOptions']) paintHand();
   $('#touchHit').textContent = inputMode === 'touch' ? 'Colpisci' : 'Arma dopo l’apertura';
@@ -152,15 +207,16 @@ function paint(){
   $('#shotHint').textContent = 'Scegli il colpo; schiacciata e servizio seguono la palla.'; show('#shotHint', inputMode === 'touch');
   paintShots();
   paintTut(v);
-  const holding = screen === 'cal' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
+  const holding = viewScreen === 'cal' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
   show('#grip', holding && grip !== 'flat'); show('#gripFlat', holding && grip === 'flat');
-  const dial = grip === 'flat' && face.ready && (screen === 'ready' || (screen === 'cal' && ['free', 'swings'].includes(cal.state.step)));
+  const dial = grip === 'flat' && face.ready && (viewScreen === 'ready' || (viewScreen === 'cal' && ['free', 'swings'].includes(cal.state.step)));
   show('#faceDial', dial); show('#faceTxt', dial);
+  paintTouchLock();
   if (linkState !== 'on' || flashT) return;
-  if (screen === 'enable') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la racchetta.');
-  else if (screen === 'tutorial'){ const t = tutorialTexts(gate, { sensor }); ui(t.big, t.sub); }
-  else if (screen === 'cal'){ if (sensor === 'cal') calUi(); else ui('Preparati', 'Tra un attimo si calibra.'); }
-  else if (screen === 'ready'){
+  if (viewScreen === 'enable') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la racchetta.');
+  else if (viewScreen === 'tutorial'){ const t = tutorialTexts(gate, { sensor }); ui(t.big, t.sub); }
+  else if (viewScreen === 'cal'){ if (sensor === 'cal') calUi(); else ui('Preparati', 'Tra un attimo si calibra.'); }
+  else if (viewScreen === 'ready'){
     // fine partita nello stesso schermo (B20): «Rivincita» e chi l'ha già chiesta
     const rv = phase === 'over' ? rematchView(rematch) : null, rb = $('#rematch');
     // B41.6: pagina «Pronto per la partita» sul computer: «Sono pronto» al posto di «Pronto»
@@ -342,6 +398,13 @@ function onData(c, d){
     // soglie dal colpo imparato negli scambi di prova (B28): solo sopra il profilo semplice, che non ha un colpo tipico suo
     case 'pf': { const th = trialThresholds(d); if (th && sensor === 'ready' && inputMode === 'motion' && det.profile.simple) det.setThresholds(th); break; }
     case 'ph': phase = d.ph; phaseNote = pauseNote(d); trial = trialOnMsg(d); det.setSignVote?.(d.tr !== 1); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
+    case 'tl':
+      if (c !== conn) break;
+      touchRequest = d.on === 1;
+      if (!touchRequest) touchOverride = false;
+      touchSlot = d.slot === 'p2' ? 'p2' : 'p1';
+      paint();
+      break;
     case 'cmd': command(d.c); break;
     case 'ev': {
       const vib = Array.isArray(d.vib) && d.vib.length <= 6 && d.vib.every(v => Number.isFinite(v) && v >= 0 && v <= 400) ? d.vib : null;
@@ -513,10 +576,10 @@ const wakeState = () => awake.state;
 let battery = null;
 try { navigator.getBattery?.().then(b => { battery = b; }, () => {}); } catch (e){}
 const batteryState = () => battery && Number.isFinite(battery.level) ? { bt: Math.round(battery.level*100), bc: battery.charging ? 1 : 0 } : {};
-const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batteryState(), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
+const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batteryState(), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), lk: touchLocked ? 1 : 0, ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 // (B45.1: cd = il racconto dell'ultima caduta, una volta sola; i computer di prima ignorano il campo)
-const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, ...(cd ? { cd } : {}) }); };
+const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: window.screen.orientation?.type || null, sc: [window.screen.width, window.screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, ...(cd ? { cd } : {}) }); };
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
 // secondo (un tremolio continuo non deve intasare il collegamento)
 let discardWin = { at: 0, n: 0 };
@@ -648,6 +711,7 @@ function command(c){
   if (c === 'cal'){ if (sensor === 'off') return; ss.del('profile'); needCal(); sendState(); paint(); }
   if (c === 'retry' && sensor === 'cal') cal.retry();
   if (c === 'relink') relink();
+  if (c === 'unlockTouch') unlockTouch();
   if (c === 'invert') cal.invert();
   if (c === 'skipGrip') cal.skipGrip();
   if (c === 'free') cal.tryFree();
@@ -697,8 +761,11 @@ function paintShots(){
 // i sensori sono nel riferimento del telefono e il rilevatore non si ferma mai per il portrait o il landscape (prima in
 // landscape si fermava e i colpi sparivano: con il telefono di taglio e il lato lungo in avanti il sistema può girare la
 // pagina). La pagina prova a restare in verticale (a schermo intero dal primo tocco); se si gira, lo dice senza bloccare.
-function lockOrientation(){ try { screen.orientation?.lock?.(grip === 'flat' ? 'landscape' : 'portrait').catch(() => {}); } catch(e){} checkOrientation(); }
-function fullScreen(){ try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(lockOrientation, () => {}); } catch(e){} }
+function lockOrientation(){ try { window.screen.orientation?.lock?.(grip === 'flat' ? 'landscape' : 'portrait').catch(() => {}); } catch(e){} checkOrientation(); }
+function fullScreen(){
+  if (document.fullscreenElement){ lockOrientation(); return; }
+  document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(lockOrientation, () => {});
+}
 let landHint = false, landHintT = null;
 function checkOrientation(){
   const land = matchMedia('(orientation: landscape)').matches, turned = grip !== 'flat' && land;
@@ -714,6 +781,7 @@ $('#touchHit').addEventListener('pointerdown', e => { if (inputMode === 'motion'
 for (const event of ['pointerup','pointercancel','lostpointercapture']) $('#touchHit').addEventListener(event, () => { if (inputMode === 'motion' && det.profile.intentGate) det.setArmed(false); });
 $('#touchHit').addEventListener('click', () => {
   if (inputMode !== 'touch' || linkState !== 'on') return;
+  if (touchLocked && phase === 'serve') { send({ t: 'toss', pk: performance.now() }); return; }
   const power=+$('#power').value/100, dir=+$('#aimDir').value;
   if (sensor === 'cal'){ cal.touch(dir,power,selectedShot); return; }
   if (sensor !== 'ready' || gate || !['play','serve','toss'].includes(phase)) return;
@@ -750,7 +818,9 @@ $('#rematch').addEventListener('click', e => { e.stopPropagation(); if (!rematch
 $('#next').addEventListener('click', e => {
   e.stopPropagation();
   const r = linkState === 'on' ? nextTap(nextOffer) : null; if (!r) return;
-  nextOffer = r.offer; send(r.msg); buzz([30]); paint();
+  nextOffer = r.offer; send(r.msg);
+  if (e.isTrusted && r.offer.ready){ wantFs = true; fullScreen(); awake.tap(); }
+  buzz([30]); paint();
   const tapped = nextOffer; clearTimeout(nextRearmT);
   nextRearmT = setTimeout(() => { if (nextOffer === tapped){ nextOffer = { ...tapped, sent: false }; paint(); } }, NEXT_REARM_MS);
 });
@@ -795,7 +865,7 @@ document.addEventListener('pointerdown', () => {
   // (telefono dello stand, B41.3: confermato da SIGN.votes tocchi concordi, il segno si salva e non si vota più)
   // (B46: si vota solo dove il telefono si tiene davanti per leggere, phone-screen.tapVotesSign: mai al servizio, nello
   // scambio o negli scambi di prova, dove il tocco del lancio arriva con il telefono tenuto come una racchetta)
-  if (!lastRawG || !tapVotesSign({ screen, phase, trial }) || (pair?.stand && stand && !standSignStep({ saved: stand.as ?? null }).vote)) return;
+  if (touchLocked || !lastRawG || !tapVotesSign({ screen: viewScreen, phase, trial }) || (pair?.stand && stand && !standSignStep({ saved: stand.as ?? null }).vote)) return;
   const changed = accSign.vote(lastRawG);
   if (pair?.stand && stand){ const st = standSignStep({ votes: accSign.votes, sign: accSign.sign, need: SIGN.votes, agree: SIGN.agree }); if (st.save){ stand = { ...stand, as: st.save }; standStore.save(stand); } }
   if (!changed) return;
@@ -885,4 +955,4 @@ function reviveSensors(){
 checkOrientation();
 connect();
 $('#gripMode').value = grip;
-window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state, screen, gate: gate ? { ...gate } : null, veil: !$('#wakeVeil').classList.contains('hidden') }; } };
+window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state, screen: viewScreen, touchLocked, gate: gate ? { ...gate } : null, veil: !$('#wakeVeil').classList.contains('hidden') }; } };

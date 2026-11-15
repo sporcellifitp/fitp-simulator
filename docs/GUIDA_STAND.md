@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-14.5** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-14.6** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -782,6 +782,25 @@ browser con telefoni simulati (documento `docs/b41/modalita-fiera-2.md`).
 con una rete finta che si ferma per 3, 7 e 12 secondi.
 
 ---
+
+### 8.6 (B51) Blocco del telefono in partita
+
+Dal **pannello dello stand**, apribile con il tasto destro nel programma Windows, la voce
+**Blocco del telefono in partita → Sì** è già attiva. Durante gli scambi di prova, il conto alla rovescia e la partita
+(anche in pausa), ogni telefono in gioco mostra il proprio numero e ignora i tocchi accidentali. I gesti con il telefono
+continuano a funzionare. Lo staff può premere «Salta ›» dal PC durante gli scambi di prova. Con la racchetta a tocchi,
+il comando «Colpisci» rimane disponibile. A fine partita e quando il PC chiede la calibrazione o «Sono pronto» tornano
+i comandi necessari.
+
+- **Dal PC.** Apri il pannello dello stand e premi «Sblocca Telefono 1» o «Sblocca Telefono 2». In modalità fiera trovi
+  anche «Sblocca il telefono» nella sua scheda in «Telefoni dello stand».
+- **Dal telefono.** Appoggia due dita ferme sullo schermo per tre secondi. Solleva entrambe e premi «Sblocca» quando
+  compare in basso a destra. Lo sblocco manuale vale per l'attività in corso.
+- **Per tenere Chrome in primo piano su Android.** Nelle impostazioni cerca «Fissa app» e attiva la richiesta del PIN
+  per uscire. Su Samsung cerca «Fissa finestre» in Sicurezza e privacy → Altre impostazioni di sicurezza. Apri le app
+  recenti, tocca l'icona di Chrome e scegli «Fissa». I nomi possono variare con il modello. Il blocco nella pagina e
+  «Fissa app» operano su livelli diversi. I comandi Android e la navigazione di Chrome restano sotto il controllo del
+  dispositivo. I passaggi di «Fissa app» richiedono una prova sul telefono dello stand.
 
 ## 9. Il registro dello stand (Cloudflare)
 

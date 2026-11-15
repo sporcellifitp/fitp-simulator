@@ -2358,3 +2358,26 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
   .natpf-sheet.staff-sheet .pause-grid button, .natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .pause-grid button { min-height: 50px; padding-block: 6px; gap: 2px; }
   .natpf-sheet.staff-sheet:has(.staff-cadute:not(.hidden)) .staff-cadute { margin-bottom: 6px; }
 }
+
+/* B51: il blocco e gli sblocchi occupano due celle della griglia del pannello. */
+.natpf-sheet.staff-sheet .staff-touch-status { display: grid; align-self: center; gap: 2px; }
+.natpf-sheet.staff-sheet .staff-touch-status.hidden { display: none; }
+.natpf-sheet.staff-sheet .pause-grid .staff-touch-status button {
+  min-height: 24px; padding: 2px 6px; align-items: center; font-size: 12px; line-height: 1.2; white-space: normal;
+}
+@container natpf (max-height: 800px) {
+  .natpf-sheet.staff-sheet { gap: 6px; }
+}
+@container natpf (min-width: 701px) and (max-width: 999px) {
+  .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@container natpf (min-width: 1000px) and (max-height: 800px) {
+  .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@container natpf (min-width: 1000px) and (max-height: 640px) {
+  .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .natpf-sheet.staff-sheet .pause-grid button span { font-size: 11px; line-height: 1.15; }
+  .natpf-sheet.staff-sheet .pause-grid button b { font-size: 15px; line-height: 1.15; }
+  .natpf-sheet.staff-sheet #staff-note { font-size: 12px; }
+  .natpf-sheet.staff-sheet .sheet-actions { margin-top: 4px; }
+}

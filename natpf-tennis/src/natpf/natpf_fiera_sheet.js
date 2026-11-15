@@ -96,6 +96,7 @@ export class NatpfFieraSheet {
     if (cmd !== 'forget') this.confirm2.disarm();
     if (cmd === 'close'){ this.close(); return true; }
     if (!SLOTS.includes(slot)) return false;
+    if (cmd === 'unlock') return !!F.phone(slot, { make: false })?.unlockTouch?.();
     if (cmd === 'pair'){
       // un posto alla volta: il QR dell'altro si chiude
       if (this.pairing && this.pairing !== slot) F.closePairing(this.pairing);
@@ -141,7 +142,7 @@ export class NatpfFieraSheet {
       if (card.dataset) card.dataset.view = v.view;
       card.classList?.toggle?.('low', v.low);
       const set = (sel, t) => { const n = card.querySelector?.(sel); if (n && n.textContent !== t) n.textContent = t; return n; };
-      set('[data-fiera="word"]', v.word);
+      set('[data-fiera="word"]', p?.touchLocked ? `${v.word} · schermo bloccato` : v.word);
       show(set('[data-fiera="note"]', v.note), !!v.note);
       show(set('[data-fiera="batt"]', v.batt), !!v.batt);
       show(set('[data-fiera="num"]', v.num), !!v.num);
@@ -154,7 +155,7 @@ export class NatpfFieraSheet {
         else if (window.qrcode && box.dataset.url !== v.qr){ const q = window.qrcode(0, 'M'); q.addData(v.qr); q.make(); box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); box.dataset.url = v.qr; }
       }
       for (const b of card.querySelectorAll?.('[data-fiera-act]') || []){
-        const on = v.actions.includes(b.dataset.fieraAct);
+        const on = b.dataset.fieraAct === 'unlock' ? !!p?.touchLocked : v.actions.includes(b.dataset.fieraAct);
         show(b, on);
         if (b.dataset.fieraAct === 'pair' && on && !this.confirm2.isArmed()){ const t = v.pairLabel; if (b.textContent !== t) b.textContent = t; }
       }

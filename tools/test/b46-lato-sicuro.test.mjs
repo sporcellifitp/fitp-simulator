@@ -81,10 +81,10 @@ test('B46 segno dei sensori: i tocchi votano solo con il telefono da leggere, ma
 test('B46 pagina del telefono: il voto ai tocchi passa da tapVotesSign con la schermata e la fase di adesso', () => {
   const i = JS.indexOf('conferma del segno dei sensori (motion-sign.js)'), block = JS.slice(i, JS.indexOf('}, { passive: true });', i));
   assert.ok(i > 0);
-  assert.match(block, /if \(!lastRawG \|\| !tapVotesSign\(\{ screen, phase, trial \}\) \|\| \(pair\?\.stand && stand && !standSignStep/, 'prima di accSign.vote');
+  assert.match(block, /if \(touchLocked \|\| !lastRawG \|\| !tapVotesSign\(\{ screen: viewScreen, phase, trial \}\) \|\| \(pair\?\.stand && stand && !standSignStep/, 'prima di accSign.vote');
   assert.ok(block.indexOf('tapVotesSign') < block.indexOf('accSign.vote(lastRawG)'));
   // la schermata è quella della pagina (phoneView), la fase quella del computer (ph), tr 1 = scambi di prova
-  assert.match(JS, /if \(v\.screen !== screen\)\{ screen = v\.screen;/);
+  assert.match(JS, /if \(v\.screen !== viewScreen\)\{ viewScreen = v\.screen;/);
   assert.match(JS, /case 'ph': phase = d\.ph; phaseNote = pauseNote\(d\); trial = trialOnMsg\(d\);/);
   // la schermata «Pronto» con la fase «serve» è quella del lancio con un tocco: lì non si vota
   assert.equal(phoneView({ linkState: 'on', sensor: 'ready', phase: 'serve' }).screen, 'ready');

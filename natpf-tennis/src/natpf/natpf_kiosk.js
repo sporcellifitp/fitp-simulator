@@ -90,7 +90,7 @@ export class NatpfKiosk {
   constructor(engine, ui){
     this.engine = engine; this.ui = ui;
     let saved = {}; try { saved = JSON.parse(localStorage.getItem(KIOSK_KEY) || '{}'); } catch {}
-    this.enabled = !!saved.enabled; this.limit = IDLE_STEPS.includes(saved.limit) ? saved.limit : 45;
+    this.enabled = !!saved.enabled; this.touchLockEnabled = saved.touchLockEnabled !== false; this.limit = IDLE_STEPS.includes(saved.limit) ? saved.limit : 45;
     this.last = performance.now();
     // B45.1: niente da azzerare (nessuno dall'avvio o dall'ultimo azzeramento): al menu il chiosco non riparte di continuo
     this.clean = true;
@@ -122,7 +122,7 @@ export class NatpfKiosk {
     for (const brand of document.querySelectorAll?.('.lobby-brand, .menu-brand') || []) new HoldPress(brand, { onDone: () => { poke(); this.open(); } });
     setInterval(() => this.check(), 1000);
   }
-  _save(){ try { localStorage.setItem(KIOSK_KEY, JSON.stringify({ enabled: this.enabled, limit: this.limit })); } catch {} }
+  _save(){ try { localStorage.setItem(KIOSK_KEY, JSON.stringify({ enabled: this.enabled, limit: this.limit, touchLockEnabled: this.touchLockEnabled })); } catch {} }
   // calibrazione dello stand cambiata (voce «Calibrazione», o «Modalità fiera» accesa che la porta su «Giocando»)
   // (revisione del B28, difetto 4) l'opzione nuova vale dal prossimo «Gioca» senza rifare il QR e niente passa a chi
   // arriva dopo: una calibrazione con i gesti fatta prima del cambio non vale più «per la prossima partita»; con
@@ -180,6 +180,7 @@ export class NatpfKiosk {
     // dal B39.5 il movimento conta come attività
     const ui0 = this.ui;
     // (B41.4: anche il foglio «Telefoni dello stand»)
+    if (this.isOpen) this._paintTouchStatus();
     if (this.isOpen || ui0.remote?.isOpen || ui0.remote?.opening || ui0.fieraSheet?.isOpen || ui0.diag?.isOpen){ this.last = performance.now(); return; }
     const E = this.engine, ui = this.ui, lobby = ui.lobby;
     // B45.1: il Telefono 2 (stesso schermo, fiera) nasce dopo il chiosco: i suoi gesti e tocchi contano anche loro
@@ -256,6 +257,9 @@ export class NatpfKiosk {
     // «Nuovo giocatore» (B18, natpf_new_player.js): azzera chi gioca senza scollegare il telefono e lo porta al passo giusto
     if (cmd === 'newplayer'){ this.close(); ui.newPlayer?.(); return; }
     if (cmd === 'kiosk'){ this.enabled = !this.enabled; this._save(); }
+    if (cmd === 'touchlock'){ this.touchLockEnabled = !this.touchLockEnabled; this._save(); }
+    if (cmd === 'unlock-touch-p1') ui.phone?.unlockTouch?.();
+    if (cmd === 'unlock-touch-p2') this.engine.natpfPhone2?.unlockTouch?.();
     if (cmd === 'idle'){ this.limit = IDLE_STEPS[(IDLE_STEPS.indexOf(this.limit) + 1) % IDLE_STEPS.length]; this._save(); }
     // B33: a schermo intero si apre sulla classifica delle partite (le schede dei minigiochi restano accanto)
     // (B39: con la classifica già a schermo intero la stessa voce la chiude e torna al menu, come Esc)
@@ -354,6 +358,8 @@ export class NatpfKiosk {
     const set = (k, v, on) => { const b = this.el.querySelector(`[data-staff="${k}"] b`); if (b){ if (!this.confirm?.isArmed(k)) b.textContent = v; b.parentElement.classList.toggle('on', !!on); } };
     set('kiosk', this.enabled ? 'Sì' : 'No', this.enabled);
     set('idle', `${this.limit} s`);
+    set('touchlock', this.touchLockEnabled ? 'Sì' : 'No', this.touchLockEnabled);
+    this._paintTouchStatus();
     const audio = this.engine.audioEngine; set('music', audio && audio.muted ? 'No' : 'Sì', !(audio && audio.muted));
     // B41.4: modalità fiera; accesa, la voce «Telefono» diventa «Telefoni dello stand ›» con lo stato dei due posti
     const F = this.ui.fiera, fon = !!F?.on;
@@ -394,6 +400,14 @@ export class NatpfKiosk {
     const c = $('staff-cadute');
     if (c){ const t = rigaCadute(leggiCadute()); c.textContent = t; show(c, !!t); }
     this._fitNote(n);
+  }
+  _paintTouchStatus(){
+    const row = $('staff-touch-status');
+    if (!row) return;
+    const p1 = !!this.ui.phone?.touchLocked, p2 = !!this.engine.natpfPhone2?.touchLocked;
+    show(row.querySelector('[data-staff="unlock-touch-p1"]'), p1);
+    show(row.querySelector('[data-staff="unlock-touch-p2"]'), p2);
+    show(row, p1 || p2);
   }
   // B41.3 (revisione della B41 seconda parte, difetto 8, già nella 14.3): la riga sotto le voci spiega la voce sotto il
   // puntatore (B39.3) e cambiava altezza da una voce all'altra: il foglio centrato si spostava sotto il puntatore fermo (fino

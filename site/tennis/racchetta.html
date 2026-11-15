@@ -77,6 +77,14 @@
   /* di nuovo in primo piano (schermo riacceso): un tocco riprende schermo acceso, sensori e schermo intero */
   #wakeVeil{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
     background:radial-gradient(circle at 50% 40%,#12286e,var(--bg) 70%);color:var(--ink)}
+  html:has(body.phone-locked),body.phone-locked{overflow:hidden;overscroll-behavior:none}
+  #phoneTouchLock{position:fixed;inset:0;z-index:40;display:grid;align-content:center;justify-items:center;gap:12px;
+    padding:24px;background:#081022;color:#fff;text-align:center;touch-action:none;user-select:none;container-type:size}
+  #phoneTouchLock.hidden{display:none}
+  #phoneTouchLock strong{color:#86e9ff;font-size:clamp(24px,8cqw,48px)}
+  #phoneTouchLock[data-slot="p2"] strong{color:#ffb373}
+  #phoneTouchLock p{margin:0;font-size:clamp(22px,7cqw,42px);font-weight:750}
+  #phoneStaffUnlock{position:absolute;bottom:max(24px,env(safe-area-inset-bottom));right:24px}
   #wakeVeil b{font-size:28px;line-height:1.15} #wakeVeil p{margin:0;font-size:17px;color:var(--muted);max-width:340px;line-height:1.4}
   #wakeVeil .tap{width:84px;height:84px;border-radius:50%;border:4px solid var(--ball);animation:veil-pulse 1.4s ease-in-out infinite}
   @keyframes veil-pulse{50%{transform:scale(1.12);box-shadow:0 0 0 10px rgba(232,255,58,.18)}}
@@ -189,6 +197,10 @@
 </div>
 <!-- solo mentre il computer registra la diagnostica: segna nel registro l'istante di un problema -->
 <button class="btn alt hidden" id="mark">⚑ Segna un problema</button>
+<div id="phoneTouchLock" class="hidden" role="region" aria-label="Schermo bloccato durante il gioco">
+  <strong id="phoneTouchSlot"></strong><p id="phoneTouchPhase">Gioca!</p>
+  <button type="button" class="btn alt hidden" id="phoneStaffUnlock">Sblocca</button>
+</div>
 <div id="wakeVeil" class="hidden" role="button" tabindex="0" aria-label="Tocca lo schermo per riprendere"><i class="tap" aria-hidden="true"></i><b>Tocca lo schermo per riprendere</b><p id="wakeVeilText">Bentornato: un tocco tiene acceso lo schermo e riattiva i sensori.</p></div>
 <div id="rotate" class="hidden" role="status"><b>Il telefono si è girato</b><p>Il gioco continua. Per leggere meglio, raddrizzalo.</p></div>
 <script type="module" src="../js/tennis/racchetta.js"></script>

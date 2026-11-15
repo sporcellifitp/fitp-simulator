@@ -355,6 +355,10 @@ export function phoneGamePhase(engine, role = engine.playerRole){
     default: return 'menu';
   }
 }
+// B51: i telefoni in campo (o attesi dal conto) restano protetti finché il gioco non torna al menu.
+export function phoneTouchRequested({ phase, inUse, countdown, enabled = true, autoPlay = false } = {}){
+  return enabled && !autoPlay && (countdown || (inUse && ['serve', 'toss', 'play', 'pause'].includes(phase)));
+}
 // testo per il telefono in pausa per la moviola (riga sotto «Partita in pausa»; le pagine di prima lo ignorano)
 export const REPLAY_NOTE = 'Moviola del punto: guarda il computer, si riprende da solo.';
 
@@ -569,6 +573,14 @@ export class NatpfPhoneRacket {
   get actor(){ return actorOf(this.engine, this.role); }
   get connected(){ return !!this.link?.connected; }
   get ready(){ return !!this.link?.ready; }
+  get touchLocked(){
+    return this.connected && this.touchLockAck != null && this.touchLockAck === this.state.joins;
+  }
+  unlockTouch(){
+    if (!this.touchLocked) return false;
+    this.link.cmd('unlockTouch');
+    return true;
+  }
   get state(){ return this.link?.L || { state: 'off', phone: null }; }
   // presa scelta nel gioco (lobby, pannello del telefono): va al telefono, che rifà la calibrazione se serve
   // mano scelta nel gioco (NatpfHand.set): va subito al telefono, che la mostra e la usa nella calibrazione
@@ -622,7 +634,7 @@ export class NatpfPhoneRacket {
     if (want !== this.standSlot){
       this.standSlot = want;
       const old = this.link;
-      if (old){ this.link = null; this.gripSent = false; this.joins = undefined; this.lastPhase = null; this.nextSent = ''; try { old.stop(); } catch (e){ console.error(e); } }
+      if (old){ this.link = null; this.gripSent = false; this.joins = undefined; this.lastPhase = null; this.nextSent = ''; this.touchLockSent = null; this.touchLockAck = null; try { old.stop(); } catch (e){ console.error(e); } }
       this._changed();
     }
     // posto dello stand: in ascolto subito (il telefono si ricollega da solo); racchetta normale: si avvia quando serve
@@ -657,6 +669,9 @@ export class NatpfPhoneRacket {
     });
     // B45.1: anche i gesti della calibrazione, i tocchi sul telefono («Tutto chiaro», frecce, «Sono pronto», «Avanti ›»,
     // mano, rivincita, segno «qui è successo un problema») e i colpi valgono come attività per il chiosco
+    link.on('state', d => {
+      if (this.link === link) this.touchLockAck = d.lk === 1 ? link.L.joins : null;
+    });
     link.on('cal', e => { if (['attempt', 'free', 'selection'].includes(e?.kind)) this._activity(); this._onCal(e); });
     link.on('tut', e => { if (e?.ok || e?.nav) this._activity(); this._onTut(e); });
     link.on('swing', s => { this._activity(); this._onSwing(s); });
@@ -1186,6 +1201,22 @@ export class NatpfPhoneRacket {
     this.link.send({ t: 'ev', k: 'miss', why: 'lancio', vib: VIBRATION.red });
   }
 
+  _sendTouchLock(phase){
+    const E = this.engine, ui = E.natpfUi;
+    if (!this.connected || !ui) return;
+    const slot = this.role;
+    const countdown = !!(ui.readyGo?.cd.running && ui.readyGo.ids.includes(slot))
+      || !!(ui.split?.countdownRunning && !ui.split.webcam);
+    const usingPhone = E.natpfSplit?.active ? !ui.split?.webcam : ui.phone === this && ui.controller === 'phone';
+    const inField = ui.trial?.active || ui.matchLive?.() || phase === 'pause';
+    const inUse = usingPhone && inField;
+    const on = phoneTouchRequested({ phase, inUse, countdown, enabled: ui.kiosk?.touchLockEnabled, autoPlay: E.autoPlayMode });
+    const key = `${this.state.joins || 0}:${on ? 1 : 0}:${slot}`;
+    if (this.touchLockSent === key) return;
+    this.touchLockSent = key;
+    this.link.send({ t: 'tl', on: on ? 1 : 0, slot });
+  }
+
   // Ogni fotogramma: fase al telefono e orientamento del telefono alla racchetta del motore base.
   update(){
     if (!this.link) return;
@@ -1193,7 +1224,7 @@ export class NatpfPhoneRacket {
     // (tr, B28: scambi di prova in corso, il telefono lo scrive; le pagine di prima lo ignorano)
     // (B45.1: la moviola è una pausa con il suo testo, REPLAY_NOTE)
     if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase, ...(this.trial ? { tr: 1 } : {}), ...(phase === 'pause' && this.engine.phase === 'REPLAY' ? { txt: REPLAY_NOTE } : {}) }); }
-    this._autoProfile(); this._sendNext();
+    this._autoProfile(); this._sendNext(); this._sendTouchLock(phase);
     // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo. Con il verso corretto
     // dagli scambi di prova (dirSign −1) va al telefono girato: per lui dritto e rovescio sono scambiati
     const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand, this.role)*this.learner.sign : 0;
