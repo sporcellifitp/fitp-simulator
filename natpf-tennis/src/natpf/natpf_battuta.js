@@ -57,8 +57,11 @@ export function fairServer({ fair = false, mode = 'cpu', normal = 'player' } = {
 // Battuta della partita che comincia: { server, fixed }. first: chi batterebbe il primo game con «Chi serve»
 // (match_format.firstServer: chi gioca, l'avversario o il sorteggio); mode: 'cpu' | 'split' | 'versus'. fixed: il servizio
 // resta a server per tutta la partita (game_engine._awardPoint → natpf_fair_format.nextServe)
-export function matchServe({ rule = SERVE_RULE_DEFAULT, mode = 'cpu', first = 'player' } = {}){
+// fair (B41.5): modalità fiera accesa (natpf_fiera.js). Contro la CPU batte sempre il visitatore per tutta la partita anche
+// con «Alternata» (decisione dell'utente del 13/11); nello stesso schermo e tra due computer vale la regola del pannello
+export function matchServe({ rule = SERVE_RULE_DEFAULT, mode = 'cpu', first = 'player', fair = false } = {}){
   const f = first === 'opponent' ? 'opponent' : 'player';
+  if (fair && mode === 'cpu') return { server: 'player', fixed: true };
   if (serveRuleOf(rule) !== 'fissa' || mode === 'versus') return { server: f, fixed: false };
   return { server: fairServer({ fair: true, mode: mode === 'split' ? 'split' : 'cpu', normal: f }), fixed: true };
 }

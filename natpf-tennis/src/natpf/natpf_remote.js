@@ -33,7 +33,7 @@ const FOCUSABLE = 'button, input:not([type="hidden"]), select, textarea, [tabind
 // aggiunge qui (lo controlla test/natpf-telecomando.test.mjs)
 export const NO_REMOTE = 'a, [href], [target="_blank"], [data-no-remote], [data-remote="confirm"], [data-staff="reset"], [data-staff="export"], [data-diag="del"], [data-diag="save"], input[type="file"]';
 // strato aperto → elemento (per il fuoco) e azione «indietro»
-const LAYER_EL = { staff: () => $('natpf-staff'), remote: () => $('natpf-remote'), dialog: () => document.querySelector('dialog[open]'), nick: () => $('natpf-nick'),
+const LAYER_EL = { staff: () => $('natpf-staff'), remote: () => $('natpf-remote'), fiera: () => $('natpf-fiera'), dialog: () => document.querySelector('dialog[open]'), nick: () => $('natpf-nick'),
   diag: () => document.querySelector('.natpf-diag:not(.hidden)'), hold: () => $('natpf-phone-hold'), phonePanel: () => $('natpf-phone-modal'), pause: () => $('natpf-pause'),
   victory: () => $('victory-modal'), rematch: () => $('natpf-rematch'), guest: () => $('natpf-guest-modal') };
 const KEY_OF = { ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', Enter: 'Enter', Escape: 'Escape' };
@@ -158,6 +158,8 @@ export class NatpfRemote {
       intro: !!ui.intro?.active,
       staff: !!ui.kiosk?.isOpen,
       remote: this.isOpen,
+      fiera: !!ui.fieraSheet?.isOpen,      // B41.4: foglio «Telefoni dello stand»
+      fair: !!ui.fiera?.on,                // B41.5: modalità fiera (pagina della fiera, «Prossimo giocatore»)
       dialog: !!document.querySelector('dialog[open]'),
       nick: visible($('natpf-nick')),
       diag: !!ui.diag?.on && !!document.querySelector('.natpf-diag:not(.hidden)'),
@@ -293,6 +295,7 @@ export class NatpfRemote {
     switch (screen.id){
       case 'staff': this.ui.kiosk.close(); return { ok: true, msg: 'Pannello chiuso' };
       case 'remote': this.close(); return { ok: true };
+      case 'fiera': this.ui.fieraSheet.close(); return { ok: true, msg: 'Pannello dello stand' };
       case 'dialog': layer.close?.(); return { ok: true };
       case 'nick': click('nick-cancel'); return { ok: true };
       case 'diag': this.ui.diag.close(); return { ok: true };
@@ -308,6 +311,7 @@ export class NatpfRemote {
   _closeLayers(){
     const ui = this.ui;
     if (this.isOpen) this.close({ toStaff: false });
+    ui.fieraSheet?.close?.({ toStaff: false });
     ui.kiosk?.close();
     for (const d of document.querySelectorAll('dialog[open]')) try { d.close(); } catch {}
     if (ui.onboarding?.isOpen) ui.onboarding.close();
@@ -332,14 +336,17 @@ export class NatpfRemote {
       }
       case 'menu': {
         this._closeLayers();
-        if (L.visible && !ui.training?.active && !ui.events?.active) L.go('menu'); else ui.backToMenu();
-        return { ok: true, msg: 'Menu principale' };
+        // (B41.3: con la modalità fiera il menu è la pagina della fiera, e tornarci è «Prossimo giocatore»: backToMenu azzera
+        // chi ha giocato, anche dalla pagina stessa; prima restavano nome, mano e livello di chi c'era)
+        const fair = !!ui.fiera?.on;
+        if (L.visible && !ui.training?.active && !ui.events?.active && !fair) L.go('menu'); else ui.backToMenu();
+        return { ok: true, msg: fair ? 'Pagina della fiera: chi arriva riparte da capo, i telefoni restano collegati' : 'Menu principale' };
       }
       case 'pause': if (ui.pause.isOpen) ui.pause.close(); else ui.pause.open(); return { ok: true, msg: ui.pause.isOpen ? 'Pausa' : 'Si riprende' };
       case 'newplayer': {
         this._closeLayers();
         const route = ui.newPlayer();
-        return { ok: true, msg: route === 'menu' ? 'Nuovo giocatore: si riparte dal menu' : 'Nuovo giocatore: nome, tutorial e calibrazione da capo' };
+        return { ok: true, msg: route === 'fiera' ? 'Prossimo giocatore: pagina della fiera, i telefoni restano collegati' : route === 'menu' ? 'Nuovo giocatore: si riparte dal menu' : 'Nuovo giocatore: nome, tutorial e calibrazione da capo' };
       }
       case 'recal': {
         // come «Ricalibra» del pannello del telefono (B28): in partita con «Calibrazione: Giocando» sono gli scambi

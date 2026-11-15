@@ -85,6 +85,9 @@ export class NatpfReadyGo {
   phone(id){ return id === 'p2' ? this.engine.natpfPhone2 : this.ui.phone; }
   _ids(){
     const ui = this.ui, L = ui.lobby;
+    // (B41.4: non con un foglio dello staff aperto, pannello, «Telefoni dello stand», telecomando: un tocco del visitatore
+    // farebbe partire la partita sotto il foglio dello staff; l'offerta torna alla chiusura)
+    if (ui.staffOpen?.()) return [];
     return readyGoIds({ visible: !!L?.visible, step: L?.step, mode: L?.mode, controller: ui.controller, webcam: !!ui.split?.webcam, trial: !!ui.trial?.active, guest: this.engine.playerRole === 'p2', intro: !!ui.intro?.active });
   }
   _name(id){ return this.ui.lobby?.mode === 'split' ? (this.ui.split?.name?.(id) || defaultName(id)) : defaultName(id); }
@@ -154,10 +157,13 @@ export class NatpfReadyGo {
   }
   // a zero: lo stesso «Gioca» della pagina (natpf_ui._bindStart fa i controlli di sempre). B47: «Si gioca!» sul telefono lo
   // dice la fine del conto grande in campo (natpf_prematch.js), non più questo
+  // B41.5: il clic arriva dopo il tocco, non dentro: il tocco «Sono pronto» è un «next» del telefono, e se «Gioca» facesse
+  // partire gli scambi di prova mentre quel «next» è ancora in consegna, gli scambi di prova (che ascoltano «next» per il
+  // loro «Salta ›») lo riceverebbero e si salterebbero subito (pagina della fiera: «Sono pronto» → scambi di prova)
   _fire(){
     this.ui.diag?.recorder?.log?.('pronto.conto', { stato: 'si gioca' });
     this._leave();
-    const b = $('btn-start-match'); if (b){ b.disabled = false; b.click(); }
+    setTimeout(() => { const b = $('btn-start-match'); if (b){ b.disabled = false; b.click(); } }, 0);
   }
   // la partita parte (dal conto, da «Gioca» o dal telecomando): l'offerta si ritira subito, insieme alla fase «al servizio»
   matchStarted(){ this._leave(); }

@@ -19,7 +19,7 @@ import { CPU_LEVELS as WHO_CPU_LEVELS, LEVEL_NAME, whoOfLevel } from './natpf_wh
 
 export const SCREEN_LABEL = Object.freeze({
   trial: 'Scambi di prova',
-  intro: 'Intro', staff: 'Pannello dello stand', remote: 'Telecomando dello staff', dialog: 'Finestra di avviso', nick: 'Nome del giocatore',
+  intro: 'Intro', staff: 'Pannello dello stand', remote: 'Telecomando dello staff', fiera: 'Telefoni dello stand', dialog: 'Finestra di avviso', nick: 'Nome del giocatore',
   diag: 'Diagnostica', calibra: 'Calibrazione dello schermo', guide: 'Guida «Come si gioca»', tutorial: 'Tutorial dei gesti',
   hold: 'Partita ferma: telefono scollegato', phonePanel: 'Pannello del telefono', pause: 'Pausa', victory: 'Fine partita',
   rematch: 'Rivincita: scegli il livello',
@@ -42,10 +42,12 @@ export const cpuLabel = level => { const l = cpuOk(level), w = whoOfLevel(l); re
 export const nextCpu = level => CPU_LEVELS[(CPU_LEVELS.indexOf(cpuOk(level)) + 1) % CPU_LEVELS.length];
 // strati sopra il menu e il campo, dal più in alto
 // (B47: «rematch», la scelta del livello dopo «Rivincita», sta sopra la schermata finale)
-export const LAYERS = Object.freeze(['intro', 'staff', 'remote', 'dialog', 'nick', 'diag', 'calibra', 'guide', 'tutorial', 'pause', 'hold', 'phonePanel', 'rematch', 'victory', 'guest']);
+// (B41.4: «fiera», il foglio «Telefoni dello stand», come il foglio del telecomando: fuoco tra i pulsanti, Indietro torna al
+// pannello; «Conferma» non si raggiunge né si preme, natpf_remote.NO_REMOTE)
+export const LAYERS = Object.freeze(['intro', 'staff', 'remote', 'fiera', 'dialog', 'nick', 'diag', 'calibra', 'guide', 'tutorial', 'pause', 'hold', 'phonePanel', 'rematch', 'victory', 'guest']);
 const FIELD = new Set(['cal', 'trial', 'warmup', 'training', 'minigame', 'match']);
 // strati con i pulsanti in cui le frecce spostano il fuoco
-const FOCUS = new Set(['staff', 'remote', 'dialog', 'nick', 'diag', 'hold', 'phonePanel', 'pause', 'victory', 'rematch', 'guest']);
+const FOCUS = new Set(['staff', 'remote', 'fiera', 'dialog', 'nick', 'diag', 'hold', 'phonePanel', 'pause', 'victory', 'rematch', 'guest']);
 
 // s: fotografia del gioco. Campi (tutti facoltativi, falsi se mancano):
 //   intro, staff, remote, dialog, nick, diag, calibra, guide, tutorial, hold, phonePanel, pause, victory, guest   strati aperti
@@ -66,6 +68,8 @@ export function remoteScreen(s = {}){
     let label = LOBBY_LABEL[step] || 'Menu';
     if (step === 'connect' && L.mode === 'split') label = L.splitTutorial ? 'Stesso schermo: tutorial dei due giocatori' : 'Stesso schermo: i due telefoni';
     if (step === 'connect' && s.controller === 'webcam') label = 'Accendi la webcam';
+    // (B41.5: con la modalità fiera la pagina «Pronto per la partita» è la pagina della fiera)
+    if (step === 'match' && s.fair) label = L.mode === 'split' ? 'Pagina della fiera · 2 giocatori' : 'Pagina della fiera';
     return { id: `lobby:${step}`, label, nav: 'keys', step, mode: L.mode || null };
   }
   if (T.active){
@@ -146,6 +150,8 @@ export function remoteCommands(s = {}, screen = remoteScreen(s)){
   else if (field || screen.id === 'hold'){ cmds.pause = on; labels.pause = 'Pausa'; }
   else { cmds.pause = 'Pausa solo in campo'; labels.pause = 'Pausa'; }
   cmds.newplayer = screen.id === 'intro' ? 'Prima entra nel menu (OK)' : on;
+  // (B41.5: con la modalità fiera è «Prossimo giocatore»: i telefoni dello stand restano collegati)
+  labels.newplayer = s.fair ? 'Prossimo giocatore' : 'Nuovo giocatore';
   if (running) hints.newplayer = 'chiude la partita';
   // telefono del giocatore
   // (B28) con «Calibrazione: Giocando» in partita «Ricalibra» rifà gli scambi di prova e poi si rigioca il punto

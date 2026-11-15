@@ -1243,6 +1243,8 @@ export class NatpfTennisEngine {
         // (lo stesso schermo per primo: le regole sono quelle del 1v1 e anche lì isMultiplayer è vero)
         mode: this.natpfSplit?.active ? "split" : this.isMultiplayer || this.playerRole === "p2" || this.natpfUi?.lobby?.mode === "friend" ? "versus" : "cpu",
         first: firstServer(this.natpfServeFirst, this.natpfRng || Math.random),
+        // B41.5: in modalità fiera contro la CPU batte sempre il visitatore, anche con «Alternata»
+        fair: !!this.natpfUi?.fiera?.on,
       })),
       (this.score.server = this.natpfServe.server),
       (this.score.fixed = this.natpfServe.fixed),

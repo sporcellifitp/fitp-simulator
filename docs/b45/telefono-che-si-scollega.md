@@ -568,7 +568,7 @@ senza indirizzi né nomi, e restando compatibili con telefoni e computer di prim
 - Precisazioni al §5 e §1.6: la correzione 1 da sola serve poco (un lato fermo 5 s fa cadere l'altro per silenzio vero:
   serve con la 4); la pausa a 1,8–2,8 s in un buio totale vale con rtt ≤ 150 ms, oltre arriva a ~0,7 s.
 - Consigli per lo stand in più: con il QR, chiosco spento o a 90 s (dal B45.1 non serve più: non scollega); «solo 5 GHz»
-  lascia fuori i rari telefoni dei visitatori che hanno solo la 2,4 GHz (guida dello stand §8.4).
+  lascia fuori i rari telefoni dei visitatori che hanno solo la 2,4 GHz (guida dello stand §8.5).
 
 ## 5. Miglioramenti sicuri del collegamento
 

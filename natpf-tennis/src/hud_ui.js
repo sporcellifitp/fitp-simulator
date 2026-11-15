@@ -2,7 +2,7 @@ import { renderAllHudPlayerAvatars as P, renderPlayerAvatar as L } from "./playe
 // NATPF: testi dell'HUD in italiano (traduzione al momento della visualizzazione)
 import { t as tr, scoreText as sc } from "./natpf/natpf_i18n.js";
 import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o area del ledwall
-import { statsHtml, endScreen } from "./natpf/natpf_match_stats.js"; // NATPF B33/B35: i numeri veri della partita nella schermata finale
+import { statsHtml, endScreen, titleFit } from "./natpf/natpf_match_stats.js"; // NATPF B33/B35: i numeri veri della partita nella schermata finale
 // NATPF: scritture nel DOM solo se il valore cambia. updateMultiplayerRoomInfo gira a ogni risposta del relay (20 al
 // secondo nella sfida) e updateTimingGauge due volte per fotogramma (passi di fisica a 120 Hz): textContent riscritto
 // uguale sostituisce comunque il nodo di testo e fa ricalcolare lo stile (come natpf_split_ui.js)
@@ -369,8 +369,43 @@ export class HudUI {
     this.elVictoryModal.classList.toggle("has-stats", !!html),
       this.elVictoryModal.classList.toggle("stats-split", !!S?.players),
       this.elVictoryModal.classList.toggle("natpf-lost", !w.won || (!!S && !S.won)),
-      this.elVictoryModal.classList.remove("hidden"),
-      window.dispatchEvent(new Event("natpf:victory"));
+      this.elVictoryModal.classList.remove("hidden");
+    // NATPF B41.5: titolo su una riga anche quando è lungo («Bella sfida, Visitatore 12!» della fiera, un nome lungo)
+    this._fitEndTitle();
+    window.dispatchEvent(new Event("natpf:victory"));
+  }
+  // NATPF B41.5: con la schermata in vista si misura il titolo (largo quanto può, poi scritto su una riga): se non ci sta,
+  // --fit (natpf-hud.css) lo rimpicciolisce in proporzione e il resto della scheda non cambia. È un rapporto, non una
+  // misura: vale anche se l'area del gioco cambia grandezza; cambiando forma (16:9 → quadrata) si rimisura
+  // (ResizeObserver sulla scheda, che ha una grandezza fissa: il titolo che cambia non la fa ridisegnare)
+  _fitEndTitle() {
+    const m = this.elVictoryModal, i = document.getElementById("victory-result-banner");
+    if (!m || !i || !i.style) return;
+    i.style.removeProperty?.("--fit");
+    if (m.classList.contains("hidden") || !m.classList.contains("has-stats")) return;
+    const avail = i.clientWidth, ws = i.style.whiteSpace;
+    i.style.whiteSpace = "nowrap";
+    const natural = i.scrollWidth;
+    i.style.whiteSpace = ws;
+    const f = titleFit({ natural, avail });
+    f < 1 && i.style.setProperty?.("--fit", f.toFixed(3));
+    // (caratteri del titolo non ancora caricati: misurato con quelli di riserva, si rimisura appena arrivano)
+    const fonts = document.fonts;
+    if (fonts && fonts.status !== "loaded" && !this._endTitleFonts) {
+      this._endTitleFonts = true;
+      fonts.ready?.then?.(() => { this._endTitleFonts = false; this._fitEndTitle(); });
+    }
+    const card = m.querySelector?.(".natpf-end-card");
+    if (!this._endTitleRO && card && typeof ResizeObserver === "function") {
+      let last = "";
+      this._endTitleRO = new ResizeObserver((es) => {
+        const r = es[0]?.contentRect, k = r ? `${Math.round(r.width)}x${Math.round(r.height)}` : "";
+        if (!k || k === last) return;
+        last = k;
+        this._fitEndTitle();
+      });
+      this._endTitleRO.observe(card);
+    }
   }
   configureGameBubbles(t = 2) {
     [this.elGamesPlayer, this.elGamesOpponent].forEach((n) => {

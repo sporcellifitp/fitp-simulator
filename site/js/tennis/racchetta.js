@@ -17,7 +17,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample, SIGN } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, readyView, standView, STAFF_HOLD, batteryAlert, standSignStep, tapVotesSign, handTap, handLabel, HAND_CONFIRM } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, nextTap, NEXT_REARM_MS, readyView, standView, STAFF_HOLD, batteryAlert, standSignStep, tapVotesSign, handTap, handLabel, HAND_CONFIRM } from './phone-screen.js';
 import { parseStandPairing, createStandStore, standHello, standWelcome, standAnswer, standDenyText, newStandNonce, slotLabel } from './stand-pairing.js';
 
 const $ = s => document.querySelector(s);
@@ -89,6 +89,8 @@ let rematch = null, phaseNote = '';
 let trial = false;
 // niente blocchi (B28): «Avanti ›» offerto dal computer ({ label }) dove chiede un gesto
 let nextOffer = null;
+// B41.3: dopo il tocco il pulsante resta spento finché non arriva un'offerta nuova; se non arriva, si riaccende da solo
+let nextRearmT = 0;
 // B41.3: pulsanti dello staff sul telefono dello stand, in vista fino a staffUntil dopo la pressione lunga sul numero
 let staffUntil = 0, staffT = null;
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
@@ -139,7 +141,8 @@ function paint(){
   const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch, next: nextOffer, stand: standOn, staff: staffOn() });
   if (nextOffer && $('#next').textContent !== nextOffer.label) $('#next').textContent = nextOffer.label;
   // B41.6: «Sono pronto» grande e pieno (le altre offerte, «Avanti ›» e «Salta ›», restano piccole); spento dopo il tocco
-  { const nb = $('#next'), big = !!nextOffer?.ready; nb.classList.toggle('alt', !big); nb.classList.toggle('big', big); nb.disabled = big && !!nextOffer.me; }
+  // (B41.3: spento anche appena toccato, finché il computer non manda l'offerta dopo: un doppio tocco non arriva a «Salta ›»)
+  { const nb = $('#next'), big = !!nextOffer?.ready; nb.classList.toggle('alt', !big); nb.classList.toggle('big', big); nb.disabled = !!nextOffer && (!!nextOffer.sent || (big && !!nextOffer.me)); }
   paintStandTag(standOn);
   if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
   for (const [sel, on] of Object.entries(v.show)) show(sel, on);
@@ -334,7 +337,7 @@ function onData(c, d){
     // rivincita offerta dal computer a fine partita nello stesso schermo (B20), o tolta (on 0)
     case 'rm': rematch = rematchOnMsg(d); if (sensor === 'ready') paint(); break;
     // «Avanti ›» offerto (o tolto) dal computer: esercizi e scambi di prova si possono saltare anche da qui (B28)
-    case 'nx': nextOffer = nextOnMsg(d); if (sensor === 'ready') paint(); break;
+    case 'nx': nextOffer = nextOnMsg(d); clearTimeout(nextRearmT); if (sensor === 'ready') paint(); break;
     // (txt, B20: la partita è in pausa per il telefono dell'altro giocatore, e lo dice)
     // soglie dal colpo imparato negli scambi di prova (B28): solo sopra il profilo semplice, che non ha un colpo tipico suo
     case 'pf': { const th = trialThresholds(d); if (th && sensor === 'ready' && inputMode === 'motion' && det.profile.simple) det.setThresholds(th); break; }
@@ -743,7 +746,14 @@ $('#recal').addEventListener('click', () => command('cal'));
 // «Rivincita» (stesso schermo, fine partita): si chiede al computer, che parte quando l'hanno chiesta tutti e due
 $('#rematch').addEventListener('click', e => { e.stopPropagation(); if (!rematch || rematch.me || linkState !== 'on') return; rematch = { ...rematch, me: true }; send({ t: 'rm', y: 1 }); buzz([30]); paint(); });
 // «Avanti ›»: il computer va avanti senza il gesto (un tocco alla volta: l'offerta dopo arriva dal computer)
-$('#next').addEventListener('click', e => { e.stopPropagation(); if (!nextOffer || nextOffer.me || linkState !== 'on') return; send({ t: 'nx', y: 1 }); buzz([30]); });
+// B41.3: con il numero dell'offerta toccata; il pulsante si spegne fino all'offerta dopo (nextTap), o per NEXT_REARM_MS
+$('#next').addEventListener('click', e => {
+  e.stopPropagation();
+  const r = linkState === 'on' ? nextTap(nextOffer) : null; if (!r) return;
+  nextOffer = r.offer; send(r.msg); buzz([30]); paint();
+  const tapped = nextOffer; clearTimeout(nextRearmT);
+  nextRearmT = setTimeout(() => { if (nextOffer === tapped){ nextOffer = { ...tapped, sent: false }; paint(); } }, NEXT_REARM_MS);
+});
 // «Salta la calibrazione»: profilo semplice, si gioca subito (lo stesso di «Salta» sul computer)
 $('#calSkip').addEventListener('click', e => { e.stopPropagation(); command('skip'); });
 $('#tutOk').addEventListener('click', tutDone);

@@ -233,8 +233,11 @@
              non ha posto per un'altra riga e «Chiudi» finiva fuori vista (prova natpf-menu).
              «Formato in fiera» (B18, decisione dell'utente del 10/11: opzione spenta di base): punto decisivo sul 40-40 e
              servizio come nel tie-break (natpf_fair_format.js); vale dalla partita dopo, resta salvata -->
+        <!-- B41.4: «Modalità fiera: No · Sì» (natpf_fiera.js), in testa: accesa, la pagina della fiera prende il posto del menu e
+             si apre «Telefoni dello stand»; la voce «Telefono» diventa «Telefoni dello stand ›» (natpf_kiosk.js) -->
         <div class="pause-grid">
-          <button type="button" data-staff="kiosk"><span>Modalità chiosco</span><b>No</b></button
+          <button type="button" data-staff="fiera" title="Sì: la pagina della fiera al posto del menu (chi gioca con un clic, niente QR, niente tutorial per i visitatori) e i telefoni dello stand abbinati una volta e sempre collegati. Accesa, si apre «Telefoni dello stand». Resta salvata."><span>Modalità fiera</span><b>No</b></button
+          ><button type="button" data-staff="kiosk"><span>Modalità chiosco</span><b>No</b></button
           ><button type="button" data-staff="idle"><span>Ritorno al menu dopo</span><b>45 s</b></button
           ><button type="button" data-staff="ranking"><span>Classifica</span><b>A schermo intero</b></button
           ><button type="button" data-staff="export"><span>Classifica</span><b>Scarica CSV</b></button
@@ -307,6 +310,49 @@
         <div class="sheet-actions"><button type="button" class="lobby-ghost hidden" data-remote="forget">Scollega il telecomando</button><button type="button" class="lobby-secondary hidden" data-remote="new">Abbina un altro telefono</button><button type="button" class="lobby-primary" data-remote="close">Indietro</button></div>
       </div>
     </div>
+    <!-- B41.4: «Telefoni dello stand» (natpf_fiera_sheet.js), dal pannello dello stand con la modalità fiera accesa. Il gioco è
+         sul ledwall: il QR dell'abbinamento c'è solo qui, a foglio aperto e per un posto alla volta, e non basta: chi lo
+         inquadra entra solo dopo «Conferma» qui sul computer (stesso numero sul telefono), con un clic o un tasto veri, mai
+         dal telecomando dello staff (data-no-remote). Due schede: Telefono 1 (Player 1: contro la CPU e a sinistra) e
+         Telefono 2 (Player 2, a destra) -->
+    <div id="natpf-fiera" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="fiera-title">
+      <div class="natpf-sheet fiera-sheet">
+        <p class="sheet-kicker">Riservato all’addetto · non per i giocatori</p>
+        <h2 class="sheet-title" id="fiera-title">Telefoni dello stand</h2>
+        <div class="fiera-slots">
+          <section class="fiera-slot" data-fiera-slot="p1" data-view="off">
+            <header class="fiera-slot-head"><b class="fiera-slot-num">1</b><span><b>Telefono 1</b><small>Player 1 · contro la CPU e a sinistra</small></span></header>
+            <p class="fiera-word" data-fiera="word" role="status"></p>
+            <p class="fiera-note hidden" data-fiera="note"></p>
+            <div class="natpf-qr fiera-qr hidden" data-fiera="qr"></div>
+            <div class="fiera-ask hidden" data-fiera="ask"><p class="fiera-ask-line">Stesso numero sul telefono? Allora «Conferma»</p><b class="fiera-num hidden" data-fiera="num"></b></div>
+            <p class="fiera-batt hidden" data-fiera="batt"></p>
+            <div class="fiera-acts"><button type="button" class="lobby-ghost hidden" data-fiera-act="refuse" data-slot="p1">Rifiuta</button
+              ><button type="button" class="lobby-primary hidden" data-fiera-act="confirm" data-slot="p1" data-no-remote>Conferma</button
+              ><button type="button" class="lobby-secondary hidden" data-fiera-act="pair" data-slot="p1">Abbina</button
+              ><button type="button" class="lobby-ghost hidden" data-fiera-act="cancel" data-slot="p1">Annulla</button
+              ><button type="button" class="lobby-ghost hidden" data-fiera-act="forget" data-slot="p1">Scollega</button></div>
+          </section>
+          <section class="fiera-slot" data-fiera-slot="p2" data-view="off">
+            <header class="fiera-slot-head"><b class="fiera-slot-num">2</b><span><b>Telefono 2</b><small>Player 2 · a destra (stesso schermo)</small></span></header>
+            <p class="fiera-word" data-fiera="word" role="status"></p>
+            <p class="fiera-note hidden" data-fiera="note"></p>
+            <div class="natpf-qr fiera-qr hidden" data-fiera="qr"></div>
+            <div class="fiera-ask hidden" data-fiera="ask"><p class="fiera-ask-line">Stesso numero sul telefono? Allora «Conferma»</p><b class="fiera-num hidden" data-fiera="num"></b></div>
+            <p class="fiera-batt hidden" data-fiera="batt"></p>
+            <div class="fiera-acts"><button type="button" class="lobby-ghost hidden" data-fiera-act="refuse" data-slot="p2">Rifiuta</button
+              ><button type="button" class="lobby-primary hidden" data-fiera-act="confirm" data-slot="p2" data-no-remote>Conferma</button
+              ><button type="button" class="lobby-secondary hidden" data-fiera-act="pair" data-slot="p2">Abbina</button
+              ><button type="button" class="lobby-ghost hidden" data-fiera-act="cancel" data-slot="p2">Annulla</button
+              ><button type="button" class="lobby-ghost hidden" data-fiera-act="forget" data-slot="p2">Scollega</button></div>
+          </section>
+        </div>
+        <p class="sheet-desc fiera-tip">Abbina con il QR, poi sul telefono «Attiva i sensori». Sui telefoni: schermo che non si spegne (o al massimo), niente PIN, risparmio energetico spento.</p>
+        <div class="sheet-actions"><button type="button" class="lobby-primary" data-fiera-act="close">‹ Pannello</button></div>
+      </div>
+    </div>
+    <!-- B41.4: telefono dello stand con la batteria bassa (sotto il 20 %, non in carica): avviso piccolo sul ledwall -->
+    <div id="natpf-fiera-alert" class="natpf-fiera-alert hidden" role="status" aria-live="polite"></div>
     <!-- passaggio dal menu al campo -->
     <!-- split screen in partita (natpf_split_ui.js): sotto ogni metà chi gioca e l'esito del suo ultimo colpo, o il suo
          telefono in pausa -->
@@ -662,9 +708,48 @@
         </section>
 
         <section class="lobby-page" data-page="match" aria-labelledby="lobby-t-match">
-          <header class="page-head"><h2 class="lobby-title" id="lobby-t-match">Pronto per la partita</h2><span class="hand-tag hidden" id="match-hand" title="Mano sinistra: dritto e rovescio da mancino">Mancino</span></header>
+          <header class="page-head"><h2 class="lobby-title" id="lobby-t-match">Pronto per la partita</h2><span class="hand-tag hidden" id="match-hand" title="Mano sinistra: dritto e rovescio da mancino">Mancino</span><p class="fiera-visitor hidden" id="fiera-visitor"><span>Gioca</span><b></b><button type="button" class="lobby-link" data-fiera-name>Nome</button></p></header>
+          <!-- B41.5: pagina della fiera (modalità fiera accesa, #title-modal[data-fair="1"]: natpf_fiera_page.js): 1 o 2 giocatori,
+               chi gioca adesso («Visitatore 12» o il nome), i telefoni dello stand -->
+          <div class="fiera-bar hidden" id="fiera-bar">
+            <div class="lobby-seg fiera-mode" role="radiogroup" aria-label="Quanti giocatori">
+              <button type="button" class="seg-btn" data-fiera-mode="cpu" role="radio">1 giocatore · contro la CPU</button
+              ><button type="button" class="seg-btn" data-fiera-mode="split" role="radio">2 giocatori · stesso schermo</button>
+            </div>
+            <!-- contro la CPU: la mano di chi gioca (torna «Destra» a ogni visitatore) -->
+            <div class="fiera-hand hidden" id="fiera-hand">
+              <span class="lobby-label">Mano</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Mano di chi gioca">
+                <button type="button" class="seg-btn" data-natpf-hand="right" role="radio">Destra</button
+                ><button type="button" class="seg-btn" data-natpf-hand="left" role="radio">Sinistra</button>
+              </div>
+            </div>
+            <!-- B41.3 (revisione della B41 seconda parte, difetto 4): nello stesso schermo con un telefono non pronto il perché
+                 sta nella scheda di quel giocatore e «Telefoni dello stand ›» qui, accanto a «2 giocatori»: prima una riga in
+                 più sotto le schede faceva scorrere la pagina a 1920 × 540 e tagliava «Altre impostazioni» sopra «Gioca ›» -->
+            <button type="button" class="lobby-ghost fiera-bar-sheet hidden" data-fiera-sheet>Telefoni dello stand ›</button>
+          </div>
           <!-- stesso schermo: le schede dei due giocatori, dal vivo (natpf_split_ui.paintMatch) -->
           <div id="split-ready-board" class="ready-board" aria-live="polite"></div>
+          <!-- B41.5, pagina della fiera nello stesso schermo: per ciascuno fascia, mano e telefono -->
+          <div class="fiera-split hidden" id="fiera-split">
+            <div class="fiera-player" data-fiera-player="p1">
+              <p class="fiera-pname"><b data-fiera-pname>Player 1</b><small class="fiera-pstate" data-fiera-state="p1">Telefono 1</small></p>
+              <div class="lobby-seg" role="radiogroup" aria-label="Fascia del Player 1"><button type="button" class="seg-btn" data-fiera-band="p1:bambino" role="radio">Bambino</button
+                ><button type="button" class="seg-btn" data-fiera-band="p1:ragazzo" role="radio">Ragazzo</button
+                ><button type="button" class="seg-btn" data-fiera-band="p1:adulto" role="radio">Adulto</button></div>
+              <div class="lobby-seg" role="radiogroup" aria-label="Mano del Player 1"><button type="button" class="seg-btn" data-fiera-hand="p1:right" role="radio">Destra</button
+                ><button type="button" class="seg-btn" data-fiera-hand="p1:left" role="radio">Sinistra</button></div>
+            </div>
+            <div class="fiera-player" data-fiera-player="p2">
+              <p class="fiera-pname"><b data-fiera-pname>Player 2</b><small class="fiera-pstate" data-fiera-state="p2">Telefono 2</small></p>
+              <div class="lobby-seg" role="radiogroup" aria-label="Fascia del Player 2"><button type="button" class="seg-btn" data-fiera-band="p2:bambino" role="radio">Bambino</button
+                ><button type="button" class="seg-btn" data-fiera-band="p2:ragazzo" role="radio">Ragazzo</button
+                ><button type="button" class="seg-btn" data-fiera-band="p2:adulto" role="radio">Adulto</button></div>
+              <div class="lobby-seg" role="radiogroup" aria-label="Mano del Player 2"><button type="button" class="seg-btn" data-fiera-hand="p2:right" role="radio">Destra</button
+                ><button type="button" class="seg-btn" data-fiera-hand="p2:left" role="radio">Sinistra</button></div>
+            </div>
+          </div>
           <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
           <!-- B18.2 gruppo 3: contro la CPU, al posto del livello, «Chi gioca» (natpf_who.js): Bambino → livello Bambini,
                Ragazzo → Casual, Adulto → livello Evento (si regola da solo). Le tessere restano quelle lette dall'HUD del
@@ -692,6 +777,9 @@
                impostazioni», chiuso a ogni visita della pagina (B15, 08/11: prima cinque righe e 18 pulsanti prima di
                «Gioca»). Il riassunto accanto dice che cosa è scelto; durata e visuale restano salvate -->
           <p class="lobby-note who-note hidden" id="who-note" role="status"></p>
+          <!-- B41.5: i telefoni dello stand (stato, batteria) e come si parte; se un telefono non è pronto il perché e il foglio
+               per sistemarlo (mai un QR qui) -->
+          <div class="fiera-phones hidden" id="fiera-phones"><p role="status"><b id="fiera-phones-text"></b><span id="fiera-phones-how"></span></p><button type="button" class="lobby-ghost hidden" data-fiera-sheet>Telefoni dello stand ›</button></div>
           <!-- personaggi di questa partita (richiesta dell'utente del 12/11): la stessa scelta delle Opzioni → «Personaggi in
                campo» (natpf_personaggi.js), in vista dove si imposta la partita: contro la CPU, stesso schermo e sfida tra
                due computer passano tutti da questa pagina. Vale subito e resta com'è finché non si cambia -->

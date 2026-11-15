@@ -46,7 +46,9 @@ test('stato, spunte, riga del telefono e motivo del conto fermato', () => {
 /* ---------- nel gioco ---------- */
 // il tocco su «Sono pronto» arriva come «next» dal collegamento del telefono (link.js nx y 1 → NatpfPhoneRacket)
 const tap = P => { if (P.nextOffer) for (const fn of P.nextListeners) fn(P); };
+// (B41.3: ogni offerta ha il suo numero, id, che il telefono rimanda con il tocco: qui si guarda il resto del messaggio)
 const offers = link => link.sent.filter(m => m.t === 'nx');
+const noId = m => { if (!m) return m; const { id, ...rest } = m; if (m.on === 1) assert.ok(Number.isInteger(id), `offerta con il numero: ${JSON.stringify(m)}`); return rest; };
 const counts = link => link.sent.filter(m => m.t === 'ev' && m.k === 'count');
 
 // B47 (richiesta dell'utente del 14/11): il conto di 3 s della pagina non c'è più: al tocco di tutti la partita parte
@@ -56,7 +58,7 @@ test('contro la CPU («Nessuna»): sulla pagina il telefono riceve «Sono pronto
   const w = await playWorld({ cal: 'none' }), { E, ui, lobby, link, P } = w;
   assert.ok(lobby.visible && lobby.step === 'match' && P.ready, 'pagina «Pronto per la partita»');
   w.advance(300);
-  assert.deepEqual(offers(link).at(-1), { t: 'nx', on: 1, lb: READY_GO.label, rd: 1, me: 0 }, 'offerta «Sono pronto»');
+  assert.deepEqual(noId(offers(link).at(-1)), { t: 'nx', on: 1, lb: READY_GO.label, rd: 1, me: 0 }, 'offerta «Sono pronto»');
   assert.ok(!$('ready-go').classList.contains('hidden'));
   assert.match($('ready-go').innerHTML, /tocca «Sono pronto»/);
   assert.equal(E.natpfMatchSeq || 0, 0);
@@ -136,7 +138,7 @@ test('«Giocando»: gli scambi di prova restano PRIMA della pagina; durante non 
   const r = playTrial(w, (id, n, want) => stroke({ dir: want }), { gioca: false });
   assert.ok(r.page && lobby.step === 'match');
   w.advance(300);
-  assert.deepEqual(offers(link).at(-1), { t: 'nx', on: 1, lb: READY_GO.label, rd: 1, me: 0 });
+  assert.deepEqual(noId(offers(link).at(-1)), { t: 'nx', on: 1, lb: READY_GO.label, rd: 1, me: 0 });
   const c0 = link.cmds.length;
   tap(P); w.advance(3400);
   assert.equal(E.natpfMatchSeq, 1); assert.ok(!ui.trial.active, 'niente scambi di prova da capo');
@@ -153,7 +155,7 @@ test('stesso schermo: tutti e due devono toccare; la spunta di chi è pronto; po
   assert.equal(lobby.step, 'match');
   assert.ok(offers(link).at(-1)?.rd === 1 && offers(l2).at(-1)?.rd === 1, 'offerta a tutti e due');
   tap(P1); w.advance(200);
-  assert.deepEqual(offers(link).at(-1), { t: 'nx', on: 1, lb: READY_GO.done, rd: 1, me: 1, tx: 'Aspetto Player 2' });
+  assert.deepEqual(noId(offers(link).at(-1)), { t: 'nx', on: 1, lb: READY_GO.done, rd: 1, me: 1, tx: 'Aspetto Player 2' });
   assert.match($('ready-go').innerHTML, /Player 1 pronto ✓/); assert.match($('ready-go').innerHTML, /Player 2: tocca «Sono pronto»/);
   assert.ok(!ui.readyGo.cd.running, 'manca il Player 2');
   w.advance(4000); assert.equal(E.natpfMatchSeq || 0, 0);

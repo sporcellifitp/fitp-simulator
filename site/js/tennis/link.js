@@ -370,8 +370,10 @@ export function createPhoneLink({ stand = null } = {}){
         case 'hand': if (d.h === 'left' || d.h === 'right') emit('hand', { hand: d.h }); break;
         // «Rivincita» toccata sul telefono a fine partita (stesso schermo, B20): decide il computer (natpf_split_ui)
         case 'rm': if (d.y === 1) emit('rematch', {}); break;
-        // «Avanti ›» toccato sul telefono (B28): il computer aveva offerto di andare avanti senza fare il gesto
-        case 'nx': if (d.y === 1) emit('next', {}); break;
+        // «Avanti ›» toccato sul telefono (B28): il computer aveva offerto di andare avanti senza fare il gesto. B41.3: con il
+        // numero dell'offerta toccata (id, pagine dalla B41.3; null dalle pagine di prima): un tocco per un'offerta che non
+        // c'è più non vale (NatpfPhoneRacket._onNext)
+        case 'nx': if (d.y === 1) emit('next', { id: Number.isInteger(d.id) ? d.id : null }); break;
         // tutorial prima della calibrazione: w = il telefono aspetta «Tutto chiaro, ho capito» (v 2: lo tiene spento finché
         // non si sono viste tutte le schede, con l'avanzamento «tp» del computer), ok = toccato, nav = frecce ‹ › del
         // telefono (-1 indietro, 1 avanti)

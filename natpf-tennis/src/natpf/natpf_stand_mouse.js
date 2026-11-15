@@ -25,6 +25,7 @@ export const LINK_TEXT = 'Il link è per il telefono: inquadra il QR con la foto
 export const STAFF_HINTS = Object.freeze({
   // (B45.2: dalla B45.1 il chiosco non scollega più il telefono; prima qui c'era ancora «e scollega il telefono»)
   kiosk: 'Modalità chiosco · Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu e azzera chi gioca (nome, mano, calibrazione, tutorial); il telefono resta collegato.',
+  fiera: 'Modalità fiera · Sì: la pagina della fiera al posto del menu (chi gioca con un clic, niente QR, niente tutorial), i telefoni dello stand abbinati una volta e sempre collegati. Accesa, si apre «Telefoni dello stand».',
   idle: 'Ritorno al menu dopo · il tempo del chiosco senza nessuno: 30, 45, 60 o 90 secondi.',
   ranking: 'Classifica · la classifica di oggi in grande sul ledwall. Per uscire: questa voce, oppure «× Chiudi» in alto a destra (muovi il mouse).',
   export: 'Classifica · salva le partite e i minigiochi di oggi in un file CSV (nel programma Windows in Download › NATPF).',
@@ -114,7 +115,8 @@ export class NatpfStandMouse {
     staff?.addEventListener?.('pointerover', e => {
       const b = e.target?.closest?.('[data-staff]'), note = doc.getElementById('staff-note');
       const t = b && staffHint(b.dataset.staff, b.getAttribute?.('title'));
-      if (note && t){ note.textContent = t; this._hinting = true; }
+      // (B41.3: prima l'altezza fissa della riga, se la larghezza è cambiata: natpf_kiosk._fitNote)
+      if (note && t){ this.ui.kiosk?._fitNote?.(note); note.textContent = t; this._hinting = true; }
     });
     staff?.addEventListener?.('pointerout', e => {
       if (!this._hinting || e.relatedTarget?.closest?.('[data-staff]')) return;

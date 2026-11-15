@@ -356,5 +356,6 @@ test('niente blocchi: «Avanti ›» offerto dal computer solo sotto «Pronto»;
   assert.equal(phoneView({ linkState: 'on', sensor: 'ready' }).show['#calSkip'], false); assert.equal(phoneView({ linkState: 'on', sensor: 'idle', gate: G2 }).show['#calSkip'], false);
   const html = readB28(new URL('../../site/tennis/racchetta.html', import.meta.url), 'utf8'), js = readB28(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
   assert.match(html, /id="next">Avanti ›</); assert.match(html, /id="calSkip">Salta la calibrazione</);
-  assert.match(js, /send\(\{ t: 'nx', y: 1 \}\)/); assert.match(js, /\$\('#calSkip'\)\.addEventListener\('click', e => \{ e\.stopPropagation\(\); command\('skip'\); \}\)/);
+  // (B41.3: il tocco manda il messaggio di nextTap, { t: 'nx', y: 1 } con il numero dell'offerta, e spegne il pulsante)
+  assert.match(js, /const r = linkState === 'on' \? nextTap\(nextOffer\) : null; if \(!r\) return;\s*nextOffer = r\.offer; send\(r\.msg\)/); assert.match(js, /\$\('#calSkip'\)\.addEventListener\('click', e => \{ e\.stopPropagation\(\); command\('skip'\); \}\)/);
 });

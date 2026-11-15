@@ -27,6 +27,8 @@
 import * as THREE from 'three';
 import { TRIAL, trialSide, trialDone, readCalMode } from './natpf_trial_learn.js';
 import { LEFTY_TAG, LEFTY_HINT } from './natpf_hand_notice.js';
+// B41.3: «Salta ›» appena offerto non vale per NEXT_TAP.graceMs (natpf_phone_racket.nextTapVerdict)
+import { NEXT_TAP } from './natpf_phone_racket.js';
 
 const $ = id => (typeof document !== 'undefined' ? document.getElementById(id) : null);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -102,6 +104,9 @@ export class NatpfTrial {
   // reimpara dagli scambi di prova (l'ha chiesto apposta)
   // cancel: cosa fare se si chiudono prima della fine (menu, chiosco): chi li ha aperti rimette a posto il suo stato
   // toPage (B35): alla fine si torna alla pagina «Pronto per la partita» (non parte la partita): cambiano solo le scritte
+  // B41.3 (revisione della B41 seconda parte, difetto 1): «Salta ›» sul telefono è lo stesso pulsante di «Sono pronto», e un
+  // doppio tocco su «Sono pronto» (o il tocco del visitatore mentre lo staff clicca «Gioca ›») lo saltava subito: per il primo
+  // secondo non vale (graceMs) e il tocco per l'offerta di prima non vale (numero dell'offerta, NatpfPhoneRacket._onNext)
   start({ then = null, cancel = null, split = !!this.engine.natpfSplit?.active, resume = false, force = false, toPage = false } = {}){
     if (this.S) return false;
     const E = this.engine, ids = split ? ['p1', 'p2'] : ['p1'];
@@ -116,7 +121,7 @@ export class NatpfTrial {
     E._syncScoreboardHUD?.();
     this._stage(true);
     this._idle();
-    for (const id of ids){ const a = this._actor(id), z = id === 'p2' ? -TRIAL_FEED.z : TRIAL_FEED.z; if (a?.pos){ a.pos.set(0, 0, z); a.targetPos?.copy?.(a.pos); a.vel?.set?.(0, 0, 0); } this._phone(id)?.beginTrial?.(force ? { keep: false } : {}); this._bindNext(this._phone(id)); this._phone(id)?.offerNext?.('Salta ›'); }
+    for (const id of ids){ const a = this._actor(id), z = id === 'p2' ? -TRIAL_FEED.z : TRIAL_FEED.z; if (a?.pos){ a.pos.set(0, 0, z); a.targetPos?.copy?.(a.pos); a.vel?.set?.(0, 0, 0); } this._phone(id)?.beginTrial?.(force ? { keep: false } : {}); this._bindNext(this._phone(id)); this._phone(id)?.offerNext?.('Salta ›', null, { graceMs: NEXT_TAP.graceMs }); }
     this.ui.diag?.recorder?.log?.('prova.inizio', { stessoSchermo: split });
     this.paint(); this.ui._syncPause?.();
     return true;
@@ -235,6 +240,9 @@ export class NatpfTrial {
     S.result = Object.fromEntries(Object.keys(S.players).map(id => [id, this._phone(id)?.endTrial?.() || null]));
     const levels = Object.values(S.result).map(r => r?.level || 'none');
     S.phase = 'outro'; S.wait = quick ? .35 : TRIAL.outro; S.outro = trialOutro(levels);
+    // (B41.3: «Salta ›» sparisce dal telefono subito, come dal computer: un secondo tocco non arriva all'offerta che viene
+    // dopo, per esempio «Sono pronto» sulla pagina «Pronto per la partita»)
+    for (const id of Object.keys(S.players)) this._phone(id)?.offerNext?.(null);
     this.ui.diag?.recorder?.log?.('prova.fine', { secondi: +S.t.toFixed(1), ...Object.fromEntries(Object.entries(S.result).map(([id, r]) => [id, r ? { livello: r.level, dritti: r.n.forehand, rovesci: r.n.backhand, verso: r.sign, riferimento: r.ref, palle: S.players[id].balls } : null])) });
     E.audioEngine?.playUiConfirm?.();
   }

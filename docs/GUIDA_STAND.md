@@ -1,15 +1,17 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-14.4** (15/11/2026). Le voci segnate **(B39)** valgono dalla versione che contiene il
+**Vale per la versione 2026-11-14.4** (15/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla versione che contiene la B41 seconda parte (la
+prima dopo la 2026-11-14.4 che la nomina nelle novità). Le voci segnate **(B39)** valgono dalla versione che contiene il
 blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i comandi dello staff, pannello da
 ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello schermo con due clic (dettagli in
 `docs/b39/stand-solo-mouse.md`). Dalla stessa versione anche la tastiera a schermo e «Gioca come Ospite» (B38, capitolo
 3.6) e l'icona del servizio (B44, capitolo 8.3). Le voci segnate **(B45.1)** sono del blocco «telefono che non si
-scollega» (capitolo 8.4 e `docs/b45/b45-1-collegamento.md`): chiosco che non scollega più il telefono, telefono che si
+scollega» (capitolo 8.5 e `docs/b45/b45-1-collegamento.md`): chiosco che non scollega più il telefono, telefono che si
 ricollega da solo e scritte calme sul ledwall dalla 2026-11-14.3; i motivi delle cadute nel pannello e nel registro dalla
 2026-11-14.4. Le voci segnate **(B45.2)** (rifiniture dopo la revisione del B45.1: «Scollega» che non è una caduta,
 schermo spento contato bene, pagina chiusa detta sul ledwall, chiosco e telefono del visitatore) valgono dalla
-2026-11-14.4. La modalità fiera con il solo mouse (B41 seconda parte, capitolo 8.3) arriva con la versione successiva.
+2026-11-14.4. La modalità fiera con il solo mouse (B41 seconda parte, capitolo 8.4) arriva con la versione successiva.
 
 Per chi gestisce lo stand di **NATPF Simulator** con il programma Windows, il ledwall e **solo il mouse**. Ogni voce è
 controllata sul codice di questa versione.
@@ -34,6 +36,10 @@ non va — 12 · Con una tastiera — Appendice: solo per la versione web — Pe
 ---
 
 ## In breve: la giornata allo stand
+
+(B41 parte 2) Con la **modalità fiera** accesa (capitolo 8.4) i due telefoni dello stand si abbinano una volta e restano
+collegati, e al posto del menu c'è la pagina della fiera: per ogni visitatore un clic su chi gioca, «Sono pronto» sul
+telefono (o «Gioca ›»), a fine partita «Prossimo giocatore ›». Qui sotto la giornata senza la modalità fiera.
 
 **Prima di aprire (una volta al giorno)**
 
@@ -95,10 +101,10 @@ ledwall: lo vede anche il pubblico.
 | **Tastiera:** menu del programma | solo in finestra | Alt → NATPF → «Pannello dello stand (F9)» |
 
 **Dove si vede il marchio.** In queste pagine del menu: «Con chi giochi?», «Con cosa giochi?», «Collega il telefono» (e
-«Collega i due telefoni»), «Pronto per la partita», «Opzioni», «Classifica» (anche a schermo intero), «Minigiochi» e il
-risultato di un minigioco. **Non** c'è nel menu principale (lì è nascosto), nell'intro, in campo (partita, scambi di
-prova, allenamento, minigiochi), nella pausa, nella schermata di fine partita e quando un foglio copre la pagina (per
-esempio «Come ti chiami?»).
+«Collega i due telefoni»), «Pronto per la partita» (e la pagina della fiera, B41 parte 2: capitolo 8.4), «Opzioni»,
+«Classifica» (anche a schermo intero), «Minigiochi» e il risultato di un minigioco. **Non** c'è nel menu principale (lì
+è nascosto), nell'intro, in campo (partita, scambi di prova, allenamento, minigiochi), nella pausa, nella schermata di
+fine partita e quando un foglio copre la pagina (per esempio «Come ti chiami?»).
 
 - (B39) Mentre tieni premuto, un anello giallo si riempie con la scritta «Pannello dello stand». Un piccolo tremolio
   della mano non annulla; se rilasci prima o ti sposti di molto, ricomincia. Prima della versione B39 non c'era nessun
@@ -132,19 +138,20 @@ fa. (B39) **Un doppio clic vale un clic solo** (prima faceva due passi: «Calibr
 
 | Voce | Valori | Cosa fa | Da quando vale |
 |---|---|---|---|
-| **Modalità chiosco** | **No** · Sì | Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu principale, cancella il nome, rimette «Chi gioca: Adulto» e (B45.1) **azzera chi gioca come «Nuovo giocatore»** (mano destra, calibrazione e tutorial da capo): **il telefono resta collegato**, niente QR da rifare (prima il chiosco scollegava il telefono col QR, e in fiera sembrava una caduta della rete). Contano come attività clic (anche sui tasti della tastiera a schermo), tasti, rotellina, tocchi, colpi del telefono e comandi del telecomando; (B45.1) anche i gesti e i tocchi sul telefono e il telefono preso in mano; (B39) anche muovere il mouse, e con il pannello, l'abbinamento del telecomando o la diagnostica aperti il chiosco aspetta. Durante una partita aspetta il doppio del tempo, poi chiude la partita. Sotto le voci una riga dice se il chiosco è acceso; (B45.2) sotto di lei, solo se oggi un telefono è caduto, una riga per telefono «Telefono 1: N cadute oggi · motivo più frequente: …» (capitolo 8.4). (B45.2) Con il telefono di un visitatore (QR) il chiosco **non libera il posto**: per collegare un altro telefono serve «Scollega» (capitolo 8.2). | subito |
+| **Modalità fiera** (B41 parte 2) | **No** · Sì | La prima voce. Sì: al posto del menu c'è la **pagina della fiera** (chi gioca con un clic, niente QR, niente tutorial per i visitatori) e i telefoni dello stand sono abbinati una volta e sempre collegati; accendendola la «Calibrazione» va su «Giocando» (ogni visitatore fa i suoi scambi di prova) e si apre il foglio «Telefoni dello stand». No: il menu di sempre; (B41.3) «Con cosa giochi» e «Calibrazione» tornano come erano prima della fiera. Resta salvata. Tutto nel capitolo 8.4. | subito |
+| **Modalità chiosco** | **No** · Sì | Sì: dopo il tempo di «Ritorno al menu dopo» senza nessuno il gioco torna al menu principale, cancella il nome, rimette «Chi gioca: Adulto» e (B45.1) **azzera chi gioca come «Nuovo giocatore»** (mano destra, calibrazione e tutorial da capo): **il telefono resta collegato**, niente QR da rifare (prima il chiosco scollegava il telefono col QR, e in fiera sembrava una caduta della rete). Contano come attività clic (anche sui tasti della tastiera a schermo), tasti, rotellina, tocchi, colpi del telefono e comandi del telecomando; (B45.1) anche i gesti e i tocchi sul telefono e il telefono preso in mano; (B39) anche muovere il mouse, e con il pannello, l'abbinamento del telecomando o la diagnostica aperti il chiosco aspetta. Durante una partita aspetta il doppio del tempo, poi chiude la partita. Sotto le voci una riga dice se il chiosco è acceso; (B45.2) sotto di lei, solo se oggi un telefono è caduto, una riga per telefono «Telefono 1: N cadute oggi · motivo più frequente: …» (capitolo 8.5). (B45.2) Con il telefono di un visitatore (QR) il chiosco **non libera il posto**: per collegare un altro telefono serve «Scollega» (capitolo 8.2). (B41 parte 2) Con la modalità fiera fa «Prossimo giocatore» e torna alla pagina della fiera (capitolo 8.4). | subito |
 | **Ritorno al menu dopo** | 30 s · **45 s** · 60 s · 90 s | Il tempo del chiosco. Giro dei valori: 45 → 60 → 90 → 30 → 45. | subito; conta solo con il chiosco acceso |
 | **Classifica · A schermo intero** | — | Chiude il pannello e mostra in grande la classifica di oggi (scheda «Partite», 10 righe). Le schede dei minigiochi si cliccano, ma non fanno uscire. In partita chiude la partita. (B39) Per uscire: **«× Chiudi»** in alto a destra (compare muovendo il mouse) o di nuovo questa voce, che diventa «Chiudi lo schermo intero»; si torna al menu. Con il chiosco acceso la classifica lasciata in vista resta. | subito · **secondo clic in partita** |
 | **Classifica · Scarica CSV** | — | Salva il file «classifica-natpf-AAAA-MM-GG.csv» con partite e minigiochi di oggi. (B39) Nel programma si salva da solo in **Download › NATPF** (un file con lo stesso nome non si sovrascrive: «… (2).csv»); un avviso nel gioco dice il nome. Nel browser decide il browser. | subito · non dal telecomando |
 | **Classifica · Azzera oggi** | — | Cancella la classifica di oggi su questo PC. (B39) **Secondo clic** sul pulsante («Sicuro? Clicca ancora»), niente più finestra di Windows. La classifica si azzera comunque da sola ogni giorno. | subito · non dal telecomando |
-| **Telefono** | «Scollega» con un telefono collegato · «Nessuno collegato» | Scollega il telefono del giocatore: per giocare va rifatto il QR. | subito · **secondo clic in partita** (con un telefono collegato) |
+| **Telefono** | «Scollega» con un telefono collegato · «Nessuno collegato» | Scollega il telefono del giocatore: per giocare va rifatto il QR. (B41 parte 2) Con la modalità fiera accesa la voce si chiama **«Telefoni dello stand»** e dice lo stato dei due posti (per esempio «1 ✓ · 2 da abbinare ›»): apre il foglio dei telefoni dello stand (capitolo 8.4), non scollega niente. | subito · **secondo clic in partita** (con un telefono collegato, fuori dalla fiera) |
 | **Musica** | **Sì** · No | Spegne o riaccende **tutto** l'audio del gioco: musica, effetti e la voce del punteggio. **Non resta salvata**: alla riapertura l'audio è acceso. Per spegnere solo la voce e tenere musica ed effetti: Opzioni → «Voci» (o «Voce» nella pausa). | subito |
 | **Formato in fiera** | No · **Solo stesso schermo** · Sì · punto decisivo | Punto decisivo sul 40-40 (chi lo vince vince il game) e servizio che passa ogni due punti, come nel tie-break: batte anche la CPU o il Player 2, anche in una partita a 1 game. «Solo stesso schermo»: vale solo tra due persone sullo stesso schermo; contro la CPU e tra due computer resta il formato classico. «Sì»: vale anche contro la CPU e tra due computer, e la partita più lunga è al meglio di 3. Al 40-40 il tabellone mostra «PUNTO DECISIVO» in rosa. Giro: No → Solo stesso schermo → Sì → No. | dalla partita dopo |
 | **Battuta** (B47) | **Sempre lo stesso** · Alternata | Sempre lo stesso: il servizio non passa mai all'altro, per tutta la partita e in tutti i formati (anche con il formato in fiera e il campo aperto: resta il punto decisivo, non il cambio ogni due punti). Contro la CPU batte **sempre chi gioca**, anche se «Batte per primo» dice CPU; nello stesso schermo batte per tutta la partita chi batte il primo game («Batte per primo», di base il sorteggio: «Sorteggio: batte sempre Giulia»). Il lato del servizio (destra, sinistra) cambia a ogni punto come sempre. Alternata: come prima, il servizio passa all'altro a ogni game (ogni due punti con il formato in fiera o il campo aperto). Nella sfida tra due computer resta alternata. Giro: Sempre lo stesso ↔ Alternata. | dalla partita dopo |
 | **Scambio che si scalda** | **Sì · dal 20° colpo** · No | Dal 20° colpo di uno scambio colpi sempre più forti per tutti e due, colpo super più facile, la CPU rischia di più: gli scambi lunghi finiscono e le partite durano meno. In alto la scritta «SCAMBIO CALDO · colpo 23». Non vale con «Una webcam per due». | dalla partita dopo |
 | **Lancio automatico** | **No** · Sì · 30 s | Solo stesso schermo **con i due telefoni** (non con «Una webcam per due»): se chi deve battere resta fermo 30 secondi, il gioco lancia la palla (lo schermo lo annuncia 10 secondi prima). Dopo due lanci a vuoto il gioco batte un servizio morbido. Così la fila non si blocca. | dalla partita dopo |
 | **Stesso schermo: campo aperto** | **No** · Sì · il piazzamento conta | Solo stesso schermo **con i due telefoni**: i personaggi corrono come persone e non arrivano più su ogni palla; la palla angolata si prende in allungo o non si prende. Con «Battuta: Alternata» il servizio passa ogni due punti anche con il formato classico (chi batte è un po' sfavorito); con «Sempre lo stesso» non passa mai. | dalla partita dopo |
-| **Calibrazione** | **Giocando** · Con i gesti · Nessuna | Giocando: niente gesti a vuoto; prima di ogni partita circa 10 secondi di «Scambi di prova» (4 palle, dritti e rovesci) e il gioco impara il colpo di chi gioca. Con i gesti: la calibrazione di prima (telefono fermo, poi un dritto e un rovescio a vuoto); quel profilo resta fino a «Nuovo giocatore». Nessuna: si gioca subito e il gioco impara dai primi colpi veri (all'inizio la forza è meno precisa). Giro: Giocando → Con i gesti → Nessuna → Giocando. | dal prossimo «Gioca» |
+| **Calibrazione** | **Giocando** · Con i gesti · Nessuna | Giocando: niente gesti a vuoto; prima di ogni partita circa 10 secondi di «Scambi di prova» (4 palle, dritti e rovesci) e il gioco impara il colpo di chi gioca. Con i gesti: la calibrazione di prima (telefono fermo, poi un dritto e un rovescio a vuoto); quel profilo resta fino a «Nuovo giocatore». Nessuna: si gioca subito e il gioco impara dai primi colpi veri (all'inizio la forza è meno precisa). Giro: Giocando → Con i gesti → Nessuna → Giocando. (B41.3) Con la modalità fiera accesa dice «Giocando (fiera)» e non cambia: un clic lo spiega (per cambiarla, prima spegni la modalità fiera). | dal prossimo «Gioca» |
 | **Tastiera a schermo** | **Automatica** · Sempre · Mai | La tastiera del gioco per scrivere nomi, codice della sfida e campi della diagnostica (capitolo 3.6). Automatica: compare cliccando un campo con il mouse (o toccandolo), sparisce se si usa una tastiera vera. Sempre: compare in ogni campo, anche con una tastiera vera. Mai: non compare. Giro: Automatica → Sempre → Mai → Automatica. | subito |
 | **Mira del telefono** | **Alta · 17°** · Media · 20° · Bassa · 23° | Quanto girare il telefono per mandare la palla sulla riga. Alta: più palle angolate; Media e Bassa un po' meno. Vale per i telefoni di questo PC. | dal colpo dopo |
 | **Registro di gioco** | **Sì** · No | Il gioco annota da solo come vanno le partite (solo dati di gioco, mai i nomi) e le manda allo spazio Cloudflare. Sotto c'è lo stato in parole, con «Invia adesso» e «Scarica la coda» (capitolo 9). | subito |
@@ -431,7 +438,7 @@ telefono del giocatore è collegato, con la batteria su Android. Nel pannello la
 | **Pausa / Riprendi** | Solo in campo. |
 | **Gioca** | Dal menu verso la partita contro la CPU; in «Pronto per la partita» è «Gioca!»; a fine partita «Gioca ancora» (B47: apre la scelta del livello; lì «Gioca!» fa partire con il livello segnato); sul risultato di un minigioco lo rigioca. |
 | **Torna al menu** | Da dove sei; con una partita in corso il telefono chiede conferma. |
-| **Nuovo giocatore** | Come «Nuovo giocatore» del pannello; con una partita in corso chiede conferma. |
+| **Nuovo giocatore** | Come «Nuovo giocatore» del pannello; con una partita in corso chiede conferma. (B41 parte 2) Con la modalità fiera si chiama **«Prossimo giocatore»** e fa quello della fiera (i telefoni restano collegati, capitolo 8.4). |
 | **Salta** | Intro, nome, scambi di prova (contro la CPU si va a «Pronto per la partita», nello stesso schermo parte la partita), riscaldamento, calibrazione con i gesti (anche nel riquadro del telefono), lezione. Negli esercizi dell'allenamento passa all'esercizio dopo. |
 | **Ricalibra il telefono** | Come «Ricalibra» del riquadro del telefono, ma in un tasto solo. Con «Calibrazione: Giocando», in partita: scambi di prova, poi si rigioca il punto con il punteggio com'era. |
 | **Rivedi i gesti** | Il tutorial dei gesti (Indietro lo chiude). |
@@ -558,6 +565,7 @@ e menu del programma: capitolo 12.
 
 | Cosa | A cosa serve in fiera | Come si attiva |
 |---|---|---|
+| Modalità fiera (B41 parte 2) | Telefoni dello stand abbinati una volta e sempre collegati, pagina della fiera al posto del menu (chi gioca con un clic, niente QR né tutorial), «Prossimo giocatore», visitatori numerati, avviso della batteria | Pannello → «Modalità fiera: Sì» (capitolo 8.4) |
 | Formato in fiera | Game corti: punto decisivo sul 40-40, servizio ogni due punti (con «Battuta: Alternata») | Pannello → «Formato in fiera». Di base solo nello stesso schermo; «Sì» anche contro la CPU e tra due computer |
 | Battuta: Sempre lo stesso (B47) | La gente non capisce il servizio alternato: contro la CPU batte sempre il visitatore, nello stesso schermo sempre chi batte il primo game | Di base (pannello → «Battuta») |
 | Conto alla rovescia grande (B47) | «Preparati, la partita sta per cominciare» 3 · 2 · 1 tra gli scambi di prova e la partita | Sempre, con il telefono; non va acceso |
@@ -575,7 +583,9 @@ e menu del programma: capitolo 12.
 ### 8.2 Consigli per la fiera, oggi
 
 - **Un telefono che passa di mano.** Lascialo collegato. Tra un visitatore e l'altro usa «Nuovo giocatore» (o lascia fare
-  al chiosco, che dalla B45.1 non scollega più il telefono): non «Telefono · Scollega», che fa rifare il QR.
+  al chiosco, che dalla B45.1 non scollega più il telefono): non «Telefono · Scollega», che fa rifare il QR. (B41 parte 2)
+  Meglio ancora la **modalità fiera** (capitolo 8.4): telefoni dello stand sempre collegati, «Prossimo giocatore» senza
+  nome né tutorial da rifare.
 - **(B45.2) Con il telefono del visitatore il chiosco non libera il posto.** Azzera chi gioca ma il telefono resta
   collegato: chi se ne va con la pagina del gioco aperta tiene il posto, e chi arriva dopo vede «C'è già un altro
   telefono collegato» (e un telefono che si muove in tasca tiene sveglio il chiosco).
@@ -597,21 +607,8 @@ e menu del programma: capitolo 12.
 
 ### 8.3 In arrivo
 
-**La modalità fiera (B41).** La prima parte è nella 2026-11-14.1 ma **non si accende ancora dal pannello**: arriva con
-la seconda parte. Già fatti e attivi per tutti: «Sono pronto» dal telefono (capitolo 3.2) e il profilo del telefono che
-riparte da capo per ogni partita, minigioco e allenamento. Il resto segue le decisioni dell'utente del 13/11; i dettagli
-possono cambiare.
-
-- Interruttore «Modalità fiera» nel pannello e foglio «Telefoni dello stand»: Telefono 1 e Telefono 2 abbinati **una
-  volta** (QR, numero e «Conferma» sul PC, come il telecomando), sempre collegati, che si ricollegano da soli dopo
-  riavvii e cali di rete. Niente QR per il pubblico.
-- Sul telefono dello stand il numero grande «Telefono 1» o «2» e, tra una persona e l'altra, «Dai il telefono al
-  prossimo giocatore»; i pulsanti dello staff nascosti; avviso di batteria bassa.
-- **Visitatori numerati** da soli («Visitatore 12», da capo ogni giorno), senza scrivere il nome.
-- Per ogni visitatore gli scambi di prova; contro la CPU **batte sempre il visitatore**.
-- **«Prossimo giocatore»** a fine partita, con il telefono che resta collegato; il chiosco non scollega più i telefoni
-  dello stand.
-- Una pagina della fiera con un clic su chi gioca (Bambino, Ragazzo, Adulto, Esperta, Leggenda) e «Mancino».
+**La modalità fiera (B41)**: la seconda parte, con l'interruttore nel pannello, il foglio «Telefoni dello stand», la pagina
+della fiera e «Prossimo giocatore», è descritta nel capitolo 8.4 (vale dalla versione che la contiene).
 
 **Altri blocchi:**
 
@@ -630,7 +627,112 @@ possono cambiare.
   la lancia il gioco»). La stessa icona è nel tutorial (scheda «Servizio»), nell'allenamento (esercizio «Servizio») e
   nella guida «Come si gioca».
 
-### 8.4 (B45.1) Telefono che si scollega: cosa fa il gioco e com'è fatta la rete dello stand
+### 8.4 Modalità fiera: telefoni dello stand e pagina della fiera (B41 parte 2)
+
+Richiesta dell'utente del 13/11: «durante l'evento fiera i telefoni sono sempre gli stessi, quindi è inutile ogni volta
+collegare il telefono, scansionare un QR code e fare la calibrazione: io seleziono solo il livello di difficoltà». Lo staff
+prepara i telefoni dello stand **una volta**; ogni visitatore fa solo i suoi scambi di prova (circa 10 secondi). Tutto con
+il **solo mouse**.
+
+**Prima di cominciare**
+
+- Il programma aperto; i due telefoni dello stand carichi e sulla **stessa Wi-Fi** del PC (non quella per ospiti), con
+  Chrome (Android) o Safari (iPhone).
+- Se un telefono non ha mai fatto da racchetta su questo PC, prima il **certificato**, con la modalità fiera ancora
+  spenta: capitolo 6.1, passo 1 (oppure tasto destro → «Rete per i telefoni» → «Indirizzi e certificato per i
+  telefoni…»).
+- Sui telefoni: spegnimento dello schermo al massimo (Android 10 minuti, iPhone «Mai»), niente PIN, risparmio energetico
+  spento (lo ricorda anche il foglio).
+
+**Accendere la modalità fiera e abbinare i due telefoni (una volta sola, circa 2 minuti a telefono)**
+
+1. **Apri il pannello dello stand.** Nel programma Windows: tasto destro sul gioco → «Pannello dello stand». Oppure, nel
+   menu principale, tieni premuto il tasto sinistro per 3 secondi sul titolo grande «NATPF Simulator», finché l'anello
+   giallo si riempie.
+2. Nel pannello la prima voce è **«Modalità fiera»** e dice **«No»**: cliccala. Diventa **«Sì»** e resta salvata, anche
+   dopo un riavvio del programma. Un avviso dice «Modalità fiera accesa…»; se la «Calibrazione» non era «Giocando», ci va
+   da sola, e finché la modalità è accesa resta «Giocando (fiera)» (un clic sulla voce lo spiega e non la cambia). Al posto del pannello si apre il foglio **«Telefoni dello stand»** con due schede: **Telefono 1** (numero 1 nel
+   cerchio giallo: Player 1, contro la CPU e a sinistra) e **Telefono 2** (numero 2 nel cerchio rosa: Player 2, a destra
+   nello stesso schermo). Tutte e due dicono «… da abbinare».
+3. Nella scheda **Telefono 1** clicca **«Abbina»**. Nella scheda compare un QR (solo qui, valido 5 minuti) con la scritta
+   «Inquadra il QR con il telefono dello stand».
+4. Prendi il **primo telefono**: apri la fotocamera, inquadra il QR e tocca il link. Sul telefono compare un **numero di
+   tre cifre**, grande; nella scheda «Un telefono chiede il posto · numero 482» e lo stesso numero, grande.
+5. Se i due numeri sono uguali clicca **«Conferma»** con il mouse (dal telecomando dello staff non si può); se sono
+   diversi clicca **«Rifiuta»**. Un avviso dice «Telefono 1 abbinato: ora sul telefono «Attiva i sensori»».
+6. Sul telefono tocca **«Attiva i sensori»** (su iPhone poi «Consenti»). La scheda diventa verde: **«Telefono 1 pronto ✓
+   · batteria 82%»** (la batteria solo con Android). Sul telefono: «Telefono 1» in grande, «Pronto ✓» e «Dai il telefono
+   al prossimo giocatore».
+7. Per giocare anche in due: lo stesso nella scheda **Telefono 2** con il secondo telefono («Abbina» → QR → numero →
+   «Conferma» → «Attiva i sensori»). Un QR alla volta: cliccando «Abbina» nell'altra scheda il primo QR si chiude.
+8. Clicca **«‹ Pannello»** (in basso a destra del foglio): torni al pannello, dove la voce «Telefoni dello stand» dice
+   «1 ✓ · 2 ✓ ›». Clicca **«Chiudi»**. Al posto del menu c'è la **pagina della fiera** («Chi gioca?»).
+
+Dal giorno dopo niente QR: il programma riparte in modalità fiera e i telefoni si ricollegano da soli. Sul telefono basta
+riaprire la pagina (la scheda del browser rimasta aperta; conviene aggiungerla alla schermata Home) e, se lo chiede,
+toccare «Attiva i sensori».
+
+**Riaprire il pannello con la modalità fiera accesa.** Il titolo grande del menu non c'è più: tasto destro → «Pannello
+dello stand» (programma), oppure tieni premuto 3 secondi il marchio **«NATPF Simulator» in alto a sinistra** della pagina
+della fiera. I telefoni si guardano da pannello → **«Telefoni dello stand»**.
+
+**Per ogni visitatore, contro la CPU (al massimo 2 clic e 1 tocco)**
+
+1. Nella pagina della fiera è scelto **«1 giocatore · contro la CPU»** (se c'è «2 giocatori», clicca «1 giocatore · contro
+   la CPU»). Clicca **chi gioca**: «Bambino», «Ragazzo» o «Adulto» (già scelto). Per un mancino clicca **«Sinistra»**
+   accanto a «Mano». Dai il **Telefono 1**.
+2. Il visitatore tocca **«Sono pronto»** sul telefono, oppure clicchi tu **«Gioca ›»**.
+3. Partono gli **scambi di prova** (circa 10 secondi, 4 palle: il gioco impara il suo colpo; «Salta ›» sul telefono li
+   chiude prima, ma vale solo dopo il primo secondo: (B41.3) un doppio tocco su «Sono pronto», o «Sono pronto» toccato
+   mentre clicchi «Gioca ›», non li salta), poi il **conto alla rovescia grande** («Preparati, la partita sta per cominciare», 3 · 2 · 1) e la
+   partita. Contro la CPU **batte sempre il visitatore**, anche con «Battuta: Alternata».
+4. A fine partita: **«Prossimo giocatore ›»** (rosa) per la persona dopo, oppure **«Rivincita»** («Gioca ancora» se ha
+   vinto) per la stessa persona: si sceglie di nuovo il livello, poi «Gioca». In fiera «Menu» non c'è.
+
+Chi gioca contro la CPU senza un nome diventa **«Visitatore 12»** (numerati da capo ogni giorno, dal primo che gioca) e
+con quel nome va nella classifica del giorno. Per un nome: **«Nome»** accanto a «Visitatore 12» (tastiera a schermo,
+capitolo 3.6), facoltativo.
+
+**In due, nello stesso schermo (al massimo 3 clic)**: clicca **«2 giocatori · stesso schermo»** (resta scelto anche per i
+visitatori dopo). Per ciascuno la fascia («Bambino», «Ragazzo», «Adulto») e la mano («Destra», «Sinistra»); poi «Sono
+pronto» sui due telefoni, oppure «Gioca ›». Telefono 1 a sinistra, Telefono 2 a destra (il numero è scritto in grande su
+ogni telefono). Per tornare a uno solo: «1 giocatore · contro la CPU».
+
+**«Prossimo giocatore»** (fine partita, pannello, telecomando dello staff, e il chiosco in fiera): azzera nome, mano (torna
+«Destra»), livello («Adulto»), fasce e quello che i telefoni hanno imparato da chi c'era; **i telefoni restano collegati e
+pronti**, niente QR, tutorial o nome da scrivere; si torna alla pagina della fiera. (B41.3) In fiera fanno lo stesso anche
+pausa → **«Torna al menu»** e **«Torna al menu»** del telecomando dello staff: prima riportavano alla pagina della fiera con il nome,
+la mano e il livello di chi c'era, e chi arrivava dopo giocava con il nome di prima (e, se destro, con la mano sinistra).
+
+**Se un telefono dello stand non va**
+
+- **«Gioca ›» grigio**: contro la CPU sotto c'è il perché (per esempio «Telefono 1 scollegato: si ricollega da solo (se
+  non torna, «Telefoni dello stand ›»)») e il pulsante **«Telefoni dello stand ›»**; (B41.3) in due il perché è nella
+  scheda di quel giocatore (per esempio «Telefono 2: schermo del telefono spento, riaccendilo», in arancione) e
+  «Telefoni dello stand ›» è in alto a destra, nella riga di «2 giocatori». Di solito il telefono torna da solo in pochi
+  secondi; se no, riapri la pagina sul telefono. Il pubblico non vede mai un QR.
+- **Batteria sotto il 20 %** e non in carica (solo Android): sulla pagina della fiera, in basso a sinistra (nelle aree
+  strette, per esempio 720×720, in basso a destra accanto a «Gioca ›»), «🔋 Telefono 2: batteria 15% · mettilo in
+  carica»; nel foglio la scheda di quel telefono ha il bordo arancione e dice «Batteria 15% · bassa: mettilo in carica».
+  Durante la partita e sulla fine partita l'avviso non c'è (copriva il gioco). Sparisce appena il telefono è in carica.
+- **Telefono rotto o perso**: pannello → «Telefoni dello stand» → nella sua scheda **«Abbina un altro telefono»** e poi
+  come ai passi 3–6 (il telefono di prima non vale più appena confermi quello nuovo), oppure **«Scollega»** (due clic:
+  «Sicuro? Clicca ancora»; (B41.3) dal telecomando dello staff due OK). Un telefono nuovo che **non ha mai fatto da
+  racchetta su questo PC** vuole prima il **certificato** (capitolo 6.1, passo 1): nel programma tasto destro → «Rete per
+  i telefoni» → «Indirizzi e certificato per i telefoni…»; la via dal menu («Gioca» → «Contro la CPU» → «Smartphone» →
+  «Prima volta su questo telefono») c'è solo con la modalità fiera spenta (pannello → «Modalità fiera · Sì» → «No»; poi di
+  nuovo «Sì»).
+- **Il PC ha cambiato rete o indirizzo** (nel programma i telefoni usano l'indirizzo del PC): i telefoni dello stand vanno
+  abbinati di nuovo, un minuto a telefono. Consiglio: indirizzo fisso per il PC nel router dello stand.
+- **Spegnere la modalità**: pannello → «Modalità fiera · Sì» → diventa «No». Torna il menu di sempre (allenamento,
+  minigiochi, sfida tra due computer, webcam, Opzioni) e i telefoni tornano racchette con il QR; (B41.3) «Con cosa giochi»
+  e «Calibrazione» tornano come erano prima della fiera (lo dice l'avviso). Riaccesa, i telefoni già
+  abbinati si ricollegano da soli.
+
+**Cosa non provato**: telefoni veri, programma Windows vero (tasto destro), ledwall e rete dello stand. Provato nel
+browser con telefoni simulati (documento `docs/b41/modalita-fiera-2.md`).
+
+### 8.5 (B45.1) Telefono che si scollega: cosa fa il gioco e com'è fatta la rete dello stand
 
 **Cosa fa il gioco da solo** (niente da attivare):
 
@@ -776,7 +878,7 @@ B44 (fatto) non riguarda il mouse: cambia le istruzioni del servizio sul ledwall
 | Classifica a schermo intero senza «‹ Indietro» | (B39) Muovi il mouse: in alto a destra compare «× Chiudi». Oppure pannello → «Classifica · Chiudi lo schermo intero». Telecomando «Indietro»; tastiera Esc. |
 | Il telefono dice «connessione non sicura» o non si collega | Certificato: «Collega il telefono» → «Prima volta su questo telefono». Stessa Wi-Fi del PC, rete che non isola i dispositivi. Firewall: chiudi e riapri il programma e rispondi «Apri la rete ai telefoni» → «Sì». |
 | In partita compare «Telefono in pausa» | Il telefono si è fermato (schermo spento, rete). Riaccendi lo schermo del telefono: si riparte da soli con il conto alla rovescia e il punto si rigioca. Se non torna: «Ricollega il telefono» nel riquadro. |
-| (B45.1) In partita compare «Telefono 1: segnale debole, aspetto che torni…» o «scollegato · si ricollega da solo» | La Wi-Fi del telefono si è fermata (tra la folla capita). Non toccare niente: torna da solo e la partita riprende con il conto alla rovescia. Se succede spesso: pannello (F9) → la riga «Telefono 1: N cadute oggi · motivo più frequente» dice perché; poi la rete dello stand (capitolo 8.4). Se dopo 30 s non è tornato si apre il QR: la pagina del gioco sul telefono è stata chiusa, riaprila o inquadra il QR. |
+| (B45.1) In partita compare «Telefono 1: segnale debole, aspetto che torni…» o «scollegato · si ricollega da solo» | La Wi-Fi del telefono si è fermata (tra la folla capita). Non toccare niente: torna da solo e la partita riprende con il conto alla rovescia. Se succede spesso: pannello (F9) → la riga «Telefono 1: N cadute oggi · motivo più frequente» dice perché; poi la rete dello stand (capitolo 8.5). Se dopo 30 s non è tornato si apre il QR: la pagina del gioco sul telefono è stata chiusa, riaprila o inquadra il QR. |
 | I colpi sono letti male | ❚❚ → «Telefono · Ricalibra»: si apre il riquadro del telefono. Quando dice «Pronto», clicca **«Ricalibra»** (con «Giocando»: scambi di prova, poi si rigioca il punto). Telecomando: «Ricalibra il telefono», un tasto solo. |
 | Il gioco è sullo schermo sbagliato, in finestra o tagliato | Tasto destro → «Schermo del gioco» → il monitor, e «Schermo intero»; oppure pannello → «Schermo del gioco» (clic finché è sul ledwall); Opzioni → Area o «Calibra lo schermo…». |
 | All'avvio resta «Avvio del gioco…» | Una finestra di Windows aspetta una risposta (la domanda del firewall, forse sullo schermo del portatile): rispondi; (B39) dopo 60 secondi vale «Più tardi». Porta occupata: la pagina lo dice, «Riprova» (7.5). Tasto destro: Esci, Riavvia. |
