@@ -2345,3 +2345,20 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   51/51, LAN 13/13, build ok.
 - Non verificato: telefoni veri, Windows vero, ledwall, persone vere (trofei, doppio e prova del ritardo sono misurati con
   giocatori simulati o un telefono finto).
+
+## Prove nel browser della 14.9, due prove aggiornate e fine della roadmap senza l'utente (15/11/2026, 21:20–22:40 UTC)
+
+- [x] Installer 14.9 dal link fisso: 128.140.546 B, sha256 `fde90cb9a2f82b3a98713e868a80df8848045131bd9fcb5ae4fc5e58e0370f4d`.
+  Zip Cloudflare 14.9: 23.942.671 B, sha256 `e0c6a17e8aa1379d854a1b026b54905e35201595f439a96a3c5b09b6e79fe735`, provato
+  estratto (`cf-browser.mjs`, porta 4205; solo gli errori attesi del server statico). GitHub sulla 14.9: tre workflow verdi.
+- [x] Prove nel browser (porte 4200–4245; carico 1–11): ritardo-schermo 13/13 (dopo due correzioni della prova), stesso-schermo
+  b25 55/55 e b20 52/52, stand-layout `VARIANTS=quick` 16/16, flusso-tocchi fiera 46/46, nuovo-giocatore 28/28,
+  servizio-peso 8/8, chi-serve 64/64, scambi-di-prova 30/30, mano-sicura 17/17, phone-blackout 11/11, training-flow 21/21,
+  telecomando 91/91, telefono-bloccato sullo zip estratto 11/12 (solo il CORS del TURN, atteso).
+- [x] `tools/e2e/natpf-tabellone.mjs`: tre controlli aggiornati al B50-3 («PARITÀ»/«VANTAGGIO» nella pillola): 41/41.
+- [x] `tools/e2e/natpf-lob-drop.mjs`: i 3 controlli «al colpo le corde sono dove erano» (rossi dal B32, identici sulla 14.5:
+  verificato con una worktree della 14.5) diventano «corde al più 10 cm da dove le mette il motore». Prima provata una
+  correzione del codice (`natpf_racket_clear.js`: scostamento spento con la palla in arrivo entro 0,45 / 0,25 s): corde a
+  posto in 30 colpi su 31 ma racchetta nella testa durante l'attesa da 18 a 284 / 172 passi; tolta. Decisione in
+  `docs/PROJECT_MEMORY.md`.
+- Non verificato: come sopra (telefoni veri, Windows vero, ledwall, persone vere).

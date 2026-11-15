@@ -12,7 +12,8 @@
 // metà, e niente etichetta «Al servizio» (è di una sola vista). Misure in docs/b17/punteggio.md.
 // B43 (richiesta dell'utente del 13/11: «troppi testi vicino allo scoreboard… al meglio di tre toglilo, magari metti
 // etichetta sullo scoreboard»): niente sottotitolo sotto il riquadro; una sola etichetta tonda DENTRO il riquadro con il
-// formato («1 GAME», «AL MEGLIO DI 3»), che al punto decisivo del formato in fiera dice «PUNTO DECISIVO». Formato intero e
+// formato («1 GAME», «AL MEGLIO DI 3»), che al punto decisivo del formato in fiera dice «PUNTO DECISIVO» e (B50-3, dalla
+// 2026-11-14.7) «PARITÀ» e «VANTAGGIO» nel formato classico. Formato intero e
 // «Parità»/«Vantaggio …» restano nel testo per lo screen reader ([data-sb-format], [data-sb-label]), non si vedono.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome GAME_PORT=3851 node natpf-tabellone.mjs
 // B28: questa prova è scritta per la calibrazione con i gesti (opzione dello stand «Con i gesti», th.mjs: CAL)
@@ -120,7 +121,7 @@ try {
   await shot(p, '1280-1v1-cpu-0-0-1game');
   await setScore(p, { playerPoints: 3, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player' }, 1);
   v = await read(p);
-  if (!ONLY_SHOTS) check('parità: 40 e 40; «Parità» solo per lo screen reader, l\'etichetta resta «1 GAME»', row(v, 'me').points === '40' && row(v, 'them').points === '40' && v.label === 'Parità' && v.tag?.text === '1 game' && tagIn(v), fmt(v));
+  if (!ONLY_SHOTS) check('parità: 40 e 40; la pillola dice «PARITÀ» al posto del formato (B50-3, dalla 2026-11-14.7), dentro il riquadro', row(v, 'me').points === '40' && row(v, 'them').points === '40' && v.label === 'Parità' && v.tag?.text === 'Parità' && v.tag.kind === 'deuce' && tagIn(v), fmt(v));
   await shot(p, '1280-1v1-cpu-parita');
   await setScore(p, { playerPoints: 4, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player' }, 1);
   v = await read(p);
@@ -128,7 +129,7 @@ try {
   await shot(p, '1280-1v1-cpu-vantaggio');
   await setScore(p, { playerPoints: 3, opponentPoints: 5, playerGames: 0, opponentGames: 0, server: 'player' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('vantaggio della CPU al meglio di 5: «AD» nella casella della CPU, etichetta «AL MEGLIO DI 5» dentro il riquadro', row(v, 'them').points === 'AD' && row(v, 'me').points === '40' && v.label === 'Vantaggio della CPU' && v.tag?.text === 'Al meglio di 5' && tagIn(v), fmt(v));
+  if (!ONLY_SHOTS) check('vantaggio della CPU al meglio di 5: «AD» nella casella della CPU, pillola «VANTAGGIO» (B50-3) dentro il riquadro', row(v, 'them').points === 'AD' && row(v, 'me').points === '40' && v.label === 'Vantaggio della CPU' && v.tag?.text === 'Vantaggio' && v.tag.kind === 'adv' && tagIn(v), fmt(v));
   // B43: formato in fiera, 40-40 (punto decisivo): l'etichetta diventa rosa, «PUNTO DECISIVO»; finito il 40-40 torna il formato
   await setScore(p, { playerPoints: 3, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player', fair: true }, 1);
   v = await read(p);
@@ -225,7 +226,7 @@ try {
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(250);
     await setScore(p, { playerPoints: 3, opponentPoints: 4, playerGames: 1, opponentGames: 2, server: 'player' }, 3);
     v = await read(p);
-    if (!ONLY_SHOTS) check(`sfida un amico (host) ${w}×${h}, vantaggio: etichetta «AL MEGLIO DI 5» dentro il riquadro (≥ 12 px), «Vantaggio di Player 2» per lo screen reader`, v.format === 'Al meglio di 5 game' && v.label === 'Vantaggio di Player 2' && v.tag?.text === 'Al meglio di 5' && tagIn(v), fmt(v));
+    if (!ONLY_SHOTS) check(`sfida un amico (host) ${w}×${h}, vantaggio: pillola «VANTAGGIO» (B50-3) dentro il riquadro (≥ 12 px), «Vantaggio di Player 2» per lo screen reader`, v.format === 'Al meglio di 5 game' && v.label === 'Vantaggio di Player 2' && v.tag?.text === 'Vantaggio' && tagIn(v), fmt(v));
     await shot(p, `${w}-amico-host-vantaggio`);
   }
   await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(250);

@@ -39,6 +39,8 @@ const here = path.dirname(fileURLToPath(import.meta.url)), GAME = process.env.GA
 const GAME_PORT = +(process.env.GAME_PORT || 3164), FPS_MS = +(process.env.FPS_MS || 6000), DRAW_N = +(process.env.DRAW_N || 14);
 const SHOTS = process.env.SHOTS || path.join(tmpdir(), 'natpf-lob-drop'); mkdirSync(SHOTS, { recursive: true });
 const BASELINE = process.env.BASELINE || '', CONFRONTA = process.env.CONFRONTA || '', FOGLI = process.env.FOGLI || '';
+// al colpo, distanza corde–palla al più così diversa da quella che dà la racchetta del motore (m): vedi la parte 1b
+const CORDE_TOLL = 0.1;
 const TRE_D = !!process.env.TRE_D, FOGLI3D = process.env.FOGLI3D || '', MODELLI = process.env.MODELLI || '';
 const KEY = 'natpf-tennis.personaggi';
 const PHOTO = path.resolve(here, '../../docs/riferimenti/lob-drop-2026-11-11.webp');
@@ -667,7 +669,12 @@ if (!SERVIZIO && !process.env.COSTO && !TRE_D && !FOGLI3D){
     check(`partita ${name}: telaio dentro la testa in meno di metà dei passi di prima`, c.dopo.player <= c.prima.player*.5 && c.dopo.opponent <= c.prima.opponent*.5, `Drop ${c.prima.player} → ${c.dopo.player}, Lob ${c.prima.opponent} → ${c.dopo.opponent}`);
     check(`partita ${name}: non più spesso che al tennista di sempre con la sua testa`, c.dopo.player + c.dopo.opponent <= c.uomo.player + c.uomo.opponent, `mascotte ${c.dopo.player} + ${c.dopo.opponent}, tennista ${c.uomo.player} + ${c.uomo.opponent}`);
     check(`partita ${name}: la racchetta non fa scatti (al più 16 cm tra due passi, cioè la velocità di rientro con la palla in arrivo)`, Math.max(c.salto.player, c.salto.opponent)*116 <= 16, `${(c.salto.player*116).toFixed(1)} e ${(c.salto.opponent*116).toFixed(1)} cm`);
-    check(`partita ${name}: al colpo le corde sono dove erano (punto d'impatto non cambiato)`, c.colpi.length >= 6 && c.colpi.every(x => Math.abs(x.dopo - x.prima) < .001), JSON.stringify(moved).slice(0, 300));
+    // (ripresa del 15/11, chiude il «difetto noto dal B32»: prima il controllo chiedeva 1 mm e falliva anche sulla base del
+    // B32 e sulla 14.5) il colpo lo decide il motore con la palla ancora a 0,4–2,3 m dalle corde disegnate, e nella posa
+    // d'attesa la racchetta del motore sta dentro la testa grande: spegnere lo scostamento prima del colpo la rimette nella
+    // testa (provato: con la palla in arrivo entro 0,25 s l'attesa passa da 18 a 172 passi nella testa). Si tiene lo
+    // scostamento e si controlla che al colpo le corde siano al più CORDE_TOLL m da dove le mette il motore
+    check(`partita ${name}: al colpo le corde sono al più ${CORDE_TOLL*100} cm da dove le mette il motore (la palla è a metri: il colpo lo decide il motore)`, c.colpi.length >= 6 && c.colpi.every(x => Math.abs(x.dopo - x.prima) <= CORDE_TOLL), JSON.stringify(moved).slice(0, 300));
   }
   if (process.env.TESTA){ await B.close(); summary(); process.exit(process.exitCode || 0); }
 }
@@ -806,7 +813,7 @@ if (!SERVIZIO && !process.env.COSTO && !process.env.TESTA){
     console.log(`3D, partita ${name}: telaio dentro la testa del modello · Drop prima ${pct(c3.prima.player)}, dopo ${pct(c3.dopo.player)} · Lob prima ${pct(c3.prima.opponent)}, dopo ${pct(c3.dopo.opponent)}`);
     console.log(`  dove (passi prima → dopo): ${Object.entries(c3.pose).map(([k, v]) => `${k} ${v[0]} → ${v[1]}`).join(' · ')}`);
     console.log(`  rig: palmo–manico al più ${(R.presa*100).toFixed(1)} cm, piante da ${(R.piantaMin*100).toFixed(1)} a ${(R.piantaMax*100).toFixed(1)} cm, passi con tutti e due i piedi alzati più di 5 cm ${R.inAria}, braccio allungato al più ${R.allungo.toFixed(2)} volte (${R.allungoDove?.chi} al passo ${R.allungoDove?.passo}), mano libera al più ${(R.manoLibera*100).toFixed(1)} cm per passo, scatto oltre il limite ${R.scatto.toFixed(1)} gradi ${R.dove}`);
-    check(`3D, partita ${name}: al colpo le corde sono dove erano (punto d'impatto non cambiato), su tutti i colpi`, c3.colpi.length >= 6 && c3.colpi.every(x => Math.abs(x.dopo - x.prima) < .001), `${c3.colpi.length} colpi · ${JSON.stringify(c3.colpi.filter(x => x.scostamento > 0)).slice(0, 200)}`);
+    check(`3D, partita ${name}: al colpo le corde sono al più ${CORDE_TOLL*100} cm da dove le mette il motore, su tutti i colpi`, c3.colpi.length >= 6 && c3.colpi.every(x => Math.abs(x.dopo - x.prima) <= CORDE_TOLL), `${c3.colpi.length} colpi · ${JSON.stringify(c3.colpi.filter(x => x.scostamento > 0)).slice(0, 200)}`);
     check(`3D, partita ${name}: la racchetta è sempre nella mano (palmo a meno di 3,5 cm dal manico a ogni passo)`, R.presa < .035, `${(R.presa*100).toFixed(1)} cm`);
     check(`3D, partita ${name}: piedi sul campo (le piante non scendono mai sotto; un piede si alza al più di 23 cm nel passo: 18 di alzata più l'inclinazione; tutti e due in aria, cioè la fase di volo della corsa, in meno del 3 % dei passi)`, R.piantaMin > -.005 && R.piantaMax < .23 && R.inAria < R.n*.03, `da ${(R.piantaMin*100).toFixed(1)} a ${(R.piantaMax*100).toFixed(1)} cm, ${R.inAria} passi su ${R.n} con tutti e due i piedi alzati`);
     check(`3D, partita ${name}: niente scatti (ossa e mano libera, a ogni passo, anche tra un'animazione e l'altra)`, R.scatto === 0 && R.manoLibera < .2, `${R.dove || 'nessuno'} · mano libera al più ${(R.manoLibera*100).toFixed(1)} cm per passo oltre la mano del tennista`);

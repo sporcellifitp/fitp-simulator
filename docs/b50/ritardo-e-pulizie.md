@@ -19,7 +19,9 @@ piano: questo file è stato scritto nella ripresa del 15/11/2026 (dopo la 14.8),
   - 1a `let screen` in `racchetta.js` (blocco dell'orientamento mai partito): **corretto nel B51** (`viewScreen`,
     `window.screen`), provato da `natpf-telefono-bloccato` («orientamento verticale richiesto dal tocco reale»,
     «dimensioni dello schermo nella diagnostica»).
-  - 1b-1 «Parità» e «Vantaggio» nella pillola del tabellone (`natpf_scoreboard.js:38-39`): fatto.
+  - 1b-1 «Parità» e «Vantaggio» nella pillola del tabellone (`natpf_scoreboard.js:38-39`): fatto. La prova nel browser
+    `tools/e2e/natpf-tabellone.mjs` non era stata aggiornata (36/41: si aspettava ancora «1 GAME» e «AL MEGLIO DI 5» a
+    parità e vantaggio): aggiornata nella ripresa a «PARITÀ» e «VANTAGGIO» dentro il riquadro.
   - 1b-2 istruzioni del servizio a 720×720 (`natpf-ui.css:2386`): fatto.
   - 1b-3 diagnostica con `?diag=1` (la partita resta ferma finché il pannello è aperto): documenti aggiornati nella
     ripresa (`docs/NATPF_DIAGNOSTICA.md` passo 3, riga `diag=1` di `docs/GUIDA_STAND.md`).

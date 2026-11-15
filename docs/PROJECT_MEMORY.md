@@ -1499,3 +1499,15 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   dita ferme 3 s e «Sblocca», o dal PC. Lo sblocco manuale vale per l'attività in corso.
 - La pagina non può impedire di uscire da Chrome con i comandi di Android: per quello «Fissa app» (guida §8.6). APK solo
   se dopo il B51 serve ancora (decisione dell'utente).
+
+## Racchetta delle mascotte al colpo e riga del pannello (ripresa del 15/11/2026, sera)
+- **Racchetta fuori dalla testa grande (`natpf_racket_clear.js`, B24) e punto d'impatto**: il «difetto noto dal B32» (3
+  controlli di `natpf-lob-drop` «al colpo le corde sono dove erano», rossi anche sulla 14.5 e prima del B32) **non si
+  corregge**: il colpo lo decide il motore con la palla ancora a 0,4–2,3 m dalle corde disegnate, e nella posa d'attesa la
+  racchetta del motore sta dentro la testa grande. Provato a spegnere lo scostamento con la palla in arrivo entro 0,45 s e
+  0,25 s: i colpi con la racchetta spostata scendono da 11 a 1, ma la racchetta nella testa durante l'attesa sale da 18 a
+  172–284 passi (molto più visibile). Si tiene lo scostamento; il controllo ora chiede corde al più 10 cm da dove le
+  mette il motore (misurato: al più 5,7 cm, scostamento al più 16 cm, palla a metri).
+- **Riga sotto le voci del pannello dello stand**: ad altezza fissa (51 px a 720×720, 32–36 px a 1024×600 e 1366×657, 16 px
+  a 1920×540) per non far tremare il pannello (B41.3 difetto 8). Lo «spazio vuoto di 45–50 px» del resto n. 5 della
+  revisione B41.3 è questa riga: resta così.

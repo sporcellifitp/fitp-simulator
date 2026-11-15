@@ -17,14 +17,14 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 15/11/2026, 21:20 UTC (versione 2026-11-14.9).** Revisione finale della serie 14.6–14.8 fatta in
-questa ripresa (dettaglio in fondo a `docs/TRACCIA_PASSI.md`): documenti dei blocchi B40, B48, B49, B50, B51 scritti o
-ripresi dal bundle, 6 test in più, una funzione per i trofei nel doppio (`hitCountsForStats`), frase d'aiuto della prova
-del ritardo, prova nel browser `natpf-ritardo-schermo` nuova, prove del pannello aggiornate a 18 pulsanti. Controllo
-rapido della 14.9: gioco 1740/1740, sito 275/275, desktop 51/51, LAN 13/13, build. Il bundle
-`docs/consegna/2026-11-15/rami-b40-b48.bundle` è già dentro: **non riunirlo**. **Prossima azione esatta:** verificare
-l'installer 14.9 dal link fisso, fare il secondo gruppo di prove nel browser elencato nella traccia e lo zip Cloudflare
-della 14.9, poi il riepilogo unico all'utente (passaggio §4.8). Il resto di questa sezione è storia.
+**Checkpoint del 15/11/2026, 22:40 UTC (versione 2026-11-14.9, roadmap senza l'utente finita).** Ultima versione
+pubblicata **2026-11-14.9** (`9315b8d`): installer verificato dal link fisso (128.140.546 B, sha256 `fde90cb9…0e0370f4d`),
+zip Cloudflare 23.942.671 B (sha256 `e0c6a17e…6e79fe735`) provato estratto, GitHub verde. Controllo rapido: gioco 1740/1740,
+sito 275/275, desktop 51/51, LAN 13/13, build. Prove nel browser della 14.9 tutte verdi (elenco in fondo a
+`docs/TRACCIA_PASSI.md`). **Prossima azione esatta:** niente da sviluppare senza l'utente. Aspettare: (1) il Worker del
+registro ricaricato e la prova a Precision con 3 persone, che apre il cancello della **B36.1** (`docs/b36/piano-direzionalita.md`
+§3 e §8); (2) le decisioni del passaggio §4.7–§4.8. Il bundle `rami-b40-b48.bundle` è già dentro: non riunirlo. Il resto di
+questa sezione è storia.
 
 
 - **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a

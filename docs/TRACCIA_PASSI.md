@@ -1165,5 +1165,29 @@ senza firma di sessione, e non hanno aggiornato traccia e piano):
       `natpf-telefono-bloccato` sullo zip estratto 11/12 (l'unico rosso è lo stesso CORS del TURN).
 - [x] `natpf-ritardo-schermo` corretta (aspetta il riquadro della diagnostica, che si disegna dopo la lettura delle
       sessioni; secondo telefono finto con i metodi chiamati a ogni fotogramma): **13/13**, schermate guardate.
-- [~] Secondo gruppo di prove nel browser sulla 14.9: stesso-schermo-b25 55/55, stand-layout `VARIANTS=quick` 16/16,
-      stesso-schermo-b20 52/52; in corso lob-drop e le altre della lista sopra.
+- [x] Secondo gruppo di prove nel browser sulla 14.9 (21:22–22:25 UTC, carico 1–11): stesso-schermo-b25 55/55,
+      stand-layout `VARIANTS=quick` 16/16 (quattro misure), stesso-schermo-b20 52/52, flusso-tocchi `FLOW=fiera VISITORS=10`
+      46/46, nuovo-giocatore 28/28, servizio-peso 8/8, chi-serve 64/64, scambi-di-prova 30/30, mano-sicura 17/17,
+      phone-blackout 11/11, training-flow 21/21, telecomando 91/91. Due prove rimaste indietro rispetto al gioco, aggiornate:
+      **natpf-tabellone** 36/41 → **41/41** (si aspettava il formato nella pillola a parità e vantaggio; dal B50-3 la pillola
+      dice «PARITÀ»/«VANTAGGIO»; schermate guardate) e **natpf-lob-drop** 133/136 (i 3 controlli «corde» del difetto noto dal
+      B32, identici sulla 14.5: analisi e decisione in `docs/PROJECT_MEMORY.md`, «Racchetta delle mascotte al colpo»).
+- [x] Resti della revisione B41.3 chiusi: n. 4 guida 8.4 (finestra con l'indirizzo, classifica a schermo intero), n. 5 la
+      riga sotto le voci del pannello è ad altezza fissa apposta (difetto 8, niente tremolio): resta.
+
+## >>> 15/11, 22:40 UTC · ROADMAP: tutto quello che si può fare senza l'utente è fatto <<<
+
+Coda del documento di ripresa (`docs/RIPRESA_AGENTE.md` §3) e passaggio §4: punti 1–7 fatti (B37, B43, B42, B41 prima
+parte, B38+B39, B41 seconda parte, B40), poi B44–B51 e la revisione finale della serie (questa ripresa). Restano solo
+cose che aspettano l'utente:
+
+1. **B36 · direzione dei colpi** (punto 8 della coda, piano approvato il 13/11): fatta la B36.0. Il piano mette un
+   **cancello** prima di qualunque regola nuova (`docs/b36/piano-direzionalita.md` §3): ricaricare una volta il Worker del
+   registro (`docs/b36/misure-b36-0.md` §3) e fare la **prova a Precision di 15–20 minuti con 3 persone** (§6). Con i
+   numeri veri: se rispettano i criteri si parte con la B36.1, altrimenti si torna dall'utente con una proposta.
+2. **APK Android** (passaggio §4.7): solo se dopo il B51 la gente esce ancora da Chrome (decisione dell'utente).
+3. **Dritto del B23**: estenderlo o no (parere dell'utente).
+4. Decisioni aperte del passaggio §4.8 (Musica e «Chi gioca» salvati; «Schermo intero» salvato; chiosco e calibrazione;
+   tasto «indietro» del mouse), collaudo allo stand (telefoni veri, Windows vero, ledwall, rete della fiera, «Fissa app»),
+   soglie dei trofei da ritarare con il registro dopo una giornata.
+
