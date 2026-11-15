@@ -1012,3 +1012,8 @@ Credo siano scambiati». La scritta «Dritto/Rovescio» del motore viene dal lat
   voce del pannello, pressione contata sullo scambio di chi gioca; prototipo misurato) copiati in
   `docs/coda/B40-piano-analisi.md` e `docs/coda/B49-piano-analisi.md`. Ordine: B40 dopo l'unione della B41.3; B49 dopo
   l'unione del B48 (toccano le stesse funzioni del motore); B50 per ultimo.
+- 07:45 UTC · piano del **B50** finito e copiato in `docs/coda/B50-piano-analisi.md`: pulizie (orientamento del telefono
+  mai bloccato per `let screen`, «Parità»/«Vantaggio» nella pillola, istruzioni del servizio a 720×720 che coprono il
+  tabellone di 12×46 px, prova della Leggenda per lato, avviso della mano già chiuso) e prova del ritardo dello schermo
+  di 20 s nella diagnostica (mediana con scarto dei fuori misura, riferimento sul monitor del PC, ±20 ms con il telefono
+  simulato). Nota per il revisore finale: oltre 160 ms di ritardo la palla riparte 2–4 m dietro il personaggio.
