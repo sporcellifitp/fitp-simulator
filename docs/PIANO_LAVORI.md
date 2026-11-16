@@ -19,9 +19,10 @@ Come si aggiorna:
 
 **Checkpoint del 16/11/2026, 16:00 UTC (B53.4 servizio, versione 2026-11-16.4: B53 finito).** 16.3 pubblicata e
 verificata (installer `61f14209…`, zip `6b728776…`). Servizio «come nel video»: impatto, finale e saltello; attesa e lancio
-identici. Test verdi (gioco 1764, sito 280, LAN 13, desktop 51, build). **Prossima azione esatta:** pacchetti della 16.4
-(zip provato estratto, installer dal link fisso = `latest.json`), consegna; poi solo le cose dell'utente (collaudo allo
-stand, B36.1) e le idee da proporre scritte in fondo a `docs/TRACCIA_PASSI.md` («messaggio per il prossimo agente»).
+identici. Test verdi (gioco 1764, sito 280, LAN 13, desktop 51, build). Pacchetti della 16.4 pubblicati e
+verificati (installer `95bce704…`, zip `0122f717…` provato estratto e consegnato). **Prossima azione esatta:** nessun lavoro
+senza l'utente; aspettare il collaudo allo stand e B36.1, proporre le idee scritte in fondo a `docs/TRACCIA_PASSI.md`
+(«messaggio per il prossimo agente»).
 
 **Checkpoint del 16/11/2026, 15:10 UTC (B53.5, versione 2026-11-16.3).** 16.2 pubblicata e verificata (installer =
 `latest.json` `f0e95275…`, zip `768829c0…`). B53.5: la voce delle Opzioni si chiama «Movimenti come nel video». Test

@@ -1334,3 +1334,8 @@ Worker del registro e prova a Precision (B36.1); sui telefoni con la pagina di p
 collegamento». Idee aperte da proporre, non fatte: foglio di confronto del servizio (`COLPO=servizio`), gambe piegate nel
 lancio del servizio (cambia l'attesa: chiedere), togliere la doppia richiesta del nome fuori dalla fiera («Nuovo
 giocatore» chiede il nome sul PC e poi sul telefono). Regole: CLAUDE.md; procedura: `docs/PIANO_LAVORI.md` §6.
+- [x] **Pacchetti della 16.4** (`09bc31e`, GitHub verde sui tre workflow): installer dal link fisso = `latest.json`
+      (128.161.534 B, sha256 `95bce704e7874585c0d48a7990c3daf410d4b5578d163710c2f556a4674ff31b`); zip Cloudflare 23.951.506 B,
+      sha256 `0122f7176804dc833e1b4aa29af72085122b44836ceb74238df466723b8a85f8`, provato estratto (`natpf-nome-telefono` 23/23,
+      gioco avviato con la 16.4), consegnato. **Roadmap senza l'utente finita**: restano le sue cose e le idee del messaggio
+      qui sopra.

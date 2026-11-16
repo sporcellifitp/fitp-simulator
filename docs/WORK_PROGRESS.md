@@ -2502,4 +2502,6 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   zero, quindi niente gambe piegate dentro lo swing (scelta: il lancio resta quello di sempre).
 - Verifiche: gioco 1764/1764, sito 280/280, LAN 13/13, desktop 51/51, build. Non fatti: fogli nel browser del servizio,
   `natpf-dritto-video` nel browser.
+- Pacchetti 16.4: installer = `latest.json` (128.161.534 B, sha256 `95bce704…f31b`), zip 23.951.506 B (sha256 `0122f717…85f8`)
+  provato estratto, consegnato. GitHub verde sui tre workflow.
 
