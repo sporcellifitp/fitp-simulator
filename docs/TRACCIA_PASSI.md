@@ -1288,3 +1288,16 @@ verificato l'altro agente (non visto qui).
       (`natpf-nome-telefono` 20/20, gioco avviato con la 16.1 senza errori, `natpf-telefono-bloccato` 11/12 con il solo
       CORS del TURN, atteso), consegnato all'utente.
 - [ ] Poi: B53.4 servizio, B53.5 voce delle Opzioni «Movimenti come nel video».
+
+## >>> 16/11, 13:10 UTC · MESSAGGIO PER IL PROSSIMO AGENTE (limite d'uso vicino) <<<
+
+**Segnalazione dell'utente (foto, 13:59 ora italiana)**: sul telefono dello stand, nell'app 1.0.3, c'è «Sono pronto» e
+nessuna richiesta del nome. Cause (dal codice, non verificate sul posto): (1) il PC non è ancora alla 2026-11-16.1
+(l'aggiornamento dal gioco lo accetta lo staff); (2) anche con il PC aggiornato, **il telefono dello stand tiene la pagina
+di prima**: quando il PC si riavvia si ricollega da solo senza ricaricare la pagina, e la pagina di prima non manda
+`dev nm 1`, quindi il PC non chiede il nome (compatibilità voluta del B54). Rimedio subito per l'utente: PC alla 16.1, poi
+su ogni telefono **tre volte «volume giù» → «Riapri l'ultimo collegamento»** (o chiudere e riaprire l'app): il server
+del PC manda i file con `Cache-Control: no-store`, la pagina nuova arriva.
+**Correzione in corso (B54.1)**: il PC dice al telefono la sua versione; una pagina di versione diversa si ricarica da sola
+una volta (vale dalle pagine della 16.2 in poi; per quelle già sui telefoni resta il rimedio sopra). Poi: B53.4 servizio,
+B53.5 voce delle Opzioni. Regole e procedura: CLAUDE.md, `docs/PIANO_LAVORI.md` §1 e §6.
