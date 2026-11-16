@@ -66,3 +66,4 @@
 2026-11-16.6: Se una versione nuova ha un problema, in Opzioni → Aggiornamenti c'è «Torna alla versione di prima» (anche senza internet, dopo il primo avvio collegato).
 2026-11-16.7: Trofei più raggiungibili, tarati sulle partite vere della fiera: Cecchino, Maratoneta, Asso, Vincente e Muro.
 2026-11-16.8: In fiera i colpi del telefono sono giudicati con 100 ms di anticipo in meno (più «Perfetto»); a fine partita nello stesso schermo chi vince è sopra e in evidenza.
+2026-11-16.9: A fine partita, accanto al titolo, Lob o Drop festeggiano chi vince o consolano chi perde (ogni volta un'animazione diversa).

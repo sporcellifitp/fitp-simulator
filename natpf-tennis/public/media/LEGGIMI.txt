@@ -1,6 +1,15 @@
 Foto e video di NATPF Simulator (tutorial e intro) — provenienza e diritti
 ==========================================================================
 
+Aggiornamento 16/11/2026 (B58): 20 animazioni di Lob e Drop per la schermata di fine
+partita (sottocartella mascotte/). Generate su richiesta dell'utente con GPT Image 2.6
+(gpt_image_2_6, 2k, qualita high) dalla foto dei peluche docs/riferimenti/lob-drop-2026-11-11.webp;
+10 pose di vittoria e 10 di sconfitta, una sola scelta a caso a fine partita. 320x320,
+10 fotogrammi; consegnate come GIF con il fondo bianco, adattate alla schermata blu con
+il fondo trasparente (WebP animati, 150-210 KB ciascuno). Il marchio sul petto non e
+riprodotto. Immagini derivate da personaggi di terzi, pubblicate su decisione del
+committente: vedi mascotte/LEGGIMI.txt.
+
 Aggiornamento 12/11/2026 (B29): modelli 3D di Lob e di Drop, le due mascotte dell'evento (docs/b29/lob-e-drop-3d.md).
 - mascotte-drop.glb (321.988 byte) e mascotte-lob.glb (331.184 byte): i due modelli fatti generare dall'utente dalla
   foto dei peluche (docs/riferimenti/lob-drop-2026-11-11.webp) e scelti da lui per il gioco. Qui c'è la versione

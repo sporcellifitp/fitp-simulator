@@ -1428,3 +1428,18 @@ giorni di Torino → conto delle partite, B36.1, soglie dei trofei; risposte all
 **Prossima azione esatta (16/11, 21:45 UTC)**: con lo scarico del registro della prossima giornata (utente): rimisurare
 l'anticipo (atteso: mediana dell'errore di tempo vicina a 0 in fiera, più «Perfetto»), i trofei e la direzione; risposte
 alle domande di `docs/PRODOTTI_FIERA_E_ONLINE.md` §4. Il Worker del registro va ricaricato dall'utente (503 dello scarico).
+
+## 16/11, 23:00 UTC · B58 Lob e Drop a fine partita → versione 2026-11-16.9
+
+- [x] Incarico dell'utente: pubblicare le 20 animazioni (PR #3 chiusa: erano in `site/assets/`, in fiera non si
+      vedevano; PR #4 con i file in `natpf-tennis/public/media/mascotte/`). Il branch remoto
+      `feature/natpf-mascotte-fine-partita` non si poteva cancellare da qui (proxy): resta, si può togliere da GitHub.
+- [x] Richiesta dell'utente: «le gif devono vedersi», «aggiornare solo su fiera e adattare il materiale». Fondo
+      trasparente (WebP, script `docs/b58/fondo-trasparente.py`), accanto al titolo, solo programma Windows;
+      `docs/b58/mascotte-fine-partita.md`. Prove: `natpf-b58-mascotte` 11, pacchetto +1, `natpf-fine-partita` 66/66.
+- [x] Domanda a scelta: «Unisci e pubblica» → unita in `natpf-simulator` (un commit), versione 2026-11-16.9.
+- [~] Pacchetti della 16.9: dopo il push, installer da `latest.json` e zip Cloudflare (senza mascotte).
+
+**Prossima azione esatta (16/11, 23:00 UTC)**: pacchetti della 16.9; poi, con lo scarico del registro della prossima
+giornata, rimisurare anticipo, trofei e direzione; risposte al §4 di `docs/PRODOTTI_FIERA_E_ONLINE.md`; Worker del
+registro da ricaricare (utente).

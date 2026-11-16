@@ -2530,6 +2530,17 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B58 · Lob e Drop a fine partita (solo fiera), versione 2026-11-16.9 (16/11/2026)
+
+- [x] Materiale: 20 GIF dell'utente (320×320, 10 fotogrammi, fondo bianco) → WebP animati con il fondo trasparente,
+  150–210 KB, 3,6 MB in tutto (`docs/b58/fondo-trasparente.py`); controllo a occhio dei 200 fotogrammi su fondo blu
+  (`lob-win-01` 6–8: due o tre punti chiari vicino alla visiera).
+- [x] Codice: `src/natpf/natpf_mascotte.js` (nuovo), `src/hud_ui.js`, `src/natpf/natpf_ui.js`, `index.html`
+  (`#victory-mascot`), `natpf-hud.css`, `scripts/pacchetto-cloudflare.mjs` (`FIERA_ONLY`).
+- [x] Prove: `natpf-b58-mascotte` 11/11, `pacchetto-cloudflare-zip` +1, gioco 1783/1783, sito 280/280, build,
+  `tools/e2e/natpf-fine-partita.mjs` 66/66 (+10). Zip Cloudflare con le mascotte 28,32 MB (rifiutato), senza 23,95 MB.
+- Non provato: programma Windows vero, ledwall, «riduci movimento» in un browser vero.
+
 ## B56 + B57 · anticipo dei colpi (fiera) e chi vince sopra a fine partita, versione 2026-11-16.8 (16/11/2026)
 
 - [x] B56: `natpf_phone_racket.js` (`ANTICIPATION_S` 0,1 s, `anticipationFor`: solo in modalità fiera), prova

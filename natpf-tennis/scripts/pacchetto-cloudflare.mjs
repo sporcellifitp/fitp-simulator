@@ -63,6 +63,8 @@ export function checkRegistroUrl(raw){
 export const PAGES = ['/', '/index.html', '/natpf/tennis/racchetta.html', '/natpf/tennis/telecomando.html'];
 export const GAME_PAGES = ['/', '/index.html'];
 export const TRAILER_FILE = /(^|\/)trailer-[0-9a-f]{12}\.mp4$/;
+// B58: cartelle della build che vanno solo nel programma Windows (versione per la fiera), non nel pacchetto web
+export const FIERA_ONLY = Object.freeze(['media/mascotte']);
 // origine del bucket pubblico dei video (null se il file non c'è o non ha un indirizzo)
 export function mediaOrigin(file = path.resolve(ROOT, '../natpf-desktop/aggiornamenti.json')){
   try { return new URL(JSON.parse(fs.readFileSync(file, 'utf8')).base).origin; } catch { return null; }
@@ -131,6 +133,9 @@ export function makePackage({ out, turnUrl = null, registroUrl = null, dist = pa
   if (trailers.length) throw new Error(`il trailer dell'intro non deve stare nel pacchetto Cloudflare (${trailers.join(', ')}): va in natpf-desktop/media, non in natpf-tennis/public`);
   fs.mkdirSync(dest, { recursive: true });
   copyDir(dist, dest);
+  // B58: cartelle solo per la fiera (programma Windows), fuori dal pacchetto web: le mascotte di fine partita (3,6 MB, con
+  // loro lo zip passava i 25 MB) che il gioco nel browser non mostra (src/natpf/natpf_mascotte.js, mascotsOn)
+  for (const dir of FIERA_ONLY) fs.rmSync(path.join(dest, dir), { recursive: true, force: true });
   fs.writeFileSync(path.join(dest, '_headers'), headersText);
   if (url){
     fs.mkdirSync(path.join(dest, 'natpf'), { recursive: true });

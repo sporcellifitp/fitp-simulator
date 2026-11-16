@@ -1568,3 +1568,18 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   applicano; pose corte, niente saltello. Campo `where` delle voci di `SV_STROKES`: 'base', 'net', 'any'.
 - Rilascio: **la versione si cambia prima del controllo rapido** (la build che finisce nello zip la fa il controllo
   rapido: lo zip della 15.2 era uscito con la 15.1 dentro ed è stato rifatto dal commit salvato).
+
+## B58 · Lob e Drop a fine partita, solo fiera (16/11/2026; documento `docs/b58/mascotte-fine-partita.md`)
+
+- Le 20 animazioni stanno in `natpf-tennis/public/media/mascotte/` come **WebP animati con il fondo trasparente**
+  (le GIF consegnate avevano il fondo bianco pieno: sulla schermata blu un quadrato bianco). Per rifarle da GIF nuove:
+  `docs/b58/fondo-trasparente.py`, poi controllo a occhio di tutti i fotogrammi su fondo blu (le parti bianche del
+  peluche, fascia e polsini di Drop, toccano il fondo: il riempimento passa solo dal colore esatto del fondo).
+- Posto: **accanto al titolo** della schermata finale (`#victory-mascot` nella testa), non nella card (la card non ha
+  spazio senza stringere trofei e riquadri). Sugli schermi quadrati (`max-aspect-ratio: 5/4`) in alto a destra della
+  testa, con il posto tenuto nel titolo (classe `has-mascot`).
+- Regola: una sola per partita, dell'esito di chi guarda (nello stesso schermo di vittoria, a pari nessuna), mai la stessa
+  della partita prima (chiave `natpf-tennis.mascotte`); due prenotate e caricate in anticipo.
+- **Solo FIERA**: `mascotsOn()` vuole `window.natpfDesktop` (o il server di sviluppo). Lo zip Cloudflare toglie le
+  cartelle di `FIERA_ONLY` (`scripts/pacchetto-cloudflare.mjs`): con le mascotte passava i 25 MB. Una cartella nuova
+  di `public/` pesante e solo per lo stand va aggiunta lì.

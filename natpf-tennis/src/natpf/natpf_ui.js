@@ -57,6 +57,7 @@ import { NatpfPrematch } from './natpf_prematch.js';
 // B47: «Rivincita» → scelta del livello (natpf_rematch.js)
 import { NatpfRematch } from './natpf_rematch.js';
 import { NatpfRitratti } from './natpf_ritratti.js';
+import { mascotRotation } from './natpf_mascotte.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -216,6 +217,8 @@ export class NatpfUi {
     this.phoneWatch = createPhoneWatch(); this.phoneHold = null; this.phoneResync = createResync();
     // webcam in campo: lo stesso per la mano persa a lungo e la camera ferma (natpf_webcam_watch.js)
     this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
+    // B58: Lob o Drop della prima fine partita già caricati (le due prenotate, dopo l'avvio; solo nel programma Windows)
+    setTimeout(() => { try { mascotRotation()?.prepare(); } catch {} }, 6000);
     // (B43: con un foglio dello staff aperto la pausa si ricalcola anche qui: una partita che parte con la diagnostica già
     // aperta, ?diag=1, resta ferma come le altre; B41.6: «Sono pronto» dei telefoni sulla pagina «Pronto per la partita»)
     // (B41.4: anche l'avviso della batteria bassa dei telefoni dello stand, natpf_fiera.tick)

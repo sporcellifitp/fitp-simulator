@@ -210,3 +210,20 @@ test('pacchetto Cloudflare: lo script avviato da riga di comando esce con errore
     }
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+// B58: le mascotte di fine partita sono solo per la fiera (programma Windows): il pacchetto web non le porta
+test('pacchetto Cloudflare: niente media/mascotte (solo fiera), il resto di media/ resta', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-pacchetto-'));
+  try {
+    const dist = path.join(tmp, 'dist'), headers = path.join(tmp, '_headers');
+    fs.mkdirSync(path.join(dist, 'media/mascotte'), { recursive: true });
+    fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html>');
+    fs.writeFileSync(path.join(dist, 'media/intro.mp4'), 'v');
+    fs.writeFileSync(path.join(dist, 'media/mascotte/lob-win-01.webp'), 'w');
+    fs.writeFileSync(path.join(dist, 'media/mascotte/manifest.json'), '{}');
+    fs.writeFileSync(headers, '/*\n  X-Content-Type-Options: nosniff\n');
+    const r = makePackage({ out: path.join(tmp, 'a'), dist, headers });
+    assert.deepEqual(r.files, ['_headers', 'index.html', 'media/intro.mp4']);
+    assert.ok(fs.existsSync(path.join(dist, 'media/mascotte/lob-win-01.webp')), 'la build resta com\'è (serve al programma Windows)');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});

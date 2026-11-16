@@ -17,6 +17,14 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 16/11/2026, 23:00 UTC (versione 2026-11-16.9: B58 Lob e Drop a fine partita, solo fiera).** Le 20
+animazioni consegnate dall'utente (PR #4, unita in un solo commit: le GIF di partenza restano solo nel branch
+`feature/natpf-mascotte-fine-partita-2`) adattate con il fondo trasparente (WebP) e mostrate accanto al titolo della
+schermata finale, una a caso per esito, mai la stessa due volte di fila; solo nel programma Windows, lo zip Cloudflare
+non le porta (`FIERA_ONLY`). `docs/b58/mascotte-fine-partita.md`. Gioco 1783/1783, sito 280/280, build;
+`natpf-fine-partita` 66/66. **Prossima azione esatta:** pacchetti della 16.9 (installer da `latest.json`, zip); poi
+come prima: rimisurare anticipo, trofei e direzione con il registro della prossima giornata (scarico dell'utente).
+
 **Checkpoint del 16/11/2026, 21:30 UTC (versione 2026-11-16.8: B56 anticipo in fiera, B57 chi vince sopra).** B56: in
 modalità fiera il gesto del telefono vale come fatto 100 ms più tardi (`docs/b36/misure-torino.md` §5). B57: a fine
 partita nello stesso schermo chi vince sopra e in evidenza (`docs/b57/`). Gioco 1771/1771, sito 280/280, LAN 13/13, desktop

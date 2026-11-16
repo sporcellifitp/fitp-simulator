@@ -1,0 +1,238 @@
+{
+  "progetto": "NATPF Simulator / Lob e Drop a fine partita",
+  "generato": "2026-11-16",
+  "modello": "gpt_image_2_6",
+  "impostazioni": {
+    "qualita": "high",
+    "risoluzione": "2k",
+    "formato": "webp animato (alfa a 8 bit), qualita 88",
+    "fondo": "trasparente (dalle GIF con il fondo bianco #FFFFFF)"
+  },
+  "asset": [
+    {
+      "file": "drop-lose-01.webp",
+      "personaggio": "Drop",
+      "esito": "sconfitta",
+      "azione": "si copre il viso",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 174,
+      "origine": "drop-lose-01.gif"
+    },
+    {
+      "file": "drop-lose-02.webp",
+      "personaggio": "Drop",
+      "esito": "sconfitta",
+      "azione": "spalle curve, sospiro",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 201,
+      "origine": "drop-lose-02.gif"
+    },
+    {
+      "file": "drop-lose-03.webp",
+      "personaggio": "Drop",
+      "esito": "sconfitta",
+      "azione": "piede contro il terreno, arrabbiato",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 210,
+      "origine": "drop-lose-03.gif"
+    },
+    {
+      "file": "drop-lose-04.webp",
+      "personaggio": "Drop",
+      "esito": "sconfitta",
+      "azione": "pugno trattenuto, deluso",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 187,
+      "origine": "drop-lose-04.gif"
+    },
+    {
+      "file": "drop-lose-05.webp",
+      "personaggio": "Drop",
+      "esito": "sconfitta",
+      "azione": "mani sulle ginocchia, stanco",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 170,
+      "origine": "drop-lose-05.gif"
+    },
+    {
+      "file": "drop-win-01.webp",
+      "personaggio": "Drop",
+      "esito": "vittoria",
+      "azione": "salto con i pugni alzati",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 174,
+      "origine": "drop-win-01.gif"
+    },
+    {
+      "file": "drop-win-02.webp",
+      "personaggio": "Drop",
+      "esito": "vittoria",
+      "azione": "risata a testa indietro, mani sui fianchi",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 180,
+      "origine": "drop-win-02.gif"
+    },
+    {
+      "file": "drop-win-03.webp",
+      "personaggio": "Drop",
+      "esito": "vittoria",
+      "azione": "applauso sopra la testa",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 175,
+      "origine": "drop-win-03.gif"
+    },
+    {
+      "file": "drop-win-04.webp",
+      "personaggio": "Drop",
+      "esito": "vittoria",
+      "azione": "corsetta e mani sui fianchi",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 192,
+      "origine": "drop-win-04.gif"
+    },
+    {
+      "file": "drop-win-05.webp",
+      "personaggio": "Drop",
+      "esito": "vittoria",
+      "azione": "saluto con occhiolino",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 202,
+      "origine": "drop-win-05.gif"
+    },
+    {
+      "file": "lob-lose-01.webp",
+      "personaggio": "Lob",
+      "esito": "sconfitta",
+      "azione": "testa china e sospiro",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 175,
+      "origine": "lob-lose-01.gif"
+    },
+    {
+      "file": "lob-lose-02.webp",
+      "personaggio": "Lob",
+      "esito": "sconfitta",
+      "azione": "mano sugli occhi",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 150,
+      "origine": "lob-lose-02.gif"
+    },
+    {
+      "file": "lob-lose-03.webp",
+      "personaggio": "Lob",
+      "esito": "sconfitta",
+      "azione": "spalle alzate, rassegnazione",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 167,
+      "origine": "lob-lose-03.gif"
+    },
+    {
+      "file": "lob-lose-04.webp",
+      "personaggio": "Lob",
+      "esito": "sconfitta",
+      "azione": "si abbraccia da solo, sguardo a terra",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 178,
+      "origine": "lob-lose-04.gif"
+    },
+    {
+      "file": "lob-lose-05.webp",
+      "personaggio": "Lob",
+      "esito": "sconfitta",
+      "azione": "si accascia in avanti",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 170,
+      "origine": "lob-lose-05.gif"
+    },
+    {
+      "file": "lob-win-01.webp",
+      "personaggio": "Lob",
+      "esito": "vittoria",
+      "azione": "salto a braccia alzate",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 169,
+      "origine": "lob-win-01.gif"
+    },
+    {
+      "file": "lob-win-02.webp",
+      "personaggio": "Lob",
+      "esito": "vittoria",
+      "azione": "pugno al cielo",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 173,
+      "origine": "lob-win-02.gif"
+    },
+    {
+      "file": "lob-win-03.webp",
+      "personaggio": "Lob",
+      "esito": "vittoria",
+      "azione": "applauso di gioia",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 160,
+      "origine": "lob-win-03.gif"
+    },
+    {
+      "file": "lob-win-04.webp",
+      "personaggio": "Lob",
+      "esito": "vittoria",
+      "azione": "doppio pugno trattenuto",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 177,
+      "origine": "lob-win-04.gif"
+    },
+    {
+      "file": "lob-win-05.webp",
+      "personaggio": "Lob",
+      "esito": "vittoria",
+      "azione": "occhiolino e pollice in su",
+      "px": 320,
+      "fotogrammi": 10,
+      "durata_s": 1.6,
+      "peso_kb": 174,
+      "origine": "lob-win-05.gif"
+    }
+  ],
+  "adattato": {
+    "data": "2026-11-16",
+    "come": "fondo bianco reso trasparente con bordo morbido e ombra semitrasparente, stesse misure, fotogrammi e durata (docs/b58/fondo-trasparente.py)",
+    "perche": "la schermata di fine partita è blu: con il fondo bianco si vedeva un quadrato bianco"
+  }
+}

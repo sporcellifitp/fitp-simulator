@@ -14,6 +14,9 @@
 //   a quelle di natpf_end_card.cardModel dai numeri del motore, record di oggi); nello stesso schermo due card con la
 //   corona su chi vince; misure con #victory-cards fra le parti che non devono sovrapporsi né uscire (anche 1366×768 e
 //   1024×1024); record di oggi battuto da una seconda partita più forte.
+//   B58 (docs/b58/mascotte-fine-partita.md): Lob o Drop accanto al titolo, una sola, dell'esito di chi guarda (di vittoria
+//   nello stesso schermo), caricata, alta almeno 60 px e dentro la scheda a tutte le misure, fra le parti che non si
+//   sovrappongono; mai la stessa due partite di fila (cinque partite in tutto). Qui si vedono perché è il server di sviluppo.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-fine-partita.mjs      (OUT=cartella delle schermate)
 // Giocatore simulato e punti del motore: non sostituiscono un telefono vero né persone vere.
 import { spawn } from 'node:child_process';
@@ -44,12 +47,13 @@ const readModal = g => g.evaluate(async () => {
   const vis = id => { const n = document.getElementById(id); return n && !n.classList.contains('hidden') && n.getBoundingClientRect().height > 0 ? n.textContent : ''; };
   // pezzi tagliati: un testo che esce dal suo riquadro o dalla scheda
   // (B40: anche le parti della card, dentro la loro card; il nome lungo della card finisce con «…», voluto)
-  const clipped = [...card.querySelectorAll('.end-tile, .end-lab, .end-num, .end-pill, .end-games, .end-sub, .end-pname, .end-chip, .skill-card-header, .nt-footer-btn:not(.hidden), .victory-result-banner, .end-card, .card-art, .card-badge, .card-name, .card-sub, .trophy, .card-record, .card-next')].filter(el => {
+  const clipped = [...card.querySelectorAll('.end-tile, .end-lab, .end-num, .end-pill, .end-games, .end-sub, .end-pname, .end-chip, .skill-card-header, .nt-footer-btn:not(.hidden), .victory-result-banner, .end-card, .card-art, .card-badge, .card-name, .card-sub, .trophy, .card-record, .card-next, .end-mascot')].filter(el => {
     const b = el.getBoundingClientRect(), host = !el.classList.contains('end-card') && el.closest('.end-card') ? el.closest('.end-card').getBoundingClientRect() : r;
     return b.height > 0 && (b.bottom > host.bottom + 1 || b.right > host.right + 1 || b.top < host.top - 1 || b.left < host.left - 1 || (el.scrollWidth > el.clientWidth + 2 && !el.classList.contains('card-name'))); }).map(el => el.className + ':' + el.textContent.slice(0, 20));
   // parti che si sovrappongono (titolo, pillola dei game, riquadri, pillola in basso, bottoni)
-  const parts = ['victory-result-banner', 'victory-games', 'victory-cards', 'victory-stats', 'victory-pill', 'victory-rematch'].map(id => document.getElementById(id)).filter(n => n && !n.classList.contains('hidden')).concat([card.querySelector('.end-btns')]).map(n => n.getBoundingClientRect()).filter(b => b.height > 0);
-  const overlap = parts.some((a, i) => parts.some((b, k) => k > i && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1));
+  const parts = ['victory-result-banner', 'victory-mascot', 'victory-games', 'victory-cards', 'victory-stats', 'victory-pill', 'victory-rematch'].map(id => document.getElementById(id)).filter(n => n && !n.classList.contains('hidden')).concat([card.querySelector('.end-btns')]).map(n => ({ id: n.id || n.className, b: n.getBoundingClientRect() })).filter(p => p.b.height > 0);
+  const hits = parts.flatMap(({ id: ia, b: a }, i) => parts.filter(({ b }, k) => k > i && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1).map(({ id, b }) => `${ia} ${Math.round(a.top)}-${Math.round(a.bottom)} / ${id} ${Math.round(b.top)}-${Math.round(b.bottom)}`));
+  const overlap = hits.length > 0;
   const view = window.__endView, M = await import('/src/natpf/natpf_match_stats.js'), C = await import('/src/natpf/natpf_end_card.js'), P = await import('/src/natpf/natpf_personaggi.js');
   const expect = view?.stats ? M.endScreen(view, view.stats) : null;
   // B40: card come le vede chi guarda, e quelle che il modello dice dai numeri del motore
@@ -64,7 +68,9 @@ const readModal = g => g.evaluate(async () => {
     kicker: document.getElementById('victory-kicker').textContent, sub: vis('victory-sub'), games: vis('victory-games') ? [...document.getElementById('victory-games').children].map(c => c.textContent.trim()).join(' ') : '', pill: vis('victory-pill'),
     again: document.getElementById('btn-play-again').textContent, btns: [...card.querySelectorAll('.end-btns .nt-footer-btn')].filter(b => !b.classList.contains('hidden') && b.offsetParent).map(b => b.textContent),
     tiles, players, sums: view?.stats?.cols.map(c => c.sum) || [], expect, cards, cardsExpect, hasCards: m.classList.contains('has-cards'), text: card.innerText,
-    inView: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5, scroll: card.scrollHeight > card.clientHeight + 1, clipped, overlap, size: [innerWidth, innerHeight] };
+    inView: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5, scroll: card.scrollHeight > card.clientHeight + 1, clipped, overlap, hits, size: [innerWidth, innerHeight],
+    // B58: Lob o Drop accanto al titolo (file, esito, caricata, altezza a schermo)
+    mascot: (() => { const b = document.getElementById('victory-mascot'), im = b?.querySelector('img, canvas'); return b && !b.classList.contains('hidden') && im ? { file: im.dataset.file, outcome: im.dataset.outcome || '', loaded: (im.naturalWidth || im.width) === 320, n: b.children.length, h: Math.round(b.getBoundingClientRect().height) } : null; })() };
 });
 const sameTiles = (a, b) => JSON.stringify((a || []).map(t => [t.id, t.value, t.label])) === JSON.stringify((b || []).map(t => [t.id, t.value, t.label]));
 
@@ -154,10 +160,16 @@ try {
     && JSON.stringify(v.cards) === JSON.stringify(v.cardsExpect), JSON.stringify({ cards: v.cards, expect: v.cardsExpect }));
   check('   B40: da 0 a 3 medaglie; prima partita di Ada: «Prima volta»; record di oggi (prima partita del giorno: è suo)', cA.trophies.length <= 3 && cA.trophies.includes('prima:1') && /^Record di oggi! /.test(cA.record), JSON.stringify(cA));
   check('   B40: prossimo trofeo a chi perde o vince senza trofei della partita', (!won || cA.trophies.every(t => t.startsWith('prima'))) === !!cA.next, JSON.stringify({ won, next: cA.next, trophies: cA.trophies }));
+  // B58: una sola animazione, dell'esito di Ada, caricata dal programma (qui dal server di sviluppo, dove si vedono)
+  await g.waitForFunction(() => { const im = document.querySelector('#victory-mascot img, #victory-mascot canvas'); return !im || im.naturalWidth || im.width; }, null, { timeout: 8000 }).catch(() => {});
+  v = await readModal(g);
+  const mascotA = v.mascot;
+  check('A2m. B58: Lob o Drop accanto al titolo, una sola, dell\'esito di Ada, caricata', !!mascotA && mascotA.n === 1 && mascotA.loaded && mascotA.outcome === (won ? 'win' : 'lose') && new RegExp(`^(lob|drop)-${won ? 'win' : 'lose'}-0[1-5]\\.webp$`).test(mascotA.file), JSON.stringify(mascotA));
   for (const [w, h] of [[1280, 720], [1920, 1080], [1920, 540], [1024, 600], [720, 720], [1366, 768], [1024, 1024]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(250);
     v = await readModal(g);
-    check(`A3. ${w}×${h}: scheda tutta nello schermo, senza scorrere né testi tagliati o sovrapposti`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.overlap }));
+    check(`A3m. ${w}×${h}: B58 la mascotte si vede (almeno 60 px) e resta dentro la scheda`, !!v.mascot && v.mascot.h >= 60 && !v.clipped.some(c => c.startsWith('end-mascot')), JSON.stringify({ mascot: v.mascot, clipped: v.clipped }));
+    check(`A3. ${w}×${h}: scheda tutta nello schermo, senza scorrere né testi tagliati o sovrapposti`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.hits }));
     await shot(`cpu-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 });
@@ -226,10 +238,13 @@ try {
     E.natpfStats.shot(E, { role: 'p1', grade: 'PERFECT', kmh });
     for (let i = 0; i < 4 && E.phase !== 'MATCH_OVER'; i++){ E.ball.rallyStrokeCount = 3; E._awardPoint('player', 'Out'); }
     const t0 = performance.now(); while (document.getElementById('victory-modal').classList.contains('hidden') && performance.now() - t0 < 15000) await new Promise(r => setTimeout(r, 100));
+    (window.__mascots ||= []).push(document.querySelector('#victory-mascot:not(.hidden) img, #victory-mascot:not(.hidden) canvas')?.dataset.file || '');   // B58
     return document.querySelector('#victory-cards .card-record')?.textContent || '';
   }, kmh);
   const r1 = await quick(150), r2 = await quick(120), r3 = await quick(160);
   check('B6. B40: record di oggi del colpo più forte: suo alla prima, da battere alla seconda, battuto alla terza (solo il valore)', r1 === 'Record di oggi! 150 km/h' && r2 === 'Record di oggi: 150 km/h' && r3 === 'Record di oggi! 160 km/h', [r1, r2, r3].join(' | '));
+  const seqM = await g.evaluate(() => window.__mascots || []), chain = [mascotA?.file, ...seqM];
+  check('B6m. B58: tre partite vinte di fila: ogni volta una mascotte di vittoria, mai la stessa della partita prima', seqM.length === 3 && seqM.every(f => /^(lob|drop)-win-0[1-5]\.webp$/.test(f)) && chain.every((f, i) => !i || f !== chain[i - 1]), JSON.stringify(chain));
   await g.evaluate(() => { const E = __natpfTennis; E.hud.hideVictoryModal(); E.natpfUi.events.resetBoard(); E.natpfUi.lobby.go('menu'); });
 
   /* ---------- C. stesso schermo ---------- */
@@ -258,8 +273,9 @@ try {
       check('   mai numeri negativi', !NEG.test(v.text), v.text.replace(/\s+/g, ' ').slice(0, 200));
       check('C1b. B40: due card, corona solo su Marco (vince); B57: Marco (chi vince) sopra, Giulia sotto', v.cards.length === 2 && v.cards[0].crown && !v.cards[1].crown && v.cards[0].name === 'Marco' && v.cards[1].name === 'Giulia'
         && v.cards.every(c => c.frame === 'evento') && JSON.stringify(v.cards) === JSON.stringify(v.cardsExpect), JSON.stringify({ cards: v.cards, expect: v.cardsExpect }));
+      check('C1m. B58: nello stesso schermo una sola mascotte, di vittoria (vince Marco), diversa da quella della partita prima', !!v.mascot && v.mascot.n === 1 && v.mascot.outcome === 'win' && /^(lob|drop)-win-0[1-5]\.webp$/.test(v.mascot.file) && v.mascot.file !== chain.at(-1), JSON.stringify({ ora: v.mascot, prima: chain.at(-1) }));
     }
-    check(`C2. stesso schermo ${w}×${h}: tutta nello schermo, niente tagliato né sovrapposto`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.overlap }));
+    check(`C2. stesso schermo ${w}×${h}: tutta nello schermo, niente tagliato né sovrapposto`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.hits }));
     await shot(`split-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 });
