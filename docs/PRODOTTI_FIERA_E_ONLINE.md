@@ -46,7 +46,8 @@ Registro delle richieste in §3.
 | 16/11 | «Movimenti come nel video» su tutti i colpi (B53) | ENTRAMBE | fatto, 16.3–16.4 |
 | 16/11 | Niente nome sulla tastiera del PC con «Nuovo giocatore» (B54.2) | FIERA | fatto, 16.5 |
 | 16/11 | «Torna alla versione di prima» nelle Opzioni (B55) | FIERA | fatto, 16.6 |
-| 16/11 | Direzione dei colpi (B36.1) e soglie dei trofei | da confermare | in attesa dei dati del registro |
+| 16/11 | Soglie dei trofei sui dati di Torino | ENTRAMBE | fatto, 16.7 |
+| 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)
 

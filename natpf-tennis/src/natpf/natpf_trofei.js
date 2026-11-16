@@ -14,16 +14,21 @@ export const TIER_NAME = Object.freeze(['', 'bronzo', 'argento', 'oro']);
 export const tierOf = t => (t === 1 ? 'di bronzo' : t === 2 ? 'd’argento' : t === 3 ? 'd’oro' : '');
 
 // Soglie (bronzo, argento, oro), misurate sul gioco simulato (scripts/audit/b40-trofei.mjs, docs/b40/fine-partita-v2.md §3).
+// 16/11/2026: Cecchino, Maratoneta, Asso, Vincente e Muro ritarati sul registro vero della fiera di Torino (13–16/11, 587
+// partite, 753 lati: docs/b40/fine-partita-v2.md §3.1): con le soglie dei giocatori simulati i visitatori veri non li
+// prendevano quasi mai (Cecchino 0,7 %, Muro 0,7 %). Obiettivo: bronzo verso il 10–12 %, argento verso il 3 %, oro sotto l'1 %.
+// Razzo non si misura dal registro (i colpi non hanno i km/h); Super era già lì; In serie con le partite a un game ha senso
+// solo il bronzo (4 di fila = il game a zero).
 // scale: 'game' soglia × game giocati; 'sqrt' soglia × √game giocati (arrotondata); 'serie' soglia + 2 per ogni game in più
 export const TROPHY_TIERS = Object.freeze({
-  cecchino: Object.freeze({ tiers: [16, 21, 27], scale: 'game' }),   // colpi Perfetti
+  cecchino: Object.freeze({ tiers: [8, 12, 15], scale: 'game' }),    // colpi Perfetti (Torino: 10,2 · 2,8 · 0,9 %)
   razzo: Object.freeze({ tiers: [140, 155, 170] }),                   // km/h veri del colpo più forte finito in campo
-  maratoneta: Object.freeze({ tiers: [30, 34, 38] }),                 // colpi dello scambio più lungo
-  asso: Object.freeze({ tiers: [3, 4, 5], scale: 'sqrt' }),           // servizi vincenti: ace o servizio non rimandato in campo
-  vincente: Object.freeze({ tiers: [4, 5, 6], scale: 'game' }),       // vincenti (palla non presa)
+  maratoneta: Object.freeze({ tiers: [23, 29, 37] }),                 // colpi dello scambio più lungo (Torino: 10,8 · 3,5 · 0,8 %)
+  asso: Object.freeze({ tiers: [1, 2, 3], scale: 'sqrt' }),           // servizi vincenti: ace o servizio non rimandato in campo (Torino: 12,6 · 1,7 · 0,3 %)
+  vincente: Object.freeze({ tiers: [3, 4, 5], scale: 'game' }),       // vincenti (palla non presa) (Torino: 14,9 · 3,3 · 0,4 %)
   super: Object.freeze({ tiers: [1, 2, 3] }),                         // colpi super riusciti
   serie: Object.freeze({ tiers: [4, 5, 7], scale: 'serie' }),         // punti vinti di fila
-  muro: Object.freeze({ tiers: [36, 44, 52], scale: 'sqrt' }),        // colpi di gioco rimandati in campo di fila
+  muro: Object.freeze({ tiers: [18, 25, 33], scale: 'sqrt' }),        // colpi rimandati in campo di fila (Torino: 10,8 · 3,1 · 0,9 %)
 });
 // Game a zero: il livello parte dal livello della CPU (Bambini, Facile, Evento: bronzo; Esperta: argento; Leggenda: oro;
 // stesso schermo e sfida tra due computer: bronzo) e sale di uno per ogni game a zero in più

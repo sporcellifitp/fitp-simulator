@@ -121,6 +121,11 @@ principiante a Facile, 5 % bambino a Facile):
   è finito): cambia ace e km/h, cioè **Asso e Razzo**; (2) con i dati veri del registro dello stand dopo una giornata.
   Sono giocatori simulati, non persone: vincono molto e fanno scambi lunghi.
 
+### 3.1 Ritaratura con il registro vero (16/11/2026, versione 2026-11-16.7)
+
+Con i dati della fiera di Torino (587 partite) Cecchino, Maratoneta, Asso, Vincente e Muro sono stati ritarati: tabella e
+calcolo in `docs/b36/misure-torino.md` §4. Le soglie della tabella qui sopra sono quelle di prima.
+
 ## 4. Contatori nuovi e dati del giorno
 
 - `natpf_match_stats.js` (solo lettura, il gioco non cambia: impronte uguali, test): serie di punti, rimonta in punti

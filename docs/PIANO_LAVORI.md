@@ -17,6 +17,11 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 16/11/2026, 20:30 UTC (versione 2026-11-16.7: trofei sui dati di Torino).** Registro vero letto: 587
+partite; trofei ritarati (`docs/b36/misure-torino.md`). B36.1 ferma per la regola del piano (cima troppo imprecisa): decide
+l'utente. **Prossima azione esatta:** pacchetti della 16.7; poi la decisione dell'utente sulla direzione (e sull'anticipo
+sistematico dei colpi) e le risposte del §4 di `docs/PRODOTTI_FIERA_E_ONLINE.md`.
+
 **Checkpoint del 16/11/2026, 19:30 UTC (B55, versione 2026-11-16.6).** «Torna alla versione di prima» nelle Opzioni
 (programma Windows): `docs/b55/versione-di-prima.md`. Test verdi (gioco 1767, sito 280, LAN 13, desktop 56, build).
 Pacchetti della 16.6 verificati

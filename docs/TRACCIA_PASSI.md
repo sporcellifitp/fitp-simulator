@@ -1398,3 +1398,14 @@ node:test e `scripts/prova-linux.mjs`.
 
 **Prossima azione esatta (16/11, 20:00 UTC)**: aspettare l'utente: ricarica del Worker (file consegnato) e scarico dei
 giorni di Torino → conto delle partite, B36.1, soglie dei trofei; risposte alle domande di `docs/PRODOTTI_FIERA_E_ONLINE.md` §4.
+
+## >>> 16/11, 20:30 UTC · REGISTRO DI TORINO (file dell'utente) <<<
+
+- [x] **Partite**: 587 in 4 giorni (13/11 15 · 14/11 125 · 15/11 251 · 16/11 196), 552 finite. Misure in
+      `docs/b36/misure-torino.md` (solo numeri aggregati; il file dell'utente non è nel repository).
+- [x] **Trofei ritarati → versione 2026-11-16.7**: Cecchino 8·12·15, Maratoneta 23·29·37, Asso 1·2·3, Vincente 3·4·5,
+      Muro 18·25·33 (`natpf_trofei.js`; prove `natpf-b40-trofei`, `natpf-b40-card` aggiornate). Gioco 1768/1768, sito
+      280/280, LAN 13/13, desktop 56/56, build. Razzo e In serie non ritarati (perché: documento §4).
+- [ ] **B36.1 direzione: FERMA, da decidere con l'utente** (regola del piano): la cima è troppo imprecisa nei dati veri
+      (metà dei colpi entro ±52°), oggi la palla la dirige il tempo (72–77 %). Osservazione: 84–91 % dei colpi in anticipo
+      (+105…+221 ms): da guardare per prima.

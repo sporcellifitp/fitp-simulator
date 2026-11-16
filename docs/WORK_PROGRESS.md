@@ -2521,3 +2521,12 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1767/1767, sito 280/280, LAN 13/13, desktop 56/56, build; bash del passo del workflow controllato
   (`bash -n`), `versioni.mjs` provato con l'elenco del bucket finto. Non provati: Windows vero, `prova-linux.mjs`.
 
+## Registro di Torino: partite, trofei ritarati (versione 2026-11-16.7), direzione ferma (16/11/2026)
+
+- [x] Letto lo scarico del Worker dell'utente con `scripts/registro/riassunto.mjs` (587 partite) e uno script dei trofei
+  (nella cartella di lavoro della sessione; calcolo descritto in `docs/b36/misure-torino.md` §4).
+- File: `natpf_trofei.js` (soglie di 5 trofei), `test/natpf-b40-trofei.test.mjs` e `natpf-b40-card.test.mjs` (esempi alle
+  soglie nuove), `docs/b36/misure-torino.md` (nuovo), `docs/b40/fine-partita-v2.md` §3.1, registro dei prodotti, versione.
+- Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
+- Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
+

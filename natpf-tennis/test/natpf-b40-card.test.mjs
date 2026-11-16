@@ -24,7 +24,7 @@ function match(seq, { mode = 'cpu', level = 'evento', perf = 0, kmh = 0, p2kmh =
 const REC = { kmh: { value: 128, mine: true, tie: false, prev: 120, side: 'player' }, scambio: { value: 31, mine: false, tie: false, prev: 31 } };
 
 test('B40.4: vittoria contro la CPU, card con MVP, cornice Evento, trofei, record di oggi', () => {
-  const m = match('oopppp', { perf: 17, kmh: 128 });
+  const m = match('oopppp', { perf: 5, kmh: 128 });
   const v = viewOf(m, { nick: 'Ada', rank: { rank: 1, total: 6, score: 93 }, first: { player: true, opponent: false }, record: REC });
   const base = matchEndView({ winner: 'player', games: { player: 1, opponent: 0 }, nickname: 'Ada' });
   const M = cardModel(v, base, { looks: { player: 'p1', opponent: 'cpu' } });
@@ -46,11 +46,11 @@ test('B40.4: vittoria contro la CPU, card con MVP, cornice Evento, trofei, recor
 });
 
 test('B40.4: sconfitta, «Bella sfida» e prossimo trofeo; chi vince senza trofei ha il prossimo trofeo', () => {
-  const m = match('ppoooo', { perf: 13, kmh: 100 });
+  const m = match('ppoooo', { perf: 6, kmh: 100 });
   const v = viewOf(m, { nick: 'Bea', record: { kmh: { value: 141, mine: false, prev: 141, side: null }, scambio: { value: 31, mine: false, prev: 31 } } });
   const c = cardModel(v, matchEndView({ winner: 'opponent', games: { player: 0, opponent: 1 }, nickname: 'Bea' })).cards[0];
   assert.equal(c.won, false); assert.equal(c.badge, BADGE_LOST);
-  assert.equal(c.next, 'Prossimo trofeo: Cecchino di bronzo · 3 colpi Perfetti in più');
+  assert.equal(c.next, 'Prossimo trofeo: Cecchino di bronzo · 2 colpi Perfetti in più');
   assert.deepEqual(c.record, { mine: false, text: 'Record di oggi: 141 km/h' }, 'il record da battere, solo il valore');
   const html = cardsHtml({ split: false, cards: [c] });
   assert.match(html, /data-won="0"/); assert.match(html, /class="card-next"/);

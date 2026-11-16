@@ -110,7 +110,8 @@ test('B40.2: Re di oggi (vinta, in classifica con un nome, da 5 partite) e Prima
 });
 
 test('B40.2: i tre trofei della card (dal più alto, poi dal più raro; Prima volta sempre in vista)', () => {
-  const s = sumOf({ fastest: 156, timing: { perfetto: 16 }, longest: 38, winners: 4, streak: 4 });
+  // (soglie di Torino del 16/11: Cecchino 8 · 12 · 15 a game, Vincente 3 · 4 · 5 a game, Maratoneta 23 · 29 · 37)
+  const s = sumOf({ fastest: 156, timing: { perfetto: 9 }, longest: 38, winners: 3, streak: 4 });
   const all = trophiesOf(s, { mode: 'cpu', level: 'evento' });
   assert.deepEqual(all.map(t => [t.id, t.tier]), [['maratoneta', 3], ['razzo', 2], ['cecchino', 1], ['vincente', 1], ['serie', 1]]);
   assert.deepEqual(cardTrophies(all).map(t => t.id), ['maratoneta', 'razzo', 'cecchino']);
@@ -125,22 +126,22 @@ test('B40.2: i tre trofei della card (dal più alto, poi dal più raro; Prima vo
 });
 
 test('B40.2: prossimo trofeo, il più vicino sotto il 50 % e detto in positivo', () => {
-  // 143 km/h (già Razzo di bronzo): 12 all'argento (155) = 7,7 %; 12 Perfetti: 4 al Cecchino di bronzo (16) = 25 %
-  const n = nextTrophy(sumOf({ fastest: 143, timing: { perfetto: 12 } }));
+  // 143 km/h (già Razzo di bronzo): 12 all'argento (155) = 7,7 %; 6 Perfetti: 2 al Cecchino di bronzo (8) = 25 %
+  const n = nextTrophy(sumOf({ fastest: 143, timing: { perfetto: 6 } }));
   assert.equal(n.id, 'razzo'); assert.equal(n.tier, 2); assert.equal(n.text, 'Prossimo trofeo: Razzo d’argento a 155 km/h · 12 km/h in più');
-  const r = nextTrophy(sumOf({ fastest: 128, timing: { perfetto: 12 } }));
+  const r = nextTrophy(sumOf({ fastest: 128, timing: { perfetto: 6 } }));
   assert.equal(r.id, 'razzo'); assert.equal(r.tier, 1); assert.equal(r.missing, 12);
   assert.equal(r.text, 'Prossimo trofeo: Razzo di bronzo a 140 km/h · 12 km/h in più');
-  const c = nextTrophy(sumOf({ fastest: 60, timing: { perfetto: 13 } }));
+  const c = nextTrophy(sumOf({ fastest: 60, timing: { perfetto: 5 } }));
   assert.equal(c.id, 'cecchino'); assert.equal(c.text, 'Prossimo trofeo: Cecchino di bronzo · 3 colpi Perfetti in più');
   // niente di vicino: consiglio gentile
   const t = nextTrophy(sumOf());
   assert.equal(t.id, 'cecchino'); assert.match(t.text, /anello diventa verde/);
   // computer del Player 2: niente Asso, Vincente, Muro
-  assert.notEqual(nextTrophy(sumOf({ wall: 35 }), { guest: true })?.id, 'muro');
-  assert.equal(nextTrophy(sumOf({ wall: 35 }))?.id, 'muro');
+  assert.notEqual(nextTrophy(sumOf({ wall: 16 }), { guest: true })?.id, 'muro');
+  assert.equal(nextTrophy(sumOf({ wall: 16 }))?.id, 'muro');
   // singolare
-  assert.equal(nextTrophy(sumOf({ winners: 3 })).text, 'Prossimo trofeo: Vincente di bronzo · 1 vincente in più');
+  assert.equal(nextTrophy(sumOf({ winners: 2 })).text, 'Prossimo trofeo: Vincente di bronzo · 1 vincente in più');
   for (const s of [sumOf({ fastest: 150 }), sumOf({ longest: 29 }), sumOf({ streak: 3 }), sumOf({ unreturned: 2 }), sumOf({ superOk: 0 }), sumOf({ wall: 40, gamesPlayed: 2 })]){
     const x = nextTrophy(s); assert.ok(x && NEAR.includes(x.id)); assert.doesNotMatch(x.text, NEG, x.text);
   }
