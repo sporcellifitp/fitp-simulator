@@ -459,3 +459,11 @@ test('Worker del registro, B36.0: il Worker di prima accetta le righe del gioco 
   // il gioco e il Worker nuovo puliscono le righe nuove allo stesso modo
   for (const r of RIGHE_B36) assert.deepEqual(pulisci(r), F.pulisci(r));
 });
+
+test('16/11: pagina del Worker con la colonna «Partite», scarico a pezzi da 15 blocchi e la pagina che riprova su un 503', async () => {
+  const src = (await import('node:fs')).readFileSync(new URL('../cloudflare/registro-worker.js', import.meta.url), 'utf8');
+  assert.match(src, /<th class="n">Partite<\/th>/);
+  assert.match(src, /for\(const v of \[g\.partite\?\?'—'/);
+  assert.match(src, /pagina: 15,/);
+  assert.match(src, /r\.status===503/);
+});

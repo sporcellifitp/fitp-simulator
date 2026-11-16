@@ -96,7 +96,9 @@ export const LIMITI = Object.freeze({
   invioAlMinuto: 120,         // richieste di scrittura al minuto da uno stesso indirizzo
   giorniIndietro: 7,          // un blocco può arrivare in ritardo (stand senza rete) fino a 7 giorni: una finestra
                               // stretta perché chi conosce l'indirizzo non possa riempire molti giorni (8 × 200 MB < 2 GB)
-  pagina: 40,                 // blocchi per richiesta di scarico
+  // blocchi per richiesta di scarico (16/11/2026: con 40 lo scarico dei giorni della fiera di Torino, 466–769 blocchi,
+  // dava 503 dalla pagina: limiti del piano gratuito per richiesta; la pagina chiede i pezzi uno dopo l'altro e riprova)
+  pagina: 15,
   operazioni: 40,             // operazioni sullo spazio per richiesta, al più (cancellazione e ricalcolo a pezzi)
   erroriChiave: 10,           // chiavi sbagliate in 10 minuti da uno stesso indirizzo, poi 429
   minChiave: 12,
@@ -442,19 +444,20 @@ ${spazio ? '' : '<p class="no"><b>Il registro NON è pronto:</b> manca il colleg
 <p id="msg" class="dim">Scrivi la chiave per vedere lo spazio occupato e i giorni registrati, scaricarli o cancellarli.</p>
 <div id="barra" hidden><i></i></div><p id="spazio" class="dim" hidden></p>
 <p class="dim"><small>Il bucket del registro deve restare <b>privato</b>: non accendere mai «Public access» né un dominio pubblico su quel bucket.</small></p>
-<table id="t" hidden><thead><tr><th>Giorno</th><th class="n">Blocchi</th><th class="n">Righe</th><th class="n">Peso</th><th></th></tr></thead><tbody></tbody></table>
+<table id="t" hidden><thead><tr><th>Giorno</th><th class="n">Partite</th><th class="n">Blocchi</th><th class="n">Righe</th><th class="n">Peso</th><th></th></tr></thead><tbody></tbody></table>
 <p id="tutti" hidden><button id="tutto">Scarica tutti i giorni in un file</button> <button id="ricalcola">Ricalcola lo spazio</button> <button id="viatutto" class="via">Cancella tutto</button></p>
 <p id="pieno" class="no" hidden></p>
 <p><small>Il file scaricato (registro-….jsonl.gz, compresso) è quello da mandare così com'è a chi sviluppa il gioco: lo legge lo strumento «riassunto». Il Worker non cancella mai niente da solo: quando lo spazio è pieno non accetta altre righe (restano in coda sui PC dello stand) finché non cancelli qui i giorni già scaricati.</small></p>
 <script>
 const $=id=>document.getElementById(id),msg=t=>{$('msg').textContent=t};
 const peso=b=>b==null?'—':b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' kB';
-const chiedi=async(p,method)=>{const r=await fetch(p,{method:method||'GET',headers:{Authorization:'Bearer '+$('k').value.trim()},cache:'no-store'});if(!r.ok){let e='errore '+r.status;try{e=(await r.json()).error||e}catch{}throw new Error(e)}return r};
+const attesa=ms=>new Promise(r=>setTimeout(r,ms));
+const chiedi=async(p,method)=>{for(let i=0;;i++){const r=await fetch(p,{method:method||'GET',headers:{Authorization:'Bearer '+$('k').value.trim()},cache:'no-store'});if(r.ok)return r;if((r.status===503||r.status===502||r.status===500)&&i<4&&(method||'GET')==='GET'){await attesa(1500*(i+1));continue}let e='errore '+r.status;try{e=(await r.json()).error||e}catch{}throw new Error(e)}};
 async function pezzi(giorno,parts){let da='';do{const r=await chiedi('/scarica?a-pezzi=1&giorno='+giorno+(da?'&da='+encodeURIComponent(da):''));parts.push(await r.blob());da=r.headers.get('X-Registro-Continua')||''}while(da)}
 function salva(parts,nome){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(parts,{type:'application/gzip'}));a.download=nome;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
 let giorni=[];
 function mostra(j){giorni=j.giorni||[];const tb=$('t').querySelector('tbody');tb.textContent='';
-for(const g of [...giorni].reverse()){const tr=tb.insertRow();tr.insertCell().textContent=g.giorno;for(const v of [g.blocchi??'—',g.righe??'—',peso(g.byte)]){const c=tr.insertCell();c.className='n';c.textContent=v}
+for(const g of [...giorni].reverse()){const tr=tb.insertRow();tr.insertCell().textContent=g.giorno;for(const v of [g.partite??'—',g.blocchi??'—',g.righe??'—',peso(g.byte)]){const c=tr.insertCell();c.className='n';c.textContent=v}
 const b=document.createElement('button');b.textContent='Scarica';b.onclick=()=>uno(g.giorno,b);const x=document.createElement('button');x.textContent='Cancella';x.className='via';x.onclick=()=>via('giorno='+g.giorno,'Cancellare il giorno '+g.giorno+'? Non si può tornare indietro.',x);const c=tr.insertCell();c.appendChild(b);c.appendChild(document.createTextNode(' '));c.appendChild(x)}
 $('t').hidden=!giorni.length;$('tutti').hidden=!giorni.length;$('barra').hidden=$('spazio').hidden=false;$('barra').firstChild.style.width=Math.min(100,100*j.byte/j.maxByte)+'%';
 $('spazio').textContent='Spazio occupato dal registro: '+peso(j.byte)+' su '+peso(j.maxByte)+'.'+((j.cancellati||[]).length?' Già cancellati: '+j.cancellati.slice(-6).map(c=>c.giorno+' ('+(c.perche==='tetto'?'spazio pieno':'a mano')+')').join(', ')+'.':'');

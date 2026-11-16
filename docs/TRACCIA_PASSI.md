@@ -1386,3 +1386,8 @@ node:test e `scripts/prova-linux.mjs`.
       280/280, LAN 13/13, desktop 56/56, build. **Punto esatto**: dopo il push controllare il workflow Windows (installer e
       `windows/versioni.json` su R2), zip; poi l'errore 503 di «Scarica» nella pagina del Worker del registro (segnalato
       dall'utente).
+- [x] **Scarico dalla pagina del Worker del registro: 503** (segnalato dall'utente): i 503 vengono da Cloudflare (limiti del
+      piano gratuito per richiesta; gli errori del Worker sono 500). `natpf-tennis/cloudflare/registro-worker.js`: 15 blocchi
+      per richiesta invece di 40, la pagina riprova da sola su 500/502/503 (GET), colonna **«Partite»** nella tabella. Prove
+      del Worker 49/49. **L'utente deve ricaricare il Worker** (`docs/b36/misure-b36-0.md` §3; file consegnato). Non provato
+      sul Cloudflare vero.
