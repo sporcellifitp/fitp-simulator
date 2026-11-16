@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-16.3** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-16.4** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -406,7 +406,7 @@ lunga dello schermo: scorri con la rotellina.
 | **Segnale del momento giusto** | **Di base** · Sì · No | Un anello bianco si stringe sulla palla e diventa verde quando è il momento di colpire; nelle prime 3 palle di ogni partita compare «Colpisci quando il cerchio diventa verde». Di base: acceso con «Bambino» e «Adulto», spento con «Ragazzo», Esperta e Leggenda. Solo contro la CPU. |
 | **Visuale** | **3ª persona** · 1ª persona | Camera dietro il giocatore o dai suoi occhi. |
 | **Scia della palla** | Sì · **No** | Una scia luminosa dietro la palla veloce. |
-| **Movimenti come nel video** (fino alla 2026-11-16.2 «Dritto come nel video (prova)») | **Sì** · No | Il dritto e, dalla 2026-11-15.1, il rovescio, (2026-11-15.2) la schiacciata e (2026-11-15.3) le volée a rete, corte, del personaggio con le movenze del trailer (B53: poi il servizio). No: i colpi di prima. |
+| **Movimenti come nel video** (fino alla 2026-11-16.2 «Dritto come nel video (prova)») | **Sì** · No | Il dritto e, dalla 2026-11-15.1, il rovescio, (2026-11-15.2) la schiacciata e (2026-11-15.3) le volée a rete, corte, (2026-11-16.4) il servizio, del personaggio con le movenze del trailer (B53: poi il servizio). No: i colpi di prima. |
 | **Personaggi in campo** | **Classici** · Lob & Drop | I tennisti di sempre o le due mascotte. È la stessa scelta di «Personaggi» nella pagina «Pronto per la partita». |
 | **Audio** | «Audio: **Sì**» · «Voci: **Sì**» | Audio: tutto l'audio, come «Musica» del pannello (non resta salvato). Voci: la voce del punteggio, in inglese. |
 | **Volumi** | Musica **65** · Effetti **85** · Voci **90** | Trascina i cursori (da 0 a 100). Ci sono anche nella pausa. |

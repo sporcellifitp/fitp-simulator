@@ -2491,4 +2491,15 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   Opzioni), guida, `docs/b53/colpi-dal-video.md` §5, versione. Stessa chiave salvata (`natpf-tennis.drittoVideo`).
 - Verifiche: gioco 1762/1762, sito 280/280, LAN 13/13, desktop 51/51, build. Non rifatta `natpf-dritto-video` nel browser
   (cambia solo la scritta; la riga delle Opzioni si controlla lì).
+- Pacchetti 16.3: installer = `latest.json` (sha256 `61f14209…13e3`), zip `6b728776…8a37` provato estratto, consegnato.
+
+## B53.4 · Servizio «come nel video», versione 2026-11-16.4 (16/11/2026)
+
+- [x] File: `natpf_strokes_video.js` (voce `serve`; durante una reazione la posa si chiude sotto l'1 %), prove
+  `natpf-colpi-video.test.mjs` (+2, tipi e sequenza aggiornati) e `natpf-dritto-video.test.mjs` (sequenza), documento B53 §6,
+  guida, versione.
+- Sonda: swing del servizio 0,352 s, parte da 0,063 s (l 0,18) anche per la CPU; la posa della preparazione resta quasi a
+  zero, quindi niente gambe piegate dentro lo swing (scelta: il lancio resta quello di sempre).
+- Verifiche: gioco 1764/1764, sito 280/280, LAN 13/13, desktop 51/51, build. Non fatti: fogli nel browser del servizio,
+  `natpf-dritto-video` nel browser.
 

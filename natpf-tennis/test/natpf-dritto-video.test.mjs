@@ -57,12 +57,13 @@ test('spenta: le ossa sono quelle di ae68759, fotogramma per fotogramma, per des
   }
 });
 
-test('accesa: cambia attorno al dritto (preparazione, colpo, finale) e, dal B53, al rovescio (test/natpf-colpi-video.test.mjs); attesa, servizio ed esultanza restano di ae68759', () => {
+test('accesa: cambia attorno al dritto (preparazione, colpo, finale) e, dal B53, al rovescio e al colpo del servizio (test/natpf-colpi-video.test.mjs); attesa, lancio e fine dell\'esultanza restano di ae68759', () => {
   for (const who of Object.keys(PERSONAGGI)){
     const prints = run(true, who).rec.map(impronta), same = (a, b) => { for (let f = a; f < b; f++) assert.equal(prints[f], G.impronte[who][f], `${who}, fotogramma ${f}`); };
     const changed = (a, b) => { let n = 0; for (let f = a; f < b; f++) if (prints[f] !== G.impronte[who][f]) n++; return n; };
     same(...tratto('attesa').slice(1));
-    same(...tratto('servizio: attesa').slice(1)); same(...tratto('servizio: colpo').slice(1)); same(...tratto('fine punto').slice(1));
+    // (B53.4: il colpo del servizio cambia, test/natpf-colpi-video.test.mjs; lancio e fine dell'esultanza no)
+    same(...tratto('servizio: attesa').slice(1)); same(462, tratto('fine punto')[2]);
     assert.equal(changed(...tratto('dritto dall').slice(1)), 22, 'il dritto di chi gioca cambia in ogni fotogramma');
     assert.equal(changed(...tratto('dritto piatto').slice(1)), 40, 'anche il dritto piatto intero (come lo fa la CPU)');
     assert.ok(changed(...tratto('palla sul dritto, fermo').slice(1)) >= 25, 'la preparazione cambia');

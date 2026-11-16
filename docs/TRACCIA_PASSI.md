@@ -1314,3 +1314,23 @@ B53.5 voce delle Opzioni. Regole e procedura: CLAUDE.md, `docs/PIANO_LAVORI.md` 
 - [x] **B53.5 → versione 2026-11-16.3**: voce delle Opzioni «Movimenti come nel video» (stessa chiave `drittoVideo`),
       avvisi nuovi, guida e `docs/b53/colpi-dal-video.md` §5. Gioco 1762/1762, sito 280/280, LAN 13/13, desktop 51/51,
       build. **Punto esatto**: commit e push della 16.3, zip e installer; poi **B53.4 servizio** (l'ultimo pezzo del B53).
+- [x] Pacchetti della 16.3 (`64dfc13`, GitHub verde): installer = `latest.json` (128.154.412 B, sha256
+      `61f14209676e02450b7049e4290961430c83bd88ff19dae17d1dea16f4db13e3`); zip 23.951.339 B, sha256
+      `6b728776c0c536638d698a179b10d83529b1bdadb859a2adba43b5587f478a37`, provato estratto, consegnato.
+- [x] **B53.4 servizio → versione 2026-11-16.4** (`docs/b53/colpi-dal-video.md` §6): corpo in avanti all'impatto, finale con
+      il busto che passa, saltello di 7 cm dopo la zona libera; attesa e lancio identici; gambe piegate NON possibili dentro
+      lo swing (0,35 s, parte al 18 %). Gioco 1764/1764, sito 280/280, LAN 13/13, desktop 51/51, build. **Con questo il B53
+      è finito** (manca solo il foglio di confronto nel browser del servizio).
+
+## >>> 16/11, 16:00 UTC · MESSAGGIO PER IL PROSSIMO AGENTE <<<
+
+Stato: gioco **2026-11-16.4** (B53 finito, B54 nome dal telefono, B54.1 pagina nuova dopo l'aggiornamento del PC),
+app Android **1.0.3** (nessun APK nuovo serve). Se il checkpoint non dice altro: **pacchetti della 16.4** (zip Cloudflare
+con `natpf-tennis/scripts/pacchetto-cloudflare.mjs --turn-url=https://natpf-turn.s-porcelli.workers.dev/`, provato
+estratto con `tools/e2e/natpf-nome-telefono.mjs` via `run-local.mjs`; installer: aspettare il workflow «NATPF eseguibili
+Windows» e confrontare lo sha256 del link fisso, scaricato con `?v=<numero>`, con `windows/latest.json`), consegna all'utente.
+Poi la roadmap è vuota salvo le cose dell'utente: collaudo allo stand (telefono vero, nome con la tastiera vera, ledwall),
+Worker del registro e prova a Precision (B36.1); sui telefoni con la pagina di prima della 16.2 una volta «Riapri l'ultimo
+collegamento». Idee aperte da proporre, non fatte: foglio di confronto del servizio (`COLPO=servizio`), gambe piegate nel
+lancio del servizio (cambia l'attesa: chiedere), togliere la doppia richiesta del nome fuori dalla fiera («Nuovo
+giocatore» chiede il nome sul PC e poi sul telefono). Regole: CLAUDE.md; procedura: `docs/PIANO_LAVORI.md` §6.

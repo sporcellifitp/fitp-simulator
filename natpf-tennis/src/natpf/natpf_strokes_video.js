@@ -136,6 +136,28 @@ export const SV_STROKES = Object.freeze({
     hop: Object.freeze({ from: .1, len: .3, up: 0 }),
     racket: Object.freeze({ prep: Object.freeze({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }), fin: null }),
   }),
+  // Servizio (B53.4): non è nel trailer; nello stesso stile del video (busto che gira, peso che passa, finale ampio). Solo
+  // dentro e dopo lo swing del servizio: lancio e attesa restano quelli di sempre (nessuna preparazione prima, side 'serve'
+  // non è mai quello della preparazione). Inizio dello swing di lato con le gambe piegate (la spinta), impatto con il corpo
+  // allungato in alto e in avanti sulle punte, finale con il busto passato e il piede dietro che entra in campo; saltello in
+  // avanti che parte dopo la zona libera della racchetta (all'impatto la racchetta è quella del motore, a terra). Il braccio
+  // del lancio lo fa già l'animazione di sempre: mano libera mai toccata.
+  serve: Object.freeze({
+    is: T => !!(T && T.swingActive && T.isServe),
+    side: 'serve', where: 'any',
+    contact: .36, racketFree: Object.freeze([.2, .46]),
+    pose: Object.freeze({
+      coil:   Object.freeze({ tw: -.32, pi: -.06, ro: 0, hx: 0, hy: -.08, hz: -.03,
+        bx: 0, by: 0, bz: -.05, brx: 0, bry: -.3, fx: 0, fy: 0, fz: .03, frx: 0, fry: -.15 }),
+      drive:  Object.freeze({ tw: .1, pi: .14, ro: 0, hx: 0, hy: .02, hz: .06,
+        bx: 0, by: .03, bz: 0, brx: .45, bry: 0, fx: 0, fy: .02, fz: .04, frx: .3, fry: 0 }),
+      finish: Object.freeze({ tw: .35, pi: .16, ro: 0, hx: 0, hy: -.05, hz: .12,
+        bx: .02, by: 0, bz: .12, brx: .2, bry: 0, fx: -.02, fy: 0, fz: .08, frx: 0, fry: 0 }),
+    }),
+    hands: Object.freeze({ coil: null, drive: null, finish: null }),
+    hop: Object.freeze({ from: .06, len: .36, up: .07 }),
+    racket: Object.freeze({ prep: Object.freeze({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }), fin: null }),
+  }),
 });
 export const SV_KINDS = Object.freeze(Object.keys(SV_STROKES));
 // dove sta la mano libera «sulla racchetta», rispetto alla mano che la tiene (come l'animazione di sempre nel rovescio)
@@ -234,6 +256,10 @@ export function svPre(actor, rig, dt){
     s.finish = follow(s.finish, TGT.finish, dt, busy ? SV.tau.react : SV.tau.finish);
     s.hop = follow(s.hop, s.hit ? svHop(s.sinceHit, H) : 0, dt, SV.tau.hop);
     s.still = follow(s.still, still, dt, SV.tau.still);
+    // (B53.4: durante una reazione, l'esultanza, la coda della posa si chiude sotto l'1 %: il finale del servizio, che può
+    // finire dentro l'esultanza dopo un ace, non resta per secondi in una coda invisibile; lo scarto è di pochi millesimi
+    // di radiante)
+    if (busy){ if (s.coil < .01) s.coil = 0; if (s.drive < .01) s.drive = 0; if (s.finish < .01) s.finish = 0; if (s.hop < 1e-3) s.hop = 0; }
     s.live = s.coil > 1e-4 || s.drive > 1e-4 || s.finish > 1e-4 || s.hop > 1e-5;
     if (!s.live && !TGT.coil && !TGT.drive && !TGT.finish) s.coil = s.drive = s.finish = s.hop = 0;
     // racchetta: preparazione e finale; niente nella zona dell'impatto e niente durante gli swing degli altri colpi

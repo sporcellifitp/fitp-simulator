@@ -16,16 +16,17 @@ const G = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
 const tratto = name => TRATTI.find(t => t[0].startsWith(name));
 const BH = SV_STROKES.backhand;
 
-test('B53: colpi della prova del modulo: rovescio topspin e piatto, schiacciata; non il dritto (B23), il tagliato, il pallonetto, il servizio', () => {
+test('B53: colpi della prova del modulo: rovescio topspin e piatto, schiacciata, volée, servizio (B53.4); non il dritto (B23), il tagliato, il pallonetto', () => {
   const T = o => ({ swingActive: true, isServe: false, swingSide: 'backhand', swingShotType: 'topspin', ...o });
   assert.equal(svKindOf(T()), 'backhand');
   assert.equal(svKindOf(T({ swingShotType: 'flat' })), 'backhand');
-  for (const o of [{ swingShotType: 'slice' }, { swingShotType: 'lob' }, { isServe: true }, { swingSide: 'forehand' }, { swingActive: false }]) assert.equal(svKindOf(T(o)), null, JSON.stringify(o));
+  for (const o of [{ swingShotType: 'slice' }, { swingShotType: 'lob' }, { swingSide: 'forehand' }, { swingActive: false }]) assert.equal(svKindOf(T(o)), null, JSON.stringify(o));
+  assert.equal(svKindOf(T({ isServe: true, swingSide: 'overhead' })), 'serve', 'B53.4: il servizio');
   assert.equal(svKindOf(null), null);
-  assert.deepEqual(SV_KINDS, ['backhand', 'smash', 'volleyF', 'volleyB']);
+  assert.deepEqual(SV_KINDS, ['backhand', 'smash', 'volleyF', 'volleyB', 'serve']);
   const O = o => ({ swingActive: true, isServe: false, swingSide: 'overhead', swingShotType: 'smash', ...o });
   assert.equal(svKindOf(O()), 'smash');
-  assert.equal(svKindOf(O({ isServe: true })), null, 'il servizio non è la schiacciata');
+  assert.equal(svKindOf(O({ isServe: true })), 'serve', 'il servizio non è la schiacciata');
   // pesi come il dritto: preparazione dalla carica, impatto pieno al contatto, finale che resta e poi si scioglie
   const o = {};
   assert.deepEqual(svTargets(o, BH, 0, null, null), { coil: 0, drive: 0, finish: 0 });
@@ -130,14 +131,18 @@ test('B53: raccordi del rovescio, niente scatti nuovi (quello che la prova aggiu
   }
 });
 
-test('B53: nella sequenza registrata cambia il rovescio; attesa, servizio ed esultanza restano di ae68759; spenta resta identica', () => {
+test('B53: nella sequenza registrata cambiano il rovescio e il colpo del servizio (B53.4); attesa, lancio e la fine dell\'esultanza restano di ae68759; spenta resta identica', () => {
   for (const who of Object.keys(PERSONAGGI)){
     setForehandVideo(true);
     const prints = sequenza(M, PERSONAGGI[who]).map(impronta);
     const same = (a, b) => { for (let f = a; f < b; f++) assert.equal(prints[f], G.impronte[who][f], `${who}, fotogramma ${f}`); };
     const changed = (a, b) => { let n = 0; for (let f = a; f < b; f++) if (prints[f] !== G.impronte[who][f]) n++; return n; };
     same(...tratto('attesa').slice(1));
-    same(...tratto('servizio: attesa').slice(1)); same(...tratto('servizio: colpo').slice(1)); same(...tratto('fine punto').slice(1));
+    // (B53.4: il colpo del servizio cambia; l'attesa e il lancio no)
+    same(...tratto('servizio: attesa').slice(1));
+    assert.ok(changed(...tratto('servizio: colpo').slice(1)) >= 20, `${who}: il colpo del servizio cambia (B53.4)`);
+    // l'esultanza qui parte subito dopo il servizio: il suo finale ci finisce dentro e si chiude in circa 0,67 s; poi identica
+    same(462, tratto('fine punto')[2]);
     assert.ok(changed(...tratto('palla sul rovescio').slice(1)) >= 25, `${who}: la preparazione del rovescio cambia`);
     assert.ok(changed(...tratto('rovescio intero').slice(1)) >= 30, `${who}: il rovescio cambia`);
   }
@@ -323,5 +328,86 @@ test('B53.3: volée corte (meno rotazione del colpo da fondo, gambe piegate) e n
       assert.ok(maxPos < .17 && maxRot < .26, `${side} ${human ? 'chi gioca' : 'CPU'}: ${(maxPos*1000).toFixed(0)} mm, ${maxRot.toFixed(3)} rad`);
       assert.ok(o1.at(-1).body.every((x, i) => Math.abs(x - o0.at(-1).body[i]) < 1e-6), 'tornato quello di sempre');
     }
+  }
+});
+
+/* ---------- B53.4 · servizio ---------- */
+const SE = SV_STROKES.serve;
+// un servizio solo: 30 fotogrammi di attesa con la palla lanciata in alto, poi lo swing del servizio
+function serve(on, { timing = 'sweet', human = true, lefty = false, frames = 140 } = {}){
+  setForehandVideo(on);
+  const { actor: a, rk } = mount(M, { sideSign: 1, lefty });
+  const ball = { inPlay: true, lastHitter: null, pos: new THREE.Vector3(), vel: new THREE.Vector3(0, 2, 0), targetLanding: new THREE.Vector3(0, 0, -6), shotType: 'SERVE' };
+  const ctx = { phase: 'SERVE', score: { server: 'player' }, ball, elapsedTime: 10 }, out = [];
+  for (let f = 0; f < frames; f++){
+    if (f < 30) ball.pos.set(.3, 1.6 + .04*f, a.pos.z - .3);
+    else {
+      if (f === 30){
+        const st = rk.triggerSwing(a, { shotType: 'serve', isServe: true, side: 'overhead', speed: 1.2, timing, dirX: 0 });
+        if (human) st.swingElapsed = Math.max(st.swingElapsed || 0, .2*st.swingDuration);
+      }
+      ctx.phase = 'RALLY'; ball.lastHitter = 'player'; ball.pos.set(.3, 2.6, a.pos.z - .3 - .4*(f - 30)); ball.vel.set(0, -2, -30);
+    }
+    ctx.elapsedTime += DT; rk.update(a, DT, ctx); M.body.updatePlayerBodyAnimation(a, DT, ctx);
+    const T = a.racketKinematics, c = getRacketRimWorldPoints(a), R = a.rig;
+    out.push({ l: T.swingActive ? T.swingProgress : null, serve: !!(T.swingActive && T.isServe), centre: c.centerWorld.toArray(), tip: c.tipWorld.toArray(), normal: c.normalWorld.toArray(), y: a.root.position.y,
+      hipY: R.hipPivot.rotation.y, hipX: R.hipPivot.rotation.x, hipH: R.hipPivot.position.y, hipZ: R.hipPivot.position.z, hand: R.handLPivot.position.toArray(),
+      body: [R.hipPivot.position.x, R.hipPivot.position.y, R.hipPivot.position.z, R.hipPivot.rotation.x, R.hipPivot.rotation.y, R.hipPivot.rotation.z,
+        R.footLPivot.position.x, R.footLPivot.position.z, R.footRPivot.position.x, R.footRPivot.position.z, ...R.handLPivot.position.toArray()] });
+  }
+  setForehandVideo(true);
+  return out;
+}
+
+test('B53.4: servizio, racchetta sulla palla all\'impatto identica a prima e personaggio a terra; attesa e lancio identici (in tempo, anticipo, ritardo; chi gioca e CPU; destro e mancino)', () => {
+  let checked = 0;
+  for (const human of [true, false]) for (const timing of ['sweet', 'early', 'late']) for (const lefty of [false, true]){
+    const off = serve(false, { timing, human, lefty }), on = serve(true, { timing, human, lefty });
+    const tag = `${human ? 'chi gioca' : 'CPU'} ${timing} ${lefty ? 'mancino' : 'destro'}`;
+    assert.ok(on[40].serve, `${tag}: è un servizio`);
+    for (let f = 0; f < 30; f++) assert.deepEqual(on[f].body, off[f].body, `${tag}: attesa e lancio come prima (${f})`);
+    let free = 0;
+    for (let f = 30; f < on.length; f++){
+      const l = on[f].l;
+      assert.equal(l, off[f].l, `${tag}: stessi tempi dello swing`);
+      if (l != null && l >= SE.racketFree[0] && l <= SE.racketFree[1]){
+        free++; checked++;
+        assert.deepEqual(on[f].centre, off[f].centre, `${tag}: cuore delle corde a ${l.toFixed(3)}`);
+        assert.deepEqual(on[f].tip, off[f].tip, `${tag}: punta a ${l.toFixed(3)}`);
+        assert.deepEqual(on[f].normal, off[f].normal, `${tag}: piatto a ${l.toFixed(3)}`);
+        assert.equal(on[f].y, off[f].y, `${tag}: a terra nella zona dell'impatto`);
+      }
+    }
+    assert.ok(free >= 2, `${tag}: fotogrammi nella zona dell'impatto ${free}`);
+  }
+  assert.ok(checked > 30, `fotogrammi confrontati: ${checked}`);
+});
+
+test('B53.4: pose del servizio: corpo in avanti all\'impatto, peso che passa nel finale, saltello dopo la zona libera e di nuovo a terra; niente scatti', () => {
+  for (const human of [true, false]) for (const lefty of [false, true]){
+    const off = serve(false, { human, lefty }), on = serve(true, { human, lefty });
+    const tag = `${human ? 'chi gioca' : 'CPU'} ${lefty ? 'mancino' : 'destro'}`;
+    const early = on.findIndex(r => r.l != null && r.l > .1), fin = on.findIndex(r => r.l != null && r.l > .75);
+    // (lo swing del servizio dura 0,35 s e il motore lo fa partire già verso il 18 %: dentro lo swing non c'è tempo per
+    // piegare le gambe, che starebbe nel lancio, lasciato quello di sempre. Si vede all'impatto e dopo)
+    const hit = on.findIndex(r => r.l != null && r.l >= SE.contact);
+    assert.ok(on[hit].hipX - off[hit].hipX > .04, `${tag}: corpo in avanti all'impatto (${(on[hit].hipX - off[hit].hipX).toFixed(3)} rad)`);
+    assert.ok(on[fin].hipZ - off[fin].hipZ > .04 || off[fin].hipZ - on[fin].hipZ > .04, `${tag}: peso che passa nel finale`);
+    const lift = on.map((r, f) => r.y - off[f].y), top = Math.max(...lift), first = lift.findIndex(v => v > 1e-4);
+    assert.ok(top > .05 && top < .08, `${tag}: saltello ${top.toFixed(3)} m`);
+    assert.ok(on[first].l == null || on[first].l > SE.racketFree[1], `${tag}: il saltello parte a ${on[first].l}`);
+    assert.ok(Math.abs(lift.at(-1)) < 1e-9, `${tag}: di nuovo a terra`);
+    let prev = null, maxPos = 0, maxRot = 0, maxY = 0;
+    for (let f = 0; f < on.length; f++){
+      const d = on[f].body.map((x, i) => x - off[f].body[i]);
+      if (prev){
+        maxPos = Math.max(maxPos, ...[0, 1, 2, 6, 7, 8, 9, 10, 11, 12].map(i => Math.abs(d[i] - prev[i])));
+        maxRot = Math.max(maxRot, ...[3, 4, 5].map(i => Math.abs(d[i] - prev[i])));
+        maxY = Math.max(maxY, Math.abs((on[f].y - off[f].y) - (on[f - 1].y - off[f - 1].y)));
+      }
+      prev = d;
+    }
+    assert.ok(maxPos < .17 && maxRot < .26 && maxY < .02, `${tag}: ${(maxPos*1000).toFixed(0)} mm, ${maxRot.toFixed(3)} rad, salto ${(maxY*1000).toFixed(0)} mm/fotogramma`);
+    assert.ok(on.at(-1).body.every((x, i) => Math.abs(x - off.at(-1).body[i]) < 1e-6), `${tag}: tornato quello di sempre`);
   }
 });

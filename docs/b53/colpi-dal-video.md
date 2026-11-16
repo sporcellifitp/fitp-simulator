@@ -104,9 +104,28 @@ La voce si chiama **«Movimenti come nel video»** (prima «Dritto come nel vide
 schiacciata e volée. Stessa chiave salvata (`natpf-tennis.drittoVideo`) e stesso `?dritto=video|prima`: chi l'aveva spenta
 la ritrova spenta. Avvisi: «Movimenti come nel video accesi» / «… spenti: i colpi sono quelli di prima». Prove:
 `natpf-dritto-video-opzione.test.mjs`, `natpf-dritto-video.test.mjs`, `tools/e2e/natpf-dritto-video.mjs` (riga delle Opzioni).
-Il servizio (B53.4) non è ancora fatto.
 
-## 6. Cosa non è provato
+## 6. Servizio (B53.4, versione 2026-11-16.4)
+
+- **Non c'è nel trailer**: nello stesso stile. Voce `SV_STROKES.serve` (`T.isServe`, swing «overhead»), contatto 0,36,
+  zona libera della racchetta 0,2–0,46 come la schiacciata.
+- **Solo dentro e dopo lo swing**: attesa e lancio restano quelli di sempre (identici, provato). Lo swing del servizio
+  dura 0,35 s e il motore lo fa partire già verso il 18 % (anche per la CPU; per chi gioca dal 20 %): dentro lo swing non
+  c'è tempo per piegare le gambe (la posa della preparazione c'è ma resta quasi a zero). Si vede **all'impatto** (corpo
+  in avanti e in alto, sulle punte), nel **finale** (busto che passa, peso avanti, piede dietro che entra in campo) e con il
+  **saltello** in avanti di 7 cm, che parte dopo la zona libera della racchetta. La racchetta è sempre quella del motore.
+  Piegare le gambe nel lancio vorrebbe dire cambiare l'attesa e il lancio: non fatto (da decidere con l'utente).
+- Esultanza subito dopo il servizio (nella sequenza registrata parte appena finito lo swing): il finale ci finisce dentro e
+  si chiude in circa 0,67 s (sotto l'1 % di peso, durante una reazione, la posa si chiude: scarto di pochi millesimi di
+  radiante); poi identica.
+- Prove (`natpf-colpi-video.test.mjs`, 2 nuove): racchetta sulla palla all'impatto identica e personaggio a terra (in tempo,
+  anticipo, ritardo; chi gioca e CPU; destro e mancino), attesa e lancio identici; corpo in avanti all'impatto, peso che
+  passa, saltello tra 5 e 8 cm dopo la zona libera e di nuovo a terra, niente scatti (sotto 170 mm e 0,26 rad a
+  fotogramma), tornato quello di sempre. Aggiornati i test della sequenza (colpo del servizio cambiato, lancio e fine
+  dell'esultanza identici). **Non fatti** i fogli di confronto nel browser (`COLPO=servizio` non esiste ancora in
+  `tools/e2e/natpf-dritto-video.mjs`).
+
+## 7. Cosa non è provato
 
 Come il B23: telefono vero, webcam vera, ledwall, scheda video vera; il giudizio «mi convince» spetta all'utente. Le
 pose sono ricavate a mano dai fotogrammi del trailer (il rovescio visto di fronte, il gioco lo mostra da dietro).
