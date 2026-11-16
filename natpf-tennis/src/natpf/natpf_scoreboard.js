@@ -112,10 +112,11 @@ export function shortNames(me, them){
 }
 
 // nomi delle due righe dal lato di chi guarda: { me, them } (stesso schermo: P1 e P2 con i nomi della pagina «Collega»)
-export function rowNames({ viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '' } = {}){
+// myName (B54): contro la CPU il nome di chi gioca (scritto sul telefono o sul computer), «Tu» senza nome
+export function rowNames({ viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '', myName = '' } = {}){
   if (split) return { me: splitNames?.p1 || 'Player 1', them: splitNames?.p2 || 'Player 2' };
   const team = n => (doubles ? `${n} + CPU` : n);
-  if (!multiplayer) return { me: team('Tu'), them: doubles ? '2 CPU' : 'CPU' };
+  if (!multiplayer) return { me: team(String(myName || '').trim() || 'Tu'), them: doubles ? '2 CPU' : 'CPU' };
   const rival = viewer === 'opponent' ? (hostName || 'Player 1') : (guestName || 'Player 2');
   return { me: team('Tu'), them: team(rival) };
 }
@@ -128,8 +129,8 @@ export function rowNames({ viewer = 'player', multiplayer = false, split = false
 // format e label: il formato in parole e la scritta del momento (Parità, Vantaggio di chi, Punto decisivo), dal B43 solo per
 // lo screen reader; tag: l'etichetta che si vede dentro il riquadro (scoreTag). B43: niente più riga «Formato veloce» del
 // B35 sul tabellone (l'opzione altServe non c'è più: il banner d'inizio partita lo dice una volta)
-export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '', looks = null } = {}){
-  const names = rowNames({ viewer, multiplayer, split, splitNames, doubles, hostName, guestName });
+export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '', looks = null, myName = '' } = {}){
+  const names = rowNames({ viewer, multiplayer, split, splitNames, doubles, hostName, guestName, myName });
   const pts = gamePoints(score.playerPoints, score.opponentPoints);
   const side = s => ({ games: String(Math.max(0, score[`${s}Games`] | 0)), points: pts[s], serving: (score.server || 'player') === s, adv: pts.adv === s });
   const mine = split ? 'player' : viewer === 'opponent' ? 'opponent' : 'player', theirs = mine === 'player' ? 'opponent' : 'player';

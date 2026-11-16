@@ -16,6 +16,8 @@
 //   link      collegamento non attivo        enable    «Attiva i sensori»        error     sensori non disponibili
 //   tutorial  il computer mostra il tutorial cal       calibrazione              ready     «Pronto» con Ricalibra,
 //                                                                                          Ricollega, Scollega
+import { validNickname, NAME_MAX } from './player-name.js';
+
 export const PHONE_SCREENS = Object.freeze(['link', 'error', 'enable', 'tutorial', 'cal', 'ready']);
 const ERRORS = new Set(['denied', 'nomotion', 'insecure']);
 const int = (v, d = 0) => (Number.isFinite(+v) ? Math.trunc(+v) : d);
@@ -38,9 +40,12 @@ export const tutConfirmable = gate => !!gate;
 // compare il pulsante «Rivincita»
 // stand, staff (B41.3): telefono dello stand; Ricalibra, Ricollega e Scollega solo dopo la pressione lunga dello staff
 // (un visitatore non li tocca per sbaglio). «Riprova» resta: il telefono dello stand riprova comunque da solo
-export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false, phase = null, rematch = null, next = null, stand = false, staff = false } = {}){
+// name (B54): il computer chiede il nome (nameOnMsg) sulla pagina «Pronto per la partita»: al posto di «Sono pronto», che
+// arriva dopo la risposta
+export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false, phase = null, rematch = null, next = null, stand = false, staff = false, name = null } = {}){
   const screen = screenOf({ linkState, sensor, gate });
   const S = s => screen === s, touch = inputMode === 'touch';
+  const naming = S('ready') && phase === 'menu' && !!name;
   const show = {
     '#retry': S('link') && (linkState === 'lost' || linkState === 'denied') && hasPair,
     '#enable': S('enable') || (S('error') && sensor !== 'insecure'),
@@ -51,16 +56,20 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
     '#profileOptions': S('enable') || S('error') || (S('cal') && calStep === 'review'),
     // «Opzioni» (movimento, «solo mentre tengo premuto»): chiuse sotto «Attiva i sensori», quando c'è la riga della mano
     '#moreOpts': S('enable') || S('error') || (S('cal') && calStep === 'review'),
-    '#shotPanel': S('ready') || (S('cal') && calStep === 'free'),
+    '#shotPanel': (S('ready') && !naming) || (S('cal') && calStep === 'free'),
     '#manualAim': touch,
     '#touchHit': touch || !!intentGate,
     '#shotChoices': touch,
     // Ricalibra, Ricollega, Scollega: solo sotto «Pronto» (scelta del 05/11: nella calibrazione bloccata decide il computer)
-    '#tools': S('ready') && (!stand || !!staff),
+    // (B54: con il nome chiesto niente Ricalibra/Ricollega/Scollega sotto il campo; quelli dello staff sì, dopo la pressione
+    // lunga sul telefono dello stand: il telefono resta sulla richiesta del nome tra un visitatore e l'altro)
+    '#tools': S('ready') && (stand ? !!staff : !naming),
     '#rematch': S('ready') && phase === 'over' && !!rematch,
     // B28, niente blocchi: «Avanti ›» offerto dal computer dove chiede un gesto (esercizi, scambi di prova) e «Salta la
     // calibrazione» durante la calibrazione con i gesti (profilo semplice: si gioca subito)
-    '#next': S('ready') && !!next && phase !== 'over' && !(next.ready && phase !== 'menu'),
+    '#next': S('ready') && !naming && !!next && phase !== 'over' && !(next.ready && phase !== 'menu'),
+    // B54: «Come ti chiami?» con il campo del nome, «Conferma» e «Salta» in alto a destra
+    '#nameBox': naming,
     // B41.3: numero grande del posto dello stand, sempre in vista (anche mentre si ricollega)
     '#standTag': !!stand,
     '#calSkip': S('cal') && !touch && ['still', 'grip', 'swings', 'shots', 'review'].includes(calStep),
@@ -161,6 +170,28 @@ export function readyView(next){
   // (B41.3: appena toccato, spento finché il computer non risponde)
   return { ring: '', big: 'Partita', sub: 'Quando sei pronto tocca «Sono pronto»: la partita parte da sola.', label: next.label || 'Sono pronto', disabled: !!next.sent };
 }
+
+/* ---------- nome del giocatore (B54, 16/11/2026) ---------- */
+// Richiesta del computer (messaggio nm: on, v = nome da proporre, er = perché quello mandato non va, id), null se tolta
+export function nameOnMsg(d = {}){
+  if (!d || !d.on) return null;
+  return { v: typeof d.v === 'string' ? d.v.slice(0, 24) : '', er: typeof d.er === 'string' ? d.er.slice(0, 80) : '', ...(Number.isInteger(d.id) ? { id: d.id } : {}) };
+}
+// «Conferma» o «Salta» (funzione pura): → { msg, offer } con il messaggio per il computer e la richiesta segnata come
+// mandata (pulsanti spenti finché il computer non risponde), { why } se il nome scritto non va (si dice subito, senza
+// aspettare il computer, che lo ricontrolla), null se non c'è richiesta o è già partita la risposta
+export function nameSubmit(offer, raw = '', { skip = false } = {}){
+  if (!offer || offer.sent) return null;
+  const id = Number.isInteger(offer.id) ? { id: offer.id } : {};
+  if (skip) return { msg: { t: 'nm', y: 1, skip: 1, ...id }, offer: { ...offer, sent: true } };
+  if (!String(raw || '').trim()) return { why: 'Scrivi il tuo nome, oppure tocca «Salta».' };
+  const v = validNickname(raw);
+  if (!v.ok) return { why: v.why };
+  return { msg: { t: 'nm', y: 1, v: v.nick, ...id }, offer: { ...offer, sent: true, v: v.nick } };
+}
+// pulsanti spenti dopo «Conferma» o «Salta»: se dal computer non arriva niente (messaggio perso) si riaccendono da soli
+export const NAME_REARM_MS = 4000;
+export const NAME_TEXT = Object.freeze({ big: 'Come ti chiami?', sub: 'Il tuo nome va sul tabellone e sulla schermata finale. Se non vuoi metterlo, tocca «Salta».', max: NAME_MAX });
 
 /* ---------- telefono dello stand (B41.3, modalità fiera) ---------- */
 // Scritte del telefono dello stand tra una persona e l'altra e mentre si ricollega (funzione pura). slot 'p1' | 'p2'.

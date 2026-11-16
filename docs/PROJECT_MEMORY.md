@@ -1523,6 +1523,23 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   workflow `natpf-android.yml`; senza, APK di prova solo negli Artifacts. Versione dell'app (`appVersion`, `appCode` in
   `natpf-android/app/build.gradle`) indipendente da quella del gioco.
 - Non provata su un telefono vero (niente emulatore nel contenitore).
+- **1.0.1 (16/11)**: le librerie Android possono richiamare classi che non dichiarano (il lettore di QR usava AndroidX senza
+  portarlo: l'app si chiudeva al tocco). Build, test e lint non lo vedono: **`natpf-android/controlla-classi.mjs`** (anche
+  nel workflow) controlla le classi richiamate dall'APK. Dipendenza `androidx.core:core:1.6.0` (leggera, senza Kotlin).
+- **1.0.2 (16/11)**: il certificato del PC dello stand si accetta nella WebView solo per l'indirizzo di rete locale del QR
+  (`RacketLink.trustStandCertificate`, `SslErrorHandler.proceed`); dopo un errore della pagina l'app non si fissa e lo
+  dice. **1.0.3** (altro agente, 16/11): `adjustResize` e margine della tastiera (per il nome del B54).
+
+## B54 · Nome del giocatore scritto sul telefono (16/11/2026, versione 2026-11-16.1; documento `docs/b54/nome-dal-telefono.md`)
+- Decisioni dell'utente: facoltativo con «Salta» in alto a destra, **prima** di «Sono pronto» (passo a sé), campo vuoto per
+  un giocatore nuovo e il nome di prima nella rivincita, filtro delle parole più correzione dello staff dal PC.
+- Il computer decide (`natpf_ready_go.js`): chiede il nome ai telefoni pronti sulla pagina «Pronto per la partita»
+  (`offerName`, messaggio `nm` con `id`), poi offre «Sono pronto». Solo alle pagine che lo dicono (`dev` con `nm 1` →
+  `device.names`): le pagine di prima non ricevono messaggi nuovi. I nomi si richiedono a ogni arrivo sulla pagina, non
+  dopo un foglio dello staff. Il nome va dove va quello scritto sul PC (nickname contro la CPU, `natpfSplitNames` nello
+  stesso schermo); tabellone contro la CPU con il nome al posto di «Tu» (`rowNames({ myName })`).
+- Regole del nome in **un solo posto**, `site/js/tennis/player-name.js`, usato dal telefono e dal computer
+  (`natpf_events.validNickname` lo riesporta). Il computer ricontrolla sempre. Nel registro mai il nome.
 
 ## B53 · «Movimenti come nel video» sugli altri colpi (15/11/2026 sera; documento `docs/b53/colpi-dal-video.md`)
 - Decisione dell'utente: estendere la prova del B23 agli altri colpi. Modulo a parte `natpf_strokes_video.js` (il dritto

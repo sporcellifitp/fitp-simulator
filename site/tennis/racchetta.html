@@ -121,6 +121,20 @@
   #standTag.holding::after{opacity:1;animation:staff-fill 3s linear forwards}
   @keyframes staff-fill{to{clip-path:inset(0 0 0 0)}}
   #standTag.staff{border-color:var(--warn)} #standTag.staff span small{color:var(--warn);opacity:1}
+  /* B54: «Come ti chiami?» prima di «Sono pronto». «Salta» in alto a destra (decisione dell'utente del 16/11); il campo resta
+     in alto, sopra la tastiera; anello e scritte della pagina nascosti finché si scrive */
+  body.naming #stage{display:none}
+  #nameBox{position:relative;display:grid;gap:12px;margin-top:10px;padding:18px 16px 16px;background:#13245a;border-radius:16px;text-align:left}
+  #nameHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  #nameHead b{font-size:28px;font-weight:800;line-height:1.15}
+  #nameSkip{flex:none;min-height:48px;min-width:92px;border:2px solid #405b9b;border-radius:12px;background:transparent;color:var(--ink);font:inherit;font-size:17px;font-weight:700}
+  #nameSub{margin:0;font-size:16px;color:var(--muted);line-height:1.4}
+  #nameInput{width:100%;min-height:58px;border:2px solid #405b9b;border-radius:12px;padding:10px 14px;font:inherit;font-size:24px;font-weight:700;background:#eef3ff;color:#071233;
+    -webkit-user-select:text;user-select:text}
+  #nameInput:focus{outline:none;border-color:var(--ball);box-shadow:0 0 0 3px rgba(232,255,58,.3)}
+  #nameWarn{margin:0;min-height:20px;font-size:15px;font-weight:600;color:var(--warn)}
+  #nameBox .btn{margin-top:0}
+  #nameBox button:disabled{opacity:.55}
   @media(max-height:740px){#ring{width:min(54vw,170px)}#big{font-size:19px}#arrow{font-size:42px}#stage{gap:6px;min-height:170px}#grip{width:min(66vw,220px)}#sub{font-size:15px;min-height:0}.btn{padding:12px}.btn.big{font-size:23px;padding:18px}#standTag b{width:46px;height:46px;font-size:30px}}
 </style>
 </head>
@@ -184,6 +198,15 @@
   <label><span>Riconosci il gesto solo mentre tengo premuto</span><input id="intentGate" type="checkbox"></label>
   <small>Bastano due colpetti. Puoi giocare anche da seduto.</small>
 </div></details>
+<!-- B54: nome del giocatore prima di «Sono pronto» (lo chiede il computer sulla pagina «Pronto per la partita»): va sul
+     tabellone e sulla schermata finale; facoltativo («Salta») -->
+<form id="nameBox" class="hidden" autocomplete="off" novalidate>
+  <div id="nameHead"><b id="nameTitle">Come ti chiami?</b><button type="button" id="nameSkip">Salta</button></div>
+  <p id="nameSub">Il tuo nome va sul tabellone e sulla schermata finale. Se non vuoi metterlo, tocca «Salta».</p>
+  <input id="nameInput" type="text" inputmode="text" maxlength="14" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" placeholder="Il tuo nome" aria-label="Il tuo nome">
+  <p id="nameWarn" role="alert"></p>
+  <button class="btn big" id="nameOk" type="submit">Conferma</button>
+</form>
 <!-- stesso schermo, fine partita (B20): la rivincita parte quando la chiedono tutti e due i telefoni -->
 <button class="btn hidden" id="rematch">Rivincita</button>
 <!-- niente blocchi (B28): dove il computer chiede un gesto (esercizi, scambi di prova) si va avanti anche da qui; durante la

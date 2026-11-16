@@ -159,7 +159,9 @@ async function toMatch(who, { warmupShot = true } = {}){
 // B41.5 · modalità fiera: lo staff prepara i telefoni dello stand una volta, poi un visitatore dopo l'altro
 async function fieraFlow(two){
   const VIS = +(process.env.VISITORS || (two ? 3 : 10));
-  const MAXC = +(process.env.MAX_CLICKS || (two ? 3 : 2)), MAXT = +(process.env.MAX_PHONE_TAPS || (two ? 2 : 1));
+  // (B54, 16/11/2026: prima di «Sono pronto» il nome sul telefono, «Conferma» o «Salta»: un tocco in più per telefono, voluto
+  // dall'utente; le lettere si scrivono con la tastiera del telefono e non contano)
+  const MAXC = +(process.env.MAX_CLICKS || (two ? 3 : 2)), MAXT = +(process.env.MAX_PHONE_TAPS || (two ? 4 : 2));
   const { errs } = await gamePage('pc', '&intro=0&guardia=1');
   const pc = pages.pc;
   /* preparazione dello staff (una volta, non contata: è la prova natpf-fiera-telefoni a farla con il mouse) */
@@ -228,7 +230,13 @@ async function fieraFlow(two){
     if (useGioca){
       await until(pc, () => !document.getElementById('btn-start-match').disabled, null, 10000);
       await click(vt, 'Gioca', '#btn-start-match', { dbl: two ? 0 : dblPlay[v] || 0 });
-    } else for (const [, who] of slots) await phoneTap(vt, who, 'Sono pronto', '#next');
+    } else for (const [, who] of slots){
+      // B54: il nome (il primo visitatore lo scrive, gli altri «Salta»), poi «Sono pronto»
+      await until(pages[who], () => !document.getElementById('nameBox').classList.contains('hidden'), null, 15000);
+      if (v === 1){ await pages[who].click('#nameInput'); await pages[who].keyboard.type(who === slots[0][1] ? 'Giulia' : 'Luca'); await phoneTap(vt, who, 'Conferma (nome)', '#nameOk'); vt.named = true; }
+      else await phoneTap(vt, who, 'Salta (nome)', '#nameSkip');
+      await phoneTap(vt, who, 'Sono pronto', '#next');
+    }
     const tGo = Date.now();
     const trial = await until(pc, () => !!__natpfTennis.natpfUi.trial.active, null, 8000);
     if (v === 1) { await sleep(1500); await shot('pc', 'fiera-scambi-di-prova', { render: false }); }
@@ -251,7 +259,13 @@ async function fieraFlow(two){
     check(`visitatore ${v}${two ? '' : ` (${nick})`}: ${vt.clicks} clic e ${vt.taps} tocchi (al massimo ${MAXC} e ${MAXT}), nessun QR, nessuna calibrazione né tutorial, sempre la pagina della fiera, telefoni sempre collegati`,
       over && vt.clicks <= MAXC && vt.taps <= MAXT && !vt.qr && sp.train === 0 && sp.steps.every(s => s === 'match') && sp.conn.filter(c => c !== null).every(Boolean) && sp.joins.every((j, i) => j === joins0[i]),
       JSON.stringify({ ...vt, conn: sp.conn, joins0 }));
-    if (!two) check(`   … con il suo numero: Visitatore ${v}`, nick === `Visitatore ${v}`, nick);
+    // (B54: il visitatore 1 scrive il suo nome sul telefono quando parte con «Sono pronto»: chi ha un nome non prende un
+    // numero, come con «Nome» dal PC; i numeri vanno a chi gioca senza nome, in ordine)
+    if (!two){
+      const named = v === 1 && vt.named;
+      const want = named ? 'Giulia' : `Visitatore ${per.filter(p => !p.named).length + 1}`;
+      check(`   … ${named ? 'con il nome scritto sul telefono' : 'con il suo numero'}: ${want}`, nick === want, nick);
+    }
     per.push(vt);
   }
   await shot('pc', 'fiera-fine-partita', { render: false });

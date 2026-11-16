@@ -307,7 +307,8 @@ export class NatpfUi {
     const E = this.engine, rs = E.roomStatus || {};
     const v = scoreboardView(score, { gamesToWin, viewer: E.playerRole === 'p2' ? 'opponent' : 'player', multiplayer: !!E.isMultiplayer,
       split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName,
-      looks: castLooks(getCast(), !!E.isMultiplayer) });   // B24: linguette del colore di Drop e di Lob
+      looks: castLooks(getCast(), !!E.isMultiplayer),   // B24: linguette del colore di Drop e di Lob
+      myName: this.events?.nickname || '' });            // B54: contro la CPU il nome di chi gioca al posto di «Tu»
     const html = scoreboardHtml(v);
     if (this._sbHtml !== html || !el.firstChild){ this._sbHtml = html; el.innerHTML = html; }
     // stesso schermo (B17.3): la stessa tabella anche in alto a sinistra della metà del Player 2; vuota altrimenti

@@ -2443,3 +2443,29 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   `99902fa99644735e91221255138cdb1c65543e0c86e72beedcd936f1c291439f`, consegnato.
 - Non verificato: telefono vero; che la WebView ricordi la scelta anche per la `wss` è dalla documentazione e dal
   meccanismo comune di Chromium, provato solo in Chrome.
+
+## B54 · Nome del giocatore scritto sul telefono, versione 2026-11-16.1 (16/11/2026, 11:00–13:30 UTC)
+
+- [x] Richiesta dell'utente (16/11): il visitatore scrive il suo nome sul telefono prima di «Sono pronto», per ogni telefono
+  abbinato e a ogni partita (era stato chiesto anche all'altro agente con l'app 1.0.3: non fatto). Decisioni (domande a
+  scelta): facoltativo con «Salta» in alto a destra, prima di «Sono pronto», campo vuoto per un giocatore nuovo e nome di
+  prima nella rivincita, filtro delle parolacce + correzione dello staff dal PC. Documento `docs/b54/nome-dal-telefono.md`.
+- File: `site/js/tennis/player-name.js` (nuovo: regole del nome e filtro, usate da telefono e computer), `phone-screen.js`
+  (`nameOnMsg`, `nameSubmit`, `#nameBox` in `phoneView`), `phone-touch-lock.js` (`nameTap`), `racchetta.js` e
+  `racchetta.html` (schermata «Come ti chiami?», `dev` con `nm 1`), `link.js` (messaggio `nm` → `name`, `device.names`);
+  gioco: `natpf_ready_go.js` (richiesta, risposta, dove va il nome, chip «scrive il nome», registro senza il nome),
+  `natpf_phone_racket.js` (`offerName`, `_sendName`, `_onName`, `asksName`), `natpf_events.js` (regole da
+  `player-name.js`), `natpf_scoreboard.js` e `natpf_ui.js` (nome al posto di «Tu»); prove `natpf-b54-nome.test.mjs` (9),
+  `tools/test/b54-nome-telefono.test.mjs` (5), `phone-link-fast.test.mjs`, `tools/e2e/natpf-nome-telefono.mjs` (nuovo),
+  `natpf-fiera-telefoni.mjs` e `natpf-flusso-tocchi.mjs` aggiornati; guida (3, 8.4), memoria, versione 2026-11-16.1.
+- Correzioni durante il passo: nomi azzerati rientrando sulla pagina dopo un foglio dello staff (ora solo uscendo);
+  «tolta» mandata anche alle pagine di prima (ora solo a chi aveva la richiesta); pulsanti dello staff nascosti sul
+  telefono dello stand durante il nome (trovato da `natpf-fiera-telefoni`, 65/66 → 66/66); nella prova del telefono la
+  gravità finta al contrario faceva rifare la calibrazione al terzo tocco (voto del segno, motion-sign.js: prova, non gioco).
+- Verifiche: gioco 1761/1761, sito 280/280, LAN 13/13, desktop 51/51, build; `natpf-nome-telefono` 20/20 (misure a
+  390 × 844: «Salta» in alto a destra, «Conferma» fino a 404 px; con la tastiera, 390 × 470: tutto in vista);
+  `natpf-fiera-telefoni` 66/66 (nome scritto in fiera, tabellone «Giulia», «Bella sfida, Giulia!» su una riga a 1920×1080,
+  1280×720 e 720×720, stesso schermo con «Anna» e un «Salta»); `natpf-flusso-tocchi` FLOW=fiera 20/20 (al massimo 2 clic e
+  2 tocchi per visitatore, prima 1 tocco) e FLOW=fiera-due 13/13 (al massimo 4 tocchi a coppia, prima 2).
+- Filtro: 70 nomi veri passano, 42 parole da bloccare no; limite noto: cognomi rari come «Merdani» (li scrive lo staff).
+- Non verificato: telefono vero (tastiere di Android e iPhone, app 1.0.3 con la tastiera aperta), ledwall.

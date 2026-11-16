@@ -238,6 +238,14 @@ try {
   /* ---------- 5. contro la CPU: «Bambino» con il mouse e «Sono pronto» dal telefono ---------- */
   await sleep(800);
   await g.click('#difficulty-mode-group [data-difficulty="bambini"]');
+  // B54 (16/11/2026): prima di «Sono pronto» il telefono chiede il nome (campo vuoto: visitatore nuovo); sul computer
+  // «Telefono: scrive il nome»; il visitatore lo scrive con la tastiera del telefono e tocca «Conferma»
+  const asked = await until(tel1, () => !document.getElementById('nameBox').classList.contains('hidden') && document.getElementById('nameInput').value === '', null, 8000);
+  const gn = await gameInfo(g);
+  check('B54 · pagina della fiera: prima il nome sul telefono (campo vuoto), sul computer «Telefono: scrive il nome»', asked && gn.chips.join() === 'is-wait:Telefono: scrive il nome', JSON.stringify(gn.chips));
+  await shot(tel1, 'telefono1-nome');
+  await shot(g, 'pagina-della-fiera-scrive-il-nome-1920', { render: true });
+  await tel1.tap('#nameInput'); await tel1.keyboard.type('Giulia'); await tel1.tap('#nameOk');
   const offered = await until(tel1, () => { const b = document.getElementById('next'); return b && !b.classList.contains('hidden') && b.classList.contains('big') && !b.disabled; }, null, 8000);
   const t1 = await phoneInfo(tel1), g1 = await gameInfo(g);
   check('pagina della fiera: «Sono pronto» grande sul telefono; sul computer «Telefono: tocca «Sono pronto»»', offered && t1.next?.text === 'Sono pronto' && g1.chips.join() === 'is-wait:Telefono: tocca «Sono pronto»', JSON.stringify({ next: t1.next, chips: g1.chips }));
@@ -251,7 +259,7 @@ try {
   const tr1 = await until(g, () => __natpfTennis.natpfUi.trial.active, null, 8000);
   const locked1 = await until(tel1, () => __racchetta.state.touchLocked, null, 8000);
   const gt = await gameInfo(g);
-  check('tocco su «Sono pronto»: prima gli scambi di prova del visitatore (telefono bloccato), la partita non è ancora partita', tr1 && locked1 && gt.seq === 0 && /^Visitatore \d+$/.test(gt.nick), JSON.stringify({ trial: tr1, locked: locked1, seq: gt.seq, nick: gt.nick }));
+  check('tocco su «Sono pronto»: prima gli scambi di prova del visitatore (telefono bloccato), la partita non è ancora partita; il nome scritto sul telefono', tr1 && locked1 && gt.seq === 0 && gt.nick === 'Giulia', JSON.stringify({ trial: tr1, locked: locked1, seq: gt.seq, nick: gt.nick }));
   await sleep(1500);
   await tel1.evaluate(() => { document.getElementById('next').click(); document.getElementById('bye').click(); history.back(); });
   await sleep(300);
@@ -261,7 +269,9 @@ try {
   await g.click('#trial-skip');
   const started = await until(g, () => (__natpfTennis.natpfMatchSeq || 0) === 1 && !__natpfTennis.natpfUi.lobby.visible && !__natpfTennis.natpfUi.trial.active, null, 10000);
   const g2 = await gameInfo(g);
-  check('«Salta ›» dal computer: la partita parte con il conto alla rovescia grande; il visitatore ha il suo numero', started && g2.prematch && /^Visitatore \d+$/.test(g2.nick), JSON.stringify({ seq: g2.seq, prematch: g2.prematch, nick: g2.nick }));
+  check('«Salta ›» dal computer: la partita parte con il conto alla rovescia grande; il visitatore con il nome scritto sul telefono (non il numero)', started && g2.prematch && g2.nick === 'Giulia', JSON.stringify({ seq: g2.seq, prematch: g2.prematch, nick: g2.nick }));
+  const sb = await until(g, () => !!document.querySelector('#natpf-scoreboard [data-sb-name="Giulia"]'), null, 8000);
+  check('B54 · tabellone in alto a sinistra: «Giulia» al posto di «Tu»', sb, await g.evaluate(() => document.getElementById('natpf-scoreboard')?.textContent || ''));
   check('B51 · conto alla rovescia e partita: niente comandi sul telefono', await until(tel1, () =>
     __racchetta.state.touchLocked && document.getElementById('phoneTouchLock').querySelectorAll('button:not(.hidden)').length === 0, null, 3500));
   await shot(tel1, 'telefono-bloccato');
@@ -276,6 +286,8 @@ try {
   check('B51 · fine partita: il telefono si sblocca da solo', await until(tel1, () => !__racchetta.state.touchLocked, null, 4000));
   const end = await g.evaluate(() => { const v = id => { const el = document.getElementById(id); return !!el && !el.classList.contains('hidden') && el.getClientRects().length > 0; }; return { next: document.getElementById('btn-new-player').textContent, nextShown: v('btn-new-player'), again: v('btn-play-again'), menu: v('btn-return-title') }; });
   check('fine partita in fiera: «Prossimo giocatore ›» e «Rivincita», niente «Menu»', over && end.next === 'Prossimo giocatore ›' && end.nextShown && end.again && !end.menu, JSON.stringify(end));
+  const endTitle = await g.evaluate(() => document.getElementById('victory-modal').textContent.replace(/\s+/g, ' '));
+  check('B54 · schermata finale con il nome scritto sul telefono', /Giulia/.test(endTitle), endTitle.slice(0, 160));
   for (const [w, h] of [[1920, 1080], [1280, 720], [720, 720]]){
     await sizedShot(g, w, h, 'fine-partita-prossimo-giocatore');
     const v = await endFit(g);
@@ -292,7 +304,12 @@ try {
   // Il pulsante del telefono passa da «Sono pronto» a «Salta ›» in pochi millisecondi: due tocchi a 150 o 400 ms, o «Gioca ›»
   // dello staff con il tocco del visitatore a 60 ms, arrivavano a «Salta ›» (sonda del revisore p2-visitatori). Ora ogni
   // offerta ha un numero, il telefono spegne il pulsante dopo il tocco e «Salta ›» appena offerto non vale per 1 s.
-  const offer1 = () => until(tel1, () => { const b = document.getElementById('next'); return !!b && !b.classList.contains('hidden') && /Sono pronto/.test(b.textContent) && !b.disabled; }, null, 15000);
+  // (B54: prima il nome; questi visitatori toccano «Salta», poi «Sono pronto»)
+  const offer1 = async () => {
+    if (!await until(tel1, () => !document.getElementById('nameBox').classList.contains('hidden') && !document.getElementById('nameSkip').disabled, null, 15000)) return false;
+    await tel1.click('#nameSkip');
+    return until(tel1, () => { const b = document.getElementById('next'); return !!b && !b.classList.contains('hidden') && /Sono pronto/.test(b.textContent) && !b.disabled; }, null, 15000);
+  };
   // gli scambi di prova partono e restano accesi per ms (nessuna partita nuova nel frattempo)
   const trialHeld = async (seq, ms = 3000) => {
     const on = await until(g, () => __natpfTennis.natpfUi.trial.active, null, 8000);
@@ -361,7 +378,17 @@ try {
   }
   await g.setViewportSize({ width: 1920, height: 1080 }); await sleep(400);
   await g.click('[data-fiera-mode="split"]');
+  // B54: tutti e due i telefoni chiedono il nome; il Player 1 scrive «Anna», il Player 2 tocca «Salta»
+  const names2 = await until(g, () => { const P1 = __natpfTennis.natpfPhone, P2 = __natpfTennis.natpfPhone2; return __natpfTennis.natpfUi.lobby.mode === 'split' && !!P1.nameOffer && !!P2?.nameOffer; }, null, 8000);
+  const sn = await gameInfo(g);
+  check('B54 · «2 giocatori»: tutti e due i telefoni chiedono il nome; sul computer «scrive il nome» per tutti e due', names2 && sn.chips.length === 2 && sn.chips.every(c => /scrive il nome/.test(c)), JSON.stringify(sn.chips));
+  await until(tel1, () => !document.getElementById('nameBox').classList.contains('hidden'), null, 8000);
+  await until(tel2, () => !document.getElementById('nameBox').classList.contains('hidden'), null, 8000);
+  await tel1.tap('#nameInput'); await tel1.keyboard.type('Anna'); await tel1.tap('#nameOk');
+  await tel2.tap('#nameSkip');
   const both = await until(g, () => { const P1 = __natpfTennis.natpfPhone, P2 = __natpfTennis.natpfPhone2; return __natpfTennis.natpfUi.lobby.mode === 'split' && P1.nextExtra?.rd && P2?.nextExtra?.rd; }, null, 8000);
+  const cardNames = await g.evaluate(() => [...document.querySelectorAll('[data-fiera-pname]')].map(e => e.textContent));
+  check('B54 · nomi nelle schede della pagina della fiera: «Anna» e «Player 2» (saltato)', JSON.stringify(cardNames) === JSON.stringify(['Anna', 'Player 2']), JSON.stringify(cardNames));
   const s0 = await gameInfo(g);
   check('«2 giocatori» con un clic: pagina della fiera dello stesso schermo, «Sono pronto» a tutti e due, nessun QR', both && s0.fairPage && s0.mode === 'split' && !s0.qrShown && s0.chips.length === 2 && s0.chips.every(c => c.startsWith('is-wait')), JSON.stringify(s0));
   await g.evaluate(() => { try { __natpfTennis.__render?.(); } catch {} });

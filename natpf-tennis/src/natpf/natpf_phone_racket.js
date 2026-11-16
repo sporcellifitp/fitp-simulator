@@ -499,6 +499,10 @@ export class NatpfPhoneRacket {
     this.nextSeq = 1 + Math.floor(Math.random()*1e6); this.nextId = 0; this.nextAt = 0; this.nextGrace = 0;
     // B41.6: dati in più dell'offerta («Sono pronto»: rd 1, me 1 dopo il tocco, tx riga sotto), null per le altre
     this.nextExtra = null;
+    // B54 (16/11/2026): nome chiesto al telefono prima di «Sono pronto» (messaggio nm: on, v = nome di adesso da proporre o
+    // '', er = perché il nome mandato non va, id = numero della richiesta); la risposta torna come «name» (onName). Solo con
+    // le pagine del telefono che lo sanno fare (device.names, messaggio dev nm 1): con quelle di prima non si chiede
+    this.nameListeners = new Set(); this.nameOffer = null; this.nameSent = ''; this.nameSeq = 1 + Math.floor(Math.random()*1e6);
     // B41.2: posto dello stand di questo telefono ('p1' Telefono 1, 'p2' Telefono 2) con la modalità fiera, null per la
     // racchetta normale (QR a ogni abbinamento). Lo decide natpf_fiera.js (useStand)
     this.standSlot = null;
@@ -680,6 +684,7 @@ export class NatpfPhoneRacket {
     link.on('hand', e => { this._activity(); this._onPhoneHand(e.hand); });
     link.on('rematch', () => { this._activity(); for (const fn of this.rematchListeners) try { fn(this); } catch (e){ console.error(e); } });
     link.on('next', e => this._onNext(e));
+    link.on('name', e => this._onName(e));
     link.on('raw', k => { for (const fn of this.rawListeners) try { fn(k); } catch (e){ console.error(e); } });
     link.on('dropped', d => { for (const fn of this.dropListeners) try { fn(d.reason, { seq: d.seq, path: d.path }); } catch (e){ console.error(e); } });
     link.on('discard', d => this._diag('scartato', d));
@@ -824,6 +829,37 @@ export class NatpfPhoneRacket {
     return true;
   }
   _renewNext(){ if (!this.nextOffer) return; this.nextId = ++this.nextSeq; this._sendNext(); }
+  // B54: la pagina del telefono sa chiedere il nome (dalle pagine del B54: dev nm 1)
+  get asksName(){ return !!this.device?.names; }
+  onName(fn){ this.nameListeners.add(fn); return () => this.nameListeners.delete(fn); }
+  // st { v, er } chiede il nome (v: il nome di adesso, '' per un giocatore nuovo; er: perché quello mandato non va), null
+  // per togliere la richiesta. La stessa richiesta ripetuta (natpf_ready_go la rinnova ogni 100 ms) tiene il suo numero;
+  // una con un errore nuovo ne prende uno nuovo (il telefono riaccende i pulsanti)
+  offerName(st = null){
+    const nx = st ? { v: String(st.v || '').slice(0, 24), er: String(st.er || '').slice(0, 80) } : null;
+    const cur = this.nameOffer;
+    if (!nx) this.nameOffer = null;
+    else if (!cur || cur.v !== nx.v || cur.er !== nx.er) this.nameOffer = { ...nx, id: ++this.nameSeq };
+    this._sendName();
+  }
+  _sendName(){
+    if (!this.connected){ this.nameSent = ''; return; }
+    const j = this.state.joins || 0, o = this.nameOffer, key = o ? `${j}:on:${o.id}:${o.v}:${o.er}` : `${j}:off`;
+    if (key === this.nameSent) return;
+    // «tolta» solo a un telefono che l'aveva ricevuta in questo collegamento (alle pagine di prima niente messaggi nuovi)
+    const wasOn = this.nameSent.startsWith(`${j}:on:`);
+    this.nameSent = key;
+    if (!o && !wasOn) return;
+    this.link.send(o ? { t: 'nm', on: 1, v: o.v, ...(o.er ? { er: o.er } : {}), id: o.id } : { t: 'nm', on: 0 });
+  }
+  // risposta del telefono: vale solo per la richiesta di adesso (un tocco per una richiesta che non c'è più no)
+  _onName(e = {}){
+    this._activity();
+    const o = this.nameOffer;
+    if (!o || (e.id !== null && e.id !== undefined && e.id !== o.id)) return false;
+    for (const fn of this.nameListeners) try { fn(this, { name: e.skip ? null : String(e.v || ''), skip: !!e.skip }); } catch (err){ console.error(err); }
+    return true;
+  }
   // avanzamento della modale { i, n, s, m, all, nm } (NatpfTutorial.progress), mandato al telefono finché aspetta
   tutorialProgress(p){ this.tutProgress = p ? { ...p } : null; this._sendTp(); }
   // B28 (12/11): il tutorial si chiude da qualunque scheda. «all» va al telefono sempre a 1: una pagina del telefono di
@@ -1233,7 +1269,7 @@ export class NatpfPhoneRacket {
     // (tr, B28: scambi di prova in corso, il telefono lo scrive; le pagine di prima lo ignorano)
     // (B45.1: la moviola è una pausa con il suo testo, REPLAY_NOTE)
     if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase, ...(this.trial ? { tr: 1 } : {}), ...(phase === 'pause' && this.engine.phase === 'REPLAY' ? { txt: REPLAY_NOTE } : {}) }); }
-    this._autoProfile(); this._sendNext(); this._sendTouchLock(phase);
+    this._autoProfile(); this._sendNext(); this._sendName(); this._sendTouchLock(phase);
     // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo. Con il verso corretto
     // dagli scambi di prova (dirSign −1) va al telefono girato: per lui dritto e rovescio sono scambiati
     const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand, this.role)*this.learner.sign : 0;

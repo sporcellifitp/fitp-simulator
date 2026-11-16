@@ -374,6 +374,9 @@ export function createPhoneLink({ stand = null } = {}){
         // numero dell'offerta toccata (id, pagine dalla B41.3; null dalle pagine di prima): un tocco per un'offerta che non
         // c'è più non vale (NatpfPhoneRacket._onNext)
         case 'nx': if (d.y === 1) emit('next', { id: Number.isInteger(d.id) ? d.id : null }); break;
+        // B54: nome scritto sul telefono prima di «Sono pronto» (v), oppure «Salta» (skip 1), con il numero della richiesta
+        // (id). Lo controlla e lo usa il computer (natpf_ready_go). Le pagine di prima non lo mandano
+        case 'nm': if (d.y === 1) emit('name', { v: typeof d.v === 'string' ? d.v.slice(0, 40) : '', skip: d.skip === 1, id: Number.isInteger(d.id) ? d.id : null }); break;
         // tutorial prima della calibrazione: w = il telefono aspetta «Tutto chiaro, ho capito» (v 2: lo tiene spento finché
         // non si sono viste tutte le schede, con l'avanzamento «tp» del computer), ok = toccato, nav = frecce ‹ › del
         // telefono (-1 indietro, 1 avanti)
@@ -382,7 +385,7 @@ export function createPhoneLink({ stand = null } = {}){
         // secondo); segno «qui è successo un problema» toccato sul telefono; telefono e browser (una volta per collegamento)
         case 'gx': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); emit('discard', { why: typeof d.r === 'string' ? d.r.slice(0, 40) : '?', peak: Number.isFinite(d.v) ? d.v : null, angle: Number.isFinite(d.a) ? d.a : null, dir: [-1, 0, 1].includes(d.d) ? d.d : null, at }); break; }
         case 'mk': emit('mark', { text: typeof d.x === 'string' ? d.x.slice(0, 80) : 'segno dal telefono' }); break;
-        case 'dev': emit('device', { ua: typeof d.ua === 'string' ? d.ua.slice(0, 200) : null, wakeLock: d.wl ?? null, motion: d.dm ?? null, orientation: typeof d.or === 'string' ? d.or.slice(0, 30) : null, screen: Array.isArray(d.sc) ? d.sc.slice(0, 3) : null, version: typeof d.vr === 'string' ? d.vr.slice(0, 40) : null, accSign: d.as === -1 ? -1 : d.as === 1 ? 1 : null, ...(readStory(d.cd) ? { story: readStory(d.cd) } : {}) }); break;
+        case 'dev': emit('device', { ua: typeof d.ua === 'string' ? d.ua.slice(0, 200) : null, wakeLock: d.wl ?? null, motion: d.dm ?? null, orientation: typeof d.or === 'string' ? d.or.slice(0, 30) : null, screen: Array.isArray(d.sc) ? d.sc.slice(0, 3) : null, version: typeof d.vr === 'string' ? d.vr.slice(0, 40) : null, accSign: d.as === -1 ? -1 : d.as === 1 ? 1 : null, names: d.nm === 1, ...(readStory(d.cd) ? { story: readStory(d.cd) } : {}) }); break;
         // B46: il rilevatore del telefono ha girato il suo segno (swing-detect.js vote, profilo semplice): il computer lo
         // registra subito, senza aspettare il colpo dopo (che lo porta comunque, sg). Le pagine di prima non lo mandano
         case 'sgn': if (d.d === 1 || d.d === -1) emit('sign', { detector: d.d }); break;

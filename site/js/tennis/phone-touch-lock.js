@@ -1,6 +1,7 @@
 // B51. Il gioco chiede il blocco per la durata dell'attività; lo staff può sospenderlo fino alla fine.
-export function touchLockActive({ requested = false, overridden = false, paired = false, sensor, gate, readyTap = false } = {}){
-  return requested && !overridden && paired && sensor === 'ready' && !gate && !readyTap;
+// (B54: nameTap = il computer chiede il nome: campo e tastiera devono restare toccabili, come «Sono pronto»)
+export function touchLockActive({ requested = false, overridden = false, paired = false, sensor, gate, readyTap = false, nameTap = false } = {}){
+  return requested && !overridden && paired && sensor === 'ready' && !gate && !readyTap && !nameTap;
 }
 
 export const STAFF_TOUCH = Object.freeze({ holdMs: 3000, offerMs: 6000, maxMove: 20 });

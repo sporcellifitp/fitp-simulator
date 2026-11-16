@@ -1264,3 +1264,22 @@ Ordine: B52, poi B53.
       rossi di sempre più i fotogrammi al secondo (91,5% < 95%, numeri molto ballerini: 203–368); la misura ripetuta
       (`SOLO=costo`) è stata interrotta per l'urgenza: **rifarla**, poi commit della 15.3, zip e installer. Da aggiungere
       anche in `docs/PROJECT_MEMORY.md` la lezione della 1.0.1 (librerie Android: controllare le classi nell'APK).
+
+## >>> 16/11, 12:40 UTC · STATO (verificato su GitHub e R2) e B54 NOME DAL TELEFONO in corso <<<
+
+Stato trovato alla ripresa (commit di un altro agente, non registrati qui): **2026-11-15.3** (volée, `27b1ecf`) pubblicata,
+installer su R2 (`latest.json` 16/11 09:26 UTC, 128.154.425 B, sha256 `2d164fa6…af7`), GitHub verde; **app 1.0.3**
+(`f7d9168`: schermata che si adatta alla tastiera) al link fisso `android/NATPF-Racchetta.apk` (681.001 B), GitHub verde.
+L'utente aveva chiesto all'altro agente anche il nome dal telefono: **non fatto**. Lo zip Cloudflare della 15.3 l'ha
+verificato l'altro agente (non visto qui).
+
+- [x] B53.3 volée → 15.3 (altro agente). Restano B53.4 servizio e B53.5 voce delle Opzioni.
+- [x] **B54 · nome del giocatore dal telefono** → versione **2026-11-16.1** (richiesta dell'utente del 16/11; decisioni:
+      facoltativo con «Salta» in alto a destra, prima di «Sono pronto», campo vuoto per un giocatore nuovo e nome di prima
+      nella rivincita, filtro delle parolacce + correzione dello staff). Documento `docs/b54/nome-dal-telefono.md`.
+      Verifiche: gioco 1761/1761, sito 280/280, LAN 13/13, desktop 51/51, build; nel browser `natpf-nome-telefono` 20/20,
+      `natpf-fiera-telefoni` 66/66 (dopo la correzione dei pulsanti dello staff sul telefono dello stand),
+      `natpf-flusso-tocchi` fiera 20/20, fiera-due 13/13, singolo 5/5, stesso 6/6, `natpf-telefono-bloccato` 12/12.
+      L'app Android non cambia (la pagina arriva dal PC). Non provato su un telefono vero.
+- [ ] Pacchetti della 16.1: zip Cloudflare (versione già alzata, build rifatta), installer dal link fisso, consegna.
+- [ ] Poi: B53.4 servizio, B53.5 voce delle Opzioni «Movimenti come nel video».

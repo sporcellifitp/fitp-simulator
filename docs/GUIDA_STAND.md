@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-15.3** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-16.1** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -210,6 +210,17 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
   - **Visuale**: **3ª persona** · 1ª persona.
 - In basso: «‹ Indietro», «Riscaldati prima» (facoltativo: dritto, rovescio e servizio con il lanciapalle; non nello
   stesso schermo) e «Gioca ›».
+- **(B54) Nome dal telefono** (dalla 2026-11-16.1, non va acceso): arrivando su questa pagina, prima di «Sono pronto», il
+  telefono di chi gioca chiede **«Come ti chiami?»**. Il visitatore scrive il suo nome con la tastiera del telefono e
+  tocca **«Conferma»**, oppure tocca **«Salta»** (in alto a destra) se non lo vuole. Il nome va sul tabellone in alto a
+  sinistra (contro la CPU al posto di «Tu»), sulla schermata finale e nella classifica del giorno; nello stesso schermo
+  ognuno scrive il suo sul suo telefono. Accanto a «Gioca ›» vedi «Telefono: scrive il nome» finché non risponde. A ogni
+  partita si chiede di nuovo: dopo «Prossimo giocatore» il campo è vuoto, nella rivincita c'è il nome di prima (si tiene
+  con «Conferma» o «Salta», o si cambia). Parolacce, bestemmie e insulti (anche scritti con i numeri) non passano: il
+  telefono dice «Scegli un altro nome». Per correggere un nome dal PC: «Nome» sulla pagina della fiera (contro la CPU) o
+  il campo del nome di ciascuno (stesso schermo). Nel registro dello stand c'è solo se il nome è stato scritto, mai il
+  nome. Con una pagina del telefono più vecchia (un telefono rimasto aperto da prima dell'aggiornamento) il nome non si
+  chiede e resta «Sono pronto» come prima: ricarica la pagina del telefono.
 - **«Sono pronto» dal telefono** (dalla 2026-11-14.1, non va acceso): su questa pagina il telefono di chi gioca mostra un
   grande pulsante giallo «Sono pronto». Quando hanno toccato tutti (uno contro la CPU, due nello stesso schermo) la
   partita comincia da sola. Accanto a «Gioca ›» vedi chi è pronto («Telefono pronto ✓»). «Gioca ›» resta sempre per te.
@@ -705,12 +716,13 @@ toccare «Attiva i sensori».
 dello stand» (programma), oppure tieni premuto 3 secondi il marchio **«NATPF Simulator» in alto a sinistra** della pagina
 della fiera. I telefoni si guardano da pannello → **«Telefoni dello stand»**.
 
-**Per ogni visitatore, contro la CPU (al massimo 2 clic e 1 tocco)**
+**Per ogni visitatore, contro la CPU (al massimo 2 clic e 2 tocchi)**
 
 1. Nella pagina della fiera è scelto **«1 giocatore · contro la CPU»** (se c'è «2 giocatori», clicca «1 giocatore · contro
    la CPU»). Clicca **chi gioca**: «Bambino», «Ragazzo» o «Adulto» (già scelto). Per un mancino clicca **«Sinistra»**
    accanto a «Mano». Dai il **Telefono 1**.
-2. Il visitatore tocca **«Sono pronto»** sul telefono, oppure clicchi tu **«Gioca ›»**.
+2. (B54) Il visitatore scrive il suo nome sul telefono e tocca **«Conferma»** (o **«Salta»** in alto a destra), poi tocca
+   **«Sono pronto»**; oppure clicchi tu **«Gioca ›»** (allora il nome non si chiede).
 3. Partono gli **scambi di prova** (circa 10 secondi, 4 palle: il gioco impara il suo colpo; «Salta ›» sul telefono li
    chiude prima, ma vale solo dopo il primo secondo: (B41.3) un doppio tocco su «Sono pronto», o «Sono pronto» toccato
    mentre clicchi «Gioca ›», non li salta), poi il **conto alla rovescia grande** («Preparati, la partita sta per cominciare», 3 · 2 · 1) e la
@@ -718,13 +730,13 @@ della fiera. I telefoni si guardano da pannello → **«Telefoni dello stand»**
 4. A fine partita: **«Prossimo giocatore ›»** (rosa) per la persona dopo, oppure **«Rivincita»** («Gioca ancora» se ha
    vinto) per la stessa persona: si sceglie di nuovo il livello, poi «Gioca». In fiera «Menu» non c'è.
 
-Chi gioca contro la CPU senza un nome diventa **«Visitatore 12»** (numerati da capo ogni giorno, dal primo che gioca) e
-con quel nome va nella classifica del giorno. Per un nome: **«Nome»** accanto a «Visitatore 12» (tastiera a schermo,
-capitolo 3.6), facoltativo.
+Chi gioca contro la CPU senza un nome («Salta» sul telefono) diventa **«Visitatore 12»** (numerati da capo ogni giorno,
+dal primo che gioca) e con quel nome va nella classifica del giorno. Il nome lo scrive il visitatore sul telefono (B54);
+per correggerlo dal PC: **«Nome»** accanto a «Visitatore 12» (tastiera a schermo, capitolo 3.6).
 
 **In due, nello stesso schermo (al massimo 3 clic)**: clicca **«2 giocatori · stesso schermo»** (resta scelto anche per i
-visitatori dopo). Per ciascuno la fascia («Bambino», «Ragazzo», «Adulto») e la mano («Destra», «Sinistra»); poi «Sono
-pronto» sui due telefoni, oppure «Gioca ›». Telefono 1 a sinistra, Telefono 2 a destra (il numero è scritto in grande su
+visitatori dopo). Per ciascuno la fascia («Bambino», «Ragazzo», «Adulto») e la mano («Destra», «Sinistra»); poi (B54)
+ognuno scrive il suo nome sul suo telefono («Conferma» o «Salta») e tocca «Sono pronto», oppure «Gioca ›». Telefono 1 a sinistra, Telefono 2 a destra (il numero è scritto in grande su
 ogni telefono). Per tornare a uno solo: «1 giocatore · contro la CPU».
 
 **«Prossimo giocatore»** (fine partita, pannello, telecomando dello staff, e il chiosco in fiera): azzera nome, mano (torna

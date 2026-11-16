@@ -42,20 +42,9 @@ export const challengeById = modeById;
 export const pickableChallenge = id => CHALLENGES.find(c => c.id === id) || null;
 
 /* ---------- nickname ---------- */
-// Parole che non si mostrano sul maxischermo di uno stand (elenco breve, minuscole, senza accenti)
-const BLOCKED = ['cazzo', 'merda', 'stronz', 'vaffa', 'troia', 'puttan', 'coglion', 'minchia', 'fuck', 'shit', 'bitch', 'nazi', 'dux'];
-const fold = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[0@]/g, 'o').replace(/[1!]/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's');
-export function validNickname(raw){
-  const nick = String(raw || '').replace(/\s+/g, ' ').trim();
-  if (nick.length < 2) return { ok: false, nick, why: 'Almeno 2 caratteri' };
-  if (nick.length > 14) return { ok: false, nick, why: 'Al massimo 14 caratteri' };
-  if (!/^[\p{L}\p{N} ._-]+$/u.test(nick)) return { ok: false, nick, why: 'Solo lettere, numeri, spazio, punto e trattino' };
-  const f = fold(nick).replace(/[ ._-]/g, '');
-  if (BLOCKED.some(w => f.includes(w))) return { ok: false, nick, why: 'Scegli un altro nickname' };
-  // B38: «Ospite» è chi gioca senza nome (fuori classifica): non si sceglie come nome, così in classifica non c'è mai
-  if (f === 'ospite') return { ok: false, nick, why: '«Ospite» è per chi gioca senza nome: scegline un altro' };
-  return { ok: true, nick };
-}
+// Regole del nome (lunghezza, caratteri, parole da non mostrare sul maxischermo, «Ospite»): dal B54 (16/11/2026) stanno in
+// site/js/tennis/player-name.js, uguali per il computer e per il telefono, dove il visitatore scrive il suo nome
+export { validNickname } from '../../../site/js/tennis/player-name.js';
 
 /* ---------- chi entra in classifica (B38) ---------- */
 // Regola (decisione dell'utente del 14/11, «Gioca come Ospite»: il punteggio dell'ospite resta fuori classifica), resa

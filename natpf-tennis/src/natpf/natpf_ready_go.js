@@ -13,9 +13,19 @@
 // B47 (richiesta dell'utente del 14/11: conto alla rovescia grande «Preparati, la partita sta per cominciare»): il conto di
 // 3 s di questa pagina non c'è più. Quando sono pronti tutti la partita parte subito e il conto è quello grande al centro
 // del campo (natpf_prematch.js, annunciato anche sui telefoni): prima c'erano due conti di fila (READY_GO.ms = 0).
-// Funzioni pure in cima (test in test/natpf-ready-go.test.mjs), poi il controllore.
+// B54 (richiesta dell'utente del 16/11/2026: «per ogni telefono abbinato, impostare un nome e cambiarlo per la partita
+// seguente: ciascun visitatore digiterà il proprio nome»; decisioni: facoltativo con «Salta» in alto a destra, prima di
+// «Sono pronto», campo vuoto per un giocatore nuovo e con il nome di prima nella rivincita, filtro delle parole volgari più
+// la correzione dello staff dal PC). Su questa pagina ogni telefono pronto riceve PRIMA la richiesta del nome
+// (NatpfPhoneRacket.offerName) e solo dopo la risposta (nome o «Salta») «Sono pronto». Il nome va dove va quello scritto
+// sul computer: contro la CPU il nickname (tabellone, schermata finale, classifica del giorno), nello stesso schermo il nome
+// di quel giocatore. Si chiede di nuovo a ogni arrivo sulla pagina (partita dopo); un foglio dello staff aperto e chiuso
+// no. Solo alle pagine del telefono che lo sanno fare (device.names): le altre vanno dritte a «Sono pronto» come prima.
+// Il registro dello stand dice solo se il nome c'è (mai il nome).
+// Funzioni pure in cima (test in test/natpf-ready-go.test.mjs e natpf-b54-nome.test.mjs), poi il controllore.
 import { createCountdown, READY_COUNTDOWN_MS, defaultName } from './natpf_ready.js';
 import { phoneHealthOf, WATCH } from './natpf_phone_watch.js';
+import { validNickname } from './natpf_events.js';
 
 const $ = id => (typeof document !== 'undefined' ? document.getElementById(id) : null);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -44,8 +54,9 @@ export function readyGoWhy({ connected = false, ready = false, health = null } =
   return '';
 }
 // Stato della pagina (funzione pura): players [{ id, name, why, tapped }] → chi può toccare, chi ha toccato, si parte?
+// (B54: naming = il telefono sta scrivendo il nome, prima di «Sono pronto»)
 export function readyGoState(players = []){
-  const list = players.map(p => ({ id: p.id, name: String(p.name || '').trim() || defaultName(p.id), why: p.why || '', ok: !p.why, tapped: !p.why && !!p.tapped }));
+  const list = players.map(p => ({ id: p.id, name: String(p.name || '').trim() || defaultName(p.id), why: p.why || '', ok: !p.why, naming: !p.why && !!p.naming, tapped: !p.why && !p.naming && !!p.tapped }));
   const all = list.length > 0 && list.every(p => p.tapped);
   return { list, all, waiting: list.filter(p => !p.tapped) };
 }
@@ -58,8 +69,22 @@ export function readyGoNote(st, id){
 export function readyGoChip(p, { solo = false } = {}){
   const who = solo ? 'Telefono' : p.name;
   if (p.tapped) return { cls: 'is-ok', text: `${who} pronto ✓` };
+  if (p.naming) return { cls: 'is-wait', text: `${who}: scrive il nome` };
   if (p.ok) return { cls: 'is-wait', text: `${who}: tocca «Sono pronto»` };
   return { cls: 'is-ko', text: `${who}: ${p.why}` };
+}
+// B54: il nome da proporre sul telefono (funzione pura): quello di adesso, '' se è quello che il gioco dà da solo (giocatore
+// nuovo: campo vuoto; rivincita: il nome di prima, da tenere o cambiare)
+export function namePrefill(name = '', id = 'p1'){
+  const n = String(name || '').trim();
+  return !n || n === defaultName(id) || /^(player|giocatore|visitatore)\s*\d*$/i.test(n) ? '' : n;
+}
+// B54: risposta del telefono (funzione pura) → { ok, name, why }: «Salta» tiene il nome di adesso (vuoto per un giocatore
+// nuovo: resta quello che il gioco dà da solo); un nome si controlla con le regole di sempre (player-name.js)
+export function nameAnswer({ name = null, skip = false } = {}){
+  if (skip) return { ok: true, name: null, why: '' };
+  const v = validNickname(name);
+  return v.ok ? { ok: true, name: v.nick, why: '' } : { ok: false, name: null, why: v.why };
 }
 // Perché il conto si è fermato (funzione pura): il primo che non è più pronto
 export function readyGoCancel(st, { solo = false } = {}){
@@ -72,6 +97,8 @@ export class NatpfReadyGo {
   constructor(engine, ui){
     this.engine = engine; this.ui = ui;
     this.taps = { p1: false, p2: false };
+    // B54: nome già scritto (o saltato) su questa pagina; richiesta partita (resta finché non risponde); perché l'ultimo no
+    this.named = { p1: false, p2: false }; this.asked = { p1: false, p2: false }; this.nameWhy = { p1: '', p2: '' };
     this.countdown = createCountdown({ ms: READY_GO.ms });
     this.cd = { running: false, left: 0, why: null, whyUntil: 0 };
     this.active = false; this.ids = []; this.st = null; this._bound = new WeakSet(); this._paintKey = '';
@@ -90,12 +117,39 @@ export class NatpfReadyGo {
     if (ui.staffOpen?.()) return [];
     return readyGoIds({ visible: !!L?.visible, step: L?.step, mode: L?.mode, controller: ui.controller, webcam: !!ui.split?.webcam, trial: !!ui.trial?.active, guest: this.engine.playerRole === 'p2', intro: !!ui.intro?.active });
   }
-  _name(id){ return this.ui.lobby?.mode === 'split' ? (this.ui.split?.name?.(id) || defaultName(id)) : defaultName(id); }
+  _split(){ return this.ui.lobby?.mode === 'split'; }
+  _name(id){ return this._split() ? (this.ui.split?.name?.(id) || defaultName(id)) : (String(this.ui.events?.nickname || '').trim() || defaultName(id)); }
   _bind(p, id){
     if (!p || this._bound.has(p)) return;
     this._bound.add(p);
     p.onNext?.(() => this._tap(id));
+    p.onName?.((ph, r) => this._onName(id, r));
   }
+  // B54: si chiede il nome a questo telefono? (pagina del telefono che lo sa fare, collegato, pronto o già nella richiesta)
+  _asksName(id, p){ return !!p?.connected && !!p.asksName && !this.named[id] && (!!p.ready || this.asked[id]); }
+  // B54: nome (o «Salta») dal telefono. Vale anche con i sensori fermi un attimo: il nome non dipende dai sensori
+  _onName(id, r = {}){
+    if (!this.active || !this.ids.includes(id) || this.named[id] || !this.asked[id]) return;
+    const a = nameAnswer(r), R = this.ui.diag?.recorder;
+    if (!a.ok){ this.nameWhy[id] = a.why; R?.log?.('pronto.nome', { chi: id, nome: 'rifiutato' }); this.tick(); return; }
+    if (a.name) this._setName(id, a.name);
+    this.named[id] = true; this.nameWhy[id] = '';
+    // (mai il nome nel registro: solo se c'è, come per il nickname)
+    R?.log?.('pronto.nome', { chi: id, nome: a.name ? 'sì' : 'saltato' });
+    this.phone(id)?.offerName?.(null);
+    this.tick();
+  }
+  // B54: il nome scritto sul telefono va dove va quello scritto sul computer
+  _setName(id, nick){
+    const ui = this.ui, E = this.engine;
+    if (this._split()){
+      E.natpfSplitNames = { ...(E.natpfSplitNames || {}), [id]: nick };
+      if (typeof document !== 'undefined') for (const el of document.querySelectorAll(`[data-split-name="${id}"]`)) el.value = nick;
+      ui.split?._paintNames?.();
+    } else if (ui.events) ui.events.nickname = nick;
+    ui.lobby?.paint?.();
+  }
+  _prefill(id){ return namePrefill(this._split() ? this.engine.natpfSplitNames?.[id] : this.ui.events?.nickname, id); }
   // «Sono pronto» toccato sul telefono (messaggio nx y 1): conta solo se l'offerta era per lui, su questa pagina
   _tap(id){
     if (!this.active || !this.ids.includes(id)) return;
@@ -112,8 +166,10 @@ export class NatpfReadyGo {
   // ogni 100 ms (natpf_ui)
   tick(now = performance.now()){
     const ids = this._ids();
-    if (!ids.length){ this._leave(); return; }
-    if (!this.active || ids.join() !== this.ids.join()){ this._leave(); this.active = true; this.ids = ids; }
+    // (B54: con un foglio dello staff aperto i nomi già scritti restano; fuori dalla pagina si richiedono la volta dopo)
+    if (!ids.length){ this._leave({ keepNames: !!this.ui.staffOpen?.() }); return; }
+    // (B54: i nomi si azzerano uscendo dalla pagina, qui sopra; non rientrando, dopo un foglio dello staff)
+    if (!this.active || ids.join() !== this.ids.join()){ this._leave({ keepNames: true }); this.active = true; this.ids = ids; }
     const players = ids.map(id => {
       const p = this.phone(id); this._bind(p, id);
       let why = readyGoWhy({ connected: !!p?.connected, ready: !!p?.ready, health: p?.connected ? phoneHealthOf(p, now) : null });
@@ -123,13 +179,17 @@ export class NatpfReadyGo {
       if (why === 'sensori fermi' || why === 'segnale debole'){ this._stall[id] ??= now; if (now - this._stall[id] < WATCH.graceMs) why = ''; }
       else this._stall[id] = null;
       if (why) this.taps[id] = false;                 // chi cade deve toccare di nuovo
-      return { id, name: this._name(id), why, tapped: this.taps[id] };
+      // B54: prima il nome (la richiesta resta anche se i sensori si fermano un attimo; scollegato: si richiede al ritorno)
+      const naming = this._asksName(id, p);
+      if (naming){ this.asked[id] = true; this.taps[id] = false; p.offerName({ v: this._prefill(id), er: this.nameWhy[id] }); }
+      else if (p?.nameOffer) p.offerName(null);
+      return { id, name: this._name(id), why, naming, tapped: this.taps[id] };
     });
     const st = this.st = readyGoState(players), solo = ids.length === 1;
     // offerte ai telefoni (tolte a chi non può: solo le nostre, non quelle di scambi di prova o esercizi)
     for (const pl of st.list){
       const p = this.phone(pl.id); if (!p) continue;
-      if (pl.ok) p.offerNext?.(pl.tapped ? READY_GO.done : READY_GO.label, { rd: 1, me: pl.tapped ? 1 : 0, ...(pl.tapped ? { tx: readyGoNote(st, pl.id) } : {}) });
+      if (pl.ok && !pl.naming) p.offerNext?.(pl.tapped ? READY_GO.done : READY_GO.label, { rd: 1, me: pl.tapped ? 1 : 0, ...(pl.tapped ? { tx: readyGoNote(st, pl.id) } : {}) });
       else if (p.nextExtra?.rd) p.offerNext(null);
     }
     const r = this.countdown.update(st.all, now);
@@ -168,9 +228,10 @@ export class NatpfReadyGo {
   // la partita parte (dal conto, da «Gioca» o dal telecomando): l'offerta si ritira subito, insieme alla fase «al servizio»
   matchStarted(){ this._leave(); }
   // fuori dalla pagina (o «Gioca»): niente offerte, niente spunte, niente conto
-  _leave(){
+  _leave({ keepNames = false } = {}){
+    if (!keepNames){ this.named = { p1: false, p2: false }; this.asked = { p1: false, p2: false }; this.nameWhy = { p1: '', p2: '' }; }
     if (!this.active && !this.cd.running) return;
-    for (const id of this.ids){ const p = this.phone(id); if (p?.nextExtra?.rd) p.offerNext(null); }
+    for (const id of this.ids){ const p = this.phone(id); if (p?.nextExtra?.rd) p.offerNext(null); if (p?.nameOffer) p.offerName(null); }
     this.active = false; this.ids = []; this.st = null; this.taps = { p1: false, p2: false }; this._stall = { p1: null, p2: null };
     this.countdown.reset(); this.cd = { running: false, left: 0, why: null, whyUntil: 0 };
     this._paint(null);

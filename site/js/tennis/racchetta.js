@@ -17,7 +17,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample, SIGN } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, nextTap, NEXT_REARM_MS, readyView, standView, STAFF_HOLD, batteryAlert, standSignStep, tapVotesSign, handTap, handLabel, HAND_CONFIRM } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, nextTap, NEXT_REARM_MS, readyView, nameOnMsg, nameSubmit, NAME_REARM_MS, NAME_TEXT, standView, STAFF_HOLD, batteryAlert, standSignStep, tapVotesSign, handTap, handLabel, HAND_CONFIRM } from './phone-screen.js';
 import { touchLockActive, createTouchLockHistory, installStaffTouch } from './phone-touch-lock.js';
 import { parseStandPairing, createStandStore, standHello, standWelcome, standAnswer, standDenyText, newStandNonce, slotLabel } from './stand-pairing.js';
 
@@ -92,6 +92,8 @@ let trial = false;
 let nextOffer = null;
 // B41.3: dopo il tocco il pulsante resta spento finché non arriva un'offerta nuova; se non arriva, si riaccende da solo
 let nextRearmT = 0;
+// B54: nome chiesto dal computer prima di «Sono pronto» ({ v, er, id, sent }), null se non lo chiede; avviso scritto qui
+let nameOffer = null, nameRearmT = 0, nameWhy = '';
 // B41.3: pulsanti dello staff sul telefono dello stand, in vista fino a staffUntil dopo la pressione lunga sul numero
 let staffUntil = 0, staffT = null;
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
@@ -150,7 +152,7 @@ function unlockTouch(){
 }
 function paintTouchLock(){
   const on = touchLockActive({ requested: touchRequest, overridden: touchOverride, paired: !!pair && linkState !== 'denied',
-    sensor, gate, readyTap: phase === 'menu' && !!nextOffer?.ready && !nextOffer.me && !nextOffer.sent });
+    sensor, gate, readyTap: phase === 'menu' && !!nextOffer?.ready && !nextOffer.me && !nextOffer.sent, nameTap: phase === 'menu' && !!nameOffer });
   if (on){
     touchOverlay.dataset.slot = touchSlot;
     $('#phoneTouchSlot').textContent = slotLabel(touchSlot);
@@ -193,7 +195,8 @@ function setGate(g){ gate = g; if (g) ss.set('gate', g); else ss.del('gate'); }
 function paint(){
   bar();
   const standOn = !!pair?.stand && !!stand;
-  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch, next: nextOffer, stand: standOn, staff: staffOn() });
+  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch, next: nextOffer, stand: standOn, staff: staffOn(), name: nameOffer });
+  paintName(!!v.show['#nameBox']);
   if (nextOffer && $('#next').textContent !== nextOffer.label) $('#next').textContent = nextOffer.label;
   // B41.6: «Sono pronto» grande e pieno (le altre offerte, «Avanti ›» e «Salta ›», restano piccole); spento dopo il tocco
   // (B41.3: spento anche appena toccato, finché il computer non manda l'offerta dopo: un doppio tocco non arriva a «Salta ›»)
@@ -225,11 +228,23 @@ function paint(){
     // B41.3: telefono dello stand tra una persona e l'altra (menu, partita finita): «Dai il telefono al prossimo giocatore»
     const sv = standOn ? standView({ slot: stand.slot, linkState, sensor, phase }) : null;
     if (rv){ rb.textContent = rv.label; rb.disabled = rv.disabled; ui(rv.big, rv.sub, 'ready'); }
+    else if (v.show['#nameBox']) ui(NAME_TEXT.big, NAME_TEXT.sub, 'ready');
     else if (rd) ui(rd.big, rd.sub, rd.ring);
     else if (trial && phase === 'play') ui(TRIAL_TEXT.big, TRIAL_TEXT.sub, 'ready');
     else if (sv?.big) ui(sv.big, sv.sub, 'ready');
     else ui(phase === 'serve' ? 'Al servizio' : phase === 'pause' && phaseNote ? 'Pausa' : 'Pronto', phaseText(), 'ready');
   }
+}
+// B54: «Come ti chiami?»: avviso (dal computer o scritto qui), pulsanti spenti dopo la risposta; uscendo, tastiera chiusa
+function paintName(on){
+  const was = document.body.classList.contains('naming');
+  document.body.classList.toggle('naming', on);
+  const input = $('#nameInput');
+  if (!on){ if (was && document.activeElement === input) input.blur(); return; }
+  const warn = nameWhy || nameOffer?.er || '';
+  if ($('#nameWarn').textContent !== warn) $('#nameWarn').textContent = warn;
+  const off = !!nameOffer?.sent;
+  $('#nameOk').disabled = off; $('#nameSkip').disabled = off; input.disabled = off;
 }
 // schermata del tutorial: pulsante acceso da subito (B28), scheda attuale, puntini delle schede viste, frecce per
 // sfogliarle anche da qui (solo con un computer che le capisce)
@@ -394,6 +409,15 @@ function onData(c, d){
     case 'rm': rematch = rematchOnMsg(d); if (sensor === 'ready') paint(); break;
     // «Avanti ›» offerto (o tolto) dal computer: esercizi e scambi di prova si possono saltare anche da qui (B28)
     case 'nx': nextOffer = nextOnMsg(d); clearTimeout(nextRearmT); if (sensor === 'ready') paint(); break;
+    // B54: il computer chiede il nome (o toglie la richiesta). Una richiesta nuova (numero diverso) mette nel campo il nome
+    // proposto (vuoto per un giocatore nuovo, quello di prima nella rivincita); la stessa ripetuta lascia quello scritto
+    case 'nm': {
+      const o = nameOnMsg(d), fresh = !!o && o.id !== nameOffer?.id;
+      nameOffer = o; nameWhy = ''; clearTimeout(nameRearmT);
+      if (fresh) $('#nameInput').value = o.v;
+      if (sensor === 'ready') paint();
+      break;
+    }
     // (txt, B20: la partita è in pausa per il telefono dell'altro giocatore, e lo dice)
     // soglie dal colpo imparato negli scambi di prova (B28): solo sopra il profilo semplice, che non ha un colpo tipico suo
     case 'pf': { const th = trialThresholds(d); if (th && sensor === 'ready' && inputMode === 'motion' && det.profile.simple) det.setThresholds(th); break; }
@@ -579,7 +603,7 @@ const batteryState = () => battery && Number.isFinite(battery.level) ? { bt: Mat
 const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batteryState(), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), lk: touchLocked ? 1 : 0, ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 // (B45.1: cd = il racconto dell'ultima caduta, una volta sola; i computer di prima ignorano il campo)
-const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: window.screen.orientation?.type || null, sc: [window.screen.width, window.screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, ...(cd ? { cd } : {}) }); };
+const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: window.screen.orientation?.type || null, sc: [window.screen.width, window.screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, nm: 1, ...(cd ? { cd } : {}) }); };
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
 // secondo (un tremolio continuo non deve intasare il collegamento)
 let discardWin = { at: 0, n: 0 };
@@ -824,6 +848,19 @@ $('#next').addEventListener('click', e => {
   const tapped = nextOffer; clearTimeout(nextRearmT);
   nextRearmT = setTimeout(() => { if (nextOffer === tapped){ nextOffer = { ...tapped, sent: false }; paint(); } }, NEXT_REARM_MS);
 });
+// B54: «Conferma» (o «Fatto» della tastiera) e «Salta»: un nome alla volta, controllato subito qui e poi dal computer
+function nameAnswer(skip){
+  const r = linkState === 'on' ? nameSubmit(nameOffer, $('#nameInput').value, { skip }) : null; if (!r) return;
+  if (r.why){ nameWhy = r.why; buzz([20, 40, 20]); paint(); return; }
+  nameOffer = r.offer; nameWhy = ''; send(r.msg);
+  if (r.offer.v) $('#nameInput').value = r.offer.v;
+  $('#nameInput').blur(); buzz([30]); paint();
+  const sent = nameOffer; clearTimeout(nameRearmT);
+  nameRearmT = setTimeout(() => { if (nameOffer === sent){ nameOffer = { ...sent, sent: false }; paint(); } }, NAME_REARM_MS);
+}
+$('#nameBox').addEventListener('submit', e => { e.preventDefault(); e.stopPropagation(); nameAnswer(false); });
+$('#nameSkip').addEventListener('click', e => { e.stopPropagation(); nameAnswer(true); });
+$('#nameInput').addEventListener('input', () => { if (nameWhy){ nameWhy = ''; paint(); } });
 // «Salta la calibrazione»: profilo semplice, si gioca subito (lo stesso di «Salta» sul computer)
 $('#calSkip').addEventListener('click', e => { e.stopPropagation(); command('skip'); });
 $('#tutOk').addEventListener('click', tutDone);

@@ -147,7 +147,10 @@ test('diagnostica dal telefono: gesto scartato con il motivo, segno «qui è suc
     assert.deepEqual(got.map(g => g[0]), ['discard', 'mark', 'device']);
     assert.equal(got[0][1].why, 'in rientro'); assert.equal(got[0][1].peak, 640); assert.equal(got[0][1].dir, 0);
     assert.equal(got[1][1].text, 'segno dal telefono');
-    assert.deepEqual(got[2][1], { ua: 'Telefono di prova', wakeLock: true, motion: true, orientation: 'portrait-primary', screen: [412, 915, 3.5], version: '2026-10-23.2', accSign: null });
+    assert.deepEqual(got[2][1], { ua: 'Telefono di prova', wakeLock: true, motion: true, orientation: 'portrait-primary', screen: [412, 915, 3.5], version: '2026-10-23.2', accSign: null, names: false });
+    // B54: le pagine che sanno chiedere il nome lo dicono (nm 1)
+    main.emit('data', { t: 'dev', ua: 'Telefono di prova', vr: '2026-11-16.1', nm: 1 });
+    assert.equal(got.at(-1)[1].names, true);
   } finally { link.stop(); }
 });
 
