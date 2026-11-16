@@ -79,7 +79,26 @@ immutato con la prova accesa. Fogli: `COLPO=rovescio SOLO=fogli FOGLI=<cartella>
   segnato come secondo colpo dello scambio: sulla risposta al servizio il gioco non schiaccia, regola del B48.1).
   Immagini: `img/schiacciata-gioco.webp`, `img/schiacciata-vicina.webp`.
 
-## 4. Cosa non è provato
+## 4. Volée (B53.3)
+
+- **Non c'è nel trailer.** Nel gioco la volée non è uno swing a sé (il motore la riconosce dalla palla non rimbalzata e
+  da |z| < 9): l'animazione la riconosce da dove sta il personaggio, **a rete = a meno di 7 m dalla rete**
+  (`natpf_forehand_video.atNet`, dentro la riga del servizio e poco oltre). Lì dritto e rovescio (topspin e piatto) usano
+  le voci `volleyF` e `volleyB` di `SV_STROKES` (campo `where: 'net'`), e **non** si applicano il dritto ampio del B23 e il
+  rovescio da fondo (`where: 'base'`); la schiacciata vale ovunque (`where: 'any'`).
+- **Pose corte** nello stile del video: poca rotazione (0,25 rad di dritto, 0,35 di rovescio, contro 0,6–0,78 da fondo),
+  gambe piegate, passo avanti con il piede opposto al colpo (di dritto il piede libero, di rovescio quello della
+  racchetta), impatto con il peso in avanti e il tallone dietro alzato, finale breve, **niente saltello**; la mano libera
+  accompagna la racchetta nella preparazione (e verso l'impatto nel rovescio). La racchetta è sempre quella di sempre.
+- Rispetto a prima del B53.3 il cambiamento che si vede di più è che a rete, con la prova accesa, non partono più la
+  preparazione ampia, il finale sopra la spalla e il saltello del dritto e del rovescio da fondo.
+- Prove (3 in `natpf-colpi-video.test.mjs`): riconoscimento a rete (anche nell'altra metà campo), dritto del B23 e rovescio
+  da fondo spenti a rete; racchetta sulla palla all'impatto identica e niente saltello (dritto e rovescio, chi gioca e
+  CPU, destro e mancino, in tempo e in ritardo); rotazione corta e gambe piegate; niente scatti. Fogli:
+  `COLPO=volee` e `COLPO=volee-rovescio` (giocatore a 4 m dalla rete, palla tesa come secondo colpo dello scambio);
+  immagini `img/volee-vicina.webp`, `img/volee-rovescio-vicina.webp`.
+
+## 5. Cosa non è provato
 
 Come il B23: telefono vero, webcam vera, ledwall, scheda video vera; il giudizio «mi convince» spetta all'utente. Le
 pose sono ricavate a mano dai fotogrammi del trailer (il rovescio visto di fronte, il gioco lo mostra da dietro).

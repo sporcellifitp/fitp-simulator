@@ -48,6 +48,13 @@ export function forehandVideoEnabled(){ return enabled ?? (enabled = readForehan
 export function setForehandVideo(on){ return (enabled = !!on); }
 export const forehandVideoToast = on => (on ? 'Dritto come nel video (prova) acceso' : 'Dritto come nel video spento: il dritto è quello di prima');
 
+/* ---------- a rete: volée (B53.3) ---------- */
+// A rete (meno di NET_Z m dalla rete, cioè dentro la riga del servizio e poco oltre) dritto e rovescio sono volée: le pose
+// ampie del dritto qui sotto lasciano il posto a quelle corte della volée (natpf_strokes_video.js). Nel gioco la volée
+// non è uno swing a sé (game_engine: palla non rimbalzata e |z| < 9): l'animazione la riconosce da dove sta il personaggio.
+export const NET_Z = 7;
+export const atNet = actor => !!(actor && actor.pos && Math.abs(actor.pos.z) < NET_Z);
+
 /* ---------- tempi e pose ---------- */
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const ss = (v, a, b) => { const t = clamp((v - a)/(b - a), 0, 1); return t*t*(3 - 2*t); };
@@ -148,7 +155,7 @@ export function fvPre(actor, rig, dt){
   const T = actor.racketKinematics;
   if (!T) return;
   if (!s) s = rig.natpfFv = newState();
-  const fh = fvIsForehand(T), l = fh ? T.swingProgress : null, busy = !!(rig.reaction && rig.reaction.active);
+  const net = atNet(actor), fh = fvIsForehand(T) && !net, l = fh ? T.swingProgress : null, busy = !!(rig.reaction && rig.reaction.active);   // (B53.3: a rete è una volée)
   // ogni swing che parte (di qualunque colpo) trova il personaggio a terra: il saltello alza anche la racchetta, e
   // all'impatto la racchetta deve stare dov'era prima
   if (T.swingActive && !s.any){ s.hit = false; s.hop = 0; }
@@ -163,7 +170,7 @@ export function fvPre(actor, rig, dt){
   }
   s.swinging = fh;
   if (s.hit){ s.sinceHit += dt; if (s.sinceHit > FV.hop.from + FV.hop.len + .1) s.hit = false; }
-  const charge = !fh && !busy && !T.swingActive && T.anticipationSide === 'forehand' ? T.anticipationCharge : 0;
+  const charge = !fh && !net && !busy && !T.swingActive && T.anticipationSide === 'forehand' ? T.anticipationCharge : 0;
   fvTargets(TGT, charge, l, fh ? null : s.after);
   if (busy) TGT.coil = TGT.drive = TGT.finish = 0;   // esultanza o delusione a fine punto: solo quelle
   // a fine punto (esultanza o delusione) le pose se ne vanno più piano: il finale che restava non sparisce di colpo

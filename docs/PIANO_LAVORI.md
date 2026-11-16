@@ -17,15 +17,13 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 16/11/2026, 08:45 UTC (B52.2 app Android 1.0.2, urgente).** Con la 1.0.1 l'app si fissava e restava
-su uno schermo vuoto: senza il certificato NATPF sul telefono la WebView rifiutava in silenzio il certificato del PC dello
-stand. La 1.0.2 lo accetta solo per l'indirizzo di rete locale del QR, non si fissa dopo un errore e scrive cosa non va
-(`docs/b52/app-android.md` §6); prova `tools/e2e/natpf-app-certificato.mjs` 7/7 con il server LAN e il certificato veri.
-APK consegnato, non provato su un telefono vero. Il gioco resta alla 2026-11-15.2 su GitHub. **Prossima azione esatta:**
-aspettare l'esito della 1.0.2 sul telefono dell'utente (il resto è sospeso per sua richiesta). Poi B53.3 volée, salvata e
-non applicata in `docs/b53/volee-in-sospeso.patch` (`git apply`; misura dei fotogrammi rifatta e verde): commit della 2026-11-15.3, zip
-e installer; poi B53.4 servizio e B53.5 voce delle Opzioni. Restano dell'utente: Worker del registro e prova a Precision
-(cancello della B36.1), collaudo allo stand e prova dell'app sul telefono. Il resto di questa sezione è storia.
+**Checkpoint del 16/11/2026 (B53.3, volée, 2026-11-15.3).** L'utente ha riaperto il lavoro sul gioco e spostato l'app Android
+in secondo piano dopo la sua prova della 1.0.2. Sul branch `natpf-simulator` è stata applicata la patch della volée alla base
+`f6502d7`: dritto e rovescio a rete hanno una preparazione corta, passo in avanti e finale breve. Test del gioco 1752/1752,
+sito 275/275, desktop 51/51, LAN 13/13 e build. Zip Cloudflare verificato con versione e integrità. **Prossima azione
+esatta:** B53.4, animazione del servizio con controllo della posizione della racchetta all'impatto, poi B53.5, voce
+«Movimenti come nel video». Il collaudo con telefono e ledwall dello stand resta da fare. Restano aperti anche Worker del
+registro e prova a Precision (B36.1).
 
 Checkpoint precedente (16/11, 07:40 UTC, B53.2 schiacciata, versione 2026-11-15.2): rovescio (15.1) e schiacciata (15.2)
 fatti; gioco 1749/1749, sito 275/275, desktop 51/51, LAN 13/13, build; `natpf-dritto-video` con i soli 4 rossi della 14.9.

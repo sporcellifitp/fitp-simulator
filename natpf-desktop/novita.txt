@@ -57,3 +57,4 @@
 2026-11-14.9: Nella diagnostica la prova del ritardo dello schermo mostra l'aiuto solo quando serve. Controlli e prove in più su doppio, prova del ritardo e fine partita.
 2026-11-15.1: Con «Dritto come nel video» anche il rovescio ha le movenze del trailer: spalle girate, due mani sulla racchetta, finale alto sopra la spalla.
 2026-11-15.2: Con «Dritto come nel video» anche la schiacciata: gambe piegate e di lato, colpo in punta di piedi, salto e atterraggio a braccia aperte.
+2026-11-15.3: Con «Dritto come nel video» a rete le volée sono corte: gambe piegate, passo avanti, colpo secco, senza il saltello dei colpi da fondo campo.

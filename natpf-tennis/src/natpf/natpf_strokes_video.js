@@ -11,6 +11,9 @@
 //     verso la palla, colpo con il corpo che si allunga in punta di piedi, poi il salto e l'atterraggio con le gambe
 //     piegate e le braccia aperte. Nel trailer il colpo è in aria: qui il salto parte subito DOPO la zona dell'impatto
 //     (all'impatto la racchetta è quella del motore, quindi il personaggio è a terra come prima).
+//   • volée di dritto e di rovescio (a rete, natpf_forehand_video.atNet): non c'è nel trailer; nello stile del video ma
+//     corta come una volée vera: poca rotazione, gambe piegate, passo avanti con il piede giusto, colpo secco, finale
+//     breve, niente saltello. A rete il dritto del B23 e il rovescio qui sopra non si applicano.
 //
 // Vincoli (come il B23): la racchetta nell'intorno dell'impatto è quella di racket_kinematics.js (tra racketFree[0] e
 // [1] dello swing non si tocca); tempi, fisica, esiti, gesti e movimento in campo non cambiano (solo trasformazioni di
@@ -18,7 +21,7 @@
 // riferimento del personaggio (racchetta a x < 0, rete verso +z), il mancino è specchiato dalla radice.
 // Ordine con il dritto (player_body_animation.js): svPre prima di fvPre, svPost dopo fvPost (la mano libera torna alla
 // posa di sempre in ordine inverso a come le pose la spostano).
-import { forehandVideoEnabled } from './natpf_forehand_video.js';
+import { forehandVideoEnabled, atNet } from './natpf_forehand_video.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const ss = (v, a, b) => { const t = clamp((v - a)/(b - a), 0, 1); return t*t*(3 - 2*t); };
@@ -51,7 +54,7 @@ export const SV = Object.freeze({
 export const SV_STROKES = Object.freeze({
   backhand: Object.freeze({
     is: T => !!(T && T.swingActive && T.swingSide === 'backhand' && !T.isServe && topOrFlat(T)),
-    side: 'backhand',
+    side: 'backhand', where: 'base',
     contact: .34,
     racketFree: Object.freeze([.2, .46]),
     // Lette dal trailer (giocatore blu, 4,5–6 s; il colpo è verso 5,2 s): spalle girate verso la parte libera (la schiena
@@ -77,7 +80,7 @@ export const SV_STROKES = Object.freeze({
   }),
   smash: Object.freeze({
     is: T => !!(T && T.swingActive && T.swingSide === 'overhead' && !T.isServe),
-    side: 'overhead',
+    side: 'overhead', where: 'any',
     contact: .34,                       // picco di velocità delle corde a 0,36 dello swing, come il dritto
     racketFree: Object.freeze([.2, .46]),
     // Lette dal trailer (giocatore bianco, 7–8 s): preparazione di lato con il lato della racchetta indietro, gambe
@@ -96,6 +99,41 @@ export const SV_STROKES = Object.freeze({
     // salto dopo l'impatto: parte quando la racchetta è già fuori dalla zona libera (0,46 dello swing, circa 0,04 s
     // dopo l'impatto)
     hop: Object.freeze({ from: .06, len: .44, up: .14 }),
+    racket: Object.freeze({ prep: Object.freeze({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }), fin: null }),
+  }),
+  // Volée (B53.3): non è nel trailer. Corta: preparazione con poca rotazione e le gambe piegate, passo avanti con il
+  // piede opposto al colpo (di dritto il piede libero, di rovescio quello della racchetta), impatto con il peso in avanti
+  // e il tallone dietro alzato, finale breve senza saltello. La mano libera accompagna la racchetta nella preparazione.
+  volleyF: Object.freeze({
+    is: T => !!(T && T.swingActive && T.swingSide === 'forehand' && !T.isServe && topOrFlat(T)),
+    side: 'forehand', where: 'net',
+    contact: .34, racketFree: Object.freeze([.2, .46]),
+    pose: Object.freeze({
+      coil:   Object.freeze({ tw: -.25, pi: .05, ro: .02, hx: -.02, hy: -.05, hz: 0,
+        bx: -.02, by: 0, bz: -.04, brx: 0, bry: -.3, fx: -.02, fy: 0, fz: .14, frx: 0, fry: -.15 }),
+      drive:  Object.freeze({ tw: -.05, pi: .12, ro: 0, hx: 0, hy: -.06, hz: .08,
+        bx: -.02, by: .02, bz: -.06, brx: .35, bry: -.15, fx: -.02, fy: 0, fz: .16, frx: 0, fry: -.1 }),
+      finish: Object.freeze({ tw: 0, pi: .08, ro: 0, hx: 0, hy: -.04, hz: .06,
+        bx: -.01, by: 0, bz: -.03, brx: .15, bry: 0, fx: -.02, fy: 0, fz: .12, frx: 0, fry: 0 }),
+    }),
+    hands: Object.freeze({ coil: 'racket', drive: null, finish: null }),
+    hop: Object.freeze({ from: .1, len: .3, up: 0 }),
+    racket: Object.freeze({ prep: Object.freeze({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }), fin: null }),
+  }),
+  volleyB: Object.freeze({
+    is: T => !!(T && T.swingActive && T.swingSide === 'backhand' && !T.isServe && topOrFlat(T)),
+    side: 'backhand', where: 'net',
+    contact: .34, racketFree: Object.freeze([.2, .46]),
+    pose: Object.freeze({
+      coil:   Object.freeze({ tw: .35, pi: .05, ro: -.02, hx: .02, hy: -.05, hz: 0,
+        bx: .02, by: 0, bz: .14, brx: 0, bry: .15, fx: .02, fy: 0, fz: -.04, frx: 0, fry: .3 }),
+      drive:  Object.freeze({ tw: .08, pi: .12, ro: 0, hx: 0, hy: -.06, hz: .08,
+        bx: .02, by: 0, bz: .16, brx: 0, bry: .1, fx: .02, fy: .02, fz: -.06, frx: .35, fry: .15 }),
+      finish: Object.freeze({ tw: 0, pi: .08, ro: 0, hx: 0, hy: -.04, hz: .06,
+        bx: .02, by: 0, bz: .12, brx: 0, bry: 0, fx: .01, fy: 0, fz: -.03, frx: .15, fry: 0 }),
+    }),
+    hands: Object.freeze({ coil: 'racket', drive: 'racket', finish: null }),
+    hop: Object.freeze({ from: .1, len: .3, up: 0 }),
     racket: Object.freeze({ prep: Object.freeze({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }), fin: null }),
   }),
 });
@@ -125,7 +163,9 @@ export function svHop(t, H = SV.hop){
   return H.up*s*s;
 }
 // Il colpo della prova dello swing in corso (null se non è uno dei colpi di questo modulo)
-export const svKindOf = T => { for (const k of SV_KINDS) if (SV_STROKES[k].is(T)) return k; return null; };
+// (where: 'base' lontano dalla rete, 'net' a rete, 'any' ovunque; actor facoltativo: senza, lontano dalla rete)
+export const svHere = (def, net) => def.where === 'any' || (def.where === 'net') === !!net;
+export const svKindOf = (T, actor = null) => { const net = atNet(actor); for (const k of SV_KINDS) if (svHere(SV_STROKES[k], net) && SV_STROKES[k].is(T)) return k; return null; };
 
 /* ---------- stato: uno per personaggio e per colpo, creato una volta ---------- */
 const newState = () => ({
@@ -162,7 +202,7 @@ export function svPre(actor, rig, dt){
   if (!forehandVideoEnabled()){ if (S0) for (const k of SV_KINDS){ const s = S0[k]; if (s.live || s.rPrep || s.after != null) rest(s); } return; }
   const T = actor.racketKinematics;
   if (!T) return;
-  const S = stateOf(rig), busy = !!(rig.reaction && rig.reaction.active), kind = svKindOf(T);
+  const S = stateOf(rig), busy = !!(rig.reaction && rig.reaction.active), kind = svKindOf(T, actor), net = atNet(actor);
   const fresh = T.swingActive && !S.any;
   S.any = !!T.swingActive;
   // il dritto del B23 ha scritto sulla racchetta in questo fotogramma: non ci si scrive sopra
@@ -182,7 +222,7 @@ export function svPre(actor, rig, dt){
     s.swinging = mine;
     const H = def.hop || SV.hop;
     if (s.hit){ s.sinceHit += dt; if (s.sinceHit > H.from + H.len + .1) s.hit = false; }
-    const charge = !mine && !busy && !T.swingActive && T.anticipationSide === def.side ? T.anticipationCharge : 0;
+    const charge = !mine && !busy && !T.swingActive && svHere(def, net) && T.anticipationSide === def.side ? T.anticipationCharge : 0;
     svTargets(TGT, def, charge, l, mine ? null : s.after);
     if (busy) TGT.coil = TGT.drive = TGT.finish = 0;
     s.coil = Math.min(follow(s.coil, TGT.coil, dt, busy ? SV.tau.react : TGT.coil > s.coil ? SV.tau.coil : T.swingActive ? SV.tau.uncoil : SV.uncoilRest), s.coil + SV.coilRate*dt);

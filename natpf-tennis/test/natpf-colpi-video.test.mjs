@@ -22,7 +22,7 @@ test('B53: colpi della prova del modulo: rovescio topspin e piatto, schiacciata;
   assert.equal(svKindOf(T({ swingShotType: 'flat' })), 'backhand');
   for (const o of [{ swingShotType: 'slice' }, { swingShotType: 'lob' }, { isServe: true }, { swingSide: 'forehand' }, { swingActive: false }]) assert.equal(svKindOf(T(o)), null, JSON.stringify(o));
   assert.equal(svKindOf(null), null);
-  assert.deepEqual(SV_KINDS, ['backhand', 'smash']);
+  assert.deepEqual(SV_KINDS, ['backhand', 'smash', 'volleyF', 'volleyB']);
   const O = o => ({ swingActive: true, isServe: false, swingSide: 'overhead', swingShotType: 'smash', ...o });
   assert.equal(svKindOf(O()), 'smash');
   assert.equal(svKindOf(O({ isServe: true })), null, 'il servizio non è la schiacciata');
@@ -238,5 +238,90 @@ test('B53.2: raccordi della schiacciata, niente scatti nuovi', () => {
     }
     assert.ok(maxPos < .17 && maxRot < .26 && maxY < .02, `${human ? 'chi gioca' : 'CPU'} ${lefty ? 'mancino' : 'destro'}: ${(maxPos*1000).toFixed(0)} mm, ${maxRot.toFixed(3)} rad, salto ${(maxY*1000).toFixed(0)} mm/fotogramma`);
     assert.ok(on.at(-1).body.every((x, i) => Math.abs(x - off.at(-1).body[i]) < 1e-6), 'tornato quello di sempre');
+  }
+});
+
+/* ---------- B53.3 · volée (a rete) ---------- */
+// un colpo a rete (personaggio a 4 m dalla rete): palla dal lato del colpo per 40 fotogrammi, poi lo swing
+function atTheNet(on, { side = 'forehand', human = true, lefty = false, timing = 'sweet', frames = 110, z = 4 } = {}){
+  setForehandVideo(on);
+  const { actor: a, rk } = mount(M, { sideSign: 1, lefty }), L = lefty ? -1 : 1, X = (side === 'forehand' ? 1 : -1)*.9*L;
+  a.pos.z = z; a.targetPos.copy(a.pos); a.root.position.copy(a.pos);
+  const ball = { inPlay: true, lastHitter: 'opponent', pos: new THREE.Vector3(), vel: new THREE.Vector3(0, 0, 18), targetLanding: new THREE.Vector3(X, 0, z + 2), shotType: 'TOPSPIN' };
+  const ctx = { phase: 'RALLY', score: { server: 'player' }, ball, elapsedTime: 10 }, out = [];
+  for (let f = 0; f < frames; f++){
+    if (f < 40) ball.pos.set(X, 1.1, a.pos.z - 18*(40 - f)*DT - .3);
+    else {
+      if (f === 40){
+        const st = rk.triggerSwing(a, { shotType: 'topspin', side, speed: 1.1, timing, dirX: 0, isPracticeSwing: true });
+        if (human) st.swingElapsed = Math.max(st.swingElapsed || 0, .24*st.swingDuration);
+      }
+      ball.lastHitter = 'player'; ball.pos.set(X*.6, 1.2, a.pos.z - 1 - .35*(f - 40)); ball.vel.set(0, 2, -21);
+    }
+    ctx.elapsedTime += DT; rk.update(a, DT, ctx); M.body.updatePlayerBodyAnimation(a, DT, ctx);
+    const T = a.racketKinematics, c = getRacketRimWorldPoints(a), R = a.rig, S = R.natpfSv, F = R.natpfFv;
+    out.push({ l: T.swingActive ? T.swingProgress : null, side: T.swingSide, prep: T.anticipationSide, centre: c.centerWorld.toArray(), tip: c.tipWorld.toArray(), normal: c.normalWorld.toArray(), y: a.root.position.y,
+      hipY: R.hipPivot.rotation.y, hipH: R.hipPivot.position.y, fv: F ? F.coil + F.drive + F.finish : 0, sv: S ? Object.fromEntries(SV_KINDS.map(k => [k, S[k].coil + S[k].drive + S[k].finish])) : null,
+      body: [R.hipPivot.position.x, R.hipPivot.position.y, R.hipPivot.position.z, R.hipPivot.rotation.x, R.hipPivot.rotation.y, R.hipPivot.rotation.z,
+        R.footLPivot.position.x, R.footLPivot.position.z, R.footRPivot.position.x, R.footRPivot.position.z, ...R.handLPivot.position.toArray()] });
+  }
+  setForehandVideo(true);
+  return out;
+}
+
+test('B53.3: a rete dritto e rovescio sono volée (pose corte); il dritto del B23 e il rovescio da fondo campo non si applicano', () => {
+  const T = o => ({ swingActive: true, isServe: false, swingSide: 'forehand', swingShotType: 'topspin', ...o });
+  const net = { pos: { z: 4 } }, base = { pos: { z: 11.4 } }, far = { pos: { z: -5 } };
+  assert.equal(svKindOf(T(), net), 'volleyF'); assert.equal(svKindOf(T(), far), 'volleyF', 'anche nell\'altra metà campo');
+  assert.equal(svKindOf(T({ swingSide: 'backhand' }), net), 'volleyB');
+  assert.equal(svKindOf(T(), base), null, 'da fondo il dritto è quello del B23');
+  assert.equal(svKindOf(T({ swingSide: 'backhand' }), base), 'backhand');
+  assert.equal(svKindOf(T({ swingSide: 'overhead', swingShotType: 'smash' }), net), 'smash', 'la schiacciata vale ovunque');
+  assert.equal(svKindOf(T({ swingShotType: 'slice' }), net), null, 'il tagliato resta quello di sempre');
+  for (const side of ['forehand', 'backhand']){
+    const on = atTheNet(true, { side }), want = side === 'forehand' ? 'volleyF' : 'volleyB';
+    assert.ok(on.every(r => r.fv === 0), `${side}: il dritto del B23 non si applica a rete`);
+    assert.ok(on[60].sv[want] > .3 && on.every(r => r.sv.backhand === 0), `${side}: pose della volée, non del rovescio da fondo`);
+  }
+});
+
+test('B53.3: volée, racchetta sulla palla all\'impatto identica a prima (chi gioca e CPU, destro e mancino, in tempo e in ritardo)', () => {
+  let checked = 0;
+  for (const side of ['forehand', 'backhand']) for (const human of [true, false]) for (const lefty of [false, true]) for (const timing of ['sweet', 'late']){
+    const off = atTheNet(false, { side, human, lefty, timing }), on = atTheNet(true, { side, human, lefty, timing });
+    const tag = `${side} ${human ? 'chi gioca' : 'CPU'} ${lefty ? 'mancino' : 'destro'} ${timing}`;
+    let free = 0;
+    for (let f = 40; f < on.length; f++){
+      const l = on[f].l;
+      assert.equal(l, off[f].l, `${tag}: stessi tempi`);
+      if (l != null && l >= .2 && l <= .46){
+        free++; checked++;
+        assert.deepEqual(on[f].centre, off[f].centre, `${tag}: corde a ${l.toFixed(3)}`);
+        assert.deepEqual(on[f].normal, off[f].normal, `${tag}: piatto a ${l.toFixed(3)}`);
+      }
+      assert.equal(on[f].y, off[f].y, `${tag}: niente saltello nella volée`);
+    }
+    assert.ok(free >= 2, `${tag}: ${free} fotogrammi nella zona dell'impatto`);
+  }
+  assert.ok(checked > 40, `fotogrammi confrontati: ${checked}`);
+});
+
+test('B53.3: volée corte (meno rotazione del colpo da fondo, gambe piegate) e niente scatti', () => {
+  for (const side of ['forehand', 'backhand']){
+    const off = atTheNet(false, { side }), on = atTheNet(true, { side });
+    const turn = Math.abs(on[38].hipY - off[38].hipY);
+    assert.ok(turn > .1 && turn < .4, `${side}: rotazione della preparazione ${turn.toFixed(3)} rad (da fondo 0,6–0,78)`);
+    assert.ok(off[38].hipH - on[38].hipH > .03, `${side}: gambe piegate`);
+    for (const human of [true, false]){
+      const o0 = atTheNet(false, { side, human, frames: 140 }), o1 = atTheNet(true, { side, human, frames: 140 });
+      let prev = null, maxPos = 0, maxRot = 0;
+      for (let f = 0; f < o1.length; f++){
+        const d = o1[f].body.map((x, i) => x - o0[f].body[i]);
+        if (prev){ maxPos = Math.max(maxPos, ...[0, 1, 2, 6, 7, 8, 9, 10, 11, 12].map(i => Math.abs(d[i] - prev[i]))); maxRot = Math.max(maxRot, ...[3, 4, 5].map(i => Math.abs(d[i] - prev[i]))); }
+        prev = d;
+      }
+      assert.ok(maxPos < .17 && maxRot < .26, `${side} ${human ? 'chi gioca' : 'CPU'}: ${(maxPos*1000).toFixed(0)} mm, ${maxRot.toFixed(3)} rad`);
+      assert.ok(o1.at(-1).body.every((x, i) => Math.abs(x - o0.at(-1).body[i]) < 1e-6), 'tornato quello di sempre');
+    }
   }
 });

@@ -1541,3 +1541,8 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - Schiacciata (B53.2, versione 2026-11-15.2): il salto (14 cm) **parte 0,06 s dopo l'impatto**, dopo la zona libera
   della racchetta (0,2–0,46): all'impatto il personaggio è a terra come prima. Nella prova del B23 il pallonetto per la
   schiacciata è il secondo colpo dello scambio (sulla risposta al servizio niente schiacciata, B48.1).
+- Volée (B53.3, versione 2026-11-15.3): riconosciuta dall'animazione **dalla posizione** (a meno di 7 m dalla rete,
+  `atNet`), non dallo swing (il motore non ha uno swing di volée). A rete il dritto del B23 e il rovescio da fondo non si
+  applicano; pose corte, niente saltello. Campo `where` delle voci di `SV_STROKES`: 'base', 'net', 'any'.
+- Rilascio: **la versione si cambia prima del controllo rapido** (la build che finisce nello zip la fa il controllo
+  rapido: lo zip della 15.2 era uscito con la 15.1 dentro ed è stato rifatto dal commit salvato).
