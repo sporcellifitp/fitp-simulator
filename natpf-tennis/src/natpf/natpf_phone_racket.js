@@ -249,6 +249,13 @@ export function ownShapes(own, { rise = null, forehandRise = null, normal = null
 }
 const finiteOr = (v, d = 0) => (Number.isFinite(v) ? v : d);
 // ritardo dello schermo (ms) salvato su questo computer: 0 finché non lo si misura (pannello della diagnostica)
+// B56 (16/11/2026, decisione dell'utente «Prima l'anticipo»): nel registro della fiera di Torino (587 partite, 10.690 colpi)
+// l'84–91 % dei colpi del telefono è in anticipo, di circa 120 ms a ogni velocità della palla tra 30 e 75 km/h, su tutte le
+// postazioni e le versioni (docs/b36/misure-torino.md §3): «Perfetto» solo in un colpo su quattro, e il tempo decide il 72–77 %
+// della direzione. In modalità fiera (prodotto FIERA) il gesto del telefono vale come fatto ANTICIPATION_S più tardi: il
+// centro della finestra torna dove colpiscono le persone. Da rimisurare con il registro della giornata dopo.
+export const ANTICIPATION_S = .1;
+export const anticipationFor = engine => (engine?.natpfUi?.fiera?.on ? ANTICIPATION_S : 0);
 export const DISPLAY_LAG_KEY = 'natpf.displayLagMs';
 export function readDisplayLagMs(){ try { const v = +localStorage.getItem(DISPLAY_LAG_KEY); return Number.isFinite(v) ? Math.max(0, Math.min(200, Math.round(v))) : 0; } catch { return 0; } }
 export function writeDisplayLagMs(ms){ const v = Math.max(0, Math.min(200, Math.round(+ms || 0))); try { localStorage.setItem(DISPLAY_LAG_KEY, String(v)); } catch {} return v; }
@@ -259,7 +266,8 @@ function writeSpecials(v, key = SPECIALS_KEY){ try { localStorage.setItem(key, J
 // own: prototipi dei propri gesti per i telefoni con la forma (ownShapes); personal: soglie personali della tabella di prima
 // aimFull: gradi della mira piena (sensibilità della mira, AIM_FULL); null = la base (17°). Torna in natpf.aimFull con
 // l'intenzione, per la diagnostica
-export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, own = null, now = null, prep = null, prepCapable = false, ballHigh = false, displayLag = 0, ref = null, rawRef = null, riseRef = null, aimFull = null } = {}){
+// anticipation (s, B56): anticipo medio dei visitatori da togliere (modalità fiera): il gesto vale come fatto così più tardi
+export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, own = null, now = null, prep = null, prepCapable = false, ballHigh = false, anticipation = 0, displayLag = 0, ref = null, rawRef = null, riseRef = null, aimFull = null } = {}){
   const flat = !!s.face && Number.isFinite(s.face.yaw) && (s.grip === 'flat' || grip === 'flat');
   if (flat) return faceSwingToEngine(s, { hand });
   const dirX = Math.max(-1, Math.min(1, gestureAim(s)));
@@ -289,7 +297,10 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
   const shot = cls.shot;
   const faceAim = heading ? heading.aim : face ? face.aim : null, faceUnreliable = heading ? heading.aim == null : !!face && !Number.isFinite(face.aim);
   const aimed = aimFromSignals({ faceAim, faceUnreliable, twist: s.twist, aim: s.aim, dir: s.dir || 0 });
-  const latency = Number.isFinite(s.at) && Number.isFinite(now) ? clamp(now - s.at + clamp(finiteOr(displayLag), 0, .2), 0, .3) : .06;
+  // (B56: con la correzione dell'anticipo la latenza può scendere sotto zero fino a −0,15 s, il limite di eventLatency: il
+  // gesto vale come fatto dopo l'arrivo del messaggio; senza, come prima)
+  const ant = clamp(finiteOr(anticipation), 0, .15);
+  const latency = Number.isFinite(s.at) && Number.isFinite(now) ? clamp(now - s.at + clamp(finiteOr(displayLag), 0, .2) - ant, ant ? -.15 : 0, .3) : .06 - ant;
   const rel = lift - resolveLiftBaseline(liftBaseline, s.dir || 0).base;
   const engineSpeed = intent ? .8 + intent.power*.85 : shot === 'drop' ? Math.min(speed, .9) : shot === 'flat' ? Math.max(speed, 1.32) : speed;
   return { source: 'natpf-phone', side, shotType: ENGINE_SHOT[shot], speed: engineSpeed, dirX,
@@ -980,7 +991,7 @@ export class NatpfPhoneRacket {
     const riseRef = habitualRise(this.profile, s.dir, this.riseModel);
     // pallonetto e palla corta come li fa chi gioca (esercizi del riscaldamento), rispetto al proprio colpo normale
     const own = ownShapes(this.ownShape, { rise: riseRef, forehandRise: this.profileRise(this.hand === 'left' ? -1 : 1), normal: this.shapeModel.value });
-    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, own, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine, this.role), ref, rawRef, riseRef, aimFull: aimFullNow() }), role: this.role };
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, own, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, anticipation: anticipationFor(this.engine), prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine, this.role), ref, rawRef, riseRef, aimFull: aimFullNow() }), role: this.role };
     // numero del colpo del telefono: la diagnostica lega così il gesto (tel.colpo) al suo esito nel motore (colpo.gioco)
     ev.natpf.seq = Number.isFinite(s.seq) ? s.seq : null;
     // colpo tipico di chi gioca, prima di questo colpo: il motore decide così se il gesto è debole (natpf_impact.WEAK)

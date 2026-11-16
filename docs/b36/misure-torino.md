@@ -53,3 +53,15 @@ Calcolo: per ogni partita (postazione e numero) colpi Perfetti, scambio più lun
 vinto con il proprio servizio e al più un colpo), vincenti (`fine` «vincente»), colpi rimandati di fila (senza rete, fuori o a
 vuoto), colpi super (`sup`). Sono approssimazioni dei contatori del gioco (`natpf_match_stats.sideSummary`): da ricontrollare
 con il registro della prossima giornata.
+
+## 5. B56 · correzione dell'anticipo (decisione dell'utente del 16/11: «Prima l'anticipo»)
+
+Analisi: l'anticipo è di circa +120 ms a ogni velocità della palla tra 30 e 75 km/h (mediana 116–121 ms), su tutte le
+versioni (98–132 ms), le latenze del telefono, i modi e le quattro postazioni; più grande solo con le palle molto lente
+(15 km/h: 179 ms; smorzate 246 ms), più piccolo con le velocissime (90 km/h: 42 ms) e a rete (87 ms). Uno spostamento quasi
+costante nel tempo fa pensare a un errore di sistema più che a visitatori impazienti; il registro non dice se nelle
+postazioni era impostato il «ritardo dello schermo» (da aggiungere al registro).
+Correzione (`natpf_phone_racket.js`: `ANTICIPATION_S`, `anticipationFor`): **solo in modalità fiera** il gesto del telefono
+vale come fatto 100 ms più tardi (la latenza del gesto può scendere fino a −0,15 s, il limite che il motore già accetta per
+lo scarto degli orologi). Fuori dalla fiera nulla cambia (test e impronte identici). Prova: `natpf-b56-anticipo.test.mjs`.
+Da rimisurare con il registro della prossima giornata (mediana dell'errore di tempo vicina a 0, quota «Perfetto», direzione).
