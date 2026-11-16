@@ -20,6 +20,7 @@ Registro delle richieste in §3.
 | Telefono | telefono-racchetta con il QR, gesti, webcam | sì (in rete locale, server del PC) | sì (via internet, TURN) |
 | Telefono | nome dal telefono prima di «Sono pronto» (B54) | sì | sì (stessa pagina) |
 | Telefono | telefono bloccato in partita (B51) | sì | da decidere |
+| Gioco | Lob e Drop a fine partita, una animazione a caso per esito (B58) | sì (programma Windows) | no (lo zip non porta i file: col peso passava i 25 MB) |
 | Stand | modalità fiera: pagina della fiera, «Prossimo giocatore», chiosco, solo mouse (B39, B41) | sì | no |
 | Stand | telefoni dello stand abbinati una volta (B41) | sì | no |
 | Stand | pannello dello stand, telecomando dello staff (B27), tastiera a schermo (B38) | sì | no |
@@ -49,6 +50,7 @@ Registro delle richieste in §3.
 | 16/11 | Soglie dei trofei sui dati di Torino | ENTRAMBE | fatto, 16.7 |
 | 16/11 | Correzione dell'anticipo dei colpi del telefono (B56) | FIERA (solo in modalità fiera) | fatto, 16.8 |
 | 16/11 | Fine partita nello stesso schermo: chi vince sopra (B57) | FIERA | fatto, 16.8 |
+| 16/11 | Lob e Drop a fine partita, una a caso per esito (B58) | FIERA (solo programma Windows; lo zip web non le porta) | fatto sul branch `feature/natpf-mascotte-fine-partita-2`, PR #4, da fondere (`docs/b58/mascotte-fine-partita.md`) |
 | 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)

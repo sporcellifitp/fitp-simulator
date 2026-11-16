@@ -5,6 +5,7 @@ import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o 
 import { statsHtml, endScreen, titleFit } from "./natpf/natpf_match_stats.js"; // NATPF B33/B35: i numeri veri della partita nella schermata finale
 import { cardModel, cardsHtml } from "./natpf/natpf_end_card.js"; // NATPF B40: card della partita
 import { castLooks, getCast } from "./natpf/natpf_personaggi.js";
+import { mascotRotation, mascotOutcome, mascotHtml, mountMascot, reduceMotion } from "./natpf/natpf_mascotte.js"; // NATPF B58
 // NATPF: scritture nel DOM solo se il valore cambia. updateMultiplayerRoomInfo gira a ogni risposta del relay (20 al
 // secondo nella sfida) e updateTimingGauge due volte per fotogramma (passi di fisica a 120 Hz): textContent riscritto
 // uguale sostituisce comunque il nodo di testo e fa ricalcolare lo stile (come natpf_split_ui.js)
@@ -367,6 +368,12 @@ export class HudUI {
     cd && ((cd.innerHTML = ch), cd.classList.toggle("hidden", !ch), (cd.dataset.n = String(cv?.cards.length || 0)));
     ch && S.players && st && ((st.innerHTML = ""), st.classList.add("hidden"));
     this.endCardModel = cv;
+    // NATPF B58: Lob o Drop accanto al titolo (natpf_mascotte.js): una a caso per l'esito, mai quella della partita prima;
+    // solo dove le mascotte si vedono (programma Windows); poi si prenotano e si caricano le prossime due
+    const rot = cv ? mascotRotation() : null, mo = rot ? mascotOutcome(cv) : null, mf = mo ? rot.take(mo) : null, mb = el("victory-mascot");
+    mb && ((mb.innerHTML = mascotHtml(mf)), mb.classList.toggle("hidden", !mf), mf && mountMascot(mb, { reduce: reduceMotion() }));
+    this.elVictoryModal.classList.toggle("has-mascot", !!(mb && mf));
+    rot && setTimeout(() => rot.prepare(), 2500);
     const kick = el("victory-kicker");
     kick && (kick.textContent = S ? S.kicker : "Fine partita");
     S && i && (i.textContent = S.title);
