@@ -1391,3 +1391,10 @@ node:test e `scripts/prova-linux.mjs`.
       per richiesta invece di 40, la pagina riprova da sola su 500/502/503 (GET), colonna **«Partite»** nella tabella. Prove
       del Worker 49/49. **L'utente deve ricaricare il Worker** (`docs/b36/misure-b36-0.md` §3; file consegnato). Non provato
       sul Cloudflare vero.
+- [x] **Pacchetti della 16.6** (`22a6e73`, GitHub verde): installer dal link fisso = `latest.json` (128.152.628 B, sha256
+      `abe181fd86abe76e08f1cf13c2bc9e56334394244a6934c47d5ffedf6b0977af`); **`windows/versioni.json` su R2** con 16.6, 16.5,
+      16.4, 16.3, 16.2 (sha256 giusti); zip 23.951.983 B, sha256
+      `876bbf6f7569281c574e6568e0045f6e4c1639ae08bbbce8f15e343406549508`, provato estratto, consegnato.
+
+**Prossima azione esatta (16/11, 20:00 UTC)**: aspettare l'utente: ricarica del Worker (file consegnato) e scarico dei
+giorni di Torino → conto delle partite, B36.1, soglie dei trofei; risposte alle domande di `docs/PRODOTTI_FIERA_E_ONLINE.md` §4.
