@@ -19,7 +19,7 @@
       android:roundIcon="@mipmap/ic_launcher"
       android:allowBackup="false"
       android:supportsRtl="false"
-      android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
+      android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
       android:networkSecurityConfig="@xml/network_security_config">
 
     <activity
@@ -29,6 +29,7 @@
         android:screenOrientation="portrait"
         android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard|navigation|uiMode|smallestScreenSize"
         android:lockTaskMode="if_whitelisted"
+        android:windowSoftInputMode="adjustResize"
         android:resizeableActivity="false">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />

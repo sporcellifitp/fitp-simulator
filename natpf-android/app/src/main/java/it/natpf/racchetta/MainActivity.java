@@ -104,6 +104,14 @@ public class MainActivity extends Activity {
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     root = new FrameLayout(this);
     root.setBackgroundColor(Color.rgb(8, 16, 34));
+    if (Build.VERSION.SDK_INT >= 30) {
+      getWindow().setDecorFitsSystemWindows(false);
+      // La tastiera del nome riduce l'area della pagina; quando si chiude l'app torna a occupare lo schermo.
+      root.setOnApplyWindowInsetsListener((view, insets) -> {
+        view.setPadding(0, 0, 0, insets.getInsets(WindowInsets.Type.ime()).bottom);
+        return insets;
+      });
+    }
     setContentView(root);
     banner = text("", 18, false);
     banner.setBackgroundColor(Color.argb(220, 8, 16, 34));
