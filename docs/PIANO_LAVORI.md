@@ -20,8 +20,9 @@ Come si aggiorna:
 **Checkpoint del 16/11/2026, 21:30 UTC (versione 2026-11-16.8: B56 anticipo in fiera, B57 chi vince sopra).** B56: in
 modalità fiera il gesto del telefono vale come fatto 100 ms più tardi (`docs/b36/misure-torino.md` §5). B57: a fine
 partita nello stesso schermo chi vince sopra e in evidenza (`docs/b57/`). Gioco 1771/1771, sito 280/280, LAN 13/13, desktop
-56/56, build; `natpf-fine-partita` 56/56. **Prossima azione esatta:** pacchetti della 16.8; poi rimisurare l'anticipo e i
-trofei con il registro della prossima giornata (scarico dell'utente); B36.1 ferma (decisione dell'utente: prima l'anticipo).
+56/56, build; `natpf-fine-partita` 56/56. Pacchetti della 16.8 verificati (installer
+`8f3d17f0…`, zip `4444b769…`). **Prossima azione esatta:** rimisurare anticipo, trofei e direzione con il registro della
+prossima giornata (scarico dell'utente); B36.1 ferma (decisione dell'utente: prima l'anticipo).
 
 **Checkpoint del 16/11/2026, 20:30 UTC (versione 2026-11-16.7: trofei sui dati di Torino).** Registro vero letto: 587
 partite; trofei ritarati (`docs/b36/misure-torino.md`). B36.1 ferma per la regola del piano (cima troppo imprecisa): decide

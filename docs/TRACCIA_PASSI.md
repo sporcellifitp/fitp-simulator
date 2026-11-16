@@ -1421,3 +1421,10 @@ giorni di Torino → conto delle partite, B36.1, soglie dei trofei; risposte all
       vinto, sotto chi ha perso, visibile ma non in evidenza. Poi versione 2026-11-16.8 con B56 e B57.
 - [x] B57 fatta (`docs/b57/fine-partita-chi-vince-sopra.md`): chi vince sopra e in evidenza, chi perde sotto attenuato;
       `natpf-fine-partita` 56/56. **Versione 2026-11-16.8** = B56 + B57: dopo il push pacchetti e consegna.
+- [x] Pacchetti della 16.8 (`701436d`, GitHub verde): installer = `latest.json` (128.152.995 B, sha256
+      `8f3d17f0100a09401490ec9b90cc128d541508f02139bc14ac9d6efad86fc344`); zip 23.952.107 B, sha256
+      `4444b769527e703a56bd624420aade9ba17cc89f24b7b991973e014c2f8d00d0`, provato estratto, consegnato.
+
+**Prossima azione esatta (16/11, 21:45 UTC)**: con lo scarico del registro della prossima giornata (utente): rimisurare
+l'anticipo (atteso: mediana dell'errore di tempo vicina a 0 in fiera, più «Perfetto»), i trofei e la direzione; risposte
+alle domande di `docs/PRODOTTI_FIERA_E_ONLINE.md` §4. Il Worker del registro va ricaricato dall'utente (503 dello scarico).
