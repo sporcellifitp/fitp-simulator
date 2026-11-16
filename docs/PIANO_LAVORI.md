@@ -21,8 +21,8 @@ Come si aggiorna:
 `docs/b58/fondo-trasparente.py` corretto (velo quasi invisibile sul fondo di 4 animazioni di Lob tolto; figure identiche;
 136–181 KB, 3,18 MB). Gioco 1784/1784, sito 280/280, LAN 13/13, desktop 56/56, build; `natpf-fine-partita` 66/66. Mandate
 all'utente le animazioni di confronto (GIF consegnata, GIF nella card, ora) e due registrazioni del gioco vero.
-**Prossima azione esatta:** pacchetti della 16.11; poi la risposta dell'utente sui passi delle mascotte (B58.1, §5);
-poi B59 (conto alla rovescia «Allenati un po'!»).
+Pacchetti della 16.11 verificati (installer `cef5bf74…4dee`, zip `ac266634…2585`). **Prossima azione esatta:** la
+risposta dell'utente sui passi delle mascotte (B58.1, §5); poi B59 (conto alla rovescia «Allenati un po'!»).
 
 **Checkpoint del 16/11/2026, 23:55 UTC (versione 2026-11-16.10 pubblicata e verificata).** Installer dal link fisso =
 `latest.json` (131.858.384 B, sha256 `1e644c2f…6743`), tre workflow verdi; zip `8a42a2d8…b997` provato estratto. Trovato

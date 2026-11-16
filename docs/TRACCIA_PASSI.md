@@ -1476,6 +1476,10 @@ velo, passi se approvati) → B59.
       su quattro pose; gioco vero contro la CPU; gioco vero stesso schermo).
 - [x] Animazioni senza velo nel repository (manifest e LEGGIMI aggiornati: 136–181 KB, 3,18 MB). Prove: gioco 1784/1784,
       sito 280/280, LAN 13/13, desktop 56/56, build (`2026-11-16.11` nel bundle), `natpf-fine-partita` 66/66.
-- [~] Versione 2026-11-16.11: commit, push, poi pacchetti (installer da `latest.json`, zip Cloudflare).
+- [x] Versione 2026-11-16.11 (`ddc1167`, tre workflow verdi): installer dal link fisso = `latest.json` (131.361.236 B,
+      sha256 `cef5bf74deca583ee75a5de9197dfff499f2115d0f16e059528b75c2318e4dee`); zip 23.953.853 B, sha256
+      `ac26663469ce1c60bf8e9631f2736bc8d7bc5d8f45277cb56cfc1f081e222585`, provato estratto (senza mascotte; build con il
+      ponte finto: mascotte nella card senza riquadro), consegnato.
 
-**Prossima azione esatta (17/11, 00:20 UTC)**: pacchetti della 16.11; risposta dell'utente sui passi (B58.1); B59.
+**Prossima azione esatta (17/11, 00:45 UTC)**: risposta dell'utente sui passi delle mascotte (B58.1); poi B59 (conto alla
+rovescia «Allenati un po'!» prima degli scambi di prova); poi rimisure con il registro della prossima giornata.
