@@ -17,6 +17,11 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 16/11/2026, 19:30 UTC (B55, versione 2026-11-16.6).** «Torna alla versione di prima» nelle Opzioni
+(programma Windows): `docs/b55/versione-di-prima.md`. Test verdi (gioco 1767, sito 280, LAN 13, desktop 56, build).
+**Prossima azione esatta:** pacchetti della 16.6 (installer e `windows/versioni.json` su R2, zip), poi l'errore 503 di
+«Scarica» nella pagina del Worker del registro; con i giorni di Torino: partite, B36.1, soglie dei trofei.
+
 **Checkpoint del 16/11/2026, 17:30 UTC (versione 2026-11-16.5).** B54.2 (niente nome sulla tastiera del PC con «Nuovo
 giocatore») pubblicata e verificata (installer `6021deb3…`, zip `6dbb088f…`). Bozza dei due prodotti (fiera e online) in
 `docs/PRODOTTI_FIERA_E_ONLINE.md`, regola in CLAUDE.md. Worker del registro già alla versione giusta (formato 2).

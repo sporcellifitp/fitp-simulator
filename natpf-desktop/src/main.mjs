@@ -707,7 +707,8 @@ async function main(){
   log('aggiornamenti', { stato: updater.state().status, versione: BUILD, indirizzo: updateConfig.base || '(non impostato)', installato: INSTALLED, prova: SIMULATE_INSTALL, errore: updateConfig.error });
   if (updater.enabled){
     updater.cleanup();
-    setTimeout(() => { updater.check().catch(() => {}); }, UPDATES.startupDelayMs);
+    // (B55: dopo il controllo, l'installer della versione di prima in sottofondo, se manca: così il ritorno vale offline)
+    setTimeout(() => { updater.check().catch(() => {}).then(() => updater.prefetchPrevious()).catch(() => {}); }, UPDATES.startupDelayMs);
   }
 }
 

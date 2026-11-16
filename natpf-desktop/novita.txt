@@ -63,3 +63,4 @@
 2026-11-16.3: Nelle Opzioni la voce si chiama «Movimenti come nel video»: vale per dritto, rovescio, schiacciata e volée (la scelta salvata resta).
 2026-11-16.4: Con «Movimenti come nel video» anche il servizio: corpo in avanti all'impatto, busto che passa, saltello in campo dopo il colpo.
 2026-11-16.5: «Nuovo giocatore» per una partita con il telefono non chiede più il nome sulla tastiera del PC: lo scrive il giocatore sul telefono.
+2026-11-16.6: Se una versione nuova ha un problema, in Opzioni → Aggiornamenti c'è «Torna alla versione di prima» (anche senza internet, dopo il primo avvio collegato).

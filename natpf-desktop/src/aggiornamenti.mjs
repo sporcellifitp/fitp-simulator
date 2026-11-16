@@ -362,13 +362,26 @@ export class Updater {
   }
   async _withPrevious(){ this.s.previous = this.previous() || undefined; this.s.previousReady = this.s.previous ? await this.previousReady() : undefined; }
   // l'installer della versione di prima, se manca, da windows/versioni.json (in sottofondo, quando c'è internet); mai errori
+  async publishedVersions(){
+    const { res } = await httpGet(`${this.base}/${UPDATES.versions}?t=${this.now()}`, { base: this.base, hosts: this.hosts, timeoutMs: this.timeoutMs, userAgent: `NATPF-Simulator/${this.current}` });
+    if (res.statusCode !== 200){ res.resume(); return []; }
+    return validateVersions(JSON.parse(await readBody(res, UPDATES.maxVersionsBytes)), this.base);
+  }
   async prefetchPrevious(){
     if (!this.enabled) return false;
-    const prev = this.previous(); if (!prev || await this.previousReady()) return !!prev;
+    let prev = this.previous(); if (prev && await this.previousReady()) return true;
     try {
-      const { res } = await httpGet(`${this.base}/${UPDATES.versions}?t=${this.now()}`, { base: this.base, hosts: this.hosts, timeoutMs: this.timeoutMs, userAgent: `NATPF-Simulator/${this.current}` });
-      if (res.statusCode !== 200){ res.resume(); return false; }
-      const v = validateVersions(JSON.parse(await readBody(res, UPDATES.maxVersionsBytes)), this.base).find(x => x.build === prev);
+      const list = await this.publishedVersions();
+      // storia senza una versione di prima (il primo avvio con il B55, o il programma installato a mano): vale l'ultima
+      // pubblicata più vecchia di quella in uso (che non sia stata lasciata)
+      if (!prev){
+        const h = this.history(), cand = list.filter(x => compareBuilds(x.build, this.current) < 0 && !h.saltate.includes(x.build)).sort((a, b) => compareBuilds(b.build, a.build))[0];
+        if (!cand) return false;
+        h.versioni = [cand.build, ...h.versioni.filter(b => b !== cand.build)];
+        writeHistory(this.historyFile(), h);
+        prev = cand.build;
+      }
+      const v = list.find(x => x.build === prev);
       if (!v) return false;
       await downloadVerified({ url: v.url, dest: path.join(this.dir, installerName(prev)), size: v.size, sha256: v.sha256, base: this.base, hosts: this.hosts, timeoutMs: this.timeoutMs, attempts: this.attempts, retryMs: this.retryMs, userAgent: `NATPF-Simulator/${this.current}` });
       this.rememberInstaller(prev, v);

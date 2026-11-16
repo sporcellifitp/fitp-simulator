@@ -3,7 +3,7 @@
 // window.natpfDesktop; il processo principale accetta le richieste solo dalle pagine del proprio server (isOwnUrl).
 //   window.natpfDesktop = { shell: 'electron', version: 2,
 //     isFullScreen(), setFullScreen(on), toggleFullScreen(), onFullScreenChange(cb),     (schermo intero, B8, 04/11)
-//     updates: { state(), check(), download(), install(), onChange(cb) },             (aggiornamenti, 07/11)
+//     updates: { state(), check(), download(), install(), rollback(), onChange(cb) }, (aggiornamenti, 07/11; B55)
 //     displays: { list(), next(), choose(id), onChange(cb) },                         (monitor del gioco, B27, 12/11)
 //     registro: { put(id, testo), list(), read(id), remove(id), state(), open() },    (registro dello stand, B30, 12/11)
 //     staffPanel: { onToggle(cb) },                                                    (pannello dello stand, B37, 13/11)
@@ -76,6 +76,8 @@ contextBridge.exposeInMainWorld('natpfDesktop', {
     check: () => update('check'),
     download: () => update('download'),
     install: () => update('install'),
+    // B55: «Torna alla versione di prima» (stato S con previous e previousReady); → Promise<{ ok, error? }>
+    rollback: () => update('rollback'),
     // alla pagina solo lo stato S (una copia), mai l'evento di Electron; risponde con la funzione che toglie l'ascolto
     onChange: cb => {
       if (typeof cb !== 'function') return () => {};

@@ -261,7 +261,7 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   listeners[DESKTOP.ipcFullscreenChanged][0]({}, 1);
   assert.deepEqual(seen, [false, true], 'alla pagina solo true/false, mai l\'evento');
   // aggiornamenti (07/11/2026): state, check, download, install, onChange con la funzione che toglie l'ascolto
-  assert.deepEqual(Object.keys(api.updates).sort(), ['check', 'download', 'install', 'onChange', 'state']);
+  assert.deepEqual(Object.keys(api.updates).sort(), ['check', 'download', 'install', 'onChange', 'rollback', 'state'], 'B55: rollback = «Torna alla versione di prima»');
   invoked.length = 0;
   for (const a of UPDATE_ACTIONS) await api.updates[a]();
   assert.deepEqual(invoked, UPDATE_ACTIONS.map(a => [DESKTOP.ipcUpdates, a]));

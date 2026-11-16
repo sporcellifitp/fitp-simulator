@@ -252,3 +252,46 @@ test('flusso vero: avviso nel menu, mai in Allenamento o in partita; arriva al r
     assert.equal(ui.updates.notice(), null); assert.equal(el.classList.contains('hidden'), true, 'niente avviso in partita');
   } finally { delete globalThis.natpfDesktop; }
 });
+
+/* ---------- B55 · «Torna alla versione di prima» nelle Opzioni ---------- */
+import { rollbackButton, rollbackNote, ROLLBACK_CONFIRM_MS } from '../src/natpf/natpf_updates.js';
+
+test('B55: pulsante «Torna alla versione X» nelle Opzioni solo con una versione di prima, mai durante download o installazione', () => {
+  const base = { status: 'none', current: '2026-11-16.6', checkedAt: Date.now() };
+  assert.equal(rollbackButton(base), null, 'senza versione di prima niente');
+  const p = { ...base, previous: '2026-11-16.5', previousReady: true };
+  assert.deepEqual(rollbackButton(p), { act: 'rollback', label: 'Torna alla versione 2026-11-16.5' });
+  assert.deepEqual(rollbackButton(p, { confirm: true }), { act: 'rollback', label: 'Conferma: torna alla 2026-11-16.5', primary: true });
+  for (const st of ['downloading', 'installing', 'checking', 'off']) assert.equal(rollbackButton({ ...p, status: st }), null, st);
+  assert.match(rollbackNote(p), /già sul computer/);
+  assert.match(rollbackNote({ ...p, previousReady: false }), /serve internet/);
+  const v = optionsView(p);
+  assert.deepEqual(v.buttons.map(b => b.act), ['check', 'rollback'], 'in fondo, dopo «Cerca aggiornamenti»');
+  assert.match(v.note, /puoi tornare alla 2026-11-16.5/);
+  assert.match(optionsView({ ...p, status: 'installing', rollbackTo: '2026-11-16.5' }).note, /si riapre con la versione 2026-11-16.5/);
+});
+
+test('B55: due clic per tornare (il primo chiede conferma e scade), il secondo chiama il programma; errore detto con un avviso', async () => {
+  let now = 1_000_000;
+  const api = fakeApi({ status: 'none', current: '2026-11-16.6', previous: '2026-11-16.5', previousReady: true, checkedAt: now });
+  api.rollbackResult = { ok: false, error: 'Serve il permesso di Windows.' };
+  api.rollback = async () => { api.calls.push('rollback'); return api.rollbackResult; };
+  const toasts = [];
+  const u = new NatpfUpdates({ lobby: { visible: false }, toast: t => toasts.push(t) }, { api, doc: null, now: () => now });
+  await flush();
+  assert.equal(await u.act('rollback', { from: 'options' }), null, 'primo clic: solo la conferma');
+  assert.ok(!api.calls.includes('rollback'));
+  assert.equal(optionsView(u.S, now, { confirm: u.rollbackConfirm > now }).buttons.at(-1).label, 'Conferma: torna alla 2026-11-16.5');
+  now += ROLLBACK_CONFIRM_MS + 1;
+  assert.equal(await u.act('rollback', { from: 'options' }), null, 'conferma scaduta: si ricomincia');
+  assert.ok(!api.calls.includes('rollback'));
+  const r = await u.act('rollback', { from: 'options' });
+  assert.deepEqual(r, api.rollbackResult); assert.ok(api.calls.includes('rollback'));
+  assert.equal(u.S.status, 'none', 'stato di prima'); assert.match(toasts.at(-1), /permesso di Windows/);
+  // programma di prima (ponte senza rollback): niente pulsante che non funziona
+  const old = fakeApi({ status: 'none', current: '2026-11-16.6', previous: '2026-11-16.5' });
+  const u2 = new NatpfUpdates({ lobby: { visible: false }, toast(){} }, { api: old, doc: null, now: () => now });
+  await flush();
+  assert.equal(await u2.act('rollback', { from: 'options' }), null);
+  clearTimeout(u._rbT); clearTimeout(u2._rbT);
+});

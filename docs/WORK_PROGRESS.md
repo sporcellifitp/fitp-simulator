@@ -2512,3 +2512,12 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Worker del registro: stato pubblico `{"registro":"pronto","spazio":true,"chiave":true,"formato":2}`: già alla versione
   del B36.0, non va ricaricato.
 
+## B55 · Torna alla versione di prima, versione 2026-11-16.6 (16/11/2026)
+
+- [x] File: `natpf-desktop/src/aggiornamenti.mjs` (storia, versione di prima, `prefetchPrevious`, `rollback`), `main.mjs`,
+  `preload.cjs`, `desktop-core.mjs` (azione `rollback`), `scripts/versioni.mjs` e `versioni-pubblicate.json` (nuovi),
+  `.github/workflows/natpf-windows.yml` (passo 5: `windows/versioni.json`), `natpf-tennis/src/natpf/natpf_updates.js`
+  (pulsante con conferma), prove (desktop +5, gioco +2), guida 8.10, documento B55, memoria, versione.
+- Verifiche: gioco 1767/1767, sito 280/280, LAN 13/13, desktop 56/56, build; bash del passo del workflow controllato
+  (`bash -n`), `versioni.mjs` provato con l'elenco del bucket finto. Non provati: Windows vero, `prova-linux.mjs`.
+

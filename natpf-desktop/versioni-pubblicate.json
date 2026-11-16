@@ -1,0 +1,10 @@
+{
+  "nota": "B55 (16/11/2026): versioni già pubblicate su R2 prima di windows/versioni.json, con dimensione e sha256 verificati dal link fisso (docs/TRACCIA_PASSI.md). Il workflow le unisce all'elenco del bucket.",
+  "versioni": [
+    { "build": "2026-11-16.5", "file": "NATPF-Simulator-Setup-2026-11-16.5.exe", "size": 128165079, "sha256": "6021deb38df984785683a47e6b214180607472a559b5f26b77fb8220b97ebadf" },
+    { "build": "2026-11-16.4", "file": "NATPF-Simulator-Setup-2026-11-16.4.exe", "size": 128161534, "sha256": "95bce704e7874585c0d48a7990c3daf410d4b5578d163710c2f556a4674ff31b" },
+    { "build": "2026-11-16.3", "file": "NATPF-Simulator-Setup-2026-11-16.3.exe", "size": 128154412, "sha256": "61f14209676e02450b7049e4290961430c83bd88ff19dae17d1dea16f4db13e3" },
+    { "build": "2026-11-16.2", "file": "NATPF-Simulator-Setup-2026-11-16.2.exe", "size": 128163978, "sha256": "f0e95275f0335be2203be36721a7050248c55fd24c56f172511ee9d167e9137a" },
+    { "build": "2026-11-16.1", "file": "NATPF-Simulator-Setup-2026-11-16.1.exe", "size": 128155172, "sha256": "d9ee30a73914f3175750f77b5f582291b830056cd2fdb9e1bd854603cb4eab50" }
+  ]
+}

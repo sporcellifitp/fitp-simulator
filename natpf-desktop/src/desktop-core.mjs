@@ -47,7 +47,8 @@ export const DESKTOP = Object.freeze({
   uninstaller: 'Disinstalla NATPF Simulator.exe',
 });
 // azioni della pagina sugli aggiornamenti (window.natpfDesktop.updates)
-export const UPDATE_ACTIONS = Object.freeze(['state', 'check', 'download', 'install']);
+// (B55, 16/11/2026: rollback = «Torna alla versione di prima» dalle Opzioni del gioco)
+export const UPDATE_ACTIONS = Object.freeze(['state', 'check', 'download', 'install', 'rollback']);
 
 // Monitor del gioco: quello scelto l'ultima volta se c'è ancora; altrimenti il più grande non principale (agli eventi il
 // ledwall è un monitor esteso), poi il principale. displays: screen.getAllDisplays() di Electron ({ id, bounds, ... })

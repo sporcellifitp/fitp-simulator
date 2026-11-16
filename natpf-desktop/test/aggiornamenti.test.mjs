@@ -467,3 +467,32 @@ test('B55: versione di prima riscaricata da windows/versioni.json (sha256 contro
     assert.equal(ua.previous(), null, 'nessuna versione di prima della A (la B è lasciata)');
   } finally { await s.close(); }
 });
+
+test('B55: primo avvio con la storia vuota (PC aggiornato da una versione di prima del B55): versione di prima = l\'ultima pubblicata più vecchia', async () => {
+  const A = '2026-11-16.4', A2 = '2026-11-16.5', B = '2026-11-16.6', BODY_A2 = Buffer.from(BODY.map(x => x ^ 3));
+  const s = await server({ '/windows/latest.json': json(manifestFor(B)), '/windows/versioni.json': json({ versioni: [manifestFor(B), manifestFor(A2, BODY_A2), manifestFor(A)] }), [`/windows/${installerName(A2)}`]: file(BODY_A2) });
+  try {
+    const dir = tmp();
+    const u = new Updater({ current: B, base: s.base, dir, retryMs: 10 });
+    u.cleanup();
+    assert.equal(u.previous(), null, 'storia vuota');
+    assert.equal(await u.prefetchPrevious(), true);
+    assert.equal(u.previous(), A2, 'la più nuova tra quelle più vecchie');
+    assert.equal(await u.previousReady(), true);
+  } finally { await s.close(); }
+});
+
+test('B55: windows/versioni.json dal workflow (scripts/versioni.mjs): seme, elenco del bucket, versione nuova, solo i file sul bucket', async () => {
+  const { mergeVersions } = await import('../scripts/versioni.mjs');
+  const seed = JSON.parse(fs.readFileSync(new URL('../versioni-pubblicate.json', import.meta.url), 'utf8')).versioni;
+  assert.ok(seed.length >= 5 && seed.every(v => /^[0-9a-f]{64}$/.test(v.sha256) && v.file === installerName(v.build)), 'seme valido');
+  const latest = manifestFor('2026-11-16.6');
+  const onBucket = ['2026-11-16.2', '2026-11-16.3', '2026-11-16.4', '2026-11-16.5', '2026-11-16.6'].map(installerName);
+  const out = mergeVersions({ latest, remote: [manifestFor('2026-11-16.5', BODY, { sha256: seed[0].sha256 })], seed, onBucket });
+  assert.deepEqual(out.versioni.map(v => v.build), ['2026-11-16.6', '2026-11-16.5', '2026-11-16.4', '2026-11-16.3', '2026-11-16.2'], 'dal più nuovo, solo quelli sul bucket');
+  assert.equal(out.versioni[0].sha256, latest.sha256);
+  assert.equal(validateVersions(out, 'https://x.test').length, 5, 'il programma lo legge');
+  const wf = fs.readFileSync(new URL('../../.github/workflows/natpf-windows.yml', import.meta.url), 'utf8');
+  assert.match(wf, /scripts\/versioni\.mjs/, 'il workflow pubblica versioni.json');
+  assert.ok(wf.indexOf('windows/versioni.json') > wf.indexOf('windows/latest.json'), 'dopo il manifesto');
+});

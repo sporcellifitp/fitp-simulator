@@ -1380,3 +1380,9 @@ node:test e `scripts/prova-linux.mjs`.
       (azione IPC `rollback`, `prefetchPrevious` dopo il controllo all'avvio), `preload.cjs` (`updates.rollback`), passo 3 =
       pulsante nelle Opzioni (`natpf-tennis/src/natpf/natpf_updates.js`, due tocchi per confermare), passo 4 = workflow che
       pubblica `windows/versioni.json` (con le versioni già pubblicate dalla 16.1: sha256 in questa traccia), versione, pacchetti.
+- [x] **B55 → versione 2026-11-16.6** (`docs/b55/versione-di-prima.md`, guida 8.10): passi 2–4 fatti (ponte `rollback`,
+      versione di prima riscaricata all'avvio, pulsante in Opzioni → Aggiornamenti con due clic, workflow che pubblica
+      `windows/versioni.json` con `natpf-desktop/scripts/versioni.mjs` e `versioni-pubblicate.json`). Gioco 1767/1767, sito
+      280/280, LAN 13/13, desktop 56/56, build. **Punto esatto**: dopo il push controllare il workflow Windows (installer e
+      `windows/versioni.json` su R2), zip; poi l'errore 503 di «Scarica» nella pagina del Worker del registro (segnalato
+      dall'utente).

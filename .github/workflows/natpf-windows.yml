@@ -256,6 +256,16 @@ jobs:
                 echo "Tolgo $old"
                 aws s3 rm --endpoint-url "$ep" "s3://$R2_BUCKET/windows/$old" --only-show-errors
               done
+          # 5) B55: windows/versioni.json, le versioni ancora sul bucket con dimensione e sha256 (per «Torna alla versione
+          # di prima» del programma). Un errore qui non ferma l'aggiornamento: il programma lo legge solo se c'è
+          if aws s3 ls --endpoint-url "$ep" "s3://$R2_BUCKET/windows/" | awk '{print $4}' > sul-bucket.txt; then
+            aws s3 cp --endpoint-url "$ep" "s3://$R2_BUCKET/windows/versioni.json" versioni-remoto.json --only-show-errors 2>/dev/null || true
+            if node ../scripts/versioni.mjs --latest=latest.json --remoto=versioni-remoto.json --seme=../versioni-pubblicate.json --sul-bucket=sul-bucket.txt --out=versioni.json; then
+              aws s3 cp --endpoint-url "$ep" versioni.json "s3://$R2_BUCKET/windows/versioni.json" --only-show-errors \
+                --content-type application/json --cache-control "no-cache, max-age=0" \
+                || echo "::warning title=versioni.json::non caricato: il ritorno alla versione di prima usa solo i file già sui PC"
+            fi
+          fi
           echo "fatto=true" >> "$GITHUB_OUTPUT"
           echo "### Aggiornamento $build pubblicato su Cloudflare R2" >> "$GITHUB_STEP_SUMMARY"
           echo "windows/$exe e windows/latest.json (sha256 $(sha256sum "$src" | cut -d' ' -f1))" >> "$GITHUB_STEP_SUMMARY"

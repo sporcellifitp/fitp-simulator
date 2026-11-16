@@ -95,7 +95,19 @@ export function noticeView(s, { engaged = false } = {}){
 }
 // Opzioni → «Aggiornamenti»: stato, riga con versione installata e ultima verifica, avanzamento, note e pulsanti
 // Prima della prima risposta del programma (S.pending): «Lettura dello stato…», niente pulsanti né note (non «non configurati»)
-export function optionsView(s, now = Date.now()){
+// B55 (16/11/2026, richiesta dell'utente: ritorno alla release di prima se una versione rompe qualcosa; decisione: il
+// comando nelle Opzioni): «Torna alla versione X» quando il programma ha una versione di prima (S.previous; S.previousReady:
+// il suo installer è già sul computer, vale anche senza internet). Due clic: il primo chiede conferma per ROLLBACK_CONFIRM_MS
+export const ROLLBACK_CONFIRM_MS = 6000;
+export function rollbackButton(S, { confirm = false } = {}){
+  if (!S?.previous || !['idle', 'none', 'available', 'ready', 'error'].includes(S.status)) return null;
+  return confirm ? { act: 'rollback', label: `Conferma: torna alla ${S.previous}`, primary: true } : { act: 'rollback', label: `Torna alla versione ${S.previous}` };
+}
+export function rollbackNote(S){
+  if (!S?.previous) return '';
+  return S.previousReady ? `Se questa versione ha un problema puoi tornare alla ${S.previous} (è già sul computer).` : `Se questa versione ha un problema puoi tornare alla ${S.previous} (serve internet per scaricarla).`;
+}
+export function optionsView(s, now = Date.now(), { confirm = false } = {}){
   if (s?.pending) return { status: 'pending', state: 'Lettura dello stato…', meta: s.current ? `Versione installata ${s.current}` : '', note: '', progress: null, buttons: [] };
   const S = normalizeState(s);
   const meta = S.status === 'off' ? (S.current ? `Versione ${S.current}` : '') : `Versione installata ${S.current || '?'} · ultima verifica ${checkedText(S.checkedAt, now)}`;
@@ -110,6 +122,10 @@ export function optionsView(s, now = Date.now()){
     case 'ready': buttons = [{ act: 'install', label: 'Riavvia e aggiorna', primary: true }]; note = [S.notes, READY_NOTE].filter(Boolean).join(' · '); break;
     case 'installing': note = 'Il gioco si chiude e si riapre aggiornato.'; break;
   }
+  // (B55) ritorno alla versione di prima: in fondo, mai durante il download o l'installazione
+  const rb = rollbackButton(S, { confirm });
+  if (rb){ buttons = [...buttons, rb]; note = [note, confirm ? 'Il gioco si chiude e si riapre con la versione di prima; Windows chiede il permesso.' : rollbackNote(S)].filter(Boolean).join(' · '); }
+  if (S.status === 'installing' && S.rollbackTo) note = `Il gioco si chiude e si riapre con la versione ${S.rollbackTo}.`;
   return { status: S.status, state: statusText(S), meta, note, progress: S.status === 'downloading' ? clamp01(S.progress) : null, buttons };
 }
 // L'avviso può comparire adesso? Solo con il menu in vista, in una delle NOTICE_STEPS, e niente in campo o sopra il menu
@@ -187,6 +203,26 @@ export class NatpfUpdates {
     if (name === 'later'){ const v = noticeView(this.S, { engaged: this.engaged }); if (v) this.dismissed.add(v.key); this.paint({ refocus: true }); return null; }
     if (name === 'check'){ if (this.S.status === 'error') this.dismissed.clear(); return this._call('check'); }
     if (name === 'download'){ if (this.S.status !== 'available') return null; return this._call('download'); }
+    // B55: «Torna alla versione di prima»: primo clic = conferma (per ROLLBACK_CONFIRM_MS), secondo = si torna
+    if (name === 'rollback'){
+      if (!this.S.previous || typeof this.api.rollback !== 'function') return null;
+      if (!(this.rollbackConfirm > this.now())){
+        this.rollbackConfirm = this.now() + ROLLBACK_CONFIRM_MS;
+        clearTimeout(this._rbT); this._rbT = setTimeout(() => { this.rollbackConfirm = 0; this.paint(); }, ROLLBACK_CONFIRM_MS);
+        this.paint(); return null;
+      }
+      this.rollbackConfirm = 0; clearTimeout(this._rbT);
+      const before = this.S;
+      this.apply({ ...before, status: 'installing', rollbackTo: before.previous });
+      let r = null;
+      try { r = await this.api.rollback(); } catch { r = { ok: false, error: 'non riesco a tornare alla versione di prima' }; }
+      if (!r?.ok){
+        const err = r?.error || 'non riesco a tornare alla versione di prima';
+        this.apply({ ...before, error: err });
+        this.ui?.toast?.(`Versione di prima: ${err}`);
+      }
+      return r;
+    }
     if (name === 'install'){
       if (this.S.status !== 'ready') return null;
       const before = this.S;
@@ -252,7 +288,7 @@ export class NatpfUpdates {
   }
   _paintOptions(){
     const el = this.optEl; if (!el) return;
-    const v = optionsView(this.S, this.now());
+    const v = optionsView(this.S, this.now(), { confirm: this.rollbackConfirm > this.now() });
     const q = s => el.querySelector?.(s);
     const set = (s, t) => { const e = q(s); if (e && e.textContent !== t) e.textContent = t; };
     el.dataset.status = v.status;

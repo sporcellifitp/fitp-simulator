@@ -1541,6 +1541,11 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - Regole del nome in **un solo posto**, `site/js/tennis/player-name.js`, usato dal telefono e dal computer
   (`natpf_events.validNickname` lo riesporta). Il computer ricontrolla sempre. Nel registro mai il nome.
 
+## B55 · Ritorno alla versione di prima (16/11/2026, versione 2026-11-16.6; documento `docs/b55/versione-di-prima.md`)
+- Solo nel programma Windows: storia `storico.json`, installer della versione di prima e di quella in uso tenuti, riscaricati
+  da `windows/versioni.json` (scritto dal workflow) con lo sha256; `natpfDesktop.updates.rollback()`; pulsante in Opzioni →
+  Aggiornamenti con due clic. La versione lasciata non si ripropone finché non ne esce una più nuova.
+
 ## B53 · «Movimenti come nel video» sugli altri colpi (15/11/2026 sera; documento `docs/b53/colpi-dal-video.md`)
 - Decisione dell'utente: estendere la prova del B23 agli altri colpi. Modulo a parte `natpf_strokes_video.js` (il dritto
   del B23 resta identico), stesso interruttore e stessi vincoli: racchetta del motore nell'intorno dell'impatto, solo

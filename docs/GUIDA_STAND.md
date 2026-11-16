@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-16.5** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-16.6** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -888,6 +888,16 @@ l'ultimo collegamento. Il blocco dei tocchi in partita (8.6) resta.
   (di solito Indietro e Panoramica tenuti insieme) e, se attivo, il PIN.
 - **Se il PC non risponde** l'app lo scrive in alto e riprova da sola ogni 5 secondi.
 - **Non provata su un telefono vero** (documento `docs/b52/app-android.md`, §4: cosa provare sul primo telefono).
+
+### 8.10 (B55) Una versione nuova ha rotto qualcosa: «Torna alla versione di prima»
+
+Dalla 2026-11-16.6, solo nel programma Windows. **Opzioni → Aggiornamenti → «Torna alla versione X»** (X è la versione di
+prima), poi di nuovo il pulsante, che ora dice **«Conferma: torna alla X»**, entro 6 secondi. Windows chiede il permesso
+(«Sì»): il gioco si chiude e si riapre con la versione di prima in meno di un minuto; impostazioni, certificati e telefoni
+abbinati restano. I telefoni prendono da soli la pagina giusta tra una partita e l'altra. La versione lasciata non viene più
+proposta come aggiornamento finché non ne esce una più nuova (che va provata prima di installarla allo stand).
+Il pulsante compare dopo il primo avvio con internet della versione nuova (il programma tiene da parte la versione di
+prima); se dice che serve internet, collega il PC per un minuto e riprova.
 
 ## 9. Il registro dello stand (Cloudflare)
 
