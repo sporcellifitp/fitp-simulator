@@ -828,28 +828,6 @@ body {
   color: #c9d3f5;
   font: 600 calc(var(--eu) * 3) / 1 "Barlow", var(--hud-font);
 }
-/* B58: Lob o Drop accanto al titolo (natpf_mascotte.js), nello spazio libero della testa: fondo trasparente, sta sul blu
-   della scheda; i margini negativi la fanno sporgere un po' sopra e sotto senza allungare la testa (la scheda non deve
-   scorrere a nessuna misura); dopo il titolo, la pillola dei game resta a destra */
-.end-mascot { display: none; }
-#victory-modal.has-stats .end-mascot:not(.hidden) {
-  display: block;
-  flex: none;
-  align-self: center;
-  width: calc(var(--eu) * 24);
-  height: calc(var(--eu) * 24);
-  margin: calc(var(--eu) * -3) auto calc(var(--eu) * -3) 0;
-  pointer-events: none;
-}
-#victory-modal.has-stats.stats-split .end-mascot:not(.hidden) { margin-inline: 0; }
-.end-mascot img,
-.end-mascot canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 calc(var(--eu) * 0.6) calc(var(--eu) * 1.2) rgba(0, 0, 0, 0.35));
-}
 /* riquadri tondi: icona in un cerchio, numero grande, scritta */
 #victory-modal.has-stats .victory-stats {
   display: block;
@@ -1136,6 +1114,25 @@ body {
 }
 .card-svg.hidden { display: none; }
 .card-svg svg { width: 100%; height: 100%; display: block; }
+/* B58: Lob o Drop al posto del ritratto (natpf_mascotte.js): nella finestra del personaggio, sul suo fondo (animazione con
+   il fondo trasparente), sotto il nastro e la fascia; il ritratto disegnato resta sotto come ripiego (torna se il file
+   manca: mountMascots toglie data-mascot) */
+.card-mascot {
+  position: absolute;
+  left: 3%;
+  bottom: 7%;
+  width: 94%;
+  height: auto;
+  aspect-ratio: 1;
+  max-height: 84%;
+  display: block;
+  object-fit: contain;
+  object-position: 50% 100%;
+  pointer-events: none;
+  filter: drop-shadow(0 calc(var(--eu) * 0.5) calc(var(--eu) * 1) rgba(0, 0, 0, 0.35));
+}
+.end-card[data-mascot="1"] .card-svg,
+.end-card[data-mascot="1"] canvas.card-portrait { display: none; }
 /* ripiego senza i fotogrammi 3D: il ritratto SVG salta (chi vince) o ondeggia (chi applaude); solo transform */
 @keyframes natpf-card-hop { 0%, 100% { transform: translateY(0) scale(1, 1); } 45% { transform: translateY(-9%) scale(0.98, 1.03); } 60% { transform: translateY(-10%); } }
 @keyframes natpf-card-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
@@ -1380,23 +1377,6 @@ body {
   }
   #victory-modal.has-stats .end-head { flex-direction: column; align-items: flex-start; }
   #victory-modal.has-stats.stats-split .end-head { align-items: center; }
-  /* B58: testa in colonna: la mascotte non prende una riga sua (spingerebbe giù la card), sta in alto a destra della testa
-     e il titolo le lascia il posto (si rimpicciolisce con --fit se serve) */
-  #victory-modal.has-stats .end-head { position: relative; }
-  #victory-modal.has-stats .end-mascot:not(.hidden) {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    width: calc(var(--eu) * 26);
-    height: calc(var(--eu) * 26);
-    margin: 0;
-    transform: translateY(-50%);
-  }
-  #victory-modal.has-stats.has-mascot .end-titles { box-sizing: border-box; max-width: 100%; padding-inline-end: calc(var(--eu) * 27); }
-  #victory-modal.has-stats.stats-split.has-mascot .end-titles { padding-inline: calc(var(--eu) * 27); }
-  /* stesso schermo: la testa è bassa (niente pillola dei game) e la card di chi vince le sta subito sotto: la mascotte
-     parte dal margine alto della scheda, un po' più piccola, e non arriva alla card */
-  #victory-modal.has-stats.stats-split .end-mascot:not(.hidden) { top: calc(var(--eu) * -4); width: calc(var(--eu) * 22); height: calc(var(--eu) * 22); transform: none; }
   #victory-modal.has-stats .end-pill { flex-basis: 100%; text-align: center; }
   #victory-modal.has-stats .end-btns { margin-inline: auto; justify-content: center; }
 }

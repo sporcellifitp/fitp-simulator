@@ -4,8 +4,9 @@ LEGGIMI - animazioni di Lob e Drop a fine partita
 20 animazioni delle due mascotte, da mostrare nella schermata di fine partita: se ne
 mostra una sola, scelta a caso, fra quelle di vittoria se chi ha giocato vince e fra
 quelle di sconfitta se perde, senza ripetere la stessa alla partita dopo. Nel gioco:
-accanto al titolo della schermata finale, solo nel programma Windows (versione per la
-fiera); lo zip Cloudflare non le porta (src/natpf/natpf_mascotte.js, B58).
+nella finestra del personaggio della card di fine partita, al posto del personaggio (una
+per card: nello stesso schermo chi vince e chi perde), solo nel programma Windows
+(versione per la fiera); lo zip Cloudflare non le porta (src/natpf/natpf_mascotte.js, B58).
 
 File: lob-win-01..05, lob-lose-01..05, drop-win-01..05, drop-lose-01..05 (.webp animati,
 320x320, 10 fotogrammi, 1,6 s in loop, fondo trasparente, 150-210 KB). manifest.json elenca

@@ -1575,11 +1575,13 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   (le GIF consegnate avevano il fondo bianco pieno: sulla schermata blu un quadrato bianco). Per rifarle da GIF nuove:
   `docs/b58/fondo-trasparente.py`, poi controllo a occhio di tutti i fotogrammi su fondo blu (le parti bianche del
   peluche, fascia e polsini di Drop, toccano il fondo: il riempimento passa solo dal colore esatto del fondo).
-- Posto: **accanto al titolo** della schermata finale (`#victory-mascot` nella testa), non nella card (la card non ha
-  spazio senza stringere trofei e riquadri). Sugli schermi quadrati (`max-aspect-ratio: 5/4`) in alto a destra della
-  testa, con il posto tenuto nel titolo (classe `has-mascot`).
-- Regola: una sola per partita, dell'esito di chi guarda (nello stesso schermo di vittoria, a pari nessuna), mai la stessa
-  della partita prima (chiave `natpf-tennis.mascotte`); due prenotate e caricate in anticipo.
+- Posto (decisione dell'utente del 16/11, 16.10): **nella finestra del personaggio della card**, a sinistra, al posto del
+  ritratto (`img.card-mascot` in `.card-art`, `data-mascot="1"` sulla card: ritratto SVG e canvas 3D nascosti, i ritratti
+  3D non si montano). Non accanto al titolo (16.9, rifiutato: «non sopra la schermata della vittoria»).
+- Regola: una per card con l'esito della card (nello stesso schermo vittoria per chi vince e sconfitta per chi perde, a pari
+  nessuna), mai una della partita prima (chiave `natpf-tennis.mascotte`, `last` è l'elenco della partita prima); due
+  prenotate e caricate in anticipo. Se il file manca, `mountMascots` toglie l'immagine e torna il ritratto disegnato.
+- CSS: un'`img` in posizione assoluta prende la larghezza propria (320 px) anche con `left` e `right`: serve `width`.
 - **Solo FIERA**: `mascotsOn()` vuole `window.natpfDesktop` (o il server di sviluppo). Lo zip Cloudflare toglie le
   cartelle di `FIERA_ONLY` (`scripts/pacchetto-cloudflare.mjs`): con le mascotte passava i 25 MB. Una cartella nuova
   di `public/` pesante e solo per lo stand va aggiunta lì.

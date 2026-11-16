@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-16.9** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-16.10** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -250,10 +250,11 @@ accendere. Se il personaggio nella card è quello disegnato e non si muove come 
 preparare i fotogrammi o l'indirizzo ha `?ritratti=svg` (va bene lo stesso). «Azzera oggi» (pannello dello stand) azzera
 anche i record di oggi.
 
-**(B58) Lob o Drop accanto al titolo.** Nel programma Windows, accanto a «Vince …!» o «Bella sfida, …!», una delle due
-mascotte festeggia chi vince o consola chi perde: un'animazione a caso, ogni partita diversa dalla precedente (nello
-stesso schermo una di vittoria). Non c'è niente da accendere. Se non compare, il file manca o il computer ha «riduci
-movimento» acceso (allora è ferma): il resto della schermata è uguale. Nel gioco dal browser (Cloudflare) non c'è.
+**(B58, dalla 16.10) Lob o Drop nella card.** Nel programma Windows la finestra del personaggio della card (a sinistra)
+mostra una delle due mascotte al posto del personaggio: festeggia se quella card vince, consola se perde; un'animazione a
+caso, mai una della partita prima (nello stesso schermo una per card). Non c'è niente da accendere. Se il file manca torna
+il personaggio disegnato; con «riduci movimento» del computer la mascotte è ferma. Nel gioco dal browser (Cloudflare) non
+c'è. (La 16.9 la metteva accanto al titolo: corretta il 16/11 su richiesta dell'utente.)
 
 - **«Gioca ancora»** (contro la CPU, se vince chi gioca) o **«Rivincita»**: la stessa persona. (B47) Si apre la **scelta
   del livello**, grande, già segnata con il livello di prima: contro la CPU «Chi gioca? Bambino · Ragazzo · Adulto»

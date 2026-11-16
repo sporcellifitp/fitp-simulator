@@ -2530,6 +2530,16 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B58 · mascotte nella card, versione 2026-11-16.10 (16/11/2026)
+
+- Richiesta dell'utente dopo la 16.9: «devono essere l'immagine del personaggio a sinistra, non sopra la schermata della
+  vittoria; dentro la card». La 16.9 era già su R2 quando è arrivata (workflow finito alle 23:10, annullo rifiutato).
+- [x] `natpf_mascotte.js` (`mascotPlan`, `withMascots`, `takeFor`, `mountMascots`), `natpf_end_card.js` (`cardHtml`:
+  `img.card-mascot` nella finestra del personaggio), `hud_ui.js`, `natpf_ritratti.js` (niente 3D sulle card con la
+  mascotte), `natpf-hud.css`; tolto `#victory-mascot` da `index.html`.
+- [x] Prove: `natpf-b58-mascotte` 13/13, `natpf-fine-partita` 66/66 (mascotte nella finestra a sette misure, due nello
+  stesso schermo).
+
 ## B58 · Lob e Drop a fine partita (solo fiera), versione 2026-11-16.9 (16/11/2026)
 
 - [x] Materiale: 20 GIF dell'utente (320×320, 10 fotogrammi, fondo bianco) → WebP animati con il fondo trasparente,

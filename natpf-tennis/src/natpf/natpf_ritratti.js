@@ -249,6 +249,8 @@ export class NatpfRitratti {
     if (!L || L.state !== 'ready' || L.m !== E.natpfStats?.m || typeof document === 'undefined') return;
     for (const it of L.items){
       const art = document.querySelector(`#victory-cards .card-art[data-portrait="${it.side}"]`); if (!art) continue;
+      // B58: la card con Lob o Drop (natpf_mascotte.js) non prende il ritratto 3D
+      if (art.closest('.end-card')?.dataset.mascot === '1') continue;
       let c = this.canvases[it.side];
       if (!c){ c = this.canvases[it.side] = document.createElement('canvas'); c.className = 'card-portrait'; c.setAttribute('aria-hidden', 'true'); }
       if (c.parentNode !== art) art.insertBefore(c, art.firstChild);

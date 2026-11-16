@@ -17,6 +17,12 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 16/11/2026, 23:40 UTC (versione 2026-11-16.10: mascotte nella card).** Richiesta dell'utente dopo la
+16.9 (già su R2): Lob e Drop nella finestra del personaggio della card, al posto del personaggio, non accanto al titolo.
+Una per card con il suo esito, mai una della partita prima. Gioco, sito, LAN, desktop, build verdi (numeri nella traccia);
+`natpf-fine-partita` 66/66. **Prossima azione esatta:** pacchetti della 16.10 (installer da `latest.json`, zip); poi
+rimisurare anticipo, trofei e direzione con il registro della prossima giornata (scarico dell'utente).
+
 **Checkpoint del 16/11/2026, 23:00 UTC (versione 2026-11-16.9: B58 Lob e Drop a fine partita, solo fiera).** Le 20
 animazioni consegnate dall'utente (PR #4, unita in un solo commit: le GIF di partenza restano solo nel branch
 `feature/natpf-mascotte-fine-partita-2`) adattate con il fondo trasparente (WebP) e mostrate accanto al titolo della

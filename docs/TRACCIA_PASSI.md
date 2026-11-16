@@ -1438,8 +1438,20 @@ alle domande di `docs/PRODOTTI_FIERA_E_ONLINE.md` §4. Il Worker del registro va
       trasparente (WebP, script `docs/b58/fondo-trasparente.py`), accanto al titolo, solo programma Windows;
       `docs/b58/mascotte-fine-partita.md`. Prove: `natpf-b58-mascotte` 11, pacchetto +1, `natpf-fine-partita` 66/66.
 - [x] Domanda a scelta: «Unisci e pubblica» → unita in `natpf-simulator` (un commit), versione 2026-11-16.9.
-- [~] Pacchetti della 16.9: dopo il push, installer da `latest.json` e zip Cloudflare (senza mascotte).
+- [x] 16.9 pubblicata (`7772083`; `latest.json` 16.9, installer sha256 `d939662a…3716`); zip 16.9 non consegnato.
 
 **Prossima azione esatta (16/11, 23:00 UTC)**: pacchetti della 16.9; poi, con lo scarico del registro della prossima
+giornata, rimisurare anticipo, trofei e direzione; risposte al §4 di `docs/PRODOTTI_FIERA_E_ONLINE.md`; Worker del
+registro da ricaricare (utente).
+
+## 16/11, 23:40 UTC · mascotte nella card → versione 2026-11-16.10
+
+- [x] Richiesta dell'utente dopo la 16.9: «devono essere l'immagine del personaggio a sinistra, non sopra la schermata
+      della vittoria; dentro la card». Fatto: finestra del personaggio della card, una per card (nello stesso schermo
+      vittoria e sconfitta), ritratto di ripiego; `natpf-b58-mascotte` 13/13, `natpf-fine-partita` 66/66.
+- [x] Prove della 16.10: gioco 1784/1784, sito 280/280, LAN 13/13, desktop 56/56, build (`2026-11-16.10` nel bundle).
+- [~] Versione 2026-11-16.10: commit, push, poi pacchetti (installer da `latest.json`, zip Cloudflare).
+
+**Prossima azione esatta (16/11, 23:40 UTC)**: pacchetti della 16.10; poi, con lo scarico del registro della prossima
 giornata, rimisurare anticipo, trofei e direzione; risposte al §4 di `docs/PRODOTTI_FIERA_E_ONLINE.md`; Worker del
 registro da ricaricare (utente).
