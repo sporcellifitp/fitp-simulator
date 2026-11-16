@@ -1,0 +1,233 @@
+{
+ "progetto": "NATPF Simulator / Lob e Drop a fine partita",
+ "generato": "2026-11-16",
+ "modello": "gpt_image_2_6",
+ "impostazioni": {
+  "qualita": "high",
+  "risoluzione": "2k",
+  "formato": "gif",
+  "fondo": "bianco #FFFFFF"
+ },
+ "asset": [
+  {
+   "file": "drop-lose-01.gif",
+   "personaggio": "Drop",
+   "esito": "sconfitta",
+   "azione": "si copre il viso",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 233
+  },
+  {
+   "file": "drop-lose-02.gif",
+   "personaggio": "Drop",
+   "esito": "sconfitta",
+   "azione": "spalle curve, sospiro",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 40,
+   "durata_s": 1.6,
+   "peso_kb": 238
+  },
+  {
+   "file": "drop-lose-03.gif",
+   "personaggio": "Drop",
+   "esito": "sconfitta",
+   "azione": "piede contro il terreno, arrabbiato",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 40,
+   "durata_s": 1.6,
+   "peso_kb": 245
+  },
+  {
+   "file": "drop-lose-04.gif",
+   "personaggio": "Drop",
+   "esito": "sconfitta",
+   "azione": "pugno trattenuto, deluso",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 234
+  },
+  {
+   "file": "drop-lose-05.gif",
+   "personaggio": "Drop",
+   "esito": "sconfitta",
+   "azione": "mani sulle ginocchia, stanco",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 221
+  },
+  {
+   "file": "drop-win-01.gif",
+   "personaggio": "Drop",
+   "esito": "vittoria",
+   "azione": "salto con i pugni alzati",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 227
+  },
+  {
+   "file": "drop-win-02.gif",
+   "personaggio": "Drop",
+   "esito": "vittoria",
+   "azione": "risata a testa indietro, mani sui fianchi",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 251
+  },
+  {
+   "file": "drop-win-03.gif",
+   "personaggio": "Drop",
+   "esito": "vittoria",
+   "azione": "applauso sopra la testa",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 233
+  },
+  {
+   "file": "drop-win-04.gif",
+   "personaggio": "Drop",
+   "esito": "vittoria",
+   "azione": "corsetta e mani sui fianchi",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 236
+  },
+  {
+   "file": "drop-win-05.gif",
+   "personaggio": "Drop",
+   "esito": "vittoria",
+   "azione": "saluto con occhiolino",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 40,
+   "durata_s": 1.6,
+   "peso_kb": 247
+  },
+  {
+   "file": "lob-lose-01.gif",
+   "personaggio": "Lob",
+   "esito": "sconfitta",
+   "azione": "testa china e sospiro",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 188
+  },
+  {
+   "file": "lob-lose-02.gif",
+   "personaggio": "Lob",
+   "esito": "sconfitta",
+   "azione": "mano sugli occhi",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 176
+  },
+  {
+   "file": "lob-lose-03.gif",
+   "personaggio": "Lob",
+   "esito": "sconfitta",
+   "azione": "spalle alzate, rassegnazione",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 207
+  },
+  {
+   "file": "lob-lose-04.gif",
+   "personaggio": "Lob",
+   "esito": "sconfitta",
+   "azione": "si abbraccia da solo, sguardo a terra",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 193
+  },
+  {
+   "file": "lob-lose-05.gif",
+   "personaggio": "Lob",
+   "esito": "sconfitta",
+   "azione": "si accascia in avanti",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 189
+  },
+  {
+   "file": "lob-win-01.gif",
+   "personaggio": "Lob",
+   "esito": "vittoria",
+   "azione": "salto a braccia alzate",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 173
+  },
+  {
+   "file": "lob-win-02.gif",
+   "personaggio": "Lob",
+   "esito": "vittoria",
+   "azione": "pugno al cielo",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 206
+  },
+  {
+   "file": "lob-win-03.gif",
+   "personaggio": "Lob",
+   "esito": "vittoria",
+   "azione": "applauso di gioia",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 180
+  },
+  {
+   "file": "lob-win-04.gif",
+   "personaggio": "Lob",
+   "esito": "vittoria",
+   "azione": "doppio pugno trattenuto",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 195
+  },
+  {
+   "file": "lob-win-05.gif",
+   "personaggio": "Lob",
+   "esito": "vittoria",
+   "azione": "occhiolino e pollice in su",
+   "px": 320,
+   "fotogrammi": 10,
+   "colori": 48,
+   "durata_s": 1.6,
+   "peso_kb": 202
+  }
+ ]
+}

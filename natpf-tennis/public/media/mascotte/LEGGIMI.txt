@@ -1,0 +1,22 @@
+LEGGIMI - animazioni di Lob e Drop a fine partita
+==================================================
+
+20 GIF delle due mascotte, da mostrare nella schermata di fine partita: se ne mostra
+una sola, scelta a caso, fra quelle di vittoria se chi ha giocato vince e fra quelle di
+sconfitta se perde, senza ripetere la stessa alla partita dopo.
+
+File: lob-win-01..05, lob-lose-01..05, drop-win-01..05, drop-lose-01..05 (320x320,
+10 fotogrammi, 1,6 s, fondo bianco #FFFFFF, 173-251 KB). manifest.json elenca per ognuna
+personaggio, esito, azione e specifiche. Percorso a runtime: ./media/mascotte/<nome>.gif.
+
+Provenienza: generate il 16/11/2026 su richiesta dell'utente con GPT Image 2.6
+(gpt_image_2_6, risoluzione 2k, qualita high, 12 fotogrammi) a partire dalla foto dei
+peluche docs/riferimenti/lob-drop-2026-11-11.webp; 33 generazioni in tutto (20 pose piu
+13 rifatte dopo il controllo una per una: espressione coerente con l esito, figura
+intera, nessuna figura di spalle, nessun logo sul petto).
+
+DIRITTI
+Lob e Drop sono le mascotte dell evento e questi file sono immagini derivate da
+personaggi di terzi, ricavate dalla foto dei peluche. Il marchio dell evento sul petto
+non e riprodotto. Sono pubblicate nel repository su decisione del committente il
+16/11/2026; il repository e pubblico, quindi i file sono scaricabili da chiunque.
