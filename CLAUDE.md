@@ -63,7 +63,8 @@ node --test tools/test/*.test.mjs                     # test del sito e della pa
 CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-training-flow.mjs   # prove nel browser natpf-*
 node tools/e2e/run-local.mjs <script>.mjs             # prove nel browser del sito (prima: npm ci --prefix tools/e2e)
 # app Android dello stand (B52, docs/b52/app-android.md): Android SDK con la piattaforma 34, Gradle ≥ 8.9, Java ≥ 17
-(cd natpf-android && echo "sdk.dir=$ANDROID_HOME" > local.properties && gradle testReleaseUnitTest lintRelease assembleRelease)
+(cd natpf-android && echo "sdk.dir=$ANDROID_HOME" > local.properties && gradle testReleaseUnitTest lintRelease assembleRelease && node controlla-classi.mjs)
+# controlla-classi.mjs: classi richiamate dall'APK che non ci sono (crash della 1.0.0 sul lettore QR, 16/11): sempre verde
 ```
 
 Il controllo dei tipi (`npm run lint`) non è affidabile come gate (codice JS con JSDoc parziale): usare test e build.

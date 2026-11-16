@@ -6,7 +6,7 @@ telefono riportato alle impostazioni di fabbrica. iPhone: non si fa (decisione d
 
 ## 1. Cosa fa
 
-Un'app sottile (`natpf-android/`, Java, 294 KB, Android 8 o più nuovo) che apre **la stessa pagina** del
+Un'app sottile (`natpf-android/`, Java, 680 KB dalla 1.0.1, Android 8 o più nuovo) che apre **la stessa pagina** del
 telefono-racchetta che oggi si apre in Chrome (`site/tennis/racchetta.html`, dal PC dello stand o da Cloudflare) dentro
 una WebView, e in più:
 
@@ -38,7 +38,8 @@ microfono (sempre rifiutati); il lettore di QR usa la fotocamera solo nella sua 
 La chiave dello stand **non sta nel repository** (è pubblico). L'APK 1.0.0 consegnato all'utente il 15/11 è firmato con
 la chiave dello stand (certificato «CN=NATPF Racchetta, O=NATPF stand», SHA-256 del certificato
 `a1c16e0b01a1e625f7669ad8cf4dc0cfb49ab9501286b80e03ec713f4c422e1d`). L'utente ha ricevuto la chiave in un file a parte
-da tenere privato. Gli aggiornamenti si installano sopra solo se firmati con la stessa chiave.
+da tenere privato. Gli aggiornamenti si installano sopra solo se firmati con la stessa chiave. La 1.0.1 (16/11, §5) è
+firmata con la stessa chiave (certificato verificato con `apksigner`) e si installa sopra la 1.0.0.
 
 Per far costruire e pubblicare gli aggiornamenti a GitHub (`.github/workflows/natpf-android.yml`), una volta: GitHub →
 repository → Settings → Secrets and variables → Actions → New repository secret:
@@ -58,6 +59,7 @@ cd natpf-android
 echo "sdk.dir=<cartella dell'Android SDK>" > local.properties
 gradle testReleaseUnitTest lintRelease assembleRelease          # APK di prova
 NATPF_KEYSTORE=<file .jks> NATPF_KEYSTORE_PASSWORD=<password> gradle assembleRelease   # APK firmato
+node controlla-classi.mjs                                       # classi mancanti nell'APK: deve dire VERDE
 ```
 
 ## 3. Prove (15/11/2026)
@@ -94,3 +96,29 @@ primo telefono dello stand, nell'ordine:
 
 Se uno di questi punti non va, le strade sono: il chiosco completo (Device Owner: telefono riportato alle impostazioni
 di fabbrica e preparato una volta dal PC con il cavo), oppure tornare a Chrome con «Fissa app» a mano (§8.6).
+
+## 5. Versione 1.0.1 (16/11/2026): l'app si chiudeva su «Inquadra il QR del PC»
+
+**Segnalato dall'utente il 16/11**, provando l'app su un telefono: toccando «Inquadra il QR del PC» l'app si chiudeva da sola.
+
+- **Causa** (trovata nell'APK, non sul telefono): il lettore di QR della libreria (`CaptureManager` di
+  `zxing-android-embedded` 4.3.0) chiede il permesso della fotocamera con `ContextCompat` e `ActivityCompat` di AndroidX,
+  ma la libreria **non dichiara** quella dipendenza (il suo POM porta solo `zxing:core`) e l'app, che non usa AndroidX, non
+  l'aveva. Nel `classes.dex` della 1.0.0 le classi `androidx` erano zero: all'apertura della schermata della fotocamera
+  Android non trovava la classe (`NoClassDefFoundError`) e chiudeva l'app. Build, test di unità e lint erano verdi: nessuno
+  dei tre guarda le classi che mancano dentro le librerie.
+- **Correzione**: dipendenza `androidx.core:core:1.6.0` (versione leggera, senza Kotlin: l'APK passa da 294 KB a 680 KB);
+  il lettore si apre con `ScanOptions` e `startActivityForResult` invece di `IntentIntegrator` (che rimanda anche ai
+  Fragment di AndroidX, non presenti); se la schermata della fotocamera non si apre l'app lo dice invece di fermarsi.
+  Versione dell'app 1.0.1 (`appCode` 2).
+- **Controllo nuovo** `natpf-android/controlla-classi.mjs` (anche nel workflow, dopo la build): legge con `dexdump` tutte
+  le classi a cui rimanda il codice dell'APK e controlla che ognuna sia nell'APK o in Android 34. Sulla 1.0.0 dà **rosso**
+  proprio su `androidx/core/app/ActivityCompat` e `androidx/core/content/ContextCompat` richiamate da `CaptureManager`;
+  sulla 1.0.1 **verde** (1128 classi nell'APK, 1659 richiamate). Tollerate e scritte nel file: `IntentIntegrator` e
+  `ScanContract`, che l'app non usa.
+- Verifiche della 1.0.1: test di unità 4/4, lint 0 errori, firma con la chiave dello stand (stesso certificato
+  `a1c16e0b…2e1d`), `versionCode` 2, prova nel browser `natpf-app-android` 5/5. APK 679.677 B, sha256
+  `fe332244e4609538fd1083072f69e43ad6f2f9b1f2a308b26ea3aa6c56cc96a7`, consegnato all'utente il 16/11.
+- **Non provata su un telefono vero** neanche questa: la causa è certa sull'APK 1.0.0, ma che dopo il lettore si apra la
+  fotocamera (permesso chiesto da Android la prima volta, inquadratura, lettura) va visto sul telefono. Se si chiude
+  ancora servono il modello del telefono e la versione di Android.

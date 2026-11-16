@@ -39,8 +39,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.zxing.integration.android.IntentIntegrator;
-import com.google.zxing.integration.android.IntentResult;
+import com.journeyapps.barcodescanner.ScanIntentResult;
+import com.journeyapps.barcodescanner.ScanOptions;
 
 /**
  * NATPF Racchetta (B52, richiesta dell'utente del 15/11/2026: «i visitatori escono da Chrome cambiando schermata»).
@@ -62,6 +62,7 @@ public class MainActivity extends Activity {
   private static final long RETRY_MS = 5000;
   /** Tre «volume giù» entro questo tempo: schermata d'avvio (staff). */
   private static final long STAFF_KEYS_MS = 1500;
+  private static final int SCAN_REQUEST = 0xc0de;
 
   // Lo script che gira nella pagina: il blocco dell'orientamento della pagina (lockOrientation in racchetta.js) passa
   // all'app, perché la WebView non sa bloccarlo da sola; e lo schermo intero, che l'app ha già, risponde subito di sì
@@ -160,18 +161,24 @@ public class MainActivity extends Activity {
   }
 
   private void scanQr() {
-    IntentIntegrator scan = new IntentIntegrator(this);
-    scan.setDesiredBarcodeFormats(IntentIntegrator.QR_CODE);
-    scan.setPrompt("Inquadra il QR del telefono sul PC");
-    scan.setOrientationLocked(false);
-    scan.setBeepEnabled(false);
-    scan.initiateScan();
+    // ScanOptions e non IntentIntegrator: IntentIntegrator rimanda anche ai Fragment di AndroidX, che l'app non ha
+    Intent scan = new ScanOptions()
+        .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+        .setPrompt("Inquadra il QR del telefono sul PC")
+        .setOrientationLocked(false)
+        .setBeepEnabled(false)
+        .createScanIntent(this);
+    try {
+      startActivityForResult(scan, SCAN_REQUEST);
+    } catch (RuntimeException e) {
+      showStart("Non riesco ad aprire la fotocamera: apri il link del QR con la fotocamera di Android e scegli «NATPF Racchetta», o condividilo da Chrome.");
+    }
   }
 
   @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-    IntentResult r = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
-    if (r == null) { super.onActivityResult(requestCode, resultCode, data); return; }
-    if (r.getContents() == null) return;                    // annullato
+    if (requestCode != SCAN_REQUEST) { super.onActivityResult(requestCode, resultCode, data); return; }
+    ScanIntentResult r = ScanIntentResult.parseActivityResult(resultCode, data);
+    if (r == null || r.getContents() == null) return;      // annullato
     String url = RacketLink.extract(r.getContents());
     if (url != null) openPage(url);
     else showStart("Questo QR non è quello del telefono: usa il QR dell'abbinamento sul PC.");

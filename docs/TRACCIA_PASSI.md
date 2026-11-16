@@ -1231,5 +1231,21 @@ Ordine: B52, poi B53.
       posa, salto per colpo, finale della racchetta facoltativo), 3 test nuovi, `COLPO=schiacciata` per i fogli (pallonetto
       della CPU come secondo colpo: sulla risposta al servizio il gioco non schiaccia). Gioco 1749/1749, sito 275/275,
       desktop 51/51, LAN 13/13, build; `natpf-dritto-video` 54/58 con i 4 rossi di sempre; fogli guardati.
-- [ ] B53.3 volée (preparata in `scratchpad/sonde/patch-volee.py` della sessione: a rete, cioè a meno di 7 m dalla
-      rete, dritto e rovescio hanno pose corte al posto di quelle ampie) → B53.4 servizio → B53.5 voce delle Opzioni.
+- [~] B53.3 volée (a rete, cioè a meno di 7 m dalla rete, dritto e rovescio hanno pose corte al posto di quelle ampie)
+      → B53.4 servizio → B53.5 voce delle Opzioni. Vedi la sezione qui sotto per il punto esatto.
+
+## >>> 16/11, 08:25 UTC · URGENTE (utente): app Android 1.0.0 si chiudeva su «Inquadra il QR del PC» → 1.0.1 <<<
+
+- [x] **B52.1 · app 1.0.1** (`docs/b52/app-android.md` §5): la libreria del lettore QR richiamava `ContextCompat` e
+      `ActivityCompat` di AndroidX che nell'APK non c'erano (zero classi `androidx` nel dex della 1.0.0). Aggiunto
+      `androidx.core:core:1.6.0`, lettore aperto con `ScanOptions`; controllo nuovo `natpf-android/controlla-classi.mjs`
+      (anche nel workflow): rosso sulla 1.0.0 proprio su quelle due classi, verde sulla 1.0.1. Test di unità 4/4, lint 0
+      errori, `natpf-app-android` 5/5, sito 275/275; APK 1.0.1 firmato con la chiave dello stand (stesso certificato),
+      679.677 B, sha256 `fe332244e4609538fd1083072f69e43ad6f2f9b1f2a308b26ea3aa6c56cc96a7`, **consegnato all'utente**.
+      Non provata su un telefono vero.
+- [~] **B53.3 volée, punto esatto**: codice, test (`natpf-colpi-video` 12/12), fogli, documento §4 e versione
+      **2026-11-15.3** sono nel working tree della sessione, **non committati** (commit dell'app fatto solo con i suoi file).
+      Controllo rapido gioco 1752/1752, sito 275/275, desktop 51/51, LAN 13/13, build. `natpf-dritto-video` 53/58: i 4
+      rossi di sempre più i fotogrammi al secondo (91,5% < 95%, numeri molto ballerini: 203–368); la misura ripetuta
+      (`SOLO=costo`) è stata interrotta per l'urgenza: **rifarla**, poi commit della 15.3, zip e installer. Da aggiungere
+      anche in `docs/PROJECT_MEMORY.md` la lezione della 1.0.1 (librerie Android: controllare le classi nell'APK).

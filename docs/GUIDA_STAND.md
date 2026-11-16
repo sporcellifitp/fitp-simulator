@@ -856,6 +856,10 @@ l'ultimo collegamento. Il blocco dei tocchi in partita (8.6) resta.
 - **Installare (una volta per telefono).** Copia sul telefono il file `NATPF-Racchetta-<versione>.apk` (da WhatsApp,
   Drive o dal link fisso quando c'è) e aprilo: Android chiede di permettere l'installazione al programma da cui lo apri
   (per esempio «File» o «Chrome») → Consenti → Installa. Sul telefono deve esserci già il certificato NATPF del PC (7.4).
+  **Usa la 1.0.1 o più nuova**: la 1.0.0 si chiudeva da sola toccando «Inquadra il QR del PC».
+- **Aggiornare.** Togli «Fissa app» (vedi sotto), poi apri il file della versione nuova come sopra → «Aggiorna»:
+  abbinamento e collegamento salvati restano. Se Android dice che l'app non è compatibile o è firmata in un altro modo, il
+  file non viene dallo stand: non disinstallare, chiedi il file giusto.
 - **Abbinare.** Apri «NATPF Racchetta» → «Inquadra il QR del PC» e inquadra il QR dell'abbinamento sul PC (in fiera:
   pannello dello stand → «Telefoni dello stand» → «Abbina»). La pagina si apre nell'app e l'app si fissa: se Android
   chiede «Fissare l'app?» rispondi Sì. Dal giorno dopo basta aprire l'app: riapre da sola il collegamento.

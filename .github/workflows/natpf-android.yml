@@ -57,6 +57,8 @@ jobs:
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           gradle --no-daemon testReleaseUnitTest lintRelease assembleRelease
+          # classi richiamate che nell'APK e in Android non ci sono (il crash della 1.0.0 sul lettore QR)
+          node controlla-classi.mjs app/build/outputs/apk/release/app-release.apk
           v=$(grep -oE "appVersion = '[^']+'" app/build.gradle | grep -oE "[0-9][^']*")
           mkdir -p ../apk-out
           cp app/build/outputs/apk/release/app-release.apk "../apk-out/NATPF-Racchetta-$v.apk"

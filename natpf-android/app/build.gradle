@@ -1,8 +1,8 @@
 plugins { id 'com.android.application' }
 
 // Versione dell'app (non del gioco): si alza a ogni consegna dell'APK
-def appVersion = '1.0.0'
-def appCode = 1
+def appVersion = '1.0.1'
+def appCode = 2
 
 android {
   namespace 'it.natpf.racchetta'
@@ -45,5 +45,9 @@ dependencies {
   // lettore di QR con la fotocamera (Apache-2.0): il link del PC si prende dentro l'app (da Android 12 i link della
   // fotocamera vanno sempre al browser)
   implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+  // il lettore della libreria (CaptureManager) chiede il permesso della fotocamera con ContextCompat e ActivityCompat
+  // di AndroidX, che la libreria NON porta con sé: senza, l'app 1.0.0 si chiudeva toccando «Inquadra il QR del PC»
+  // (NoClassDefFoundError, segnalato dall'utente il 16/11/2026). Il controllo controlla-classi.mjs lo blocca in build
+  implementation 'androidx.core:core:1.6.0'
   testImplementation 'junit:junit:4.13.2'
 }

@@ -2407,3 +2407,20 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Installer e zip della 2026-11-15.1 verificati (vedi traccia).
 - Non verificato: telefono vero, ledwall; il salto parte dopo l'impatto (nel trailer il colpo è in aria): scelta dovuta
   al vincolo della racchetta del motore all'impatto.
+
+## B52.1 · App Android 1.0.1: si chiudeva su «Inquadra il QR del PC» (16/11/2026, 08:10–08:25 UTC, urgente)
+
+- [x] Segnalazione dell'utente: toccando «Inquadra il QR del PC» l'app 1.0.0 si chiudeva da sola. Lavoro del B53.3
+  sospeso (resta nel working tree, non committato).
+- Causa trovata nell'APK: `CaptureManager` di `zxing-android-embedded` 4.3.0 richiama `androidx.core.content.ContextCompat`
+  e `androidx.core.app.ActivityCompat` (permesso della fotocamera), il POM della libreria porta solo `zxing:core`, l'app
+  non usava AndroidX: `dexdump` della 1.0.0 = 0 classi `androidx` → `NoClassDefFoundError` all'apertura del lettore.
+- File: `natpf-android/app/build.gradle` (`androidx.core:core:1.6.0`, 1.0.1 / codice 2), `MainActivity.java` (`ScanOptions`
+  e `ScanIntentResult` al posto di `IntentIntegrator`, avviso se il lettore non si apre), `natpf-android/controlla-classi.mjs`
+  (nuovo), `.github/workflows/natpf-android.yml` (controllo dopo la build), `docs/b52/app-android.md` §5, guida 8.9
+  (aggiornare l'app, usare la 1.0.1), CLAUDE.md (comando).
+- Verifiche: `controlla-classi.mjs` sulla 1.0.0 → rosso con esattamente le due classi; sulla 1.0.1 → verde (1128 classi
+  nell'APK, 1659 richiamate, 3 tollerate da `IntentIntegrator`/`ScanContract` non usate); test di unità 4/4; lint 0 errori;
+  `apksigner`: certificato `a1c16e0b…2e1d` (chiave dello stand), `versionCode` 2; `natpf-app-android` 5/5; sito 275/275.
+  APK 679.677 B, sha256 `fe332244e4609538fd1083072f69e43ad6f2f9b1f2a308b26ea3aa6c56cc96a7`, consegnato all'utente.
+- Non verificato: telefono vero (fotocamera, permesso, lettura del QR). Gioco e pacchetti del gioco invariati (2026-11-15.2).

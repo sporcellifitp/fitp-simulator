@@ -17,13 +17,19 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 16/11/2026, 07:40 UTC (B53.2 schiacciata, versione 2026-11-15.2).** B53: rovescio (15.1, installer e zip
-verificati) e schiacciata (15.2) «come nel video» fatti. Verifiche della 15.2: gioco 1749/1749, sito 275/275, desktop
-51/51, LAN 13/13, build; `natpf-dritto-video` con i soli 4 rossi della 14.9. **Prossima azione esatta:** B53.3 volée: a rete
-(`atNet`, meno di 7 m dalla rete) dritto e rovescio con pose corte (nuove voci `volleyF` e `volleyB` di `SV_STROKES`,
-campo `where` base/net/any; il dritto del B23 non si applica a rete), con le stesse prove; poi servizio, poi voce delle
-Opzioni. Restano dell'utente: Worker del registro e prova a Precision (cancello della B36.1), segreti della chiave
-dell'app su GitHub, collaudo allo stand. Il resto di questa sezione è storia.
+**Checkpoint del 16/11/2026, 08:25 UTC (B52.1 app Android 1.0.1, urgente).** L'utente ha segnalato che l'app 1.0.0 si
+chiudeva toccando «Inquadra il QR del PC»: mancavano nell'APK le classi AndroidX richiamate dal lettore della libreria
+(`docs/b52/app-android.md` §5). Corretta nella 1.0.1 (dipendenza `androidx.core`, `ScanOptions`), con il controllo nuovo
+`natpf-android/controlla-classi.mjs` nel workflow; APK consegnato all'utente, non provato su un telefono vero. Il gioco
+resta alla 2026-11-15.2 su GitHub. **Prossima azione esatta:** B53.3 volée, che è pronta nel working tree della sessione
+ma non committata (vedi `docs/TRACCIA_PASSI.md`, sezione del 16/11 08:25): rifare la misura dei fotogrammi al secondo
+(`SOLO=costo node tools/e2e/natpf-dritto-video.mjs`), poi commit della 2026-11-15.3, zip e installer; poi B53.4 servizio e
+B53.5 voce delle Opzioni. Restano dell'utente: Worker del registro e prova a Precision (cancello della B36.1), segreti
+della chiave dell'app su GitHub, collaudo allo stand e prova dell'app 1.0.1 sul telefono. Il resto di questa sezione è
+storia.
+
+Checkpoint precedente (16/11, 07:40 UTC, B53.2 schiacciata, versione 2026-11-15.2): rovescio (15.1) e schiacciata (15.2)
+fatti; gioco 1749/1749, sito 275/275, desktop 51/51, LAN 13/13, build; `natpf-dritto-video` con i soli 4 rossi della 14.9.
 
 
 - **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a
