@@ -2377,3 +2377,18 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   le istruzioni per i due segreti di GitHub.
 - Non verificato: tutto su un telefono vero (installazione, QR, certificato NATPF nella WebView, sensori, «Fissa app»,
   schermo e Wi-Fi, volume giù). Nessun emulatore nel contenitore (niente virtualizzazione).
+
+## B53.1 · Rovescio «come nel video», versione 2026-11-15.1 (15/11 23:15 – 16/11 07:15 UTC)
+
+- [x] File: `natpf-tennis/src/natpf/natpf_strokes_video.js` (nuovo), `natpf-tennis/src/player_body_animation.js`
+  (svPre/svPost), `natpf-tennis/test/natpf-colpi-video.test.mjs` (nuovo, 6 test), `natpf-tennis/test/natpf-dritto-video.test.mjs`
+  (due test aggiornati: il rovescio con la prova accesa ora cambia), `tools/e2e/natpf-dritto-video.mjs` (`COLPO=rovescio`,
+  stato del B53 rimesso da capo, misura degli scatti con il segno dei quaternioni continuo), `docs/b53/` (documento e
+  immagini), guida dello stand (riga delle Opzioni, «Vale per»), `PROJECT_MEMORY`, versione 2026-11-15.1.
+- Trailer guardato: rovescio (4,5–6 s) e schiacciata (7–8 s) ci sono; servizio e volée no.
+- Verifiche: test dei colpi 6/6, del B23 15/15, mascotte 3D tutti verdi; gioco 1746/1746 (al primo giro 1744: mano libera
+  delle mascotte davanti agli occhi nel finale a due mani e salto di 33 cm, corretti); controllo rapido sito 275/275,
+  desktop 51/51, LAN 13/13, build; `natpf-dritto-video` 50/58 al primo giro (scatto della racchetta 740 mm, scatti della CPU
+  fuori dallo swing, falso scatto di 4 rad della misura), poi **54/58 con gli stessi 4 rossi della 14.9** (verificato
+  facendo girare la prova su una copia della 14.9: 54/58). Fogli del rovescio guardati (camera di gioco e ravvicinata).
+- Non verificato: telefono vero, ledwall, scheda video vera; il giudizio sul rovescio spetta all'utente.

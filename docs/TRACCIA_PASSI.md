@@ -1206,4 +1206,21 @@ Ordine: B52, poi B53.
       `eb2a99eba36145e1ee021117ed00bc0c109dcc5da0ede0241016b82387359189`), prova nel browser `natpf-app-android` 5/5.
       Workflow `natpf-android.yml` (APK negli Artifacts; firmato e su R2 quando l'utente aggiunge i due segreti della chiave).
       La chiave non è nel repository: consegnata all'utente. **Non provata su un telefono vero.**
-- [ ] **B53 · movenze del video su rovescio, servizio, volée, schiacciata** (stesso interruttore del B23): da fare.
+- [~] **B53 · movenze del video su rovescio, servizio, volée, schiacciata** (stesso interruttore del B23). Trailer
+      guardato (`natpf-desktop/media/trailer-aad6b9311db4.mp4`, 10 s): oltre al dritto (0–3 s) ci sono un **rovescio** in
+      allungo a due mani con il finale alto sopra la spalla della racchetta (giocatore blu di fronte, 4,5–6 s) e una
+      **schiacciata in salto** (giocatore bianco lontano, 7–8 s). **Servizio e volée non ci sono**: si fanno nello stesso
+      stile (busto che gira, peso che passa, finale ampio), dichiarato nel documento. Passi, uno per commit con prove:
+      B53.1 rovescio → B53.2 schiacciata → B53.3 volée → B53.4 servizio → B53.5 voce delle Opzioni «Movimenti come nel
+      video» (stessa chiave salvata), versione. Vincoli del B23 per ogni colpo: con «No» ossa identiche, partite
+      identiche, racchetta sulla palla all'impatto come prima, niente scatti. Base: `natpf_forehand_video.js`, prove
+      `natpf-dritto-video.test.mjs`, `tools/e2e/natpf-dritto-video.mjs` e `-foglio.mjs`.
+- [x] **B53.1 rovescio** → versione **2026-11-15.1** (16/11, 07:15 UTC): `natpf_strokes_video.js` (nuovo), agganci in
+      `player_body_animation.js`, test `natpf-colpi-video.test.mjs` (6), due test del B23 aggiornati, `COLPO=rovescio` per i
+      fogli e misura degli scatti con il segno dei quaternioni continuo in `tools/e2e/natpf-dritto-video.mjs`, `docs/b53/`
+      con le immagini. Correzioni durante il passo: mano libera aperta nel finale (copriva gli occhi delle mascotte),
+      niente scostamento della racchetta nella preparazione (scatto 740 mm), scioglimento lento fuori dallo swing e mano
+      che divide la velocità con il dritto del B23 (scatti della CPU fuori dallo swing). Verifiche: gioco 1746/1746, sito
+      275/275, desktop 51/51, LAN 13/13, build; `natpf-dritto-video` 54/58 con gli stessi 4 rossi della 14.9 (riga delle
+      Opzioni fuori schermo, tre partite diverse dalla base del B23: cambiate dai blocchi venuti dopo).
+- [ ] B53.2 schiacciata (dal trailer, 7–8 s) → B53.3 volée → B53.4 servizio → B53.5 voce delle Opzioni.

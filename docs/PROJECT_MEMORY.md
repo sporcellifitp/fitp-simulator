@@ -1523,3 +1523,18 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   workflow `natpf-android.yml`; senza, APK di prova solo negli Artifacts. Versione dell'app (`appVersion`, `appCode` in
   `natpf-android/app/build.gradle`) indipendente da quella del gioco.
 - Non provata su un telefono vero (niente emulatore nel contenitore).
+
+## B53 · «Movimenti come nel video» sugli altri colpi (15/11/2026 sera; documento `docs/b53/colpi-dal-video.md`)
+- Decisione dell'utente: estendere la prova del B23 agli altri colpi. Modulo a parte `natpf_strokes_video.js` (il dritto
+  del B23 resta identico), stesso interruttore e stessi vincoli: racchetta del motore nell'intorno dell'impatto, solo
+  disegno, ossa identiche su «No». Ordine in `player_body_animation.js`: `svPre` prima di `fvPre`, `svPost` dopo `fvPost`.
+- Nel trailer ci sono anche il **rovescio** (4,5–6 s) e la **schiacciata** (7–8 s); **servizio e volée no** (si fanno
+  nello stile del video, dichiarato).
+- Rovescio (B53.1, versione 2026-11-15.1): due mani nella preparazione e verso l'impatto, **mano libera aperta nel
+  finale** (con le due mani sopra la spalla copriva gli occhi delle mascotte: `natpf-mascotte-3d.test.mjs`). Rotazione
+  della preparazione 0,78 rad (0,85 superava di poco la soglia di scatto del B23, 0,26 rad tra due fotogrammi).
+- Rovescio, racchetta: **niente scostamento nella preparazione** (chi gioca parte a 0,24 dello swing: lo scostamento
+  spariva in un fotogramma, scatto 740 mm contro 624); fuori dallo swing la posa si scioglie in ~0,4 s e la mano torna a
+  1,6 unità/s **meno quanto la sposta il dritto del B23 nello stesso fotogramma** (alla palla che passa dal rovescio al
+  dritto i due moduli muovevano bacino e mano nello stesso verso: soglie del B23 fuori dallo swing superate). La misura degli scatti della prova del B23 tiene il segno dei
+  quaternioni continuo.

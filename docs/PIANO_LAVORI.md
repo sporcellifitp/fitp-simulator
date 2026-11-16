@@ -17,14 +17,14 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 15/11/2026, 23:15 UTC (B52 fatto, B53 da fare).** Gioco: versione **2026-11-14.9** pubblicata e
-verificata (installer, zip, GitHub, prove nel browser). Decisioni dell'utente del 15/11 sera: app Android con «Fissa app»
-automatico (**B52 fatto**: `natpf-android/`, `docs/b52/app-android.md`, APK 1.0.0 firmato consegnato, non provato su un
-telefono vero) e movenze del video del B23 estese agli altri colpi (**B53**). **Prossima azione esatta:** B53, leggendo
-prima `docs/b23/dritto-dal-video.md` e `natpf-tennis/src/natpf/natpf_forehand_video.js`: stesso interruttore, solo
-disegno, impronte delle partite identiche, prove e schermate. Restano dell'utente: Worker del registro e prova a Precision
-(cancello della B36.1), segreti della chiave dell'app su GitHub, collaudo allo stand. Il bundle `rami-b40-b48.bundle` è
-già dentro: non riunirlo. Il resto di questa sezione è storia.
+**Checkpoint del 16/11/2026, 07:15 UTC (B53.1 rovescio, versione 2026-11-15.1).** B52 app Android fatto (APK 1.0.0
+consegnato, non provato su un telefono vero). B53 in corso: rovescio «come nel video» fatto e verificato (gioco 1746/1746,
+sito 275/275, desktop 51/51, LAN 13/13, build; `natpf-dritto-video` con i soli 4 rossi che c'erano già sulla 14.9).
+**Prossima azione esatta:** B53.2 schiacciata dal trailer (7–8 s, salto con la racchetta dietro la testa) in
+`natpf-tennis/src/natpf/natpf_strokes_video.js` (nuova voce di `SV_STROKES`), con le stesse prove del rovescio in
+`natpf-tennis/test/natpf-colpi-video.test.mjs`; poi volée, servizio, voce delle Opzioni (`docs/TRACCIA_PASSI.md`).
+Restano dell'utente: Worker del registro e prova a Precision (cancello della B36.1), segreti della chiave dell'app su
+GitHub, collaudo allo stand. Il resto di questa sezione è storia.
 
 
 - **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a

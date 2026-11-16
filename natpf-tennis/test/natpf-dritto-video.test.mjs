@@ -57,12 +57,11 @@ test('spenta: le ossa sono quelle di ae68759, fotogramma per fotogramma, per des
   }
 });
 
-test('accesa: cambia solo attorno al dritto (preparazione, colpo, finale); attesa, rovescio, servizio ed esultanza restano di ae68759', () => {
+test('accesa: cambia attorno al dritto (preparazione, colpo, finale) e, dal B53, al rovescio (test/natpf-colpi-video.test.mjs); attesa, servizio ed esultanza restano di ae68759', () => {
   for (const who of Object.keys(PERSONAGGI)){
     const prints = run(true, who).rec.map(impronta), same = (a, b) => { for (let f = a; f < b; f++) assert.equal(prints[f], G.impronte[who][f], `${who}, fotogramma ${f}`); };
     const changed = (a, b) => { let n = 0; for (let f = a; f < b; f++) if (prints[f] !== G.impronte[who][f]) n++; return n; };
     same(...tratto('attesa').slice(1));
-    same(...tratto('palla sul rovescio').slice(1)); same(...tratto('rovescio intero').slice(1));
     same(...tratto('servizio: attesa').slice(1)); same(...tratto('servizio: colpo').slice(1)); same(...tratto('fine punto').slice(1));
     assert.equal(changed(...tratto('dritto dall').slice(1)), 22, 'il dritto di chi gioca cambia in ogni fotogramma');
     assert.equal(changed(...tratto('dritto piatto').slice(1)), 40, 'anche il dritto piatto intero (come lo fa la CPU)');
@@ -173,7 +172,7 @@ test('racchetta sulla palla all\'impatto: identica a prima per il colpo in tempo
   assert.ok(checked > 100, `fotogrammi confrontati nella zona dell'impatto: ${checked}`);
 });
 
-test('uno swing di un altro colpo dopo la preparazione del dritto ritrova subito la racchetta di sempre (rovescio, tagliato, schiacciata)', () => {
+test('uno swing di un altro colpo dopo la preparazione del dritto ritrova subito la racchetta di sempre (tagliato, pallonetto, schiacciata)', () => {
   const stroke = (on, opts) => {
     setForehandVideo(on);
     const { actor: a, rk } = mount(M, {});
@@ -189,7 +188,9 @@ test('uno swing di un altro colpo dopo la preparazione del dritto ritrova subito
     return out;
   };
   // (isPracticeSwing: il lato resta quello chiesto; in partita con la palla sul dritto il motore lo riporterebbe a dritto)
-  for (const opts of [{ shotType: 'topspin', side: 'backhand', isPracticeSwing: true }, { shotType: 'slice', side: 'forehand' }, { shotType: 'lob', side: 'forehand' }, { shotType: 'smash', side: 'overhead' }]){
+  // (dal B53 il rovescio ha le sue pose e il suo finale della racchetta, natpf_strokes_video.js: qui si guarda che il
+  // dritto non lasci niente negli swing dei colpi che restano quelli di sempre)
+  for (const opts of [{ shotType: 'slice', side: 'forehand' }, { shotType: 'lob', side: 'forehand' }, { shotType: 'smash', side: 'overhead' }]){
     const off = stroke(false, opts), on = stroke(true, opts);
     assert.notDeepEqual(on[49], off[49], 'la preparazione del dritto c\'era');
     for (let f = 50; f < 80; f++) assert.deepEqual(on[f], off[f], `${opts.shotType} ${opts.side}: fotogramma ${f}`);

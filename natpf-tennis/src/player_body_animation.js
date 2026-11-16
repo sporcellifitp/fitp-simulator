@@ -1,6 +1,7 @@
 import * as i from "three";
 // NATPF B23 (prova): pose del dritto dal trailer sopra l'animazione di sempre; spenta non scrive niente
 import { fvPre, fvPost } from "./natpf/natpf_forehand_video.js";
+import { svPre, svPost } from "./natpf/natpf_strokes_video.js";
 export const MII_RIG_PIVOTS = Object.freeze({
   HIP: new i.Vector3(0, 0.56, 0),
   NECK_WORLD: new i.Vector3(0, 1.18, 0),
@@ -275,6 +276,7 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
   e.elapsedTime += n;
   const M = Number.isFinite(s?.elapsedTime) ? s.elapsedTime : e.elapsedTime;
   fe(t, e);
+  svPre(t, e, n); // NATPF B53: gli altri colpi «come nel video» (prima del dritto: la mano libera torna in ordine inverso)
   fvPre(t, e, n); // NATPF B23 (prova): pesi delle pose e racchetta lontano dall'impatto
   const w = t.sideSign || 1,
     // NATPF B15: personaggio specchiato (mancino, natpf_hand.js: root.scale.x < 0): le rotazioni attorno alla verticale e
@@ -596,6 +598,7 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
       isMoving: R,
     });
   fvPost(t, e); // NATPF B23 (prova): pose del corpo del dritto «come nel video»
+  svPost(t, e); // NATPF B53: pose del corpo degli altri colpi «come nel video»
 }
 function Pe(t, o, s, e, { isSwinging: n, swingType: M, swingProgress: w, phase: S, isServer: d }) {
   if (

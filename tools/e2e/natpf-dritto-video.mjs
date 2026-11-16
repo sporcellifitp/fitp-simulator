@@ -14,7 +14,7 @@
 //   4) su «No» identico a prima: le ossa della stessa sequenza, fotogramma per fotogramma, hanno la stessa impronta di
 //      quelle registrate sulla base ae68759 (natpf-simulator unito; tools/e2e/dati/dritto-video-base-ae68759.json;
 //      BASELINE=file la rifà, da lanciare con GAME_DIR=<natpf-tennis di ae68759>); accesa, le ossa del dritto cambiano
-//      e quelle del rovescio no;
+//      (e dal B53 quelle del rovescio, provate in natpf-tennis/test/natpf-colpi-video.test.mjs);
 //   4b) il gioco non cambia: partite a passi e sorteggi fissi (senza persone, contro la CPU con un robot, stesso schermo
 //      con due robot) con la prova accesa e spenta hanno la stessa impronta di palla, giocatori e punteggio, e la stessa
 //      della base; con «Lob & Drop» (modelli 3D) la partita contro la CPU è la stessa e il dritto delle mascotte cambia
@@ -113,6 +113,10 @@ const DRIVER = () => {
     R.handLPivot.position.set(.28, .8, .14);
     const F = R.natpfFv;
     if (F){ for (const k of Object.keys(F)) F[k] = typeof F[k] === 'boolean' ? false : k === 'after' ? null : k[0] === 'o' ? NaN : 0; F.still = 1; }
+    // B53: stato degli altri colpi (natpf_strokes_video.js, un oggetto per colpo), come svRest
+    const SV = R.natpfSv;
+    if (SV){ SV.any = SV.hand = false; SV.bx = SV.by = SV.bz = 0;
+      for (const k of Object.keys(SV)){ const C = SV[k]; if (!C || typeof C !== 'object') continue; for (const kk of Object.keys(C)) C[kk] = typeof C[kk] === 'boolean' ? false : kk === 'after' ? null : kk[0] === 'o' ? NaN : 0; C.still = 1; C.dt = 1/60; } }
   };
   let S = null;
   const strike0 = E._attemptPlayerRallyStrike.bind(E);
@@ -255,23 +259,25 @@ const mm = x => Math.round(x*1000);
 /* ---------- fogli: fotogrammi PRIMA / DOPO agli stessi istanti ---------- */
 // istanti rispetto al colpo (fotogrammi a 60 al secondo): preparazione, caricamento, impatto, finale, recupero
 const ISTANTI = [['preparazione', -24], ['caricamento', -2], ['impatto', 1], ['finale', 9], ['recupero', 22]];
+// B53: COLPO=rovescio fa gli stessi fogli sul rovescio (palla dalla parte libera); file con il prefisso «rovescio-»
+const COLPO = process.env.COLPO === 'rovescio' ? { toX: -1.4, side: 'backhand', prefix: 'rovescio-' } : { toX: 1.4, side: 'forehand', prefix: '' };
 async function fogli(){
   const g = await game({ saved: '1' }), p = g.p;
   await install(p); await p.evaluate(() => __fv.hideUi());
   const info = {};
   for (const hand of ['right', 'left']){
     await p.evaluate(() => __fv.mode(true));
-    const probe = await seq(p, { hand }, 130), f0 = probe.strikes[0]?.f;
-    check(`fogli (${hand}): il colpo c'è (fotogramma ${f0})`, f0 > 30 && probe.strikes[0].side === 'forehand', JSON.stringify(probe.strikes[0]));
+    const probe = await seq(p, { hand, toX: COLPO.toX }, 130), f0 = probe.strikes[0]?.f;
+    check(`fogli (${hand}): il colpo c'è (fotogramma ${f0})`, f0 > 30 && probe.strikes[0].side === COLPO.side, JSON.stringify(probe.strikes[0]));
     for (const [mode, on] of [['prima', false], ['dopo', true]]){
       await p.evaluate(on => __fv.mode(on), on);
-      await p.evaluate(o => __fv.begin(o), { hand });
+      await p.evaluate(o => __fv.begin(o), { hand, toX: COLPO.toX });
       let f = 0;
       for (const [name, d] of ISTANTI){
         const want = f0 + d; await p.evaluate(n => __fv.step(n), want - f); f = want;
         for (const cam of ['gioco', 'vicina']){
           const at = await p.evaluate(cam => __fv.draw(cam), cam);
-          const file = path.join(FOGLI, `${hand === 'left' ? 'mancino-' : ''}${mode}-${cam}-${name}.png`);
+          const file = path.join(FOGLI, `${COLPO.prefix}${hand === 'left' ? 'mancino-' : ''}${mode}-${cam}-${name}.png`);
           if (cam === 'gioco'){
             // ritaglio attorno a chi gioca (nella camera di gioco è piccolo)
             const W = 1280, H = 720, s = 300, x = Math.round(Math.min(W - s, Math.max(0, at.x*W - s/2))), y = Math.round(Math.min(H - s, Math.max(0, at.y*H - s*.62)));
@@ -378,7 +384,12 @@ async function ossa(){
 
   // 3) nessuno scatto: variazione massima tra due fotogrammi di quello che la prova aggiunge alle ossa del corpo
   const added = (r1, r0, who) => {
-    const A = r1.rel[who], Z = r0.rel[who], sw = r1.swStart[who], n = Math.min(A.length, Z.length), m = {};
+    // (ripresa del 16/11) quaternioni con il segno continuo: q e −q sono la stessa rotazione, e senza questo un cambio di
+    // segno da un fotogramma all'altro sembrava uno scatto di 4 rad (B53, bacino molto girato nel rovescio)
+    const cont = R => { const out = R.map(r => r.slice()); for (let b = 0; b < BODY_E2E.length; b++){ const o = b*7 + 3;
+      for (let f = 1; f < out.length; f++){ const p = out[f - 1], c = out[f]; if (p[o]*c[o] + p[o + 1]*c[o + 1] + p[o + 2]*c[o + 2] + p[o + 3]*c[o + 3] < 0) for (let k = 0; k < 4; k++) c[o + k] = -c[o + k]; } }
+      return out; };
+    const A = cont(r1.rel[who]), Z = cont(r0.rel[who]), sw = r1.swStart[who], n = Math.min(A.length, Z.length), m = {};
     const inSwing = f => sw.some(s => f >= s - 1 && f <= s + SWING_LEN);
     for (let f = 1; f < n; f++) BODY_E2E.forEach((bone, b) => {
       const o = b*7, d = k => (A[f][o + k] - Z[f][o + k]) - (A[f - 1][o + k] - Z[f - 1][o + k]);
