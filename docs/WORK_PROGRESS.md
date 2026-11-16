@@ -2424,3 +2424,22 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   `apksigner`: certificato `a1c16e0b…2e1d` (chiave dello stand), `versionCode` 2; `natpf-app-android` 5/5; sito 275/275.
   APK 679.677 B, sha256 `fe332244e4609538fd1083072f69e43ad6f2f9b1f2a308b26ea3aa6c56cc96a7`, consegnato all'utente.
 - Non verificato: telefono vero (fotocamera, permesso, lettura del QR). Gioco e pacchetti del gioco invariati (2026-11-15.2).
+
+## B52.2 · App Android 1.0.2: schermo vuoto senza il certificato NATPF (16/11/2026, 08:30–08:45 UTC, urgente)
+
+- [x] Segnalazione dell'utente con la 1.0.1: QR del PC dello stand (rete locale `192.168…`), sul telefono solo l'app →
+  «App fissata» in alto e poi niente. Prima di questo: workflow Android con le chiavi R2 ripulite (`53333aa`), 1.0.1
+  pubblicata su R2.
+- Causa (dal codice, verificata in Chromium): certificato del PC (`tools/lan/certificato.mjs`) non attendibile senza il
+  certificato NATPF sul telefono → la WebView annullava in silenzio; `onPageFinished` della pagina d'errore fissava
+  l'app e nascondeva l'avviso (anche quello di rete, dalla 1.0.0).
+- File: `RacketLink.java` (`trustStandCertificate`, `isLocalIpv4`), `RacketLinkTest.java` (+1), `MainActivity.java`
+  (`onReceivedSslError`, `onReceivedHttpError`, `onPageStarted`/`pageFailed`, `onConsoleMessage`, versioni e ultimo errore
+  nella schermata dello staff, avviso azzerato a ogni QR), `app/build.gradle` (1.0.2 / 3),
+  `tools/e2e/natpf-app-certificato.mjs` (nuovo), `docs/b52/app-android.md` §6, guida 8.9.
+- Verifiche: `natpf-app-certificato` 7/7 (senza «Procedi» `ERR_CERT_AUTHORITY_INVALID`; con «Procedi» pagina vera,
+  `isSecureContext`, `wss` + WebRTC, sensori, colpo al PC, nessun errore); unità 5/5; lint 0 errori; `controlla-classi`
+  verde; `apksigner` certificato `a1c16e0b…2e1d`, `versionCode` 3; `natpf-app-android` 5/5. APK 680.905 B, sha256
+  `99902fa99644735e91221255138cdb1c65543e0c86e72beedcd936f1c291439f`, consegnato.
+- Non verificato: telefono vero; che la WebView ricordi la scelta anche per la `wss` è dalla documentazione e dal
+  meccanismo comune di Chromium, provato solo in Chrome.

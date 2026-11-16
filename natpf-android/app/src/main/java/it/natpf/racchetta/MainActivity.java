@@ -1,12 +1,16 @@
 package it.natpf.racchetta;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageInfo;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.http.SslError;
 import android.graphics.Typeface;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -22,14 +26,17 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.PermissionRequest;
 import android.webkit.RenderProcessGoneDetail;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -82,6 +89,10 @@ public class MainActivity extends Activity {
   private SharedPreferences prefs;
   private WifiManager.WifiLock wifiLock;
   private String current;
+  /** Ultimo errore (rete, certificato, pagina), mostrato nella schermata dello staff. */
+  private String lastError;
+  /** La pagina principale non è arrivata (rete, HTTP, certificato): niente «Fissa app» e l'avviso resta. */
+  private boolean pageFailed;
   private final long[] volumeDown = new long[3];
   private int volumeIdx;
 
@@ -155,9 +166,14 @@ public class MainActivity extends Activity {
       again.setOnClickListener(v -> openPage(saved));
       start.addView(again);
     }
-    TextView ver = text("Versione " + versionName(), 13, false);
+    TextView ver = text("App " + versionName() + " · Android " + Build.VERSION.RELEASE + " · WebView " + webViewVersion(), 13, false);
     ver.setTextColor(Color.rgb(147, 168, 188));
     start.addView(ver);
+    if (lastError != null) {
+      TextView err = text("Ultimo errore: " + lastError, 13, false);
+      err.setTextColor(Color.rgb(147, 168, 188));
+      start.addView(err);
+    }
   }
 
   private void scanQr() {
@@ -188,6 +204,8 @@ public class MainActivity extends Activity {
 
   private void openPage(String url) {
     current = url;
+    banner.setTag(null);
+    banner.setVisibility(View.GONE);
     prefs.edit().putString(KEY_URL, url).apply();
     if (start != null) start.setVisibility(View.GONE);
     if (web == null) createWebView();
@@ -215,16 +233,44 @@ public class MainActivity extends Activity {
         // dentro l'app solo la pagina del PC che l'ha aperta; tutto il resto resta fuori (niente browser)
         return current == null || !RacketLink.sameOrigin(current, req.getUrl().toString());
       }
+      @Override public void onPageStarted(WebView view, String url, Bitmap favicon) { pageFailed = false; }
       @Override public void onPageFinished(WebView view, String url) {
+        // dopo un errore arriva anche la fine del caricamento (della pagina d'errore): l'avviso resta e l'app NON si
+        // fissa (nella 1.0.1 si fissava su una pagina vuota e lo staff restava bloccato senza sapere perché)
+        if (pageFailed) return;
         view.evaluateJavascript(ORIENTATION_SHIM, null);
         if (banner.getVisibility() == View.VISIBLE && banner.getTag() == null) banner.setVisibility(View.GONE);
         pin();
       }
       @Override public void onReceivedError(WebView view, WebResourceRequest req, WebResourceError err) {
         if (!req.isForMainFrame()) return;
+        pageFailed = true;
+        lastError = "rete: " + err.getDescription();
         showBanner("Non raggiungo il PC dello stand (" + err.getDescription() + "). Riprovo da solo…");
         ui.removeCallbacks(retry);
         ui.postDelayed(retry, RETRY_MS);
+      }
+      @Override public void onReceivedHttpError(WebView view, WebResourceRequest req, WebResourceResponse res) {
+        if (!req.isForMainFrame()) return;
+        pageFailed = true;
+        lastError = "pagina: HTTP " + res.getStatusCode();
+        showBanner("Il PC dello stand risponde con un errore (HTTP " + res.getStatusCode() + "). Riprovo da solo…");
+        ui.removeCallbacks(retry);
+        ui.postDelayed(retry, RETRY_MS);
+      }
+      // Certificato del PC dello stand (1.0.2): senza il certificato NATPF sul telefono la WebView rifiutava la pagina in
+      // silenzio (schermo vuoto, app fissata e ferma). Si va avanti solo per l'indirizzo di rete locale del QR
+      // (RacketLink.trustStandCertificate); la WebView ricorda la scelta per lo stesso indirizzo e certificato, anche per
+      // il collegamento wss del PC. Altrimenti si dice cosa non va, mai schermo vuoto
+      @SuppressLint("WebViewClientOnReceivedSslError")
+      @Override public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+        if (current != null && RacketLink.trustStandCertificate(current, error.getUrl())) { handler.proceed(); return; }
+        handler.cancel();
+        pageFailed = true;
+        lastError = "certificato: errore " + error.getPrimaryError() + " su " + error.getUrl();
+        showBanner("Il certificato del PC non è valido per questo indirizzo (errore " + error.getPrimaryError()
+            + "). Controlla l'ora del telefono e del PC, poi inquadra di nuovo il QR (tre volte «volume giù»).");
+        banner.setTag("ssl");
       }
       @Override public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
         // la pagina si è chiusa (memoria, errore): si rifà la WebView e si riapre il collegamento
@@ -237,6 +283,12 @@ public class MainActivity extends Activity {
     });
     web.setWebChromeClient(new WebChromeClient() {
       @Override public void onPermissionRequest(PermissionRequest request) { request.deny(); }
+      // l'ultimo errore della pagina si legge nella schermata dello staff (sul telefono non c'è altro modo di vederlo)
+      @Override public boolean onConsoleMessage(ConsoleMessage m) {
+        if (m.messageLevel() == ConsoleMessage.MessageLevel.ERROR)
+          lastError = "pagina: " + m.message() + " (" + m.sourceId().replaceAll("^.*/", "") + ":" + m.lineNumber() + ")";
+        return false;
+      }
       // «vuoi lasciare la pagina?» del blocco del telefono (B51): dentro l'app si riapre sempre la stessa pagina
       @Override public boolean onJsBeforeUnload(WebView view, String url, String message, JsResult result) { result.confirm(); return true; }
       @Override public boolean onJsPrompt(WebView view, String url, String message, String def, JsPromptResult result) { result.cancel(); return true; }
@@ -346,6 +398,15 @@ public class MainActivity extends Activity {
   }
 
   // ---------- piccoli aiuti ----------
+
+  private static String webViewVersion() {
+    try {
+      PackageInfo p = WebView.getCurrentWebViewPackage();
+      return p != null ? p.versionName : "?";
+    } catch (RuntimeException e) {
+      return "?";
+    }
+  }
 
   private String versionName() {
     try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception e) { return "?"; }

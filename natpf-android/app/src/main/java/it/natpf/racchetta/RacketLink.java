@@ -59,6 +59,40 @@ public final class RacketLink {
     }
   }
 
+  /**
+   * Certificato del PC dello stand (16/11/2026, app 1.0.2). In rete locale il PC usa un certificato fatto da sé
+   * (tools/lan/certificato.mjs, un'autorità per ogni PC): se il telefono non ha installato il certificato NATPF, la
+   * WebView rifiutava la pagina in silenzio e restava vuota (Chrome invece lascia «Procedi»). Si accetta solo se la
+   * pagina aperta dal QR è in https su un indirizzo di rete locale scritto in cifre (10.x, 172.16–31.x, 192.168.x,
+   * 169.254.x, 127.x) e la richiesta va allo stesso indirizzo (pagina, file e collegamento wss del PC). Non è più debole
+   * di quello che l'app già permette in rete locale (http in chiaro, network_security_config). Mai su Cloudflare.
+   */
+  public static boolean trustStandCertificate(String page, String url) {
+    try {
+      URI p = new URI(page), u = new URI(url);
+      if (!"https".equalsIgnoreCase(p.getScheme())) return false;
+      String s = u.getScheme();
+      if (s == null || !(s.equalsIgnoreCase("https") || s.equalsIgnoreCase("wss"))) return false;
+      return p.getHost() != null && p.getHost().equals(u.getHost()) && isLocalIpv4(p.getHost());
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  /** Indirizzo IPv4 scritto in cifre di una rete locale (niente nomi: un nome può puntare ovunque). */
+  static boolean isLocalIpv4(String host) {
+    if (host == null || !host.matches("\\d{1,3}(\\.\\d{1,3}){3}")) return false;
+    String[] p = host.split("\\.");
+    int[] b = new int[4];
+    for (int i = 0; i < 4; i++) {
+      if (p[i].length() > 1 && p[i].charAt(0) == '0') return false;   // 010 = ottale per qualcuno: no
+      b[i] = Integer.parseInt(p[i]);
+      if (b[i] > 255) return false;
+    }
+    return b[0] == 10 || (b[0] == 172 && b[1] >= 16 && b[1] <= 31) || (b[0] == 192 && b[1] == 168)
+        || (b[0] == 169 && b[1] == 254) || b[0] == 127;
+  }
+
   private static int port(URI u) {
     if (u.getPort() >= 0) return u.getPort();
     return "https".equalsIgnoreCase(u.getScheme()) ? 443 : 80;

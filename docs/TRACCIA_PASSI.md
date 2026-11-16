@@ -1246,7 +1246,17 @@ Ordine: B52, poi B53.
       ci sono), ma la **pubblicazione su R2 ha avuto «AccessDenied»**: nel workflow Android le chiavi R2 non erano
       ripulite come in quello Windows (che con gli stessi segreti carica). Corretto (stessa pulizia, endpoint UE se serve):
       da controllare il giro dopo il push e il link fisso `android/NATPF-Racchetta.apk`.
-- [~] **B53.3 volée, punto esatto**: codice, test (`natpf-colpi-video` 12/12), fogli, documento §4 e versione
+- [x] Ripubblicazione: con le chiavi ripulite (`53333aa`) la 1.0.1 è su R2 (`android/NATPF-Racchetta.apk`).
+- [x] **B52.2 · app 1.0.2** (16/11, 08:40 UTC; `docs/b52/app-android.md` §6). L'utente con la 1.0.1: QR del PC dello
+      stand (rete locale), sul telefono solo l'app → «App fissata» e poi schermo fermo. Causa: certificato fatto dal PC
+      rifiutato in silenzio dalla WebView (senza il certificato NATPF sul telefono) e app fissata anche sulla pagina
+      d'errore. Ora `proceed` solo per l'indirizzo di rete locale del QR (`RacketLink.trustStandCertificate`), avviso che
+      resta e niente «Fissa app» dopo un errore, versioni e ultimo errore nella schermata dello staff. Prova nuova
+      `tools/e2e/natpf-app-certificato.mjs` (server LAN vero, certificato vero, «Procedi» in Chromium) 7/7; unità 5/5, lint
+      0 errori, classi verde, `natpf-app-android` 5/5. APK 1.0.2 680.905 B, sha256
+      `99902fa99644735e91221255138cdb1c65543e0c86e72beedcd936f1c291439f`, **consegnato**. Non provata su un telefono vero.
+- [~] **B53.3 volée, punto esatto** (la misura dei fotogrammi rifatta due volte è verde: 309,7 contro 283,0 e 301,0
+      contro 259,8; manca solo il commit, sospeso dall'utente): codice, test (`natpf-colpi-video` 12/12), fogli, documento §4 e versione
       **2026-11-15.3** sono nel working tree della sessione, **non committati** (commit dell'app fatto solo con i suoi file).
       Controllo rapido gioco 1752/1752, sito 275/275, desktop 51/51, LAN 13/13, build. `natpf-dritto-video` 53/58: i 4
       rossi di sempre più i fotogrammi al secondo (91,5% < 95%, numeri molto ballerini: 203–368); la misura ripetuta

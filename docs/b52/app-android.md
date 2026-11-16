@@ -6,7 +6,7 @@ telefono riportato alle impostazioni di fabbrica. iPhone: non si fa (decisione d
 
 ## 1. Cosa fa
 
-Un'app sottile (`natpf-android/`, Java, 680 KB dalla 1.0.1, Android 8 o più nuovo) che apre **la stessa pagina** del
+Un'app sottile (`natpf-android/`, Java, 681 KB dalla 1.0.2, Android 8 o più nuovo) che apre **la stessa pagina** del
 telefono-racchetta che oggi si apre in Chrome (`site/tennis/racchetta.html`, dal PC dello stand o da Cloudflare) dentro
 una WebView, e in più:
 
@@ -122,3 +122,36 @@ di fabbrica e preparato una volta dal PC con il cavo), oppure tornare a Chrome c
 - **Non provata su un telefono vero** neanche questa: la causa è certa sull'APK 1.0.0, ma che dopo il lettore si apra la
   fotocamera (permesso chiesto da Android la prima volta, inquadratura, lettura) va visto sul telefono. Se si chiude
   ancora servono il modello del telefono e la versione di Android.
+
+## 6. Versione 1.0.2 (16/11/2026): schermo vuoto senza il certificato NATPF sul telefono
+
+**Segnalato dall'utente il 16/11** con la 1.0.1: QR del PC dello stand (rete locale, `https://192.168…:8443`), sul
+telefono solo l'app (niente certificato NATPF, guida 7.4) → l'app mostra «App fissata» e poi resta ferma.
+
+- **Causa**: il PC usa un certificato fatto da sé (`tools/lan/certificato.mjs`, un'autorità per ogni PC). Senza quel
+  certificato installato la WebView rifiuta la pagina **in silenzio** (in Chrome c'è «Procedi»); e l'app, che si fissava
+  alla fine di ogni caricamento, si fissava anche sulla pagina d'errore vuota. In più l'avviso degli errori di rete
+  compariva e spariva subito (la fine del caricamento della pagina d'errore lo nascondeva): c'era già nella 1.0.0.
+- **Correzione**: `onReceivedSslError` va avanti (`proceed`) **solo** per l'indirizzo della pagina del QR, se è in https
+  su un indirizzo di rete locale scritto in cifre (10.x, 172.16–31.x, 192.168.x, 169.254.x, 127.x) e la richiesta va
+  allo stesso indirizzo (`RacketLink.trustStandCertificate`, 1 test nuovo); mai su Cloudflare né su nomi. Non è più
+  debole di ciò che l'app già permette in rete locale (http in chiaro). Altrimenti avviso con il motivo. La WebView
+  ricorda la scelta per lo stesso indirizzo e certificato (documentazione di `onReceivedSslError`; `clearSslPreferences`),
+  quindi passano anche i file della pagina e il collegamento `wss://…/lan-signal` del PC. Dopo un errore della pagina
+  principale (rete, HTTP, certificato) l'avviso resta e l'app **non si fissa**. La schermata dello staff mostra le
+  versioni di app, Android e WebView e l'ultimo errore (rete, certificato o errore JavaScript della pagina).
+- **Prova** `tools/e2e/natpf-app-certificato.mjs` (Chromium, lo stesso motore della WebView, con il server LAN vero e il
+  certificato fatto da `certificato.mjs`, **senza** «ignora i certificati»): senza «Procedi» la pagina non si apre
+  (`ERR_CERT_AUTHORITY_INVALID`, quello che succedeva nella 1.0.1); con «Procedi» (che come `proceed()` fa ricordare la
+  scelta) si apre la pagina vera, il contesto resta sicuro, `wss` e WebRTC si collegano, i sensori sono pronti e un colpo
+  arriva al PC: **7/7**. Il «ricordare la scelta» di Chrome e della WebView sono due implementazioni diverse dello stesso
+  meccanismo di Chromium: è la cosa da guardare per prima sul telefono se la pagina si apre ma non si collega.
+- Verifiche della 1.0.2: test di unità 5/5, lint 0 errori, `controlla-classi.mjs` verde, firma con la chiave dello stand
+  (stesso certificato), `versionCode` 3, `natpf-app-android` 5/5. APK 680.905 B, sha256
+  `99902fa99644735e91221255138cdb1c65543e0c86e72beedcd936f1c291439f`, consegnato all'utente il 16/11.
+- **Non provata su un telefono vero.**
+
+```sh
+(cd tools/lan && npm ci) && (cd tools/e2e && npm ci)
+CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-app-certificato.mjs
+```
