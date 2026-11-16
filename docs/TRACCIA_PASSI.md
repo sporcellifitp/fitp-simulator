@@ -1417,5 +1417,7 @@ giorni di Torino → conto delle partite, B36.1, soglie dei trofei; risposte all
       compensata male) o dipende dalla palla (persone che colpiscono presto), poi correggerlo e rimisurare con il registro.
 - [x] B56: anticipo di ~+120 ms quasi costante a ogni velocità e postazione (`docs/b36/misure-torino.md` §5); correzione di
       100 ms solo in modalità fiera (`ANTICIPATION_S`), prove `natpf-b56-anticipo` 2/2, gioco 1770/1770. Da rimisurare.
-- [~] **B57 · fine partita nello stesso schermo** (foto dell'utente del 16/11, 19:45): in alto e in evidenza solo chi ha
+- [x] **B57 · fine partita nello stesso schermo** (foto dell'utente del 16/11, 19:45): in alto e in evidenza solo chi ha
       vinto, sotto chi ha perso, visibile ma non in evidenza. Poi versione 2026-11-16.8 con B56 e B57.
+- [x] B57 fatta (`docs/b57/fine-partita-chi-vince-sopra.md`): chi vince sopra e in evidenza, chi perde sotto attenuato;
+      `natpf-fine-partita` 56/56. **Versione 2026-11-16.8** = B56 + B57: dopo il push pacchetti e consegna.

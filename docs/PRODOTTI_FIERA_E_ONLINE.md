@@ -47,6 +47,8 @@ Registro delle richieste in §3.
 | 16/11 | Niente nome sulla tastiera del PC con «Nuovo giocatore» (B54.2) | FIERA | fatto, 16.5 |
 | 16/11 | «Torna alla versione di prima» nelle Opzioni (B55) | FIERA | fatto, 16.6 |
 | 16/11 | Soglie dei trofei sui dati di Torino | ENTRAMBE | fatto, 16.7 |
+| 16/11 | Correzione dell'anticipo dei colpi del telefono (B56) | FIERA (solo in modalità fiera) | fatto, 16.8 |
+| 16/11 | Fine partita nello stesso schermo: chi vince sopra (B57) | FIERA | fatto, 16.8 |
 | 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)

@@ -2530,3 +2530,11 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B56 + B57 · anticipo dei colpi (fiera) e chi vince sopra a fine partita, versione 2026-11-16.8 (16/11/2026)
+
+- [x] B56: `natpf_phone_racket.js` (`ANTICIPATION_S` 0,1 s, `anticipationFor`: solo in modalità fiera), prova
+  `natpf-b56-anticipo` 2/2, analisi in `docs/b36/misure-torino.md` §5.
+- [x] B57: `natpf_end_card.js` (`splitOrder`), `natpf-hud.css`, prove `natpf-b40-card` (+1) e `tools/e2e/natpf-fine-partita.mjs`
+  56/56, documento `docs/b57/`.
+- Verifiche: vedi la voce della traccia (suite complete prima del commit della versione).
+

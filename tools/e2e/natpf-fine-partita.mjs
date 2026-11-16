@@ -57,7 +57,9 @@ const readModal = g => g.evaluate(async () => {
     name: c.querySelector('.card-name')?.textContent || '', badge: c.querySelector('.card-badge')?.textContent || '', crown: !!c.querySelector('.card-crown'),
     trophies: [...c.querySelectorAll('.trophy')].map(t => `${t.dataset.trophy}:${t.dataset.tier}`), record: c.querySelector('.card-record')?.textContent || '', next: c.querySelector('.card-next')?.textContent || '' }));
   const model = view?.stats ? C.cardModel(view.stats, view, { looks: P.castLooks(P.getCast(), view.stats.mode !== 'cpu'), bands: view.stats.bands }) : null;
-  const cardsExpect = (model?.cards || []).map(c => ({ side: c.side, frame: c.frame, won: c.won, look: c.look, name: c.name, badge: c.badge, crown: c.crown, trophies: c.trophies.map(t => `${t.id}:${t.tier}`), record: c.record?.text || '', next: c.next || '' }));
+  // (B57: nello stesso schermo la card di chi vince va per prima)
+  const ordered = model?.split ? [...model.cards].sort((a, b) => (b.won ? 1 : 0) - (a.won ? 1 : 0)) : (model?.cards || []);
+  const cardsExpect = ordered.map(c => ({ side: c.side, frame: c.frame, won: c.won, look: c.look, name: c.name, badge: c.badge, crown: c.crown, trophies: c.trophies.map(t => `${t.id}:${t.tier}`), record: c.record?.text || '', next: c.next || '' }));
   return { open: !m.classList.contains('hidden'), stats: m.classList.contains('has-stats'), split: m.classList.contains('stats-split'), title: document.getElementById('victory-result-banner').textContent,
     kicker: document.getElementById('victory-kicker').textContent, sub: vis('victory-sub'), games: vis('victory-games') ? [...document.getElementById('victory-games').children].map(c => c.textContent.trim()).join(' ') : '', pill: vis('victory-pill'),
     again: document.getElementById('btn-play-again').textContent, btns: [...card.querySelectorAll('.end-btns .nt-footer-btn')].filter(b => !b.classList.contains('hidden') && b.offsetParent).map(b => b.textContent),
@@ -245,15 +247,16 @@ try {
     await g.setViewportSize({ width: w, height: h }); await sleep(250);
     v = await readModal(g);
     if (w === 1280){
-      const [a, b] = v.players, valOf = s => ({ perfetti: s.timing.perfetto, kmh: s.fastest, scambio: s.longest, punti: s.points, vincenti: s.winners, ace: s.aces, super: s.superOk });
+      // (B57: chi vince sopra: le schede si leggono per nome)
+      const a = v.players.find(p => p.name === 'Giulia'), b = v.players.find(p => p.name === 'Marco'), valOf = s => ({ perfetti: s.timing.perfetto, kmh: s.fastest, scambio: s.longest, punti: s.points, vincenti: s.winners, ace: s.aces, super: s.superOk });
       const real = (p, s) => !!s && p.tiles.every(t => valOf(s)[t.id] === t.value);
-      check('C1. stesso schermo: due schede con i nomi, chi vince e due cose belle ciascuno (numeri veri: 2 e 4 punti, i colpi Perfetti e i km/h dati)', v.players.length === 2 && a.name === 'Giulia' && b.name === 'Marco' && a.chip === 'Bella sfida' && b.chip === 'MVP della partita'
+      check('C1. stesso schermo: due schede con i nomi, chi vince e due cose belle ciascuno (numeri veri: 2 e 4 punti, i colpi Perfetti e i km/h dati)', v.players.length === 2 && !!a && !!b && v.players[0].name === 'Marco' && a.chip === 'Bella sfida' && b.chip === 'MVP della partita'
         && v.sums[0]?.points === 2 && v.sums[1]?.points === 4 && v.sums[0]?.timing.perfetto === 2 && v.sums[1]?.timing.perfetto === 1
         && v.players.every(p => p.tiles.length >= 1 && p.tiles.length <= 2 && p.tiles.every(t => t.value > 0)) && real(a, v.sums[0]) && real(b, v.sums[1]) && v.title === 'Vince Marco!' && sameTiles(a.tiles, v.expect?.players?.[0]?.tiles) && sameTiles(b.tiles, v.expect?.players?.[1]?.tiles),
         JSON.stringify({ title: v.title, players: v.players, sums: v.sums.map(s => valOf(s)) }));
       check('   pillola dei game in alto, scambio più lungo nella pillola in basso, «Rivincita»', v.kicker === 'Fine partita · 1 game a 0' && v.pill === 'Scambio più lungo della partita: 3 colpi' && v.again === 'Rivincita' && !v.players.some(p => p.tiles.some(t => t.id === 'scambio')), JSON.stringify({ kicker: v.kicker, pill: v.pill, again: v.again }));
       check('   mai numeri negativi', !NEG.test(v.text), v.text.replace(/\s+/g, ' ').slice(0, 200));
-      check('C1b. B40: due card una contro l\'altra, corona solo su Marco (vince), cornici dalla fascia, uguali al modello', v.cards.length === 2 && !v.cards[0].crown && v.cards[1].crown
+      check('C1b. B40: due card, corona solo su Marco (vince); B57: Marco (chi vince) sopra, Giulia sotto', v.cards.length === 2 && v.cards[0].crown && !v.cards[1].crown && v.cards[0].name === 'Marco' && v.cards[1].name === 'Giulia'
         && v.cards.every(c => c.frame === 'evento') && JSON.stringify(v.cards) === JSON.stringify(v.cardsExpect), JSON.stringify({ cards: v.cards, expect: v.cardsExpect }));
     }
     check(`C2. stesso schermo ${w}×${h}: tutta nello schermo, niente tagliato né sovrapposto`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.overlap }));

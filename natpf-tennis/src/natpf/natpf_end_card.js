@@ -101,8 +101,13 @@ export function cardHtml(c, { split = false } = {}){
     + `</div></article>`;
 }
 // HTML del contenitore delle card (#victory-cards): una card, o due una contro l'altra nello stesso schermo
+// B57 (foto dell'utente del 16/11 allo stand: «a fine schermata vorrei mettere in evidenza e sopra solo chi ha vinto; sotto
+// chi ha perso, non in evidenza ma comunque visibile»): nello stesso schermo la card di chi vince va per prima (sopra, o a
+// sinistra), quella di chi perde dopo, attenuata (natpf-hud.css, .end-player[data-won="0"]). A pari (nessun vincitore)
+// l'ordine dei giocatori
+export const splitOrder = cards => [...cards].sort((a, b) => (b.won ? 1 : 0) - (a.won ? 1 : 0));
 export function cardsHtml(model){
   if (!model?.cards?.length) return '';
-  const cards = model.cards.map(c => cardHtml(c, { split: model.split }));
+  const cards = (model.split ? splitOrder(model.cards) : model.cards).map(c => cardHtml(c, { split: model.split }));
   return model.split && cards.length === 2 ? `${cards[0]}<span class="end-vs" aria-hidden="true">VS</span>${cards[1]}` : cards.join('');
 }

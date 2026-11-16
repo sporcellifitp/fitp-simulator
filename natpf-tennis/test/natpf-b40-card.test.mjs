@@ -126,3 +126,17 @@ test('B40.4: sfida tra due computer (Player 2) e doppio; niente nomi di altri vi
   assert.deepEqual(recordLine({ kmh: { value: 150, mine: false }, scambio: { value: 3, mine: true, tie: true } }, 'player'), { mine: false, text: 'Record di oggi: 150 km/h' });
   assert.deepEqual(recordLine({ kmh: { value: 0 }, scambio: { value: 8, mine: true } }, 'player'), { mine: true, text: 'Record di oggi! Scambio di 8 colpi' });
 });
+
+test('B57: stesso schermo, la card di chi vince va sopra (per prima), quella di chi perde dopo e attenuata', async () => {
+  const { cardsHtml, splitOrder } = await import('../src/natpf/natpf_end_card.js');
+  const p1 = { side: 'player', name: 'Gabriele', won: false, trophies: [], frame: 'evento', look: 'p1', badge: 'x' };
+  const p2 = { side: 'opponent', name: 'Matteo', won: true, trophies: [], frame: 'evento', look: 'p2', badge: 'y' };
+  assert.deepEqual(splitOrder([p1, p2]).map(c => c.name), ['Matteo', 'Gabriele'], 'vince il Player 2: sopra lui');
+  assert.deepEqual(splitOrder([{ ...p1, won: true }, { ...p2, won: false }]).map(c => c.name), ['Gabriele', 'Matteo']);
+  assert.deepEqual(splitOrder([{ ...p1, won: false }, { ...p2, won: false }]).map(c => c.name), ['Gabriele', 'Matteo'], 'nessun vincitore: ordine dei giocatori');
+  const html = cardsHtml({ split: true, cards: [p1, p2] });
+  assert.ok(html.indexOf('data-side="opponent"') < html.indexOf('data-side="player"'), 'nell\'HTML prima chi vince');
+  const css = (await import('node:fs')).readFileSync(new URL('../natpf-hud.css', import.meta.url), 'utf8');
+  assert.match(css, /\.end-card\.end-player\[data-won="0"\] \{[^}]*opacity: 0\.82/, 'chi perde attenuato');
+  assert.match(css, /\.end-card\.end-player\[data-won="1"\] \{ flex-grow: 1\.3; \}/, 'chi vince più grande');
+});
