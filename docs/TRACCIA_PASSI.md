@@ -1374,3 +1374,9 @@ in sottofondo quando c'è internet, così poi vale anche offline; non cancellato
 Windows: «Torna alla versione di prima (X)» con conferma; (5) dopo il ritorno la versione lasciata non si ripropone
 finché non ne esce una più nuova; (6) l'installer deve accettare una versione più vecchia (controllare NSIS); prove con
 node:test e `scripts/prova-linux.mjs`.
+- [x] B55 passo 1: `natpf-desktop/src/aggiornamenti.mjs` (storia `storico.json`, `previousBuild`, installer della versione di
+      prima e di quella in uso tenuti, `prefetchPrevious` da `windows/versioni.json`, `rollback()`, versione lasciata non
+      riproposta), prove `natpf-desktop/test/aggiornamenti.test.mjs` 16/16 (+3). **Punto esatto**: passo 2 = `main.mjs`
+      (azione IPC `rollback`, `prefetchPrevious` dopo il controllo all'avvio), `preload.cjs` (`updates.rollback`), passo 3 =
+      pulsante nelle Opzioni (`natpf-tennis/src/natpf/natpf_updates.js`, due tocchi per confermare), passo 4 = workflow che
+      pubblica `windows/versioni.json` (con le versioni già pubblicate dalla 16.1: sha256 in questa traccia), versione, pacchetti.

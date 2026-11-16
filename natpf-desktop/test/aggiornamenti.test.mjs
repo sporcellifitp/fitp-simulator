@@ -271,7 +271,7 @@ test('stato: controllo → disponibile → download → pronto → installazione
     const prog = seen.filter(x => x.status === 'downloading').map(x => x.progress);
     assert.ok(prog.length >= 2 && prog[0] === 0, `avanzamento: ${prog}`);
     assert.ok(prog.every(p => p >= 0 && p <= 1));
-    assert.equal(fs.readdirSync(dir).join(), installerName('2026-11-08.1'));
+    assert.equal(fs.readdirSync(dir).filter(n => n !== UPDATES.history).join(), installerName('2026-11-08.1'));
     // controllo di nuovo a scaricamento fatto: resta pronto; anche se il server non risponde
     assert.equal((await u.check()).status, 'ready');
     // installazione: avvio dell'installer scaricato e chiusura del programma
@@ -298,7 +298,7 @@ test('stato: già aggiornato, offline, permesso rifiutato, file cambiato prima d
     const u = new Updater({ current: '2026-11-07.3', base: s.base, dir, retryMs: 10, launch: async () => answer, quit: () => { quits++; } });
     const none = await u.check();
     assert.equal(none.status, 'none'); assert.equal(none.latest, '2026-11-07.3');
-    assert.deepEqual(fs.readdirSync(dir), ['tieni.txt']);
+    assert.deepEqual(fs.readdirSync(dir).filter(n => n !== UPDATES.history), ['tieni.txt'], 'tolto l\'installer vecchio (nessuna versione di prima nella storia)');
     assert.equal((await u.download()).status, 'none', 'niente da scaricare');
     // versione nuova
     manifest = manifestFor('2026-11-08.1');
@@ -383,4 +383,87 @@ test('workflow: solo l\'installer, R2 con i soli segreti di GitHub, prima l\'ins
   assert.match(wf, /'!natpf-desktop\/\*\*\/\*\.md'/, 'i soli documenti non rifanno l\'installer');
   assert.match(wf, /actions\/upload-artifact/, 'resta anche l\'artefatto di GitHub');
   assert.match(wf, /NATPF_AGGIORNAMENTI_URL: \$\{\{ vars\.NATPF_AGGIORNAMENTI_URL \}\}/);
+});
+
+/* ---------- B55 · ritorno alla versione di prima ---------- */
+import { readHistory, writeHistory, previousBuild, noteInstalled, validateVersions } from '../src/aggiornamenti.mjs';
+
+test('B55: storia delle versioni, versione di prima (non quella lasciata), file tenuti dalla pulizia', () => {
+  const h = { versioni: ['2026-11-15.1', '2026-11-16.4', '2026-11-16.5'], saltate: [], installer: {} };
+  assert.equal(previousBuild(h, '2026-11-16.5'), '2026-11-16.4');
+  assert.equal(previousBuild({ ...h, saltate: ['2026-11-16.4'] }, '2026-11-16.5'), '2026-11-15.1', 'la versione lasciata non è «di prima»');
+  assert.equal(previousBuild({ versioni: ['2026-11-16.5'], saltate: [] }, '2026-11-16.5'), null);
+  // dopo il ritorno da 16.5 a 16.4: la versione di prima della 16.4 è la 15.1, non la 16.5 lasciata
+  assert.equal(previousBuild({ versioni: [...h.versioni, '2026-11-16.4'], saltate: ['2026-11-16.5'] }, '2026-11-16.4'), '2026-11-15.1');
+  assert.deepEqual(noteInstalled(h, '2026-11-16.5').versioni, h.versioni, 'stessa versione: niente di nuovo');
+  assert.deepEqual(noteInstalled(h, '2026-11-16.6').versioni.at(-1), '2026-11-16.6');
+  const names = ['2026-11-15.1', '2026-11-16.4', '2026-11-16.5'].map(installerName).concat([installerName('2026-11-16.4') + '.parziale', 'altro.txt']);
+  assert.deepEqual(staleFiles(names, '2026-11-16.5', ['2026-11-16.4', '2026-11-16.5']).sort(), [installerName('2026-11-15.1'), installerName('2026-11-16.4') + '.parziale'].sort(), 'tenuti la versione di prima e quella in uso (interi)');
+  const dir = tmp(), f = path.join(dir, UPDATES.history);
+  assert.deepEqual(readHistory(f), { versioni: [], saltate: [], installer: {} }, 'senza file');
+  writeHistory(f, { versioni: ['2026-11-16.4', 'rotto'], saltate: ['x'], installer: { '2026-11-16.4': { size: 3, sha256: 'a'.repeat(64) }, '2026-11-16.5': { size: 'x' } } });
+  assert.deepEqual(readHistory(f), { versioni: ['2026-11-16.4'], saltate: [], installer: { '2026-11-16.4': { size: 3, sha256: 'a'.repeat(64) } } }, 'valori sbagliati scartati');
+  assert.equal(validateVersions({ versioni: [manifestFor('2026-11-16.4'), { build: 'rotto' }] }, 'https://x.test').length, 1);
+});
+
+test('B55: aggiornamento da A a B, poi «Torna alla versione di prima» (installer tenuto, anche senza internet); B non si ripropone', async () => {
+  const A = '2026-11-16.4', B = '2026-11-16.5', BODY_B = Buffer.from(BODY.map(x => x ^ 1));
+  let online = true;
+  const s = await server({ '/windows/latest.json': (q, r) => (online ? json(manifestFor(B, BODY_B))(q, r) : (r.writeHead(503), r.end())), [`/windows/${installerName(B)}`]: file(BODY_B) });
+  try {
+    const dir = tmp(); let launched = null, quits = 0;
+    // A installata a mano, poi l'aggiornamento a B scaricato dal gioco
+    const ua = new Updater({ current: A, base: s.base, dir, retryMs: 10, launch: async f => { launched = f; return { ok: true }; }, quit: () => { quits++; } });
+    ua.cleanup();
+    assert.equal((await ua.check()).status, 'available');
+    assert.equal((await ua.download()).status, 'ready');
+    assert.equal((await ua.install()).ok, true);
+    // B in uso: la versione di prima è A, ma il suo installer non c'è (A installata a mano): senza internet niente ritorno
+    online = false;
+    const ub = new Updater({ current: B, base: s.base, dir, retryMs: 10, launch: async f => { launched = f; return { ok: true }; }, quit: () => { quits++; } });
+    ub.cleanup();
+    assert.equal(ub.previous(), A);
+    assert.equal(await ub.previousReady(), false);
+    const no = await ub.rollback();
+    assert.equal(no.ok, false); assert.match(no.error, /serve internet/);
+    // l'installer di B (in uso) resta: dopo il prossimo aggiornamento sarà la versione di prima
+    assert.ok(fs.existsSync(path.join(dir, installerName(B))), 'installer della versione in uso tenuto');
+  } finally { await s.close(); }
+});
+
+test('B55: versione di prima riscaricata da windows/versioni.json (sha256 controllato), ritorno, la versione lasciata non si ripropone, permesso rifiutato', async () => {
+  const A = '2026-11-16.4', B = '2026-11-16.5', BODY_A = Buffer.from(BODY.map(x => x ^ 2));
+  let versions = { versioni: [manifestFor(A, BODY_A), manifestFor(B)] };
+  const s = await server({ '/windows/latest.json': json(manifestFor(B)), '/windows/versioni.json': (q, r) => json(versions)(q, r), [`/windows/${installerName(A)}`]: file(BODY_A) });
+  try {
+    const dir = tmp();
+    writeHistory(path.join(dir, UPDATES.history), { versioni: [A], saltate: [], installer: {} });
+    let answer = { ok: false, error: 'Serve il permesso di Windows.' }, launched = null, quits = 0;
+    const u = new Updater({ current: B, base: s.base, dir, retryMs: 10, launch: async (f, m) => { launched = { f, m }; return answer; }, quit: () => { quits++; } });
+    u.cleanup();
+    // versioni.json con lo sha256 sbagliato: niente file tenuto
+    versions = { versioni: [manifestFor(A, BODY_A, { sha256: 'b'.repeat(64) })] };
+    assert.equal(await u.prefetchPrevious(), false);
+    assert.equal(await u.previousReady(), false);
+    versions = { versioni: [manifestFor(A, BODY_A), manifestFor(B)] };
+    assert.equal(await u.prefetchPrevious(), true, 'scaricata e controllata');
+    assert.equal(await u.previousReady(), true);
+    const st = await u.check();
+    assert.equal(st.previous, A); assert.equal(st.previousReady, true);
+    // permesso di Windows rifiutato: niente chiusura, la versione in uso non è lasciata
+    const r1 = await u.rollback();
+    assert.equal(r1.ok, false); assert.equal(quits, 0);
+    assert.deepEqual(readHistory(path.join(dir, UPDATES.history)).saltate, []);
+    assert.equal(path.basename(launched.f), installerName(A)); assert.equal(launched.m.build, A);
+    // sì: si avvia l'installer di A e il programma si chiude
+    answer = { ok: true };
+    assert.equal((await u.rollback()).ok, true); assert.equal(quits, 1);
+    assert.deepEqual(readHistory(path.join(dir, UPDATES.history)).saltate, [B]);
+    // A di nuovo in uso: B è sul server ma non si ripropone (lasciata) finché non esce una versione più nuova
+    const ua = new Updater({ current: A, base: s.base, dir, retryMs: 10 });
+    ua.cleanup();
+    const none = await ua.check();
+    assert.equal(none.status, 'none', 'B lasciata: niente aggiornamento proposto');
+    assert.equal(ua.previous(), null, 'nessuna versione di prima della A (la B è lasciata)');
+  } finally { await s.close(); }
 });

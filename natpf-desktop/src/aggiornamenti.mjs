@@ -24,6 +24,12 @@ import { windowsVersion } from './desktop-core.mjs';
 export const UPDATES = Object.freeze({
   config: 'aggiornamenti.json',
   manifest: 'windows/latest.json',
+  // B55 (16/11/2026): elenco delle ultime versioni pubblicate (file, dimensione, sha256), per riscaricare la versione di
+  // prima; storia delle versioni installate su questo PC, nella cartella degli aggiornamenti
+  versions: 'windows/versioni.json',
+  history: 'storico.json',
+  maxVersionsBytes: 256*1024,
+  maxHistory: 20,
   folder: 'windows',
   dir: 'aggiornamenti',            // dentro %LOCALAPPDATA%\NATPF
   partSuffix: '.parziale',
@@ -255,11 +261,54 @@ export function installerLaunchArgs(file, args = UPDATES.installerArgs){
 
 // File della cartella degli aggiornamenti che non servono più: installer di versioni non più nuove di quella in uso
 // (anche quelli scaricati a metà); tutto il resto si lascia
-export function staleFiles(names = [], current){
+// keep (B55): versioni il cui installer resta (il file intero, non a metà): la versione di prima, per «Torna alla versione
+// di prima», e quella in uso, che sarà la versione di prima dopo il prossimo aggiornamento
+export function staleFiles(names = [], current, keep = []){
+  const K = new Set([].concat(keep || []).filter(Boolean));
   return names.filter(n => {
-    const m = /^NATPF-Simulator-Setup-(.+)\.exe(?:\.parziale)?$/.exec(n);
-    return m && compareBuilds(m[1], current) <= 0;
+    const m = /^NATPF-Simulator-Setup-(.+)\.exe(\.parziale)?$/.exec(n);
+    if (!m || compareBuilds(m[1], current) > 0) return false;
+    return !(K.has(m[1]) && !m[2]);
   });
+}
+
+// --- B55 · versione di prima ------------------------------------------------------------------------------------------
+// Richiesta dell'utente del 16/11/2026 («una funzionalità di fallback e downgrade della release qualora una versione ha
+// rotto delle dinamiche»; decisioni: solo la versione di prima sul PC, comando nelle Opzioni del gioco). Il programma tiene
+// la storia delle versioni installate e l'installer della versione di prima (quello scaricato per aggiornare, o riscaricato
+// in sottofondo da windows/versioni.json, sempre controllato con lo sha256): così il ritorno vale anche senza internet.
+// La versione lasciata con il ritorno non si propone più finché non ne esce una più nuova.
+// storia: { versioni: [build in ordine di installazione], saltate: [build lasciate], installer: { build: { size, sha256 } } }
+export function readHistory(file){
+  try {
+    const h = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const ok = b => typeof b === 'string' && !!parseBuild(b);
+    const installer = {};
+    for (const [b, v] of Object.entries(h?.installer || {})) if (ok(b) && Number.isSafeInteger(v?.size) && /^[0-9a-f]{64}$/.test(String(v?.sha256))) installer[b] = { size: v.size, sha256: v.sha256 };
+    return { versioni: (h?.versioni || []).filter(ok).slice(-UPDATES.maxHistory), saltate: (h?.saltate || []).filter(ok).slice(-UPDATES.maxHistory), installer };
+  } catch { return { versioni: [], saltate: [], installer: {} }; }
+}
+export function writeHistory(file, h){
+  try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(h, null, 1)); return true; } catch { return false; }
+}
+// la versione di prima (funzione pura): l'ultima installata più vecchia di quella in uso, che non sia stata lasciata
+export function previousBuild(history, current){
+  const v = history?.versioni || [], skip = new Set(history?.saltate || []);
+  for (let i = v.length - 1; i >= 0; i--) if (compareBuilds(v[i], current) < 0 && !skip.has(v[i])) return v[i];
+  return null;
+}
+// storia aggiornata con la versione in uso (funzione pura): in fondo se è cambiata
+export function noteInstalled(history, current){
+  const v = history.versioni.filter(Boolean);
+  if (v.at(-1) !== current) v.push(current);
+  return { ...history, versioni: v.slice(-UPDATES.maxHistory) };
+}
+// elenco delle versioni pubblicate (windows/versioni.json: { versioni: [{ build, file, size, sha256 }] }), valido
+export function validateVersions(j, base){
+  const list = Array.isArray(j?.versioni) ? j.versioni : [];
+  const out = [];
+  for (const v of list.slice(0, 200)){ try { out.push(validateManifest({ ...v, version: undefined }, base)); } catch {} }
+  return out;
 }
 
 // --- stato degli aggiornamenti (interfaccia window.natpfDesktop.updates) ----------------------------------------------
@@ -289,11 +338,80 @@ export class Updater {
   info(){ const m = this.manifest; return m ? { latest: m.build, notes: m.notes, size: m.size } : {}; }
   fileFor(m){ return path.join(this.dir, installerName(m.build)); }
 
-  // pulizia della cartella degli aggiornamenti (installer già installati); mai errori
+  // B55: storia delle versioni, versione di prima e il suo installer (se c'è ed è quello giusto)
+  historyFile(){ return path.join(this.dir, UPDATES.history); }
+  history(){ return readHistory(this.historyFile()); }
+  previous(){ return this.dir ? previousBuild(this.history(), this.current) : null; }
+  async previousReady(){
+    const prev = this.previous(); if (!prev) return false;
+    const meta = this.history().installer[prev];
+    return !!meta && await verifiedFile(path.join(this.dir, installerName(prev)), meta);
+  }
+  // la versione in uso nella storia (all'avvio); la versione lasciata con il ritorno resta lasciata
+  noteVersion(){
+    if (!this.dir || !parseBuild(this.current)) return;
+    const h = this.history(), next = noteInstalled(h, this.current);
+    if (next.versioni.join() !== h.versioni.join()) writeHistory(this.historyFile(), next);
+  }
+  rememberInstaller(build, { size, sha256 }){
+    const h = this.history(); h.installer[build] = { size, sha256 };
+    // solo quelli che servono: la versione di prima e quelle più nuove (gli altri file li toglie la pulizia)
+    for (const b of Object.keys(h.installer)) if (compareBuilds(b, this.current) < 0 && b !== previousBuild(h, this.current) && b !== build) delete h.installer[b];
+    // (quello della versione in uso resta: dopo il prossimo aggiornamento è la versione di prima)
+    writeHistory(this.historyFile(), h);
+  }
+  async _withPrevious(){ this.s.previous = this.previous() || undefined; this.s.previousReady = this.s.previous ? await this.previousReady() : undefined; }
+  // l'installer della versione di prima, se manca, da windows/versioni.json (in sottofondo, quando c'è internet); mai errori
+  async prefetchPrevious(){
+    if (!this.enabled) return false;
+    const prev = this.previous(); if (!prev || await this.previousReady()) return !!prev;
+    try {
+      const { res } = await httpGet(`${this.base}/${UPDATES.versions}?t=${this.now()}`, { base: this.base, hosts: this.hosts, timeoutMs: this.timeoutMs, userAgent: `NATPF-Simulator/${this.current}` });
+      if (res.statusCode !== 200){ res.resume(); return false; }
+      const v = validateVersions(JSON.parse(await readBody(res, UPDATES.maxVersionsBytes)), this.base).find(x => x.build === prev);
+      if (!v) return false;
+      await downloadVerified({ url: v.url, dest: path.join(this.dir, installerName(prev)), size: v.size, sha256: v.sha256, base: this.base, hosts: this.hosts, timeoutMs: this.timeoutMs, attempts: this.attempts, retryMs: this.retryMs, userAgent: `NATPF-Simulator/${this.current}` });
+      this.rememberInstaller(prev, v);
+      this.log('aggiornamenti: versione di prima pronta', { versione: prev });
+      await this._withPrevious(); this.set({ ...this.s }, { quiet: true });
+      return true;
+    } catch (e){ this.log('aggiornamenti: versione di prima non scaricata', { codice: e.code, errore: e.message }); return false; }
+  }
+  // «Torna alla versione di prima»: l'installer della versione di prima (controllato), la versione in uso segnata come
+  // lasciata, poi come un aggiornamento (permesso di Windows, chiusura, il gioco si riapre con la versione di prima)
+  async rollback(){
+    if (!this.enabled) return { ok: false, error: 'Aggiornamenti non disponibili.' };
+    if (['downloading', 'installing'].includes(this.s.status)) return { ok: false, error: 'Aspetta la fine dell\'aggiornamento in corso.' };
+    const prev = this.previous();
+    if (!prev) return { ok: false, error: 'Nessuna versione di prima su questo computer.' };
+    if (!(await this.previousReady()) && !(await this.prefetchPrevious())) return { ok: false, error: `La versione ${prev} non è sul computer e non si riesce a scaricarla: serve internet.` };
+    const h = this.history();
+    if (!h.saltate.includes(this.current)) h.saltate.push(this.current);
+    writeHistory(this.historyFile(), h);
+    const file = path.join(this.dir, installerName(prev)), meta = h.installer[prev];
+    const back = { ...this.s };
+    this.set({ ...this.info(), status: 'installing', rollbackTo: prev });
+    let r;
+    try { r = await this.launch(file, { build: prev, ...meta }); } catch (e){ r = { ok: false, error: e.message }; }
+    if (!r?.ok){
+      // il permesso di Windows rifiutato: la versione in uso non è lasciata
+      const h2 = this.history(); h2.saltate = h2.saltate.filter(b => b !== this.current); writeHistory(this.historyFile(), h2);
+      const error = r?.error || 'Ritorno alla versione di prima non avviato.';
+      this.log('aggiornamenti: ritorno non avviato', { errore: error });
+      this.set({ ...back, error });
+      return { ok: false, error };
+    }
+    this.log('aggiornamenti: ritorno alla versione di prima, chiusura del programma', { da: this.current, a: prev });
+    try { this.quit(); } catch {}
+    return { ok: true };
+  }
+
+  // pulizia della cartella degli aggiornamenti (installer già installati, non quello della versione di prima); mai errori
   cleanup(){
     if (!this.dir) return [];
     try {
-      const gone = staleFiles(fs.readdirSync(this.dir), this.current);
+      this.noteVersion();
+      const gone = staleFiles(fs.readdirSync(this.dir), this.current, [this.previous(), this.current]);
       for (const n of gone) fs.rmSync(path.join(this.dir, n), { force: true });
       if (gone.length) this.log('aggiornamenti: tolti i file vecchi', gone);
       return gone;
@@ -310,14 +428,17 @@ export class Updater {
       try {
         const m = await fetchManifest(this.base, { hosts: this.hosts, timeoutMs: this.timeoutMs, now: this.now, userAgent: `NATPF-Simulator/${this.current}` });
         const checkedAt = this.now();
-        if (compareBuilds(m.build, this.current) <= 0){
+        // (B55: la versione lasciata con «Torna alla versione di prima» non si ripropone finché non ne esce una più nuova)
+        if (compareBuilds(m.build, this.current) <= 0 || this.history().saltate.includes(m.build)){
           this.manifest = null; this.cleanup();
-          this.set({ status: 'none', checkedAt, latest: m.build });
+          await this._withPrevious();
+          this.set({ ...(this.s.previous ? { previous: this.s.previous, previousReady: this.s.previousReady } : {}), status: 'none', checkedAt, latest: m.build });
         } else {
           const same = wasReady && wasReady.build === m.build && wasReady.sha256 === m.sha256;
           this.manifest = m;
           const ready = same || await verifiedFile(this.fileFor(m), m);
-          this.set({ ...this.info(), status: ready ? 'ready' : 'available', checkedAt });
+          await this._withPrevious();
+          this.set({ ...this.info(), ...(this.s.previous ? { previous: this.s.previous, previousReady: this.s.previousReady } : {}), status: ready ? 'ready' : 'available', checkedAt });
         }
       } catch (e){
         this.log('aggiornamenti: controllo non riuscito', { codice: e.code, errore: e.message, dettaglio: e.detail });
@@ -338,7 +459,9 @@ export class Updater {
     this.downloading = (async () => {
       try {
         // installer di altre versioni scaricati a metà: via (spazio su disco)
-        try { for (const n of fs.readdirSync(this.dir)) if (/^NATPF-Simulator-Setup-.*\.exe(\.parziale)?$/.test(n) && !n.startsWith(installerName(m.build))) fs.rmSync(path.join(this.dir, n), { force: true }); } catch {}
+        // (B55: non l'installer della versione di prima)
+        const keep = [this.previous(), this.current].filter(Boolean).map(installerName);
+        try { for (const n of fs.readdirSync(this.dir)) if (/^NATPF-Simulator-Setup-.*\.exe(\.parziale)?$/.test(n) && !n.startsWith(installerName(m.build)) && !keep.includes(n)) fs.rmSync(path.join(this.dir, n), { force: true }); } catch {}
         const partial = Math.max(0, sizeOf(dest + UPDATES.partSuffix));
         this.set({ ...this.info(), status: 'downloading', progress: Math.min(1, partial/m.size) });
         this.lastProgressAt = 0;
@@ -350,6 +473,8 @@ export class Updater {
             this.lastProgressAt = t;
             this.set({ ...this.info(), status: 'downloading', progress: Math.min(1, done/total) }, { quiet: true });
           } });
+        // (B55: dimensione e sha256 dell'installer scaricato: dopo l'aggiornamento è quello della versione di prima)
+        this.rememberInstaller(m.build, m);
         this.set({ ...this.info(), status: 'ready', progress: 1 });
       } catch (e){
         this.log('aggiornamenti: download non riuscito', { codice: e.code, errore: e.message, dettaglio: e.detail });
