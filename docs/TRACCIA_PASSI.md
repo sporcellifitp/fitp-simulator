@@ -1257,7 +1257,9 @@ Ordine: B52, poi B53.
       `99902fa99644735e91221255138cdb1c65543e0c86e72beedcd936f1c291439f`, **consegnato**. Non provata su un telefono vero.
 - [~] **B53.3 volée, punto esatto** (la misura dei fotogrammi rifatta due volte è verde: 309,7 contro 283,0 e 301,0
       contro 259,8; manca solo il commit, sospeso dall'utente): codice, test (`natpf-colpi-video` 12/12), fogli, documento §4 e versione
-      **2026-11-15.3** sono nel working tree della sessione, **non committati** (commit dell'app fatto solo con i suoi file).
+      **2026-11-15.3** sono salvati, **non applicati**, in `docs/b53/volee-in-sospeso.patch` (16/11, 08:50: l'utente ha
+      sospeso tutto tranne l'app; il gioco su GitHub resta alla 15.2). Per riprendere: `git apply
+      docs/b53/volee-in-sospeso.patch`, togliere il file della patch nello stesso commit della 15.3.
       Controllo rapido gioco 1752/1752, sito 275/275, desktop 51/51, LAN 13/13, build. `natpf-dritto-video` 53/58: i 4
       rossi di sempre più i fotogrammi al secondo (91,5% < 95%, numeri molto ballerini: 203–368); la misura ripetuta
       (`SOLO=costo`) è stata interrotta per l'urgenza: **rifarla**, poi commit della 15.3, zip e installer. Da aggiungere

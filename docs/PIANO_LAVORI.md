@@ -22,8 +22,8 @@ su uno schermo vuoto: senza il certificato NATPF sul telefono la WebView rifiuta
 stand. La 1.0.2 lo accetta solo per l'indirizzo di rete locale del QR, non si fissa dopo un errore e scrive cosa non va
 (`docs/b52/app-android.md` §6); prova `tools/e2e/natpf-app-certificato.mjs` 7/7 con il server LAN e il certificato veri.
 APK consegnato, non provato su un telefono vero. Il gioco resta alla 2026-11-15.2 su GitHub. **Prossima azione esatta:**
-aspettare l'esito della 1.0.2 sul telefono dell'utente (il resto è sospeso per sua richiesta). Poi B53.3 volée, pronta
-nel working tree della sessione e non committata (misura dei fotogrammi rifatta e verde): commit della 2026-11-15.3, zip
+aspettare l'esito della 1.0.2 sul telefono dell'utente (il resto è sospeso per sua richiesta). Poi B53.3 volée, salvata e
+non applicata in `docs/b53/volee-in-sospeso.patch` (`git apply`; misura dei fotogrammi rifatta e verde): commit della 2026-11-15.3, zip
 e installer; poi B53.4 servizio e B53.5 voce delle Opzioni. Restano dell'utente: Worker del registro e prova a Precision
 (cancello della B36.1), collaudo allo stand e prova dell'app sul telefono. Il resto di questa sezione è storia.
 
