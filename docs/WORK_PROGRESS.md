@@ -2471,3 +2471,15 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Non verificato: telefono vero (tastiere di Android e iPhone, app 1.0.3 con la tastiera aperta), ledwall.
 - Pacchetti (commit `3135a0d`): installer 2026-11-16.1 dal link fisso = `latest.json` (128.155.172 B, sha256 `d9ee30a7…4eab50`);
   zip Cloudflare 23.951.030 B, sha256 `6be7b8d3…7e98d04b6`, provato estratto, consegnato. GitHub verde (tre workflow).
+
+## B54.1 · Telefoni dello stand con la pagina di prima, versione 2026-11-16.2 (16/11/2026, 13:10–14:30 UTC)
+
+- [x] Foto dell'utente: telefono dello stand senza la richiesta del nome. Causa: il telefono si ricollega dopo
+  l'aggiornamento del PC senza ricaricare la pagina (pagina di prima, niente `dev nm 1`). File: `natpf_phone_racket.js`
+  (`_sendBuild`, messaggio `bv`), `racchetta.js` (`buildReload`: fuori dalla partita, una volta per versione, con
+  `pageGoing`), prove `natpf-b54-nome.test.mjs` (+1) e `natpf-nome-telefono.mjs` (+3), guida 3, documento B54 §4, versione.
+- Verifiche: gioco 1762/1762, sito 280/280 (dopo aver rimesso la riga di `case 'ph'` come la vuole il test del B46),
+  LAN 13/13, desktop 51/51, build; `natpf-nome-telefono` 23/23.
+- Non verificato: telefono vero; la ricarica nell'app (WebView) e il ricollegamento dello stand dopo la ricarica sono
+  quelli già provati per la pagina ricaricata (`natpf-fiera-telefoni`), non questo caso preciso.
+

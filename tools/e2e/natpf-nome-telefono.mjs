@@ -102,6 +102,20 @@ try {
   const low = await p.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); return { input: r('nameInput'), ok: r('nameOk'), skip: r('nameSkip'), vh: innerHeight }; });
   check('con la tastiera aperta (schermo alto 470 px) campo, «Conferma» e «Salta» in vista', low.input.bottom <= low.vh && low.ok.bottom <= low.vh && low.skip.top >= 0, JSON.stringify({ ok: Math.round(low.ok.bottom), vh: low.vh }));
   await p.screenshot({ path: `${SP}/b54-nome-tastiera.png` });
+  // B54.1: il computer ha un'altra versione → la pagina si ricarica da sola, non in partita, una volta per versione
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.evaluate(() => { window.__noReload = 1; });
+  await msg({ t: 'ph', ph: 'play' });
+  await msg({ t: 'bv', v: '2099-01-01.1' });
+  await p.waitForTimeout(400);
+  check('B54.1 · versione diversa durante lo scambio: niente ricarica', await p.evaluate(() => window.__noReload === 1));
+  await Promise.all([p.waitForEvent('load', { timeout: 8000 }), msg({ t: 'ph', ph: 'menu' })]).catch(() => {});
+  check('B54.1 · tornati al menu: la pagina si ricarica da sola', await p.evaluate(() => window.__noReload === undefined));
+  await p.waitForFunction(() => typeof window.fromGame === 'function', null, { timeout: 8000 }).catch(() => {});
+  await p.evaluate(() => { window.__noReload = 1; });
+  await p.evaluate(() => window.fromGame?.({ t: 'bv', v: '2099-01-01.1' }));
+  await p.waitForTimeout(600);
+  check('B54.1 · la stessa versione di nuovo (pagina nuova non arrivata): niente giri di ricariche', await p.evaluate(() => window.__noReload === 1));
   check('nessun errore nella pagina', errs.length === 0, errs.join(' | '));
 } finally {
   await browser.close();

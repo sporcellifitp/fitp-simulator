@@ -94,6 +94,15 @@ let nextOffer = null;
 let nextRearmT = 0;
 // B54: nome chiesto dal computer prima di «Sono pronto» ({ v, er, id, sent }), null se non lo chiede; avviso scritto qui
 let nameOffer = null, nameRearmT = 0, nameWhy = '';
+// B54.1: il computer ha un'altra versione (dopo il suo aggiornamento): la pagina si ricarica da sola, una volta per versione
+// (niente giri se la pagina nuova non arriva), mai al servizio, nello scambio o in pausa (si aspetta il menu o la fine)
+let pendingBuild = null;
+function buildReload(){
+  if (!pendingBuild || ['serve', 'toss', 'play', 'pause'].includes(phase) || ss.get('reloadFor') === pendingBuild) return;
+  ss.set('reloadFor', pendingBuild);
+  try { pageGoing(); } catch (e){}
+  location.reload();
+}
 // B41.3: pulsanti dello staff sul telefono dello stand, in vista fino a staffUntil dopo la pressione lunga sul numero
 let staffUntil = 0, staffT = null;
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
@@ -421,7 +430,9 @@ function onData(c, d){
     // (txt, B20: la partita è in pausa per il telefono dell'altro giocatore, e lo dice)
     // soglie dal colpo imparato negli scambi di prova (B28): solo sopra il profilo semplice, che non ha un colpo tipico suo
     case 'pf': { const th = trialThresholds(d); if (th && sensor === 'ready' && inputMode === 'motion' && det.profile.simple) det.setThresholds(th); break; }
-    case 'ph': phase = d.ph; phaseNote = pauseNote(d); trial = trialOnMsg(d); det.setSignVote?.(d.tr !== 1); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
+    // B54.1: versione del gioco sul computer; diversa da questa pagina → ricarica fuori dalla partita (buildReload)
+    case 'bv': if (typeof d.v === 'string' && d.v && d.v !== NATPF_BUILD){ pendingBuild = d.v.slice(0, 40); buildReload(); } break;
+    case 'ph': phase = d.ph; phaseNote = pauseNote(d); trial = trialOnMsg(d); det.setSignVote?.(d.tr !== 1); if (phase !== 'over') rematch = null; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); buildReload(); break;
     case 'tl':
       if (c !== conn) break;
       touchRequest = d.on === 1;

@@ -67,6 +67,19 @@ famose): per quello c'è la correzione dello staff.
   schermata finale con il nome, tre visitatori con «Salta», stesso schermo con un nome e un «Salta») e
   `tools/e2e/natpf-flusso-tocchi.mjs` (tocchi per visitatore: ora al massimo 2 con un telefono e 4 con due).
 
-## 4. Cosa non è provato
+## 4. B54.1 · telefoni dello stand con la pagina di prima (versione 2026-11-16.2)
+
+Foto dell'utente del 16/11 (13:59): telefono dello stand nell'app 1.0.3 con «Sono pronto» e nessuna richiesta del nome.
+Causa (dal codice): il telefono dello stand, quando il PC si aggiorna e si riavvia, si ricollega da solo **senza
+ricaricare la pagina**; la pagina di prima non dice al computer che sa chiedere il nome (`dev nm 1`), quindi il computer non
+lo chiede (compatibilità voluta). Correzione: il computer manda una volta per collegamento la sua versione (`bv`,
+`NatpfPhoneRacket._sendBuild`); una pagina di versione diversa si ricarica da sola **fuori dalla partita** (non al servizio,
+nello scambio o in pausa: aspetta il menu o la fine) e **una volta per versione** (niente giri se la pagina nuova non
+arriva). Vale per le pagine dalla 16.2 in poi; per quelle già sui telefoni (16.1 e prima) una volta a mano: tre volte
+«volume giù» → «Riapri l'ultimo collegamento», o chiudere e riaprire l'app (il PC manda i file con `no-store`).
+Prove: `natpf-b54-nome.test.mjs` (+1: `bv` una volta per collegamento), `natpf-nome-telefono.mjs` (+3: niente ricarica in
+partita, ricarica al menu, niente giri) 23/23.
+
+## 5. Cosa non è provato
 
 Telefono vero (tastiere vere di Android e iPhone, l'app 1.0.3 con la tastiera aperta), ledwall, visitatori veri.

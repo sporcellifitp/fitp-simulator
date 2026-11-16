@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-16.1** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-16.2** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -220,7 +220,9 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
   telefono dice «Scegli un altro nome». Per correggere un nome dal PC: «Nome» sulla pagina della fiera (contro la CPU) o
   il campo del nome di ciascuno (stesso schermo). Nel registro dello stand c'è solo se il nome è stato scritto, mai il
   nome. Con una pagina del telefono più vecchia (un telefono rimasto aperto da prima dell'aggiornamento) il nome non si
-  chiede e resta «Sono pronto» come prima: ricarica la pagina del telefono.
+  chiede e resta «Sono pronto» come prima. Dopo l'aggiornamento del PC alla 2026-11-16.2, **una volta sola** su ogni
+  telefono: tre volte «volume giù» → «Riapri l'ultimo collegamento» (o chiudi e riapri l'app; in Chrome ricarica la
+  pagina). Dalla 16.2 in poi i telefoni prendono da soli la pagina nuova dopo ogni aggiornamento, fuori dalla partita.
 - **«Sono pronto» dal telefono** (dalla 2026-11-14.1, non va acceso): su questa pagina il telefono di chi gioca mostra un
   grande pulsante giallo «Sono pronto». Quando hanno toccato tutti (uno contro la CPU, due nello stesso schermo) la
   partita comincia da sola. Accanto a «Gioca ›» vedi chi è pronto («Telefono pronto ✓»). «Gioca ›» resta sempre per te.

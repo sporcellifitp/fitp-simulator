@@ -1301,3 +1301,9 @@ del PC manda i file con `Cache-Control: no-store`, la pagina nuova arriva.
 **Correzione in corso (B54.1)**: il PC dice al telefono la sua versione; una pagina di versione diversa si ricarica da sola
 una volta (vale dalle pagine della 16.2 in poi; per quelle già sui telefoni resta il rimedio sopra). Poi: B53.4 servizio,
 B53.5 voce delle Opzioni. Regole e procedura: CLAUDE.md, `docs/PIANO_LAVORI.md` §1 e §6.
+
+- [x] **B54.1 → versione 2026-11-16.2**: versione del gioco al telefono (`bv`) e ricarica da sola della pagina di un'altra
+      versione, fuori dalla partita, una volta per versione. Gioco 1762/1762, sito 280/280, LAN 13/13, desktop 51/51,
+      build; `natpf-nome-telefono` 23/23. Per i telefoni con la pagina di prima (16.1 e prima): una volta a mano
+      «Riapri l'ultimo collegamento» (guida 3). **Punto esatto**: commit e push della 16.2, poi zip Cloudflare e installer
+      (procedura `docs/PIANO_LAVORI.md` §6), poi B53.4 servizio e B53.5 voce delle Opzioni.

@@ -184,3 +184,13 @@ test('stesso schermo: ognuno scrive il suo nome sul suo telefono; nome nella met
   assert.equal(ui.split.name('p1'), 'Player 1');
   assert.equal(typeof resetFairVisitor, 'function');
 });
+
+test('B54.1: una volta per collegamento la versione del gioco al telefono (bv), di nuovo dopo un ricollegamento', async () => {
+  const { NATPF_BUILD } = await import('@natpf/tennis/version.js');
+  const w = await playWorld({ cal: 'none' }), { link, P } = w;
+  w.advance(500);
+  const bv = () => link.sent.filter(m => m.t === 'bv');
+  assert.deepEqual(bv(), [{ t: 'bv', v: NATPF_BUILD }], 'una volta sola');
+  P.state.joins = (P.state.joins || 0) + 1; w.advance(200);
+  assert.equal(bv().length, 2, 'collegamento nuovo: di nuovo');
+});

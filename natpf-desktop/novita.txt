@@ -59,3 +59,4 @@
 2026-11-15.2: Con «Dritto come nel video» anche la schiacciata: gambe piegate e di lato, colpo in punta di piedi, salto e atterraggio a braccia aperte.
 2026-11-15.3: Con «Dritto come nel video» a rete le volée sono corte: gambe piegate, passo avanti, colpo secco, senza il saltello dei colpi da fondo campo.
 2026-11-16.1: Prima di «Sono pronto» ogni giocatore scrive il suo nome sul telefono (o tocca «Salta»): il nome va sul tabellone e sulla schermata finale. Niente parolacce: lo staff può sempre correggerlo dal PC.
+2026-11-16.2: Dopo un aggiornamento del PC i telefoni prendono da soli la pagina nuova (fuori dalla partita): così compare anche la richiesta del nome.

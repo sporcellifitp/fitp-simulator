@@ -17,6 +17,13 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 16/11/2026, 14:30 UTC (B54.1, versione 2026-11-16.2).** Telefoni dello stand con la pagina di prima
+(foto dell'utente: niente nome): il PC manda la sua versione e la pagina di un'altra versione si ricarica da sola fuori
+dalla partita. Test verdi (gioco 1762, sito 280, LAN 13, desktop 51, build, `natpf-nome-telefono` 23/23). **Prossima
+azione esatta:** pacchetti della 16.2 (zip Cloudflare provato estratto, installer dal link fisso = `latest.json`),
+consegna; dire all'utente il «Riapri l'ultimo collegamento» una volta per i telefoni già aperti; poi B53.4 servizio e
+B53.5 voce delle Opzioni. Restano dell'utente: Worker del registro e prova a Precision (B36.1), collaudo allo stand.
+
 **Checkpoint del 16/11/2026, 13:30 UTC (B54 nome dal telefono, versione 2026-11-16.1).** Il visitatore scrive il suo nome
 sul telefono prima di «Sono pronto» (`docs/b54/nome-dal-telefono.md`). Gioco 1761/1761, sito 280/280, LAN 13/13, desktop
 51/51, build; prove nel browser `natpf-nome-telefono` 20/20, `natpf-fiera-telefoni` 66/66, `natpf-flusso-tocchi` (fiera

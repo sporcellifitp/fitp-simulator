@@ -17,6 +17,7 @@
 // verso chi gioca, il dorso guarda la rete come le corde. Il telefono calcola l'angolo del piatto all'impatto
 // (face-tracker.js) e lo manda nel colpo: la direzione la decide soprattutto il piatto (natpfSwingToEngine), e la
 // racchetta in gioco segue l'orientamento del piatto (racketTiltFromFace).
+import { NATPF_BUILD } from '@natpf/tennis/version.js';
 import * as THREE from 'three';
 import { createPhoneLink, testSearch } from '@natpf/tennis/link.js';
 import { pairingUrl } from '@natpf/tennis/pairing.js';
@@ -829,6 +830,17 @@ export class NatpfPhoneRacket {
     return true;
   }
   _renewNext(){ if (!this.nextOffer) return; this.nextId = ++this.nextSeq; this._sendNext(); }
+  // B54.1 (16/11, foto dell'utente: telefono dello stand senza la richiesta del nome): una volta per collegamento la
+  // versione del gioco al telefono (messaggio bv). Una pagina di un'altra versione si ricarica da sola fuori dalla partita
+  // (racchetta.js): il telefono dello stand, che dopo l'aggiornamento del PC si ricollega senza ricaricare, prende la pagina
+  // nuova. Le pagine di prima della 16.2 ignorano il messaggio
+  _sendBuild(){
+    if (!this.connected){ this.buildSent = ''; return; }
+    const key = String(this.state.joins || 0);
+    if (this.buildSent === key) return;
+    this.buildSent = key;
+    this.link.send({ t: 'bv', v: NATPF_BUILD });
+  }
   // B54: la pagina del telefono sa chiedere il nome (dalle pagine del B54: dev nm 1)
   get asksName(){ return !!this.device?.names; }
   onName(fn){ this.nameListeners.add(fn); return () => this.nameListeners.delete(fn); }
@@ -1269,7 +1281,7 @@ export class NatpfPhoneRacket {
     // (tr, B28: scambi di prova in corso, il telefono lo scrive; le pagine di prima lo ignorano)
     // (B45.1: la moviola è una pausa con il suo testo, REPLAY_NOTE)
     if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase, ...(this.trial ? { tr: 1 } : {}), ...(phase === 'pause' && this.engine.phase === 'REPLAY' ? { txt: REPLAY_NOTE } : {}) }); }
-    this._autoProfile(); this._sendNext(); this._sendName(); this._sendTouchLock(phase);
+    this._autoProfile(); this._sendBuild(); this._sendNext(); this._sendName(); this._sendTouchLock(phase);
     // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo. Con il verso corretto
     // dagli scambi di prova (dirSign −1) va al telefono girato: per lui dritto e rovescio sono scambiati
     const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand, this.role)*this.learner.sign : 0;
