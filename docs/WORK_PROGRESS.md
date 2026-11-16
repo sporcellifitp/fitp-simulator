@@ -2469,3 +2469,5 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   2 tocchi per visitatore, prima 1 tocco) e FLOW=fiera-due 13/13 (al massimo 4 tocchi a coppia, prima 2).
 - Filtro: 70 nomi veri passano, 42 parole da bloccare no; limite noto: cognomi rari come «Merdani» (li scrive lo staff).
 - Non verificato: telefono vero (tastiere di Android e iPhone, app 1.0.3 con la tastiera aperta), ledwall.
+- Pacchetti (commit `3135a0d`): installer 2026-11-16.1 dal link fisso = `latest.json` (128.155.172 B, sha256 `d9ee30a7…4eab50`);
+  zip Cloudflare 23.951.030 B, sha256 `6be7b8d3…7e98d04b6`, provato estratto, consegnato. GitHub verde (tre workflow).

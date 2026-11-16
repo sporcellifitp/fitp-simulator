@@ -1281,5 +1281,10 @@ verificato l'altro agente (non visto qui).
       `natpf-fiera-telefoni` 66/66 (dopo la correzione dei pulsanti dello staff sul telefono dello stand),
       `natpf-flusso-tocchi` fiera 20/20, fiera-due 13/13, singolo 5/5, stesso 6/6, `natpf-telefono-bloccato` 12/12.
       L'app Android non cambia (la pagina arriva dal PC). Non provato su un telefono vero.
-- [ ] Pacchetti della 16.1: zip Cloudflare (versione già alzata, build rifatta), installer dal link fisso, consegna.
+- [x] Pacchetti della 16.1 (commit `3135a0d`, GitHub verde: test, eseguibili Windows, motore base): **installer** dal link
+      fisso e dal file della versione uguali a `latest.json` (128.155.172 B, sha256
+      `d9ee30a73914f3175750f77b5f582291b830056cd2fdb9e1bd854603cb4eab50`, pubblicato 12:50 UTC); **zip Cloudflare**
+      23.951.030 B (144 file), sha256 `6be7b8d3ae529d66dbb55f4d606af3db9635c956a29aea07fddcaff7e98d04b6`, provato estratto
+      (`natpf-nome-telefono` 20/20, gioco avviato con la 16.1 senza errori, `natpf-telefono-bloccato` 11/12 con il solo
+      CORS del TURN, atteso), consegnato all'utente.
 - [ ] Poi: B53.4 servizio, B53.5 voce delle Opzioni «Movimenti come nel video».
