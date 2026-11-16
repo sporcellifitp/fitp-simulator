@@ -1412,3 +1412,6 @@ giorni di Torino → conto delle partite, B36.1, soglie dei trofei; risposte all
 - [x] Pacchetti della 16.7 (`ad38cc3`, GitHub verde): installer = `latest.json` (128.150.771 B, sha256
       `cc1002e940db4344b4d3eebdb4586172d26a42dfa380be94c8880bfe142e6d21`), `versioni.json` 16.7…16.3; zip 23.951.984 B,
       sha256 `0f2256607f9df2ac51272c32cac1e355e137e4abfb33f25ee3e138949b1b3cb9`, provato estratto, consegnato.
+- [~] **B56 · anticipo dei colpi** (decisione dell'utente del 16/11, domanda a scelta: «Prima l'anticipo»; la B36.1 resta
+      ferma): capire se l'anticipo di Torino (84–91 % dei colpi, +130 ms in media) è uno spostamento fisso (latenza
+      compensata male) o dipende dalla palla (persone che colpiscono presto), poi correggerlo e rimisurare con il registro.
