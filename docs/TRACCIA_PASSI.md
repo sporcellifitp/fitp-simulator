@@ -1359,3 +1359,18 @@ giocatore» chiede il nome sul PC e poi sul telefono). Regole: CLAUDE.md; proced
 `docs/PRODOTTI_FIERA_E_ONLINE.md` §4 e i file dei giorni di Torino scaricati dalla pagina del Worker (con la sua chiave:
 mai in chat). Con i file: conto delle partite, poi B36.1 (direzione) e soglie dei trofei sui dati veri
 (`scripts/audit/b40-trofei.mjs`, `docs/b36/piano-direzionalita.md`).
+
+## >>> 16/11, 18:00 UTC · B55 RITORNO ALLA VERSIONE DI PRIMA (FIERA) · in corso <<<
+
+Richiesta dell'utente: «prevedi una funzionalità di fallback e downgrade della release qualora una versione ha rotto
+delle dinamiche». Decisioni (domande a scelta): **solo «Versione di prima sul PC»** (non gli interruttori per dinamica,
+non il ritiro centrale da GitHub); il comando sta **nelle Opzioni**. Prodotto: FIERA (programma Windows).
+Oggi non si può: l'aggiornamento accetta solo versioni più nuove (`aggiornamenti.mjs`, `compareBuilds <= 0`) e
+`staleFiles` cancella gli installer delle versioni vecchie; gli installer di ogni versione restano su R2.
+Piano: (1) il workflow pubblica anche `windows/versioni.json` (ultime versioni con file, dimensione, sha256);
+(2) il programma tiene la storia delle versioni installate e l'installer della versione di prima (scaricato e controllato
+in sottofondo quando c'è internet, così poi vale anche offline; non cancellato da `staleFiles`); (3) ponte
+`natpfDesktop.updates`: versione di prima disponibile e `rollback()`; (4) nelle Opzioni del gioco, solo nel programma
+Windows: «Torna alla versione di prima (X)» con conferma; (5) dopo il ritorno la versione lasciata non si ripropone
+finché non ne esce una più nuova; (6) l'installer deve accettare una versione più vecchia (controllare NSIS); prove con
+node:test e `scripts/prova-linux.mjs`.
