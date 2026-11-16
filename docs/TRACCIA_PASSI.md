@@ -1409,3 +1409,6 @@ giorni di Torino → conto delle partite, B36.1, soglie dei trofei; risposte all
 - [ ] **B36.1 direzione: FERMA, da decidere con l'utente** (regola del piano): la cima è troppo imprecisa nei dati veri
       (metà dei colpi entro ±52°), oggi la palla la dirige il tempo (72–77 %). Osservazione: 84–91 % dei colpi in anticipo
       (+105…+221 ms): da guardare per prima.
+- [x] Pacchetti della 16.7 (`ad38cc3`, GitHub verde): installer = `latest.json` (128.150.771 B, sha256
+      `cc1002e940db4344b4d3eebdb4586172d26a42dfa380be94c8880bfe142e6d21`), `versioni.json` 16.7…16.3; zip 23.951.984 B,
+      sha256 `0f2256607f9df2ac51272c32cac1e355e137e4abfb33f25ee3e138949b1b3cb9`, provato estratto, consegnato.
