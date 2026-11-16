@@ -98,7 +98,15 @@ immutato con la prova accesa. Fogli: `COLPO=rovescio SOLO=fogli FOGLI=<cartella>
   `COLPO=volee` e `COLPO=volee-rovescio` (giocatore a 4 m dalla rete, palla tesa come secondo colpo dello scambio);
   immagini `img/volee-vicina.webp`, `img/volee-rovescio-vicina.webp`.
 
-## 5. Cosa non è provato
+## 5. Voce delle Opzioni (B53.5, versione 2026-11-16.3)
+
+La voce si chiama **«Movimenti come nel video»** (prima «Dritto come nel video (prova)»): vale per dritto, rovescio,
+schiacciata e volée. Stessa chiave salvata (`natpf-tennis.drittoVideo`) e stesso `?dritto=video|prima`: chi l'aveva spenta
+la ritrova spenta. Avvisi: «Movimenti come nel video accesi» / «… spenti: i colpi sono quelli di prima». Prove:
+`natpf-dritto-video-opzione.test.mjs`, `natpf-dritto-video.test.mjs`, `tools/e2e/natpf-dritto-video.mjs` (riga delle Opzioni).
+Il servizio (B53.4) non è ancora fatto.
+
+## 6. Cosa non è provato
 
 Come il B23: telefono vero, webcam vera, ledwall, scheda video vera; il giudizio «mi convince» spetta all'utente. Le
 pose sono ricavate a mano dai fotogrammi del trailer (il rovescio visto di fronte, il gioco lo mostra da dietro).

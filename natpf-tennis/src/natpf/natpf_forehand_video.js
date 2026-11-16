@@ -46,7 +46,8 @@ export function writeForehandVideo(on, { storage = globalThis.localStorage } = {
 let enabled = null;
 export function forehandVideoEnabled(){ return enabled ?? (enabled = readForehandVideo()); }
 export function setForehandVideo(on){ return (enabled = !!on); }
-export const forehandVideoToast = on => (on ? 'Dritto come nel video (prova) acceso' : 'Dritto come nel video spento: il dritto è quello di prima');
+// (B53.5, 16/11: la voce vale per tutti i colpi del B53, «Movimenti come nel video»; la chiave salvata resta drittoVideo)
+export const forehandVideoToast = on => (on ? 'Movimenti come nel video accesi' : 'Movimenti come nel video spenti: i colpi sono quelli di prima');
 
 /* ---------- a rete: volée (B53.3) ---------- */
 // A rete (meno di NET_Z m dalla rete, cioè dentro la riga del servizio e poco oltre) dritto e rovescio sono volée: le pose

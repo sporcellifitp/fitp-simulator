@@ -1307,3 +1307,10 @@ B53.5 voce delle Opzioni. Regole e procedura: CLAUDE.md, `docs/PIANO_LAVORI.md` 
       build; `natpf-nome-telefono` 23/23. Per i telefoni con la pagina di prima (16.1 e prima): una volta a mano
       «Riapri l'ultimo collegamento» (guida 3). **Punto esatto**: commit e push della 16.2, poi zip Cloudflare e installer
       (procedura `docs/PIANO_LAVORI.md` §6), poi B53.4 servizio e B53.5 voce delle Opzioni.
+- [x] Pacchetti della 16.2 (`37db3ca`, GitHub verde): installer dal link fisso = `latest.json` (128.163.978 B, sha256
+      `f0e95275f0335be2203be36721a7050248c55fd24c56f172511ee9d167e9137a`); zip Cloudflare 23.951.355 B, sha256
+      `768829c0fc537635d3857a624d48515e31df48be165521618625f944f1641bba`, provato estratto (`natpf-nome-telefono` 23/23,
+      gioco avviato), consegnato.
+- [x] **B53.5 → versione 2026-11-16.3**: voce delle Opzioni «Movimenti come nel video» (stessa chiave `drittoVideo`),
+      avvisi nuovi, guida e `docs/b53/colpi-dal-video.md` §5. Gioco 1762/1762, sito 280/280, LAN 13/13, desktop 51/51,
+      build. **Punto esatto**: commit e push della 16.3, zip e installer; poi **B53.4 servizio** (l'ultimo pezzo del B53).

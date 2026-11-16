@@ -2482,4 +2482,13 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   LAN 13/13, desktop 51/51, build; `natpf-nome-telefono` 23/23.
 - Non verificato: telefono vero; la ricarica nell'app (WebView) e il ricollegamento dello stand dopo la ricarica sono
   quelli già provati per la pagina ricaricata (`natpf-fiera-telefoni`), non questo caso preciso.
+- Pacchetti 16.2: installer = `latest.json` (sha256 `f0e95275…137a`), zip `768829c0…1bba` provato estratto, consegnato.
+
+## B53.5 · Voce «Movimenti come nel video», versione 2026-11-16.3 (16/11/2026)
+
+- [x] File: `natpf-tennis/index.html` (etichetta e `aria-label`), `natpf_forehand_video.js` (avvisi), prove
+  `natpf-dritto-video-opzione.test.mjs` e `natpf-dritto-video.test.mjs`, `tools/e2e/natpf-dritto-video.mjs` (riga delle
+  Opzioni), guida, `docs/b53/colpi-dal-video.md` §5, versione. Stessa chiave salvata (`natpf-tennis.drittoVideo`).
+- Verifiche: gioco 1762/1762, sito 280/280, LAN 13/13, desktop 51/51, build. Non rifatta `natpf-dritto-video` nel browser
+  (cambia solo la scritta; la riga delle Opzioni si controlla lì).
 

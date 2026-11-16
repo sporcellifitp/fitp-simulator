@@ -17,6 +17,14 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 16/11/2026, 15:10 UTC (B53.5, versione 2026-11-16.3).** 16.2 pubblicata e verificata (installer =
+`latest.json` `f0e95275…`, zip `768829c0…`). B53.5: la voce delle Opzioni si chiama «Movimenti come nel video». Test
+verdi. **Prossima azione esatta:** pacchetti della 16.3 (zip provato estratto, installer dal link fisso), poi **B53.4
+servizio** (pose solo dentro e dopo lo swing del servizio: piegamento all'inizio, spinta in alto e avanti, piccolo salto
+in campo, atterraggio; racchetta del motore intatta nella zona dell'impatto; aggiornare i test del B23 che danno il
+servizio per immutato; fogli con `COLPO=servizio`). Restano dell'utente: Worker del registro e prova a Precision (B36.1),
+collaudo allo stand; sui telefoni con la pagina di prima della 16.2 una volta «Riapri l'ultimo collegamento».
+
 **Checkpoint del 16/11/2026, 14:30 UTC (B54.1, versione 2026-11-16.2).** Telefoni dello stand con la pagina di prima
 (foto dell'utente: niente nome): il PC manda la sua versione e la pagina di un'altra versione si ricarica da sola fuori
 dalla partita. Test verdi (gioco 1762, sito 280, LAN 13, desktop 51, build, `natpf-nome-telefono` 23/23). **Prossima

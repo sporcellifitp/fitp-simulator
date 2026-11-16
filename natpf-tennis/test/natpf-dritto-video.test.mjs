@@ -44,7 +44,7 @@ test('interruttore: di base Sì, salvato con la chiave natpf-tennis.drittoVideo,
   assert.equal(readForehandVideo({ storage: null, search: null }), true);
   assert.equal(setForehandVideo(false), false); assert.equal(forehandVideoEnabled(), false);
   assert.equal(setForehandVideo(1), true); assert.equal(forehandVideoEnabled(), true);
-  assert.match(FVM.forehandVideoToast(true), /acceso/); assert.match(FVM.forehandVideoToast(false), /quello di prima/);
+  assert.match(FVM.forehandVideoToast(true), /Movimenti come nel video accesi/); assert.match(FVM.forehandVideoToast(false), /quelli di prima/);
 });
 
 test('spenta: le ossa sono quelle di ae68759, fotogramma per fotogramma, per destro, mancino e avversario', () => {

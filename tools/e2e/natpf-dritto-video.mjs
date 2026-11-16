@@ -315,7 +315,7 @@ async function interruttore(){
     return { label: r.querySelector('.lobby-label').textContent.trim(), btns: [...r.querySelectorAll('[data-natpf-dritto]')].map(x => `${x.textContent.trim()}${x.classList.contains('selected') ? '*' : ''}`),
       dentro: box.top >= 0 && box.bottom <= innerHeight && seg.right <= innerWidth && lab.right <= seg.left + 1 };
   });
-  check('Opzioni: riga «Dritto come nel video (prova)» con Sì (scelto) e No, dentro lo schermo', row.label === 'Dritto come nel video (prova)' && row.btns.join(' ') === 'Sì* No' && row.dentro, JSON.stringify(row));
+  check('Opzioni: riga «Movimenti come nel video» (B53.5) con Sì (scelto) e No, dentro lo schermo', row.label === 'Movimenti come nel video' && row.btns.join(' ') === 'Sì* No' && row.dentro, JSON.stringify(row));
   if (FOGLI) await p.screenshot({ path: path.join(FOGLI, 'opzioni.png') });
   await p.click('[data-natpf-dritto="0"]');
   const s1 = await stato(p);
