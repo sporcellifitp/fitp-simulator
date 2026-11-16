@@ -1343,7 +1343,9 @@ giocatore» chiede il nome sul PC e poi sul telefono). Regole: CLAUDE.md; proced
 ## >>> 16/11, 17:00 UTC · RICHIESTE DELL'UTENTE (dopo la lista dei punti aperti) <<<
 
 - [x] **B54.2 → versione 2026-11-16.5**: «Nuovo giocatore» per la partita con il telefono non apre più la tastiera del PC
-      (decisione: «togli la richiesta dal PC»). Gioco 1765/1765. Pacchetti: da fare (zip, installer dal link fisso).
+      (decisione: «togli la richiesta dal PC»). Gioco 1765/1765, sito 280/280, build. Pacchetti (`e54a309`, GitHub verde):
+      installer dal link fisso = `latest.json` (128.165.079 B, sha256 `6021deb38df984785683a47e6b214180607472a559b5f26b77fb8220b97ebadf`);
+      zip 23.951.539 B, sha256 `6dbb088f78f2256b8f806e83dc9165a778abf035453833c3ec4529f03f731285`, provato estratto, consegnato.
 - [x] Worker del registro: **già ricaricato** (lo stato pubblico risponde `formato: 2`, l'ultima versione del repository,
       B36.0). Non serve rifarlo.
 - [ ] **Struttura delle funzionalità per prodotto** (richiesta dell'utente): versione per la **fiera** (installer, NATPF
@@ -1352,3 +1354,8 @@ giocatore» chiede il nome sul PC e poi sul telefono). Regole: CLAUDE.md; proced
 - [ ] **B36.1 direzione dei colpi e soglie dei trofei «in parallelo»** (richiesta dell'utente): il piano B36 ha il cancello
       della prova a Precision; ora ci sono i dati veri della fiera di Torino nel registro (si leggono solo con la chiave
       dell'utente: proposto all'utente di scaricare i giorni dalla pagina del Worker e caricarli qui).
+
+**Prossima azione esatta (16/11, 17:30 UTC)**: aspettare le risposte dell'utente sulle domande di
+`docs/PRODOTTI_FIERA_E_ONLINE.md` §4 e i file dei giorni di Torino scaricati dalla pagina del Worker (con la sua chiave:
+mai in chat). Con i file: conto delle partite, poi B36.1 (direzione) e soglie dei trofei sui dati veri
+(`scripts/audit/b40-trofei.mjs`, `docs/b36/piano-direzionalita.md`).

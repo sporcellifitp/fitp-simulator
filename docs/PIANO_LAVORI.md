@@ -17,6 +17,12 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 16/11/2026, 17:30 UTC (versione 2026-11-16.5).** B54.2 (niente nome sulla tastiera del PC con «Nuovo
+giocatore») pubblicata e verificata (installer `6021deb3…`, zip `6dbb088f…`). Bozza dei due prodotti (fiera e online) in
+`docs/PRODOTTI_FIERA_E_ONLINE.md`, regola in CLAUDE.md. Worker del registro già alla versione giusta (formato 2).
+**Prossima azione esatta:** con i giorni di Torino scaricati dall'utente: conto delle partite, B36.1 e soglie dei trofei sui
+dati veri; con le risposte del §4 della bozza: separazione dei due prodotti.
+
 **Checkpoint del 16/11/2026, 16:00 UTC (B53.4 servizio, versione 2026-11-16.4: B53 finito).** 16.3 pubblicata e
 verificata (installer `61f14209…`, zip `6b728776…`). Servizio «come nel video»: impatto, finale e saltello; attesa e lancio
 identici. Test verdi (gioco 1764, sito 280, LAN 13, desktop 51, build). Pacchetti della 16.4 pubblicati e
