@@ -1450,8 +1450,22 @@ registro da ricaricare (utente).
       della vittoria; dentro la card». Fatto: finestra del personaggio della card, una per card (nello stesso schermo
       vittoria e sconfitta), ritratto di ripiego; `natpf-b58-mascotte` 13/13, `natpf-fine-partita` 66/66.
 - [x] Prove della 16.10: gioco 1784/1784, sito 280/280, LAN 13/13, desktop 56/56, build (`2026-11-16.10` nel bundle).
-- [~] Versione 2026-11-16.10: commit, push, poi pacchetti (installer da `latest.json`, zip Cloudflare).
+- [x] Versione 2026-11-16.10 (`0a102d0`, tre workflow verdi): installer dal link fisso = `latest.json` (131.858.384 B,
+      sha256 `1e644c2f05f8903e41d2ddb0f7202b5120e54827fe4bc439f91676b6f8356743`); zip 23.953.852 B, sha256
+      `8a42a2d877dc99c7e6ef1d97ef939f8f46fe61d58c4456051111f343a827b997`, provato estratto (senza mascotte; con il ponte
+      finto: file che manca → torna il personaggio 3D; build di produzione con il ponte: mascotte nella card).
 
 **Prossima azione esatta (16/11, 23:40 UTC)**: pacchetti della 16.10; poi, con lo scarico del registro della prossima
 giornata, rimisurare anticipo, trofei e direzione; risposte al §4 di `docs/PRODOTTI_FIERA_E_ONLINE.md`; Worker del
 registro da ricaricare (utente).
+
+## 16/11, 23:55 UTC · domande dell'utente sulle mascotte, B59 in coda
+
+- [x] «Si muovono? sono animate?»: sì (10 fotogrammi, 1,6 s in loop) ma poco: 16 su 20 con i piedi fermi (misura in
+      `docs/PIANO_LAVORI.md` §5, B58.1). Anteprima dei passi in CSS mandata all'utente: si fa solo con il suo sì.
+- [x] Trovato un velo quasi invisibile sul fondo di 4 animazioni di Lob: script corretto, animazioni rifatte (velo 0 %,
+      figure identiche), non ancora nel repository: vanno nella 16.11.
+- [ ] B59 conto alla rovescia «Allenati un po'!» prima degli scambi di prova: in coda (`docs/PIANO_LAVORI.md` §5).
+
+**Prossima azione esatta (16/11, 23:55 UTC)**: risposta dell'utente sui passi → versione 2026-11-16.11 (animazioni senza
+velo, passi se approvati) → B59.

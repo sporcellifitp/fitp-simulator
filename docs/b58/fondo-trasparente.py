@@ -101,6 +101,9 @@ def frame_rgba(rgb, white_pockets_from=0.72):
     alpha[ring] = alpha_c2a[ring]
     # fondo quasi bianco: trasparente del tutto (niente velo)
     alpha[bg & white & (mn >= 250)] = 0
+    # velo quasi invisibile (alfa sotto 20/255) sul fondo e sul bordo: via del tutto. In 4 GIF di Lob il fondo non era
+    # bianco pieno (248-249) e restava un velo sul 60 % dell'immagine, visibile come riquadro sul fondo della card
+    alpha[(bg | ring) & (alpha < 20 / 255)] = 0
     a_safe = np.maximum(alpha, 1e-3)[..., None]
     col = np.clip((a - 255 * (1 - alpha[..., None])) / a_safe, 0, 255)
     keep = ~(bg | ring)

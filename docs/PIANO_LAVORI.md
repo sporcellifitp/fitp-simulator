@@ -17,6 +17,13 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 16/11/2026, 23:55 UTC (versione 2026-11-16.10 pubblicata e verificata).** Installer dal link fisso =
+`latest.json` (131.858.384 B, sha256 `1e644c2f…6743`), tre workflow verdi; zip `8a42a2d8…b997` provato estratto. Trovato
+dopo: velo quasi invisibile sul fondo di 4 animazioni di Lob (riquadro sul fondo della card): animazioni rifatte senza
+velo (script `docs/b58/fondo-trasparente.py` corretto), non ancora nel repository. **Prossima azione esatta:** risposta
+dell'utente sull'anteprima dei passi delle mascotte (B58.1, §5); poi versione 2026-11-16.11 con le animazioni senza velo
+(e i passi, se approvati); poi B59 (conto alla rovescia «Allenati un po'!»), in coda.
+
 **Checkpoint del 16/11/2026, 23:40 UTC (versione 2026-11-16.10: mascotte nella card).** Richiesta dell'utente dopo la
 16.9 (già su R2): Lob e Drop nella finestra del personaggio della card, al posto del personaggio, non accanto al titolo.
 Una per card con il suo esito, mai una della partita prima. Gioco, sito, LAN, desktop, build verdi (numeri nella traccia);
@@ -419,6 +426,26 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
 ---
 
 ## 5. Punti aperti: stato, cosa fare, come, perché
+
+### B58.1 · Mascotte della card: passi e velo (FIERA)
+- **Stato**: domanda dell'utente del 16/11 («si muovono come chiedo? a me sembrano tutti simili; migliorare le movenze
+  con i piedi: avanti, indietro, destra e sinistra»). Misura delle 20 animazioni (320 px): 16 su 20 hanno i piedi fermi
+  (meno di 3 px), il corpo non si sposta di lato (meno di 4 px, tranne `lob-win-04` 23 px); saltano `lob-win-01` e
+  `drop-win-01` (46–61 px). Si muovono braccia, testa ed espressione.
+- **Cosa fare**: (1) velo: animazioni rifatte con `docs/b58/fondo-trasparente.py` corretto (alfa sotto 20/255 a zero), da
+  mettere in `natpf-tennis/public/media/mascotte/` con la versione dopo. (2) Passi: anteprima mandata all'utente (destra e
+  sinistra, avanti e indietro, zig-zag) con la mascotte che si sposta nella finestra della card con un saltello a ogni
+  passo, in CSS (`translate`/`scale`, nessun file nuovo); i piedi veri non fanno il passo (servirebbero animazioni nuove).
+  Si fa solo con il sì dell'utente; «riduci movimento»: ferma.
+
+### B59 · Conto alla rovescia «Allenati un po'!» prima degli scambi di prova (FIERA, in coda)
+- **Richiesta dell'utente del 16/11**: con la calibrazione giocando (B28, scambi di prova) lo stesso conto alla rovescia
+  dell'inizio della partita vera (B47, scritta grande al centro con la stessa transizione), con «Allenati un po'!» al
+  posto di «Si gioca!»; poi gli scambi di prova; poi la partita con il suo conto alla rovescia di sempre.
+- **Come**: riusare il conto alla rovescia del B47 (`natpf_ready_go.js` / `natpf_prematch.js`, testo «Si gioca» in
+  `natpf_i18n.js`) con un testo diverso all'inizio degli scambi di prova del B28; solo quando la calibrazione è
+  «Giocando»; anche nello stesso schermo; prove nel browser del flusso «Sono pronto» → conto «Allenati un po'!» →
+  scambi → conto «Si gioca!» → partita.
 
 ### B0 · Continuità del lavoro
 - **Stato**: `docs/SESSION_HANDOFF.md` (343 righe) e `docs/WORK_PROGRESS.md` (1.128 righe) erano diari lunghi con
