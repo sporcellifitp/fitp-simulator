@@ -194,3 +194,13 @@ test('B54.1: una volta per collegamento la versione del gioco al telefono (bv), 
   P.state.joins = (P.state.joins || 0) + 1; w.advance(200);
   assert.equal(bv().length, 2, 'collegamento nuovo: di nuovo');
 });
+
+test('B54.2: «Nuovo giocatore» per la partita con il telefono che chiede il nome: niente tastiera del PC; minigioco e telefono di prima sì', async () => {
+  const { phoneAsksName } = await import('../src/natpf/natpf_new_player.js');
+  const ui = { controller: 'phone', phone: { connected: true, asksName: true } };
+  assert.equal(phoneAsksName('match', ui), true);
+  assert.equal(phoneAsksName('challenge', ui), false, 'minigioco: il nome serve alla classifica e il telefono non lo chiede');
+  assert.equal(phoneAsksName('match', { ...ui, phone: { connected: true, asksName: false } }), false, 'pagina del telefono di prima');
+  assert.equal(phoneAsksName('match', { ...ui, phone: { connected: false, asksName: true } }), false, 'telefono scollegato');
+  assert.equal(phoneAsksName('match', { ...ui, controller: 'webcam' }), false);
+});

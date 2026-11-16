@@ -1339,3 +1339,16 @@ giocatore» chiede il nome sul PC e poi sul telefono). Regole: CLAUDE.md; proced
       sha256 `0122f7176804dc833e1b4aa29af72085122b44836ceb74238df466723b8a85f8`, provato estratto (`natpf-nome-telefono` 23/23,
       gioco avviato con la 16.4), consegnato. **Roadmap senza l'utente finita**: restano le sue cose e le idee del messaggio
       qui sopra.
+
+## >>> 16/11, 17:00 UTC · RICHIESTE DELL'UTENTE (dopo la lista dei punti aperti) <<<
+
+- [x] **B54.2 → versione 2026-11-16.5**: «Nuovo giocatore» per la partita con il telefono non apre più la tastiera del PC
+      (decisione: «togli la richiesta dal PC»). Gioco 1765/1765. Pacchetti: da fare (zip, installer dal link fisso).
+- [x] Worker del registro: **già ricaricato** (lo stato pubblico risponde `formato: 2`, l'ultima versione del repository,
+      B36.0). Non serve rifarlo.
+- [ ] **Struttura delle funzionalità per prodotto** (richiesta dell'utente): versione per la **fiera** (installer, NATPF
+      Simulator) e versione **online** con vita propria (FITP Simulator). Bozza in `docs/PRODOTTI_FIERA_E_ONLINE.md`;
+      regola nuova: per ogni richiesta dire a quale prodotto va (in CLAUDE.md).
+- [ ] **B36.1 direzione dei colpi e soglie dei trofei «in parallelo»** (richiesta dell'utente): il piano B36 ha il cancello
+      della prova a Precision; ora ci sono i dati veri della fiera di Torino nel registro (si leggono solo con la chiave
+      dell'utente: proposto all'utente di scaricare i giorni dalla pagina del Worker e caricarli qui).

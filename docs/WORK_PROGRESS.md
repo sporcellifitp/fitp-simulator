@@ -2505,3 +2505,10 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Pacchetti 16.4: installer = `latest.json` (128.161.534 B, sha256 `95bce704…f31b`), zip 23.951.506 B (sha256 `0122f717…85f8`)
   provato estratto, consegnato. GitHub verde sui tre workflow.
 
+## B54.2 · Niente tastiera del PC con «Nuovo giocatore», versione 2026-11-16.5 (16/11/2026)
+
+- [x] `natpf_new_player.js` (`phoneAsksName`: partita, telefono collegato che sa chiedere il nome → niente
+  `askNickname`), prova in `natpf-b54-nome.test.mjs`, guida, documento B54 §5. Gioco 1765/1765.
+- Worker del registro: stato pubblico `{"registro":"pronto","spazio":true,"chiave":true,"formato":2}`: già alla versione
+  del B36.0, non va ricaricato.
+

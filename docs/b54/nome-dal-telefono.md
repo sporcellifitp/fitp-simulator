@@ -80,6 +80,14 @@ arriva). Vale per le pagine dalla 16.2 in poi; per quelle già sui telefoni (16.
 Prove: `natpf-b54-nome.test.mjs` (+1: `bv` una volta per collegamento), `natpf-nome-telefono.mjs` (+3: niente ricarica in
 partita, ricarica al menu, niente giri) 23/23.
 
-## 5. Cosa non è provato
+## 5. B54.2 · niente tastiera del PC con «Nuovo giocatore» (versione 2026-11-16.5)
+
+Decisione dell'utente del 16/11 («togli la richiesta dal PC»): fuori dalla fiera «Nuovo giocatore» apriva la tastiera del
+PC («Come ti chiami?») e poi il telefono chiedeva di nuovo il nome. Ora, per la partita con il telefono collegato che sa
+chiedere il nome, si va avanti senza la tastiera del PC (`natpf_new_player.phoneAsksName`); restano i minigiochi (il
+telefono non chiede il nome e serve alla classifica), la webcam e i telefoni scollegati o con la pagina di prima. Prova
+in `natpf-b54-nome.test.mjs`.
+
+## 6. Cosa non è provato
 
 Telefono vero (tastiere vere di Android e iPhone, l'app 1.0.3 con la tastiera aperta), ledwall, visitatori veri.

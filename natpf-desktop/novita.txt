@@ -62,3 +62,4 @@
 2026-11-16.2: Dopo un aggiornamento del PC i telefoni prendono da soli la pagina nuova (fuori dalla partita): così compare anche la richiesta del nome.
 2026-11-16.3: Nelle Opzioni la voce si chiama «Movimenti come nel video»: vale per dritto, rovescio, schiacciata e volée (la scelta salvata resta).
 2026-11-16.4: Con «Movimenti come nel video» anche il servizio: corpo in avanti all'impatto, busto che passa, saltello in campo dopo il colpo.
+2026-11-16.5: «Nuovo giocatore» per una partita con il telefono non chiede più il nome sulla tastiera del PC: lo scrive il giocatore sul telefono.

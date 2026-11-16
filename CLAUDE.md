@@ -71,6 +71,10 @@ Il controllo dei tipi (`npm run lint`) non è affidabile come gate (codice JS co
 
 ## Regole di prodotto
 
+- **Due prodotti** (richiesta dell'utente del 16/11/2026, bozza in `docs/PRODOTTI_FIERA_E_ONLINE.md`): versione per la
+  **FIERA** (NATPF Simulator: installer Windows, stand, app Android) e versione **ONLINE** con vita propria (FITP
+  Simulator, web). Ogni richiesta si segna nel registro del §3 di quel documento con il prodotto: **di base FIERA**.
+
 - Preservare gameplay, tracking smartphone (gesti in `site/js/tennis/` e `natpf-tennis/src/natpf/natpf_gestures.js`,
   `natpf_phone_racket.js`), webcam e LAN. Ogni cambiamento al riconoscimento dei gesti richiede test.
 - Le dimostrazioni dei colpi nel tutorial devono corrispondere agli algoritmi reali di riconoscimento

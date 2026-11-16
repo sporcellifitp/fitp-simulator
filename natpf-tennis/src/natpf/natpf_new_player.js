@@ -103,9 +103,16 @@ export function resetVisitor(ui){
     if (route === 'challenge' && challenge){ L.challenge = challenge; L.setMode('challenge'); }
     L.startWarmup();
   };
-  L.askNickname(go, { newPlayer: true });
+  // B54.2 (decisione dell'utente del 16/11: «togli la richiesta dal PC»): per la partita con il telefono che sa chiedere il
+  // nome (B54) il nome lo scrive il visitatore sul telefono, sulla pagina «Pronto per la partita»: niente tastiera del PC.
+  // Restano la tastiera del PC per i minigiochi (lì il telefono non chiede il nome e serve alla classifica) e per un
+  // telefono scollegato o con la pagina di prima
+  if (phoneAsksName(route, ui)) go();
+  else L.askNickname(go, { newPlayer: true });
   return route;
 }
+// B54.2: «Nuovo giocatore» senza la tastiera del PC: partita (non minigioco) con il telefono collegato che chiede il nome
+export const phoneAsksName = (route, ui) => route === 'match' && ui?.controller === 'phone' && !!ui?.phone?.connected && !!ui.phone.asksName;
 
 // B41.5 · «Prossimo giocatore» della modalità fiera (fine partita, pannello, telecomando dello staff; anche il chiosco in
 // fiera). Come «Nuovo giocatore», ma i telefoni dello stand restano collegati e pronti: niente QR, niente tutorial (i

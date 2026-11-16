@@ -1,0 +1,56 @@
+# Prodotti: versione per la FIERA e versione ONLINE · BOZZA da confermare con l'utente
+
+Richiesta dell'utente del 16/11/2026: «buttare giù una struttura topologica delle funzionalità che fino ad oggi ti ho
+chiesto per la fiera, di cui l'installer per la fiera, e quella che invece ha vita propria online, che non è NATPF
+Simulator ma è FITP Simulator. Tu inizia a ricordarti di queste modifiche che ti chiedo per la versione in fiera.»
+
+Oggi il codice è **uno solo** (branch `natpf-simulator`) e dà due pacchetti con lo stesso gioco: l'**installer Windows**
+(stand) e lo **zip Cloudflare** (web). Questa bozza divide le funzionalità per prodotto; la separazione vera nel codice
+(interruttori, marchi, due build) si fa dopo le risposte alle domande del §4.
+
+**Regola da adesso** (CLAUDE.md): ogni richiesta dell'utente si segna con il prodotto a cui va. **Di base FIERA**
+(«ricordati di queste modifiche per la versione in fiera»); ONLINE o ENTRAMBE solo se l'utente lo dice o è ovvio.
+Registro delle richieste in §3.
+
+## 1. Mappa delle funzionalità
+
+| Area | Funzionalità (blocco) | FIERA (NATPF Simulator, installer) | ONLINE (FITP Simulator, web) |
+|---|---|---|---|
+| Gioco | partita contro la CPU, livelli, doppio (B49), stesso schermo (B20, B25), minigiochi e classifica del giorno, tutorial, calibrazione, servizio con scelte (B48), fine partita v2 (B40), «Movimenti come nel video» (B23, B53) | sì | sì |
+| Telefono | telefono-racchetta con il QR, gesti, webcam | sì (in rete locale, server del PC) | sì (via internet, TURN) |
+| Telefono | nome dal telefono prima di «Sono pronto» (B54) | sì | sì (stessa pagina) |
+| Telefono | telefono bloccato in partita (B51) | sì | da decidere |
+| Stand | modalità fiera: pagina della fiera, «Prossimo giocatore», chiosco, solo mouse (B39, B41) | sì | no |
+| Stand | telefoni dello stand abbinati una volta (B41) | sì | no |
+| Stand | pannello dello stand, telecomando dello staff (B27), tastiera a schermo (B38) | sì | no |
+| Stand | registro dello stand su Cloudflare (Worker `natpf-registro`, B36.0) | sì (solo installer) | no (oggi il web non ha l'indirizzo) |
+| Stand | app Android «NATPF Racchetta» con «Fissa app» (B52) | sì | no (online: Chrome o Safari) |
+| Stand | ledwall: area dello schermo, prova del ritardo (B50) | sì | no |
+| Stand | aggiornamenti dal gioco (R2, `latest.json`), firewall, certificato del PC | sì | no |
+| Online | sfida un amico tra due computer (P2P via internet) | sì (anche in rete locale) | sì |
+| Online | pubblicazione su Cloudflare Pages, TURN `natpf-turn` | no | sì |
+| Marchio | nome e loghi | NATPF Simulator | FITP Simulator (da fare) |
+
+## 2. Pacchetti
+
+- FIERA: `natpf-desktop` → installer Windows unico (workflow «NATPF eseguibili Windows», R2 `windows/…`), app Android
+  (`natpf-android`, R2 `android/…`).
+- ONLINE: `natpf-tennis/scripts/pacchetto-cloudflare.mjs` → zip per Cloudflare Pages (sotto 25 MB).
+
+## 3. Registro delle richieste per prodotto (dal 16/11/2026)
+
+| Data | Richiesta | Prodotto | Stato |
+|---|---|---|---|
+| 16/11 | Nome dal telefono prima di «Sono pronto» (B54) | FIERA (vale anche online) | fatto, 2026-11-16.1 |
+| 16/11 | Telefoni che prendono da soli la pagina nuova (B54.1) | FIERA | fatto, 16.2 |
+| 16/11 | «Movimenti come nel video» su tutti i colpi (B53) | ENTRAMBE | fatto, 16.3–16.4 |
+| 16/11 | Niente nome sulla tastiera del PC con «Nuovo giocatore» (B54.2) | FIERA | fatto, 16.5 |
+| 16/11 | Direzione dei colpi (B36.1) e soglie dei trofei | da confermare | in attesa dei dati del registro |
+
+## 4. Domande per l'utente (prima di separare il codice)
+
+1. «FITP Simulator» online è lo zip Cloudflare di oggi con un altro marchio, o un prodotto diverso (altro repository,
+   altro indirizzo, altre funzioni)?
+2. Online vanno spente tutte le funzioni dello stand (§1, righe «Stand»)? Il telefono bloccato in partita (B51) online sì o no?
+3. Il marchio: cosa cambia esattamente (nome, logo, colori, voce, testi), e chi fornisce i file?
+4. Le richieste di oggi in poi: confermi «di base FIERA» salvo indicazione?
