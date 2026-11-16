@@ -1242,7 +1242,10 @@ Ordine: B52, poi B53.
       (anche nel workflow): rosso sulla 1.0.0 proprio su quelle due classi, verde sulla 1.0.1. Test di unità 4/4, lint 0
       errori, `natpf-app-android` 5/5, sito 275/275; APK 1.0.1 firmato con la chiave dello stand (stesso certificato),
       679.677 B, sha256 `fe332244e4609538fd1083072f69e43ad6f2f9b1f2a308b26ea3aa6c56cc96a7`, **consegnato all'utente**.
-      Non provata su un telefono vero.
+      Non provata su un telefono vero. Su GitHub (`9978349`) build e controllo verdi, APK firmato (i segreti della chiave
+      ci sono), ma la **pubblicazione su R2 ha avuto «AccessDenied»**: nel workflow Android le chiavi R2 non erano
+      ripulite come in quello Windows (che con gli stessi segreti carica). Corretto (stessa pulizia, endpoint UE se serve):
+      da controllare il giro dopo il push e il link fisso `android/NATPF-Racchetta.apk`.
 - [~] **B53.3 volée, punto esatto**: codice, test (`natpf-colpi-video` 12/12), fogli, documento §4 e versione
       **2026-11-15.3** sono nel working tree della sessione, **non committati** (commit dell'app fatto solo con i suoi file).
       Controllo rapido gioco 1752/1752, sito 275/275, desktop 51/51, LAN 13/13, build. `natpf-dritto-video` 53/58: i 4

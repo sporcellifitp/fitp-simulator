@@ -102,6 +102,24 @@ jobs:
           [ -n "$acct" ] || { echo "::error title=R2_ACCOUNT_ID non valido::il segreto non contiene un Account ID di Cloudflare"; exit 1; }
           bucket="$(printf '%s' "$R2_BUCKET" | tr -d '[:space:]"'"'"'' | sed -E 's#^s3://##; s#/.*$##')"
           ep="https://${acct}.r2.cloudflarestorage.com"
+          # chiavi ripulite (spazi, a capo, virgolette copiati insieme) come in natpf-windows.yml: senza, la prima
+          # pubblicazione della 1.0.1 (16/11) ha avuto «AccessDenied» su PutObject, mentre l'installer Windows con gli
+          # stessi segreti carica senza problemi
+          AWS_ACCESS_KEY_ID="$(printf '%s' "$AWS_ACCESS_KEY_ID" | tr -d '[:space:]"'"'"'')"
+          AWS_SECRET_ACCESS_KEY="$(printf '%s' "$AWS_SECRET_ACCESS_KEY" | tr -d '[:space:]"'"'"'')"
+          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+          # bucket nella giurisdizione UE: endpoint <id>.eu.r2.cloudflarestorage.com (come in natpf-windows.yml)
+          if ! aws s3api list-objects-v2 --endpoint-url "$ep" --bucket "$bucket" --max-items 1 >/dev/null 2>&1 \
+             && aws s3api list-objects-v2 --endpoint-url "https://${acct}.eu.r2.cloudflarestorage.com" --bucket "$bucket" --max-items 1 >/dev/null 2>&1; then
+            ep="https://${acct}.eu.r2.cloudflarestorage.com"
+            echo "::notice title=Bucket R2 nella giurisdizione UE::Uso l'endpoint <Account ID>.eu.r2.cloudflarestorage.com."
+          fi
+          if ! prova=$(aws s3api list-objects-v2 --endpoint-url "$ep" --bucket "$bucket" --max-items 1 2>&1); then
+            echo "::error title=Accesso al bucket R2 rifiutato::stessi segreti dell'installer Windows: guarda il suo ultimo giro (docs/GUIDA_AGGIORNAMENTI_R2.md)"
+            printf '%s\n' "$prova" | sed -E 's/[0-9a-f]{32,}/<…>/g' | tail -n 3
+            exit 1
+          fi
+          echo "Accesso al bucket R2: ok (R2_ACCESS_KEY_ID ${#AWS_ACCESS_KEY_ID} caratteri, R2_SECRET_ACCESS_KEY ${#AWS_SECRET_ACCESS_KEY})"
           apk="NATPF-Racchetta-$APP_VERSION.apk"
           if aws s3api head-object --endpoint-url "$ep" --bucket "$bucket" --key "android/$apk" >/dev/null 2>&1; then
             echo "::notice title=Già pubblicato::android/$apk c'è già: niente da caricare (alza appVersion per una versione nuova)."
