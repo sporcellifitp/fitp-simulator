@@ -17,6 +17,13 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 17/11/2026, 00:20 UTC (versione 2026-11-16.11: mascotte senza velo).** Le 20 animazioni rifatte con
+`docs/b58/fondo-trasparente.py` corretto (velo quasi invisibile sul fondo di 4 animazioni di Lob tolto; figure identiche;
+136–181 KB, 3,18 MB). Gioco 1784/1784, sito 280/280, LAN 13/13, desktop 56/56, build; `natpf-fine-partita` 66/66. Mandate
+all'utente le animazioni di confronto (GIF consegnata, GIF nella card, ora) e due registrazioni del gioco vero.
+**Prossima azione esatta:** pacchetti della 16.11; poi la risposta dell'utente sui passi delle mascotte (B58.1, §5);
+poi B59 (conto alla rovescia «Allenati un po'!»).
+
 **Checkpoint del 16/11/2026, 23:55 UTC (versione 2026-11-16.10 pubblicata e verificata).** Installer dal link fisso =
 `latest.json` (131.858.384 B, sha256 `1e644c2f…6743`), tre workflow verdi; zip `8a42a2d8…b997` provato estratto. Trovato
 dopo: velo quasi invisibile sul fondo di 4 animazioni di Lob (riquadro sul fondo della card): animazioni rifatte senza
@@ -432,8 +439,7 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
   con i piedi: avanti, indietro, destra e sinistra»). Misura delle 20 animazioni (320 px): 16 su 20 hanno i piedi fermi
   (meno di 3 px), il corpo non si sposta di lato (meno di 4 px, tranne `lob-win-04` 23 px); saltano `lob-win-01` e
   `drop-win-01` (46–61 px). Si muovono braccia, testa ed espressione.
-- **Cosa fare**: (1) velo: animazioni rifatte con `docs/b58/fondo-trasparente.py` corretto (alfa sotto 20/255 a zero), da
-  mettere in `natpf-tennis/public/media/mascotte/` con la versione dopo. (2) Passi: anteprima mandata all'utente (destra e
+- **Cosa fare**: (1) velo: fatto, versione 2026-11-16.11 (alfa sotto 20/255 a zero). (2) Passi: anteprima mandata all'utente (destra e
   sinistra, avanti e indietro, zig-zag) con la mascotte che si sposta nella finestra della card con un saltello a ogni
   passo, in CSS (`translate`/`scale`, nessun file nuovo); i piedi veri non fanno il passo (servirebbero animazioni nuove).
   Si fa solo con il sì dell'utente; «riduci movimento»: ferma.

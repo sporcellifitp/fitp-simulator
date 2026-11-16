@@ -10,8 +10,8 @@ Io li voglio dentro la card, come già accade» → **16.10**.
 
 - **Materiale adattato** (`natpf-tennis/public/media/mascotte/`): le GIF consegnate avevano il fondo bianco pieno e sulla
   schermata blu erano un quadrato bianco. Fondo reso trasparente con il bordo morbido e l'ombra sotto i piedi semitrasparente,
-  stesse misure (320×320), 10 fotogrammi, 1,6 s in loop; WebP animati con l'alfa, da 150 a 210 KB (3,6 MB in tutto, le GIF
-  erano 4,4 MB). Script: `docs/b58/fondo-trasparente.py`; le GIF di partenza restano nel commit `9d48127` (branch
+  stesse misure (320×320), 10 fotogrammi, 1,6 s in loop; WebP animati con l'alfa, da 136 a 181 KB (3,2 MB in tutto, le GIF
+  erano 4,4 MB; dalla 16.11 senza il velo quasi invisibile che restava sul fondo di 4 animazioni di Lob). Script: `docs/b58/fondo-trasparente.py`; le GIF di partenza restano nel commit `9d48127` (branch
   `feature/natpf-mascotte-fine-partita-2`). Controllo a occhio dei 200 fotogrammi su fondo blu: Drop pulito (fascia e
   polsini bianchi intatti); in `lob-win-01`, fotogrammi 6–8 (il salto), restano due o tre punti chiari vicino alla visiera.
 - **Dove**: nella **finestra del personaggio della card**, a sinistra, al posto del personaggio (ritratto 3D o disegnato),
@@ -53,5 +53,6 @@ File: `src/natpf/natpf_mascotte.js` (nuovo), `src/natpf/natpf_end_card.js` (`car
 l'installer), sul ledwall, con «riduci movimento» acceso in un browser vero (provato con un finto DOM).
 
 **Versioni**: 2026-11-16.9 (PR #4 unita in un solo commit, decisione dell'utente «Unisci e pubblica»): mascotte accanto al
-titolo; **2026-11-16.10**: nella card al posto del personaggio (richiesta dell'utente). L'installer cresce di circa 3,6 MB,
+titolo; **2026-11-16.10**: nella card al posto del personaggio (richiesta dell'utente); **2026-11-16.11**: animazioni senza
+il velo sul fondo. L'installer cresce di circa 3,6 MB,
 lo zip Cloudflare non cambia.

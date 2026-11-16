@@ -1469,3 +1469,13 @@ registro da ricaricare (utente).
 
 **Prossima azione esatta (16/11, 23:55 UTC)**: risposta dell'utente sui passi → versione 2026-11-16.11 (animazioni senza
 velo, passi se approvati) → B59.
+
+## 17/11, 00:20 UTC · versione 2026-11-16.11 (mascotte senza velo)
+
+- [x] L'utente non capiva come erano le GIF in origine e come sono ora: mandate tre animazioni (confronto a tre colonne
+      su quattro pose; gioco vero contro la CPU; gioco vero stesso schermo).
+- [x] Animazioni senza velo nel repository (manifest e LEGGIMI aggiornati: 136–181 KB, 3,18 MB). Prove: gioco 1784/1784,
+      sito 280/280, LAN 13/13, desktop 56/56, build (`2026-11-16.11` nel bundle), `natpf-fine-partita` 66/66.
+- [~] Versione 2026-11-16.11: commit, push, poi pacchetti (installer da `latest.json`, zip Cloudflare).
+
+**Prossima azione esatta (17/11, 00:20 UTC)**: pacchetti della 16.11; risposta dell'utente sui passi (B58.1); B59.

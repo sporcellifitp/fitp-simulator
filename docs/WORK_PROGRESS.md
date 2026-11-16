@@ -2530,6 +2530,13 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B58 · mascotte senza velo, versione 2026-11-16.11 (17/11/2026)
+
+- [x] `docs/b58/fondo-trasparente.py`: alfa sotto 20/255 a zero sul fondo e sul bordo (4 GIF di Lob con il fondo a
+  248–249 lasciavano un velo sul 60 % dell'immagine, visibile come riquadro sulla card). Rifatte le 20 dalle GIF del commit
+  `9d48127`: velo 0 % in tutti i fotogrammi, figura identica (0,00 % di pixel cambiati con alfa sopra 128), 136–181 KB.
+- [x] Prove: gioco 1784/1784, sito 280/280, LAN 13/13, desktop 56/56, build, `natpf-fine-partita` 66/66.
+
 ## B58 · mascotte nella card, versione 2026-11-16.10 (16/11/2026)
 
 - Richiesta dell'utente dopo la 16.9: «devono essere l'immagine del personaggio a sinistra, non sopra la schermata della

@@ -17,7 +17,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 174,
+      "peso_kb": 153,
       "origine": "drop-lose-01.gif"
     },
     {
@@ -28,7 +28,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 201,
+      "peso_kb": 181,
       "origine": "drop-lose-02.gif"
     },
     {
@@ -39,7 +39,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 210,
+      "peso_kb": 172,
       "origine": "drop-lose-03.gif"
     },
     {
@@ -50,7 +50,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 187,
+      "peso_kb": 165,
       "origine": "drop-lose-04.gif"
     },
     {
@@ -61,7 +61,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 170,
+      "peso_kb": 151,
       "origine": "drop-lose-05.gif"
     },
     {
@@ -72,7 +72,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 174,
+      "peso_kb": 152,
       "origine": "drop-win-01.gif"
     },
     {
@@ -83,7 +83,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 180,
+      "peso_kb": 151,
       "origine": "drop-win-02.gif"
     },
     {
@@ -94,7 +94,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 175,
+      "peso_kb": 151,
       "origine": "drop-win-03.gif"
     },
     {
@@ -105,7 +105,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 192,
+      "peso_kb": 173,
       "origine": "drop-win-04.gif"
     },
     {
@@ -116,7 +116,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 202,
+      "peso_kb": 180,
       "origine": "drop-win-05.gif"
     },
     {
@@ -127,7 +127,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 175,
+      "peso_kb": 152,
       "origine": "lob-lose-01.gif"
     },
     {
@@ -138,7 +138,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 150,
+      "peso_kb": 140,
       "origine": "lob-lose-02.gif"
     },
     {
@@ -149,7 +149,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 167,
+      "peso_kb": 154,
       "origine": "lob-lose-03.gif"
     },
     {
@@ -160,7 +160,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 178,
+      "peso_kb": 154,
       "origine": "lob-lose-04.gif"
     },
     {
@@ -171,7 +171,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 170,
+      "peso_kb": 145,
       "origine": "lob-lose-05.gif"
     },
     {
@@ -182,7 +182,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 169,
+      "peso_kb": 136,
       "origine": "lob-win-01.gif"
     },
     {
@@ -193,7 +193,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 173,
+      "peso_kb": 159,
       "origine": "lob-win-02.gif"
     },
     {
@@ -204,7 +204,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 160,
+      "peso_kb": 145,
       "origine": "lob-win-03.gif"
     },
     {
@@ -215,7 +215,7 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 177,
+      "peso_kb": 149,
       "origine": "lob-win-04.gif"
     },
     {
@@ -226,13 +226,13 @@
       "px": 320,
       "fotogrammi": 10,
       "durata_s": 1.6,
-      "peso_kb": 174,
+      "peso_kb": 144,
       "origine": "lob-win-05.gif"
     }
   ],
   "adattato": {
     "data": "2026-11-16",
-    "come": "fondo bianco reso trasparente con bordo morbido e ombra semitrasparente, stesse misure, fotogrammi e durata (docs/b58/fondo-trasparente.py)",
+    "come": "fondo bianco reso trasparente con bordo morbido e ombra semitrasparente, stesse misure, fotogrammi e durata (docs/b58/fondo-trasparente.py; dalla 16.11 senza il velo quasi invisibile sul fondo)",
     "perche": "la schermata di fine partita è blu: con il fondo bianco si vedeva un quadrato bianco"
   }
 }

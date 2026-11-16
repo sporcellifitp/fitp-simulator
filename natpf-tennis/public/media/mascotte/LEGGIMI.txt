@@ -9,7 +9,7 @@ per card: nello stesso schermo chi vince e chi perde), solo nel programma Window
 (versione per la fiera); lo zip Cloudflare non le porta (src/natpf/natpf_mascotte.js, B58).
 
 File: lob-win-01..05, lob-lose-01..05, drop-win-01..05, drop-lose-01..05 (.webp animati,
-320x320, 10 fotogrammi, 1,6 s in loop, fondo trasparente, 150-210 KB). manifest.json elenca
+320x320, 10 fotogrammi, 1,6 s in loop, fondo trasparente, 136-181 KB). manifest.json elenca
 per ognuna personaggio, esito, azione, specifiche e la GIF di partenza. Percorso a
 runtime: ./media/mascotte/<nome>.webp.
 
@@ -27,7 +27,8 @@ colore del peluche torna colore pieno semitrasparente) e l ombra sotto i piedi r
 ombra scura semitrasparente; stesse misure, fotogrammi e durata, poi WebP animato con
 l alfa. Script: docs/b58/fondo-trasparente.py. Controllo a occhio dei 200 fotogrammi su
 fondo blu: Drop pulito (fascia e polsini bianchi intatti); in lob-win-01, fotogrammi 6-8
-(il salto), restano due o tre punti chiari vicino alla visiera.
+(il salto), restano due o tre punti chiari vicino alla visiera. Dalla 16.11 (16/11/2026) senza il velo
+quasi invisibile che restava sul fondo di 4 animazioni di Lob (alfa sotto 20/255 a zero).
 
 DIRITTI
 Lob e Drop sono le mascotte dell evento e questi file sono immagini derivate da
