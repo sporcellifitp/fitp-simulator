@@ -1223,4 +1223,13 @@ Ordine: B52, poi B53.
       che divide la velocità con il dritto del B23 (scatti della CPU fuori dallo swing). Verifiche: gioco 1746/1746, sito
       275/275, desktop 51/51, LAN 13/13, build; `natpf-dritto-video` 54/58 con gli stessi 4 rossi della 14.9 (riga delle
       Opzioni fuori schermo, tre partite diverse dalla base del B23: cambiate dai blocchi venuti dopo).
-- [ ] B53.2 schiacciata (dal trailer, 7–8 s) → B53.3 volée → B53.4 servizio → B53.5 voce delle Opzioni.
+- [x] Installer **2026-11-15.1** verificato dal link fisso: 128.156.692 B, sha256
+      `dbf510c60c2fcdd0df6b7e3e8807d4b9fbc4c8dc1554b2a55dae4442dfd76a86`; zip Cloudflare 2026-11-15.1 23.944.655 B, sha256
+      `650b9c2ab6bfa630dbb72479f6378eb9a4879324939929f752f0316a4bef0b17`, provato estratto; GitHub verde.
+- [x] **B53.2 schiacciata** → versione **2026-11-15.2**: `SV_STROKES.smash` (gambe piegate e di lato, impatto sulle
+      punte, salto di 14 cm che parte 0,06 s dopo l'impatto, atterraggio a braccia aperte), modulo generalizzato (mano per
+      posa, salto per colpo, finale della racchetta facoltativo), 3 test nuovi, `COLPO=schiacciata` per i fogli (pallonetto
+      della CPU come secondo colpo: sulla risposta al servizio il gioco non schiaccia). Gioco 1749/1749, sito 275/275,
+      desktop 51/51, LAN 13/13, build; `natpf-dritto-video` 54/58 con i 4 rossi di sempre; fogli guardati.
+- [ ] B53.3 volée (preparata in `scratchpad/sonde/patch-volee.py` della sessione: a rete, cioè a meno di 7 m dalla
+      rete, dritto e rovescio hanno pose corte al posto di quelle ampie) → B53.4 servizio → B53.5 voce delle Opzioni.

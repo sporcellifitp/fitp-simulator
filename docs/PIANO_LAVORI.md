@@ -17,14 +17,13 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 16/11/2026, 07:15 UTC (B53.1 rovescio, versione 2026-11-15.1).** B52 app Android fatto (APK 1.0.0
-consegnato, non provato su un telefono vero). B53 in corso: rovescio «come nel video» fatto e verificato (gioco 1746/1746,
-sito 275/275, desktop 51/51, LAN 13/13, build; `natpf-dritto-video` con i soli 4 rossi che c'erano già sulla 14.9).
-**Prossima azione esatta:** B53.2 schiacciata dal trailer (7–8 s, salto con la racchetta dietro la testa) in
-`natpf-tennis/src/natpf/natpf_strokes_video.js` (nuova voce di `SV_STROKES`), con le stesse prove del rovescio in
-`natpf-tennis/test/natpf-colpi-video.test.mjs`; poi volée, servizio, voce delle Opzioni (`docs/TRACCIA_PASSI.md`).
-Restano dell'utente: Worker del registro e prova a Precision (cancello della B36.1), segreti della chiave dell'app su
-GitHub, collaudo allo stand. Il resto di questa sezione è storia.
+**Checkpoint del 16/11/2026, 07:40 UTC (B53.2 schiacciata, versione 2026-11-15.2).** B53: rovescio (15.1, installer e zip
+verificati) e schiacciata (15.2) «come nel video» fatti. Verifiche della 15.2: gioco 1749/1749, sito 275/275, desktop
+51/51, LAN 13/13, build; `natpf-dritto-video` con i soli 4 rossi della 14.9. **Prossima azione esatta:** B53.3 volée: a rete
+(`atNet`, meno di 7 m dalla rete) dritto e rovescio con pose corte (nuove voci `volleyF` e `volleyB` di `SV_STROKES`,
+campo `where` base/net/any; il dritto del B23 non si applica a rete), con le stesse prove; poi servizio, poi voce delle
+Opzioni. Restano dell'utente: Worker del registro e prova a Precision (cancello della B36.1), segreti della chiave
+dell'app su GitHub, collaudo allo stand. Il resto di questa sezione è storia.
 
 
 - **Il punto esatto in cui si è arrivati e i prossimi passi stanno in `docs/TRACCIA_PASSI.md`** (file breve, aggiornato a

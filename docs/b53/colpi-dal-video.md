@@ -60,7 +60,26 @@ rovescio e restano identici attesa, servizio ed esultanza; uno stato per persona
 restano quelle di `ae68759` (`natpf-dritto-video.test.mjs`). Aggiornati due test del B23 che davano il rovescio per
 immutato con la prova accesa. Fogli: `COLPO=rovescio SOLO=fogli FOGLI=<cartella> node tools/e2e/natpf-dritto-video.mjs`.
 
-## 3. Cosa non è provato
+## 3. Schiacciata (B53.2)
+
+- **Quale colpo**: la schiacciata (swing dal lato «overhead», non il servizio). Il picco di velocità delle corde è a 0,36
+  dello swing, come nel dritto: stessi tempi dell'impatto (0,34) e stessa zona libera della racchetta (0,2–0,46).
+- **Pose** (`SV_STROKES.smash`, dal trailer, giocatore bianco 7–8 s): preparazione di lato (bacino −0,45 rad dal lato
+  della racchetta) con le gambe piegate (bacino 7 cm più basso) e il piede della racchetta dietro; impatto con il corpo
+  allungato, in avanti, sulle punte; finale dell'atterraggio con il busto passato, il bacino basso e i piedi larghi. Il
+  braccio libero alto verso la palla lo fa già l'animazione di sempre; **nel finale le braccia si aprono**.
+- **Salto**: nel trailer il colpo è in aria; qui all'impatto la racchetta deve essere quella del motore, quindi il salto
+  (14 cm, 0,44 s) **parte 0,06 s dopo l'impatto**, quando la racchetta è già fuori dalla zona libera, e si legge come
+  la spinta e l'atterraggio della schiacciata. La racchetta è sempre quella di sempre (niente posa del finale).
+- Prove (3 in `natpf-colpi-video.test.mjs`): racchetta sulla palla e personaggio a terra all'impatto come prima (in
+  tempo, anticipo, ritardo; chi gioca e CPU; destro e mancino); gambe piegate e di lato, salto dopo la zona libera, di
+  nuovo a terra, braccia aperte nel finale; niente scatti (anche il salto: meno di 2 cm a fotogramma). Il test del B23
+  che dava la schiacciata per immutata con la prova accesa non la conta più.
+- Fogli: `COLPO=schiacciata SOLO=fogli FOGLI=<cartella> node tools/e2e/natpf-dritto-video.mjs` (pallonetto della CPU
+  segnato come secondo colpo dello scambio: sulla risposta al servizio il gioco non schiaccia, regola del B48.1).
+  Immagini: `img/schiacciata-gioco.webp`, `img/schiacciata-vicina.webp`.
+
+## 4. Cosa non è provato
 
 Come il B23: telefono vero, webcam vera, ledwall, scheda video vera; il giudizio «mi convince» spetta all'utente. Le
 pose sono ricavate a mano dai fotogrammi del trailer (il rovescio visto di fronte, il gioco lo mostra da dietro).

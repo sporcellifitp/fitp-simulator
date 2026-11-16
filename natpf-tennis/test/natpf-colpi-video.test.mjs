@@ -16,13 +16,16 @@ const G = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
 const tratto = name => TRATTI.find(t => t[0].startsWith(name));
 const BH = SV_STROKES.backhand;
 
-test('B53: colpi della prova del modulo: rovescio topspin e piatto; non il dritto (B23), il tagliato, il pallonetto, il servizio', () => {
+test('B53: colpi della prova del modulo: rovescio topspin e piatto, schiacciata; non il dritto (B23), il tagliato, il pallonetto, il servizio', () => {
   const T = o => ({ swingActive: true, isServe: false, swingSide: 'backhand', swingShotType: 'topspin', ...o });
   assert.equal(svKindOf(T()), 'backhand');
   assert.equal(svKindOf(T({ swingShotType: 'flat' })), 'backhand');
   for (const o of [{ swingShotType: 'slice' }, { swingShotType: 'lob' }, { isServe: true }, { swingSide: 'forehand' }, { swingActive: false }]) assert.equal(svKindOf(T(o)), null, JSON.stringify(o));
   assert.equal(svKindOf(null), null);
-  assert.deepEqual(SV_KINDS, ['backhand']);
+  assert.deepEqual(SV_KINDS, ['backhand', 'smash']);
+  const O = o => ({ swingActive: true, isServe: false, swingSide: 'overhead', swingShotType: 'smash', ...o });
+  assert.equal(svKindOf(O()), 'smash');
+  assert.equal(svKindOf(O({ isServe: true })), null, 'il servizio non è la schiacciata');
   // pesi come il dritto: preparazione dalla carica, impatto pieno al contatto, finale che resta e poi si scioglie
   const o = {};
   assert.deepEqual(svTargets(o, BH, 0, null, null), { coil: 0, drive: 0, finish: 0 });
@@ -149,4 +152,91 @@ test('B53: uno stato per personaggio creato una volta, rimesso da capo da svRest
   const rig = { natpfSv: S };
   svRest(rig);
   assert.equal(S.backhand.coil, 0); assert.equal(S.backhand.after, null); assert.equal(S.hand, false);
+});
+
+/* ---------- B53.2 · schiacciata ---------- */
+const SM = SV_STROKES.smash;
+// una schiacciata sola: palla alta e vicina (preparazione «overhead») per 50 fotogrammi, poi lo swing
+function smash(on, { timing = 'sweet', human = true, lefty = false, frames = 120 } = {}){
+  setForehandVideo(on);
+  const { actor: a, rk } = mount(M, { sideSign: 1, lefty });
+  const ball = { inPlay: true, lastHitter: 'opponent', pos: new THREE.Vector3(), vel: new THREE.Vector3(0, -3, 9), targetLanding: new THREE.Vector3(0, 0, 9), shotType: 'TOPSPIN' };
+  const ctx = { phase: 'RALLY', score: { server: 'player' }, ball, elapsedTime: 10 }, out = [];
+  for (let f = 0; f < frames; f++){
+    if (f < 50) ball.pos.set(.2, 2.6 + .02*(50 - f), a.pos.z - 1 - 4*(50 - f)/50);
+    else {
+      if (f === 50){
+        const st = rk.triggerSwing(a, { shotType: 'smash', side: 'overhead', speed: 1.2, timing, dirX: 0 });
+        if (human) st.swingElapsed = Math.max(st.swingElapsed || 0, .24*st.swingDuration);
+      }
+      ball.lastHitter = 'player'; ball.pos.set(.2, 2.2, a.pos.z - 1 - .4*(f - 50)); ball.vel.set(0, -4, -24);
+    }
+    ctx.elapsedTime += DT; rk.update(a, DT, ctx); M.body.updatePlayerBodyAnimation(a, DT, ctx);
+    const T = a.racketKinematics, c = getRacketRimWorldPoints(a), R = a.rig;
+    out.push({ l: T.swingActive ? T.swingProgress : null, side: T.swingSide, prep: T.anticipationSide, centre: c.centerWorld.toArray(), tip: c.tipWorld.toArray(), normal: c.normalWorld.toArray(), y: a.root.position.y,
+      hipY: R.hipPivot.rotation.y, hipH: R.hipPivot.position.y, hand: R.handLPivot.position.toArray(),
+      body: [R.hipPivot.position.x, R.hipPivot.position.y, R.hipPivot.position.z, R.hipPivot.rotation.x, R.hipPivot.rotation.y, R.hipPivot.rotation.z,
+        R.footLPivot.position.x, R.footLPivot.position.z, R.footRPivot.position.x, R.footRPivot.position.z, ...R.handLPivot.position.toArray()] });
+  }
+  setForehandVideo(true);
+  return out;
+}
+
+test('B53.2: schiacciata, racchetta sulla palla all\'impatto identica a prima e personaggio a terra (in tempo, in anticipo, in ritardo; chi gioca e CPU; destro e mancino)', () => {
+  let checked = 0;
+  for (const human of [true, false]) for (const timing of ['sweet', 'early', 'late']) for (const lefty of [false, true]){
+    const off = smash(false, { timing, human, lefty }), on = smash(true, { timing, human, lefty });
+    const tag = `${human ? 'chi gioca' : 'CPU'} ${timing} ${lefty ? 'mancino' : 'destro'}`;
+    assert.equal(on[60].side, 'overhead', `${tag}: è una schiacciata`);
+    assert.equal(on[45].prep, 'overhead', `${tag}: preparazione della schiacciata`);
+    let free = 0;
+    for (let f = 50; f < on.length; f++){
+      const l = on[f].l;
+      assert.equal(l, off[f].l, `${tag}: stessi tempi dello swing`);
+      if (l != null && l >= SM.racketFree[0] && l <= SM.racketFree[1]){
+        free++; checked++;
+        assert.deepEqual(on[f].centre, off[f].centre, `${tag}: cuore delle corde a ${l.toFixed(3)}`);
+        assert.deepEqual(on[f].tip, off[f].tip, `${tag}: punta a ${l.toFixed(3)}`);
+        assert.deepEqual(on[f].normal, off[f].normal, `${tag}: piatto a ${l.toFixed(3)}`);
+        assert.equal(on[f].y, off[f].y, `${tag}: a terra nella zona dell'impatto`);
+      }
+    }
+    assert.ok(free >= 2, `${tag}: fotogrammi nella zona dell'impatto ${free}`);
+  }
+  assert.ok(checked > 30, `fotogrammi confrontati: ${checked}`);
+});
+
+test('B53.2: pose della schiacciata come nel trailer: gambe piegate e di lato nella preparazione, salto dopo l\'impatto, atterraggio con le braccia aperte', () => {
+  for (const lefty of [false, true]){
+    const off = smash(false, { lefty }), on = smash(true, { lefty });
+    assert.ok(off[48].hipH - on[48].hipH > .04, `gambe piegate: bacino più basso di ${(off[48].hipH - on[48].hipH).toFixed(3)}`);
+    assert.ok(off[48].hipY - on[48].hipY > .3, `di lato: ${(off[48].hipY - on[48].hipY).toFixed(3)} rad`);
+    // salto: comincia dopo la zona libera dell'impatto, alto circa 14 cm, poi di nuovo a terra
+    const lift = on.map((r, f) => r.y - off[f].y), top = Math.max(...lift), first = lift.findIndex(v => v > 1e-4);
+    assert.ok(top > .12 && top < .15, `salto ${top.toFixed(3)} m`);
+    assert.ok(on[first].l == null || on[first].l > SM.racketFree[1], `il salto parte a ${on[first].l} (dopo ${SM.racketFree[1]})`);
+    assert.ok(Math.abs(lift.at(-1)) < 1e-9, 'di nuovo a terra');
+    // atterraggio: la mano libera verso il punto delle braccia aperte, più che prima
+    const fin = on.findIndex((r, f) => f > 50 && r.l != null && r.l > .8), H = SM.hands.finish;
+    const d = r => Math.hypot(r.hand[0] - H.x, r.hand[1] - H.y, r.hand[2] - H.z);
+    assert.ok(d(on[fin]) < d(off[fin]) - .05, `braccia aperte: ${d(on[fin]).toFixed(3)} (prima ${d(off[fin]).toFixed(3)})`);
+  }
+});
+
+test('B53.2: raccordi della schiacciata, niente scatti nuovi', () => {
+  for (const human of [true, false]) for (const lefty of [false, true]){
+    const off = smash(false, { human, lefty, frames: 150 }), on = smash(true, { human, lefty, frames: 150 });
+    let prev = null, maxPos = 0, maxRot = 0, maxY = 0;
+    for (let f = 0; f < on.length; f++){
+      const d = on[f].body.map((x, i) => x - off[f].body[i]);
+      if (prev){
+        maxPos = Math.max(maxPos, ...[0, 1, 2, 6, 7, 8, 9, 10, 11, 12].map(i => Math.abs(d[i] - prev[i])));
+        maxRot = Math.max(maxRot, ...[3, 4, 5].map(i => Math.abs(d[i] - prev[i])));
+        maxY = Math.max(maxY, Math.abs((on[f].y - off[f].y) - (on[f - 1].y - off[f - 1].y)));
+      }
+      prev = d;
+    }
+    assert.ok(maxPos < .17 && maxRot < .26 && maxY < .02, `${human ? 'chi gioca' : 'CPU'} ${lefty ? 'mancino' : 'destro'}: ${(maxPos*1000).toFixed(0)} mm, ${maxRot.toFixed(3)} rad, salto ${(maxY*1000).toFixed(0)} mm/fotogramma`);
+    assert.ok(on.at(-1).body.every((x, i) => Math.abs(x - off.at(-1).body[i]) < 1e-6), 'tornato quello di sempre');
+  }
 });

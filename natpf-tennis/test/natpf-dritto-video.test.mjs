@@ -172,7 +172,7 @@ test('racchetta sulla palla all\'impatto: identica a prima per il colpo in tempo
   assert.ok(checked > 100, `fotogrammi confrontati nella zona dell'impatto: ${checked}`);
 });
 
-test('uno swing di un altro colpo dopo la preparazione del dritto ritrova subito la racchetta di sempre (tagliato, pallonetto, schiacciata)', () => {
+test('uno swing di un altro colpo dopo la preparazione del dritto ritrova subito la racchetta di sempre (tagliato, pallonetto)', () => {
   const stroke = (on, opts) => {
     setForehandVideo(on);
     const { actor: a, rk } = mount(M, {});
@@ -188,9 +188,9 @@ test('uno swing di un altro colpo dopo la preparazione del dritto ritrova subito
     return out;
   };
   // (isPracticeSwing: il lato resta quello chiesto; in partita con la palla sul dritto il motore lo riporterebbe a dritto)
-  // (dal B53 il rovescio ha le sue pose e il suo finale della racchetta, natpf_strokes_video.js: qui si guarda che il
+  // (dal B53 rovescio e schiacciata hanno le loro pose, natpf_strokes_video.js: qui si guarda che il
   // dritto non lasci niente negli swing dei colpi che restano quelli di sempre)
-  for (const opts of [{ shotType: 'slice', side: 'forehand' }, { shotType: 'lob', side: 'forehand' }, { shotType: 'smash', side: 'overhead' }]){
+  for (const opts of [{ shotType: 'slice', side: 'forehand' }, { shotType: 'lob', side: 'forehand' }]){   // (dal B53 anche la schiacciata ha le sue pose)
     const off = stroke(false, opts), on = stroke(true, opts);
     assert.notDeepEqual(on[49], off[49], 'la preparazione del dritto c\'era');
     for (let f = 50; f < 80; f++) assert.deepEqual(on[f], off[f], `${opts.shotType} ${opts.side}: fotogramma ${f}`);

@@ -129,9 +129,10 @@ const DRIVER = () => {
   const feed = () => {
     const sx = S.hand === 'left' ? -1 : 1;
     E.phase = 'RALLY'; E.phaseTimer = 0; E.natpfPaused = false;
-    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1, isPowerShot: false, shotType: 'TOPSPIN' });
+    // (il pallonetto per la schiacciata è il secondo colpo dello scambio: sulla risposta al servizio il gioco non schiaccia, B48.1)
+    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: S.flight ? 2 : 1, isPowerShot: false, shotType: S.flight ? 'LOB' : 'TOPSPIN' });
     E.ballTrail.clear?.(); E.ball.pos.set(-.5*sx, 1, -11); E.ball.spin.set(0, 0, 0);
-    E._launchBallToTarget(E.ball.pos, new V3(S.toX*sx, 0, 8.6), 1.05, { topspin: 14 }); E._natpfPlanPlayer?.();
+    E._launchBallToTarget(E.ball.pos, new V3(S.toX*sx, 0, S.landZ || 8.6), S.flight || 1.05, { topspin: S.flight ? 2 : 14 }); E._natpfPlanPlayer?.();
   };
   const fnv = (h, x) => { h ^= x; return Math.imul(h, 0x01000193) >>> 0; };
   const draw0 = E.renderer.render, BONES3 = ['Hips', 'Spine02', 'Head', 'LeftArm', 'LeftForeArm', 'RightArm', 'RightForeArm', 'LeftLeg', 'RightLeg'];
@@ -139,14 +140,14 @@ const DRIVER = () => {
   const api = {
     get engine(){ return E; },
     mode(on){ const L = U.lobby; if (L.setForehandVideo){ L.setForehandVideo(!!on); return true; } return false; },
-    begin({ hand = 'right', offset = 0, rally = false, toX = 1.4, pre = false } = {}){
+    begin({ hand = 'right', offset = 0, rally = false, toX = 1.4, pre = false, flight = 0, landZ = 0 } = {}){
       window.__seme(20261112);
       U.hand.set(hand);
       E.natpfFatigue = null;   // stanchezza della corsa (natpf_skill.fatigueStep): ogni sequenza riparte riposata
       E.elapsedTime = 500; E.cameraTrauma = 0; E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null; E.natpfTimeScale = 1;
       E.swingVfx?.clearAllTrails?.();
       still(E.player, 0, 11.4); still(E.opponent, 0, -11.6);
-      S = { hand, offset, rally, toX, f: 0, strikes: [], swungFor: null, seen: -1, rec: { player: [], opponent: [] }, jerk: { player: {}, opponent: {} }, last: { player: null, opponent: null },
+      S = { hand, offset, rally, toX, flight, landZ, f: 0, strikes: [], swungFor: null, seen: -1, rec: { player: [], opponent: [] }, jerk: { player: {}, opponent: {} }, last: { player: null, opponent: null },
         hits: { player: {}, opponent: {} }, wasSw: { player: false, opponent: false }, rel: { player: [], opponent: [] }, swStart: { player: [], opponent: [] }, prints: [], centre: [], state: [], gestures: [], top: { player: [0, 0, 0, 0], opponent: [0, 0, 0, 0] },
         pre, mprints: [], mcentre: [] };
       feed();
@@ -260,18 +261,20 @@ const mm = x => Math.round(x*1000);
 // istanti rispetto al colpo (fotogrammi a 60 al secondo): preparazione, caricamento, impatto, finale, recupero
 const ISTANTI = [['preparazione', -24], ['caricamento', -2], ['impatto', 1], ['finale', 9], ['recupero', 22]];
 // B53: COLPO=rovescio fa gli stessi fogli sul rovescio (palla dalla parte libera); file con il prefisso «rovescio-»
-const COLPO = process.env.COLPO === 'rovescio' ? { toX: -1.4, side: 'backhand', prefix: 'rovescio-' } : { toX: 1.4, side: 'forehand', prefix: '' };
+const COLPO = process.env.COLPO === 'rovescio' ? { toX: -1.4, side: 'backhand', prefix: 'rovescio-' }
+  : process.env.COLPO === 'schiacciata' ? { toX: .2, flight: 2.7, landZ: 12.4, side: 'smash', prefix: 'schiacciata-' }   // pallonetto della CPU
+  : { toX: 1.4, side: 'forehand', prefix: '' };
 async function fogli(){
   const g = await game({ saved: '1' }), p = g.p;
   await install(p); await p.evaluate(() => __fv.hideUi());
   const info = {};
   for (const hand of ['right', 'left']){
     await p.evaluate(() => __fv.mode(true));
-    const probe = await seq(p, { hand, toX: COLPO.toX }, 130), f0 = probe.strikes[0]?.f;
+    const probe = await seq(p, { hand, toX: COLPO.toX, flight: COLPO.flight || 0, landZ: COLPO.landZ || 0 }, 200), f0 = probe.strikes[0]?.f;
     check(`fogli (${hand}): il colpo c'è (fotogramma ${f0})`, f0 > 30 && probe.strikes[0].side === COLPO.side, JSON.stringify(probe.strikes[0]));
     for (const [mode, on] of [['prima', false], ['dopo', true]]){
       await p.evaluate(on => __fv.mode(on), on);
-      await p.evaluate(o => __fv.begin(o), { hand, toX: COLPO.toX });
+      await p.evaluate(o => __fv.begin(o), { hand, toX: COLPO.toX, flight: COLPO.flight || 0, landZ: COLPO.landZ || 0 });
       let f = 0;
       for (const [name, d] of ISTANTI){
         const want = f0 + d; await p.evaluate(n => __fv.step(n), want - f); f = want;

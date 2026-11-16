@@ -2392,3 +2392,18 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   fuori dallo swing, falso scatto di 4 rad della misura), poi **54/58 con gli stessi 4 rossi della 14.9** (verificato
   facendo girare la prova su una copia della 14.9: 54/58). Fogli del rovescio guardati (camera di gioco e ravvicinata).
 - Non verificato: telefono vero, ledwall, scheda video vera; il giudizio sul rovescio spetta all'utente.
+
+## B53.2 · Schiacciata «come nel video», versione 2026-11-15.2 (16/11, 07:15–07:40 UTC)
+
+- [x] File: `natpf_strokes_video.js` (voce `smash`; mano per posa `hands`, salto per colpo `hop`, `racket.fin` facoltativo),
+  `test/natpf-colpi-video.test.mjs` (+3), `test/natpf-dritto-video.test.mjs` (la schiacciata non è più «immutata»),
+  `tools/e2e/natpf-dritto-video.mjs` (`COLPO=schiacciata`: pallonetto con `flight`/`landZ`, secondo colpo dello scambio),
+  `docs/b53/` (§3 e immagini), guida, versione 2026-11-15.2.
+- Trailer (7–8 s) guardato fotogramma per fotogramma: salto con il braccio libero verso la palla, racchetta dietro la
+  testa, colpo in aria, atterraggio a braccia aperte. Picco delle corde della schiacciata a 0,36 dello swing (sonda).
+- Verifiche: test dei colpi 9/9 e del B23 13/13, mascotte 3D verdi; controllo rapido gioco 1749/1749, sito 275/275,
+  desktop 51/51, LAN 13/13, build; `natpf-dritto-video` 54/58 (i 4 rossi della 14.9); fogli della schiacciata 4/4,
+  guardati (camera di gioco e ravvicinata). Salto alzato da 10 a 14 cm dopo aver guardato i fogli.
+- Installer e zip della 2026-11-15.1 verificati (vedi traccia).
+- Non verificato: telefono vero, ledwall; il salto parte dopo l'impatto (nel trailer il colpo è in aria): scelta dovuta
+  al vincolo della racchetta del motore all'impatto.

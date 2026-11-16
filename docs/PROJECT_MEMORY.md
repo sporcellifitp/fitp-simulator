@@ -1538,3 +1538,6 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   1,6 unità/s **meno quanto la sposta il dritto del B23 nello stesso fotogramma** (alla palla che passa dal rovescio al
   dritto i due moduli muovevano bacino e mano nello stesso verso: soglie del B23 fuori dallo swing superate). La misura degli scatti della prova del B23 tiene il segno dei
   quaternioni continuo.
+- Schiacciata (B53.2, versione 2026-11-15.2): il salto (14 cm) **parte 0,06 s dopo l'impatto**, dopo la zona libera
+  della racchetta (0,2–0,46): all'impatto il personaggio è a terra come prima. Nella prova del B23 il pallonetto per la
+  schiacciata è il secondo colpo dello scambio (sulla risposta al servizio niente schiacciata, B48.1).
