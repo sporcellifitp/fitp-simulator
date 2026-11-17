@@ -58,8 +58,8 @@ Registro delle richieste in §3.
 | 17/11 | Stesso schermo: anello a terra anche per il Player 2, TORINO dritto nelle due metà (B61) | FIERA (vale anche online: stesso gioco) | fatto, 17.2 |
 | 17/11 | Dritto e rovescio «invertiti a volte» (B61) | FIERA | non riprodotto; misura nuova nel registro (`pl`), serve il registro del 17/11 |
 | 17/11 | Salvaschermo: partita dimostrativa dopo 1 min senza nessuno (B62) | FIERA (online spento di base) | fatto, 17.3 (`docs/b62/salvaschermo.md`) |
-| 17/11 | Analisi delle ridondanze (fascia, mano, nome, impostazioni doppie) | ENTRAMBE | analisi fatta (`docs/analisi/ridondanze-2026-11-17.md`), proposte da approvare |
-| 17/11 | Mascotte con i modelli 3D di Lob e Drop invece delle GIF | FIERA | da decidere: si può (B40.6 li fotografa già), serve la scelta dell'utente |
+| 17/11 | Analisi delle ridondanze (fascia, mano, nome, impostazioni doppie) | ENTRAMBE | analisi fatta (`docs/analisi/ridondanze-2026-11-17.md`); decisione dell'utente: sì a «Fascia una volta sola», «Livello CPU senza doppioni», «Impostazioni doppie»; no alla mano in due posti (B64, in corso) |
+| 17/11 | Mascotte con i modelli 3D di Lob e Drop invece delle GIF | FIERA | decisione dell'utente: «3D con animazioni nuove» (3 di vittoria, 3 di sconfitta), anteprima prima di pubblicare (B63, in corso) |
 | 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)

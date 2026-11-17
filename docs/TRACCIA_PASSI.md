@@ -1596,3 +1596,18 @@ ricaricare solo per il campo `pl` (dalla 17.2); senza, il Worker lo scarta e tie
 **Prossima azione esatta (17/11, 14:00 UTC)**: aspettare l'utente: mascotte (GIF di oggi, 3D di oggi, 3D con animazioni
 nuove), proposte delle ridondanze, registro del 17/11.
 
+## 17/11, 14:10 UTC · decisioni dell'utente e piano (B63 mascotte 3D, B64 ridondanze)
+
+Risposte dell'utente (domande a scelta):
+- Mascotte: **«3D con animazioni nuove»**: 3 animazioni di vittoria e 3 di sconfitta per i modelli 3D di Lob e Drop (passi
+  avanti, indietro, di lato, balletto, testa bassa), **anteprima all'utente prima di pubblicare** (B63).
+- Ridondanze (`docs/analisi/ridondanze-2026-11-17.md` §3): **sì** a «Fascia una volta sola» (stesso schermo: fascia in «Pronto
+  per la partita», niente domanda alla Rivincita con «Cambia fascia», parole «Aiuto al più giovane» / «Livello»), «Livello
+  CPU senza doppioni» (in «Altre impostazioni» solo Esperta e Leggenda), «Impostazioni doppie» (personaggi, visuale, audio,
+  schermo intero, chi batte: un posto per il visitatore e uno per lo staff); **no** alla mano in due posti (B64).
+
+Piano: [ ] B63 animazioni 3D e anteprima → [ ] B64 ridondanze (un passo per proposta, prove nel browser) → versione.
+
+**Prossima azione esatta (17/11, 14:10 UTC)**: B63, leggere `src/player_body_animation.js` (reazioni «cheer» e «clap») e
+`src/natpf/natpf_ritratti.js` (cattura dei fotogrammi), poi le animazioni nuove.
+
