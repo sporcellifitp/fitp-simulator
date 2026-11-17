@@ -19,6 +19,12 @@ export function hot(E, id = 'p1', lead = .1){
 }
 // lato della palla in arrivo per chi gioca, come lo vede (e come lo usa il gioco): +1 alla sua destra, −1 alla sua sinistra
 export { ballSideNow } from '../src/natpf/natpf_phone_racket.js';
+// B59: prima delle palle il conto alla rovescia «Allenati un po'!» (natpf_prematch.beginTrial): la prima palla arriva
+// COUNT_MS dopo (3 s di conto + TRIAL.afterCount) invece di TRIAL.intro; COUNT_EXTRA_S: il tempo in più rispetto a prima
+import { PREMATCH } from '../src/natpf/natpf_prematch.js';
+import { TRIAL as TRIAL_T } from '../src/natpf/natpf_trial_learn.js';
+export const COUNT_MS = PREMATCH.ms + TRIAL_T.afterCount*1000;
+export const COUNT_EXTRA_S = COUNT_MS/1000 - TRIAL_T.intro;
 import { ballSideNow } from '../src/natpf/natpf_phone_racket.js';
 export const ballWant = (E, id = 'p1') => ballSideNow(E, id, (id === 'p2' ? E.natpfPhone2 : E.natpfPhone)?.trial?.at ?? null);
 

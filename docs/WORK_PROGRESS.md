@@ -2530,6 +2530,16 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B59 · conto alla rovescia «Allenati un po'!» prima degli scambi di prova (17/11/2026)
+
+- [x] `natpf_prematch.js` (`TRIAL_COUNT`, `prematchTexts`, `beginTrial`, `cancelTrial`; a zero «Allenati un po'!»
+  `style-start` e `cue('go')`), `natpf_trial.js` (fase `count`, scritta nascosta durante il conto), `natpf_trial_learn.js`
+  (`TRIAL.afterCount` 1,2 s), `site/js/tennis/phone-screen.js` (`countFlash` con `trial`).
+- [x] Prove: `natpf-b59-conto-prova` 5/5; aggiornati i tempi di `natpf-b43-pannello-partita`, `natpf-b47-conto`,
+  `natpf-giocando-revisione` (4), `natpf-scambi-di-prova` (3) con `COUNT_MS`/`COUNT_EXTRA_S`; `phone-screen` +3 controlli.
+  Gioco 1789/1789, sito 280/280, build.
+- Non provato: telefoni veri, ledwall. Prove nel browser in corso.
+
 ## B58 · mascotte senza velo, versione 2026-11-16.11 (17/11/2026)
 
 - [x] `docs/b58/fondo-trasparente.py`: alfa sotto 20/255 a zero sul fondo e sul bordo (4 GIF di Lob con il fondo a

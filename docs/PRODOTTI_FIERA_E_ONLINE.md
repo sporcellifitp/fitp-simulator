@@ -51,8 +51,8 @@ Registro delle richieste in §3.
 | 16/11 | Correzione dell'anticipo dei colpi del telefono (B56) | FIERA (solo in modalità fiera) | fatto, 16.8 |
 | 16/11 | Fine partita nello stesso schermo: chi vince sopra (B57) | FIERA | fatto, 16.8 |
 | 16/11 | Lob e Drop a fine partita, una a caso per esito (B58) | FIERA (solo programma Windows; lo zip web non le porta) | fatto, 16.9 accanto al titolo; 16.10 nella card al posto del personaggio (richiesta dell'utente) (`docs/b58/mascotte-fine-partita.md`) |
-| 16/11 | Mascotte della card: passi avanti, indietro, di lato (B58.1) e velo sul fondo | FIERA | anteprima all'utente; velo corretto, esce con la 16.11 |
-| 16/11 | Conto alla rovescia «Allenati un po'!» prima degli scambi di prova (B59) | FIERA | in coda |
+| 16/11 | Mascotte della card: passi avanti, indietro, di lato (B58.1) e velo sul fondo | FIERA | velo corretto nella 16.11; passi non fatti: l'utente il 17/11 «ok con versione senza sfondo bianco» (restano come sono) |
+| 16/11 | Conto alla rovescia «Allenati un po'!» prima degli scambi di prova (B59) | FIERA (vale anche online: stesso gioco) | fatto (`docs/b59/conto-allenati.md`), esce con la versione dopo la 16.11 |
 | 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)

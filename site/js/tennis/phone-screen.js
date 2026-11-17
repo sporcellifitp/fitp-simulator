@@ -276,9 +276,12 @@ export function trialThresholds(d = {}){
 // n = 3, 2, 1 («Si gioca tra» con il numero, anello verde) e 0 («Si gioca!»); stop = conto fermato o annullato, con il
 // motivo. Anello rosso solo per un problema (un telefono non più pronto); soft = fermato sul computer («Aspetta», si
 // scelgono le impostazioni, pannello aperto): anello neutro, non è un errore (revisione B9 del 06/11, prima sempre rosso)
+// B59: trial = conto prima degli scambi di prova (natpf_prematch.beginTrial): «Allenamento tra» e «Allenati un po'!»
 export function countFlash(d = {}){
   if (d.stop) return { ring: d.soft ? '' : 'miss', big: 'Aspetta', sub: String(d.txt || 'Guarda il computer.').slice(0, 140), ms: 2400, arrow: '', buzz: null };
   const n = Math.round(+d.n || 0);
+  if (d.trial) return n > 0 ? { ring: 'ready', big: 'Allenamento tra', sub: 'Tieni il telefono come in partita.', ms: 1150, arrow: String(n), buzz: [25] }
+    : { ring: 'ready', big: "Allenati un po'!", sub: 'Colpisci le palle facili.', ms: 1400, arrow: '', buzz: [70] };
   return n > 0 ? { ring: 'ready', big: 'Si gioca tra', sub: 'Tieni il telefono come in partita.', ms: 1150, arrow: String(n), buzz: [25] }
     : { ring: 'ready', big: 'Si gioca!', sub: '', ms: 1000, arrow: '', buzz: [70] };
 }

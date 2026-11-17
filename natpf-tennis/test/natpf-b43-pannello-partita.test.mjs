@@ -3,6 +3,7 @@
 // B39: A1, A2, A3, A5 e voci n. 14 e 15). In un file a sé perché il mondo di prova (ui-world.mjs) sostituisce orologio e
 // timer del processo. Qui anche la prova del punto 3 che ha bisogno della pausa vera (scritta del punto che aspetta).
 import test from 'node:test';
+import { PREMATCH } from '../src/natpf/natpf_prematch.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { makeWorld, $ } from './ui-world.mjs';
@@ -98,7 +99,7 @@ test('punto 2 · anche gli scambi di prova e l\'allenamento si fermano con il pa
   // scambi di prova (B28) contro la CPU, telefono che risponde come la pagina vera
   const p = await playWorld();
   assert.ok(p.ui.trial.active && !p.lobby.visible, 'scambi di prova in corso');
-  p.advance(1500); assert.ok(runs(p) > 50);
+  p.advance(1500 + PREMATCH.ms); assert.ok(runs(p) > 50);   // (B59: dopo il conto «Allenati un po'!»)
   p.ui.kiosk.open(); assert.equal(p.E.natpfPaused, true); assert.equal(runs(p, 3000), 0, 'scambi di prova fermi');
   p.ui.kiosk.close(); assert.ok(runs(p) > 50, 'e ripartono');
   // allenamento con la racchetta mouse

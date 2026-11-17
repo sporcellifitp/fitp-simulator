@@ -39,6 +39,8 @@ test('contro la CPU con «Giocando»: scambi di prova, pagina, «Gioca» → con
   assert.ok(ui.trial.active, 'scambi di prova prima della pagina');
   const r = playTrial(w, (id, n, want) => stroke({ dir: want }), { gioca: false });
   assert.ok(r.page);
+  // (B59: prima degli scambi di prova la scritta «Allenati un po'!» del loro conto; qui si guarda quella della partita)
+  assert.deepEqual(banners, [["Allenati un po'!", '']]); banners.length = 0;
   const before = link.sent.filter(m => m.t === 'ev' && m.k === 'count').length;
   assert.equal(w.pressStart(), true); w.advance(100);
   assert.equal(E.natpfMatchSeq, 1);

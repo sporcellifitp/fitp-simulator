@@ -203,6 +203,10 @@ test('pagina del telefono: «Attiva i sensori» con la mano in vista, il resto s
 test('telefono: conto 3, 2, 1, «Si gioca!»; «Aspetta» dal computer neutro, annullato per un telefono in rosso; velo neutro', () => {
   assert.deepEqual(countFlash({ n: 3 }), { ring: 'ready', big: 'Si gioca tra', sub: 'Tieni il telefono come in partita.', ms: 1150, arrow: '3', buzz: [25] });
   assert.deepEqual(countFlash({ n: 0 }), { ring: 'ready', big: 'Si gioca!', sub: '', ms: 1000, arrow: '', buzz: [70] });
+  // B59: conto prima degli scambi di prova
+  assert.deepEqual(countFlash({ n: 2, trial: 1 }), { ring: 'ready', big: 'Allenamento tra', sub: 'Tieni il telefono come in partita.', ms: 1150, arrow: '2', buzz: [25] });
+  assert.deepEqual(countFlash({ n: 0, trial: 1 }), { ring: 'ready', big: "Allenati un po'!", sub: 'Colpisci le palle facili.', ms: 1400, arrow: '', buzz: [70] });
+  assert.equal(countFlash({ stop: 1, soft: 1, trial: 1 }).big, 'Aspetta');
   const held = countFlash({ stop: 1, soft: 1, txt: 'Partenza fermata sul computer.' });
   assert.equal(held.ring, '', '«Aspetta» sul computer: niente anello rosso'); assert.equal(held.big, 'Aspetta'); assert.equal(held.sub, 'Partenza fermata sul computer.');
   const ko = countFlash({ stop: 1, txt: 'Conto annullato · Marco: schermo spento' });

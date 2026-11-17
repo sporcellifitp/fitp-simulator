@@ -5,9 +5,10 @@
 // condizioni di fine, i colpi di prova che non contano, il riapprendimento a ogni partita, i percorsi (contro la CPU,
 // stesso schermo, minigiochi, Allenamento), con il mondo di prova (ui-world.mjs) e il telefono simulato (phone-sim.mjs).
 import test from 'node:test';
+import { PREMATCH } from '../src/natpf/natpf_prematch.js';
 import assert from 'node:assert/strict';
 import { makeWorld, $ } from './ui-world.mjs';
-import { phoneLike, stroke, hot, ballWant, SIMPLE, playWorld, playTrial } from './trial-world.mjs';
+import { phoneLike, stroke, hot, ballWant, SIMPLE, playWorld, playTrial, COUNT_EXTRA_S } from './trial-world.mjs';
 import { CAL_MODE_KEY, CAL_MODES, CAL_MODE_DEFAULT, calModeOf, calModeFromUrl, readCalMode, readSavedCalMode, writeCalMode, nextCalMode, forgetCalMode, calModeButton, calModeToast,
   TRIAL, trialSide, trialDone, wantOfSide, wantOfBallSide, createTrialLearner, phoneThresholds } from '../src/natpf/natpf_trial_learn.js';
 import { trialDue, trialDots, trialOutro, gestureProfile, TRIAL_TEXT } from '../src/natpf/natpf_trial.js';
@@ -268,7 +269,10 @@ test('contro la CPU: «Collega» → scambi di prova → pagina «Pronto per la 
   assert.ok(ui.trial.active && !lobby.visible, 'dopo «Collega»: scambi di prova, non la pagina'); assert.ok(!ui.training.active);
   assert.equal(w.pressStart(), false, '«Gioca» non c’è durante gli scambi di prova (nemmeno dal telecomando)');
   assert.deepEqual(link.cmds.slice(cmds0), ['cal', 'skip'], 'il telefono riparte dal profilo semplice');
-  assert.equal(E.natpfMatchSeq || 0, seq0, 'la partita non è ancora partita'); assert.ok(!$('natpf-trial').classList.contains('hidden'));
+  assert.equal(E.natpfMatchSeq || 0, seq0, 'la partita non è ancora partita');
+  // B59: prima il conto alla rovescia grande «Allenati un po'!», con la scritta degli scambi nascosta
+  assert.ok(ui.prematch.active && ui.prematch.kind === 'trial' && $('natpf-trial').classList.contains('hidden') && !$('natpf-prematch').classList.contains('hidden'));
+  w.advance(PREMATCH.ms + 100); assert.ok(!ui.prematch.active && !$('natpf-trial').classList.contains('hidden'), 'dopo il conto la scritta degli scambi di prova');
   assert.ok(document.body.classList.contains('natpf-training') && document.body.classList.contains('natpf-trial-on'), 'tabellone nascosto, niente scritte dell\'esito');
   w.advance(500); assert.equal($('natpf-trial').dataset.state, 'intro');
   let judged = 0; const fb = ui.shot.onLocalFeedback.bind(ui.shot); ui.shot.onLocalFeedback = e => { judged++; return fb(e); };
@@ -277,7 +281,7 @@ test('contro la CPU: «Collega» → scambi di prova → pagina «Pronto per la 
   // dritti a 700 °/s con il piatto a +20°, rovesci a 520 °/s con il piatto a −14°
   const r = playTrial(w, (id, n, want) => stroke({ dir: want, peak: want > 0 ? 700 : 520, heading: want > 0 ? 20 : -14, rise: want > 0 ? .2 : .05 }), { gioca: false });
   assert.equal(r.log.length, 4, JSON.stringify(r.log)); assert.deepEqual(r.log.map(x => x.want), [1, -1, 1, -1], 'palle alternate: destra, sinistra, destra, sinistra');
-  assert.ok(r.seconds > 8 && r.seconds < 14, `scambi di prova in ${r.seconds.toFixed(1)} s (circa 10–15)`);
+  assert.ok(r.seconds > 8 && r.seconds < 14, `scambi di prova in ${r.seconds.toFixed(1)} s (circa 10–15, dopo il conto «Allenati un po'!»)`);
   // alla fine: pagina «Pronto per la partita» con le impostazioni, la partita non è partita
   assert.ok(r.page, 'pagina «Pronto per la partita»'); assert.equal(lobby.step, 'match'); assert.equal(E.natpfMatchSeq || 0, seq0);
   assert.equal($('lobby-t-match').textContent, 'Pronto per la partita');
@@ -337,13 +341,13 @@ test('chi non colpisce mai non resta fermo: allo scadere la partita parte con il
   const w = await playWorld(), { E, ui, P } = w;
   w.pressStart();
   const r = playTrial(w, () => null);
-  assert.equal(r.log.length, 0); assert.ok(r.seconds > 12 && r.seconds <= 19, `partita dopo ${r.seconds.toFixed(1)} s (tetto circa 20)`);
+  assert.equal(r.log.length, 0); assert.ok(r.seconds > 12 && r.seconds <= 19 + COUNT_EXTRA_S, `partita dopo ${r.seconds.toFixed(1)} s (tetto circa 20, più il conto «Allenati un po'!»)`);
   assert.ok(!ui.trial.active && E.phase === 'SERVE_STANCE' && E.natpfMatchSeq === 1); assert.ok(P.profile.simple, 'ripiego: profilo semplice, il gioco impara dai colpi veri');
   assert.deepEqual([E.score.playerPoints, E.score.opponentPoints], [0, 0]);
   // una volta per lato (poi palle perse): livello «ok», come i due gesti di prima
   const v = await playWorld(); v.pressStart();
   const r2 = playTrial(v, (id, n, want) => (n <= 2 ? stroke({ dir: want, peak: 640 }) : null));
-  assert.equal(r2.log.length, 2); assert.ok(r2.seconds <= 19, `${r2.seconds.toFixed(1)} s`);
+  assert.equal(r2.log.length, 2); assert.ok(r2.seconds <= 19 + COUNT_EXTRA_S, `${r2.seconds.toFixed(1)} s`);
   assert.equal(v.P.profile.simple, false); assert.equal(v.P.profile.trialLevel, 'ok'); assert.deepEqual(v.P.profile.refs, { 1: 640, '-1': 640 });
   // solo dal dritto: «partial» (le palle in più vanno dal lato che manca, il rovescio)
   const u = await playWorld(); u.pressStart();
@@ -436,7 +440,7 @@ test('«Con i gesti» e «Nessuna»: niente scambi di prova; con «Nessuna» chi
 
 test('durante gli scambi di prova i punti non contano e la pausa del telefono non rigioca niente; tornare al menu li chiude', async () => {
   const w = await playWorld(), { E, ui, lobby } = w;
-  w.pressStart(); w.advance(1500);
+  w.pressStart(); w.advance(1500 + PREMATCH.ms);   // (B59: dopo il conto «Allenati un po'!»)
   assert.equal(E.phase, 'RALLY', 'prima palla in arrivo');
   // il motore chiede un punto (palla non presa): nessun punto, la palla è solo finita
   E._awardPoint('opponent', 'Point');

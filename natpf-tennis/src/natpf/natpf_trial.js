@@ -123,6 +123,13 @@ export class NatpfTrial {
     this._idle();
     for (const id of ids){ const a = this._actor(id), z = id === 'p2' ? -TRIAL_FEED.z : TRIAL_FEED.z; if (a?.pos){ a.pos.set(0, 0, z); a.targetPos?.copy?.(a.pos); a.vel?.set?.(0, 0, 0); } this._phone(id)?.beginTrial?.(force ? { keep: false } : {}); this._bindNext(this._phone(id)); this._phone(id)?.offerNext?.('Salta ›', null, { graceMs: NEXT_TAP.graceMs }); }
     this.ui.diag?.recorder?.log?.('prova.inizio', { stessoSchermo: split });
+    // B59: prima delle palle il conto alla rovescia grande della partita in versione «Allenati un po'!» (natpf_prematch.js);
+    // le palle partono a fine conto. Non con «Ricalibra» (resume): lì si rigioca subito il punto
+    const S = this.S, pm = this.ui.prematch;
+    if (!resume && pm?.beginTrial){
+      S.phase = 'count'; S.wait = Infinity;
+      pm.beginTrial({ onDone: () => { if (this.S === S && S.phase === 'count'){ S.phase = 'intro'; S.wait = TRIAL.afterCount; this.paint(); } } });
+    }
     this.paint(); this.ui._syncPause?.();
     return true;
   }
@@ -235,6 +242,7 @@ export class NatpfTrial {
   skip(){ if (this.S && this.S.phase !== 'outro'){ this.ui.diag?.recorder?.log?.('prova.salta', {}); this._outro({ quick: true }); } }
   _outro({ quick = false } = {}){
     const S = this.S, E = this.engine;
+    this.ui.prematch?.cancelTrial?.();   // B59: «Salta ›» durante il conto: il conto sparisce
     this._idle();
     // fine dell'apprendimento: il profilo imparato vale da qui (anche per la scritta dell'esito)
     S.result = Object.fromEntries(Object.keys(S.players).map(id => [id, this._phone(id)?.endTrial?.() || null]));
@@ -254,6 +262,7 @@ export class NatpfTrial {
     for (const id of Object.keys(S.players)){ if (this._phone(id)?.trialOn) this._phone(id).endTrial(); this._phone(id)?.offerNext?.(null); }
     this._stage(false);
     this.S = null;
+    this.ui.prematch?.cancelTrial?.();   // B59: chiusi durante il loro conto (menu, chiosco): il conto sparisce
     if (!S.split){
       const o = E.opponent; if (o?.pos){ o.pos.set(-1.35, 0, -11.89); o.targetPos?.copy?.(o.pos); }
       E._applyDifficultyTuning?.(S.prev.difficulty || 'casual'); E.isMultiplayer = S.prev.multi;
@@ -269,6 +278,8 @@ export class NatpfTrial {
   paint(){
     const el = this.el, S = this.S; if (!el) return;
     if (!S){ show(el, false); return; }
+    // B59: durante il conto alla rovescia si vede solo il conto grande (natpf_prematch.js), poi la scritta degli scambi
+    show(el, S.phase !== 'count');
     const $q = sel => el.querySelector?.(sel), set = (sel, t) => { const n = $q(sel); if (n && n.textContent !== t) n.textContent = t; };
     const outro = S.phase === 'outro', state = outro ? 'go' : S.started ? 'play' : 'intro';
     if (el.dataset.state !== state) el.dataset.state = state;

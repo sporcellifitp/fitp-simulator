@@ -1483,3 +1483,17 @@ velo, passi se approvati) → B59.
 
 **Prossima azione esatta (17/11, 00:45 UTC)**: risposta dell'utente sui passi delle mascotte (B58.1); poi B59 (conto alla
 rovescia «Allenati un po'!» prima degli scambi di prova); poi rimisure con il registro della prossima giornata.
+
+## 17/11, 01:30 UTC · B59 conto alla rovescia «Allenati un po'!» prima degli scambi di prova
+
+- [x] Decisione dell'utente: «ok con versione senza sfondo bianco» (mascotte come sono, niente passi), «vai avanti» → B59.
+- [x] B59 fatto (`docs/b59/conto-allenati.md`): `natpf_prematch.beginTrial`, `natpf_trial` fase `count`, telefono
+      `countFlash` con `trial`. Prove: gioco 1789/1789 (`natpf-b59-conto-prova` 5; tempi di 8 prove degli scambi
+      aggiornati, +3,2 s), sito 280/280, build. Commit senza versione nuova (in attesa delle prove nel browser).
+- [~] Prove nel browser degli scambi di prova (12 script) in corso; poi versione 2026-11-17.1 e pacchetti.
+
+**Prossima azione esatta (17/11, 01:30 UTC)**: esiti delle 12 prove nel browser (`natpf-scambi-di-prova`,
+`natpf-flusso-tocchi`, `natpf-fiera-telefoni`, `natpf-nuovo-giocatore`, `natpf-rally`, `natpf-phone-keep`,
+`natpf-mano-sicura`, `natpf-servizio-lancio`, `natpf-servizio-scelta`, `natpf-solo-mouse`, `natpf-stesso-schermo-b25`,
+`natpf-pannello-partita`): sistemare i tempi se servono, poi versione 2026-11-17.1, pacchetti, registrazione del conto
+per l'utente.

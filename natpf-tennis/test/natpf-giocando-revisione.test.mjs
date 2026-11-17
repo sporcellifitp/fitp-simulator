@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld, $ } from './ui-world.mjs';
-import { phoneLike, stroke, hot, ballWant, SIMPLE, playWorld, playTrial, secondPhone } from './trial-world.mjs';
+import { phoneLike, stroke, hot, ballWant, SIMPLE, playWorld, playTrial, secondPhone, COUNT_MS, COUNT_EXTRA_S } from './trial-world.mjs';
 import { writeCalMode, forgetCalMode, TRIAL } from '../src/natpf/natpf_trial_learn.js';
 import { NatpfPhoneRacket } from '../src/natpf/natpf_phone_racket.js';
 import { remoteScreen, remoteCommands } from '../src/natpf/natpf_remote_map.js';
@@ -70,7 +70,7 @@ test('revisione 3: stesso schermo, il telefono del Player 2 si ferma 1 s durante
   const seconds = (performance.now() - t0)/1000;
   assert.ok(dropped && back && held, 'il telefono del Player 2 si è fermato e la partita ha aspettato');
   assert.equal(stance, 0, 'nessun servizio preparato sotto il cartello degli scambi di prova');
-  assert.ok(seconds < 19, `scambi di prova finiti in ${seconds.toFixed(1)} s (pausa e conto alla rovescia compresi; prima 21,3 s senza imparare)`);
+  assert.ok(seconds < 19 + COUNT_EXTRA_S, `scambi di prova finiti in ${seconds.toFixed(1)} s (pausa e conti alla rovescia compresi, B59 «Allenati un po'!» +${COUNT_EXTRA_S} s; prima 21,3 s senza imparare)`);
   assert.deepEqual([P1.profile.trialLevel, P2.profile.trialLevel], ['full', 'full']);
   assert.ok(!ui.trial.active && E.natpfMatchSeq === 1 && E.phase === 'SERVE_STANCE');
   // in partita la pausa del telefono rigioca il punto, come prima
@@ -196,7 +196,7 @@ test('revisione 7: stesso schermo con un giocatore calibrato apposta con i gesti
   assert.ok(ui.trial.active && ui.trial.S.split, 'uno dei due senza gesti: gli scambi di prova si fanno');
   assert.ok(P1.trial.keep && !P2.trial.keep); assert.equal(ui.trial.counts('p1').forehand, TRIAL.perSide);
   const r = playTrial(w, (id, n, want) => stroke({ dir: want, peak: id === 'p2' ? 400 : 800 }), { phones: w.phones });
-  assert.ok(r.seconds < 14.5, `finiti in ${r.seconds.toFixed(1)} s (prima 16,7: sempre al tetto di tempo)`);
+  assert.ok(r.seconds < 14.5 + COUNT_EXTRA_S, `finiti in ${r.seconds.toFixed(1)} s (B59: conto «Allenati un po'!» compreso; prima 16,7 + il conto: sempre al tetto di tempo)`);
   assert.equal(P2.profile.trialLevel, 'full'); assert.equal(P2.profile.ref, 400);
   assert.deepEqual([P1.profile.ref, P1.madeBy, P1.profile.trial], [580, 'gesti', undefined], 'chi ha calibrato con i gesti tiene il suo profilo');
   assert.ok(E.natpfMatchSeq === 1 && E.natpfSplit.active);
@@ -227,7 +227,7 @@ test('revisione 6: con la rete lenta (risposta dopo 0,5 e 1,5 s) niente pausa «
     assert.equal(w.go(), false); assert.ok(ui.trial.active && !P.ready && P.resetting);
     while (ui.trial.active && performance.now() - t0 < 30000){
       w.step();
-      if (E.natpfPaused) paused += 16;
+      if (E.natpfPaused && !ui.prematch.active) paused += 16;   // (B59: il conto «Allenati un po'!» ferma il campo: non è la pausa del telefono)
       if (ui.phoneHold && !holds.includes(ui.phoneHold.why)) holds.push(ui.phoneHold.why);
       if (first == null && E.phase === 'RALLY') first = performance.now() - t0;
       const ball = P.trial?.ball ?? -1;
@@ -235,8 +235,9 @@ test('revisione 6: con la rete lenta (risposta dopo 0,5 e 1,5 s) niente pausa «
     }
     assert.deepEqual(holds, [], `risposta dopo ${lag} ms: nessuna pausa`); assert.equal(paused, 0);
     // (B35: gli scambi partono con «Avanti» della pagina «Collega», nello stesso fotogramma: 1000 ms possono essere
-    // 999,99 per l'arrotondamento dei fotogrammi da 1/60 s; il minimo resta il secondo dell'intro)
-    assert.ok(first >= 1000 - .5 && first <= Math.max(1000, lag) + 100, `risposta dopo ${lag} ms: prima palla a ${Math.round(first)} ms (prima a 4300), non prima che il telefono sia pronto`);
+    // 999,99 per l'arrotondamento dei fotogrammi da 1/60 s; il minimo resta il secondo dell'intro. B59: prima il conto
+    // «Allenati un po'!» (COUNT_MS): il telefono lento è pronto prima della fine del conto)
+    assert.ok(first >= COUNT_MS - .5 && first <= Math.max(COUNT_MS, lag) + 100, `risposta dopo ${lag} ms: prima palla a ${Math.round(first)} ms (conto «Allenati un po'!» compreso), non prima che il telefono sia pronto`);
     assert.equal(P.profile.trialLevel, 'full'); assert.ok(!P.resetting);
   }
   // telefono che non risponde più: dopo 2,5 s la pausa «non pronto» arriva, come sempre
@@ -308,7 +309,7 @@ test('di base · il telefono cade, si ricollega o spegne lo schermo durante gli 
     assert.ok(!ui.trial.active && ui.lobby.visible && ui.lobby.step === 'match', `${how}: pagina «Pronto per la partita»`);
     assert.equal(w.pressStart(), true); w.advance(100);
     assert.ok(!ui.trial.active && E.natpfMatchSeq === 1 && E.phase === 'SERVE_STANCE', `${how}: la partita parte con «Gioca»`);
-    assert.ok(seconds < 21, `${how}: ${seconds.toFixed(1)} s con 2 s di telefono fermo e il conto alla rovescia`);
+    assert.ok(seconds < 21 + COUNT_EXTRA_S, `${how}: ${seconds.toFixed(1)} s con 2 s di telefono fermo e i conti alla rovescia (B59 compreso)`);
     assert.ok(['full', 'ok'].includes(P.profile.trialLevel), `${how}: livello ${P.profile.trialLevel}`); assert.ok(P.ready && !ui.phoneHold);
   }
   // non torna: la partita resta ferma con il riquadro; dal menu si chiude tutto

@@ -57,8 +57,10 @@ telefono (o «Gioca ›»), a fine partita «Prossimo giocatore ›». Qui sotto
 1. Primo visitatore (telefono non ancora collegato): «Gioca» → «Contro la CPU» → «Smartphone» → pagina «Collega il
    telefono». Il telefono inquadra il QR, tocca il link, poi «Attiva i sensori»: il gioco va avanti da solo.
 2. Tutorial corto sul ledwall (5 schede): si chiude subito con «Tutto chiaro, ho capito» sul telefono, o con la × sul PC.
-3. «Scambi di prova»: circa 10 secondi, 4 palle facili. Il gioco impara il colpo di chi gioca. «Salta ›» (accanto alla
-   pausa, in alto a destra) per andare avanti.
+3. «Scambi di prova»: (B59) prima il **conto alla rovescia grande** come per la partita («Preparati · Prima qualche
+   scambio di prova · 3 · 2 · 1»), poi al centro la scritta grande **«Allenati un po'!»**; poi circa 10 secondi, 4 palle
+   facili. Il gioco impara il colpo di chi gioca. «Salta ›» (accanto alla pausa, in alto a destra) per andare avanti
+   (anche durante il conto).
 4. «Pronto per la partita»: clicca «Bambino», «Ragazzo» o «Adulto» (si parte sempre da «Adulto»). Poi **un solo clic**
    su «Gioca ›». (B47) In campo, prima del primo punto, il **conto alla rovescia grande** al centro: «Preparati · La
    partita sta per cominciare · 3 · 2 · 1» (3 secondi), poi si gioca. Di base **batte sempre chi gioca** (pannello →
@@ -601,6 +603,7 @@ e menu del programma: capitolo 12.
 | Formato in fiera | Game corti: punto decisivo sul 40-40, servizio ogni due punti (con «Battuta: Alternata») | Pannello → «Formato in fiera». Di base solo nello stesso schermo; «Sì» anche contro la CPU e tra due computer |
 | Battuta: Sempre lo stesso (B47) | La gente non capisce il servizio alternato: contro la CPU batte sempre il visitatore, nello stesso schermo sempre chi batte il primo game | Di base (pannello → «Battuta») |
 | Conto alla rovescia grande (B47) | «Preparati, la partita sta per cominciare» 3 · 2 · 1 tra gli scambi di prova e la partita | Sempre, con il telefono; non va acceso |
+| Conto «Allenati un po'!» (B59) | Prima degli scambi di prova lo stesso conto 3 · 2 · 1, poi la scritta grande «Allenati un po'!»: chi gioca capisce che è un allenamento e che la partita viene dopo | Sempre con «Calibrazione: Giocando»; non con «Ricalibra» a partita in corso |
 | Livello dopo «Rivincita» (B47) | Cambiare Bambino · Ragazzo · Adulto (o le fasce dei due) prima della rivincita, con un clic | A fine partita, «Rivincita» o «Gioca ancora» |
 | Scambio che si scalda | Scambi che finiscono, partite più corte | Acceso di base (pannello) |
 | Calibrazione: Giocando | Niente gesti a vuoto: ogni visitatore fa circa 10 secondi di scambi di prova prima di ogni partita | Di base (pannello → «Calibrazione») |

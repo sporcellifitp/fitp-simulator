@@ -73,9 +73,10 @@ export function calModeToast(mode, forced = false){
 /* ---------- scambi di prova: tempi e numeri ---------- */
 // perSide: colpi normali per verso per il profilo «pieno»; balls: palle di base (due per lato, alternate); maxBalls: palle
 // al massimo (le ultime vanno dal lato che ha meno colpi); maxS: tetto in secondi dalla prima palla (allo scadere il match
-// parte comunque con quello che si è imparato); intro: s tra «Scambi di prova» e la prima palla; gap: s tra il colpo e la
+// parte comunque con quello che si è imparato); intro: s tra «Scambi di prova» e la prima palla; afterCount (B59): s tra la
+// fine del conto alla rovescia («Allenati un po'!», natpf_prematch.js) e la prima palla; gap: s tra il colpo e la
 // palla dopo; miss: s tra una palla persa e la palla dopo; outro: s di «Si comincia!» prima del match
-export const TRIAL = Object.freeze({ perSide: 2, balls: 4, maxBalls: 6, maxS: 14, intro: 1, gap: .6, miss: .45, outro: 1,
+export const TRIAL = Object.freeze({ perSide: 2, balls: 4, maxBalls: 6, maxS: 14, intro: 1, afterCount: 1.2, gap: .6, miss: .45, outro: 1,
   minTotal: 2, signMin: 2, signFlip: .25, signKeep: .75, weak: .5 });
 
 const median = a => { const v = [...a].sort((x, y) => x - y), m = v.length >> 1; return v.length ? (v.length % 2 ? v[m] : (v[m - 1] + v[m])/2) : NaN; };

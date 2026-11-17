@@ -17,6 +17,11 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 17/11/2026, 01:30 UTC (B59 fatto, non ancora in versione).** Conto alla rovescia «Allenati un po'!»
+prima degli scambi di prova (`docs/b59/conto-allenati.md`). Gioco 1789/1789, sito 280/280, build. Mascotte: restano come
+sono (decisione dell'utente). **Prossima azione esatta:** esiti delle prove nel browser degli scambi di prova (elenco
+nella traccia), poi versione 2026-11-17.1 e pacchetti.
+
 **Checkpoint del 17/11/2026, 00:20 UTC (versione 2026-11-16.11: mascotte senza velo).** Le 20 animazioni rifatte con
 `docs/b58/fondo-trasparente.py` corretto (velo quasi invisibile sul fondo di 4 animazioni di Lob tolto; figure identiche;
 136–181 KB, 3,18 MB). Gioco 1784/1784, sito 280/280, LAN 13/13, desktop 56/56, build; `natpf-fine-partita` 66/66. Mandate
@@ -434,7 +439,7 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
 
 ## 5. Punti aperti: stato, cosa fare, come, perché
 
-### B58.1 · Mascotte della card: passi e velo (FIERA)
+### B58.1 · Mascotte della card: passi e velo (FIERA) · velo fatto (16.11); passi non richiesti (utente, 17/11: «ok con versione senza sfondo bianco»)
 - **Stato**: domanda dell'utente del 16/11 («si muovono come chiedo? a me sembrano tutti simili; migliorare le movenze
   con i piedi: avanti, indietro, destra e sinistra»). Misura delle 20 animazioni (320 px): 16 su 20 hanno i piedi fermi
   (meno di 3 px), il corpo non si sposta di lato (meno di 4 px, tranne `lob-win-04` 23 px); saltano `lob-win-01` e
@@ -444,7 +449,7 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
   passo, in CSS (`translate`/`scale`, nessun file nuovo); i piedi veri non fanno il passo (servirebbero animazioni nuove).
   Si fa solo con il sì dell'utente; «riduci movimento»: ferma.
 
-### B59 · Conto alla rovescia «Allenati un po'!» prima degli scambi di prova (FIERA, in coda)
+### B59 · Conto alla rovescia «Allenati un po'!» prima degli scambi di prova (FIERA) · FATTO il 17/11 (`docs/b59/conto-allenati.md`)
 - **Richiesta dell'utente del 16/11**: con la calibrazione giocando (B28, scambi di prova) lo stesso conto alla rovescia
   dell'inizio della partita vera (B47, scritta grande al centro con la stessa transizione), con «Allenati un po'!» al
   posto di «Si gioca!»; poi gli scambi di prova; poi la partita con il suo conto alla rovescia di sempre.

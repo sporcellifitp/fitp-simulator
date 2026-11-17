@@ -1585,3 +1585,15 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - **Solo FIERA**: `mascotsOn()` vuole `window.natpfDesktop` (o il server di sviluppo). Lo zip Cloudflare toglie le
   cartelle di `FIERA_ONLY` (`scripts/pacchetto-cloudflare.mjs`): con le mascotte passava i 25 MB. Una cartella nuova
   di `public/` pesante e solo per lo stand va aggiunta lì.
+
+## B59 · Conto «Allenati un po'!» prima degli scambi di prova (17/11/2026; documento `docs/b59/conto-allenati.md`)
+
+- Lo stesso riquadro e lo stesso controllore del conto della partita (B47, `natpf_prematch.js`) in versione
+  `kind: 'trial'` (`beginTrial`): testi da `prematchTexts`, a zero la scritta grande «Allenati un po'!» con lo stile
+  `style-start` (la transizione di «Si gioca») e la voce `cue('go')`, poi `onDone` fa partire le palle
+  (`natpf_trial.js`, fase `count` → `intro` con `TRIAL.afterCount`). I messaggi ai telefoni portano `trial: 1`
+  (`countFlash` del telefono: «Allenamento tra», «Allenati un po'!»); le pagine vecchie dicono «Si gioca tra» finché non
+  si ricaricano (B54.1).
+- Niente conto con `resume` («Ricalibra»). «Salta ›» e chiusura degli scambi chiamano `prematch.cancelTrial()`.
+- Nei test gli scambi di prova durano `COUNT_EXTRA_S` (3,2 s) in più e la prima palla arriva dopo `COUNT_MS`
+  (`test/trial-world.mjs`): usarli invece dei numeri scritti a mano.
