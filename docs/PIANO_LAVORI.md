@@ -17,7 +17,7 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 17/11/2026, 18:00 UTC (versione 2026-11-17.4, in pubblicazione).** B65 classifica di oggi a fine partita,
+**Checkpoint del 17/11/2026, 18:30 UTC (versione 2026-11-17.4 pubblicata: installer `d442fa8d…7aed`, zip `8e2559f1…5422`).** B65 classifica di oggi a fine partita,
 B64 ridondanze tolte, B63 mascotte 3D presenti ma spente (aspettano l'approvazione dell'anteprima). Gioco 1820/1820, sito
 282/282, LAN 13/13, desktop 56/56, build; nel browser classifica-fine 11/11, chi-gioca 55/55, b47-fiera 20/20, b20 52/52,
 schermo 41/41, salvaschermo 21/21, ritratti 24/24, fine-partita 68/68, lob-drop 136/137 (il controllo dei piedi fallisce

@@ -1634,8 +1634,14 @@ ancora (3,08 % contro 3 %), verificarlo sulla 17.3 (non toccato oggi).
 - [x] Decisioni dell'utente: nello stesso schermo solo chi vince; classifica dopo la card per 8 s. Fatto
       (`docs/b65/classifica-fine.md`), prove 1820/1820, sito 282/282, nel browser classifica-fine 11/11.
 - [x] Prove nel browser delle ridondanze (B64) tutte verdi; lob-drop: il controllo dei piedi fallisce uguale sulla 17.3.
-- [~] Versione 17.4: commit, push, pacchetti.
+- [x] Versione 17.4 (`f5c6a4f`): installer dal link fisso = `latest.json` (131.379.204 B, sha256
+      `d442fa8de1ef7d2341705597a5242c0a6d463db1926e51897ef10752b4fb7aed`); zip 23.961.695 B, sha256
+      `8e2559f1bc0d5cc73bb744ad95cfd3d67e48d9241d5ad36482fb14e28d8c5422`, provato estratto. Workflow «motore base MVP» rosso
+      la prima volta su un test di velocità del Worker del registro (soglia di 20/30 ms sulla macchina di GitHub; in
+      locale verde): rilanciato, verde (tre workflow verdi).
 
-**Prossima azione esatta (17/11, 18:00 UTC)**: se il commit della 17.4 è su GitHub, controllare workflow e pacchetti;
-poi aspettare l'utente (mascotte 3D da approvare; registro del 17/11).
+**Prossima azione esatta (17/11, 18:40 UTC)**: aspettare l'utente: approvazione delle mascotte 3D (B63, poi accenderle nel
+programma Windows e decidere Lob e Drop anche con i Classici); registro del 17/11 (dritto e rovescio); collaudo allo stand
+di salvaschermo, ridondanze e classifica di fine partita. Punto aperto: il controllo dei piedi in corsa di
+`tools/e2e/natpf-lob-drop.mjs` (3,08 % contro 3 %) fallisce già sulla 17.3.
 
