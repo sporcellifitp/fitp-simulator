@@ -3,14 +3,15 @@
 // nello stesso schermo), prenotazione e prericarica delle prossime due, stato sul computer che può mancare, essere
 // rovinato o essere quello della 16.9, piano dalle card (CPU, sconfitta, stesso schermo, pari), animazione nella finestra
 // del personaggio della card (16.10, decisione dell'utente) al posto del ritratto, solo nel programma Windows e in
-// sviluppo, file che manca (torna il ritratto) e «riduci movimento»; niente più posto accanto al titolo; zip Cloudflare
-// senza le mascotte.
+// sviluppo, file che manca (torna il ritratto); niente più posto accanto al titolo; zip Cloudflare senza le mascotte.
+// 17/11 (collaudo dell'utente sulla 17.1): Drop per chi gioca e Lob per l'avversario, sempre animate (anche con «riduci
+// movimento»), la figura intera che si muove con i piedi.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MASCOTS, MASCOT_DIR, MASCOT_KEY, OUTCOMES, mascotUrl, mascotsOn, pickMascot, mascotPlan, withMascots, readState, MascotRotation, mountMascots } from '../src/natpf/natpf_mascotte.js';
+import { MASCOTS, MASCOT_DIR, MASCOT_KEY, OUTCOMES, mascotUrl, mascotsOn, pickMascot, mascotPlan, withMascots, readState, MascotRotation, mountMascots, mascotCharacter, mascotCharacterOf, mascotOutcomeOf, mascotMove, CHARACTERS } from '../src/natpf/natpf_mascotte.js';
 import { cardHtml, cardsHtml } from '../src/natpf/natpf_end_card.js';
 import { FIERA_ONLY } from '../scripts/pacchetto-cloudflare.mjs';
 
@@ -151,14 +152,14 @@ test('B58: stato sul computer: si rilegge al riavvio, quello della 16.9, valori 
 });
 
 test('B58: piano dalle card: una per card con il suo esito; stesso schermo solo con un vincitore', () => {
-  assert.deepEqual(mascotPlan({ split: false, cards: [{ won: true }] }), [{ index: 0, outcome: 'win' }]);
-  assert.deepEqual(mascotPlan({ split: false, cards: [{ won: false }] }), [{ index: 0, outcome: 'lose' }]);
-  assert.deepEqual(mascotPlan({ split: true, cards: [{ won: false }, { won: true }] }), [{ index: 0, outcome: 'lose' }, { index: 1, outcome: 'win' }]);
+  assert.deepEqual(mascotPlan({ split: false, cards: [{ won: true }] }), [{ index: 0, outcome: 'win', who: null }]);
+  assert.deepEqual(mascotPlan({ split: false, cards: [{ won: false }] }), [{ index: 0, outcome: 'lose', who: null }]);
+  assert.deepEqual(mascotPlan({ split: true, cards: [{ won: false, side: 'player' }, { won: true, side: 'opponent' }] }), [{ index: 0, outcome: 'lose', who: 'drop' }, { index: 1, outcome: 'win', who: 'lob' }]);
   assert.deepEqual(mascotPlan({ split: true, cards: [{ won: false }, { won: false }] }), []);
   assert.deepEqual(mascotPlan({ split: true, cards: [{ won: true }, { won: true }] }), []);
   assert.deepEqual(mascotPlan(null), []);
   assert.deepEqual(mascotPlan({ cards: [] }), []);
-  const model = { split: true, cards: [{ won: false, x: 1 }, { won: true }] }, plan = mascotPlan(model);
+  const model = { split: true, cards: [{ won: false, x: 1, side: 'opponent' }, { won: true, side: 'player' }] }, plan = mascotPlan(model);
   const m2 = withMascots(model, plan, ['lob-lose-02.webp', 'drop-win-04.webp']);
   assert.deepEqual(m2.cards.map(c => c.mascot), ['lob-lose-02.webp', 'drop-win-04.webp']);
   assert.equal(m2.cards[0].x, 1); assert.equal(model.cards[0].mascot, undefined, 'il modello di partenza non cambia');
@@ -180,7 +181,7 @@ test('B58: nella card la mascotte sta nella finestra del personaggio, dopo il ri
   const art = h.slice(h.indexOf('<div class="card-art"'), h.indexOf('<div class="card-info">'));
   assert.ok(art.indexOf('class="card-svg"') < art.indexOf('<img class="card-mascot"'), 'il ritratto resta sotto come ripiego');
   assert.ok(art.indexOf('<img class="card-mascot"') < art.indexOf('class="card-badge'), 'il nastro sopra la mascotte');
-  assert.match(art, /<img class="card-mascot" src="\.\/media\/mascotte\/drop-win-03\.webp" alt="" decoding="async" draggable="false" data-file="drop-win-03\.webp" data-outcome="win">/);
+  assert.match(art, /<img class="card-mascot" src="\.\/media\/mascotte\/drop-win-03\.webp" alt="" decoding="async" draggable="false" data-file="drop-win-03\.webp" data-outcome="win" data-move="c">/);
   for (const bad of [undefined, null, '', 'x.webp', '"><b>.webp', '../lob-win-01.webp', 'lob-win-01.gif']){
     const k = cardHtml(card({ mascot: bad }));
     assert.doesNotMatch(k, /card-mascot|data-mascot/, String(bad));
@@ -200,25 +201,71 @@ function fakeCard({ complete = false, naturalWidth = 0 } = {}){
   const root = { querySelectorAll: () => [img] };
   return { root, img, listeners, attrs };
 }
-test('B58: file che manca: via l\'immagine e torna il ritratto; «riduci movimento»: primo fotogramma fermo', () => {
+test('B58: file che manca: via l\'immagine e torna il ritratto; sempre animate, anche con «riduci movimento» (17/11)', () => {
   const a = fakeCard(); assert.equal(mountMascots(a.root), 1);
   a.listeners.error(); assert.ok(a.img.removed); assert.equal(a.attrs['data-mascot'], undefined);
-  const b = fakeCard(); mountMascots(b.root, { reduce: true });
-  b.img.naturalWidth = 320; b.img.naturalHeight = 320; b.listeners.load();
-  assert.ok(b.img.replaced, 'canvas al posto dell\'immagine animata'); assert.equal(b.img.drawn, b.img); assert.equal(b.img.replaced.width, 320);
-  assert.match(b.img.replaced.className, /card-mascot/); assert.equal(b.img.replaced.dataset.file, 'lob-win-01.webp');
-  const c = fakeCard(); mountMascots(c.root, { reduce: false }); c.listeners.load(); assert.equal(c.img.replaced, null, 'senza «riduci movimento» resta animata');
+  assert.equal(a.listeners.load, undefined, 'nessun lavoro al caricamento: l\'immagine animata resta com\'è');
   const d = fakeCard({ complete: true, naturalWidth: 0 }); mountMascots(d.root); assert.ok(d.img.removed, 'già finita con errore');
-  const e = fakeCard({ complete: true, naturalWidth: 320 }); mountMascots(e.root, { reduce: true }); assert.ok(e.img.replaced, 'già caricata');
+  const e = fakeCard({ complete: true, naturalWidth: 320 }); mountMascots(e.root, { reduce: true });
+  assert.equal(e.img.replaced, null, 'mai più il primo fotogramma fermo al posto dell\'animazione'); assert.equal(e.img.removed, false);
   assert.equal(mountMascots({ querySelectorAll: () => [] }), 0);
   assert.equal(mountMascots(null), 0);
+  const src = fs.readFileSync(path.join(ROOT, 'src/natpf/natpf_mascotte.js'), 'utf8');
+  assert.doesNotMatch(src, /prefers-reduced-motion|card-mascot-still|drawImage/);
+  const css = fs.readFileSync(path.join(ROOT, 'natpf-hud.css'), 'utf8');
+  assert.doesNotMatch(css, /reduce[^{]*\{[^}]*card-mascot/, 'nessuna regola di «riduci movimento» ferma le mascotte');
+});
+
+test('B58 (17/11): Drop per chi gioca, Lob per l\'avversario; nello stesso schermo uno per parte, mai due Lob', () => {
+  assert.equal(mascotCharacter({ look: 'drop', side: 'player' }), 'drop');
+  assert.equal(mascotCharacter({ look: 'lob', side: 'opponent' }), 'lob');
+  assert.equal(mascotCharacter({ look: 'p1', side: 'player' }), null, 'personaggi classici, una card: tutti e due');
+  assert.equal(mascotCharacter({ look: 'p1', side: 'player' }, { two: true }), 'drop');
+  assert.equal(mascotCharacter({ look: 'p2', side: 'opponent' }, { two: true }), 'lob');
+  assert.deepEqual(mascotPlan({ split: true, cards: [{ won: true, side: 'opponent', look: 'lob' }, { won: false, side: 'player', look: 'drop' }] }),
+    [{ index: 0, outcome: 'win', who: 'lob' }, { index: 1, outcome: 'lose', who: 'drop' }]);
+  assert.deepEqual(mascotPlan({ split: false, cards: [{ won: true, side: 'player', look: 'drop' }] }), [{ index: 0, outcome: 'win', who: 'drop' }]);
+  assert.equal(mascotCharacterOf('lob-win-03.webp'), 'lob'); assert.equal(mascotCharacterOf('drop-lose-01.webp'), 'drop'); assert.equal(mascotCharacterOf('x.webp'), null);
+  for (const o of ['win', 'lose']) for (const who of CHARACTERS) for (let i = 0; i < 50; i++) assert.equal(mascotCharacterOf(pickMascot(o, [], Math.random, who)), who);
+  // 400 partite dello stesso schermo, prenotate a caso (anche dell'altro personaggio): sempre quello della card, mai una della partita prima
+  let r = 4242; const rnd = () => ((r = (r * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const rot = new MascotRotation({ storage: memory(), rnd, preload: () => {} });
+  let last = []; const seen = new Set();
+  for (let i = 0; i < 400; i++){
+    rot.prepare();
+    const p1won = rnd() < .5, model = { split: true, cards: [{ won: p1won, side: 'player', look: 'drop' }, { won: !p1won, side: 'opponent', look: 'lob' }] };
+    const plan = mascotPlan(model), files = rot.takeFor(plan), m = withMascots(model, plan, files);
+    assert.deepEqual(m.cards.map(c => mascotCharacterOf(c.mascot)), ['drop', 'lob'], `partita ${i}: ${files}`);
+    assert.deepEqual(m.cards.map(c => mascotOutcomeOf(c.mascot)), [p1won ? 'win' : 'lose', p1won ? 'lose' : 'win']);
+    assert.ok(files.every(f => !last.includes(f))); last = files; files.forEach(f => seen.add(f));
+  }
+  assert.equal(seen.size, 20, 'col tempo escono tutte e venti');
+  // personaggio sbagliato per la card: niente mascotte (resta il ritratto), mai l'altro personaggio
+  const plan = [{ index: 0, outcome: 'win', who: 'drop' }];
+  assert.equal(withMascots({ cards: [{ won: true }] }, plan, ['lob-win-01.webp']).cards[0].mascot, undefined);
+});
+
+test('B58 (17/11): la figura intera si muove (saltelli, passi avanti, indietro, di lato), tre giri per esito', () => {
+  assert.deepEqual([...MASCOTS.win, ...MASCOTS.lose].map(mascotMove).reduce((a, m) => ({ ...a, [m]: (a[m] || 0) + 1 }), {}), { a: 8, b: 8, c: 4 });
+  assert.equal(mascotMove('lob-win-01.webp'), 'a'); assert.equal(mascotMove('drop-lose-05.webp'), 'b'); assert.equal(mascotMove('lob-lose-03.webp'), 'c');
+  assert.equal(mascotMove('x.webp'), null);
+  const h = cardHtml(card({ mascot: 'drop-win-03.webp' }));
+  assert.match(h, /data-outcome="win" data-move="c">/);
+  const css = fs.readFileSync(path.join(ROOT, 'natpf-hud.css'), 'utf8');
+  for (const o of ['win', 'lose']) for (const m of ['a', 'b', 'c']){
+    const kf = css.match(new RegExp(`@keyframes natpf-mascot-${o}-${m} \\{([\\s\\S]*?)\\n\\}`))?.[1];
+    assert.ok(kf, `${o}-${m}`); assert.match(kf, /translate\(/); assert.doesNotMatch(kf, /\b(left|top|width|height|margin)\s*:/, 'solo transform');
+  }
+  assert.match(css, /\.card-mascot\[data-outcome="win"\] \{ animation: natpf-mascot-win-a [\d.]+s ease-in-out infinite; \}/);
+  assert.match(css, /\.card-mascot\[data-outcome="lose"\]\[data-move="c"\] \{ animation-name: natpf-mascot-lose-c; \}/);
+  assert.match(css, /\.card-mascot \{[^}]*transform-origin: 50% 100%/);
 });
 
 test('B58: hud_ui mette le mascotte nelle card, i ritratti 3D le lasciano stare, niente più posto accanto al titolo; lo zip web non le porta', () => {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   assert.doesNotMatch(html, /victory-mascot|end-mascot/);
   const hud = fs.readFileSync(path.join(ROOT, 'src/hud_ui.js'), 'utf8');
-  assert.match(hud, /mascotRotation\(\)/); assert.match(hud, /withMascots\(cv0, plan, rot\.takeFor\(/); assert.match(hud, /rot\.prepare\(\)/); assert.match(hud, /mountMascots\(cd, \{ reduce: reduceMotion\(\) \}\)/);
+  assert.match(hud, /mascotRotation\(\)/); assert.match(hud, /withMascots\(cv0, plan, rot\.takeFor\(/); assert.match(hud, /rot\.prepare\(\)/); assert.match(hud, /mountMascots\(cd\)/); assert.match(hud, /rot\.takeFor\(plan\)/);
   assert.doesNotMatch(hud, /has-mascot|victory-mascot/);
   const rit = fs.readFileSync(path.join(ROOT, 'src/natpf/natpf_ritratti.js'), 'utf8');
   assert.match(rit, /dataset\.mascot === '1'\) continue/);

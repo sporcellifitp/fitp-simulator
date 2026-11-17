@@ -1130,7 +1130,65 @@ body {
   object-position: 50% 100%;
   pointer-events: none;
   filter: drop-shadow(0 calc(var(--eu) * 0.5) calc(var(--eu) * 1) rgba(0, 0, 0, 0.35));
+  transform-origin: 50% 100%;
+  will-change: transform;
 }
+/* 17/11 (collaudo dell'utente sulla 17.1, ledwall: «io sul display vedo immagini statiche»): oltre ai fotogrammi del file
+   la figura intera si muove con i piedi, sempre (anche con «riduci movimento»: l'utente le vuole animate). Vittoria:
+   saltelli e passi (a: salti sul posto e passo di lato; b: passo avanti, verso chi guarda, e indietro; c: di lato a
+   saltelli). Sconfitta, più lenta e più piccola (a: passi indietro a testa bassa; b: si trascina di lato; c: si accascia
+   e si rialza). Solo transform (spostamenti in % della figura), dentro la finestra del personaggio (overflow: hidden) */
+@keyframes natpf-mascot-win-a {
+  0%, 48%, 100% { transform: translate(0, 0) scale(1, 1); }
+  12%, 36% { transform: translate(0, -9%) scale(0.97, 1.04); }
+  24% { transform: translate(0, 0) scale(1.04, 0.96); }
+  62% { transform: translate(6%, -5%) scale(1, 1); }
+  72% { transform: translate(8%, 0) scale(1.03, 0.97); }
+  86% { transform: translate(-4%, -5%) scale(1, 1); }
+  94% { transform: translate(-6%, 0) scale(1.03, 0.97); }
+}
+@keyframes natpf-mascot-win-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  15% { transform: translate(0, -7%) scale(1.02); }
+  32% { transform: translate(0, 3%) scale(1.09); }
+  46% { transform: translate(0, -5%) scale(1.05); }
+  60% { transform: translate(0, 0) scale(1); }
+  74% { transform: translate(0, -4%) scale(0.96); }
+  88% { transform: translate(0, -2%) scale(0.92); }
+}
+@keyframes natpf-mascot-win-c {
+  0%, 50%, 100% { transform: translate(0, 0) scale(1, 1); }
+  12% { transform: translate(4%, -8%) scale(0.98, 1.03); }
+  25% { transform: translate(8%, 0) scale(1.03, 0.97); }
+  37% { transform: translate(4%, -8%) scale(0.98, 1.03); }
+  62% { transform: translate(-4%, -8%) scale(0.98, 1.03); }
+  75% { transform: translate(-8%, 0) scale(1.03, 0.97); }
+  87% { transform: translate(-4%, -8%) scale(0.98, 1.03); }
+}
+@keyframes natpf-mascot-lose-a {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0); }
+  25% { transform: translate(-2%, -2%) scale(0.97) rotate(-2deg); }
+  50% { transform: translate(0, -1%) scale(0.93) rotate(-3deg); }
+  75% { transform: translate(2%, -2%) scale(0.97) rotate(1deg); }
+}
+@keyframes natpf-mascot-lose-b {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  20% { transform: translate(-3%, -2%) rotate(-3deg); }
+  40% { transform: translate(-6%, 0) rotate(0); }
+  60% { transform: translate(-1%, -2%) rotate(3deg); }
+  80% { transform: translate(4%, 0) rotate(0); }
+}
+@keyframes natpf-mascot-lose-c {
+  0%, 100% { transform: translate(0, 0) scale(1, 1) rotate(0); }
+  35%, 55% { transform: translate(0, 2%) scale(1.05, 0.93) rotate(-2deg); }
+  80% { transform: translate(2%, -2%) scale(0.98, 1.02) rotate(1deg); }
+}
+.card-mascot[data-outcome="win"] { animation: natpf-mascot-win-a 2.4s ease-in-out infinite; }
+.card-mascot[data-outcome="win"][data-move="b"] { animation-name: natpf-mascot-win-b; }
+.card-mascot[data-outcome="win"][data-move="c"] { animation-name: natpf-mascot-win-c; }
+.card-mascot[data-outcome="lose"] { animation: natpf-mascot-lose-a 3.2s ease-in-out infinite; }
+.card-mascot[data-outcome="lose"][data-move="b"] { animation-name: natpf-mascot-lose-b; }
+.card-mascot[data-outcome="lose"][data-move="c"] { animation-name: natpf-mascot-lose-c; }
 .end-card[data-mascot="1"] .card-svg,
 .end-card[data-mascot="1"] canvas.card-portrait { display: none; }
 /* ripiego senza i fotogrammi 3D: il ritratto SVG salta (chi vince) o ondeggia (chi applaude); solo transform */

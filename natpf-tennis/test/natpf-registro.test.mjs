@@ -248,7 +248,7 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
     _natpfRacketShot(e){ this.ball.rallyStrokeCount++; this.ball.lastHitter = e.who === 'p2' ? 'opponent' : 'player'; this.ball.bounceCountOnCurrentSide = 0;
       this.natpfLastRacket = { who: e.who || 'player', intent: { shot: e.intento || e.shot || 'forehand', power: e.power ?? .6, typePower: e.power ?? .6, ...(e.face != null ? { face: e.face } : {}), ...(e.derived ? { derived: true } : {}) },
         out: { shot: e.shot || 'forehand', grade: e.grade || 'Perfetto', aim: .2, failed: !!e.failed, netFault: !!e.net, ...(e.t != null ? { t: e.t } : {}), ...(e.rule ? { rule: e.rule } : {}) },
-        timing: e.tau ?? .01, source: 'phone', ...(e.super ? { super: e.super } : { superWhy: ['palla troppo bassa'] }) };
+        timing: e.tau ?? .01, source: 'phone', ...(e.contact != null ? { contact: e.contact } : {}), ...(e.super ? { super: e.super } : { superWhy: ['palla troppo bassa'] }) };
       return { E: 1.5, N: -8.2 }; },
     // B36.0: anello del rimbalzo (il motore vero lo chiama a ogni rimbalzo, prima di contarlo)
     _spawnBounceRing(){},
@@ -649,4 +649,23 @@ test('registro, B60: la riga «colpo» porta i km/h del colpo (quelli scritti so
   assert.equal(colpi.length, 2); assert.equal(colpi[0].kmh, 97); assert.equal('kmh' in colpi[1], false);
   assert.equal(visti.length, 6, 'le statistiche della partita ricevono tutto come prima');
   assert.ok(F.CAMPI.includes('kmh'), 'campo già accettato dal Worker (lo usa il servizio): niente da ricaricare');
+});
+
+// 17/11 (collaudo dell'utente sulla 17.1: «dritto e rovescio invertiti a volte»): la riga «colpo» dice da che parte di chi
+// colpisce era la palla prima del colpo (pl: +1 alla sua destra, −1 alla sua sinistra, 0 entro 0,3 m), nel riferimento di
+// chi colpisce (il Player 2 guarda dall'altra parte), accanto a «lato» (parte del corpo del colpo)
+test('registro, 17/11: la riga «colpo» porta il lato della palla (pl) accanto al lato del colpo, anche per il Player 2', async () => {
+  const M = mondo(), { E, ui } = M; ui.lobby.visible = false; E.startNewMatch();
+  E.player.pos = { x: 0, y: 0, z: 11 }; E.opponent.pos = { x: 1, y: 0, z: -11 };
+  M.avanti(3000); E._startServeToss(E.player); M.avanti(900); E._executeServeHit(E.player, {});
+  const colpo = (x, o) => { E.ball.pos = { x, y: 1, z: 0 }; E.ball.vel = { x: 0, y: 0, z: 10 }; M.avanti(1200); E._natpfRacketShot(o); };
+  colpo(.9, { who: 'player', shot: 'forehand', contact: 1 });          // palla a destra, dritto di un destro: d'accordo
+  colpo(-.8, { who: 'player', shot: 'forehand', contact: 1 });         // palla a sinistra, dritto: dalla parte opposta
+  colpo(.1, { who: 'player', shot: 'backhand', contact: -1 });         // palla addosso: 0
+  colpo(1.9, { who: 'p2', shot: 'forehand', contact: 1 });             // Player 2: 0,9 m alla sua SINISTRA (guarda verso +z)
+  M.avanti(800); E._awardPoint('player', 'Out');
+  M.R.secondo(); await M.R.blocco();
+  const colpi = (await tutte(M.coda)).filter(r => r.k === 'colpo');
+  assert.deepEqual(colpi.map(r => [r.pl, r.lato]), [[1, 1], [-1, 1], [0, -1], [-1, 1]]);
+  assert.ok(F.CAMPI.includes('pl'), 'campo nuovo (il Worker lo tiene dopo la ricarica; prima lo scarta, la riga resta)');
 });

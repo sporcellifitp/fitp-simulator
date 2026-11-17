@@ -41,6 +41,10 @@ check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 // schermo .end-player); expect: quello che deve mostrare secondo natpf_match_stats.endScreen dai numeri del motore
 const NEG = /errori|errore|in rete|fuori|anticipo|ritardo|a vuoto|migliora|sbagli/i;
 const readModal = g => g.evaluate(async () => {
+  // 17/11: le mascotte si muovono con tutta la figura (natpf-hud.css): le misure di posto si prendono ferme al primo
+  // istante del giro (trasformazione nulla), poi il giro riprende da dov'era; il movimento si misura a parte (mascotMoves)
+  const mAnims = document.getAnimations().filter(a => /^natpf-mascot-/.test(a.animationName || '')), mPrev = mAnims.map(a => [a, a.currentTime, a.playState]);
+  mAnims.forEach(a => { a.pause(); a.currentTime = 0; });
   const m = document.getElementById('victory-modal'), card = m.querySelector('.nt-skill-card'), r = card.getBoundingClientRect();
   const tile = t => ({ id: t.dataset.stat, value: +t.querySelector('.end-num').textContent, label: t.querySelector('.end-lab').textContent });
   const tiles = [...m.querySelectorAll('#victory-stats > .end-tiles .end-tile')].map(tile);
@@ -65,7 +69,7 @@ const readModal = g => g.evaluate(async () => {
   // (B57: nello stesso schermo la card di chi vince va per prima)
   const ordered = model?.split ? [...model.cards].sort((a, b) => (b.won ? 1 : 0) - (a.won ? 1 : 0)) : (model?.cards || []);
   const cardsExpect = ordered.map(c => ({ side: c.side, frame: c.frame, won: c.won, look: c.look, name: c.name, badge: c.badge, crown: c.crown, trophies: c.trophies.map(t => `${t.id}:${t.tier}`), record: c.record?.text || '', next: c.next || '' }));
-  return { open: !m.classList.contains('hidden'), stats: m.classList.contains('has-stats'), split: m.classList.contains('stats-split'), title: document.getElementById('victory-result-banner').textContent,
+  const out = { open: !m.classList.contains('hidden'), stats: m.classList.contains('has-stats'), split: m.classList.contains('stats-split'), title: document.getElementById('victory-result-banner').textContent,
     kicker: document.getElementById('victory-kicker').textContent, sub: vis('victory-sub'), games: vis('victory-games') ? [...document.getElementById('victory-games').children].map(c => c.textContent.trim()).join(' ') : '', pill: vis('victory-pill'),
     again: document.getElementById('btn-play-again').textContent, btns: [...card.querySelectorAll('.end-btns .nt-footer-btn')].filter(b => !b.classList.contains('hidden') && b.offsetParent).map(b => b.textContent),
     tiles, players, sums: view?.stats?.cols.map(c => c.sum) || [], expect, cards, cardsExpect, hasCards: m.classList.contains('has-cards'), text: card.innerText,
@@ -76,7 +80,21 @@ const readModal = g => g.evaluate(async () => {
       const b = im.getBoundingClientRect(), a = art.getBoundingClientRect(), svg = c.querySelector('.card-svg'), cv = c.querySelector('canvas.card-portrait');
       return { file: im.dataset.file, outcome: im.dataset.outcome || '', won: c.dataset.won === '1', loaded: (im.naturalWidth || im.width) === 320, h: Math.round(b.height),
         inside: b.top >= a.top - 1 && b.bottom <= a.bottom + 1 && b.left >= a.left - 1 && b.right <= a.right + 1,
-        portraitHidden: (!svg || getComputedStyle(svg).display === 'none') && (!cv || getComputedStyle(cv).display === 'none') }; }) };
+        portraitHidden: (!svg || getComputedStyle(svg).display === 'none') && (!cv || getComputedStyle(cv).display === 'none'),
+        who: (im.dataset.file || '').split('-')[0], side: c.dataset.side, look: c.dataset.look, move: im.dataset.move || '', anim: getComputedStyle(im).animationName }; }) };
+  mPrev.forEach(([a, t, st]) => { a.currentTime = t; if (st === 'running') a.play(); });
+  return out;
+});
+// 17/11: quanto si muove la figura intera di ogni mascotte in 2,5 s (scostamento massimo dal posto, px; scala min/max)
+const mascotMoves = g => g.evaluate(async () => {
+  const ims = [...document.querySelectorAll('#victory-cards .card-mascot')], track = ims.map(() => ({ dx: 0, dy: 0, smin: 1, smax: 1 }));
+  const t0 = performance.now();
+  while (performance.now() - t0 < 2500){
+    ims.forEach((im, i) => { const tf = getComputedStyle(im).transform, m = new DOMMatrix(tf === 'none' ? undefined : tf), T = track[i];
+      T.dx = Math.max(T.dx, Math.abs(m.e)); T.dy = Math.max(T.dy, Math.abs(m.f)); const sy = Math.hypot(m.c, m.d); T.smin = Math.min(T.smin, sy); T.smax = Math.max(T.smax, sy); });
+    await new Promise(r => setTimeout(r, 40));
+  }
+  return track.map((T, i) => ({ file: ims[i].dataset.file, dx: Math.round(T.dx), dy: Math.round(T.dy), smin: +T.smin.toFixed(3), smax: +T.smax.toFixed(3) }));
 });
 const sameTiles = (a, b) => JSON.stringify((a || []).map(t => [t.id, t.value, t.label])) === JSON.stringify((b || []).map(t => [t.id, t.value, t.label]));
 
@@ -172,6 +190,10 @@ try {
   const mascotA = v.mascots[0];
   check('A2m. B58: Lob o Drop nella finestra del personaggio della card di Ada, dell\'esito di Ada, caricata, al posto del ritratto', v.mascots.length === 1 && !!mascotA && mascotA.loaded && mascotA.inside && mascotA.portraitHidden
     && mascotA.outcome === (won ? 'win' : 'lose') && new RegExp(`^(lob|drop)-${won ? 'win' : 'lose'}-0[1-5]\\.webp$`).test(mascotA.file), JSON.stringify(v.mascots));
+  const mvA = await mascotMoves(g);
+  check('A2a. 17/11: animata e la figura intera si muove (salti o passi: almeno 4 px o il 4% di scala in 2,5 s); con Lob & Drop il personaggio di chi gioca',
+    !!mascotA && /^natpf-mascot-(win|lose)-[abc]$/.test(mascotA.anim) && mascotA.anim.includes(mascotA.outcome) && (!['drop', 'lob'].includes(mascotA.look) || mascotA.who === mascotA.look)
+    && mvA.length === 1 && mvA.every(T => Math.max(T.dx, T.dy) >= 4 || T.smax - T.smin >= .04), JSON.stringify({ m: v.mascots, moves: mvA }));
   for (const [w, h] of [[1280, 720], [1920, 1080], [1920, 540], [1024, 600], [720, 720], [1366, 768], [1024, 1024]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(250);
     v = await readModal(g);
@@ -282,6 +304,10 @@ try {
         && v.cards.every(c => c.frame === 'evento') && JSON.stringify(v.cards) === JSON.stringify(v.cardsExpect), JSON.stringify({ cards: v.cards, expect: v.cardsExpect }));
       check('C1m. B58: nello stesso schermo due mascotte: di vittoria su Marco (sopra), di sconfitta su Giulia, diverse e non della partita prima', v.mascots.length === 2 && v.mascots.every(x => x && x.loaded && x.inside && x.portraitHidden && x.outcome === (x.won ? 'win' : 'lose'))
         && v.mascots[0].won && /^(lob|drop)-win-0[1-5]\.webp$/.test(v.mascots[0].file) && /^(lob|drop)-lose-0[1-5]\.webp$/.test(v.mascots[1].file) && v.mascots.every(x => x.file !== chain.at(-1)), JSON.stringify({ ora: v.mascots, prima: chain.at(-1) }));
+      const mv = await mascotMoves(g);
+      check('C1d. 17/11: nello stesso schermo una Drop e una Lob (Drop su Giulia, Player 1; Lob su Marco, Player 2), tutte e due animate e in movimento', v.mascots.length === 2
+        && v.mascots.find(x => x.side === 'player')?.who === 'drop' && v.mascots.find(x => x.side === 'opponent')?.who === 'lob' && v.mascots.every(x => /^natpf-mascot-/.test(x.anim))
+        && mv.length === 2 && mv.every(T => Math.max(T.dx, T.dy) >= 4 || T.smax - T.smin >= .04), JSON.stringify({ m: v.mascots, mv }));
     }
     check(`C2. stesso schermo ${w}×${h}: tutta nello schermo, niente tagliato né sovrapposto`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.hits }));
     await shot(`split-${w}x${h}`);

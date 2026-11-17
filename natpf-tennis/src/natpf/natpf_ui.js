@@ -287,7 +287,9 @@ export class NatpfUi {
   menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && !this.trial?.active && this.engine.playerRole !== 'p2'; }
   // esito dei colpi del giocatore locale: anello colorato, allenamento; il valore torna al telefono (vibrazione)
   feedback(e = {}){
-    if ((e.role || 'p1') !== this.engine.playerRole) return null;
+    // stesso schermo: il Player 2 ha il suo anello a terra (17/11), il resto è di chi gioca qui (il suo esito al telefono
+    // lo calcola splitPhoneQuality)
+    if ((e.role || 'p1') !== this.engine.playerRole){ if (!this.trial?.active) this.shot.onSplitFeedback?.(e); return null; }
     // scambi di prova (B28): i colpi non si giudicano (nessun anello, nessun esito per l'allenamento e i minigiochi)
     if (this.trial?.active){ this.diag?.onFeedback(e, null); return null; }
     const q = this.shot.onLocalFeedback(e);

@@ -91,7 +91,9 @@ export class NatpfSplit {
     r.shadowMap.autoUpdate = false;
     this._pose(this.cam2, -1, E.opponent, vp.p2, dt, snap);
     r.setViewport(vp.p2.x, vp.p2.y, vp.p2.w, vp.p2.h); r.setScissor(vp.p2.x, vp.p2.y, vp.p2.w, vp.p2.h);
-    r.render(E.scene, this.cam2);
+    // TORINO sul campo dritto anche nella metà del Player 2 (17/11): le scritte si girano solo per questa metà
+    E.natpfArena?.viewFrom?.(-1);
+    try { r.render(E.scene, this.cam2); } finally { E.natpfArena?.viewFrom?.(null); }
     r.shadowMap.autoUpdate = autoShadow;
     r.setScissorTest(false); r.setViewport(0, 0, this.size.x, this.size.y);
     this._serveTags(vp);

@@ -10,8 +10,16 @@
 // File: natpf-tennis/public/media/mascotte/*.webp, 320×320, 10 fotogrammi, 1,6 s in loop, fondo trasparente (ricavati
 // dalle GIF con il fondo bianco, docs/b58). Prericarica: le prossime due (una di vittoria e una di sconfitta) si scelgono
 // in anticipo e si caricano prima della fine della partita; a fine partita si usano quelle che servono, le altre restano
-// prenotate. Con «riduci movimento» del sistema si vede il primo fotogramma fermo; se il file manca torna il ritratto
-// (nessuna immagine rotta). Solo disegno: niente rete, niente registro dello stand, nessun effetto sul gioco.
+// prenotate. Se il file manca torna il ritratto (nessuna immagine rotta). Solo disegno: niente rete, niente registro
+// dello stand, nessun effetto sul gioco.
+// Collaudo dell'utente del 17/11 sulla 17.1 (ledwall, stesso schermo): «uno dovrebbe essere Drop e l'altro Lob, qui hai
+// messo entrambi Lob» e «ti ho chiesto esplicitamente gif e quindi immagini animate, io sul display vedo immagini
+// statiche». Da allora: (1) il personaggio segue la card: Drop per chi gioca (Player 1), Lob per l'avversario (Player 2
+// o CPU), come in campo con «Lob & Drop» (natpf_personaggi, LOOKS); con i personaggi classici una card sola sceglie fra
+// i due, due card uno per parte. (2) Sempre animate, anche con «riduci movimento» del sistema (prima: primo fotogramma
+// fermo; un PC dello stand con le animazioni di Windows spente le mostrava ferme). (3) Oltre ai 10 fotogrammi del file
+// (in metà dei file si muove meno del 2% dei pixel: da lontano sembrano ferme) la figura intera si muove con i piedi:
+// saltelli, passi avanti, indietro e di lato (natpf-hud.css, .card-mascot[data-move]); tre giri diversi per esito.
 
 export const MASCOT_DIR = './media/mascotte/';
 export const MASCOT_KEY = 'natpf-tennis.mascotte';
@@ -24,37 +32,55 @@ export const OUTCOMES = Object.freeze(['win', 'lose']);
 export const mascotUrl = file => MASCOT_DIR + file;
 export const knownMascot = file => typeof file === 'string' && (MASCOTS.win.includes(file) || MASCOTS.lose.includes(file));
 export const mascotOutcomeOf = file => (MASCOTS.win.includes(file) ? 'win' : MASCOTS.lose.includes(file) ? 'lose' : null);
+export const CHARACTERS = Object.freeze(['drop', 'lob']);
+export const mascotCharacterOf = file => (knownMascot(file) ? file.split('-')[0] : null);
+// giro della figura intera (natpf-hud.css): tre per esito, dal numero del file (01 e 04: a, 02 e 05: b, 03: c), così
+// due animazioni di fila o le due card dello stesso schermo raramente si muovono allo stesso modo
+export const MOVES = Object.freeze(['a', 'b', 'c']);
+export function mascotMove(file){
+  if (!knownMascot(file)) return null;
+  const n = Number(file.match(/-(\d\d)\.webp$/)?.[1]) || 1;
+  return MOVES[(n - 1) % MOVES.length];
+}
 
 // Dove si vedono: programma Windows (FIERA) e server di sviluppo (prove nel browser). import.meta.env c'è solo con vite
 export function mascotsOn({ desktop = globalThis.natpfDesktop, dev = !!import.meta.env?.DEV } = {}){
   return !!desktop || !!dev;
 }
 
-// Scelta a caso fra quelle dell'esito, escluse quelle in avoid (se le esclude tutte, fra tutte)
-export function pickMascot(outcome, avoid = [], rnd = Math.random){
-  const list = MASCOTS[outcome] || [];
+// Scelta a caso fra quelle dell'esito (e del personaggio, se detto), escluse quelle in avoid (se le esclude tutte, fra tutte)
+export function pickMascot(outcome, avoid = [], rnd = Math.random, who = null){
+  const list = (MASCOTS[outcome] || []).filter(f => !who || mascotCharacterOf(f) === who);
   if (!list.length) return null;
   const pool = list.filter(f => !avoid.includes(f)), from = pool.length ? pool : list;
   const r = Number(rnd());
   return from[Math.min(from.length - 1, Math.max(0, Math.floor((Number.isFinite(r) ? r : 0) * from.length)))];
 }
 
-// Quali card ricevono un'animazione e di che esito (modello di natpf_end_card.cardModel): una per card, con l'esito della
-// card; nello stesso schermo solo se c'è un vincitore (a pari restano i ritratti)
+// Personaggio della card (17/11): quello in campo con «Lob & Drop» (look della card), altrimenti dal lato quando le card
+// sono due (chi gioca Drop, l'avversario Lob); una card sola con i personaggi classici: tutti e due (null)
+export function mascotCharacter(card, { two = false } = {}){
+  if (CHARACTERS.includes(card?.look)) return card.look;
+  if (!two) return null;
+  return card?.side === 'opponent' ? 'lob' : 'drop';
+}
+// Quali card ricevono un'animazione, di che esito e di che personaggio (modello di natpf_end_card.cardModel): una per
+// card, con l'esito della card; nello stesso schermo solo se c'è un vincitore (a pari restano i ritratti)
 export function mascotPlan(model){
   const cards = model?.cards || [];
   if (!cards.length) return [];
   if (model.split && cards.filter(c => c.won).length !== 1) return [];
-  return cards.map((c, index) => ({ index, outcome: c.won ? 'win' : 'lose' }));
+  const two = cards.length > 1;
+  return cards.map((c, index) => ({ index, outcome: c.won ? 'win' : 'lose', who: mascotCharacter(c, { two }) }));
 }
 
 // Modello con le animazioni sulle card del piano (files nello stesso ordine del piano; non tocca quello di partenza)
 export function withMascots(model, plan, files){
   if (!model?.cards?.length || !plan?.length) return model;
-  const at = new Map(plan.map((p, i) => [p.index, files?.[i]]));
+  const at = new Map(plan.map((p, i) => [p.index, { f: files?.[i], who: p.who || null }]));
   return { ...model, cards: model.cards.map((c, i) => {
-    const f = at.get(i);
-    return knownMascot(f) && mascotOutcomeOf(f) === (c.won ? 'win' : 'lose') ? { ...c, mascot: f } : c;
+    const { f, who } = at.get(i) || {};
+    return knownMascot(f) && mascotOutcomeOf(f) === (c.won ? 'win' : 'lose') && (!who || mascotCharacterOf(f) === who) ? { ...c, mascot: f } : c;
   }) };
 }
 
@@ -95,14 +121,17 @@ export class MascotRotation {
     for (const o of OUTCOMES) try { this.preload?.(s[o]); } catch {}
     return { win: s.win, lose: s.lose };
   }
-  // quelle da mostrare per gli esiti di questa partita (una per card): prima le prenotate, mai una della partita prima
-  // né due uguali nella stessa partita; poi diventano «quelle della partita prima»
-  takeFor(outcomes){
+  // quelle da mostrare per questa partita (una per card; esito, o { outcome, who } con il personaggio della card): prima
+  // le prenotate se vanno bene, mai una della partita prima né due uguali nella stessa partita; poi diventano «quelle
+  // della partita prima»
+  takeFor(items){
     const s = this.state, out = [];
-    for (const o of outcomes || []){
+    for (const it of items || []){
+      const o = typeof it === 'string' ? it : it?.outcome, who = typeof it === 'string' ? null : (CHARACTERS.includes(it?.who) ? it.who : null);
       if (!OUTCOMES.includes(o)){ out.push(null); continue; }
       const avoid = [...s.last, ...out];
-      const f = s[o] && !avoid.includes(s[o]) ? s[o] : pickMascot(o, avoid, this.rnd);
+      const ok = f => f && !avoid.includes(f) && (!who || mascotCharacterOf(f) === who);
+      const f = ok(s[o]) ? s[o] : pickMascot(o, avoid, this.rnd, who);
       if (s[o] === f) s[o] = null;
       out.push(f);
     }
@@ -119,29 +148,14 @@ export function mascotRotation(opts){
   if (rotation === undefined) rotation = mascotsOn(opts) ? new MascotRotation() : null;
   return rotation;
 }
-// «riduci movimento»: del sistema o già segnato dai ritratti (natpf_ritratti.js mette .natpf-reduce-motion)
-export function reduceMotion(win = globalThis){
-  try { return !!win.document?.documentElement?.classList?.contains('natpf-reduce-motion') || !!win.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches; } catch { return false; }
-}
-
-// Dopo aver messo le card nella pagina (root = #victory-cards): se un file manca la card torna al ritratto disegnato;
-// con «riduci movimento» l'animazione resta ferma sul primo fotogramma (canvas al posto dell'immagine animata)
-export function mountMascots(root, { reduce = false } = {}){
+// Dopo aver messo le card nella pagina (root = #victory-cards): se un file manca la card torna al ritratto disegnato.
+// Sempre animate (17/11: niente più primo fotogramma fermo con «riduci movimento»: l'utente le vuole animate)
+export function mountMascots(root){
   const imgs = [...(root?.querySelectorAll?.('img.card-mascot') || [])];
   for (const img of imgs){
     const gone = () => { const card = img.closest?.('.end-card'); img.remove?.(); card?.removeAttribute?.('data-mascot'); };
-    const still = () => {
-      if (!reduce || !img.naturalWidth) return;
-      try {
-        const c = img.ownerDocument.createElement('canvas');
-        c.width = img.naturalWidth; c.height = img.naturalHeight; c.className = 'card-mascot card-mascot-still';
-        c.dataset.file = img.dataset.file || ''; c.dataset.outcome = img.dataset.outcome || '';
-        c.getContext('2d').drawImage(img, 0, 0);
-        img.replaceWith(c);
-      } catch {}
-    };
-    if (img.complete) (img.naturalWidth ? still() : gone());
-    else { img.addEventListener('load', still, { once: true }); img.addEventListener('error', gone, { once: true }); }
+    if (img.complete){ if (!img.naturalWidth) gone(); }
+    else img.addEventListener('error', gone, { once: true });
   }
   return imgs.length;
 }

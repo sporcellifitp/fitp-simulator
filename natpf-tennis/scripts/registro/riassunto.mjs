@@ -158,6 +158,9 @@ export class Riassunto {
     // B60: km/h dei colpi in partita (dalla 2026-11-17.1) e colpo più forte di ogni giocatore in ogni partita (colpi e
     // servizi, come «km/h, il tuo colpo più forte» della fine partita e il trofeo Razzo)
     this.velocita = { colpi: new Misura(), maxPartita: new Misura(), conColpi: 0 };
+    // 17/11: dritto o rovescio dalla parte opposta alla palla (pl: la palla, lato: la parte del corpo del colpo); serie: 3
+    // di fila dello stesso giocatore nella stessa partita (verso del telefono girato, più che un colpo voluto)
+    this.parte = { g: { n: 0, opposti: 0 }, a: { n: 0, opposti: 0 }, partite: 0, conSerie: 0 };
     this.tutorial = { n: 0, chiusura: {}, durata: new Misura(), tutte: 0 }; this.cal = { n: 0, finite: 0, durata: new Misura(), prove: 0, fallite: 0, passi: {}, perche: {}, ripartenze: 0 };
     // B28: calibrazione giocando (scambi di prova), a parte da quella con i gesti
     this.prova = { n: 0, finite: 0, saltate: 0, durata: new Misura(), palle: new Misura(), livelli: {}, colpi: 0, ms: new Misura() };
@@ -220,6 +223,10 @@ export class Riassunto {
     if (r.amb === 'prova'){ this.prova.colpi++; this.prova.ms.metti(r.ms); return; }
     if (r.amb) return;                                                       // colpi dell'allenamento e dei minigiochi: fuori dalle misure di partita
     if (Number.isFinite(r.kmh)){ this.velocita.colpi.metti(r.kmh); this._kmhMax(x, r.chi === 'a' ? 'a' : 'g', r.kmh, true); }
+    if ((r.pl === 1 || r.pl === -1) && (r.lato === 1 || r.lato === -1)){
+      const k = r.chi === 'a' ? 'a' : 'g', S = this.parte[k], opp = r.pl !== r.lato; S.n++; if (opp) S.opposti++;
+      if (x?.P){ const f = x.P.parteFila || (x.P.parteFila = { g: 0, a: 0 }); f[k] = opp ? f[k] + 1 : 0; x.P.parteConPl = true; if (f[k] >= 3) x.P.parteSerie = true; }
+    }
     const g = voce(this.gesti, r.gesto || '—', () => ({ n: 0, voti: {}, ms: new Misura(), esiti: {}, forza: new Misura() }));
     g.n++; piu(g.voti, r.voto || '—'); g.ms.metti(r.ms); piu(g.esiti, r.e || 'dentro'); g.forza.metti(r.f);
     if (r.sup){ this.sup.riusciti++; if (x.P) x.P.sup++; if (r.sup === 'calda') this.lunghi.superCaldi++; } else if (r.supNo) piu(this.sup.no, r.supNo);
@@ -241,6 +248,7 @@ export class Riassunto {
     this.sup.partite++; this.sup.perPartita.metti(P.sup);
     // B60: solo le partite con i km/h dei colpi (prima solo i servizi: il massimo sarebbe sbagliato)
     if (P.kmhColpi && P.kmh){ this.velocita.conColpi++; for (const v of Object.values(P.kmh)) this.velocita.maxPartita.metti(v); }
+    if (P.parteConPl){ this.parte.partite++; if (P.parteSerie) this.parte.conSerie++; }
     if (!r){ T.senzaFine++; return; }
     const finita = r.esito === 'finita';
     if (finita){ T.finite++; G.finite++; Gp.finite++; if (r.vince === 'g') Gp.vinte++; this.durata.finite.metti(r.durS); Gp.durata.metti(r.durS); }
@@ -408,6 +416,12 @@ export function rapporto(R, L){
     `Colpi in partita con i km/h: ${N(ve.colpi.n)}; velocità ${mis(ve.colpi, 0, ' km/h')}.`,
     `Colpo più forte di ogni giocatore in ogni partita (colpi e servizi; ${N(ve.conColpi)} partite): ${mis(ve.maxPartita, 0, ' km/h')}; 1 su 4 sopra ${N(ve.maxPartita.p(.75), 0)} km/h. Per le soglie del Razzo (bronzo, argento, oro) si guardano la metà, i tre quarti e i 9 su 10.`,
   ] : ['Nessun colpo con i km/h: il registro è di una versione prima della 2026-11-17.1 (i km/h dei colpi in partita ci sono da allora).']);
+  const pa = R.parte, paN = pa.g.n + pa.a.n;
+  sez('Dritto e rovescio dalla parte della palla (17/11)', paN ? [
+    `Colpi in partita con la palla di lato (oltre 0,3 m dal corpo): ${N(paN)}; giocati dalla parte opposta alla palla (rovescio con la palla a destra di un destro, dritto con la palla a sinistra): ${N(pa.g.opposti + pa.a.opposti)} (${pc(pa.g.opposti + pa.a.opposti, paN, 1)}).`,
+    `Chi gioca qui (Player 1 o contro la CPU): ${N(pa.g.opposti)} su ${N(pa.g.n)} (${pc(pa.g.opposti, pa.g.n, 1)}); Player 2 dello stesso schermo o del computer: ${N(pa.a.opposti)} su ${N(pa.a.n)} (${pc(pa.a.opposti, pa.a.n, 1)}).`,
+    `Partite con almeno 3 colpi di fila dalla parte opposta dello stesso giocatore (verso del telefono girato, più che un colpo voluto): ${N(pa.conSerie)} su ${N(pa.partite)}. Da guardare insieme alle tabelle «Mano cambiata» e «Segno del verso del telefono cambiato».`,
+  ] : ['Nessun colpo con il lato della palla: il registro è di una versione prima della 2026-11-17.2.']);
   const tu = R.tutorial, ca = R.cal;
   sez('Tutorial e calibrazione', [
     `Tutorial: ${N(tu.n)}; visto tutto ${pc(tu.tutte, tu.n)}; durata ${mis(tu.durata, 0, ' s')}.`,

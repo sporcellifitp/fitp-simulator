@@ -5,7 +5,7 @@ import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o 
 import { statsHtml, endScreen, titleFit } from "./natpf/natpf_match_stats.js"; // NATPF B33/B35: i numeri veri della partita nella schermata finale
 import { cardModel, cardsHtml } from "./natpf/natpf_end_card.js"; // NATPF B40: card della partita
 import { castLooks, getCast } from "./natpf/natpf_personaggi.js";
-import { mascotRotation, mascotPlan, withMascots, mountMascots, reduceMotion } from "./natpf/natpf_mascotte.js"; // NATPF B58
+import { mascotRotation, mascotPlan, withMascots, mountMascots } from "./natpf/natpf_mascotte.js"; // NATPF B58
 // NATPF: scritture nel DOM solo se il valore cambia. updateMultiplayerRoomInfo gira a ogni risposta del relay (20 al
 // secondo nella sfida) e updateTimingGauge due volte per fotogramma (passi di fisica a 120 Hz): textContent riscritto
 // uguale sostituisce comunque il nodo di testo e fa ricalcolare lo stile (come natpf_split_ui.js)
@@ -367,9 +367,9 @@ export class HudUI {
     // ciascuna card, mai una della partita prima; solo dove le mascotte si vedono (programma Windows); poi si prenotano e
     // si caricano le prossime due
     const cv0 = S && this.endCards !== false ? cardModel(w.stats, w, { looks: castLooks(getCast(), w.stats.mode !== "cpu"), bands: w.stats.bands }) : null,
-      rot = cv0 ? mascotRotation() : null, plan = rot ? mascotPlan(cv0) : [], cv = plan.length ? withMascots(cv0, plan, rot.takeFor(plan.map((p) => p.outcome))) : cv0,
+      rot = cv0 ? mascotRotation() : null, plan = rot ? mascotPlan(cv0) : [], cv = plan.length ? withMascots(cv0, plan, rot.takeFor(plan)) : cv0,
       ch = cv ? cardsHtml(cv) : "", cd = el("victory-cards");
-    cd && ((cd.innerHTML = ch), cd.classList.toggle("hidden", !ch), (cd.dataset.n = String(cv?.cards.length || 0)), plan.length && mountMascots(cd, { reduce: reduceMotion() }));
+    cd && ((cd.innerHTML = ch), cd.classList.toggle("hidden", !ch), (cd.dataset.n = String(cv?.cards.length || 0)), plan.length && mountMascots(cd));
     rot && setTimeout(() => rot.prepare(), 2500);
     ch && S.players && st && ((st.innerHTML = ""), st.classList.add("hidden"));
     this.endCardModel = cv;

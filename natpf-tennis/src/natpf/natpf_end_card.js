@@ -11,7 +11,7 @@ import { natpfPortraitSVG } from './natpf_portrait.js';
 import { LEVEL_NAME } from './natpf_who.js';
 import { BAND_LABEL, bandOf } from './natpf_duo_rules.js';
 import { endScreen } from './natpf_match_stats.js';
-import { knownMascot, mascotUrl, mascotOutcomeOf } from './natpf_mascotte.js';
+import { knownMascot, mascotUrl, mascotOutcomeOf, mascotMove } from './natpf_mascotte.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const other = s => (s === 'player' ? 'opponent' : 'player');
@@ -94,7 +94,7 @@ export function cardHtml(c, { split = false } = {}){
   return `<article class="end-card${split ? ' end-player' : ''}${c.won ? ' won' : ''}" data-side="${c.side}" data-frame="${c.frame}" data-won="${c.won ? 1 : 0}" data-look="${esc(c.look)}"${mascot ? ' data-mascot="1"' : ''} style="--art:${c.art}">`
     + `<div class="card-art" data-portrait="${c.side}">`
     + `<div class="card-svg" aria-hidden="true">${natpfPortraitSVG(c.look, { className: 'card-portrait-svg' })}</div>`
-    + (mascot ? `<img class="card-mascot" src="${mascotUrl(mascot)}" alt="" decoding="async" draggable="false" data-file="${mascot}" data-outcome="${mascotOutcomeOf(mascot)}">` : '')
+    + (mascot ? `<img class="card-mascot" src="${mascotUrl(mascot)}" alt="" decoding="async" draggable="false" data-file="${mascot}" data-outcome="${mascotOutcomeOf(mascot)}" data-move="${mascotMove(mascot)}">` : '')
     + `<span class="card-badge${split ? ' end-chip' : ''}">${esc(c.badge)}</span>`
     + (split && c.sub ? `<span class="card-sub card-band">${esc(c.sub)}</span>` : '')
     + `</div>${c.crown ? `<span class="card-crown" title="Vince">${svg('crown')}</span>` : ''}<div class="card-info">${head}`

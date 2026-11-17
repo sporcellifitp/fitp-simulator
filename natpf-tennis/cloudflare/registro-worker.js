@@ -112,6 +112,8 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'scartati', 'amb', 'gesto', 'voluto', 'ms', 'voto', 'f', 'd', 'e', 'x', 'z', 'sup', 'supNo', 'volee', 'rete', 'mov', 'lato', 'fonte', 'causa', 'aiutato', 'tipo', 'q', 'kmh', 'auto', 'perche',
   'serie', 'schede', 'viste', 'tutte', 'chiusura', 'finita', 'prove', 'fallite', 'passi', 'ripartenze', 'revisioni', 'revisioniNo', 'semplice', 'finito', 'saltato', 'perfetti', 'gioco',
   'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in',
+  // 17/11: riga «colpo», pl = da che parte di chi colpisce era la palla (+1 destra, −1 sinistra, 0 vicina al corpo)
+  'pl',
   'pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr', 'zp', 'dir']);
 export const FORMATO = 2;
 export const MAPPE = Object.freeze(['scartati', 'posti', 'passi', 'perche']);

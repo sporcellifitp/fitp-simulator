@@ -290,3 +290,24 @@ test('B60: velocità dei colpi e colpo più forte per partita nel riassunto (tro
   V.aggiungi({ k: 'colpo', t: 1, n: 1, gesto: 'dritto', voto: 'p', f: .6 }, ctx);
   assert.match(rapporto(V, L).find(x => x.titolo.startsWith('Velocità dei colpi')).testo.join(' '), /prima della 2026-11-17\.1/);
 });
+
+// 17/11: dritto o rovescio dalla parte opposta alla palla (pl della riga «colpo» contro lato), per giocatore, e le partite
+// con almeno 3 di fila dello stesso giocatore (verso del telefono girato)
+test('17/11: riassunto dei colpi dalla parte opposta alla palla, con le serie di 3 di fila', () => {
+  const ctx = { giorno: '2026-11-18', postazione: 'abcd1234' }, R = new Riassunto(), L = { file: 1, blocchi: 1, righe: 1, byte: 1 };
+  R.aggiungi({ k: 'partita', t: 0, n: 1, versione: '2026-11-17.2', modo: 'stesso-schermo' }, ctx);
+  // chi gioca: d'accordo, poi 3 di fila dalla parte opposta (serie); l'avversario: 1 opposto su 2; colpi senza pl o con pl 0 fuori
+  const righe = [[1, 1], [-1, -1], [-1, 1], [1, -1], [-1, 1], [1, 1, 'a'], [1, -1, 'a'], [0, 1], [undefined, 1]];
+  righe.forEach(([pl, lato, chi], i) => R.aggiungi({ k: 'colpo', t: i + 1, n: 1, gesto: 'dritto', voto: 'p', f: .6, lato, ...(pl !== undefined ? { pl } : {}), ...(chi ? { chi } : {}) }, ctx));
+  R.aggiungi({ k: 'colpo', t: 20, n: 1, gesto: 'dritto', voto: 'p', f: .6, amb: 'prova', pl: -1, lato: 1 }, ctx);   // scambi di prova: fuori
+  R.aggiungi({ k: 'partita.fine', t: 30, n: 1, vince: 'g', esito: 'finita', durS: 60 }, ctx);
+  R.aggiungi({ k: 'partita', t: 100, n: 2, versione: '2026-11-17.2', modo: 'cpu' }, ctx);
+  R.aggiungi({ k: 'colpo', t: 101, n: 2, gesto: 'dritto', voto: 'p', f: .6, pl: 1, lato: 1 }, ctx);
+  R.aggiungi({ k: 'partita.fine', t: 110, n: 2, vince: 'g', esito: 'finita', durS: 40 }, ctx);
+  assert.deepEqual(R.parte, { g: { n: 6, opposti: 3 }, a: { n: 2, opposti: 1 }, partite: 2, conSerie: 1 });
+  const testo = rapporto(R, L).find(x => x.titolo.startsWith('Dritto e rovescio dalla parte della palla'))?.testo.join('\n') || '';
+  assert.match(testo, /palla di lato \(oltre 0,3 m dal corpo\): 8; giocati dalla parte opposta[^:]*: 4 \(50/);
+  assert.match(testo, /almeno 3 colpi di fila[^:]*: 1 su 2\./);
+  const V = new Riassunto(); V.aggiungi({ k: 'partita', t: 0, n: 1, versione: '2026-11-17.1', modo: 'cpu' }, ctx);
+  assert.match(rapporto(V, L).find(x => x.titolo.startsWith('Dritto e rovescio')).testo.join(' '), /prima della 2026-11-17\.2/);
+});

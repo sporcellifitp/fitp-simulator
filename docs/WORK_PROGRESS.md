@@ -2530,6 +2530,20 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B61 · Collaudo dello stand del 17/11, versione 2026-11-17.2 (17/11/2026)
+
+- [x] Segnalazioni dell'utente (foto del ledwall, stesso schermo, Lob & Drop): due Lob a fine partita, mascotte ferme,
+  dritto e rovescio invertiti a volte, anello a terra non per tutti e due, TORINO capovolto. Documento `docs/b61/collaudo-17-11.md`.
+- File: `natpf_mascotte.js` (personaggio dalla card, sempre animate, `mascotMove`), `natpf_end_card.js` (`data-move`),
+  `hud_ui.js`, `natpf-hud.css` (giri della figura), `natpf_split.js` + `natpf_arena.js` (`viewFrom`), `natpf_shot_feedback.js`
+  (`onSplitFeedback`, `_ring`, `_flash` con l'attore) + `natpf_ui.js`, registro `pl` (`registro_registratore.js`,
+  `registro_formato.js`, `cloudflare/registro-worker.js`, `scripts/registro/riassunto.mjs`); versione 2026-11-17.2.
+- Misura delle 20 animazioni (cambio dei pixel tra fotogrammi): metà sotto il 2%, spostamento 1–4 px su 320; salti 56–61 px.
+- Verifiche: gioco 1800/1800 (nuovi: `natpf-stand-17-11` 4, `natpf-b58-mascotte` +2, registro +1, riassunto +1), sito
+  282/282, LAN 13/13, desktop 56/56, build (22 file in `dist/media/mascotte`); nel browser `natpf-fine-partita` 68/68,
+  `natpf-stesso-schermo-b25` 57/57 (schermata con TORINO dritto nelle due metà e l'anello del Player 2).
+- Non verificato: ledwall, Windows vero con «riduci movimento», telefoni veri; dritto e rovescio non riprodotto.
+
 ## Versione 2026-11-17.1 (17/11/2026): B59, B60 e correzioni
 
 - B59 conto «Allenati un po'!» (`docs/b59/conto-allenati.md`); B60 km/h dei colpi nel registro (`docs/b60/kmh-dei-colpi.md`).

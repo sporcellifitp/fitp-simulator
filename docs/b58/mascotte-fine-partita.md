@@ -29,6 +29,12 @@ Io li voglio dentro la card, come già accade» → **16.10**.
   nel browser non le mostra e lo zip Cloudflare non porta la cartella (`FIERA_ONLY` in `scripts/pacchetto-cloudflare.mjs`):
   con le mascotte lo zip pesava 28,32 MB, sopra il limite dei 25; senza 23,95 MB.
 
+**Dalla 17.2** (collaudo dell'utente del 17/11 sul ledwall, `docs/b61/collaudo-17-11.md`): Drop sulla card del Player 1 e
+Lob su quella del Player 2 o della CPU (prima a caso: nello stesso schermo potevano uscire due Lob); sempre animate, anche
+con «riduci movimento» (prima: primo fotogramma fermo); la figura intera salta e fa passi avanti, indietro e di lato
+(`natpf-hud.css`, `.card-mascot[data-move]`), perché in metà dei file si muove meno del 2% dei pixel e da lontano
+sembravano ferme.
+
 File: `src/natpf/natpf_mascotte.js` (nuovo), `src/natpf/natpf_end_card.js` (`cardHtml`), `src/hud_ui.js`
 (`showVictoryModal`), `src/natpf/natpf_ritratti.js`, `src/natpf/natpf_ui.js` (prericarica all'avvio), `natpf-hud.css`,
 `scripts/pacchetto-cloudflare.mjs`.

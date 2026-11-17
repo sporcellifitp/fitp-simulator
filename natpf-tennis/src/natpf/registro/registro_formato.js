@@ -53,6 +53,8 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'scartati', 'amb', 'gesto', 'voluto', 'ms', 'voto', 'f', 'd', 'e', 'x', 'z', 'sup', 'supNo', 'volee', 'rete', 'mov', 'lato', 'fonte', 'causa', 'aiutato', 'tipo', 'q', 'kmh', 'auto', 'perche',
   'serie', 'schede', 'viste', 'tutte', 'chiusura', 'finita', 'prove', 'fallite', 'passi', 'ripartenze', 'revisioni', 'revisioniNo', 'semplice', 'finito', 'saltato', 'perfetti', 'gioco',
   'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in',
+  // 17/11: riga «colpo», pl = da che parte di chi colpisce era la palla (+1 destra, −1 sinistra, 0 vicina al corpo)
+  'pl',
   // B36.0 (misurare prima la direzione dei colpi, docs/b36/misure-b36-0.md), tutti insieme perché il Worker si ricarichi
   // una volta sola. Riga «colpo» del telefono: pf piatto (mira della cima −1…+1, telefoni con la forma del colpo) · dv
   // scarto della cima in gradi dal proprio colpo abituale · tu tempo in unità della finestra della direzione (+ anticipo) ·

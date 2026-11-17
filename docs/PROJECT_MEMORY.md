@@ -1606,3 +1606,19 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - Riassunto: «Velocità dei colpi (B60, trofeo Razzo)», con il massimo per partita (colpi e servizi) solo per le partite
   che hanno i km/h dei colpi.
 
+## B61 · Collaudo dello stand del 17/11 sulla 17.1 (documento `docs/b61/collaudo-17-11.md`, versione 2026-11-17.2)
+- **Mascotte, personaggio**: segue la card (`natpf_mascotte.mascotCharacter`): look `drop`/`lob` della card; senza (personaggi
+  classici) con due card Drop sul `player` e Lob sull'`opponent`, con una card sola a caso. `takeFor` accetta `{ outcome, who }`.
+- **Mascotte sempre animate**: decisione dell'utente («ti ho chiesto esplicitamente gif e quindi immagini animate»): niente
+  fermo con `prefers-reduced-motion` (chi rimette un fermo di accessibilità lo chiede prima all'utente). La figura intera si
+  muove con `transform` (`.card-mascot[data-outcome][data-move]`, giri a/b/c da `mascotMove`); le prove misurano il posto
+  con il giro fermo a 0 (`natpf-fine-partita`, `mascotMove`).
+- **Stesso schermo, una sola scena per due camere**: quello che dipende da chi guarda (oggi le scritte TORINO del campo) si
+  gira solo per il disegno della metà del Player 2 (`natpf_arena.viewFrom(-1)` … `viewFrom(null)` in `natpf_split.render`).
+  Chi aggiunge scritte o oggetti «verso chi gioca» nell'arena li mette in `setViewer` di `site/js/tennis/arena.js`.
+- **Anello a terra del colpo**: nello stesso schermo anche per il Player 2 (`NatpfShotFeedback.onSplitFeedback`; `V.local.other`
+  tiene il verdetto del Player 2 fuori dall'etichetta del gesto del Player 1). Negli scambi di prova nessuno (B28).
+- **Registro**: campo `pl` della riga «colpo» (lato della palla rispetto a chi colpisce, + a destra, 0 entro 0,3 m), con
+  `lato` dice i colpi dalla parte opposta alla palla; riassunto «Dritto e rovescio dalla parte della palla (17/11)». Campo
+  nuovo nella lista dei campi (non in fondo: le prove del Worker «di prima» tolgono quelli del B36.0 dalla coda).
+

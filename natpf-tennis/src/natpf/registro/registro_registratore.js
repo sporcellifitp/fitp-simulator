@@ -199,7 +199,8 @@ export class RegistroStand {
     // il colpo, con la palla che arrivava (velocità e altezza prese prima che il colpo la cambi)
     // (a[0]: il gesto che arriva al motore, con natpf.aimDev: lo scarto della cima in gradi, B36.0)
     wrap(E, '_natpfRacketShot', function(orig, ...a){
-      const b = E.ball, v = b?.vel, pre = v && b?.pos ? [Math.hypot(v.x || 0, v.y || 0, v.z || 0)*3.6, b.pos.y] : null, out = orig(...a);
+      // (pre[2]: la palla di lato prima del colpo, per «pl» della riga: 17/11)
+      const b = E.ball, v = b?.vel, pre = v && b?.pos ? [Math.hypot(v.x || 0, v.y || 0, v.z || 0)*3.6, b.pos.y, b.pos.x] : null, out = orig(...a);
       const t = R.now(); try { if (out) R._colpo(out, pre, a[0]); } catch {} R._costo(t);
       return out;
     });
@@ -396,6 +397,11 @@ export class RegistroStand {
     if (!P && !amb) return;                                                   // colpi fuori da partita, allenamento e minigiochi: niente
     const g = L.who === 'p2' ? 'a' : 'g';
     if (P){ if (g === 'g') P.colpi++; else P.colpiA++; }
+    // 17/11 (collaudo dell'utente sulla 17.1: «dritto e rovescio invertiti a volte»): da che parte di chi colpisce era la
+    // palla al colpo (+1 alla sua destra, −1 alla sua sinistra, 0 entro 0,3 m dal corpo): con «lato» (parte del corpo del
+    // colpo, + a destra) il riassunto conta i colpi giocati dalla parte opposta alla palla
+    const me = L.who === 'p2' ? E.opponent : E.player, rel = Number.isFinite(pre?.[2]) && Number.isFinite(me?.pos?.x) ? (pre[2] - me.pos.x)*(L.who === 'p2' ? -1 : 1) : null;
+    const pl = rel == null ? undefined : Math.abs(rel) < .3 ? 0 : rel > 0 ? 1 : -1;
     // B36.0: zona chiesta da Precision (natpf_arcade.PRECISION_ZONES, 0–9) e scarto della cima in gradi
     const A = this.ui?.events?.active, zp = amb === 'minigioco' && A?.id === 'precision' && Number.isInteger(A.zoneIdx) ? A.zoneIdx : null, dev = ev?.natpf?.aimDev;
     // Righe compatte (lo spazio dell'utente non è infinito): niente campi ripetuti a ogni colpo. Il punto è quello
@@ -417,7 +423,7 @@ export class RegistroStand {
       ...(L.super ? { sup: String(L.super) } : forza >= .8 && Array.isArray(L.superWhy) && L.superWhy[0] ? { supNo: String(L.superWhy[0]) } : {}),
       // B31: rete 1 = colpo giocato entro 7 m dalla rete (chi gioca è salito a rete o ci è stato portato)
       // B32: mov = come si è arrivati sulla palla contro la CPU: 'corsa' (colpo in corsa) o 'allungo' (natpf_movement.moveTag)
-      volee: L.volley || undefined, rete: Math.abs((L.who === 'p2' ? E.opponent : E.player)?.pos?.z ?? 99) < 7 ? 1 : undefined, mov: L.move || undefined, lato: L.contact ?? undefined, fonte: L.source === 'webcam' && P?.ctrl !== 'webcam' ? 'webcam' : undefined, causa: L.cause || undefined, aiutato: O.assisted || undefined,
+      volee: L.volley || undefined, rete: Math.abs((L.who === 'p2' ? E.opponent : E.player)?.pos?.z ?? 99) < 7 ? 1 : undefined, mov: L.move || undefined, lato: L.contact ?? undefined, pl, fonte: L.source === 'webcam' && P?.ctrl !== 'webcam' ? 'webcam' : undefined, causa: L.cause || undefined, aiutato: O.assisted || undefined,
       // B36.0 · direzione del colpo. pf: piatto letto dalla cima (−1…+1; solo i telefoni con la forma del colpo, non le
       // intenzioni ricostruite di webcam, mouse e telefoni vecchi); dv: scarto della cima dal proprio colpo abituale in
       // gradi (nullo finché il centro della mira non c'è); tu: tempo in unità della finestra della direzione (+ anticipo);

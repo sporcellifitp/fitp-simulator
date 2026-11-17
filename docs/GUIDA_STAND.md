@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-17.1** (16/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-17.2** (17/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -254,9 +254,11 @@ anche i record di oggi.
 
 **(B58, dalla 16.10) Lob o Drop nella card.** Nel programma Windows la finestra del personaggio della card (a sinistra)
 mostra una delle due mascotte al posto del personaggio: festeggia se quella card vince, consola se perde; un'animazione a
-caso, mai una della partita prima (nello stesso schermo una per card). Non c'è niente da accendere. Se il file manca torna
-il personaggio disegnato; con «riduci movimento» del computer la mascotte è ferma. Nel gioco dal browser (Cloudflare) non
-c'è. (La 16.9 la metteva accanto al titolo: corretta il 16/11 su richiesta dell'utente.)
+caso, mai una della partita prima (nello stesso schermo una per card). **Dalla 17.2**: Drop sulla card del Player 1 (chi
+gioca contro la CPU) e Lob su quella del Player 2 o della CPU, come in campo con «Lob & Drop»; sempre animate, anche con
+«riduci movimento» del computer, e la figura intera salta e fa passi avanti, indietro e di lato. Non c'è niente da
+accendere. Se il file manca torna il personaggio disegnato. Nel gioco dal browser (Cloudflare) non c'è. (La 16.9 la
+metteva accanto al titolo: corretta il 16/11 su richiesta dell'utente.)
 
 - **«Gioca ancora»** (contro la CPU, se vince chi gioca) o **«Rivincita»**: la stessa persona. (B47) Si apre la **scelta
   del livello**, grande, già segnata con il livello di prima: contro la CPU «Chi gioca? Bambino · Ragazzo · Adulto»

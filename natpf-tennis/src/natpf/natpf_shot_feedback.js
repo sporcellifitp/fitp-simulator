@@ -371,18 +371,32 @@ export class NatpfShotFeedback {
     const q = eventQuality(e, { kind, grade, role: e.playerRole });
     if (kind === 'whiff'){ this.pending = q; return q; }
     if (kind !== 'hit') return null;
-    const target = landingOf(e.ball), net = !!e.ball?.natpfNetFault;
     this.pending = q; this.last = q;
+    return this._ring(q, this.localActor);
+  }
+  // Stesso schermo (collaudo dell'utente del 17/11 sulla 17.1: «il cerchio di anteprima di dove finisce la palla non mi
+  // pare ci sia da entrambi»): anche i colpi del Player 2 hanno l'anello a terra dove cadrà la palla e il lampo sulla sua
+  // racchetta, con il suo esito (prima solo quelli del Player 1: l'anello era «del giocatore locale»). Solo l'anello: i
+  // conti dell'allenamento, dei minigiochi e della diagnostica restano di chi gioca qui
+  onSplitFeedback({ kind, grade } = {}){
+    const e = this.engine;
+    if (kind !== 'hit' || !e.natpfSplit?.active || e.playerRole === 'p2') return null;
+    return this._ring(eventQuality(e, { kind, grade, role: 'p2' }), e.opponent);
+  }
+  // anello a terra dove cadrà la palla, nel colore dell'esito, e lampo sulla racchetta di chi ha colpito
+  _ring(q, actor){
+    const e = this.engine, target = landingOf(e.ball), net = !!e.ball?.natpfNetFault;
+    if (!q) return q;
     // B37: verdetto che aspetta la palla (stesso colpo della scritta): niente anello adesso, lampo neutro
     const V = this.verdict;
     if (V && !V.settled && V.stroke === e.ball?.rallyStrokeCount && isPendingVerdict(q)){
-      V.local = { net };
-      this._flash('wait');
+      V.local = { net, other: !!actor && actor !== this.localActor };   // other: il Player 2 dello stesso schermo
+      this._flash('wait', actor);
       return q;
     }
     // in rete: niente anello nel campo (il bersaglio del motore resta in campo)
     if (!net) this._marker(target, q.color);
-    this._flash(q.color);
+    this._flash(q.color, actor);
     return q;
   }
   // B37: esito da far vedere adesso (etichetta del gesto, telefono): neutro se il verdetto aspetta la palla
@@ -414,7 +428,7 @@ export class NatpfShotFeedback {
     V.show(q);
     if (V.local){
       if (why === 'Out' && b?.pos) this._marker({ x: b.pos.x, z: b.pos.z }, 'red', { bounced: true });
-      E.natpfUi?.gesture?.lateOutcome?.(q);
+      if (!V.local.other) E.natpfUi?.gesture?.lateOutcome?.(q);
     }
     if (V.phone){ const ev = { ...V.phone, quality: q, late: true }; E.natpfPhone?.feedback?.(ev); E.natpfPhone2?.feedback?.(ev); }
     return true;
@@ -428,7 +442,7 @@ export class NatpfShotFeedback {
     V.settled = true; this.verdict = null;
     const q = shotQuality(V.grade, { inCourt: true, ...(V.drop || {}) });
     V.show(q);
-    if (V.local){ this._marker({ x, z }, q.color, { bounced: true }); E.natpfUi?.gesture?.lateOutcome?.(q); }
+    if (V.local){ this._marker({ x, z }, q.color, { bounced: true }); if (!V.local.other) E.natpfUi?.gesture?.lateOutcome?.(q); }
     if (V.phone){ const ev = { ...V.phone, quality: q, late: true }; E.natpfPhone?.feedback?.(ev); E.natpfPhone2?.feedback?.(ev); }
     return true;
   }
@@ -440,8 +454,8 @@ export class NatpfShotFeedback {
     m.mat.color.setHex(QUALITY_COLORS[color]); m.fill.color.setHex(QUALITY_COLORS[color]);
     m.g.position.set(target.x, .03, target.z); m.g.scale.setScalar(1); m.g.visible = true;
   }
-  _flash(color){
-    const a = this.localActor, rk = this.engine.racketKinematics;
+  _flash(color, actor = null){
+    const a = actor || this.localActor, rk = this.engine.racketKinematics;
     let p = null;
     try { p = rk?.getRacketRimWorldPoints?.(a)?.centerWorld; } catch {}
     if (!p) return;

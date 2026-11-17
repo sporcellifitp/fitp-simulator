@@ -187,6 +187,21 @@ try {
   check('   lancio automatico e campo aperto spenti: questa partita non li usa', m.duo.autoToss === false && m.duo.open === false, fmt({ autoToss: m.duo.autoToss, open: m.duo.open }));
   await g.evaluate(() => __natpfTennis.hud.hideCenterBanner());
   await shot('3-partita-aiuto-1280');
+  // 17/11 (collaudo dell'utente sulla 17.1): TORINO dritto nelle due metà (la metà del Player 2 gira le scritte solo per il
+  // suo disegno) e l'anello a terra anche per i colpi del Player 2
+  const tor = await g.evaluate(() => { const E = __natpfTennis, A = E.natpfArena, calls = [], vf = A.viewFrom.bind(A);
+    A.viewFrom = s => { calls.push(s); vf(s); }; try { E.__render(); } finally { A.viewFrom = vf; }
+    const words = []; E.scene.traverse(o => { if (o.isMesh && o.material?.map?.image?.src?.includes?.('torino')) words.push(+o.rotation.z.toFixed(3)); });
+    return { calls, viewer: A.viewer, words, split: !!E.natpfSplit.shown }; });
+  check('3c. 17/11: stesso schermo, TORINO dritto nella metà del Player 2: le scritte girate solo per disegnarla, poi di nuovo come per il Player 1', tor.split && JSON.stringify(tor.calls) === '[-1,null]' && tor.viewer === 1 && tor.words.length === 2 && tor.words.every(z => z === 0), fmt(tor));
+  const ring = await g.evaluate(() => { const E = __natpfTennis, S = E.natpfUi.shot, b = E.ball;
+    b.pos.set(1, 1, -11); b.vel.set(0, 2, 18); b.targetLanding.set(1.2, 0, 7.5); b.inPlay = true; b.lastHitter = 'opponent'; b.rallyStrokeCount = 2; b.natpfNetFault = false; S.verdict = null;
+    for (const m of S.markers){ m.active = false; m.g.visible = false; }
+    E.natpfUi.feedback({ role: 'p2', kind: 'hit', grade: 'P2 PERFECT • FOREHAND TOPSPIN' });
+    const m = S.markers.find(k => k.active); E.__render();
+    return m ? { on: m.g.visible, x: +m.g.position.x.toFixed(2), z: +m.g.position.z.toFixed(2), color: m.mat.color.getHexString() } : null; });
+  check('3d. 17/11: colpo del Player 2 nello stesso schermo: anello a terra dove cadrà la palla, nella metà del Player 1, nel colore dell\'esito', !!ring && ring.on && ring.z > 0 && ring.z < 11.9, fmt(ring));
+  await shot('3c-torino-e-anello-del-player2');
   for (const [w, h] of [[1920, 540], [720, 720]]){ await g.setViewportSize({ width: w, height: h }); await sleep(500); await shot(`3b-partita-aiuto-${w}x${h}`); }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);
 

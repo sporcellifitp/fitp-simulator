@@ -70,6 +70,11 @@ export function installNatpfArena(engine, { quality = 1 } = {}){
       if (side !== viewer){ viewer = side; arena.setViewer?.(side); }
       arena.update(time, practice ? 0 : Math.max(0, Math.min(1, (cheerEnergy - .22)/.78)));
     },
+    // Stesso schermo (collaudo dell'utente del 17/11 sulla 17.1: «su stesso schermo dovrei vedere sempre TORINO dritto»):
+    // le scritte sono una sola coppia per tutte e due le metà; la metà del Player 2 guarda dall'altra parte, quindi le
+    // gira solo mentre si disegna (natpf_split.render: viewFrom(-1), disegno, viewFrom(null) = di nuovo come sopra)
+    viewFrom(side){ arena.setViewer?.(side == null ? viewer : side); },
+    get viewer(){ return viewer; },
     // punteggio sui tabelloni in italiano: «0-15», «PARITÀ», «VANT.»
     setScore(text){ if (practice) return; const t = scoreText(text, { short: true }).slice(0, 7); if (t !== lastScore){ lastScore = t; arena.setScore(t); } },
     // velocità dell'ultimo servizio; null: nessun servizio ancora (inizio partita), «---» (diagnostica del 30/10, C21)
