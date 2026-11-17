@@ -193,17 +193,25 @@ try {
     await sleep(300); await shot('pc', 'tutorial'); await shot('tel1', 'tutorial');
     const tTut = Date.now();
     await ph.click('#tutOk');
+    // B59: il conto alla rovescia grande «Prima qualche scambio di prova» si guarda appena è in vista (con il telefono
+    // simulato lento può aspettare la pausa «non pronto»: poi riprende da dove era)
+    const cntSeen = await until(pc, () => { const U = __natpfTennis.natpfUi; return U.prematch.active && U.prematch.kind === 'trial' && !U.prematch._held; }, null, 12000);
+    const cnt = await pc.evaluate(() => { const U = __natpfTennis.natpfUi, el = document.getElementById('natpf-prematch'), q = s => el.querySelector(`[data-prematch="${s}"]`)?.textContent || '';
+      return { on: U.prematch.active, kind: U.prematch.kind, vis: !el.classList.contains('hidden'), title: q('title'), num: q('num'), trialHidden: document.getElementById('natpf-trial').classList.contains('hidden'),
+        // (perché il conto aspetta, se aspetta: le stesse cose di natpf_prematch._blocked)
+        held: U.prematch._held, perche: { pausa: !!U.pause?.isOpen, staff: !!U.staffOpen?.(), telefono: U.phoneHold?.why || null, webcam: !!U.webcamHold, split: !!U.split?.hold, guida: !!U.onboarding?.isOpen,
+          attesa: !!__natpfTennis.natpfVersusWait, modale: !!(U.modal && !U.modal.classList.contains('hidden')), modaleId: U.modal?.id || null } }; });
+    await shot('pc', 'conto-allenati');
+    // (la scritta grande di fine conto dura 1,8 s: si annotano le scritte da adesso, per guardarle dopo)
+    await pc.evaluate(() => { window.__banners = []; const t = document.querySelector('.center-banner-text'); if (t) new MutationObserver(() => __banners.push(t.textContent)).observe(t, { childList: true, characterData: true, subtree: true }); });
     // B35: niente calibrazione con i gesti: subito gli scambi di prova in campo, la partita non parte
     check('dopo «Tutto chiaro»: scambi di prova in campo, senza calibrazione, la partita non è partita', await until(pc, () => __natpfTennis.natpfUi.trial.active && !(__natpfTennis.natpfMatchSeq > 0) && __natpfTennis.natpfPhone.soonReady, null, 10000), `${Date.now() - tTut} ms`);
     res.tutorialToTrialMs = Date.now() - tTut;
     const seen0 = await ph.evaluate(() => ({ screens: [...window.__seen.screens], bigs: [...window.__seen.bigs] }));
     check('telefono: nessun gesto di calibrazione chiesto (mai il passo dei gesti)', !seen0.screens.some(s => /^cal:(swings|shots|review|free)/.test(s)) && !seen0.bigs.some(b => /Dritto|Rovescio|Fatto|Da rifare/.test(b)), JSON.stringify(seen0));
     // B59: prima delle palle il conto alla rovescia grande «Prima qualche scambio di prova», poi «Allenati un po'!»
-    const cnt = await pc.evaluate(() => { const U = __natpfTennis.natpfUi, el = document.getElementById('natpf-prematch'), q = s => el.querySelector(`[data-prematch="${s}"]`)?.textContent || '';
-      return { on: U.prematch.active, kind: U.prematch.kind, vis: !el.classList.contains('hidden'), title: q('title'), num: q('num'), trialHidden: document.getElementById('natpf-trial').classList.contains('hidden') }; });
-    check('B59: conto alla rovescia grande «Prima qualche scambio di prova» prima delle palle, scritta degli scambi nascosta', cnt.on && cnt.kind === 'trial' && cnt.vis && /Prima qualche scambio di prova/.test(cnt.title) && /^[123]$/.test(cnt.num) && cnt.trialHidden, JSON.stringify(cnt));
-    await shot('pc', 'conto-allenati');
-    const allenati = await until(pc, () => !__natpfTennis.natpfUi.prematch.active && /Allenati un po/.test(document.querySelector('.center-banner-text')?.textContent || ''), null, 6000);
+    check('B59: conto alla rovescia grande «Prima qualche scambio di prova» prima delle palle, scritta degli scambi nascosta', cntSeen && cnt.vis && cnt.trialHidden && /Prima qualche scambio di prova/.test(cnt.title) && /^[123]$/.test(cnt.num), JSON.stringify({ visto: cntSeen, ...cnt }));
+    const allenati = await until(pc, () => !__natpfTennis.natpfUi.prematch.active && (window.__banners || []).some(t => /Allenati un po/.test(t)), null, 15000);
     check('B59: a fine conto la scritta grande «Allenati un po\'!» al centro', allenati);
     await shot('pc', 'allenati-un-po');
     await sleep(250);

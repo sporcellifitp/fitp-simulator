@@ -1513,3 +1513,25 @@ per l'utente.
 **Prossima azione esatta (17/11, 02:30 UTC)**: confronto delle tre prove con la versione di prima; correggere; rifare le
 prove cambiate; poi versione 2026-11-17.1 (B59 + B60 + rivincita) e pacchetti.
 
+## 17/11, 04:00 UTC · telefono: blocco che copriva «Riattiva i sensori»; prove nel browser rimesse in riga; fogli del servizio
+
+- [x] Difetto vero trovato da `natpf-phone-keep` (rossa anche prima): con il blocco dello schermo in partita (B51) il
+      pulsante «Riattiva i sensori» e il velo «tocca per riprendere» stavano sotto il blocco (z-index 40 contro 30) e il
+      tocco non arrivava. `phone-touch-lock.touchLockActive` con `alertTap` e `veil`, `racchetta.js` li passa e ridisegna
+      il blocco quando cambiano. Prove: `phone-touch-lock` +2, sito 282/282, `natpf-phone-keep` 13/13.
+- [x] Prove nel browser rosse già prima del B59 (confronto sulla `9156fc5`) e scritte per flussi vecchi, aggiornate:
+      `natpf-servizio-lancio` (lancio con il gesto: i tocchi in campo non valgono dal B51) 17/17,
+      `natpf-pannello-partita` (la CPU batte apposta: dal B47 batte sempre chi gioca) 25/25,
+      `natpf-scambi-di-prova` (conto B59 guardato appena è in vista, scritte annotate) 32/32,
+      `natpf-nuovo-giocatore` (nome dal telefono B54.2, scambi di prova prima della pagina B35, attese più lunghe).
+- [x] Osservato nelle prove: all'inizio degli scambi di prova, con il telefono simulato lento (più di 2,5 s a ripartire),
+      la pausa «Telefono non pronto» per circa 3 s; c'era già prima del B59. Un telefono vero risponde in pochi decimi:
+      da guardare nel registro (righe di pausa all'inizio della prova), nessuna modifica al gioco.
+- [ ] Da capire: con la calibrazione «Con i gesti» (non quella della fiera), dopo «Nuovo giocatore» il telefono resta su
+      «Prova un colpetto» mentre il gioco torna alla pagina «Partita» (`natpf-nuovo-giocatore` con CAL=gesti).
+- [x] Fogli di confronto del servizio (B53.4): `COLPO=servizio` in `tools/e2e/natpf-dritto-video.mjs`, 4/4,
+      `docs/b53/servizio-prima-dopo.webp`.
+
+**Prossima azione esatta (17/11, 04:00 UTC)**: esiti di `natpf-nuovo-giocatore` (Giocando e Con i gesti),
+`natpf-telefono-bloccato`, `natpf-nome-telefono`; il caso «Con i gesti»; poi versione 2026-11-17.1 e pacchetti.
+

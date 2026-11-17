@@ -1,7 +1,10 @@
 // B51. Il gioco chiede il blocco per la durata dell'attività; lo staff può sospenderlo fino alla fine.
 // (B54: nameTap = il computer chiede il nome: campo e tastiera devono restare toccabili, come «Sono pronto»)
-export function touchLockActive({ requested = false, overridden = false, paired = false, sensor, gate, readyTap = false, nameTap = false } = {}){
-  return requested && !overridden && paired && sensor === 'ready' && !gate && !readyTap && !nameTap;
+// (17/11, prova natpf-phone-keep: alertTap = avviso con un pulsante da toccare, per esempio «Sensori fermi · Riattiva i
+// sensori»; veil = velo «tocca per riprendere» dopo lo schermo spento. Il blocco li copriva (sta sopra) e il tocco non
+// arrivava: il telefono restava fermo. Con questi due il blocco si toglie; la partita è già ferma per il telefono)
+export function touchLockActive({ requested = false, overridden = false, paired = false, sensor, gate, readyTap = false, nameTap = false, alertTap = false, veil = false } = {}){
+  return requested && !overridden && paired && sensor === 'ready' && !gate && !readyTap && !nameTap && !alertTap && !veil;
 }
 
 export const STAFF_TOUCH = Object.freeze({ holdMs: 3000, offerMs: 6000, maxMove: 20 });

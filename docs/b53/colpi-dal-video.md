@@ -122,8 +122,12 @@ la ritrova spenta. Avvisi: «Movimenti come nel video accesi» / «… spenti: i
   anticipo, ritardo; chi gioca e CPU; destro e mancino), attesa e lancio identici; corpo in avanti all'impatto, peso che
   passa, saltello tra 5 e 8 cm dopo la zona libera e di nuovo a terra, niente scatti (sotto 170 mm e 0,26 rad a
   fotogramma), tornato quello di sempre. Aggiornati i test della sequenza (colpo del servizio cambiato, lancio e fine
-  dell'esultanza identici). **Non fatti** i fogli di confronto nel browser (`COLPO=servizio` non esiste ancora in
-  `tools/e2e/natpf-dritto-video.mjs`).
+  dell'esultanza identici). Fogli di confronto nel browser fatti il 17/11: `COLPO=servizio FOGLI=<cartella> SOLO=fogli
+  node tools/e2e/natpf-dritto-video.mjs` (lancio dal gesto al fotogramma 20, battuta vicino al punto più alto; impatto al
+  fotogramma 58, palla a 3,37 m; destro e mancino, 4/4). Prima e dopo uguali fino all'impatto; nel finale e nel recupero
+  il corpo in avanti e il saltello.
+
+![Servizio prima e dopo](servizio-prima-dopo.webp)
 
 ## 7. Cosa non è provato
 

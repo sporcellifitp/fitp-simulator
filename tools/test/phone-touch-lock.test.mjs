@@ -11,6 +11,24 @@ test('B51: il blocco segue il gioco, anche se la rete cade; tutorial e tocchi ri
   ]) assert.equal(touchLockActive({ ...playing, ...exception }), false);
 });
 
+test('avviso da toccare («Riattiva i sensori») e velo «tocca per riprendere»: il blocco si toglie (prima li copriva)', () => {
+  const playing = { requested: true, paired: true, sensor: 'ready' };
+  assert.equal(touchLockActive({ ...playing, alertTap: true }), false);
+  assert.equal(touchLockActive({ ...playing, veil: true }), false);
+  assert.equal(touchLockActive({ ...playing, alertTap: false, veil: false }), true, 'avviso senza pulsante: il blocco resta');
+});
+
+test('pagina del telefono: il blocco guarda l\'avviso con il pulsante e il velo, e si ridisegna quando cambiano', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  assert.match(src, /alertTap: !\$\('#alert'\)\.classList\.contains\('hidden'\) && !\$\('#alertBtn'\)\.classList\.contains\('hidden'\)/);
+  assert.match(src, /veil: !\$\('#wakeVeil'\)\.classList\.contains\('hidden'\)/);
+  const alertFn = src.slice(src.indexOf('function paintAlert'), src.indexOf('function paintVeil'));
+  assert.match(alertFn, /paintTouchLock\(\);/, 'paintAlert ridisegna il blocco');
+  const veilFn = src.slice(src.indexOf('function paintVeil'), src.indexOf('setInterval(() => { paintVeil(); paintAlert(); }'));
+  assert.match(veilFn, /show\('#wakeVeil', on\); if \(on\) alertKey = null; paintTouchLock\(\);/);
+});
+
 test('B51: Indietro riarma il blocco e torna a funzionare dopo lo sblocco', () => {
   const entries = [null, { pair: 'old-state' }], nav = new EventTarget();
   let pos = 1, active = true;

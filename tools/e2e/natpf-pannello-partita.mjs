@@ -81,6 +81,8 @@ try {
   const s0 = await st(); await g.waitForTimeout(1500); const s1 = await st();
   check('partita contro la CPU partita con un clic su «Gioca», motore che gira', go.onTop && s0.inGame && !s0.paused && s1.t > s0.t + 0.5, JSON.stringify({ s0, s1 }));
   // la CPU batte: il pannello si apre a scambio in corso (prima, in 8 s, la CPU vinceva il punto dietro il pannello)
+  // (B47: di base batte sempre chi gioca, «Battuta: Sempre lo stesso»: qui la battuta va data alla CPU apposta)
+  await g.evaluate(() => { const E = __natpfTennis; E.score.server = 'opponent'; E._setupPointServe({ showBanner: false }); });
   const rally = await g.waitForFunction(() => __natpfTennis.phase === 'RALLY' && __natpfTennis.ball.inPlay, null, { timeout: 20000 }).then(() => true, () => false);
   await staffKey(); await g.waitForTimeout(300);
   const a = await st(); await g.waitForTimeout(8000); const b = await st();

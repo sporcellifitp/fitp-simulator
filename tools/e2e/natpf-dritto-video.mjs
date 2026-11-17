@@ -120,6 +120,9 @@ const DRIVER = () => {
   };
   let S = null;
   const strike0 = E._attemptPlayerRallyStrike.bind(E);
+  // B53.4: il servizio di chi gioca (fogli COLPO=servizio): fotogramma dell'impatto
+  const serve0 = E._executeServeHit.bind(E);
+  E._executeServeHit = (a, ...r) => { const out = serve0(a, ...r); if (S && a === E.player) S.strikes.push({ f: S.f, ball: [E.ball.pos.x, E.ball.pos.y, E.ball.pos.z], side: 'serve' }); return out; };
   E._attemptPlayerRallyStrike = (e, t) => {
     const b = E.ball.pos.clone(), r = strike0(e, t);
     if (r && !t && S){ S.strikes.push({ f: S.f, ball: [b.x, b.y, b.z], side: E.player.swingType }); S.swungFor = null; }
@@ -140,7 +143,7 @@ const DRIVER = () => {
   const api = {
     get engine(){ return E; },
     mode(on){ const L = U.lobby; if (L.setForehandVideo){ L.setForehandVideo(!!on); return true; } return false; },
-    begin({ hand = 'right', offset = 0, rally = false, toX = 1.4, pre = false, flight = 0, landZ = 0, atZ = 11.4 } = {}){
+    begin({ hand = 'right', offset = 0, rally = false, toX = 1.4, pre = false, flight = 0, landZ = 0, atZ = 11.4, serve = false } = {}){
       window.__seme(20261112);
       U.hand.set(hand);
       E.natpfFatigue = null;   // stanchezza della corsa (natpf_skill.fatigueStep): ogni sequenza riparte riposata
@@ -150,7 +153,9 @@ const DRIVER = () => {
       S = { hand, offset, rally, toX, flight, landZ, atZ, f: 0, strikes: [], swungFor: null, seen: -1, rec: { player: [], opponent: [] }, jerk: { player: {}, opponent: {} }, last: { player: null, opponent: null },
         hits: { player: {}, opponent: {} }, wasSw: { player: false, opponent: false }, rel: { player: [], opponent: [] }, swStart: { player: [], opponent: [] }, prints: [], centre: [], state: [], gestures: [], top: { player: [0, 0, 0, 0], opponent: [0, 0, 0, 0] },
         pre, mprints: [], mcentre: [] };
-      feed();
+      // B53.4: servizio di chi gioca (lancio dal gesto, battuta vicino al punto più alto) al posto della palla della CPU
+      if (serve){ S.serve = { state: 'stance' }; E.score.server = 'player'; E.score.deuceSide = true; E._setupPointServe({ showBanner: false }); E.natpfPaused = false; }
+      else feed();
       E._snapCameraImmediate?.();
       return true;
     },
@@ -163,6 +168,11 @@ const DRIVER = () => {
           E.motionController._emitSwing({ source: 'keyboard', shotType: 'topspin', speed: 1.18, dirX: 0, dirY: -.45 });
         }
         if (!live && S.rally) feed();
+        if (S.serve){
+          const sv = S.serve;
+          if (sv.state === 'stance' && S.f >= 20 && E.phase === 'SERVE_STANCE'){ sv.state = 'toss'; E.motionController._emitSwing({ source: 'keyboard', shotType: 'topspin', speed: 1.2, dirX: 0, dirY: -.45 }); }
+          else if (sv.state === 'toss' && E.phase === 'SERVE_TOSS' && b.pos.y >= 2.2 && b.vel.y <= .6){ sv.state = 'hit'; S.gestures.push(S.f); E.motionController._emitSwing({ source: 'keyboard', shotType: 'topspin', speed: 1.25, dirX: 0, dirY: -.45 }); }
+        }
         // sorteggi rimessi a ogni fotogramma (seme + numero del fotogramma): quanti numeri consumano voce e suoni, che
         // dipendono da quello che è successo prima nella pagina, non spostano i sorteggi dei fotogrammi dopo
         window.__seme(20261112 + 7919*S.f);
@@ -265,6 +275,7 @@ const COLPO = process.env.COLPO === 'rovescio' ? { toX: -1.4, side: 'backhand', 
   : process.env.COLPO === 'schiacciata' ? { toX: .2, flight: 2.7, landZ: 12.4, side: 'smash', prefix: 'schiacciata-' }   // pallonetto della CPU
   : process.env.COLPO === 'volee' ? { toX: .9, landZ: 7.5, flight: .9, atZ: 4, side: 'forehand', prefix: 'volee-' }   // a rete (B53.3), palla tesa
   : process.env.COLPO === 'volee-rovescio' ? { toX: -.9, landZ: 7.5, flight: .9, atZ: 4, side: 'backhand', prefix: 'volee-rovescio-' }
+  : process.env.COLPO === 'servizio' ? { serve: true, side: 'serve', prefix: 'servizio-' }   // B53.4: lancio e battuta di chi gioca
   : { toX: 1.4, side: 'forehand', prefix: '' };
 async function fogli(){
   const g = await game({ saved: '1' }), p = g.p;
@@ -272,11 +283,11 @@ async function fogli(){
   const info = {};
   for (const hand of ['right', 'left']){
     await p.evaluate(() => __fv.mode(true));
-    const probe = await seq(p, { hand, toX: COLPO.toX, flight: COLPO.flight || 0, landZ: COLPO.landZ || 0, atZ: COLPO.atZ || 11.4 }, 200), f0 = probe.strikes[0]?.f;
+    const probe = await seq(p, { hand, toX: COLPO.toX, flight: COLPO.flight || 0, landZ: COLPO.landZ || 0, atZ: COLPO.atZ || 11.4, serve: !!COLPO.serve }, 200), f0 = probe.strikes[0]?.f;
     check(`fogli (${hand}): il colpo c'è (fotogramma ${f0})`, f0 > 30 && probe.strikes[0].side === COLPO.side, JSON.stringify(probe.strikes[0]));
     for (const [mode, on] of [['prima', false], ['dopo', true]]){
       await p.evaluate(on => __fv.mode(on), on);
-      await p.evaluate(o => __fv.begin(o), { hand, toX: COLPO.toX, flight: COLPO.flight || 0, landZ: COLPO.landZ || 0, atZ: COLPO.atZ || 11.4 });
+      await p.evaluate(o => __fv.begin(o), { hand, toX: COLPO.toX, flight: COLPO.flight || 0, landZ: COLPO.landZ || 0, atZ: COLPO.atZ || 11.4, serve: !!COLPO.serve });
       let f = 0;
       for (const [name, d] of ISTANTI){
         const want = f0 + d; await p.evaluate(n => __fv.step(n), want - f); f = want;

@@ -98,8 +98,9 @@ try {
     await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/servizio-1-lancio-${w}x${h}.png` });
   }
   await game.setViewportSize({ width: 1280, height: 720 }); await game.waitForTimeout(300); await game.evaluate(() => __natpfTennis._onResize?.());
-  // lancio dal telefono (tocco sullo schermo), senza battuta
-  const tap = () => phone.evaluate(() => document.getElementById('stage').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  // lancio dal telefono, senza battuta. B51 (telefono bloccato in partita): i tocchi sullo schermo in campo non valgono più
+  // (prima questa prova lanciava con un tocco); si lancia con il gesto, come natpf-servizio-scelta
+  const tap = () => phone.evaluate(() => __up.swing(1, { peak: 900, dur: 160 }));
   // scritte grandi del telefono, in ordine (per vedere l'avviso anche se dura poco)
   await phone.evaluate(() => { window.__bigs = []; const b = document.getElementById('big'); new MutationObserver(() => __bigs.push(b.textContent)).observe(b, { childList: true, characterData: true, subtree: true }); });
   await game.waitForFunction(() => __natpfTennis.natpfPhone.lastPhase === 'serve', null, { timeout: 3000 }).catch(() => {});

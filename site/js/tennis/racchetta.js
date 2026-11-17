@@ -161,7 +161,10 @@ function unlockTouch(){
 }
 function paintTouchLock(){
   const on = touchLockActive({ requested: touchRequest, overridden: touchOverride, paired: !!pair && linkState !== 'denied',
-    sensor, gate, readyTap: phase === 'menu' && !!nextOffer?.ready && !nextOffer.me && !nextOffer.sent, nameTap: phase === 'menu' && !!nameOffer });
+    sensor, gate, readyTap: phase === 'menu' && !!nextOffer?.ready && !nextOffer.me && !nextOffer.sent, nameTap: phase === 'menu' && !!nameOffer,
+    // (avviso con il pulsante e velo «tocca per riprendere» devono restare toccabili)
+    alertTap: !$('#alert').classList.contains('hidden') && !$('#alertBtn').classList.contains('hidden') && !!$('#alertBtn').dataset.act,
+    veil: !$('#wakeVeil').classList.contains('hidden') });
   if (on){
     touchOverlay.dataset.slot = touchSlot;
     $('#phoneTouchSlot').textContent = slotLabel(touchSlot);
@@ -964,14 +967,16 @@ function paintAlert(){
   const key = a ? a.t + a.p : '';
   if (key === alertKey) return;
   alertKey = key; show('#alert', !!a);
-  if (!a) return;
-  $('#alertTitle').textContent = a.t; $('#alertText').textContent = a.p;
-  const b = $('#alertBtn'); b.textContent = a.b || ''; b.dataset.act = a.act || ''; show('#alertBtn', !!a.b);
+  if (a){
+    $('#alertTitle').textContent = a.t; $('#alertText').textContent = a.p;
+    const b = $('#alertBtn'); b.textContent = a.b || ''; b.dataset.act = a.act || ''; show('#alertBtn', !!a.b);
+  }
+  paintTouchLock();   // (il blocco si toglie con un avviso da toccare e torna quando l'avviso sparisce)
 }
 function paintVeil(){
   const active = inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal' || sensor === 'idle') && !document.hidden;
   const on = veil.update(performance.now(), { active, wake: awake.state, wakeBusy: awake.busy, lastSample: sensorWatch.last });
-  if ($('#wakeVeil').classList.contains('hidden') === on){ show('#wakeVeil', on); if (on) alertKey = null; }
+  if ($('#wakeVeil').classList.contains('hidden') === on){ show('#wakeVeil', on); if (on) alertKey = null; paintTouchLock(); }
   // cosa è rimasto: la calibrazione solo se il telefono era calibrato (phone-screen.veilText)
   if (on){ const t = veilText({ linkState, sensor, gate }), el = $('#wakeVeilText'); if (el.textContent !== t) el.textContent = t; }
 }
