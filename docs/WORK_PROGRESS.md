@@ -2530,6 +2530,16 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B65 · Classifica di oggi a fine partita, versione 2026-11-17.4 (17/11/2026)
+
+- [x] Richiesta dell'utente e decisioni (solo chi vince nello stesso schermo; dopo la card per 8 s): `docs/b65/classifica-fine.md`.
+- File: `natpf_classifica_fine.js` (nuovo), `natpf_events.js` (`MATCH_KEEP` 3000, `recordSplitWin`, CSV), `natpf_ui.js`,
+  `natpf-ui.css`, `tools/e2e/th.mjs` (spenta nelle prove), prove `natpf-b65-classifica-fine` (5) e
+  `tools/e2e/natpf-classifica-fine.mjs` (11).
+- Verifiche: gioco 1820/1820, sito 282/282, build; nel browser classifica-fine 11/11; lob-drop 136/137: il controllo dei
+  piedi in corsa (3,08 % contro 3 %) fallisce uguale sulla 17.3 (`1633240`, provata in una copia a parte): non è di oggi.
+- Non verificato: ledwall, programma Windows vero.
+
 ## B63 + B64 · Mascotte 3D (anteprima) e ridondanze tolte, versione 2026-11-17.4 (17/11/2026)
 
 - [x] B63 (`docs/b63/mascotte-3d.md`): `natpf_card_moves.js` (nuovo), `natpf_ritratti.js`, `player_body_animation.js`

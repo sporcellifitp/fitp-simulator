@@ -52,6 +52,7 @@ import { NatpfTrial } from './natpf_trial.js';
 import { readCalMode } from './natpf_trial_learn.js';
 import { NatpfTastiera } from './natpf_tastiera.js';
 import { NatpfScreensaver } from './natpf_screensaver.js';   // B62
+import { NatpfFineClassifica } from './natpf_classifica_fine.js';   // B65
 import { NatpfStandMouse } from './natpf_stand_mouse.js';
 // B47: conto alla rovescia grande prima del primo punto (natpf_prematch.js)
 import { NatpfPrematch } from './natpf_prematch.js';
@@ -129,6 +130,8 @@ export class NatpfUi {
     this.stats = installMatchStats(engine, { counts: () => !this.training?.active && !this.events?.active && !this.trial?.active, onEnd: m => this._matchEnded(m) });
     // scambi di prova (B28): la calibrazione giocando, prima della partita (dopo le sfide: ne avvolge i punti per ultimo)
     this.trial = new NatpfTrial(engine, this);
+    // B65: classifica di oggi a fine partita (fiera), dopo la card, per qualche secondo
+    this.dayBoard = new NatpfFineClassifica(engine, this);
     // diagnostica (Maiusc+D o ?diag=1): prima del menu, così il suo tasto arriva anche con il menu aperto
     this.diag = new NatpfDiag(engine, this);
     this._gateDesktopInput();
@@ -285,7 +288,7 @@ export class NatpfUi {
     // caldo» si tolgono subito (restavano sotto il riquadro della pausa) e tornano da sole alla ripresa
     if (this.engine.natpfPaused){ this.serveCoach?.paint(null); this.hotRally?.hide(); }
   }
-  tick(dt = 1/60){ this.partnerRing.update(); this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.cue.update(dt); this.serveMark.update(dt); this.superHint.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); this.screensaver?.tick(); }
+  tick(dt = 1/60){ this.partnerRing.update(); this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.cue.update(dt); this.serveMark.update(dt); this.superHint.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); this.screensaver?.tick(); this.dayBoard?.tick(); }
   // sfondo fermo dell'arena dietro il menu (motore: _natpfBackdropFrame). Il Player 2 dell'invito vede l'arena viva
   // (riceve lo stato dell'host), e in campo (riscaldamento, sfide) il gioco gira
   // (B62: con il salvaschermo acceso il menu resta aperto sotto ma il motore gioca la partita dimostrativa)
@@ -336,6 +339,15 @@ export class NatpfUi {
     // partite di questo computer; il computer del Player 2 della sfida tra due computer non passa di qui). Prima della
     // classifica: «Prima volta» guarda anche se il nome ha già una partita di oggi
     try { this._noteDay(m); } catch (e){ console.warn('[natpf-b40] giorno', e?.message || e); }
+    this.stats.rank = null;
+    // B65: nello stesso schermo in classifica solo chi vince (decisione dell'utente del 17/11), per la classifica di fine partita
+    if (m.mode === 'split' && !m.doubles){
+      const w = m.winner === 'opponent' ? 'opponent' : 'player', l = w === 'player' ? 'opponent' : 'player', g = m.games || [], mine = g.filter(x => x.winner === w).length;
+      const nick = this.split?.name?.(w === 'opponent' ? 'p2' : 'p1') || '';
+      const r = this.events.recordSplitWin({ nick, won: m.s[w].points, lost: m.s[l].points, games: [mine, g.length - mine] });
+      this.stats.rank = { rank: r.rank | 0, total: r.total | 0, score: r.score | 0, side: w, who: nick, ...(r.guest ? { guest: true } : {}) };
+      return r;
+    }
     if (m.mode !== 'cpu' || m.doubles || m.guest || !isCpuLevel(m.level)) return null;
     const p = m.s.player, o = m.s.opponent, g = m.games, mine = g.filter(x => x.winner === 'player').length;
     const r = this.events.recordMatch({ level: m.level, won: p.points, lost: o.points, games: [mine, g.length - mine], win: m.winner === 'player' });

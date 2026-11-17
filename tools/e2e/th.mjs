@@ -35,6 +35,8 @@ export async function page(browser, url, { w = 1280, h = 760, mobile = false, in
   // B62: salvaschermo spento nelle prove (stanno ferme nel menu più di un minuto: coprirebbe la pagina), anche con il ponte
   // finto del programma Windows; la prova del salvaschermo lo accende lei
   await p.addInitScript(() => { try { if (localStorage.getItem('natpf-tennis.salvaschermo') == null) localStorage.setItem('natpf-tennis.salvaschermo', '0'); } catch {} });
+  // B65: classifica di fine partita spenta nelle prove (coprirebbe la schermata finale che le prove misurano); la sua prova la accende
+  await p.addInitScript(() => { try { if (localStorage.getItem('natpf-tennis.classificaFine') == null) localStorage.setItem('natpf-tennis.classificaFine', '0'); } catch {} });
   if (init) await p.addInitScript(init);
   await p.goto(url.replace('http://127.0.0.1:8765', BASE), { waitUntil: 'domcontentloaded', timeout: 120000 });
   return { ctx, p, errs };

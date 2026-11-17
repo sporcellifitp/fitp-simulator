@@ -60,6 +60,7 @@ Registro delle richieste in §3.
 | 17/11 | Salvaschermo: partita dimostrativa dopo 1 min senza nessuno (B62) | FIERA (online spento di base) | fatto, 17.3 (`docs/b62/salvaschermo.md`) |
 | 17/11 | Analisi delle ridondanze (fascia, mano, nome, impostazioni doppie) | ENTRAMBE | analisi fatta (`docs/analisi/ridondanze-2026-11-17.md`); decisione dell'utente: sì a «Fascia una volta sola», «Livello CPU senza doppioni», «Impostazioni doppie»; no alla mano in due posti; fatto (B64, `docs/b64/ridondanze.md`) |
 | 17/11 | Mascotte con i modelli 3D di Lob e Drop invece delle GIF | FIERA | decisione dell'utente: «3D con animazioni nuove» (3 di vittoria, 3 di sconfitta), anteprima prima di pubblicare (B63: anteprima consegnata, interruttore spento, aspetta l'approvazione) |
+| 17/11 | Classifica di oggi a fine partita: top 5 e posizione di chi ha giocato, poi sparisce (B65) | FIERA | fatto, 17.4 (`docs/b65/classifica-fine.md`); decisioni: nello stesso schermo solo chi vince, dopo la card per 8 s |
 | 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)

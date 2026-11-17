@@ -1629,3 +1629,13 @@ ancora (3,08 % contro 3 %), verificarlo sulla 17.3 (non toccato oggi).
       browser non erano finite e il workflow pubblica solo con la versione che sale. La riga delle novità della 17.4 è in
       attesa (testo nel commit seguente).
 
+## 17/11, 18:00 UTC · B65 classifica a fine partita, versione 2026-11-17.4
+
+- [x] Decisioni dell'utente: nello stesso schermo solo chi vince; classifica dopo la card per 8 s. Fatto
+      (`docs/b65/classifica-fine.md`), prove 1820/1820, sito 282/282, nel browser classifica-fine 11/11.
+- [x] Prove nel browser delle ridondanze (B64) tutte verdi; lob-drop: il controllo dei piedi fallisce uguale sulla 17.3.
+- [~] Versione 17.4: commit, push, pacchetti.
+
+**Prossima azione esatta (17/11, 18:00 UTC)**: se il commit della 17.4 è su GitHub, controllare workflow e pacchetti;
+poi aspettare l'utente (mascotte 3D da approvare; registro del 17/11).
+

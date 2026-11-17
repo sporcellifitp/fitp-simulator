@@ -1649,3 +1649,11 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - Le righe tolte dalle Opzioni sono nascoste (`data-b64="doppione"`), non cancellate: il codice che le dipinge serve alla
   pagina «Pronto per la partita» e alla pausa. Chi le rimette toglie la classe `hidden`.
 
+## B65 · Classifica di oggi a fine partita (17/11/2026; `docs/b65/classifica-fine.md`)
+- `natpf_classifica_fine.js`: 5 s dopo la schermata finale (evento `natpf:victory`) la finestra con le prime 5 e la riga di
+  chi ha giocato, per 8 s; timer suo (setInterval), non il ciclo del motore, che a schermata finale aperta può non avanzare.
+- Classifica del giorno: `MATCH_KEEP` = 3000 (posizione vera fino a lì); nello stesso schermo solo chi vince
+  (`recordSplitWin`, livello Evento per il punteggio, `split: true`), senza nome vero fuori classifica. I trofei e la
+  pillola della schermata finale usano la posizione solo contro la CPU (lo stesso schermo non li cambia).
+- Prove nel browser: `tools/e2e/th.mjs` la spegne (`natpf-tennis.classificaFine` = '0') come il salvaschermo.
+

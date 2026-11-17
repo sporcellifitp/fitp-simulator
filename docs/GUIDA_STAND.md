@@ -1,6 +1,6 @@
 # Guida dello stand · come si attiva ogni cosa
 
-**Vale per la versione 2026-11-17.3** (17/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
+**Vale per la versione 2026-11-17.4** (17/11/2026). Le voci segnate **(B41 parte 2)** e **(B41.3)** (modalità fiera con il
 solo mouse e le correzioni dopo la revisione: capitolo 8.4) valgono dalla 2026-11-14.5. Le voci segnate **(B39)**
 valgono dalla versione che contiene il blocco B39 «stand con il solo mouse» (dalla 2026-11-14.2): tasto destro con i
 comandi dello staff, pannello da ogni pagina, niente doppi clic che saltano pagine, puntatore grande, calibrazione dello
@@ -253,6 +253,11 @@ trofeo** detto in positivo. Nello stesso schermo le due card una contro l'altra,
 accendere. Se il personaggio nella card è quello disegnato e non si muove come in campo: il PC non ha fatto in tempo a
 preparare i fotogrammi o l'indirizzo ha `?ritratti=svg` (va bene lo stesso). «Azzera oggi» (pannello dello stand) azzera
 anche i record di oggi.
+
+**(B65, dalla 17.4) Classifica di oggi a fine partita.** Nel programma Windows, 5 secondi dopo la card compare per 8 s la
+classifica del giorno: le prime 5 partite con il punteggio e, sotto, la riga di chi ha giocato con la sua posizione (per
+esempio 221°). Un tocco la chiude. Nello stesso schermo entra in classifica solo chi vince (con un nome vero), con
+«stesso schermo». Niente da accendere; si spegne solo a mano (`natpf-tennis.classificaFine` = '0').
 
 **(B58, dalla 16.10) Lob o Drop nella card.** Nel programma Windows la finestra del personaggio della card (a sinistra)
 mostra una delle due mascotte al posto del personaggio: festeggia se quella card vince, consola se perde; un'animazione a

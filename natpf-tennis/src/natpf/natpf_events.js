@@ -77,9 +77,12 @@ export const MATCH_LABEL = 'Partite contro la CPU';
 // partita, per la scheda «Partite» e per il CSV.
 export const matchOrder = (x, y) => (y.win ? 1 : 0) - (x.win ? 1 : 0) || y.score - x.score || x.at - y.at;
 export const MATCH_ORDER_RULE = 'Prima le partite vinte, poi le perse, ognuna per punteggio';
-export function addMatch(board, { nick, level, won = 0, lost = 0, games = [0, 0], win = false }, { day = dayKey(), at = Date.now(), keep = 50 } = {}){
+// B65 (17/11): tutte le partite del giorno (fino a MATCH_KEEP), così la fine partita dice anche «200°»; prima le prime 50.
+// split: partita dello stesso schermo (decisione dell'utente: in classifica solo chi vince, livello Evento per il punteggio)
+export const MATCH_KEEP = 3000;
+export function addMatch(board, { nick, level, won = 0, lost = 0, games = [0, 0], win = false, split = false }, { day = dayKey(), at = Date.now(), keep = MATCH_KEEP } = {}){
   const b = freshBoard(board, day), score = matchScore({ level, won, lost });
-  const list = [...(b.modes[MATCH_MODE] || []), { nick, score, at, level, won: won | 0, lost: lost | 0, games: [games[0] | 0, games[1] | 0], win: !!win }];
+  const list = [...(b.modes[MATCH_MODE] || []), { nick, score, at, level, won: won | 0, lost: lost | 0, games: [games[0] | 0, games[1] | 0], win: !!win, ...(split ? { split: true } : {}) }];
   list.sort(matchOrder);
   // (revisione finale: posizione e totale sulla lista tenuta. Prima dalla 51ª partita del giorno la schermata poteva dire
   // «57° su 57» per una partita già tolta dal tabellone e dal CSV; ora rank 0 = fuori dalle prime keep)
@@ -113,7 +116,7 @@ export function boardCsv(board){
   const rows = [['giorno', 'sfida', 'posizione', 'nickname', 'punteggio', 'ora', 'livello', 'risultato', 'punti vinti']];
   const ora = e => new Date(e.at).toLocaleTimeString('it-IT');
   for (const c of ALL_CHALLENGES) (board?.modes?.[c.id] || []).forEach((e, i) => rows.push([board.day, c.label, i + 1, e.nick, e.score, ora(e), '', '', '']));
-  [...(board?.modes?.[MATCH_MODE] || [])].sort(matchOrder).forEach((e, i) => rows.push([board.day, MATCH_LABEL, i + 1, e.nick, e.score, ora(e), LEVEL_NAME[e.level] || e.level || '',
+  [...(board?.modes?.[MATCH_MODE] || [])].sort(matchOrder).forEach((e, i) => rows.push([board.day, MATCH_LABEL, i + 1, e.nick, e.score, ora(e), e.split ? 'Stesso schermo' : LEVEL_NAME[e.level] || e.level || '',
     `${e.win ? 'vinta' : 'persa'} ${e.games?.[0] | 0}-${e.games?.[1] | 0}`, `${e.won | 0} su ${(e.won | 0) + (e.lost | 0)}`]));
   return rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
 }
@@ -202,6 +205,15 @@ export class NatpfEvents {
     // (B38: senza nome, «Ospite», fuori classifica: niente riga; restano punteggio e totale per la schermata finale)
     if (!ranked(this.nickname)){ this.board = freshBoard(this.board); return { board: this.board, rank: 0, total: matchList(this.board).length, score: matchScore({ level, won, lost }), guest: true }; }
     const r = addMatch(this.board, { nick: this.nickname, level, won, lost, games, win });
+    this.board = r.board; this._write();
+    return r;
+  }
+  // B65: partita dello stesso schermo finita: in classifica solo chi vince (decisione dell'utente del 17/11), con il valore
+  // del livello Evento (×1,4); senza nome vero (vuoto, Player 1, Player 2) fuori classifica
+  recordSplitWin({ nick, won, lost, games }){
+    const n = String(nick ?? '').trim();
+    if (!ranked(n) || /^Player [12]$/i.test(n)){ this.board = freshBoard(this.board); return { board: this.board, rank: 0, total: matchList(this.board).length, score: matchScore({ level: 'evento', won, lost }), guest: true }; }
+    const r = addMatch(this.board, { nick: n, level: 'evento', won, lost, games, win: true, split: true });
     this.board = r.board; this._write();
     return r;
   }

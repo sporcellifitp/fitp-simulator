@@ -2418,3 +2418,22 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
 /* B64 (ridondanze, decisione dell'utente del 17/11): nelle Opzioni lo schermo intero c'è già nella riga «Schermo» (con lo
    stato e «All'avvio»): il pulsante in alto a destra lì era un doppione */
 #title-modal[data-step="options"] #lobby-fullscreen { display: none; }
+
+/* ---------- B65 · classifica di oggi a fine partita (natpf_classifica_fine.js): sopra la card, per qualche secondo; un
+   tocco la chiude. Misure dello schermo del gioco (cqw/cqh) ---------- */
+.natpf-dayboard { position: fixed; inset: 0; z-index: 53; display: grid; place-items: center; padding: var(--gutter); background: rgba(4, 8, 24, 0.82); font-family: var(--font-text); color: var(--text); cursor: pointer; }
+.natpf-dayboard.hidden { display: none; }
+.db-card { display: grid; justify-items: stretch; gap: clamp(6px, 1.4cqh, 18px); width: min(980px, calc(100cqw - 2 * var(--gutter))); max-height: calc(100cqh - 2 * var(--gutter)); overflow: hidden; padding: clamp(14px, 3cqh, 40px) clamp(16px, 3cqw, 52px); border-radius: var(--r-l); border: 1px solid var(--line-strong); background: linear-gradient(180deg, #13214f 0%, var(--panel-solid) 100%); box-shadow: var(--shadow); box-sizing: border-box; animation: prematch-in 0.25s ease-out both; }
+.db-kicker { margin: 0; text-align: center; font: 700 clamp(13px, min(2.6cqh, 3.2cqw), 32px)/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ball); }
+.db-title { margin: 0; text-align: center; font: 800 italic clamp(24px, min(5.6cqh, 6cqw), 72px)/1 var(--font-display); text-transform: uppercase; }
+.db-list { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(4px, 0.9cqh, 12px); }
+.db-row { display: grid; grid-template-columns: clamp(44px, 7cqw, 96px) minmax(0, 1fr) auto; align-items: center; gap: clamp(8px, 1.4cqw, 22px); padding: clamp(6px, 1.2cqh, 16px) clamp(10px, 1.6cqw, 24px); border-radius: 14px; background: rgba(255, 255, 255, 0.06); }
+.db-row.me { background: rgba(227, 255, 54, 0.16); outline: 2px solid var(--ball); }
+.db-pos { font: 800 italic clamp(18px, min(4cqh, 4cqw), 52px)/1 var(--font-display); color: var(--ball); }
+.db-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 clamp(15px, min(3.2cqh, 3cqw), 40px)/1.1 var(--font-display); text-transform: uppercase; }
+.db-name small { display: block; margin-top: 2px; font: 500 clamp(11px, min(1.9cqh, 1.8cqw), 22px)/1.2 var(--font-text); text-transform: none; color: var(--text-2); }
+.db-score { font: 800 clamp(18px, min(4cqh, 4cqw), 52px)/1 var(--font-display); font-style: normal; }
+.db-gap { text-align: center; font: 700 clamp(14px, 2.6cqh, 30px)/1 var(--font-display); color: var(--text-2); letter-spacing: 0.3em; }
+.db-empty { text-align: center; color: var(--text-2); }
+.db-out { margin: 0; text-align: center; font: 600 clamp(13px, min(2.4cqh, 2.4cqw), 28px)/1.3 var(--font-text); color: var(--text-2); }
+.db-foot { margin: 0; text-align: center; font: 500 clamp(11px, min(1.9cqh, 1.8cqw), 22px)/1.2 var(--font-text); color: var(--text-2); }

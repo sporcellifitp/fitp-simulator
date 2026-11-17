@@ -17,6 +17,13 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 17/11/2026, 18:00 UTC (versione 2026-11-17.4, in pubblicazione).** B65 classifica di oggi a fine partita,
+B64 ridondanze tolte, B63 mascotte 3D presenti ma spente (aspettano l'approvazione dell'anteprima). Gioco 1820/1820, sito
+282/282, LAN 13/13, desktop 56/56, build; nel browser classifica-fine 11/11, chi-gioca 55/55, b47-fiera 20/20, b20 52/52,
+schermo 41/41, salvaschermo 21/21, ritratti 24/24, fine-partita 68/68, lob-drop 136/137 (il controllo dei piedi fallisce
+uguale sulla 17.3). **Prossima azione esatta:** dopo il push, installer della 17.4 da R2 (sha256) e zip provato estratto;
+poi aspettare l'utente: approvazione delle mascotte 3D, registro del 17/11.
+
 **Checkpoint del 17/11/2026, 14:00 UTC (versione 2026-11-17.3 pubblicata e verificata: installer `a6cbc2ba…fa21`, zip `7540d176…6ee5`).** B62 salvaschermo (`docs/b62/salvaschermo.md`):
 dopo 1 min senza nessuno al menu la partita dimostrativa a schermo intero, si chiude con mouse, tasto, tocco o telefono;
 voce «Salvaschermo» nel pannello dello stand. Analisi delle ridondanze (`docs/analisi/ridondanze-2026-11-17.md`): proposte
