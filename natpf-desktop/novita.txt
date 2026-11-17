@@ -69,3 +69,4 @@
 2026-11-16.9: A fine partita, accanto al titolo, Lob o Drop festeggiano chi vince o consolano chi perde (ogni volta un'animazione diversa).
 2026-11-16.10: A fine partita Lob o Drop sono il personaggio della card: festeggiano chi vince e consolano chi perde (ogni volta un'animazione diversa).
 2026-11-16.11: Lob e Drop nella card con il fondo pulito: niente più riquadro chiaro dietro alcune animazioni di Lob.
+2026-11-17.1: Prima degli scambi di prova il conto alla rovescia e la scritta «Allenati un po'!». Sul telefono «Riattiva i sensori» si può toccare anche in partita.

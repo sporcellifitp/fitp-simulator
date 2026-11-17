@@ -2530,6 +2530,16 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## Versione 2026-11-17.1 (17/11/2026): B59, B60 e correzioni
+
+- B59 conto «Allenati un po'!» (`docs/b59/conto-allenati.md`); B60 km/h dei colpi nel registro (`docs/b60/kmh-dei-colpi.md`).
+- Correzioni: `natpf_rematch.rematchAutoLine` («tra 11 s»); `phone-touch-lock` + `racchetta.js` (blocco sopra
+  «Riattiva i sensori» e il velo); `natpf_new_player.afterPhoneReset` («Nuovo giocatore» con i gesti).
+- Prove nel browser: scambi-di-prova 32/32, flusso-tocchi 5/5, fiera-telefoni 66/66, nuovo-giocatore 32/32 (Giocando) e
+  29/29 (gesti), rally 10/10, phone-keep 13/13, mano-sicura 17/17, servizio-lancio 17/17, servizio-scelta 18/18,
+  solo-mouse 42/42, stesso-schermo-b25 55/55, pannello-partita 25/25, telefono-bloccato 12/12, nome-telefono 23/23,
+  fine-partita 66/66, fogli del servizio 4/4.
+
 ## B60 · km/h dei colpi nel registro e correzione della rivincita (17/11/2026)
 
 - [x] `registro_registratore.js` (`_kmhColpo`, aggancio a `natpf_match_stats.shot`), `scripts/registro/riassunto.mjs`

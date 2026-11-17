@@ -17,6 +17,13 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 17/11/2026, 05:00 UTC (versione 2026-11-17.1).** B59 conto «Allenati un po'!» prima degli scambi di
+prova; B60 km/h dei colpi nel registro (trofeo Razzo); correzioni: rivincita «tra 11 s», blocco del telefono che copriva
+«Riattiva i sensori» e il velo, «Nuovo giocatore» con i gesti che saltava la calibrazione (B54.2). Prove nel browser
+rimesse in riga (12 script). **Prossima azione esatta:** pacchetti della 17.1; poi restano solo cose dell'utente (registro
+della prossima giornata per anticipo, trofei, Razzo e direzione; Worker da ricaricare; risposte sui due prodotti; collaudi
+con telefoni veri, ledwall e Windows).
+
 **Checkpoint del 17/11/2026, 01:30 UTC (B59 fatto, non ancora in versione).** Conto alla rovescia «Allenati un po'!»
 prima degli scambi di prova (`docs/b59/conto-allenati.md`). Gioco 1789/1789, sito 280/280, build. Mascotte: restano come
 sono (decisione dell'utente). **Prossima azione esatta:** esiti delle prove nel browser degli scambi di prova (elenco

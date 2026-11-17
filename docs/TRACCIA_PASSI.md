@@ -1539,3 +1539,12 @@ prove cambiate; poi versione 2026-11-17.1 (B59 + B60 + rivincita) e pacchetti.
 **Prossima azione esatta (17/11, 04:00 UTC)**: esiti di `natpf-nuovo-giocatore` (Giocando e Con i gesti),
 `natpf-telefono-bloccato`, `natpf-nome-telefono`; il caso «Con i gesti»; poi versione 2026-11-17.1 e pacchetti.
 
+## 17/11, 05:00 UTC · versione 2026-11-17.1
+
+- [x] B59 + B60 + correzioni (rivincita, blocco del telefono, «Nuovo giocatore» con i gesti). Prove: gioco 1792/1792,
+      sito 282/282, LAN 13/13, desktop 56/56, build (`2026-11-17.1` nel bundle); nel browser l'elenco in WORK_PROGRESS.
+- [~] Pacchetti della 17.1: commit, push, installer da `latest.json`, zip Cloudflare.
+
+**Prossima azione esatta (17/11, 05:00 UTC)**: pacchetti della 17.1; poi resoconto all'utente (roadmap finita: restano
+le cose che dipendono da lui).
+
