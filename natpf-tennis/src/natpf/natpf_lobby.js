@@ -45,6 +45,7 @@ import { eventoRestart } from './natpf_skill.js';
 import { readCue, writeCue, cueToast } from './natpf_timing_cue.js';
 import { getCast, setCast, castToast } from './natpf_personaggi.js';
 import { trialOutro } from './natpf_trial.js';
+import { readServeRule } from './natpf_battuta.js'; // B64: «Batte per primo» solo quando conta
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -425,6 +426,10 @@ export class NatpfLobby {
     const split = this.engine.natpfSplitNames || {};
     const names = { player: this.mode === 'split' ? split.p1 || 'Player 1' : this.format === 'doubles' ? 'Voi' : 'Tu',
       opponent: this.mode === 'split' ? split.p2 || 'Player 2' : this.mode === 'friend' ? 'Amico' : 'CPU', random: 'Sorteggio' };
+    // B64 (ridondanze, decisione dell'utente del 17/11): contro la CPU con «Battuta: Sempre lo stesso» (pannello dello stand,
+    // di base) batte sempre chi gioca e «Batte per primo» non cambiava niente: si mostra solo quando conta (stesso schermo,
+    // sfida tra due computer, oppure battuta alternata)
+    show($('serve-first-section'), this.mode === 'split' || this.mode === 'friend' || readServeRule() !== 'fissa');
     for (const b of this.el.querySelectorAll('[data-natpf-serve]')){
       const on = b.dataset.natpfServe === this.serve;
       b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); b.setAttribute('role', 'radio');

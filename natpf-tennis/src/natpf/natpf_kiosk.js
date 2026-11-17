@@ -352,6 +352,7 @@ export class NatpfKiosk {
       const forced = serveRuleForcedByUrl(), rule = writeServeRule(nextServeRule(readServeRule({ search: '' })));
       ui.toast?.(serveRuleToast(rule, forced));
       ui.diag?.recorder?.log?.('stand.battuta', { regola: rule, indirizzo: forced });
+      ui.lobby?._paintServe?.();   // (B64: «Batte per primo» si vede solo quando conta)
     }
     if (cmd === 'saver'){
       const S = ui.screensaver, v = S ? S.setSecs(nextSaver(S.secs)) : 0;

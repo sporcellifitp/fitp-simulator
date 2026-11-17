@@ -1632,3 +1632,20 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   cattura sulla finestra prima di lui deve sapere che lo vede anche durante il salvaschermo.
 - Chi aggiunge un foglio o uno stato che non va coperto lo mette in `saverBusy`.
 
+## B63 · Mascotte 3D con animazioni nuove (17/11/2026; `docs/b63/mascotte-3d.md`) · ANTEPRIMA, interruttore spento di base
+- `natpf_card_moves.js`: 3 movimenti di vittoria e 3 di sconfitta (tutto il personaggio: passi, giravolta, saltelli,
+  inclinazione) sopra le reazioni del corpo «cheer», «clap» e la nuova «sad» (`player_body_animation.js`, `SAD_W`); giro di
+  `CARD_LOOP` = 3 periodi del salto, 24 fotogrammi. Interruttore `?mascotte3d=1` / `natpf-tennis.mascotte3d` = '1' finché
+  l'utente non approva l'anteprima; acceso, niente GIF del B58 nella card.
+- `natpf_ritratti.js`: il personaggio torna al suo posto (posizione e rotazione) al rilascio e tra le fette della
+  fotografia, così l'arena sotto la card non lo mostra saltare. `playFrame(t, K, period)`.
+- Le GIF del B58 si spengono a mano con `natpf-tennis.mascotteGif` = '0' (le usa la prova dei ritratti 3D nel server di
+  sviluppo, dove altrimenti la card mostrerebbe le GIF).
+
+## B64 · Ridondanze tolte (17/11/2026; `docs/b64/ridondanze.md`)
+- Decisione dell'utente: fascia una volta sola, livello CPU senza doppioni, impostazioni doppie; la mano resta com'è.
+- La fascia dello stesso schermo resta in «Collega» (la partita parte da sola da lì); alla rivincita «Stessi giocatori,
+  stesse fasce» con «Cambia fascia». Contro la CPU la rivincita continua a chiedere «Chi gioca» (B47).
+- Le righe tolte dalle Opzioni sono nascoste (`data-b64="doppione"`), non cancellate: il codice che le dipinge serve alla
+  pagina «Pronto per la partita» e alla pausa. Chi le rimette toglie la classe `hidden`.
+

@@ -40,7 +40,7 @@ try {
       menuHidden: getComputedStyle(document.getElementById('title-modal')).visibility === 'hidden', backdrop: !!E.natpfBackdrop, auto: E.autoPlayMode, phase: E.phase, ball: [+E.ball.pos.x.toFixed(2), +E.ball.pos.z.toFixed(2)],
       text: L?.innerText.replace(/\s+/g, ' ').trim() || '', band: band ? { l: Math.round(band.left), r: Math.round(band.right), t: Math.round(band.top), b: Math.round(band.bottom) } : null, size: [innerWidth, innerHeight] }; });
   const startSaver = async () => { await g.evaluate(() => { const U = __natpfTennis.natpfUi; U.screensaver.secs = 3; U.kiosk.last = performance.now(); }); return until(g, () => __natpfTennis.natpfUi.screensaver.on, null, 30000); };
-  check('0. di base nel server di sviluppo: «Dopo 1 min»', (await st()).secs === 60, fmt(await st()));
+  check('0. di base spento nel server di sviluppo e nelle prove (th.mjs); qui lo accende la prova', (await st()).secs === 0, fmt(await st()));
 
   /* 1 */
   check('1. al menu, dopo il tempo senza nessuno, parte', await startSaver());

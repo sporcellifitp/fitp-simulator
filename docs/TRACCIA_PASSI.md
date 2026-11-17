@@ -1611,3 +1611,21 @@ Piano: [ ] B63 animazioni 3D e anteprima → [ ] B64 ridondanze (un passo per pr
 **Prossima azione esatta (17/11, 14:10 UTC)**: B63, leggere `src/player_body_animation.js` (reazioni «cheer» e «clap») e
 `src/natpf/natpf_ritratti.js` (cattura dei fotogrammi), poi le animazioni nuove.
 
+## 17/11, 16:30 UTC · B63 anteprima consegnata, B64 fatto, prove nel browser in corso
+
+- [x] B63 (`docs/b63/mascotte-3d.md`): sei movimenti 3D, interruttore spento di base; anteprima mandata all'utente
+      (`docs/analisi/mascotte-3d-anteprima.webp`). **Aspetta l'approvazione**: se sì, accendere di base nel programma
+      Windows (e decidere Lob e Drop anche con i Classici).
+- [x] B64 (`docs/b64/ridondanze.md`): «Livelli per esperti», righe doppie delle Opzioni nascoste, «Batte per primo» solo
+      quando conta, rivincita dello stesso schermo «Stessi giocatori, stesse fasce» + «Cambia fascia».
+- [x] Salvaschermo spento di base nel server di sviluppo e in `tools/e2e/th.mjs` (copriva le prove ferme nel menu).
+- [~] Prove nel browser: salvaschermo, chi-gioca, lob-drop, b47-fiera, stesso-schermo-b20, schermo (gioco 1815/1815, sito
+      282/282). Poi versione 2026-11-17.4 e pacchetti.
+
+**Prossima azione esatta (17/11, 16:30 UTC)**: esiti delle sei prove (task in background); se verdi, versione 17.4
+(version.js, build.json, LEGGIMI, novità, guida), commit, push, pacchetti; se il controllo dei piedi di lob-drop fallisce
+ancora (3,08 % contro 3 %), verificarlo sulla 17.3 (non toccato oggi).
+- [x] Commit e push del lavoro (B63 spento, B64, salvaschermo spento in sviluppo) **senza** versione nuova: le prove nel
+      browser non erano finite e il workflow pubblica solo con la versione che sale. La riga delle novità della 17.4 è in
+      attesa (testo nel commit seguente).
+

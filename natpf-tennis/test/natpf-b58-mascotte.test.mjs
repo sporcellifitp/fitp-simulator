@@ -276,3 +276,11 @@ test('B58: hud_ui mette le mascotte nelle card, i ritratti 3D le lasciano stare,
   assert.doesNotMatch(rules, /\b\d+(\.\d+)?v[wh]\b|@media/);
   assert.deepEqual([...FIERA_ONLY], ['media/mascotte']);
 });
+
+test('B58 (17/11): interruttore per spegnerle a mano (prove dei ritratti 3D, stand): natpf-tennis.mascotteGif = \'0\'', async () => {
+  const { MASCOT_OFF_KEY } = await import('../src/natpf/natpf_mascotte.js');
+  assert.equal(MASCOT_OFF_KEY, 'natpf-tennis.mascotteGif');
+  assert.equal(mascotsOn({ desktop: {}, dev: false, storage: memory({ [MASCOT_OFF_KEY]: '0' }) }), false);
+  assert.equal(mascotsOn({ desktop: {}, dev: false, storage: memory({ [MASCOT_OFF_KEY]: '1' }) }), true);
+  assert.equal(mascotsOn({ desktop: {}, dev: false, storage: { getItem(){ throw new Error('x'); } } }), true);
+});

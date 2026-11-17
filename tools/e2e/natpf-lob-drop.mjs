@@ -684,16 +684,19 @@ if (!SERVIZIO && !process.env.COSTO && !TRE_D && !FOGLI3D){
   const def = await game({ cast: null }), p = def.p;
   const d0 = await p.evaluate(K => ({ saved: localStorage.getItem(K), looks: [__natpfTennis.player.natpfLook, __natpfTennis.opponent.natpfLook] }), KEY);
   check('niente di salvato: personaggi classici', d0.saved == null && d0.looks.join() === 'p1,cpu', JSON.stringify(d0));
-  await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('options'));
-  await p.waitForSelector('[data-natpf-cast="lobdrop"]', { state: 'visible', timeout: 10000 });
-  const row = await p.evaluate(() => { const b = document.querySelector('[data-natpf-cast="sempre"]'), r = b.closest('.lobby-row'), bb = r.getBoundingClientRect(), m = document.getElementById('title-modal').getBoundingClientRect();
-    return { label: r.querySelector('.lobby-label').textContent.trim(), btns: [...r.querySelectorAll('[data-natpf-cast]')].map(x => x.textContent.trim() + (x.classList.contains('selected') ? '*' : '')), inside: bb.left >= m.left - 1 && bb.right <= m.right + 1 }; });
-  check('Opzioni: riga «Personaggi in campo» con «Classici» (scelto) e «Lob & Drop»', row.label === 'Personaggi in campo' && row.btns.join(' | ') === 'Classici* | Lob & Drop' && row.inside, JSON.stringify(row));
-  await p.locator('[data-natpf-cast="lobdrop"]').scrollIntoViewIfNeeded();
+  // B64 (17/11, ridondanze): i personaggi si scelgono in «Pronto per la partita» (la riga delle Opzioni era un doppione)
+  await p.evaluate(() => { const l = __natpfTennis.natpfUi.lobby; l.setMode('cpu'); l.go('match'); });
+  await p.waitForSelector('[data-match-cast="lobdrop"]', { state: 'visible', timeout: 10000 });
+  const hiddenOpt = await p.evaluate(() => getComputedStyle(document.querySelector('[data-natpf-cast="sempre"]').closest('.lobby-row')).display === 'none');
+  check('B64: nelle Opzioni la riga «Personaggi in campo» non si vede più (doppione)', hiddenOpt);
+  const row = await p.evaluate(() => { const b = document.querySelector('[data-match-cast="sempre"]'), r = b.closest('.lobby-row') || b.parentElement.parentElement, bb = r.getBoundingClientRect(), m = document.getElementById('title-modal').getBoundingClientRect();
+    return { label: (r.querySelector('.lobby-label')?.textContent || '').trim(), btns: [...r.querySelectorAll('[data-match-cast]')].map(x => x.textContent.trim() + (x.classList.contains('selected') ? '*' : '')), inside: bb.left >= m.left - 1 && bb.right <= m.right + 1 }; });
+  check('«Pronto per la partita»: riga «Personaggi» con «Classici» (scelto) e «Lob & Drop»', /^Personaggi/.test(row.label) && row.btns.join(' | ') === 'Classici* | Lob & Drop' && row.inside, JSON.stringify(row));
+  await p.locator('[data-match-cast="lobdrop"]').scrollIntoViewIfNeeded();
   await p.screenshot({ path: path.join(SHOTS, 'b24-opzioni.png') });
-  await p.click('[data-natpf-cast="lobdrop"]');
+  await p.click('[data-match-cast="lobdrop"]');
   const changed = await p.waitForFunction(() => __natpfTennis.player.natpfLook === 'drop' && __natpfTennis.opponent.natpfLook === 'lob', null, { timeout: 15000 }).then(() => true, () => false);
-  const s1 = await p.evaluate(K => ({ saved: localStorage.getItem(K), sel: document.querySelector('[data-natpf-cast].selected')?.dataset.natpfCast, aria: document.querySelector('[data-natpf-cast="lobdrop"]').getAttribute('aria-checked'), toast: document.getElementById('natpf-toast')?.textContent }), KEY);
+  const s1 = await p.evaluate(K => ({ saved: localStorage.getItem(K), sel: document.querySelector('[data-match-cast].selected')?.dataset.matchCast, aria: document.querySelector('[data-match-cast="lobdrop"]').getAttribute('aria-checked'), toast: document.getElementById('natpf-toast')?.textContent }), KEY);
   check('clic su «Lob & Drop»: personaggi cambiati subito (anche dietro il menu), scelta salvata', changed && s1.saved === 'lobdrop' && s1.sel === 'lobdrop' && s1.aria === 'true' && /Lob & Drop/.test(s1.toast || ''), JSON.stringify(s1));
   await p.screenshot({ path: path.join(SHOTS, 'b24-opzioni-lobdrop.png') });
   // ritratti: chi gioca è Drop, l'avversario è Lob (tabellone, lobby, targhetta)
@@ -703,10 +706,10 @@ if (!SERVIZIO && !process.env.COSTO && !TRE_D && !FOGLI3D){
   await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby && __natpfTennis.player.natpfLook === 'drop', null, { timeout: 60000 }).catch(() => {});
   const s2 = await p.evaluate(K => ({ saved: localStorage.getItem(K), looks: [__natpfTennis.player.natpfLook, __natpfTennis.opponent.natpfLook] }), KEY);
   check('pagina ricaricata: resta «Lob & Drop»', s2.saved === 'lobdrop' && s2.looks.join() === 'drop,lob', JSON.stringify(s2));
-  await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('options'));
-  await p.click('[data-natpf-cast="sempre"]');
+  await p.evaluate(() => { const l = __natpfTennis.natpfUi.lobby; l.setMode('cpu'); l.go('match'); });
+  await p.click('[data-match-cast="sempre"]');
   const back = await p.waitForFunction(() => __natpfTennis.player.natpfLook === 'p1' && __natpfTennis.opponent.natpfLook === 'cpu', null, { timeout: 15000 }).then(() => true, () => false);
-  const s3 = await p.evaluate(K => ({ saved: localStorage.getItem(K), sel: document.querySelector('[data-natpf-cast].selected')?.dataset.natpfCast, por: [...document.querySelectorAll('svg.nt-pl-svg')].map(s => s.dataset.look) }), KEY);
+  const s3 = await p.evaluate(K => ({ saved: localStorage.getItem(K), sel: document.querySelector('[data-match-cast].selected')?.dataset.matchCast, por: [...document.querySelectorAll('svg.nt-pl-svg')].map(s => s.dataset.look) }), KEY);
   check('clic su «Classici»: tornano i personaggi di prima, ritratti compresi, scelta salvata', back && s3.saved === 'sempre' && s3.sel === 'sempre' && s3.por.every(l => l === 'p1' || l === 'cpu'), JSON.stringify(s3));
   check('Opzioni: nessun errore', !def.errs.length, def.errs.join(' | ').slice(0, 300));
   await def.ctx.close();

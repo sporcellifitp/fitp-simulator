@@ -29,7 +29,8 @@ check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 
 // gioco pronto, con il contatore dei disegni dell'arena e dei fotogrammi
 async function open(B, query, size = { w: 1280, h: 720 }){
-  const r = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0${query}`, size);
+  // (B58: nel server di sviluppo la card mostrerebbe Lob o Drop animati al posto del ritratto; qui si provano i ritratti 3D)
+  const r = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0${query}`, { ...size, init: () => { try { localStorage.setItem('natpf-tennis.mascotteGif', '0'); } catch {} } });
   await r.p.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby && window.__natpfTennis.player?.model && window.__natpfTennis.opponent?.model, null, { timeout: 180000 });
   await r.p.evaluate(() => {
     const E = __natpfTennis; E.natpfUi.intro?.skip?.();

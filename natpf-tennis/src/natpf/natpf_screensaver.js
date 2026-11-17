@@ -16,8 +16,9 @@
 //     dello stand, telecomando, telefoni dello stand, diagnostica, calibrazione dello schermo, tastiera a schermo, tutorial,
 //     nickname), con la classifica a schermo intero (è per chi è in fila) e nella sfida tra due computer;
 //   - «Salvaschermo» nel pannello dello stand: Dopo 1 min · Dopo 2 min · Dopo 5 min · No, salvato sul computer (chiave
-//     natpf-tennis.salvaschermo). Di base «Dopo 1 min» nel programma Windows (fiera) e nel server di sviluppo, «No» nel
-//     gioco dal browser (versione online), dove resta da scegliere.
+//     natpf-tennis.salvaschermo). Di base «Dopo 1 min» nel programma Windows (fiera), «No» nel gioco dal browser (versione
+//     online) e nel server di sviluppo (le prove nel browser restano ferme nel menu più di un minuto: lì coprirebbe la
+//     pagina; le prove del salvaschermo lo accendono loro), dove resta da scegliere.
 // Solo disegno e stato della pagina: niente registro dello stand, nessun effetto su partite, classifica e telefoni.
 export const SAVER_KEY = 'natpf-tennis.salvaschermo';
 export const SAVER_STEPS = Object.freeze([60, 120, 300, 0]);   // secondi; 0 = spento
@@ -28,8 +29,8 @@ export const SAVER_MOVE_PX = 3;
 export const SAVER_SWALLOW_MS = 500;
 
 const ok = v => SAVER_STEPS.includes(v);
-// di base: acceso (1 minuto) nel programma Windows e in sviluppo, spento nel browser
-export function saverDefault({ desktop = globalThis.natpfDesktop, dev = !!import.meta.env?.DEV } = {}){ return desktop || dev ? 60 : 0; }
+// di base: acceso (1 minuto) nel programma Windows, spento nel browser e nel server di sviluppo
+export function saverDefault({ desktop = globalThis.natpfDesktop } = {}){ return desktop ? 60 : 0; }
 export function readSaver({ storage = globalThis.localStorage, ...env } = {}){
   let v = null; try { v = storage?.getItem(SAVER_KEY); } catch {}
   const n = v == null || v === '' ? NaN : Number(v);

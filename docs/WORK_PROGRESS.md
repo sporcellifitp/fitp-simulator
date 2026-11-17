@@ -2530,6 +2530,18 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B63 + B64 · Mascotte 3D (anteprima) e ridondanze tolte, versione 2026-11-17.4 (17/11/2026)
+
+- [x] B63 (`docs/b63/mascotte-3d.md`): `natpf_card_moves.js` (nuovo), `natpf_ritratti.js`, `player_body_animation.js`
+  (reazione `sad`), `hud_ui.js`; interruttore spento di base; anteprima `tools/e2e/natpf-mascotte-3d-anteprima.mjs`
+  (sei fogli, `docs/analisi/mascotte-3d-anteprima.webp`); prova `natpf-b63-mascotte-3d` (6). Interruttore per spegnere le
+  GIF (`natpf-tennis.mascotteGif`), usato dalla prova dei ritratti 3D (prima 22/24 nel server di sviluppo per le GIF, ora 24/24).
+- [x] B64 (`docs/b64/ridondanze.md`): `index.html`, `natpf_rematch.js`, `natpf_lobby.js`, `natpf_kiosk.js`, `natpf-ui.css`;
+  prove `natpf-b47-rivincita` (aggiornata), e2e chi-gioca, lob-drop, b47-fiera aggiornate.
+- [x] Salvaschermo spento di base nel server di sviluppo e in `tools/e2e/th.mjs` (copriva le prove ferme nel menu).
+- Verifiche: gioco 1815/1815, sito 282/282; nel browser l'elenco nella voce della traccia.
+- Non verificato: mascotte 3D sul PC dello stand (GPU vera), ledwall.
+
 ## B62 · Salvaschermo e analisi delle ridondanze, versione 2026-11-17.3 (17/11/2026)
 
 - [x] Richiesta dell'utente: «dopo un periodo di inattività sul ledwall vorrei mettere un finto gameplay in loop.

@@ -13,6 +13,9 @@
 // «Altre impostazioni» porta alla pagina «Partita» (il percorso di prima), «‹ Indietro» (o Esc) torna alla schermata finale.
 // Mouse, tastiera (frecce, Invio, Esc) e telecomando dello staff (frecce, OK, Indietro: strato «rematch» di
 // natpf_remote_map.js). Nella sfida tra due computer «Rivincita» resta immediata (l'altro computer aspetta).
+// B64 (ridondanze, decisione dell'utente del 17/11: «la fascia la imposto anche dopo»): nello stesso schermo la rivincita non
+// chiede più la fascia: «Stessi giocatori, stesse fasce» con le due fasce di prima scritte e un piccolo «Cambia fascia» che
+// apre la scelta di sempre. Contro la CPU resta «Chi gioca» (il livello dopo la rivincita è la richiesta del B47).
 // Funzioni pure in cima (test/natpf-b47-rivincita.test.mjs), poi il controllore.
 import { WHO_LEVEL, LEVEL_NAME, whoOfLevel, isCpuLevel } from './natpf_who.js';
 import { BANDS, BAND_LABEL, bandOf } from './natpf_duo_rules.js';
@@ -23,6 +26,7 @@ const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 export const REMATCH = Object.freeze({ autoMs: 10000, kicker: 'Rivincita', titleCpu: 'Chi gioca?', titleSplit: 'Chi gioca? Scegli la fascia di ciascuno',
+  titleSplitSame: 'Stessi giocatori, stesse fasce', subSplitSame: 'Premi «Gioca» per la rivincita', bandsBtn: 'Cambia fascia',
   sub: 'Il livello di prima è già segnato: cambialo se serve e premi «Gioca»' });
 // le tessere di «Chi gioca» (come la pagina «Partita»: index.html, #difficulty-mode-group)
 const WHO_TILES = Object.freeze([
@@ -63,7 +67,7 @@ export class NatpfRematch {
       const a = t.closest?.('[data-rematch-act]'); if (!a) return;
       e.stopPropagation();
       const act = a.dataset.rematchAct;
-      if (act === 'play') this.play(); else if (act === 'more') this.more(); else if (act === 'cancel') this.cancel();
+      if (act === 'play') this.play(); else if (act === 'more') this.more(); else if (act === 'cancel') this.cancel(); else if (act === 'bands') this.showBands();
     });
   }
   get isOpen(){ return this.open_; }
@@ -73,7 +77,7 @@ export class NatpfRematch {
     const L = this.ui.lobby, E = this.engine;
     if (!this.el || E.playerRole === 'p2' || L?.mode === 'friend' || this.ui.versus?.hostActive) return false;
     if (!this.split && L?.mode !== 'cpu') return false;
-    this.open_ = true; this.origin = origin === 'phones' ? 'phones' : 'computer';
+    this.open_ = true; this.origin = origin === 'phones' ? 'phones' : 'computer'; this.bands = false;
     this.autoUntil = this.origin === 'phones' ? performance.now() + REMATCH.autoMs : 0;
     E.hud?.hideVictoryModal?.();
     this._key = ''; this.paint();
@@ -98,6 +102,8 @@ export class NatpfRematch {
     this.paint();
   }
   pickBand(id, band){ this._touch(); if (!['p1', 'p2'].includes(id)) return; this.ui.split?.setBand?.(id, band); this.paint(); }
+  // B64: «Cambia fascia» apre la scelta delle fasce (stesso schermo)
+  showBands(){ this._touch(); if (!this.split) return; this.bands = true; this.paint(); this._focus(this.el?.querySelector?.('.rematch-band.selected')); }
   level(){ const L = this.ui.lobby; return L?.cpuLevel || this.engine.hud?.selectedDifficulty || WHO_LEVEL.adulto; }
   // «Altre impostazioni»: il percorso di prima della B47 (pagina «Partita»; contro la CPU prima gli scambi di prova se dovuti)
   more(){
@@ -179,15 +185,20 @@ export class NatpfRematch {
     const E = this.engine, split = this.split;
     const set = (sel, t) => { const n = el.querySelector?.(sel); if (n && n.textContent !== t) n.textContent = t; return n; };
     set('[data-rematch="kicker"]', REMATCH.kicker);
-    set('[data-rematch="title"]', split ? REMATCH.titleSplit : REMATCH.titleCpu);
-    const help = split ? this.ui.split?.helpNote?.() || '' : '';
-    set('[data-rematch="sub"]', help ? `${REMATCH.sub}. ${help}` : REMATCH.sub);
+    const same = split && !this.bands;
+    set('[data-rematch="title"]', same ? REMATCH.titleSplitSame : split ? REMATCH.titleSplit : REMATCH.titleCpu);
+    const help = split ? this.ui.split?.helpNote?.() || '' : '', sub = same ? REMATCH.subSplitSame : REMATCH.sub;
+    set('[data-rematch="sub"]', help ? `${sub}. ${help}` : sub);
     const auto = set('[data-rematch="auto"]', this.autoUntil ? rematchAutoLine(this.autoUntil - now) : '');
     auto?.classList?.toggle?.('hidden', !this.autoUntil);
     if (el.dataset) el.dataset.mode = split ? 'split' : 'cpu';
     const body = el.querySelector?.('[data-rematch="body"]'); if (!body) return;
     let html;
-    if (split){
+    if (same){
+      // le fasce di prima scritte (non da scegliere) e «Cambia fascia»
+      const rows = rematchSplitRows(E.natpfSplitNames || {}, E.natpfSplitBands || {});
+      html = `<div class="rematch-same">${rows.map(r => { const b = r.bands.find(x => x.selected) || r.bands[r.bands.length - 1]; return `<div class="rematch-player rematch-player-same" data-rematch-player="${r.id}"><b class="rematch-name">${esc(r.name)}</b><span class="rematch-band rematch-band-same selected" data-rematch-band="${r.id}:${b.band}">${b.label}</span></div>`; }).join('')}<button type="button" class="rematch-btn ghost rematch-change" data-rematch-act="bands">${REMATCH.bandsBtn}</button></div>`;
+    } else if (split){
       const rows = rematchSplitRows(E.natpfSplitNames || {}, E.natpfSplitBands || {});
       html = rows.map(r => `<div class="rematch-player" data-rematch-player="${r.id}"><b class="rematch-name">${esc(r.name)}</b><div class="rematch-bands" role="radiogroup" aria-label="Fascia di ${esc(r.name)}">${r.bands.map(b => `<button type="button" class="rematch-band${b.selected ? ' selected' : ''}" data-rematch-band="${r.id}:${b.band}" role="radio" aria-checked="${b.selected}">${b.label}</button>`).join('')}</div></div>`).join('');
     } else {

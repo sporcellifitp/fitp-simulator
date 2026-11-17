@@ -202,13 +202,14 @@ un nuovo giro di scambi di prova (con «Calibrazione: Giocando»).
 - **«Personaggi»**: **Classici** · Lob & Drop. Vale subito e resta salvato.
 - **«Altre impostazioni ›»**: un clic la apre o la chiude; a ogni visita della pagina è chiusa. Accanto c'è il riassunto
   (per esempio «1 game · singolare · 3ª persona»). Dentro:
-  - **Livello della CPU**: Bambini · Facile · **Evento** · Esperta · Leggenda. È la stessa scelta di «Chi gioca» e, come
-    quella, non resta salvata: Esperta o Leggenda vanno scelti di nuovo per ogni visitatore nuovo. Sul PC, Esperta e
-    Leggenda si scelgono solo qui (oppure con il tasto «Chi gioca» del telecomando).
+  - **Livelli per esperti** (dalla B64; prima «Livello della CPU» con tutti e cinque): Esperta · Leggenda. Bambini, Facile
+    ed Evento si scelgono solo con le tessere di «Chi gioca» (erano doppioni). Non resta salvato: Esperta o Leggenda vanno
+    scelti di nuovo per ogni visitatore nuovo; una tessera di «Chi gioca» torna ai livelli di sempre. Sul PC si scelgono
+    solo qui (oppure con il tasto «Chi gioca» del telecomando).
   - **Formato**: **Singolare 1v1** · Doppio 2v2 (resta salvato; nello stesso schermo solo singolare).
   - **Durata**: **1 game** · Al meglio di 3 · Al meglio di 5. A ogni avvio del programma torna «1 game». Con il formato in
     fiera acceso «Al meglio di 5» sparisce.
-  - **Batte per primo**: **Tu** · CPU · Sorteggio contro la CPU; nello stesso schermo i due giocatori e **Sorteggio**.
+  - **Batte per primo**: **Tu** · CPU · Sorteggio contro la CPU; nello stesso schermo i due giocatori e **Sorteggio**. Dalla B64 contro la CPU si vede solo con «Battuta: Alternata» del pannello: con «Sempre lo stesso» (di base) batte sempre chi gioca e la voce non cambiava niente.
     Resta salvato.
   - **Visuale**: **3ª persona** · 1ª persona.
 - In basso: «‹ Indietro», «Riscaldati prima» (facoltativo: dritto, rovescio e servizio con il lanciapalle; non nello
@@ -416,11 +417,11 @@ lunga dello schermo: scorri con la rotellina.
 | **Puntatore** (B39) | Normale · **Grande** (nel programma; nel browser Normale) | Grande: freccia gialla con il bordo nero alta circa il 5 % dell'area, al posto della freccia di Windows e del mirino sul campo. In campo il puntatore sparisce dopo 3 secondi fermo (e quando la partita parte), nei menu dopo 10 secondi; ricompare muovendo il mouse, con un anello. Con un'area calibrata più piccola della finestra, se il puntatore esce dalla parte che si vede una freccia gialla sul bordo dice dove sta. Resta salvato. |
 | **Giochi con la mano** | **Destra** · Sinistra | La mano di chi gioca. Torna «Destra» con «Nuovo giocatore» e con il chiosco (per tutti e due i giocatori). Dal telefono si cambia con **due tocchi** («Mancino? Tocca di nuovo»): sul computer compare per 3 s «Telefono 1: mano sinistra (mancino)», e chi ha la mano sinistra ha «Mancino» accanto al nome negli scambi di prova, nella sua metà e in «Pronto per la partita». Se un destro vede «Mancino», tocca due volte «Destra» sul telefono (o cambia la mano qui). |
 | **Segnale del momento giusto** | **Di base** · Sì · No | Un anello bianco si stringe sulla palla e diventa verde quando è il momento di colpire; nelle prime 3 palle di ogni partita compare «Colpisci quando il cerchio diventa verde». Di base: acceso con «Bambino» e «Adulto», spento con «Ragazzo», Esperta e Leggenda. Solo contro la CPU. |
-| **Visuale** | **3ª persona** · 1ª persona | Camera dietro il giocatore o dai suoi occhi. |
+| ~~Visuale~~ | (dalla B64 non più qui) | Doppione: la visuale si sceglie in «Altre impostazioni» prima della partita e in pausa. |
 | **Scia della palla** | Sì · **No** | Una scia luminosa dietro la palla veloce. |
 | **Movimenti come nel video** (fino alla 2026-11-16.2 «Dritto come nel video (prova)») | **Sì** · No | Il dritto e, dalla 2026-11-15.1, il rovescio, (2026-11-15.2) la schiacciata e (2026-11-15.3) le volée a rete, corte, (2026-11-16.4) il servizio, del personaggio con le movenze del trailer (B53: poi il servizio). No: i colpi di prima. |
-| **Personaggi in campo** | **Classici** · Lob & Drop | I tennisti di sempre o le due mascotte. È la stessa scelta di «Personaggi» nella pagina «Pronto per la partita». |
-| **Audio** | «Audio: **Sì**» · «Voci: **Sì**» | Audio: tutto l'audio, come «Musica» del pannello (non resta salvato). Voci: la voce del punteggio, in inglese. |
+| ~~Personaggi in campo~~ | (dalla B64 non più qui) | Doppione: i personaggi (Classici · Lob & Drop) si scelgono in «Pronto per la partita». |
+| ~~Audio~~ | (dalla B64 non più qui; restano i Volumi) | Doppione: musica e voci si accendono e spengono in pausa, la musica anche dal pannello dello stand. |
 | **Volumi** | Musica **65** · Effetti **85** · Voci **90** | Trascina i cursori (da 0 a 100). Ci sono anche nella pausa. |
 | **Telefono** | «Dimentica pallonetto e palla corta imparati» · «Rivedi l'intro» | Il primo fa reimparare i colpi speciali nel prossimo allenamento; il secondo rimostra l'intro. |
 | **Aggiornamenti** | solo nel programma Windows | Versione installata, ultima verifica, «Cerca aggiornamenti», «Aggiorna», «Riavvia e aggiorna» (capitolo 7.3). |
@@ -633,7 +634,7 @@ e menu del programma: capitolo 12.
   destra). Quando sono pronti tutti e due: conto alla rovescia di 3 secondi, poi (con «Calibrazione: Giocando») gli
   scambi di prova per tutti e due, poi il conto alla rovescia grande e la partita. Il formato in fiera qui è acceso di
   base (con «Battuta: Sempre lo stesso» resta il punto decisivo, il servizio non cambia). Dettagli: capitolo 3.5.
-- **Rivincita con un livello diverso** (B47): a fine partita «Rivincita» → clic sul livello (o sulle fasce) → «Gioca».
+- **Rivincita con un livello diverso** (B47): a fine partita «Rivincita» → clic sul livello (o sulle fasce) → «Gioca». Dalla B64 nello stesso schermo la rivincita non chiede più la fascia: «Stessi giocatori, stesse fasce» con le fasce di prima scritte e «Gioca»; per cambiarle «Cambia fascia». Contro la CPU resta la scelta del livello. Nelle Opzioni il pulsante «Schermo intero» in alto a destra non c'è (c'è già nella riga «Schermo»).
 - **Stand senza staff per un po'.** Pannello → «Modalità chiosco: Sì». (B45.1) Il telefono resta collegato e pronto per
   chi arriva (prima andava ricollegato con il QR).
 - **Classifica sul ledwall.** Pannello → «Classifica · A schermo intero». (B39) Con il chiosco acceso resta in vista per

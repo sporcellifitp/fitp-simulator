@@ -43,9 +43,12 @@ export function mascotMove(file){
   return MOVES[(n - 1) % MOVES.length];
 }
 
-// Dove si vedono: programma Windows (FIERA) e server di sviluppo (prove nel browser). import.meta.env c'è solo con vite
-export function mascotsOn({ desktop = globalThis.natpfDesktop, dev = !!import.meta.env?.DEV } = {}){
-  return !!desktop || !!dev;
+// Dove si vedono: programma Windows (FIERA) e server di sviluppo (prove nel browser). import.meta.env c'è solo con vite.
+// Spente a mano (prove dei ritratti 3D, o allo stand se servisse): localStorage natpf-tennis.mascotteGif = '0'
+export const MASCOT_OFF_KEY = 'natpf-tennis.mascotteGif';
+export function mascotsOn({ desktop = globalThis.natpfDesktop, dev = !!import.meta.env?.DEV, storage = globalThis.localStorage } = {}){
+  let off = false; try { off = storage?.getItem(MASCOT_OFF_KEY) === '0'; } catch {}
+  return !off && (!!desktop || !!dev);
 }
 
 // Scelta a caso fra quelle dell'esito (e del personaggio, se detto), escluse quelle in avoid (se le esclude tutte, fra tutte)

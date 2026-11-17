@@ -195,6 +195,9 @@ export function setupArticulatedPlayerRig(t) {
 export const CHEER_W = 9.2;
 export const CHEER_PERIOD = (2 * Math.PI) / CHEER_W;
 export const CLAP_AFTER = 1;
+// NATPF B63 (mascotte 3D nella card, natpf_card_moves.js): «sad», la testa bassa di «loss» già assestata, con le
+// oscillazioni a multipli di SAD_W, così si ripete uguale nel giro della card (3 periodi del salto)
+export const SAD_W = CHEER_W / 3;
 // centro delle corde nella racchetta (natpf_character.RACKET_POINTS.center) e distanza della mano libera dalle corde
 export const CLAP_STRINGS_Y = 0.545;
 // (mascotte 3D: il palmo del modello sta qualche centimetro oltre la mano del tennista, che quindi va un filo oltre le corde)
@@ -206,7 +209,7 @@ export function triggerPointReaction(t, o = "win", s = {}) {
   const n = o === !0 ? "win" : o === !1 ? "loss" : String(o || "win").toLowerCase(),
     M = n === "win" || n === "won" || n === "victory" || n === "cheer" || n === "nice";
   (e.reaction.active = !0),
-    (e.reaction.type = n === "cheer" ? "cheer" : n === "clap" ? "clap" : M ? "win" : "loss"),
+    (e.reaction.type = n === "cheer" ? "cheer" : n === "clap" ? "clap" : n === "sad" ? "sad" : M ? "win" : "loss"),
     (e.reaction.timer = 0),
     (e.reaction.duration = Number(s.duration) || (M ? 1.72 : 1.68)),
     n === "clap" ? void 0 : M
@@ -471,7 +474,7 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
     const a = e.reaction.timer,
       f = i.MathUtils.clamp(a / e.reaction.duration, 0, 1);
     // (B40: nel loop di fine partita niente oscillazioni d'attesa con altri periodi, così il movimento si ripete uguale)
-    (e.reaction.type === "cheer" || e.reaction.type === "clap") && loopStill(e);
+    (e.reaction.type === "cheer" || e.reaction.type === "clap" || e.reaction.type === "sad") && loopStill(e);
     if (e.reaction.type === "win" || e.reaction.type === "cheer") {
       const v = Math.abs(Math.sin(a * 9.2)),
         B = e.reaction.type === "cheer" ? 1 : Math.pow(1 - f * 0.55, 0.8);
@@ -492,6 +495,13 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
       const v = Math.abs(Math.sin(a * CHEER_W));
       (A = 0.018 * (1 - v)), (p = 1 - 0.02 * v), (N = 0.08), (z = 0), (F = 0.05), (y = -0.012 * v), (I = 0), (E = 0),
         (e.footLPivot.rotation.x = 0), (e.footRPivot.rotation.x = 0);
+    } else if (e.reaction.type === "sad") {
+      // B63: testa bassa assestata (come «loss» dopo 0,65 s), dondolio a multipli di SAD_W
+      (A = 0), (p = 1 - 0.045), (y = -0.065), (N = 0.34), (z = Math.sin(a * SAD_W) * 0.08), (F = Math.sin(a * SAD_W * 2) * 0.12),
+        (I = 0), (E = 0);
+      // racchetta lasciata pendere, la testa verso terra
+      t.racketPivot &&
+        (t.racketPivot.position.set(-0.36, 0.5, 0.1), t.racketPivot.rotation.set(2.75, -0.1, 0.25));
     } else {
       if (a < 0.24) {
         const v = Math.sin((a / 0.24) * Math.PI);
@@ -558,7 +568,9 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
         ? ((K = -0.32), (j = Math.sin(e.reaction.timer * CHEER_W) * 0.18))
         : e.reaction.type === "clap"
           ? ((K = -0.06 + Math.abs(Math.sin(e.reaction.timer * CHEER_W)) * 0.12), (j = 0))
-          : ((K = 0.42), (j = Math.sin(e.reaction.timer * 7.5) * 0.22));
+          : e.reaction.type === "sad"
+            ? ((K = 0.42), (j = Math.sin(e.reaction.timer * SAD_W * 2) * 0.22))
+            : ((K = 0.42), (j = Math.sin(e.reaction.timer * 7.5) * 0.22));
   else if (h && h.pos) {
     const a = t.pos.y + 1.48,
       f = h.pos.x - t.pos.x,
@@ -622,6 +634,9 @@ function Pe(t, o, s, e, { isSwinging: n, swingType: M, swingProgress: w, phase: 
       t.natpfMascot3dOn
         ? (t.racketPivot.position.set(-0.3, 0.58, 0.3), t.racketPivot.rotation.set(-Math.PI / 2, 0, -Math.PI / 2))
         : (t.racketPivot.position.set(-0.2, 0.38, 0.26), t.racketPivot.rotation.set(0.35, Math.PI / 2 - 0.5, 0));
+    else if (o.reaction.type === "sad")
+      // B63: racchetta lasciata pendere, la testa verso terra (testa bassa della card)
+      t.racketPivot.position.set(-0.36, 0.5, 0.1), t.racketPivot.rotation.set(2.75, -0.1, 0.25);
     else t.racketPivot.position.set(-0.32, 0.68, 0.12), t.racketPivot.rotation.set(0.85, -0.12, 0.55);
     return;
   }

@@ -123,10 +123,11 @@ try {
     await p.click('#btn-play-again');
     await until(p, () => __natpfTennis.natpfUi.rematch.isOpen, null, 5000);
     const s = await p.evaluate(() => { const el = document.getElementById('natpf-rematch'), card = el.querySelector('.rematch-card').getBoundingClientRect(); return { title: el.querySelector('[data-rematch="title"]').textContent, names: [...el.querySelectorAll('.rematch-name')].map(n => n.textContent), sel: [...el.querySelectorAll('.rematch-band.selected')].map(b => b.dataset.rematchBand), card: { t: Math.round(card.top), b: Math.round(card.bottom), l: Math.round(card.left), r: Math.round(card.right) }, scroll: el.querySelector('.rematch-card').scrollHeight - el.querySelector('.rematch-card').clientHeight, W: innerWidth, H: innerHeight }; });
-    check(`4. ${w}×${h}: «Rivincita» → fasce di Giulia e Marco (Adulto segnato), tutto nello schermo senza scorrere`, s.title.startsWith('Chi gioca?') && s.names.join('|') === 'Giulia|Marco' && s.sel.join('|') === (w === 1920 ? 'p1:adulto|p2:adulto' : 'p1:bambino|p2:adulto') && s.card.t >= 0 && s.card.b <= s.H && s.card.l >= 0 && s.card.r <= s.W && s.scroll <= 0, fmt(s));
+    check(`4. ${w}×${h}: «Rivincita» → «Stessi giocatori, stesse fasce» con le fasce di Giulia e Marco scritte (B64), tutto nello schermo senza scorrere`, s.title === 'Stessi giocatori, stesse fasce' && s.names.join('|') === 'Giulia|Marco' && s.sel.join('|') === (w === 1920 ? 'p1:adulto|p2:adulto' : 'p1:bambino|p2:adulto') && s.card.t >= 0 && s.card.b <= s.H && s.card.l >= 0 && s.card.r <= s.W && s.scroll <= 0, fmt(s));
     await sleep(400);
     await shot(`4-scelta-fasce-stesso-schermo-${w}x${h}`);
-    if (w === 1920) await p.click('#natpf-rematch [data-rematch-band="p1:bambino"]');
+    // B64 (17/11): le fasce di prima scritte; «Cambia fascia» apre la scelta
+    if (w === 1920){ await p.click('#natpf-rematch [data-rematch-act="bands"]'); await sleep(150); await p.click('#natpf-rematch [data-rematch-band="p1:bambino"]'); }
     await sleep(150);
     const bands = await p.evaluate(() => ({ ...__natpfTennis.natpfSplitBands }));
     const seq = await p.evaluate(() => __natpfTennis.natpfMatchSeq);

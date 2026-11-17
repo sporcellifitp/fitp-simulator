@@ -9,11 +9,10 @@ import { SAVER_KEY, SAVER_STEPS, SAVER_TEXT, SAVER_SWALLOW_MS, readSaver, writeS
 
 const memory = (init = {}) => { const m = new Map(Object.entries(init)); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), map: m }; };
 
-test('B62: «Dopo 1 min» di base nel programma Windows e in sviluppo, «No» nel browser; valore salvato, valori strani scartati', () => {
+test('B62: «Dopo 1 min» di base nel programma Windows, «No» nel browser e in sviluppo; valore salvato, valori strani scartati', () => {
   assert.deepEqual([...SAVER_STEPS], [60, 120, 300, 0]);
-  assert.equal(saverDefault({ desktop: {}, dev: false }), 60);
-  assert.equal(saverDefault({ desktop: undefined, dev: true }), 60);
-  assert.equal(saverDefault({ desktop: undefined, dev: false }), 0);
+  assert.equal(saverDefault({ desktop: {} }), 60);
+  assert.equal(saverDefault({ desktop: undefined }), 0, 'browser e server di sviluppo (le prove nel browser stanno ferme nel menu)');
   assert.equal(readSaver({ storage: memory(), desktop: {} }), 60);
   assert.equal(readSaver({ storage: memory(), desktop: undefined, dev: false }), 0);
   assert.equal(readSaver({ storage: memory({ [SAVER_KEY]: '300' }), desktop: undefined }), 300);

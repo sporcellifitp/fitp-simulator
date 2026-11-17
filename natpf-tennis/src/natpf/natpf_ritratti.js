@@ -23,6 +23,8 @@ import { CHEER_PERIOD } from '../player_body_animation.js';
 import { cardModel } from './natpf_end_card.js';
 import { castLooks, getCast } from './natpf_personaggi.js';
 import { updateNatpfCharacters } from './natpf_character.js';
+// B63: mascotte 3D con animazioni nuove (interruttore finché l'utente non approva l'anteprima)
+import { CARD_LOOP, CARD_K, CARD_K_LOW, cardMovesOn, pickCardMove, applyCardMove } from './natpf_card_moves.js';
 
 export const PORTRAIT_LAYER = 5;
 export const PORTRAIT_MAX = Object.freeze({ w: 256, h: 320 });
@@ -78,7 +80,8 @@ export function nextState(state, ev){
   return state;
 }
 // fotogramma da mostrare al tempo t (ms dall'inizio): il loop dura un periodo
-export const playFrame = (tMs, K) => Math.floor(((tMs/1000)/CHEER_PERIOD)*K) % K;
+// (B63: con i movimenti nuovi il giro dura CARD_LOOP: period)
+export const playFrame = (tMs, K, period = CHEER_PERIOD) => Math.floor(((tMs/1000)/period)*K) % K;
 // riquadro delle sole parti visibili (racchetta compresa; non l'arco del colpo nascosto, non il modello nascosto sotto la
 // mascotte 3D); le mesh con le ossa si misurano nella posa di adesso
 const _tb = new THREE.Box3();
@@ -139,17 +142,19 @@ export class NatpfRitratti {
     const model = view?.stats ? cardModel(view.stats, view, { looks: castLooks(getCast(), view.stats.mode !== 'cpu'), bands: view.stats.bands }) : null;
     if (!model?.cards?.length){ this.last = { m, state: 'idle' }; return; }
     const db = E.renderer.getDrawingBufferSize(new THREE.Vector2()), size = frameSize({ canvasW: db.x, canvasH: db.y });
-    const items = model.cards.map(c => ({ side: c.side, actor: c.side === 'opponent' ? E.opponent : E.player, color: c.art, k: 0, warm: 0, box: null }))
+    // B63: con i movimenti nuovi un movimento per card (dal suo esito), un giro più lungo e più fotogrammi
+    const moves = cardMovesOn(), period = moves ? CARD_LOOP : CHEER_PERIOD, K = moves ? (this.K === PORTRAIT_K_LOW ? CARD_K_LOW : CARD_K) : this.K;
+    const items = model.cards.map(c => ({ side: c.side, actor: c.side === 'opponent' ? E.opponent : E.player, color: c.art, k: 0, warm: 0, box: null, move: moves ? pickCardMove(c.won ? 'win' : 'lose') : null, t: 0 }))
       .filter(it => it.actor?.root && it.actor.rig);
     if (!items.length){ this.last = { m, state: 'idle' }; return; }
     for (const it of items){
-      const L = sheetLayout(this.K, size.w, size.h);
+      const L = sheetLayout(K, size.w, size.h);
       let s = this.sheets[it.side];
       if (!s){ s = this.sheets[it.side] = document.createElement('canvas'); }
       if (s.width !== L.width || s.height !== L.height){ s.width = L.width; s.height = L.height; }
       it.sheet = s; it.ctx = s.getContext('2d');
     }
-    this.job = { m, items, K: this.K, w: size.w, h: size.h, i: 0, since: E.elapsedTime, t0: performance.now(), ms: 0, programs: 0 };
+    this.job = { m, items, K, period, w: size.w, h: size.h, i: 0, since: E.elapsedTime, t0: performance.now(), ms: 0, programs: 0 };
     this.state = nextState('idle', 'start');
   }
   _capture(now){
@@ -165,20 +170,23 @@ export class NatpfRitratti {
       if (!it.held){ this._hold(it); }
       if (it.warm < J.K){
         // giro di prova: il loop si assesta e si misura il riquadro del personaggio (racchetta compresa)
-        while (it.warm < J.K){ this._advance(it, CHEER_PERIOD/J.K); if (it.warm % 2 === 0) this._measure(it); it.warm++; }
+        while (it.warm < J.K){ this._advance(it, J.period/J.K); if (it.move || it.warm % 2 === 0) this._measure(it); it.warm++; }
         this.state = nextState(this.state, 'measured');
       }
-      this._advance(it, CHEER_PERIOD/J.K);
+      this._advance(it, J.period/J.K);
       this._shoot(it, J);
       it.k++;
       if (it.k >= J.K){ this._release(it); J.i++; }
       if (performance.now() - t0 >= PORTRAIT_BUDGET_MS) break;
     }
+    // B63: tra una fetta e l'altra della fotografia il personaggio sta al suo posto (l'arena sotto si disegna ancora finché
+    // la card non c'è: niente salti in campo); _advance lo rimette nel movimento
+    const cur = J.items[J.i]; if (cur?.base){ cur.actor.root.position.copy(cur.base.pos); cur.actor.root.rotation.set(cur.base.rotX, cur.base.rotY, cur.base.rotZ); }
     J.ms += performance.now() - t0;
     if (J.i >= J.items.length){
       this.state = nextState(this.state, 'done');
-      this.last = { m: J.m, state: 'ready', items: J.items.map(it => ({ side: it.side, sheet: it.sheet })), K: J.K, w: J.w, h: J.h, t0: performance.now() };
-      this._log({ esito: '3d', ms: Math.round(J.ms), fotogrammi: J.K, px: `${J.w}x${J.h}`, personaggi: J.items.length, programmi: J.programs });
+      this.last = { m: J.m, state: 'ready', items: J.items.map(it => ({ side: it.side, sheet: it.sheet, move: it.move?.id || null })), K: J.K, period: J.period, w: J.w, h: J.h, t0: performance.now() };
+      this._log({ esito: '3d', ms: Math.round(J.ms), fotogrammi: J.K, px: `${J.w}x${J.h}`, personaggi: J.items.length, programmi: J.programs, ...(J.items.some(it => it.move) ? { mosse: J.items.map(it => it.move?.id || '') } : {}) });
       this.job = null;
       this._attach();
     }
@@ -192,16 +200,26 @@ export class NatpfRitratti {
     it.actor.root.traverse(o => o.layers.enable(PORTRAIT_LAYER));
     E.scene.traverse(o => { if (o.isLight) o.layers.enable(PORTRAIT_LAYER); });
     it.box = null;
+    // B63: posto e direzione di partenza (si rimettono al rilascio) e la reazione del corpo del movimento, da capo
+    if (it.move){
+      const r = it.actor.root, R = it.actor.rig?.reaction;
+      it.base = { pos: r.position.clone(), rotY: r.rotation.y, rotX: r.rotation.x, rotZ: r.rotation.z }; it.t = 0;
+      if (R){ R.active = true; R.type = it.move.base; R.timer = 0; }
+    }
   }
   _release(it){
     if (!it?.held) return;
     it.actor.natpfPortraitHold = false; it.held = false;
     it.actor.root.traverse(o => o.layers.disable(PORTRAIT_LAYER));
+    // B63: il personaggio torna dov'era (sotto la card l'arena resta ferma)
+    if (it.base){ const r = it.actor.root; r.position.copy(it.base.pos); r.rotation.set(it.base.rotX, it.base.rotY, it.base.rotZ); r.updateMatrixWorld?.(true); it.base = null; }
   }
   // un passo di P/K del solo personaggio (in PORTRAIT_SUBSTEPS passi), con le braccia e la mascotte aggiornate
   _advance(it, dt){
     const E = this.engine, n = PORTRAIT_SUBSTEPS;
     for (let i = 0; i < n; i++) E._updatePlayerAnimation(it.actor, dt/n, true);
+    // B63: tutto il personaggio nel movimento (prima di riportare le parti sulle ossa della mascotte 3D)
+    if (it.move && it.base){ it.t += dt; applyCardMove(it.actor, it.move, it.t, it.base, (it.actor.sideSign || 1) > 0 ? -1 : 1); }
     updateNatpfCharacters(E);
   }
   _measure(it){
@@ -264,7 +282,8 @@ export class NatpfRitratti {
   _play(now){
     const L = this.last;
     if (!L || L.state !== 'ready' || !this.cardShown()) return;
-    const k = this._reduce ? 0 : playFrame(now - L.t0, L.K);
+    // («riduci movimento»: fermo il ritratto di sempre; le mascotte 3D nuove si muovono sempre, come le GIF: B61)
+    const k = this._reduce && !L.items.some(i => i.move) ? 0 : playFrame(now - L.t0, L.K, L.period || CHEER_PERIOD);
     for (const it of L.items){
       const c = this.canvases[it.side]; if (!c || !c.isConnected) continue;
       const W = Math.max(1, Math.min(L.w, Math.round(c.clientWidth*(globalThis.devicePixelRatio || 1)))), H = Math.max(1, Math.min(L.h, Math.round(c.clientHeight*(globalThis.devicePixelRatio || 1))));
@@ -283,6 +302,6 @@ export class NatpfRitratti {
   // per le prove e la diagnostica
   info(){
     const L = this.last?.state === 'ready' ? this.last : null;
-    return { mode: this.mode, state: this.state, K: this.K, ready: !!L, size: L ? [L.w, L.h] : null, sheetBytes: L ? L.items.length*sheetLayout(L.K, L.w, L.h).bytes : 0, renders: this.stats.renders, log: this.lastLog || null };
+    return { mode: this.mode, state: this.state, K: L?.K || this.K, ready: !!L, size: L ? [L.w, L.h] : null, sheetBytes: L ? L.items.length*sheetLayout(L.K, L.w, L.h).bytes : 0, renders: this.stats.renders, log: this.lastLog || null };
   }
 }

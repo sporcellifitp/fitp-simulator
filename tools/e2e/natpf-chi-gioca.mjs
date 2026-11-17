@@ -3,7 +3,7 @@
 // racchetta «mouse» della modalità prova (non serve il telefono: qui non si provano i gesti).
 //   1. pagina «Partita» contro la CPU: «Chi gioca?» con le tre tessere Bambino · Ragazzo · Adulto (di base Adulto), senza
 //      scorrere a 1280×720, 1920×540 e 720×720; ogni tessera sceglie il suo livello (Bambini, Casual, Evento);
-//   2. «Altre impostazioni» → «Livello della CPU»: cinque livelli per nome; Esperta e Leggenda si scelgono lì, e la pagina
+//   2. «Altre impostazioni» → «Livelli per esperti» (B64: solo Esperta e Leggenda, gli altri tre sono le tessere); si scelgono lì, e la pagina
 //      lo dice sotto le tessere e nel riassunto;
 //   3. «Gioca» con ognuna delle tre tessere: il motore gioca al livello giusto;
 //   4. livello Evento: la CPU cambia di un gradino tra un punto e l'altro e la sua velocità segue; «Gioca ancora» continua
@@ -140,8 +140,9 @@ try {
     await p.click('#match-more-btn'); await p.waitForTimeout(300);
     const b = await view(p);
     // (aperte, su uno schermo basso la pagina scorre da sola fino all'ultima riga, come dal B15: titolo e tessere salgono)
-    check(`${w}×${h}: «Altre impostazioni» aperte: «Livello della CPU» con i cinque livelli, tutti in vista insieme a «Gioca»`,
-      b.levelRow && b.levels.join(' ') === 'Bambini=bambini Facile=casual Evento=evento* Esperta=pro Leggenda=leggenda' && b.scroll <= 0 && b.levelsInView && b.play, fmt({ levels: b.levels, scroll: b.scroll, inView: b.levelsInView, play: b.play }));
+    // B64 (17/11, ridondanze): solo i livelli che le tessere non hanno
+    check(`${w}×${h}: «Altre impostazioni» aperte: «Livelli per esperti» con Esperta e Leggenda (Bambini, Facile, Evento solo nelle tessere), in vista insieme a «Gioca»`,
+      b.levelRow && b.levels.join(' ') === 'Esperta=pro Leggenda=leggenda' && b.scroll <= 0 && b.levelsInView && b.play, fmt({ levels: b.levels, scroll: b.scroll, inView: b.levelsInView, play: b.play }));
     await p.screenshot({ path: path.join(OUT, `altre-impostazioni-${w}x${h}.png`) });
     await p.click('#match-more-btn'); await p.waitForTimeout(150);
   }

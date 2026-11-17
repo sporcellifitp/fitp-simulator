@@ -138,6 +138,15 @@ test('stesso schermo: «Rivincita» dal computer → fasce dei due con i nomi; s
   assert.ok(ui.rematch.isOpen && !w.lobby.visible && E.natpfSplit?.active, 'la sessione resta, niente menu');
   const body = () => $('natpf-rematch').querySelector('[data-rematch="body"]').innerHTML;
   assert.match(body(), />Giulia</); assert.match(body(), />Marco</);
+  // B64 (17/11, ridondanze): prima le stesse fasce scritte, senza domanda; «Cambia fascia» apre la scelta
+  const title = () => $('natpf-rematch').querySelector('[data-rematch="title"]').textContent;
+  assert.equal(title(), 'Stessi giocatori, stesse fasce');
+  assert.match(body(), /<span class="rematch-band rematch-band-same selected" data-rematch-band="p1:adulto">Adulto<\/span>/);
+  assert.doesNotMatch(body(), /role="radio"/, 'nessuna scelta finché non si chiede');
+  assert.match(body(), /data-rematch-act="bands">Cambia fascia</);
+  assert.equal($('natpf-rematch').querySelector('[data-rematch="sub"]').textContent, 'Premi «Gioca» per la rivincita');
+  ui.rematch.showBands();
+  assert.equal(title(), 'Chi gioca? Scegli la fascia di ciascuno');
   assert.match(body(), /data-rematch-band="p1:adulto" role="radio" aria-checked="true"/);
   ui.rematch.pickBand('p1', 'bambino');
   assert.deepEqual(E.natpfSplitBands, { p1: 'bambino', p2: 'adulto' });

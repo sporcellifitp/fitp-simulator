@@ -32,6 +32,9 @@ export async function page(browser, url, { w = 1280, h = 760, mobile = false, in
   // nell'archivio della pagina solo se non c'è già (una prova che cambia l'opzione dal pannello dello stand la tiene)
   // (CAL=base: niente scritto, l'opzione vera di base del gioco, cioè «Giocando»)
   if (process.env.CAL && process.env.CAL !== 'base') await p.addInitScript(v => { try { if (!localStorage.getItem('natpf-tennis.calibrazione')) localStorage.setItem('natpf-tennis.calibrazione', v); } catch {} }, process.env.CAL);
+  // B62: salvaschermo spento nelle prove (stanno ferme nel menu più di un minuto: coprirebbe la pagina), anche con il ponte
+  // finto del programma Windows; la prova del salvaschermo lo accende lei
+  await p.addInitScript(() => { try { if (localStorage.getItem('natpf-tennis.salvaschermo') == null) localStorage.setItem('natpf-tennis.salvaschermo', '0'); } catch {} });
   if (init) await p.addInitScript(init);
   await p.goto(url.replace('http://127.0.0.1:8765', BASE), { waitUntil: 'domcontentloaded', timeout: 120000 });
   return { ctx, p, errs };

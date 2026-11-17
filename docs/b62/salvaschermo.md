@@ -26,8 +26,9 @@ Inattività di almeno 1 minuto che si sblocca come screensaver».
 ## Dove si imposta
 
 Pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows) → **«Salvaschermo»**: Dopo 1 min → Dopo 2 min → Dopo 5 min →
-No. Resta salvato sul computer (chiave `natpf-tennis.salvaschermo`). Di base **«Dopo 1 min» nel programma Windows** (fiera)
-e nel server di sviluppo; **«No» nel gioco dal browser** (versione online), dove resta da scegliere.
+No. Resta salvato sul computer (chiave `natpf-tennis.salvaschermo`). Di base **«Dopo 1 min» nel programma Windows** (fiera);
+**«No» nel gioco dal browser** (versione online) e nel server di sviluppo (dalla 17.4: nelle prove nel browser, ferme nel
+menu più di un minuto, copriva la pagina; anche `tools/e2e/th.mjs` lo spegne), dove resta da scegliere.
 
 ## File
 
