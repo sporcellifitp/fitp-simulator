@@ -20,7 +20,8 @@ Come si aggiorna:
 **Checkpoint del 17/11/2026, 05:00 UTC (versione 2026-11-17.1).** B59 conto «Allenati un po'!» prima degli scambi di
 prova; B60 km/h dei colpi nel registro (trofeo Razzo); correzioni: rivincita «tra 11 s», blocco del telefono che copriva
 «Riattiva i sensori» e il velo, «Nuovo giocatore» con i gesti che saltava la calibrazione (B54.2). Prove nel browser
-rimesse in riga (12 script). **Prossima azione esatta:** pacchetti della 17.1; poi restano solo cose dell'utente (registro
+rimesse in riga (12 script). Pacchetti della 17.1 verificati (installer `d1b842cd…c69b`, zip `290c94ba…4861`). **Prossima azione esatta:** solo cose
+dell'utente (messaggio per il prossimo agente in `docs/TRACCIA_PASSI.md`): registro
 della prossima giornata per anticipo, trofei, Razzo e direzione; Worker da ricaricare; risposte sui due prodotti; collaudi
 con telefoni veri, ledwall e Windows).
 

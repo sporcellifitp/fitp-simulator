@@ -1543,8 +1543,24 @@ prove cambiate; poi versione 2026-11-17.1 (B59 + B60 + rivincita) e pacchetti.
 
 - [x] B59 + B60 + correzioni (rivincita, blocco del telefono, «Nuovo giocatore» con i gesti). Prove: gioco 1792/1792,
       sito 282/282, LAN 13/13, desktop 56/56, build (`2026-11-17.1` nel bundle); nel browser l'elenco in WORK_PROGRESS.
-- [~] Pacchetti della 17.1: commit, push, installer da `latest.json`, zip Cloudflare.
+- [x] Pacchetti della 17.1 (`8620ceb`, tre workflow verdi): installer dal link fisso = `latest.json` (131.372.014 B,
+      sha256 `d1b842cd46148fe8e6978bfc35e50dbc798977bcd708bf9a6eb0a3818c41c69b`); zip 23.955.038 B, sha256
+      `290c94bab354b10e7a2d4c910b127a88b600de3c4ae5154b9c45fc2609d64861`, provato estratto (senza mascotte; build con il
+      ponte finto: mascotte nella card), consegnato.
 
-**Prossima azione esatta (17/11, 05:00 UTC)**: pacchetti della 17.1; poi resoconto all'utente (roadmap finita: restano
-le cose che dipendono da lui).
+## MESSAGGIO PER IL PROSSIMO AGENTE (17/11, 07:40 UTC)
+
+La roadmap di sviluppo è finita: versione **2026-11-17.1** pubblicata e verificata. Quello che resta dipende dall'utente:
+1. **Registro della prossima giornata** (lo scarica lui dal Worker e lo carica qui): rimisurare l'anticipo (B56: mediana
+   dell'errore di tempo in fiera vicina a 0, più «Perfetto»), i trofei, il **Razzo** con i km/h dei colpi (B60, sezione
+   «Velocità dei colpi» di `natpf-tennis/scripts/registro/riassunto.mjs`, solo righe dalla 17.1), la direzione (B36.1:
+   ferma, decide l'utente con i numeri), e le pause «Telefono non pronto» all'inizio degli scambi di prova (viste solo
+   con il telefono simulato lento).
+2. **Worker del registro da ricaricare** (lui: corregge il 503 dello «Scarica» e mostra la colonna «Partite»).
+3. **Due prodotti**: risposte alle domande del §4 di `docs/PRODOTTI_FIERA_E_ONLINE.md` prima di separare il codice.
+4. **Collaudi** che qui non si possono fare: telefoni veri con l'app 1.0.3, ledwall, programma Windows vero.
+Prove nel browser: le `natpf-*` si lanciano da sole; `natpf-telefono-bloccato` e `natpf-nome-telefono` con
+`NATPF_SITE_ROOT` (cartella con il collegamento `natpf` → `site`) e `tools/e2e/run-local.mjs`.
+
+**Prossima azione esatta (17/11, 07:40 UTC)**: aspettare l'utente (punti 1–4 qui sopra).
 
