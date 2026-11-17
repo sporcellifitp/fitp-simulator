@@ -204,3 +204,26 @@ test('B54.2: «Nuovo giocatore» per la partita con il telefono che chiede il no
   assert.equal(phoneAsksName('match', { ...ui, phone: { connected: false, asksName: true } }), false, 'telefono scollegato');
   assert.equal(phoneAsksName('match', { ...ui, controller: 'webcam' }), false);
 });
+
+// B54.2, revisione del 17/11: con la calibrazione «Con i gesti» «Nuovo giocatore» aspetta che il telefono confermi il reset
+// (pronto → da calibrare) prima dell'allenamento; con il profilo semplice (Giocando, Nessuna) o senza telefono si va subito
+test('B54.2 revisione: «Nuovo giocatore» con i gesti aspetta la risposta del telefono al reset (al più 1,5 s)', async () => {
+  const { afterPhoneReset, RESET_ACK_MS } = await import('../src/natpf/natpf_new_player.js');
+  assert.equal(RESET_ACK_MS, 1500);
+  let t = 0; const q = [], later = (f, ms) => q.push({ at: t + ms, f }), now = () => t;
+  const run = until => { while (q.length && q[0].at <= until){ q.sort((a, b) => a.at - b.at); const x = q.shift(); t = x.at; x.f(); } t = until; };
+  const go = () => { done.push(t); };
+  let done = [];
+  // Giocando: subito
+  assert.equal(afterPhoneReset({ connected: true, autoSimple: true, ready: true }, go, { now, later }), false); assert.deepEqual(done, [0]);
+  // telefono scollegato o già da calibrare: subito
+  done = []; afterPhoneReset({ connected: false, autoSimple: false, ready: true }, go, { now, later }); afterPhoneReset({ connected: true, autoSimple: false, ready: false }, go, { now, later }); assert.deepEqual(done, [0, 0]);
+  // con i gesti: aspetta che il telefono non sia più «pronto»
+  done = []; const P = { connected: true, autoSimple: false, ready: true };
+  assert.equal(afterPhoneReset(P, go, { now, later }), true);
+  run(400); assert.deepEqual(done, [], 'il telefono non ha ancora risposto');
+  P.ready = false; run(500); assert.equal(done.length, 1); assert.ok(done[0] > 400 && done[0] <= 450);
+  // telefono che non risponde: al più 1,5 s
+  done = []; t = 0; q.length = 0; afterPhoneReset({ connected: true, autoSimple: false, ready: true }, go, { now, later });
+  run(3000); assert.equal(done.length, 1); assert.ok(done[0] >= 1500 && done[0] <= 1550);
+});

@@ -1527,8 +1527,12 @@ prove cambiate; poi versione 2026-11-17.1 (B59 + B60 + rivincita) e pacchetti.
 - [x] Osservato nelle prove: all'inizio degli scambi di prova, con il telefono simulato lento (più di 2,5 s a ripartire),
       la pausa «Telefono non pronto» per circa 3 s; c'era già prima del B59. Un telefono vero risponde in pochi decimi:
       da guardare nel registro (righe di pausa all'inizio della prova), nessuna modifica al gioco.
-- [ ] Da capire: con la calibrazione «Con i gesti» (non quella della fiera), dopo «Nuovo giocatore» il telefono resta su
-      «Prova un colpetto» mentre il gioco torna alla pagina «Partita» (`natpf-nuovo-giocatore` con CAL=gesti).
+- [x] Capito e corretto: con la calibrazione «Con i gesti», dopo «Nuovo giocatore» (B54.2, senza il foglio del nome)
+      l'allenamento partiva nello stesso istante del reset, con il telefono ancora «pronto»: saltava la calibrazione e
+      tornava alla pagina, il telefono restava su «Prova un colpetto». `natpf_new_player.afterPhoneReset`: con i gesti si
+      aspetta la risposta del telefono (al più 1,5 s). Prove: `natpf-b54-nome` +1, gioco 1792/1792,
+      `natpf-nuovo-giocatore` 29/29 con i gesti e 32/32 con «Giocando»; `natpf-telefono-bloccato` 12/12,
+      `natpf-nome-telefono` 23/23 (con `NATPF_SITE_ROOT`: cartella con `natpf` → `site`).
 - [x] Fogli di confronto del servizio (B53.4): `COLPO=servizio` in `tools/e2e/natpf-dritto-video.mjs`, 4/4,
       `docs/b53/servizio-prima-dopo.webp`.
 

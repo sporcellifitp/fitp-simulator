@@ -107,9 +107,22 @@ export function resetVisitor(ui){
   // nome (B54) il nome lo scrive il visitatore sul telefono, sulla pagina «Pronto per la partita»: niente tastiera del PC.
   // Restano la tastiera del PC per i minigiochi (lì il telefono non chiede il nome e serve alla classifica) e per un
   // telefono scollegato o con la pagina di prima
-  if (phoneAsksName(route, ui)) go();
+  if (phoneAsksName(route, ui)) afterPhoneReset(ui.phone, () => { if (L.visible && L.step === 'match') go(); });
   else L.askNickname(go, { newPlayer: true });
   return route;
+}
+// B54.2, revisione del 17/11 (prova natpf-nuovo-giocatore con la calibrazione «Con i gesti»): senza il foglio del nome
+// l'allenamento partiva nello stesso istante del reset, quando il telefono risultava ancora «pronto» (lo diventa «da
+// calibrare» solo quando la sua risposta arriva): l'allenamento saltava la calibrazione e tornava alla pagina «Partita»,
+// mentre il telefono calibrava da solo e restava su «Prova un colpetto». Con i gesti si aspetta la risposta del telefono
+// (al più RESET_ACK_MS); con «Giocando» o «Nessuna» (profilo semplice dato dal gioco) si va subito, come prima
+export const RESET_ACK_MS = 1500;
+export function afterPhoneReset(P, fn, { ms = RESET_ACK_MS, now = () => performance.now(), later = (f, t) => setTimeout(f, t) } = {}){
+  if (!P?.connected || P.autoSimple || !P.ready){ fn(); return false; }
+  const t0 = now();
+  const tick = () => { if (!P.ready || !P.connected || now() - t0 >= ms) fn(); else later(tick, 50); };
+  later(tick, 50);
+  return true;
 }
 // B54.2: «Nuovo giocatore» senza la tastiera del PC: partita (non minigioco) con il telefono collegato che chiede il nome
 export const phoneAsksName = (route, ui) => route === 'match' && ui?.controller === 'phone' && !!ui?.phone?.connected && !!ui.phone.asksName;
