@@ -1597,3 +1597,12 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - Niente conto con `resume` («Ricalibra»). «Salta ›» e chiusura degli scambi chiamano `prematch.cancelTrial()`.
 - Nei test gli scambi di prova durano `COUNT_EXTRA_S` (3,2 s) in più e la prima palla arriva dopo `COUNT_MS`
   (`test/trial-world.mjs`): usarli invece dei numeri scritti a mano.
+
+## B60 · km/h dei colpi nel registro (17/11/2026; documento `docs/b60/kmh-dei-colpi.md`)
+
+- Riga «colpo»: `kmh` copiato da `natpf_match_stats.shot` (agganciato in `registro_registratore._installa`:
+  `E.natpfStats` esiste già, `natpf_ui` lo crea prima del registro) nella riga aperta di chi ha colpito.
+  Campo già nella lista del Worker: aggiungere campi nuovi al registro vuole il Worker ricaricato dall'utente, questo no.
+- Riassunto: «Velocità dei colpi (B60, trofeo Razzo)», con il massimo per partita (colpi e servizi) solo per le partite
+  che hanno i km/h dei colpi.
+

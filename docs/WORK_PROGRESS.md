@@ -2530,6 +2530,13 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B60 · km/h dei colpi nel registro e correzione della rivincita (17/11/2026)
+
+- [x] `registro_registratore.js` (`_kmhColpo`, aggancio a `natpf_match_stats.shot`), `scripts/registro/riassunto.mjs`
+  (sezione «Velocità dei colpi», `_kmhMax`), `docs/b60/kmh-dei-colpi.md`.
+- [x] `natpf_rematch.rematchAutoLine`: margine di 1e-6 s nell'arrotondamento (10000,000000002 ms diceva «tra 11 s»).
+- [x] Prove: gioco 1791/1791 (registro +1, riassunto +1, rivincita +3 controlli), sito 280/280.
+
 ## B59 · conto alla rovescia «Allenati un po'!» prima degli scambi di prova (17/11/2026)
 
 - [x] `natpf_prematch.js` (`TRIAL_COUNT`, `prematchTexts`, `beginTrial`, `cancelTrial`; a zero «Allenati un po'!»

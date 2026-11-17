@@ -53,6 +53,7 @@ Registro delle richieste in §3.
 | 16/11 | Lob e Drop a fine partita, una a caso per esito (B58) | FIERA (solo programma Windows; lo zip web non le porta) | fatto, 16.9 accanto al titolo; 16.10 nella card al posto del personaggio (richiesta dell'utente) (`docs/b58/mascotte-fine-partita.md`) |
 | 16/11 | Mascotte della card: passi avanti, indietro, di lato (B58.1) e velo sul fondo | FIERA | velo corretto nella 16.11; passi non fatti: l'utente il 17/11 «ok con versione senza sfondo bianco» (restano come sono) |
 | 16/11 | Conto alla rovescia «Allenati un po'!» prima degli scambi di prova (B59) | FIERA (vale anche online: stesso gioco) | fatto (`docs/b59/conto-allenati.md`), esce con la versione dopo la 16.11 |
+| 17/11 | Velocità dei colpi nel registro dello stand, per ritarare il trofeo Razzo (B60) | FIERA (il registro è solo nell'installer) | fatto (`docs/b60/kmh-dei-colpi.md`), esce con la 2026-11-17.1 |
 | 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)

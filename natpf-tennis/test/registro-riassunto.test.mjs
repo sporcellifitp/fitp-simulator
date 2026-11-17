@@ -263,3 +263,30 @@ test('B36.0: riassunto «Direzione» — giro della cima, tempo, E1–E5, Precis
   assert.deepEqual(tab('Precision: una riga').righe[0].slice(1, 5), ['classica', '10', '10', '100% di 7']);
   assert.equal(tab('Precision: zona chiesta').righe.length, 10);
 });
+
+// B60: km/h dei colpi nelle righe «colpo» (dalla 2026-11-17.1): velocità dei colpi e colpo più forte di ogni giocatore in
+// ogni partita (colpi e servizi, come il trofeo Razzo); le partite senza km/h dei colpi non entrano nel massimo
+test('B60: velocità dei colpi e colpo più forte per partita nel riassunto (trofeo Razzo)', () => {
+  const ctx = { giorno: '2026-11-17', postazione: 'abcd1234' }, R = new Riassunto(), L = { file: 1, blocchi: 1, righe: 1, byte: 1 };
+  // partita 1: chi gioca 90, 110 (colpi) e un servizio a 125; l'avversario umano 80
+  R.aggiungi({ k: 'partita', t: 0, n: 1, versione: '2026-11-17.1', modo: 'stesso-schermo' }, ctx);
+  R.aggiungi({ k: 'servizio', t: 5, q: 1, ms: 0, kmh: 125, voto: 'p' }, ctx);
+  for (const [t, kmh, chi] of [[10, 90], [12, 80, 'a'], [14, 110]]) R.aggiungi({ k: 'colpo', t, n: 1, gesto: 'dritto', voto: 'p', f: .6, kmh, ...(chi ? { chi } : {}) }, ctx);
+  R.aggiungi({ k: 'colpo', t: 15, n: 1, gesto: 'dritto', voto: 'p', f: .6, amb: 'prova', kmh: 150 }, ctx);   // (scambio di prova: fuori)
+  R.aggiungi({ k: 'partita.fine', t: 20, n: 1, vince: 'g', esito: 'finita', durS: 60 }, ctx);
+  // partita 2: registro vecchio, solo il servizio con i km/h: non entra nel massimo per partita
+  R.aggiungi({ k: 'partita', t: 100, n: 2, versione: '2026-11-16.11', modo: 'cpu' }, ctx);
+  R.aggiungi({ k: 'servizio', t: 105, q: 1, ms: 0, kmh: 130, voto: 'p' }, ctx);
+  R.aggiungi({ k: 'colpo', t: 110, n: 2, gesto: 'dritto', voto: 'p', f: .6 }, ctx);
+  R.aggiungi({ k: 'partita.fine', t: 120, n: 2, vince: 'a', esito: 'finita', durS: 50 }, ctx);
+  assert.deepEqual([R.velocita.colpi.n, R.velocita.colpi.min, R.velocita.colpi.max], [3, 80, 110]);
+  assert.equal(R.velocita.conColpi, 1);
+  assert.deepEqual([...R.velocita.maxPartita.campione].sort((a, b) => a - b), [80, 125], 'chi gioca 125 (il servizio), l\'avversario 80');
+  const s = rapporto(R, L).find(x => x.titolo.startsWith('Velocità dei colpi')), testo = s?.testo.join('\n') || '';
+  assert.match(testo, /Colpi in partita con i km\/h: 3;/); assert.match(testo, /colpi e servizi; 1 partite\)/);
+  // registro senza km/h dei colpi: la sezione lo dice
+  const V = new Riassunto();
+  V.aggiungi({ k: 'partita', t: 0, n: 1, versione: '2026-11-16.11', modo: 'cpu' }, ctx);
+  V.aggiungi({ k: 'colpo', t: 1, n: 1, gesto: 'dritto', voto: 'p', f: .6 }, ctx);
+  assert.match(rapporto(V, L).find(x => x.titolo.startsWith('Velocità dei colpi')).testo.join(' '), /prima della 2026-11-17\.1/);
+});

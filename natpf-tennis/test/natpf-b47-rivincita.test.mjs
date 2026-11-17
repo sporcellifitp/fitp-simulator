@@ -29,6 +29,8 @@ test('righe dello stesso schermo: nome e fasce di ciascuno; riga della partenza 
   assert.equal(REMATCH.autoMs, 10000);
   assert.equal(rematchAutoLine(9100), 'Rivincita chiesta dai telefoni: si parte da soli tra 10 s, oppure scegli e premi «Gioca»');
   assert.equal(rematchAutoLine(0), '');
+  // (orari con i decimali: 10000,000000002 ms sono «10 s», non «11 s»)
+  assert.match(rematchAutoLine(1e6 + 10000.123456789 - (1e6 + .123456789)), /tra 10 s/); assert.match(rematchAutoLine(10000.000000002), /tra 10 s/); assert.match(rematchAutoLine(10001), /tra 11 s/);
 });
 
 // partita contro la CPU fino alla schermata finale (cal: opzione «Calibrazione»)

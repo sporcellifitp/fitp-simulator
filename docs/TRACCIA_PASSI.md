@@ -1497,3 +1497,19 @@ rovescia «Allenati un po'!» prima degli scambi di prova); poi rimisure con il 
 `natpf-mano-sicura`, `natpf-servizio-lancio`, `natpf-servizio-scelta`, `natpf-solo-mouse`, `natpf-stesso-schermo-b25`,
 `natpf-pannello-partita`): sistemare i tempi se servono, poi versione 2026-11-17.1, pacchetti, registrazione del conto
 per l'utente.
+
+## 17/11, 02:30 UTC · B60 km/h dei colpi nel registro; correzione della rivincita; prove nel browser
+
+- [x] B60 (`docs/b60/kmh-dei-colpi.md`): riga «colpo» con `kmh` (campo già nel Worker), sezione del riassunto per il
+      trofeo Razzo. Prove: `natpf-registro` +1, `registro-riassunto` +1.
+- [x] Rivincita dai telefoni: «si parte da soli tra 11 s» a volte al posto di 10 (arrotondamento di orari con i decimali,
+      `natpf_rematch.rematchAutoLine`): corretto, prova +3 controlli; `natpf-b47-rivincita` 8 volte su 8 verde.
+- [x] Prove nel browser (12) dopo il B59: verdi fiera-telefoni 66/66, rally 10/10, mano-sicura 17/17, servizio-scelta
+      18/18, solo-mouse 42/42, stesso-schermo-b25 55/55, flusso-tocchi 5/5. Aggiornate per il flusso di oggi:
+      `natpf-scambi-di-prova` (prima il conto, B59) e `natpf-nuovo-giocatore` (nome dal telefono, B54.2: la prova si
+      aspettava ancora la tastiera del PC). Da capire: `natpf-servizio-lancio` 10/17, `natpf-pannello-partita` 24/25,
+      `natpf-phone-keep` (fermo su un clic): in corso le stesse tre sulla versione di prima (17/11, `9156fc5`).
+
+**Prossima azione esatta (17/11, 02:30 UTC)**: confronto delle tre prove con la versione di prima; correggere; rifare le
+prove cambiate; poi versione 2026-11-17.1 (B59 + B60 + rivincita) e pacchetti.
+

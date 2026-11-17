@@ -206,6 +206,10 @@ export class RegistroStand {
     // B36.0: primo rimbalzo vero della palla dell'ultimo colpo della racchetta (l'anello del rimbalzo: lo chiama il motore a
     // ogni rimbalzo, con il punto dove la palla tocca terra, prima di decidere se è fuori)
     dopo(E, '_spawnBounceRing', (_o, x, z) => R._rimbalzo(x, z));
+    // B60: velocità del colpo della racchetta in km/h (quella scritta sopra il colpo): il motore la dà alle statistiche
+    // della partita subito dopo il colpo; va nella riga «colpo» ancora aperta di chi ha colpito (serve a ritarare il
+    // trofeo Razzo con i colpi veri: prima il registro aveva i km/h solo dei servizi)
+    if (E.natpfStats) dopo(E.natpfStats, 'shot', (_o, _E, q) => R._kmhColpo(q));
     dopo(E, '_startServeToss', (_o, _a, auto) => { const P = R.partita; if (P){ P.lanci++; if (auto) P.lanciAuto++; if (auto === 'serve') P.battuteAuto++; } });
     wrap(E, '_executeServeHit', function(orig, actor, ...rest){
       const before = E.natpfLastServe, giaInGioco = !!E.ball?.inPlay, out = orig(actor, ...rest);
@@ -421,6 +425,14 @@ export class RegistroStand {
       ...(!I.derived && Number.isFinite(I.face) ? { pf: r(I.face, 2) } : {}), ...(Number.isFinite(dev) ? { dv: r(dev, 1) } : {}), ...(Number.isFinite(O.t) ? { tu: r(O.t, 2) } : {}),
       ...(usedNewRule(O) ? { nr: 1 } : {}), ...(zp != null ? { zp } : {}),
     }), L.who === 'p2' ? 'opponent' : 'player');
+  }
+  // B60: km/h del colpo (q: le stesse cose date a natpf_match_stats.shot) nella riga aperta, se è di chi ha colpito
+  _kmhColpo(q = {}){
+    const A = this._aperto;
+    if (!A || q.serve || q.partner || A.row.kmh != null) return;
+    if ((q.role === 'p2' ? 'opponent' : 'player') !== A.chi) return;
+    const k = Math.round(+q.kmh);
+    if (Number.isFinite(k) && k > 0 && k < 400) A.row.kmh = k;
   }
   /* ---------- B36.0: il colpo aspetta il suo primo rimbalzo ---------- */
   // chi: chi ha colpito per il motore ('player' o 'opponent', come ball.lastHitter)

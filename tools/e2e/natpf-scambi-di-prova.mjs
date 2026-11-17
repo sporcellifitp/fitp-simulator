@@ -198,6 +198,14 @@ try {
     res.tutorialToTrialMs = Date.now() - tTut;
     const seen0 = await ph.evaluate(() => ({ screens: [...window.__seen.screens], bigs: [...window.__seen.bigs] }));
     check('telefono: nessun gesto di calibrazione chiesto (mai il passo dei gesti)', !seen0.screens.some(s => /^cal:(swings|shots|review|free)/.test(s)) && !seen0.bigs.some(b => /Dritto|Rovescio|Fatto|Da rifare/.test(b)), JSON.stringify(seen0));
+    // B59: prima delle palle il conto alla rovescia grande «Prima qualche scambio di prova», poi «Allenati un po'!»
+    const cnt = await pc.evaluate(() => { const U = __natpfTennis.natpfUi, el = document.getElementById('natpf-prematch'), q = s => el.querySelector(`[data-prematch="${s}"]`)?.textContent || '';
+      return { on: U.prematch.active, kind: U.prematch.kind, vis: !el.classList.contains('hidden'), title: q('title'), num: q('num'), trialHidden: document.getElementById('natpf-trial').classList.contains('hidden') }; });
+    check('B59: conto alla rovescia grande «Prima qualche scambio di prova» prima delle palle, scritta degli scambi nascosta', cnt.on && cnt.kind === 'trial' && cnt.vis && /Prima qualche scambio di prova/.test(cnt.title) && /^[123]$/.test(cnt.num) && cnt.trialHidden, JSON.stringify(cnt));
+    await shot('pc', 'conto-allenati');
+    const allenati = await until(pc, () => !__natpfTennis.natpfUi.prematch.active && /Allenati un po/.test(document.querySelector('.center-banner-text')?.textContent || ''), null, 6000);
+    check('B59: a fine conto la scritta grande «Allenati un po\'!» al centro', allenati);
+    await shot('pc', 'allenati-un-po');
     await sleep(250);
     const hud = await pc.evaluate(() => { const el = document.getElementById('natpf-trial'), c = el.querySelector('.trial-card').getBoundingClientRect(), t = el.querySelector('.trial-title'), k = el.querySelector('.trial-kicker'); return { vis: !el.classList.contains('hidden'), kicker: k.textContent, title: t.textContent, sub: el.querySelector('[data-trial="sub"]')?.textContent || '', fs: parseFloat(getComputedStyle(t).fontSize), kfs: parseFloat(getComputedStyle(k).fontSize), box: [c.left, c.top, c.right, c.bottom].map(Math.round), w: innerWidth, h: innerHeight,
       skip: (() => { const b = document.getElementById('trial-skip'), r = b.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2); return { vis: r.width > 0 && r.right <= innerWidth && r.left >= c.right - 2, overPause: top !== b, text: b.textContent }; })() }; });

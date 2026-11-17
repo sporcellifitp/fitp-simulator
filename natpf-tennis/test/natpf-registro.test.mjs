@@ -229,7 +229,7 @@ test('registro, invio: giorno non accettato (409, orologio del PC) e lettura del
 });
 
 /* ---------- registratore con un motore finto ---------- */
-function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, split = false, livello = 'adulto', nick = 'Mario Rossi', ctrl = 'phone', raf = null, tut = {} } = {}){
+function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, split = false, livello = 'adulto', nick = 'Mario Rossi', ctrl = 'phone', raf = null, tut = {}, stats = null } = {}){
   let now = 0;
   const E = {
     phase: 'MENU', autoPlayMode: true, natpfPaused: false, isMultiplayer: false, playerRole: 'p1', player: { id: 'p' }, opponent: { id: 'o' },
@@ -262,6 +262,7 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
     trial: { S: null, get active(){ return !!this.S; }, start({ split: sp = false } = {}){ if (this.S) return false; this.S = { players: Object.fromEntries((sp ? ['p1', 'p2'] : ['p1']).map(id => [id, { balls: 0 }])), result: null }; return true; },
       skip(){ if (this.S && !this.S.result) this._outro(); }, _outro(){ this.S.result = Object.fromEntries(Object.keys(this.S.players).map(id => [id, { level: 'pieno', n: { forehand: 3, backhand: 2 } }])); }, _close(){ this.S = null; } } };
   const errori = {}, win = { addEventListener: (t, fn) => { errori[t] = fn; }, screen: { width: 1920, height: 1080 }, innerWidth: 1920, innerHeight: 1080, devicePixelRatio: 1, navigator: { hardwareConcurrency: 8 }, performance: { getEntriesByType: () => [{ type: 'reload' }] } };
+  if (stats) E.natpfStats = stats;   // (B60: le statistiche della partita, a cui il motore dà i km/h dei colpi)
   const R = new RegistroStand({ engine: E, ui, coda, invio, storage, now: () => now, wallNow: () => Date.UTC(2026, 10, 14, 10, 0, 0) + now, win, raf, timers: false, programma: true });
   return { E, ui, R, coda, storage, win, errori, avanti: ms => { now += ms; }, nomi: ['Mario Rossi', 'Giulia Bianchi', 'Mario', 'Giulia'] };
 }
@@ -626,4 +627,26 @@ test('registro, B36.0: la riga del colpo dice «fuori» con la regola dell’arb
   assert.match(src, /Math\.abs\(this\.ball\.pos\.x\) > S\.SINGLES_X \+ 0\.22/); assert.match(src, /Math\.abs\(this\.ball\.pos\.z\) > S\.BASELINE_Z \+ 0\.28/);
   assert.match(src, /this\._spawnBounceRing\(this\.ball\.pos\.x, this\.ball\.pos\.z\)/);
   assert.equal(LINEE.x, 4.115 + .22); assert.equal(LINEE.z, 11.89 + .28);
+});
+
+// B60: km/h del colpo della racchetta nella riga «colpo» (il motore li dà alle statistiche della partita subito dopo il
+// colpo, mentre la riga aspetta il rimbalzo): solo di chi ha colpito, non dei servizi né del compagno, il primo valore
+test('registro, B60: la riga «colpo» porta i km/h del colpo (quelli scritti sopra il colpo), solo di chi ha colpito', async () => {
+  const visti = [], stats = { shot(E, q){ visti.push(q); } };
+  const M = mondo({ stats }), { E, ui } = M; ui.lobby.visible = false; E.startNewMatch();
+  M.avanti(3000); E._startServeToss(E.player); M.avanti(900); E._executeServeHit(E.player, {});
+  E.natpfStats.shot(E, { role: 'p1', kmh: 142, serve: true });                        // il servizio: non va nei colpi
+  M.avanti(1200); E._natpfRacketShot({ who: 'player', shot: 'forehand', power: .6, tau: .01, grade: 'Perfetto' });
+  E.natpfStats.shot(E, { role: 'p2', kmh: 70 });                                       // l'altro giocatore: non è suo
+  E.natpfStats.shot(E, { role: 'p1', kmh: 97.4, partner: true });                      // il compagno nel doppio: no
+  E.natpfStats.shot(E, { role: 'p1', kmh: 96.6 });
+  E.natpfStats.shot(E, { role: 'p1', kmh: 120 });                                      // (un secondo valore non cambia)
+  M.avanti(1200); E._natpfRacketShot({ who: 'player', shot: 'backhand', power: .5, tau: .02, grade: 'Buono' });
+  E.natpfStats.shot(E, { role: 'p1', kmh: 'boh' });                                    // valore che non è un numero: niente
+  M.avanti(800); E._awardPoint('player', 'Out');
+  M.R.secondo(); await M.R.blocco();
+  const colpi = (await tutte(M.coda)).filter(r => r.k === 'colpo');
+  assert.equal(colpi.length, 2); assert.equal(colpi[0].kmh, 97); assert.equal('kmh' in colpi[1], false);
+  assert.equal(visti.length, 6, 'le statistiche della partita ricevono tutto come prima');
+  assert.ok(F.CAMPI.includes('kmh'), 'campo già accettato dal Worker (lo usa il servizio): niente da ricaricare');
 });

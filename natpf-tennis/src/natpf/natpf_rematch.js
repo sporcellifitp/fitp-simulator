@@ -44,8 +44,9 @@ export function rematchSplitRows(names = {}, bands = {}){
   return ['p1', 'p2'].map(id => ({ id, name: String(names[id] || (id === 'p2' ? 'Player 2' : 'Player 1')), bands: BANDS.map(b => ({ band: b, label: BAND_LABEL[b], selected: bandOf(bands[id]) === b })) }));
 }
 // riga della partenza da sola (rivincita dai telefoni): '' se non c'è
+// (la differenza tra due orari con i decimali può valere 10000,000000002 ms: senza il margine diceva «tra 11 s»)
 export function rematchAutoLine(leftMs = 0){
-  const s = Math.ceil(Math.max(0, +leftMs || 0)/1000);
+  const s = Math.ceil(Math.max(0, +leftMs || 0)/1000 - 1e-6);
   return s > 0 ? `Rivincita chiesta dai telefoni: si parte da soli tra ${s} s, oppure scegli e premi «Gioca»` : '';
 }
 

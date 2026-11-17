@@ -59,8 +59,8 @@ telefono (o «Gioca ›»), a fine partita «Prossimo giocatore ›». Qui sotto
 2. Tutorial corto sul ledwall (5 schede): si chiude subito con «Tutto chiaro, ho capito» sul telefono, o con la × sul PC.
 3. «Scambi di prova»: (B59) prima il **conto alla rovescia grande** come per la partita («Preparati · Prima qualche
    scambio di prova · 3 · 2 · 1»), poi al centro la scritta grande **«Allenati un po'!»**; poi circa 10 secondi, 4 palle
-   facili. Il gioco impara il colpo di chi gioca. «Salta ›» (accanto alla pausa, in alto a destra) per andare avanti
-   (anche durante il conto).
+   facili. Il gioco impara il colpo di chi gioca. «Salta ›» (accanto alla pausa, in alto a destra, dopo il conto; dal
+   telefono anche durante il conto) per andare avanti.
 4. «Pronto per la partita»: clicca «Bambino», «Ragazzo» o «Adulto» (si parte sempre da «Adulto»). Poi **un solo clic**
    su «Gioca ›». (B47) In campo, prima del primo punto, il **conto alla rovescia grande** al centro: «Preparati · La
    partita sta per cominciare · 3 · 2 · 1» (3 secondi), poi si gioca. Di base **batte sempre chi gioca** (pannello →

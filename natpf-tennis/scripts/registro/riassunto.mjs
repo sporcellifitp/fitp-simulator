@@ -155,6 +155,9 @@ export class Riassunto {
     this.rete = { colpi: 0, aRete: 0, volee: 0, cpu: {} };   // B31
     this.movimento = { colpi: 0, corsa: 0, allungo: 0, falliti: { corsa: 0, allungo: 0, fermi: 0 } };   // B32
     this.servizio = { righe: 0, voti: {}, kmh: new Misura(), ms: new Misura(), punti: 0, lanci: 0, lanciVuoti: 0, lanciAuto: 0, battutaAuto: 0, doppiFalli: 0, ace: 0, auto: 0 };
+    // B60: km/h dei colpi in partita (dalla 2026-11-17.1) e colpo più forte di ogni giocatore in ogni partita (colpi e
+    // servizi, come «km/h, il tuo colpo più forte» della fine partita e il trofeo Razzo)
+    this.velocita = { colpi: new Misura(), maxPartita: new Misura(), conColpi: 0 };
     this.tutorial = { n: 0, chiusura: {}, durata: new Misura(), tutte: 0 }; this.cal = { n: 0, finite: 0, durata: new Misura(), prove: 0, fallite: 0, passi: {}, perche: {}, ripartenze: 0 };
     // B28: calibrazione giocando (scambi di prova), a parte da quella con i gesti
     this.prova = { n: 0, finite: 0, saltate: 0, durata: new Misura(), palle: new Misura(), livelli: {}, colpi: 0, ms: new Misura() };
@@ -216,6 +219,7 @@ export class Riassunto {
     this._direzione(r, x);
     if (r.amb === 'prova'){ this.prova.colpi++; this.prova.ms.metti(r.ms); return; }
     if (r.amb) return;                                                       // colpi dell'allenamento e dei minigiochi: fuori dalle misure di partita
+    if (Number.isFinite(r.kmh)){ this.velocita.colpi.metti(r.kmh); this._kmhMax(x, r.chi === 'a' ? 'a' : 'g', r.kmh, true); }
     const g = voce(this.gesti, r.gesto || '—', () => ({ n: 0, voti: {}, ms: new Misura(), esiti: {}, forza: new Misura() }));
     g.n++; piu(g.voti, r.voto || '—'); g.ms.metti(r.ms); piu(g.esiti, r.e || 'dentro'); g.forza.metti(r.f);
     if (r.sup){ this.sup.riusciti++; if (x.P) x.P.sup++; if (r.sup === 'calda') this.lunghi.superCaldi++; } else if (r.supNo) piu(this.sup.no, r.supNo);
@@ -226,13 +230,17 @@ export class Riassunto {
     const Mv = this.movimento, mv = r.mov === 'corsa' || r.mov === 'allungo' ? r.mov : 'fermi';
     Mv.colpi++; if (mv !== 'fermi') Mv[mv]++; if (r.e) Mv.falliti[mv]++;
   }
-  _servizio(r, x){ const S = this.servizio; if (r.fonte === 'senza gesto'){ S.senzaGesto = (S.senzaGesto || 0) + 1; return; } S.righe++; piu(S.voti, r.voto || '—'); S.kmh.metti(kmhVeri(r.kmh, x?.P?.r?.versione)); S.ms.metti(r.ms); if (r.auto) S.auto++; }
+  // B60: colpo più forte del giocatore k ('g' chi gioca, 'a' l'avversario umano) nella partita aperta
+  _kmhMax(x, k, kmh, colpo = false){ const P = x?.P; if (!P || !Number.isFinite(kmh)) return; P.kmh = P.kmh || {}; P.kmh[k] = Math.max(P.kmh[k] || 0, kmh); if (colpo) P.kmhColpi = true; }
+  _servizio(r, x){ const S = this.servizio; if (r.fonte === 'senza gesto'){ S.senzaGesto = (S.senzaGesto || 0) + 1; return; } S.righe++; piu(S.voti, r.voto || '—'); S.kmh.metti(kmhVeri(r.kmh, x?.P?.r?.versione)); this._kmhMax(x, r.chi === 'a' ? 'a' : 'g', kmhVeri(r.kmh, x?.P?.r?.versione)); S.ms.metti(r.ms); if (r.auto) S.auto++; }
   _vuoto(r){ if (!r.amb) piu(this.vuoti, r.perche || '—'); }
   _chiudi(x, r){
     const P = x.P; x.P = null; if (!P) return;
     this._dirFine(P, r);
     const T = this.partite, G = this.giorni[P.giorno], Gp = this._gruppo(P); Gp.partite++;
     this.sup.partite++; this.sup.perPartita.metti(P.sup);
+    // B60: solo le partite con i km/h dei colpi (prima solo i servizi: il massimo sarebbe sbagliato)
+    if (P.kmhColpi && P.kmh){ this.velocita.conColpi++; for (const v of Object.values(P.kmh)) this.velocita.maxPartita.metti(v); }
     if (!r){ T.senzaFine++; return; }
     const finita = r.esito === 'finita';
     if (finita){ T.finite++; G.finite++; Gp.finite++; if (r.vince === 'g') Gp.vinte++; this.durata.finite.metti(r.durS); Gp.durata.metti(r.durS); }
@@ -395,6 +403,11 @@ export function rapporto(R, L){
     `Servizi di chi gioca senza il tempo del gesto (mouse, tastiera, webcam del Player 2): ${N(sv.senzaGesto || 0)}.`,
     `Servizi di chi gioca: ${N(sv.righe)}; velocità ${mis(sv.kmh, 0, ' km/h')} (km/h veri della palla: le versioni fino alla ${KMH_VECCHI_FINO_A} li scrivevano × 1,89 e qui sono già riportati); errore di tempo medio ${N(sv.ms.media)} ms.`,
   ], [{ titolo: 'Voto del servizio', colonne: ['Voto', 'Volte', 'Quota'], righe: elenco(sv.voti, sv.righe) }]);
+  const ve = R.velocita;
+  sez('Velocità dei colpi (B60, trofeo Razzo)', ve.colpi.n ? [
+    `Colpi in partita con i km/h: ${N(ve.colpi.n)}; velocità ${mis(ve.colpi, 0, ' km/h')}.`,
+    `Colpo più forte di ogni giocatore in ogni partita (colpi e servizi; ${N(ve.conColpi)} partite): ${mis(ve.maxPartita, 0, ' km/h')}; 1 su 4 sopra ${N(ve.maxPartita.p(.75), 0)} km/h. Per le soglie del Razzo (bronzo, argento, oro) si guardano la metà, i tre quarti e i 9 su 10.`,
+  ] : ['Nessun colpo con i km/h: il registro è di una versione prima della 2026-11-17.1 (i km/h dei colpi in partita ci sono da allora).']);
   const tu = R.tutorial, ca = R.cal;
   sez('Tutorial e calibrazione', [
     `Tutorial: ${N(tu.n)}; visto tutto ${pc(tu.tutte, tu.n)}; durata ${mis(tu.durata, 0, ' s')}.`,

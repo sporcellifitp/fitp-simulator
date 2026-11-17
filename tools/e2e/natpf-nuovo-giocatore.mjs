@@ -140,18 +140,10 @@ try {
   const after = await who(g), phA = await phoneState(ph);
   check('A3. «Nuovo giocatore»: nome, tutorial visto, calibrazione e colpo tipico azzerati, mano «Destra»', after.nick === '' && !after.tutSeen && !after.ready && !after.profile && after.typical == null && after.hand === 'right', JSON.stringify(after));
   check('   telefono ancora collegato, stesso abbinamento (niente QR da rifare), in attesa del tutorial', after.connected && after.pairs === pairs0 && after.link === 'connected' && phA.link === 'on' && phA.screen === 'tutorial', JSON.stringify({ after, phA }));
-  const nickV = await g.evaluate(() => ({ open: !document.getElementById('natpf-nick').classList.contains('hidden'), hand: !document.getElementById('nick-hand').classList.contains('hidden'), title: document.getElementById('nick-title').textContent, skip: !document.getElementById('nick-cancel').classList.contains('hidden'), guest: !document.getElementById('nick-guest').classList.contains('hidden') && document.getElementById('nick-guest').getBoundingClientRect().width > 0 }));
-  // (B38: «Gioca come Ospite» accanto al campo al posto di «Salta»)
-  check('   passo del nome con la mano («Come ti chiami?», «Gioca come Ospite» al posto di «Salta»)', nickV.open && nickV.hand && nickV.title === 'Come ti chiami?' && !nickV.skip && nickV.guest, JSON.stringify(nickV));
-  await shot('A3-nome-1280');
-  await g.setViewportSize({ width: 1024, height: 600 }); await sleep(500);
-  const nick600 = await g.evaluate(() => { const r = document.querySelector('#nick-form .sheet-actions').getBoundingClientRect(), h = document.getElementById('nick-hand').getBoundingClientRect(); return { actions: r.bottom <= innerHeight, hand: h.height > 0 && h.bottom <= innerHeight }; });
-  check('   1024×600: passo del nome con la mano e i pulsanti in vista', nick600.actions && nick600.hand, JSON.stringify(nick600));
-  await shot('A3-nome-1024x600');
-  await g.setViewportSize({ width: 1280, height: 720 }); await sleep(300);
-  await g.fill('#nick-input', 'Bea');
-  await g.click('#nick-hand [data-natpf-hand="right"]');
-  await g.click('#nick-form button[type="submit"]');
+  // B54.2 (16/11): con il telefono che chiede il nome, «Nuovo giocatore» non apre la tastiera del PC: il nome lo scrive il
+  // visitatore sul telefono prima di «Sono pronto» (sotto, sulla pagina «Partita»)
+  const nickV = await g.evaluate(() => ({ open: !document.getElementById('natpf-nick').classList.contains('hidden'), asks: !!__natpfTennis.natpfPhone.asksName }));
+  check('   B54.2: niente nome sulla tastiera del PC, lo chiede il telefono', !nickV.open && nickV.asks, JSON.stringify(nickV));
   const tut2 = await until(g, () => __natpfTennis.natpfUi.training.active && __natpfTennis.natpfUi.training.tutorialOpen, null, 15000);
   const cards2 = await g.evaluate(() => document.querySelectorAll('#natpf-tutorial .tut-dot').length);
   check('A4. Bea: in campo di nuovo il tutorial corto (5 schede), il telefono lo aspetta', tut2 && cards2 === 5 && (await phoneState(ph)).screen === 'tutorial', `schede ${cards2}`);
@@ -159,6 +151,11 @@ try {
   await ph.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await seeAllCards(ph); await ph.click('#tutOk');
   check(GESTI ? '   la calibrazione di Bea (destra) dal primo gesto' : '   (calibrazione di base) telefono di Bea pronto senza gesti', await calibrate(ph, QUICK_PLAN));
   check('   poi la pagina «Partita»', await until(g, () => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'match', null, 20000));
+  // B54: il nome di Bea dal telefono, prima di «Sono pronto»
+  const askB = await ph.waitForSelector('#nameBox:not(.hidden)', { timeout: 15000 }).then(() => true, () => false);
+  check('   B54: il telefono chiede «Come ti chiami?» (campo vuoto per la persona nuova)', askB && (await ph.inputValue('#nameInput')) === '');
+  await ph.fill('#nameInput', 'Bea'); await ph.click('#nameOk');
+  check('   nome di Bea arrivato dal telefono', await until(g, () => __natpfTennis.natpfUi.events.nickname === 'Bea', null, 8000));
   const bea = await who(g);
   check('   Bea: nome, mano destra, tutorial visto, calibrata, sempre lo stesso abbinamento', bea.nick === 'Bea' && bea.hand === 'right' && bea.tutSeen && bea.ready && bea.profile && bea.pairs === pairs0, JSON.stringify(bea));
   await ph.close();
