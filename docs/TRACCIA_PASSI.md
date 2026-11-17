@@ -1576,5 +1576,9 @@ Prove nel browser: le `natpf-*` si lanciano da sole; `natpf-telefono-bloccato` e
       animata della fine partita (`docs/b61/fine-partita-17-2.webp`).
 
 **Prossima azione esatta (17/11, 09:30 UTC)**: aspettare l'utente: registro del 17/11 (sezioni B46 e «Dritto e
-rovescio dalla parte della palla»), la sua mano, il video; Worker da ricaricare (ora anche per `pl`).
+rovescio dalla parte della palla»), la sua mano, il video; Worker da ricaricare solo per `pl` della 17.2.
+
+Verifica del 17/11, 09:40 UTC: la pagina pubblica del Worker (`natpf-registro…workers.dev`, senza chiave) ha già i nuovi
+tentativi su 500/502/503 e la colonna «Partite»: **la ricarica dell'8cf2561 (503) l'utente l'ha già fatta**. Resta da
+ricaricare solo per il campo `pl` (dalla 17.2); senza, il Worker lo scarta e tiene la riga.
 

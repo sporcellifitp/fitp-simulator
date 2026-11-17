@@ -65,8 +65,9 @@ Quello che si è controllato:
 +1 destra, −1 sinistra, 0 entro 0,3 m), accanto a `lato` (parte del corpo del colpo). Il riassunto ha la sezione
 **«Dritto e rovescio dalla parte della palla (17/11)»**: quanti colpi dalla parte opposta alla palla, per giocatore, e
 quante partite con **3 di fila** dello stesso giocatore (verso girato, non un colpo voluto). Da leggere con le tabelle
-«Mano cambiata» e «Segno del verso del telefono cambiato» del B46. Il campo nuovo va nel Worker con la ricarica già in
-sospeso (prima della ricarica il Worker lo scarta e tiene la riga).
+«Mano cambiata» e «Segno del verso del telefono cambiato» del B46. Il campo nuovo chiede una ricarica del Worker (la
+correzione del 503 è già su: verificato il 17/11 dalla pagina pubblica); prima della ricarica il Worker lo scarta e tiene
+la riga.
 
 **Serve dall'utente**: il registro del 17/11 (le tabelle del B46 dicono già se il segno o la mano sono cambiati in
 partita), la mano con cui gioca e, se c'è, il video.
