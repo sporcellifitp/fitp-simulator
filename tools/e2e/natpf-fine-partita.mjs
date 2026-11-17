@@ -308,6 +308,9 @@ try {
       check('C1d. 17/11: nello stesso schermo una Drop e una Lob (Drop su Giulia, Player 1; Lob su Marco, Player 2), tutte e due animate e in movimento', v.mascots.length === 2
         && v.mascots.find(x => x.side === 'player')?.who === 'drop' && v.mascots.find(x => x.side === 'opponent')?.who === 'lob' && v.mascots.every(x => /^natpf-mascot-/.test(x.anim))
         && mv.length === 2 && mv.every(T => Math.max(T.dx, T.dy) >= 4 || T.smax - T.smin >= .04), JSON.stringify({ m: v.mascots, mv }));
+      // (FRAMES=cartella: fotogrammi delle due card ogni 80 ms per un'anteprima animata da mostrare all'utente)
+      if (process.env.FRAMES){ const { mkdirSync } = await import('node:fs'); mkdirSync(process.env.FRAMES, { recursive: true });
+        for (let i = 0; i < 40; i++){ await g.locator('#victory-cards').screenshot({ path: `${process.env.FRAMES}/f${String(i).padStart(2, '0')}.png` }); await sleep(80); } }
     }
     check(`C2. stesso schermo ${w}×${h}: tutta nello schermo, niente tagliato né sovrapposto`, v.inView && !v.scroll && !v.clipped.length && !v.overlap, JSON.stringify({ inView: v.inView, scroll: v.scroll, clipped: v.clipped, overlap: v.hits }));
     await shot(`split-${w}x${h}`);

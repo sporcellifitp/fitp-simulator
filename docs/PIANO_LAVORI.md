@@ -17,13 +17,12 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 17/11/2026, 10:30 UTC (versione 2026-11-17.2, in pubblicazione).** B61, collaudo dell'utente sul
+**Checkpoint del 17/11/2026, 09:30 UTC (versione 2026-11-17.2 pubblicata e verificata).** B61, collaudo dell'utente sul
 ledwall (`docs/b61/collaudo-17-11.md`): mascotte Drop sul Player 1 e Lob sul Player 2, sempre animate con la figura che
 salta e fa passi; nello stesso schermo anello a terra anche per il Player 2 e TORINO dritto nelle due metà; campo `pl` nel
 registro per misurare dritto e rovescio dalla parte opposta alla palla (non riprodotto). Gioco 1800/1800, sito 282/282,
-LAN 13/13, desktop 56/56, build; nel browser fine-partita 68/68, stesso-schermo-b25 57/57. **Prossima azione esatta:**
-dopo il push, workflow Windows (installer della 17.2 da R2, sha256), zip Cloudflare provato estratto, consegna; poi
-aspettare l'utente (registro del 17/11 per dritto e rovescio, Worker da ricaricare: ora anche per `pl`).
+LAN 13/13, desktop 56/56, build; nel browser fine-partita 68/68, stesso-schermo-b25 57/57. Pacchetti: installer
+`f3788fa9…ca2d` da R2, zip `a0fc630f…f89a` provato estratto. **Prossima azione esatta:** aspettare l'utente (registro del 17/11 per dritto e rovescio, Worker da ricaricare: ora anche per `pl`).
 
 **Checkpoint del 17/11/2026, 05:00 UTC (versione 2026-11-17.1).** B59 conto «Allenati un po'!» prima degli scambi di
 prova; B60 km/h dei colpi nel registro (trofeo Razzo); correzioni: rivincita «tra 11 s», blocco del telefono che copriva

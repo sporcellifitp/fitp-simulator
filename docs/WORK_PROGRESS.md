@@ -2542,6 +2542,8 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1800/1800 (nuovi: `natpf-stand-17-11` 4, `natpf-b58-mascotte` +2, registro +1, riassunto +1), sito
   282/282, LAN 13/13, desktop 56/56, build (22 file in `dist/media/mascotte`); nel browser `natpf-fine-partita` 68/68,
   `natpf-stesso-schermo-b25` 57/57 (schermata con TORINO dritto nelle due metà e l'anello del Player 2).
+- Pacchetti (`d8183f1`): installer 131.379.955 B, sha256 `f3788fa9…ca2d` (= `latest.json`); zip 23.955.734 B, sha256
+  `a0fc630f…f89a`, provato estratto. Prova `natpf-fine-partita` con `FRAMES=cartella` per i fotogrammi dell'anteprima.
 - Non verificato: ledwall, Windows vero con «riduci movimento», telefoni veri; dritto e rovescio non riprodotto.
 
 ## Versione 2026-11-17.1 (17/11/2026): B59, B60 e correzioni

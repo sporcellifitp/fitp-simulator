@@ -86,6 +86,10 @@ computer» (il Player 1): nella metà del Player 2, che guarda dall'altra parte,
 `viewFrom(null)`), anche se il disegno si interrompe. Il resto della metà del Player 2 è la vista da dietro di lui, come
 dal B20 (non è specchiata: la sua destra è a destra).
 
+![Fine partita nello stesso schermo: Lob sul Player 2, Drop sul Player 1, in movimento](fine-partita-17-2.webp)
+
+![Stesso schermo: TORINO dritto nelle due metà, anello verde del colpo del Player 2](stesso-schermo-torino-anello.webp)
+
 ## Prove
 
 - `test/natpf-stand-17-11.test.mjs` (4): giro delle scritte per la sola metà del Player 2 (ordine, ritorno, errore nel
@@ -98,6 +102,11 @@ dal B20 (non è specchiata: la sua destra è a destra).
 - Nel browser: `natpf-fine-partita` 68/68 (+2: figura in movimento, Drop e Lob nello stesso schermo),
   `natpf-stesso-schermo-b25` 57/57 (+2: TORINO e anello del Player 2, schermata `3c-torino-e-anello-del-player2`).
 - Gioco 1800/1800, sito 282/282, LAN 13/13, desktop 56/56, build.
+
+**Pacchetti della 17.2** (`d8183f1`, tre workflow verdi): installer dal link fisso = `latest.json` (131.379.955 B, sha256
+`f3788fa9cae637d4b2d537d731002eef98c0e7ef8df2681c0eb91ec4ae66ca2d`, primo in `windows/versioni.json`); zip Cloudflare
+23.955.734 B, sha256 `a0fc630ff40ff5254c28d8656bb3772de9aa9780f6a43262839c079df408f89a`, provato estratto (versione
+giusta, nessun errore, senza la cartella delle mascotte).
 
 **Non provato**: ledwall e programma Windows vero (con «riduci movimento» acceso: provato solo che il codice non lo
 legge più), telefoni veri; il punto 3 non è riprodotto.

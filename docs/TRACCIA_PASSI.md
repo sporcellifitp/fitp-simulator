@@ -1564,15 +1564,17 @@ Prove nel browser: le `natpf-*` si lanciano da sole; `natpf-telefono-bloccato` e
 
 **Prossima azione esatta (17/11, 07:40 UTC)**: aspettare l'utente (punti 1–4 qui sopra).
 
-## 17/11, 10:30 UTC · B61 collaudo dello stand, versione 2026-11-17.2
+## 17/11, 09:10 UTC · B61 collaudo dello stand, versione 2026-11-17.2
 
 - [x] Quattro segnalazioni dell'utente sulla 17.1 (foto del ledwall): `docs/b61/collaudo-17-11.md`. Mascotte Drop e Lob per
       parte, sempre animate con la figura che si muove; stesso schermo: anello del Player 2 e TORINO dritto; `pl` nel
       registro per dritto e rovescio (non riprodotto). Prove: gioco 1800/1800, sito 282/282, LAN 13/13, desktop 56/56,
       build; nel browser fine-partita 68/68, stesso-schermo-b25 57/57.
-- [~] Commit e push della 17.2, poi pacchetti: installer da R2 (sha256 da `latest.json`), zip Cloudflare provato estratto.
+- [x] Pacchetti della 17.2 (`d8183f1`, tre workflow verdi): installer dal link fisso = `latest.json` (131.379.955 B, sha256
+      `f3788fa9cae637d4b2d537d731002eef98c0e7ef8df2681c0eb91ec4ae66ca2d`); zip 23.955.734 B, sha256
+      `a0fc630ff40ff5254c28d8656bb3772de9aa9780f6a43262839c079df408f89a`, provato estratto, consegnato con l'anteprima
+      animata della fine partita (`docs/b61/fine-partita-17-2.webp`).
 
-**Prossima azione esatta (17/11, 10:30 UTC)**: se il commit della 17.2 è su GitHub, controllare i workflow e i pacchetti;
-altrimenti rifare le prove e fare commit e push. Poi aspettare l'utente: registro del 17/11 (sezioni B46 e «Dritto e
+**Prossima azione esatta (17/11, 09:30 UTC)**: aspettare l'utente: registro del 17/11 (sezioni B46 e «Dritto e
 rovescio dalla parte della palla»), la sua mano, il video; Worker da ricaricare (ora anche per `pl`).
 
