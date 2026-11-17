@@ -1645,3 +1645,9 @@ programma Windows e decidere Lob e Drop anche con i Classici); registro del 17/1
 di salvaschermo, ridondanze e classifica di fine partita. Punto aperto: il controllo dei piedi in corsa di
 `tools/e2e/natpf-lob-drop.mjs` (3,08 % contro 3 %) fallisce già sulla 17.3.
 
+## 17/11, 19:00 UTC · Worker del registro
+
+- [x] L'utente: «stamattina mi pare di averlo già fatto» (ricarica del Worker con il file della 17.2, campo `pl`). Da
+      confermare con il prossimo scarico del registro: le righe «colpo» dalla 17.2 devono avere `pl`; se mancano, il Worker
+      ha ancora la versione del 16/11 e va ricaricato una volta.
+
