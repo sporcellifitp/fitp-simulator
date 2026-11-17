@@ -17,7 +17,7 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-**Checkpoint del 17/11/2026, 13:30 UTC (versione 2026-11-17.3, in pubblicazione).** B62 salvaschermo (`docs/b62/salvaschermo.md`):
+**Checkpoint del 17/11/2026, 14:00 UTC (versione 2026-11-17.3 pubblicata e verificata: installer `a6cbc2ba…fa21`, zip `7540d176…6ee5`).** B62 salvaschermo (`docs/b62/salvaschermo.md`):
 dopo 1 min senza nessuno al menu la partita dimostrativa a schermo intero, si chiude con mouse, tasto, tocco o telefono;
 voce «Salvaschermo» nel pannello dello stand. Analisi delle ridondanze (`docs/analisi/ridondanze-2026-11-17.md`): proposte
 da approvare. Gioco 1808/1808, sito 282/282, LAN 13/13, desktop 56/56, build; nel browser salvaschermo 21/21, stesso

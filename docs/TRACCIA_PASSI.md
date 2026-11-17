@@ -1587,10 +1587,12 @@ ricaricare solo per il campo `pl` (dalla 17.2); senza, il Worker lo scarta e tie
 - [x] Salvaschermo (`docs/b62/salvaschermo.md`) e analisi delle ridondanze (`docs/analisi/ridondanze-2026-11-17.md`).
       Prove: gioco 1808/1808, sito 282/282, LAN 13/13, desktop 56/56, build; nel browser salvaschermo 21/21, b25 57/57,
       b20 52/52, stand-layout 8/8, solo-mouse 42/42, pannello-partita 25/25.
-- [~] Commit e push della 17.3, poi pacchetti (installer da R2, zip provato estratto).
-- [ ] Mascotte 3D native (domanda dell'utente): anteprima con i ritratti 3D del B40.6 (`tools/e2e/natpf-fine-partita-ritratti.mjs`,
-      parte B, fogli `foglio-lobdrop-*.png`), poi decisione dell'utente.
+- [x] Pacchetti della 17.3 (`b96f283`, tre workflow verdi): installer dal link fisso = `latest.json` (131.354.343 B, sha256
+      `a6cbc2baf42c1d8a32834d173275911177f8f73a0b0429648e395bac7b80fa21`); zip 23.957.559 B, sha256
+      `7540d176c0d364345f934991422f2d6aaf32042718f57e0909aacc385f556ee5`, provato estratto (salvaschermo spento online).
+- [x] Anteprima delle mascotte 3D native di oggi (ritratti del B40.6, Drop esulta e Lob applaude):
+      `docs/analisi/mascotte-3d-attuali.webp`. Decisione all'utente.
 
-**Prossima azione esatta (17/11, 13:30 UTC)**: se il commit della 17.3 è su GitHub, controllare workflow e pacchetti;
-altrimenti rifare le prove e fare commit e push. Poi l'anteprima delle mascotte 3D.
+**Prossima azione esatta (17/11, 14:00 UTC)**: aspettare l'utente: mascotte (GIF di oggi, 3D di oggi, 3D con animazioni
+nuove), proposte delle ridondanze, registro del 17/11.
 
