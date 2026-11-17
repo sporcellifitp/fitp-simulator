@@ -51,6 +51,7 @@ import { resetVisitor } from './natpf_new_player.js';
 import { NatpfTrial } from './natpf_trial.js';
 import { readCalMode } from './natpf_trial_learn.js';
 import { NatpfTastiera } from './natpf_tastiera.js';
+import { NatpfScreensaver } from './natpf_screensaver.js';   // B62
 import { NatpfStandMouse } from './natpf_stand_mouse.js';
 // B47: conto alla rovescia grande prima del primo punto (natpf_prematch.js)
 import { NatpfPrematch } from './natpf_prematch.js';
@@ -95,6 +96,9 @@ export class NatpfUi {
     // B38: tastiera a schermo per i campi di testo (stand con il solo mouse). Presto, così Esc e i tasti veri la vedono
     // prima del menu e dei fogli
     this.tastiera = new NatpfTastiera();
+    // B62: salvaschermo con la partita dimostrativa. Presto anche lui: il tocco o il tasto che lo chiude non deve arrivare
+    // al menu (pulsante sotto, «Invio avanti»)
+    this.screensaver = new NatpfScreensaver(engine, this);
     // calibrazione dello schermo (Opzioni → Schermo → «Calibra lo schermo…»): alla chiusura si torna al suo pulsante
     this.calibra = new NatpfCalibra(this.screen, {
       toast: t => this.toast(t),
@@ -281,10 +285,11 @@ export class NatpfUi {
     // caldo» si tolgono subito (restavano sotto il riquadro della pausa) e tornano da sole alla ripresa
     if (this.engine.natpfPaused){ this.serveCoach?.paint(null); this.hotRally?.hide(); }
   }
-  tick(dt = 1/60){ this.partnerRing.update(); this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.cue.update(dt); this.serveMark.update(dt); this.superHint.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); }
+  tick(dt = 1/60){ this.partnerRing.update(); this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.cue.update(dt); this.serveMark.update(dt); this.superHint.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); this.screensaver?.tick(); }
   // sfondo fermo dell'arena dietro il menu (motore: _natpfBackdropFrame). Il Player 2 dell'invito vede l'arena viva
   // (riceve lo stato dell'host), e in campo (riscaldamento, sfide) il gioco gira
-  menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && !this.trial?.active && this.engine.playerRole !== 'p2'; }
+  // (B62: con il salvaschermo acceso il menu resta aperto sotto ma il motore gioca la partita dimostrativa)
+  menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && !this.trial?.active && this.engine.playerRole !== 'p2' && !this.screensaver?.on; }
   // esito dei colpi del giocatore locale: anello colorato, allenamento; il valore torna al telefono (vibrazione)
   feedback(e = {}){
     // stesso schermo: il Player 2 ha il suo anello a terra (17/11), il resto è di chi gioca qui (il suo esito al telefono

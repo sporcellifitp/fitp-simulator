@@ -36,6 +36,8 @@ import { TwoStep } from './natpf_confirm.js';
 // B38: «Tastiera a schermo: Automatica · Sempre · Mai» (natpf_tastiera.js), di base «Automatica»
 import { readOskMode, writeOskMode, nextOskMode, oskButton, oskToast } from './natpf_tastiera.js';
 import { HoldPress } from './natpf_hold.js';
+// B62: «Salvaschermo: Dopo 1 min · Dopo 2 min · Dopo 5 min · No» (natpf_screensaver.js)
+import { readSaver, nextSaver, saverButton, saverToast } from './natpf_screensaver.js';
 // B46: chi arriva dopo parte destro (Player 1 e Player 2), come con «Nuovo giocatore»
 import { resetHands } from './natpf_hand.js';
 // B47: «Battuta: Sempre lo stesso · Alternata» (natpf_battuta.js), di base «Sempre lo stesso»
@@ -351,6 +353,11 @@ export class NatpfKiosk {
       ui.toast?.(serveRuleToast(rule, forced));
       ui.diag?.recorder?.log?.('stand.battuta', { regola: rule, indirizzo: forced });
     }
+    if (cmd === 'saver'){
+      const S = ui.screensaver, v = S ? S.setSecs(nextSaver(S.secs)) : 0;
+      ui.toast?.(saverToast(v));
+      ui.diag?.recorder?.log?.('stand.salvaschermo', { dopo: v });
+    }
     if (cmd === 'open'){
       const on = writeOpenCourt(!readOpenCourt());
       ui.toast?.(openCourtToast(on));
@@ -389,6 +396,7 @@ export class NatpfKiosk {
     const hot = readHotRally(); set('hot', hotButton(hot), hot);
     const auto = readAutoToss(); set('autotoss', autoTossButton(auto), auto);
     const open = readOpenCourt(); set('open', openCourtButton(open), open);
+    const sv = this.ui.screensaver?.secs ?? readSaver(); set('saver', saverButton(sv), sv > 0);
     // (B41.3: con la modalità fiera «Giocando (fiera)», con il perché nella riga sotto le voci: il title)
     const cal = readSavedCalMode(), calFair = fon && !calModeFromUrl() && cal === 'play';
     set('cal', calFair ? FAIR_CAL_BUTTON : calModeButton(cal, !!calModeFromUrl()), calFair || cal === 'play');

@@ -2530,6 +2530,19 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Verifiche: gioco 1768/1768, sito 280/280, LAN 13/13, desktop 56/56, build.
 - Non verificato: i contatori ricostruiti dal registro sono un'approssimazione di quelli del gioco.
 
+## B62 · Salvaschermo e analisi delle ridondanze, versione 2026-11-17.3 (17/11/2026)
+
+- [x] Richiesta dell'utente: «dopo un periodo di inattività sul ledwall vorrei mettere un finto gameplay in loop.
+  Inattività di almeno 1 minuto che si sblocca come screensaver». Documento `docs/b62/salvaschermo.md`.
+- File: `natpf_screensaver.js` (nuovo), `natpf_ui.js`, `natpf_kiosk.js`, `index.html` (voce «Salvaschermo» del pannello),
+  `natpf-ui.css`; prove `test/natpf-b62-salvaschermo.test.mjs` (8), `tools/e2e/natpf-salvaschermo.mjs` (21); prove dello
+  stesso schermo b20 e b25 con il pannello a diciannove voci; versione 2026-11-17.3.
+- [x] Analisi delle ridondanze (richiesta dell'utente: fascia ripetuta): `docs/analisi/ridondanze-2026-11-17.md`; nessun
+  cambiamento, proposte da approvare.
+- Verifiche: gioco 1808/1808, sito 282/282; nel browser salvaschermo 21/21, stand-layout 8/8 (1024×600 e 1920×540, rapide),
+  solo-mouse 42/42, pannello-partita 25/25, stesso-schermo-b25 57/57, stesso-schermo-b20 52/52; LAN 13/13, desktop 56/56, build.
+- Non verificato: ledwall e programma Windows vero (qui il disegno è senza GPU), telefoni veri appoggiati sul tavolo.
+
 ## B61 · Collaudo dello stand del 17/11, versione 2026-11-17.2 (17/11/2026)
 
 - [x] Segnalazioni dell'utente (foto del ledwall, stesso schermo, Lob & Drop): due Lob a fine partita, mascotte ferme,

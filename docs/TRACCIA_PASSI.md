@@ -1582,3 +1582,15 @@ Verifica del 17/11, 09:40 UTC: la pagina pubblica del Worker (`natpf-registro…
 tentativi su 500/502/503 e la colonna «Partite»: **la ricarica dell'8cf2561 (503) l'utente l'ha già fatta**. Resta da
 ricaricare solo per il campo `pl` (dalla 17.2); senza, il Worker lo scarta e tiene la riga.
 
+## 17/11, 13:30 UTC · B62 salvaschermo e analisi delle ridondanze, versione 2026-11-17.3
+
+- [x] Salvaschermo (`docs/b62/salvaschermo.md`) e analisi delle ridondanze (`docs/analisi/ridondanze-2026-11-17.md`).
+      Prove: gioco 1808/1808, sito 282/282, LAN 13/13, desktop 56/56, build; nel browser salvaschermo 21/21, b25 57/57,
+      b20 52/52, stand-layout 8/8, solo-mouse 42/42, pannello-partita 25/25.
+- [~] Commit e push della 17.3, poi pacchetti (installer da R2, zip provato estratto).
+- [ ] Mascotte 3D native (domanda dell'utente): anteprima con i ritratti 3D del B40.6 (`tools/e2e/natpf-fine-partita-ritratti.mjs`,
+      parte B, fogli `foglio-lobdrop-*.png`), poi decisione dell'utente.
+
+**Prossima azione esatta (17/11, 13:30 UTC)**: se il commit della 17.3 è su GitHub, controllare workflow e pacchetti;
+altrimenti rifare le prove e fare commit e push. Poi l'anteprima delle mascotte 3D.
+

@@ -1622,3 +1622,13 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   `lato` dice i colpi dalla parte opposta alla palla; riassunto «Dritto e rovescio dalla parte della palla (17/11)». Campo
   nuovo nella lista dei campi (non in fondo: le prove del Worker «di prima» tolgono quelli del B36.0 dalla coda).
 
+## B62 · Salvaschermo (17/11/2026; documento `docs/b62/salvaschermo.md`, versione 2026-11-17.3)
+- `natpf_screensaver.js`: dopo `secs` (60 · 120 · 300 · 0 = spento; di base 60 nel programma Windows e in sviluppo, 0 nel
+  browser) senza attività del chiosco (`natpf_kiosk.last`: PC e telefoni) e con il menu aperto (qualunque pagina), la partita
+  dimostrativa del motore (`autoPlayMode`, `_setupMidRallyShowcase`) gira a schermo intero sotto una fascia; il menu resta
+  aperto e nascosto (classe `natpf-salvaschermo` sulla radice), `menuBackdrop()` è falso mentre è acceso.
+- Il risveglio sta in cattura sulla finestra ed è creato prima del menu (`NatpfUi`, subito dopo la tastiera a schermo): il
+  gesto che sveglia e il resto dello stesso gesto per 0,5 s non arrivano alla pagina. Chi aggiunge un ascoltatore in
+  cattura sulla finestra prima di lui deve sapere che lo vede anche durante il salvaschermo.
+- Chi aggiunge un foglio o uno stato che non va coperto lo mette in `saverBusy`.
+

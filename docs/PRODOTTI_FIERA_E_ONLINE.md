@@ -57,6 +57,9 @@ Registro delle richieste in §3.
 | 17/11 | Mascotte: una Drop e una Lob (Drop sul Player 1, Lob sul Player 2), animate e non ferme (B61) | FIERA | fatto, 17.2 (`docs/b61/collaudo-17-11.md`) |
 | 17/11 | Stesso schermo: anello a terra anche per il Player 2, TORINO dritto nelle due metà (B61) | FIERA (vale anche online: stesso gioco) | fatto, 17.2 |
 | 17/11 | Dritto e rovescio «invertiti a volte» (B61) | FIERA | non riprodotto; misura nuova nel registro (`pl`), serve il registro del 17/11 |
+| 17/11 | Salvaschermo: partita dimostrativa dopo 1 min senza nessuno (B62) | FIERA (online spento di base) | fatto, 17.3 (`docs/b62/salvaschermo.md`) |
+| 17/11 | Analisi delle ridondanze (fascia, mano, nome, impostazioni doppie) | ENTRAMBE | analisi fatta (`docs/analisi/ridondanze-2026-11-17.md`), proposte da approvare |
+| 17/11 | Mascotte con i modelli 3D di Lob e Drop invece delle GIF | FIERA | da decidere: si può (B40.6 li fotografa già), serve la scelta dell'utente |
 | 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)

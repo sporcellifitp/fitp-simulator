@@ -17,6 +17,14 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 17/11/2026, 13:30 UTC (versione 2026-11-17.3, in pubblicazione).** B62 salvaschermo (`docs/b62/salvaschermo.md`):
+dopo 1 min senza nessuno al menu la partita dimostrativa a schermo intero, si chiude con mouse, tasto, tocco o telefono;
+voce «Salvaschermo» nel pannello dello stand. Analisi delle ridondanze (`docs/analisi/ridondanze-2026-11-17.md`): proposte
+da approvare. Gioco 1808/1808, sito 282/282, LAN 13/13, desktop 56/56, build; nel browser salvaschermo 21/21, stesso
+schermo b25 57/57 e b20 52/52, stand-layout 8/8, solo-mouse 42/42, pannello-partita 25/25. **Prossima azione esatta:**
+dopo il push, workflow Windows (installer della 17.3 da R2, sha256) e zip provato estratto; poi le mascotte 3D native
+(anteprima con i ritratti 3D del B40.6, decisione dell'utente) e le risposte sulle proposte delle ridondanze.
+
 **Checkpoint del 17/11/2026, 09:30 UTC (versione 2026-11-17.2 pubblicata e verificata).** B61, collaudo dell'utente sul
 ledwall (`docs/b61/collaudo-17-11.md`): mascotte Drop sul Player 1 e Lob sul Player 2, sempre animate con la figura che
 salta e fa passi; nello stesso schermo anello a terra anche per il Player 2 e TORINO dritto nelle due metà; campo `pl` nel
