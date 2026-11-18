@@ -24,7 +24,7 @@ import { cardModel } from './natpf_end_card.js';
 import { castLooks, getCast } from './natpf_personaggi.js';
 import { updateNatpfCharacters } from './natpf_character.js';
 // B63: mascotte 3D con animazioni nuove (interruttore finché l'utente non approva l'anteprima)
-import { CARD_LOOP, CARD_K, CARD_K_LOW, cardMovesOn, pickCardMove, applyCardMove } from './natpf_card_moves.js';
+import { CARD_LOOP, CARD_K, CARD_K_LOW, cardsUse3d, pickCardMoves, applyCardMove } from './natpf_card_moves.js';
 // B67: effetti intorno alla mascotte (Aura, nuvoletta) e faccia triste, pronti prima della fotografia
 import { createCardFx } from './natpf_card_fx.js';
 import { ensureSadFace } from './natpf_mascot_face.js';
@@ -146,8 +146,10 @@ export class NatpfRitratti {
     if (!model?.cards?.length){ this.last = { m, state: 'idle' }; return; }
     const db = E.renderer.getDrawingBufferSize(new THREE.Vector2()), size = frameSize({ canvasW: db.x, canvasH: db.y });
     // B63: con i movimenti nuovi un movimento per card (dal suo esito), un giro più lungo e più fotogrammi
-    const moves = cardMovesOn(), period = moves ? CARD_LOOP : CHEER_PERIOD, K = moves ? (this.K === PORTRAIT_K_LOW ? CARD_K_LOW : CARD_K) : this.K;
-    const items = model.cards.map(c => ({ side: c.side, actor: c.side === 'opponent' ? E.opponent : E.player, color: c.art, k: 0, warm: 0, box: null, move: moves ? pickCardMove(c.won ? 'win' : 'lose') : null, t: 0 }))
+    // (B69: accesi di base, solo con Lob e Drop in campo: cardsUse3d; due card mai con lo stesso movimento)
+    const moves = cardsUse3d(model), period = moves ? CARD_LOOP : CHEER_PERIOD, K = moves ? (this.K === PORTRAIT_K_LOW ? CARD_K_LOW : CARD_K) : this.K;
+    const picked = moves ? pickCardMoves(model.cards.map(c => (c.won ? 'win' : 'lose'))) : [];
+    const items = model.cards.map((c, i) => ({ side: c.side, actor: c.side === 'opponent' ? E.opponent : E.player, color: c.art, k: 0, warm: 0, box: null, move: picked[i] || null, t: 0 }))
       .filter(it => it.actor?.root && it.actor.rig);
     if (!items.length){ this.last = { m, state: 'idle' }; return; }
     for (const it of items){

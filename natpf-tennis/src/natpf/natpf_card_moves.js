@@ -7,9 +7,13 @@
 // indietro, giravolta, saltelli, con i piedi che si alzano a ogni passo. Il giro dura CARD_LOOP (3 periodi del salto,
 // 2,05 s) ed è chiuso: l'ultimo fotogramma si attacca al primo.
 // Solo disegno durante la fotografia: il personaggio torna al suo posto subito dopo (natpf_ritratti._release).
-// Interruttore (finché l'utente non approva l'anteprima): ?mascotte3d=1 nell'indirizzo o localStorage
-// natpf-tennis.mascotte3d = '1'; spento resta tutto come la 17.3 (GIF nella card, B58).
+// B69 (18/11, l'utente approva le pose del B67: «Le mascotte ok, integra queste e butta dentro altre animazioni simili
+// alle esultanze e balletti»): ACCESO DI BASE dove in campo ci sono Lob e Drop (personaggi «Lob & Drop»), nel programma
+// Windows e nel gioco web; con i «Classici» niente cambia (GIF del B58 nel programma Windows, ritratti dei tennisti nel
+// web). Si spegne con ?mascotte3d=0 o localStorage natpf-tennis.mascotte3d = '0' (ritorno alle GIF o ai ritratti).
+// Sei balletti di vittoria e due sconfitte in più (natpf_card_balli.js, docs/b69/balletti-mascotte.md).
 import { CHEER_PERIOD } from '../player_body_animation.js';
+import { DANCE_MOVES } from './natpf_card_balli.js';
 
 export const CARD_LOOP = 3*CHEER_PERIOD;
 export const CARD_MOVES_KEY = 'natpf-tennis.mascotte3d';
@@ -70,6 +74,8 @@ export const CARD_MOVES = Object.freeze({
         return { hips: { pitch: -0.06 }, spine: { pitch: -0.12 }, head: { pitch: -0.2 - 0.07*nod, yaw: 0.16*Math.sin(s) },
           racket: { frame: 'level', at: [-0.27, k + 0.02 - sy, 0.13], dir: [-0.12, -1, 0.06], palm: [0.4, 0, 1] },
           free: { at: [0.22, -0.26, 0.04], palm: [-1, 0, 0.2], fingers: [0.1, -1, 0.25], pole: [1, 0.1, -0.4] } }; } }),
+    // B69: i balletti (robot, disco con il dab, corsa all'indietro, passi incrociati, braccia a pendolo, su il soffitto)
+    ...DANCE_MOVES.win,
   ]),
   lose: Object.freeze([
     // tutte con la faccia triste (natpf_mascot_face.js), la testa bassa e le spalle che cadono
@@ -93,24 +99,48 @@ export const CARD_MOVES = Object.freeze({
         return { hips: { pitch: 0.08*l }, spine: { pitch: (0.16 + 0.03*sob)*l, roll: -0.05 }, head: { pitch: 0.7*hp, roll: -0.14 },
           racket: { frame: 'level', at: [-0.2, -0.29, 0.03], dir: [-0.45, 0, 0.9], ground: true, drop: 0.25 },
           free: { frame: 'head', at: [0.17 + 0.025*w, 0.05 + 0.015*w, 0.25], palm: [-0.3, 0, -1], fingers: [-0.45, 1, 0], drop: 0.05*sob }, face: 'sad' }; } }),
+    // B69: calcia un sassolino, capriccio
+    ...DANCE_MOVES.lose,
   ]),
 });
 export const cardMove = id => [...CARD_MOVES.win, ...CARD_MOVES.lose].find(m => m.id === id) || null;
 
+// B69: acceso di base; ?mascotte3d=0 o la chiave a '0' lo spengono (?mascotte3d=1 lo riaccende)
 export function cardMovesOn({ search = globalThis.location?.search || '', storage = globalThis.localStorage } = {}){
   try { const v = new URLSearchParams(search).get('mascotte3d'); if (v === '1' || v === '0') return v === '1'; } catch {}
-  try { return storage?.getItem(CARD_MOVES_KEY) === '1'; } catch { return false; }
+  try { return storage?.getItem(CARD_MOVES_KEY) !== '0'; } catch { return true; }
 }
+// B69: personaggi della card che fanno i movimenti delle mascotte 3D: Lob e Drop in campo (look della card,
+// natpf_end_card.cardModel), con l'interruttore acceso e i ritratti 3D (non ?ritratti=svg). I «Classici» restano come
+// prima: GIF del B58 dove ci sono (programma Windows), altrimenti il ritratto del tennista
+export const MASCOT_LOOKS = Object.freeze(['drop', 'lob']);
+export function cardUses3d(card, { on = cardMovesOn(), search = globalThis.location?.search || '' } = {}){
+  let svg = false; try { svg = new URLSearchParams(String(search || '')).get('ritratti') === 'svg'; } catch {}
+  return !!on && !svg && MASCOT_LOOKS.includes(card?.look);
+}
+// tutte le card della partita (i movimenti hanno un giro solo per la cattura: o tutte o nessuna)
+export const cardsUse3d = (model, opts) => !!model?.cards?.length && model.cards.every(c => cardUses3d(c, opts));
 
-// Scelta del movimento per una card: a caso tra i tre del suo esito, mai quello della partita prima per lo stesso esito
-export function pickCardMove(outcome, { storage = globalThis.localStorage, rnd = Math.random } = {}){
-  const list = CARD_MOVES[outcome === 'win' ? 'win' : 'lose'];
+// Scelta dei movimenti delle card di una partita (esiti nell'ordine delle card): ciascuno a caso tra quelli del suo
+// esito, mai uno della partita prima per lo stesso esito (B69: né uno già scelto in questa partita: nello stesso schermo
+// due card con lo stesso esito ballano diverso). Si ricordano quelli mostrati per esito (uno solo: come prima, un testo)
+export function pickCardMoves(outcomes, { storage = globalThis.localStorage, rnd = Math.random } = {}){
   let last = {}; try { last = JSON.parse(storage?.getItem(CARD_MOVES_LAST) || '{}') || {}; } catch {}
-  const pool = list.filter(m => m.id !== last[outcome]), from = pool.length ? pool : list;
-  const r = Number(rnd()), m = from[Math.min(from.length - 1, Math.max(0, Math.floor((Number.isFinite(r) ? r : 0)*from.length)))];
-  try { storage?.setItem(CARD_MOVES_LAST, JSON.stringify({ ...last, [outcome]: m.id })); } catch {}
-  return m;
+  if (!last || typeof last !== 'object' || Array.isArray(last)) last = {};
+  const out = [], now = {};
+  for (const o of outcomes){
+    const key = o === 'win' ? 'win' : 'lose', list = CARD_MOVES[key];
+    const before = [].concat(last[key] ?? []).filter(id => typeof id === 'string'), used = now[key] || [];
+    const fresh = list.filter(m => !used.includes(m.id)), pool = fresh.filter(m => !before.includes(m.id));
+    const from = pool.length ? pool : fresh.length ? fresh : list;
+    const r = Number(rnd()), m = from[Math.min(from.length - 1, Math.max(0, Math.floor((Number.isFinite(r) ? r : 0)*from.length)))];
+    (now[key] ||= []).push(m.id); out.push(m);
+  }
+  const save = { ...last }; for (const [k, ids] of Object.entries(now)) save[k] = ids.length === 1 ? ids[0] : ids;
+  try { storage?.setItem(CARD_MOVES_LAST, JSON.stringify(save)); } catch {}
+  return out;
 }
+export const pickCardMove = (outcome, opts) => pickCardMoves([outcome], opts)[0];
 
 // Mette il personaggio nella posa del movimento al tempo t (s dall'inizio del giro). base: { pos, rotY } salvati alla presa;
 // dir: verso di chi guarda lungo z (+1 / −1, come la camera del ritratto); rig: i perni dei piedi (player_body_animation)
@@ -118,10 +148,12 @@ export function applyCardMove(actor, move, t, base, dir = 1){
   if (!actor?.root || !move || !base) return null;
   const u = ((t % CARD_LOOP) + CARD_LOOP) % CARD_LOOP/CARD_LOOP, o = move.at(u);
   // B67: posa della mascotte 3D (la legge natpf_character.updateNatpfCharacters; natpf_ritratti la toglie al rilascio)
-  actor.natpfCardPose = move.mascot ? { move, u } : null;
+  // (B69: con il posto di partenza, per la racchetta piantata a terra che resta ferma mentre il personaggio balla)
+  actor.natpfCardPose = move.mascot ? { move, u, base } : null;
   // destra di chi guarda: con la camera verso +z (dir = −1) è −x, verso −z è +x
   actor.root.position.set(base.pos.x + dir*o.right, base.pos.y + o.up, base.pos.z + dir*o.fwd);
-  actor.root.rotation.y = base.rotY + o.yaw;
+  // (B69: il giro verso il lato libero anche per il mancino, che ha la radice specchiata: specchio·giro(θ) = giro(−θ)·specchio)
+  actor.root.rotation.y = base.rotY + (actor.root.scale.x < 0 ? -1 : 1)*o.yaw;
   // inclinazione in avanti (verso chi guarda) e di lato, negli assi del campo (Euler XYZ: X e Z esterni a Y)
   actor.root.rotation.x = (base.rotX || 0) + dir*(o.pitch || 0);
   actor.root.rotation.z = (base.rotZ || 0) + (o.roll || 0);

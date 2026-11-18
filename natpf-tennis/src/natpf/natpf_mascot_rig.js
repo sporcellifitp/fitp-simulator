@@ -288,6 +288,10 @@ function poseLeg(rig, side, foot, rest, k, dt){
     const l = _d.length(), m = FOOT_SPEED*dt;
     if (l > m) side.foot.addScaledVector(_d, m/l); else side.foot.copy(_F);
   } else { side.foot.copy(_F); side.footSet = true; }
+  legTo(rig, side);
+}
+// Gamba verso il piede side.foot (sistema del modello)
+function legTo(rig, side){
   // la coscia resta ferma con il bacino
   _pUp.copy(side.upleg.t).applyQuaternion(rig.hipsQ).add(rig.hipsP);
   _qUp.multiplyQuaternions(rig.hipsQ, side.upleg.q);
@@ -495,18 +499,30 @@ export function poseMascotCard(rig, actor, P){
   rig.racketReach = actor.racketMesh ? (RACKET_TIP - RACKET_GRIP_Y)*actor.racketMesh.scale.y/S : 0.5;
   // gambe: dai piedi del tennista come in campo (il movimento della card li alza a ogni passo)
   const sideA = mirrored ? rig.left : rig.right, sideB = mirrored ? rig.right : rig.left, Pp = actor.parts || NONE;
-  poseLeg(rig, sideA, Pp.footL, ENGINE_REST.footA, 1/S, 0);
-  poseLeg(rig, sideB, Pp.footR, ENGINE_REST.footB, 1/S, 0);
+  // (B69: oppure dove li mette la posa, per i passi dei balletti)
+  if (P.legs){ cardLeg(rig, sideA, P.legs.a, m); cardLeg(rig, sideB, P.legs.b, m); }
+  else {
+    poseLeg(rig, sideA, Pp.footL, ENGINE_REST.footA, 1/S, 0);
+    poseLeg(rig, sideB, Pp.footR, ENGINE_REST.footB, 1/S, 0);
+  }
   // braccia (A: lato della racchetta)
   cardArm(rig, sideA, P.racket || null, m, !P.rest && !!P.racket?.dir);
   cardArm(rig, sideB, P.free || null, m, false);
   rig.group.updateMatrixWorld(true);
-  if (P.rest) restRacket(rig, actor, P.rest, m);
+  if (P.rest) restRacket(rig, actor, P.rest, m, actor.natpfCardPose?.base);
   else if (P.racket) holdRacket(rig, actor, sideA);
   if (rig.face) rig.face.visible = P.face === 'sad';
   return true;
 }
 
+// B69 · Piede della posa (passi dei balletti): spostamento dalla pianta a riposo [x, alzata, z] (unità del modello, x
+// con il lato come le mani: per il lato della racchetta x < 0 è in fuori); senza descrizione il piede resta al suo posto
+function cardLeg(rig, side, off, m){
+  side.foot.copy(side.sole);
+  if (off){ side.foot.x += m*(off[0] || 0); side.foot.y += Math.max(0, off[1] || 0); side.foot.z += off[2] || 0; }
+  side.footSet = true;
+  legTo(rig, side);
+}
 // Una mano della posa: spalla, centro della mano, orientamento (pugno sul manico o mano aperta), braccio a due ossa
 // fino al polso. Senza descrizione il braccio resta giù lungo il fianco.
 const HANG = { at: [0, -0.24, 0.04], palm: [0, 0, 0], fingers: [0, -1, 0] };
@@ -524,7 +540,7 @@ function cardArm(rig, side, spec, m, grip){
   mvec(_T, s.at, ms).applyQuaternion(_FQ).add(s.frame === 'head' ? rig.cardHeadP : rig.spineP);
   side.palm.copy(_T);
   // pugno: il guanto (che ha le dita aperte) un po' più corto e raccolto intorno al manico
-  side.hand.bone.scale.fromArray(grip ? FIST_SCALE : ONE);
+  side.hand.bone.scale.fromArray(grip || s.fist ? FIST_SCALE : ONE);
   _hc.fromArray(HAND_CENTER).multiply(side.hand.bone.scale);
   _g.subVectors(_T, _S).normalize();
   side.gsin = Math.min(0.98, Math.max(0.02, (_T.y - RACKET_GROUND)/rig.racketReach));
@@ -615,19 +631,34 @@ function holdRacket(rig, actor, side){
   placeRacket(actor, _mR);
 }
 // Racchetta appoggiata (per esempio alla gamba, con la testa a terra): punto del manico e versi nel sistema del modello
-// a riposo misurato dall'osso Hips, che seguono il bacino
-function restRacket(rig, actor, r, m){
+// a riposo misurato dall'osso Hips, che seguono il bacino.
+// B69: frame 'ground': posata a terra (piantata o distesa) nel sistema del modello misurato dal suolo sotto il posto di
+// partenza del personaggio (base, natpf_card_moves.applyCardMove): resta ferma mentre il personaggio balla
+function restRacket(rig, actor, r, m, base){
   if (!actor.racketMesh || !actor.racketPivot?.parent) return;
-  const G = rig.group.matrixWorld, s = racketScale(actor);
-  _DH.multiplyQuaternions(rig.hipsQ, _qi.copy(rig.hips.wq).invert());
+  const s = racketScale(actor), ground = r.frame === 'ground';
+  const G = ground ? groundMatrix(_mG, rig, actor, base) : rig.group.matrixWorld;
+  if (ground) _DH.identity(); else _DH.multiplyQuaternions(rig.hipsQ, _qi.copy(rig.hips.wq).invert());
   _ry.copy(mvec(_ry, r.dir, m).applyQuaternion(_DH)).normalize();
   _rz.copy(mvec(_rz, r.face, m).applyQuaternion(_DH)); _rz.addScaledVector(_ry, -_rz.dot(_ry)).normalize();
-  _c.copy(mvec(_c, r.at, m).applyQuaternion(_DH)).add(rig.hipsP);
+  _c.copy(mvec(_c, r.at, m).applyQuaternion(_DH)); if (!ground) _c.add(rig.hipsP);
   _c.applyMatrix4(G); _ry.transformDirection(G); _rz.transformDirection(G);
   _rx.crossVectors(_ry, _rz); if (rig.mirrored) _rx.negate();
   _mR.makeBasis(_rx.multiplyScalar(s), _ry.multiplyScalar(s), _rz.multiplyScalar(s));
   _mR.setPosition(_c.x - _ry.x*RACKET_GRIP_Y, _c.y - _ry.y*RACKET_GRIP_Y, _c.z - _ry.z*RACKET_GRIP_Y);
   placeRacket(actor, _mR);
+}
+// Sistema del modello con la radice al posto di partenza (senza lo spostamento del movimento della card); senza posto di
+// partenza quello di adesso
+const _mG = new THREE.Matrix4(), _qG = new THREE.Quaternion(), _eG = new THREE.Euler();
+function groundMatrix(out, rig, actor, base){
+  if (!base?.pos) return out.copy(rig.group.matrixWorld);
+  const root = actor.root;
+  _qG.setFromEuler(_eG.set(base.rotX || 0, base.rotY || 0, base.rotZ || 0));
+  out.compose(base.pos, _qG, root.scale);
+  if (root.parent) out.premultiply(root.parent.matrixWorld);
+  rig.group.updateMatrix();
+  return out.multiply(rig.group.matrix);
 }
 // Misure per le prove (mondo): centro del pugno e punto del manico che ci deve stare
 export function mascotGripProbe(rig, actor, out = {}){
