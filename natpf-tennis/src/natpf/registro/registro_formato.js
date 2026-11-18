@@ -27,8 +27,9 @@
 
 const MB = 1024*1024;
 export const REGISTRO = Object.freeze({
-  // formato delle righe (campo «v» della riga «avvio»): 2 dal B36.0, con i campi della direzione dei colpi (CAMPI_B36)
-  versione: 2,
+  // formato delle righe (campo «v» della riga «avvio»): 2 dal B36.0, con i campi della direzione dei colpi (CAMPI_B36); 3
+  // dal B66, con le misure di sensori, calibrazione, collegamento, rete e blocco del telefono (CAMPI_B66)
+  versione: 3,
   chiave: 'natpf-tennis.registro',          // scelta dello staff (Sì/No) e contatori della giornata, nel browser
   config: '/natpf/registro.json',           // {"url": "https://…workers.dev/"}: indirizzo del Worker (pacchetto)
   maxRiga: 2000,                            // caratteri per riga: oltre, la riga si accorcia ai campi essenziali
@@ -55,6 +56,19 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in',
   // 17/11: riga «colpo», pl = da che parte di chi colpisce era la palla (+1 destra, −1 sinistra, 0 vicina al corpo)
   'pl',
+  // B66 (18/11, docs/b66/registro-sensori.md), tutti insieme perché il Worker si ricarichi una volta sola. Riga «colpo»:
+  // cf confidenza del tipo di colpo · mg picco/soglia · gb buco nei campioni durante il gesto (ms) · rit [ms dal picco
+  // all'arrivo, alla risposta del gioco]. Riga «tel» e «partita»: pv versione della pagina del telefono (se diversa da quella
+  // del PC), app versione dell'app NATPF Racchetta. Riga «partita.fine», per telefono (g, a): tq sensori (hz [mediana,
+  // minima], n campioni, b buchi, bm buco più lungo, bg colpi con un buco nel gesto, iv intervallo dichiarato, sat
+  // [accelerazione, rotazione] campioni saturi, fonte), lat collegamento (arr, ris [p50, p90, p99] ms, jit sbalzo medio,
+  // stimati, persi, ordine fuori ordine, vie [veloce, affidabile]), wifi rete e batteria dall'app (rssi [mediana, minimo] dBm, bd banda GHz, mbps
+  // [mediana, minimo], bt batteria [inizio, fine], ch in carica, tc temperatura °C, fx quota con «Fissa app»), blocco (durS,
+  // tb tocchi bloccati, ss sblocchi dello staff sul telefono, sp dal PC, sd da solo, us pagina nascosta, sc schermi spenti),
+  // cal (tip colpo tipico [inizio, fine] °/s, tipN colpi prima del colpo tipico proprio, cen colpi prima del centro della mira,
+  // dvi scarto della cima [primi 10, ultimi 10] °, seg cambi di segno, ric ricalibrazioni, ref [inizio, fine], soglia [on,
+  // minPeak]); pause { motivo: [volte, secondi] }
+  'cf', 'mg', 'gb', 'rit', 'pv', 'app', 'tq', 'lat', 'wifi', 'blocco', 'cal', 'pause', 'a', 'hz', 'b', 'bm', 'bg', 'iv', 'sat', 'arr', 'ris', 'jit', 'stimati', 'persi', 'ordine', 'vie', 'rssi', 'bd', 'mbps', 'bt', 'ch', 'tc', 'fx', 'tb', 'ss', 'sp', 'sd', 'us', 'sc', 'tip', 'tipN', 'cen', 'dvi', 'seg', 'ric', 'ref', 'soglia',
   // B36.0 (misurare prima la direzione dei colpi, docs/b36/misure-b36-0.md), tutti insieme perché il Worker si ricarichi
   // una volta sola. Riga «colpo» del telefono: pf piatto (mira della cima −1…+1, telefoni con la forma del colpo) · dv
   // scarto della cima in gradi dal proprio colpo abituale · tu tempo in unità della finestra della direzione (+ anticipo) ·
@@ -65,9 +79,14 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
 // i campi del B36.0 (sopra, in fondo a CAMPI): un Worker non ancora ricaricato li toglie in silenzio dalle righe e le
 // accetta lo stesso (lo strumento di riassunto lo dice: «campi della direzione assenti»)
 export const CAMPI_B36 = Object.freeze(['pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr', 'zp', 'dir']);
+// i campi del B66 (sopra, prima di quelli del B36.0): un Worker non ancora ricaricato li toglie in silenzio (le righe le
+// accetta lo stesso; lo strumento di riassunto lo dice: «misure del B66 assenti»)
+export const CAMPI_B66 = Object.freeze(['cf', 'mg', 'gb', 'rit', 'pv', 'app', 'tq', 'lat', 'wifi', 'blocco', 'cal', 'pause', 'a', 'hz', 'b', 'bm', 'bg', 'iv', 'sat', 'arr', 'ris', 'jit', 'stimati', 'persi', 'ordine', 'vie',
+  'rssi', 'bd', 'mbps', 'bt', 'ch', 'tc', 'fx', 'tb', 'ss', 'sp', 'sd', 'us', 'sc', 'tip', 'tipN', 'cen', 'dvi', 'seg', 'ric', 'ref', 'soglia']);
 // campi che sono un elenco «voce: quante volte» (motivi dei gesti scartati, posti della visita, passi della
 // calibrazione): le voci le decide il gioco, i valori sono solo numeri (o un elenco di numeri)
-export const MAPPE = Object.freeze(['scartati', 'posti', 'passi', 'perche']);
+// (B66: pause della partita per il telefono, { motivo: [volte, secondi] })
+export const MAPPE = Object.freeze(['scartati', 'posti', 'passi', 'perche', 'pause']);
 
 /* ---------- giorni e file ---------- */
 const p2 = v => String(v).padStart(2, '0');

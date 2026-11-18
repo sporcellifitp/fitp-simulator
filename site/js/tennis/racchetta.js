@@ -19,6 +19,7 @@ import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample, SIGN } from './motion-sign.js';
 import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, nextTap, NEXT_REARM_MS, readyView, nameOnMsg, nameSubmit, NAME_REARM_MS, NAME_TEXT, standView, STAFF_HOLD, batteryAlert, standSignStep, tapVotesSign, handTap, handLabel, HAND_CONFIRM } from './phone-screen.js';
 import { touchLockActive, createTouchLockHistory, installStaffTouch } from './phone-touch-lock.js';
+import { createSampleStats, createLockStats, createAppReader } from './phone-stats.js';
 import { parseStandPairing, createStandStore, standHello, standWelcome, standAnswer, standDenyText, newStandNonce, slotLabel } from './stand-pairing.js';
 
 const $ = s => document.querySelector(s);
@@ -147,7 +148,9 @@ function bar(){
 let touchRequest = false, touchOverride = false, touchLocked = false, touchSlot = 'p1';
 const touchOverlay = $('#phoneTouchLock'), touchHit = $('#touchHit'), touchHome = touchHit.parentElement;
 const touchHistory = createTouchLockHistory(window, history, () => touchLocked);
-const resetStaffTouch = installStaffTouch(touchOverlay, $('#phoneStaffUnlock'), unlockTouch);
+// B66: misure per il registro dello stand (phone-stats.js): campioni dei sensori, blocco dei tocchi, stato dall'app
+const sampleStats = createSampleStats(), lockStats = createLockStats(), appReader = createAppReader(window.NATPFApp);
+const resetStaffTouch = installStaffTouch(touchOverlay, $('#phoneStaffUnlock'), () => { if (touchLocked) lockStats.staff(); unlockTouch(); });
 const madeInert = new Set();
 
 function unlockTouch(){
@@ -196,6 +199,7 @@ for (const type of ['pointerdown', 'pointerup', 'click', 'dblclick', 'auxclick',
     if (!touchLocked) return;
     const blocked = !touchOverlay.contains(event.target) || ['contextmenu', 'selectstart', 'dragstart'].includes(type);
     if (!blocked) return;
+    if (type === 'pointerdown') lockStats.blocked();
     event.preventDefault();
     event.stopImmediatePropagation();
   }, true);
@@ -614,10 +618,21 @@ const wakeState = () => awake.state;
 let battery = null;
 try { navigator.getBattery?.().then(b => { battery = b; }, () => {}); } catch (e){}
 const batteryState = () => battery && Number.isFinite(battery.level) ? { bt: Math.round(battery.level*100), bc: battery.charging ? 1 : 0 } : {};
-const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batteryState(), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), lk: touchLocked ? 1 : 0, ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
+const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batteryState(), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), lk: touchLocked ? 1 : 0, ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}), ...b66State() });
+// B66 · per il registro dello stand: sq campioni dei sensori dall'ultimo stato (phone-stats.createSampleStats.report), lc
+// conti del blocco dei tocchi, ap stato del telefono dall'app NATPF Racchetta. I computer di prima ignorano i campi
+// (mai un errore che fermi lo stato: un ponte dell'app che non risponde o una chiamata prima che le misure esistano)
+function b66State(){
+  try {
+    const sq = sampleStats.report(), lc = lockStats.counts, ap = appReader.read(performance.now());
+    return { ...(sq ? { sq } : {}), ...(lc.some(Boolean) ? { lc } : {}), ...(ap ? { ap } : {}) };
+  } catch (e){ return {}; }
+}
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 // (B45.1: cd = il racconto dell'ultima caduta, una volta sola; i computer di prima ignorano il campo)
-const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: window.screen.orientation?.type || null, sc: [window.screen.width, window.screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, nm: 1, ...(cd ? { cd } : {}) }); };
+const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: window.screen.orientation?.type || null, sc: [window.screen.width, window.screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, nm: 1, ...(cd ? { cd } : {}), ...appVersion() }); };
+// B66: versione dell'app NATPF Racchetta (dentro l'app), per il registro dello stand
+function appVersion(){ try { const v = window.NATPFApp?.version?.(); return typeof v === 'string' && v ? { av: v.slice(0, 16) } : {}; } catch (e){ return {}; } }
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
 // secondo (un tremolio continuo non deve intasare il collegamento)
 let discardWin = { at: 0, n: 0 };
@@ -677,6 +692,7 @@ function onMotion(e){
   const k = normalizeSample(raw, accSign.sign);
   if (!k.rot && !k.acc) return;
   motionSeen = true; sensorWatch.feed(performance.now());
+  sampleStats.feed(raw.t, { rot: raw.rot, accG: raw.accG, interval: e.interval });
   // Presentation stream is disposable; reliable swing packets retain the real sensor peak.
   if (linkState === 'on' && conn?.sendMotion && k.t - lastSensorSent >= 1000/SENSOR_HZ){
     const packet = encodeSensor(k, sensorSequence++);
@@ -775,7 +791,9 @@ det.on('swing', s => {
     return;
   }
   const flags = shotFlags(selectedShot, s);
-  const msg = swingMessage(s, { flags, grip, faceRef: det.profile.faceRef, rtt, now: performance.now(), sampleHz, seq: ++swingSeq });
+  // (B66: gapMs, il buco più lungo nei campioni durante il gesto, se c'è stato: per il registro dello stand)
+  const gapMs = sampleStats.gapIn(s.peakT - (Number.isFinite(s.dur) ? s.dur : 300) - 50, Number.isFinite(s.t) ? s.t : s.peakT);
+  const msg = swingMessage(s, { flags, grip, faceRef: det.profile.faceRef, rtt, now: performance.now(), sampleHz, seq: ++swingSeq, gapMs });
   // il colpo parte su due strade: tre copie sul percorso veloce (se un pacchetto si perde arriva la copia dopo, nessuno
   // aspetta una ritrasmissione) e una sul canale affidabile (arriva sempre, anche se tardi). Il computer tiene la prima
   // e scarta le altre con il numero del colpo. Prima c'era solo il canale affidabile e ordinato: con il Wi-Fi che perde
@@ -902,6 +920,7 @@ $('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sen
 document.addEventListener('visibilitychange', () => {
   // (B45.1: per il racconto di una caduta con la pagina nascosta)
   if (document.hidden) pageHiddenAt = performance.now(); else pageVisibleAt = performance.now();
+  if (document.hidden) lockStats.hidden(touchLocked);
   if (document.hidden || sensor === 'off') sendState(); else onVisible();
 });
 // pagina sospesa dal browser e ripresa (Android): come il ritorno in primo piano
