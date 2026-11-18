@@ -103,7 +103,7 @@ test('B66: racchetta.js manda le misure con lo stato e il buco con il colpo; il 
   assert.match(js, /sampleStats\.feed\(raw\.t, \{ rot: raw\.rot, accG: raw\.accG, interval: e\.interval \}\)/);
   assert.match(js, /\.\.\.b66State\(\) \}\);/);
   assert.match(js, /gapMs = sampleStats\.gapIn\(/);
-  assert.match(js, /if \(type === 'pointerdown'\) lockStats\.blocked\(\);/);
+  assert.match(js, /if \(type === 'pointerdown' && !event\.target\?\.closest\?\.\('button'\)\) lockStats\.blocked\(\);/);
   assert.match(js, /if \(touchLocked\) lockStats\.staff\(\); unlockTouch\(\);/);
   assert.match(js, /if \(document\.hidden\) lockStats\.hidden\(touchLocked\);/);
   assert.match(js, /createAppReader\(window\.NATPFApp\)/);

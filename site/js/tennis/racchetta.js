@@ -197,9 +197,10 @@ function paintTouchLock(){
 for (const type of ['pointerdown', 'pointerup', 'click', 'dblclick', 'auxclick', 'contextmenu', 'selectstart', 'dragstart']){
   document.addEventListener(type, event => {
     if (!touchLocked) return;
+    // (B66: tocchi del visitatore a telefono bloccato, sul velo del blocco o fuori, non sui suoi pulsanti: per il registro)
+    if (type === 'pointerdown' && !event.target?.closest?.('button')) lockStats.blocked();
     const blocked = !touchOverlay.contains(event.target) || ['contextmenu', 'selectstart', 'dragstart'].includes(type);
     if (!blocked) return;
-    if (type === 'pointerdown') lockStats.blocked();
     event.preventDefault();
     event.stopImmediatePropagation();
   }, true);
@@ -625,7 +626,8 @@ const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batterySta
 function b66State(){
   try {
     const sq = sampleStats.report(), lc = lockStats.counts, ap = appReader.read(performance.now());
-    return { ...(sq ? { sq } : {}), ...(lc.some(Boolean) ? { lc } : {}), ...(ap ? { ap } : {}) };
+    // (lc sempre, anche a zero: il computer prende il primo valore della partita come partenza)
+    return { ...(sq ? { sq } : {}), lc, ...(ap ? { ap } : {}) };
   } catch (e){ return {}; }
 }
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
