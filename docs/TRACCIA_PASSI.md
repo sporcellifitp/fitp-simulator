@@ -1738,3 +1738,6 @@ PC dello stand (tempi veri della cattura con la GPU), installare l'app 1.0.4 sui
   `d95b66f5bb6d2c512d9766eec0f61d2c1d9ae58fa66071824481cc7b003c68dc`, provato estratto (versione servita 18.3; il primo
   zip era stato fatto con la build vecchia della 18.2: rifatto dopo `npm run build`). **Prossima azione:** aspettare
   l'utente (registro della prossima giornata, collaudo, separazione white label dopo la fiera).
+- 18/11 · **HW1 in roadmap** (richiesta dell'utente): grip-racchetta come controller hardware al posto del telefono,
+  progetto parallelo; piano in `docs/hardware/grip-controller.md`, voce in `docs/PIANO_LAVORI.md` §5. Non iniziato:
+  prima i requisiti con l'utente.

@@ -488,6 +488,13 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
 
 ## 5. Punti aperti: stato, cosa fare, come, perché
 
+### HW1 · Grip-racchetta come controller al posto del telefono (progetto parallelo, FIERA) · IN ROADMAP, non iniziato
+
+Richiesta dell'utente del 18/11: progettare un controller hardware (circuiti, scheda, firmware, involucro) che lui farà
+realizzare e montare da professionisti, per sostituire il telefono con un grip da racchetta. Piano, architettura proposta,
+fasi e limiti in `docs/hardware/grip-controller.md`. Prossimo passo: requisiti con l'utente (quanti pezzi, budget,
+collegamento, forma, chi realizza), poi prototipo con schede di sviluppo prima della scheda custom.
+
 ### B58.1 · Mascotte della card: passi e velo (FIERA) · velo fatto (16.11); passi non richiesti (utente, 17/11: «ok con versione senza sfondo bianco»)
 - **Stato**: domanda dell'utente del 16/11 («si muovono come chiedo? a me sembrano tutti simili; migliorare le movenze
   con i piedi: avanti, indietro, destra e sinistra»). Misura delle 20 animazioni (320 px): 16 su 20 hanno i piedi fermi
