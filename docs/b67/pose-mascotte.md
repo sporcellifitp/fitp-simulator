@@ -1,4 +1,8 @@
-# B67 · Pose delle mascotte 3D nella card: impugnatura, «Sei-sette», «Aura», sconfitta triste (FIERA) · ANTEPRIMA
+# B67 · Pose delle mascotte 3D nella card: impugnatura, «Sei-sette», «Aura», sconfitta triste (FIERA) · APPROVATE il 18/11
+
+**Aggiornamento 18/11 (B69, `docs/b69/balletti-mascotte.md`)**: l'utente ha approvato l'anteprima («Le mascotte ok,
+integra queste»): pose accese di base con «Lob & Drop» (programma Windows e web), più sei balletti di vittoria e due
+sconfitte. Quello che segue sull'interruttore spento vale per l'anteprima.
 
 Richiesta dell'utente del 18/11/2026, dopo l'anteprima del B63 (`docs/b63/mascotte-3d.md`): «Per le animazioni dovresti
 sistemare meglio come la mascotte impugna la racchetta. Prevedi delle pose simpatiche come "Six Seven" (TikTok) o aura

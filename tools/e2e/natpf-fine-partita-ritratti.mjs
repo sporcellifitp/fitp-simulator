@@ -5,7 +5,9 @@
 //      aperta 0 disegni dell'arena in 3 s (fotogrammi al secondo misurati), ridisegno al ridimensionamento; «Rivincita» →
 //      l'arena torna a ogni fotogramma, «‹ Indietro» → card di nuovo, ferma, ritratto che si muove; «Menu» → arena di
 //      nuovo; riga della diagnostica con i ms della cattura;
-//   B. stesso schermo con «Lob & Drop»: due card, Drop a sinistra e Lob a destra, due fogli dai modelli 3D;
+//   B. stesso schermo con «Lob & Drop»: due card, Drop a sinistra e Lob a destra, due fogli dai modelli 3D (B69: con i
+//      movimenti delle mascotte accesi di base: 24 fotogrammi, un movimento per card, diversi, niente GIF del B58 anche
+//      dove le GIF ci sono; foglio ≤ 16 MB); con i «Classici» nel server di sviluppo le GIF del B58 come prima;
 //   C. ?ritratti=svg: niente cattura, ritratto SVG; contesto WebGL perso prima della cattura: ritratto SVG senza errori.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-fine-partita-ritratti.mjs      (GAME_PORT, OUT; ONLY=AC per
 //   fare solo alcune parti)
@@ -28,9 +30,10 @@ const up = async url => { for (let i = 0; i < 120; i++){ const ok = await new Pr
 check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 
 // gioco pronto, con il contatore dei disegni dell'arena e dei fotogrammi
-async function open(B, query, size = { w: 1280, h: 720 }){
-  // (B58: nel server di sviluppo la card mostrerebbe Lob o Drop animati al posto del ritratto; qui si provano i ritratti 3D)
-  const r = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0${query}`, { ...size, init: () => { try { localStorage.setItem('natpf-tennis.mascotteGif', '0'); } catch {} } });
+async function open(B, query, size = { w: 1280, h: 720 }, { gif = false } = {}){
+  // (B58: nel server di sviluppo la card dei Classici mostrerebbe Lob o Drop animati al posto del ritratto; qui si provano
+  // i ritratti 3D. B69: gif = true lascia le GIF accese, come nel programma Windows)
+  const r = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0${query}`, { ...size, init: gif ? undefined : () => { try { localStorage.setItem('natpf-tennis.mascotteGif', '0'); } catch {} } });
   await r.p.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby && window.__natpfTennis.player?.model && window.__natpfTennis.opponent?.model, null, { timeout: 180000 });
   await r.p.evaluate(() => {
     const E = __natpfTennis; E.natpfUi.intro?.skip?.();
@@ -121,13 +124,18 @@ try {
   }
   /* ---------- B. stesso schermo con Lob & Drop ---------- */
   if (ONLY.includes('B')) {
-    const { p: g, errs } = await open(B, '&personaggi=lobdrop');
-    await g.waitForFunction(() => __natpfTennis.player?.natpfMascot3dOn !== undefined, null, { timeout: 120000 }).catch(() => {});
+    const { p: g, errs } = await open(B, '&personaggi=lobdrop', undefined, { gif: true });
+    await g.waitForFunction(() => __natpfTennis.player?.natpfMascot3dOn && __natpfTennis.opponent?.natpfMascot3dOn, null, { timeout: 120000 }).catch(() => {});
     check('B0. stesso schermo, partita finita', await play(g, { split: true }) === 'MATCH_OVER' && await shown(g));
     const info = await ready(g);
     const looks = await g.evaluate(() => [...document.querySelectorAll('#victory-cards .end-card')].map(c => `${c.dataset.side}:${c.dataset.look}`));
     const mascots = await g.evaluate(() => [__natpfTennis.player.natpfMascot3dOn, __natpfTennis.opponent.natpfMascot3dOn]);
-    check('B1. due card: Drop (Player 1) e Lob (Player 2), dai modelli 3D', looks.join(',') === 'player:drop,opponent:lob' && info?.ready && info.sheetBytes <= 8*1048576, JSON.stringify({ looks, info, mascots }));
+    check('B1. due card: Drop (Player 1) e Lob (Player 2), dai modelli 3D', looks.join(',') === 'player:drop,opponent:lob' && info?.ready && mascots.every(Boolean), JSON.stringify({ looks, info, mascots }));
+    // B69: mascotte 3D accese di base: 24 fotogrammi sul giro di 2,05 s, un movimento per card (diversi), niente GIF
+    const mv = await g.evaluate(() => ({ items: __natpfTennis.natpfUi.ritratti.last?.items.map(i => i.move), period: __natpfTennis.natpfUi.ritratti.last?.period, gif: document.querySelectorAll('#victory-cards .card-mascot, #victory-cards [data-mascot="1"]').length, art: [...document.querySelectorAll('#victory-cards .card-art')].map(a => a.dataset.ritratto) }));
+    check('B1b. B69: movimenti delle mascotte accesi di base (24 fotogrammi, uno di vittoria e uno di sconfitta, niente GIF anche con le GIF accese), foglio ≤ 16 MB',
+      info?.K === 24 && Math.abs(mv.period - 2.05) < 0.01 && mv.items?.length === 2 && /^win-/.test(mv.items[0]) && /^lose-/.test(mv.items[1]) && mv.gif === 0 && mv.art.every(a => a === '3d') && info.sheetBytes <= 16*1048576 && info.log?.programmi === 0,
+      JSON.stringify({ mv, K: info?.K, bytes: info?.sheetBytes, log: info?.log }));
     for (const side of ['player', 'opponent']){
       const sc = await sheetCheck(g, side);
       if (sc?.png) writeFileSync(`${OUT}/foglio-lobdrop-${side}.png`, Buffer.from(sc.png.split(',')[1], 'base64'));
@@ -138,6 +146,16 @@ try {
     const c = await counts(g, 3000);
     console.log('   stesso schermo, card aperte:', JSON.stringify(c));
     check('B3. card aperte: 0 disegni dell\'arena in 3 s', c.draws === 0, JSON.stringify(c));
+    check('   nessun errore nella pagina', !errs.length, errs.slice(0, 3).join(' | '));
+    await g.context().close();
+  }
+  /* ---------- B'. B69: Classici nello stesso schermo con le GIF accese (programma Windows): come prima ---------- */
+  if (ONLY.includes('B')) {
+    const { p: g, errs } = await open(B, '&personaggi=sempre', undefined, { gif: true });
+    check("B4. B69: stesso schermo con i Classici, partita finita", await play(g, { split: true }) === 'MATCH_OVER' && await shown(g));
+    await sleep(4500);
+    const r = await g.evaluate(() => ({ looks: [...document.querySelectorAll('#victory-cards .end-card')].map(c => c.dataset.look), gif: document.querySelectorAll('#victory-cards .end-card[data-mascot="1"]').length, info: __natpfTennis.natpfUi.ritratti.info(), moves: __natpfTennis.natpfUi.ritratti.last?.items?.map(i => i.move) || __natpfTennis.natpfUi.ritratti.job?.items?.map(i => i.move?.id || null) || [] }));
+    check('B5. B69: con i Classici le GIF del B58 nelle card e nessun movimento delle mascotte 3D', r.looks.join() === 'p1,p2' && r.gif === 2 && r.moves.every(m => !m), JSON.stringify(r));
     check('   nessun errore nella pagina', !errs.length, errs.slice(0, 3).join(' | '));
     await g.context().close();
   }

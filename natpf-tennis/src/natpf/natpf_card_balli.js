@@ -101,7 +101,7 @@ function runPose(u){
   const stomp = Math.pow(Math.cos(2*TAU*u), 2), arm = Math.cos(2*TAU*u);
   return { hips: { pitch: -0.02, y: -0.022*stomp, roll: 0.04*Math.sin(2*TAU*u) }, spine: { pitch: 0.12, roll: -0.03*Math.sin(2*TAU*u) },
     head: { pitch: -0.08 + 0.06*stomp, yaw: 0.1*Math.sin(2*TAU*u) },
-    racket: { at: [-0.22, -0.02 + 0.05*arm, 0.12 + 0.07*arm], dir: [-0.85, 1, 0.25] },
+    racket: { at: [-0.23, -0.02 + 0.05*arm, 0.12 + 0.07*arm], dir: [-1.1, 1, 0.12] },
     free: { at: [0.2, -0.02 - 0.05*arm, 0.12 - 0.07*arm], palm: [-1, 0, 0], fingers: [0, 0.45, 1], fist: true },
     legs: FEET(foot(c), foot(c + 0.5)) };
 }
@@ -191,7 +191,7 @@ export const DANCE_MOVES = Object.freeze({
     Object.freeze({ id: 'win-robot', name: 'Robot a scatti', base: 'cheer', dance: true, at: fromPose(robotPose, 1), mascot: u => robotPose(u) }),
     Object.freeze({ id: 'win-disco', name: 'Disco, con il dab', base: 'cheer', dance: true, at: fromPose(discoPose, 1), mascot: (u, rig) => discoPose(u, rig) }),
     Object.freeze({ id: 'win-corsa', name: 'Corsa all\'indietro', base: 'cheer', dance: true,
-      at: u => ({ ...still(), up: 0.025*pulse(u, 4), yaw: -0.5 + 0.1*Math.sin(TAU*u) }), mascot: u => runPose(u) }),
+      at: u => ({ ...still(), up: 0.025*pulse(u, 4), yaw: 0.5 + 0.1*Math.sin(TAU*u) }), mascot: u => runPose(u) }),
     Object.freeze({ id: 'win-incrocio', name: 'Passi incrociati', base: 'cheer', dance: true,
       at: u => ({ ...still(), right: 0.11*Math.sin(TAU*u), up: 0.012*pulse(u, 8) }), mascot: u => shufflePose(u) }),
     Object.freeze({ id: 'win-pendolo', name: 'Braccia a pendolo', base: 'cheer', dance: true,

@@ -366,7 +366,8 @@ export class HudUI {
     // Il titolo resta largo quanto la scheda (B41.5). this.endCards = false: schermata del B35
     // NATPF B58: Lob o Drop nella finestra del personaggio della card (natpf_mascotte.js): una a caso per l'esito di
     // ciascuna card, mai una della partita prima; solo dove le mascotte si vedono (programma Windows); poi si prenotano e
-    // si caricano le prossime due
+    // si caricano le prossime due. NATPF B69: con Lob e Drop in campo la card mostra le mascotte 3D che ballano
+    // (natpf_ritratti, natpf_card_moves.cardsUse3d) e niente GIF; le GIF restano per i Classici
     const cv0 = S && this.endCards !== false ? cardModel(w.stats, w, { looks: castLooks(getCast(), w.stats.mode !== "cpu"), bands: w.stats.bands }) : null,
       rot = cv0 && !cardsUse3d(cv0) ? mascotRotation() : null, plan = rot ? mascotPlan(cv0) : [], cv = plan.length ? withMascots(cv0, plan, rot.takeFor(plan)) : cv0,
       ch = cv ? cardsHtml(cv) : "", cd = el("victory-cards");
