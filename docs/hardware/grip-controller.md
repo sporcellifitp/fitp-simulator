@@ -12,6 +12,12 @@ solo sensore, senza piatto corde**. Valutazione dei due piani nella sezione «Pi
 **Decisione dell'utente (18/11, dopo la ricerca): «Io voglio generare un prodotto per me»**: niente produzione in serie,
 niente certificazioni da prodotto: 4 grip + 1 chiavetta per uso proprio, strada «scheda pronta in un manico stampato».
 La parte della ricerca su CE, qualifica Bluetooth e lotti 20–100 resta solo come riferimento.
+**Seconda decisione (18/11): «voglio montare io ma niente saldature»**. Grip «a incastro» con cavetti Qwiic/STEMMA QT:
+SparkFun Pro nRF52840 Mini (DEV-15025: Bluetooth, carica LiPo, interruttore, presa Qwiic) + Adafruit LSM6DSO32 (4692,
+±32 g ma giroscopio solo ±2000 °/s: limite per colpi molto forti) + SparkFun Qwiic Haptic Driver DA7280 (motorino LRA già
+montato) + SparkFun Qwiic Button + LiPo 400–500 mAh con presa JST-PH (polarità e presa da verificare all'ordine) + cavetti
+Qwiic; chiavetta Nordic nRF52840 Dongle (programmata con nRF Connect Programmer, nessuna saldatura). Pezzi fissati nel
+manico stampato con viti, alloggiamenti a incastro o biadesivo. ~75–80 € a grip (prezzi USA del 18/11, da ricontrollare).
 **Ricerca approfondita del 18/11** (fornitori, prezzi, norme, piano a fasi da zero alla produzione):
 `docs/hardware/ricerca-grip-controller-2026-11-18.md`. Consiglio: grip verticale B («solo un grip»), scheda Nordic
 pronta + scheda d'appoggio (sensore ±32 g/±4000 °/s, vibrazione, ricarica), chiavetta Nordic; fiera in ~6–10 settimane e
