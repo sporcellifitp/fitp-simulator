@@ -1693,3 +1693,10 @@ giornata (sezioni nuove del riassunto). B67 (mascotte) è di un altro agente.
 
 - 18/11 · **Worker del registro ricaricato dall'utente** con il file della 2026-11-18.1 (B66). Verificato dalla risposta
   pubblica del Worker: `{"ok":true,"registro":"pronto","spazio":true,"chiave":true,"formato":3}`.
+- 18/11, 11:15 UTC · **B68** «Batte per primo» più breve (`093258f`): chi batte e il sorteggio li dice il conto, «Si gioca»
+  dopo il conto non lo ripete e dura 1,3 s (prima 2,6 s). Gioco 1828/1828, sito 289/289, desktop 56/56, LAN 13/13, build;
+  nel browser b20 52/52, b47-fiera 20/20, formato-fiera 29/29 (controllo vecchio della 14.7 allineato, `63f8f55`). Esce
+  con la prossima versione.
+- 18/11, 11:15 UTC · l'utente approva le mascotte del B67 («ok, integra queste») e chiede **altri balletti di esultanza**
+  nello stile dei balletti virali. **B69** avviato (agente): unire il ramo `b67-mascotte-pose`, accendere le mascotte 3D di
+  base nel programma Windows, 4–5 balletti nuovi originali, anteprima, poi versione **2026-11-18.2** con B68 e pacchetti.
