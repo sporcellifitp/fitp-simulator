@@ -9,6 +9,10 @@ Stato: **requisiti in corso** (18/11). Requisiti dati dall'utente: **4 grip e un
 realizzabile ed esteticamente bella (bocciati i primi mockup «a impugnatura tonda»). Scelta dell'utente: **piano A =
 modulo a clip su una racchetta vera** (concept 3); **piano B da valutare = piccolo grip verticale con feedback aptico,
 solo sensore, senza piatto corde**. Valutazione dei due piani nella sezione «Piano A e piano B» in fondo.
+**Ricerca approfondita del 18/11** (fornitori, prezzi, norme, piano a fasi da zero alla produzione):
+`docs/hardware/ricerca-grip-controller-2026-11-18.md`. Consiglio: grip verticale B («solo un grip»), scheda Nordic
+pronta + scheda d'appoggio (sensore ±32 g/±4000 °/s, vibrazione, ricarica), chiavetta Nordic; fiera in ~6–10 settimane e
+~1.500–3.500 € (stime); produzione di 20–100 pezzi decisa dopo la fiera (CE completa, ~15–30 mila € fissi, stime).
 
 ## Perché conviene (rispetto al telefono)
 

@@ -363,3 +363,9 @@ Prodotto: entrambi (solo repository). Vecchio sito, immagini dei blocchi, rami, 
 - Mockup generati con Higgsfield (immagini consegnate all'utente, non nel repository).
 - Non verificato: prezzi e specifiche dei componenti (da controllare sui datasheet e con i fornitori); nessun pezzo fisico.
   Nessun file di versione, pacchetti invariati (2026-11-18.3).
+
+## 18/11/2026 · HW1: ricerca approfondita su fornitori e piano da zero alla produzione (solo documenti)
+- File: `docs/hardware/ricerca-grip-controller-2026-11-18.md` (rapporto), `docs/hardware/grip-controller.md`, `docs/TRACCIA_PASSI.md`.
+- Cinque filoni (componenti, produzione e involucri, norme UE, firmware e chiavetta, processo e costi), poi sintesi.
+- Non verificato: prezzi (istantanee del 18/11), costi di laboratorio e montaggio (stime), procedura italiana per i
+  trasmettitori in fiera, range del giroscopio dell'ICM-45686 e disponibilità dell'LSM6DSV32X (fonti in conflitto).

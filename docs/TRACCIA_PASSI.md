@@ -25,7 +25,8 @@ a questo file; quando supera ~300 righe si sposta di nuovo la parte vecchia in u
   «Batte per primo» più breve (18.2) · B70 mascotte solo nel programma Windows (18.3). Dettagli in `docs/WORK_PROGRESS.md`.
 - **HW1** in roadmap (18/11): grip-racchetta come controller hardware al posto del telefono, progetto parallelo; piano in
   `docs/hardware/grip-controller.md`, voce in `docs/PIANO_LAVORI.md` §5. Requisiti: 4 grip + chiavetta USB; piano A modulo a clip su racchetta, piano B
-  grip verticale con vibrazione (valutazione nel documento, consiglio: prototipo con due gusci, B principale).
+  grip verticale con vibrazione (valutazione nel documento). Ricerca del 18/11 in
+  `docs/hardware/ricerca-grip-controller-2026-11-18.md`: consiglio grip B, piano a fasi; aspetta le 6 decisioni dell'utente.
 - Punto aperto noto: `tools/e2e/natpf-lob-drop.mjs` 136/137, il controllo dei piedi in corsa (3,08 % contro 3 %) fallisce
   uguale dalla 17.3 (non è una regressione dei blocchi dopo).
 
