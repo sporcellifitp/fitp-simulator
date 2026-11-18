@@ -103,7 +103,7 @@ try {
     await sleep(250);
     const c = await p.evaluate(() => { const el = document.getElementById('natpf-prematch'), box = el.querySelector('.prematch-box').getBoundingClientRect(), num = el.querySelector('[data-prematch="num"]').getBoundingClientRect(); return { on: __natpfTennis.natpfUi.prematch.active && !el.classList.contains('hidden'), n: document.querySelectorAll('#natpf-prematch').length, paused: __natpfTennis.natpfPaused, kicker: el.querySelector('[data-prematch="kicker"]').textContent, title: el.querySelector('[data-prematch="title"]').textContent, serve: el.querySelector('[data-prematch="serve"]').textContent, num: el.querySelector('[data-prematch="num"]').textContent, box: { l: Math.round(box.left), t: Math.round(box.top), r: Math.round(box.right), b: Math.round(box.bottom) }, numH: Math.round(num.height), W: innerWidth, H: innerHeight }; });
     const centered = Math.abs((c.box.l + c.box.r)/2 - c.W/2) <= 4 && Math.abs((c.box.t + c.box.b)/2 - c.H/2) <= c.H*0.08;
-    check(`3. ${w}×${h}: conto alla rovescia grande, uno solo, al centro dello schermo intero, dentro lo schermo, numero alto almeno il 20% dello schermo; partita ferma`, c.on && c.n === 1 && c.paused && c.kicker === 'Preparati' && c.title === 'La partita sta per cominciare' && c.serve === 'Batte sempre Marco' && c.num === '3' && centered && c.box.l >= 0 && c.box.t >= 0 && c.box.r <= c.W && c.box.b <= c.H && c.numH >= c.H*0.2, fmt(c));
+    check(`3. ${w}×${h}: conto alla rovescia grande, uno solo, al centro dello schermo intero, dentro lo schermo, numero alto almeno il 20% dello schermo; partita ferma`, c.on && c.n === 1 && c.paused && c.kicker === 'Preparati' && c.title === 'La partita sta per cominciare' && c.serve === 'Sorteggio: batte sempre Marco' && c.num === '3' && centered && c.box.l >= 0 && c.box.t >= 0 && c.box.r <= c.W && c.box.b <= c.H && c.numH >= c.H*0.2, fmt(c));
     // (la schermata con la grafica software dura più dei 3 s del conto: il conto si ferma solo per la schermata)
     await p.evaluate(() => { const pm = __natpfTennis.natpfUi.prematch; pm.__tick = pm.tick; pm.tick = () => {}; });
     await sleep(400);   // (il riquadro entra con una breve animazione)
@@ -112,7 +112,7 @@ try {
     const done = await until(p, () => !__natpfTennis.natpfUi.prematch.active, null, 15000);
     await sleep(200);
     const after = await p.evaluate(() => ({ done: !__natpfTennis.natpfUi.prematch.active, paused: __natpfTennis.natpfPaused, banner: __natpfTennis.lastBannerBroadcast?.text, sub: __natpfTennis.lastBannerBroadcast?.subText, overlay: !document.getElementById('natpf-prematch').classList.contains('hidden') }));
-    check(`   ${w}×${h}: dopo 3 s si gioca, con la scritta «Start» e «Sorteggio: batte sempre Marco»`, done && !after.paused && !after.overlay && after.banner === 'Start' && after.sub === 'Sorteggio: batte sempre Marco', fmt(after));
+    check(`   ${w}×${h}: dopo 3 s si gioca, con la scritta «Start» senza ripetere chi batte (B68: lo dice il conto)`, done && !after.paused && !after.overlay && after.banner === 'Start' && !after.sub, fmt(after));
   }
 
   /* 4. stesso schermo: «Rivincita» → fasce con i nomi → «Gioca» → conto → partita */

@@ -21,6 +21,8 @@
 const $ = id => (typeof document !== 'undefined' ? document.getElementById(id) : null);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 
+// B68: durata della scritta «Start» dopo il conto (prima 2,6 s con chi batte, 1,8 s senza): chi batte è già nel conto
+export const START_AFTER_COUNT_MS = sub => (sub ? 2000 : 1300);
 export const PREMATCH = Object.freeze({ ms: 3000, kicker: 'Preparati', title: 'La partita sta per cominciare' });
 // B59: conto prima degli scambi di prova (stessa durata e stesso riquadro)
 export const TRIAL_COUNT = Object.freeze({ kicker: 'Preparati', title: 'Prima qualche scambio di prova', go: "Allenati un po'!",
@@ -45,11 +47,13 @@ export function prematchLeft(elapsed = 0, ms = PREMATCH.ms){
 }
 // riga sotto il numero: chi batte (funzione pura). names: { player, opponent } nello stesso schermo (null contro la CPU);
 // fixed: battuta «Sempre lo stesso» (natpf_battuta.js)
-export function prematchServeLine({ names = null, server = 'player', fixed = false } = {}){
+// B68: drawn = chi batte è uscito dal sorteggio (stesso schermo): lo dice il conto, la scritta «Start» dopo non lo ripete
+export function prematchServeLine({ names = null, server = 'player', fixed = false, drawn = false } = {}){
   const opp = server === 'opponent';
   if (names){
     const who = String((opp ? names.opponent : names.player) || (opp ? 'Player 2' : 'Player 1'));
-    return `${fixed ? 'Batte sempre' : 'Batte per primo'} ${who}`;
+    const what = fixed ? 'atte sempre' : 'atte per primo';
+    return drawn ? `Sorteggio: b${what} ${who}` : `B${what} ${who}`;
   }
   if (opp) return fixed ? 'Batte sempre la CPU' : 'Batte per prima la CPU';
   return fixed ? 'Batti sempre tu: lancia la palla e colpisci' : 'Batti tu: lancia la palla e colpisci';
@@ -148,7 +152,7 @@ export class NatpfPrematch {
     if (el.dataset && el.dataset.kind !== this.kind) el.dataset.kind = this.kind;
     set('[data-prematch="kicker"]', T.kicker);
     set('[data-prematch="title"]', T.title);
-    set('[data-prematch="serve"]', T.line || prematchServeLine({ names: split ? { player: nm.p1, opponent: nm.p2 } : null, server: E.score?.server, fixed: !!E.score?.fixed }));
+    set('[data-prematch="serve"]', T.line || prematchServeLine({ names: split ? { player: nm.p1, opponent: nm.p2 } : null, server: E.score?.server, fixed: !!E.score?.fixed, drawn: !!E.natpfStartDrawn }));
     const num = el.querySelector?.('[data-prematch="num"]'), n = String(this.left || prematchLeft(this.elapsed));
     // ogni secondo il numero «batte» (classe tick rimessa da capo), come il conto dello stesso schermo
     if (num && num.textContent !== n){ num.textContent = n; num.classList?.remove?.('tick'); void num.offsetWidth; num.classList?.add?.('tick'); }

@@ -29,6 +29,7 @@ import {
   watchPixelRatio,
 } from "./natpf/natpf_camera.js";
 import { resolveMatchFormat, firstServer, serveChoice } from "./natpf/match_format.js";
+import { START_AFTER_COUNT_MS } from "./natpf/natpf_prematch.js"; // B68
 // NATPF B18: formato in fiera (punto decisivo e servizio come nel tie-break), opzione dello staff spenta di base
 import * as NF from "./natpf/natpf_fair_format.js";
 // NATPF B47: battuta a un solo giocatore (opzione dello stand «Battuta: Sempre lo stesso · Alternata», di base la prima)
@@ -1281,6 +1282,11 @@ export class NatpfTennisEngine {
         (this.audioEngine.playMusicForState("start"), hold || this.audioEngine.announceScore("Start")),
       // B20: nello stesso schermo chi batte per primo si vede («Sorteggio: batte Giulia»)
       // B35: con il servizio che passa ogni due punti (formato in fiera, campo aperto) lo dice anche la riga sotto
+      // B68 (richiesta dell'utente del 18/11: «"batte per primo X" compare in sovrapposizione per troppo tempo»): chi batte
+      // lo dice già il conto alla rovescia grande (natpf_prematch.js, con il sorteggio); dopo il conto la scritta «Start» ha
+      // solo la riga del formato veloce (natpfStartSubAfterCount) e dura meno (natpfStartCall)
+      (this.natpfStartDrawn = !!this.natpfSplit?.active && serveChoice(this.natpfServeFirst) === "random"),
+      (this.natpfStartSubAfterCount = ND.altServe(this, !!this.score.fair) && !this.score.fixed ? NF.FAST_SERVE_LINE : ""),
       (this.natpfStartSub = [
         this.natpfSplit?.active
           ? NPC.firstServeText({ ...NPC.callContext(this), server: this.score.server, drawn: serveChoice(this.natpfServeFirst) === "random", fixed: !!this.score.fixed })
@@ -1302,10 +1308,11 @@ export class NatpfTennisEngine {
   // batte per primo nello stesso schermo
   natpfStartCall() {
     if (this.phase === "MATCH_OVER" || this.autoPlayMode) return;
-    const bs = this.natpfStartSub || "";
+    // B68: dopo il conto chi batte non si ripete (era già nel conto per 3 s) e la scritta resta meno (prima 2,6 s con la riga)
+    const bs = this.natpfStartSubAfterCount || "";
     this.audioEngine && this.audioEngine.announceScore("Start");
     this._recordBannerBroadcast("Start", "style-start", bs, null);
-    this.hud.showCenterBanner("Start", { style: "style-start", durationMs: bs ? 2600 : 1800, persistent: !1, ...(bs ? { subText: bs } : {}) });
+    this.hud.showCenterBanner("Start", { style: "style-start", durationMs: START_AFTER_COUNT_MS(bs), persistent: !1, ...(bs ? { subText: bs } : {}) });
   }
   _setupPointServe({
     showBanner: e = !0,
