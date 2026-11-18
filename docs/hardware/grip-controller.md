@@ -5,7 +5,10 @@ elettriche, scheda madre), io lo farò realizzare da professionisti e qualcuno m
 venga fuori il posto del cellulare. Una sorta di grip per la racchetta da usare come controller. Progetto side, ma che
 richiede attenzione». Prodotto: FIERA (e poi white label).
 
-Stato: **in roadmap, non iniziato**. Le scelte qui sotto sono proposte da confermare con l'utente.
+Stato: **requisiti in corso** (18/11). Requisiti dati dall'utente: **4 grip e una chiavetta USB**; forma semplice,
+realizzabile ed esteticamente bella (bocciati i primi mockup «a impugnatura tonda»). Scelta dell'utente: **piano A =
+modulo a clip su una racchetta vera** (concept 3); **piano B da valutare = piccolo grip verticale con feedback aptico,
+solo sensore, senza piatto corde**. Valutazione dei due piani nella sezione «Piano A e piano B» in fondo.
 
 ## Perché conviene (rispetto al telefono)
 
@@ -51,3 +54,46 @@ Stato: **in roadmap, non iniziato**. Le scelte qui sotto sono proposte da confer
   integrazione nel gioco, involucro parametrico, istruzioni di montaggio e collaudo.
 - Non posso: saldare, misurare, provare la radio o la batteria su un pezzo vero, certificare. Ogni passo fisico va
   verificato da chi realizza e monta, e i file vanno rivisti da un professionista prima dell'ordine.
+
+## Piano A e piano B (valutazione del 18/11)
+
+Mockup (immagini generate, solo idea di forma, non disegni tecnici): piano B in tre varianti, manico con gola aperta a V
+bianca, manico sfaccettato grafite/lime con gola triangolare e pulsante, set di quattro colori con chiavetta.
+
+**L'elettronica è la stessa nei due piani**: cambia solo il guscio. Quindi la scelta della forma non blocca il prototipo.
+
+| Parte (prototipo) | Proposta | Costo indicativo |
+|---|---|---|
+| Scheda radio + IMU + carica | Seeed XIAO nRF52840 Sense (BLE, IMU 6 assi, caricatore LiPo, USB-C) | ~15 € |
+| Vibrazione (feedback aptico) | motorino LRA 10 mm + driver DRV2605L (effetti già pronti: clic, colpo, ronzio) | ~8 € |
+| Batteria | LiPo 400 mAh con protezione | ~5 € |
+| Comandi | 1 pulsante («Sono pronto»/«Salta»), interruttore, LED di stato | ~3 € |
+| Chiavetta USB | Nordic nRF52840 Dongle, una sola per i 4 grip (BLE regge più collegamenti) | ~15 € (una) |
+
+Nella scheda definitiva: IMU **±32 g / ±4000 °/s** (per esempio LSM6DSV32X, da verificare sul datasheet) al posto di
+quella ±16 g della XIAO. Stima: un colpo da visitatore (testa a 15–20 m/s) dà ~12 rad/s; a ~1 m dalla spalla (gola
+della racchetta) sono ~14–15 g, al limite di ±16 g; nel manico (~0,75 m) ~11 g. Con colpi forti si satura.
+
+### Piano A · modulo a clip sulla racchetta vera
+- Scatolina ~55×35×15 mm stampata in 3D, fissata alla gola o al fondo del manico con fascetta in silicone; 4 racchette junior.
+- Pro: effetto «racchetta vera», guscio semplice ed economico, si cambia la racchetta senza cambiare il modulo.
+- Contro: **sicurezza allo stand** (testa e corde di 4 racchette tra pubblico e ledwall); più accelerazione sulla gola
+  (saturazione); il fissaggio può allentarsi o ruotare e falsare gli assi; peso e bilanciamento diversi da racchetta a racchetta.
+- Costo per pezzo ~35 € di modulo + 15–25 € di racchetta: ~230–260 € per 4 più la chiavetta.
+
+### Piano B · grip verticale con feedback aptico (solo sensore)
+- Manico ~25–28 cm con overgrip, gola aperta (solo forma, niente piatto corde), pulsante sotto il pollice, USB-C e
+  laccio da polso in fondo, elettronica dentro il manico, motorino LRA nel palmo; 150–200 g con un peso in gola per la sensazione.
+- Pro: **più sicuro** in mezzo al pubblico; il sensore sta dove oggi c'è il telefono, quindi **gli algoritmi dei gesti
+  si riusano meglio**; assi sempre uguali (niente fascetta che ruota); vibrazione sentita bene nel palmo; 4 pezzi identici.
+- Contro: meno «racchetta vera»; il guscio è da disegnare (prima stampa 3D in nylon SLS/MJF, poi eventuale stampo).
+- Costo per pezzo prototipo ~55–65 € (guscio stampato 20–30 €): ~250–280 € per 4 più la chiavetta.
+
+### Feedback aptico (piano B, utile anche nel piano A)
+- **Colpo letto**: il firmware riconosce il picco e vibra subito sul grip (nessun ritardo di radio).
+- **Palla presa / punto vinto / turno**: il gioco manda l'evento via chiavetta (pochi ms) e il grip vibra con un effetto diverso.
+
+### Consiglio
+Prototipo con l'elettronica comune e **due gusci**: piano B come principale per lo stand (sicurezza e riuso dei gesti),
+piano A per dimostrazioni o eventi con spazio. Si decide dopo la prova di colpi, ritardo e batteria con i visitatori
+(il registro B66 confronta telefono e grip). Prezzi indicativi, da verificare con i fornitori al momento dell'ordine.

@@ -356,3 +356,10 @@ Prodotto: entrambi (solo repository). Vecchio sito, immagini dei blocchi, rami, 
 - Verifiche: gioco `npm test` 1844/1844 (~270 s), sito `node --test tools/test/*.test.mjs` 289/289, LAN 13/13, desktop
   56/56, `npm run build` ok; `git grep` dei percorsi tolti o spostati: nessun uso in codice, test, workflow o script.
   Nessun file di versione, pacchetti invariati (quelli della 2026-11-18.3). Nessun test leggeva i documenti spostati.
+
+## 18/11/2026 · HW1: piano A e piano B del grip controller (solo documenti)
+- File: `docs/hardware/grip-controller.md` (requisiti, valutazione piano A modulo a clip / piano B grip con vibrazione,
+  componenti, costi indicativi, consiglio), `docs/TRACCIA_PASSI.md`, `docs/PIANO_LAVORI.md` §5.
+- Mockup generati con Higgsfield (immagini consegnate all'utente, non nel repository).
+- Non verificato: prezzi e specifiche dei componenti (da controllare sui datasheet e con i fornitori); nessun pezzo fisico.
+  Nessun file di versione, pacchetti invariati (2026-11-18.3).

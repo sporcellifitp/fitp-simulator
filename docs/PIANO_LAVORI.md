@@ -130,8 +130,9 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
 
 Richiesta dell'utente del 18/11: progettare un controller hardware (circuiti, scheda, firmware, involucro) che lui farà
 realizzare e montare da professionisti, per sostituire il telefono con un grip da racchetta. Piano, architettura proposta,
-fasi e limiti in `docs/hardware/grip-controller.md`. Prossimo passo: requisiti con l'utente (quanti pezzi, budget,
-collegamento, forma, chi realizza), poi prototipo con schede di sviluppo prima della scheda custom.
+fasi e limiti in `docs/hardware/grip-controller.md`. Requisiti (18/11): 4 grip, una chiavetta USB, forma semplice e bella;
+piano A modulo a clip su racchetta vera, piano B grip verticale con vibrazione (valutati nel documento). Prossimo passo:
+scelta dell'utente, poi prototipo con schede di sviluppo prima della scheda custom.
 
 ### B58.1 · Mascotte della card: passi e velo (FIERA) · velo fatto (16.11); passi non richiesti (utente, 17/11: «ok con versione senza sfondo bianco»)
 - **Stato**: domanda dell'utente del 16/11 («si muovono come chiedo? a me sembrano tutti simili; migliorare le movenze

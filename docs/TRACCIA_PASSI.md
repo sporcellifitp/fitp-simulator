@@ -24,7 +24,8 @@ a questo file; quando supera ~300 righe si sposta di nuovo la parte vecchia in u
 - **Ultimi blocchi**: B66 registro con sensori e calibrazione (18.1) · B67 + B69 mascotte 3D con pose e balletti, B68
   «Batte per primo» più breve (18.2) · B70 mascotte solo nel programma Windows (18.3). Dettagli in `docs/WORK_PROGRESS.md`.
 - **HW1** in roadmap (18/11): grip-racchetta come controller hardware al posto del telefono, progetto parallelo; piano in
-  `docs/hardware/grip-controller.md`, voce in `docs/PIANO_LAVORI.md` §5. Non iniziato: prima i requisiti con l'utente.
+  `docs/hardware/grip-controller.md`, voce in `docs/PIANO_LAVORI.md` §5. Requisiti: 4 grip + chiavetta USB; piano A modulo a clip su racchetta, piano B
+  grip verticale con vibrazione (valutazione nel documento, consiglio: prototipo con due gusci, B principale).
 - Punto aperto noto: `tools/e2e/natpf-lob-drop.mjs` 136/137, il controllo dei piedi in corsa (3,08 % contro 3 %) fallisce
   uguale dalla 17.3 (non è una regressione dei blocchi dopo).
 
@@ -70,7 +71,7 @@ Gioco e stand:
    del B66 (sensori, collegamento, calibrazione, precisione), dritto e rovescio dalla parte opposta (campo `pl`, B61).
 3. **Dopo la fiera**: separazione FIERA / ONLINE (white label, Classici di base) quando l'utente risponde alle domande
    rimaste di `docs/PRODOTTI_FIERA_E_ONLINE.md` §4.
-4. **HW1**: requisiti con l'utente prima di iniziare.
+4. **HW1**: scelta dell'utente tra piano A e piano B (o prototipo con tutti e due), poi prototipo con schede di sviluppo.
 5. Pulizia del repository, parti **da confermare** con l'utente (non fatte): vecchio sito «Foro Italico World», immagini
    di analisi in `docs/`, rami remoti vecchi e ramo predefinito, artifact delle Actions, riorganizzazione dei documenti
    fermi al 21–27/10 e di `docs/coda/`.
