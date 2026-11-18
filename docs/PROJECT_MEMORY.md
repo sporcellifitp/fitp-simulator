@@ -1657,3 +1657,17 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   pillola della schermata finale usano la posizione solo contro la CPU (lo stesso schermo non li cambia).
 - Prove nel browser: `tools/e2e/th.mjs` la spegne (`natpf-tennis.classificaFine` = '0') come il salvaschermo.
 
+
+## B66 · Registro dello stand: sensori, calibrazione, prestazioni, precisione dei gesti (18/11/2026; `docs/b66/registro-sensori.md`)
+- Formato delle righe **3**. Campi nuovi in `CAMPI_B66` (una riga sola, prima di quella del B36.0, identica nel Worker):
+  i test fanno un «Worker del 17/11» togliendo quella riga e provano che accetta le righe nuove senza le misure.
+  Attenzione ai nomi: `rete` c'era già (colpo a rete, B31), per questo la rete del telefono è `wifi`.
+- Telefono (`site/js/tennis/phone-stats.js`): campioni (`sq` nello stato `st`, uno per stato: si azzera a ogni rapporto),
+  blocco dei tocchi (`lc`, conti dall'apertura della pagina: il PC fa le differenze e riparte se tornano indietro), app
+  (`ap`, solo numeri, letto al più ogni 5 s); colpo con `gw` (buco nel gesto) e `mg` (picco/soglia, da `swing-detect.js`:
+  un campo in più dopo ogni decisione, impronta dei gesti del 28/10 invariata); `dev` con `av` (versione dell'app).
+- PC: `registro_misure.js` (`MisureTelefono` per telefono e partita, `Pause`); `natpf_phone_racket.onState` (ogni «st»);
+  `ui._holdAction` avvolto per le pause del Player 1, il Player 2 dello stesso schermo letto al secondo. I colpi fuori
+  dalla partita (scambi di prova, allenamento) usano una `MisureTelefono` a parte solo per la riga «colpo».
+- App 1.0.4: `Bridge.stato()` → `PhoneStatus.json` (numeri; rssi −127 = Wi-Fi assente). Mai SSID/BSSID/indirizzi.
+- Mediana vera (media dei due di mezzo) nelle misure del gioco; il riassunto usa i suoi percentili (`Misura.p`).

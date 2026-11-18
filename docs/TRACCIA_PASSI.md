@@ -1669,3 +1669,34 @@ di salvaschermo, ridondanze e classifica di fine partita. Punto aperto: il contr
   triste». **B67** avviato (agente, ramo locale `b67-mascotte-pose`, worktree `scratchpad/b67/wt`, porte 4550–4599): niente
   unione né versione finché l'utente non approva la nuova anteprima (`docs/analisi/mascotte-3d-anteprima-b67.webp`).
   Interruttore delle mascotte 3D sempre spento di base.
+
+## 18/11, 11:30 UTC · B66 fatto, versione 2026-11-18.1
+
+- [x] B66 (`docs/b66/registro-sensori.md`): registro con qualità dei sensori (`tq`), collegamento (`lat`, `rit` nei colpi),
+      rete e batteria dall'app (`wifi`), telefono bloccato (`blocco`), calibrazione (`cal`), pause, precisione dei gesti
+      (`cf`, `mg`, `gb` nei colpi), versioni di pagina e app. Formato delle righe 3: **Worker da ricaricare** (utente, §5).
+- [x] App NATPF Racchetta 1.0.4: `Bridge.stato()` (solo numeri). SDK di Android installato nel contenitore
+      (`scratchpad/b66/android-sdk`): build, test e lint locali verdi.
+- [x] Prove: gioco 1826/1826, sito 289/289, LAN 13/13, desktop 56/56, build; nel browser 8 prove verdi (WORK_PROGRESS).
+- [x] Push `fc593e4`. Pacchetti: installer dal link fisso = `latest.json` 2026-11-18.1 (131.385.673 B, sha256
+      `2a79bc0f738dc390d46dee1452598c1f2a0683472cf0739265c2696ba198abbe`); zip Cloudflare 23.969.237 B, sha256
+      `f24a6212d45231624d0a00946b1e4d104d6e9d4048777690d87020e9f4058d4b`, senza `registro.json`, provato estratto (gioco e
+      pagina del telefono 2026-11-18.1, registro in coda senza indirizzo; `natpf-nome-telefono` 23/23, `natpf-telefono-bloccato`
+      11/12: l'unico KO è il CORS del Worker TURN vero visto da 127.0.0.1, non del B66); APK 1.0.4 pubblicato su R2
+      (`android/NATPF-Racchetta-1.0.4.apk` = link fisso, 682.229 B, sha256
+      `cdcacbd00d44bacef27552be979ae2e5bcf669c5b102ab33595ddaaec19968a5`, versionCode 5, firmato con la chiave dello stand).
+      Quattro workflow verdi sul commit della versione (Simulator tests, motore base MVP, eseguibili Windows, app Android).
+
+**Prossima azione esatta (18/11, 11:45 UTC)**: aspettare l'utente: **ricaricare il Worker del registro** (formato 3,
+`docs/b66/registro-sensori.md` §5), installare l'app 1.0.4 sui telefoni dello stand, poi il registro della prossima
+giornata (sezioni nuove del riassunto). B67 (mascotte) è di un altro agente.
+
+- 18/11 · **Worker del registro ricaricato dall'utente** con il file della 2026-11-18.1 (B66). Verificato dalla risposta
+  pubblica del Worker: `{"ok":true,"registro":"pronto","spazio":true,"chiave":true,"formato":3}`.
+- 18/11, 11:15 UTC · **B68** «Batte per primo» più breve (`093258f`): chi batte e il sorteggio li dice il conto, «Si gioca»
+  dopo il conto non lo ripete e dura 1,3 s (prima 2,6 s). Gioco 1828/1828, sito 289/289, desktop 56/56, LAN 13/13, build;
+  nel browser b20 52/52, b47-fiera 20/20, formato-fiera 29/29 (controllo vecchio della 14.7 allineato, `63f8f55`). Esce
+  con la prossima versione.
+- 18/11, 11:15 UTC · l'utente approva le mascotte del B67 («ok, integra queste») e chiede **altri balletti di esultanza**
+  nello stile dei balletti virali. **B69** avviato (agente): unire il ramo `b67-mascotte-pose`, accendere le mascotte 3D di
+  base nel programma Windows, 4–5 balletti nuovi originali, anteprima, poi versione **2026-11-18.2** con B68 e pacchetti.

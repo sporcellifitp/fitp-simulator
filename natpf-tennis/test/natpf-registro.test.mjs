@@ -7,6 +7,7 @@ import * as F from '../src/natpf/registro/registro_formato.js';
 import { codaMemoria, codaProgramma, conRiserva, controllaBlocco, daScartare } from '../src/natpf/registro/registro_coda.js';
 import { InvioRegistro, percheNo } from '../src/natpf/registro/registro_invio.js';
 import { RegistroStand, LINEE } from '../src/natpf/registro/registro_registratore.js';
+import { MisureTelefono, Pause, percentile } from '../src/natpf/registro/registro_misure.js';
 import fs from 'node:fs';
 import { testoStato, nomeNelloZip } from '../src/natpf/natpf_registro.js';
 import zlib from 'node:zlib';
@@ -238,7 +239,8 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
     natpfSplit: split ? { active: true } : null, natpfSplitNames: split ? { p1: 'Giulia Bianchi', p2: 'Player 2' } : null, natpfSplitBands: split ? { p1: 'bambino', p2: 'adulto' } : null,
     natpfDuo: split ? { help: { p1: true }, autoToss: true, open: false } : null, natpfHot: false,
     natpfPhone: { connected: true, hand: 'right', device: { ua: 'Mozilla/5.0 (Linux; Android 14; SM-S911B) Chrome/126.0.0.0 Mobile' }, link: { route: { locale: 'host', remoto: 'host' }, transport: 'webrtc' }, state: { rtt: 14, state: 'on' },
-      onChange(fn){ this._c = fn; }, onCal(fn){ this._cal = fn; }, onSwing(fn){ this._sw = fn; }, onDropped(fn){ this._dr = fn; }, onDiag(fn){ this._dg = fn; } },
+      onChange(fn){ this._c = fn; }, onCal(fn){ this._cal = fn; }, onSwing(fn){ this._sw = fn; }, onDropped(fn){ this._dr = fn; }, onDiag(fn){ this._dg = fn; }, onState(fn){ this._st = fn; },
+      unlockTouch(){ this.sblocchi = (this.sblocchi || 0) + 1; return true; } },
     renderer: { getContext: () => ({ getExtension: () => ({ UNMASKED_RENDERER_WEBGL: 1 }), getParameter: () => 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0)' }) },
     startNewMatch(){ this.autoPlayMode = false; this.phase = 'SERVE'; Object.assign(this.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player' }); },
     _startServeToss(){ this.phase = 'SERVE_TOSS'; },
@@ -256,7 +258,7 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
     _awardPoint(winner){ const k = winner === 'player' ? 'playerPoints' : 'opponentPoints'; this.score[k]++; this.ball.inPlay = false; this.ball.rallyStrokeCount = 0;
       if (this.score[k] >= 4){ this.score[winner === 'player' ? 'playerGames' : 'opponentGames']++; this.score.playerPoints = this.score.opponentPoints = 0; if (this.score.playerGames >= 2 || this.score.opponentGames >= 2) this.phase = 'MATCH_OVER'; } },
   };
-  const ui = { controller: ctrl, hand: { hand: 'right' }, cue: { enabled: true }, kiosk: { enabled: true, reset(){} }, lobby: { visible: true, step: 'menu' },
+  const ui = { controller: ctrl, hand: { hand: 'right' }, cue: { enabled: true }, kiosk: { enabled: true, reset(){} }, lobby: { visible: true, step: 'menu' }, _holdAction(){},
     events: { nickname: nick, active: null, start(){}, finish(){}, abort(){} }, training: { active: false, start(){}, stop(){}, tutorial: null, stats: {} }, split: split ? { webcam: false, tut } : null,
     // B28: scambi di prova (natpf_trial.js) a grandi linee: start, «Salta ›», fine dell'apprendimento, chiusura
     trial: { S: null, get active(){ return !!this.S; }, start({ split: sp = false } = {}){ if (this.S) return false; this.S = { players: Object.fromEntries((sp ? ['p1', 'p2'] : ['p1']).map(id => [id, { balls: 0 }])), result: null }; return true; },
@@ -565,7 +567,7 @@ test('registro, B36.0: la riga del colpo aspetta il primo rimbalzo vero (rx, rz,
   E.ball.lastHitter = 'opponent'; M.avanti(800); E._awardPoint('player', 'Nice Shot!');
   await R.blocco();
   const rows = await tutte(M.coda), colpi = rows.filter(r => r.k === 'colpo'), [partita] = rows.filter(r => r.k === 'partita'), [avvio] = rows.filter(r => r.k === 'avvio');
-  assert.equal(avvio.v, 2, 'formato delle righe 2: con i campi della direzione'); assert.equal(partita.dir, 'classica');
+  assert.equal(avvio.v, 3, 'formato delle righe 3: con i campi della direzione e le misure del B66'); assert.equal(partita.dir, 'classica');
   const v = c => [c.pf, c.dv, c.tu, c.rx, c.rz, c.fu, c.nr];
   assert.deepEqual(colpi.map(v), [
     [.42, 8.9, -.38, 1.41, -8.62, undefined, undefined],
@@ -668,4 +670,89 @@ test('registro, 17/11: la riga «colpo» porta il lato della palla (pl) accanto 
   const colpi = (await tutte(M.coda)).filter(r => r.k === 'colpo');
   assert.deepEqual(colpi.map(r => [r.pl, r.lato]), [[1, 1], [-1, 1], [0, -1], [-1, 1]]);
   assert.ok(F.CAMPI.includes('pl'), 'campo nuovo (il Worker lo tiene dopo la ricarica; prima lo scarta, la riga resta)');
+});
+
+/* ---------- B66: sensori, calibrazione, collegamento, rete e blocco del telefono (docs/b66/registro-sensori.md) ---------- */
+test('registro, B66: misure di un telefono in una partita (sensori, ritardo, numeri dei colpi, rete, blocco, calibrazione)', () => {
+  const M = new MisureTelefono();
+  // sensori: rapporti dal telefono [campioni, ms, buchi, buco più lungo, intervallo dichiarato, saturi acc, saturi giro]
+  M.stato({ sq: [60, 1000, 0, 0, 16, 0, 0] }, 1000); M.stato({ sq: [55, 1000, 2, 140, 16, 0, 1] }, 2000); M.stato({ sq: [3, 40, 0, 0, 16, 0, 0] }, 2040);
+  M.stato({ sq: [42, 1000, 1, 90, 16, 1, 0] }, 3040); M.stato({ sq: 'x' }, 3100); M.stato({ sq: [1, 2] }, 3200);
+  // collegamento: 5 colpi, uno perso (il 4), uno fuori ordine (il 3 dopo il 5), orologi allineati tranne l'ultimo
+  const colpo = (seq, ritardo, now, extra = {}) => M.arrivato({ seq, at: (now - ritardo)/1000, receivedAt: now/1000, path: seq % 2 ? 'fast' : 'reliable', confidence: .8, margin: 1.1 + seq/10, ...extra }, { now, clockOk: !extra.stimato });
+  colpo(1, 40, 5000); colpo(2, 60, 7000, { gapMs: 66 }); colpo(5, 50, 9000); colpo(3, 200, 9100); colpo(6, 0, 11000, { stimato: true });
+  const g = M.giocato(2, 7010); assert.deepEqual(g, { rit: [60, 70], cf: .8, mg: 1.3, gb: 66 });
+  assert.equal(M.giocato(2, 7020), null, 'una volta sola'); assert.equal(M.giocato(5, 13000), null, 'troppo tardi');
+  assert.equal(M.giocato(6, 11005).rit, null, 'senza orologi allineati il ritardo non si misura');
+  // pagina del telefono ricaricata: i numeri ripartono, il tratto di prima si chiude (manca il 4)
+  colpo(1, 45, 20000); colpo(2, 45, 21000);
+  // rete e batteria dall'app [rssi, GHz, Mbps, batteria, carica, temperatura ×10, fissa, schermi spenti]
+  M.stato({ ap: [-60, 5, 433, 80, 0, 305, 1, 3] }, 4000); M.stato({ ap: [-75, 5, 144, 79, 0, 331, 1, 3] }, 9000); M.stato({ ap: [-58, 2.4, 72, 78, 1, 320, 0, 4] }, 15000);
+  // blocco dei tocchi: [tocchi bloccati, sblocchi dello staff sul telefono, pagina nascosta]
+  M.stato({ lk: 1, lc: [0, 0, 0] }, 1000); M.stato({ lk: 1, lc: [3, 0, 1] }, 5000); M.stato({ lk: 0, lc: [3, 1, 1] }, 6000);   // sblocco dello staff
+  M.stato({ lk: 1 }, 7000); M.sbloccoDalPc(9000); M.stato({ lk: 0 }, 9500);                                                // dal PC
+  M.stato({ lk: 1 }, 10000); M.stato({ lk: 0 }, 20000);                                                                    // da solo
+  M.stato({ lk: 1, lc: [1, 0, 0] }, 21000);                                                                                // pagina ricaricata: i conti ripartono
+  // calibrazione: 3 colpi con il colpo tipico non ancora suo, il centro della mira dal 4° colpo
+  for (let i = 0; i < 25; i++) M.calColpo({ proprio: i >= 3, dev: i >= 3 ? 10 - i : null });
+  M.segni++; M.ricalibra++;
+  const o = JSON.parse(JSON.stringify(M.fine(25000, { tip: [520, 610], ref: [600, 600], tipo: 'calibrato', soglia: [70, 120] })));
+  assert.deepEqual(o.tq, { hz: [55, 42], n: 160, b: 3, bm: 140, bg: 1, iv: 16, sat: [1, 1] });
+  assert.deepEqual(o.lat, { arr: [45, 200, 200], ris: [70, 70, 70], jit: 67, n: 7, stimati: 1, persi: 1, ordine: 1, vie: [4, 3] });
+  assert.deepEqual(o.wifi, { rssi: [-60, -75], bd: 5, mbps: [144, 72], bt: [80, 78], ch: 1, tc: 33.1, fx: .67 });
+  assert.deepEqual(o.blocco, { durS: 22, tb: 4, ss: 1, sp: 1, sd: 1, us: 1, sc: 1 });
+  assert.deepEqual(o.cal, { tip: [520, 610], tipN: 3, cen: 3, dvi: [2.5, -9.5], seg: 1, ric: 1, ref: [600, 600], tipo: 'calibrato', soglia: [70, 120] });
+  // un telefono di prima (nessuna misura nuova): la frequenza dalla media mobile del telefono, niente altro
+  const V = new MisureTelefono(); V.hzTelefono(60); V.hzTelefono(58); V.hzTelefono(0);
+  assert.deepEqual(JSON.parse(JSON.stringify(V.fine(1000))), { tq: { hz: [59, 58], fonte: 'telefono' } });
+  assert.deepEqual(new MisureTelefono().fine(0), {});
+  assert.equal(percentile([5, 1, 3, 2, 4], .5), 3); assert.equal(percentile([], .5), null);
+  // pause: motivo, volte, secondi (anche cambiando motivo e per il Player 2)
+  const P = new Pause(); P.cambia('', 'segnale debole', 1000); P.cambia('', 'segnale debole', 1500); P.cambia('', 'pagina nascosta', 3000); P.cambia('', null, 4000);
+  P.cambia(' (2)', 'scollegato', 5000); P.cambia('', 'segnale debole', 6000);
+  assert.deepEqual(P.fine(7000), { 'segnale debole': [2, 3], 'pagina nascosta': [1, 1], 'scollegato (2)': [1, 2] });
+});
+
+test('registro, B66: la partita scrive le misure del telefono e il colpo confidenza, margine, buco e ritardo; righe pulite e accettate', async () => {
+  const M = mondo(), { E, ui, R } = M, ph = E.natpfPhone;
+  let ora = 0; const adesso = () => { ora = R.now(); return ora; };
+  Object.assign(ph, { device: { ...ph.device, version: '2026-11-10.1', app: '1.0.4' }, profile: { ref: 600, on: 70, minPeak: 120 }, typicalModel: { value: null }, link: { ...ph.link, stats: () => ({ clockOk: true }) } });
+  ui.lobby.visible = false; E.startNewMatch(); E.ball.inPlay = true;
+  let seq = 0;
+  const colpo = (dev, gap) => {
+    M.avanti(900); seq++; const now = adesso();
+    ph._sw({ natpf: {} }, { seq, at: (now - 55)/1000, receivedAt: now/1000, path: 'fast', confidence: .74, margin: 1.08, ...(gap ? { gapMs: gap } : {}) });
+    M.avanti(8); E._natpfRacketShot({ shot: 'forehand', natpf: { seq, typicalOwn: seq > 2, aimDev: dev } });
+  };
+  ph._st({ sq: [60, 1000, 0, 0, 16, 0, 0], lk: 1, lc: [0, 0, 0], ap: [-62, 5, 390, 70, 0, 300, 1, 0] }); M.avanti(1000);
+  ph._st({ sq: [58, 1000, 1, 120, 16, 0, 0], lk: 1, lc: [2, 0, 0], ap: [-66, 5, 300, 69, 0, 310, 1, 1] });
+  colpo(null); colpo(null, 70); colpo(4.2);
+  ph.typicalModel.value = 640;
+  ui._holdAction({ kind: 'pause', why: 'segnale debole' }, 'telefono'); M.avanti(2000); ui._holdAction({ kind: 'resume' }, 'telefono');
+  ph.unlockTouch(); M.avanti(100); ph._st({ lk: 0 });
+  ph._dg('verso', { causa: 'rilevatore', stato: -1, ruolo: 'p1' });
+  E.ball.lastHitter = 'opponent'; M.avanti(800); E._awardPoint('player', 'Nice Shot!');
+  E.phase = 'MATCH_OVER'; M.avanti(10); R.secondo(); await R.blocco();
+  const rows = await tutte(M.coda), colpi = rows.filter(r => r.k === 'colpo'), [partita] = rows.filter(r => r.k === 'partita'), [fine] = rows.filter(r => r.k === 'partita.fine');
+  assert.deepEqual(partita.tel, { strada: 'lan', rtt: 14, so: 'Android 14', browser: 'Chrome 126', pv: '2026-11-10.1', app: '1.0.4' }, 'pagina del telefono rimasta indietro e app');
+  assert.deepEqual(colpi.map(c => [c.cf, c.mg, c.gb, c.rit]), [[.74, 1.08, undefined, [55, 63]], [.74, 1.08, 70, [55, 63]], [.74, 1.08, undefined, [55, 63]]]);
+  assert.deepEqual(fine.tq, { g: { hz: [59, 58], n: 118, b: 1, bm: 120, bg: 1, iv: 16 } });
+  assert.deepEqual(fine.lat, { g: { arr: [55, 55, 55], ris: [63, 63, 63], jit: 0, n: 3, vie: [3, 0] } });
+  assert.deepEqual(fine.wifi, { g: { rssi: [-64, -66], bd: 5, mbps: [345, 300], bt: [70, 69], ch: 0, tc: 31, fx: 1 } });
+  assert.equal(fine.blocco.g.sp, 1, 'sbloccato dal PC'); assert.equal(fine.blocco.g.tb, 2); assert.equal(fine.blocco.g.sc, 1);
+  assert.deepEqual(fine.cal, { g: { tip: [null, 640], tipN: 2, cen: 2, seg: 1, ref: [600, 600], tipo: 'calibrato', soglia: [70, 120] } });
+  assert.deepEqual(fine.pause, { 'segnale debole': [1, 2] });
+  for (const r of rows) assert.deepEqual(F.controllaRiga(r, { nomi: M.nomi }), [], JSON.stringify(r));
+  // la stessa riga, dal Worker: identica (campi del B66 nella sua lista)
+  const W = await import('../cloudflare/registro-worker.js');
+  for (const r of [fine, ...colpi, partita]) assert.deepEqual(W.pulisci(r), r);
+  // peso: la riga di fine partita con tutte le misure resta piccola
+  assert.ok(JSON.stringify(fine).length < 900, `partita.fine: ${JSON.stringify(fine).length} caratteri`);
+});
+
+test('registro, B66: senza telefono (mouse) e con un telefono di prima la partita non scrive misure vuote', async () => {
+  const M = mondo({ ctrl: 'mouse' }), { E } = M; E.natpfPhone.connected = false;
+  gioca(M, { punti: 3 }); M.avanti(10); M.R.secondo(); M.R._finePartita('interrotta', 'menu'); await M.R.blocco();
+  const [fine] = (await tutte(M.coda)).filter(r => r.k === 'partita.fine');
+  for (const k of ['tq', 'lat', 'wifi', 'blocco', 'cal', 'pause']) assert.equal(fine[k], undefined, k);
 });

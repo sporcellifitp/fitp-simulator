@@ -188,7 +188,7 @@ try {
   const cseq = [];
   for (const w of ['player', 'opponent', 'player', 'opponent', 'player', 'opponent']){ cseq.push(server(await board(c.p))); await award(c.p, w); await nextServe(c.p); }
   const cb = await board(c.p);
-  check('spenta: «Al meglio di 5» c\'è, batte sempre chi gioca nel game (AAAAAA), sul 40-40 «Parità» (B43: per lo screen reader; l\'etichetta resta il formato)', five !== 'none' && cseq.join('') === 'AAAAAA' && cb.main.label === 'Parità' && cb.main.tagKind === 'format' && cb.score.fair === false, fmt({ five, seq: cseq.join(''), label: cb.main.label, tag: cb.main.tag }));
+  check('spenta: «Al meglio di 5» c\'è, batte sempre chi gioca nel game (AAAAAA), sul 40-40 «Parità» (B50, dalla 14.7: anche nell\'etichetta del tabellone, tipo «deuce»)', five !== 'none' && cseq.join('') === 'AAAAAA' && cb.main.label === 'Parità' && cb.main.tag === 'Parità' && cb.main.tagKind === 'deuce' && cb.score.fair === false, fmt({ five, seq: cseq.join(''), label: cb.main.label, tag: cb.main.tag }));
   check('B35 spenta: niente riga «Formato veloce» (né sul tabellone né nel banner d\'inizio)', cb.rule === '' && !/Formato veloce/.test(cb.sub), fmt({ rule: cb.rule, sub: cb.sub }));
   check('nessun errore nella pagina (formato spento)', !c.errs.length, c.errs.slice(0, 3).join(' | '));
 

@@ -81,11 +81,11 @@ test('stesso schermo: dopo gli scambi di prova un conto solo, al centro, con chi
   w.advance(100);
   assert.ok(!ui.trial.active && E.natpfSplit?.active && E.natpfMatchSeq === 1);
   assert.ok(ui.prematch.active && visible('natpf-prematch'));
-  assert.equal($('natpf-prematch').querySelector('[data-prematch="serve"]').textContent, 'Batte sempre Marco');
+  assert.equal($('natpf-prematch').querySelector('[data-prematch="serve"]').textContent, 'Sorteggio: batte sempre Marco'); // (B68: il sorteggio lo dice il conto)
   assert.ok(E.natpfPaused && E.score.server === 'opponent' && E.score.fixed);
   w.advance(3100);
   assert.ok(!ui.prematch.active && !E.natpfPaused);
-  assert.deepEqual(banners.at(-1), ['Start', 'Sorteggio: batte sempre Marco']);
+  assert.deepEqual(banners.at(-1), ['Start', ''] /* B68: dopo il conto «Start» non ripete chi batte */);
   // partita nuova e ritorno al menu durante il conto: il conto sparisce e non fa partire niente
   ui.backToMenu('match'); w.advance(300);
   link.cmd('skip'); l2.cmd('skip');

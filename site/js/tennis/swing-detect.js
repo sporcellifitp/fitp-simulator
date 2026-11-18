@@ -390,7 +390,10 @@ export function createSwingDetector(opts = {}){
     // rawPeak: velocità vera al picco (vertice della parabola sui campioni grezzi). peak resta il massimo della media
     // mobile, che decide le soglie: negli swing corti è molto più basso del vero (50° a 1100 °/s: 72%)
     const sw = { phase: 'contact', peakT, t, peak: Math.round(c.peak), rawPeak: Math.round(Math.max(c.rawTop || 0, c.rawPeak || 0) || c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, gravity, lift: +lift.toFixed(3), ...special, ...intent, features, angle: Math.round(c.angle), dur,
-      ...(vert ? { vert } : {}), turn: +c.turn.toFixed(1), detectMs: +Math.max(0, t - peakT).toFixed(1) };
+      ...(vert ? { vert } : {}), turn: +c.turn.toFixed(1), detectMs: +Math.max(0, t - peakT).toFixed(1),
+      // B66 (solo misura, per il registro dello stand): picco diviso la soglia della forza (floor); vicino a 1 = colpo «al
+      // limite». Sotto 1 solo i gesti verticali o lenti, che passano con una soglia loro
+      ...(floor > 0 ? { margin: +(c.peak/floor).toFixed(2) } : {}) };
     if (prepMode && !training && !serving()){
       // un gesto trattenuto e ora quello opposto: il primo era la preparazione
       if (held && dir !== 0 && dir === -held.sw.dir && c.peak < held.sw.peak*C.prepFollow){ const h = held; held = null; commit(h.sw, t); setPhase('follow'); discard('rientro', c, dir); return; }
