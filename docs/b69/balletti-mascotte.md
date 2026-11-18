@@ -82,7 +82,19 @@ prima per lo stesso esito, e nello stesso schermo due card con lo stesso esito (
   mancino; nessun nome di giochi o balli con nome proprio nei file.
 - `test/natpf-b67-mascotte-pose.test.mjs` copre anche i balletti (1.152 fotogrammi con la racchetta in mano);
   `test/natpf-b63-mascotte-3d.test.mjs` aggiornata (15 movimenti, acceso di base).
-- Nel browser: vedi `docs/WORK_PROGRESS.md` (B69) per i numeri delle prove della fine partita e dell'anteprima.
+- Nel browser: `natpf-fine-partita-ritratti` 28/28 (mascotte accese di base anche con le GIF accese; Classici con le
+  GIF), `natpf-mascotte-3d-anteprima` 27/27, `natpf-fine-partita` 68/68, `natpf-classifica-fine` 11/11,
+  `natpf-stesso-schermo-b20` 52/52, `natpf-fiera-telefoni` 66/66, `natpf-lob-drop` 136/137 (il controllo dei piedi in corsa,
+  3,08 % contro 3 %, fallisce uguale da prima del B69).
+
+## Misure (Chromium senza GPU, SwiftShader: il caso peggiore)
+
+- Cattura di due personaggi da 24 fotogrammi (somma delle fette di 6 ms): 2,6–3,1 s su 20 giri; schermata a 1920 × 1080
+  4,1–4,6 s; nell'area piccola del ledwall (`?area=40,40,640,360`) 2,5–2,8 s, con i fotogrammi sempre 256 × 320 (l'area è
+  più alta di 320 px). Programmi shader nuovi durante la cattura: 0. La card mostra il personaggio disegnato finché i
+  fotogrammi non sono pronti.
+- Memoria: due fogli da 24 fotogrammi 256 × 320 = 15,0 MB (come il B63); Android o meno di 4 GB: 12 fotogrammi, 7,9 MB.
+  Le pose dei balletti sono solo codice (niente asset: zip e installer non crescono per questo).
 
 ## Non provato
 

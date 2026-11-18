@@ -1642,6 +1642,25 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - Le GIF del B58 si spengono a mano con `natpf-tennis.mascotteGif` = '0' (le usa la prova dei ritratti 3D nel server di
   sviluppo, dove altrimenti la card mostrerebbe le GIF).
 
+## B67 + B69 · Mascotte 3D accese di base e balletti (18/11/2026; `docs/b67/pose-mascotte.md`, `docs/b69/balletti-mascotte.md`)
+- Approvate dall'utente il 18/11. **Accese di base** (`cardMovesOn`: spente solo con `?mascotte3d=0` o
+  `natpf-tennis.mascotte3d` = '0') **solo dove in campo ci sono Lob e Drop** (`cardUses3d`: look della card 'drop'/'lob',
+  non con `?ritratti=svg`; `cardsUse3d`: tutte le card, il giro della cattura è uno). Programma Windows e web. Con i
+  Classici niente cambia: GIF del B58 dove ci sono (`hud_ui`: `rot = cv0 && !cardsUse3d(cv0) ? mascotRotation() : null`),
+  altrimenti il ritratto del tennista.
+- Movimenti: 10 di vittoria e 5 di sconfitta in `CARD_MOVES` (i balletti in `natpf_card_balli.js`, `dance: true`). Un
+  balletto è `at(u)` (tutto il personaggio, metri) + `mascot(u, rig)` (posa nel sistema del modello). Pose sulle 8 battute
+  del giro con `beats(u, keys, { hold, ease })` (sosta, poi arrivo con rimbalzo); `mixPose` fonde pose con le stesse chiavi
+  (le stringhe e i booleani cambiano a metà: non mescolare `racket` in mano e `rest` nello stesso balletto).
+- Rig della card: `legs: { a, b }` mette i piedi (spostamento dalla pianta, alzata ≥ 0; senza, i piedi seguono il
+  tennista come prima); `rest.frame: 'ground'` = racchetta ferma a terra nel posto di partenza (`natpfCardPose.base`,
+  messo da `applyCardMove`); `fist: true` chiude a pugno anche la mano libera. Le braccia del peluche sono corte (0,18
+  del modello) e la testa è metà del pupazzo: niente mani sopra la testa né dietro la schiena; tenere l'allungamento
+  sotto 1,9 (prova).
+- `applyCardMove`: il giro (`yaw`) cambia segno con la radice specchiata (mancino), così «verso il lato libero» vale per
+  tutti. `pickCardMoves(esiti)`: un movimento per card, mai uno della partita prima per lo stesso esito né due uguali
+  nella stessa partita; memoria `natpf-tennis.mosse3d` (id o lista per esito).
+
 ## B64 · Ridondanze tolte (17/11/2026; `docs/b64/ridondanze.md`)
 - Decisione dell'utente: fascia una volta sola, livello CPU senza doppioni, impostazioni doppie; la mano resta com'è.
 - La fascia dello stesso schermo resta in «Collega» (la partita parte da sola da lì); alla rivincita «Stessi giocatori,

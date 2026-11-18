@@ -2664,3 +2664,25 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - Non provato: telefono vero, app 1.0.4 su un telefono vero, Wi-Fi vera, Worker vero (da ricaricare dall'utente).
 - [x] Pacchetti 18.1: installer = `latest.json` (131.385.673 B, sha256 `2a79bc0f…8abbe`), zip `f24a6212…58d4b`
   (23.969.237 B) provato estratto, APK 1.0.4 `cdcacbd0…68a5` (682.229 B) pubblicato e firmato con la chiave dello stand.
+
+## B67 + B69 · Mascotte 3D approvate e accese di base, balletti di vittoria, versione 2026-11-18.2 (18/11/2026)
+
+- [x] B67 (ramo `b67-mascotte-pose`, commit `9ef4774`, `8b069ec`, `4cd6375`): racchetta nel pugno, «Sei-sette», «Aura»,
+  sconfitta triste con la faccia disegnata (`docs/b67/pose-mascotte.md`). Approvato dall'utente il 18/11.
+- [x] B69 (ramo `b69-mascotte-balletti`, `docs/b69/balletti-mascotte.md`): `natpf_card_balli.js` (nuovo: robot a scatti,
+  disco con il dab, corsa all'indietro, passi incrociati, braccia a pendolo, su il soffitto; sconfitte «Calcia un
+  sassolino» e «Capriccio»; `beats`, `mixPose`), `natpf_card_moves.js` (15 movimenti, acceso di base, `cardUses3d`,
+  `cardsUse3d`, `pickCardMoves`, posto di partenza in `natpfCardPose.base`, giro verso il lato libero per i mancini),
+  `natpf_mascot_rig.js` (`legs`, racchetta `rest` con `frame: 'ground'`, `fist`), `natpf_ritratti.js`, `hud_ui.js`
+  (mascotte 3D solo con Lob e Drop in campo; GIF del B58 per i Classici). B68 «Batte per primo» più breve nella stessa
+  versione.
+- [x] Prove: gioco 1843/1843 (+15), sito 289/289, LAN 13/13, desktop 56/56, build; test nuovo
+  `natpf-b69-balletti` (7): manico-pugno 0,00 mm su 576 fotogrammi dei balletti (1.152 con quelli del B67), braccia al più
+  1,88 volte, racchetta mai in testa, busto o gambe, piedi mai sotto il campo, giro chiuso, 15 movimenti su 400 partite
+  senza ripetere. Nel browser: `natpf-fine-partita-ritratti` 28/28 (+3: mascotte accese con le GIF accese, Classici con le
+  GIF), `natpf-mascotte-3d-anteprima` 27/27, `natpf-fine-partita` 68/68, `natpf-classifica-fine` 11/11,
+  `natpf-stesso-schermo-b20` 52/52, `natpf-fiera-telefoni` 66/66, `natpf-lob-drop` 136/137 (il controllo dei piedi in corsa 3,08 % contro 3 %, uguale a prima: non del B69).
+- [x] Misure (SwiftShader): cattura di due personaggi da 24 fotogrammi 2,6–3,1 s (20 giri), card a 1920×1080 4,1–4,6 s,
+  area 640×360 2,5–2,8 s (fotogrammi 256×320 anche lì); 0 programmi shader nuovi; fogli 15,0 MB (2 × 24 × 256 × 320 × 4)
+  come il B63; Android e meno di 4 GB: 12 fotogrammi (7,9 MB).
+- Non provato: PC dello stand, Windows vero, ledwall vero, GPU vera.

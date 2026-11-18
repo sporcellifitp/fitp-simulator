@@ -17,6 +17,14 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 18/11/2026, 13:30 UTC (versione 2026-11-18.2: B67+B69 mascotte 3D approvate e accese di base con
+«Lob & Drop», sei balletti di vittoria e due sconfitte nuove; B68 «Batte per primo» più breve).**
+`docs/b69/balletti-mascotte.md`. Gioco 1843/1843, sito 289/289, LAN 13/13, desktop 56/56, build; nel browser
+fine-partita-ritratti 28/28, mascotte-3d-anteprima 27/27, fine-partita 68/68, classifica-fine 11/11, b20 52/52,
+fiera-telefoni 66/66, lob-drop 136/137 (piedi in corsa, come prima). **Prossima azione esatta:** dopo il push, installer
+della 18.2 dal link fisso (`latest.json`, sha256) e zip Cloudflare provato estratto; poi aspettare l'utente (collaudo delle
+mascotte che ballano sul ledwall e sul PC dello stand; installare l'app 1.0.4 sui telefoni).
+
 **Checkpoint del 18/11/2026, 11:30 UTC (versione 2026-11-18.1: B66 registro con sensori, calibrazione, prestazioni,
 precisione dei gesti, rete e blocco del telefono; app NATPF Racchetta 1.0.4).** `docs/b66/registro-sensori.md`. Gioco
 1826/1826, sito 289/289, LAN 13/13, desktop 56/56, build; app con l'SDK 34 nel contenitore (test 9/9, lint, classi verde);
@@ -470,6 +478,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B16 Decisioni del B15 e audit del gameplay | [x] | Leggenda più dura; tutorial corto (5 schede) e riscaldamento facoltativo; mira scelta dall'addetto e misurata nella diagnostica; rapporto dell'audit `docs/b16/rapporto-gameplay.md` con 4 decisioni chieste | `70c85b3`…`84838f6` | 2026-11-08.5 |
 | B27 Postazione dello staff | [x] | programma Windows: domanda «Su quale schermo mostro il gioco?» all'avvio e voce «Schermo del gioco» nel pannello dello stand; telefono dello staff come telecomando (abbinamento confermato sul computer, ripresa da solo); revisione indipendente con 12 difetti corretti; guida `docs/GUIDA_TELECOMANDO.md`, matrice `docs/b27/telecomando.md` | vedi WORK_PROGRESS B27 | 2026-11-12.3 |
 | B28 Calibrazione giocando | [x] | scambi di prova di circa 10 s al posto dei gesti a ogni «Gioca» (profilo da capo a ogni partita), tutorial ed esercizi senza blocco, opzione dello stand «Calibrazione: Giocando · Con i gesti · Nessuna»; due revisioni indipendenti; punti aperti in WORK_PROGRESS B28; documento `docs/b28/calibrazione-giocando.md` | vedi WORK_PROGRESS B28 | 2026-11-12.5 |
+| B67+B69 Mascotte 3D e balletti | [x] | pose del B67 approvate e accese di base con «Lob & Drop» (Windows e web), 6 balletti di vittoria e 2 sconfitte nuove, scelta senza ripetere; `docs/b69/balletti-mascotte.md` | `9ef4774`…`fdbf965` | 2026-11-18.2 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).

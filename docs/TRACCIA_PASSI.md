@@ -1700,3 +1700,20 @@ giornata (sezioni nuove del riassunto). B67 (mascotte) è di un altro agente.
 - 18/11, 11:15 UTC · l'utente approva le mascotte del B67 («ok, integra queste») e chiede **altri balletti di esultanza**
   nello stile dei balletti virali. **B69** avviato (agente): unire il ramo `b67-mascotte-pose`, accendere le mascotte 3D di
   base nel programma Windows, 4–5 balletti nuovi originali, anteprima, poi versione **2026-11-18.2** con B68 e pacchetti.
+
+## 18/11, 13:30 UTC · B69 fatto, versione 2026-11-18.2
+
+- [x] B67 + B69 uniti (`13034c0`): mascotte 3D approvate e **accese di base** dove in campo ci sono Lob e Drop (programma
+      Windows e web: solo codice, niente asset); con i Classici GIF del B58 (Windows) o ritratti (web) come prima.
+      Spegnere: `natpf-tennis.mascotte3d` = '0' o `?mascotte3d=0`.
+- [x] Balletti nuovi (`docs/b69/balletti-mascotte.md`): robot a scatti, disco con il dab, corsa all'indietro, passi
+      incrociati, braccia a pendolo (racchetta piantata a terra), su il soffitto; sconfitte «Calcia un sassolino» e
+      «Capriccio». 10 di vittoria e 5 di sconfitta, a caso, mai lo stesso della partita prima.
+- [x] Anteprima: `docs/analisi/mascotte-3d-anteprima-b69.webp`, `docs/analisi/mascotte-3d-b69-grandi.png`, card
+      `docs/analisi/mascotte-3d-b69-card-1920x1080.webp` e `-card-area-640x360.webp`.
+- [x] Prove: gioco 1843/1843, sito 289/289, LAN 13/13, desktop 56/56, build; nel browser 7 prove verdi (lob-drop 136/137:
+      piedi in corsa come prima). Versione 2026-11-18.2 con il B68.
+- [ ] Pacchetti della 18.2 (installer dal link fisso, zip provato estratto): in corso.
+
+**Prossima azione esatta (18/11, 13:30 UTC)**: push, poi pacchetti della 18.2 (workflow Windows, `latest.json`, zip
+Cloudflare provato estratto); poi aspettare l'utente (collaudo delle mascotte sul ledwall e sul PC dello stand).
