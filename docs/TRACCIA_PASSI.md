@@ -1733,3 +1733,8 @@ PC dello stand (tempi veri della cattura con la GPU), installare l'app 1.0.4 sui
 - **B70**: `natpf_card_moves.cardMovesOn` acceso solo con `window.natpfDesktop` o nel server di sviluppo (come
   `dayBoardOn`); test `natpf-b70-mascotte-solo-windows`. Gioco 1844/1844, sito 289/289, desktop 56/56, LAN 13/13, build.
   Versione **2026-11-18.3**.
+- Pacchetti della **2026-11-18.3** (`e9409c5`): installer dal link fisso = 131.385.957 B, sha256
+  `6e9ad5e40b31abf9be5529458ee7fa2382c2071d78451a2e20124d9c13bb63a1`; zip 23.979.122 B, sha256
+  `d95b66f5bb6d2c512d9766eec0f61d2c1d9ae58fa66071824481cc7b003c68dc`, provato estratto (versione servita 18.3; il primo
+  zip era stato fatto con la build vecchia della 18.2: rifatto dopo `npm run build`). **Prossima azione:** aspettare
+  l'utente (registro della prossima giornata, collaudo, separazione white label dopo la fiera).
