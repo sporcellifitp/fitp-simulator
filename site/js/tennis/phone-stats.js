@@ -88,7 +88,7 @@ export function appStatus(text){
   let j; try { j = JSON.parse(text); } catch { return null; }
   if (!j || typeof j !== 'object' || Array.isArray(j)) return null;
   const banda = j.ghz === 2.4 || j.ghz === 5 || j.ghz === 6 ? j.ghz : null;
-  const out = [NUM(j.rssi, -127, 0), banda, NUM(j.mbps, 0, 10000), NUM(j.batt, 0, 100), j.carica === 1 || j.carica === 0 ? j.carica : null,
+  const out = [NUM(j.rssi, -126, 0), banda, NUM(j.mbps, 0, 10000), NUM(j.batt, 0, 100), j.carica === 1 || j.carica === 0 ? j.carica : null,
     NUM(j.temp, -400, 1000), j.fissa === 1 || j.fissa === 0 ? j.fissa : null, NUM(j.spenti, 0, 1e6)];
   return out.some(v => v != null) ? out : null;
 }
