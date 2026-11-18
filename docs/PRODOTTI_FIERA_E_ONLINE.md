@@ -73,3 +73,19 @@ Registro delle richieste in §3.
 2. Online vanno spente tutte le funzioni dello stand (§1, righe «Stand»)? Il telefono bloccato in partita (B51) online sì o no?
 3. Il marchio: cosa cambia esattamente (nome, logo, colori, voce, testi), e chi fornisce i file?
 4. Le richieste di oggi in poi: confermi «di base FIERA» salvo indicazione?
+
+### 4.1 Risposte dell'utente (18/11/2026)
+
+Parole dell'utente: «le mascotte nella versione web non servono, lasciamole solo nel programma Windows della fiera. Lob e
+Drop a fine fiera non ci saranno più, quindi a fine fiera tornerà un prodotto online o comunque un installer Windows senza
+Lob e Drop, e si tornerà ai Classici. FITP Simulator diventa una sorta di white label, brandizzabile a seconda degli
+eventi da usare, e FITP Simulator tornerà sul campo esports FITP».
+
+- **Subito (B70, versione 2026-11-18.3):** mascotte 3D che ballano nella card **solo nel programma Windows** della fiera
+  (nel web spente salvo `?mascotte3d=1`).
+- **Lob e Drop sono del solo evento** (fiera di Torino): finito l'evento, il prodotto (online o installer Windows) torna ai
+  personaggi **Classici**, senza Lob e Drop né il marchio dell'evento.
+- **FITP Simulator = prodotto white label**: marchio, personaggi/mascotte e testi dell'evento si cambiano per ogni evento
+  (pacchetto di marchio); di base i Classici e il marchio FITP. FITP Simulator torna sul **campo esports della FITP**.
+- Da chiarire quando si farà la separazione: cosa contiene esattamente un «pacchetto di marchio» (nome, logo, colori,
+  mascotte, sfondi dell'arena, testi, voce) e chi fornisce i file; funzioni dello stand online sì/no (domanda 2 sopra).

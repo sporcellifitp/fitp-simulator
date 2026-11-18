@@ -1722,3 +1722,14 @@ giornata (sezioni nuove del riassunto). B67 (mascotte) è di un altro agente.
 
 **Prossima azione esatta (18/11, 13:45 UTC)**: aspettare l'utente: collaudo delle mascotte che ballano sul ledwall e sul
 PC dello stand (tempi veri della cattura con la GPU), installare l'app 1.0.4 sui telefoni dello stand.
+
+## 18/11, 13:10 UTC · decisioni dell'utente sui prodotti; B70 mascotte solo nel programma Windows, versione 2026-11-18.3
+
+- Versione **2026-11-18.2** (B67 + B69 mascotte che ballano, B68 «Batte per primo» più breve) pubblicata dall'agente:
+  installer `93251e5c…26c3` dal link fisso (verificato), zip `2b876777…3475`, consegnati all'utente con l'anteprima.
+- Decisioni dell'utente (`docs/PRODOTTI_FIERA_E_ONLINE.md` §4.1): mascotte che ballano **solo nel programma Windows** della
+  fiera; Lob e Drop sono del solo evento: a fine fiera si torna ai **Classici**; **FITP Simulator white label**
+  (brandizzabile per evento), che torna sul campo esports della FITP.
+- **B70**: `natpf_card_moves.cardMovesOn` acceso solo con `window.natpfDesktop` o nel server di sviluppo (come
+  `dayBoardOn`); test `natpf-b70-mascotte-solo-windows`. Gioco 1844/1844, sito 289/289, desktop 56/56, LAN 13/13, build.
+  Versione **2026-11-18.3**.

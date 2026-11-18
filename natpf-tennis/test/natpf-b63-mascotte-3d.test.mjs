@@ -59,12 +59,12 @@ test('B63: scelta a caso tra quelli dell\'esito, mai quello della partita prima 
 });
 
 test('B63/B69: interruttore acceso di base dal B69 (l\'utente ha approvato l\'anteprima); ?mascotte3d=0 o la chiave a 0 lo spengono', () => {
-  assert.equal(cardMovesOn({ search: '', storage: memory() }), true);
-  assert.equal(cardMovesOn({ search: '?mascotte3d=1', storage: memory() }), true);
-  assert.equal(cardMovesOn({ search: '?mascotte3d=0', storage: memory({ [CARD_MOVES_KEY]: '1' }) }), false);
-  assert.equal(cardMovesOn({ search: '', storage: memory({ [CARD_MOVES_KEY]: '1' }) }), true);
-  assert.equal(cardMovesOn({ search: '', storage: memory({ [CARD_MOVES_KEY]: '0' }) }), false);
-  assert.equal(cardMovesOn({ search: '', storage: { getItem(){ throw new Error('x'); } } }), true);
+  assert.equal(cardMovesOn({ desktop: true, search: '', storage: memory() }), true);
+  assert.equal(cardMovesOn({ desktop: true, search: '?mascotte3d=1', storage: memory() }), true);
+  assert.equal(cardMovesOn({ desktop: true, search: '?mascotte3d=0', storage: memory({ [CARD_MOVES_KEY]: '1' }) }), false);
+  assert.equal(cardMovesOn({ desktop: true, search: '', storage: memory({ [CARD_MOVES_KEY]: '1' }) }), true);
+  assert.equal(cardMovesOn({ desktop: true, search: '', storage: memory({ [CARD_MOVES_KEY]: '0' }) }), false);
+  assert.equal(cardMovesOn({ desktop: true, search: '', storage: { getItem(){ throw new Error('x'); } } }), true);
 });
 
 test('B63: il personaggio si sposta nel riferimento di chi guarda e torna esattamente al suo posto', () => {

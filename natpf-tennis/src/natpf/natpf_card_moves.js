@@ -106,8 +106,13 @@ export const CARD_MOVES = Object.freeze({
 export const cardMove = id => [...CARD_MOVES.win, ...CARD_MOVES.lose].find(m => m.id === id) || null;
 
 // B69: acceso di base; ?mascotte3d=0 o la chiave a '0' lo spengono (?mascotte3d=1 lo riaccende)
-export function cardMovesOn({ search = globalThis.location?.search || '', storage = globalThis.localStorage } = {}){
+// B70 (decisione dell'utente del 18/11: «le mascotte nella versione web non servono, lasciamole solo nel programma Windows
+// della fiera»): acceso di base solo nel programma Windows (window.natpfDesktop) e nel server di sviluppo (prove nel
+// browser), come la classifica di fine partita (natpf_classifica_fine.dayBoardOn); nel web spento salvo ?mascotte3d=1
+export function cardMovesOn({ search = globalThis.location?.search || '', storage = globalThis.localStorage,
+  desktop = globalThis.natpfDesktop, dev = !!import.meta.env?.DEV } = {}){
   try { const v = new URLSearchParams(search).get('mascotte3d'); if (v === '1' || v === '0') return v === '1'; } catch {}
+  if (!desktop && !dev) return false;
   try { return storage?.getItem(CARD_MOVES_KEY) !== '0'; } catch { return true; }
 }
 // B69: personaggi della card che fanno i movimenti delle mascotte 3D: Lob e Drop in campo (look della card,

@@ -76,3 +76,4 @@
 2026-11-18.1: Il registro dello stand annota anche come vanno i sensori del telefono, il collegamento e la calibrazione, per migliorare la lettura dei colpi (nessun cambiamento nel gioco). App NATPF Racchetta 1.0.4.
 2026-11-18.2: Con «Lob & Drop» nella card di fine partita le mascotte vere ballano: dieci esultanze (tra cui robot, disco, corsa all'indietro, passi incrociati) e cinque sconfitte tristi, mai le stesse della partita prima.
 2026-11-18.2: «Batte per primo» resta meno a lungo sopra il campo.
+2026-11-18.3: Le mascotte 3D che ballano nella card di fine partita restano solo nel programma Windows della fiera; nella versione web no.

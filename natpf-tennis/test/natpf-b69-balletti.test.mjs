@@ -177,11 +177,11 @@ test('B69: scelta a caso fra tutti i movimenti dell\'esito, mai quello della par
 });
 
 test('B69: acceso di base solo con Lob e Drop in campo; ?mascotte3d=0, la chiave a 0 o ?ritratti=svg lo spengono; i Classici come prima', () => {
-  assert.equal(cardMovesOn({ search: '', storage: memory() }), true);
-  assert.equal(cardMovesOn({ search: '', storage: memory({ [CARD_MOVES_KEY]: '0' }) }), false);
-  assert.equal(cardMovesOn({ search: '?mascotte3d=0', storage: memory() }), false);
-  assert.equal(cardMovesOn({ search: '?mascotte3d=1', storage: memory({ [CARD_MOVES_KEY]: '0' }) }), true);
-  assert.equal(cardMovesOn({ search: '', storage: { getItem(){ throw new Error('x'); } } }), true);
+  assert.equal(cardMovesOn({ desktop: true, search: '', storage: memory() }), true);
+  assert.equal(cardMovesOn({ desktop: true, search: '', storage: memory({ [CARD_MOVES_KEY]: '0' }) }), false);
+  assert.equal(cardMovesOn({ desktop: true, search: '?mascotte3d=0', storage: memory() }), false);
+  assert.equal(cardMovesOn({ desktop: true, search: '?mascotte3d=1', storage: memory({ [CARD_MOVES_KEY]: '0' }) }), true);
+  assert.equal(cardMovesOn({ desktop: true, search: '', storage: { getItem(){ throw new Error('x'); } } }), true);
   assert.equal(cardUses3d({ look: 'drop' }, { on: true, search: '' }), true);
   assert.equal(cardUses3d({ look: 'lob' }, { on: true, search: '?ritratti=svg' }), false);
   assert.equal(cardUses3d({ look: 'p1' }, { on: true, search: '' }), false);
