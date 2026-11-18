@@ -21,9 +21,11 @@ con il telefono come racchetta (pagina in `site/tennis/racchetta.html` + `site/j
    Se il repository e i documenti divergono, vale il repository: correggere i documenti.
 3. Riprendere dalla «Prossima azione esatta» di `docs/PIANO_LAVORI.md`.
 
-Archivio (si consulta, non si aggiorna): `docs/archivio/` (diari fino al 04/11/2026), e per lo storico prima del
-28/10/2026 `MEMORY.md`, `SESSION_HANDOFF.md`, `WORKLOG.md` alla radice e `docs/NATPF_*.md`.
-`docs/SESSION_HANDOFF.md` è solo un rimando a `docs/PIANO_LAVORI.md`.
+Indice di `docs/` (cosa è vivo, dove sono i blocchi `docs/bNN/`, dove è l'archivio): `docs/LEGGIMI.md`.
+Archivio (si consulta, non si aggiorna): `docs/archivio/`: diari fino al 04/11/2026, parti vecchie di TRACCIA_PASSI,
+WORK_PROGRESS e checkpoint di PIANO_LAVORI fino al 18/11/2026, passaggio del 15/11 (`consegna-2026-11-15/`), e per lo
+storico prima del 28/10/2026 `docs/archivio/MEMORY.md`, `docs/archivio/SESSION_HANDOFF.md`, `docs/archivio/WORKLOG.md`
+(prima alla radice) e `docs/NATPF_*.md`.
 
 ## Durante il lavoro (obbligatorio)
 
@@ -52,14 +54,14 @@ Archivio (si consulta, non si aggiorna): `docs/archivio/` (diari fino al 04/11/2
 ```sh
 cd natpf-tennis
 npm ci              # dipendenze
-npm test            # suite node:test del gioco (673 test al 04/11, ~25 s)
+npm test            # suite node:test del gioco (~1844 test al 18/11)
 npm run build       # build di produzione in natpf-tennis/dist
 npm run dev         # server di sviluppo su :3000
 node scripts/ui-shots.mjs   # screenshot del percorso UI con Chromium (vedi docs/PROJECT_MEMORY.md)
 cd ..
-node --test tools/test/*.test.mjs                     # test del sito e della pagina del telefono (182)
-(cd tools/lan && npm ci && node --test test/*.test.mjs) # server LAN (10)
-(cd natpf-desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci && npm test)   # programma Windows (5); eseguibili: npm run costruisci
+node --test tools/test/*.test.mjs                     # test del sito e della pagina del telefono (~289)
+(cd tools/lan && npm ci && node --test test/*.test.mjs) # server LAN (13)
+(cd natpf-desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci && npm test)   # programma Windows (56); eseguibili: npm run costruisci
 CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-training-flow.mjs   # prove nel browser natpf-*
 node tools/e2e/run-local.mjs <script>.mjs             # prove nel browser del sito (prima: npm ci --prefix tools/e2e)
 # app Android dello stand (B52, docs/b52/app-android.md): Android SDK con la piattaforma 34, Gradle ≥ 8.9, Java ≥ 17

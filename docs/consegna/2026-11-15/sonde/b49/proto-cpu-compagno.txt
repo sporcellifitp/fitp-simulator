@@ -1,6 +1,0 @@
-casual umano: vinti 84.9% · colpi della CPU 1559 e del suo compagno 740 (32.2%) · tuoi in rete dopo il compagno della CPU 0, dopo la CPU 6 · fuori dopo il compagno della CPU 4, dopo la CPU 32
-casual amatore: vinti 84.2% · colpi della CPU 1443 e del suo compagno 743 (34%) · tuoi in rete dopo il compagno della CPU 2, dopo la CPU 1 · fuori dopo il compagno della CPU 4, dopo la CPU 29
-evento umano: vinti 66.9% · colpi della CPU 2200 e del suo compagno 1006 (31.4%) · tuoi in rete dopo il compagno della CPU 5, dopo la CPU 17 · fuori dopo il compagno della CPU 19, dopo la CPU 58
-evento amatore: vinti 64.4% · colpi della CPU 1788 e del suo compagno 932 (34.3%) · tuoi in rete dopo il compagno della CPU 5, dopo la CPU 4 · fuori dopo il compagno della CPU 22, dopo la CPU 60
-pro umano: vinti 47.3% · colpi della CPU 1803 e del suo compagno 1811 (50.1%) · tuoi in rete dopo il compagno della CPU 50, dopo la CPU 52 · fuori dopo il compagno della CPU 33, dopo la CPU 35
-pro amatore: vinti 42.9% · colpi della CPU 1403 e del suo compagno 1449 (50.8%) · tuoi in rete dopo il compagno della CPU 38, dopo la CPU 34 · fuori dopo il compagno della CPU 35, dopo la CPU 57

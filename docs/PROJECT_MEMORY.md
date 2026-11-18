@@ -4,7 +4,7 @@ Memoria tecnica durevole: architettura, decisioni, storico delle modifiche signi
 prende una decisione che un agente futuro deve conoscere. Stato, ripresa e punti aperti in `docs/PIANO_LAVORI.md`;
 registro dei passi in `docs/WORK_PROGRESS.md`; diari fino al 04/11/2026 in `docs/archivio/` (i rimandi
 «WORK_PROGRESS, «…»» di questo file e del codice scritti prima del 04/11 sono lì). Storico fino al 28/10/2026:
-`MEMORY.md`, `WORKLOG.md` (radice) e `docs/NATPF_*.md`.
+`docs/archivio/MEMORY.md`, `docs/archivio/WORKLOG.md` (prima alla radice) e `docs/NATPF_*.md`.
 
 ## Architettura in breve
 
@@ -387,7 +387,7 @@ e la calibrazione con i gesti come percorso di base.
 - 28/10/2026 — redesign UI (`natpf-ui.css`), `natpf-intro.css` eliminato.
 - 28/10/2026 — lanciapalle 3D (`natpf_ball_machine.js`) e tutorial con animazioni 3D verificate (T1, T2).
 - 28/10/2026 — nuova memoria persistente (`CLAUDE.md`, `docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`,
-  `docs/SESSION_HANDOFF.md`) e `scripts/ui-shots.mjs`.
+  `docs/SESSION_HANDOFF.md`, tolto il 18/11: storico in `docs/archivio/`) e `scripts/ui-shots.mjs`.
 
 ### Stesso schermo e calibrazione del telefono (29/10)
 

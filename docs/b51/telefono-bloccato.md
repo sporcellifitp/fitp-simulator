@@ -5,7 +5,7 @@ browser o comunque interagiscono col touchscreen… escono da Chrome e perdono l
 modalità dove se anche l'utente clicca sul display non appare nulla, come se fosse bloccata fino alla fine del match?»
 Decisioni dell'utente: prima il blocco nella pagina (APK solo dopo, se servirà); allo stand solo Android con Chrome;
 sblocco con un gesto dello staff sul telefono oppure dal PC, da solo a fine partita. Compito completo:
-`docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md` §4.1.
+`docs/archivio/consegna-2026-11-15/PASSAGGIO_2026-11-15.md` §4.1.
 
 Codice entrato con la versione **2026-11-14.6** (`d77f21c`), senza documento del blocco: questo file è stato scritto
 nella ripresa del 15/11 (dopo la 14.8) leggendo il codice e rifacendo le prove.

@@ -1,5 +1,6 @@
-> **15/11/2026: il passaggio di consegne attuale è `docs/consegna/2026-11-15/PASSAGGIO_2026-11-15.md`**, superato in
-> parte dalle versioni 14.6–14.8: lo stato attuale è nella sezione «15/11, 16:15 UTC» in fondo a `docs/TRACCIA_PASSI.md`.
+> **15/11/2026: il passaggio di consegne successivo è `docs/archivio/consegna-2026-11-15/PASSAGGIO_2026-11-15.md`**
+> (archivio), superato dalle versioni venute dopo: lo stato attuale è in `docs/TRACCIA_PASSI.md` e nel Checkpoint di
+> `docs/PIANO_LAVORI.md`.
 > Questo file racconta il lavoro fino all'08/11 e resta come storia.
 
 # Passaggio di consegne · NATPF Simulator (aggiornato al 07/11/2026 sera; B16 aggiunto l'08/11/2026 sera)
@@ -26,7 +27,7 @@ CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-menu.mjs   # una pr
 - Le prove nel browser `natpf-*` avviano da sole vite e il server dei peer: se un'altra prova gira sulla stessa
   macchina usare porte proprie (`PEER_PORT=9xxx GAME_PORT=3xxx`). Le misure di fotogrammi al secondo sono valide solo a
   macchina scarica.
-- I worktree `.claude/worktrees/*` e le patch in `docs/b9/wip/` sono **storia**: tutto è già unito su `natpf-simulator`.
+- I worktree `.claude/worktrees/*` e le patch che erano in `docs/b9/wip/` (tolte il 18/11) sono **storia**: tutto è già unito su `natpf-simulator`.
 
 ## 1. Stato in una riga
 

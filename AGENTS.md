@@ -3,11 +3,14 @@
 Le istruzioni complete e vincolanti sono in **`CLAUDE.md`**: valgono identiche per tutti gli agenti, non solo per
 Claude. In breve, a ogni apertura del progetto:
 
+0. Leggere **`docs/TRACCIA_PASSI.md`** (punto esatto e prossimi passi) e, se serve orientarsi, `docs/LEGGIMI.md`
+   (indice di `docs/`; l'archivio in `docs/archivio/` si consulta e non si aggiorna, compresi i vecchi diari
+   `MEMORY.md`, `SESSION_HANDOFF.md`, `WORKLOG.md` che erano alla radice).
 1. Leggere **`docs/PIANO_LAVORI.md`**: checkpoint con l'ultimo stato verificato e la «Prossima azione esatta», regole
    di lavoro e decisioni dell'utente, punti aperti con stato, cosa fare, come e perché.
 2. `git fetch origin natpf-simulator` · `git status -sb` · `git log --oneline -10`: se il repository e i documenti
    divergono, vale il repository.
 3. Lavorare solo sul branch `natpf-simulator`, un agente alla volta, a passi piccoli: test verdi → commit → push
    (solo avanzamento lineare, mai `--force`) → Checkpoint di `docs/PIANO_LAVORI.md` riscritto e voce in
-   `docs/WORK_PROGRESS.md`. Dopo ogni commit: ZIP LAN e Cloudflare consegnati all'utente (nuovi se il commit cambia i
-   pacchetti, altrimenti gli ultimi, dicendolo).
+   `docs/WORK_PROGRESS.md`. Dopo ogni commit: installer Windows e zip Cloudflare consegnati all'utente (nuovi se il
+   commit cambia i pacchetti, altrimenti gli ultimi, dicendolo; lo zip LAN non si fa più dal 07/11).

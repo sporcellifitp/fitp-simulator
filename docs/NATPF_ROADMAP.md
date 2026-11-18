@@ -25,7 +25,7 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 - Test automatici e prima/dopo sugli stessi dati superati; **validazione fisica non eseguita** (procedura nel
   documento, §5).
 
-### Quinto giro del 21/10: modalità diagnostica, colpi senza attesa di rete, app nativa (stato in [MEMORY.md](../MEMORY.md) §10)
+### Quinto giro del 21/10: modalità diagnostica, colpi senza attesa di rete, app nativa (stato in [MEMORY.md](archivio/MEMORY.md) §10)
 
 | Punto | Causa trovata | Correzione | Verifica |
 |---|---|---|---|
@@ -36,7 +36,7 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 | CPU Leggenda (terzo livello) | La CPU esperta sbagliava «a dado» e sceglieva i colpi da pochi schemi: contro chi gioca bene non reggeva (giocatore simulato «tennista»: 100% dei game) | CPU con le regole di chi gioca, scelta del colpo per utilità, apprendimento, corsa credibile e affondo, palle fuori lasciate passare ([NATPF_LEGGENDA.md](NATPF_LEGGENDA.md)) | **provato** con il torneo dei giocatori simulati (`npm run audit:legend`, tutti i criteri; casual e pro identici a prima) e nel gioco con la grafica (allungo verso la palla lontana); persone vere **non provate** |
 | App nativa e Bluetooth | Valutazione con le misure disponibili | Non ora: l'app guadagnerebbe ~13 ms di riconoscimento (sensori a 100 Hz); il Bluetooth non è più veloce di un Wi-Fi dedicato. Regola per decidere con i dati delle sessioni vere ([NATPF_APP_NATIVA_E_TRASPORTI.md](NATPF_APP_NATIVA_E_TRASPORTI.md)) | misure nel simulatore (riconoscimento a 30/60/100/200 Hz) e con perdita simulata; telefoni veri **non provati** |
 
-### Audit e miglioramenti del 20/10: allenamento, calibrazione, risposta del giocatore, menu (stato in [MEMORY.md](../MEMORY.md) §10)
+### Audit e miglioramenti del 20/10: allenamento, calibrazione, risposta del giocatore, menu (stato in [MEMORY.md](archivio/MEMORY.md) §10)
 
 | Punto | Causa trovata | Correzione | Verifica |
 |---|---|---|---|
