@@ -73,7 +73,7 @@ test('B63: il personaggio si sposta nel riferimento di chi guarda e torna esatta
   assert.ok(Math.abs(root.position.z - (11 - o.fwd)) < 1e-9 && o.fwd > 0.03, 'avanti verso chi guarda');
   assert.ok(actor.natpfCardPose?.move === m && Math.abs(actor.natpfCardPose.u - 0.5) < 1e-9, 'B67: la posa della mascotte 3D per natpf_character');
   const s = cardMove('win-salti'), o2 = applyCardMove(actor, s, CARD_LOOP*0.25, base, -1);
-  assert.ok(Math.abs(root.position.x - (1 - o2.right)) < 1e-9 && o2.right > 0.3, 'a destra di chi guarda');
+  assert.ok(Math.abs(root.position.x - (1 - o2.right)) < 1e-9 && o2.right > 0.2, 'a destra di chi guarda');
   assert.ok(rig.footLPivot.position.y >= .05 && rig.footRPivot.position.y >= .05);
   const l = cardMove('lose-trascina'); applyCardMove(actor, l, CARD_LOOP*0.5, base, -1);
   assert.ok(root.rotation.x < -0.03, 'piegato verso chi guarda (camera a −z)');

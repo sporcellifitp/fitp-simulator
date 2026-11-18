@@ -34,7 +34,9 @@ const steps = (s, h) => ({ footL: h*Math.max(0, Math.sin(s)), footR: h*Math.max(
 // energiche del B63, «Sei-sette» e «Aura») e tre di sconfitta, tutte con la faccia triste.
 const bump = (u, a, b, c) => ss(a, b, u) - ss(b, c, u);
 // testa bassa della sconfitta: Lob ha la visiera, che con la testa troppo giù copre la faccia triste a chi guarda
-const HEAD_DOWN = rig => (rig?.key === 'lob' ? 0.14 : 0.3);
+const HEAD_DOWN = rig => (rig?.key === 'lob' ? 0.12 : 0.3);
+// e per lo stesso motivo Lob si piega meno in avanti
+const LEAN = rig => (rig?.key === 'lob' ? 0.6 : 1);
 // camera del ritratto (natpf_ritratti._shoot): di base un filo dall'alto (0,08); le sconfitte un filo dal basso
 const CAM_LOW = -0.04;
 // racchetta in alto, piatto verso chi guarda (salti e giravolta)
@@ -42,7 +44,7 @@ const RACKET_UP = (lift, sway) => ({ at: [-0.31, 0.16 + lift, 0.07], dir: [-0.4,
 export const CARD_MOVES = Object.freeze({
   win: Object.freeze([
     Object.freeze({ id: 'win-salti', name: 'Salti di gioia e passi di lato', base: 'cheer',
-      at: u => { const s = TAU*u; return { right: 0.34*Math.sin(s), fwd: 0, up: 0.05*Math.abs(Math.sin(3*s)), yaw: 0.18*Math.sin(s), ...steps(2*s, 0.07) }; },
+      at: u => { const s = TAU*u; return { right: 0.24*Math.sin(s), fwd: 0, up: 0.05*Math.abs(Math.sin(3*s)), yaw: 0.18*Math.sin(s), ...steps(2*s, 0.07) }; },
       mascot: u => { const s = TAU*u, b = Math.abs(Math.sin(3*s)), w = Math.sin(3*s);
         return { hips: { pitch: -0.05, roll: 0.05*Math.sin(s) }, spine: { pitch: -0.08 }, head: { pitch: -0.16, roll: 0.08*w },
           racket: RACKET_UP(0.04*b, 0.15*w), free: { at: [0.3, 0.14 + 0.06*b, 0.08], palm: [0, 0.2, 1], fingers: [0.25 + 0.2*w, 1, 0] } }; } }),
@@ -73,22 +75,22 @@ export const CARD_MOVES = Object.freeze({
     // tutte con la faccia triste (natpf_mascot_face.js), la testa bassa e le spalle che cadono
     Object.freeze({ id: 'lose-trascina', camUp: CAM_LOW, name: 'Testa bassa, racchetta trascinata', base: 'sad',
       at: u => { const s = TAU*u; return { right: 0.14*Math.sin(s), fwd: -0.03, up: 0, yaw: -0.18*Math.sin(s), pitch: 0.04, ...steps(2*s, 0.04) }; },
-      mascot: (u, rig) => { const s = TAU*u, hp = HEAD_DOWN(rig);
-        return { hips: { pitch: 0.08, y: -0.015 }, spine: { pitch: 0.24, roll: 0.05*Math.sin(2*s) }, head: { pitch: hp, roll: 0.14*Math.sin(s) },
+      mascot: (u, rig) => { const s = TAU*u, hp = HEAD_DOWN(rig), l = LEAN(rig);
+        return { hips: { pitch: 0.08*l, y: -0.015 }, spine: { pitch: 0.24*l, roll: 0.05*Math.sin(2*s) }, head: { pitch: hp, roll: 0.14*Math.sin(s) },
           racket: { frame: 'level', at: [-0.2, -0.28, -0.04], dir: [-0.8, 0, -0.45], ground: true, drop: 0.3 },
           free: { frame: 'level', at: [0.18, -0.29, 0.03], palm: [-1, 0, 0], fingers: [0.1, -1, 0.1], drop: 0.3 }, face: 'sad' }; } }),
     // un grande sospiro: si gonfia (spalle su, testa su) e si affloscia, poi resta giù; sopra la testa una nuvoletta
     Object.freeze({ id: 'lose-sospiro', camUp: CAM_LOW, name: 'Sospiro, con la nuvoletta', base: 'sad', fx: 'nuvola',
       at: u => { const r = bump(u, 0.05, 0.3, 0.52); return { right: 0, fwd: 0, up: 0.02*r, yaw: 0.08*Math.sin(TAU*u), footL: 0, footR: 0 }; },
-      mascot: (u, rig) => { const r = bump(u, 0.05, 0.3, 0.52), hp = HEAD_DOWN(rig);
-        return { hips: { pitch: 0.1 - 0.12*r, y: -0.02 + 0.02*r }, spine: { pitch: 0.26 - 0.32*r }, head: { pitch: hp - (hp + 0.12)*r, roll: 0.1*(1 - r) },
+      mascot: (u, rig) => { const r = bump(u, 0.05, 0.3, 0.52), hp = HEAD_DOWN(rig), l = LEAN(rig);
+        return { hips: { pitch: (0.1 - 0.12*r)*l, y: -0.02 + 0.02*r }, spine: { pitch: (0.26 - 0.32*r)*l }, head: { pitch: hp - (hp + 0.12)*r, roll: 0.1*(1 - r) },
           racket: { frame: 'level', at: [-0.2, -0.28 + 0.04*r, 0.06], dir: [-0.5, 0, 0.85], ground: true, drop: 0.38 - 0.5*r },
           free: { frame: 'level', at: [0.19, -0.29 + 0.04*r, 0.04], palm: [-1, 0, 0], fingers: [0, -1, 0.1], drop: 0.38 - 0.5*r }, face: 'sad' }; } }),
     // si asciuga una lacrima con la mano libera (tre volte per giro), a singhiozzi; la racchetta a terra
     Object.freeze({ id: 'lose-lacrima', camUp: CAM_LOW, name: 'Si asciuga una lacrima', base: 'sad',
       at: u => { const s = TAU*u; return { right: 0.03*Math.sin(s), fwd: 0, up: 0.012*Math.abs(Math.sin(3*s)), yaw: 0.12*Math.sin(s), footL: 0, footR: 0 }; },
-      mascot: (u, rig) => { const s = TAU*u, w = Math.sin(3*s), sob = Math.abs(Math.sin(3*s)), hp = HEAD_DOWN(rig);
-        return { hips: { pitch: 0.08 }, spine: { pitch: 0.16 + 0.03*sob, roll: -0.05 }, head: { pitch: 0.7*hp, roll: -0.14 },
+      mascot: (u, rig) => { const s = TAU*u, w = Math.sin(3*s), sob = Math.abs(Math.sin(3*s)), hp = HEAD_DOWN(rig), l = LEAN(rig);
+        return { hips: { pitch: 0.08*l }, spine: { pitch: (0.16 + 0.03*sob)*l, roll: -0.05 }, head: { pitch: 0.7*hp, roll: -0.14 },
           racket: { frame: 'level', at: [-0.2, -0.29, 0.03], dir: [-0.45, 0, 0.9], ground: true, drop: 0.25 },
           free: { frame: 'head', at: [0.17 + 0.025*w, 0.05 + 0.015*w, 0.25], palm: [-0.3, 0, -1], fingers: [-0.45, 1, 0], drop: 0.05*sob }, face: 'sad' }; } }),
   ]),
