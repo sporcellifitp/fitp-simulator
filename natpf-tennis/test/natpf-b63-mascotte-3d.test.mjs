@@ -2,6 +2,8 @@
 // 17/11/2026: «3D con animazioni nuove», anteprima prima di pubblicare): sei movimenti (3 di vittoria, 3 di sconfitta) che
 // si ripetono senza salto, abbastanza ampi da vedersi, scelta senza ripetere quello di prima, personaggio rimesso a posto,
 // interruttore spento di base (finché l'utente non approva), reazione «sad» che si ripete uguale.
+// B67: i movimenti sono diventati 4 di vittoria (due del B63, «Sei-sette» e «Aura») e 3 di sconfitta (pose e impugnatura
+// delle mascotte in test/natpf-b67-mascotte-pose.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,12 +15,13 @@ import { playFrame } from '../src/natpf/natpf_ritratti.js';
 const memory = (init = {}) => { const m = new Map(Object.entries(init)); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), map: m }; };
 const ALL = [...CARD_MOVES.win, ...CARD_MOVES.lose];
 
-test('B63: sei movimenti, tre per esito, con la reazione del corpo giusta', () => {
-  assert.deepEqual(CARD_MOVES.win.map(m => m.id), ['win-a', 'win-b', 'win-c']);
-  assert.deepEqual(CARD_MOVES.lose.map(m => m.id), ['lose-a', 'lose-b', 'lose-c']);
-  assert.deepEqual(CARD_MOVES.win.map(m => m.base), ['cheer', 'cheer', 'cheer']);
-  assert.deepEqual(CARD_MOVES.lose.map(m => m.base), ['sad', 'sad', 'clap']);
-  assert.equal(cardMove('win-b').name, 'Giravolta'); assert.equal(cardMove('x'), null);
+test('B63/B67: sette movimenti, quattro di vittoria e tre di sconfitta, con la reazione del corpo giusta', () => {
+  assert.deepEqual(CARD_MOVES.win.map(m => m.id), ['win-salti', 'win-giro', 'win-sei', 'win-aura']);
+  assert.deepEqual(CARD_MOVES.lose.map(m => m.id), ['lose-trascina', 'lose-sospiro', 'lose-lacrima']);
+  assert.deepEqual(CARD_MOVES.win.map(m => m.base), ['cheer', 'cheer', 'cheer', 'cheer']);
+  assert.deepEqual(CARD_MOVES.lose.map(m => m.base), ['sad', 'sad', 'sad']);
+  assert.equal(cardMove('win-giro').name, 'Giravolta'); assert.equal(cardMove('win-sei').name, 'Sei-sette'); assert.equal(cardMove('x'), null);
+  assert.ok(CARD_MOVES.win.length <= 5, 'al più 4–5 di vittoria');
   assert.ok(Math.abs(CARD_LOOP - 3*CHEER_PERIOD) < 1e-12, 'il giro è tre salti: si ripete senza salto');
   assert.ok(Math.abs(SAD_W*CARD_LOOP - 2*Math.PI) < 1e-9 && SAD_W === CHEER_W/3, 'la testa bassa ondeggia una volta per giro');
   assert.equal(CARD_K, 24);
@@ -32,13 +35,13 @@ test('B63: ogni movimento si chiude (fine = inizio) ed è abbastanza ampio da ve
     assert.ok(Math.abs(Math.cos(a.yaw) - Math.cos(b.yaw)) < 1e-6 && Math.abs(Math.sin(a.yaw) - Math.sin(b.yaw)) < 1e-6, `${m.id} yaw`);
     let span = 0, turn = 0, lift = 0;
     for (let i = 0; i <= 96; i++){ const o = m.at(i/96); span = Math.max(span, Math.hypot(o.right, o.fwd, o.up)); turn = Math.max(turn, Math.abs(o.yaw)); lift = Math.max(lift, o.footL || 0, o.footR || 0); assert.ok((o.footL || 0) >= 0 && (o.footR || 0) >= 0); }
-    assert.ok(span >= 0.1 || turn >= 0.3, `${m.id}: si sposta ${span.toFixed(2)} m o gira ${turn.toFixed(2)} rad`);
+    // (B67: «Sei-sette», «Aura», sospiro e lacrima sono pose sul posto: si muovono le braccia, natpf-b67)
+    if (!['win-sei', 'win-aura', 'lose-sospiro', 'lose-lacrima'].includes(m.id)) assert.ok(span >= 0.1 || turn >= 0.3, `${m.id}: si sposta ${span.toFixed(2)} m o gira ${turn.toFixed(2)} rad`);
   }
-  assert.ok(Math.abs(cardMove('win-b').at(0.7).yaw - 2*Math.PI) < 1e-9, 'giravolta: un giro intero');
-  for (const id of ['lose-a', 'lose-b']) assert.ok(cardMove(id).at(0.3).pitch > 0.15, `${id}: piegato in avanti (testa bassa che si vede sulla mascotte 3D)`);
+  assert.ok(Math.abs(cardMove('win-giro').at(0.7).yaw - 2*Math.PI) < 1e-9, 'giravolta: un giro intero');
 });
 
-test('B63: scelta a caso tra i tre dell\'esito, mai quello della partita prima per lo stesso esito', () => {
+test('B63: scelta a caso tra quelli dell\'esito, mai quello della partita prima per lo stesso esito', () => {
   const st = memory();
   let lastW = null, lastL = null; const seen = new Set();
   let r = 99; const rnd = () => ((r = (r*1103515245 + 12345) % 2147483648)/2147483648);
@@ -48,7 +51,7 @@ test('B63: scelta a caso tra i tre dell\'esito, mai quello della partita prima p
     assert.notEqual(w.id, lastW); assert.notEqual(l.id, lastL);
     lastW = w.id; lastL = l.id; seen.add(w.id); seen.add(l.id);
   }
-  assert.equal(seen.size, 6);
+  assert.equal(seen.size, 7);
   assert.deepEqual(JSON.parse(st.map.get(CARD_MOVES_LAST)), { win: lastW, lose: lastL });
   assert.ok(CARD_MOVES.lose.includes(pickCardMove('pari', { storage: memory({ [CARD_MOVES_LAST]: '{rotto' }), rnd: () => 0 })), 'stato rovinato: si sceglie lo stesso');
 });
@@ -66,14 +69,15 @@ test('B63: il personaggio si sposta nel riferimento di chi guarda e torna esatta
   const rig = { footLPivot: new THREE.Object3D(), footRPivot: new THREE.Object3D(), basePivots: { footL: new THREE.Vector3(.1, .05, 0), footR: new THREE.Vector3(-.1, .05, 0) } };
   const actor = { root, rig }, base = { pos: root.position.clone(), rotY: root.rotation.y, rotX: 0, rotZ: 0 };
   // camera verso −z (chi gioca dalla parte del Player 1): fwd verso −z, destra di chi guarda verso +x... con dir −1 è −x
-  const m = cardMove('win-c'), o = applyCardMove(actor, m, CARD_LOOP*0.25, base, -1);
-  assert.ok(Math.abs(root.position.z - (11 - o.fwd)) < 1e-9 && o.fwd > 0.4, 'avanti verso chi guarda');
-  const s = cardMove('win-a'), o2 = applyCardMove(actor, s, CARD_LOOP*0.25, base, -1);
+  const m = cardMove('win-aura'), o = applyCardMove(actor, m, CARD_LOOP*0.5, base, -1);
+  assert.ok(Math.abs(root.position.z - (11 - o.fwd)) < 1e-9 && o.fwd > 0.03, 'avanti verso chi guarda');
+  assert.ok(actor.natpfCardPose?.move === m && Math.abs(actor.natpfCardPose.u - 0.5) < 1e-9, 'B67: la posa della mascotte 3D per natpf_character');
+  const s = cardMove('win-salti'), o2 = applyCardMove(actor, s, CARD_LOOP*0.25, base, -1);
   assert.ok(Math.abs(root.position.x - (1 - o2.right)) < 1e-9 && o2.right > 0.3, 'a destra di chi guarda');
   assert.ok(rig.footLPivot.position.y >= .05 && rig.footRPivot.position.y >= .05);
-  const l = cardMove('lose-a'); applyCardMove(actor, l, CARD_LOOP*0.5, base, -1);
-  assert.ok(root.rotation.x < -0.15, 'piegato verso chi guarda (camera a −z)');
-  applyCardMove(actor, l, CARD_LOOP*0.5, base, 1); assert.ok(root.rotation.x > 0.15, 'dall\'altra parte');
+  const l = cardMove('lose-trascina'); applyCardMove(actor, l, CARD_LOOP*0.5, base, -1);
+  assert.ok(root.rotation.x < -0.03, 'piegato verso chi guarda (camera a −z)');
+  applyCardMove(actor, l, CARD_LOOP*0.5, base, 1); assert.ok(root.rotation.x > 0.03, 'dall\'altra parte');
   assert.equal(applyCardMove(null, l, 0, base), null); assert.equal(applyCardMove(actor, null, 0, base), null);
   // natpf_ritratti rimette posto, direzione e inclinazione al rilascio e tra una fetta e l'altra della fotografia
   const src = fs.readFileSync(new URL('../src/natpf/natpf_ritratti.js', import.meta.url), 'utf8');

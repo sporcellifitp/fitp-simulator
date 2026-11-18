@@ -13,7 +13,8 @@ import { castLooks, getCast } from './natpf_personaggi.js';
 import { applyMascot, updateMascotLabels, MASCOT_COLORS } from './natpf_lob_drop.js';
 import { keepRacketClear } from './natpf_racket_clear.js';
 import { getMascotMode, setMascotMode, loadMascotModel, mascotModelStatus, mascotModelInstance } from './natpf_mascot_models.js';
-import { createMascotRig, poseMascotBody, poseMascotArms, mascotModelHeadShape } from './natpf_mascot_rig.js';
+import { createMascotRig, poseMascotBody, poseMascotArms, mascotModelHeadShape, poseMascotCard } from './natpf_mascot_rig.js';
+import { ensureSadFace } from './natpf_mascot_face.js';
 
 // Varianti: P1 come l'immagine di riferimento, CPU con la polo blu NATPF, P2 con dettagli rosa.
 export const CHARACTER_LOOKS = Object.freeze({
@@ -430,6 +431,14 @@ export function updateNatpfCharacters(engine){
     // e i pezzi costruiti nel codice si nascondono; altrimenti tutto come prima
     const rig3d = actor.natpfMascot || actor.natpfMascot3d ? mascotModelFor(actor, engine) : null;
     if (rig3d){
+      // B67: nella fotografia della card la posa del movimento scelto (natpf_card_moves.js), con la racchetta nel pugno
+      const card = actor.natpfCardPose;
+      if (card?.move?.mascot){
+        const pose = card.move.mascot(card.u, rig3d);
+        if (pose.face === 'sad') ensureSadFace(rig3d);
+        poseMascotCard(rig3d, actor, pose);
+        continue;
+      }
       poseMascotBody(rig3d, actor, dt);
       actor.natpfRacketPush = keepRacketClear(actor, mascotModelHeadShape(rig3d.key), dt, engine.ball, rig3d.head.bone);
       poseMascotArms(rig3d, actor, dt);
