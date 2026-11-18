@@ -1,9 +1,9 @@
 // B67 · Faccia triste delle mascotte 3D per la card della sconfitta (richiesta dell'utente del 18/11/2026: «per la
 // sconfitta la mascotte deve sembrare visibilmente triste»; docs/b67/pose-mascotte.md).
 // La faccia dei modelli 3D è disegnata nella texture e sorride sempre. Qui, senza toccare il modello né la sua texture,
-// una MASCHERA: i soli triangoli davanti della faccia (circa 1.200 su 8.200), con la stessa pelle e le stesse ossa del
+// una MASCHERA: i soli triangoli davanti della faccia (circa 1.400 su 8.200), con la stessa pelle e le stesse ossa del
 // modello (posizioni, normali e pesi condivisi: si piega con la testa come la faccia vera), e una texture piccola
-// disegnata qui con il canvas (320 × 228 punti, 0,3 MB) proiettata di fronte nel sistema dell'osso della testa:
+// disegnata qui con il canvas (320 × 229 punti, 0,3 MB) proiettata di fronte nel sistema dell'osso della testa:
 // trasparente tranne dove cambia qualcosa:
 //   · la bocca sorridente coperta con il colore della pelle e una bocca triste all'ingiù (aperta, come lo stile del
 //     disegno);
