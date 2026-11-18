@@ -1651,3 +1651,16 @@ di salvaschermo, ridondanze e classifica di fine partita. Punto aperto: il contr
       confermare con il prossimo scarico del registro: le righe «colpo» dalla 17.2 devono avere `pl`; se mancano, il Worker
       ha ancora la versione del 16/11 e va ricaricato una volta.
 
+
+## 18/11, 07:30 UTC · richiesta dell'utente: più dati nel registro su sensori, calibrazione, prestazioni e precisione (B66)
+
+- Proposta del coordinatore (sei gruppi) e risposta dell'utente: «aggiungili tutti subito; il percorso del visitatore non
+  conta (non sempre c'è fila); salute del PC non fondamentale; voglio puntare su qualità dei sensori, calibrazione,
+  performance e precisione dei gesti». Prodotto: FIERA.
+- **B66** (agente, ramo locale `b66-registro-sensori`, worktree `scratchpad/b66/wt`): (1) rete e stato del telefono
+  dall'app Android (segnale Wi-Fi, banda, velocità del collegamento, batteria, carica, temperatura, «Fissa app»); (2)
+  qualità del collegamento (distribuzione del ritardo, sbalzi, messaggi persi o tardivi, pause per segnale debole); (3)
+  qualità dei sensori (frequenza vera, buchi durante il gesto, versione della pagina/app contro il PC); (4) telefono
+  bloccato (tocchi bloccati, sblocchi, uscite); più misure di calibrazione e di precisione dei gesti. Niente percorso del
+  visitatore, niente salute del PC. Campi nuovi = Worker del registro da ricaricare (lo fa l'utente).
+- Nota: in questo contenitore non c'è l'SDK di Android; l'APK si costruisce nel workflow di GitHub.
