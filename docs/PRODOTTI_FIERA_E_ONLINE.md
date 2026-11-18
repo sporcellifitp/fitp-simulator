@@ -62,6 +62,8 @@ Registro delle richieste in §3.
 | 17/11 | Mascotte con i modelli 3D di Lob e Drop invece delle GIF | FIERA | decisione dell'utente: «3D con animazioni nuove» (3 di vittoria, 3 di sconfitta), anteprima prima di pubblicare (B63: anteprima consegnata, interruttore spento, aspetta l'approvazione) |
 | 17/11 | Classifica di oggi a fine partita: top 5 e posizione di chi ha giocato, poi sparisce (B65) | FIERA | fatto, 17.4 (`docs/b65/classifica-fine.md`); decisioni: nello stesso schermo solo chi vince, dopo la card per 8 s |
 | 18/11 | Registro dello stand: più dati su qualità dei sensori, calibrazione, prestazioni e precisione dei gesti, rete e stato del telefono dall'app, telefono bloccato; niente percorso del visitatore né salute del PC (B66) | FIERA (il registro è solo nell'installer; app Android 1.0.4) | fatto, 18.1 (`docs/b66/registro-sensori.md`); il Worker del registro va ricaricato |
+| 18/11 | Mascotte 3D: impugnatura, pose «Sei-sette» e «Aura», sconfitta visibilmente triste (B67); poi «Le mascotte ok, integra queste e butta dentro altre animazioni simili alle esultanze e balletti» (B69) | FIERA, accese anche nel web con «Lob & Drop» (solo codice, niente asset) | fatto, 18.2 (`docs/b69/balletti-mascotte.md`): accese di base dove in campo ci sono Lob e Drop; con i Classici GIF (Windows) o ritratti (web) come prima |
+| 18/11 | «Batte per primo» meno a lungo sopra il campo (B68) | FIERA (codice comune: vale anche nel web) | fatto, 18.2 |
 | 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)

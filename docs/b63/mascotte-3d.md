@@ -1,4 +1,7 @@
-# B63 · Mascotte 3D con animazioni nuove nella card (FIERA) · ANTEPRIMA, da approvare
+# B63 · Mascotte 3D con animazioni nuove nella card (FIERA) · APPROVATE (B67/B69, 18/11: accese di base con «Lob & Drop», `docs/b69/balletti-mascotte.md`)
+
+> **18/11: rivisto dal B67** (`docs/b67/pose-mascotte.md`): impugnatura nel pugno, «Sei-sette» e «Aura», sconfitta con la
+> faccia triste; i movimenti qui sotto sono quelli del B63 (restano «Salti di gioia» e «Giravolta»).
 
 Domanda dell'utente del 17/11/2026: «Ma non puoi generare tu con il 3D di Lob e Drop delle animazioni native se le gif non
 vanno bene?». Risposta alla domanda a scelta: **«3D con animazioni nuove»**: 3 di vittoria e 3 di sconfitta per i modelli

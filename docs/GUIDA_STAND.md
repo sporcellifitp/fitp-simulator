@@ -267,6 +267,16 @@ gioca contro la CPU) e Lob su quella del Player 2 o della CPU, come in campo con
 accendere. Se il file manca torna il personaggio disegnato. Nel gioco dal browser (Cloudflare) non c'è. (La 16.9 la
 metteva accanto al titolo: corretta il 16/11 su richiesta dell'utente.)
 
+**(B67/B69, dalla 2026-11-18.2) Con «Lob & Drop» le mascotte 3D ballano nella card.** Se in campo ci sono Lob e Drop
+(«Personaggi: Lob & Drop» in «Pronto per la partita»), la card mostra la mascotte vera della partita, fotografata a fine
+partita con le luci dell'arena (circa 3 secondi dopo la card; prima si vede il personaggio disegnato): chi vince fa uno
+di dieci movimenti (salti, giravolta, «Sei-sette», «Aura» con l'alone, robot a scatti, disco con il dab, corsa
+all'indietro, passi incrociati, braccia a pendolo con la racchetta piantata a terra, saltelli che spingono il soffitto),
+chi perde è visibilmente triste (faccia triste, testa bassa; cinque movimenti: racchetta trascinata, sospiro con la
+nuvoletta, lacrima, calcia un sassolino, capriccio). A caso, mai lo stesso della partita prima. Con i **Classici** nulla
+cambia (le GIF di Lob e Drop qui sopra). Niente da accendere; vale anche nel gioco dal browser. Se servisse spegnerle:
+`natpf-tennis.mascotte3d` = '0' (tornano le GIF) o `?mascotte3d=0` nell'indirizzo.
+
 - **«Gioca ancora»** (contro la CPU, se vince chi gioca) o **«Rivincita»**: la stessa persona. (B47) Si apre la **scelta
   del livello**, grande, già segnata con il livello di prima: contro la CPU «Chi gioca? Bambino · Ragazzo · Adulto»
   (c'è anche «CPU Esperta» o «CPU Leggenda» se era quello il livello); nello stesso schermo la fascia di ciascun

@@ -6,7 +6,7 @@ import { statsHtml, endScreen, titleFit } from "./natpf/natpf_match_stats.js"; /
 import { cardModel, cardsHtml } from "./natpf/natpf_end_card.js"; // NATPF B40: card della partita
 import { castLooks, getCast } from "./natpf/natpf_personaggi.js";
 import { mascotRotation, mascotPlan, withMascots, mountMascots } from "./natpf/natpf_mascotte.js"; // NATPF B58
-import { cardMovesOn } from "./natpf/natpf_card_moves.js"; // NATPF B63: con le mascotte 3D nuove niente GIF nella card
+import { cardsUse3d } from "./natpf/natpf_card_moves.js"; // NATPF B63/B69: con Lob e Drop in campo le mascotte 3D al posto delle GIF nella card
 // NATPF: scritture nel DOM solo se il valore cambia. updateMultiplayerRoomInfo gira a ogni risposta del relay (20 al
 // secondo nella sfida) e updateTimingGauge due volte per fotogramma (passi di fisica a 120 Hz): textContent riscritto
 // uguale sostituisce comunque il nodo di testo e fa ricalcolare lo stile (come natpf_split_ui.js)
@@ -366,9 +366,10 @@ export class HudUI {
     // Il titolo resta largo quanto la scheda (B41.5). this.endCards = false: schermata del B35
     // NATPF B58: Lob o Drop nella finestra del personaggio della card (natpf_mascotte.js): una a caso per l'esito di
     // ciascuna card, mai una della partita prima; solo dove le mascotte si vedono (programma Windows); poi si prenotano e
-    // si caricano le prossime due
+    // si caricano le prossime due. NATPF B69: con Lob e Drop in campo la card mostra le mascotte 3D che ballano
+    // (natpf_ritratti, natpf_card_moves.cardsUse3d) e niente GIF; le GIF restano per i Classici
     const cv0 = S && this.endCards !== false ? cardModel(w.stats, w, { looks: castLooks(getCast(), w.stats.mode !== "cpu"), bands: w.stats.bands }) : null,
-      rot = cv0 && !cardMovesOn() ? mascotRotation() : null, plan = rot ? mascotPlan(cv0) : [], cv = plan.length ? withMascots(cv0, plan, rot.takeFor(plan)) : cv0,
+      rot = cv0 && !cardsUse3d(cv0) ? mascotRotation() : null, plan = rot ? mascotPlan(cv0) : [], cv = plan.length ? withMascots(cv0, plan, rot.takeFor(plan)) : cv0,
       ch = cv ? cardsHtml(cv) : "", cd = el("victory-cards");
     cd && ((cd.innerHTML = ch), cd.classList.toggle("hidden", !ch), (cd.dataset.n = String(cv?.cards.length || 0)), plan.length && mountMascots(cd));
     rot && setTimeout(() => rot.prepare(), 2500);

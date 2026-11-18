@@ -24,7 +24,10 @@ import { cardModel } from './natpf_end_card.js';
 import { castLooks, getCast } from './natpf_personaggi.js';
 import { updateNatpfCharacters } from './natpf_character.js';
 // B63: mascotte 3D con animazioni nuove (interruttore finché l'utente non approva l'anteprima)
-import { CARD_LOOP, CARD_K, CARD_K_LOW, cardMovesOn, pickCardMove, applyCardMove } from './natpf_card_moves.js';
+import { CARD_LOOP, CARD_K, CARD_K_LOW, cardsUse3d, pickCardMoves, applyCardMove } from './natpf_card_moves.js';
+// B67: effetti intorno alla mascotte (Aura, nuvoletta) e faccia triste, pronti prima della fotografia
+import { createCardFx } from './natpf_card_fx.js';
+import { ensureSadFace } from './natpf_mascot_face.js';
 
 export const PORTRAIT_LAYER = 5;
 export const PORTRAIT_MAX = Object.freeze({ w: 256, h: 320 });
@@ -104,7 +107,7 @@ export class NatpfRitratti {
     this.engine = engine; this.ui = ui;
     this.mode = portraitMode(globalThis.location?.search || '');
     this.K = portraitK({ ua: globalThis.navigator?.userAgent || '', deviceMemory: globalThis.navigator?.deviceMemory });
-    this.state = 'idle'; this.job = null; this.sheets = {}; this.canvases = {}; this.last = null;
+    this.state = 'idle'; this.job = null; this.sheets = {}; this.canvases = {}; this.last = null; this.fx = {};
     this.cam = new THREE.PerspectiveCamera(PORTRAIT_FOV, PORTRAIT_MAX.w/PORTRAIT_MAX.h, 0.05, 60);
     this.cam.layers.set(PORTRAIT_LAYER);
     this._box = new THREE.Box3(); this._b = new THREE.Box3(); this._v = new THREE.Vector4(); this._c = new THREE.Color();
@@ -143,8 +146,10 @@ export class NatpfRitratti {
     if (!model?.cards?.length){ this.last = { m, state: 'idle' }; return; }
     const db = E.renderer.getDrawingBufferSize(new THREE.Vector2()), size = frameSize({ canvasW: db.x, canvasH: db.y });
     // B63: con i movimenti nuovi un movimento per card (dal suo esito), un giro più lungo e più fotogrammi
-    const moves = cardMovesOn(), period = moves ? CARD_LOOP : CHEER_PERIOD, K = moves ? (this.K === PORTRAIT_K_LOW ? CARD_K_LOW : CARD_K) : this.K;
-    const items = model.cards.map(c => ({ side: c.side, actor: c.side === 'opponent' ? E.opponent : E.player, color: c.art, k: 0, warm: 0, box: null, move: moves ? pickCardMove(c.won ? 'win' : 'lose') : null, t: 0 }))
+    // (B69: accesi di base, solo con Lob e Drop in campo: cardsUse3d; due card mai con lo stesso movimento)
+    const moves = cardsUse3d(model), period = moves ? CARD_LOOP : CHEER_PERIOD, K = moves ? (this.K === PORTRAIT_K_LOW ? CARD_K_LOW : CARD_K) : this.K;
+    const picked = moves ? pickCardMoves(model.cards.map(c => (c.won ? 'win' : 'lose'))) : [];
+    const items = model.cards.map((c, i) => ({ side: c.side, actor: c.side === 'opponent' ? E.opponent : E.player, color: c.art, k: 0, warm: 0, box: null, move: picked[i] || null, t: 0 }))
       .filter(it => it.actor?.root && it.actor.rig);
     if (!items.length){ this.last = { m, state: 'idle' }; return; }
     for (const it of items){
@@ -154,6 +159,7 @@ export class NatpfRitratti {
       if (s.width !== L.width || s.height !== L.height){ s.width = L.width; s.height = L.height; }
       it.sheet = s; it.ctx = s.getContext('2d');
     }
+    if (moves) this._prepareMoves(items);
     this.job = { m, items, K, period, w: size.w, h: size.h, i: 0, since: E.elapsedTime, t0: performance.now(), ms: 0, programs: 0 };
     this.state = nextState('idle', 'start');
   }
@@ -171,6 +177,7 @@ export class NatpfRitratti {
       if (it.warm < J.K){
         // giro di prova: il loop si assesta e si misura il riquadro del personaggio (racchetta compresa)
         while (it.warm < J.K){ this._advance(it, J.period/J.K); if (it.move || it.warm % 2 === 0) this._measure(it); it.warm++; }
+        this._padFx(it);
         this.state = nextState(this.state, 'measured');
       }
       this._advance(it, J.period/J.K);
@@ -196,7 +203,8 @@ export class NatpfRitratti {
     const E = this.engine;
     it.actor.natpfPortraitHold = true; it.held = true;
     // (viso contento anche per chi applaude: la sorpresa della sconfitta è già passata)
-    try { E.facialFX?.setExpression?.(it.actor, 'happy_grin', 12); } catch {}
+    // (B67: con i movimenti nuovi chi perde ha il viso triste anche da tennista; le mascotte 3D la faccia disegnata)
+    try { E.facialFX?.setExpression?.(it.actor, it.move?.base === 'sad' ? 'shocked_loss' : 'happy_grin', 12); } catch {}
     it.actor.root.traverse(o => o.layers.enable(PORTRAIT_LAYER));
     E.scene.traverse(o => { if (o.isLight) o.layers.enable(PORTRAIT_LAYER); });
     it.box = null;
@@ -205,6 +213,7 @@ export class NatpfRitratti {
       const r = it.actor.root, R = it.actor.rig?.reaction;
       it.base = { pos: r.position.clone(), rotY: r.rotation.y, rotX: r.rotation.x, rotZ: r.rotation.z }; it.t = 0;
       if (R){ R.active = true; R.type = it.move.base; R.timer = 0; }
+      if (it.fx) E.scene.add(it.fx.group);
     }
   }
   _release(it){
@@ -213,6 +222,9 @@ export class NatpfRitratti {
     it.actor.root.traverse(o => o.layers.disable(PORTRAIT_LAYER));
     // B63: il personaggio torna dov'era (sotto la card l'arena resta ferma)
     if (it.base){ const r = it.actor.root; r.position.copy(it.base.pos); r.rotation.set(it.base.rotX, it.base.rotY, it.base.rotZ); r.updateMatrixWorld?.(true); it.base = null; }
+    // B67: la mascotte 3D torna alle pose del gioco (spalle, mani e faccia di sempre al prossimo fotogramma)
+    it.actor.natpfCardPose = null;
+    it.fx?.group.removeFromParent();
   }
   // un passo di P/K del solo personaggio (in PORTRAIT_SUBSTEPS passi), con le braccia e la mascotte aggiornate
   _advance(it, dt){
@@ -226,6 +238,35 @@ export class NatpfRitratti {
     visibleBox(it.actor.root, this._b);
     it.box = it.box ? it.box.union(this._b) : this._b.clone();
   }
+  // B67: il riquadro dell'inquadratura si allarga per l'effetto (la nuvoletta sopra la testa, l'alone intorno)
+  _padFx(it){
+    const p = it.fx?.pad, B = it.box;
+    if (!p || !B) return;
+    const h = B.max.y - B.min.y;
+    it.top = B.max.y;
+    B.max.y += (p.top || 0)*h; B.min.y -= (p.bottom || 0)*h;
+    B.min.x -= (p.side || 0)*h; B.max.x += (p.side || 0)*h; B.min.z -= (p.side || 0)*h; B.max.z += (p.side || 0)*h;
+  }
+  // B67: effetti e faccia triste pronti, e i loro programmi compilati adesso (1,3 s prima della fotografia) invece che
+  // durante (sul PC dello stand una volta per sessione)
+  _prepareMoves(items){
+    const E = this.engine, add = [];
+    for (const it of items){
+      const kind = it.move?.fx;
+      if (kind){ it.fx = this.fx[kind] || (this.fx[kind] = createCardFx(kind, PORTRAIT_LAYER)); add.push(it.fx.group); }
+      const rig = it.actor.natpfMascot3d;
+      if (it.move?.mascot && !it.move.id.startsWith('win') && rig?.group && !this._faced?.has(rig)){
+        const face = ensureSadFace(rig);
+        if (face){ (this._faced ||= new Set()).add(rig); face.visible = true; add.push(face); }
+      }
+    }
+    if (!add.length) return;
+    const tmp = add.filter(o => !o.parent);
+    for (const o of tmp) E.scene.add(o);
+    try { E.renderer.compile?.(E.scene, E.camera); } catch {}
+    for (const o of tmp) o.removeFromParent();
+    for (const o of add) if (o.isSkinnedMesh) o.visible = false;
+  }
   _shoot(it, J){
     const E = this.engine, R = E.renderer, S = E.scene, cam = this.cam, a = it.actor;
     const B = it.box || visibleBox(a.root, this._b);
@@ -233,13 +274,24 @@ export class NatpfRitratti {
     // davanti al personaggio (chi gioca guarda verso la rete: z negativo), un filo dall'alto
     const dir = (a.sideSign || 1) > 0 ? -1 : 1;
     cam.aspect = J.w/J.h; cam.updateProjectionMatrix();
-    cam.position.set(f.center.x + 0.12*f.dist, f.center.y + 0.08*f.dist, f.center.z + dir*f.dist);
+    // (B67: le sconfitte un filo dal basso, così la faccia triste si vede anche con la testa bassa e la visiera di Lob)
+    cam.position.set(f.center.x + 0.12*f.dist, f.center.y + (it.move?.camUp ?? 0.08)*f.dist, f.center.z + dir*f.dist);
     cam.lookAt(f.center.x, f.center.y, f.center.z);
     cam.updateMatrixWorld();
+    if (it.fx){
+      const hb = a.natpfMascot3d?.head?.bone || a.parts?.head;
+      hb?.getWorldPosition?.(this._h || (this._h = new THREE.Vector3()));
+      const top = this._h || new THREE.Vector3(f.center.x, 0, f.center.z);
+      top.y = it.top ?? B.max.y;
+      it.fx.update(((it.t/J.period) % 1 + 1) % 1, B, top, cam);
+    }
     const pr = R.getPixelRatio(), db = R.getDrawingBufferSize(new THREE.Vector2());
     const x = Math.max(0, Math.floor((db.x - J.w)/2)), y = Math.max(0, Math.floor((db.y - J.h)/2));
     const bg = S.background, autoSh = R.shadowMap.autoUpdate, a0 = R.getClearAlpha();
     R.getClearColor(this._c); const c0 = this._c.getHex();
+    // B67: le ossa della mascotte 3D nella posa di adesso (il primo disegno della fotografia prendeva quelle dell'ultimo
+    // disegno dell'arena: il fotogramma 0 del foglio aveva la posa del campo)
+    if (it.move) a.root.traverse(o => { if (o.isSkinnedMesh && o.visible) o.skeleton.update(); });
     try {
       S.background = null; R.shadowMap.autoUpdate = false;
       R.setClearColor(it.color, 1);
