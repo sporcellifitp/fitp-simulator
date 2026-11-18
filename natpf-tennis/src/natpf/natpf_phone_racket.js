@@ -478,6 +478,9 @@ export class NatpfPhoneRacket {
     // diagnostica dal telefono: gesti scartati sul telefono (scartato), preparazioni (prep), segno «qui è successo un
     // problema» (segno) e telefono/browser (dispositivo, l'ultimo resta in device per chi inizia a registrare dopo)
     this.diagListeners = new Set();
+    // B66: ogni stato del telefono (messaggio «st», uno al secondo e a ogni cambio) per il registro dello stand: misure dei
+    // sensori, del blocco dei tocchi e dall'app (registro/registro_misure.js). Solo lettura
+    this.stateListeners = new Set();
     this.device = null;
     this.displayLagMs = readDisplayLagMs(); // ritardo dello schermo misurato (0 finché non lo si misura)
     this.liftBaseline = 0;               // verso verticale abituale (calibrazione, per verso del colpo): lob e tagliato si leggono rispetto a questo
@@ -687,6 +690,7 @@ export class NatpfPhoneRacket {
     // mano, rivincita, segno «qui è successo un problema») e i colpi valgono come attività per il chiosco
     link.on('state', d => {
       if (this.link === link) this.touchLockAck = d.lk === 1 ? link.L.joins : null;
+      if (this.link === link) for (const fn of this.stateListeners) try { fn(d); } catch (e){ console.error(e); }
     });
     link.on('cal', e => { if (['attempt', 'free', 'selection'].includes(e?.kind)) this._activity(); this._onCal(e); });
     link.on('tut', e => { if (e?.ok || e?.nav) this._activity(); this._onTut(e); });
@@ -1069,6 +1073,7 @@ export class NatpfPhoneRacket {
     return true;
   }
   onDiag(fn){ this.diagListeners.add(fn); return () => this.diagListeners.delete(fn); }
+  onState(fn){ this.stateListeners.add(fn); return () => this.stateListeners.delete(fn); }
   _diag(kind, d){ for (const fn of this.diagListeners) try { fn(kind, d); } catch (e){ console.error(e); } }
   onRaw(fn){ this.rawListeners.add(fn); return () => this.rawListeners.delete(fn); }
   onDropped(fn){ this.dropListeners.add(fn); return () => this.dropListeners.delete(fn); }

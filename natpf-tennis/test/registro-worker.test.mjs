@@ -45,8 +45,9 @@ test('Worker del registro: gli elenchi e i limiti sono la copia esatta di quelli
   assert.deepEqual([...CAMPI_VIETATI], [...F.CAMPI_VIETATI]);
   for (const k of ['maxBlocco', 'maxRiga', 'maxTesto', 'maxMessaggio']) assert.equal(LIMITI[k], F.REGISTRO[k], k);
   // B36.0: il formato delle righe del Worker è quello del gioco (campo «v» della riga «avvio») e i campi della direzione ci sono
-  assert.equal(FORMATO, F.REGISTRO.versione); assert.equal(FORMATO, 2);
+  assert.equal(FORMATO, F.REGISTRO.versione); assert.equal(FORMATO, 3, 'formato 3 dal B66');
   for (const c of F.CAMPI_B36) assert.ok(CAMPI.includes(c), c);
+  for (const c of F.CAMPI_B66) assert.ok(CAMPI.includes(c), c);
   assert.equal(LIMITI.maxTotale, 2*1024*1024*1024, 'tetto di base del registro: 2 GB');
   // la stessa riga, pulita dal gioco e dal Worker, dà lo stesso risultato
   const sporca = { k: 'errore', t: 5, msg: 'TypeError a http://192.168.1.20:8443/natpf/tennis/racchetta.html?room=AB12 di mario@example.com', file: 'main.js', riga: 12, nome: 'Mario', boh: 1,
@@ -199,7 +200,7 @@ test('Worker del registro: senza il collegamento al bucket non parte (stato chia
   assert.equal(pagina.res.status, 503); assert.match(pagina.text, /NON è pronto/);
   // con il bucket: pronto
   const ok = await leggi(env(), '/', { chiave: null });
-  assert.equal(ok.res.status, 200); assert.deepEqual(ok.body, { ok: true, registro: 'pronto', spazio: true, chiave: true, formato: 2 });
+  assert.equal(ok.res.status, 200); assert.deepEqual(ok.body, { ok: true, registro: 'pronto', spazio: true, chiave: true, formato: 3 });
 });
 
 test('Worker del registro: senza la chiave niente lettura, niente elenco, niente cancellazione', async () => {
@@ -406,7 +407,7 @@ test('Worker del registro: la pagina dell’utente mostra lo spazio, scarica e c
   for (const pezzo of ['Spazio occupato dal registro', 'Cancella tutto', 'Ricalcola lo spazio', '.jsonl.gz', "'DELETE'", 'type="password"']) assert.ok(p.text.includes(pezzo), pezzo);
   assert.ok(!p.text.includes(CHIAVE)); assert.equal(p.res.headers.get('Cache-Control'), 'no-store'); assert.equal(p.res.headers.get('Referrer-Policy'), 'no-referrer');
   // B36.0: chi ricarica il Worker vede subito la versione nuova (il Worker di prima non ha questa riga)
-  assert.match(p.text, /Formato delle righe: <b class="ok" id="formato">2<\/b>/);
+  assert.match(p.text, /Formato delle righe: <b class="ok" id="formato">3<\/b>/);
 });
 
 // B36.0 (docs/b36/misure-b36-0.md): campi nuovi della direzione dei colpi, un solo ricaricamento del Worker. Compatibilità
@@ -430,6 +431,17 @@ async function workerDiPrima(){
   fs.writeFileSync(f, src.replace(lista, ']);'));
   const W = await import(pathToFileURL(f).href);
   assert.deepEqual([...W.CAMPI], CAMPI.filter(c => !F.CAMPI_B36.includes(c)), 'il Worker di prima: gli stessi campi, senza quelli del B36.0');
+  return W;
+}
+// B66: il Worker del 17/11 (senza le misure dei sensori: la riga dei campi del B66 tolta, formato 2, «pause» non fra le MAPPE)
+async function workerSenzaB66(){
+  const src = fs.readFileSync(new URL('../cloudflare/registro-worker.js', import.meta.url), 'utf8');
+  const lista = `\n  ${F.CAMPI_B66.map(c => `'${c}'`).join(', ')},`;
+  assert.equal(src.split(lista).length, 2, 'i campi del B66 stanno in una riga sola, prima di quelli del B36.0');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'registro-worker-17-11-')), f = path.join(dir, 'registro-worker-17-11.mjs');
+  fs.writeFileSync(f, src.replace(lista, '').replace("'perche', 'pause']);", "'perche']);").replace('export const FORMATO = 3;', 'export const FORMATO = 2;'));
+  const W = await import(pathToFileURL(f).href);
+  assert.deepEqual([...W.CAMPI], CAMPI.filter(c => !F.CAMPI_B66.includes(c)), 'il Worker del 17/11: gli stessi campi, senza quelli del B66');
   return W;
 }
 const oggettiDi = E => [...E.REGISTRO.oggetti.entries()].filter(([k]) => k.endsWith('.jsonl.gz')).map(([, o]) => zlib.gunzipSync(Buffer.from(o.bytes)).toString('utf8').trim().split('\n').slice(1).map(l => JSON.parse(l)));
@@ -466,4 +478,33 @@ test('16/11: pagina del Worker con la colonna «Partite», scarico a pezzi da 15
   assert.match(src, /for\(const v of \[g\.partite\?\?'—'/);
   assert.match(src, /pagina: 15,/);
   assert.match(src, /r\.status===503/);
+});
+
+// B66 (docs/b66/registro-sensori.md): campi nuovi di sensori, calibrazione, collegamento, rete e blocco del telefono, un solo
+// ricaricamento del Worker. Il Worker del 17/11 accetta le righe del gioco nuovo e toglie in silenzio i campi del B66 (le righe
+// non restano in coda sul PC); quello nuovo le scrive intere, e quelle dei giochi di prima identiche
+const RIGHE_B66 = [
+  { k: 'avvio', t: 0, v: 3, versione: '2026-11-18.1', g: 'abcdefgh' },
+  { k: 'partita', t: 100, n: 1, modo: 'cpu', chi: 'adulto', livello: 'evento', dir: 'classica', tel: { strada: 'lan', rtt: 18, so: 'Android 14', browser: 'Chrome 131', pv: '2026-11-17.4', app: '1.0.4' } },
+  { k: 'colpo', t: 2300, n: 1, gesto: 'topspin', ms: -40, voto: 'ritardo', f: .55, d: .31, x: 1.6, z: -9.1, lato: 1, pl: 1, cf: .82, mg: 1.43, gb: 71, rit: [64, 70] },
+  { k: 'partita.fine', t: 90000, n: 1, esito: 'finita', vince: 'g', game: [2, 1], punti: 30, puntiVinti: 17, colpi: 41, durS: 89,
+    tq: { g: { hz: [59.8, 41.2], n: 5300, b: 3, bm: 160, bg: 1, iv: 16, sat: [0, 2] } }, lat: { g: { arr: [42, 88, 210], ris: [48, 95, 230], jit: 14, n: 41, persi: 1, vie: [38, 3] } },
+    wifi: { g: { rssi: [-61, -72], bd: 5, mbps: [433, 144], bt: [81, 79], ch: 0, tc: 33.1, fx: 1 } }, blocco: { g: { durS: 80, tb: 4, ss: 1, us: 1, sc: 1 } },
+    cal: { g: { tip: [520, 610], tipN: 3, cen: 5, dvi: [8.5, 2.1], seg: 1, ref: [600, 600], tipo: 'calibrato', soglia: [70, 120] } }, pause: { 'segnale debole': [2, 4.5] } },
+];
+test('Worker del registro, B66: il Worker del 17/11 accetta le righe nuove senza le misure del B66; il nuovo le scrive intere', async () => {
+  const prima = await workerSenzaB66();
+  prima.dimentica?.(); const Ep = env();
+  const u = new URL(BASE + '/'); u.search = new URLSearchParams({ giorno: oggi, postazione: 'abcdefgh', parte: '00001-ab12' }).toString();
+  const rp = await prima.default.fetch(new Request(u, { method: 'POST', headers: { Origin: GAME, 'CF-Connecting-IP': '203.0.113.7' }, body: testo(RIGHE_B66) }), Ep);
+  assert.equal(rp.status, 200); assert.deepEqual(await rp.json(), { ok: true, righe: RIGHE_B66.length, scartate: 0 });
+  const [scritteP] = oggettiDi(Ep);
+  const fine = scritteP.find(r => r.k === 'partita.fine'), colpo = scritteP.find(r => r.k === 'colpo'), partita = scritteP.find(r => r.k === 'partita');
+  for (const c of ['tq', 'lat', 'wifi', 'blocco', 'cal', 'pause']) assert.equal(fine[c], undefined, `partita.fine.${c} tolto`);
+  for (const c of ['cf', 'mg', 'gb', 'rit']) assert.equal(colpo[c], undefined, `colpo.${c} tolto`);
+  assert.equal(colpo.pl, 1); assert.equal(fine.colpi, 41); assert.deepEqual(partita.tel, { strada: 'lan', rtt: 18, so: 'Android 14', browser: 'Chrome 131' });
+  const En = env(), rn = await manda(En, { body: testo(RIGHE_B66) });
+  assert.equal(rn.res.status, 200); assert.deepEqual(rn.body, { ok: true, righe: RIGHE_B66.length, scartate: 0 });
+  assert.deepEqual(oggettiDi(En)[0], RIGHE_B66);
+  for (const r of RIGHE_B66){ assert.deepEqual(pulisci(r), F.pulisci(r)); assert.deepEqual(F.controllaRiga(r), []); }
 });

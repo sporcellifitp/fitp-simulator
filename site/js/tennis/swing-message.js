@@ -6,9 +6,11 @@
 // scende mentre ruota, face-tracker.headAt), fh direzione assoluta del piatto all'impatto (gradi), sd ms dal picco al riconoscimento, hd ms di attesa della preparazione, hz Hz dei sensori, n numero, vt gesto verticale,
 // an ampiezza dello swing (gradi), sh forma del colpo [piano, salita, rotazione sul manico, inclinazione del manico,
 // velocità della testa m/s, velocità della mano m/s] (stroke-shape.js), sg −1 verso e piatto girati dal telefono (B35a).
+// B66 (solo misure per il registro dello stand): mg picco del gesto diviso la soglia che ha superato, gw buco più lungo nei
+// campioni del telefono durante il gesto (ms, solo se c'è stato un buco).
 import { aimFromFace } from './face-tracker.js';
 
-export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, rtt = 80, now = s.t, sampleHz = 60, seq = 0 } = {}){
+export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, rtt = 80, now = s.t, sampleHz = 60, seq = 0, gapMs = null } = {}){
   // Angolo del piatto all'impatto rispetto al proprio colpo abituale (calibrazione). Presa verticale: senza scalare con
   // l'ampiezza del gesto, che il rilevatore misura con soglie diverse in calibrazione e in partita (lo stesso gesto
   // sembrerebbe mirato di lato); il riferimento è già la posa ferma prima del colpo.
@@ -26,7 +28,8 @@ export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, 
     ...(Number.isFinite(face?.abs) && grip !== 'flat' ? { fh: +face.abs.toFixed(1) } : {}),
     ...(Number.isFinite(s.angle) ? { an: Math.round(s.angle) } : {}),
     ...(s.shape ? { sh: [s.shape.plane, s.shape.rise, s.shape.roll, s.shape.tilt, s.shape.head, s.shape.hand] } : {}),
-    sd: s.detectMs, hd: s.holdMs, hz: Math.round(sampleHz), n: seq, ...(s.vert ? { vt: s.vert } : {}), ...(sg === -1 ? { sg: -1 } : {}) };
+    sd: s.detectMs, hd: s.holdMs, hz: Math.round(sampleHz), n: seq, ...(s.vert ? { vt: s.vert } : {}), ...(sg === -1 ? { sg: -1 } : {}),
+    ...(Number.isFinite(s.margin) ? { mg: s.margin } : {}), ...(Number.isFinite(gapMs) ? { gw: Math.round(gapMs) } : {}) };
 }
 
 // Lettura sul computer. at: istante del picco sull'orologio del computer (s); now: adesso (ms, performance.now)
@@ -49,5 +52,7 @@ export function parseSwingMessage(d, { at, now }){
     // forma del colpo (telefoni aggiornati): senza, il computer usa i segnali di prima
     ...(Array.isArray(d.sh) && d.sh.length >= 6 && d.sh.slice(0, 6).every(x => typeof x === 'number' && isFinite(x))
       ? { shape: { plane: n(d.sh[0], -1, 1, 0), rise: n(d.sh[1], -1, 1, 0), roll: n(d.sh[2], -1, 1, 0), tilt: n(d.sh[3], -1, 1, 0), head: n(d.sh[4], 0, 60, 0), hand: n(d.sh[5], 0, 30, 0) } } : {}),
+    // B66: margine sulla soglia e buco nei campioni durante il gesto (solo per il registro dello stand)
+    ...(typeof d.mg === 'number' && isFinite(d.mg) ? { margin: n(d.mg, 0, 50, 0) } : {}), ...(typeof d.gw === 'number' && isFinite(d.gw) ? { gapMs: n(d.gw, 0, 5000, 0) } : {}),
     receivedAt: now/1000, sentLat: n(d.lat, 0, 5000, null) };
 }

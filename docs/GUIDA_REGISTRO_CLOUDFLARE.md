@@ -151,6 +151,9 @@ Quando una versione del gioco aggiunge campi al registro, il Worker va ricaricat
 accetta le righe ma toglie i campi nuovi (il riassunto lo dice). Variabili, chiave e collegamento al bucket restano. La
 prima volta è il B36.0 (campi della direzione dei colpi, formato delle righe 2): passi con il solo mouse in
 `docs/b36/misure-b36-0.md` §3. Dopo il Deploy la pagina del Worker dice **«Formato delle righe: 2»**.
+La seconda è il B66 (18/11, versione 2026-11-18.1: misure di sensori, calibrazione, collegamento, rete e blocco del
+telefono, formato delle righe 3): stessi passi, `docs/b66/registro-sensori.md` §5; dopo il Deploy la pagina dice
+**«Formato delle righe: 3»**.
 
 ## Sicurezza in breve
 

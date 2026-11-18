@@ -18,6 +18,9 @@
 // B36.0 (misurare prima la direzione dei colpi, docs/b36/misure-b36-0.md): la riga «colpo» della racchetta aspetta il
 // primo rimbalzo vero della palla (dove cade davvero e se è fuori per l'arbitro del motore) e solo allora si scrive; se il
 // rimbalzo non arriva (palla presa al volo, in rete, punto finito, menu) si scrive senza. Solo lettura: il gioco non cambia.
+// B66 (18/11, docs/b66/registro-sensori.md): per ogni telefono in partita le misure di sensori, collegamento, rete, blocco
+// dei tocchi e calibrazione (registro_misure.js) nella riga «partita.fine»; nella riga «colpo» confidenza, margine sulla
+// soglia, buco nel gesto e ritardo. Solo lettura, come sopra.
 import { REGISTRO, giornoDi, leggiGiornata, scriviGiornata, registroAcceso, scriviScelta, idBlocco, dispositivo, strada, gpuVera, gpuNome, finePunto, pulisci, testoRiga, r } from './registro_formato.js';
 import { whoOfLevel } from '../natpf_who.js';
 import { eventoK } from '../natpf_evento.js';
@@ -26,6 +29,7 @@ import { readFairMode } from '../natpf_fair_format.js';
 import { readAimLevel } from '../natpf_aim_level.js';
 import { NATPF_BUILD } from '@natpf/tennis/version.js';
 import { dirModelOf, usedNewRule } from '../natpf_direction.js';
+import { MisureTelefono, Pause } from './registro_misure.js';
 
 const prova = (fn, no = null) => { try { return fn(); } catch { return no; } };
 const NOMI_BASE = new Set(['player 1', 'player 2', 'ospite', '']);
@@ -55,6 +59,7 @@ export class RegistroStand {
     this.partita = null; this.visita = null; this.cal = {}; this.tut = new Map(); this.tel = {}; this.scarti = {}; this.err = new Map();
     this.att = null; this.mini = null; this._chiosco = -Infinity; this._telefoni = new Set(); this._nomi = new Set();
     this._aperto = null;                                 // B36.0: il colpo della racchetta che aspetta il suo primo rimbalzo
+    this._misFuori = {};                                 // B66: colpi del telefono fuori dalla partita (prova, allenamento): solo per la riga «colpo»
     this._installa();
     if (timers && typeof setInterval === 'function'){
       this._secT = setInterval(() => this.secondo(), 1000); this._flushT = setInterval(() => { this.blocco(); }, REGISTRO.bloccoMs);
@@ -242,6 +247,8 @@ export class RegistroStand {
       dopo(T, 'openFor', function(_o, o = {}){ if (this.open){ R._tutorial(this, chi, o); const s = R.tut.get(this); if (s) s.meta = meta; } });
       wrap(T, 'close', function(orig, reason = 'phone'){ const s = this.open ? R.tut.get(this) : null, stato = this.state; const out = orig(reason); if (s) R._fineTutorial(this, s, reason, stato); return out; });
     }
+    // B66: pause della partita per il telefono del Player 1 (o la webcam): motivo e durata (natpf_ui._holdAction)
+    wrap(ui, '_holdAction', function(orig, a, src = 'telefono'){ const out = orig(a, src); const t = R.now(); try { R._pausa(a, src); } catch {} R._costo(t); return out; });
     // il chiosco che riparte (nessuno da un po'): la visita e la partita in corso finiscono «per inattività»
     wrap(ui?.kiosk, 'reset', function(orig, ...a){ R._chiosco = R.now(); return orig(...a); });
     this._telefono(E.natpfPhone, 'g');
@@ -260,12 +267,16 @@ export class RegistroStand {
     this.tel[chi] = { ph, stato: ph.connected ? 'on' : 'off', visto: !!ph.connected, cadutoAt: null, daScrivere: null };
     ph.onChange?.(() => { if (R.on) R._telCambio(chi); });
     ph.onCal?.(e => { if (R.on){ const t = R.now(); try { R._cal(chi, e || {}); } catch {} R._costo(t); } });
-    ph.onSwing?.((ev) => { if (R.on && ev?.ignored) R._scarto(ev.ignored); });
-    ph.onDropped?.(why => R._scarto(why));
+    // (B66: ogni colpo arrivato, anche scartato, dà ritardo, numero e strada; gli stati del telefono le misure di sensori,
+    // blocco e app; lo sblocco dei tocchi dal computer serve a dire chi ha sbloccato)
+    ph.onSwing?.((ev, s) => { if (!R.on) return; if (ev?.ignored) R._scarto(ev.ignored); const t = R.now(); try { R._telArrivo(chi, s); } catch {} R._costo(t); });
+    ph.onDropped?.((why, d) => { R._scarto(why); if (R.on) try { R._mis(chi)?.scartato(d?.seq); } catch {} });
+    ph.onState?.(d => { if (R.on){ const t = R.now(); try { R._telStato(chi, d); } catch {} R._costo(t); } });
+    if (typeof ph.unlockTouch === 'function'){ const orig = ph.unlockTouch; ph.unlockTouch = function(...a){ const out = orig.apply(this, a); if (out && R.on) try { R._mis(chi)?.sbloccoDalPc(R.now()); } catch {} return out; }; }
     ph.onDiag?.((kind, d) => {
       if (kind === 'scartato') R._scarto(`telefono: ${d?.why || 'gesto scartato'}`);
       // B46: mano o segno del telefono cambiati (natpf_phone_racket: setHand, _signEvent)
-      else if ((kind === 'mano' || kind === 'verso') && R.on){ const t = R.now(); try { R._telMotivo(chi, kind, d || {}); } catch {} R._costo(t); }
+      else if ((kind === 'mano' || kind === 'verso') && R.on){ const t = R.now(); try { R._telMotivo(chi, kind, d || {}); const M = R._inPartita(d?.causa) ? R._mis(chi) : null; if (M){ if (kind === 'mano') M.mani++; else M.segni++; } } catch {} R._costo(t); }
       // B45.1: caduta che il computer non ha visto, raccontata dal telefono rientrato prima del controllo di vita (fonte
       // 'telefono'); quelle viste dal computer si scrivono al cambio di stato (_telCambio), quelle della pagina del gioco
       // ricaricata nella riga «collegato» (_telRiga)
@@ -297,7 +308,10 @@ export class RegistroStand {
   _infoTel(chi){
     const ph = this.tel[chi]?.ph; if (!ph?.connected) return null;
     const L = ph.link, d = dispositivo(ph.device?.ua);
-    return { strada: strada(L?.route, L?.transport), rtt: r(ph.state?.rtt, 0), ...(d || {}) };
+    // B66: versione della pagina del telefono se non è quella del PC (telefono rimasto indietro, pagina da Cloudflare) e
+    // dell'app NATPF Racchetta (dal messaggio «dev»; telefoni di prima: dalla fine del nome del browser)
+    const pv = ph.device?.version, app = ph.device?.app || /NATPFApp\/([\w.]+)/.exec(String(ph.device?.ua || ''))?.[1];
+    return { strada: strada(L?.route, L?.transport), rtt: r(ph.state?.rtt, 0), ...(d || {}), ...(pv && pv !== NATPF_BUILD ? { pv: String(pv).slice(0, 20) } : {}), ...(app ? { app: String(app).slice(0, 12) } : {}) };
   }
   _partita(){
     const E = this.engine, ui = this.ui;
@@ -310,7 +324,11 @@ export class RegistroStand {
     const nomi = E.natpfSplitNames || {}, conNome = v => !!String(v || '').trim() && !NOMI_BASE.has(String(v).trim().toLowerCase());
     this.partita = { n: G.n, ctrl, t0: this.now(), punti: 0, vinti: 0, colpi: 0, colpiA: 0, p: 1, puntoAt: this.now(), inGiocoAt: null, lanci: 0, lanciAuto: 0, battuteAuto: 0, vuoti0: E.natpfTossMisses || 0,
       totLanci: 0, totVuoti: 0, pg: 0, og: 0, cadute: 0, riprese: 0, rttS: 0, rttN: 0, rttMax: 0, errori: 0, pauseS: 0, costo0: this.costo.ms,
-      f: { n: 0, ms: 0, max: 0, lunghi: 0, peggiore: Infinity, sec0: null, secN: 0, last: null } };
+      f: { n: 0, ms: 0, max: 0, lunghi: 0, peggiore: Infinity, sec0: null, secN: 0, last: null },
+      // B66: misure per telefono (registro_misure.js), pause, calibrazione all'inizio
+      m: {}, pause: new Pause(), cal0: {} };
+    this._misFuori = {};
+    for (const chi of Object.keys(this.tel)) if (this.tel[chi].ph?.connected){ this.partita.m[chi] = new MisureTelefono(); this.partita.cal0[chi] = this._calTel(chi); }
     this._riga('partita', {
       n: G.n, ora: new Date(this.wallNow()).toISOString(), g: G.g, versione: NATPF_BUILD, modo,
       // contro la CPU: «Chi gioca» (Bambino · Ragazzo · Adulto) quando il livello viene da lì, e il livello
@@ -369,7 +387,7 @@ export class RegistroStand {
   _finePartita(esito, come){
     const P = this.partita, E = this.engine; if (!P) return;
     this._chiudiColpo();
-    const f = P.f, kiosk = this.now() - this._chiosco < 3000;
+    const f = P.f, kiosk = this.now() - this._chiosco < 3000, mis = this._misFine(P);
     this._riga('partita.fine', {
       esito, ...(esito !== 'finita' ? { dove: 'a metà partita', come: kiosk ? 'chiosco' : come } : {}),
       vince: esito === 'finita' ? (P.pg > P.og ? 'g' : P.og > P.pg ? 'a' : null) : null, game: [P.pg, P.og], punti: P.punti, puntiVinti: P.vinti, colpi: P.colpi, ...(P.colpiA ? { colpi2: P.colpiA } : {}),
@@ -380,6 +398,8 @@ export class RegistroStand {
       errori: P.errori || undefined, ...this._prendiScarti(),
       // quanto è costato il registro in questa partita: ms sul thread del gioco (agganci e righe), in tutto
       costoMs: r(this.costo.ms - P.costo0, 1),
+      // B66: sensori, collegamento, rete, blocco e calibrazione per telefono ({ g, a }), pause per il telefono
+      ...mis, pause: P.pause?.fine(this.now()),
     });
     this.partita = null;
     this._salvaGiornata();
@@ -397,6 +417,8 @@ export class RegistroStand {
     if (!P && !amb) return;                                                   // colpi fuori da partita, allenamento e minigiochi: niente
     const g = L.who === 'p2' ? 'a' : 'g';
     if (P){ if (g === 'g') P.colpi++; else P.colpiA++; }
+    // B66: il colpo del telefono (seq) con le sue misure: ritardo dal picco, confidenza, margine, buco nel gesto
+    const tm = this._misColpo(g, ev);
     // 17/11 (collaudo dell'utente sulla 17.1: «dritto e rovescio invertiti a volte»): da che parte di chi colpisce era la
     // palla al colpo (+1 alla sua destra, −1 alla sua sinistra, 0 entro 0,3 m dal corpo): con «lato» (parte del corpo del
     // colpo, + a destra) il riassunto conta i colpi giocati dalla parte opposta alla palla
@@ -430,6 +452,7 @@ export class RegistroStand {
       // nr: colpo giocato con la regola nuova (natpf_direction.js: oggi mai); zp: zona chiesta da Precision
       ...(!I.derived && Number.isFinite(I.face) ? { pf: r(I.face, 2) } : {}), ...(Number.isFinite(dev) ? { dv: r(dev, 1) } : {}), ...(Number.isFinite(O.t) ? { tu: r(O.t, 2) } : {}),
       ...(usedNewRule(O) ? { nr: 1 } : {}), ...(zp != null ? { zp } : {}),
+      ...(tm ? { cf: r(tm.cf, 2) ?? undefined, mg: r(tm.mg, 2) ?? undefined, gb: tm.gb ?? undefined, rit: tm.rit || undefined } : {}),
     }), L.who === 'p2' ? 'opponent' : 'player');
   }
   // B60: km/h del colpo (q: le stesse cose date a natpf_match_stats.shot) nella riga aperta, se è di chi ha colpito
@@ -505,6 +528,7 @@ export class RegistroStand {
     if (!C){
       if (e.kind === 'done' || e.kind === 'idle' || e.kind === 'selection') return;
       C = this.cal[chi] = { t0: this.now(), prove: 0, fallite: 0, perche: {}, passi: {}, ripartenze: 0, revisioni: 0, revisioniNo: 0 };
+      if (this.partita?.m?.[chi]) this.partita.m[chi].ricalibra++;            // B66: calibrazione rifatta a partita in corso
     } else if (inizio && C.prove) C.ripartenze++;
     if (e.kind === 'attempt'){
       C.prove++; const passo = String(e.want || e.step || e.shot || 'gesto').slice(0, 24), S = C.passi[passo] || (C.passi[passo] = [0, 0]); S[0]++;
@@ -595,6 +619,55 @@ export class RegistroStand {
     this._riga('tel', { chi, stato: D.stato, dopoS, ...back, ...(this._infoTel(chi) || {}), ...(this._inPartita() ? { inPartita: true } : {}) });
   }
 
+  /* ---------- B66: misure dei telefoni ---------- */
+  // misure del telefono chi nella partita in corso (nascono al primo stato se il telefono arriva a partita cominciata)
+  _mis(chi){
+    const P = this.partita; if (!P?.m) return null;
+    if (!P.m[chi] && this.tel[chi]?.ph?.connected){ P.m[chi] = new MisureTelefono(); P.cal0[chi] = this._calTel(chi); }
+    return P.m[chi] || null;
+  }
+  _telStato(chi, d){ this._mis(chi)?.stato(d, this.now()); }
+  _telArrivo(chi, s){
+    if (!s || typeof s !== 'object') return;
+    const M = this._mis(chi) || (this._misFuori[chi] || (this._misFuori[chi] = new MisureTelefono()));
+    const clockOk = !!prova(() => this.tel[chi]?.ph?.link?.stats?.().clockOk);
+    M.arrivato(s, { now: this.now(), clockOk });
+  }
+  // il colpo giocato dal motore: misure del suo gesto (dal telefono che ha colpito; con due telefoni anche l'altro, per i
+  // numeri che si ripetono) e calibrazione di chi gioca
+  _misColpo(g, ev){
+    const seq = ev?.natpf?.seq; if (!Number.isInteger(seq)) return null;
+    const P = this.partita, now = this.now(), dove = c => (P?.m ? P.m[c] : this._misFuori[c]);
+    let res = null, chi = g;
+    for (const c of [g, g === 'g' ? 'a' : 'g']){ res = dove(c)?.giocato(seq, now) || null; if (res){ chi = c; break; } }
+    if (P && !this.ui?.trial?.active) this._mis(chi)?.calColpo({ proprio: typeof ev.natpf.typicalOwn === 'boolean' ? ev.natpf.typicalOwn : null, dev: ev.natpf.aimDev });
+    return res;
+  }
+  // calibrazione del telefono chi adesso: colpo tipico imparato giocando (°/s), riferimento e soglie del profilo, tipo
+  _calTel(chi){
+    const ph = this.tel[chi]?.ph; if (!ph?.connected) return null;
+    const pr = ph.profile || null, tip = prova(() => ph.typicalModel?.value);
+    return { tip: Number.isFinite(tip) ? Math.round(tip) : null, ref: Number.isFinite(pr?.ref) ? Math.round(pr.ref) : null,
+      tipo: !pr ? null : pr.input === 'touch' ? 'tocchi' : pr.simple ? 'semplice' : 'calibrato', soglia: pr && Number.isFinite(pr.on) && Number.isFinite(pr.minPeak) ? [Math.round(pr.on), Math.round(pr.minPeak)] : null };
+  }
+  // a fine partita: { tq: { g, a }, lat: {…}, wifi: {…}, blocco: {…}, cal: {…} } (solo i gruppi con qualcosa da dire)
+  _misFine(P){
+    const out = {}, now = this.now();
+    for (const [chi, M] of Object.entries(P.m || {})){
+      const c0 = P.cal0?.[chi] || null, c1 = this._calTel(chi) || null, due = (a, b) => (a != null || b != null ? [a ?? null, b ?? null] : undefined);
+      const o = M.fine(now, { tip: due(c0?.tip, c1?.tip), ref: due(c0?.ref, c1?.ref), tipo: c1?.tipo || c0?.tipo || undefined, soglia: c1?.soglia || undefined });
+      for (const [k, v] of Object.entries(o)) (out[k] || (out[k] = {}))[chi] = v;
+    }
+    return out;
+  }
+  // pausa della partita per il telefono del Player 1 o la webcam (natpf_ui._holdAction): pause, wait (motivo nuovo), resume
+  _pausa(a, src){
+    const P = this.partita; if (!P?.pause || !a) return;
+    const chi = src === 'telefono' ? '' : ` (${String(src).slice(0, 12)})`;
+    if (a.kind === 'pause' || a.kind === 'wait') P.pause.cambia(chi, a.why || 'altro', this.now());
+    else if (a.kind === 'resume') P.pause.cambia(chi, null, this.now());
+  }
+
   /* ---------- errori ---------- */
   _errore(tipo, msg, file, riga, col){
     const key = `${String(msg).slice(0, 120)}|${base(file)}|${riga}`;
@@ -633,6 +706,9 @@ export class RegistroStand {
       else if (E.autoPlayMode) this._finePartita('abbandonata', 'menu');
       else if (E.natpfPaused) P.pauseS++;
       for (const chi of ['g', 'a']){ const v = this.tel[chi]?.ph?.connected ? this.tel[chi].ph.state?.rtt : null; if (Number.isFinite(v)){ P.rttS += v; P.rttN++; if (v > P.rttMax) P.rttMax = v; } }
+      // B66: frequenza dei sensori come la dice il telefono (pagine di prima) e pausa del telefono del Player 2 nello stesso schermo
+      for (const chi of ['g', 'a']){ const ph = this.tel[chi]?.ph; if (ph?.connected && !E.natpfPaused) this._mis(chi)?.hzTelefono(ph.state?.hz); }
+      if (P.pause) P.pause.cambia(' (2)', E.natpfSplit?.active ? this.ui?.split?.hold?.why || null : null, a);
     }
     if (E.natpfPhone2) this._telefono(E.natpfPhone2, 'a');
     for (const chi of Object.keys(this.tel)){ this._telCambio(chi); if (this.tel[chi].daScrivere && this.now() - this.tel[chi].daScrivere.at >= 900) this._telRiga(chi); }

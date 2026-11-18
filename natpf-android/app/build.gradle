@@ -1,8 +1,8 @@
 plugins { id 'com.android.application' }
 
 // Versione dell'app (non del gioco): si alza a ogni consegna dell'APK
-def appVersion = '1.0.3'
-def appCode = 4
+def appVersion = '1.0.4'
+def appCode = 5
 
 android {
   namespace 'it.natpf.racchetta'

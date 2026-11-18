@@ -53,6 +53,13 @@ dice niente del computer). Basta questo per mettere in ordine le righe.
 toglie solo i campi nuovi (il riassunto lo dice: «campi della direzione assenti»). Cosa vuol dire ogni campo, come si
 ricarica il Worker e la prova a Precision: `docs/b36/misure-b36-0.md`. Solo numeri di gioco: niente di chi gioca.
 
+**B66 (18/11/2026): sensori, calibrazione, prestazioni, precisione dei gesti.** Formato delle righe 3. Nella riga «colpo»
+confidenza, margine sulla soglia, buco nei campioni e ritardo del colpo; nella riga «partita.fine», per telefono, qualità
+dei sensori (`tq`), ritardo del collegamento (`lat`), rete e batteria dall'app NATPF Racchetta (`wifi`, solo numeri: mai il
+nome della rete né indirizzi), telefono bloccato (`blocco`), stabilità della calibrazione (`cal`) e pause (`pause`); nelle
+informazioni del telefono le versioni della pagina e dell'app. Il Worker va ricaricato una volta. Tutto in
+`docs/b66/registro-sensori.md`.
+
 ## Che cosa NON registra
 
 - **Mai il nome** scritto da chi gioca: solo «nome inserito: sì/no». I testi liberi sono pochi (il messaggio e il file

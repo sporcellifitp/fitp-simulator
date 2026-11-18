@@ -3,8 +3,10 @@ package it.natpf.racchetta;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
@@ -12,7 +14,9 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.http.SslError;
 import android.graphics.Typeface;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -62,6 +66,9 @@ import com.journeyapps.barcodescanner.ScanOptions;
  *  · legge il QR del PC con la fotocamera (da Android 12 i link della fotocamera vanno sempre al browser), accetta anche
  *    il link condiviso da Chrome («Condividi») o aperto da un link.
  * Lo staff torna alla schermata d'avvio (per un QR nuovo) premendo tre volte di fila «volume giù».
+ * B66 (1.0.4): il ponte dà alla pagina anche lo stato del telefono per il registro dello stand (PhoneStatus: segnale e banda
+ * della Wi-Fi, velocità, batteria, carica, temperatura, «Fissa app», schermi spenti), solo numeri: mai nome della rete,
+ * indirizzi o identificativi.
  * Niente di tutto questo è provato su un telefono vero (docs/b52/app-android.md).
  */
 public class MainActivity extends Activity {
@@ -95,6 +102,11 @@ public class MainActivity extends Activity {
   private boolean pageFailed;
   private final long[] volumeDown = new long[3];
   private int volumeIdx;
+  /** B66: schermi spenti dall'avvio dell'app (per il registro dello stand: telefono bloccato e schermo spento). */
+  private volatile int screensOff;
+  private final BroadcastReceiver screenOff = new BroadcastReceiver() {
+    @Override public void onReceive(Context c, Intent i) { if (Intent.ACTION_SCREEN_OFF.equals(i.getAction())) screensOff++; }
+  };
 
   private final Runnable retry = () -> { if (current != null && web != null) web.loadUrl(current); };
 
@@ -113,6 +125,8 @@ public class MainActivity extends Activity {
       });
     }
     setContentView(root);
+    // B66: lo schermo che si spegne (trasmissione di sistema: nessun permesso)
+    registerReceiver(screenOff, new IntentFilter(Intent.ACTION_SCREEN_OFF));
     banner = text("", 18, false);
     banner.setBackgroundColor(Color.argb(220, 8, 16, 34));
     banner.setPadding(dp(16), dp(12), dp(16), dp(12));
@@ -310,13 +324,43 @@ public class MainActivity extends Activity {
     banner.bringToFront();
   }
 
-  /** Ponte per la pagina: solo l'orientamento e la versione dell'app. */
+  /** Ponte per la pagina: l'orientamento, la versione dell'app e (B66) lo stato del telefono a grandi linee. */
   private final class Bridge {
     @JavascriptInterface public void lock(String o) {
       final int want = o != null && o.startsWith("landscape") ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
       ui.post(() -> setRequestedOrientation(want));
     }
     @JavascriptInterface public String version() { return versionName(); }
+    /** B66: lo stato del telefono per il registro dello stand (PhoneStatus.json: solo numeri). La pagina lo chiede ogni 5 s. */
+    @JavascriptInterface public String stato() { return phoneStatus(); }
+  }
+
+  // ---------- B66: stato del telefono per il registro dello stand ----------
+
+  /** Solo i numeri di PhoneStatus: della Wi-Fi si leggono segnale, frequenza e velocità, mai nome della rete o indirizzi. */
+  @SuppressWarnings("deprecation")
+  private String phoneStatus() {
+    int rssi = PhoneStatus.NONE, mhz = 0, mbps = PhoneStatus.NONE, batt = PhoneStatus.NONE, carica = -1, temp = PhoneStatus.NONE, fissa = -1;
+    try {
+      WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+      WifiInfo w = wm != null ? wm.getConnectionInfo() : null;
+      if (w != null && w.getNetworkId() != -1) { rssi = w.getRssi(); mhz = w.getFrequency(); mbps = w.getLinkSpeed(); }
+    } catch (RuntimeException e) { /* Wi-Fi non leggibile: niente rete */ }
+    try {
+      Intent b = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+      if (b != null) {
+        batt = PhoneStatus.batteryPercent(b.getIntExtra(BatteryManager.EXTRA_LEVEL, -1), b.getIntExtra(BatteryManager.EXTRA_SCALE, -1));
+        int plugged = b.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+        carica = plugged < 0 ? -1 : plugged > 0 ? 1 : 0;
+        int t = b.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Integer.MIN_VALUE);
+        if (t != Integer.MIN_VALUE) temp = t;
+      }
+    } catch (RuntimeException e) { /* batteria non leggibile */ }
+    try {
+      ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+      if (am != null) fissa = am.getLockTaskModeState() != ActivityManager.LOCK_TASK_MODE_NONE ? 1 : 0;
+    } catch (RuntimeException e) { /* stato di «Fissa app» non leggibile */ }
+    return PhoneStatus.json(rssi, mhz, mbps, batt, carica, temp, fissa, screensOff);
   }
 
   // ---------- fissare l'app, schermo, Wi-Fi ----------
@@ -400,6 +444,7 @@ public class MainActivity extends Activity {
 
   @Override protected void onDestroy() {
     ui.removeCallbacksAndMessages(null);
+    try { unregisterReceiver(screenOff); } catch (IllegalArgumentException e) { /* già tolto */ }
     if (web != null) { web.destroy(); web = null; }
     if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
     super.onDestroy();
