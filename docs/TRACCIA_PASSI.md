@@ -1664,3 +1664,8 @@ di salvaschermo, ridondanze e classifica di fine partita. Punto aperto: il contr
   bloccato (tocchi bloccati, sblocchi, uscite); più misure di calibrazione e di precisione dei gesti. Niente percorso del
   visitatore, niente salute del PC. Campi nuovi = Worker del registro da ricaricare (lo fa l'utente).
 - Nota: in questo contenitore non c'è l'SDK di Android; l'APK si costruisce nel workflow di GitHub.
+- 18/11, 07:45 UTC · richiesta dell'utente sulle mascotte 3D (B63): «sistemare meglio come la mascotte impugna la
+  racchetta; pose simpatiche come "Six Seven" (TikTok) o aura battle; nella sconfitta la mascotte deve sembrare visibilmente
+  triste». **B67** avviato (agente, ramo locale `b67-mascotte-pose`, worktree `scratchpad/b67/wt`, porte 4550–4599): niente
+  unione né versione finché l'utente non approva la nuova anteprima (`docs/analisi/mascotte-3d-anteprima-b67.webp`).
+  Interruttore delle mascotte 3D sempre spento di base.
