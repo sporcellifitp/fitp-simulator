@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { giornoFinto, scriviFinto, inBlocchi, bloccoSalvato } from '../scripts/registro/finto.mjs';
-import { riassumi, Misura, Riassunto, rapporto, kmhVeri, kmhVecchi, KMH_VECCHI_FINO_A, spearman, retta, precisionRiga, DIR_MIN } from '../scripts/registro/riassunto.mjs';
+import { riassumi, Misura, Riassunto, rapporto, kmhVeri, kmhVecchi, KMH_VECCHI_FINO_A, spearman, retta, precisionRiga, DIR_MIN, B66_LIMITE } from '../scripts/registro/riassunto.mjs';
 import { PRECISION_ZONES } from '../src/natpf/natpf_arcade.js';
 import { main as scarica } from '../scripts/registro/scarica.mjs';
 import { workerLocale } from '../scripts/registro/worker-locale.mjs';
@@ -310,4 +310,72 @@ test('17/11: riassunto dei colpi dalla parte opposta alla palla, con le serie di
   assert.match(testo, /almeno 3 colpi di fila[^:]*: 1 su 2\./);
   const V = new Riassunto(); V.aggiungi({ k: 'partita', t: 0, n: 1, versione: '2026-11-17.1', modo: 'cpu' }, ctx);
   assert.match(rapporto(V, L).find(x => x.titolo.startsWith('Dritto e rovescio')).testo.join(' '), /prima della 2026-11-17\.2/);
+});
+
+/* ---------- B66: sensori, calibrazione, precisione, collegamento, rete e blocco (docs/b66/registro-sensori.md) ---------- */
+const SEZIONI_B66 = ['Sensori del telefono', 'Calibrazione: stabilità', 'Precisione dei gesti', 'Collegamento: distribuzione', 'Rete del telefono (app)', 'Telefono bloccato'];
+test('B66: le sei sezioni nuove del riassunto, dai registri finti (letti come dal Worker)', async () => {
+  const dir = tmp();
+  try {
+    await scriviFinto({ out: dir, giorni: 1, partite: 120, seme: 7 });
+    const r = await riassumi(dir, { quando: new Date(Date.UTC(2026, 10, 18, 12)) });
+    const titoli = r.sezioni.map(x => x.titolo);
+    for (const t of SEZIONI_B66) assert.ok(titoli.includes(t), t);
+    assert.ok(titoli.indexOf('Collegamento del telefono') < titoli.indexOf('Sensori del telefono') && titoli.indexOf('Telefono bloccato') < titoli.indexOf('Prestazioni'), 'dopo il collegamento, prima delle prestazioni');
+    const testo = t => sezione(r, t).testo.join('\n'), tab = (t, n) => sezione(r, t).tabelle.find(x => x.titolo.startsWith(n));
+    assert.match(testo('Sensori del telefono'), /Frequenza vera dei sensori .*mediana di ogni partita \d/);
+    assert.match(testo('Sensori del telefono'), /Colpi con un buco nei campioni durante il gesto: \d+ su \d+/);
+    assert.ok(tab('Sensori del telefono', 'Per telefono e browser').righe.length > 3);
+    assert.deepEqual(tab('Sensori del telefono', 'App NATPF').righe.map(x => x[0]).sort(), ['app 1.0.4', 'browser (senza app)']);
+    assert.match(testo('Calibrazione: stabilità'), /Colpi prima che il colpo tipico sia quello imparato giocando/);
+    assert.deepEqual(tab('Calibrazione: stabilità', 'Errore di tempo per numero').righe.map(x => x[0]), ['colpi 1–5', 'colpi 6–10', 'colpi 11–20', 'dal 21°']);
+    const gesti = tab('Precisione dei gesti', 'Per tipo di colpo').righe; assert.ok(gesti.length >= 6);
+    assert.ok(gesti.every(g => /%/.test(g[6])), 'colpi dalla parte opposta alla palla per tipo');
+    assert.match(testo('Collegamento: distribuzione'), /metà · 9 su 10 · 99 su 100: \d+ · \d+ · \d+ ms/);
+    assert.ok(tab('Collegamento: distribuzione', 'Per strada').righe.some(x => x[0] === 'lan'));
+    assert.match(testo('Rete del telefono (app)'), /Segnale Wi-Fi, mediana di ogni partita -?\d+ dBm/);
+    assert.match(testo('Rete del telefono (app)'), /mai il nome della rete/);
+    assert.match(testo('Telefono bloccato'), /Telefoni bloccati in partita \(B51\): \d+/);
+    // nel testo e nell'HTML
+    for (const t of SEZIONI_B66){ assert.ok(r.md.includes(`## ${t}`), t); assert.ok(r.html.includes(t.replace('(', '').split(' ')[0]), t); }
+    assert.equal(B66_LIMITE, 1.2);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('B66: numeri esatti delle sezioni nuove; registri di prima e Worker non ricaricato lo dicono', () => {
+  const ctx = { giorno: '2026-11-18', postazione: 'abcd1234' }, L = { file: 1, blocchi: 1, righe: 1, byte: 1 };
+  const R = new Riassunto();
+  R.aggiungi({ k: 'avvio', t: 0, v: 3, ora: '2026-11-18T09:00:00.000Z', fuso: 60 }, ctx);
+  R.aggiungi({ k: 'partita', t: 10, n: 1, modo: 'cpu', chi: 'adulto', livello: 'evento', ctrl: 'telefono', tel: { strada: 'lan', so: 'Android 14', browser: 'Chrome 131', app: '1.0.4', pv: '2026-11-17.4' } }, ctx);
+  const colpi = [[40, 50, 1.1, -20, 1, 1], [60, 70, 1.5, 10, 1, -1], [250, 260, 2, -60, -1, -1], [45, 52, 1.3, 0, 1, 1]];
+  colpi.forEach(([a, ri, mg, ms, pl, lato], i) => R.aggiungi({ k: 'colpo', t: 20 + i, n: 1, gesto: 'dritto', ms, voto: 'buono', cf: i ? .8 : .4, mg, pl, lato, rit: [a, ri], ...(i === 2 ? { gb: 90, e: 'fuori' } : {}) }, ctx));
+  R.aggiungi({ k: 'partita.fine', t: 100, n: 1, esito: 'finita', vince: 'g', durS: 3600,
+    tq: { g: { hz: [59.5, 44], n: 200000, b: 4, bm: 180, bg: 1, iv: 16, sat: [0, 3] } }, lat: { g: { arr: [50, 240, 250], ris: [55, 255, 260], jit: 70, n: 5, persi: 1, ordine: 1, vie: [4, 1] } },
+    wifi: { g: { rssi: [-72, -81], bd: 5, mbps: [300, 72], bt: [90, 80], ch: 0, tc: 41.2, fx: 1 } }, blocco: { g: { durS: 3500, tb: 6, ss: 1, sp: 1, sd: 2, us: 1, sc: 1 } },
+    cal: { g: { tip: [500, 600], tipN: 3, cen: 4, dvi: [10, 2], seg: 1, ric: 1, ref: [600, 650], tipo: 'calibrato', soglia: [70, 120] } }, pause: { 'segnale debole': [2, 5], 'scollegato (2)': [1, 3] } }, ctx);
+  // una partita di un gioco nuovo con il telefono, senza le misure: Worker non ricaricato
+  R.aggiungi({ k: 'partita', t: 200, n: 2, modo: 'cpu', chi: 'adulto', livello: 'evento', ctrl: 'telefono', tel: { strada: 'lan' } }, ctx);
+  R.aggiungi({ k: 'partita.fine', t: 300, n: 2, esito: 'finita', vince: 'a', durS: 100 }, ctx);
+  R.fine();
+  const B = R.b66;
+  assert.deepEqual(B.partite, { n: 1, conMisure: 1, senzaMisure: 1 });
+  assert.deepEqual(B.versioni, { pagina: { '2026-11-17.4 (diversa dal PC)': 1, 'come il PC': 1 }, app: { 'app 1.0.4': 1, 'browser (senza app)': 1 } });
+  assert.equal(B.sensori.sotto50, 1); assert.equal(B.sensori.buchi, 4); assert.equal(B.sensori.satGiro, 3);
+  assert.deepEqual([B.coll.persi, B.coll.ordine, B.coll.veloce, B.coll.affidabile], [1, 1, 4, 1]);
+  assert.equal(B.gesti.dritto.cfBassa, 1); assert.equal(B.gesti.dritto.limite, 1); assert.equal(B.gesti.dritto.opposti, 1); assert.equal(B.gesti.dritto.conPl, 4);
+  assert.deepEqual(B.ritardoTempo.map(f => f.n), [2, 1, 0, 1]);
+  assert.equal(B.wifi.deboli, 1); assert.equal(B.wifi.calde, 1); assert.equal(Math.round(B.wifi.consumo.media), 10, '10 punti in un’ora');
+  assert.deepEqual([B.blocco.ss, B.blocco.sp, B.blocco.sd, B.blocco.us, B.blocco.sc, B.blocco.tocchi], [1, 1, 2, 1, 1, 6]);
+  assert.equal(B.cal.refCambiato, 1); assert.equal(Math.round(B.cal.deriva.media), 20); assert.equal(B.cal.dvi.media, 8);
+  assert.deepEqual(B.pause, { 'segnale debole': [2, 5], 'scollegato (2)': [1, 3] });
+  assert.equal(B.perSegnale['da −80 a −71 dBm'].pauseS, 5, 'solo le pause del Player 1 con il suo segnale');
+  const S = rapporto(R, L), sz = t => S.find(x => x.titolo === t), txt = t => sz(t).testo.join('\n');
+  assert.match(txt('Sensori del telefono'), /ATTENZIONE: 1 partite con il telefono di un gioco nuovo \(formato 3\) senza le misure del B66: il Worker del registro non è stato ricaricato/);
+  assert.match(txt('Collegamento: distribuzione'), /: 60 · 250 · 250 ms\. Dal picco alla risposta del gioco/);
+  assert.match(txt('Telefono bloccato'), /dallo staff sul telefono \(due dita 3 s\) 1, dal PC 1, finiti da soli \(fine del gioco, avviso o velo da toccare\) 2/);
+  // registri di prima: le sezioni ci sono e dicono che le misure mancano
+  const V = new Riassunto(); V.aggiungi({ k: 'avvio', t: 0, v: 2 }, ctx); V.aggiungi({ k: 'partita', t: 1, n: 1, modo: 'cpu', ctrl: 'telefono' }, ctx); V.aggiungi({ k: 'partita.fine', t: 2, n: 1, esito: 'finita', durS: 60 }, ctx); V.fine();
+  const S0 = rapporto(V, L);
+  for (const t of SEZIONI_B66) assert.match(S0.find(x => x.titolo === t).testo.join('\n'), /Nessuna partita con le misure del B66: il registro è di una versione prima della 2026-11-18\.1|Errore di tempo per numero/, t);
+  assert.ok(!S0.find(x => x.titolo === 'Sensori del telefono').testo.join('\n').includes('ATTENZIONE'), 'formato 2: nessun avviso');
 });

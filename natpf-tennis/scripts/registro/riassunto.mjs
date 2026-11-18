@@ -145,6 +145,20 @@ const piu = (map, k, n = 1) => { if (k == null) return; map[k] = (map[k] || 0) +
 const somma = (dst, src) => { for (const [k, v] of Object.entries(src || {})) if (typeof v === 'number') piu(dst, k, v); };
 const voce = (map, k, fn) => map[k] || (map[k] = fn());
 
+// B66: colpo «al limite» = picco del gesto meno di 1,2 volte la soglia che ha superato
+export const B66_LIMITE = 1.2;
+const nuovoB66 = () => ({
+  partite: { n: 0, conMisure: 0, senzaMisure: 0 }, versioni: { pagina: {}, app: {} },
+  sensori: { n: 0, hz: new Misura(), hzMin: new Misura(), sotto50: 0, soloMedia: 0, campioni: 0, buchi: 0, buchiPartita: new Misura(), bucoMax: new Misura(), colpiBuco: 0, intervallo: {}, saturi: 0, satAcc: 0, satGiro: 0, perTel: {} },
+  gesto: { conBuco: 0 }, gesti: {}, limite: { 'al limite': { n: 0, ms: new Misura(), deboli: 0, sbagliati: 0 }, pieni: { n: 0, ms: new Misura(), deboli: 0, sbagliati: 0 } },
+  perOrdine: [0, 1, 2, 3].map(() => ({ n: 0, ms: new Misura(), perfetti: 0, sbagliati: 0 })),
+  arr: new Misura(), ris: new Misura(), strade: {}, ritardoTempo: [0, 1, 2, 3].map(() => ({ n: 0, ms: new Misura(), ritardo: 0 })),
+  coll: { n: 0, colpi: 0, stimati: 0, persi: 0, ordine: 0, jit: new Misura(), arrP90: new Misura(), veloce: 0, affidabile: 0 }, perSegnale: {}, pause: {}, partiteConPausa: 0,
+  wifi: { n: 0, rssi: new Misura(), rssiMin: new Misura(), deboli: 0, bande: {}, mbps: new Misura(), mbpsMin: new Misura(), batt: new Misura(), consumo: new Misura(), inCarica: 0, temp: new Misura(), calde: 0, conFissa: 0, sempreFissa: 0 },
+  blocco: { n: 0, durS: new Misura(), tocchi: 0, tocchiPartita: new Misura(), ss: 0, sp: 0, sd: 0, us: 0, sc: 0, conUscite: 0 },
+  cal: { n: 0, tipo: {}, tipN: new Misura(), cen: new Misura(), deriva: new Misura(), tipico: new Misura(), dvi: new Misura(), conSegno: 0, conMano: 0, conRic: 0, refCambiato: 0, soglie: {} },
+});
+
 export class Riassunto {
   constructor(){
     this.ctx = new Map();                  // postazione del giorno → { partita in corso, orologio, fuso }
@@ -180,6 +194,8 @@ export class Riassunto {
     // B36.0: direzione dei colpi del telefono (docs/b36/misure-b36-0.md): per modello della direzione e livello, partite
     // con e senza i campi nuovi, partite a Precision (zona chiesta → dove è caduta)
     this.dir = { gruppi: {}, partite: { conCampi: 0, vecchie: 0, senzaCampi: 0 }, colpiRacchetta: 0, colpiConTempo: 0, precision: [], precisionSenzaFine: 0 };
+    // B66 (docs/b66/registro-sensori.md): sensori, calibrazione, precisione dei gesti, collegamento, rete e blocco del telefono
+    this.b66 = nuovoB66();
   }
   _ctx(c){ const k = `${c.giorno || ''}|${c.postazione || ''}`; let x = this.ctx.get(k); if (!x){ x = { P: null, orologio: null, fuso: 60, ordineEvento: 0, formato: null, prec: [], postazione: c.postazione || null }; this.ctx.set(k, x); } return x; }
   // ora locale dello stand di una riga: dall'ultima riga con l'ora (avvio, partita) e dai ms trascorsi
@@ -203,6 +219,7 @@ export class Riassunto {
     // B36.0: i campi della direzione ci sono? (un gioco nuovo, formato 2, senza «dir» = Worker non ricaricato)
     const D = this.dir.partite; if (r.dir != null) D.conCampi++; else if ((x.formato ?? 0) >= 2) D.senzaCampi++; else D.vecchie++;
     for (const t of [r.tel, r.tel2]) if (t){ piu(this.tel.strade, t.strada); piu(this.tel.so, t.so); piu(this.tel.browser, t.browser); }
+    this._b66Partita(r, x);
     if (r.modo === 'stesso-schermo'){ const S = this.split; S.n++; if (Array.isArray(r.fasce)) piu(S.fasce, r.fasce.join(' · ')); if (r.stand?.caldo) S.caldo++; if (r.stand?.lancioAuto) S.lancioAuto++; }
     this.lunghi.partite++; if (r.stand?.caldo) this.lunghi.caldo++;
     if (Number.isFinite(r.ek)){ this.evento.n++; this.evento.inizio.metti(r.ek); const i = x.ordineEvento++; if (i < 40){ const o = this.evento.perOrdine[i] || (this.evento.perOrdine[i] = new Misura()); o.metti(r.ek); } }
@@ -220,6 +237,7 @@ export class Riassunto {
   }
   _colpo(r, x){
     this._direzione(r, x);
+    this._b66Colpo(r, x);
     if (r.amb === 'prova'){ this.prova.colpi++; this.prova.ms.metti(r.ms); return; }
     if (r.amb) return;                                                       // colpi dell'allenamento e dei minigiochi: fuori dalle misure di partita
     if (Number.isFinite(r.kmh)){ this.velocita.colpi.metti(r.kmh); this._kmhMax(x, r.chi === 'a' ? 'a' : 'g', r.kmh, true); }
@@ -244,6 +262,7 @@ export class Riassunto {
   _chiudi(x, r){
     const P = x.P; x.P = null; if (!P) return;
     this._dirFine(P, r);
+    this._b66Fine(P, r, x);
     const T = this.partite, G = this.giorni[P.giorno], Gp = this._gruppo(P); Gp.partite++;
     this.sup.partite++; this.sup.perPartita.metti(P.sup);
     // B60: solo le partite con i km/h dei colpi (prima solo i servizi: il massimo sarebbe sbagliato)
@@ -289,8 +308,85 @@ export class Riassunto {
     // una visita finita con il chiosco erano il chiosco che scollegava il telefono col QR)
     if (r.stato === 'caduto'){ piu(T.perche, `${r.motivo || '(senza motivo: versione di prima)'}${r.causa ? ` · ${r.causa}` : ''}${r.fonte === 'telefono' ? ' (solo dal telefono)' : ''}`); if (r.dove) piu(T.dove, r.dove); }
     if ((r.stato === 'ricollegato' || r.stato === 'collegato') && r.motivo) piu(T.ritorno, `${r.motivo}${r.causa ? ` · ${r.causa}` : ''}`);
+    if (r.stato === 'collegato' || r.stato === 'ricollegato') this._b66Versioni(r, x);
     piu(T.stati, r.stato); if (r.strada) piu(T.strade, r.strada); if (r.stato === 'caduto'){ const d = this._quando(x, r); piu(T.cadutePerOra, d ? `${d.toISOString().slice(0, 10)} · ore ${String(d.getUTCHours()).padStart(2, '0')}` : 'senza ora'); } if (r.stato === 'ricollegato') T.dopoS.metti(r.dopoS); }
   _errore(r, x){ const k = `${r.msg}|${r.file}|${r.riga}`, e = this.errori.get(k) || { msg: r.msg, file: r.file, riga: r.riga, tipo: r.tipo, volte: 0, per: new Map() }; this.errori.set(k, e); e.per.set(x, Math.max(e.per.get(x) || 0, r.volte || 1)); }
+  /* ---------- B66: sensori, calibrazione, precisione, collegamento, rete, blocco ---------- */
+  _b66Versioni(t, x){
+    if (!t) return; const V = this.b66.versioni, nuovo = (x?.formato ?? 0) >= 3;
+    if (t.pv) piu(V.pagina, `${t.pv} (diversa dal PC)`); else if (nuovo) piu(V.pagina, 'come il PC');
+    if (t.app) piu(V.app, `app ${t.app}`); else if (nuovo) piu(V.app, 'browser (senza app)');
+  }
+  _b66Partita(r, x){
+    for (const t of [r.tel, r.tel2]) this._b66Versioni(t, x);
+    x.P.b66 = { colpiN: { g: 0, a: 0 } };
+  }
+  _b66Colpo(r, x){
+    const B = this.b66, P = x?.P; if (r.amb || !P) return;
+    const k = r.chi === 'a' ? 'a' : 'g', i = P.b66 ? ++P.b66.colpiN[k] : null, g = voce(B.gesti, r.gesto || '—', () => ({ n: 0, cf: new Misura(), cfBassa: 0, mg: new Misura(), limite: 0, conMg: 0, conPl: 0, opposti: 0 }));
+    g.n++;
+    if (Number.isFinite(r.cf)){ g.cf.metti(r.cf); if (r.cf < .5) g.cfBassa++; }
+    if (Number.isFinite(r.mg)){ g.conMg++; g.mg.metti(r.mg); if (r.mg < B66_LIMITE) g.limite++; const L = B.limite[r.mg < B66_LIMITE ? 'al limite' : 'pieni']; L.n++; L.ms.metti(Math.abs(r.ms)); if (r.e === 'debole') L.deboli++; if (r.e === 'rete' || r.e === 'fuori') L.sbagliati++; }
+    if ((r.pl === 1 || r.pl === -1) && (r.lato === 1 || r.lato === -1)){ g.conPl++; if (r.pl !== r.lato) g.opposti++; }
+    if (Number.isFinite(r.gb)) B.gesto.conBuco++;
+    if (Number.isFinite(r.ms) && i != null){ const f = B.perOrdine[i <= 5 ? 0 : i <= 10 ? 1 : i <= 20 ? 2 : 3]; f.n++; f.ms.metti(Math.abs(r.ms)); if (r.voto === 'perfetto') f.perfetti++; if (r.e === 'rete' || r.e === 'fuori') f.sbagliati++; }
+    if (Array.isArray(r.rit) && r.rit.length === 2){
+      const [a, ri] = r.rit, strada = (r.chi === 'a' ? P.r.tel2 : P.r.tel)?.strada || '—', S = voce(B.strade, strada, () => ({ arr: new Misura(), ris: new Misura() }));
+      B.arr.metti(a); B.ris.metti(ri); S.arr.metti(a); S.ris.metti(ri);
+      if (Number.isFinite(r.ms)){ const f = B.ritardoTempo[a < 60 ? 0 : a < 100 ? 1 : a < 200 ? 2 : 3]; f.n++; f.ms.metti(r.ms); if (r.ms < 0) f.ritardo++; }
+    }
+  }
+  _b66Fine(P, r, x){
+    const B = this.b66;
+    if (!r) return;
+    const conB66 = ['tq', 'lat', 'wifi', 'blocco', 'cal', 'pause'].some(k => r[k] != null);
+    if (P.r.ctrl === 'telefono' && (x?.formato ?? 0) >= 3){ if (conB66) B.partite.conMisure++; else B.partite.senzaMisure++; }
+    if (!conB66) return;
+    B.partite.n++;
+    const tel = k => (k === 'a' ? P.r.tel2 : P.r.tel) || {}, chi = k => `${tel(k).so || '—'} · ${tel(k).browser || '—'}`;
+    for (const [k, t] of Object.entries(r.tq || {})){
+      const S = B.sensori, G = voce(S.perTel, chi(k), () => ({ n: 0, hz: new Misura(), hzMin: new Misura(), buchi: new Misura(), sotto50: 0 }));
+      S.n++; G.n++;
+      if (Array.isArray(t.hz)){ S.hz.metti(t.hz[0]); S.hzMin.metti(t.hz[1]); G.hz.metti(t.hz[0]); G.hzMin.metti(t.hz[1]); if (t.hz[1] < 50){ S.sotto50++; G.sotto50++; } }
+      if (t.fonte === 'telefono') S.soloMedia++;
+      S.campioni += t.n || 0; S.buchi += t.b || 0; S.buchiPartita.metti(t.b || 0); G.buchi.metti(t.b || 0); if (t.bm) S.bucoMax.metti(t.bm); S.colpiBuco += t.bg || 0;
+      if (Number.isFinite(t.iv)) piu(S.intervallo, `${N(t.iv, 1)} ms`);
+      if (Array.isArray(t.sat) && (t.sat[0] || t.sat[1])){ S.saturi++; S.satAcc += t.sat[0] || 0; S.satGiro += t.sat[1] || 0; }
+    }
+    for (const [k, l] of Object.entries(r.lat || {})){
+      const C = B.coll; C.n++; C.colpi += l.n || 0; C.stimati += l.stimati || 0; C.persi += l.persi || 0; C.ordine += l.ordine || 0;
+      if (Number.isFinite(l.jit)) C.jit.metti(l.jit); if (Array.isArray(l.arr)) C.arrP90.metti(l.arr[1]);
+      if (Array.isArray(l.vie)){ C.veloce += l.vie[0] || 0; C.affidabile += l.vie[1] || 0; }
+      const w = r.wifi?.[k], rs = Array.isArray(w?.rssi) ? w.rssi[0] : null, fascia = rs == null ? 'senza app' : rs >= -60 ? 'da −60 dBm in su (forte)' : rs >= -70 ? 'da −70 a −61 dBm' : rs >= -80 ? 'da −80 a −71 dBm' : 'sotto −80 dBm (debole)';
+      const F = voce(B.perSegnale, fascia, () => ({ n: 0, arrP90: new Misura(), persi: 0, colpi: 0, pauseS: 0 })); F.n++; F.colpi += l.n || 0; F.persi += l.persi || 0; if (Array.isArray(l.arr)) F.arrP90.metti(l.arr[1]);
+      if (k === 'g') F.pauseS += Object.entries(r.pause || {}).filter(([m]) => !m.endsWith(')')).reduce((a, [, v]) => a + (v[1] || 0), 0);
+    }
+    for (const [m, v] of Object.entries(r.pause || {})) if (Array.isArray(v)){ const Q = voce(B.pause, m, () => [0, 0]); Q[0] += v[0] || 0; Q[1] += v[1] || 0; }
+    if (r.pause) B.partiteConPausa++;
+    for (const w of Object.values(r.wifi || {})){
+      const W = B.wifi; W.n++;
+      if (Array.isArray(w.rssi)){ W.rssi.metti(w.rssi[0]); W.rssiMin.metti(w.rssi[1]); if (w.rssi[1] < -75) W.deboli++; }
+      if (w.bd != null) piu(W.bande, `${String(w.bd).replace('.', ',')} GHz`);
+      if (Array.isArray(w.mbps)){ W.mbps.metti(w.mbps[0]); W.mbpsMin.metti(w.mbps[1]); }
+      if (Array.isArray(w.bt) && Number.isFinite(w.bt[0]) && Number.isFinite(w.bt[1])){ W.batt.metti(w.bt[1]); if (r.durS > 30) W.consumo.metti((w.bt[0] - w.bt[1])*3600/r.durS); }
+      if (w.ch === 1) W.inCarica++; if (Number.isFinite(w.tc)){ W.temp.metti(w.tc); if (w.tc >= 40) W.calde++; }
+      if (Number.isFinite(w.fx)){ W.conFissa++; if (w.fx >= 1) W.sempreFissa++; }
+    }
+    for (const b of Object.values(r.blocco || {})){
+      const L = B.blocco; L.n++; L.durS.metti(b.durS || 0); L.tocchi += b.tb || 0; L.tocchiPartita.metti(b.tb || 0); L.ss += b.ss || 0; L.sp += b.sp || 0; L.sd += b.sd || 0; L.us += b.us || 0; L.sc += b.sc || 0;
+      if (b.us) L.conUscite++;
+    }
+    for (const c of Object.values(r.cal || {})){
+      const K = B.cal; K.n++; piu(K.tipo, c.tipo || '—');
+      if (Number.isFinite(c.tipN)) K.tipN.metti(c.tipN); if (Number.isFinite(c.cen)) K.cen.metti(c.cen);
+      if (Array.isArray(c.tip) && Number.isFinite(c.tip[0]) && Number.isFinite(c.tip[1]) && c.tip[0] > 0) K.deriva.metti(100*(c.tip[1] - c.tip[0])/c.tip[0]);
+      if (Array.isArray(c.tip) && Number.isFinite(c.tip[1])) K.tipico.metti(c.tip[1]);
+      if (Array.isArray(c.dvi) && Number.isFinite(c.dvi[0]) && Number.isFinite(c.dvi[1])) K.dvi.metti(Math.abs(c.dvi[1] - c.dvi[0]));
+      if (c.seg) K.conSegno++; if (c.mano) K.conMano++; if (c.ric) K.conRic++;
+      if (Array.isArray(c.ref) && Number.isFinite(c.ref[0]) && Number.isFinite(c.ref[1]) && c.ref[0] !== c.ref[1]) K.refCambiato++;
+      if (Array.isArray(c.soglia)) piu(K.soglie, `on ${c.soglia[0]} · picco ${c.soglia[1]} °/s`);
+    }
+  }
   /* ---------- B36.0: direzione dei colpi ---------- */
   _dirPartita(){ return { colpi: 0, xs: [], piatti: [], dv: [], primi: 0, primi05: 0 }; }
   _dirGruppo(modello, chiave){
@@ -466,6 +562,7 @@ export function rapporto(R, L){
     { titolo: `Mano cambiata (in partita: ${N(te.manoInPartita)})`, colonne: ['Mano · da chi', 'Volte'], righe: elenco(te.mano) },
     { titolo: `Segno del verso del telefono cambiato (in partita: ${N(te.segnoInPartita)})`, colonne: ['Causa · segno nuovo', 'Volte'], righe: elenco(te.segno) },
   ]);
+  sezioniB66(R, sez);
   const fp = R.fps, av = R.avvii;
   sez('Prestazioni', [
     `Fotogrammi al secondo medi in partita: ${mis(fp.medi, 1)}; il secondo peggiore di ogni partita: ${mis(fp.peggiori, 1)}. Partite sotto 30 di media: ${N(fp.sotto30)} (${pc(fp.sotto30, fp.n, 1)}).`,
@@ -482,6 +579,81 @@ export function rapporto(R, L){
   ], [{ titolo: 'Errori più frequenti', colonne: ['Volte (almeno)', 'Tipo', 'Messaggio', 'File', 'Riga'], righe: err.slice(0, 15).map(e => [N(e.volte), e.tipo || '—', e.msg || '—', e.file || '—', e.riga ?? '—']) }]);
   return S;
 }
+// B66 · sei sezioni (docs/b66/registro-sensori.md): sensori del telefono, stabilità della calibrazione, precisione dei
+// gesti, distribuzione del ritardo, rete del telefono dall'app, telefono bloccato. Senza le misure (registri prima della
+// 2026-11-18.1, o Worker non ricaricato) le sezioni lo dicono in una riga
+export function sezioniB66(R, sez){
+  const B = R.b66, Pt = B.partite;
+  const avviso = Pt.senzaMisure ? `ATTENZIONE: ${N(Pt.senzaMisure)} partite con il telefono di un gioco nuovo (formato 3) senza le misure del B66: il Worker del registro non è stato ricaricato (docs/b66/registro-sensori.md, «Ricaricare il Worker»).` : '';
+  const vuoto = 'Nessuna partita con le misure del B66: il registro è di una versione prima della 2026-11-18.1' + (Pt.senzaMisure ? ' o il Worker non è stato ricaricato.' : '.');
+  const S = B.sensori, totColpiTel = B.coll.colpi;
+  sez('Sensori del telefono', S.n ? [
+    avviso,
+    `Telefoni in partita con le misure: ${N(S.n)}. Frequenza vera dei sensori (campioni contati sul telefono): mediana di ogni partita ${mis(S.hz, 1, ' Hz')}; la più bassa di ogni partita ${mis(S.hzMin, 1, ' Hz')}. Partite con un tratto sotto 50 Hz: ${N(S.sotto50)} (${pc(S.sotto50, S.n, 1)}).${S.soloMedia ? ` Di ${N(S.soloMedia)} telefoni (pagina di prima) solo la frequenza dichiarata dal telefono (media mobile).` : ''}`,
+    `Buchi nei campioni (intervallo oltre 2 volte il periodo del telefono): ${N(S.buchi)} su ${N(S.campioni)} campioni; a partita ${mis(S.buchiPartita, 1)}; il più lungo di ogni partita ${mis(S.bucoMax, 0, ' ms')}.`,
+    `Colpi con un buco nei campioni durante il gesto: ${N(S.colpiBuco)} su ${N(totColpiTel)} colpi arrivati (${pc(S.colpiBuco, totColpiTel, 1)}); righe «colpo» con il buco: ${N(B.gesto.conBuco)}.`,
+    `Saturazione (lo stesso valore grande ripetuto: il sensore arriva al suo massimo): partite con campioni saturi ${N(S.saturi)} (${pc(S.saturi, S.n, 1)}); campioni saturi dell'accelerazione ${N(S.satAcc)}, della rotazione ${N(S.satGiro)}.`,
+  ] : [avviso, vuoto], S.n ? [
+    { titolo: 'Per telefono e browser (dalla riga della partita)', colonne: ['Telefono · browser', 'Partite', 'Frequenza (mediana, Hz)', 'La più bassa (metà sotto, Hz)', 'Sotto 50 Hz', 'Buchi a partita'],
+      righe: Object.entries(S.perTel).sort((a, b) => b[1].n - a[1].n).slice(0, 15).map(([k, G]) => [k, N(G.n), N(G.hz.p(.5), 1), N(G.hzMin.p(.5), 1), pc(G.sotto50, G.n), N(G.buchi.media, 1)]) },
+    { titolo: 'Intervallo dei sensori dichiarato dal browser', colonne: ['Intervallo', 'Telefoni'], righe: elenco(S.intervallo) },
+    { titolo: 'Versione della pagina del telefono (rispetto a quella del PC)', colonne: ['Pagina', 'Collegamenti e partite'], righe: elenco(B.versioni.pagina) },
+    { titolo: 'App NATPF Racchetta', colonne: ['App', 'Collegamenti e partite'], righe: elenco(B.versioni.app) },
+  ] : []);
+  const K = B.cal, ord = ['colpi 1–5', 'colpi 6–10', 'colpi 11–20', 'dal 21°'];
+  sez('Calibrazione: stabilità', [
+    K.n ? `Telefoni in partita con le misure: ${N(K.n)}. Colpi prima che il colpo tipico sia quello imparato giocando (prima vale la calibrazione): ${mis(K.tipN, 1)}; colpi prima del centro della mira: ${mis(K.cen, 1)}.` : vuoto,
+    K.n ? `Quanto cambia il colpo tipico in una partita (fine rispetto all'inizio): ${mis(K.deriva, 0, '%')}; colpo tipico a fine partita ${mis(K.tipico, 0, ' °/s')}. Scarto della cima, mediana dei primi 10 colpi contro gli ultimi 10: differenza ${mis(K.dvi, 1, '°')}.` : '',
+    K.n ? `In partita: segno del verso cambiato in ${N(K.conSegno)} (${pc(K.conSegno, K.n, 1)}), mano cambiata in ${N(K.conMano)}, calibrazione rifatta in ${N(K.conRic)} (${pc(K.conRic, K.n, 1)}), riferimento della calibrazione cambiato in ${N(K.refCambiato)}. Il perché di ogni cambio di segno è nella sezione «Collegamento del telefono»; gesti di calibrazione ripetuti e perché in «Tutorial e calibrazione».` : '',
+    'Errore di tempo per numero di colpo nella partita (tutti i registri: misura già presente, qui per vedere quanti colpi servono prima che i colpi diventino stabili).',
+  ], [
+    { titolo: 'Profilo del telefono in partita', colonne: ['Profilo', 'Telefoni', 'Quota'], righe: elenco(K.tipo, K.n) },
+    { titolo: 'Soglie del profilo (inizio del gesto · picco minimo)', colonne: ['Soglie', 'Telefoni'], righe: elenco(K.soglie, null, 8) },
+    { titolo: 'Errore di tempo per numero di colpo nella partita', colonne: ['Colpi', 'Quanti', '|Errore| (metà entro, ms)', '|Errore| (9 su 10 entro, ms)', 'Perfetti', 'Rete o fuori'],
+      righe: B.perOrdine.map((f, i) => (f.n ? [ord[i], N(f.n), N(f.ms.p(.5)), N(f.ms.p(.9)), pc(f.perfetti, f.n, 1), pc(f.sbagliati, f.n, 1)] : null)).filter(Boolean) },
+  ]);
+  const gesti = Object.entries(B.gesti).filter(([, g]) => g.cf.n || g.conMg || g.conPl).sort((a, b) => b[1].n - a[1].n), L = B.limite;
+  sez('Precisione dei gesti', gesti.length ? [
+    `Per tipo di colpo (colpi del telefono in partita): confidenza del riconoscimento del tipo (0–1, dal telefono), margine del picco sulla soglia (sotto ${N(B66_LIMITE, 1)} = colpo «al limite», quasi scartato), colpi giocati dalla parte opposta alla palla (dritto con la palla a sinistra di un destro e viceversa: dritto e rovescio probabilmente scambiati).`,
+    L['al limite'].n + L.pieni.n ? `Colpi al limite: ${N(L['al limite'].n)} su ${N(L['al limite'].n + L.pieni.n)} (${pc(L['al limite'].n, L['al limite'].n + L.pieni.n, 1)}).` : '',
+  ] : [vuoto], [
+    { titolo: 'Per tipo di colpo', colonne: ['Gesto', 'Colpi', 'Confidenza (media)', 'Confidenza sotto 0,5', 'Margine (mediana)', 'Al limite', 'Dalla parte opposta alla palla'],
+      righe: gesti.map(([k, g]) => [k, N(g.n), N(g.cf.media, 2), pc(g.cfBassa, g.cf.n, 1), N(g.mg.p(.5), 2), pc(g.limite, g.conMg, 1), g.conPl ? `${pc(g.opposti, g.conPl, 1)} (${N(g.conPl)})` : '—']) },
+    { titolo: 'Colpi al limite contro colpi pieni', colonne: ['', 'Colpi', '|Errore di tempo| (metà entro, ms)', 'Deboli', 'Rete o fuori'],
+      righe: Object.entries(L).filter(([, v]) => v.n).map(([k, v]) => [k, N(v.n), N(v.ms.p(.5)), pc(v.deboli, v.n, 1), pc(v.sbagliati, v.n, 1)]) },
+  ]);
+  const C = B.coll, fasce = ['sotto 60 ms', '60–99 ms', '100–199 ms', 'da 200 ms'], pauseTot = Object.values(B.pause).reduce((a, v) => a + v[0], 0);
+  const tre = m => (m.n ? `${N(m.p(.5))} · ${N(m.p(.9))} · ${N(m.p(.99))} ms` : '—');
+  sez('Collegamento: distribuzione', C.n || B.arr.n ? [
+    `Dal picco del gesto all'arrivo sul PC (orologi allineati; comprende il riconoscimento sul telefono), metà · 9 su 10 · 99 su 100: ${tre(B.arr)}. Dal picco alla risposta del gioco (il motore gioca il colpo; se il colpo arriva prima della palla comprende l'attesa della palla): ${tre(B.ris)}.`,
+    `Sbalzo del ritardo da un colpo al successivo (media di ogni partita): ${mis(C.jit, 0, ' ms')}; il 9 su 10 dell'arrivo di ogni partita: ${mis(C.arrP90, 0, ' ms')}.`,
+    `Colpi arrivati: ${N(C.colpi)}; persi (numero mancante, nessuna delle quattro copie arrivata) ${N(C.persi)} (${pc(C.persi, C.colpi + C.persi, 2)}); fuori ordine ${N(C.ordine)}; senza orologi allineati (ritardo non misurato) ${N(C.stimati)}. Prima copia arrivata dalla strada veloce: ${pc(C.veloce, C.veloce + C.affidabile, 1)}.`,
+    `Pause della partita per il telefono: ${N(pauseTot)} in ${N(B.partiteConPausa)} partite (${pc(B.partiteConPausa, Pt.n, 1)} delle partite con le misure).`,
+  ] : [avviso, vuoto], [
+    { titolo: 'Per strada del collegamento (righe «colpo»)', colonne: ['Strada', 'Colpi', 'Arrivo: metà · 9 su 10 · 99 su 100', 'Risposta: metà · 9 su 10 · 99 su 100'], righe: Object.entries(B.strade).map(([k, v]) => [k, N(v.arr.n), tre(v.arr), tre(v.ris)]) },
+    { titolo: 'Ritardo e tempo del colpo', colonne: ['Arrivo dal picco', 'Colpi', 'Errore di tempo medio (ms, + anticipo)', 'In ritardo'], righe: B.ritardoTempo.map((f, i) => (f.n ? [fasce[i], N(f.n), N(f.ms.media), pc(f.ritardo, f.n, 1)] : null)).filter(Boolean) },
+    { titolo: 'Pause per il telefono («(2)»: Player 2 dello stesso schermo)', colonne: ['Motivo', 'Volte', 'Secondi in tutto', 'Secondi a pausa'], righe: Object.entries(B.pause).sort((a, b) => b[1][0] - a[1][0]).map(([k, v]) => [k, N(v[0]), N(v[1], 1), N(v[0] ? v[1]/v[0] : null, 1)]) },
+  ]);
+  const W = B.wifi;
+  sez('Rete del telefono (app)', W.n ? [
+    `Telefoni in partita con l'app NATPF Racchetta (o la batteria dal browser): ${N(W.n)}. Segnale Wi-Fi, mediana di ogni partita ${mis(W.rssi, 0, ' dBm')}; il più basso di ogni partita ${mis(W.rssiMin, 0, ' dBm')}; partite con il segnale sotto −75 dBm: ${N(W.deboli)} (${pc(W.deboli, W.n, 1)}).`,
+    `Velocità del collegamento Wi-Fi: ${mis(W.mbps, 0, ' Mbps')}; la più bassa di ogni partita ${mis(W.mbpsMin, 0, ' Mbps')}.`,
+    `Batteria a fine partita ${mis(W.batt, 0, '%')}; consumo ${mis(W.consumo, 1, ' punti % all’ora')}; in carica a fine partita ${N(W.inCarica)} (${pc(W.inCarica, W.n, 1)}). Temperatura della batteria (la più alta di ogni partita) ${mis(W.temp, 1, ' °C')}; da 40 °C: ${N(W.calde)}.`,
+    `«Fissa app» attiva per tutta la partita: ${N(W.sempreFissa)} su ${N(W.conFissa)} (${pc(W.sempreFissa, W.conFissa, 1)}).`,
+    'Del telefono si registrano solo numeri: mai il nome della rete, indirizzi o identificativi.',
+  ] : [vuoto + ' Le misure della rete ci sono solo con l’app NATPF Racchetta 1.0.4 o successiva.'], [
+    { titolo: 'Banda della Wi-Fi', colonne: ['Banda', 'Telefoni', 'Quota'], righe: elenco(W.bande, W.n) },
+    { titolo: 'Segnale e collegamento', colonne: ['Segnale (mediana della partita)', 'Telefoni', 'Arrivo 9 su 10 (mediana, ms)', 'Colpi persi', 'Secondi di pausa (Player 1)'],
+      righe: Object.entries(B.perSegnale).sort().map(([k, F]) => [k, N(F.n), N(F.arrP90.p(.5)), `${N(F.persi)} su ${N(F.colpi + F.persi)}`, N(F.pauseS, 1)]) },
+  ]);
+  const Lb = B.blocco;
+  sez('Telefono bloccato', Lb.n ? [
+    `Telefoni bloccati in partita (B51): ${N(Lb.n)}; tempo bloccato ${mis(Lb.durS, 0, ' s')}. Tocchi fermati dal blocco: ${N(Lb.tocchi)} (a partita ${mis(Lb.tocchiPartita, 1)}).`,
+    `Sblocchi: dallo staff sul telefono (due dita 3 s) ${N(Lb.ss)}, dal PC ${N(Lb.sp)}, finiti da soli (fine del gioco, avviso o velo da toccare) ${N(Lb.sd)}.`,
+    `Pagina del telefono nascosta durante il blocco (schermo spento o un'altra app): ${N(Lb.us)} volte in ${N(Lb.conUscite)} partite; schermi spenti (dall'app): ${N(Lb.sc)}.`,
+  ] : [vuoto]);
+}
+
 // B36.0 · sezione «Direzione» (docs/b36/misure-b36-0.md): quanto si gira la cima, quanto pesa il tempo, Precision (zona
 // chiesta → dove è caduta) e gli obiettivi dello stand E1–E5 del piano (docs/b36/piano-direzionalita.md §7.6), per modello
 // della direzione e livello. Con meno di DIR_MIN colpi per riga i numeri si leggono come indizi

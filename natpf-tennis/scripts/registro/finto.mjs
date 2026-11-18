@@ -13,6 +13,8 @@
 // B36.0 (direzione: true, di base): anche i campi della direzione dei colpi (piatto, scarto della cima, tempo in finestre,
 // rimbalzo vero, fuori, modello della direzione) e qualche partita a Precision, da un generatore a parte (le altre righe
 // restano quelle di prima). Il modello è inventato: serve a provare lo strumento, non dice niente delle persone.
+// B66 (b66: true, di base): anche le misure di sensori, calibrazione, collegamento, rete e blocco del telefono (righe
+// «colpo» e «partita.fine»), da un altro generatore a parte. Anche questo inventato: serve a provare il riassunto.
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -35,11 +37,34 @@ const LIVELLO = { bambino: 'bambini', ragazzo: 'casual', adulto: 'evento' };
 const SCARTI = ['troppo debole', 'telefono: gesto scartato', 'doppio', 'fuori tempo'];
 
 // Un giorno di stand: { righe: [testo…], verita }. ora0: ora di apertura (locale), fuso: minuti dal tempo universale
-export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g = null, ora0 = 9, ore = 10, fuso = 60, direzione = true } = {}){
+export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g = null, ora0 = 9, ore = 10, fuso = 60, direzione = true, b66 = direzione } = {}){
   const rnd = casuale(seme*7919 + Number(giorno.replace(/-/g, '')) % 100000), scegli = list => list[Math.floor(rnd()*list.length)], tra = (a, b) => a + rnd()*(b - a), prob = p => rnd() < p;
   // B36.0: generatore a parte per la direzione (le righe di prima restano le stesse)
   const rd = casuale(seme*104729 + Number(giorno.replace(/-/g, '')) % 100003 + 17), gd = () => { let u = 0, v = 0; while (!u) u = rd(); while (!v) v = rd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
   const lim = (v, a, b) => Math.max(a, Math.min(b, v));
+  // B66: generatore a parte per le misure del telefono (le righe di prima restano le stesse)
+  const rb = casuale(seme*15485863 + Number(giorno.replace(/-/g, '')) % 99991 + 29), gb = () => { let u = 0, v = 0; while (!u) u = rb(); while (!v) v = rb(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
+  // un telefono della partita: frequenza, segnale (app), ritardo tipico; i colpi e la fine della partita ne prendono le misure
+  const telB66 = () => { const app = rb() < .6, hz = rb() < .15 ? 30 + rb()*20 : 58 + rb()*5, rssi = app ? Math.round(-50 - rb()*35) : null; return { app, hz, rssi, base: 25 + rb()*30 + (rssi != null && rssi < -75 ? 60 : 0), arr: [], ris: [], colpi: 0, gb: 0, tip: 450 + rb()*300, cen: null }; };
+  // (lato: parte del corpo del colpo; pl: la palla, quasi sempre dalla stessa parte)
+  const colpoB66 = (T, lato = null) => {
+    if (!T) return {};
+    T.colpi++; const a = Math.round(T.base + Math.exp(gb()*.6)*12), ri = a + Math.round(4 + rb()*14); T.arr.push(a); T.ris.push(ri);
+    const buco = rb() < (T.hz < 50 ? .08 : .015); if (buco) T.gb++;
+    if (T.cen == null && rb() < .3) T.cen = T.colpi - 1;
+    return { cf: r(lim(.75 + gb()*.15, .3, 1)), mg: r(lim(1.6 + gb()*.4, 1, 4)), ...(buco ? { gb: Math.round(40 + rb()*120) } : {}), rit: [a, ri], ...(lato === 1 || lato === -1 ? { pl: rb() < .93 ? lato : -lato } : {}) };
+  };
+  const pct = (v, q) => { const o = [...v].sort((x, y) => x - y); return o.length ? o[Math.min(o.length - 1, Math.ceil(q*o.length) - 1)] : null; };
+  const fineB66 = (T, durS) => {
+    const n = Math.round(T.hz*durS), b = T.hz < 50 ? 2 + Math.floor(rb()*8) : Math.floor(rb()*3), persi = rb() < .05 ? 1 : 0;
+    return {
+      tq: { hz: [r(T.hz, 1), r(T.hz*(.75 + rb()*.2), 1)], n, ...(b ? { b, bm: Math.round(40 + rb()*300) } : {}), ...(T.gb ? { bg: T.gb } : {}), iv: 16, ...(rb() < .1 ? { sat: [Math.floor(rb()*3), Math.floor(rb()*5)] } : {}) },
+      lat: { ...(T.arr.length ? { arr: [pct(T.arr, .5), pct(T.arr, .9), pct(T.arr, .99)], ris: [pct(T.ris, .5), pct(T.ris, .9), pct(T.ris, .99)], jit: Math.round(5 + rb()*25) } : {}), n: T.colpi, ...(persi ? { persi } : {}), vie: [Math.round(T.colpi*.9), T.colpi - Math.round(T.colpi*.9)] },
+      ...(T.app ? { wifi: { rssi: [T.rssi, T.rssi - Math.round(rb()*10)], bd: rb() < .7 ? 5 : 2.4, mbps: [Math.round(150 + rb()*400), Math.round(50 + rb()*100)], bt: [Math.round(60 + rb()*40), 0], ch: rb() < .3 ? 1 : 0, tc: r(28 + rb()*12, 1), fx: rb() < .9 ? 1 : .5 } } : {}),
+      ...(T.app ? { blocco: { durS: Math.round(durS*.9), ...(rb() < .4 ? { tb: 1 + Math.floor(rb()*6) } : {}), ...(rb() < .05 ? { ss: 1 } : {}), ...(rb() < .1 ? { us: 1, sc: 1 } : {}) } } : {}),
+      cal: { tip: [Math.round(T.tip), Math.round(T.tip*(.9 + rb()*.3))], tipN: Math.min(T.colpi, 2 + Math.floor(rb()*2)), ...(T.cen != null ? { cen: T.cen } : {}), ...(T.colpi >= 4 ? { dvi: [r(gb()*12, 1), r(gb()*6, 1)] } : {}), ...(rb() < .08 ? { seg: 1 } : {}), ...(rb() < .03 ? { ric: 1 } : {}), ref: [600, 600], tipo: rb() < .7 ? 'calibrato' : 'semplice', soglia: [70, 120] },
+    };
+  };
   // un colpo del telefono: persona (sd del giro, quota di colpi mirati, errore del seme), quanti colpi ha già fatto, verso
   // voluto (−1 sinistra, 0, +1 destra; null: a caso). Restituisce i campi della riga nel riferimento di chi colpisce
   const dirColpo = (pers, k, voluto = null) => {
@@ -57,7 +82,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
   const riga = (k, d) => { const row = pulisci({ k, t: Math.round(t), ...d }); const s = row && testoRiga(row); if (!s) throw new Error(`riga finta non valida: ${k} ${JSON.stringify(d)}`); righe.push(s); };
   const ora = () => new Date(inizio + t).toISOString();
   const tel = () => ({ strada: prob(.8) ? 'lan' : prob(.7) ? 'relay' : 'internet', rtt: r(tra(8, 90), 0), so: prob(.7) ? `Android ${11 + Math.floor(rnd()*5)}` : `iPhone iOS ${16 + Math.floor(rnd()*3)}`, browser: prob(.7) ? `Chrome ${120 + Math.floor(rnd()*12)}` : 'Safari 17' });
-  riga('avvio', { v: direzione ? 2 : 1, ora: ora(), fuso, g: post, versione: '2026-11-12.4', dove: 'programma', motivo: 'avvio', schermo: [1920, 1080], area: [1024, 1024], dpr: 1, cpu: 8, gpu: true, gpuTipo: 'NVIDIA GeForce RTX 3060', pagina: 'navigate', chiosco: true, prima: prob(.2) ? 'improvvisa' : 'pulita' });
+  riga('avvio', { v: b66 ? 3 : direzione ? 2 : 1, ora: ora(), fuso, g: post, versione: '2026-11-12.4', dove: 'programma', motivo: 'avvio', schermo: [1920, 1080], area: [1024, 1024], dpr: 1, cpu: 8, gpu: true, gpuTipo: 'NVIDIA GeForce RTX 3060', pagina: 'navigate', chiosco: true, prima: prob(.2) ? 'improvvisa' : 'pulita' });
   for (let n = 1; n <= partite; n++){
     t = (n - 1)*passo + tra(0, passo*.2);
     const t0 = t;
@@ -83,9 +108,12 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
     const aiuto = split && fasce[0] !== fasce[1] ? (ord(fasce[0]) < ord(fasce[1]) ? 'g' : 'a') : null, campoAperto = split && prob(.3);
     const modo = split ? 'stesso-schermo' : 'cpu';
     let ek = evento ? r(tra(.4, .6), 3) : null;
+    const tb66 = b66 ? { g: telB66(), ...(split ? { a: telB66() } : {}) } : {};
+    // B66: versione dell'app e, a volte, della pagina del telefono rimasta indietro
+    const telV = T => (T ? { ...(T.app ? { app: '1.0.4' } : {}), ...(rb() < .05 ? { pv: '2026-11-17.4' } : {}) } : {});
     riga('partita', { n, ora: ora(), g: post, versione: '2026-11-12.4', modo, ...(split ? {} : { chi, livello: LIVELLO[chi] }), formato: 'quick', game: 2, fiera: split, batte: 'g', personaggi: prob(.5) ? 'sempre' : 'lobdrop', ctrl: 'telefono', mano: prob(.9) ? 'right' : 'left', ...(split ? { mano2: 'right' } : {}),
       segnale: true, nomeInserito: prob(.4), ...(split ? { nomeInserito2: prob(.4) } : {}), stand: { chiosco: true, fiera: 'split', mira: 'alta', caldo: true, ...(split ? { lancioAuto: prob(.5), campoAperto } : {}) },
-      ...(split ? { fasce, aiuto } : {}), ...(evento ? { ek } : {}), tel: tel(), ...(split ? { tel2: tel() } : {}), ...(direzione ? { dir: 'classica' } : {}) });
+      ...(split ? { fasce, aiuto } : {}), ...(evento ? { ek } : {}), tel: { ...tel(), ...telV(tb66.g) }, ...(split ? { tel2: { ...tel(), ...telV(tb66.a) } } : {}), ...(direzione ? { dir: 'classica' } : {}) });
     const pers = { g: persona(), a: persona() }, fatti = { g: 0, a: 0 };
     V.partite++; V.perModo[modo] = (V.perModo[modo] || 0) + 1; if (chi) V.perChi[chi] = (V.perChi[chi] || 0) + 1;
     // forza di chi gioca: i bambini vincono meno punti contro la CPU; nello stesso schermo il più giovane ne vince il 40%
@@ -111,7 +139,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
         const chiK = diG ? 'g' : 'a', D = direzione ? dirColpo(pers[chiK], fatti[chiK]++) : null, sx = diG ? 1 : -1;
         const dirCampi = D ? { d: r(D.d), x: r(sx*D.xt, 1), lato: D.lato, pf: r(D.pf), ...(D.dv != null ? { dv: r(D.dv, 1) } : {}), tu: r(D.tu), ...(sbaglia && rd() < .5 ? {} : { rx: r(sx*D.xr), rz: r(sx*Math.abs(zz)*-.98), ...(D.fu ? { fu: 1 } : {}) }) } : {};
         riga('colpo', { n, ...(diG ? {} : { chi: 'a' }), gesto, ms: r(ms, 0), voto, f: r(forza), d: dd, ...(ee ? { e: ee } : {}), x: xx, z: zz,
-          ...(forza >= .8 ? (prob(.25) ? { sup: c >= 20 ? 'calda' : 'alta' } : { supNo: scegli(['palla bassa', 'fuori tempo', 'troppo lontano']) }) : {}), ...(prob(.08) ? { volee: true } : {}), ...dirCampi });
+          ...(forza >= .8 ? (prob(.25) ? { sup: c >= 20 ? 'calda' : 'alta' } : { supNo: scegli(['palla bassa', 'fuori tempo', 'troppo lontano']) }) : {}), ...(prob(.08) ? { volee: true } : {}), ...dirCampi, ...colpoB66(tb66[chiK], dirCampi.lato) });
         if (diG) colpi++; else colpi2++; V.colpi++;
         if (righe[righe.length - 1].includes('"sup":')) V.superRiusciti++;
       }
@@ -130,7 +158,8 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
     const finita = pg >= 2 || og >= 2;
     riga('partita.fine', { n, esito: finita ? 'finita' : 'abbandonata', ...(finita ? {} : { dove: 'a metà partita', come: prob(.5) ? 'chiosco' : 'menu' }), vince: finita ? (pg > og ? 'g' : 'a') : null, game: [pg, og], punti, puntiVinti: vinti, colpi, ...(colpi2 ? { colpi2 } : {}),
       durS: r((t - t0)/1000, 0), lanci: lanciTot, ...(vuotiTot ? { lanciVuoti: vuotiTot } : {}), ...(evento ? { ek } : {}), fps: { medi: r(tra(55, 60), 1), peggiori: r(tra(28, 58), 1), maxMs: r(tra(20, 90), 0), lunghi: Math.floor(rnd()*4), n: Math.round((t - t0)/16.7) },
-      tel: { ...(cadute ? { cadute, riprese: cadute } : {}), rtt: r(tra(10, 60), 0), rttMax: r(tra(60, 200), 0) }, ...(errori ? { errori } : {}), ...(Object.keys(scarti).length ? { scartati: scarti } : {}), costoMs: r(tra(.5, 4), 1) });
+      tel: { ...(cadute ? { cadute, riprese: cadute } : {}), rtt: r(tra(10, 60), 0), rttMax: r(tra(60, 200), 0) }, ...(errori ? { errori } : {}), ...(Object.keys(scarti).length ? { scartati: scarti } : {}), costoMs: r(tra(.5, 4), 1),
+      ...(b66 ? (() => { const o = {}; for (const [k, T] of Object.entries(tb66)){ const f = fineB66(T, (t - t0)/1000); if (f.wifi) f.wifi.bt[1] = Math.max(0, f.wifi.bt[0] - Math.round((t - t0)/1000/400)); for (const [g2, v] of Object.entries(f)) (o[g2] || (o[g2] = {}))[k] = v; } const ps = rb() < .1 ? { pause: { [rb() < .7 ? 'segnale debole' : 'pagina nascosta']: [1, r(1 + rb()*6, 1)] } } : {}; return { ...o, ...ps }; })() : {}) });
     if (finita){ V.finite++; if (aiuto){ V.aiuto.partite++; if ((pg > og ? 'g' : 'a') === aiuto) V.aiuto.vinteDalGiovane++; } } else V.abbandonate++;
     if (prob(.5)){ riga('visita', { durS: r((t - t0)/1000 + 30, 0), partite: 1, posti: { menu: 8, partita: Math.round((t - t0)/1000) }, come: prob(.5) ? 'chiosco' : 'menu' }); V.visite++; }
     // B36.0: ogni tanto, dopo la partita, una partita a Precision (10 palle, una per zona)
