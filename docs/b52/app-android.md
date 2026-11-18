@@ -155,3 +155,16 @@ telefono solo l'app (niente certificato NATPF, guida 7.4) → l'app mostra «App
 (cd tools/lan && npm ci) && (cd tools/e2e && npm ci)
 CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-app-certificato.mjs
 ```
+
+## 7. Versione 1.0.4 (18/11/2026): stato del telefono per il registro dello stand (B66)
+
+- Il ponte della pagina ha un metodo in più, `NATPFApp.stato()`: un JSON piccolo con **solo numeri** (`PhoneStatus.java`):
+  segnale Wi-Fi (dBm), banda (2,4 · 5 · 6 GHz), velocità del collegamento (Mbps), batteria (%), in carica, temperatura
+  della batteria (decimi di °C), «Fissa app» attiva, schermi spenti dall'avvio dell'app (ricevitore di `ACTION_SCREEN_OFF`,
+  nessun permesso nuovo). **Mai** nome della rete (SSID), BSSID, indirizzi o identificativi: l'app non li legge.
+- La pagina lo legge al più ogni 5 s e lo manda al PC nello stato `st` (campo `ap`); il registro dello stand lo riassume
+  per partita (`docs/b66/registro-sensori.md`). Nel messaggio `dev` la pagina manda anche la versione dell'app (`av`).
+- Prove qui (SDK Android 34 installato nel contenitore, Gradle 8.14.3): `testReleaseUnitTest` 9/9 (4 nuovi di
+  `PhoneStatusTest`), `lintRelease` con gli stessi avvisi della 1.0.3, `assembleRelease`, `controlla-classi.mjs` verde.
+  L'APK firmato con la chiave dello stand lo fa e lo pubblica il workflow «natpf-android» (versione salita: 1.0.4, codice 5).
+- **Non provata su un telefono vero**: i valori di Wi-Fi, batteria, temperatura e «Fissa app» vengono da Android vero solo lì.
