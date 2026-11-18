@@ -2662,3 +2662,5 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
 - [x] Peso: partita vera nel browser 4,79 → 5,72 kB in chiaro (25 righe, 15 colpi del telefono); registri finti 7,37 →
   8,53 kB a partita in chiaro, 1,23 → 1,52 kB compressi.
 - Non provato: telefono vero, app 1.0.4 su un telefono vero, Wi-Fi vera, Worker vero (da ricaricare dall'utente).
+- [x] Pacchetti 18.1: installer = `latest.json` (131.385.673 B, sha256 `2a79bc0f…8abbe`), zip `f24a6212…58d4b`
+  (23.969.237 B) provato estratto, APK 1.0.4 `cdcacbd0…68a5` (682.229 B) pubblicato e firmato con la chiave dello stand.
