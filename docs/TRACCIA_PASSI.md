@@ -1685,7 +1685,7 @@ di salvaschermo, ridondanze e classifica di fine partita. Punto aperto: il contr
       11/12: l'unico KO è il CORS del Worker TURN vero visto da 127.0.0.1, non del B66); APK 1.0.4 pubblicato su R2
       (`android/NATPF-Racchetta-1.0.4.apk` = link fisso, 682.229 B, sha256
       `cdcacbd00d44bacef27552be979ae2e5bcf669c5b102ab33595ddaaec19968a5`, versionCode 5, firmato con la chiave dello stand).
-      Workflow: app Android, eseguibili Windows, Simulator tests verdi; «motore base MVP» vedi sotto.
+      Quattro workflow verdi sul commit della versione (Simulator tests, motore base MVP, eseguibili Windows, app Android).
 
 **Prossima azione esatta (18/11, 11:45 UTC)**: aspettare l'utente: **ricaricare il Worker del registro** (formato 3,
 `docs/b66/registro-sensori.md` §5), installare l'app 1.0.4 sui telefoni dello stand, poi il registro della prossima
