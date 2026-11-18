@@ -9,6 +9,9 @@ Stato: **requisiti in corso** (18/11). Requisiti dati dall'utente: **4 grip e un
 realizzabile ed esteticamente bella (bocciati i primi mockup «a impugnatura tonda»). Scelta dell'utente: **piano A =
 modulo a clip su una racchetta vera** (concept 3); **piano B da valutare = piccolo grip verticale con feedback aptico,
 solo sensore, senza piatto corde**. Valutazione dei due piani nella sezione «Piano A e piano B» in fondo.
+**Decisione dell'utente (18/11, dopo la ricerca): «Io voglio generare un prodotto per me»**: niente produzione in serie,
+niente certificazioni da prodotto: 4 grip + 1 chiavetta per uso proprio, strada «scheda pronta in un manico stampato».
+La parte della ricerca su CE, qualifica Bluetooth e lotti 20–100 resta solo come riferimento.
 **Ricerca approfondita del 18/11** (fornitori, prezzi, norme, piano a fasi da zero alla produzione):
 `docs/hardware/ricerca-grip-controller-2026-11-18.md`. Consiglio: grip verticale B («solo un grip»), scheda Nordic
 pronta + scheda d'appoggio (sensore ±32 g/±4000 °/s, vibrazione, ricarica), chiavetta Nordic; fiera in ~6–10 settimane e

@@ -26,7 +26,8 @@ a questo file; quando supera ~300 righe si sposta di nuovo la parte vecchia in u
 - **HW1** in roadmap (18/11): grip-racchetta come controller hardware al posto del telefono, progetto parallelo; piano in
   `docs/hardware/grip-controller.md`, voce in `docs/PIANO_LAVORI.md` §5. Requisiti: 4 grip + chiavetta USB; piano A modulo a clip su racchetta, piano B
   grip verticale con vibrazione (valutazione nel documento). Ricerca del 18/11 in
-  `docs/hardware/ricerca-grip-controller-2026-11-18.md`: consiglio grip B, piano a fasi; aspetta le 6 decisioni dell'utente.
+  `docs/hardware/ricerca-grip-controller-2026-11-18.md`: consiglio grip B, piano a fasi; decisione dell'utente: prodotto solo per sé
+  (4 grip + chiavetta, scheda pronta in manico stampato), niente produzione; prossimo passo: lista d'ordine del kit di prova.
 - Punto aperto noto: `tools/e2e/natpf-lob-drop.mjs` 136/137, il controllo dei piedi in corsa (3,08 % contro 3 %) fallisce
   uguale dalla 17.3 (non è una regressione dei blocchi dopo).
 
