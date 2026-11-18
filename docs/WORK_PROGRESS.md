@@ -2686,3 +2686,6 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   area 640×360 2,5–2,8 s (fotogrammi 256×320 anche lì); 0 programmi shader nuovi; fogli 15,0 MB (2 × 24 × 256 × 320 × 4)
   come il B63; Android e meno di 4 GB: 12 fotogrammi (7,9 MB).
 - Non provato: PC dello stand, Windows vero, ledwall vero, GPU vera.
+- [x] Pacchetti 18.2: installer = `latest.json` (131.398.459 B, sha256 `93251e5c…26c3`, dal link fisso e dal file della
+  versione, contenuto controllato con 7zz: gioco 18.2, `index-DM15r9DB.js` come la build locale), zip `2b876777…3475`
+  (23.979.096 B) provato estratto (5 verifiche, l'unico KO il CORS del Worker TURN vero da 127.0.0.1). Workflow verdi.

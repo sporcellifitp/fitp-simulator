@@ -1713,7 +1713,12 @@ giornata (sezioni nuove del riassunto). B67 (mascotte) è di un altro agente.
       `docs/analisi/mascotte-3d-b69-card-1920x1080.webp` e `-card-area-640x360.webp`.
 - [x] Prove: gioco 1843/1843, sito 289/289, LAN 13/13, desktop 56/56, build; nel browser 7 prove verdi (lob-drop 136/137:
       piedi in corsa come prima). Versione 2026-11-18.2 con il B68.
-- [ ] Pacchetti della 18.2 (installer dal link fisso, zip provato estratto): in corso.
+- [x] Push `2c07fe9`. Pacchetti della 18.2: installer dal link fisso = `latest.json` 2026-11-18.2 (131.398.459 B, sha256
+      `93251e5ce92fc0716767675b1a5ae04dbbd28c3ff229218932dd655ba64726c3`; dentro il gioco 18.2 con i balletti, nessun
+      `.pem`/chiave); zip Cloudflare 23.979.096 B, sha256 `2b8767783775387f19f9ddabf7bd0c7d92722ab1259f31c35767fae9d20c3475`,
+      senza `registro.json`, provato estratto (gioco e pagina del telefono 18.2, card con le mascotte 3D che ballano, 24
+      fotogrammi; unico errore il CORS del Worker TURN vero visto da 127.0.0.1, come sempre). Tre workflow verdi (Simulator
+      tests, motore base MVP, eseguibili Windows; l'app Android non cambia).
 
-**Prossima azione esatta (18/11, 13:30 UTC)**: push, poi pacchetti della 18.2 (workflow Windows, `latest.json`, zip
-Cloudflare provato estratto); poi aspettare l'utente (collaudo delle mascotte sul ledwall e sul PC dello stand).
+**Prossima azione esatta (18/11, 13:45 UTC)**: aspettare l'utente: collaudo delle mascotte che ballano sul ledwall e sul
+PC dello stand (tempi veri della cattura con la GPU), installare l'app 1.0.4 sui telefoni dello stand.

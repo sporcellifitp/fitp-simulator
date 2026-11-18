@@ -21,9 +21,10 @@ Come si aggiorna:
 «Lob & Drop», sei balletti di vittoria e due sconfitte nuove; B68 «Batte per primo» più breve).**
 `docs/b69/balletti-mascotte.md`. Gioco 1843/1843, sito 289/289, LAN 13/13, desktop 56/56, build; nel browser
 fine-partita-ritratti 28/28, mascotte-3d-anteprima 27/27, fine-partita 68/68, classifica-fine 11/11, b20 52/52,
-fiera-telefoni 66/66, lob-drop 136/137 (piedi in corsa, come prima). **Prossima azione esatta:** dopo il push, installer
-della 18.2 dal link fisso (`latest.json`, sha256) e zip Cloudflare provato estratto; poi aspettare l'utente (collaudo delle
-mascotte che ballano sul ledwall e sul PC dello stand; installare l'app 1.0.4 sui telefoni).
+fiera-telefoni 66/66, lob-drop 136/137 (piedi in corsa, come prima). Pacchetti verificati: installer dal link fisso
+`93251e5c…26c3` (131.398.459 B), zip `2b876777…3475` (23.979.096 B) provato estratto; tre workflow verdi. **Prossima
+azione esatta:** aspettare l'utente (collaudo delle mascotte che ballano sul ledwall e sul PC dello stand; installare
+l'app 1.0.4 sui telefoni).
 
 **Checkpoint del 18/11/2026, 11:30 UTC (versione 2026-11-18.1: B66 registro con sensori, calibrazione, prestazioni,
 precisione dei gesti, rete e blocco del telefono; app NATPF Racchetta 1.0.4).** `docs/b66/registro-sensori.md`. Gioco
