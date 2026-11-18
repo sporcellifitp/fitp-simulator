@@ -2644,3 +2644,21 @@ intatto). Revisore senza il contesto di chi ha fatto la 14.6–14.8: diff contro
   56/56, documento `docs/b57/`.
 - Verifiche: vedi la voce della traccia (suite complete prima del commit della versione).
 
+
+## B66 · Registro dello stand: sensori, calibrazione, prestazioni, precisione dei gesti, rete e blocco del telefono · [x] · 18/11/2026
+
+- [x] Telefono: `site/js/tennis/phone-stats.js` (nuovo), `racchetta.js` (stato `st` con `sq`, `lc`, `ap`; `dev` con `av`;
+  colpo con `gw`), `swing-message.js` (`mg`, `gw`), `swing-detect.js` (`margin`, solo misura), `link.js` (`app`).
+- [x] App NATPF Racchetta **1.0.4** (codice 5): `PhoneStatus.java` (nuovo, solo numeri), `MainActivity.java`
+  (`Bridge.stato()`, schermi spenti), test `PhoneStatusTest` (4).
+- [x] Gioco: `registro/registro_misure.js` (nuovo), `registro_registratore.js`, `registro_formato.js` (formato 3,
+  `CAMPI_B66`, `pause` fra le MAPPE), `natpf_phone_racket.js` (`onState`), Worker `cloudflare/registro-worker.js` (stessi
+  campi, formato 3: **da ricaricare**), riassunto `scripts/registro/riassunto.mjs` (sei sezioni), `finto.mjs`.
+- [x] Prove: gioco 1826/1826 (+6), sito 289/289 (+7), desktop 56/56, LAN 13/13, build (2026-11-18.1 nel bundle); app con
+  l'SDK 34 nel contenitore: test 9/9, lint come la 1.0.3, `controlla-classi.mjs` verde; nel browser `natpf-registro-sensori`
+  (nuova) 23/23, `natpf-registro` 39/39, `natpf-phone-blackout` 11/11, `natpf-training-flow` 21/21, `natpf-fiera-telefoni`
+  66/66, `natpf-fine-partita` 68/68, `natpf-telefono-bloccato` 12/12 e `natpf-nome-telefono` 23/23 (con `run-local.mjs`,
+  porte fisse 8765/9000, e `NATPF_SITE_ROOT`). Gesti veri del 28/10: impronta del rilevatore identica a prima.
+- [x] Peso: partita vera nel browser 4,79 → 5,72 kB in chiaro (25 righe, 15 colpi del telefono); registri finti 7,37 →
+  8,53 kB a partita in chiaro, 1,23 → 1,52 kB compressi.
+- Non provato: telefono vero, app 1.0.4 su un telefono vero, Wi-Fi vera, Worker vero (da ricaricare dall'utente).

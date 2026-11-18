@@ -17,6 +17,15 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
+**Checkpoint del 18/11/2026, 11:30 UTC (versione 2026-11-18.1: B66 registro con sensori, calibrazione, prestazioni,
+precisione dei gesti, rete e blocco del telefono; app NATPF Racchetta 1.0.4).** `docs/b66/registro-sensori.md`. Gioco
+1826/1826, sito 289/289, LAN 13/13, desktop 56/56, build; app con l'SDK 34 nel contenitore (test 9/9, lint, classi verde);
+nel browser registro-sensori 23/23, registro 39/39, phone-blackout 11/11, training-flow 21/21, fiera-telefoni 66/66,
+fine-partita 68/68, telefono-bloccato 12/12, nome-telefono 23/23. **Prossima azione esatta:** dopo il push, workflow verdi,
+installer della 18.1 dal link fisso (sha256), zip Cloudflare provato estratto, APK 1.0.4 pubblicato; poi aspettare
+l'utente: **ricaricare il Worker del registro** (formato 3, `docs/b66/registro-sensori.md` §5), installare l'app 1.0.4 sui
+telefoni dello stand, registro della prossima giornata. B67 (mascotte) in un'altra worktree, non toccato.
+
 **Checkpoint del 17/11/2026, 18:30 UTC (versione 2026-11-17.4 pubblicata: installer `d442fa8d…7aed`, zip `8e2559f1…5422`).** B65 classifica di oggi a fine partita,
 B64 ridondanze tolte, B63 mascotte 3D presenti ma spente (aspettano l'approvazione dell'anteprima). Gioco 1820/1820, sito
 282/282, LAN 13/13, desktop 56/56, build; nel browser classifica-fine 11/11, chi-gioca 55/55, b47-fiera 20/20, b20 52/52,

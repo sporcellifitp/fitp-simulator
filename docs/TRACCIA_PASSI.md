@@ -1669,3 +1669,18 @@ di salvaschermo, ridondanze e classifica di fine partita. Punto aperto: il contr
   triste». **B67** avviato (agente, ramo locale `b67-mascotte-pose`, worktree `scratchpad/b67/wt`, porte 4550–4599): niente
   unione né versione finché l'utente non approva la nuova anteprima (`docs/analisi/mascotte-3d-anteprima-b67.webp`).
   Interruttore delle mascotte 3D sempre spento di base.
+
+## 18/11, 11:30 UTC · B66 fatto, versione 2026-11-18.1
+
+- [x] B66 (`docs/b66/registro-sensori.md`): registro con qualità dei sensori (`tq`), collegamento (`lat`, `rit` nei colpi),
+      rete e batteria dall'app (`wifi`), telefono bloccato (`blocco`), calibrazione (`cal`), pause, precisione dei gesti
+      (`cf`, `mg`, `gb` nei colpi), versioni di pagina e app. Formato delle righe 3: **Worker da ricaricare** (utente, §5).
+- [x] App NATPF Racchetta 1.0.4: `Bridge.stato()` (solo numeri). SDK di Android installato nel contenitore
+      (`scratchpad/b66/android-sdk`): build, test e lint locali verdi.
+- [x] Prove: gioco 1826/1826, sito 289/289, LAN 13/13, desktop 56/56, build; nel browser 8 prove verdi (WORK_PROGRESS).
+- [~] Push, workflow, pacchetti (installer, zip, APK 1.0.4).
+
+**Prossima azione esatta (18/11, 11:30 UTC)**: verificare i tre workflow e quello dell'app sul commit della 18.1; installer
+dal link fisso (sha256), zip Cloudflare provato estratto, APK 1.0.4 pubblicato; poi aspettare l'utente (ricaricare il
+Worker, app 1.0.4 sui telefoni).
+
