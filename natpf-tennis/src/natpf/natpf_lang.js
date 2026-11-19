@@ -178,7 +178,10 @@ export const GAME_TEMPLATES = [
   [/^Fine partita · (\d+) game a (\d+)$/, m => `Match over · ${m[1]} games to ${m[2]}`],
   [/^Bella sfida, (.+)!$/, m => `Great match, ${m[1]}!`],
   [new RegExp(`^(La CPU ha vinto|L[’']avversario ha vinto|Hanno vinto le CPU|Hanno vinto gli avversari|Ha vinto (.+)|Hanno vinto (.+)) questa volta\\. Ecco cosa ti è venuto meglio:$`), m => {
-    const who = m[2] || m[3], head = who ? `${teamEn(who)} won` : /^Hanno/.test(m[1]) ? 'The opponents won' : 'The opponent won';
+    // (unione B72: il ramo b72-avversario scrive «Ha vinto l'avversario questa volta…» con l'articolo dopo il verbo: chi ha
+    // vinto passa anche da whoEn, così «l'avversario» diventa «The opponent» e un nome resta com'è)
+    const who = m[2] || m[3], team = who ? teamEn(who) : '', w = team ? whoEn(team) : '';
+    const head = who ? `${w !== team ? cap(w) : team} won` : /^Hanno/.test(m[1]) ? 'The opponents won' : 'The opponent won';
     return `${head} this time. Here is what you did best:`;
   }],
   [/^Scambio più lungo della partita: (\d+) colpi$/, m => `Longest rally of the match: ${m[1]} shots`],
@@ -218,6 +221,10 @@ export const GAME_TEMPLATES = [
   [/^manca (.+)$/, m => `${m[1]} is missing`],
   // nomi delle squadre e degli avversari
   [/^(Tu|CPU|2 CPU|Avversario|Avversari)$/, m => teamEn(m[1])],
+  // (unione B72) avversario con il livello scelto per nome (natpf_who.opponentLevelName: «Avversario esperto», «Avversario
+  // Leggenda») e la palla corta dell'avversario già in italiano (natpf_i18n «CPU DROP SHOT»)
+  [/^Avversario (bambini|facile|evento|esperta|esperto|leggenda)$/i, m => `${LEVEL[cap(m[1].toLowerCase())]} opponent`],
+  [new RegExp(`^Palla corta (${OPP_OF}|${OPPS_OF})$`), m => `${/^Opponents/.test(ofWho(m[1])) ? 'Opponents’' : 'Opponent’s'} drop shot`],
   // riga di una pausa quando ce ne sono due: «titolo: testo»
   [/^(Telefono[^:]*): (.+)$/, (m, T) => { const a = T(m[1]), b = T(m[2]); return a !== m[1] || b !== m[2] ? `${a}: ${b}` : null; }],
   // per ultimo: un nome con il punteggio o i game («Giulia 15», «Marco 1» nello stesso schermo) resta com'è (niente pezzi

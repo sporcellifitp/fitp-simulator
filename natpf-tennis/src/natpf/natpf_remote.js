@@ -329,7 +329,7 @@ export class NatpfRemote {
         if (screen.id === 'victory'){ $('btn-play-again')?.click(); return { ok: true, msg: this.ui.rematch?.isOpen ? 'Scegli il livello, poi Gioca' : 'Gioca ancora' }; }
         if (screen.id === 'rematch'){ this.ui.rematch.play(); return { ok: true, msg: 'Si gioca!' }; }
         const step = L.step;
-        if (step === 'menu' || !['mode', 'controller', 'connect', 'match', 'result'].includes(step)){ L.setMode('cpu'); L.go(ui.controller === 'phone' && ui.phone?.connected ? 'connect' : 'controller'); return { ok: true, msg: 'Contro la CPU' }; }
+        if (step === 'menu' || !['mode', 'controller', 'connect', 'match', 'result'].includes(step)){ L.setMode('cpu'); L.go(ui.controller === 'phone' && ui.phone?.connected ? 'connect' : 'controller'); return { ok: true, msg: `Contro ${OPPONENT_REF.who}` }; }   // (unione B72: prima «Contro la CPU»)
         if (step === 'mode'){ L.setMode('cpu'); L.go('controller'); return { ok: true }; }
         if (step === 'controller'){ L.go('connect'); return { ok: true }; }
         if (step === 'result'){ L._resultAction('again'); return { ok: true, msg: 'Si rigioca il minigioco' }; }
