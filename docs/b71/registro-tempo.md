@@ -84,6 +84,10 @@ finestra in cui un colpo arrivato dopo il punto d'impatto è ancora buono: palla
 - `queueUserSwing` (`natpf_impact.js`) allarga di `ant` il limite in ritardo (`lead ≥ −(lateSpan·extra + ant)`), la
   scadenza dello swing in attesa (`lateWin + ant`) e calcola «palla passata» con il tempo vero dal gesto
   (`ballAtGesture(b, lat + ant)`, B18). Il voto non cambia (resta con la correzione: un colpo così è «very late»).
+- Effetto collaterale voluto: un gesto debole in attesa (`WEAK`, il colpo vero può ancora arrivare in ritardo) aspetta
+  `min(0,22 s; lateWin)`, adesso con `lateWin` più lungo di 0,1 s: in fiera fino a 0,22 s invece di 0,17 (15 m/s) e 0,19
+  invece di 0,09 s (28 m/s). Il colpo vero in ritardo, accettato più a lungo, ha il tempo di prendere il suo posto (è il
+  «gesto doppio» dell'analisi); se non arriva, la palla parte un poco più tardi.
 
 Limite in tempo vero dopo il punto d'impatto, livello 1v1: 15 m/s **+68 → +168 ms**, 28 m/s **−10 → +90 ms** (uguale a
 fuori dalla fiera). Prove: palla a 15 m/s, picco 50 ms dopo il punto d'impatto, in fiera → 'late' (passava già prima: il
@@ -121,7 +125,10 @@ registro (adesso `displayLagMs` c'è).
   tutte e due**, adesso passano.
 - `registro-worker.test.mjs`: il Worker del 18/11 accetta la riga «partita» nuova togliendo solo `displayLagMs`.
 - `natpf-b56-anticipo.test.mjs`: aggiornata la riga che provava la somma dei due ritardi in fiera (adesso non si sommano).
-- Suite: gioco **1857/1858** (1 saltata, come prima; 1844 + 14 prove nuove), sito **289/289**. `docs/WORK_PROGRESS.md`,
+- Suite: gioco **1857/1858** (1 saltata, come prima; 1844 + 14 prove nuove), sito **289/289**, build ok. Nel browser
+  (Chromium, gioco vero con vite, telefono simulato): `natpf-registro-sensori.mjs` **23/23** (le righe «colpo» hanno `cf`
+  del gioco: 0,5 i top spin normali, 0,42–0,44 i piatti), `natpf-registro.mjs` **39/39**, `natpf-fiera-telefoni.mjs`
+  **66/66**. `docs/WORK_PROGRESS.md`,
   `PIANO_LAVORI.md` e `TRACCIA_PASSI.md` non sono aggiornati da questo ramo (lo fa chi unisce i rami B71).
 
 ## 5. Non verificato
