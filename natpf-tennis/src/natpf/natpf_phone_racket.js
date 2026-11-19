@@ -552,6 +552,11 @@ export class NatpfPhoneRacket {
     // '', er = perché il nome mandato non va, id = numero della richiesta); la risposta torna come «name» (onName). Solo con
     // le pagine del telefono che lo sanno fare (device.names, messaggio dev nm 1): con quelle di prima non si chiede
     this.nameListeners = new Set(); this.nameOffer = null; this.nameSent = ''; this.nameSeq = 1 + Math.floor(Math.random()*1e6);
+    // B72 (19/11): lingua di chi tiene questo telefono, scelta sul telefono (IT | EN, messaggio «lang»): null finché il
+    // telefono non l'ha detta (pagina di prima: vale IT, natpf_lang.langOfPhone). La decide il gioco come la mano: quella
+    // toccata sul telefono vale sempre; quella annunciata al collegamento solo se qui non si conosce ancora (un giocatore
+    // nuovo la rimette a IT, natpf_lang.resetLangs, e il telefono la riceve in cfg lg). langListeners: chi ridisegna i testi
+    this.lang = null; this.langListeners = new Set();
     // B41.2: posto dello stand di questo telefono ('p1' Telefono 1, 'p2' Telefono 2) con la modalità fiera, null per la
     // racchetta normale (QR a ogni abbinamento). Lo decide natpf_fiera.js (useStand)
     this.standSlot = null;
@@ -652,6 +657,24 @@ export class NatpfPhoneRacket {
     if (next === this.hand) return;
     if (this.onHand) this.onHand(next, 'telefono'); else this.setHand(next, 'telefono');
   }
+  // B72: lingua di chi tiene il telefono ('it' | 'en'). causa: 'telefono' (toccata sul telefono), 'gioco', 'nuovo
+  // giocatore' (natpf_lang.resetLangs). Va al telefono in cfg (lg) e ai ridisegni dei testi (onLang); niente al registro
+  setLang(l, causa = 'gioco'){
+    const next = l === 'en' ? 'en' : 'it';
+    if (next === this.lang) return false;
+    this.lang = next;
+    if (this.connected) this.link.send(this._cfg());
+    for (const fn of this.langListeners) try { fn(next, causa); } catch (e){ console.error(e); }
+    return true;
+  }
+  // lingua dal telefono: toccata (vale sempre) o annunciata al collegamento (link: vale solo se qui non si sa ancora; se
+  // il gioco ne ha già una diversa, per esempio IT dopo «Nuovo giocatore» con il telefono scollegato, la rimanda)
+  _onPhoneLang(l, { link = false } = {}){
+    if (l !== 'it' && l !== 'en') return;
+    if (link && this.lang != null){ if (l !== this.lang && this.connected) this.link.send(this._cfg()); return; }
+    if (!this.setLang(l, 'telefono') && this.connected) this.link.send(this._cfg());
+  }
+  onLang(fn){ this.langListeners.add(fn); return () => this.langListeners.delete(fn); }
   setGrip(g){
     this.grip = normalizeGrip(g); writeGrip(this.grip); this.gripSent = false; this._sendGrip(); this._changed();
   }
@@ -732,6 +755,8 @@ export class NatpfPhoneRacket {
     link.on('toss', () => { this._activity(); this._onToss(); });
     link.on('prep', p => { this._activity(); this._onPrep(p); });
     link.on('hand', e => { this._activity(); this._onPhoneHand(e.hand); });
+    // B72: lingua scelta sul telefono (toccata, o annunciata al collegamento: link)
+    link.on('lang', e => { if (!e?.link) this._activity(); this._onPhoneLang(e?.lang, { link: !!e?.link }); });
     link.on('rematch', () => { this._activity(); for (const fn of this.rematchListeners) try { fn(this); } catch (e){ console.error(e); } });
     link.on('next', e => this._onNext(e));
     link.on('name', e => this._onName(e));
@@ -806,7 +831,8 @@ export class NatpfPhoneRacket {
   // sn (B71): segno di fiera, in modalità fiera il rilevatore del telefono gira il segno dei sensori solo con almeno
   // TRIAL_SIGN.detector voti contrari concordi (prima 4 voti in tutto: il 18-19/11 74 cambi in partita con lo stesso telefono)
   get signNeed(){ return this.engine.natpfUi?.fiera?.on ? TRIAL_SIGN.detector : 0; }
-  _cfg(){ const sn = this.signNeed; this.cfgSn = sn; return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}), ...(this.atNet ? { net: 1 } : {}), ...(sn ? { sn } : {}) }; }
+  // lg (B72): la lingua di chi tiene il telefono, solo quando il gioco la conosce (le pagine di prima ignorano il campo)
+  _cfg(){ const sn = this.signNeed; this.cfgSn = sn; return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}), ...(this.atNet ? { net: 1 } : {}), ...(sn ? { sn } : {}), ...(this.lang ? { lg: this.lang } : {}) }; }
   // a rete: entro NET_Z.in m dalla rete nello scambio; si esce oltre NET_Z.out (isteresi: niente cfg a ogni passo sul confine).
   // Manda cfg al telefono quando cambia; true se è cambiato
   setNet(v){

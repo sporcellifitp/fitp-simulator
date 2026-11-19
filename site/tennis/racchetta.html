@@ -19,7 +19,9 @@
   #bar{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;min-height:28px}
   #bar i{width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none}
   #bar.ok i{background:var(--ok)} #bar.bad i{background:var(--bad)}
-  #bar small{margin-left:auto;color:var(--muted);font-weight:500}
+  #bar small{margin-left:auto;color:var(--muted);font-weight:500;white-space:nowrap}
+  /* B72: con il selettore della lingua accanto, la scritta della barra resta su una riga (… se non ci sta) */
+  #barTxt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #stage{flex:1 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;padding:8px 4px}
   #ring{position:relative;width:min(64vw,270px);aspect-ratio:1;border-radius:50%;border:7px solid #2a4590;display:flex;flex-direction:column;align-items:center;justify-content:center;
     transition:border-color .15s,transform .1s;background:radial-gradient(circle at 50% 40%,#1c3580,#0d1b4a)}
@@ -43,6 +45,20 @@
   #profileOptions [data-hand].ask{border:2px solid var(--warn);color:var(--warn);background:rgba(255,190,60,.12);font-size:14px;line-height:1.15;max-width:150px;white-space:normal;animation:handAsk .9s ease-in-out infinite alternate}
   @keyframes handAsk{from{box-shadow:0 0 0 0 rgba(255,190,60,.0)}to{box-shadow:0 0 0 4px rgba(255,190,60,.35)}}
   @media (prefers-reduced-motion:reduce){#profileOptions [data-hand].ask{animation:none}}
+  /* B72: lingua IT | EN (lingua.js), scelta da chi gioca sul suo telefono: piccola nella barra in alto (sempre raggiungibile,
+     anche in partita), una riga sotto la mano prima di «Attiva i sensori», e nel riquadro del telefono bloccato (lì con due
+     tocchi, come la mano: un palmo che sfiora lo schermo non la cambia) */
+  .lang-seg{display:inline-flex;flex:none;border:1px solid #405b9b;border-radius:10px;overflow:hidden}
+  .lang-seg button{min-width:42px;min-height:36px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:800;letter-spacing:.04em;padding:0 9px}
+  .lang-seg button.on{background:var(--ink);color:#071233}
+  .lang-seg button.ask{background:rgba(255,190,60,.18);color:var(--warn);box-shadow:inset 0 0 0 2px var(--warn)}
+  #langBar{margin-left:8px}
+  #langOptions{display:flex;align-items:center;gap:8px;font-size:16px;background:#13245a;border-radius:12px;padding:8px 8px 8px 14px;margin-top:8px}
+  #langOptions>span{flex:1;color:var(--muted);font-weight:600}
+  #langOptions [data-lang]{min-height:44px;min-width:100px;border:1px solid #405b9b;border-radius:10px;background:transparent;color:var(--ink);font:inherit;font-weight:600}
+  #langOptions [data-lang].on{background:var(--ink);border-color:var(--ink);color:#071233}
+  #langLock{position:absolute;top:max(16px,env(safe-area-inset-top));right:16px}
+  #langLock button{min-height:44px;min-width:52px;font-size:16px}
   #moreOpts{margin-top:4px;font-size:15px}
   #moreOpts summary{list-style:none;cursor:pointer;text-align:center;color:var(--muted);padding:10px;text-decoration:underline;text-underline-offset:3px}
   #moreOpts summary::-webkit-details-marker{display:none}
@@ -139,7 +155,7 @@
 </style>
 </head>
 <body>
-<div id="bar"><i></i><span id="barTxt">Collegamento…</span><small id="lat"></small></div>
+<div id="bar"><i></i><span id="barTxt">Collegamento…</span><small id="lat"></small><span id="langBar" class="lang-seg" role="radiogroup" aria-label="Lingua"><button type="button" data-lang="it" role="radio" aria-checked="true" class="on" lang="it">IT</button><button type="button" data-lang="en" role="radio" aria-checked="false" lang="en">EN</button></span></div>
 <!-- B41.3: telefono dello stand (modalità fiera): numero del posto; tenuto premuto 3 s, i pulsanti dello staff -->
 <div id="standTag" class="hidden" role="img" aria-label="Telefono dello stand"><b>1</b><span><em>Telefono 1</em><small>dello stand · staff: tieni premuto 3 s</small></span></div>
 <!-- sensori fermi o schermo che può spegnersi (phone-keep.js): cosa succede e cosa fare -->
@@ -181,6 +197,10 @@
   <span>Mano</span><button type="button" data-hand="right" role="radio" aria-checked="true" class="on">Destra</button><button type="button" data-hand="left" role="radio" aria-checked="false">Sinistra</button>
   <label hidden>Mano <select id="hand"><option value="right">Destra</option><option value="left">Sinistra</option></select></label>
 </div>
+<!-- B72: lingua di chi gioca (IT | EN), sotto la mano: la pagina cambia subito e il computer mostra la sua parte in quella lingua -->
+<div id="langOptions" class="hidden" role="radiogroup" aria-label="Lingua">
+  <span>Lingua</span><button type="button" data-lang="it" role="radio" aria-checked="true" class="on" lang="it">Italiano</button><button type="button" data-lang="en" role="radio" aria-checked="false" lang="en">English</button>
+</div>
 <div id="shotPanel" class="hidden">
   <div id="shotChoices"></div><div id="shotHint">Guarda la palla sul computer e dai un colpetto.</div>
   <div id="manualAim" class="hidden"><label>Direzione <select id="aimDir"><option value="1">← Sinistra</option><option value="0">Centro</option><option value="-1">Destra →</option></select></label>
@@ -221,6 +241,7 @@
 <!-- solo mentre il computer registra la diagnostica: segna nel registro l'istante di un problema -->
 <button class="btn alt hidden" id="mark">⚑ Segna un problema</button>
 <div id="phoneTouchLock" class="hidden" role="region" aria-label="Schermo bloccato durante il gioco">
+  <span id="langLock" class="lang-seg" role="radiogroup" aria-label="Lingua"><button type="button" data-lang="it" role="radio" aria-checked="true" class="on" lang="it">IT</button><button type="button" data-lang="en" role="radio" aria-checked="false" lang="en">EN</button></span>
   <strong id="phoneTouchSlot"></strong><p id="phoneTouchPhase">Gioca!</p>
   <button type="button" class="btn alt hidden" id="phoneStaffUnlock">Sblocca</button>
 </div>

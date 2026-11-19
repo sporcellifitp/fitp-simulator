@@ -105,8 +105,11 @@ export class NatpfSplit {
   // con la palla in aria), come quella del motore
   _serveTags(vp){
     const E = this.e, on = !!vp && ['SERVE_STANCE', 'SERVE_TOSS'].includes(E.phase) && E.cameraMode !== 'REPLAY_CAM';
+    const fresh = on && !this._tags;
     const tags = this._tags || (on ? (this._tags = serveTagEls()) : null);
     if (!tags) return;
+    // B72: le due caselle appena nate nella lingua di ciascuna metà (natpf_lang.NatpfLang.refresh)
+    if (fresh) E.natpfLang?.refresh?.(true);
     const who = E.score?.server === 'opponent' ? E.opponent : E.player, M = E.natpfUi?.serveMark;
     // (B37.1: appena sopra la testa misurata di chi batte, lo stesso punto per le due camere: natpf_serve_marker.tagPoint)
     const base = on && who?.pos ? (M?.tagPoint ? M.tagPoint(who, _base) : who.pos) : null, h = M?.tagPoint ? 0 : undefined;

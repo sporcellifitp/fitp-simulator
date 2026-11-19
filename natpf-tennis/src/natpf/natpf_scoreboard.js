@@ -162,11 +162,12 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 // punti nella casella piena («AD» al vantaggio, così la casella resta larga uguale). B43: sotto le sigle, sempre dentro il
 // riquadro, l'etichetta tonda .sb-tag (data-sb-tag: format | decisive); formato intero e scritta del momento solo per lo
 // screen reader (.sb-sr, data-sb-format e data-sb-label: prima erano il sottotitolo .sb-foot sotto il riquadro)
-export function scoreboardHtml(v){
+// (B72: serving = la nota per lo screen reader nella lingua del tabellone, natpf_lang.servingNote)
+export function scoreboardHtml(v, { serving = ' (al servizio)' } = {}){
   const row = r => `<div class="sb-row sb-${r.side}${r.serving ? ' serving' : ''}${r.adv ? ' adv' : ''}" data-sb-row="${r.side}"${r.look ? ` data-sb-look="${esc(r.look)}"` : ''} title="${esc(r.name)}">`
     + `<i class="sb-tab" aria-hidden="true"></i><i class="sb-serve" aria-hidden="true"></i>`
     + `<b class="sb-name" data-sb-name="${esc(r.name)}" aria-hidden="true">${esc(r.short || r.name)}</b>`
-    + `<span class="sb-sr">${esc(r.name)}${r.serving ? ' (al servizio)' : ''}</span>`
+    + `<span class="sb-sr">${esc(r.name)}${r.serving ? serving : ''}</span>`
     + `<span class="sb-games" data-sb-games>${esc(r.games)}</span><strong class="sb-points" data-sb-points>${esc(r.points === 'Vant.' ? 'AD' : r.points)}</strong></div>`;
   const tag = v.tag || scoreTag();
   return `<div class="sb-box">${v.rows.map(row).join('')}`

@@ -168,7 +168,10 @@ export class NatpfServeCoach {
     const el = this.el; if (!el) return;
     // (il riquadro di testo solo quando c'è una scritta: B44)
     if (v && !v.big) v = null;
-    const key = v ? `${v.state}|${v.big}|${v.sub}|${g.side}|${v.call ? 1 : 0}` : '';
+    // B72: nella lingua di chi batte (a una vista quella di chi gioca qui; nello stesso schermo quella della sua metà, anche il
+    // richiamo per nome a tutta larghezza: è per lui). Solo i testi: la casella e il suo lampeggio non cambiano
+    const LG = this.engine?.natpfLang, lang = LG?.at?.(g.side === 'left' || g.side === 'right' ? g.side : 'center') || 'it';
+    const key = v ? `${v.state}|${v.big}|${v.sub}|${g.side}|${v.call ? 1 : 0}|${lang}` : '';
     if (key === this.shown) return;
     this.shown = key;
     el.classList.toggle('hidden', !v);
@@ -177,7 +180,9 @@ export class NatpfServeCoach {
     // richiamo per nome: a tutta larghezza, sotto i due tabelloni (natpf-ui.css)
     if (v.call) el.dataset.call = '1'; else delete el.dataset.call;
     const big = el.querySelector?.('[data-c="big"]'), sub = el.querySelector?.('[data-c="sub"]');
-    if (big) big.textContent = v.big;
-    if (sub){ sub.textContent = v.sub; sub.hidden = !v.sub; }
+    if (big) big.textContent = LG ? LG.say(v.big, lang) : v.big;
+    if (sub){ sub.textContent = LG ? LG.say(v.sub, lang) : v.sub; sub.hidden = !v.sub; }
   }
+  // B72: lingua cambiata (natpf_lang.NatpfLang.refresh): la scritta in vista si riscrive al prossimo giro
+  repaint(){ this.shown = null; }
 }

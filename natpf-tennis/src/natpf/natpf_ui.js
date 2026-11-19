@@ -60,6 +60,7 @@ import { NatpfPrematch } from './natpf_prematch.js';
 import { NatpfRematch } from './natpf_rematch.js';
 import { NatpfRitratti } from './natpf_ritratti.js';
 import { mascotRotation } from './natpf_mascotte.js';
+import { NatpfLang, localizeBoard, servingNote } from './natpf_lang.js';   // B72: lingua di chi gioca (IT | EN dal telefono)
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -107,6 +108,10 @@ export class NatpfUi {
       onClose: () => { this._syncPause(); if (this.lobby?.visible){ this.lobby.paint(); document.querySelector?.('[data-option="calibra"]')?.focus?.({ preventScroll: true }); } },
     });
     this.phone = engine.natpfPhone;
+    // B72: lingua di chi gioca, scelta sul suo telefono (natpf_lang.js): i testi della partita nella lingua di ciascuno (nello
+    // stesso schermo per metà), menu e pagine dello staff in italiano. Anche l'HUD del motore la legge (hud_ui._lang)
+    this.lang = engine.natpfLang = new NatpfLang(engine, this);
+    if (engine.hud) engine.hud.natpfLang = this.lang;
     // mouse e tastiera solo in modalità prova (easter egg «natpf» nel menu)
     this.testInput = store.get('testInput', '') === '1';
     this.controller = store.get('controller', 'phone');
@@ -323,10 +328,13 @@ export class NatpfUi {
       split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName,
       looks: castLooks(getCast(), !!E.isMultiplayer),   // B24: linguette del colore di Drop e di Lob
       myName: this.events?.nickname || '' });            // B54: contro la CPU il nome di chi gioca al posto di «Tu»
-    const html = scoreboardHtml(v);
+    // B72: nella lingua di chi guarda quel tabellone (a una vista chi gioca qui; nello stesso schermo ogni copia nella lingua
+    // della sua metà: è il tabellone di quel giocatore)
+    const l1 = this.lang?.at('left') || 'it', l2 = this.lang?.at('right') || 'it';
+    const html = scoreboardHtml(localizeBoard(v, l1), { serving: servingNote(l1) });
     if (this._sbHtml !== html || !el.firstChild){ this._sbHtml = html; el.innerHTML = html; }
     // stesso schermo (B17.3): la stessa tabella anche in alto a sinistra della metà del Player 2; vuota altrimenti
-    const el2 = $('natpf-scoreboard-p2'), html2 = E.natpfSplit?.active ? html : '';
+    const el2 = $('natpf-scoreboard-p2'), html2 = E.natpfSplit?.active ? (l2 === l1 ? html : scoreboardHtml(localizeBoard(v, l2), { serving: servingNote(l2) })) : '';
     if (el2 && (this._sbHtml2 !== html2 || !!el2.firstChild !== !!html2)){ this._sbHtml2 = html2; el2.innerHTML = html2; }
   }
   // «Nuovo giocatore»: azzera nome, mano, tutorial, calibrazione e colpi imparati senza scollegare il telefono, e porta chi
@@ -832,20 +840,23 @@ export class NatpfUi {
         b?.addEventListener('click', e => { e.stopPropagation(); try { el[k]?.(); } catch (err){ console.error(err); } });
       }
     }
-    const two = list.length > 1, acts = list.map(h => h.action).filter(Boolean);
-    el.querySelector('b').textContent = two ? 'Partita in pausa' : list[0].title;
+    const two = list.length > 1, acts = list.filter(h => h.action).map(h => ({ ...h.action, key: h.key }));
+    // B72: ogni pausa nella lingua del suo giocatore (nello stesso schermo la sua metà), il titolo di due pause in quella comune
+    const LG = this.lang, lg = k => LG?.at(this.engine.natpfSplit?.active ? (k === 'p2' ? 'right' : 'left') : 'center') || 'it';
+    const say = (t, k) => (LG ? LG.say(t, k ? lg(k) : LG.at('center')) : t);
+    el.querySelector('b').textContent = two ? say('Partita in pausa') : say(list[0].title, list[0].key);
     const line = h => {
       const other = list.find(o => o !== h);
       if (h.count && other && !other.count) return `${h.title}: aspetto il telefono ${phoneOf(this._splitName(other.key) || (other.key === 'p2' ? 'Player 2' : 'Player 1'))}`;
       return h.row || `${h.title}: ${h.text}`;
     };
-    el.querySelector('p').textContent = two ? list.map(line).join('\n') : list[0].text;
+    el.querySelector('p').textContent = two ? list.map(h => say(line(h), h.key)).join('\n') : say(list[0].text, list[0].key);
     el.classList.toggle('two', two);
     // con due pause i pulsanti dicono di chi sono (Player 1, Player 2)
     const label = a => two && a.who ? `${a.label} ${phoneOf(a.who)}` : a.label;
     el._run = acts[0]?.run || null; el._run2 = acts[1]?.run || null;
-    if (acts[0] && b1) b1.textContent = label(acts[0]); show(b1, !!acts[0]);
-    if (acts[1] && b2) b2.textContent = label(acts[1]); show(b2, !!acts[1]);
+    if (acts[0] && b1) b1.textContent = say(label(acts[0]), acts[0].key); show(b1, !!acts[0]);
+    if (acts[1] && b2) b2.textContent = say(label(acts[1]), acts[1].key); show(b2, !!acts[1]);
     show(el);
     this._paintHoldQr();
   }
@@ -861,7 +872,8 @@ export class NatpfUi {
       if (!on) continue;
       any = true;
       this.renderQr(fig.querySelector('.hold-qr'), null, null, p);
-      const cap = `Telefono ${phoneOf(this._splitName(k) || (k === 'p2' ? 'Player 2' : 'Player 1'))}: inquadra questo QR`;
+      const cap0 = `Telefono ${phoneOf(this._splitName(k) || (k === 'p2' ? 'Player 2' : 'Player 1'))}: inquadra questo QR`;
+      const cap = this.lang ? this.lang.say(cap0, this.lang.at(k === 'p2' ? 'right' : 'left')) : cap0;   // B72
       const fc = fig.querySelector('figcaption'); if (fc.textContent !== cap) fc.textContent = cap;
     }
     show(el.querySelector('[data-hold-qrs]'), any);

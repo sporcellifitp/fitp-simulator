@@ -1,6 +1,9 @@
 import { renderAllHudPlayerAvatars as P, renderPlayerAvatar as L } from "./player_avatars.js";
 // NATPF: testi dell'HUD in italiano (traduzione al momento della visualizzazione)
 import { t as tr, scoreText as sc } from "./natpf/natpf_i18n.js";
+// NATPF B72: lingua di chi gioca (IT | EN dal telefono, natpf_lang.js): scritte dei colpi nella lingua della metà di chi ha
+// colpito, scritte grandi dei punti e schermata finale nella lingua comune dello schermo (natpf_lang.screenLangs)
+import { tx as ltx, scoreTx, translateEl } from "./natpf/natpf_lang.js";
 import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o area del ledwall
 import { statsHtml, endScreen, titleFit } from "./natpf/natpf_match_stats.js"; // NATPF B33/B35: i numeri veri della partita nella schermata finale
 import { cardModel, cardsHtml } from "./natpf/natpf_end_card.js"; // NATPF B40: card della partita
@@ -383,6 +386,17 @@ export class HudUI {
     put("victory-pill", S ? S.pill : "");
     const again = el("btn-play-again");
     again && (again.textContent = S ? S.again : "Gioca ancora");
+    // NATPF B72: titolo, riga sopra e sotto, righe dei game, punteggio e pillola nella lingua comune dello schermo (nello
+    // stesso schermo l'inglese solo se l'hanno scelto tutti e due); anche card e riquadri dei numeri. I pulsanti restano in italiano (li usa lo staff)
+    const lg = this._lang();
+    if (lg !== "it") {
+      for (const n of [i, kick, el("victory-sub"), el("victory-pill"), o]) n && n.textContent && (n.textContent = ltx(n.textContent, lg));
+      for (const s of r?.querySelectorAll?.("[data-victory-row] span") || []) s.textContent = ltx(s.textContent, lg);
+      const ga = gp?.querySelector?.("span");
+      ga && (ga.textContent = "to");
+      // (card e riquadri dei numeri: nome, livello, nastro, trofei, record, etichette dal dizionario; quello che non conosce resta)
+      translateEl(cd, lg), translateEl(st, lg);
+    }
     this.elVictoryModal.classList.toggle("has-stats", !!html),
       this.elVictoryModal.classList.toggle("has-cards", !!ch),
       this.elVictoryModal.classList.toggle("stats-split", !!S?.players),
@@ -490,18 +504,20 @@ export class HudUI {
     detail: n = "POWER TOPSPIN \u2022 176 KM/H",
     screenPos: e = null,
     durationMs: i = 1100,
+    lang: lg = null, // NATPF B72: lingua della scritta (null: quella comune dello schermo)
   }) {
+    const L = lg || this._lang();
     if (this.elTimingPopup) {
       if (
         (this.timingPopupTimer && clearTimeout(this.timingPopupTimer),
-        (this.elTimingGrade.textContent = tr(t)),
+        (this.elTimingGrade.textContent = ltx(t, L)),
         (this.elTimingGrade.className = "timing-grade"),
         t.includes("EARLY")
           ? this.elTimingGrade.classList.add("grade-early")
           : t.includes("LATE")
             ? this.elTimingGrade.classList.add("grade-late")
             : this.elTimingGrade.classList.add("grade-perfect"),
-        (this.elTimingDetail.textContent = tr(n)),
+        (this.elTimingDetail.textContent = ltx(n, L)),
         e && e.visible)
       ) {
         const o = Math.max(110, Math.min(viewport().w - 110, e.x)),
@@ -523,11 +539,11 @@ export class HudUI {
     !this.elBannerLayer ||
       !this.elBannerText ||
       (this.bannerTimer && (clearTimeout(this.bannerTimer), (this.bannerTimer = null)),
-      (this.elBannerText.textContent = tr(sc(t))),
+      (this.elBannerText.textContent = ltx(scoreTx(t, this._lang()), this._lang())),
       (this.elBannerText.className = `center-banner-text ${n}`),
       this.elBannerSub &&
         (e
-          ? ((this.elBannerSub.textContent = tr(e)), this.elBannerSub.classList.remove("hidden"))
+          ? ((this.elBannerSub.textContent = ltx(e, this._lang())), this.elBannerSub.classList.remove("hidden"))
           : this.elBannerSub.classList.add("hidden")),
       this.elBannerLayer.classList.remove("hidden"),
       !o &&
@@ -535,6 +551,10 @@ export class HudUI {
         (this.bannerTimer = setTimeout(() => {
           this.hideCenterBanner();
         }, i)));
+  }
+  // NATPF B72: lingua di una parte dello schermo ('center' a tutta larghezza; natpf_lang.NatpfLang, messo da natpf_ui)
+  _lang(where = "center") {
+    return this.natpfLang?.at?.(where) || "it";
   }
   hideCenterBanner() {
     this.bannerTimer && (clearTimeout(this.bannerTimer), (this.bannerTimer = null)),
