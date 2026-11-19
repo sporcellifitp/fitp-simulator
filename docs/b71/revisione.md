@@ -127,21 +127,57 @@ dopo la palla corta debole è `seq 2`.
 
 Le prove nuove dei punti 1 e 2 falliscono sul codice di prima (provato rimettendo i file di `b4fb3446`).
 
-## 11. Prove complete
+## 11. Prove complete (19/11, ramo `b71-int` dopo i due commit della revisione)
 
-Vedi §12 (numeri esatti, riempiti alla fine del passo).
+Contenitore Linux, Node 22, Chromium senza scheda grafica, telefono simulato; nello stesso contenitore giravano altri agenti
+(carico medio 4–13).
+
+| Suite | Comando | Esito |
+| --- | --- | --- |
+| Gioco | `cd natpf-tennis && npm test` | **1877/1877**, 0 rosse, 0 saltate (1872 + 5 prove nuove) |
+| Sito e pagina del telefono | `node --test tools/test/*.test.mjs` | **310/310** (308 + 2 nuove) |
+| Server LAN | `(cd tools/lan && node --test test/*.test.mjs)` | **13/13** |
+| Programma Windows | `(cd natpf-desktop && npm test)` | **56/56** |
+| Build | `cd natpf-tennis && npm run build` | ok (`dist/natpf/js/tennis/sensori-nativi.js` con `stimaRitardo`) |
+| App Android | `gradle --offline testReleaseUnitTest lintRelease assembleRelease` con l'SDK 34 rimasto nello scratchpad del B66, poi `node controlla-classi.mjs` | **BUILD SUCCESSFUL**: prove JUnit **22/22** (RisveglioSchermo 4, CampioniNativi 8, PhoneStatus 5, RacketLink 5), lint 0 errori e 12 avvisi (uno «Wakelock» sul rilascio di `sveglia` in `onDestroy`, di prima), APK di prova firmato con la chiave di debug, `controlla-classi` **VERDE** |
+
+Prove nel browser (una alla volta, porte proprie):
+
+| Script | Esito |
+| --- | --- |
+| `natpf-scambi-di-prova.mjs` (calibrazione giocando) | **32/32** (due giri con la macchina carica, carico 8–9: 28/32, prima palla persa perché la prova non vedeva in tempo «Allenati un po'!»; sul ramo di prima `b4fb3446` con carico 4: 32/32; di nuovo sul ramo con carico 3–5: **32/32**) |
+| `natpf-training-flow.mjs` | **21/21** |
+| `natpf-registro.mjs` | **39/39** |
+| `natpf-registro-sensori.mjs` | **23/23** (fermato dopo il sommario: non esce da solo, già noto) |
+| `natpf-b47-fiera.mjs` | **20/20** |
+| `natpf-formato-fiera.mjs` | **29/29** |
+| `natpf-stesso-schermo-b20.mjs` | **52/52** (con la macchina carica 51/52 e 50/52, rossi diversi ogni volta: richiamo «batti tu» e icona del lancio, controlli di disposizione a tempo) |
+| `natpf-fiera-telefoni.mjs` | **66/66** |
+| `natpf-tutorial-phone.mjs` | **46/46** |
+| `natpf-gesti-speciali.mjs` | **9/9** |
+| `natpf-gesti-sequenze.mjs` (dimostrazioni del tutorial) | **47/47** |
+| `natpf-sensori-nativi.mjs` (run-local) | **16/16** (15 + il ritardo `lg` nello stato: 8 ms con il ponte finto) |
+| `natpf-app-android.mjs` (run-local, `dist`) | **5/5** |
+| `natpf-telefono-bloccato.mjs` (run-local, `dist`) | **12/12** |
+| `gesture-calibration.mjs` (run-local) | **21/21** |
+| `phone-only.mjs` (run-local) | **10/10** |
+| `timing-browser.mjs` (run-local) | **8/8** (con la macchina carica due volte fermato da un'attesa di 20 s; sul ramo di prima 8/8; di nuovo sul ramo **8/8**) |
+
+Non rifatte: `natpf-lob-drop.mjs` (mascotte, 136/137 già noto, nessun file toccato) e `natpf-modale-gesti.mjs` (soglie di
+fotogrammi al secondo che dipendono dal carico della macchina).
 
 ## 12. Esiti
 
-(riempito alla fine delle prove)
+Tutto verde dopo i rifacimenti a carico più basso. I rossi visti con la macchina carica non dipendono dalla revisione: lo
+stesso script sul ramo di prima passava con poco carico, e sul ramo della revisione passa appena il carico scende.
 
 ## 13. Cosa NON è verificato
 
 - **Telefono vero**: niente di questo è provato su un telefono, né con l'app 1.0.5 vera: riaccensione dello schermo con il
   wake lock parziale (tempo vero di riaccensione, telefoni che addormentano la CPU), ritardo vero tra browser e app (la
   stima 8–15 ms resta da misurare: ora c'è `lg` nel registro), lato dalla palla e calibrazione giocando con persone vere.
-- **APK 1.0.5**: `MainActivity.java` non è compilata qui (manca l'Android SDK); `RisveglioSchermo` e la sua prova sì, con
-  `javac` e JUnit 4.13.2. La CI `natpf-android.yml` (gradle, lint, `controlla-classi.mjs`) la farà al push.
+- **APK 1.0.5**: costruito qui solo con la chiave di debug (SDK 34 rimasto nello scratchpad del B66, gradle offline: §11),
+  mai installato; l'APK firmato con la chiave dello stand lo fa la CI `natpf-android.yml` al push.
 - **Programma Windows installato e ledwall**: solo Node e Chromium senza scheda grafica.
 - **Worker del registro**: non ricaricato (lo fa l'utente: la pagina deve dire «Formato delle righe: 4»).
 - La compensazione del ritardo con l'app sposta l'istante dei colpi di `lg` ms rispetto alla 18.3 con l'app: è la

@@ -23,16 +23,16 @@ Qui sta **solo l'ultimo checkpoint**: il precedente si sostituisce, non si accod
 `docs/archivio/PIANO_LAVORI_checkpoint_fino_al_2026-11-18.md` (quelli fino al 07/11 in
 `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`).
 
-**Checkpoint del 19/11/2026 (B71, unione dei tre rami nel ramo locale `b71-int`, niente push, nessuna versione nuova).**
+**Checkpoint del 19/11/2026 (B71, revisione applicata sul ramo locale `b71-int`, niente push, nessuna versione nuova).**
 Versione pubblicata ancora **2026-11-18.3** (app 1.0.4). Correzioni dai registri della fiera del 18 e 19/11 (richiesta
-dell'utente: calibrazione giocando, dritto e rovescio, sensori): rami locali `b71-gesti` (9167f106), `b71-sensori`
-(bd3f28e1), `b71-registro` (9ccf2187) uniti con `git merge --no-ff` in **`b71-int`** (da `natpf-simulator` 9546b9a1).
-Conflitti solo nell'elenco dei campi del registro e nella riga «colpo», risolti tenendo tutto (`docs/b71/unione.md`).
-Prove sul ramo `b71-int`: gioco 1872/1872, sito 308/308, LAN 13/13, desktop 56/56, build ok, prove nel browser in
-`docs/b71/unione.md` §2. **Prossima azione esatta:** revisori e verifica avversaria sul ramo `b71-int` (workflow B71),
-correzioni; poi unione in `natpf-simulator`, versione nuova (file di versione), push, pacchetti, APK 1.0.5 dalla CI
-`natpf-android.yml`, Worker del registro da ricaricare (dodici campi nuovi: `vg vc dur hold ls voti displayLagMs sr fs vs
-tk rp`). Se il lavoro si ferma: `git branch --list 'b71-*'`, `git log --oneline natpf-simulator..b71-int`.
+dell'utente: calibrazione giocando, dritto e rovescio, sensori): rami `b71-gesti`, `b71-sensori`, `b71-registro` uniti in
+**`b71-int`** (`docs/b71/unione.md`), poi revisori e verifica avversaria: undici rilievi confermati, tutti applicati nei
+commit 0bfc1861 e 5bfdd5ac (`docs/b71/revisione.md`). Prove sul ramo: gioco 1877/1877, sito 310/310, LAN 13/13, desktop
+56/56, build ok, app Android con la chiave di debug (JUnit 22/22, lint 0 errori, controlla-classi verde), prove nel browser
+tutte verdi (`docs/b71/revisione.md` §11). **Prossima azione esatta:** unione di `b71-int` in `natpf-simulator`, versione
+nuova (file di versione), push, pacchetti, APK 1.0.5 dalla CI `natpf-android.yml`; il Worker del registro va ricaricato con
+il file della versione nuova (la pagina deve dire «Formato delle righe: 4»). Se il lavoro si ferma: `git branch --list
+'b71-*'`, `git log --oneline natpf-simulator..b71-int`.
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
