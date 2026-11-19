@@ -60,9 +60,9 @@ test('nome da proporre e risposta del telefono (funzioni pure)', () => {
 });
 
 test('tabellone contro la CPU: il nome di chi gioca al posto di «Tu»; senza nome «Tu»', () => {
-  assert.deepEqual(rowNames({ myName: 'Marco' }), { me: 'Marco', them: 'CPU' });
-  assert.deepEqual(rowNames({}), { me: 'Tu', them: 'CPU' });
-  assert.deepEqual(rowNames({ myName: 'Marco', doubles: true }), { me: 'Marco + CPU', them: '2 CPU' });
+  assert.deepEqual(rowNames({ myName: 'Marco' }), { me: 'Marco', them: 'Avversario' });
+  assert.deepEqual(rowNames({}), { me: 'Tu', them: 'Avversario' });
+  assert.deepEqual(rowNames({ myName: 'Marco', doubles: true }), { me: 'Marco + compagno', them: 'Avversari' });
   assert.deepEqual(rowNames({ split: true, splitNames: { p1: 'Anna', p2: 'Luca' }, myName: 'X' }), { me: 'Anna', them: 'Luca' });
   const v = scoreboardView({ playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player' }, { myName: 'Giulia' });
   assert.equal(v.rows[0].name, 'Giulia'); assert.equal(v.rows[0].short, 'GIU');

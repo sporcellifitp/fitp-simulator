@@ -20,7 +20,8 @@ export const PARTNER = Object.freeze({
 });
 export const PARTNER_DEFAULT = 'solo';
 export const PARTNER_LABEL = { solo: 'Gioca da solo', gesto: 'Con il tuo gesto' };
-export const PARTNER_TITLE = 'Nel doppio contro la CPU, l’anello azzurro indica la palla del compagno. La scelta vale dalla prossima partita.';
+// (B72: prima «Nel doppio contro la CPU»)
+export const PARTNER_TITLE = 'Nel doppio contro due avversari, l’anello azzurro indica la palla del compagno. La scelta vale dalla prossima partita.';
 export const partnerModeOf = mode => mode === 'gesto' ? 'gesto' : PARTNER_DEFAULT;
 export const nextPartnerMode = mode => partnerModeOf(mode) === 'solo' ? 'gesto' : 'solo';
 export function partnerModeFromUrl(search = globalThis.location?.search ?? ''){

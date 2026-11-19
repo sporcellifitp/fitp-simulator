@@ -21,7 +21,7 @@ import { readPartnerMode, partnerLine } from './natpf_doubles.js';
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 import { FORMAT_KEY, SERVE_KEY, SPLIT_SERVE_KEY, serveChoice, splitServeChoice } from './match_format.js';
 import { readFairFormat, FAIR_MAX_GAMES_LABEL } from './natpf_fair_format.js';
-import { CHALLENGES, challengeById, pickableChallenge, validNickname, MATCH_MODE, MATCH_ORDER_RULE } from './natpf_events.js';
+import { CHALLENGES, challengeById, pickableChallenge, validNickname, MATCH_MODE, MATCH_ORDER_RULE, MATCH_LABEL } from './natpf_events.js';
 import { SCORE_RULE } from './natpf_match_stats.js';   // B33: classifica delle partite
 import { MEDAL_LABEL, nextMedal, medalCount } from './natpf_arcade.js';
 // icone dei minigiochi (natpf_arcade.MODES[].icon)
@@ -40,7 +40,7 @@ import { screenSummary } from './natpf_screen.js';
 import { waitingText } from './natpf_ready.js';
 import { readBallTrail, writeBallTrail, trailToast } from './natpf_ball_glow.js';
 import { forehandVideoEnabled, setForehandVideo, writeForehandVideo, forehandVideoToast } from './natpf_forehand_video.js';   // B23 (prova)
-import { WHO_LEVEL, WHO_DEFAULT, baseLevel, urlLevel, isCpuLevel, whoOfLevel, levelSummary, whoNote, LEVEL_NAME } from './natpf_who.js'; // B18.2 gruppo 3: «Chi gioca»
+import { WHO_LEVEL, WHO_DEFAULT, baseLevel, urlLevel, isCpuLevel, whoOfLevel, levelSummary, whoNote, LEVEL_NAME, OPPONENT_NAME, OPPONENTS_NAME, withPartner } from './natpf_who.js'; // B18.2 gruppo 3: «Chi gioca»; B72: nomi senza «CPU»
 import { eventoRestart } from './natpf_skill.js';
 import { readCue, writeCue, cueToast } from './natpf_timing_cue.js';
 import { getCast, setCast, castToast } from './natpf_personaggi.js';
@@ -363,7 +363,7 @@ export class NatpfLobby {
     const tab = (id, label) => `<button type="button" class="seg-btn ${id === this.rankingTab ? 'selected' : ''}" data-ranking="${id}" role="tab">${label}</button>`;
     tabs.innerHTML = tab(MATCH_MODE, 'Partite') + CHALLENGES.map(c => tab(c.id, c.label)).join('');
     const note = $('ranking-note'), matches = this.rankingTab === MATCH_MODE;
-    if (note){ note.textContent = matches ? `Partite contro la CPU. ${MATCH_ORDER_RULE}. ${SCORE_RULE}.` : ''; show(note, matches); }   // B34: l'ordine in una frase
+    if (note){ note.textContent = matches ? `${MATCH_LABEL}. ${MATCH_ORDER_RULE}. ${SCORE_RULE}.` : ''; show(note, matches); }   // B34: l'ordine in una frase (B72: «Partite contro l'avversario»)
     if (matches){
       const top = this.ui.events.topMatches(10);
       list.innerHTML = top.length ? top.map((e, i) => `<li><b>${i + 1}</b><span>${esc(e.nick)}<small>${LEVEL_NAME[e.level] || ''} · ${e.win ? 'vinta' : 'persa'} ${e.games?.[0] | 0}-${e.games?.[1] | 0}</small></span><em>${e.score} punti</em></li>`).join('') : '<li class="empty">Ancora nessuna partita oggi</li>';
@@ -400,8 +400,9 @@ export class NatpfLobby {
     try { localStorage.setItem(FORMAT_KEY, this.format); } catch {}
     for (const b of this.el.querySelectorAll('[data-natpf-format]')){ const on = b.dataset.natpfFormat === this.format; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     const opp = $('setup-opponent-label');
-    if (opp) opp.textContent = this.mode === 'split' ? 'Player 2 · stesso schermo' : this.mode === 'friend' ? (this.format === 'doubles' ? 'Amico + CPU' : 'Amico') : this.format === 'doubles' ? '2 CPU' : 'CPU';
-    const you = this.el.querySelector('.you-tag'); if (you) you.textContent = this.mode === 'split' ? 'Player 1' : this.format === 'doubles' ? 'Tu + CPU' : 'Tu';
+    // B72: «Avversario», «Avversari», «Amico + compagno», «Tu + compagno» (prima «CPU», «2 CPU», «Amico + CPU», «Tu + CPU»)
+    if (opp) opp.textContent = this.mode === 'split' ? 'Player 2 · stesso schermo' : this.mode === 'friend' ? (this.format === 'doubles' ? withPartner('Amico') : 'Amico') : this.format === 'doubles' ? OPPONENTS_NAME : OPPONENT_NAME;
+    const you = this.el.querySelector('.you-tag'); if (you) you.textContent = this.mode === 'split' ? 'Player 1' : this.format === 'doubles' ? withPartner('Tu') : 'Tu';
     this._paintServe();
   }
   // chi batte per primo: chi gioca qui, l'avversario o sorteggio (lo usa engine.startNewMatch)
@@ -425,7 +426,7 @@ export class NatpfLobby {
     // stesso schermo: i nomi scritti nella pagina «Collega» (prima restavano Player 1 / Player 2)
     const split = this.engine.natpfSplitNames || {};
     const names = { player: this.mode === 'split' ? split.p1 || 'Player 1' : this.format === 'doubles' ? 'Voi' : 'Tu',
-      opponent: this.mode === 'split' ? split.p2 || 'Player 2' : this.mode === 'friend' ? 'Amico' : 'CPU', random: 'Sorteggio' };
+      opponent: this.mode === 'split' ? split.p2 || 'Player 2' : this.mode === 'friend' ? 'Amico' : this.format === 'doubles' ? OPPONENTS_NAME : OPPONENT_NAME, random: 'Sorteggio' };
     // B64 (ridondanze, decisione dell'utente del 17/11): contro la CPU con «Battuta: Sempre lo stesso» (pannello dello stand,
     // di base) batte sempre chi gioca e «Batte per primo» non cambiava niente: si mostra solo quando conta (stesso schermo,
     // sfida tra due computer, oppure battuta alternata)

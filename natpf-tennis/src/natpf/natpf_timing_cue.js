@@ -61,7 +61,7 @@ export function cueOn({ level = 'casual', pref = 'auto', versus = false } = {}){
   if (versus || level === '1v1') return false;
   return pref === 'on' ? true : pref === 'off' ? false : cueDefault(level);
 }
-export const cueToast = (pref, level) => (pref === 'on' ? 'Segnale del momento giusto acceso a tutti i livelli contro la CPU: un cerchio bianco si stringe sulla palla, colpisci quando il cerchio diventa verde'
+export const cueToast = (pref, level) => (pref === 'on' ? 'Segnale del momento giusto acceso a tutti i livelli contro l’avversario: un cerchio bianco si stringe sulla palla, colpisci quando il cerchio diventa verde'
   : pref === 'off' ? 'Segnale del momento giusto spento a tutti i livelli'
   : `Segnale del momento giusto di base: acceso con «Bambino» e «Adulto», spento con gli altri livelli (adesso ${cueDefault(level) ? 'acceso' : 'spento'})`);
 

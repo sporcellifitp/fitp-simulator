@@ -137,7 +137,7 @@ test('C: pannello dello stand, scritte dei tre valori e dell\'avviso', () => {
   assert.equal(fairButton('si'), 'Sì · punto decisivo');
   assert.equal(fairButton('no', true), 'No (indirizzo)');
   assert.equal(fairButton('si', true), 'Sì · punto decisivo (indirizzo)');
-  assert.match(fairToast('split'), /solo nello stesso schermo.*contro la CPU formato classico.*Vale dalla prossima partita; resta salvata/);
+  assert.match(fairToast('split'), /solo nello stesso schermo.*contro l’avversario formato classico.*Vale dalla prossima partita; resta salvata/);
   assert.match(fairToast('si'), /punto decisivo sul 40-40/);
   assert.match(fairToast('no'), /un battitore per game/);
   assert.match(fairToast('split', true), /salvato solo per lo stesso schermo.*comanda l’indirizzo/);
@@ -199,7 +199,7 @@ test('A4: banner del punto, «Colpo a vuoto di <chi ha perso>» quando ha fatto 
   assert.match(pointCall({ ...base, why: 'Out', whiff: true }).subText, /^Errore di Marco: palla fuori/);
   assert.match(pointCall({ ...base, why: 'Ace!', whiff: true }).subText, /^Ace di Giulia/);
   // contro la CPU niente cambia
-  assert.equal(pointCall({ winner: 'opponent', why: 'Nice Shot!', whiff: true }).subText, 'Vincente della CPU');
+  assert.equal(pointCall({ winner: 'opponent', why: 'Nice Shot!', whiff: true }).subText, "Vincente dell'avversario");
 });
 
 test('A4: nel motore il gesto a vuoto di chi perde il punto arriva al banner, e vale solo per quel punto', () => {

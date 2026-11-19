@@ -133,7 +133,7 @@ test('palla corta della CPU: rara (una per game al massimo), solo con chi gioca 
   e.player.pos.z = 11.6; e.ball.rallyStrokeCount = 1; assert.equal(NP.cpuDropShot(e, cpu, { kind: 'ok' }, () => .01), null, 'risposta: no');
   e.ball.rallyStrokeCount = 6; assert.ok(NP.cpuDropShot(e, cpu, { kind: 'ok' }, () => .01));
   for (const d of ['bambini', 'leggenda']){ const b = rallyEngine(d); b.opponent.pos.set(0, 0, -10); b.player.pos.set(0, 0, 11.6); b.ball.bounceCountOnCurrentSide = 1; assert.equal(NP.cpuDropShot(b, b.opponent, { kind: 'ok' }, () => .01), null, d); }
-  assert.equal(tr('CPU DROP SHOT'), 'PALLA CORTA DELLA CPU');
+  assert.equal(tr('CPU DROP SHOT'), "PALLA CORTA DELL'AVVERSARIO");
 });
 
 /* ---------- punto 22: la schiacciata di chi gioca ---------- */
@@ -224,7 +224,7 @@ test('palla corta della CPU nel motore con l\'involucro dell\'esito: «Palla cor
       assert.ok(e.ball.targetLanding.z > 0 && e.ball.targetLanding.z < 6.4, `${level}: cade nella metà di chi gioca, ${e.ball.targetLanding.z}`);
       const o = shown.at(-1);
       assert.equal(o.grade, 'CPU DROP SHOT', `${level}: la scritta della CPU, non un esito (${o.grade})`);
-      assert.equal(tr(o.grade), 'PALLA CORTA DELLA CPU');
+      assert.equal(tr(o.grade), "PALLA CORTA DELL'AVVERSARIO");
       assert.equal(o.detail, '', `${level}: niente «Fuori» né «Palla corta» come esito (${o.grade} | ${o.detail})`);
       assert.equal(o.screenPos, null);
       const g = document.getElementById('timing-popup-grade').classList, p = document.getElementById('timing-popup').classList;

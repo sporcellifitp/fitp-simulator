@@ -17,7 +17,7 @@
 // chiede più la fascia: «Stessi giocatori, stesse fasce» con le due fasce di prima scritte e un piccolo «Cambia fascia» che
 // apre la scelta di sempre. Contro la CPU resta «Chi gioca» (il livello dopo la rivincita è la richiesta del B47).
 // Funzioni pure in cima (test/natpf-b47-rivincita.test.mjs), poi il controllore.
-import { WHO_LEVEL, LEVEL_NAME, whoOfLevel, isCpuLevel } from './natpf_who.js';
+import { WHO_LEVEL, whoOfLevel, isCpuLevel, opponentLevelName } from './natpf_who.js';
 import { BANDS, BAND_LABEL, bandOf } from './natpf_duo_rules.js';
 import { nearestTile } from './natpf_lobby.js';
 
@@ -31,16 +31,16 @@ export const REMATCH = Object.freeze({ autoMs: 10000, kicker: 'Rivincita', title
 // le tessere di «Chi gioca» (come la pagina «Partita»: index.html, #difficulty-mode-group)
 const WHO_TILES = Object.freeze([
   { who: 'bambino', name: 'Bambino', desc: 'Palla più lenta e più tempo per colpire', icon: '<circle cx="24" cy="15" r="6" /><path d="M14 40c1-9 5-13 10-13s9 4 10 13" />' },
-  { who: 'ragazzo', name: 'Ragazzo', desc: 'CPU facile, per prendere confidenza', icon: '<circle cx="24" cy="13" r="6.5" /><path d="M12 41c1-11 6-16 12-16s11 5 12 16" />' },
+  { who: 'ragazzo', name: 'Ragazzo', desc: 'Avversario facile, per prendere confidenza', icon: '<circle cx="24" cy="13" r="6.5" /><path d="M12 41c1-11 6-16 12-16s11 5 12 16" />' },
   { who: 'adulto', name: 'Adulto', desc: 'La partita si regola su come giochi', icon: '<circle cx="24" cy="11" r="7" /><path d="M9 42c1-13 7-19 15-19s14 6 15 19" />' },
 ]);
 
 // Tessere contro la CPU (funzione pura): Bambino · Ragazzo · Adulto, più il livello di adesso se non viene da «Chi gioca»
-// (CPU Esperta, CPU Leggenda: nel menu stanno in «Altre impostazioni»). selected: la tessera segnata
+// (Avversario esperto, Avversario Leggenda: nel menu stanno in «Altre impostazioni»). selected: la tessera segnata
 export function rematchCpuTiles(level = 'evento'){
   const cur = isCpuLevel(level) ? level : WHO_LEVEL.adulto;
   const tiles = WHO_TILES.map(t => ({ level: WHO_LEVEL[t.who], who: t.who, name: t.name, desc: t.desc, icon: t.icon, selected: WHO_LEVEL[t.who] === cur }));
-  if (!whoOfLevel(cur)) tiles.push({ level: cur, who: null, name: `CPU ${LEVEL_NAME[cur]}`, desc: 'Livello scelto in «Altre impostazioni»', icon: '<path d="M10 34l6-16 8 9 8-9 6 16z" /><circle cx="24" cy="12" r="3" />', selected: true });
+  if (!whoOfLevel(cur)) tiles.push({ level: cur, who: null, name: opponentLevelName(cur), desc: 'Livello scelto in «Altre impostazioni»', icon: '<path d="M10 34l6-16 8 9 8-9 6 16z" /><circle cx="24" cy="12" r="3" />', selected: true });
   return tiles;
 }
 // Righe dello stesso schermo (funzione pura): per ciascun giocatore nome e fasce, con quella di adesso segnata

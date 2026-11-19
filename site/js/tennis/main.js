@@ -237,13 +237,15 @@ function phoneChip(){
 }
 
 /* ---------- partita contro la CPU (e motore dell'host) ---------- */
+// B72: il nome che si vede è «Avversario» (prima «CPU», che molti non capivano); l'id interno resta 'cpu'
+const OPPONENT_NAME = 'Avversario';
 const fmtOpts = () => { const g = +A.fmt; return { gamesToWin: g, set: g > 1 }; };
 const grace = () => A.ctrl === 'phone' && A.link ? Math.min(.25, A.link.latency + .06) : .05;
 function startLocal(){
   clearTimeout(endTimer);
   A.myId = 'me';
-  A.core = new ArcadeMatch({ teams: [[{ human: true, id: 'me', name: myName(), grace: grace() }], [{ id: 'cpu', name: 'CPU' }]], cpu: A.level, ...fmtOpts(), rng: mulberry32((Math.random()*2**31) >>> 0) });
-  beginPlay(['blu', 'rosso'], [myName(), 'CPU']);
+  A.core = new ArcadeMatch({ teams: [[{ human: true, id: 'me', name: myName(), grace: grace() }], [{ id: 'cpu', name: OPPONENT_NAME }]], cpu: A.level, ...fmtOpts(), rng: mulberry32((Math.random()*2**31) >>> 0) });
+  beginPlay(['blu', 'rosso'], [myName(), OPPONENT_NAME]);
 }
 function beginPlay(looks, names){
   resetInputTimeline();

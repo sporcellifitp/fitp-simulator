@@ -44,7 +44,7 @@ export function serveRuleToast(rule, forced = false){
   const r = serveRuleOf(rule);
   if (forced) return `Battuta salvata «${SERVE_RULE_LABEL[r]}», ma in questa pagina comanda l’indirizzo (?battuta=…)`;
   return r === 'fissa'
-    ? 'Battuta sempre allo stesso giocatore: contro la CPU batte sempre chi gioca, nello stesso schermo chi batte il primo game. Vale dalla prossima partita; resta salvata'
+    ? 'Battuta sempre allo stesso giocatore: contro l’avversario batte sempre chi gioca, nello stesso schermo chi batte il primo game. Vale dalla prossima partita; resta salvata'
     : 'Battuta alternata: il servizio passa all’altro a ogni game (ogni due punti con il formato veloce). Vale dalla prossima partita; resta salvata';
 }
 

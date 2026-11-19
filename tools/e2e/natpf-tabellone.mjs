@@ -108,7 +108,7 @@ try {
   await setScore(p, { playerPoints: 2, opponentPoints: 1, playerGames: 1, opponentGames: 0, server: 'player' }, 2);
   let v = await read(p);
   if (!ONLY_SHOTS){
-    check('1v1 CPU: tabellone visibile con due righe, sigle «TU» e «CPU» (nome intero in data-sb-name e nel title)', v.visible && v.rows.length === 2 && row(v, 'me').name === 'TU' && row(v, 'them').name === 'CPU' && row(v, 'me').full === 'Tu' && row(v, 'me').title === 'Tu', fmt(v));
+    check('1v1 contro l\'avversario: tabellone visibile con due righe, sigle «TU» e «AVV» (nome intero «Avversario» in data-sb-name e nel title; B72, prima «CPU»)', v.visible && v.rows.length === 2 && row(v, 'me').name === 'TU' && row(v, 'them').name === 'AVV' && row(v, 'them').full === 'Avversario' && row(v, 'them').title === 'Avversario' && row(v, 'me').full === 'Tu' && row(v, 'me').title === 'Tu', fmt(v));
     check('1v1 CPU: game 1 e 0, punti 30 e 15, serve chi gioca', row(v, 'me').games === '1' && row(v, 'them').games === '0' && row(v, 'me').points === '30' && row(v, 'them').points === '15' && row(v, 'me').serve && !row(v, 'them').serve, fmt(v));
     check('1v1 CPU: formato in una piccola etichetta dentro il riquadro («AL MEGLIO DI 3»; per lo screen reader «Al meglio di 3 game»), niente «game secco»', v.tag?.text === 'Al meglio di 3' && v.tag.kind === 'format' && v.format === 'Al meglio di 3 game' && !v.secco, fmt(v));
     check('1280×720: tabellone nell\'angolo in alto a sinistra (29, 43), carattere 21,6 px, etichetta ≥ 12 px dentro il riquadro e niente sotto, lontano dalla pausa, niente copia del P2', corner(v, 1280, 720) && tagIn(v) && !v.p2, fmt(v));
@@ -129,7 +129,7 @@ try {
   await shot(p, '1280-1v1-cpu-vantaggio');
   await setScore(p, { playerPoints: 3, opponentPoints: 5, playerGames: 0, opponentGames: 0, server: 'player' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('vantaggio della CPU al meglio di 5: «AD» nella casella della CPU, pillola «VANTAGGIO» (B50-3) dentro il riquadro', row(v, 'them').points === 'AD' && row(v, 'me').points === '40' && v.label === 'Vantaggio della CPU' && v.tag?.text === 'Vantaggio' && v.tag.kind === 'adv' && tagIn(v), fmt(v));
+  if (!ONLY_SHOTS) check('vantaggio della CPU al meglio di 5: «AD» nella casella della CPU, pillola «VANTAGGIO» (B50-3) dentro il riquadro', row(v, 'them').points === 'AD' && row(v, 'me').points === '40' && v.label === "Vantaggio dell'avversario" && v.tag?.text === 'Vantaggio' && v.tag.kind === 'adv' && tagIn(v), fmt(v));
   // B43: formato in fiera, 40-40 (punto decisivo): l'etichetta diventa rosa, «PUNTO DECISIVO»; finito il 40-40 torna il formato
   await setScore(p, { playerPoints: 3, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player', fair: true }, 1);
   v = await read(p);
@@ -159,7 +159,7 @@ try {
   await p.evaluate(() => { __natpfTennis.setMatchFormat('doubles'); });
   await setScore(p, { playerPoints: 2, opponentPoints: 2, playerGames: 0, opponentGames: 1, server: 'player' }, 2);
   v = await read(p);
-  if (!ONLY_SHOTS) check('2v2 CPU: sigle «TU+CPU» e «2CPU» (nomi interi «Tu + CPU» e «2 CPU»), 30-30, game 0-1', row(v, 'me').name === 'TU+CPU' && row(v, 'them').name === '2CPU' && row(v, 'me').full === 'Tu + CPU' && row(v, 'them').full === '2 CPU' && row(v, 'me').points === '30' && row(v, 'them').points === '30' && row(v, 'them').games === '1' && drawn(v), fmt(v));
+  if (!ONLY_SHOTS) check('2v2 contro gli avversari: sigle «TU+COM» e «AVV» (nomi interi «Tu + compagno» e «Avversari»; B72, prima «Tu + CPU» e «2 CPU»), 30-30, game 0-1', row(v, 'me').name === 'TU+COM' && row(v, 'them').name === 'AVV' && row(v, 'me').full === 'Tu + compagno' && row(v, 'them').full === 'Avversari' && row(v, 'me').points === '30' && row(v, 'them').points === '30' && row(v, 'them').games === '1' && drawn(v), fmt(v));
   await shot(p, '1280-2v2-cpu-30-30');
   await p.evaluate(() => { __natpfTennis.setMatchFormat('singles'); });
 

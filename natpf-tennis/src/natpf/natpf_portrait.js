@@ -15,7 +15,7 @@ const MASCOTS = {
   lob: { body: '#ffdd1f', shade: '#e0b400', badge: '#1556ad', iris: '#2f95ea', visor: '#1f6fd6', visorShade: '#1556ad' },
 };
 export const PORTRAIT_LOOKS = Object.freeze([...Object.keys(LOOKS), ...Object.keys(MASCOTS)]);
-const LABEL = { p1: 'Ritratto del giocatore 1', cpu: "Ritratto dell'avversario CPU", p2: 'Ritratto del giocatore 2', drop: 'Ritratto di Drop', lob: 'Ritratto di Lob' };
+const LABEL = { p1: 'Ritratto del giocatore 1', cpu: "Ritratto dell'avversario", p2: 'Ritratto del giocatore 2', drop: 'Ritratto di Drop', lob: 'Ritratto di Lob' };
 
 // Ritratto di una mascotte: testa grande, occhi grandi (contorno nero, iride colorata), bocca aperta che sorride;
 // Drop con la fascia bianca e il ciuffo, Lob con la punta, la visiera blu e gli occhiali.

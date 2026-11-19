@@ -465,7 +465,7 @@ test('ritratti: Drop e Lob nel tabellone, nella lobby e a fine partita quando l\
 test('tabellone: con Lob & Drop la linguetta della riga ha il colore del suo personaggio; con «Classici» niente cambia', () => {
   const score = { playerPoints: 1, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player' };
   const plain = scoreboardHtml(scoreboardView(score, { gamesToWin: 1 }));
-  for (const multi of [false, true]) assert.equal(scoreboardHtml(scoreboardView(score, { gamesToWin: 1, looks: castLooks('sempre', multi) })).replace(/Player 2|CPU/g, ''), plain.replace(/Player 2|CPU/g, ''), '«Classici»: tabellone di prima');
+  for (const multi of [false, true]) assert.equal(scoreboardHtml(scoreboardView(score, { gamesToWin: 1, looks: castLooks('sempre', multi) })).replace(/Player 2|Avversario|AVV/g, ''), plain.replace(/Player 2|Avversario|AVV/g, ''), '«Classici»: tabellone di prima');
   assert.ok(!/data-sb-look/.test(plain));
   const look = (opt, side) => scoreboardView(score, { gamesToWin: 1, ...opt }).rows.find(r => r.side === side).look;
   const L = castLooks('lobdrop', false), V = castLooks('lobdrop', true);

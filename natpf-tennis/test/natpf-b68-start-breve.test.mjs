@@ -15,7 +15,7 @@ test('B68: il conto dice chi batte e se è uscito dal sorteggio', () => {
   assert.equal(prematchServeLine({ names, server: 'player', drawn: true }), 'Sorteggio: batte per primo Giulia');
   assert.equal(prematchServeLine({ names, server: 'opponent', fixed: true, drawn: true }), 'Sorteggio: batte sempre Marco');
   // contro la CPU il sorteggio non c'è: testo di sempre
-  assert.equal(prematchServeLine({ server: 'opponent', drawn: true }), 'Batte per prima la CPU');
+  assert.equal(prematchServeLine({ server: 'opponent', drawn: true }), "Batte per primo l'avversario");
 });
 
 test('B68: dopo il conto «Start» senza chi batte e più breve', () => {

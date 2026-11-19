@@ -127,7 +127,7 @@ try {
   const vOpen = await until(g, () => !document.getElementById('victory-modal').classList.contains('hidden'), null, 6000);
   await sleep(400);
   let vic = await victory(g);
-  check('   schermata finale: «Vince Marco!», righe con i nomi e i game, niente rating finto, «Nuovo giocatore» in vista', vOpen && vic.title === 'Vince Marco!' && vic.rows.join('|') === 'Marco 1|CPU 0' && !vic.rating && vic.newBtn && !vic.lost && vic.inView, JSON.stringify(vic));
+  check('   schermata finale: «Vince Marco!», righe con i nomi e i game, niente rating finto, «Nuovo giocatore» in vista', vOpen && vic.title === 'Vince Marco!' && vic.rows.join('|') === 'Marco 1|Avversario 0' && !vic.rating && vic.newBtn && !vic.lost && vic.inView, JSON.stringify(vic));
   const voices = await g.evaluate(() => window.__voices.slice(-3));
   check('   voce di fine partita «Game Set and Match»', voices.includes('Game Set and Match'), JSON.stringify(voices));
   await shot('A2-fine-partita-1280');

@@ -231,15 +231,15 @@ try {
   const cpuSeq = [await cpuNow()];
   for (let i = 0; i < 5; i++){ await tap('cpu'); cpuSeq.push(await cpuNow()); }
   const ORD = ['bambini', 'casual', 'evento', 'pro', 'leggenda'], i0 = ORD.indexOf(cpuSeq[0]);
-  check('Livello: cinque tocchi girano Bambino → Ragazzo → Adulto → Esperta → Leggenda e tornano al punto di partenza',
+  check('Livello: cinque tocchi girano Bambino → Ragazzo → Adulto → Esperto → Leggenda e tornano al punto di partenza',
     i0 >= 0 && cpuSeq.every((v, i) => v === ORD[(i0 + i) % 5]), cpuSeq.join());
   const cpuLbl = await phone.evaluate(() => document.querySelector('[data-c="cpu"] b')?.textContent || '');
-  check('Livello: il pulsante del telefono dice chi gioca', /Chi gioca: (Bambino|Ragazzo|Adulto)|CPU: (Esperta|Leggenda)/.test(cpuLbl), cpuLbl);
+  check('Livello: il pulsante del telefono dice chi gioca', /Chi gioca: (Bambino|Ragazzo|Adulto)|Avversario: (Esperto|Leggenda)/.test(cpuLbl), cpuLbl);
   await tap('play');
   check('Gioca! → in partita', await waitPg('match', 25000));
   await sleep(2500);
   const st = await phone.evaluate(() => __telecomando.status);
-  check('in partita: pagina «Partita contro la CPU» con il punteggio; frecce e OK spenti', st.label === 'Partita contro la CPU' && /Tu 0 · CPU 0/.test(st.detail) && typeof st.cmds.left === 'string' && typeof st.cmds.ok === 'string' && st.cmds.pause === 1, JSON.stringify({ label: st.label, detail: st.detail, left: st.cmds.left }));
+  check('in partita: pagina «Partita contro l\'avversario» con il punteggio; frecce e OK spenti', st.label === "Partita contro l'avversario" && /Tu 0 · Avversario 0/.test(st.detail) && typeof st.cmds.left === 'string' && typeof st.cmds.ok === 'string' && st.cmds.pause === 1, JSON.stringify({ label: st.label, detail: st.detail, left: st.cmds.left }));
   // (il giocatore aspetta il servizio: senza comandi resta fermo; con le frecce della tastiera si muoverebbe)
   const x0 = await ui(() => __natpfTennis.player.pos.x), n0 = await acks();
   await phone.evaluate(() => { for (let i = 0; i < 8; i++) __telecomando.send('left'); });

@@ -15,7 +15,7 @@
 //   'field' in campo: frecce e OK non fanno niente (muoverebbero il giocatore e tirerebbero colpi: il telecomando non
 //           interferisce mai con la racchetta), Indietro apre la pausa.
 
-import { CPU_LEVELS as WHO_CPU_LEVELS, LEVEL_NAME, whoOfLevel } from './natpf_who.js';
+import { CPU_LEVELS as WHO_CPU_LEVELS, LEVEL_NAME, whoOfLevel, OPPONENT_NAME, OPPONENT_REF, opponentLevelName } from './natpf_who.js';
 
 export const SCREEN_LABEL = Object.freeze({
   trial: 'Scambi di prova',
@@ -33,12 +33,13 @@ export const LOBBY_LABEL = Object.freeze({
 });
 // Livello contro la CPU (dal 2026-11-12.4 la pagina «Partita» chiede «Chi gioca: Bambino · Ragazzo · Adulto», natpf_who.js;
 // Esperta e Leggenda stanno in «Altre impostazioni»). Il pulsante del telecomando gira tra tutti e cinque, in ordine di
-// difficoltà, e dice il nome che lo staff vede sullo schermo: «Chi gioca: Adulto», oppure «CPU: Esperta».
+// difficoltà, e dice il nome che lo staff vede sullo schermo: «Chi gioca: Adulto», oppure «Avversario: Esperto» (B72:
+// prima «CPU: Esperta»).
 export const CPU_LEVELS = WHO_CPU_LEVELS;
 const WHO_NAME = Object.freeze({ bambino: 'Bambino', ragazzo: 'Ragazzo', adulto: 'Adulto' });
 const cpuOk = level => (CPU_LEVELS.includes(level) ? level : 'evento');
-export const cpuName = level => { const l = cpuOk(level), w = whoOfLevel(l); return w ? WHO_NAME[w] : `CPU ${LEVEL_NAME[l]}`; };
-export const cpuLabel = level => { const l = cpuOk(level), w = whoOfLevel(l); return w ? `Chi gioca: ${WHO_NAME[w]}` : `CPU: ${LEVEL_NAME[l]}`; };
+export const cpuName = level => { const l = cpuOk(level), w = whoOfLevel(l); return w ? WHO_NAME[w] : opponentLevelName(l); };
+export const cpuLabel = level => { const l = cpuOk(level), w = whoOfLevel(l); return w ? `Chi gioca: ${WHO_NAME[w]}` : `${OPPONENT_NAME}: ${LEVEL_NAME[l]}`; };
 export const nextCpu = level => CPU_LEVELS[(CPU_LEVELS.indexOf(cpuOk(level)) + 1) % CPU_LEVELS.length];
 // strati sopra il menu e il campo, dal più in alto
 // (B47: «rematch», la scelta del livello dopo «Rivincita», sta sopra la schermata finale)
@@ -78,7 +79,7 @@ export function remoteScreen(s = {}){
     return { id: T.mode === 'training' ? 'training' : 'warmup', label: SCREEN_LABEL[T.mode === 'training' ? 'training' : 'warmup'], nav: 'field' };
   }
   if (s.minigame) return { id: 'minigame', label: `Minigioco: ${s.minigame}`, nav: 'field' };
-  if (s.inField) return { id: 'match', label: s.split ? 'Partita · stesso schermo' : s.versus ? 'Sfida tra due computer' : 'Partita contro la CPU', nav: 'field' };
+  if (s.inField) return { id: 'match', label: s.split ? 'Partita · stesso schermo' : s.versus ? 'Sfida tra due computer' : `Partita contro ${OPPONENT_REF.who}`, nav: 'field' };
   // menu nascosto senza una partita (passaggio al campo, dimostrazione): i tasti arriverebbero al motore, come in campo
   return { id: 'other', label: SCREEN_LABEL.other, nav: 'field' };
 }
@@ -132,8 +133,8 @@ export function remoteCommands(s = {}, screen = remoteScreen(s)){
   if (screen.id === 'intro'){ for (const c of ['up', 'down', 'left', 'right']) cmds[c] = 'Intro: premi OK (o Salta) per il menu'; }
   // Gioca / Pronto per la partita: avanti verso la partita
   const step = screen.step;
-  if (step === 'menu'){ cmds.play = on; labels.play = 'Gioca'; hints.play = 'contro la CPU'; }
-  else if (step === 'mode'){ cmds.play = on; labels.play = 'Contro la CPU'; }
+  if (step === 'menu'){ cmds.play = on; labels.play = 'Gioca'; hints.play = `contro ${OPPONENT_REF.who}`; }
+  else if (step === 'mode'){ cmds.play = on; labels.play = `Contro ${OPPONENT_REF.who}`; }
   else if (step === 'controller'){ cmds.play = on; labels.play = 'Avanti'; hints.play = 'Collega'; }
   else if (step === 'connect'){ cmds.play = s.connectReady ? on : (L.mode === 'split' ? 'Servono i due telefoni pronti' : s.controller === 'webcam' ? 'La webcam non vede ancora la mano' : 'Il telefono del giocatore non è ancora collegato'); labels.play = 'Avanti'; }
   else if (step === 'match'){ cmds.play = L.mode === 'split' && !s.splitReady ? 'Servono i due telefoni pronti' : on; labels.play = 'Gioca!'; hints.play = 'Pronto per la partita'; }
@@ -167,7 +168,8 @@ export function remoteCommands(s = {}, screen = remoteScreen(s)){
   const cpuFree = !s.split && !s.versus && L.mode !== 'split' && L.mode !== 'friend';
   // (in partita no: la CPU cambierebbe a metà; sopra il menu, nella pausa del menu o a fine partita sì)
   const atMenu = screen.id.startsWith('lobby:') || String(screen.under || '').startsWith('lobby:') || screen.id === 'victory' || screen.id === 'rematch';
-  cmds.cpu = !cpuFree ? 'Non c’è la CPU in questa modalità' : !atMenu ? 'Si cambia dal menu, prima o dopo la partita' : on;
+  // (B72: prima «Non c’è la CPU in questa modalità»)
+  cmds.cpu = !cpuFree ? 'Niente livello: in questa modalità si gioca tra due persone' : !atMenu ? 'Si cambia dal menu, prima o dopo la partita' : on;
   labels.cpu = cpuLabel(s.cpu);
   if (cmds.cpu === on) hints.cpu = `poi ${cpuName(nextCpu(s.cpu))}`;
   // schermo del gioco (solo nel programma Windows) e schermo intero
@@ -192,7 +194,7 @@ export function confirmText(cmd, screen){
 }
 // Riga del punteggio per il telefono. score: engine.score ({ playerPoints, opponentPoints, playerGames, opponentGames })
 const POINTS = ['0', '15', '30', '40'];
-export function scoreLine(score, { tiebreak = false, names = ['Tu', 'CPU'] } = {}){
+export function scoreLine(score, { tiebreak = false, names = ['Tu', OPPONENT_NAME] } = {}){
   if (!score) return '';
   const a = score.playerPoints | 0, b = score.opponentPoints | 0;
   let pts;

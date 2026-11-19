@@ -27,7 +27,7 @@ test('3 · 2 · 1 in 3 secondi, testi grandi in italiano, chi batte', () => {
   assert.deepEqual([0, 1, 999, 1000, 1999, 2000, 2999, 3000, 4000].map(t => prematchLeft(t)), [3, 3, 3, 2, 2, 1, 1, 0, 0]);
   assert.equal(prematchServeLine({ server: 'player', fixed: true }), 'Batti sempre tu: lancia la palla e colpisci');
   assert.equal(prematchServeLine({ server: 'player' }), 'Batti tu: lancia la palla e colpisci');
-  assert.equal(prematchServeLine({ server: 'opponent' }), 'Batte per prima la CPU');
+  assert.equal(prematchServeLine({ server: 'opponent' }), "Batte per primo l'avversario");
   assert.equal(prematchServeLine({ names: { player: 'Giulia', opponent: 'Marco' }, server: 'opponent', fixed: true }), 'Batte sempre Marco');
   assert.equal(prematchServeLine({ names: { player: 'Giulia', opponent: 'Marco' }, server: 'player' }), 'Batte per primo Giulia');
 });

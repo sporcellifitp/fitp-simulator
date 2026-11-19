@@ -105,7 +105,7 @@ test('tabellone: «Punto decisivo» al posto di «Parità» e mai «Vantaggio» 
 test('banner del punto: «Punto decisivo» dal lato di chi guarda, anche nello stesso schermo; il P2 tiene il messaggio dell\'host senza «kind»', () => {
   assert.equal(viewScore({ player: '40', opponent: '40', deciding: true }), 'Punto decisivo');
   assert.equal(viewScore({ player: '40', opponent: '40' }), 'Parità');
-  assert.equal(pointCall({ winner: 'player', why: 'Out', score: { player: '40', opponent: '40', deciding: true } }).subText, 'Errore della CPU: palla fuori · Punto decisivo');
+  assert.equal(pointCall({ winner: 'player', why: 'Out', score: { player: '40', opponent: '40', deciding: true } }).subText, "Errore dell'avversario: palla fuori · Punto decisivo");
   assert.equal(pointCall({ winner: 'player', why: 'Out', score: { player: '40', opponent: '40', deciding: true }, sharedNames: { player: 'Anna', opponent: 'Marco' } }).subText, 'Errore di Marco: palla fuori · Punto decisivo');
   const e = createHeadlessEngine();
   e.playerRole = 'p2'; e.isMultiplayer = true;

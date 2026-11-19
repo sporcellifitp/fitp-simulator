@@ -70,7 +70,8 @@ export const topScores = (board, mode, n = 10, day = dayKey()) => (freshBoard(bo
 // Ogni riga: nickname, livello, punti vinti e persi, game, vinta o no, e il punteggio equo tra i livelli
 // (natpf_match_stats.matchScore: % di punti vinti × valore del livello). Solo su questo computer, come il resto.
 export const MATCH_MODE = 'partite';
-export const MATCH_LABEL = 'Partite contro la CPU';
+// B72: «Partite contro l'avversario» (prima «Partite contro la CPU»): nella classifica e nel file CSV
+export const MATCH_LABEL = "Partite contro l'avversario";
 // B34 (decisione dell'utente del 13/11, revisione finale n. 9): in cima tutte le partite VINTE, sotto le PERSE; dentro
 // ciascun gruppo per punteggio (a parità, prima chi l'ha fatto prima). Prima contava solo il punteggio e una sconfitta a
 // Leggenda (×5) passava sopra le vittorie degli altri livelli. Lo stesso ordine vale per la posizione nella frase di fine

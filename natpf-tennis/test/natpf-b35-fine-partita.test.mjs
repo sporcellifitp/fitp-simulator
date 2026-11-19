@@ -26,8 +26,9 @@ test('B35: cose migliori solo positive e non nulle, al più tre, nell\'ordine de
   const b2 = bestOf(sumOf({ points: 14, winners: 3, timing: { perfetto: 8, anticipo: 0, ritardo: 0, buono: 0 }, longest: 2 }));
   assert.deepEqual(b2.map(t => t.id), ['vincenti', 'perfetti', 'punti']);
   assert.equal(b2.find(t => t.id === 'vincenti').label, 'vincenti');
-  assert.equal(bestOf(sumOf({ winners: 3 }), { vsCpu: true })[0].label, 'vincenti che la CPU non ha preso');
-  assert.equal(bestOf(sumOf({ winners: 1 }), { vsCpu: true })[0].label, 'vincente che la CPU non ha preso');
+  assert.equal(bestOf(sumOf({ winners: 3 }), { vsCpu: true })[0].label, "vincenti che l'avversario non ha preso");
+  assert.equal(bestOf(sumOf({ winners: 1 }), { vsCpu: true })[0].label, "vincente che l'avversario non ha preso");
+  assert.equal(bestOf(sumOf({ winners: 3 }), { vsCpu: true, doubles: true })[0].label, 'vincenti che gli avversari non hanno preso', 'B72: nel doppio al plurale');
   // zero e valori strani non si mostrano mai; lo scambio più lungo solo da 3 colpi
   const z = bestOf(sumOf({ points: 2, longest: 2, fastest: NaN, aces: -1, superOk: undefined }));
   assert.deepEqual(z.map(t => [t.id, t.value]), [['punti', 2]]);
@@ -52,7 +53,7 @@ test('B35: pillola in basso contro la CPU (classifica se vince, consiglio gentil
   assert.equal(cpuPill({ won: true, rank: { rank: 0, total: 60, score: 41 } }), '41 punti nella partita di oggi');
   assert.equal(cpuPill({ won: true, rank: null }), '');
   assert.equal(cpuPill({ won: false, level: 'pro' }), 'Prossima volta prova il livello Evento');
-  assert.equal(cpuPill({ won: false, level: 'leggenda' }), 'Prossima volta prova il livello Esperta');
+  assert.equal(cpuPill({ won: false, level: 'leggenda' }), 'Prossima volta prova il livello Esperto');
   assert.equal(cpuPill({ won: false, level: 'bambini' }), 'Prossima volta andrà ancora meglio!');
   assert.equal(cpuPill({ won: false, level: null }), 'Prossima volta andrà ancora meglio!');
 });
@@ -94,16 +95,16 @@ test('B35: sconfitta contro la CPU («Bella sfida, Luca!», riga sotto, consigli
   const v = viewOf(m, { nick: 'Luca' }), base = matchEndView({ winner: 'opponent', games: g, nickname: 'Luca' });
   const S = endScreen(base, v);
   assert.equal(S.title, 'Bella sfida, Luca!'); assert.equal(S.won, false);
-  assert.equal(S.sub, 'La CPU ha vinto questa volta. Ecco cosa ti è venuto meglio:');
-  assert.equal(S.kicker, 'Fine partita · livello Esperta');
+  assert.equal(S.sub, "Ha vinto l'avversario questa volta. Ecco cosa ti è venuto meglio:");
+  assert.equal(S.kicker, 'Fine partita · livello Esperto');
   assert.deepEqual(S.games, { mine: 0, theirs: 2 });
   assert.equal(S.pill, 'Prossima volta prova il livello Evento'); assert.equal(S.again, 'Rivincita');
   assert.equal(endScreen(base, viewOf(m)).title, 'Bella sfida!');
   for (const t of S.tiles) assert.ok(t.value > 0);
-  // doppio contro le CPU: niente classifica (non si registra), frase al plurale
+  // doppio contro i due avversari: niente classifica (non si registra), frase al plurale
   const d = fake({ level: 'evento', seq: 'OOOOOOOO' }); d.m.doubles = true;
   const Sd = endScreen(matchEndView({ winner: 'opponent', games: d.g, doubles: true }), viewOf(d.m));
-  assert.equal(Sd.sub, 'Hanno vinto le CPU questa volta. Ecco cosa ti è venuto meglio:');
+  assert.equal(Sd.sub, 'Hanno vinto gli avversari questa volta. Ecco cosa ti è venuto meglio:');
   assert.equal(Sd.pill, 'Scambio più lungo della partita: 9 colpi');
 });
 

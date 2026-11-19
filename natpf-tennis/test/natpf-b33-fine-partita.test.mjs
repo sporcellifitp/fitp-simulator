@@ -156,7 +156,7 @@ test('B33: frasi semplici dai numeri veri', () => {
   assert.match(tipsOf({ ...base, timing: { perfetto: 12, anticipo: 2, ritardo: 2, buono: 4 } }).good, /12 colpi perfetti su 20/);
   assert.match(tipsOf({ ...base, timing: { perfetto: 12, anticipo: 2, ritardo: 2, buono: 4 }, errors: { net: 4, out: 1, whiff: 0 } }).fix, /in rete \(4\)/);
   assert.match(tipsOf({ ...base, errors: { net: 0, out: 0, whiff: 3 } }).fix, /a vuoto/);
-  assert.match(tipsOf({ ...base, timing: { perfetto: 12, anticipo: 2, ritardo: 2, buono: 4 }, won: true }, { mode: 'cpu', level: 'evento' }).fix, /livello Esperta/);
+  assert.match(tipsOf({ ...base, timing: { perfetto: 12, anticipo: 2, ritardo: 2, buono: 4 }, won: true }, { mode: 'cpu', level: 'evento' }).fix, /livello Esperto/);
   assert.match(tipsOf({ ...base, timing: { perfetto: 12, anticipo: 2, ritardo: 2, buono: 4 }, won: true }, { mode: 'cpu', level: 'leggenda' }).fix, /verde/);
   const t = tipsOf({ ...base, hits: 0, rated: 0, pct: 0, points: 0, timing: { perfetto: 0, anticipo: 0, ritardo: 0, buono: 0 }, longest: 0 });
   assert.ok(t.good && t.fix);
@@ -173,7 +173,7 @@ test('B33: punteggio della classifica equo tra livelli (valori dalle misure)', (
   const umano = { bambini: 88, casual: 86, evento: 67.5, pro: 62.8, leggenda: 21.9 }, sc = Object.fromEntries(Object.entries(umano).map(([l, p]) => [l, matchScore({ level: l, won: p, lost: 100 - p })]));
   const vals = Object.values(sc); assert.ok(Math.max(...vals)/Math.min(...vals) <= 1.25, JSON.stringify(sc));
   assert.ok(matchScore({ level: 'leggenda', won: 35.7, lost: 64.3 }) > matchScore({ level: 'evento', won: 95.9, lost: 4.1 }));
-  assert.match(SCORE_RULE, /Bambini ×1 · Facile ×1,1 · Evento ×1,4 · Esperta ×1,6 · Leggenda ×5/);
+  assert.match(SCORE_RULE, /Bambini ×1 · Facile ×1,1 · Evento ×1,4 · Esperto ×1,6 · Leggenda ×5/);
 });
 
 test('B33: il motore collegato conta solo le partite vere', () => {
@@ -234,8 +234,8 @@ test('B33: classifica delle partite nel tabellone del giorno, nel CSV e azzerata
   const top = topMatches(b, 10, '2026-11-13');
   assert.deepEqual(top.map(e => [e.nick, e.score, e.level, e.win]), [['Ada', 91, 'evento', true], ['Bea', 150, 'leggenda', false]]);
   const csv = boardCsv(b);
-  assert.match(csv, /"Partite contro la CPU";"1";"Ada";"91"/);
-  assert.match(csv, /"Partite contro la CPU";"2";"Bea";"150"/);
+  assert.match(csv, /"Partite contro l'avversario";"1";"Ada";"91"/);
+  assert.match(csv, /"Partite contro l'avversario";"2";"Bea";"150"/);
   assert.ok(b.modes[MATCH_MODE]);
   assert.deepEqual(topMatches(freshBoard(null, '2026-11-13'), 10, '2026-11-13'), [], 'azzerata');
   // revisione finale: oltre le partite tenute (keep) posizione 0 e totale sulla lista tenuta, mai «57° su 57»
@@ -264,7 +264,7 @@ test('B34: classifica delle partite, prima tutte le vinte per punteggio poi le p
   const top = topMatches(b, 10, day);
   assert.deepEqual(top.map(e => e.nick), ['VintaEsperta', 'VintaFacile', 'VintaBambini', 'PersaLeggenda', 'PersaLeggenda2', 'PersaEvento']);
   assert.deepEqual(top.map(e => e.score), [128, 110, 67, 214, 100, 47]);
-  const csv = boardCsv(b).split('\n').filter(l => l.includes('Partite contro la CPU')).map(l => l.split(';').slice(2, 4).join(';'));
+  const csv = boardCsv(b).split('\n').filter(l => l.includes("Partite contro l'avversario")).map(l => l.split(';').slice(2, 4).join(';'));
   assert.deepEqual(csv, top.map((e, i) => `"${i + 1}";"${e.nick}"`), 'CSV nello stesso ordine');
   // a parità di vinta e punteggio è prima chi l'ha fatta prima
   const t = addMatch(b, { nick: 'VintaFacile2', level: 'casual', won: 4, lost: 0, games: [1, 0], win: true }, { day, at: 99 });

@@ -219,12 +219,12 @@ test('«Chi gioca»: Bambino → Bambini, Ragazzo → Casual, Adulto → Evento;
   assert.equal(urlLevel('?mode=1v1'), null); assert.equal(urlLevel('?mode=boh'), null);
   assert.equal(baseLevel('?mode=leggenda'), 'leggenda');
   // Esperta e Leggenda non corrispondono a una tessera: lo dice la riga sotto le tessere e il riassunto
-  assert.equal(levelSummary('pro'), 'CPU Esperta'); assert.equal(levelSummary('leggenda'), 'CPU Leggenda');
+  assert.equal(levelSummary('pro'), 'Avversario esperto'); assert.equal(levelSummary('leggenda'), 'Avversario Leggenda');
   for (const lv of ['bambini', 'casual', 'evento', '1v1', undefined]){ assert.equal(levelSummary(lv), null, String(lv)); assert.equal(whoNote(lv), ''); }
-  assert.match(whoNote('pro'), /CPU Esperta.*Altre impostazioni/);
-  assert.equal(matchSummary({ games: 1, level: 'CPU Esperta' }), 'CPU Esperta · 1 game · singolare · 3ª persona');
+  assert.match(whoNote('pro'), /Avversario esperto.*Altre impostazioni/);
+  assert.equal(matchSummary({ games: 1, level: 'Avversario esperto' }), 'Avversario esperto · 1 game · singolare · 3ª persona');
   assert.equal(matchSummary({ games: 3 }), 'Al meglio di 3 · singolare · 3ª persona', 'senza livello il riassunto è quello di prima');
-  assert.equal(matchSummary({ games: 1, split: true, level: 'CPU Esperta' }), '1 game · 3ª persona', 'nello stesso schermo niente livello');
+  assert.equal(matchSummary({ games: 1, split: true, level: 'Avversario esperto' }), '1 game · 3ª persona', 'nello stesso schermo niente livello');
 });
 
 /* ---------- segnale del momento giusto ---------- */
