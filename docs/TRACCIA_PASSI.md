@@ -10,10 +10,20 @@ Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) 
 `docs/archivio/TRACCIA_PASSI_fino_al_2026-11-18.md`. Si consulta, non si aggiorna. Le nuove sezioni vanno **in fondo**
 a questo file; quando supera ~300 righe si sposta di nuovo la parte vecchia in un file d'archivio datato.
 
-## STATO ATTUALE (18/11/2026)
+## STATO ATTUALE (19/11/2026)
 
-- **In pubblicazione (19/11 sera): 2026-11-19.1** = B71 + B72 (sezioni in fondo). Push fatto, CI e pacchetti in corso:
-  quando sono verificati questa riga diventa la versione pubblicata con sha256.
+- **Versione pubblicata: 2026-11-19.1** (`c3adeae1`, B71 + B72: casella «Al servizio» che lampeggia e alone dopo 3 s,
+  «Avversario» al posto di «CPU», lingua IT/EN dal telefono per giocatore, correzioni dai registri della fiera). Pacchetti
+  verificati: installer dal link fisso 131.406.666 B, sha256
+  `0f1b11ea4a2c18ce65dd9fad334e4c242c717e625ee8cc7d260008ffb466ee72`; zip Cloudflare 24.022.691 B, sha256
+  `a87fb88d2a0128f17d53b50fcd4bde0117f4a10d446943d186b8b0b9482ee3ed`, provato estratto (stessi errori attesi della 18.3:
+  CORS del TURN e 404 dei servizi LAN e del registro che il pacchetto Cloudflare non ha).
+- **App NATPF Racchetta 1.0.5** su R2 (`android/NATPF-Racchetta-1.0.5.apk` = link fisso, 686.665 B, sha256
+  `e5a34907bd86a92a05703f6c108a56c5cff470c181f210a3faab0acdf848983b`, chiave dello stand: la CI pubblica solo se firmata).
+- **Worker del registro**: da ricaricare dall'utente con il file della 19.1 (formato 4 del B71; la pagina deve dire «Formato delle righe: 4»).
+- **Prove** (19/11): gioco 1915/1915, sito 322/322, LAN 13/13, desktop 56/56, build ok.
+
+**Prima (18/11):**
 - **Versione pubblicata: 2026-11-18.3** (`e9409c5`, B70: mascotte 3D che ballano nella card **solo nel programma
   Windows** della fiera). Pacchetti verificati: installer dal link fisso 131.385.957 B, sha256
   `6e9ad5e40b31abf9be5529458ee7fa2382c2071d78451a2e20124d9c13bb63a1`; zip Cloudflare 23.979.122 B, sha256
@@ -150,9 +160,9 @@ uno dei due campi in modalità doppio».
       `natpf-fiera-telefoni.mjs` aggiornato: nel telefono bloccato c'è di proposito il selettore della lingua (due tocchi).
 - [x] Prove sul codice finale: gioco 1915/1915, sito 322/322, LAN 13/13, desktop 56/56, build ok, prove nel browser verdi
       (fiera-telefoni 66/66, lingua 46/46, servizio-alone 27/27, fine-partita-en 101/101 e le altre in `docs/b72/unione.md` §6).
-- [~] Versione **2026-11-19.1** (quattro file), commit, push; poi CI: installer Windows su R2, APK 1.0.5 su R2; zip
-      Cloudflare provato estratto; consegna. **Ripresa se si ferma**: `git log --oneline origin/natpf-simulator..`, se ci
-      sono commit non pubblicati rifare i test veloci e il push; poi `attesa-installer.sh 2026-11-19.1`.
+- [x] Versione **2026-11-19.1** (`c3adeae1`, quattro file), push; CI verde: installer Windows su R2 verificato dal link
+      fisso (sha256 `0f1b11ea…ee72`), APK 1.0.5 su R2 (sha256 `e5a34907…983b`, link fisso uguale); zip Cloudflare
+      24.022.691 B (sha256 `a87fb88d…e3ed`) provato estratto. Consegnati all'utente.
 - Da fare dall'utente: ricaricare il Worker del registro (pagina «Formato delle righe: 4»).
 - Non verificato: telefono vero (sensori dell'app 1.0.5, schermo che si riaccende, IT/EN), iPhone vecchi, programma
   Windows installato, ledwall (leggibilità del lampeggio e dell'alone da lontano).

@@ -32,10 +32,11 @@ stand in IT/EN con verifica avversaria: quattro rilievi corretti (fine partita i
 letto» negli scambi di prova, scritta del segnale nascosta negli scambi di prova; `docs/b72/unione.md` §6). Prove sul
 codice finale: gioco 1915/1915, sito 322/322, LAN 13/13, desktop 56/56, build ok, 30 prove nel browser verdi (dopo il
 controllo B51 di `natpf-fiera-telefoni.mjs` aggiornato al selettore della lingua: 66/66). Versione **2026-11-19.1** nei
-quattro file. **Prossima azione esatta:** dopo il push aspettare la CI (installer Windows su R2 con
-`attesa-installer.sh`, APK 1.0.5 da `natpf-android.yml`), zip Cloudflare provato estratto, consegna all'utente; il Worker
-del registro va ricaricato con il file della versione nuova (la pagina deve dire «Formato delle righe: 4»). Se il lavoro
-si ferma prima del push: `git log --oneline origin/natpf-simulator..natpf-simulator`, test veloci, `git fetch`, push.
+quattro file, **pubblicata** (`c3adeae1`): installer dal link fisso verificato (sha256 `0f1b11ea…ee72`), APK 1.0.5 su
+R2 (sha256 `e5a34907…983b`), zip Cloudflare provato estratto (sha256 `a87fb88d…e3ed`); numeri in `docs/TRACCIA_PASSI.md`.
+**Prossima azione esatta:** aspettare l'utente: prova in fiera (telefono vero con l'app 1.0.5, IT/EN, lampeggio e alone
+sul ledwall) e ricarica del Worker del registro con il file della versione nuova (la pagina deve dire «Formato delle
+righe: 4»); poi i registri del giorno dopo per misurare i campi nuovi del B71 (`vg`, `vc`, `ls`, `lg`).
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
