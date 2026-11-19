@@ -122,3 +122,11 @@ scratchpad della sessione). Anomalie uguali nei due giorni:
       del verso e il ritardo dello schermo è `CAMPI_B71T` (`docs/b71/unione.md`). Prove dell'unione in `docs/b71/unione.md` §2.
       **Prossimo passo**: revisori e verifica avversaria sul ramo `b71-int` (workflow), poi versione nuova, push, pacchetti,
       APK 1.0.5 (CI), Worker del registro da ricaricare (dodici campi nuovi).
+- [x] Revisori e verifica avversaria: undici rilievi confermati, **tutti applicati** sul ramo `b71-int` (commit locali,
+      niente push, file di versione non toccati): calibrazione giocando con il verso incerto in fiera (il colpo si conta
+      nel verso che si vede), KEEP con il lato del gesto, riaccensione dello schermo con wake lock parziale, «in uso»
+      azzerato sulla schermata dello staff, ritardo tra browser e app misurato (`lg`), formato del registro 4 con l'avviso,
+      modalità fiera nel registro (`stand.modo`), `cf` per versione, nota della fiera sul ritardo dello schermo, prove
+      sistemate. Documento `docs/b71/revisione.md` (prove e numeri). **Prossimo passo**: unione in `natpf-simulator`,
+      versione nuova, push, pacchetti, APK 1.0.5 (CI); Worker del registro da ricaricare (la pagina deve dire «Formato
+      delle righe: 4»).

@@ -43,6 +43,8 @@ export class MisureTelefono {
     // B71: sorgente dei sensori ('n' app, 'b' browser), fondo scala dichiarato dall'app, valori più grandi visti, ms
     // dall'ultimo tocco all'inizio dei buchi, motivo del ritorno al browser
     this.sr = new Set(); this.fs = null; this.va = 0; this.vr = 0; this.tk = []; this.rp = null;
+    // B71 (revisione): ritardo dei campioni del browser su quelli dell'app misurato dalla prova all'avvio (ms, ultimo detto)
+    this.lg = null;
     // collegamento: ritardo dal picco all'arrivo e alla risposta del gioco, sbalzi, colpi persi o fuori ordine, strade
     this.arr = []; this.ris = []; this.jit = 0; this.jitN = 0; this.ultimoArr = null; this.stimati = 0; this.ordine = 0; this.vie = [0, 0];
     this.seg = null; this.persi = 0; this.colpi = new Map();
@@ -72,6 +74,7 @@ export class MisureTelefono {
     const fs = numeri(d.fs, 2); if (fs && fin(fs[0]) && fin(fs[1]) && fs[0] > 0 && fs[1] > 0) this.fs = [r1(fs[0]), r0(fs[1])];
     if (Array.isArray(d.tk)) for (const v of d.tk.slice(0, 32)) metti(this.tk, v);
     if (typeof d.rp === 'string' && /^[a-z]$/.test(d.rp)) this.rp = d.rp;
+    if (Number.isInteger(d.lg) && d.lg >= 0 && d.lg <= 100) this.lg = d.lg;
     const lc = numeri(d.lc, 3); if (lc) lc.forEach((v, i) => this.lc[i].metti(v));
     // blocco dei tocchi acceso e spento (lk: com'è adesso sul telefono)
     if (d.lk === 1 && this.bloccato == null) this.bloccato = { at: now, ss: this.lc[1].tot };
@@ -162,6 +165,7 @@ export class MisureTelefono {
       if (this.va || this.vr) out.tq.vs = [r1(this.va), r0(this.vr)];
       if (this.tk.length) out.tq.tk = [r0(mediana(this.tk)), this.tk.filter(v => v <= TOCCO_VICINO_MS).length];
       if (this.rp) out.tq.rp = this.rp;
+      if (this.lg != null) out.tq.lg = this.lg;
     }
     if (this.colpiTel){
       const tre = v => (v.length ? [r0(percentile(v, .5)), r0(percentile(v, .9)), r0(percentile(v, .99))] : undefined);

@@ -154,6 +154,12 @@ prima volta è il B36.0 (campi della direzione dei colpi, formato delle righe 2)
 La seconda è il B66 (18/11, versione 2026-11-18.1: misure di sensori, calibrazione, collegamento, rete e blocco del
 telefono, formato delle righe 3): stessi passi, `docs/b66/registro-sensori.md` §5; dopo il Deploy la pagina dice
 **«Formato delle righe: 3»**.
+La terza è il B71 (19/11, prima versione dopo la 2026-11-18.3: verso del gesto, ritardo dello schermo, sensori dell'app
+NATPF Racchetta 1.0.5, formato delle righe 4; `docs/b71/revisione.md`): stessi passi, con il file della versione nuova;
+dopo il Deploy la pagina dice **«Formato delle righe: 4 (con la direzione dei colpi, le misure dei sensori del B66 e del
+B71: verso del gesto, ritardo dello schermo, sensori dell'app)»**. Se dice ancora 3, il Deploy non è andato. Se il Worker
+non è ricaricato il riassunto lo dice: «ATTENZIONE: … partite con il telefono di un gioco con formato 4 senza
+displayLagMs: il Worker del registro non è stato ricaricato».
 
 ## Sicurezza in breve
 

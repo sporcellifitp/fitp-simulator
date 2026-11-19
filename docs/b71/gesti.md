@@ -109,3 +109,14 @@ tornava un dritto. In fiera quel colpo prende comunque il lato dalla palla.
 - Il ricalcolo dei «none» è una stima dal registro (forza al posto del picco, lato al posto del verso).
 - Da riportare in `docs/PROJECT_MEMORY.md` §Gesti all'integrazione: segno di fiera (6 e 8 voti), lato dalla palla con il
   verso incerto in fiera, colpi che contano negli scambi di prova.
+
+## Revisione (19/11, ramo `b71-int`, `docs/b71/revisione.md`)
+
+Rilievi confermati dalla verifica e applicati (nessuno scartato):
+- **Calibrazione giocando con il verso incerto in fiera** (importante): il lato dalla palla ora vale per tutto il colpo
+  (verso del colpo, lettura, modelli per verso) e negli scambi di prova il colpo si conta nel verso della palla, quello che
+  si vede (`mark(..., { dir })`, `split()` usa `x.dir || segno·verso grezzo`); il voto sul segno resta sul verso grezzo.
+  Prima: a schermo 4 dritti e 2 rovesci, imparati 0 e 6, «partial» e 6 palle; dopo: 2 e 2, «full», 4 palle.
+- **KEEP con il lato del gesto** (minore): `natpf.gs` (lato che diceva il gesto quando il lato l'ha dato la palla) e
+  `keepSide` in `natpf_impact.js`: la palla corta voluta fatta in tempo resta DROP anche con il rientro incerto.
+- **Prove che confrontavano un valore con se stesso** (minore): sistemate in `natpf-b71-gesti.test.mjs`.

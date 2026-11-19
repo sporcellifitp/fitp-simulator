@@ -119,3 +119,13 @@ Rossi che non vengono dall'unione (nessuno dei tre rami tocca il disegno, la mod
 - Worker del registro non ricaricato (lo fa l'utente).
 - Le soglie nuove (confidenza del verso 0,35, segno 6/8 voti, «Perfetto» 0,55) sono scelte sui registri del 18–19/11 o
   senza dati veri: da rivedere con il prossimo registro, che ha i campi per misurarle.
+
+## 5. Revisione dopo l'unione (19/11)
+
+Revisori e verifica avversaria sul ramo `b71-int`: undici rilievi confermati, **tutti applicati** sullo stesso ramo
+(dettagli, numeri e prove in `docs/b71/revisione.md`): calibrazione giocando con il verso incerto in fiera, KEEP con il lato
+del gesto, prove che confrontavano un valore con se stesso (gesti); riaccensione dello schermo con il wake lock parziale,
+«in uso» azzerato sulla schermata d'avvio e a ogni pagina nuova, ritardo tra browser e app misurato e compensato (sensori);
+formato delle righe 4 con l'avviso del riassunto, modalità fiera nel registro (`stand.modo`), `cf` per versione, nota della
+fiera nel pannello del ritardo dello schermo (registro e tempo). Il Worker del registro va ricaricato con il file di questa
+revisione: la pagina deve dire «Formato delle righe: 4».

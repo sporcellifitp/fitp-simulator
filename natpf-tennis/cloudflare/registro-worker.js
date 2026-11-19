@@ -80,8 +80,9 @@
 //
 // FORMATO delle righe che questo Worker conosce (lo stesso numero del campo «v» della riga «avvio» del gioco): 2 dal B36.0,
 // con i campi della direzione dei colpi (pf, dv, tu, rx, rz, fu, nr, zp, dir: docs/b36/misure-b36-0.md); 3 dal B66, con le
-// misure di sensori, calibrazione, collegamento, rete e blocco del telefono (docs/b66/registro-sensori.md). La pagina del
-// Worker lo scrive in chiaro («Formato delle righe: 3»), così chi lo ricarica vede subito che la versione nuova è attiva.
+// misure di sensori, calibrazione, collegamento, rete e blocco del telefono (docs/b66/registro-sensori.md); 4 dal B71, con il
+// verso del gesto, il ritardo dello schermo e i sensori dell'app (docs/b71/). La pagina del Worker lo scrive in chiaro
+// («Formato delle righe: 4»), così chi lo ricarica vede subito che la versione nuova è attiva.
 // Compatibilità: un Worker di prima (formato 1) accetta le righe del gioco nuovo e ne toglie in silenzio i campi che non
 // conosce (le righe restano, i campi della direzione no); questo Worker accetta le righe dei giochi di prima (senza quei
 // campi) come sempre. Il test lo prova con il Worker di prima ricostruito da questo file.
@@ -121,10 +122,10 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'displayLagMs',
   // B66 (18/11): misure di sensori, calibrazione, collegamento, rete e blocco del telefono
   'cf', 'mg', 'gb', 'rit', 'pv', 'app', 'tq', 'lat', 'wifi', 'blocco', 'cal', 'pause', 'a', 'hz', 'b', 'bm', 'bg', 'iv', 'sat', 'arr', 'ris', 'jit', 'stimati', 'persi', 'ordine', 'vie', 'rssi', 'bd', 'mbps', 'bt', 'ch', 'tc', 'fx', 'tb', 'ss', 'sp', 'sd', 'us', 'sc', 'tip', 'tipN', 'cen', 'dvi', 'seg', 'ric', 'ref', 'soglia',
-  // B71 (19/11): sensori dell'app NATPF Racchetta 1.0.5 (sorgente, fondo scala, valori più grandi, tocchi prima dei buchi)
-  'sr', 'fs', 'vs', 'tk', 'rp',
+  // B71 (19/11): sensori dell'app NATPF Racchetta 1.0.5 (sorgente, fondo scala, valori più grandi, tocchi prima dei buchi, ritardo del browser)
+  'sr', 'fs', 'vs', 'tk', 'rp', 'lg',
   'pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr', 'zp', 'dir']);
-export const FORMATO = 3;
+export const FORMATO = 4;
 export const MAPPE = Object.freeze(['scartati', 'posti', 'passi', 'perche', 'pause']);
 export const CAMPI_VIETATI = Object.freeze(['nome', 'name', 'nick', 'nickname', 'giocatore', 'player', 'ip', 'indirizzo', 'address', 'host', 'ua', 'useragent', 'token', 'sessione',
   'session', 'stanza', 'room', 'roomid', 'id', 'deviceid', 'telefonoid', 'video', 'audio', 'immagine', 'foto', 'frame', 'campioni', 'sensori', 'rot', 'acc', 'accg', 'email', 'mail',
@@ -450,7 +451,7 @@ button:disabled{opacity:.5;cursor:default}button.via{background:#4a1626;border-c
 .riga{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.riga input{flex:1;min-width:200px}</style></head><body><main>
 <h1>Registro di NATPF Simulator</h1><p class="dim">Qui arrivano le righe di gioco dello stand (partite, punti, colpi, errori). Niente nomi, niente video, niente audio.</p>
 ${spazio ? '' : '<p class="no"><b>Il registro NON è pronto:</b> manca il collegamento al bucket R2. Finché manca, le righe dello stand non vengono salvate qui (restano in coda sul PC dello stand).</p>'}
-<p>Spazio R2 collegato: <b class="${spazio ? 'ok">sì' : 'no">no (Settings → Bindings → Add → R2 bucket, nome REGISTRO, bucket privato natpf-registro)'}</b><br>Chiave di lettura impostata: <b class="${chiave ? 'ok">sì' : 'no">no (Settings → Variables and Secrets → CHIAVE_LETTURA, almeno 12 caratteri)'}</b><br>Formato delle righe: <b class="ok" id="formato">${FORMATO}</b> <span class="dim">(con la direzione dei colpi e le misure dei sensori del B66)</span></p>
+<p>Spazio R2 collegato: <b class="${spazio ? 'ok">sì' : 'no">no (Settings → Bindings → Add → R2 bucket, nome REGISTRO, bucket privato natpf-registro)'}</b><br>Chiave di lettura impostata: <b class="${chiave ? 'ok">sì' : 'no">no (Settings → Variables and Secrets → CHIAVE_LETTURA, almeno 12 caratteri)'}</b><br>Formato delle righe: <b class="ok" id="formato">${FORMATO}</b> <span class="dim">(con la direzione dei colpi, le misure dei sensori del B66 e del B71: verso del gesto, ritardo dello schermo, sensori dell'app)</span></p>
 <div class="riga"><input id="k" type="password" autocomplete="off" placeholder="La tua chiave di lettura"><button id="vai">Mostra i giorni</button></div>
 <p id="msg" class="dim">Scrivi la chiave per vedere lo spazio occupato e i giorni registrati, scaricarli o cancellarli.</p>
 <div id="barra" hidden><i></i></div><p id="spazio" class="dim" hidden></p>

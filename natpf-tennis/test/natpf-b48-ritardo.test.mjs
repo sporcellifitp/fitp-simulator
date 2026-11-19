@@ -108,5 +108,14 @@ test('B48 (D16): il ritardo dello schermo salvato dalla diagnostica vale per tut
     NatpfDiag.prototype.saveLag.call(solo);
     assert.equal(solo.engine.natpfPhone.displayLagMs, 120);
     assert.match(toasts[0], /120 ms/);
+    assert.ok(!/modalità fiera/.test(toasts[0]), 'fuori dalla fiera niente nota');
+    // B71 revisione: in modalità fiera il valore salvato non si somma (natpfSwingToEngine): il messaggio lo dice
+    const fiera = { ...panel, ui: { toast: t => toasts.push(t), fiera: { on: true } }, engine: { natpfPhone: { displayLagMs: 0 } } };
+    NatpfDiag.prototype.saveLag.call(fiera);
+    assert.match(toasts.at(-1), /^Ritardo dello schermo: 120 ms \(colpi del telefono\)\. In modalità fiera il ritardo salvato non si somma: la correzione della fiera \(100 ms\) lo comprende già\. Serve fuori dalla fiera\.$/);
+    // e davvero non si somma in fiera, fuori sì
+    const s = { at: 10, power: .7, lift: 0, dir: 1, aim: 0, confidence: .8 };
+    assert.ok(Math.abs(natpfSwingToEngine(s, { now: 10.03, displayLag: .12, anticipation: .1 }).natpf.latency - (.03 - .1)) < 1e-9);
+    assert.ok(Math.abs(natpfSwingToEngine(s, { now: 10.03, displayLag: .12 }).natpf.latency - .15) < 1e-9);
   } finally { globalThis.localStorage = prev; }
 });

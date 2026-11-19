@@ -15,6 +15,8 @@
 // restano quelle di prima). Il modello è inventato: serve a provare lo strumento, non dice niente delle persone.
 // B66 (b66: true, di base): anche le misure di sensori, calibrazione, collegamento, rete e blocco del telefono (righe
 // «colpo» e «partita.fine»), da un altro generatore a parte. Anche questo inventato: serve a provare il riassunto.
+// B71 (revisione): con le misure la versione del gioco è una dopo la 2026-11-18.3 (VERSIONE_B71, formato 4): «cf» delle
+// righe «colpo» è sulla scala del gioco e il riassunto la conta solo per quelle versioni (riassunto.cfDelGioco).
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -38,6 +40,7 @@ const VOTI_SERVIZIO = ['good serve', 'power serve!', 'early serve', 'late serve'
 const FASCE = ['bambino', 'ragazzo', 'adulto'];
 const LIVELLO = { bambino: 'bambini', ragazzo: 'casual', adulto: 'evento' };
 const SCARTI = ['troppo debole', 'telefono: gesto scartato', 'doppio', 'fuori tempo'];
+export const VERSIONE_B71 = '2026-11-19.1';
 
 // Un giorno di stand: { righe: [testo…], verita }. ora0: ora di apertura (locale), fuso: minuti dal tempo universale
 export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g = null, ora0 = 9, ore = 10, fuso = 60, direzione = true, b66 = direzione } = {}){
@@ -85,7 +88,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
   const riga = (k, d) => { const row = pulisci({ k, t: Math.round(t), ...d }); const s = row && testoRiga(row); if (!s) throw new Error(`riga finta non valida: ${k} ${JSON.stringify(d)}`); righe.push(s); };
   const ora = () => new Date(inizio + t).toISOString();
   const tel = () => ({ strada: prob(.8) ? 'lan' : prob(.7) ? 'relay' : 'internet', rtt: r(tra(8, 90), 0), so: prob(.7) ? `Android ${11 + Math.floor(rnd()*5)}` : `iPhone iOS ${16 + Math.floor(rnd()*3)}`, browser: prob(.7) ? `Chrome ${120 + Math.floor(rnd()*12)}` : 'Safari 17' });
-  riga('avvio', { v: b66 ? 3 : direzione ? 2 : 1, ora: ora(), fuso, g: post, versione: '2026-11-12.4', dove: 'programma', motivo: 'avvio', schermo: [1920, 1080], area: [1024, 1024], dpr: 1, cpu: 8, gpu: true, gpuTipo: 'NVIDIA GeForce RTX 3060', pagina: 'navigate', chiosco: true, prima: prob(.2) ? 'improvvisa' : 'pulita' });
+  riga('avvio', { v: b66 ? 4 : direzione ? 2 : 1, ora: ora(), fuso, g: post, versione: b66 ? VERSIONE_B71 : '2026-11-12.4', dove: 'programma', motivo: 'avvio', schermo: [1920, 1080], area: [1024, 1024], dpr: 1, cpu: 8, gpu: true, gpuTipo: 'NVIDIA GeForce RTX 3060', pagina: 'navigate', chiosco: true, prima: prob(.2) ? 'improvvisa' : 'pulita' });
   for (let n = 1; n <= partite; n++){
     t = (n - 1)*passo + tra(0, passo*.2);
     const t0 = t;
@@ -114,7 +117,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
     const tb66 = b66 ? { g: telB66(), ...(split ? { a: telB66() } : {}) } : {};
     // B66: versione dell'app e, a volte, della pagina del telefono rimasta indietro
     const telV = T => (T ? { ...(T.app ? { app: '1.0.4' } : {}), ...(rb() < .05 ? { pv: '2026-11-17.4' } : {}) } : {});
-    riga('partita', { n, ora: ora(), g: post, versione: '2026-11-12.4', modo, ...(split ? {} : { chi, livello: LIVELLO[chi] }), formato: 'quick', game: 2, fiera: split, batte: 'g', personaggi: prob(.5) ? 'sempre' : 'lobdrop', ctrl: 'telefono', mano: prob(.9) ? 'right' : 'left', ...(split ? { mano2: 'right' } : {}),
+    riga('partita', { n, ora: ora(), g: post, versione: b66 ? VERSIONE_B71 : '2026-11-12.4', modo, ...(split ? {} : { chi, livello: LIVELLO[chi] }), formato: 'quick', game: 2, fiera: split, batte: 'g', personaggi: prob(.5) ? 'sempre' : 'lobdrop', ctrl: 'telefono', mano: prob(.9) ? 'right' : 'left', ...(split ? { mano2: 'right' } : {}),
       segnale: true, nomeInserito: prob(.4), ...(split ? { nomeInserito2: prob(.4) } : {}), stand: { chiosco: true, fiera: 'split', mira: 'alta', caldo: true, ...(split ? { lancioAuto: prob(.5), campoAperto } : {}) },
       ...(split ? { fasce, aiuto } : {}), ...(evento ? { ek } : {}), ...(b66 ? { displayLagMs: 0 } : {}), tel: { ...tel(), ...telV(tb66.g) }, ...(split ? { tel2: { ...tel(), ...telV(tb66.a) } } : {}), ...(direzione ? { dir: 'classica' } : {}) });
     const pers = { g: persona(), a: persona() }, fatti = { g: 0, a: 0 };

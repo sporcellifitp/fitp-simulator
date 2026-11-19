@@ -186,7 +186,12 @@ di una lettera; una pagina di prima non li manda e la riga resta identica.
 | `vs` | valori più grandi visti su un asse [accelerazione con la gravità m/s², rotazione °/s]: con `fs` dice se la saturazione è il fondo scala | telefono (`sq[7]`, `sq[8]`) |
 | `tk` | tocchi prima dei buchi: [mediana dei ms dall'ultimo tocco all'inizio del buco, buchi con un tocco nell'ultimo secondo (o durante il buco)] | telefono (campo `tk` dello stato: un valore per buco) |
 | `rp` | motivo del ritorno al browser: `g` gravità diversa nella prova, `r` rotazione diversa, `f` sensori dell'app fermi a pagina visibile, `p` ponte che non risponde | telefono |
+| `lg` | (B71, revisione) ritardo dei campioni del browser su quelli dell'app misurato dalla prova all'avvio sugli stessi movimenti (ms interi, 0–40); con l'app si somma all'istante dei campioni, così i colpi restano con l'istante del browser su cui sono tarate le finestre del tempo | telefono (`sensori-nativi.js`, campo `lg` dello stato) |
 
-Il Worker va ricaricato (§5, file della versione con il B71) perché i cinque campi arrivino: un Worker non ricaricato li
-toglie in silenzio e accetta le righe con tutto il resto (formato delle righe ancora **3**, prova in
-`natpf-tennis/test/natpf-b71-sensori-registro.test.mjs`). Il riassunto (`riassunto.mjs`) non li mostra ancora.
+Il Worker va ricaricato (§5, file della versione con il B71) perché i sei campi arrivino: un Worker non ricaricato li
+toglie in silenzio e accetta le righe con tutto il resto (prova in `natpf-tennis/test/natpf-b71-sensori-registro.test.mjs`).
+Dalla revisione del B71 il formato delle righe è **4** (`docs/b71/revisione.md`): dopo il Deploy la pagina del Worker dice
+«Formato delle righe: 4 (… del B66 e del B71: verso del gesto, ritardo dello schermo, sensori dell'app)», e il riassunto
+avvisa se le partite con il telefono di un gioco con formato 4 arrivano senza `displayLagMs` (Worker non ricaricato). Il
+riassunto mostra la sorgente dei sensori (`sr`), i ritorni al browser (`rp`) e il ritardo misurato (`lg`) nella sezione
+«Sensori del telefono»; il lato dei colpi per origine (`ls`) e il verso incerto (`vc` sotto 0,35) in «Precisione dei gesti».

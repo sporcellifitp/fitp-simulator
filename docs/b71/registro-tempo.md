@@ -144,3 +144,16 @@ registro (adesso `displayLagMs` c'è).
   «Adulto» e «Bambino» (non nello stesso schermo, 292 partite su 325). Non toccato.
 - La confidenza del gioco nei registri veri: nessun registro la ha ancora (la soglia 0,2 del riassunto è da rivedere con
   i dati della prossima giornata).
+
+## Revisione (19/11, ramo `b71-int`, `docs/b71/revisione.md`)
+
+Rilievi confermati dalla verifica e applicati (nessuno scartato):
+- **Formato 4** (importante): `REGISTRO.versione` e `FORMATO` del Worker a 4, testo nuovo della pagina del Worker, avviso
+  del riassunto per le partite con il telefono di un gioco con formato 4 senza `displayLagMs` (Worker non ricaricato).
+- **Modalità fiera nel registro** (due rilievi, una correzione): `stand.modo: 'fiera'` nella riga «partita» quando la
+  modalità fiera è accesa; il riassunto dice «modalità fiera (non sommato all'anticipo)» da quello, non da `fiera` (formato
+  in fiera del punteggio).
+- **`cf` per versione**: il riassunto conta la confidenza solo dalle versioni dopo la 2026-11-18.3 (prima era quella del
+  telefono, 0,45 fissa), le altre a parte; registri finti con la versione 2026-11-19.1.
+- **Pannello dello staff**: in modalità fiera il riepilogo del ritardo dello schermo, il messaggio dopo «Salva» e il
+  risultato della prova del B50 dicono che il valore salvato non si somma (§3c).

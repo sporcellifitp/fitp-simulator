@@ -22,12 +22,31 @@ public final class RisveglioSchermo {
   /** La pagina dice se il telefono è in uso. */
   public synchronized void inUso(boolean v) { pagina = v; }
 
+  /**
+   * B71 (revisione): la pagina che lo diceva non c'è più (schermata d'avvio dello staff, pagina nuova o ricaricata): fino a
+   * quando la pagina nuova non parla vale di nuovo «app fissata con la pagina aperta». Prima restava l'ultimo «in uso» e lo
+   * schermo spento dallo staff sulla schermata d'avvio si riaccendeva.
+   */
+  public synchronized void azzera() { pagina = null; }
+
   /** In uso adesso: quello che dice la pagina o, se non dice niente, app fissata con la pagina aperta. */
-  public synchronized boolean adesso(boolean fissataConPagina) { return pagina != null ? pagina : fissataConPagina; }
+  public synchronized boolean adesso(boolean fissataConPagina) { return adesso(true, fissataConPagina); }
+
+  /**
+   * In uso adesso con la pagina della racchetta aperta (visibile e caricata): paginaAperta false (schermata d'avvio, pagina
+   * non arrivata) vale sempre «non in uso», qualunque cosa abbia detto la pagina.
+   */
+  public synchronized boolean adesso(boolean paginaAperta, boolean fissataConPagina) {
+    if (!paginaAperta) return false;
+    return pagina != null ? pagina : fissataConPagina;
+  }
+
+  /** Lo schermo si è spento all'istante oraMs (con la pagina aperta): true se l'app lo deve riaccendere. */
+  public synchronized boolean spento(long oraMs, boolean fissataConPagina) { return spento(oraMs, true, fissataConPagina); }
 
   /** Lo schermo si è spento all'istante oraMs: true se l'app lo deve riaccendere. */
-  public synchronized boolean spento(long oraMs, boolean fissataConPagina) {
-    if (!adesso(fissataConPagina)) return false;
+  public synchronized boolean spento(long oraMs, boolean paginaAperta, boolean fissataConPagina) {
+    if (!adesso(paginaAperta, fissataConPagina)) return false;
     int recenti = 0;
     for (int i = 0; i < Math.min(n, MAX); i++) if (oraMs - ultimi[i] <= FINESTRA_MS) recenti++;
     if (recenti >= MAX) return false;

@@ -355,7 +355,11 @@ export class RegistroStand {
       personaggi: prova(() => getCast()), ctrl, mano: ui?.hand?.hand || E.natpfPhone?.hand || null, ...(split || modo === 'due-computer' ? { mano2: E.natpfP2Hand || E.natpfPhone2?.hand || null } : {}),
       segnale: !!ui?.cue?.enabled, nomeInserito: split ? conNome(nomi.p1) : !!prova(() => ui?.events?.nickname), ...(split ? { nomeInserito2: conNome(nomi.p2) } : {}),
       // opzioni dello stand accese per questa partita (B42: lo «scambio che si scalda» vale in tutti i modi, acceso di base)
-      stand: { chiosco: this.chiosco, fiera: prova(() => readFairMode()), mira: prova(() => readAimLevel()), caldo: !!E.natpfHot, ...(split ? { lancioAuto: !!duo?.autoToss, campoAperto: !!duo?.open } : {}) },
+      // (stand.fiera è l'opzione «Formato in fiera», come «fiera» qui sopra; B71 revisione: modo 'fiera' = modalità fiera
+      // accesa, natpfUi.fiera.on, quella che decide correzione dell'anticipo, ritardo dello schermo non sommato, «Perfetto»
+      // di fiera e segno di fiera. Prima non era scritta da nessuna parte e il riassunto la confondeva con il formato)
+      stand: { chiosco: this.chiosco, fiera: prova(() => readFairMode()), mira: prova(() => readAimLevel()), caldo: !!E.natpfHot, ...(split ? { lancioAuto: !!duo?.autoToss, campoAperto: !!duo?.open } : {}),
+        ...(prova(() => E.natpfUi?.fiera?.on || ui?.fiera?.on) ? { modo: 'fiera' } : {}) },
       // B36.0: modello della direzione dei colpi della partita (natpf_direction.js; oggi sempre «classica»)
       dir: dirModelOf(E),
       // stesso schermo: fasce dei due giocatori e chi riceve l'aiuto (il più giovane)

@@ -99,6 +99,12 @@ export function kmhVecchi(versione){
   return true;
 }
 export const kmhVeri = (kmh, versione) => (Number.isFinite(kmh) && kmhVecchi(versione) ? kmh*3.6/6.8 : kmh);
+// versione a dopo b? (data e numero come interi: «.10» viene dopo «.3»); false se a non è una versione
+const dopo = (a, b) => { const x = versioneNum(a), y = versioneNum(b); if (!x || !y) return false; for (let i = 0; i < 4; i++) if (x[i] !== y[i]) return x[i] > y[i]; return false; };
+// B71 (revisione): «cf» dei colpi è la confidenza del gioco solo nelle versioni dopo la 2026-11-18.3; fino a quella era
+// quella del telefono (0,45 fissa in fiera): le due non si sommano (la media e la quota sotto 0,2 sarebbero false)
+export const CF_TELEFONO_FINO_A = '2026-11-18.3';
+export const cfDelGioco = versione => dopo(versione, CF_TELEFONO_FINO_A);
 export class Misura {
   constructor(){ this.n = 0; this.somma = 0; this.min = Infinity; this.max = -Infinity; this.campione = []; this._s = 2463534242; }
   metti(v){
@@ -172,7 +178,14 @@ const nuovoB66 = () => ({
   cal: { n: 0, tipo: {}, tipN: new Misura(), cen: new Misura(), deriva: new Misura(), tipico: new Misura(), dvi: new Misura(), conSegno: 0, conMano: 0, conRic: 0, refCambiato: 0, soglie: {} },
   // B71: ritardo dello schermo salvato (displayLagMs della riga «partita», ms) → partite
   schermo: {},
+  // B71 (revisione): partite con il telefono di un gioco con formato 4, con e senza i campi del B71 (displayLagMs c'è sempre
+  // nelle partite con il telefono: se manca, il Worker del registro non è stato ricaricato); lato del colpo per origine (ls),
+  // confidenza del verso (vc) e, dai telefoni, sorgente dei sensori (sr), ritorni al browser (rp), ritardo del browser (lg);
+  // colpi con la confidenza del telefono (registri fino alla 2026-11-18.3), contati a parte
+  b71: { conCampi: 0, senzaCampi: 0, ls: {}, vc: { n: 0, bassa: 0 }, sr: {}, rp: {}, lg: new Misura(), cfTelefono: 0 },
 });
+// B71: verso del gesto incerto sotto questa confidenza (natpf_phone_racket.VERSE_FAIR.conf)
+export const VC_INCERTA = .35;
 
 export class Riassunto {
   constructor(){
@@ -334,14 +347,18 @@ export class Riassunto {
   }
   _b66Partita(r, x){
     for (const t of [r.tel, r.tel2]) this._b66Versioni(t, x);
-    if (Number.isFinite(r.displayLagMs)) piu(this.b66.schermo, `${N(r.displayLagMs)} ms${r.fiera ? ' · fiera (non sommato all’anticipo)' : ''}`);   // B71
+    // B71 (revisione: la modalità fiera è stand.modo, non «fiera», che è il formato della partita in fiera)
+    if (Number.isFinite(r.displayLagMs)) piu(this.b66.schermo, `${N(r.displayLagMs)} ms${r.stand?.modo === 'fiera' ? ' · modalità fiera (non sommato all’anticipo)' : ''}`);
+    if (r.ctrl === 'telefono' && (x?.formato ?? 0) >= 4 && (!r.versione || cfDelGioco(r.versione))){ if (Number.isFinite(r.displayLagMs)) this.b66.b71.conCampi++; else this.b66.b71.senzaCampi++; }
     x.P.b66 = { colpiN: { g: 0, a: 0 } };
   }
   _b66Colpo(r, x){
     const B = this.b66, P = x?.P; if (r.amb || !P) return;
     const k = r.chi === 'a' ? 'a' : 'g', i = P.b66 ? ++P.b66.colpiN[k] : null, g = voce(B.gesti, r.gesto || '—', () => ({ n: 0, cf: new Misura(), cfBassa: 0, mg: new Misura(), limite: 0, conMg: 0, conPl: 0, opposti: 0 }));
     g.n++;
-    if (Number.isFinite(r.cf)){ g.cf.metti(r.cf); if (r.cf < CF_INCERTA) g.cfBassa++; }
+    if (Number.isFinite(r.cf)){ if (cfDelGioco(P.r.versione)){ g.cf.metti(r.cf); if (r.cf < CF_INCERTA) g.cfBassa++; } else B.b71.cfTelefono++; }
+    if (typeof r.ls === 'string') piu(B.b71.ls, r.ls);
+    if (Number.isFinite(r.vc)){ B.b71.vc.n++; if (r.vc < VC_INCERTA) B.b71.vc.bassa++; }
     if (Number.isFinite(r.mg)){ g.conMg++; g.mg.metti(r.mg); if (r.mg < B66_LIMITE) g.limite++; const L = B.limite[r.mg < B66_LIMITE ? 'al limite' : 'pieni']; L.n++; L.ms.metti(Math.abs(r.ms)); if (r.e === 'debole') L.deboli++; if (r.e === 'rete' || r.e === 'fuori') L.sbagliati++; }
     if ((r.pl === 1 || r.pl === -1) && (r.lato === 1 || r.lato === -1)){ g.conPl++; if (r.pl !== r.lato) g.opposti++; }
     if (Number.isFinite(r.gb)) B.gesto.conBuco++;
@@ -368,6 +385,7 @@ export class Riassunto {
       S.campioni += t.n || 0; S.buchi += t.b || 0; S.buchiPartita.metti(t.b || 0); G.buchi.metti(t.b || 0); if (t.bm) S.bucoMax.metti(t.bm); S.colpiBuco += t.bg || 0;
       if (Number.isFinite(t.iv)) piu(S.intervallo, `${N(t.iv, 1)} ms`);
       if (Array.isArray(t.sat) && (t.sat[0] || t.sat[1])){ S.saturi++; S.satAcc += t.sat[0] || 0; S.satGiro += t.sat[1] || 0; }
+      if (typeof t.sr === 'string') piu(B.b71.sr, t.sr); if (typeof t.rp === 'string') piu(B.b71.rp, t.rp); if (Number.isFinite(t.lg)) B.b71.lg.metti(t.lg);
     }
     for (const [k, l] of Object.entries(r.lat || {})){
       const C = B.coll; C.n++; C.colpi += l.n || 0; C.stimati += l.stimati || 0; C.persi += l.persi || 0; C.ordine += l.ordine || 0;
@@ -627,9 +645,19 @@ export function rapporto(R, L){
 // B66 · sei sezioni (docs/b66/registro-sensori.md): sensori del telefono, stabilità della calibrazione, precisione dei
 // gesti, distribuzione del ritardo, rete del telefono dall'app, telefono bloccato. Senza le misure (registri prima della
 // 2026-11-18.1, o Worker non ricaricato) le sezioni lo dicono in una riga
+// B71 (revisione): da dove viene il lato dei colpi in partita e quanti hanno il verso incerto
+function lsTesto(T){
+  const tot = Object.values(T.ls).reduce((a, v) => a + v, 0);
+  if (!tot && !T.vc.n) return '';
+  const nome = { g: 'dal gesto', a: 'dal verso atteso dalla palla', p: 'dalla posizione della palla' };
+  return `Lato dei colpi (B71): ${['g', 'a', 'p'].filter(k => T.ls[k]).map(k => `${nome[k]} ${N(T.ls[k])} (${pc(T.ls[k], tot, 1)})`).join(' · ') || '—'}${T.vc.n ? `; verso del gesto incerto (confidenza sotto ${N(VC_INCERTA, 2)}): ${N(T.vc.bassa)} su ${N(T.vc.n)} (${pc(T.vc.bassa, T.vc.n, 1)})` : ''}.`;
+}
 export function sezioniB66(R, sez){
   const B = R.b66, Pt = B.partite;
-  const avviso = Pt.senzaMisure ? `ATTENZIONE: ${N(Pt.senzaMisure)} partite con il telefono di un gioco nuovo (formato 3) senza le misure del B66: il Worker del registro non è stato ricaricato (docs/b66/registro-sensori.md, «Ricaricare il Worker»).` : '';
+  const avviso = [Pt.senzaMisure ? `ATTENZIONE: ${N(Pt.senzaMisure)} partite con il telefono di un gioco nuovo (formato 3) senza le misure del B66: il Worker del registro non è stato ricaricato (docs/b66/registro-sensori.md, «Ricaricare il Worker»).` : '',
+    // B71 (revisione): stessa rete di sicurezza per i campi del B71 (verso del gesto, ritardo dello schermo, sensori dell'app)
+    B.b71.senzaCampi ? `ATTENZIONE: ${N(B.b71.senzaCampi)} partite con il telefono di un gioco con formato 4 senza displayLagMs: il Worker del registro non è stato ricaricato e ha tolto i campi del B71 (docs/GUIDA_REGISTRO_CLOUDFLARE.md §I, «Formato delle righe: 4»).` : ''].filter(Boolean).join(' ');
+  const T71 = B.b71, srTesto = Object.keys(T71.sr).length ? `Sensori in partita (B71, app NATPF Racchetta 1.0.5): ${elenco(T71.sr).map(([k, v]) => `${{ n: 'app', b: 'browser', nb: 'app e browser' }[k] || k} ${v}`).join(' · ')}${Object.keys(T71.rp).length ? `; ritorni al browser per motivo (g gravità, r rotazione, f sensori dell'app fermi, p ponte): ${elenco(T71.rp).map(([k, v]) => `${k} ${v}`).join(' · ')}` : ''}${T71.lg.n ? `; ritardo dei campioni del browser su quelli dell'app (prova all'avvio) ${mis(T71.lg, 0, ' ms')}` : ''}.` : '';
   const vuoto = 'Nessuna partita con le misure del B66: il registro è di una versione prima della 2026-11-18.1' + (Pt.senzaMisure ? ' o il Worker non è stato ricaricato.' : '.');
   const S = B.sensori, totColpiTel = B.coll.colpi;
   sez('Sensori del telefono', S.n ? [
@@ -638,6 +666,7 @@ export function sezioniB66(R, sez){
     `Buchi nei campioni (intervallo oltre 2 volte il periodo del telefono): ${N(S.buchi)} su ${N(S.campioni)} campioni; a partita ${mis(S.buchiPartita, 1)}; il più lungo di ogni partita ${mis(S.bucoMax, 0, ' ms')}.`,
     `Colpi con un buco nei campioni durante il gesto: ${N(S.colpiBuco)} su ${N(totColpiTel)} colpi arrivati (${pc(S.colpiBuco, totColpiTel, 1)}); righe «colpo» con il buco: ${N(B.gesto.conBuco)}.`,
     `Saturazione (lo stesso valore grande ripetuto: il sensore arriva al suo massimo): partite con campioni saturi ${N(S.saturi)} (${pc(S.saturi, S.n, 1)}); campioni saturi dell'accelerazione ${N(S.satAcc)}, della rotazione ${N(S.satGiro)}.`,
+    srTesto,
   ] : [avviso, vuoto], S.n ? [
     { titolo: 'Per telefono e browser (dalla riga della partita)', colonne: ['Telefono · browser', 'Partite', 'Frequenza (mediana, Hz)', 'La più bassa (metà sotto, Hz)', 'Sotto 50 Hz', 'Buchi a partita'],
       righe: Object.entries(S.perTel).sort((a, b) => b[1].n - a[1].n).slice(0, 15).map(([k, G]) => [k, N(G.n), N(G.hz.p(.5), 1), N(G.hzMin.p(.5), 1), pc(G.sotto50, G.n), N(G.buchi.media, 1)]) },
@@ -661,6 +690,8 @@ export function sezioniB66(R, sez){
   sez('Precisione dei gesti', gesti.length ? [
     `Per tipo di colpo (colpi del telefono in partita): confidenza del tipo di colpo (0–1, del gioco: margine dalla soglia più vicina, 0,5 il colpo normale; sotto ${N(CF_INCERTA, 1)} il colpo è vicino al confine con un altro tipo; fino alla 2026-11-18.3 era quella del telefono, sempre 0,45 in fiera), margine del picco sulla soglia (sotto ${N(B66_LIMITE, 1)} = colpo «al limite», quasi scartato), colpi giocati dalla parte opposta alla palla (dritto con la palla a sinistra di un destro e viceversa: dritto e rovescio probabilmente scambiati).`,
     L['al limite'].n + L.pieni.n ? `Colpi al limite: ${N(L['al limite'].n)} su ${N(L['al limite'].n + L.pieni.n)} (${pc(L['al limite'].n, L['al limite'].n + L.pieni.n, 1)}).` : '',
+    T71.cfTelefono ? `Colpi con la confidenza del telefono (registri fino alla ${CF_TELEFONO_FINO_A}): ${N(T71.cfTelefono)}, fuori dalla colonna della confidenza.` : '',
+    lsTesto(T71),
   ] : [vuoto], [
     { titolo: 'Per tipo di colpo', colonne: ['Gesto', 'Colpi', 'Confidenza (media)', `Confidenza sotto ${N(CF_INCERTA, 1)}`, 'Margine (mediana)', 'Al limite', 'Dalla parte opposta alla palla'],
       righe: gesti.map(([k, g]) => [k, N(g.n), N(g.cf.media, 2), pc(g.cfBassa, g.cf.n, 1), N(g.mg.p(.5), 2), pc(g.limite, g.conMg, 1), g.conPl ? `${pc(g.opposti, g.conPl, 1)} (${N(g.conPl)})` : '—']) },

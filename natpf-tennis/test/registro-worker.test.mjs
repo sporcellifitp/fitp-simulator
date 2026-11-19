@@ -45,9 +45,10 @@ test('Worker del registro: gli elenchi e i limiti sono la copia esatta di quelli
   assert.deepEqual([...CAMPI_VIETATI], [...F.CAMPI_VIETATI]);
   for (const k of ['maxBlocco', 'maxRiga', 'maxTesto', 'maxMessaggio']) assert.equal(LIMITI[k], F.REGISTRO[k], k);
   // B36.0: il formato delle righe del Worker è quello del gioco (campo «v» della riga «avvio») e i campi della direzione ci sono
-  assert.equal(FORMATO, F.REGISTRO.versione); assert.equal(FORMATO, 3, 'formato 3 dal B66');
+  assert.equal(FORMATO, F.REGISTRO.versione); assert.equal(FORMATO, 4, 'formato 4 dal B71 (revisione)');
   for (const c of F.CAMPI_B36) assert.ok(CAMPI.includes(c), c);
   for (const c of F.CAMPI_B66) assert.ok(CAMPI.includes(c), c);
+  for (const c of [...F.CAMPI_B71, ...F.CAMPI_B71T, ...F.CAMPI_B71S]) assert.ok(CAMPI.includes(c), c);
   assert.equal(LIMITI.maxTotale, 2*1024*1024*1024, 'tetto di base del registro: 2 GB');
   // la stessa riga, pulita dal gioco e dal Worker, dà lo stesso risultato
   const sporca = { k: 'errore', t: 5, msg: 'TypeError a http://192.168.1.20:8443/natpf/tennis/racchetta.html?room=AB12 di mario@example.com', file: 'main.js', riga: 12, nome: 'Mario', boh: 1,
@@ -200,7 +201,7 @@ test('Worker del registro: senza il collegamento al bucket non parte (stato chia
   assert.equal(pagina.res.status, 503); assert.match(pagina.text, /NON è pronto/);
   // con il bucket: pronto
   const ok = await leggi(env(), '/', { chiave: null });
-  assert.equal(ok.res.status, 200); assert.deepEqual(ok.body, { ok: true, registro: 'pronto', spazio: true, chiave: true, formato: 3 });
+  assert.equal(ok.res.status, 200); assert.deepEqual(ok.body, { ok: true, registro: 'pronto', spazio: true, chiave: true, formato: 4 });
 });
 
 test('Worker del registro: senza la chiave niente lettura, niente elenco, niente cancellazione', async () => {
@@ -407,7 +408,9 @@ test('Worker del registro: la pagina dell’utente mostra lo spazio, scarica e c
   for (const pezzo of ['Spazio occupato dal registro', 'Cancella tutto', 'Ricalcola lo spazio', '.jsonl.gz', "'DELETE'", 'type="password"']) assert.ok(p.text.includes(pezzo), pezzo);
   assert.ok(!p.text.includes(CHIAVE)); assert.equal(p.res.headers.get('Cache-Control'), 'no-store'); assert.equal(p.res.headers.get('Referrer-Policy'), 'no-referrer');
   // B36.0: chi ricarica il Worker vede subito la versione nuova (il Worker di prima non ha questa riga)
-  assert.match(p.text, /Formato delle righe: <b class="ok" id="formato">3<\/b>/);
+  assert.match(p.text, /Formato delle righe: <b class="ok" id="formato">4<\/b>/);
+  // B71 (revisione): il testo dice anche i campi del B71 (prima era lo stesso prima e dopo il ricaricamento)
+  assert.match(p.text, /del B66 e del B71: verso del gesto, ritardo dello schermo, sensori dell'app/);
 });
 
 // B36.0 (docs/b36/misure-b36-0.md): campi nuovi della direzione dei colpi, un solo ricaricamento del Worker. Compatibilità
@@ -439,7 +442,7 @@ async function workerSenzaB66(){
   const lista = `\n  ${F.CAMPI_B66.map(c => `'${c}'`).join(', ')},`;
   assert.equal(src.split(lista).length, 2, 'i campi del B66 stanno in una riga sola, prima di quelli del B36.0');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'registro-worker-17-11-')), f = path.join(dir, 'registro-worker-17-11.mjs');
-  fs.writeFileSync(f, src.replace(lista, '').replace("'perche', 'pause']);", "'perche']);").replace('export const FORMATO = 3;', 'export const FORMATO = 2;'));
+  fs.writeFileSync(f, src.replace(lista, '').replace("'perche', 'pause']);", "'perche']);").replace('export const FORMATO = 4;', 'export const FORMATO = 2;'));
   const W = await import(pathToFileURL(f).href);
   assert.deepEqual([...W.CAMPI], CAMPI.filter(c => !F.CAMPI_B66.includes(c)), 'il Worker del 17/11: gli stessi campi, senza quelli del B66');
   return W;
@@ -516,13 +519,17 @@ test('Worker del registro, B71: il Worker del 18/11 accetta la riga «partita» 
   // del 18/11 non ne ha nessuna)
   const riga = "\n  // B71 (19/11): riga «partita», ritardo dello schermo salvato (ms)\n  'displayLagMs',";
   const altre = ["\n  // B71 (19/11): verso del gesto nella riga «colpo» (vg, vc, dur, hold, ls) e voti del cambio di segno nella riga «tel»\n  'vg', 'vc', 'dur', 'hold', 'ls', 'voti',",
-    "\n  // B71 (19/11): sensori dell'app NATPF Racchetta 1.0.5 (sorgente, fondo scala, valori più grandi, tocchi prima dei buchi)\n  'sr', 'fs', 'vs', 'tk', 'rp',"];
+    "\n  // B71 (19/11): sensori dell'app NATPF Racchetta 1.0.5 (sorgente, fondo scala, valori più grandi, tocchi prima dei buchi, ritardo del browser)\n  'sr', 'fs', 'vs', 'tk', 'rp', 'lg',"];
+  // (B71 revisione: il Worker del 18/11 ha il formato 3 e il testo di prima nella pagina)
+  const testoPrima = ['(con la direzione dei colpi, le misure dei sensori del B66 e del B71: verso del gesto, ritardo dello schermo, sensori dell\'app)', '(con la direzione dei colpi e le misure dei sensori del B66)'];
+  assert.equal(src.split('export const FORMATO = 4;').length, 2); assert.equal(src.split(testoPrima[0]).length, 2);
   assert.equal(src.split(riga).length, 2, 'il campo del B71 sta in una riga sola, dopo «pl»');
   for (const a of altre) assert.equal(src.split(a).length, 2, a);
   assert.deepEqual([...F.CAMPI_B71T], ['displayLagMs']);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'registro-worker-18-11-')), f = path.join(dir, 'registro-worker-18-11.mjs');
-  fs.writeFileSync(f, altre.reduce((s, a) => s.replace(a, ''), src.replace(riga, '')));
+  fs.writeFileSync(f, altre.reduce((s, a) => s.replace(a, ''), src.replace(riga, '')).replace('export const FORMATO = 4;', 'export const FORMATO = 3;').replace(testoPrima[0], testoPrima[1]));
   const W = await import(pathToFileURL(f).href);
+  assert.equal(W.FORMATO, 3);
   const b71 = [...F.CAMPI_B71, ...F.CAMPI_B71T, ...F.CAMPI_B71S];
   assert.deepEqual([...W.CAMPI], CAMPI.filter(c => !b71.includes(c)), 'il Worker del 18/11: gli stessi campi, senza quelli del B71');
   const partita = { ...RIGHE_B66[1], fiera: true, displayLagMs: 80 }, { displayLagMs, ...senza } = partita;

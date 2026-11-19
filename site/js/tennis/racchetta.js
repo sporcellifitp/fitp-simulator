@@ -639,12 +639,14 @@ const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batterySta
 // conti del blocco dei tocchi, ap stato del telefono dall'app NATPF Racchetta. I computer di prima ignorano i campi
 // (mai un errore che fermi lo stato: un ponte dell'app che non risponde o una chiamata prima che le misure esistano)
 // B71: sr sorgente dei sensori ('n' app, 'b' browser), fs fondo scala dichiarato dall'app [m/s², °/s], rp motivo del
-// ritorno al browser (sensori-nativi.js), tk ms dall'ultimo tocco per ogni buco nei campioni
+// ritorno al browser (sensori-nativi.js), tk ms dall'ultimo tocco per ogni buco nei campioni, lg ritardo del browser
+// sull'app misurato dalla prova all'avvio (ms)
 function b66State(){
   try {
     const sq = sampleStats.report(), tk = sampleStats.gapTouches(), lc = lockStats.counts, ap = appReader.read(performance.now()), fs = native.fullScale;
     // (lc sempre, anche a zero: il computer prende il primo valore della partita come partenza)
-    return { ...(sq ? { sq } : {}), lc, ...(ap ? { ap } : {}), sr: native.source, ...(fs ? { fs } : {}), ...(native.why ? { rp: native.why } : {}), ...(tk.length ? { tk } : {}) };
+    // (B71 revisione: lg ritardo dei campioni del browser su quelli dell'app misurato dalla prova all'avvio, ms interi)
+    return { ...(sq ? { sq } : {}), lc, ...(ap ? { ap } : {}), sr: native.source, ...(fs ? { fs } : {}), ...(native.why ? { rp: native.why } : {}), ...(tk.length ? { tk } : {}), ...(native.lag != null ? { lg: native.lag } : {}) };
   } catch (e){ return {}; }
 }
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili

@@ -28,8 +28,10 @@
 const MB = 1024*1024;
 export const REGISTRO = Object.freeze({
   // formato delle righe (campo «v» della riga «avvio»): 2 dal B36.0, con i campi della direzione dei colpi (CAMPI_B36); 3
-  // dal B66, con le misure di sensori, calibrazione, collegamento, rete e blocco del telefono (CAMPI_B66)
-  versione: 3,
+  // dal B66, con le misure di sensori, calibrazione, collegamento, rete e blocco del telefono (CAMPI_B66); 4 dal B71, con il
+  // verso del gesto (CAMPI_B71), il ritardo dello schermo (CAMPI_B71T) e i sensori dell'app (CAMPI_B71S). Il numero nuovo
+  // serve a vedere se il Worker è stato ricaricato (la sua pagina lo scrive) e al riassunto per dire se i campi mancano
+  versione: 4,
   chiave: 'natpf-tennis.registro',          // scelta dello staff (Sì/No) e contatori della giornata, nel browser
   config: '/natpf/registro.json',           // {"url": "https://…workers.dev/"}: indirizzo del Worker (pacchetto)
   maxRiga: 2000,                            // caratteri per riga: oltre, la riga si accorcia ai campi essenziali
@@ -80,8 +82,9 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   // sorgente dei sensori ('n' app NATPF Racchetta 1.0.5, 'b' browser, 'nb' tutte e due nella partita) · fs fondo scala
   // dichiarato dall'app [accelerazione m/s², rotazione °/s] · vs valori più grandi visti su un asse [m/s², °/s] · tk tocchi
   // prima dei buchi [mediana dei ms dall'ultimo tocco all'inizio del buco, buchi con un tocco nell'ultimo secondo] · rp
-  // motivo del ritorno al browser ('g' gravità, 'r' rotazione, 'f' sensori dell'app fermi, 'p' ponte)
-  'sr', 'fs', 'vs', 'tk', 'rp',
+  // motivo del ritorno al browser ('g' gravità, 'r' rotazione, 'f' sensori dell'app fermi, 'p' ponte) · lg ritardo dei
+  // campioni del browser su quelli dell'app misurato dalla prova all'avvio (ms interi, 0–40; B71 revisione)
+  'sr', 'fs', 'vs', 'tk', 'rp', 'lg',
   // B36.0 (misurare prima la direzione dei colpi, docs/b36/misure-b36-0.md), tutti insieme perché il Worker si ricarichi
   // una volta sola. Riga «colpo» del telefono: pf piatto (mira della cima −1…+1, telefoni con la forma del colpo) · dv
   // scarto della cima in gradi dal proprio colpo abituale · tu tempo in unità della finestra della direzione (+ anticipo) ·
@@ -100,7 +103,7 @@ export const CAMPI_B66 = Object.freeze(['cf', 'mg', 'gb', 'rit', 'pv', 'app', 't
   'rssi', 'bd', 'mbps', 'bt', 'ch', 'tc', 'fx', 'tb', 'ss', 'sp', 'sd', 'us', 'sc', 'tip', 'tipN', 'cen', 'dvi', 'seg', 'ric', 'ref', 'soglia']);
 // i campi del B71 sui sensori (sopra, tra quelli del B66 e quelli del B36.0): un Worker non ancora ricaricato li toglie in
 // silenzio (le righe le accetta lo stesso, con tutte le altre misure)
-export const CAMPI_B71S = Object.freeze(['sr', 'fs', 'vs', 'tk', 'rp']);
+export const CAMPI_B71S = Object.freeze(['sr', 'fs', 'vs', 'tk', 'rp', 'lg']);
 // il campo del B71 sul tempo (docs/b71/registro-tempo.md; sopra, dopo quelli del verso): un Worker non ancora ricaricato
 // lo toglie in silenzio (le righe le accetta lo stesso)
 export const CAMPI_B71T = Object.freeze(['displayLagMs']);

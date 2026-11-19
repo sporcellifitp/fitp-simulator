@@ -275,6 +275,9 @@ const finiteOr = (v, d = 0) => (Number.isFinite(v) ? v : d);
 // centro della finestra torna dove colpiscono le persone. Da rimisurare con il registro della giornata dopo.
 export const ANTICIPATION_S = .1;
 export const anticipationFor = engine => (engine?.natpfUi?.fiera?.on ? ANTICIPATION_S : 0);
+// B71 (revisione): in modalità fiera il ritardo dello schermo salvato non si somma (natpfSwingToEngine): lo dicono il pannello
+// della diagnostica, il messaggio dopo «Salva» e il risultato della prova del ritardo (natpf_diag, natpf_lag_test)
+export const LAG_FAIR_NOTE = `In modalità fiera il ritardo salvato non si somma: la correzione della fiera (${Math.round(ANTICIPATION_S*1000)} ms) lo comprende già. Serve fuori dalla fiera.`;
 export const DISPLAY_LAG_KEY = 'natpf.displayLagMs';
 export function readDisplayLagMs(){ try { const v = +localStorage.getItem(DISPLAY_LAG_KEY); return Number.isFinite(v) ? Math.max(0, Math.min(200, Math.round(v))) : 0; } catch { return 0; } }
 export function writeDisplayLagMs(ms){ const v = Math.max(0, Math.min(200, Math.round(+ms || 0))); try { localStorage.setItem(DISPLAY_LAG_KEY, String(v)); } catch {} return v; }
