@@ -107,5 +107,12 @@ scratchpad della sessione). Anomalie uguali nei due giorni:
 - colpi in anticipo di +80–90 ms in media (DROP +179), «perfect» ~25%;
 - segnale Wi-Fi e batteria dall'app non registrati.
 
-- [~] Indagine nel codice in corso (tre filoni: gesti e lato, tempo, sensori e app). Poi: correzioni con test, revisore
-      indipendente, prove complete, versione nuova, pacchetti.
+- [x] Indagine nel codice (quattro filoni). Rapporti nello scratchpad della sessione (`registri/analisi-gesti.md`,
+      `analisi-tempo.md`, `analisi-sensori.md`); i punti entrano nei documenti `docs/b71/*.md`.
+- [~] Workflow `wf_cc5b32ae-280` (B71): tre rami locali in worktree `b71-gesti` (calibrazione giocando, segno, verso,
+      lato dalla palla se incerto, palla corta/KEEP), `b71-sensori` (app 1.0.5: Wi-Fi, sensori nativi a 60 Hz con ripiego al
+      browser, schermo che si riaccende; misure dei buchi e del fondo scala), `b71-registro` (cf vero, pause P2, lead nei
+      colpi a vuoto, riassunto: perfect/segnale/batteria; in fiera finestra «Perfetto» 0,55/0,35 e finestra in ritardo
+      allargata dei 100 ms del B56); poi unione in `b71-int`, quattro revisori + verifica avversaria, sistemazione, prove.
+      **Ripresa se si ferma**: `git branch --list 'b71-*'`, `git worktree list`; rilanciare il workflow con
+      `resumeFromRunId` oppure unire a mano i rami pronti in `b71-int`. Poi: versione nuova, push, pacchetti, APK 1.0.5.
