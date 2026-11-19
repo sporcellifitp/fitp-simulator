@@ -446,12 +446,26 @@ export function relayedNatpf(swing, nowMs = Date.now()){
 // conta di più.
 export const timingUnits = (timing, level = null) => clamp(finite(timing)/(level?.timingSpan || SWING_AIM.timingSpan), -1.6, 1.6);
 // Voto del colpo dal tempo all'impatto (per anello colorato, testi e potenza)
+// B71 (registri della fiera del 18 e 19/11, 7.542 colpi, docs/b71/registro-tempo.md): level.perfectEarly allarga «Perfetto»
+// in anticipo (unità della finestra; in ritardo resta SWING_AIM.centre). Lo mette solo la modalità fiera (fairPerfect);
+// senza, il voto è quello di sempre
 export function swingGrade(timing, level = null){
-  const t = timingUnits(timing, level);
-  if (Math.abs(t) <= SWING_AIM.centre) return { grade: 'PERFECT', cursor: .5 - t*.2 };
+  const t = timingUnits(timing, level), early = t > 0 && Number.isFinite(level?.perfectEarly) ? level.perfectEarly : SWING_AIM.centre;
+  if (Math.abs(t) <= early) return { grade: 'PERFECT', cursor: .5 - t*.2 };
   if (t > 0) return { grade: t > 1.25 ? 'VERY EARLY' : 'EARLY', cursor: clamp(.5 - t*.25, .1, .45) };
   return { grade: t < -1.25 ? 'VERY LATE' : 'LATE', cursor: clamp(.5 - t*.25, .55, .9) };
 }
+// B71 · «Perfetto» asimmetrico in modalità fiera (prodotto FIERA, richiesta dell'utente del 19/11). Nei registri del 18 e
+// 19/11 i colpi forti sono già centrati (mediana +26 ms), ma lo scarto di ogni persona (127 ms) è più largo della finestra
+// «Perfetto» (circa 95 ms, da −33 a +62 ms con una palla tipica): Perfetto solo nel 25 % dei colpi. Spostare il centro non
+// serve (21–27 % su tutto l'intervallo da −100 a +40 ms, e crescono i colpi a vuoto in ritardo); allargare il solo anticipo
+// sì: con 0,55 unità invece di 0,35 Perfetto dal 25,7 al 34,4 % (simulato sugli stessi colpi), early dal 29,8 al 21,1 %,
+// tutto il resto uguale. Il ritardo resta 0,35: lì la finestra è già stretta (circa 95 ms prima del colpo a vuoto).
+// Cambia solo il voto (e quello che dipende dal voto: serie di perfetti, trofeo Cecchino, palla debole a rete): direzione,
+// qualità e colpi a vuoto usano il tempo, non il voto
+export const FAIR_PERFECT = Object.freeze({ early: .55 });
+// il livello con «Perfetto» della fiera (fair: modalità fiera accesa); fuori dalla fiera lo stesso oggetto
+export const fairPerfect = (level, fair = false) => (fair && level ? { ...level, perfectEarly: FAIR_PERFECT.early } : level);
 // Qualità del colpo: un anticipo o un ritardo moderati sono una scelta (angolo), quelli estremi un errore.
 export const swingQuality = (timing, level = null) => clamp(1 - .55*clamp(Math.abs(timingUnits(timing, level)) - .7, 0, .9), .5, 1);
 // Con il piatto all'impatto (aimSource 'face') la mira la decide soprattutto il piatto, uguale per dritto e rovescio

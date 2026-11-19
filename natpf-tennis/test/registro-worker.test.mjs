@@ -508,3 +508,19 @@ test('Worker del registro, B66: il Worker del 17/11 accetta le righe nuove senza
   assert.deepEqual(oggettiDi(En)[0], RIGHE_B66);
   for (const r of RIGHE_B66){ assert.deepEqual(pulisci(r), F.pulisci(r)); assert.deepEqual(F.controllaRiga(r), []); }
 });
+
+// B71: il Worker del 18/11 (quello caricato dall'utente, senza displayLagMs) accetta la riga «partita» nuova e toglie solo il campo
+test('Worker del registro, B71: il Worker del 18/11 accetta la riga «partita» con il ritardo dello schermo (lo toglie in silenzio); il nuovo lo tiene', async () => {
+  const src = fs.readFileSync(new URL('../cloudflare/registro-worker.js', import.meta.url), 'utf8');
+  const riga = "\n  // B71 (19/11): riga «partita», ritardo dello schermo salvato (ms)\n  'displayLagMs',";
+  assert.equal(src.split(riga).length, 2, 'il campo del B71 sta in una riga sola, dopo «pl»');
+  assert.deepEqual([...F.CAMPI_B71], ['displayLagMs']);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'registro-worker-18-11-')), f = path.join(dir, 'registro-worker-18-11.mjs');
+  fs.writeFileSync(f, src.replace(riga, ''));
+  const W = await import(pathToFileURL(f).href);
+  assert.deepEqual([...W.CAMPI], CAMPI.filter(c => !F.CAMPI_B71.includes(c)), 'il Worker del 18/11: gli stessi campi, senza quello del B71');
+  const partita = { ...RIGHE_B66[1], fiera: true, displayLagMs: 80 }, { displayLagMs, ...senza } = partita;
+  assert.deepEqual(W.pulisci(partita), senza, 'il Worker di prima toglie solo il campo nuovo');
+  assert.deepEqual(pulisci(partita), partita); assert.deepEqual(F.pulisci(partita), partita); assert.deepEqual(F.controllaRiga(partita), []);
+  assert.equal(displayLagMs, 80);
+});

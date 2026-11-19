@@ -56,6 +56,9 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in',
   // 17/11: riga «colpo», pl = da che parte di chi colpisce era la palla (+1 destra, −1 sinistra, 0 vicina al corpo)
   'pl',
+  // B71 (19/11, docs/b71/registro-tempo.md): riga «partita», displayLagMs = ritardo dello schermo salvato (ms, 0 = mai misurato).
+  // Un Worker non ancora ricaricato lo toglie in silenzio (la riga resta)
+  'displayLagMs',
   // B66 (18/11, docs/b66/registro-sensori.md), tutti insieme perché il Worker si ricarichi una volta sola. Riga «colpo»:
   // cf confidenza del tipo di colpo · mg picco/soglia · gb buco nei campioni durante il gesto (ms) · rit [ms dal picco
   // all'arrivo, alla risposta del gioco]. Riga «tel» e «partita»: pv versione della pagina del telefono (se diversa da quella
@@ -83,6 +86,8 @@ export const CAMPI_B36 = Object.freeze(['pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr'
 // accetta lo stesso; lo strumento di riassunto lo dice: «misure del B66 assenti»)
 export const CAMPI_B66 = Object.freeze(['cf', 'mg', 'gb', 'rit', 'pv', 'app', 'tq', 'lat', 'wifi', 'blocco', 'cal', 'pause', 'a', 'hz', 'b', 'bm', 'bg', 'iv', 'sat', 'arr', 'ris', 'jit', 'stimati', 'persi', 'ordine', 'vie',
   'rssi', 'bd', 'mbps', 'bt', 'ch', 'tc', 'fx', 'tb', 'ss', 'sp', 'sd', 'us', 'sc', 'tip', 'tipN', 'cen', 'dvi', 'seg', 'ric', 'ref', 'soglia']);
+// il campo del B71 (sopra, dopo «pl»): un Worker non ancora ricaricato lo toglie in silenzio (le righe le accetta lo stesso)
+export const CAMPI_B71 = Object.freeze(['displayLagMs']);
 // campi che sono un elenco «voce: quante volte» (motivi dei gesti scartati, posti della visita, passi della
 // calibrazione): le voci le decide il gioco, i valori sono solo numeri (o un elenco di numeri)
 // (B66: pause della partita per il telefono, { motivo: [volte, secondi] })

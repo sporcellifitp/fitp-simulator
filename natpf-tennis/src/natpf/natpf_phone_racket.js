@@ -299,13 +299,19 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
   const aimed = aimFromSignals({ faceAim, faceUnreliable, twist: s.twist, aim: s.aim, dir: s.dir || 0 });
   // (B56: con la correzione dell'anticipo la latenza può scendere sotto zero fino a −0,15 s, il limite di eventLatency: il
   // gesto vale come fatto dopo l'arrivo del messaggio; senza, come prima)
-  const ant = clamp(finiteOr(anticipation), 0, .15);
-  const latency = Number.isFinite(s.at) && Number.isFinite(now) ? clamp(now - s.at + clamp(finiteOr(displayLag), 0, .2) - ant, ant ? -.15 : 0, .3) : .06 - ant;
+  // B71 (registri del 18 e 19/11, docs/b71/registro-tempo.md): in fiera il ritardo dello schermo non si somma. La correzione
+  // del B56 è misurata sui colpi veri allo stand, cioè guardando lo schermo dello stand: il suo ritardo c'è già dentro
+  // (nei due giorni, con il ritardo dello schermo a 0, i colpi forti hanno la mediana a +26 ms). Sommarlo spostava ogni gesto
+  // di altrettanto verso l'anticipo (con 80 ms salvati, i colpi forti a circa +106 ms). Fuori dalla fiera come prima
+  const ant = clamp(finiteOr(anticipation), 0, .15), lag = ant ? 0 : clamp(finiteOr(displayLag), 0, .2);
+  const latency = Number.isFinite(s.at) && Number.isFinite(now) ? clamp(now - s.at + lag - ant, ant ? -.15 : 0, .3) : .06 - ant;
   const rel = lift - resolveLiftBaseline(liftBaseline, s.dir || 0).base;
   const engineSpeed = intent ? .8 + intent.power*.85 : shot === 'drop' ? Math.min(speed, .9) : shot === 'flat' ? Math.max(speed, 1.32) : speed;
   return { source: 'natpf-phone', side, shotType: ENGINE_SHOT[shot], speed: engineSpeed, dirX,
     dirY: shot === 'lob' ? -.85 : shot === 'slice' || shot === 'drop' ? .3 : shot === 'smash' ? .5 : -.45 + clamp(rel, -.5, .5)*.2, timing: null,
     natpf: { aim: 'swing', shot, head, v: cls.v ?? null, move: cls.move ?? null, conf: cls.conf ?? null, speed: Number.isFinite(s.speed) ? s.speed : null, wrist: +aimed.aim.toFixed(3), aimSource: aimed.source, power: +power.toFixed(3), latency: +latency.toFixed(3), hand,
+      // (B71: ant, la correzione tolta dalla latenza, solo in fiera: il motore allarga di altrettanto il limite in ritardo, natpf_impact.eventAnticipation)
+      ...(ant ? { ant: +ant.toFixed(3) } : {}),
       aimDev: heading ? heading.dev : null, why: cls.why, prep: pr ? { lead: +(s.at - pr.at).toFixed(3), amount: clamp((pr.angle || 30)/50, .3, 1) } : null, prepCapable: !!prepCapable,
       ...(intent ? { intent, peak: Number.isFinite(s.peak) ? s.peak : null, aimFull: Number.isFinite(aimFull) ? aimFull : INTENT.faceDead + INTENT.faceSpan } : {}) } };
 }

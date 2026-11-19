@@ -23,7 +23,7 @@
 // (in basso copriva chi gioca) dice «Colpisci quando il cerchio diventa verde», con le stesse parole della guida (natpf_onboarding.js, «Colpisci quando
 // la palla arriva»); resta finché c'è l'anello e poco dopo, poi sparisce. Solo una scritta: niente nell'esito dei colpi.
 import * as THREE from 'three';
-import { SWING_AIM, skillLevel } from './natpf_skill.js';
+import { SWING_AIM, skillLevel, fairPerfect } from './natpf_skill.js';
 import { timeToContact, lateMargin, openTight } from './natpf_impact.js';
 import { directionSpan, slowFactor, lateSpanOf } from './natpf_stroke_outcome.js';
 
@@ -70,10 +70,11 @@ export const cueToast = (pref, level) => (pref === 'on' ? 'Segnale del momento g
 // «Perfetto» se |t| ≤ SWING_AIM.centre; natpf_impact.queueUserSwing: late = (lateSpanOf + lateMargin) × openTight).
 // level: parametri del livello; vz: velocità della palla lungo il campo; margin: natpf_impact.lateMargin (s in più in
 // ritardo: livello Bambini); tight: natpf_impact.openTight (1 contro la CPU)
+// (B71: con «Perfetto» più largo in anticipo della modalità fiera, level.perfectEarly, il verde comincia prima come il voto)
 export function cueEdges({ level = null, vz = null, margin = 0, tight = 1 } = {}){
   const span = directionSpan(level || {})*slowFactor(vz);
   const late = Math.max(.04, Math.min(span, (lateSpanOf(vz, level || {}) + (Number.isFinite(margin) ? margin : 0))*(Number.isFinite(tight) ? tight : 1)));
-  return { early: SWING_AIM.centre*span, late: SWING_AIM.centre*late };
+  return { early: (Number.isFinite(level?.perfectEarly) ? level.perfectEarly : SWING_AIM.centre)*span, late: SWING_AIM.centre*late };
 }
 // pura: come si disegna l'anello. ttc: secondi al punto d'impatto (negativo: passato); win: i due bordi del verde
 // (cueEdges: { early, late }) o, per le prove, una sola finestra della direzione (verde simmetrico: centre × finestra).
@@ -162,7 +163,7 @@ export class NatpfTimingCue {
     const E = this.engine, b = E.ball;
     let v = null;
     if (this.enabled && E.phase === 'RALLY' && b?.inPlay && b.lastHitter !== 'player' && !E.autoPlayMode && !E.natpfReplay?.playing)
-      v = cueView(timeToContact(E, E.player), cueEdges({ level: skillLevel(E.matchConfig?.difficulty), vz: b.vel.z, margin: lateMargin(E, E.player), tight: openTight(E, E.player) }));
+      v = cueView(timeToContact(E, E.player), cueEdges({ level: fairPerfect(skillLevel(E.matchConfig?.difficulty), !!E.natpfUi?.fiera?.on), vz: b.vel.z, margin: lateMargin(E, E.player), tight: openTight(E, E.player) }));
     // una palla nuova (un altro colpo, o l'anello era sparito) riparte larga; la stessa palla non si riallarga (cueHold)
     const flight = v ? `${b.rallyStrokeCount}|${b.lastHitter}` : null, fresh = !!flight && flight !== this._flight;
     if (flight !== this._flight){ this._flight = flight; this._floor = Infinity; }

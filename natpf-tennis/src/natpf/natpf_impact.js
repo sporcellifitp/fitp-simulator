@@ -407,13 +407,26 @@ export function ballAtGesture(b, lat){
   return { x: finite(b?.pos?.x) - finite(b?.vel?.x)*back, z: finite(b?.pos?.z) - finite(b?.vel?.z)*back };
 }
 
+// B71 (registri della fiera del 18 e 19/11, docs/b71/registro-tempo.md): correzione dell'anticipo del B56 (s) tolta dalla
+// latenza del gesto (natpf.ant, natpf_phone_racket.natpfSwingToEngine; 0 fuori dalla fiera e senza telefono). Il gesto vale
+// come fatto «ant» più tardi per il voto e la direzione, ma la palla è passata davvero solo dopo il tempo vero: il limite in
+// ritardo e «palla passata» si allargano di altrettanto (prima con 0,1 s il picco era accettato fino a +68 ms dopo il punto
+// d'impatto con una palla a 15 m/s, invece di +168 ms, e da 28 m/s in su bisognava colpire prima che la palla arrivasse)
+export const eventAnticipation = e => (e?.natpf?.aim === 'swing' ? clamp(finite(e.natpf.ant), 0, .15) : 0);
+// colpo a vuoto «tardi» (queueUserSwing → 'whiff'): l'errore di tempo (lead, s, come natpfTau dei colpi) e la forza del gesto,
+// per il registro dello stand (riga «vuoto»: prima senza ms) e la diagnostica. Solo lettura
+export function lateWhiffMeasure(engine, e, actor){
+  const ttc = timeToContact(engine, actor);
+  return { lead: ttc == null ? null : ttc + eventLatency(e), strength: swingStrength(e) };
+}
+
 // Lo swing di chi gioca nello scambio: in attesa fino all'arrivo della palla (o subito, se è già passata da poco).
 // Restituisce 'held' (in attesa), 'late' (colpito in ritardo adesso), 'whiff' (a vuoto), 'ignored' (gesto debole dopo il
 // punto d'impatto: il rientro della mano, niente a schermo) o null (nessuna palla in arrivo).
 export function queueUserSwing(engine, e, actor){
   const W = impactWindow(engine.matchConfig?.difficulty), ttc = timeToContact(engine, actor);
   if (ttc == null) return null;
-  const lat = eventLatency(e), lead = ttc + lat, now = finite(engine.elapsedTime);
+  const lat = eventLatency(e), lead = ttc + lat, now = finite(engine.elapsedTime), ant = eventAnticipation(e);
   // (B25: per chi è aiutato la finestra del livello è più larga, helpLevel; senza aiuto è lo stesso oggetto di prima)
   // … e con il campo aperto chi è in corsa o in allungo ha meno margine (openTight: 1 esatto se spento)
   const lateSpan = (lateSpanOf(engine.ball.vel.z, helpLevel(skillLevel(engine.matchConfig?.difficulty), helpOf(engine, actor))) + lateMargin(engine, actor))*openTight(engine, actor), key = pendKey(engine, actor);
@@ -429,16 +442,16 @@ export function queueUserSwing(engine, e, actor){
     // dove è all'arrivo del messaggio: prima il ritardo della connessione (e quello dello schermo impostato dallo staff,
     // displayLag) si contava due volte e con 130 ms un colpo appena in ritardo su una palla veloce era «Troppo tardi» a
     // tutti i livelli. La palla parte comunque da dov'è adesso (_attemptPlayerRallyStrike), senza riportarla indietro
-    const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, { x: gx, z: gz } = ballAtGesture(b, lat);
+    const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, { x: gx, z: gz } = ballAtGesture(b, lat + ant);   // (B71: il tempo vero dal gesto)
     const behind = (gz - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
     const extra = W.lateExtra || IMPACT.lateExtra;
-    if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(gx - actor.pos.x) <= reachOf(engine, actor) && b.pos.y < 3.4){
+    if (lead >= -(lateSpan*extra + ant) && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(gx - actor.pos.x) <= reachOf(engine, actor) && b.pos.y < 3.4){
       engine[key] = null;
       return strike(engine, actor, { ...e, natpfTau: lead, natpfLateSpan: lateSpan }) ? 'late' : 'whiff';
     }
     return deferred ? 'ignored' : 'whiff';
   }
-  const lateWin = lateSpan*(W.lateExtra || IMPACT.lateExtra);
+  const lateWin = lateSpan*(W.lateExtra || IMPACT.lateExtra) + ant;   // (B71: la scadenza in tempo vero)
   const cand = { evt: { ...e, natpfTau: lead, natpfLateSpan: lateSpan }, lead, strength, weak, net, lateWin, actor, at: now, prep: !0, waitForSweetSpot: !0, natpfWindow: !0, expiresAt: now + ttc + lateWin + .12 };
   const cur = engine[key];
   let better = !cur || !cur.natpfWindow || strength >= cur.strength*1.15 || (Math.abs(lead) < Math.abs(cur.lead) && strength >= cur.strength*.6);

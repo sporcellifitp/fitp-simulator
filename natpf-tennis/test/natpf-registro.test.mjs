@@ -248,7 +248,7 @@ function mondo({ storage = storageFinto(), coda = codaMemoria(), invio = null, s
     // (B36.0: face, derived, t, rule facoltativi: piatto e intenzione ricostruita, tempo in finestre, regola dell'esito;
     // la palla appena colpita non ha ancora rimbalzato)
     _natpfRacketShot(e){ this.ball.rallyStrokeCount++; this.ball.lastHitter = e.who === 'p2' ? 'opponent' : 'player'; this.ball.bounceCountOnCurrentSide = 0;
-      this.natpfLastRacket = { who: e.who || 'player', intent: { shot: e.intento || e.shot || 'forehand', power: e.power ?? .6, typePower: e.power ?? .6, ...(e.face != null ? { face: e.face } : {}), ...(e.derived ? { derived: true } : {}) },
+      this.natpfLastRacket = { who: e.who || 'player', intent: { shot: e.intento || e.shot || 'forehand', power: e.power ?? .6, typePower: e.power ?? .6, ...(e.face != null ? { face: e.face } : {}), ...(e.derived ? { derived: true } : {}), ...(e.conf != null ? { conf: e.conf } : {}) },
         out: { shot: e.shot || 'forehand', grade: e.grade || 'Perfetto', aim: .2, failed: !!e.failed, netFault: !!e.net, ...(e.t != null ? { t: e.t } : {}), ...(e.rule ? { rule: e.rule } : {}) },
         timing: e.tau ?? .01, source: 'phone', ...(e.contact != null ? { contact: e.contact } : {}), ...(e.super ? { super: e.super } : { superWhy: ['palla troppo bassa'] }) };
       return { E: 1.5, N: -8.2 }; },
@@ -681,7 +681,7 @@ test('registro, B66: misure di un telefono in una partita (sensori, ritardo, num
   // collegamento: 5 colpi, uno perso (il 4), uno fuori ordine (il 3 dopo il 5), orologi allineati tranne l'ultimo
   const colpo = (seq, ritardo, now, extra = {}) => M.arrivato({ seq, at: (now - ritardo)/1000, receivedAt: now/1000, path: seq % 2 ? 'fast' : 'reliable', confidence: .8, margin: 1.1 + seq/10, ...extra }, { now, clockOk: !extra.stimato });
   colpo(1, 40, 5000); colpo(2, 60, 7000, { gapMs: 66 }); colpo(5, 50, 9000); colpo(3, 200, 9100); colpo(6, 0, 11000, { stimato: true });
-  const g = M.giocato(2, 7010); assert.deepEqual(g, { rit: [60, 70], cf: .8, mg: 1.3, gb: 66 });
+  const g = M.giocato(2, 7010); assert.deepEqual(g, { rit: [60, 70], mg: 1.3, gb: 66 }, 'B71: la confidenza del telefono non c\'è più (cf è quella del gioco)');
   assert.equal(M.giocato(2, 7020), null, 'una volta sola'); assert.equal(M.giocato(5, 13000), null, 'troppo tardi');
   assert.equal(M.giocato(6, 11005).rit, null, 'senza orologi allineati il ritardo non si misura');
   // pagina del telefono ricaricata: i numeri ripartono, il tratto di prima si chiude (manca il 4)
@@ -719,14 +719,15 @@ test('registro, B66: la partita scrive le misure del telefono e il colpo confide
   Object.assign(ph, { device: { ...ph.device, version: '2026-11-10.1', app: '1.0.4' }, profile: { ref: 600, on: 70, minPeak: 120 }, typicalModel: { value: null }, link: { ...ph.link, stats: () => ({ clockOk: true }) } });
   ui.lobby.visible = false; E.startNewMatch(); E.ball.inPlay = true;
   let seq = 0;
-  const colpo = (dev, gap) => {
+  // (B71: cf è la confidenza del tipo di colpo del gioco, intent.conf; quella del telefono, confidence, non si scrive più)
+  const colpo = (dev, gap, conf) => {
     M.avanti(900); seq++; const now = adesso();
-    ph._sw({ natpf: {} }, { seq, at: (now - 55)/1000, receivedAt: now/1000, path: 'fast', confidence: .74, margin: 1.08, ...(gap ? { gapMs: gap } : {}) });
-    M.avanti(8); E._natpfRacketShot({ shot: 'forehand', natpf: { seq, typicalOwn: seq > 2, aimDev: dev } });
+    ph._sw({ natpf: {} }, { seq, at: (now - 55)/1000, receivedAt: now/1000, path: 'fast', confidence: .45, margin: 1.08, ...(gap ? { gapMs: gap } : {}) });
+    M.avanti(8); E._natpfRacketShot({ shot: 'forehand', ...(conf != null ? { conf } : {}), natpf: { seq, typicalOwn: seq > 2, aimDev: dev } });
   };
   ph._st({ sq: [60, 1000, 0, 0, 16, 0, 0], lk: 1, lc: [0, 0, 0], ap: [-62, 5, 390, 70, 0, 300, 1, 0] }); M.avanti(1000);
   ph._st({ sq: [58, 1000, 1, 120, 16, 0, 0], lk: 1, lc: [2, 0, 0], ap: [-66, 5, 300, 69, 0, 310, 1, 1] });
-  colpo(null); colpo(null, 70); colpo(4.2);
+  colpo(null, 0, .5); colpo(null, 70, .123); colpo(4.2);
   ph.typicalModel.value = 640;
   ui._holdAction({ kind: 'pause', why: 'segnale debole' }, 'telefono'); M.avanti(2000); ui._holdAction({ kind: 'resume' }, 'telefono');
   ph.unlockTouch(); M.avanti(100); ph._st({ lk: 0 });
@@ -735,7 +736,7 @@ test('registro, B66: la partita scrive le misure del telefono e il colpo confide
   E.phase = 'MATCH_OVER'; M.avanti(10); R.secondo(); await R.blocco();
   const rows = await tutte(M.coda), colpi = rows.filter(r => r.k === 'colpo'), [partita] = rows.filter(r => r.k === 'partita'), [fine] = rows.filter(r => r.k === 'partita.fine');
   assert.deepEqual(partita.tel, { strada: 'lan', rtt: 14, so: 'Android 14', browser: 'Chrome 126', pv: '2026-11-10.1', app: '1.0.4' }, 'pagina del telefono rimasta indietro e app');
-  assert.deepEqual(colpi.map(c => [c.cf, c.mg, c.gb, c.rit]), [[.74, 1.08, undefined, [55, 63]], [.74, 1.08, 70, [55, 63]], [.74, 1.08, undefined, [55, 63]]]);
+  assert.deepEqual(colpi.map(c => [c.cf, c.mg, c.gb, c.rit]), [[.5, 1.08, undefined, [55, 63]], [.12, 1.08, 70, [55, 63]], [undefined, 1.08, undefined, [55, 63]]], 'cf: la confidenza del gioco (2 decimali), mai quella del telefono');
   assert.deepEqual(fine.tq, { g: { hz: [59, 58], n: 118, b: 1, bm: 120, bg: 1, iv: 16 } });
   assert.deepEqual(fine.lat, { g: { arr: [55, 55, 55], ris: [63, 63, 63], jit: 0, n: 3, vie: [3, 0] } });
   assert.deepEqual(fine.wifi, { g: { rssi: [-64, -66], bd: 5, mbps: [345, 300], bt: [70, 69], ch: 0, tc: 31, fx: 1 } });
@@ -755,4 +756,46 @@ test('registro, B66: senza telefono (mouse) e con un telefono di prima la partit
   gioca(M, { punti: 3 }); M.avanti(10); M.R.secondo(); M.R._finePartita('interrotta', 'menu'); await M.R.blocco();
   const [fine] = (await tutte(M.coda)).filter(r => r.k === 'partita.fine');
   for (const k of ['tq', 'lat', 'wifi', 'blocco', 'cal', 'pause']) assert.equal(fine[k], undefined, k);
+});
+
+/* ---------- B71: registri della fiera del 18 e 19/11 (docs/b71/registro-tempo.md) ---------- */
+test('registro, B71: la pausa del Player 2 nello stesso schermo si conta una volta, con i suoi secondi (prima una pausa al secondo)', async () => {
+  // il motivo nudo e la chiave salvata («pagina nascosta (2)») si confrontavano: a ogni controllo la pausa si chiudeva e
+  // si riapriva (nei registri: «pagina nascosta (2)» 127 volte in 127 s, «sensori fermi (2)» 33 in 33 s)
+  const P = new Pause();
+  for (let s = 1; s <= 5; s++) P.cambia(' (2)', 'pagina nascosta', s*1000);
+  P.cambia(' (2)', null, 6000);
+  assert.deepEqual(P.fine(7000), { 'pagina nascosta (2)': [1, 5] });
+  // con il registratore: il controllo al secondo legge il motivo della pausa del Player 2 (ui.split.hold)
+  const M = mondo({ split: true }), { E, ui, R } = M;
+  ui.lobby.visible = false; E.startNewMatch();
+  ui.split.hold = { why: 'pagina nascosta' }; for (let i = 0; i < 5; i++){ M.avanti(1000); R.secondo(); }
+  ui.split.hold = null; M.avanti(1000); R.secondo();
+  ui.split.hold = { why: 'sensori fermi' }; for (let i = 0; i < 3; i++){ M.avanti(1000); R.secondo(); }
+  ui.split.hold = null; M.avanti(1000); R.secondo();
+  // il Player 1 (motivo e ripresa dal gioco, _holdAction) come prima
+  ui._holdAction({ kind: 'pause', why: 'segnale debole' }, 'telefono'); M.avanti(2000); ui._holdAction({ kind: 'wait', why: 'segnale debole' }, 'telefono'); M.avanti(1000); ui._holdAction({ kind: 'resume' }, 'telefono');
+  R._finePartita('interrotta', 'menu'); await R.blocco();
+  const [fine] = (await tutte(M.coda)).filter(r => r.k === 'partita.fine');
+  assert.deepEqual(fine.pause, { 'pagina nascosta (2)': [1, 5], 'sensori fermi (2)': [1, 3], 'segnale debole': [1, 3] });
+});
+
+test('registro, B71: colpo a vuoto «tardi» con l’errore di tempo e la forza; ritardo dello schermo nella riga della partita', async () => {
+  const M = mondo(), { E, ui, R } = M; E.natpfPhone.displayLagMs = 80;
+  ui.lobby.visible = false; E.startNewMatch();
+  M.avanti(500); E._natpfEarlyWhiff({ actor: E.player, natpfWhy: 'tardi', lead: -.2341, strength: 1180.4 });
+  M.avanti(500); E._natpfEarlyWhiff({ actor: E.player, natpfWhy: 'tardi' });                    // un motore di prima: senza misure
+  M.avanti(500); E._natpfEarlyWhiff({ actor: E.player, lead: .6123, strength: 700 });             // in anticipo come prima
+  R._finePartita('interrotta', 'menu'); await R.blocco();
+  const rows = await tutte(M.coda), vuoti = rows.filter(r => r.k === 'vuoto'), [p] = rows.filter(r => r.k === 'partita');
+  assert.deepEqual(vuoti.map(v => [v.perche, v.ms, v.f]), [['tardi', -234, 1180], ['tardi', undefined, undefined], ['presto', 612, 700]]);
+  assert.equal(p.displayLagMs, 80);
+  for (const r of rows) assert.deepEqual(F.controllaRiga(r, { nomi: M.nomi }), [], JSON.stringify(r));
+  const W = await import('../cloudflare/registro-worker.js'); assert.deepEqual(W.pulisci(p), p, 'il Worker nuovo tiene il campo');
+  assert.deepEqual([...F.CAMPI_B71], ['displayLagMs']); assert.ok(F.CAMPI.includes('displayLagMs'));
+  // mai misurato: 0; con il mouse niente
+  const M0 = mondo(); M0.ui.lobby.visible = false; M0.E.startNewMatch(); await M0.R.blocco();
+  assert.equal((await tutte(M0.coda)).find(r => r.k === 'partita').displayLagMs, 0);
+  const Mm = mondo({ ctrl: 'mouse' }); Mm.ui.lobby.visible = false; Mm.E.startNewMatch(); await Mm.R.blocco();
+  assert.equal((await tutte(Mm.coda)).find(r => r.k === 'partita').displayLagMs, undefined);
 });

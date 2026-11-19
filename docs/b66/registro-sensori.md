@@ -42,7 +42,9 @@ del gesto, picco minimo] °/s. I gesti di calibrazione ripetuti e il perché era
 
 ### Precisione dei gesti (riga `colpo`, colpi del telefono)
 
-`cf` confidenza del riconoscimento del tipo di colpo (0–1, dal telefono) · `mg` picco del gesto diviso la soglia che ha
+`cf` confidenza del tipo di colpo del **gioco** (0–1, `natpf_stroke_intent`: margine dalla soglia più vicina, 0,5 il colpo
+normale; dal B71, 19/11: fino alla 2026-11-18.3 era quella del telefono, sempre 0,45 in fiera, e non diceva niente; nel
+riassunto «sotto 0,2» = colpo vicino al confine con un altro tipo) · `mg` picco del gesto diviso la soglia che ha
 superato (vicino a 1 = colpo «al limite»; dal telefono, `swing-detect.js`, solo misura) · `gb` buco nei campioni durante il
 gesto (ms, solo se c'è). Dritto o rovescio dalla parte opposta alla palla: c'era già (`pl` e `lato`, 17/11); errore di
 tempo, voto, esito, scarti: già presenti, non duplicati.
@@ -57,7 +59,8 @@ Riga `partita.fine`, campo `lat` per telefono: `arr`, `ris` [p50, p90, p99] ms �
 colpi consecutivi · `n` colpi arrivati · `stimati` senza orologi allineati · `persi` numeri dei colpi mancanti (nessuna
 delle quattro copie arrivata) · `ordine` colpi arrivati fuori ordine · `vie` [prima copia dalla strada veloce,
 dall'affidabile]. Campo `pause` (elenco): `{ motivo: [volte, secondi] }` delle pause della partita per il telefono
-(«segnale debole», «pagina nascosta», «scollegato»…; con « (2)» il Player 2 dello stesso schermo). I fotogrammi al secondo
+(«segnale debole», «pagina nascosta», «scollegato»…; con « (2)» il Player 2 dello stesso schermo; fino alla 2026-11-18.3 le
+volte del Player 2 erano una al secondo, i secondi giusti: corretto nel B71). I fotogrammi al secondo
 c'erano già (`fps`).
 
 ### Rete e stato del telefono dall'app (riga `partita.fine`, campo `wifi`, per telefono)
@@ -99,11 +102,12 @@ telefono»:
 2. **Calibrazione: stabilità** — colpi prima del colpo tipico proprio e del centro della mira, quanto cambia il colpo
    tipico e lo scarto della cima, cambi di segno / mano / calibrazioni in partita; profili, soglie; **errore di tempo per
    numero di colpo nella partita** (1–5, 6–10, 11–20, dal 21°: vale anche per i registri di prima).
-3. **Precisione dei gesti** — per tipo di colpo: confidenza, confidenza sotto 0,5, margine, colpi al limite (margine sotto
+3. **Precisione dei gesti** — per tipo di colpo: confidenza, confidenza sotto 0,2 (B71; prima 0,5), margine, colpi al limite (margine sotto
    1,2), colpi dalla parte opposta alla palla; colpi al limite contro colpi pieni (errore di tempo, deboli, rete o fuori).
 4. **Collegamento: distribuzione** — arrivo e risposta (metà · 9 su 10 · 99 su 100), sbalzi, persi, fuori ordine, strada
    veloce; per strada (LAN, relay, internet); ritardo contro errore di tempo; pause per il telefono.
-5. **Rete del telefono (app)** — segnale, banda, velocità, batteria e consumo, temperatura, «Fissa app»; segnale contro
+5. **Rete del telefono (app)** — segnale, banda, velocità, batteria e consumo (dal B71 per telefono e per giorno, sui tratti
+   senza ricarica: per partita un minuto a passi dell'1 % dava 0), temperatura, «Fissa app»; segnale contro
    ritardo, colpi persi e pause.
 6. **Telefono bloccato** — tempo, tocchi fermati, sblocchi per tipo, pagina nascosta, schermi spenti.
 

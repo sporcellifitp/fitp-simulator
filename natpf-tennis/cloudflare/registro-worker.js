@@ -115,6 +115,8 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in',
   // 17/11: riga «colpo», pl = da che parte di chi colpisce era la palla (+1 destra, −1 sinistra, 0 vicina al corpo)
   'pl',
+  // B71 (19/11): riga «partita», ritardo dello schermo salvato (ms)
+  'displayLagMs',
   // B66 (18/11): misure di sensori, calibrazione, collegamento, rete e blocco del telefono
   'cf', 'mg', 'gb', 'rit', 'pv', 'app', 'tq', 'lat', 'wifi', 'blocco', 'cal', 'pause', 'a', 'hz', 'b', 'bm', 'bg', 'iv', 'sat', 'arr', 'ris', 'jit', 'stimati', 'persi', 'ordine', 'vie', 'rssi', 'bd', 'mbps', 'bt', 'ch', 'tc', 'fx', 'tb', 'ss', 'sp', 'sd', 'us', 'sc', 'tip', 'tipN', 'cen', 'dvi', 'seg', 'ric', 'ref', 'soglia',
   'pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr', 'zp', 'dir']);

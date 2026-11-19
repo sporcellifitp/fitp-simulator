@@ -1628,7 +1628,7 @@ export class NatpfTennisEngine {
         if (q === "held" || q === "late" || q === "ignored") return;
         if (q === "whiff") {
           this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15));
-          this._natpfEarlyWhiff({ actor: this.player, evt: { ...e, side: t }, prep: !0, natpfWhy: "tardi" });
+          this._natpfEarlyWhiff({ actor: this.player, evt: { ...e, side: t }, prep: !0, natpfWhy: "tardi", ...NI.lateWhiffMeasure(this, e, this.player) }); // B71: errore di tempo e forza per il registro
           return;
         }
       }
@@ -1854,7 +1854,7 @@ export class NatpfTennisEngine {
         if (q === "held" || q === "late" || q === "ignored") return;
         if (q === "whiff") {
           this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15));
-          this._natpfEarlyWhiff({ actor: this.opponent, evt: { ...e, side: t }, prep: !0, natpfWhy: "tardi" });
+          this._natpfEarlyWhiff({ actor: this.opponent, evt: { ...e, side: t }, prep: !0, natpfWhy: "tardi", ...NI.lateWhiffMeasure(this, e, this.opponent) }); // B71
           return;
         }
       }
@@ -2424,7 +2424,8 @@ export class NatpfTennisEngine {
     const duo = this.natpfSplit?.active ? this.natpfDuo : null, help = ND.helpOf(this, p);
     // … e con il campo aperto chi arriva di corsa o in allungo ha meno margine sul tempo (NI.openTight; 1 esatto se spento)
     const tight = duo?.open ? NI.openTight(this, p) : 1, lv0 = ND.helpLevel(NS.skillLevel(this.matchConfig.difficulty), help);
-    const lv = tight !== 1 ? { ...lv0, timingSpan: (lv0.timingSpan || 0.17) * tight } : lv0, b = this.ball;
+    // B71: in modalità fiera «Perfetto» più largo in anticipo (NS.fairPerfect: solo il voto; fuori dalla fiera lo stesso livello)
+    const lv = NS.fairPerfect(tight !== 1 ? { ...lv0, timingSpan: (lv0.timingSpan || 0.17) * tight } : lv0, !!this.natpfUi?.fiera?.on), b = this.ball;
     // chi colpisce verso −z (P1) o verso +z (P2 nel 1v1): l'esito è nel suo riferimento (x a destra), poi si specchia
     const toward = p === this.opponent ? 1 : -1, mirror = toward === 1 ? -1 : 1;
     const intent = NO.eventIntent(e), shot = smash ? "smash" : intent.shot === "smash" ? "flat" : intent.shot;
