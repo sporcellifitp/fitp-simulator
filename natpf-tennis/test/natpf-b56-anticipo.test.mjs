@@ -21,8 +21,10 @@ test('B56: il gesto vale come fatto 100 ms più tardi (latenza anche sotto zero,
   assert.ok(Math.abs(before.natpf.latency - .03) < 1e-9, 'come prima');
   assert.ok(Math.abs(after.natpf.latency - (-.07)) < 1e-9, `−70 ms: ${after.natpf.latency}`);
   assert.ok(Math.abs(eventLatency(after) - (-.07)) < 1e-9, 'il motore la usa così (limite −0,15 s)');
-  // con lo schermo in ritardo impostato dallo staff le due correzioni si sommano
-  assert.ok(Math.abs(natpfSwingToEngine(swing, { now, displayLag: .08, anticipation: ANTICIPATION_S }).natpf.latency - .01) < 1e-9);
+  // B71: in fiera il ritardo dello schermo salvato non si somma (la correzione è misurata con lo schermo dello stand: c'è già
+  // dentro; sommati, con 80 ms ogni gesto risultava 80 ms più in anticipo). Fuori dalla fiera si somma come prima
+  assert.ok(Math.abs(natpfSwingToEngine(swing, { now, displayLag: .08, anticipation: ANTICIPATION_S }).natpf.latency - (-.07)) < 1e-9, 'in fiera come con lo schermo a 0');
+  assert.ok(Math.abs(natpfSwingToEngine(swing, { now, displayLag: .08 }).natpf.latency - .11) < 1e-9, 'fuori dalla fiera: 30 + 80 ms');
   // mai sotto −0,15 s
   assert.equal(natpfSwingToEngine(swing, { now: 10, anticipation: .15 }).natpf.latency, -.15);
 });

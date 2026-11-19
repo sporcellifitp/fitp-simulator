@@ -7,7 +7,7 @@
 //   - sq, lc, ap nel messaggio «st» del telefono (site/js/tennis/phone-stats.js): campioni dei sensori dall'ultimo stato,
 //     conti del blocco dei tocchi, stato del telefono dall'app NATPF Racchetta;
 //   - i colpi come li legge il computer (swing-message.parseSwingMessage): istante del picco sull'orologio del computer
-//     (at), arrivo (receivedAt), numero (seq), strada (path), confidenza, margine sulla soglia, buco nel gesto.
+//     (at), arrivo (receivedAt), numero (seq), strada (path), margine sulla soglia, buco nel gesto.
 // Nessuna misura cambia il gioco: si legge soltanto.
 
 const fin = Number.isFinite;
@@ -110,7 +110,7 @@ export class MisureTelefono {
     } else if (fin(s.at)) this.stimati++;
     this._numero(s.seq);
     if (Number.isInteger(s.seq)){
-      this.colpi.set(s.seq, { at: s.at, arr, now, cf: fin(s.confidence) ? s.confidence : null, mg: fin(s.margin) ? s.margin : null, gb: fin(s.gapMs) ? s.gapMs : null, stimato: arr == null });
+      this.colpi.set(s.seq, { at: s.at, arr, now, mg: fin(s.margin) ? s.margin : null, gb: fin(s.gapMs) ? s.gapMs : null, stimato: arr == null });
       if (this.colpi.size > 64) this.colpi.delete(this.colpi.keys().next().value);
     }
   }
@@ -128,14 +128,15 @@ export class MisureTelefono {
   }
   _chiudiTratto(){ const S = this.seg; if (S) this.persi += Math.max(0, S.max - S.min + 1 - S.visti.size); this.seg = null; }
   // il motore ha giocato il colpo seq: [ms dal picco all'arrivo, ms dal picco alla risposta del gioco] e le misure del
-  // gesto (confidenza, margine, buco); null se il colpo non è di questo telefono o non è recente
+  // gesto (margine, buco); null se il colpo non è di questo telefono o non è recente. B71: la confidenza del tipo di colpo
+  // non viene più da qui (quella del telefono valeva sempre 0,45 in fiera): il registratore scrive quella del gioco
   giocato(seq, now){
     const C = Number.isInteger(seq) ? this.colpi.get(seq) : null;
     if (!C || now - C.now > 3000) return null;
     this.colpi.delete(seq);
     const ris = !C.stimato && fin(C.at) ? Math.max(0, now - C.at*1000) : null;
     metti(this.ris, ris);
-    return { rit: C.arr != null && ris != null ? [r0(C.arr), r0(ris)] : null, cf: C.cf, mg: C.mg, gb: C.gb };
+    return { rit: C.arr != null && ris != null ? [r0(C.arr), r0(ris)] : null, mg: C.mg, gb: C.gb };
   }
   // misure di calibrazione di un colpo giocato: proprio = il colpo tipico era già quello imparato giocando; dev = scarto
   // della cima in gradi (null finché il centro della mira non c'è)
@@ -190,11 +191,14 @@ export class MisureTelefono {
 export class Pause {
   constructor(){ this.m = {}; this.aperte = {}; }
   // chi: chiave del telefono ('' Player 1, ' (2)' Player 2); why: motivo nuovo (null = ripresa)
+  // B71 (registri del 18 e 19/11, docs/b71/registro-tempo.md): la pausa aperta si confronta con la chiave salvata (motivo +
+  // chi). Prima si confrontava con il motivo nudo: per il Player 2 («pagina nascosta (2)» contro «pagina nascosta») la
+  // pausa si chiudeva e si riapriva a ogni controllo (uno al secondo) e le volte erano uguali ai secondi (127 × 127 s)
   cambia(chi, why, now){
-    const A = this.aperte[chi];
-    if (A && A.why === why) return;
+    const A = this.aperte[chi], k = why ? String(why).slice(0, 40) + chi : null;
+    if (A && A.why === k) return;
     if (A){ this.m[A.why][1] += Math.max(0, now - A.at)/1000; delete this.aperte[chi]; }
-    if (why){ const k = String(why).slice(0, 40) + chi; this.aperte[chi] = { why: k, at: now }; (this.m[k] || (this.m[k] = [0, 0]))[0]++; }
+    if (k){ this.aperte[chi] = { why: k, at: now }; (this.m[k] || (this.m[k] = [0, 0]))[0]++; }
   }
   fine(now){
     for (const chi of Object.keys(this.aperte)) { const A = this.aperte[chi]; this.m[A.why][1] += Math.max(0, now - A.at)/1000; A.at = now; }

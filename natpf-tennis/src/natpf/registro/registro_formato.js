@@ -60,6 +60,9 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   // verso (0…1), dur durata del gesto (ms), hold ms trattenuto come preparazione prima di essere giocato, ls da dove viene
   // il lato ('g' gesto, 'a' verso atteso dalla palla, 'p' posizione della palla). Riga «tel» del segno: voti [d'accordo, contrari]
   'vg', 'vc', 'dur', 'hold', 'ls', 'voti',
+  // B71 (19/11, docs/b71/registro-tempo.md): riga «partita», displayLagMs = ritardo dello schermo salvato (ms, 0 = mai misurato).
+  // Un Worker non ancora ricaricato lo toglie in silenzio (la riga resta)
+  'displayLagMs',
   // B66 (18/11, docs/b66/registro-sensori.md), tutti insieme perché il Worker si ricarichi una volta sola. Riga «colpo»:
   // cf confidenza del tipo di colpo · mg picco/soglia · gb buco nei campioni durante il gesto (ms) · rit [ms dal picco
   // all'arrivo, alla risposta del gioco]. Riga «tel» e «partita»: pv versione della pagina del telefono (se diversa da quella
@@ -98,6 +101,9 @@ export const CAMPI_B66 = Object.freeze(['cf', 'mg', 'gb', 'rit', 'pv', 'app', 't
 // i campi del B71 sui sensori (sopra, tra quelli del B66 e quelli del B36.0): un Worker non ancora ricaricato li toglie in
 // silenzio (le righe le accetta lo stesso, con tutte le altre misure)
 export const CAMPI_B71S = Object.freeze(['sr', 'fs', 'vs', 'tk', 'rp']);
+// il campo del B71 sul tempo (docs/b71/registro-tempo.md; sopra, dopo quelli del verso): un Worker non ancora ricaricato
+// lo toglie in silenzio (le righe le accetta lo stesso)
+export const CAMPI_B71T = Object.freeze(['displayLagMs']);
 // campi che sono un elenco «voce: quante volte» (motivi dei gesti scartati, posti della visita, passi della
 // calibrazione): le voci le decide il gioco, i valori sono solo numeri (o un elenco di numeri)
 // (B66: pause della partita per il telefono, { motivo: [volte, secondi] })

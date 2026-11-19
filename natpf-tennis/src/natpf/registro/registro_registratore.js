@@ -21,6 +21,8 @@
 // B66 (18/11, docs/b66/registro-sensori.md): per ogni telefono in partita le misure di sensori, collegamento, rete, blocco
 // dei tocchi e calibrazione (registro_misure.js) nella riga «partita.fine»; nella riga «colpo» confidenza, margine sulla
 // soglia, buco nel gesto e ritardo. Solo lettura, come sopra.
+// B71 (19/11, registri del 18 e 19/11, docs/b71/registro-tempo.md): cf è la confidenza del gioco; pause del Player 2 contate
+// giuste; i colpi a vuoto «tardi» hanno l'errore di tempo (ms) e la forza; ritardo dello schermo nella riga «partita».
 import { REGISTRO, giornoDi, leggiGiornata, scriviGiornata, registroAcceso, scriviScelta, idBlocco, dispositivo, strada, gpuVera, gpuNome, finePunto, pulisci, testoRiga, r } from './registro_formato.js';
 import { whoOfLevel } from '../natpf_who.js';
 import { eventoK } from '../natpf_evento.js';
@@ -327,6 +329,8 @@ export class RegistroStand {
     const pv = ph.device?.version, app = ph.device?.app || /NATPFApp\/([\w.]+)/.exec(String(ph.device?.ua || ''))?.[1];
     return { strada: strada(L?.route, L?.transport), rtt: r(ph.state?.rtt, 0), ...(d || {}), ...(pv && pv !== NATPF_BUILD ? { pv: String(pv).slice(0, 20) } : {}), ...(app ? { app: String(app).slice(0, 12) } : {}) };
   }
+  // B71: ritardo dello schermo dei telefoni (ms, 0…200: lo stesso per i due telefoni, natpf_diag.saveLag)
+  _ritardoSchermo(){ const v = Number(this.engine.natpfPhone?.displayLagMs ?? this.engine.natpfPhone2?.displayLagMs ?? 0); return Number.isFinite(v) ? Math.max(0, Math.min(200, Math.round(v))) : 0; }
   _partita(){
     const E = this.engine, ui = this.ui;
     if (E.autoPlayMode) return;                                               // la partita dimostrativa dietro il menu non conta
@@ -358,6 +362,9 @@ export class RegistroStand {
       ...(split ? { fasce: [E.natpfSplitBands?.p1 || 'adulto', E.natpfSplitBands?.p2 || 'adulto'], aiuto: duo?.help?.p1 ? 'g' : duo?.help?.p2 ? 'a' : null } : {}),
       ...(this._evento() ? { ek: r(eventoK(), 3) } : {}),
       ...(ctrl === 'telefono' ? { tel: this._infoTel('g'), ...(split ? { tel2: this._infoTel('a') } : {}) } : {}),
+      // B71: ritardo dello schermo salvato (ms, prova del B50; 0 = mai misurato). In fiera non si somma alla correzione
+      // dell'anticipo (natpf_phone_racket.natpfSwingToEngine), fuori sì: serve per leggere l'errore di tempo dei colpi
+      ...(ctrl === 'telefono' ? { displayLagMs: this._ritardoSchermo() } : {}),
     });
     if (this.visita) this.visita.partite++;
     this._salvaGiornata();
@@ -466,7 +473,11 @@ export class RegistroStand {
       // nr: colpo giocato con la regola nuova (natpf_direction.js: oggi mai); zp: zona chiesta da Precision
       ...(!I.derived && Number.isFinite(I.face) ? { pf: r(I.face, 2) } : {}), ...(Number.isFinite(dev) ? { dv: r(dev, 1) } : {}), ...(Number.isFinite(O.t) ? { tu: r(O.t, 2) } : {}),
       ...(usedNewRule(O) ? { nr: 1 } : {}), ...(zp != null ? { zp } : {}),
-      ...(tm ? { cf: r(tm.cf, 2) ?? undefined, mg: r(tm.mg, 2) ?? undefined, gb: tm.gb ?? undefined, rit: tm.rit || undefined } : {}),
+      // B71 (registri del 18 e 19/11): cf è la confidenza del tipo di colpo del GIOCO (natpf_stroke_intent: margine 0…1 dalla
+      // soglia più vicina; 0,5 il colpo normale), quella che decide il colpo. Prima era quella del telefono, sempre 0,45 in
+      // fiera (5.313 colpi su 5.313): non diceva niente
+      ...(Number.isFinite(I.conf) ? { cf: r(I.conf, 2) } : {}),
+      ...(tm ? { mg: r(tm.mg, 2) ?? undefined, gb: tm.gb ?? undefined, rit: tm.rit || undefined } : {}),
       // B71 (docs/b71/gesti.md): verso del gesto dal telefono. vg verso grezzo dei sensori prima del segno (−1, 0, 1), vc
       // confidenza del verso (0…1), dur durata del gesto (ms), hold ms trattenuto come preparazione prima di essere
       // giocato, ls da dove viene il lato ('g' gesto, 'a' verso atteso dalla palla, 'p' posizione della palla)

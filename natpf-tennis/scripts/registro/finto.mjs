@@ -31,7 +31,10 @@ export function casuale(seme = 1){
 }
 const r = (v, d = 2) => +(+v).toFixed(d);
 const GESTI = ['dritto', 'rovescio', 'topspin', 'tagliato', 'pallonetto', 'volée', 'schiacciata', 'piatto'];
-const VOTI = [['perfetto', 12], ['ottimo', 30], ['buono', 60], ['anticipo', 140], ['ritardo', 140]];
+// B71: i voti veri del registro (il voto del motore in minuscolo, registro_registratore.voto) con il loro errore di tempo in
+// ms (+ anticipo): prima erano voti italiani inventati e il riassunto, che cercava 'perfetto', non vedeva l'errore
+const VOTI = [['perfect', -35, 60], ['early', 60, 170], ['very early', 170, 450], ['late', -120, -35], ['very late', -220, -120]];
+const VOTI_SERVIZIO = ['good serve', 'power serve!', 'early serve', 'late serve', 'good serve'];
 const FASCE = ['bambino', 'ragazzo', 'adulto'];
 const LIVELLO = { bambino: 'bambini', ragazzo: 'casual', adulto: 'evento' };
 const SCARTI = ['troppo debole', 'telefono: gesto scartato', 'doppio', 'fuori tempo'];
@@ -52,7 +55,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
     T.colpi++; const a = Math.round(T.base + Math.exp(gb()*.6)*12), ri = a + Math.round(4 + rb()*14); T.arr.push(a); T.ris.push(ri);
     const buco = rb() < (T.hz < 50 ? .08 : .015); if (buco) T.gb++;
     if (T.cen == null && rb() < .3) T.cen = T.colpi - 1;
-    return { cf: r(lim(.75 + gb()*.15, .3, 1)), mg: r(lim(1.6 + gb()*.4, 1, 4)), ...(buco ? { gb: Math.round(40 + rb()*120) } : {}), rit: [a, ri], ...(lato === 1 || lato === -1 ? { pl: rb() < .93 ? lato : -lato } : {}) };
+    return { cf: r(lim(.5 + gb()*.2, 0, 1)), mg: r(lim(1.6 + gb()*.4, 1, 4)), ...(buco ? { gb: Math.round(40 + rb()*120) } : {}), rit: [a, ri], ...(lato === 1 || lato === -1 ? { pl: rb() < .93 ? lato : -lato } : {}) };
   };
   const pct = (v, q) => { const o = [...v].sort((x, y) => x - y); return o.length ? o[Math.min(o.length - 1, Math.ceil(q*o.length) - 1)] : null; };
   const fineB66 = (T, durS) => {
@@ -98,7 +101,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
     if (prob(.6)){
       const palle = 4 + Math.floor(rnd()*6), salta = prob(.25), dr = Math.ceil(palle*.4), rv = Math.floor(palle*.3);
       riga('calibrazione', { chi: 'g', tipo: 'giocando', finita: true, ...(salta ? { saltato: true } : {}), durS: r(tra(15, 45), 1), prove: palle, colpi: dr + rv, passi: { dritto: [dr, 0], rovescio: [rv, 0] }, livello: scegli(['pieno', 'parziale', 'nessuno']) });
-      riga('colpo', { amb: 'prova', gesto: 'forehand', ms: Math.round(tra(-90, 90)), voto: 'perfetto', f: .5 });
+      riga('colpo', { amb: 'prova', gesto: 'forehand', ms: Math.round(tra(-90, 90)), voto: 'perfect', f: .5 });
       V.prove = (V.prove || 0) + 1; t += 30000;
     }
     if (prob(.06)){ riga('visita', { durS: r(tra(10, 90), 0), partite: 0, posti: { menu: 12, calibrazione: 20 }, abbandono: scegli(['menu', 'tutorial', 'calibrazione']), come: prob(.6) ? 'chiosco' : 'menu' }); V.visite++; }
@@ -113,7 +116,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
     const telV = T => (T ? { ...(T.app ? { app: '1.0.4' } : {}), ...(rb() < .05 ? { pv: '2026-11-17.4' } : {}) } : {});
     riga('partita', { n, ora: ora(), g: post, versione: '2026-11-12.4', modo, ...(split ? {} : { chi, livello: LIVELLO[chi] }), formato: 'quick', game: 2, fiera: split, batte: 'g', personaggi: prob(.5) ? 'sempre' : 'lobdrop', ctrl: 'telefono', mano: prob(.9) ? 'right' : 'left', ...(split ? { mano2: 'right' } : {}),
       segnale: true, nomeInserito: prob(.4), ...(split ? { nomeInserito2: prob(.4) } : {}), stand: { chiosco: true, fiera: 'split', mira: 'alta', caldo: true, ...(split ? { lancioAuto: prob(.5), campoAperto } : {}) },
-      ...(split ? { fasce, aiuto } : {}), ...(evento ? { ek } : {}), tel: { ...tel(), ...telV(tb66.g) }, ...(split ? { tel2: { ...tel(), ...telV(tb66.a) } } : {}), ...(direzione ? { dir: 'classica' } : {}) });
+      ...(split ? { fasce, aiuto } : {}), ...(evento ? { ek } : {}), ...(b66 ? { displayLagMs: 0 } : {}), tel: { ...tel(), ...telV(tb66.g) }, ...(split ? { tel2: { ...tel(), ...telV(tb66.a) } } : {}), ...(direzione ? { dir: 'classica' } : {}) });
     const pers = { g: persona(), a: persona() }, fatti = { g: 0, a: 0 };
     V.partite++; V.perModo[modo] = (V.perModo[modo] || 0) + 1; if (chi) V.perChi[chi] = (V.perChi[chi] || 0) + 1;
     // forza di chi gioca: i bambini vincono meno punti contro la CPU; nello stesso schermo il più giovane ne vince il 40%
@@ -124,13 +127,13 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
       const p = punti + 1, nColpi = 1 + Math.floor(-Math.log(1 - rnd())*2.6), vince = prob(pVince) ? 'g' : 'a';
       const lanciVuoti = prob(.15) ? 1 : 0, lanci = 1 + lanciVuoti;
       t += tra(3000, 9000);
-      if (batte === 'g' || split) riga('servizio', { ...(batte === 'a' ? { chi: 'a' } : {}), tipo: scegli(['flat', 'kick', 'slice']), q: r(tra(.3, 1)), ms: r(tra(-120, 120), 0), kmh: Math.round(tra(70, 170)), voto: scegli(VOTI)[0] });
+      if (batte === 'g' || split) riga('servizio', { ...(batte === 'a' ? { chi: 'a' } : {}), tipo: scegli(['flat', 'kick', 'slice']), q: r(tra(.3, 1)), ms: r(tra(-120, 120), 0), kmh: Math.round(tra(70, 170)), voto: scegli(VOTI_SERVIZIO) });
       const inizioScambio = t;
       for (let c = 2; c <= nColpi; c++){
         t += tra(900, 1800);
         const diG = (c % 2 === 0) === (batte === 'a');                      // chi risponde al servizio colpisce i colpi pari
         if (!diG && !split) continue;                                        // i colpi della CPU non sono nel registro
-        const [voto, ampiezza] = scegli(VOTI), ms = voto === 'ritardo' ? -tra(60, ampiezza) : voto === 'anticipo' ? tra(60, ampiezza) : tra(-ampiezza, ampiezza), forza = tra(.2, 1);
+        const [voto, da, a] = scegli(VOTI), ms = tra(da, a), forza = tra(.2, 1);
         const ultimo = c === nColpi, sbaglia = ultimo && vince !== (diG ? 'g' : 'a') && prob(.6);
         // (le estrazioni nell'ordine di prima: gesto, mira, errore, caduta)
         const gesto = scegli(GESTI), dd = r(tra(-1, 1)), ee = sbaglia ? (prob(.5) ? 'rete' : 'fuori') : null, xx = r(tra(-4, 4), 1), zz = r(tra(-11.5, -2), 1);
@@ -143,7 +146,8 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
         if (diG) colpi++; else colpi2++; V.colpi++;
         if (righe[righe.length - 1].includes('"sup":')) V.superRiusciti++;
       }
-      if (prob(.05)){ riga('vuoto', { perche: prob(.5) ? 'presto' : 'tardi', ms: r(tra(200, 500), 0), f: r(tra(5, 20), 0) }); }
+      // (B71: i colpi a vuoto «tardi» hanno l'errore di tempo, negativo; «presto» oltre la finestra d'impatto)
+      if (prob(.05)){ const tardi = !prob(.5); riga('vuoto', { perche: tardi ? 'tardi' : 'presto', ms: r(tardi ? -tra(150, 300) : tra(450, 750), 0), f: r(tra(5, 20), 0) }); }
       if (prob(.08)){ const k = scegli(SCARTI); scarti[k] = (scarti[k] || 0) + 1; }
       t += tra(500, 1500);
       const fine = nColpi <= 1 ? (vince === batte ? 'ace' : prob(.5) ? 'servizio.rete' : 'servizio.fuori') : scegli(['rete', 'fuori', 'vincente', 'vincente', 'passata', 'a vuoto']);
@@ -169,7 +173,7 @@ export function giornoFinto({ giorno = '2026-11-14', partite = 300, seme = 1, g 
         t += 4000 + rd()*3000;
         const c = dirColpo(pers, 5, giraLaCima && Math.abs(z.x) >= 2 ? Math.sign(z.x) : null), rz = -(8 + rd()*3), dentro = !c.fu && Math.abs(rz) < 12;
         const pts = dentro ? Math.max(0, Math.round(100*(1 - Math.hypot(c.xr - z.x, rz - z.z)/(2*z.r)))) : 0; punti += pts;
-        riga('colpo', { amb: 'minigioco', gesto: 'topspin', ms: r(c.tu*90, 0), voto: Math.abs(c.tu) <= .3 ? 'perfetto' : c.tu > 0 ? 'anticipo' : 'ritardo', f: r(.4 + rd()*.4), d: r(c.d), x: r(c.xt, 1), z: r(rz, 1), lato: c.lato,
+        riga('colpo', { amb: 'minigioco', gesto: 'topspin', ms: r(c.tu*90, 0), voto: Math.abs(c.tu) <= .35 ? 'perfect' : c.tu > 0 ? 'early' : 'late', f: r(.4 + rd()*.4), d: r(c.d), x: r(c.xt, 1), z: r(rz, 1), lato: c.lato,
           pf: r(c.pf), ...(c.dv != null ? { dv: r(c.dv, 1) } : {}), tu: r(c.tu), rx: r(c.xr), rz: r(rz*.98), ...(c.fu ? { fu: 1 } : {}), zp });
       }
       riga('minigioco', { gioco: 'precision', finito: true, punti, durS: r(40 + rd()*30, 1), dir: 'classica' });

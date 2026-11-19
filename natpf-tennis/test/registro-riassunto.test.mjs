@@ -348,7 +348,7 @@ test('B66: numeri esatti delle sezioni nuove; registri di prima e Worker non ric
   R.aggiungi({ k: 'avvio', t: 0, v: 3, ora: '2026-11-18T09:00:00.000Z', fuso: 60 }, ctx);
   R.aggiungi({ k: 'partita', t: 10, n: 1, modo: 'cpu', chi: 'adulto', livello: 'evento', ctrl: 'telefono', tel: { strada: 'lan', so: 'Android 14', browser: 'Chrome 131', app: '1.0.4', pv: '2026-11-17.4' } }, ctx);
   const colpi = [[40, 50, 1.1, -20, 1, 1], [60, 70, 1.5, 10, 1, -1], [250, 260, 2, -60, -1, -1], [45, 52, 1.3, 0, 1, 1]];
-  colpi.forEach(([a, ri, mg, ms, pl, lato], i) => R.aggiungi({ k: 'colpo', t: 20 + i, n: 1, gesto: 'dritto', ms, voto: 'buono', cf: i ? .8 : .4, mg, pl, lato, rit: [a, ri], ...(i === 2 ? { gb: 90, e: 'fuori' } : {}) }, ctx));
+  colpi.forEach(([a, ri, mg, ms, pl, lato], i) => R.aggiungi({ k: 'colpo', t: 20 + i, n: 1, gesto: 'dritto', ms, voto: 'buono', cf: i ? .8 : .1, mg, pl, lato, rit: [a, ri], ...(i === 2 ? { gb: 90, e: 'fuori' } : {}) }, ctx));
   R.aggiungi({ k: 'partita.fine', t: 100, n: 1, esito: 'finita', vince: 'g', durS: 3600,
     tq: { g: { hz: [59.5, 44], n: 200000, b: 4, bm: 180, bg: 1, iv: 16, sat: [0, 3] } }, lat: { g: { arr: [50, 240, 250], ris: [55, 255, 260], jit: 70, n: 5, persi: 1, ordine: 1, vie: [4, 1] } },
     wifi: { g: { rssi: [-72, -81], bd: 5, mbps: [300, 72], bt: [90, 80], ch: 0, tc: 41.2, fx: 1 } }, blocco: { g: { durS: 3500, tb: 6, ss: 1, sp: 1, sd: 2, us: 1, sc: 1 } },
@@ -378,4 +378,70 @@ test('B66: numeri esatti delle sezioni nuove; registri di prima e Worker non ric
   const S0 = rapporto(V, L);
   for (const t of SEZIONI_B66) assert.match(S0.find(x => x.titolo === t).testo.join('\n'), /Nessuna partita con le misure del B66: il registro è di una versione prima della 2026-11-18\.1|Errore di tempo per numero/, t);
   assert.ok(!S0.find(x => x.titolo === 'Sensori del telefono').testo.join('\n').includes('ATTENZIONE'), 'formato 2: nessun avviso');
+});
+
+/* ---------- B71: riassunto corretto sui registri veri del 18 e 19/11 (docs/b71/registro-tempo.md) ---------- */
+test('B71: voto «perfect» del registro vero, confidenza del gioco, «segnale non letto», batteria per telefono e per giorno', () => {
+  const ctx = { giorno: '2026-11-18', postazione: 'abcd1234' }, L = { file: 1, blocchi: 1, righe: 1, byte: 1 };
+  const R = new Riassunto();
+  R.aggiungi({ k: 'avvio', t: 0, v: 3, ora: '2026-11-18T08:00:00.000Z', fuso: 60, g: 'abcd1234' }, ctx);
+  // tre partite nello stesso schermo, a 09:00, 11:00 e 13:00 (ora locale; un minuto l'una), con l'app 1.0.4 senza il segnale
+  // Wi-Fi (Android 10 e successivi) per il Player 1 e con il segnale per il Player 2
+  const bt = { g: [[64, 64], [55, 55], [46, 45]], a: [[80, 79], [60, 60], [95, 95]] };
+  for (let i = 0; i < 3; i++){
+    const t0 = (1 + 2*i)*3600000, n = i + 1;
+    R.aggiungi({ k: 'partita', t: t0, n, ora: new Date(Date.UTC(2026, 10, 18, 9 + 2*i)).toISOString(), g: 'abcd1234', modo: 'stesso-schermo', fiera: true, ctrl: 'telefono', displayLagMs: 0,
+      tel: { strada: 'lan', so: 'Android 17', browser: 'Chrome 157', app: '1.0.4' }, tel2: { strada: 'lan', so: 'Android 17', browser: 'Chrome 157', app: '1.0.4' } }, ctx);
+    // voti come li scrive il gioco (registro_registratore.voto: il voto del motore in minuscolo)
+    for (const [j, [voto, ms, cf]] of [['perfect', 20, .5], ['early', 90, .1], ['perfect', -10, .62], ['very late', -150, .3]].entries())
+      R.aggiungi({ k: 'colpo', t: t0 + 1000 + j, n, gesto: 'TOPSPIN', ms, voto, cf }, ctx);
+    R.aggiungi({ k: 'partita.fine', t: t0 + 60000, n, esito: 'finita', vince: 'g', durS: 60, lat: { g: { n: 4, arr: [40, 60, 80] }, a: { n: 4, arr: [40, 60, 80] } },
+      wifi: { g: { bt: bt.g[i], ch: 0, tc: 21, fx: 1 }, a: { rssi: [-65, -70], bd: 5, mbps: [300, 200], bt: bt.a[i], ch: 0, tc: 22, fx: 1 } } }, ctx);
+  }
+  // una partita con un telefono senza app (browser): «senza app»
+  R.aggiungi({ k: 'partita', t: 20000000, n: 4, g: 'abcd1234', modo: 'cpu', ctrl: 'telefono', tel: { strada: 'lan', so: 'Android 14', browser: 'Chrome 131' } }, ctx);
+  R.aggiungi({ k: 'partita.fine', t: 20060000, n: 4, esito: 'finita', vince: 'g', durS: 60, lat: { g: { n: 2, arr: [40, 60, 80] } } }, ctx);
+  R.fine();
+  const B = R.b66;
+  // «Perfetti» per numero di colpo: 2 su 4 nei primi 5 colpi di ogni partita (prima 0 %: si cercava 'perfetto')
+  assert.equal(B.perOrdine[0].n, 12); assert.equal(B.perOrdine[0].perfetti, 6);
+  // confidenza del gioco: sotto 0,2 solo il colpo da 0,1
+  assert.equal(B.gesti.TOPSPIN.cfBassa, 3); assert.equal(B.gesti.TOPSPIN.cf.n, 12);
+  // segnale: app senza segnale ≠ senza app
+  assert.deepEqual(Object.fromEntries(Object.entries(B.perSegnale).map(([k, v]) => [k, v.n])), { 'segnale non letto (app)': 3, 'da −70 a −61 dBm': 3, 'senza app': 1 });
+  // batteria per telefono e per giorno (prima per partita: un minuto a passi dell'1 % dava quasi sempre 0)
+  const tab = Object.fromEntries(B.wifi.batterie.map(b => [b.chi, b]));
+  const P1 = tab['2026-11-18 · abcd1234 · Player 1'], P2 = tab['2026-11-18 · abcd1234 · Player 2'];
+  assert.equal(P1.partite, 3); assert.equal(P1.da, 64); assert.equal(P1.a, 45); assert.equal(P1.ricariche, 0);
+  assert.ok(Math.abs(P1.ore - (4 + 1/60)) < 1e-9, `${P1.ore}`); assert.ok(Math.abs(P1.consumo - 19/(4 + 1/60)) < 1e-9, `${P1.consumo}`);
+  assert.equal(P2.ricariche, 1, 'la ricarica tra le 11 e le 13 non conta come consumo');
+  assert.ok(Math.abs(P2.ore - (2 + 2/60)) < 1e-9, `${P2.ore}`); assert.ok(Math.abs(P2.consumo - 20/(2 + 2/60)) < 1e-9, `${P2.consumo}`);
+  assert.equal(B.wifi.consumo.n, 2, 'un valore per telefono e per giorno');
+  assert.deepEqual(B.schermo, { '0 ms · fiera (non sommato all’anticipo)': 3 });
+  // nel rapporto
+  const S = rapporto(R, L), sz = t => S.find(x => x.titolo === t);
+  const perOrdine = sz('Calibrazione: stabilità').tabelle.find(t => t.titolo.startsWith('Errore di tempo per numero'));
+  assert.deepEqual(perOrdine.righe[0].slice(0, 2), ['colpi 1–5', '12']); assert.equal(perOrdine.righe[0][4], '50,0%');
+  const gesti = sz('Precisione dei gesti').tabelle.find(t => t.titolo === 'Per tipo di colpo');
+  assert.equal(gesti.colonne[3], 'Confidenza sotto 0,2'); assert.equal(gesti.righe[0][3], '25,0%');
+  const rete = sz('Rete del telefono (app)');
+  assert.match(rete.testo.join('\n'), /Consumo della batteria per telefono e per giorno .*: 7,3 punti % all’ora/);
+  assert.deepEqual(rete.tabelle.find(t => t.titolo.startsWith('Batteria per telefono')).righe.map(r => r.slice(0, 3)), [['2026-11-18 · abcd1234 · Player 1', '3', '64 → 45%'], ['2026-11-18 · abcd1234 · Player 2', '3', '80 → 95%']]);
+  assert.ok(rete.tabelle.find(t => t.titolo === 'Segnale e collegamento').righe.some(r => r[0] === 'segnale non letto (app)'));
+  assert.match(sz('Collegamento: distribuzione').testo.join('\n'), /Ritardo dello schermo salvato .*0 ms · fiera \(non sommato all’anticipo\) in 3 partite/);
+});
+
+test('B71: registri finti con i voti veri del registro: i «Perfetti» per numero di colpo non sono più 0 %', async () => {
+  const { righe } = giornoFinto({ partite: 60, seme: 2 }), voti = new Set(), servizi = new Set();
+  for (const l of righe){ const r = JSON.parse(l); if (r.k === 'colpo') voti.add(r.voto); if (r.k === 'servizio') servizi.add(r.voto); }
+  assert.deepEqual([...voti].sort(), ['early', 'late', 'perfect', 'very early', 'very late']);
+  for (const v of servizi) assert.match(v, /serve/);
+  const dir = tmp();
+  try {
+    await scriviFinto({ out: dir, giorni: 1, partite: 120, seme: 7 });
+    const r = await riassumi(dir, { quando: new Date(Date.UTC(2026, 10, 18, 12)) });
+    const righeOrd = sezione(r, 'Calibrazione: stabilità').tabelle.find(t => t.titolo.startsWith('Errore di tempo per numero')).righe;
+    for (const x of righeOrd) assert.notEqual(x[4], '0,0%', x[0]);
+    assert.ok(r.R.b66.wifi.batterie.length >= 1);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

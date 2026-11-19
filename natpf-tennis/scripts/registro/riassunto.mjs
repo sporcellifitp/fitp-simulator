@@ -147,6 +147,16 @@ const voce = (map, k, fn) => map[k] || (map[k] = fn());
 
 // B66: colpo «al limite» = picco del gesto meno di 1,2 volte la soglia che ha superato
 export const B66_LIMITE = 1.2;
+// B71 (registri del 18 e 19/11, docs/b71/registro-tempo.md): «cf» è la confidenza del tipo di colpo del gioco
+// (natpf_stroke_intent: margine 0…1 dalla soglia più vicina, 0,5 il colpo normale). Sotto 0,2 il colpo è vicino al confine
+// con un altro tipo: un gesto appena diverso sarebbe stato un altro colpo. Prima (fino alla 2026-11-18.3) era quella del
+// telefono, sempre 0,45 in fiera, e la soglia era 0,5: la colonna diceva 100 % e non voleva dire niente
+export const CF_INCERTA = .2;
+// voto «Perfetto» di un colpo: il registro scrive il voto del motore in minuscolo ('perfect', 'early', 'very early'…);
+// si accetta anche quello italiano (registri finti e prove di prima). Prima si confrontava solo 'perfetto': 0 % sempre
+export const perfetto = v => /^(perfect|perfetto)\b/i.test(String(v || '').trim());
+// B71: consumo della batteria per telefono e per giorno: solo i tratti senza ricarica, almeno mezz'ora in tutto
+export const BATTERIA_MIN_ORE = .5;
 const nuovoB66 = () => ({
   partite: { n: 0, conMisure: 0, senzaMisure: 0 }, versioni: { pagina: {}, app: {} },
   sensori: { n: 0, hz: new Misura(), hzMin: new Misura(), sotto50: 0, soloMedia: 0, campioni: 0, buchi: 0, buchiPartita: new Misura(), bucoMax: new Misura(), colpiBuco: 0, intervallo: {}, saturi: 0, satAcc: 0, satGiro: 0, perTel: {} },
@@ -154,9 +164,14 @@ const nuovoB66 = () => ({
   perOrdine: [0, 1, 2, 3].map(() => ({ n: 0, ms: new Misura(), perfetti: 0, sbagliati: 0 })),
   arr: new Misura(), ris: new Misura(), strade: {}, ritardoTempo: [0, 1, 2, 3].map(() => ({ n: 0, ms: new Misura(), ritardo: 0 })),
   coll: { n: 0, colpi: 0, stimati: 0, persi: 0, ordine: 0, jit: new Misura(), arrP90: new Misura(), veloce: 0, affidabile: 0 }, perSegnale: {}, pause: {}, partiteConPausa: 0,
-  wifi: { n: 0, rssi: new Misura(), rssiMin: new Misura(), deboli: 0, bande: {}, mbps: new Misura(), mbpsMin: new Misura(), batt: new Misura(), consumo: new Misura(), inCarica: 0, temp: new Misura(), calde: 0, conFissa: 0, sempreFissa: 0 },
+  // (B71: letture della batteria per telefono e giorno, chiave «giorno · postazione · giocatore»: [{ t0, t1, b0, b1, ch }];
+  // batterie: le righe della tabella, da _b66Batterie a fine lettura; consumo: un valore per telefono e giorno)
+  wifi: { n: 0, rssi: new Misura(), rssiMin: new Misura(), deboli: 0, bande: {}, mbps: new Misura(), mbpsMin: new Misura(), batt: new Misura(), consumo: new Misura(), inCarica: 0, temp: new Misura(), calde: 0, conFissa: 0, sempreFissa: 0,
+    letture: {}, batterie: [] },
   blocco: { n: 0, durS: new Misura(), tocchi: 0, tocchiPartita: new Misura(), ss: 0, sp: 0, sd: 0, us: 0, sc: 0, conUscite: 0 },
   cal: { n: 0, tipo: {}, tipN: new Misura(), cen: new Misura(), deriva: new Misura(), tipico: new Misura(), dvi: new Misura(), conSegno: 0, conMano: 0, conRic: 0, refCambiato: 0, soglie: {} },
+  // B71: ritardo dello schermo salvato (displayLagMs della riga «partita», ms) → partite
+  schermo: {},
 });
 
 export class Riassunto {
@@ -319,17 +334,18 @@ export class Riassunto {
   }
   _b66Partita(r, x){
     for (const t of [r.tel, r.tel2]) this._b66Versioni(t, x);
+    if (Number.isFinite(r.displayLagMs)) piu(this.b66.schermo, `${N(r.displayLagMs)} ms${r.fiera ? ' · fiera (non sommato all’anticipo)' : ''}`);   // B71
     x.P.b66 = { colpiN: { g: 0, a: 0 } };
   }
   _b66Colpo(r, x){
     const B = this.b66, P = x?.P; if (r.amb || !P) return;
     const k = r.chi === 'a' ? 'a' : 'g', i = P.b66 ? ++P.b66.colpiN[k] : null, g = voce(B.gesti, r.gesto || '—', () => ({ n: 0, cf: new Misura(), cfBassa: 0, mg: new Misura(), limite: 0, conMg: 0, conPl: 0, opposti: 0 }));
     g.n++;
-    if (Number.isFinite(r.cf)){ g.cf.metti(r.cf); if (r.cf < .5) g.cfBassa++; }
+    if (Number.isFinite(r.cf)){ g.cf.metti(r.cf); if (r.cf < CF_INCERTA) g.cfBassa++; }
     if (Number.isFinite(r.mg)){ g.conMg++; g.mg.metti(r.mg); if (r.mg < B66_LIMITE) g.limite++; const L = B.limite[r.mg < B66_LIMITE ? 'al limite' : 'pieni']; L.n++; L.ms.metti(Math.abs(r.ms)); if (r.e === 'debole') L.deboli++; if (r.e === 'rete' || r.e === 'fuori') L.sbagliati++; }
     if ((r.pl === 1 || r.pl === -1) && (r.lato === 1 || r.lato === -1)){ g.conPl++; if (r.pl !== r.lato) g.opposti++; }
     if (Number.isFinite(r.gb)) B.gesto.conBuco++;
-    if (Number.isFinite(r.ms) && i != null){ const f = B.perOrdine[i <= 5 ? 0 : i <= 10 ? 1 : i <= 20 ? 2 : 3]; f.n++; f.ms.metti(Math.abs(r.ms)); if (r.voto === 'perfetto') f.perfetti++; if (r.e === 'rete' || r.e === 'fuori') f.sbagliati++; }
+    if (Number.isFinite(r.ms) && i != null){ const f = B.perOrdine[i <= 5 ? 0 : i <= 10 ? 1 : i <= 20 ? 2 : 3]; f.n++; f.ms.metti(Math.abs(r.ms)); if (perfetto(r.voto)) f.perfetti++; if (r.e === 'rete' || r.e === 'fuori') f.sbagliati++; }
     if (Array.isArray(r.rit) && r.rit.length === 2){
       const [a, ri] = r.rit, strada = (r.chi === 'a' ? P.r.tel2 : P.r.tel)?.strada || '—', S = voce(B.strade, strada, () => ({ arr: new Misura(), ris: new Misura() }));
       B.arr.metti(a); B.ris.metti(ri); S.arr.metti(a); S.ris.metti(ri);
@@ -357,18 +373,25 @@ export class Riassunto {
       const C = B.coll; C.n++; C.colpi += l.n || 0; C.stimati += l.stimati || 0; C.persi += l.persi || 0; C.ordine += l.ordine || 0;
       if (Number.isFinite(l.jit)) C.jit.metti(l.jit); if (Array.isArray(l.arr)) C.arrP90.metti(l.arr[1]);
       if (Array.isArray(l.vie)){ C.veloce += l.vie[0] || 0; C.affidabile += l.vie[1] || 0; }
-      const w = r.wifi?.[k], rs = Array.isArray(w?.rssi) ? w.rssi[0] : null, fascia = rs == null ? 'senza app' : rs >= -60 ? 'da −60 dBm in su (forte)' : rs >= -70 ? 'da −70 a −61 dBm' : rs >= -80 ? 'da −80 a −71 dBm' : 'sotto −80 dBm (debole)';
+      // (B71: «segnale non letto» quando l'app c'è ma il segnale no: l'app 1.0.4 lo butta via su Android 10 e successivi,
+      // MainActivity.java; «senza app» solo quando l'app non c'è davvero)
+      const w = r.wifi?.[k], rs = Array.isArray(w?.rssi) ? w.rssi[0] : null, app = !!w && (w.fx != null || w.tc != null || w.bd != null || w.mbps != null) || !!tel(k).app;
+      const fascia = rs == null ? (app ? 'segnale non letto (app)' : 'senza app') : rs >= -60 ? 'da −60 dBm in su (forte)' : rs >= -70 ? 'da −70 a −61 dBm' : rs >= -80 ? 'da −80 a −71 dBm' : 'sotto −80 dBm (debole)';
       const F = voce(B.perSegnale, fascia, () => ({ n: 0, arrP90: new Misura(), persi: 0, colpi: 0, pauseS: 0 })); F.n++; F.colpi += l.n || 0; F.persi += l.persi || 0; if (Array.isArray(l.arr)) F.arrP90.metti(l.arr[1]);
       if (k === 'g') F.pauseS += Object.entries(r.pause || {}).filter(([m]) => !m.endsWith(')')).reduce((a, [, v]) => a + (v[1] || 0), 0);
     }
     for (const [m, v] of Object.entries(r.pause || {})) if (Array.isArray(v)){ const Q = voce(B.pause, m, () => [0, 0]); Q[0] += v[0] || 0; Q[1] += v[1] || 0; }
     if (r.pause) B.partiteConPausa++;
+    // B71: consumo della batteria per telefono e per giorno (prima per partita: 60 s a passi dell'1 % davano quasi sempre 0)
+    const d = this._quando(x, r), t1 = d ? d.getTime() : r.t;
+    for (const [k, w] of Object.entries(r.wifi || {})) if (Array.isArray(w?.bt) && Number.isFinite(w.bt[0]) && Number.isFinite(w.bt[1]) && Number.isFinite(t1))
+      voce(B.wifi.letture, `${P.giorno} · ${P.r.g || x?.postazione || '—'} · ${k === 'a' ? 'Player 2' : 'Player 1'}`, () => []).push({ t0: t1 - 1000*Math.max(0, +r.durS || 0), t1, b0: w.bt[0], b1: w.bt[1], ch: w.ch });
     for (const w of Object.values(r.wifi || {})){
       const W = B.wifi; W.n++;
       if (Array.isArray(w.rssi)){ W.rssi.metti(w.rssi[0]); W.rssiMin.metti(w.rssi[1]); if (w.rssi[1] < -75) W.deboli++; }
       if (w.bd != null) piu(W.bande, `${String(w.bd).replace('.', ',')} GHz`);
       if (Array.isArray(w.mbps)){ W.mbps.metti(w.mbps[0]); W.mbpsMin.metti(w.mbps[1]); }
-      if (Array.isArray(w.bt) && Number.isFinite(w.bt[0]) && Number.isFinite(w.bt[1])){ W.batt.metti(w.bt[1]); if (r.durS > 30) W.consumo.metti((w.bt[0] - w.bt[1])*3600/r.durS); }
+      if (Array.isArray(w.bt) && Number.isFinite(w.bt[0]) && Number.isFinite(w.bt[1])) W.batt.metti(w.bt[1]);
       if (w.ch === 1) W.inCarica++; if (Number.isFinite(w.tc)){ W.temp.metti(w.tc); if (w.tc >= 40) W.calde++; }
       if (Number.isFinite(w.fx)){ W.conFissa++; if (w.fx >= 1) W.sempreFissa++; }
     }
@@ -430,7 +453,29 @@ export class Riassunto {
     }
   }
   // fine della lettura: le partite rimaste aperte (registro tronco) si chiudono come «senza fine»
-  fine(){ for (const x of this.ctx.values()){ if (x.P) this._chiudi(x, null); if (x.prec.length){ this.dir.precisionSenzaFine++; x.prec = []; } } for (const e of this.errori.values()) e.volte = [...e.per.values()].reduce((a, b) => a + b, 0); return this; }
+  fine(){ for (const x of this.ctx.values()){ if (x.P) this._chiudi(x, null); if (x.prec.length){ this.dir.precisionSenzaFine++; x.prec = []; } } for (const e of this.errori.values()) e.volte = [...e.per.values()].reduce((a, b) => a + b, 0); this._b66Batterie(); return this; }
+  // B71: consumo della batteria per telefono e per giorno. Le letture (inizio e fine di ogni partita) in ordine di tempo; fra
+  // due letture di fila: se la batteria sale di più di un punto è una ricarica (il tratto non conta), se sale di un punto è
+  // il rumore della lettura (non conta), se a fine tratto il telefono era in carica non conta; altrimenti punti scesi e ore.
+  // Consumo = punti scesi / ore, con almeno BATTERIA_MIN_ORE ore in tutto
+  _b66Batterie(){
+    const W = this.b66.wifi; W.consumo = new Misura(); W.batterie = [];
+    for (const [chi, L] of Object.entries(W.letture).sort()){
+      const o = [...L].sort((a, b) => a.t0 - b.t0), pt = o.flatMap(p => [{ t: p.t0, b: p.b0, ch: null }, { t: p.t1, b: p.b1, ch: p.ch }]);
+      let giu = 0, ms = 0, ricariche = 0;
+      for (let i = 1; i < pt.length; i++){
+        const a = pt[i - 1], b = pt[i], dt = b.t - a.t;
+        if (!(dt > 0)) continue;
+        if (b.b > a.b + 1){ ricariche++; continue; }
+        if (b.b > a.b || b.ch === 1) continue;
+        giu += a.b - b.b; ms += dt;
+      }
+      const ore = ms/3600000, consumo = ore >= BATTERIA_MIN_ORE ? giu/ore : null;
+      if (consumo != null) W.consumo.metti(consumo);
+      W.batterie.push({ chi, partite: o.length, da: o[0].b0, a: o[o.length - 1].b1, ore, consumo, ricariche });
+    }
+    return W.batterie;
+  }
 }
 
 /* ---------- rapporto ---------- */
@@ -614,10 +659,10 @@ export function sezioniB66(R, sez){
   ]);
   const gesti = Object.entries(B.gesti).filter(([, g]) => g.cf.n || g.conMg || g.conPl).sort((a, b) => b[1].n - a[1].n), L = B.limite;
   sez('Precisione dei gesti', gesti.length ? [
-    `Per tipo di colpo (colpi del telefono in partita): confidenza del riconoscimento del tipo (0–1, dal telefono), margine del picco sulla soglia (sotto ${N(B66_LIMITE, 1)} = colpo «al limite», quasi scartato), colpi giocati dalla parte opposta alla palla (dritto con la palla a sinistra di un destro e viceversa: dritto e rovescio probabilmente scambiati).`,
+    `Per tipo di colpo (colpi del telefono in partita): confidenza del tipo di colpo (0–1, del gioco: margine dalla soglia più vicina, 0,5 il colpo normale; sotto ${N(CF_INCERTA, 1)} il colpo è vicino al confine con un altro tipo; fino alla 2026-11-18.3 era quella del telefono, sempre 0,45 in fiera), margine del picco sulla soglia (sotto ${N(B66_LIMITE, 1)} = colpo «al limite», quasi scartato), colpi giocati dalla parte opposta alla palla (dritto con la palla a sinistra di un destro e viceversa: dritto e rovescio probabilmente scambiati).`,
     L['al limite'].n + L.pieni.n ? `Colpi al limite: ${N(L['al limite'].n)} su ${N(L['al limite'].n + L.pieni.n)} (${pc(L['al limite'].n, L['al limite'].n + L.pieni.n, 1)}).` : '',
   ] : [vuoto], [
-    { titolo: 'Per tipo di colpo', colonne: ['Gesto', 'Colpi', 'Confidenza (media)', 'Confidenza sotto 0,5', 'Margine (mediana)', 'Al limite', 'Dalla parte opposta alla palla'],
+    { titolo: 'Per tipo di colpo', colonne: ['Gesto', 'Colpi', 'Confidenza (media)', `Confidenza sotto ${N(CF_INCERTA, 1)}`, 'Margine (mediana)', 'Al limite', 'Dalla parte opposta alla palla'],
       righe: gesti.map(([k, g]) => [k, N(g.n), N(g.cf.media, 2), pc(g.cfBassa, g.cf.n, 1), N(g.mg.p(.5), 2), pc(g.limite, g.conMg, 1), g.conPl ? `${pc(g.opposti, g.conPl, 1)} (${N(g.conPl)})` : '—']) },
     { titolo: 'Colpi al limite contro colpi pieni', colonne: ['', 'Colpi', '|Errore di tempo| (metà entro, ms)', 'Deboli', 'Rete o fuori'],
       righe: Object.entries(L).filter(([, v]) => v.n).map(([k, v]) => [k, N(v.n), N(v.ms.p(.5)), pc(v.deboli, v.n, 1), pc(v.sbagliati, v.n, 1)]) },
@@ -629,20 +674,24 @@ export function sezioniB66(R, sez){
     `Sbalzo del ritardo da un colpo al successivo (media di ogni partita): ${mis(C.jit, 0, ' ms')}; il 9 su 10 dell'arrivo di ogni partita: ${mis(C.arrP90, 0, ' ms')}.`,
     `Colpi arrivati: ${N(C.colpi)}; persi (numero mancante, nessuna delle quattro copie arrivata) ${N(C.persi)} (${pc(C.persi, C.colpi + C.persi, 2)}); fuori ordine ${N(C.ordine)}; senza orologi allineati (ritardo non misurato) ${N(C.stimati)}. Prima copia arrivata dalla strada veloce: ${pc(C.veloce, C.veloce + C.affidabile, 1)}.`,
     `Pause della partita per il telefono: ${N(pauseTot)} in ${N(B.partiteConPausa)} partite (${pc(B.partiteConPausa, Pt.n, 1)} delle partite con le misure).`,
+    Object.keys(B.schermo).length ? `Ritardo dello schermo salvato (prova del B50; dalla versione dopo la 2026-11-18.3): ${Object.entries(B.schermo).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} in ${N(v)} partite`).join('; ')}. In fiera non si somma alla correzione dell’anticipo (B71).` : '',
   ] : [avviso, vuoto], [
     { titolo: 'Per strada del collegamento (righe «colpo»)', colonne: ['Strada', 'Colpi', 'Arrivo: metà · 9 su 10 · 99 su 100', 'Risposta: metà · 9 su 10 · 99 su 100'], righe: Object.entries(B.strade).map(([k, v]) => [k, N(v.arr.n), tre(v.arr), tre(v.ris)]) },
     { titolo: 'Ritardo e tempo del colpo', colonne: ['Arrivo dal picco', 'Colpi', 'Errore di tempo medio (ms, + anticipo)', 'In ritardo'], righe: B.ritardoTempo.map((f, i) => (f.n ? [fasce[i], N(f.n), N(f.ms.media), pc(f.ritardo, f.n, 1)] : null)).filter(Boolean) },
-    { titolo: 'Pause per il telefono («(2)»: Player 2 dello stesso schermo)', colonne: ['Motivo', 'Volte', 'Secondi in tutto', 'Secondi a pausa'], righe: Object.entries(B.pause).sort((a, b) => b[1][0] - a[1][0]).map(([k, v]) => [k, N(v[0]), N(v[1], 1), N(v[0] ? v[1]/v[0] : null, 1)]) },
+    { titolo: 'Pause per il telefono («(2)»: Player 2 dello stesso schermo; fino alla 2026-11-18.3 le volte del Player 2 erano una al secondo, i secondi sono giusti)', colonne: ['Motivo', 'Volte', 'Secondi in tutto', 'Secondi a pausa'], righe: Object.entries(B.pause).sort((a, b) => b[1][0] - a[1][0]).map(([k, v]) => [k, N(v[0]), N(v[1], 1), N(v[0] ? v[1]/v[0] : null, 1)]) },
   ]);
   const W = B.wifi;
   sez('Rete del telefono (app)', W.n ? [
     `Telefoni in partita con l'app NATPF Racchetta (o la batteria dal browser): ${N(W.n)}. Segnale Wi-Fi, mediana di ogni partita ${mis(W.rssi, 0, ' dBm')}; il più basso di ogni partita ${mis(W.rssiMin, 0, ' dBm')}; partite con il segnale sotto −75 dBm: ${N(W.deboli)} (${pc(W.deboli, W.n, 1)}).`,
     `Velocità del collegamento Wi-Fi: ${mis(W.mbps, 0, ' Mbps')}; la più bassa di ogni partita ${mis(W.mbpsMin, 0, ' Mbps')}.`,
-    `Batteria a fine partita ${mis(W.batt, 0, '%')}; consumo ${mis(W.consumo, 1, ' punti % all’ora')}; in carica a fine partita ${N(W.inCarica)} (${pc(W.inCarica, W.n, 1)}). Temperatura della batteria (la più alta di ogni partita) ${mis(W.temp, 1, ' °C')}; da 40 °C: ${N(W.calde)}.`,
+    `Batteria a fine partita ${mis(W.batt, 0, '%')}; in carica a fine partita ${N(W.inCarica)} (${pc(W.inCarica, W.n, 1)}). Temperatura della batteria (la più alta di ogni partita) ${mis(W.temp, 1, ' °C')}; da 40 °C: ${N(W.calde)}.`,
+    `Consumo della batteria per telefono e per giorno (tratti senza ricarica, almeno ${N(BATTERIA_MIN_ORE, 1)} ore; una partita sola dura un minuto e la batteria si legge a passi dell’1 %): ${mis(W.consumo, 1, ' punti % all’ora')}.`,
     `«Fissa app» attiva per tutta la partita: ${N(W.sempreFissa)} su ${N(W.conFissa)} (${pc(W.sempreFissa, W.conFissa, 1)}).`,
     'Del telefono si registrano solo numeri: mai il nome della rete, indirizzi o identificativi.',
   ] : [vuoto + ' Le misure della rete ci sono solo con l’app NATPF Racchetta 1.0.4 o successiva.'], [
     { titolo: 'Banda della Wi-Fi', colonne: ['Banda', 'Telefoni', 'Quota'], righe: elenco(W.bande, W.n) },
+    { titolo: 'Batteria per telefono e per giorno', colonne: ['Giorno · postazione · giocatore', 'Partite', 'Batteria (prima → ultima)', 'Ore senza ricarica', 'Consumo (punti % all’ora)', 'Ricariche viste'],
+      righe: W.batterie.map(b => [b.chi, N(b.partite), `${N(b.da)} → ${N(b.a)}%`, N(b.ore, 1), N(b.consumo, 1), N(b.ricariche)]) },
     { titolo: 'Segnale e collegamento', colonne: ['Segnale (mediana della partita)', 'Telefoni', 'Arrivo 9 su 10 (mediana, ms)', 'Colpi persi', 'Secondi di pausa (Player 1)'],
       righe: Object.entries(B.perSegnale).sort().map(([k, F]) => [k, N(F.n), N(F.arrP90.p(.5)), `${N(F.persi)} su ${N(F.colpi + F.persi)}`, N(F.pauseS, 1)]) },
   ]);
