@@ -38,6 +38,8 @@ subito e il computer mostra in quella lingua la **sua** metà (o tutto lo scherm
 | tabellone: sigle dei nomi dati dal gioco («YOU», «OPP», «YOU+PAR»), etichetta («1 game», «Best of 3», «Deuce», «Advantage», «Deciding point»), testo per lo screen reader («(serving)») | `natpf_ui.onScore`, `natpf_scoreboard.scoreboardHtml` | **ogni copia nella lingua della sua metà** |
 | etichetta sotto la metà («Phone paused», «Help: Child»), «Left-handed» | `natpf_split_ui.tick`, `NatpfLang.refresh` | della metà |
 | barre «Power/Strong/Very strong», «Energy/Weary/Tired!» | `natpf_power_hud.js` | di chi gioca / della metà |
+| scritta del segnale del momento giusto («Hit when the circle turns **green**», prime 3 palle a Bambini ed Evento) — revisione B72 | `natpf_timing_cue.js` | di chi gioca (c'è solo a una vista) |
+| etichetta del gesto in basso al centro («Backhand / Slice · Very early», «Swing ignored / ball moving away») — revisione B72 | `natpf_gesture_hud.js` | del Player 1 (a una vista chi gioca qui, nello stesso schermo la sua metà) |
 | riquadro della pausa del telefono (titoli e testi con nome, numero, secondi, QR; «Reconnect the phone») | `natpf_ui._paintHold`, `_paintHoldQr` | del giocatore di quel telefono; con due pause il titolo «Match paused» comune e ogni riga nella lingua del suo giocatore |
 | conto alla rovescia prima della partita («Get ready», «The match is about to start», chi batte) | `natpf_prematch.js` | comune |
 | schermata finale: titolo («You win!», «The opponent wins», «Great match, Luca!»), riga sopra e sotto, righe dei game («You», «Opponent»), «Games 1-0», pillola dei game «1 to 0», pillola in basso, card (nastro «Match MVP», «You», «Event level», trofei con i numeri, «Next trophy…», record) e riquadri dei numeri, riga della rivincita dai telefoni | `hud_ui.showVictoryModal`, `natpf_split_ui._paintRematch` | comune |
@@ -179,11 +181,21 @@ tradotti.
   stretti (320 px) e il selettore nel riquadro bloccato con il telefono tenuto come racchetta.
 - Non tradotti (restano in italiano anche con EN): menu, lobby, pagina «Collega» con il suo conto alla rovescia,
   impostazioni, staff, diagnostica, avvisi brevi (toast), pulsanti della schermata finale; nel gioco «Scambio caldo»,
-  l'etichetta del gesto in basso (`natpf_gesture_hud`), «perché il super non è scattato» (`natpf_super_hint`), scritte
-  dell'allenamento, dei minigiochi e degli scambi di prova (banner «Allenamento», «Livello 2», …), riquadri della webcam
-  in pausa, titoli dei trofei al passaggio del mouse; sul telefono i nomi delle schede del tutorial mandati dal computer
-  (es. «Presa»: tradotto solo se è nel dizionario), il quadrante della presa orizzontale (spenta: `ALLOW_FLAT` false).
+  «perché il super non è scattato» (`natpf_super_hint`), scritte dell'allenamento, dei minigiochi e degli scambi di prova
+  (banner «Allenamento», «Livello 2», …), riquadri della webcam in pausa, titoli dei trofei al passaggio del mouse; sul
+  telefono il quadrante della presa orizzontale (spenta: `ALLOW_FLAT` false). (Revisione B72: l'etichetta del gesto in
+  basso e la scritta del segnale del momento giusto ora sono tradotte; i nomi delle schede del tutorial che il computer
+  manda al telefono — «Presa a racchetta», «Posizione di partenza», «Colpo piatto», «Volée», le prese e i gesti — sono nel
+  dizionario del telefono e la prova di copertura li controlla tutti. Prima «Scheda 1 di 5 · Presa a racchetta» restava in
+  italiano: la frase «tradotto solo se è nel dizionario» valeva per «Presa», ma il nome vero è «Presa a racchetta».)
 - La voce del gioco è già in inglese (non cambia).
+- Nomi dei giocatori (revisione B72): si traducono solo i nomi dati dal gioco («Tu», «Avversario», «Avversari», «X +
+  compagno»…, `natpf_lang.nameTx`); un nome scritto da chi gioca resta com'è anche se è una parola del dizionario
+  («Vince», «Asso»). La pastiglia «Vince» di chi vince e la corona della card si traducono per ruolo (`data-tx`,
+  `data-tx-title`), non per testo.
+- Telefoni vecchi (revisione B72): il motore della traduzione non usa il lookbehind nelle espressioni regolari (su
+  Safari/iOS prima del 16.4 fermava il caricamento della pagina del telefono); una prova controlla che nessun file di
+  `site/js/tennis` lo contenga. Non provato su un iPhone vero con iOS 15–16.3.
 - Le traduzioni sono un dizionario scritto a mano: un testo italiano nuovo aggiunto in futuro resta italiano finché non
   entra nel dizionario (`GAME_EXACT`/`GAME_TEMPLATES` in `natpf_lang.js`, `PHONE_EXACT`/`PHONE_TEMPLATES` in
   `lingua.js`); la prova di copertura del telefono lo segnala per i testi della pagina.

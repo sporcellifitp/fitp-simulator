@@ -22,10 +22,13 @@
 // l'anello compare (e di nuovo per un giocatore nuovo: natpf_new_player.resetVisitor) una scritta breve in alto al centro
 // (in basso copriva chi gioca) dice «Colpisci quando il cerchio diventa verde», con le stesse parole della guida (natpf_onboarding.js, «Colpisci quando
 // la palla arriva»); resta finché c'è l'anello e poco dopo, poi sparisce. Solo una scritta: niente nell'esito dei colpi.
+// B72 (revisione, L1): la scritta è nella lingua di chi gioca, scelta sul suo telefono (natpf_lang; in inglese «Hit when the
+// circle turns green»): prima restava in italiano anche con il telefono in EN.
 import * as THREE from 'three';
 import { SWING_AIM, skillLevel, fairPerfect } from './natpf_skill.js';
 import { timeToContact, lateMargin, openTight } from './natpf_impact.js';
 import { directionSpan, slowFactor, lateSpanOf } from './natpf_stroke_outcome.js';
+import { say } from './natpf_lang.js';   // B72 (revisione, L1): la scritta nella lingua di chi gioca
 
 export const CUE_KEY = 'natpf-tennis.segnaleTempo';
 export const CUE = Object.freeze({
@@ -42,6 +45,13 @@ export const CUE_NOW_SCALE = 1.3;   // quando diventa verde l'anello si allarga 
 export const CUE_HINT = Object.freeze({ text: 'Colpisci quando il cerchio diventa verde', balls: 3, hold: .7 });
 // pura: si spiega questa palla? fresh: palla nuova con l'anello in vista; shown: palle già spiegate in questa partita
 export const cueHintFor = ({ fresh = false, shown = 0, balls = CUE_HINT.balls } = {}) => !!fresh && shown < balls;
+// pura (B72, revisione L1): la scritta nella lingua di chi gioca ('it' | 'en', dal suo telefono: natpf_lang), divisa in
+// [testo prima, parola in verde]: «Colpisci quando il cerchio diventa » + «verde», «Hit when the circle turns » + «green».
+// In italiano il testo è CUE_HINT.text com'è; in inglese dal dizionario della partita (natpf_lang.GAME_EXACT)
+export function cueHintParts(lang = 'it'){
+  const s = String(say(CUE_HINT.text, lang === 'en' ? 'en' : 'it')), i = s.lastIndexOf(' ');
+  return [s.slice(0, i + 1), s.slice(i + 1)];
+}
 const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
 
 // scelta salvata: 'auto' (di base) | 'on' | 'off'
@@ -149,10 +159,30 @@ export class NatpfTimingCue {
     let el = document.getElementById('natpf-cue-hint');
     if (!el && on && document.body){
       el = document.createElement('div'); el.id = 'natpf-cue-hint'; el.className = 'natpf-cue-hint hidden'; el.setAttribute('aria-live', 'polite');
-      el.innerHTML = `<i class="cue-dot"></i><i class="cue-dot now"></i><span>Colpisci quando il cerchio diventa <b>verde</b></span>`;
       document.body.appendChild(el);
     }
+    if (el && on) this._hintText(el);
     el?.classList.toggle('hidden', !on);
+  }
+  // B72 (revisione, L1): testo della scritta nella lingua di chi gioca. Il segnale c'è solo a una vista (mai nello stesso
+  // schermo né tra due computer): la lingua è quella del telefono di questo computer (natpf_lang.at('left')). Si riscrive
+  // solo quando la lingua cambia (data-lang), a pezzi con textContent: «Colpisci quando il cerchio diventa <b>verde</b>»
+  _hintText(el){
+    const lang = this.engine?.natpfLang?.at?.('left') === 'en' ? 'en' : 'it', ds = el.dataset || (el.dataset = {});
+    if (ds.lang === lang) return;
+    ds.lang = lang;
+    const [before, green] = cueHintParts(lang);
+    if (typeof el.replaceChildren !== 'function'){ el.textContent = before + green; return; }   // (DOM finto dei test)
+    const mk = (tag, cls = '', text = '') => { const n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; };
+    const span = mk('span');
+    span.append(before, mk('b', '', green));
+    el.replaceChildren(mk('i', 'cue-dot'), mk('i', 'cue-dot now'), span);
+  }
+  // B72 (revisione, L1): la lingua di un telefono è cambiata (natpf_lang.NatpfLang.refresh): la scritta in vista si riscrive
+  relang(){
+    if (typeof document === 'undefined') return;
+    const el = document.getElementById('natpf-cue-hint');
+    if (el && this.hint.on) this._hintText(el);
   }
   // acceso per la partita di adesso?
   get enabled(){

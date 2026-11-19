@@ -21,6 +21,9 @@
 //     (natpf_serve_coach.newPlayer).
 //   - B46: la mano torna «Destra» per Player 1 E Player 2 in ogni strada (natpf_hand.resetHands; prima, fuori dallo stesso
 //     schermo, solo quella del Player 1), con la causa «nuovo giocatore» nel registro dello stand.
+//   - B72: la lingua torna IT per Player 1 e Player 2 in ogni strada (natpf_lang.resetLangs: da resetHands, e nella strada
+//     'split' direttamente, perché lì le mani si azzerano per giocatore con split.setHand e resetHands non passa; revisione
+//     B72, B72-REG-2: prima nello stesso schermo dalla lobby i telefoni restavano in inglese).
 // Cosa resta: la durata e il formato della partita, la mira del telefono, il chiosco, il segnale del momento giusto e la
 // musica: sono scelte dello staff, non del visitatore.
 //
@@ -37,6 +40,7 @@
 // Con la webcam o mouse e tastiera il nome e poi subito la pagina «Partita» (o il minigioco): niente da calibrare.
 
 import { resetHands } from './natpf_hand.js';
+import { resetLangs } from './natpf_lang.js';
 
 // pure: dove va chi arriva. mode: modalità della lobby; versus: sfida tra due computer (host o Player 2); atMenu: la lobby
 // mostra il menu principale
@@ -82,6 +86,8 @@ export function resetVisitor(ui){
     // (gate false: il tutorial lo apre la metà di ciascuno nella pagina «Collega», che fa aspettare il telefono; le verifiche
     // fallite del giocatore di prima non contano per chi arriva)
     for (const id of ['p1', 'p2']){ S?.setHand?.(id, 'right', 'nuovo giocatore'); S?.phone?.(id)?.resetPlayer?.({ gate: false }); if (S?.fails) S.fails[id] = 0; }
+    // B72 (revisione, B72-REG-2): anche la lingua torna IT ai due telefoni (resetHands qui non passa)
+    resetLangs(ui, 'nuovo giocatore');
     ui.backToMenu('connect');
     return route;
   }

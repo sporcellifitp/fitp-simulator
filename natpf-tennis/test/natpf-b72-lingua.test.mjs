@@ -139,7 +139,8 @@ test('B72 EN: titolo e righe della fine partita, rivincita dai telefoni', async 
   assert.equal(en('Scambio più lungo della partita: 9 colpi'), 'Longest rally of the match: 9 shots');
   // rivincita dai telefoni nello stesso schermo (natpf_split_ui.rematchLine)
   const { rematchLine } = await import('../src/natpf/natpf_split_ui.js');
-  assert.equal(L.say(rematchLine({ p1: true }, { p1: 'Giulia', p2: 'Marco' }), 'en'), 'Giulia wants a rematch · Marco is missing');
+  // (revisione B72, L5: «manca Marco» è «aspettiamo Marco», non «Marco è scomparso»)
+  assert.equal(L.say(rematchLine({ p1: true }, { p1: 'Giulia', p2: 'Marco' }), 'en'), 'Giulia wants a rematch · waiting for Marco');
   assert.equal(L.say(rematchLine({ p1: true, p2: true }), 'en'), 'Rematch!');
   assert.equal(L.say(rematchLine({}), 'en'), 'Rematch from the phones: both of you tap “Rematch”');
   // card della partita: nastro, livello, trofei con i loro numeri, «Prossimo trofeo», record, riquadri dei numeri
@@ -311,4 +312,157 @@ test('B72 traduzioni ricordate: la stessa frase non si ritraduce (niente lavoro 
   // 2000 frasi diverse non fanno crescere la memoria senza limite (la cache si svuota)
   for (let i = 0; i < 2000; i++) L.gameEn(`Giulia ${i}`);
   assert.equal(L.gameEn('Perfetto'), 'Perfect');
+});
+
+/* ---------- revisione B72 (sistemazione) ---------- */
+// DOM minimo per translateEl (nel test non c'è un browser): legge l'HTML dei generatori del gioco (card, schede dei
+// giocatori), nodi di testo, attributi, dataset, closest/matches/querySelectorAll con selettori semplici, TreeWalker dei testi
+function miniDom(html){
+  const ENT = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }, dec = s => s.replace(/&(?:amp|lt|gt|quot|#39);/g, m => ENT[m]);
+  const VOID = new Set(['img', 'br', 'hr', 'input', 'meta', 'link']);
+  const kebab = k => k.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+  const doc = { createTreeWalker(root){ const list = []; (function walk(n){ for (const c of n.childNodes) if (c.nodeType === 3) list.push(c); else walk(c); })(root); let i = 0; return { nextNode: () => list[i++] || null }; } };
+  const simple = (el, s) => {
+    const m = /^([a-z][\w-]*)?((?:\.[\w-]+)*)(?:\[([\w-]+)(?:="([^"]*)")?\])?$/i.exec(s.trim()); if (!m) throw new Error(`selettore: ${s}`);
+    if (m[1] && el.tagName !== m[1].toLowerCase()) return false;
+    const cls = (el.attrs.class || '').split(/\s+/);
+    if (m[2] && !m[2].split('.').filter(Boolean).every(c => cls.includes(c))) return false;
+    if (m[3] && (!(m[3] in el.attrs) || (m[4] !== undefined && el.attrs[m[3]] !== m[4]))) return false;
+    return true;
+  };
+  class T { constructor(v, p){ this.nodeType = 3; this.nodeValue = v; this.parentElement = p; } }
+  class E {
+    constructor(tag, attrs = {}, parent = null){
+      Object.assign(this, { nodeType: 1, tagName: tag, attrs, childNodes: [], parentElement: parent, ownerDocument: doc });
+      this.dataset = new Proxy({}, { get: (t, k) => this.attrs[`data-${kebab(String(k))}`], set: (t, k, v) => { this.attrs[`data-${kebab(String(k))}`] = String(v); return true; } });
+    }
+    getAttribute(a){ return a in this.attrs ? this.attrs[a] : null; } setAttribute(a, v){ this.attrs[a] = String(v); } hasAttribute(a){ return a in this.attrs; }
+    matches(sel){ return sel.split(',').some(s => simple(this, s)); }
+    closest(sel){ for (let n = this; n; n = n.parentElement) if (n.matches(sel)) return n; return null; }
+    querySelectorAll(sel){ const out = []; (function walk(n){ for (const c of n.childNodes) if (c.nodeType === 1){ if (c.matches(sel)) out.push(c); walk(c); } })(this); return out; }
+    querySelector(sel){ return this.querySelectorAll(sel)[0] || null; }
+    get textContent(){ return this.childNodes.map(c => (c.nodeType === 3 ? c.nodeValue : c.textContent)).join(''); }
+    set textContent(v){ this.childNodes = [new T(String(v), this)]; }
+  }
+  const root = new E('div'); let cur = root;
+  for (const m of html.matchAll(/<(\/?)([a-zA-Z][\w-]*)((?:\s+[\w:-]+(?:="[^"]*")?)*)\s*(\/?)>|([^<]+)/g)){
+    if (m[5] !== undefined){ cur.childNodes.push(new T(dec(m[5]), cur)); continue; }
+    if (m[1]){ cur = cur.parentElement || root; continue; }
+    const attrs = {}; for (const a of m[3].matchAll(/([\w:-]+)(?:="([^"]*)")?/g)) attrs[a[1]] = dec(a[2] ?? '');
+    const el = new E(m[2].toLowerCase(), attrs, cur); cur.childNodes.push(el);
+    if (!m[4] && !VOID.has(el.tagName)) cur = el;
+  }
+  return root;
+}
+
+test('revisione B72 (L1): la scritta del segnale del momento giusto nella lingua di chi gioca, riscritta quando cambia', async () => {
+  const { cueHintParts, CUE_HINT } = await import('../src/natpf/natpf_timing_cue.js');
+  assert.deepEqual(cueHintParts('it'), ['Colpisci quando il cerchio diventa ', 'verde'], 'in italiano come prima');
+  assert.deepEqual(cueHintParts('en'), ['Hit when the circle turns ', 'green']);
+  assert.equal(en(CUE_HINT.text), 'Hit when the circle turns green'); assert.equal(say(CUE_HINT.text, 'it'), CUE_HINT.text);
+  const w = await makeWorld({ controller: 'phone' }), { ui } = w, el = $('natpf-cue-hint');
+  ui.cue._paintHint(true);
+  assert.equal(el.textContent, 'Colpisci quando il cerchio diventa verde'); assert.equal(el.dataset.lang, 'it');
+  // il telefono passa a EN mentre la scritta è in vista (NatpfLang.refresh → cue.relang)
+  ui.phone._onPhoneLang('en');
+  assert.equal(el.textContent, 'Hit when the circle turns green'); assert.equal(el.dataset.lang, 'en');
+  ui.cue._paintHint(false); ui.phone._onPhoneLang('it'); ui.cue._paintHint(true);
+  assert.equal(el.textContent, 'Colpisci quando il cerchio diventa verde', 'riaccesa: nella lingua di adesso');
+});
+
+test('revisione B72 (L2): etichetta del gesto in basso al centro nella lingua del P1 (colpo letto, esito, gesto ignorato)', async () => {
+  const { gestureLabel, gestureOutcome } = await import('../src/natpf/natpf_gesture_hud.js');
+  const w = await makeWorld({ controller: 'phone' }), { ui, E } = w, el = $('natpf-gesture'), part = k => el.querySelector(`[data-g="${k}"]`).textContent;
+  E.autoPlayMode = false;
+  ui.gesture.onGesture({ side: 'backhand', natpf: { shot: 'slice' } }, { dir: 1 });
+  assert.deepEqual([part('arrow'), part('title'), part('sub')], ['←', 'Rovescio', 'Tagliato'], 'in italiano come prima');
+  ui.phone._onPhoneLang('en');
+  assert.deepEqual([part('title'), part('sub')], ['Backhand', 'Slice'], 'il telefono passa a EN: l\'etichetta in vista si riscrive');
+  ui.gesture.onFeedback({ kind: 'hit', defensive: true, grade: 'VERY EARLY • DEFENSIVE' }, { color: 'yellow', label: 'Anticipo' });
+  assert.equal(part('sub'), 'Slice · Very early');
+  ui.gesture.onGesture({ ignored: 'palla che si allontana', natpf: {} }, {});
+  assert.deepEqual([part('title'), part('sub')], ['Swing ignored', 'ball moving away']);
+  ui.gesture.onGesture({ side: 'forehand', natpf: { shot: 'topspin' } }, { dir: -1 });
+  ui.gesture.onFeedback({ kind: 'hit' }, { color: 'red', label: 'Fuori', text: 'Fuori · troppo presto' });
+  assert.deepEqual([part('title'), part('sub')], ['Forehand', 'Topspin · Out · too early']);
+  // tutti i testi che l'etichetta può scrivere: in inglese senza parole italiane
+  const IT = /\b(Gesto|ignorato|Dritto|Rovescio|Colpo|Tagliato|Piatto|Pallonetto|Palla|corta|Schiacciata|Molto|anticipo|ritardo|Colpita|Troppo|presto|tardi|aspetta|palla|nessuna|colpire|arrivato|rete|allontana|Perfetto|Fuori|Anticipo|Ritardo|Buono|Mancata|lontana)\b/;
+  const texts = [];
+  for (const side of ['forehand', 'backhand', 'x']) for (const shot of [undefined, 'topspin', 'flat', 'lob', 'slice', 'drop', 'smash']){ const g = gestureLabel({ side, natpf: { shot } }, { dir: 1 }); texts.push(g.title, g.sub); }
+  for (const why of ['arrivato in ritardo dalla rete', 'palla che si allontana']){ const g = gestureLabel({ ignored: why, natpf: {} }); texts.push(g.title, g.sub); }
+  for (const [e, q] of [[{ kind: 'hit' }, { wait: true }], [{ kind: 'hit', defensive: true, grade: 'VERY EARLY' }, {}], [{ kind: 'hit', defensive: true, grade: 'VERY LATE' }, {}], [{ kind: 'whiff', grade: 'EARLY' }], [{ kind: 'whiff', grade: 'LATE' }],
+    ...['Perfetto', 'Anticipo', 'Ritardo', 'Buono', 'Troppo presto', 'Troppo tardi', 'Troppo lontana', 'Mancata', 'Fuori', 'In rete', 'Troppo lunga', 'Super!'].map(label => [{ kind: 'hit' }, { label }])]) texts.push(gestureOutcome(e, q)?.text);
+  texts.push('aspetta la palla', 'nessuna palla da colpire');
+  for (const t of texts.filter(Boolean)){ const e = say(t, 'en'); assert.doesNotMatch(e, IT, `«${t}» → «${e}»`); }
+  // in italiano identici
+  for (const t of texts.filter(Boolean)) assert.equal(say(t, 'it'), t);
+});
+
+test('revisione B72 (L3): i nomi scritti dai giocatori restano com\'erano («Vince», «vince», «Asso»); quelli dati dal gioco in inglese', async () => {
+  for (const nm of ['Vince', 'vince', 'Asso', 'Muro', 'Super']){
+    const v = SB.scoreboardView({}, { myName: nm }), e = localizeBoard(v, 'en');
+    assert.equal(e.rows[0].name, nm, `tabellone: ${nm}`); assert.equal(e.rows[0].short, v.rows[0].short, `sigla di ${nm}`); assert.equal(e.rows[1].name, 'Opponent');
+    assert.equal(L.nameTx(nm, 'en'), nm);
+  }
+  const s = localizeBoard(SB.scoreboardView({}, { split: true, splitNames: { p1: 'Giulia', p2: 'Vince' } }), 'en');
+  assert.deepEqual(s.rows.map(r => [r.name, r.short]), [['Giulia', 'GIU'], ['Vince', 'VIN']], 'stesso schermo: la metà in inglese non cambia il nome del P2');
+  assert.deepEqual(['Tu', 'CPU', '2 CPU', 'Avversario', 'Avversari', 'Tu + compagno', 'Vince + CPU'].map(n => L.nameTx(n, 'en')), ['You', 'Opponent', 'Opponents', 'Opponent', 'Opponents', 'You + partner', 'Vince + partner']);
+  assert.equal(L.nameTx('Tu', 'it'), 'Tu'); assert.equal(L.gameEn('Vince'), 'Vince', '«Vince» da solo non è più una frase del dizionario');
+  // card e schede dei giocatori della fine partita (HTML vero dei generatori, letto da un DOM minimo)
+  const { newMatch, addPoint, viewOf, statsHtml } = await import('../src/natpf/natpf_match_stats.js');
+  const { cardModel, cardsHtml } = await import('../src/natpf/natpf_end_card.js');
+  const { gameWinner } = await import('../src/natpf/natpf_fair_format.js');
+  const play = (seq, mode = 'cpu') => { const m = newMatch({ mode, level: 'evento' }); for (const c of seq){ const winner = c === 'p' ? 'player' : 'opponent'; addPoint(m, { winner, why: 'Out', strokes: 6, gameWinner: gameWinner(m.cur.player + (c === 'p'), m.cur.opponent + (c === 'o')) }); } return m; };
+  for (const nick of ['Vince', 'vince', 'Asso']){
+    const v = viewOf(play('oooo'), { nick }), base = PC.matchEndView({ winner: 'opponent', games: { player: 0, opponent: 1 }, nickname: nick });
+    const root = miniDom(cardsHtml(cardModel(v, base)));
+    L.translateEl(root, 'en');
+    const name = root.querySelector('.card-name');
+    assert.equal(name.textContent, nick, `card: il nome ${nick} resta`); assert.equal(name.getAttribute('title'), nick);
+    assert.equal(root.querySelector('.card-badge').textContent, 'Great match', 'il nastro sì');
+    L.translateEl(root, 'it'); assert.equal(root.querySelector('.card-badge').textContent, 'Bella sfida', 'e torna in italiano');
+  }
+  // senza nome la card dice «Tu» → «You»; un trofeo «Asso» resta un trofeo («Ace»)
+  const tu = miniDom(cardsHtml(cardModel(viewOf(play('pppp')), PC.matchEndView({ winner: 'player', games: { player: 1, opponent: 0 } }))));
+  L.translateEl(tu, 'en'); assert.equal(tu.querySelector('.card-name').textContent, 'You');
+  L.translateEl(tu, 'it'); assert.equal(tu.querySelector('.card-name').textContent, 'Tu', 'e torna «Tu»');
+  const tro = miniDom('<ul><li class="trophy" title="Asso d’oro: 2 ace"><span class="trophy-txt"><b>Asso</b><em>2 ace</em></span></li></ul><h3 class="card-name" title="Asso">Asso</h3>');
+  L.translateEl(tro, 'en');
+  assert.equal(tro.querySelector('.trophy-txt').querySelector('b').textContent, 'Ace'); assert.equal(tro.querySelector('.card-name').textContent, 'Asso');
+  // stesso schermo: due card (nomi Vince e Giulia), corona su chi vince tradotta per ruolo; schede del B35 con la pastiglia
+  const sv = viewOf(play('pooooo', 'split'), { names: { player: 'Giulia', opponent: 'Vince' } }), sb = PC.matchEndView({ winner: 'opponent', games: { player: 0, opponent: 1 }, sharedNames: { player: 'Giulia', opponent: 'Vince' } });
+  const two = miniDom(cardsHtml(cardModel(sv, sb)));
+  L.translateEl(two, 'en');
+  assert.deepEqual(two.querySelectorAll('.card-name').map(n => n.textContent), ['Vince', 'Giulia'], 'chi vince per primo, i nomi restano');
+  assert.equal(two.querySelector('.card-crown').getAttribute('title'), 'Wins', 'la corona per ruolo');
+  const b35 = miniDom(statsHtml(sv, sb));
+  L.translateEl(b35, 'en');
+  assert.deepEqual(b35.querySelectorAll('.end-pname').map(n => n.textContent), ['Giulia', 'Vince']);
+  assert.deepEqual(b35.querySelectorAll('.end-chip').map(n => n.textContent), ['Great match', 'Wins'], 'la pastiglia «Vince» di chi vince per ruolo');
+  L.translateEl(b35, 'it');
+  assert.deepEqual(b35.querySelectorAll('.end-chip').map(n => n.textContent), ['Bella sfida', 'Vince']);
+});
+
+test('revisione B72 (L5): «1 game to 0», «waiting for X» nella rivincita, servizio automatico «for whoever is serving»', async () => {
+  assert.equal(en('Fine partita · 1 game a 0'), 'Match over · 1 game to 0'); assert.equal(en('Fine partita · 2 game a 1'), 'Match over · 2 games to 1');
+  const { rematchLine } = await import('../src/natpf/natpf_split_ui.js');
+  assert.equal(L.say(rematchLine({ p1: true }, { p1: 'Giulia', p2: 'Marco' }), 'en'), 'Giulia wants a rematch · waiting for Marco');
+  // (la frase vera del gioco: servizio automatico senza il nome di chi batte)
+  const auto = serveCoachView({}, { mine: true, phase: 'SERVE_TOSS', autoLive: 'serve' });
+  assert.equal(auto.sub, 'Il gioco batte per chi è al servizio');
+  assert.equal(L.say(auto.sub, 'en'), 'The game serves for whoever is serving');
+});
+
+test('revisione B72 (B72-REG-2): «Nuovo giocatore» nello stesso schermo dalla lobby rimette IT ai due telefoni', async () => {
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const { E, ui, lobby, link } = w;
+  const { P2, l2 } = secondPhone(E, NatpfPhoneRacket);
+  lobby.menu('play'); lobby.setMode('split'); lobby.go('connect');
+  ui.phone._onPhoneLang('en'); P2._onPhoneLang('en');
+  assert.deepEqual([ui.phone.lang, P2.lang], ['en', 'en']);
+  assert.equal(ui.newPlayer(), 'split', 'la strada vera dello stesso schermo');
+  assert.deepEqual([ui.phone.lang, P2.lang], ['it', 'it']);
+  assert.equal(link.sent.filter(m => m.t === 'cfg').at(-1).lg, 'it', 'il telefono del P1 lo sa');
+  assert.equal(l2.sent.filter(m => m.t === 'cfg').at(-1).lg, 'it', 'il telefono del P2 lo sa');
+  assert.deepEqual(L.langView(E), { left: 'it', right: 'it', center: 'it' });
 });

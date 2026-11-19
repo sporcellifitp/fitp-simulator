@@ -5,7 +5,7 @@
 // cfg (lg). Il gioco: natpf-tennis/test/natpf-b72-lingua.test.mjs; nel browser tools/e2e/natpf-lingua.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import * as LG from '../../site/js/tennis/lingua.js';
 import * as PS from '../../site/js/tennis/phone-screen.js';
 import { standDenyText, slotLabel } from '../../site/js/tennis/stand-pairing.js';
@@ -13,7 +13,7 @@ import { netWhy } from '../../site/js/tennis/link.js';
 import { lostText } from '../../site/js/tennis/link-life.js';
 import { SHOT_NAMES } from '../../site/js/tennis/shot-options.js';
 import { GESTURE_PLAN } from '../../site/js/tennis/calibration.js';
-import { GRIP } from '../../site/js/tennis/grip-art.js';
+import { GRIP, GRIPS } from '../../site/js/tennis/grip-art.js';
 
 const HTML = readFileSync(new URL('../../site/tennis/racchetta.html', import.meta.url), 'utf8');
 const JS = readFileSync(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
@@ -157,4 +157,68 @@ test('B72 IT: la pagina in italiano resta com\'è (nessun testo cambia)', () => 
   for (const s of ['Collegato al computer', 'Fuori · Troppo presto', 'Aspetto Giulia e Marco', 'Telefono 2', null, '']) assert.equal(LG.phoneText(s, 'it'), s);
   assert.equal(LG.phoneText('NATPF', 'en'), 'NATPF', 'quello che non conosce resta');
   assert.equal(LG.phoneText('FUORI', 'en'), 'OUT', 'il maiuscolo resta');
+});
+
+/* ---------- revisione B72 (sistemazione) ---------- */
+test('revisione B72 (B72-REG-1): nessuna espressione regolare con lookbehind nella pagina del telefono (iOS prima del 16.4)', () => {
+  // Il lookbehind c'è in WebKit solo da Safari/iOS 16.4 (su iOS ogni browser è WebKit): su iOS 15–16.3 un RegExp che lo usa
+  // lancia SyntaxError e, in un modulo importato dalla pagina, ferma tutta la pagina del telefono. Guardia su tutti i file
+  // di site/js/tennis (anche nei commenti: niente sorprese copiando)
+  const dir = new URL('../../site/js/tennis/', import.meta.url);
+  const files = readdirSync(dir, { recursive: true }).filter(f => /\.m?js$/.test(String(f)));
+  assert.ok(files.length > 30 && files.includes('lingua.js'), `file trovati: ${files.length}`);
+  for (const f of files){ const src = readFileSync(new URL(String(f), dir), 'utf8'); assert.ok(!src.includes('(?<'), `${f}: contiene «(?<» (lookbehind o gruppo con nome)`); }
+});
+
+test('revisione B72 (B72-REG-1): con un RegExp che non conosce il lookbehind (iOS 15) lingua.js si carica e traduce lo stesso', async () => {
+  const Real = globalThis.RegExp;
+  // come WebKit prima del 16.4: «(?<=» e «(?<!» sono un errore
+  globalThis.RegExp = function RegExp(src, fl){ if (/\(\?<[!=]/.test(String(src instanceof Real ? src.source : src))) throw new SyntaxError('Invalid regular expression: invalid group specifier name'); return new Real(src, fl); };
+  let M;
+  try { M = await import('../../site/js/tennis/lingua.js?ios15'); }
+  finally { globalThis.RegExp = Real; }
+  assert.equal(M.phoneText('Fuori · in anticipo', 'en'), 'Out · early');
+  assert.equal(M.phoneText('Dritto ←', 'en'), 'Forehand ←');
+  assert.equal(M.phoneText('Collegato al computer', 'en'), 'Connected to the PC');
+  // browser ancora più vecchio (niente \p{…} nel costruttore): i pezzi si saltano, la pagina si carica con frasi e schemi
+  globalThis.RegExp = function RegExp(){ throw new SyntaxError('vecchio'); };
+  let re = 'x';
+  try { re = M.phrasesRe([['in anticipo', 'early']]); } finally { globalThis.RegExp = Real; }
+  assert.equal(re, null);
+});
+
+test('revisione B72 (B72-REG-1): i pezzi si trovano interi e anche vicini, separati da un solo carattere', () => {
+  const T = LG.createTranslator({ phrases: [['in anticipo', 'early'], ['palla debole', 'weak ball'], ['corsa', 'run']] });
+  assert.equal(T('in anticipo palla debole'), 'early weak ball', 'il carattere tra i due pezzi resta');
+  assert.equal(T('palla debole,in anticipo'), 'weak ball,early');
+  assert.equal(T('Fuori: in anticipo'), 'Fuori: early');
+  assert.equal(T('IN ANTICIPO'), 'EARLY', 'maiuscolo');
+  assert.equal(T('vinto'), 'vinto', 'dentro una parola niente');
+  assert.equal(T('xin anticipo'), 'xin anticipo', 'una lettera prima: niente');
+  assert.equal(T('in anticipo2'), 'in anticipo2', 'una cifra dopo: niente');
+  assert.equal(T('corsa corsa-corsa'), 'run run-run', 'tre pezzi di fila, separati da un carattere');
+  assert.equal(EN('in ritardo · da troppo lontano'), 'late · from too far'); assert.equal(EN('palla debole in corsa'), 'weak ball on the run');
+});
+
+test('revisione B72 (L4): nomi delle schede del tutorial dal computer in inglese («Card 1 of 5 · Racket grip»)', () => {
+  // titoli delle schede (natpf_tutorial.TUTORIAL_CARDS): presa da grip-art, «Posizione di partenza», gli altri dai gesti
+  // (natpf_gesture_motion.GESTURES[id].label). Letti dai sorgenti (qui non si importa il gioco)
+  const TUT = readFileSync(new URL('../../natpf-tennis/src/natpf/natpf_tutorial.js', import.meta.url), 'utf8');
+  const MOT = readFileSync(new URL('../../natpf-tennis/src/natpf/natpf_gesture_motion.js', import.meta.url), 'utf8');
+  const cards = TUT.slice(TUT.indexOf('export const TUTORIAL_CARDS'), TUT.indexOf('export const TUTORIAL_SHORT_IDS'));
+  const ids = [...cards.matchAll(/\{ id: '(\w+)'(?:, photo: true)?(?:, title: '([^']+)')?/g)].map(m => [m[1], m[2] || null]);
+  assert.ok(ids.length >= 11, JSON.stringify(ids));
+  const label = id => new RegExp(`\\b${id}: \\{ id: '${id}', label: '([^']+)'`).exec(MOT)?.[1];
+  const names = ids.map(([id, title]) => (id === 'grip' ? GRIP.name : title || label(id)));
+  assert.ok(names.every(Boolean), JSON.stringify(names));
+  for (const g of Object.values(GRIPS)) names.push(g.name);
+  for (const g of ['sliceBackhand', 'cross', 'line', 'grip']) if (label(g)) names.push(label(g));
+  for (const name of names){
+    const where = PS.tutorialTexts({ v: 2, i: 0, n: 5, s: 1, name }).where;
+    translated(where, `scheda «${name}»`);
+    assert.match(EN(where), /^Card 1 of 5 · \S/);
+  }
+  assert.equal(EN(PS.tutorialTexts({ v: 2, i: 0, n: 5, s: 1, name: GRIP.name }).where), 'Card 1 of 5 · Racket grip');
+  assert.equal(EN(PS.tutorialTexts({ v: 2, i: 1, n: 5, s: 2, name: 'Posizione di partenza' }).where), 'Card 2 of 5 · Starting position');
+  assert.deepEqual(['Colpo piatto', 'Volée', 'Presa nel palmo', 'Impugnatura a martello'].map(EN), ['Flat shot', 'Volley', 'Palm grip', 'Hammer grip']);
 });

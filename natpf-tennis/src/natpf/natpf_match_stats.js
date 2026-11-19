@@ -334,7 +334,7 @@ const tileHtml = (t, small = false) => `<div class="end-tile" data-stat="${t.id}
 export function statsHtml(v, base = {}){
   const S = endScreen(base, v); if (!S) return '';
   if (S.players) return `<div class="end-players">${S.players.map(p => `<section class="end-player${p.won ? ' won' : ''}" data-side="${p.side}">`
-    + `<header><h3 class="end-pname">${esc(p.name)}</h3><span class="end-chip">${esc(p.chip)}</span></header>`
+    + `<header><h3 class="end-pname">${esc(p.name)}</h3><span class="end-chip"${p.won ? ' data-tx="vince"' : ''}>${esc(p.chip)}</span></header>`
     + `<div class="end-tiles" data-n="${p.tiles.length}">${p.tiles.map(t => tileHtml(t, true)).join('')}</div></section>`).join('')}</div>`;
   return `<div class="end-tiles" data-n="${S.tiles.length}">${S.tiles.map(t => tileHtml(t)).join('')}</div>`;
 }

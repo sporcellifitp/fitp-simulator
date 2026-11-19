@@ -3,7 +3,7 @@ import { renderAllHudPlayerAvatars as P, renderPlayerAvatar as L } from "./playe
 import { t as tr, scoreText as sc } from "./natpf/natpf_i18n.js";
 // NATPF B72: lingua di chi gioca (IT | EN dal telefono, natpf_lang.js): scritte dei colpi nella lingua della metà di chi ha
 // colpito, scritte grandi dei punti e schermata finale nella lingua comune dello schermo (natpf_lang.screenLangs)
-import { tx as ltx, scoreTx, translateEl } from "./natpf/natpf_lang.js";
+import { tx as ltx, scoreTx, translateEl, nameTx } from "./natpf/natpf_lang.js";
 import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o area del ledwall
 import { statsHtml, endScreen, titleFit } from "./natpf/natpf_match_stats.js"; // NATPF B33/B35: i numeri veri della partita nella schermata finale
 import { cardModel, cardsHtml } from "./natpf/natpf_end_card.js"; // NATPF B40: card della partita
@@ -391,10 +391,12 @@ export class HudUI {
     const lg = this._lang();
     if (lg !== "it") {
       for (const n of [i, kick, el("victory-sub"), el("victory-pill"), o]) n && n.textContent && (n.textContent = ltx(n.textContent, lg));
-      for (const s of r?.querySelectorAll?.("[data-victory-row] span") || []) s.textContent = ltx(s.textContent, lg);
+      // (righe dei game: nomi, solo quelli dati dal gioco in inglese: «Tu» → «You», un nome scritto resta com'è; revisione B72, L3)
+      for (const s of r?.querySelectorAll?.("[data-victory-row] span") || []) s.textContent = nameTx(s.textContent, lg);
       const ga = gp?.querySelector?.("span");
       ga && (ga.textContent = "to");
-      // (card e riquadri dei numeri: nome, livello, nastro, trofei, record, etichette dal dizionario; quello che non conosce resta)
+      // (card e riquadri dei numeri: livello, nastro, trofei, record, etichette dal dizionario; quello che non conosce resta.
+      // I nomi della card e delle schede dei giocatori non passano dal dizionario, la pastiglia «Vince» per ruolo: natpf_lang.translateEl)
       translateEl(cd, lg), translateEl(st, lg);
     }
     this.elVictoryModal.classList.toggle("has-stats", !!html),

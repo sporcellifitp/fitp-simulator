@@ -10,6 +10,10 @@
 //   C. stesso schermo con due telefoni: P2 EN e P1 IT → metà del P2 in inglese (casella, scritta del colpo, tabellone della
 //      metà), metà del P1 in italiano, scritte a tutta larghezza in italiano;
 //   D. «Nuovo giocatore» → IT per tutti e due, anche sui telefoni.
+// Revisione B72 (sistemazione): in A il nome della scheda del tutorial mandato dal computer («Card 1 of 5 · Racket grip»);
+// in B anche la scritta del segnale del momento giusto (livello Evento, palla dell'avversario),
+// l'etichetta del gesto in basso e un giocatore che si chiama «Vince» (il nome resta nel tabellone e nella card, non diventa
+// «Wins»); in D lo stesso schermo scelto dalla lobby (la strada vera di «Nuovo giocatore» per due telefoni).
 // Schermate in SP/lingua (deviceScaleFactor 1, 1280×720 per il gioco, 390×844 per il telefono).
 //   CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-lingua.mjs     (porte 3172 e 9172)
 // Eventi devicemotion sintetici e Peer finto: non sostituiscono un telefono vero.
@@ -131,6 +135,16 @@ try {
     await p.evaluate(() => fromGame({ t: 'cfg', prep: 1, mo: 1, hand: 'right', lg: 'it' }));
     await sleep(150);
     check('   tocco su EN e subito un cfg con IT (partito prima): resta EN finché il gioco non conferma', (await p.evaluate(() => __racchetta.state.lang)) === 'en');
+    // (revisione B72, L4) tutorial prima della partita: il computer manda il nome della scheda, il telefono lo scrive in inglese
+    // (dopo la ricarica i sensori sono spenti: la schermata del tutorial c'è con i sensori attivi, come in partita)
+    await p.locator('#enable').tap();
+    await until(p, () => __racchetta.state.sensor !== 'off');
+    await p.evaluate(() => { fromGame({ t: 'cfg', prep: 1, mo: 1, hand: 'right', tut: 1, tv: 2 }); fromGame({ t: 'tp', i: 0, n: 5, s: 1, m: 1, all: 1, nm: 'Presa a racchetta' }); });
+    const tut1 = await until(p, () => document.getElementById('tutWhere').textContent === 'Card 1 of 5 · Racket grip', null, 3000);
+    await p.evaluate(() => fromGame({ t: 'tp', i: 1, n: 5, s: 2, m: 3, all: 1, nm: 'Posizione di partenza' }));
+    const tut2 = await until(p, () => document.getElementById('tutWhere').textContent === 'Card 2 of 5 · Starting position', null, 3000);
+    check('A8. tutorial dal computer: «Card 1 of 5 · Racket grip», «Card 2 of 5 · Starting position» (prima i nomi restavano in italiano)', tut1 && tut2, await txt(p, '#tutWhere'));
+    await p.screenshot({ path: `${OUT}/A8-telefono-tutorial-en.png` });
     check('   nessun errore nella pagina del telefono', !errs.length, errs.join(' | '));
     await ctx.close();
   }
@@ -189,6 +203,41 @@ try {
   check('   schermata finale: titolo e righe in inglese («You win!», «You», «Opponent»)', fin.phase === 'MATCH_OVER' && fin.open && /^(You win!|Great match!)$/.test(fin.title) && /^Match over/.test(fin.kicker) && fin.rows.join('|') === 'You|Opponent', JSON.stringify(fin));
   await shot('B4-fine-partita-en');
   await g.evaluate(() => __natpfTennis.hud.hideVictoryModal());
+  // B5 (revisione B72, L1–L3): «Vince» a livello Evento (segnale del momento giusto acceso di base), batte l'avversario
+  const B5 = await g.evaluate(() => {
+    const E = __natpfTennis, ui = E.natpfUi;
+    ui.events.nickname = 'Vince';
+    E.hud.selectedDifficulty = 'evento'; E.matchConfig.difficulty = 'evento';
+    ui.lobby.visible = false; E.hud.hideTitleModal?.(); E.autoPlayMode = false;
+    E.matchConfig.gamesToWin = 1; E.startNewMatch({ showStartBanner: false }); E.autoPlayMode = false; E.persistentStateLock = false;
+    E.score.server = 'opponent'; E._setupPointServe?.({ showBanner: false }); ui.onScore(E.score, E.matchConfig.gamesToWin);
+    const h = () => document.getElementById('natpf-cue-hint'), on = () => !!h() && !h().classList.contains('hidden');
+    for (let i = 0; i < 60*8 && !on(); i++){ E.update(1/60); }
+    E.scene.updateMatrixWorld(); E.render();
+    return { on: on(), enabled: ui.cue?.enabled, phase: E.phase, text: h()?.textContent, green: h()?.querySelector('b')?.textContent, lang: h()?.dataset.lang,
+      sb: [...document.querySelectorAll('#natpf-scoreboard .sb-name')].map(b => b.textContent), sbTitle: [...document.querySelectorAll('#natpf-scoreboard .sb-row')].map(r => r.title || r.textContent) };
+  });
+  check('B5. livello Evento, batte l\'avversario: la scritta del segnale in inglese («Hit when the circle turns green», «green» in grassetto)', B5.on && B5.enabled && B5.text === 'Hit when the circle turns green' && B5.green === 'green' && B5.lang === 'en', JSON.stringify(B5));
+  check('   tabellone: il nome «Vince» resta (sigla VIN, non WIN)', B5.sb[0] === 'VIN' && B5.sb[1] === 'OPP' && !B5.sbTitle.some(t => /Wins/.test(t)), JSON.stringify(B5));
+  await shot('B5-segnale-en');
+  const B6 = await g.evaluate(() => { const ui = __natpfTennis.natpfUi, el = document.getElementById('natpf-gesture'); ui.gesture.onGesture({ side: 'backhand', natpf: { shot: 'slice' } }, { dir: 1 });
+    __natpfTennis.render(); return { on: !el.classList.contains('hidden'), title: el.querySelector('[data-g="title"]').textContent, sub: el.querySelector('[data-g="sub"]').textContent, shown: el.innerText }; });
+  check('B6. etichetta del gesto in basso: «Backhand / Slice» (prima «Rovescio / Tagliato»)', B6.on && B6.title === 'Backhand' && B6.sub === 'Slice', JSON.stringify(B6));
+  await g.screenshot({ path: `${OUT}/B6-gesto-en.png` });
+  const B7 = await g.evaluate(async () => {
+    const E = __natpfTennis;
+    for (let i = 0; i < 6 && E.phase !== 'MATCH_OVER'; i++){ E._awardPoint('opponent', 'Out'); for (let k = 0; k < 120; k++) E.update(1/60); }
+    for (let i = 0; i < 260; i++) E.update(1/60);
+    await new Promise(r => setTimeout(r, 2200));
+    const m = document.getElementById('victory-modal');
+    return { phase: E.phase, open: !m.classList.contains('hidden'), title: document.getElementById('victory-result-banner').textContent, kicker: document.getElementById('victory-kicker').textContent,
+      rows: [...m.querySelectorAll('[data-victory-row] span')].map(s => s.textContent), cards: [...m.querySelectorAll('.card-name')].map(e => [e.textContent, e.title]), badge: m.querySelector('.card-badge')?.textContent };
+  });
+  check('B7. partita persa da «Vince»: titolo «Great match, Vince!», nome nella card «Vince» (non «WINS»), righe «Vince» e «Opponent», kicker «Match over · 1 game to 0» o del livello',
+    B7.phase === 'MATCH_OVER' && B7.open && B7.title === 'Great match, Vince!' && B7.cards.length === 1 && B7.cards[0][0] === 'Vince' && B7.cards[0][1] === 'Vince' && B7.badge === 'Great match'
+    && B7.rows.join('|') === 'Vince|Opponent' && /^Match over/.test(B7.kicker), JSON.stringify(B7));
+  await shot('B7-fine-persa-vince-en');
+  await g.evaluate(() => { __natpfTennis.hud.hideVictoryModal(); __natpfTennis.natpfUi.events.nickname = ''; });
 
   /* ---------- C. stesso schermo: P2 EN, P1 IT ---------- */
   await g.evaluate(() => __natpfTennis.natpfUi.split.prepare());
@@ -235,8 +284,12 @@ try {
   await ph1.screenshot({ path: `${OUT}/C4-telefono-p1-bloccato-en.png` });
 
   /* ---------- D. «Nuovo giocatore» → IT ---------- */
-  await g.evaluate(() => { const E = __natpfTennis; if (E.__frame0){ E._natpfFrame = E.__frame0; delete E.__frame0; } E.persistentStateLock = false; __natpfTennis.natpfUi.newPlayer(); });
-  check('D1. «Nuovo giocatore»: lingua IT per tutti e due nel gioco', await until(g, () => __natpfTennis.natpfPhone.lang === 'it' && __natpfTennis.natpfPhone2.lang === 'it', null, 8000));
+  // (revisione B72, B72-REG-2: lo stesso schermo scelto dalla lobby, come allo stand: «Nuovo giocatore» prende la strada
+  // 'split'. Prima la prova restava con la lobby su «contro l'avversario» e passava dalla strada 'match')
+  const D0 = await g.evaluate(() => { const E = __natpfTennis, ui = E.natpfUi; if (E.__frame0){ E._natpfFrame = E.__frame0; delete E.__frame0; } E.persistentStateLock = false;
+    ui.lobby.setMode('split'); const langs = [E.natpfPhone.lang, E.natpfPhone2.lang]; return { mode: ui.lobby.mode, langs, route: ui.newPlayer() }; });
+  check('D1. lobby su «Stesso schermo», tutti e due EN: «Nuovo giocatore» prende la strada dello stesso schermo', D0.mode === 'split' && D0.route === 'split' && D0.langs.join() === 'en,en', JSON.stringify(D0));
+  check('   lingua IT per tutti e due nel gioco', await until(g, () => __natpfTennis.natpfPhone.lang === 'it' && __natpfTennis.natpfPhone2.lang === 'it', null, 8000));
   check('   … e sui due telefoni (pagina in italiano, salvata)', await until(ph1, () => __racchetta.state.lang === 'it' && localStorage.getItem('natpf-simulator.lingua') === 'it', null, 8000) && await until(ph2, () => __racchetta.state.lang === 'it', null, 8000));
   await ph2.screenshot({ path: `${OUT}/D1-telefono-p2-dopo-nuovo-giocatore.png` });
   check('nessun errore nel gioco e nei telefoni', !gErrs.length, gErrs.slice(0, 4).join(' | '));

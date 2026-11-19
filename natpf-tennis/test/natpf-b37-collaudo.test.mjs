@@ -478,7 +478,7 @@ test('punto 2 · leggero: pochi oggetti, materiali senza luci, nessuna ombra', (
 });
 
 // ---------- 3 · il segnale del momento giusto spiegato le prime volte ----------
-import { NatpfTimingCue, CUE_HINT, cueHintFor, cueToast } from '../src/natpf/natpf_timing_cue.js';
+import { NatpfTimingCue, CUE_HINT, cueHintFor, cueToast, cueHintParts } from '../src/natpf/natpf_timing_cue.js';
 import { installMatchStats } from '../src/natpf/natpf_match_stats.js';
 import { readFileSync } from 'node:fs';
 
@@ -494,7 +494,10 @@ test('punto 3 · la guida, le Opzioni e la scritta dicono la stessa cosa con le 
   assert.match(guide, /colpisci quando il cerchio diventa verde/i, 'guida: passo «Colpisci quando la palla arriva»');
   assert.match(cueToast('on', 'pro'), /colpisci quando il cerchio diventa verde/i);
   const cue = readFileSync(new URL('../src/natpf/natpf_timing_cue.js', import.meta.url), 'utf8');
-  assert.match(cue, /Colpisci quando il cerchio diventa <b>verde<\/b>/, 'scritta a schermo');
+  // (revisione B72: la scritta si compone a pezzi nella lingua di chi gioca, «verde» in grassetto: la prova del motore qui
+  // sotto guarda gli elementi creati)
+  assert.deepEqual(cueHintParts('it'), ['Colpisci quando il cerchio diventa ', 'verde'], 'scritta a schermo');
+  assert.match(cue, /mk\('b', '', green\)/, '«verde» in grassetto');
   const np = readFileSync(new URL('../src/natpf/natpf_new_player.js', import.meta.url), 'utf8');
   assert.match(np, /ui\.cue\?\.resetHint\?\.\(\)/, '«Nuovo giocatore» la fa rivedere');
 });
@@ -503,7 +506,9 @@ test('punto 3 · la guida, le Opzioni e la scritta dicono la stessa cosa con le 
 function fakeHintDom(){
   const els = {}, body = { appendChild: el => { els[el.id] = el; } };
   const mk = () => { const s = new Set(); return { add: c => s.add(c), remove: c => s.delete(c), toggle: (c, f) => ((f ?? !s.has(c)) ? s.add(c) : s.delete(c)), contains: c => s.has(c) }; };
-  return { body, getElementById: id => els[id] || null, createElement: () => ({ classList: mk(), setAttribute(){}, set className(v){ for (const c of String(v).split(/\s+/)) if (c) this.classList.add(c); } }), els };
+  return { body, getElementById: id => els[id] || null, els,
+    createElement: tag => ({ tagName: tag, classList: mk(), dataset: {}, children: [], textContent: '', setAttribute(){}, set className(v){ for (const c of String(v).split(/\s+/)) if (c) this.classList.add(c); },
+      append(...k){ this.children.push(...k); }, replaceChildren(...k){ this.children = k; } }) };
 }
 async function cueRun(level, flights, { between = null } = {}){
   const { createHeadlessEngine, mulberry32 } = await import('../scripts/audit/headless-engine.mjs');
@@ -542,6 +547,11 @@ test('punto 3 · motore: con il segnale acceso la scritta accompagna le prime tr
   assert.deepEqual(out.map(o => o.hint), [true, true, true, false, false]);
   assert.ok(out.every(o => !o.hintAfter && !o.el), 'sparisce dopo la palla');
   assert.ok(dom.els['natpf-cue-hint'], 'scritta creata nella pagina');
+  // «Colpisci quando il cerchio diventa <b>verde</b>» con i due pallini (bianco e verde) davanti
+  const [d1, d2, span] = dom.els['natpf-cue-hint'].children;
+  assert.ok(d1.classList.contains('cue-dot') && !d1.classList.contains('now') && d2.classList.contains('now'));
+  assert.equal(span.tagName, 'span'); assert.equal(span.children[0], 'Colpisci quando il cerchio diventa ');
+  assert.equal(span.children[1].tagName, 'b'); assert.equal(span.children[1].textContent, 'verde');
 });
 test('punto 3 · partita nuova o giocatore nuovo: la scritta si rivede; segnale spento: nessuna scritta', async () => {
   const again = await cueRun('evento', 5, { between: (e, cue, f) => { if (f === 3) e.startNewMatch({ showStartBanner: false }); } });

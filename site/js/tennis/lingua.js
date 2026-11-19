@@ -37,12 +37,23 @@ export function caseLike(src, out){
   const up = f === f.toUpperCase() && f !== f.toLowerCase();
   return out.slice(0, i) + (up ? out[i].toUpperCase() : out[i].toLowerCase()) + out.slice(i + 1);
 }
+// Pezzi dentro una frase, interi: prima e dopo non ci sono lettere o cifre. Revisione B72 (B72-REG-1): niente lookbehind
+// (il controllo «guarda indietro» delle espressioni regolari), che WebKit conosce solo da Safari/iOS 16.4: su iOS 15–16.3
+// new RegExp lanciava un errore e la pagina del telefono non si caricava più, anche in italiano. Il carattere prima (o
+// l'inizio) lo prende il primo gruppo e si rimette com'era; il lookahead dopo non consuma niente, quindi due pezzi separati
+// da un solo carattere si trovano lo stesso. Se il RegExp non si può costruire (browser vecchio) i pezzi si saltano:
+// restano frasi esatte e schemi, al più qualche parola in italiano
+export function phrasesRe(phrases = []){
+  if (!phrases.length) return null;
+  try { return new RegExp(`(^|[^\\p{L}\\p{N}])(${phrases.map(p => p[0]).sort((a, b) => b.length - a.length).map(esc).join('|')})(?![\\p{L}\\p{N}])`, 'giu'); }
+  catch { return null; }
+}
 // exact: [[it, en]] frasi intere (anche senza badare alle maiuscole); templates: [[regex, (m, T) => en | null]] con i nomi
 // e i numeri (T traduce un pezzo); phrases: [[it, en]] pezzi dentro una frase. → T(text): il testo in inglese
 export function createTranslator({ exact = [], templates = [], phrases = [], cache = 600 } = {}){
   const EX = new Map(exact), EXL = new Map(exact.map(([k, v]) => [k.toLowerCase(), v]));
   const LOOK = new Map(phrases.map(([k, v]) => [k.toLowerCase(), v]));
-  const RE = phrases.length ? new RegExp(`(?<![\\p{L}\\p{N}])(${phrases.map(p => p[0]).sort((a, b) => b.length - a.length).map(esc).join('|')})(?![\\p{L}\\p{N}])`, 'giu') : null;
+  const RE = phrasesRe(phrases);
   const memo = new Map();
   function seg(s){
     if (!s || !/\p{L}/u.test(s)) return s;
@@ -50,7 +61,7 @@ export function createTranslator({ exact = [], templates = [], phrases = [], cac
     const lo = s.toLowerCase();
     if (EXL.has(lo)) return caseLike(s, EXL.get(lo));
     for (const [re, fn] of templates){ const m = re.exec(s); if (m){ const r = fn(m, T); if (r != null) return r; } }
-    return RE ? s.replace(RE, m => caseLike(m, LOOK.get(m.toLowerCase()) ?? m)) : s;
+    return RE ? s.replace(RE, (all, pre, w) => pre + caseLike(w, LOOK.get(w.toLowerCase()) ?? w)) : s;
   }
   function T(text){
     if (text === null || text === undefined) return text;
@@ -194,6 +205,11 @@ export const PHONE_EXACT = [
   ['Vincente', 'Winner'], ['Palla non presa', 'Missed ball'],
   // nomi dei colpi (calibrazione con i tocchi, shot-options.js)
   ['Piatto', 'Flat'], ['Slice', 'Slice'], ['Lob', 'Lob'], ['Palla corta', 'Drop shot'], ['Smash', 'Smash'], ['Servizio', 'Serve'], ['Lancio', 'Toss'], ['Battuta', 'Serve'],
+  // nomi delle schede del tutorial mandati dal computer («Scheda 1 di 5 · Presa a racchetta»: natpf_tutorial.TUTORIAL_CARDS,
+  // nomi delle prese di grip-art.GRIPS e dei gesti di natpf_gesture_motion; revisione B72, L4)
+  ['Presa a racchetta', 'Racket grip'], ['Presa nel palmo', 'Palm grip'], ['Impugnatura a martello', 'Hammer grip'], ['Impugnatura', 'Grip'],
+  ['Posizione di partenza', 'Starting position'], ['Colpo piatto', 'Flat shot'], ['Volée', 'Volley'], ['Tagliato di rovescio', 'Backhand slice'],
+  ['Incrociato', 'Crosscourt'], ['Lungolinea', 'Down the line'],
 ];
 // pezzi dentro le frasi (motivi dell'esito che arrivano dal computer, nomi dei colpi nella calibrazione)
 export const PHONE_PHRASES = [

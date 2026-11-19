@@ -141,14 +141,86 @@ Schermate guardate (deviceScaleFactor 1), in `…/scratchpad/b72/e2e/`:
 - Telefono vero (anche l'app NATPF Racchetta 1.0.5), programma Windows, ledwall: non provati; solo Chromium con tocchi e
   sensori simulati.
 - La schermata finale **persa** in inglese è provata solo dai test del gioco (funzioni vere, `hud_ui` la traduce come le
-  altre righe), non nel browser: `natpf-lingua.mjs` prova la partita vinta.
+  altre righe), non nel browser: `natpf-lingua.mjs` prova la partita vinta. (Revisione, §5: ora anche persa, B7.)
 - Il blocco di `natpf-chi-serve.mjs` dopo la misura del costo resta (non viene dal B72): da guardare a parte.
 - Non rifatte: le altre prove nel browser `natpf-*` (per esempio `natpf-stesso-schermo-b20.mjs` con due telefoni, il ramo
   servizio non l'aveva rifatta), allenamento, minigiochi, scambi di prova e moviola con l'alone (coperti dai test del
   gioco).
 - Restano in italiano anche con EN le parti elencate in `docs/b72/lingua.md` §1 e §4 (menu, lobby, staff, toast, pulsanti
-  della schermata finale, «Scambio caldo», etichetta del gesto…).
+  della schermata finale, «Scambio caldo»…; l'etichetta del gesto è tradotta dalla revisione, §5).
 
 Per l'agente principale: `natpf-desktop/novita.txt` contiene ancora «CPU» nelle note delle versioni già pubblicate (lo
 segnala `docs/b72/avversario.md`); il registro delle richieste di `docs/PRODOTTI_FIERA_E_ONLINE.md` §3 non è stato
 toccato.
+
+## 5. Revisione e sistemazione
+
+Dopo l'unione una revisione ha trovato 7 problemi (2 del B72 rispetto a prima: B72-REG-1 e B72-REG-2; 5 di lingua: L1–L5).
+L'agente della sistemazione li ha corretti **tutti** nel ramo `b72-int`, con un test per ciascuno (commit «B72
+sistemazione: …»). Non toccati: riconoscimento dei gesti, sensori, registro, Worker, file di versione, documenti di stato.
+
+| Id | Gravità | Problema | Correzione | Prova |
+| --- | --- | --- | --- | --- |
+| **B72-REG-1** | alta | `site/js/tennis/lingua.js` costruiva al caricamento un `RegExp` con il lookbehind: su Safari/iOS prima del 16.4 (ogni browser di iOS è WebKit; iPhone 6s/7/SE di prima generazione restano a iOS 15.8) lancia `SyntaxError` e **la pagina del telefono non si caricava più**, anche in italiano. Prima del B72 nessun file di `site/js` lo usava | `phrasesRe`: il carattere prima del pezzo (o l'inizio) lo prende un gruppo e si rimette com'era (`(^|[^\p{L}\p{N}])(…)(?![\p{L}\p{N}])`, `replace(RE, (all, pre, w) => pre + …)`); il lookahead non consuma, quindi due pezzi separati da un solo carattere si trovano lo stesso. Il `RegExp` è in un try/catch: se non si può costruire si saltano solo i pezzi (frasi esatte e schemi restano) | `tools/test/b72-lingua.test.mjs`: guardia «nessun file di `site/js/tennis` contiene `(?<`»; import di `lingua.js` con un `RegExp` che rifiuta il lookbehind come iOS 15 (si carica e traduce; con il file di prima: «Invalid regular expression: invalid group specifier name»); pezzi vicini («corsa corsa-corsa» → «run run-run»), dentro una parola niente. Dopo la build `dist/natpf/js/tennis/lingua.js` non contiene `(?<` |
+| **B72-REG-2** | bassa | «Nuovo giocatore» con la lobby su «Stesso schermo» (strada `split`) azzerava le mani per giocatore e usciva prima di `resetHands`, l'unico punto da cui partiva `resetLangs`: la coppia dopo trovava telefoni e metà in inglese. La prova nel browser passava perché entrava nello stesso schermo con `E.startSplit()` lasciando la lobby su «contro l'avversario» | `natpf_new_player.resetVisitor`: nel ramo `split` anche `resetLangs(ui, 'nuovo giocatore')` | test del gioco «revisione B72 (B72-REG-2)» (lobby `setMode('split')`, due telefoni EN → `newPlayer()` = `split`, IT a tutti e due, `cfg lg it` ai due telefoni; rosso con il file di prima); `natpf-lingua.mjs` D1 ora sceglie lo stesso schermo dalla lobby |
+| **L1** | media | partita singola in EN: la scritta del segnale del momento giusto (prime 3 palle a Bambini ed Evento, cioè a ogni visitatore della fiera) restava «Colpisci quando il cerchio diventa verde» | `natpf_timing_cue.js`: `cueHintParts(lang)` e `_hintText` scrivono la scritta a pezzi con `textContent` nella lingua di chi gioca (`natpfLang.at('left')`: il segnale c'è solo a una vista), `data-lang` per riscriverla solo quando la lingua cambia, `relang()` da `NatpfLang.refresh`. EN: «Hit when the circle turns **green**» | test «revisione B72 (L1)»; B37 rafforzato (guarda gli elementi creati: due pallini, testo, `<b>verde</b>`); `natpf-lingua.mjs` B5 |
+| **L2** | media | l'etichetta del gesto in basso al centro restava italiana a ogni colpo («ROVESCIO / Tagliato», «Gesto ignorato», «Molto in anticipo») | `natpf_gesture_hud._paint`: titolo, colpo ed esito da `natpfLang.say(…, at('left'))` (l'etichetta ascolta il telefono del P1); chiave del ridisegno con la lingua; `repaint()` da `NatpfLang.refresh`. Dizionario: «Gesto ignorato», «Colpo», «Top spin», «Piatto», «Molto in anticipo/ritardo», «aspetta la palla», «nessuna palla da colpire», i due motivi dei gesti scartati | test «revisione B72 (L2)» (tutte le combinazioni di lato, colpo, esito e motivo in inglese senza parole italiane; in italiano identiche); `natpf-lingua.mjs` B6 |
+| **L3** | bassa | i nomi scritti dai giocatori passavano dal dizionario: «Vince» → «Wins» (tabellone «WIN», card «WINS»), «Asso» → «Ace» | `natpf_lang.nameTx` (solo i nomi dati dal gioco: «Tu», «CPU», «Avversario», «Avversari», «X + compagno»); `localizeBoard` e le righe dei game della fine partita lo usano; `translateEl` salta `.card-name, .end-pname` e li passa da `nameTx`; «Vince» tolto dalle frasi esatte: la pastiglia di chi vince (`data-tx="vince"`) e la corona (`data-tx-title`) si traducono per ruolo (`ROLE_EN`). I trofei («Asso» → «Ace») restano tradotti | test «revisione B72 (L3)» con «Vince», «vince», «Asso», «Muro», «Super» (tabellone, card, schede del B35 lette con l'HTML vero dei generatori, ritorno in italiano); `natpf-lingua.mjs` B5/B7 |
+| **L4** | bassa | telefono in EN, tutorial prima della partita: «Card 1 of 5 · Presa a racchetta», «… · Posizione di partenza» | `PHONE_EXACT`: «Presa a racchetta», «Presa nel palmo», «Impugnatura a martello», «Impugnatura», «Posizione di partenza», «Colpo piatto», «Volée», «Tagliato di rovescio», «Incrociato», «Lungolinea». Corretta la frase di `docs/b72/lingua.md` §5 | prova di copertura estesa ai titoli di `TUTORIAL_CARDS` (letti dai sorgenti) e ai nomi di `GRIPS`; `natpf-lingua.mjs` A8 |
+| **L5** | bassa | inglese sbagliato: «Match over · 1 games to 0», «Giulia wants a rematch · Marco is missing», «The game serves for the server» | «1 game to 0» (singolare con 1), «waiting for Marco», «The game serves for whoever is serving» | test «revisione B72 (L5)»; aggiornata l'attesa del test di prima sulla rivincita (testo voluto cambiato) |
+
+### Prove (numeri)
+
+Sul codice finale della sistemazione, stesso worktree e stessi `node_modules` collegati (carico della macchina 4–5 su 4
+core durante le prove nel browser).
+
+| Suite | Esito |
+| --- | --- |
+| `cd natpf-tennis && npm test` | **1905/1905** (prima 1900: +5 prove della revisione in `natpf-b72-lingua.test.mjs`; due corse, 5 min 15 s e 5 min 31 s) |
+| `node --test tools/test/*.test.mjs` | **320/320** (prima 316: +4 in `b72-lingua.test.mjs`) |
+| `(cd tools/lan && node --test test/*.test.mjs)` | **13/13** |
+| `(cd natpf-desktop && npm test)` | **56/56** |
+| `cd natpf-tennis && npm run build` | verde (7,5 s e 5,5 s); `dist/natpf/js/tennis/lingua.js` senza `(?<` |
+
+Prove nel browser (Chromium `/opt/pw-browsers/chromium`):
+
+| Script | Esito | Note |
+| --- | --- | --- |
+| `natpf-lingua.mjs` | **46/46** (prima 40) | nuove: A8 (tutorial dal computer in inglese sul telefono), B5 (scritta del segnale in inglese, tabellone «VIN» con il nome «Vince»), B6 (etichetta del gesto «Backhand / Slice»), B7 (partita persa da «Vince»: «Great match, Vince!», card «Vince», righe «Vince / Opponent»); D1 ora con lo stesso schermo scelto dalla lobby. Una corsa prima 45/46: A8 mandava il tutorial con i sensori spenti (dopo la ricarica la pagina mostra «Attiva i sensori», non il tutorial): attesa della prova sbagliata, ora attiva i sensori prima |
+| `natpf-servizio-alone.mjs` | **27/27** | |
+| `natpf-segnale-spiegato.mjs` | **14/14** | la scritta in italiano identica a prima («Colpisci quando il cerchio diventa verde») |
+| `natpf-menu.mjs` | **45/45** | |
+| `natpf-nuovo-giocatore.mjs` | **29/29** | |
+| `natpf-fine-partita.mjs` | **68/68** | |
+| `natpf-avversario.mjs` | **9/9** | |
+| `natpf-nome-telefono.mjs` (con `run-local.mjs`) | **23/23** | pagina del telefono con il `lingua.js` nuovo, da una radice nello scratchpad che punta al `site/` del worktree |
+| `natpf-telefono-bloccato.mjs` (con `run-local.mjs`) | **12/12** | |
+| `natpf-chi-serve.mjs` | **36/36 + 36/36** | come nell'unione (§3): il giro completo ha fatto 36/36 fino alla misura del costo compresa (+0,03 ms) e poi è rimasto fermo più di 9 minuti su «Lob & Drop, computer del Player 2» (blocco già noto, non del B72), fermato a mano; poi una copia temporanea senza la misura del costo e senza i Classici (già fatti), cancellata dopo: **36/36** (Lob & Drop contro l'avversario, computer del Player 2, stesso schermo, aree 720×720). Tutte le verifiche dello script coperte |
+
+Schermate guardate (deviceScaleFactor 1, tranne `natpf-nome-telefono.mjs` che usa 2 da sé), in
+`…/scratchpad/b72/sist-shots/` e `/tmp/tennis-e2e/lingua/` (prima corsa di `natpf-lingua.mjs`):
+- `lingua/B5-segnale-en.png`: in alto al centro i due pallini e «Hit when the circle turns **green**» («green» verde e in
+  grassetto), anello bianco sulla palla in arrivo, tabellone «VIN / OPP · 1 GAME», barra «ENERGY»;
+- `lingua/B6-gesto-en.png`: in basso al centro la freccia ← e «BACKHAND / Slice»;
+- `lingua/B7-fine-persa-vince-en.png`: «MATCH OVER · EVENT LEVEL», «Great match, Vince!», «The opponent won this time…»,
+  card con il nastro «GREAT MATCH», nome «VINCE» (maiuscolo dal CSS; il testo è «Vince»), «Event level», «Next trophy…»,
+  «0 to 1», «Next time try the Easy level», pulsanti in italiano (voluto);
+- `lingua/A8-telefono-tutorial-en.png` (390×844): «Look at the screen», «Card 2 of 5 · Starting position», «Seen 2 of 5»,
+  «‹ Back», «Next ›», «All clear, got it»;
+- `segnale/segnale-1280x720-palla-1.png`: in italiano la scritta è uguale a prima («Colpisci quando il cerchio diventa
+  **verde**»);
+- `nuovo-giocatore/B2-fine-split-vince-p2-1280.png`: fine partita nello stesso schermo in italiano, corona su «MARCO»,
+  pastiglie «MVP DELLA PARTITA» / «BELLA SFIDA»: niente cambia in italiano;
+- `servizio-alone/alone-2-singolo-3s-1920.png`: alone giallo e casella «AL SERVIZIO» come nell'unione.
+
+### Cosa NON è verificato
+
+- **iPhone vero con iOS 15–16.3** (il motivo di B72-REG-1): provato solo con un `RegExp` che rifiuta il lookbehind in Node
+  (come WebKit prima del 16.4) e con la guardia sui sorgenti; nessun iPhone vecchio a disposizione. Nemmeno un telefono
+  vero recente, il programma Windows o il ledwall.
+- La scritta del segnale e l'etichetta del gesto che cambiano lingua **mentre sono in vista** (tocco sul telefono durante
+  la palla): provato nei test del gioco (`relang`, `repaint`), non nel browser.
+- La traduzione per ruolo della pastiglia «Vince» delle schede del B35 (stesso schermo senza card) e della corona: provata
+  nei test del gioco con l'HTML vero dei generatori letto da un DOM minimo; nel browser solo la card a una vista.
+- Restano in italiano, come prima, le parti elencate in `docs/b72/lingua.md` §5 (menu, lobby, staff, toast, pulsanti della
+  schermata finale, «Scambio caldo», «perché il super non è scattato», allenamento e minigiochi…).

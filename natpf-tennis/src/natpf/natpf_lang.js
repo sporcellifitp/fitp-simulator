@@ -67,8 +67,14 @@ export const GAME_EXACT = [
   // istruzioni del servizio (natpf_serve_coach.js)
   ['Colpisci!', 'Hit!'], ['Aspetta che salga…', 'Wait for it to rise…'], ['Colpisci quando la palla è in alto', 'Hit when the ball is high'],
   ['Lancio a vuoto: riprova', 'Missed toss: try again'], ['Lancio automatico', 'Automatic toss'], ['Servizio automatico', 'Automatic serve'],
-  ['Al servizio, batti tu', 'Your serve'], ['Il gioco batte per chi è al servizio', 'The game serves for the server'],
+  ['Al servizio, batti tu', 'Your serve'], ['Il gioco batte per chi è al servizio', 'The game serves for whoever is serving'],
   ['Prima del punto più alto: palla al centro', 'Before the highest point: ball to the center'], ['dopo: larga', 'after: wide'],
+  // scritta del segnale del momento giusto (natpf_timing_cue.CUE_HINT; revisione B72, L1)
+  ['Colpisci quando il cerchio diventa verde', 'Hit when the circle turns green'],
+  // etichetta del gesto in basso al centro (natpf_gesture_hud.js: colpo letto, esito, gesto ignorato e perché; revisione B72, L2)
+  ['Gesto ignorato', 'Swing ignored'], ['Colpo', 'Shot'], ['Top spin', 'Topspin'], ['Piatto', 'Flat'], ['Molto in anticipo', 'Very early'], ['Molto in ritardo', 'Very late'],
+  ['aspetta la palla', 'waiting for the ball'], ['nessuna palla da colpire', 'no ball to hit'], ['arrivato in ritardo dalla rete', 'arrived late over the network'],
+  ['palla che si allontana', 'ball moving away'],
   // casella «Al servizio» e tabellone
   ['Al servizio', 'Serving'], ['Tu', 'You'], ['CPU', 'Opponent'], ['2 CPU', 'Opponents'], ['Avversario', 'Opponent'], ['Avversari', 'Opponents'],
   ['Punto decisivo', 'Deciding point'], ['Parità', 'Deuce'], ['Vantaggio', 'Advantage'], ['1 game', '1 game'], ['Partita a 1 game', '1-game match'],
@@ -106,7 +112,7 @@ export const GAME_EXACT = [
   ['Ospite, fuori classifica', 'Guest, not ranked'], ['Rivincita', 'Rematch'], ['Rivincita!', 'Rematch!'], ['Gioca ancora', 'Play again'],
   ['Rivincita dai telefoni: toccate «Rivincita» tutti e due', 'Rematch from the phones: both of you tap “Rematch”'],
   // card della fine partita (natpf_end_card.js, natpf_trofei.js, natpf_match_stats.bestLabel)
-  ['MVP della partita', 'Match MVP'], ['Bella sfida', 'Great match'], ['Sfida a due', 'Head to head'], ['Vince', 'Wins'],
+  ['MVP della partita', 'Match MVP'], ['Bella sfida', 'Great match'], ['Sfida a due', 'Head to head'],
   ['Cecchino', 'Sharpshooter'], ['Razzo', 'Rocket'], ['Maratoneta', 'Marathoner'], ['Asso', 'Ace'], ['Vincente', 'Winner'], ['Super', 'Super'],
   ['Game a zero', 'Love game'], ['Rimonta', 'Comeback'], ['In serie', 'On a roll'], ['Muro', 'Wall'], ['Prima volta', 'First time'], ['Re di oggi', 'King of the day'],
   ['prima partita', 'first match'], ['un game a zero', 'one love game'], ['vinta da un game sotto', 'won from a game down'],
@@ -175,7 +181,7 @@ export const GAME_TEMPLATES = [
   [/^Telefono (?:di|del) (.+): inquadra questo QR$/, m => `${ofName(m[1])} phone: scan this QR code`],
   // scheda finale
   [/^Fine partita · livello (.+)$/, m => `Match over · ${LEVEL[m[1]] || m[1]} level`],
-  [/^Fine partita · (\d+) game a (\d+)$/, m => `Match over · ${m[1]} games to ${m[2]}`],
+  [/^Fine partita · (\d+) game a (\d+)$/, m => `Match over · ${m[1]} game${m[1] === '1' ? '' : 's'} to ${m[2]}`],
   [/^Bella sfida, (.+)!$/, m => `Great match, ${m[1]}!`],
   [new RegExp(`^(La CPU ha vinto|L[’']avversario ha vinto|Hanno vinto le CPU|Hanno vinto gli avversari|Ha vinto (.+)|Hanno vinto (.+)) questa volta\\. Ecco cosa ti è venuto meglio:$`), m => {
     // (unione B72: il ramo b72-avversario scrive «Ha vinto l'avversario questa volta…» con l'articolo dopo il verbo: chi ha
@@ -218,7 +224,7 @@ export const GAME_TEMPLATES = [
   [/^Record di oggi! Scambio di (\d+) colpi$/, m => `Today’s record! Rally of ${m[1]} shots`],
   [/^Record di oggi: (\d+) km\/h$/, m => `Today’s record: ${m[1]} km/h`],
   [/^Record di oggi: scambio di (\d+) colpi$/, m => `Today’s record: rally of ${m[1]} shots`],
-  [/^manca (.+)$/, m => `${m[1]} is missing`],
+  [/^manca (.+)$/, m => `waiting for ${m[1]}`],
   // nomi delle squadre e degli avversari
   [/^(Tu|CPU|2 CPU|Avversario|Avversari)$/, m => teamEn(m[1])],
   // (unione B72) avversario con il livello scelto per nome (natpf_who.opponentLevelName: «Avversario esperto», «Avversario
@@ -248,9 +254,40 @@ export function tx(text, lang = 'it'){
 // Testo italiano del gioco che prima non passava da natpf_i18n (istruzioni del servizio, pausa del telefono, etichette
 // delle metà, conto alla rovescia): in italiano esattamente com'è, in inglese dal dizionario
 export const say = (text, lang = 'it') => (lang === 'en' && text !== null && text !== undefined ? gameEn(String(text)) : text);
+// Nome di una squadra o di un giocatore nella lingua (revisione B72, L3): si traducono solo i nomi dati dal gioco («Tu»,
+// «CPU», «2 CPU», «Avversario», «Avversari», «X + compagno», «X + CPU»); un nome scritto da un giocatore resta com'è anche
+// se è una parola del dizionario («Vince», «Asso», «Muro»: prima diventavano «Wins», «Ace», «Wall»)
+export const nameTx = (name, lang = 'it') => (lang === 'en' && name !== null && name !== undefined ? teamEn(String(name)) : name);
+// Testi per ruolo, non per testo (revisione B72, L3): la pastiglia di chi vince (scheda del giocatore nello stesso schermo,
+// natpf_match_stats) e la corona della card (natpf_end_card) dicono «Vince»; nel pezzo di pagina hanno data-tx (testo) o
+// data-tx-title (title) con il ruolo, e si traducono da qui. Così «Vince» come nome resta un nome
+export const ROLE_EN = Object.freeze({ vince: 'Wins' });
+// nomi nei pezzi di pagina della fine partita (card e schede dei giocatori): non passano dal dizionario
+export const NAME_SEL = '.card-name, .end-pname';
+// un testo o un attributo di un elemento nella lingua, con l'italiano ricordato nell'elemento (si torna indietro con 'it')
+function swapText(node, key, lang, en){
+  const ds = node.dataset || (node.dataset = {}), k = `it${key}`;
+  const cur = key === 'Title' ? node.getAttribute?.('title') : node.textContent;
+  if (cur === null || cur === undefined) return 0;
+  const it = ds[k] ?? cur, want = lang === 'en' ? en(it) : it;
+  if (lang === 'en' && want !== it) ds[k] = it;
+  if (want === cur) return 0;
+  if (key === 'Title') node.setAttribute('title', want); else node.textContent = want;
+  return 1;
+}
 // Testi già scritti in un pezzo di pagina (card della fine partita, riquadri dei numeri) nella lingua: dal dizionario, con
-// l'originale ricordato (lingua.translateDom). Si chiama quando il pezzo è appena scritto, non a ogni fotogramma
-export const translateEl = (el, lang = 'it') => (el ? translateDom(el, lang, { T: gameEn }) : 0);
+// l'originale ricordato (lingua.translateDom). Si chiama quando il pezzo è appena scritto, non a ogni fotogramma.
+// Revisione B72 (L3): i nomi (NAME_SEL) saltano il dizionario e passano da nameTx; i testi con un ruolo (data-tx,
+// data-tx-title) da ROLE_EN
+export function translateEl(el, lang = 'it'){
+  if (!el) return 0;
+  let n = translateDom(el, lang, { T: gameEn, skip: NAME_SEL });
+  const all = sel => [...(el.matches?.(sel) ? [el] : []), ...(el.querySelectorAll?.(sel) || [])];
+  for (const x of all(NAME_SEL)){ n += swapText(x, 'Text', lang, t => nameTx(t, 'en')); if (x.hasAttribute?.('title')) n += swapText(x, 'Title', lang, t => nameTx(t, 'en')); }
+  for (const x of all('[data-tx]')) n += swapText(x, 'Text', lang, t => ROLE_EN[x.dataset.tx] ?? t);
+  for (const x of all('[data-tx-title]')) n += swapText(x, 'Title', lang, t => ROLE_EN[x.dataset.txTitle] ?? t);
+  return n;
+}
 // Punteggio del game (natpf_i18n.scoreText): in inglese «0», «Deuce», «Advantage» / «AD»
 export function scoreTx(value, lang = 'it', { short = false } = {}){
   if (lang !== 'en') return itScore(value, { short });
@@ -265,10 +302,11 @@ export function scoreTx(value, lang = 'it', { short = false } = {}){
 /* ---------- tabellone (natpf_scoreboard.scoreboardView) ---------- */
 // La vista del tabellone nella lingua: nomi dati dal gioco («Tu», «CPU», «Avversario», «Tu + compagno»…) e sigle rifatte
 // con quei nomi («YOU», «OPP»), etichetta dentro il riquadro, formato e scritta del momento (per lo screen reader). I nomi
-// scritti dai giocatori restano. In italiano la vista com'è
+// scritti dai giocatori restano (revisione B72, L3: con nameTx, non con il dizionario: «Vince» non diventa «Wins»). In
+// italiano la vista com'è
 export function localizeBoard(v, lang = 'it'){
   if (lang !== 'en' || !v?.rows) return v;
-  const rows = v.rows.map(r => ({ ...r, name: gameEn(r.name) }));
+  const rows = v.rows.map(r => ({ ...r, name: nameTx(r.name, 'en') }));
   if (rows.some((r, i) => r.name !== v.rows[i].name)){
     const sh = shortNames(rows[0].name, rows[1]?.name ?? '');
     rows[0].short = sh.me; if (rows[1]) rows[1].short = sh.them;
@@ -342,6 +380,9 @@ export class NatpfLang {
     // tabellone (le due copie nello stesso schermo) e testi di partita già in vista
     try { this.ui?.onScore?.(E.score, E.matchConfig?.gamesToWin); } catch (e){ console.error(e); }
     try { this.ui?.serveCoach?.repaint?.(); } catch (e){ console.error(e); }
+    // (revisione B72: scritta del segnale del momento giusto ed etichetta del gesto in basso, se sono in vista)
+    try { this.ui?.cue?.relang?.(); } catch (e){ console.error(e); }
+    try { this.ui?.gesture?.repaint?.(); } catch (e){ console.error(e); }
     return true;
   }
 }

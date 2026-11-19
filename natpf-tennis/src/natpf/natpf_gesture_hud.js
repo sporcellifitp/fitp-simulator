@@ -3,6 +3,10 @@
 // (applicato): in attesa della palla, colpito con il voto, troppo presto / tardi, oppure ignorato e perché.
 // Prima sul computer si vedeva solo l'esito dei colpi andati a segno: un gesto ignorato o in anticipo non lasciava
 // nessun segno e sembrava «perso».
+// B72 (revisione, L2): i testi nella lingua di chi gioca, scelta sul suo telefono (natpf_lang). L'etichetta ascolta solo il
+// telefono del Player 1: a una vista la lingua di chi gioca qui, nello stesso schermo quella della metà del P1. I testi
+// restano scritti in italiano qui sotto (le prove li leggono così) e si traducono quando si scrivono (_paint); in italiano
+// identici a prima.
 const SHOT = { topspin: 'Top spin', flat: 'Piatto', lob: 'Pallonetto', slice: 'Tagliato', drop: 'Palla corta', smash: 'Schiacciata' };
 export const GESTURE_HUD = Object.freeze({ show: 1.6, wait: 1.2 });
 
@@ -62,12 +66,19 @@ export class NatpfGestureHud {
     if (!this.cur.done && age > GESTURE_HUD.wait && !this.engine.pendingUserSwing){ this.cur = { ...this.cur, state: 'ignored', status: 'nessuna palla da colpire', done: true, t: performance.now() }; this._paint(); return; }
     if (this.cur.done && age > GESTURE_HUD.show){ this.cur = null; this.el.classList.add('hidden'); }
   }
+  // B72 (revisione, L2): la lingua di un telefono è cambiata (natpf_lang.NatpfLang.refresh): l'etichetta in vista si riscrive
+  repaint(){ if (this.cur) this._paint(); }
   _paint(){
     const c = this.cur, el = this.el; if (!el) return;
-    if (!c){ el.classList.add('hidden'); return; }
+    if (!c){ el.classList.add('hidden'); this.key = ''; return; }
     el.classList.remove('hidden'); el.dataset.state = c.state;
+    // testi nella lingua della metà del P1 (in italiano com'erano); si riscrivono solo se cambia qualcosa, lingua compresa
+    const LG = this.engine.natpfLang, lang = LG?.at?.('left') === 'en' ? 'en' : 'it', T = t => (LG?.say && t ? LG.say(t, lang) : t);
+    const title = T(c.title), sub = [T(c.sub), T(c.status)].filter(Boolean).join(' · '), key = `${c.arrow}|${title}|${sub}|${lang}`;
+    if (key === this.key) return;
+    this.key = key;
     el.querySelector('[data-g="arrow"]').textContent = c.arrow;
-    el.querySelector('[data-g="title"]').textContent = c.title;
-    el.querySelector('[data-g="sub"]').textContent = [c.sub, c.status].filter(Boolean).join(' · ');
+    el.querySelector('[data-g="title"]').textContent = title;
+    el.querySelector('[data-g="sub"]').textContent = sub;
   }
 }

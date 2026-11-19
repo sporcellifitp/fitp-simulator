@@ -97,7 +97,7 @@ export function cardHtml(c, { split = false } = {}){
     + (mascot ? `<img class="card-mascot" src="${mascotUrl(mascot)}" alt="" decoding="async" draggable="false" data-file="${mascot}" data-outcome="${mascotOutcomeOf(mascot)}" data-move="${mascotMove(mascot)}">` : '')
     + `<span class="card-badge${split ? ' end-chip' : ''}">${esc(c.badge)}</span>`
     + (split && c.sub ? `<span class="card-sub card-band">${esc(c.sub)}</span>` : '')
-    + `</div>${c.crown ? `<span class="card-crown" title="Vince">${svg('crown')}</span>` : ''}<div class="card-info">${head}`
+    + `</div>${c.crown ? `<span class="card-crown" title="Vince" data-tx-title="vince">${svg('crown')}</span>` : ''}<div class="card-info">${head}`
     + (split && c.tiles?.length ? `<div class="end-tiles" data-n="${c.tiles.length}">${c.tiles.map(tileHtml).join('')}</div>` : '')
     + (medals ? `<ul class="card-trophies" data-n="${c.trophies.length}" aria-label="Trofei">${medals}</ul>` : '')
     + (c.record ? `<p class="card-record" data-mine="${c.record.mine ? 1 : 0}">${esc(c.record.text)}</p>` : '')
