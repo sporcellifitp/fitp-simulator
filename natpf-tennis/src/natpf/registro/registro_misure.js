@@ -33,11 +33,16 @@ function contatore(){
 const HZ_MIN_MS = 500;
 // il colpo è stato sbloccato dal computer se il blocco finisce entro questo tempo dal comando
 const SBLOCCO_PC_MS = 3000;
+// B71: un buco nei campioni «con un tocco» se l'ultimo tocco è al più tanto prima del suo inizio (o durante il buco)
+const TOCCO_VICINO_MS = 1000;
 
 export class MisureTelefono {
   constructor(){
     // sensori: frequenza vera per rapporto, frequenza del telefono (media mobile, telefoni di prima), campioni, buchi
     this.hz = []; this.hzTel = []; this.n = 0; this.el = 0; this.b = 0; this.bm = 0; this.iv = null; this.sa = 0; this.sg = 0; this.bg = 0; this.colpiTel = 0;
+    // B71: sorgente dei sensori ('n' app, 'b' browser), fondo scala dichiarato dall'app, valori più grandi visti, ms
+    // dall'ultimo tocco all'inizio dei buchi, motivo del ritorno al browser
+    this.sr = new Set(); this.fs = null; this.va = 0; this.vr = 0; this.tk = []; this.rp = null;
     // collegamento: ritardo dal picco all'arrivo e alla risposta del gioco, sbalzi, colpi persi o fuori ordine, strade
     this.arr = []; this.ris = []; this.jit = 0; this.jitN = 0; this.ultimoArr = null; this.stimati = 0; this.ordine = 0; this.vie = [0, 0];
     this.seg = null; this.persi = 0; this.colpi = new Map();
@@ -58,7 +63,15 @@ export class MisureTelefono {
       if (fin(el) && el >= HZ_MIN_MS && n > 1) metti(this.hz, n*1000/el);
       if (fin(b) && b > 0) this.b += b; if (fin(bm) && bm > this.bm) this.bm = bm; if (fin(iv) && iv > 0) this.iv = iv;
       if (fin(sa)) this.sa += sa; if (fin(sg)) this.sg += sg;
+      // (B71: pagine dalla 1.0.5 dell'app in poi, due numeri in più: valori più grandi visti su un asse)
+      const [va, vr] = numeri(d.sq.slice(7), 2) || [];
+      if (fin(va) && va > this.va) this.va = va; if (fin(vr) && vr > this.vr) this.vr = vr;
     }
+    // B71: sensori dell'app o del browser, fondo scala, ms dall'ultimo tocco per i buchi, motivo del ritorno al browser
+    if (d.sr === 'n' || d.sr === 'b') this.sr.add(d.sr);
+    const fs = numeri(d.fs, 2); if (fs && fin(fs[0]) && fin(fs[1]) && fs[0] > 0 && fs[1] > 0) this.fs = [r1(fs[0]), r0(fs[1])];
+    if (Array.isArray(d.tk)) for (const v of d.tk.slice(0, 32)) metti(this.tk, v);
+    if (typeof d.rp === 'string' && /^[a-z]$/.test(d.rp)) this.rp = d.rp;
     const lc = numeri(d.lc, 3); if (lc) lc.forEach((v, i) => this.lc[i].metti(v));
     // blocco dei tocchi acceso e spento (lk: com'è adesso sul telefono)
     if (d.lk === 1 && this.bloccato == null) this.bloccato = { at: now, ss: this.lc[1].tot };
@@ -142,6 +155,12 @@ export class MisureTelefono {
       out.tq = { hz: [r1(mediana(hz)), r1(percentile(hz, 0))], n: this.n || undefined, b: this.b || undefined, bm: this.b ? r0(this.bm) : undefined, bg: this.bg || undefined,
         iv: this.iv != null ? r1(this.iv) : undefined, sat: this.sa || this.sg ? [this.sa, this.sg] : undefined };
       if (!this.hz.length && this.hzTel.length) out.tq.fonte = 'telefono';                // frequenza solo dalla media mobile
+      // B71 (solo se il telefono le manda: le pagine di prima restano identiche)
+      if (this.sr.size) out.tq.sr = ['n', 'b'].filter(s => this.sr.has(s)).join('');
+      if (this.fs) out.tq.fs = this.fs;
+      if (this.va || this.vr) out.tq.vs = [r1(this.va), r0(this.vr)];
+      if (this.tk.length) out.tq.tk = [r0(mediana(this.tk)), this.tk.filter(v => v <= TOCCO_VICINO_MS).length];
+      if (this.rp) out.tq.rp = this.rp;
     }
     if (this.colpiTel){
       const tre = v => (v.length ? [r0(percentile(v, .5)), r0(percentile(v, .9)), r0(percentile(v, .99))] : undefined);

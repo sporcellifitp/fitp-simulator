@@ -11,12 +11,18 @@
 export const BUCO = Object.freeze({ volte: 2, minMs: 25, anello: 64 });
 export const SAT = Object.freeze({ acc: 15, rot: 300, uguale: .01 });
 
+// B71 (registri del 18 e 19/11): per ogni buco, i ms dall'ultimo tocco sullo schermo all'inizio del buco (negativo: il
+// tocco è arrivato durante il buco; null: nessun tocco dall'apertura della pagina), al più TOCCO.max per rapporto; e il
+// valore più grande visto per asse (accelerazione con la gravità e rotazione), da confrontare con il fondo scala.
+export const TOCCO = Object.freeze({ max: 16 });
+
 // t: istante del campione (ms, quello dell'evento); rot (°/s) e accG (m/s², con la gravità) come sampleFromMotion;
 // interval: intervallo dichiarato dal browser (DeviceMotionEvent.interval: ms; Safari vecchio in secondi)
 export function createSampleStats({ volte = BUCO.volte, minMs = BUCO.minMs, anello = BUCO.anello } = {}){
   let last = null, per = null, iv = null, prevRot = null, prevAcc = null;
-  let n = 0, b = 0, bm = 0, sa = 0, sg = 0, from = null;
+  let n = 0, b = 0, bm = 0, sa = 0, sg = 0, from = null, va = 0, vr = 0, touchT = null, tk = [];
   const times = new Float64Array(anello); let head = 0, count = 0;
+  const top = (v, m) => { if (!v) return m; for (let i = 0; i < 3; i++){ const a = Math.abs(v[i]); if (a > m) m = a; } return m; };
   const plateau = (cur, prev, min) => {
     if (!cur || !prev) return false;
     for (let i = 0; i < 3; i++){ const v = Math.abs(cur[i]); if (v >= min && Math.abs(v - Math.abs(prev[i])) <= SAT.uguale*Math.max(1, v)/100) return true; }
@@ -32,12 +38,13 @@ export function createSampleStats({ volte = BUCO.volte, minMs = BUCO.minMs, anel
       if (from == null) from = t;
       if (last != null && t > last){
         const dt = t - last;
-        if (gapOf(dt)){ b++; if (dt > bm) bm = dt; }
+        if (gapOf(dt)){ b++; if (dt > bm) bm = dt; if (tk.length < TOCCO.max) tk.push(touchT == null ? null : Math.round(last - touchT)); }
         // periodo tipico: media mobile degli intervalli normali (i buchi non la spostano)
         else per = per == null ? dt : per + (dt - per)*.05;
       }
       if (plateau(accG, prevAcc, SAT.acc)) sa++;
       if (plateau(rot, prevRot, SAT.rot)) sg++;
+      va = top(accG, va); vr = top(rot, vr);
       prevAcc = accG; prevRot = rot;
       last = t; n++;
       times[head] = t; head = (head + 1) % anello; if (count < anello) count++;
@@ -54,15 +61,20 @@ export function createSampleStats({ volte = BUCO.volte, minMs = BUCO.minMs, anel
       }
       return max && gapOf(max) ? Math.round(max) : null;
     },
+    // B71: un tocco sullo schermo all'istante t (ms, quello dell'evento: stesso orologio dei campioni)
+    touch(t){ if (Number.isFinite(t)) touchT = t; },
     // misure dall'ultimo rapporto (e da capo): [campioni, ms coperti, buchi, buco più lungo ms, intervallo dichiarato ms,
-    // campioni saturi dell'accelerazione, campioni saturi della rotazione]. null se non è arrivato niente
+    // campioni saturi dell'accelerazione, campioni saturi della rotazione, (B71) accelerazione più grande vista su un asse
+    // m/s², rotazione più grande vista su un asse °/s]. null se non è arrivato niente
     report(now = last){
       if (!n) return null;
       const el = Math.max(0, Math.round((now ?? last) - (from ?? now)));
-      const out = [n, el, b, Math.round(bm), iv == null ? null : Math.round(iv*10)/10, sa, sg];
-      n = 0; b = 0; bm = 0; sa = 0; sg = 0; from = now ?? last;
+      const out = [n, el, b, Math.round(bm), iv == null ? null : Math.round(iv*10)/10, sa, sg, Math.round(va*10)/10, Math.round(vr)];
+      n = 0; b = 0; bm = 0; sa = 0; sg = 0; va = 0; vr = 0; from = now ?? last;
       return out;
     },
+    // B71: i ms dall'ultimo tocco dei buchi dall'ultima chiamata (e da capo)
+    gapTouches(){ const out = tk; tk = []; return out; },
   };
 }
 

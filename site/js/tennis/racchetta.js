@@ -20,6 +20,7 @@ import { platformAccSign, createAccSign, normalizeSample, SIGN } from './motion-
 import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, nextTap, NEXT_REARM_MS, readyView, nameOnMsg, nameSubmit, NAME_REARM_MS, NAME_TEXT, standView, STAFF_HOLD, batteryAlert, standSignStep, tapVotesSign, handTap, handLabel, HAND_CONFIRM } from './phone-screen.js';
 import { touchLockActive, createTouchLockHistory, installStaffTouch } from './phone-touch-lock.js';
 import { createSampleStats, createLockStats, createAppReader } from './phone-stats.js';
+import { nativeBridge, createNativeMotion, NATIVI } from './sensori-nativi.js';
 import { parseStandPairing, createStandStore, standHello, standWelcome, standAnswer, standDenyText, newStandNonce, slotLabel } from './stand-pairing.js';
 
 const $ = s => document.querySelector(s);
@@ -150,6 +151,19 @@ const touchOverlay = $('#phoneTouchLock'), touchHit = $('#touchHit'), touchHome 
 const touchHistory = createTouchLockHistory(window, history, () => touchLocked);
 // B66: misure per il registro dello stand (phone-stats.js): campioni dei sensori, blocco dei tocchi, stato dall'app
 const sampleStats = createSampleStats(), lockStats = createLockStats(), appReader = createAppReader(window.NATPFApp);
+// B71: sensori presi dall'app NATPF Racchetta 1.0.5 (sensori-nativi.js): prova all'avvio con il browser, poi i campioni
+// dell'app a lotti con l'istante vero; se qualcosa non torna, di nuovo devicemotion. Senza l'app (Chrome) native.state
+// resta 'off' e il percorso dei sensori è quello di sempre. motionWanted: devicemotion deve essere in ascolto
+const NATIVE_EV = Object.freeze({ interval: NATIVI.intervallo });
+let motionWanted = false;
+const native = createNativeMotion({ bridge: nativeBridge(window), onSample: k => feedSample(k, NATIVE_EV), onState: nativeState });
+function nativeState(s){
+  if (s === 'nativi') removeEventListener('devicemotion', onMotion);
+  else if (s === 'browser' && motionWanted){ removeEventListener('devicemotion', onMotion); addEventListener('devicemotion', onMotion); }
+  sendState();
+}
+// (B71: istante dell'ultimo tocco per i buchi nei campioni, prima di ogni altro ascoltatore e senza fermare niente)
+addEventListener('pointerdown', e => sampleStats.touch(e.timeStamp), { capture: true, passive: true });
 const resetStaffTouch = installStaffTouch(touchOverlay, $('#phoneStaffUnlock'), () => { if (touchLocked) lockStats.staff(); unlockTouch(); });
 const madeInert = new Set();
 
@@ -623,11 +637,13 @@ const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...batterySta
 // B66 · per il registro dello stand: sq campioni dei sensori dall'ultimo stato (phone-stats.createSampleStats.report), lc
 // conti del blocco dei tocchi, ap stato del telefono dall'app NATPF Racchetta. I computer di prima ignorano i campi
 // (mai un errore che fermi lo stato: un ponte dell'app che non risponde o una chiamata prima che le misure esistano)
+// B71: sr sorgente dei sensori ('n' app, 'b' browser), fs fondo scala dichiarato dall'app [m/s², °/s], rp motivo del
+// ritorno al browser (sensori-nativi.js), tk ms dall'ultimo tocco per ogni buco nei campioni
 function b66State(){
   try {
-    const sq = sampleStats.report(), lc = lockStats.counts, ap = appReader.read(performance.now());
+    const sq = sampleStats.report(), tk = sampleStats.gapTouches(), lc = lockStats.counts, ap = appReader.read(performance.now()), fs = native.fullScale;
     // (lc sempre, anche a zero: il computer prende il primo valore della partita come partenza)
-    return { ...(sq ? { sq } : {}), lc, ...(ap ? { ap } : {}) };
+    return { ...(sq ? { sq } : {}), lc, ...(ap ? { ap } : {}), sr: native.source, ...(fs ? { fs } : {}), ...(native.why ? { rp: native.why } : {}), ...(tk.length ? { tk } : {}) };
   } catch (e){ return {}; }
 }
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
@@ -670,7 +686,10 @@ async function enableSensors(){
   if (!window.isSecureContext) return noMotion('insecure');
   if (typeof DeviceMotionEvent === 'undefined') return noMotion('nomotion');
   if (ask && (await ask) !== 'granted') return noMotion('denied');
-  addEventListener('devicemotion', onMotion);
+  // (B71: con i sensori dell'app già scelti devicemotion resta spento; altrimenti in ascolto e, con l'app, la prova)
+  motionWanted = true;
+  if (!native.feeds) addEventListener('devicemotion', onMotion);
+  native.start();
   motionSeen = false;
   setTimeout(() => { if (!motionSeen && inputMode === 'motion') noMotion('nomotion'); }, 1500);
   const saved = ss.get('profile');
@@ -681,6 +700,7 @@ async function enableSensors(){
 }
 function noMotion(why){
   removeEventListener('devicemotion', onMotion);
+  motionWanted = false; native.stop();
   sensor = why; sendState(); paint();
   ui({ denied: 'Sensori negati', insecure: 'Serve https', nomotion: 'Sensori non disponibili' }[why], {
     denied: 'Su iPhone ricarica la pagina e tocca «Consenti»; su Android tocca il lucchetto accanto all\'indirizzo e consenti i sensori. Oppure «Gioca con i tocchi».',
@@ -690,6 +710,14 @@ function noMotion(why){
 }
 function onMotion(e){
   const raw = sampleFromMotion(e, e.timeStamp || performance.now());   // istante dell'evento, non della lettura
+  // B71: in prova il campione del browser serve anche al confronto con l'app (e guida ancora i colpi); con i sensori
+  // dell'app scelti il browser non guida più niente
+  if (native.state !== 'off'){ if (native.feeds) return; native.browser(raw); }
+  feedSample(raw, e);
+}
+// un campione dei sensori, del browser (e: l'evento devicemotion) o dell'app (B71, e: NATIVE_EV), per il rilevatore, la
+// calibrazione, le misure e il computer: lo stesso lavoro per tutti e due
+function feedSample(raw, e){
   lastRawG = raw.accG;
   const k = normalizeSample(raw, accSign.sign);
   if (!k.rot && !k.acc) return;
@@ -911,7 +939,7 @@ $('#bye').addEventListener('click', () => {
   if (peer && !peer.destroyed) peer.destroy(); peer = null;
   // (telefono dello stand, B41.3: «Scollega» è dello staff, dietro la pressione lunga; il posto si dimentica su questo telefono)
   if (wasStand){ standStore.clear(); stand = null; staffUntil = 0; }
-  removeEventListener('devicemotion', onMotion); sensor = 'off'; paint();
+  removeEventListener('devicemotion', onMotion); motionWanted = false; native.stop(); sensor = 'off'; paint();
   ui('Scollegato', wasStand ? 'Non è più un telefono dello stand: per rimetterlo al suo posto lo staff lo abbina di nuovo.' : 'Per giocare di nuovo inquadra il codice QR sul computer.');
 });
 // tocco sullo schermo al servizio: lancia la palla
@@ -923,6 +951,8 @@ document.addEventListener('visibilitychange', () => {
   // (B45.1: per il racconto di una caduta con la pagina nascosta)
   if (document.hidden) pageHiddenAt = performance.now(); else pageVisibleAt = performance.now();
   if (document.hidden) lockStats.hidden(touchLocked);
+  // (B71: a pagina nascosta i sensori dell'app sono spenti dall'app stessa: non è un guasto)
+  if (document.hidden) native.hidden(); else native.visible();
   if (document.hidden || sensor === 'off') sendState(); else onVisible();
 });
 // pagina sospesa dal browser e ripresa (Android): come il ritorno in primo piano
@@ -1001,7 +1031,18 @@ function paintVeil(){
   // cosa è rimasto: la calibrazione solo se il telefono era calibrato (phone-screen.veilText)
   if (on){ const t = veilText({ linkState, sensor, gate }), el = $('#wakeVeilText'); if (el.textContent !== t) el.textContent = t; }
 }
-setInterval(() => { paintVeil(); paintAlert(); }, 500);
+setInterval(() => { paintVeil(); paintAlert(); tellAppInUse(); }, 500);
+// B71: all'app NATPF Racchetta 1.0.5 se il telefono è in uso (partita, servizio, pausa, calibrazione, tocchi bloccati):
+// lo schermo spento con il tasto di accensione impugnando il telefono lo riaccende da sola (natpf-android RisveglioSchermo)
+let appInUse = null;
+function tellAppInUse(){
+  const app = window.NATPFApp;
+  if (typeof app?.inUso !== 'function') return;
+  const on = touchLocked || sensor === 'cal' || (sensor === 'ready' && ['serve', 'toss', 'play', 'pause'].includes(phase));
+  if (on === appInUse) return;
+  appInUse = on;
+  try { app.inUso(on); } catch (e){}
+}
 // un tocco sul velo: blocco dello schermo, sensori (permesso su iPhone dentro il tocco) e schermo intero
 function resumeTap(){
   veil.dismiss(); show('#wakeVeil', false); fsAfterVisible = false;
@@ -1020,7 +1061,8 @@ $('#alertBtn').addEventListener('click', e => {
 // di nuovo in ascolto dei sensori, dentro il tocco (su iPhone il permesso va chiesto lì)
 function reviveSensors(){
   const ask = typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function' ? DeviceMotionEvent.requestPermission().catch(() => 'denied') : null;
-  removeEventListener('devicemotion', onMotion); addEventListener('devicemotion', onMotion);
+  removeEventListener('devicemotion', onMotion); if (!native.feeds) addEventListener('devicemotion', onMotion);
+  native.revive();   // (B71: con l'app si riaccendono anche i suoi sensori)
   revivedAt = performance.now(); sensorWatch.restart(revivedAt); alertKey = null;   // si ridisegna comunque
   paintAlert();
   if (ask) ask.then(r => { if (r !== 'granted') noMotion('denied'); });
@@ -1029,4 +1071,4 @@ function reviveSensors(){
 checkOrientation();
 connect();
 $('#gripMode').value = grip;
-window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state, screen: viewScreen, touchLocked, gate: gate ? { ...gate } : null, veil: !$('#wakeVeil').classList.contains('hidden') }; } };
+window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state, screen: viewScreen, touchLocked, gate: gate ? { ...gate } : null, veil: !$('#wakeVeil').classList.contains('hidden'), sorgente: native.state, ripiego: native.why }; } };

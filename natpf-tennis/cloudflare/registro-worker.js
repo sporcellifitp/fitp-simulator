@@ -117,6 +117,8 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'pl',
   // B66 (18/11): misure di sensori, calibrazione, collegamento, rete e blocco del telefono
   'cf', 'mg', 'gb', 'rit', 'pv', 'app', 'tq', 'lat', 'wifi', 'blocco', 'cal', 'pause', 'a', 'hz', 'b', 'bm', 'bg', 'iv', 'sat', 'arr', 'ris', 'jit', 'stimati', 'persi', 'ordine', 'vie', 'rssi', 'bd', 'mbps', 'bt', 'ch', 'tc', 'fx', 'tb', 'ss', 'sp', 'sd', 'us', 'sc', 'tip', 'tipN', 'cen', 'dvi', 'seg', 'ric', 'ref', 'soglia',
+  // B71 (19/11): sensori dell'app NATPF Racchetta 1.0.5 (sorgente, fondo scala, valori più grandi, tocchi prima dei buchi)
+  'sr', 'fs', 'vs', 'tk', 'rp',
   'pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr', 'zp', 'dir']);
 export const FORMATO = 3;
 export const MAPPE = Object.freeze(['scartati', 'posti', 'passi', 'perche', 'pause']);

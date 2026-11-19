@@ -69,6 +69,12 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   // dvi scarto della cima [primi 10, ultimi 10] °, seg cambi di segno, ric ricalibrazioni, ref [inizio, fine], soglia [on,
   // minPeak]); pause { motivo: [volte, secondi] }
   'cf', 'mg', 'gb', 'rit', 'pv', 'app', 'tq', 'lat', 'wifi', 'blocco', 'cal', 'pause', 'a', 'hz', 'b', 'bm', 'bg', 'iv', 'sat', 'arr', 'ris', 'jit', 'stimati', 'persi', 'ordine', 'vie', 'rssi', 'bd', 'mbps', 'bt', 'ch', 'tc', 'fx', 'tb', 'ss', 'sp', 'sd', 'us', 'sc', 'tip', 'tipN', 'cen', 'dvi', 'seg', 'ric', 'ref', 'soglia',
+  // B71 (19/11, docs/b71/sensori.md, docs/b66/registro-sensori.md §8): in tq della riga «partita.fine», per telefono: sr
+  // sorgente dei sensori ('n' app NATPF Racchetta 1.0.5, 'b' browser, 'nb' tutte e due nella partita) · fs fondo scala
+  // dichiarato dall'app [accelerazione m/s², rotazione °/s] · vs valori più grandi visti su un asse [m/s², °/s] · tk tocchi
+  // prima dei buchi [mediana dei ms dall'ultimo tocco all'inizio del buco, buchi con un tocco nell'ultimo secondo] · rp
+  // motivo del ritorno al browser ('g' gravità, 'r' rotazione, 'f' sensori dell'app fermi, 'p' ponte)
+  'sr', 'fs', 'vs', 'tk', 'rp',
   // B36.0 (misurare prima la direzione dei colpi, docs/b36/misure-b36-0.md), tutti insieme perché il Worker si ricarichi
   // una volta sola. Riga «colpo» del telefono: pf piatto (mira della cima −1…+1, telefoni con la forma del colpo) · dv
   // scarto della cima in gradi dal proprio colpo abituale · tu tempo in unità della finestra della direzione (+ anticipo) ·
@@ -83,6 +89,9 @@ export const CAMPI_B36 = Object.freeze(['pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr'
 // accetta lo stesso; lo strumento di riassunto lo dice: «misure del B66 assenti»)
 export const CAMPI_B66 = Object.freeze(['cf', 'mg', 'gb', 'rit', 'pv', 'app', 'tq', 'lat', 'wifi', 'blocco', 'cal', 'pause', 'a', 'hz', 'b', 'bm', 'bg', 'iv', 'sat', 'arr', 'ris', 'jit', 'stimati', 'persi', 'ordine', 'vie',
   'rssi', 'bd', 'mbps', 'bt', 'ch', 'tc', 'fx', 'tb', 'ss', 'sp', 'sd', 'us', 'sc', 'tip', 'tipN', 'cen', 'dvi', 'seg', 'ric', 'ref', 'soglia']);
+// i campi del B71 sui sensori (sopra, tra quelli del B66 e quelli del B36.0): un Worker non ancora ricaricato li toglie in
+// silenzio (le righe le accetta lo stesso, con tutte le altre misure)
+export const CAMPI_B71S = Object.freeze(['sr', 'fs', 'vs', 'tk', 'rp']);
 // campi che sono un elenco «voce: quante volte» (motivi dei gesti scartati, posti della visita, passi della
 // calibrazione): le voci le decide il gioco, i valori sono solo numeri (o un elenco di numeri)
 // (B66: pause della partita per il telefono, { motivo: [volte, secondi] })
