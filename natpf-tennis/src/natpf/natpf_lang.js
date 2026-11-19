@@ -113,7 +113,10 @@ export const GAME_EXACT = [
   ['Rivincita dai telefoni: toccate «Rivincita» tutti e due', 'Rematch from the phones: both of you tap “Rematch”'],
   // card della fine partita (natpf_end_card.js, natpf_trofei.js, natpf_match_stats.bestLabel)
   ['MVP della partita', 'Match MVP'], ['Bella sfida', 'Great match'], ['Sfida a due', 'Head to head'],
-  ['Cecchino', 'Sharpshooter'], ['Razzo', 'Rocket'], ['Maratoneta', 'Marathoner'], ['Asso', 'Ace'], ['Vincente', 'Winner'], ['Super', 'Super'],
+  // fascia sotto il ritratto nello stesso schermo (natpf_end_card: .card-band; unione B71+B72, F2): come «Aiuto: Bambino»
+  ['Bambino', 'Child'], ['Ragazzo', 'Teen'], ['Adulto', 'Adult'],
+  // (unione B71+B72, F1: «Sniper», non «Sharpshooter», che nella colonna del trofeo andava a capo a metà parola)
+  ['Cecchino', 'Sniper'], ['Razzo', 'Rocket'], ['Maratoneta', 'Marathoner'], ['Asso', 'Ace'], ['Vincente', 'Winner'], ['Super', 'Super'],
   ['Game a zero', 'Love game'], ['Rimonta', 'Comeback'], ['In serie', 'On a roll'], ['Muro', 'Wall'], ['Prima volta', 'First time'], ['Re di oggi', 'King of the day'],
   ['prima partita', 'first match'], ['un game a zero', 'one love game'], ['vinta da un game sotto', 'won from a game down'],
   ['km/h, colpo più forte', 'km/h, hardest shot'], ['km/h, il tuo colpo più forte', 'km/h, your hardest shot'], ['colpi nello scambio più lungo', 'shots in the longest rally'],

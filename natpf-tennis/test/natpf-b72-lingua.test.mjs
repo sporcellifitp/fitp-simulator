@@ -156,7 +156,7 @@ test('B72 EN: titolo e righe della fine partita, rivincita dai telefoni', async 
   assert.equal(en(TROPHIES.cecchino.text(sum)), '3 Perfect shots'); assert.equal(en(TROPHIES.rimonta.text(sum)), '2 match points saved'); assert.equal(en(TROPHIES.re.text(sum, { rank: { rank: 2 } })), '2nd in today’s ranking');
   const nx = nextTrophy({ timing: { perfetto: 1 }, fastest: 60, longest: 3, hits: 6 }, {});
   if (nx){ noItalian(en(nx.text), nx.text); assert.match(en(nx.text), /^Next trophy: /); }
-  assert.equal(en('Prossimo trofeo: Cecchino d’argento · 2 colpi Perfetti in più'), 'Next trophy: Silver Sharpshooter · 2 more Perfect shots');
+  assert.equal(en('Prossimo trofeo: Cecchino d’argento · 2 colpi Perfetti in più'), 'Next trophy: Silver Sniper · 2 more Perfect shots');
   assert.equal(en('Prossimo trofeo: Razzo di bronzo a 110 km/h · 5 km/h in più'), 'Next trophy: Bronze Rocket at 110 km/h · 5 more km/h');
   for (const r of [{ kmh: { mine: true, value: 128 } }, { scambio: { mine: true, value: 9 } }, { kmh: { value: 130 } }, { scambio: { value: 10 } }]) noItalian(en(recordLine(r, 'player').text), JSON.stringify(r));
   for (const t of bestOf({ winners: 3, aces: 1, superOk: 2, timing: { perfetto: 4 }, fastest: 120, longest: 8, points: 5, hits: 10 }, { limit: 7, vsCpu: true })) noItalian(en(t.label), t.label);
@@ -465,4 +465,34 @@ test('revisione B72 (B72-REG-2): «Nuovo giocatore» nello stesso schermo dalla 
   assert.equal(link.sent.filter(m => m.t === 'cfg').at(-1).lg, 'it', 'il telefono del P1 lo sa');
   assert.equal(l2.sent.filter(m => m.t === 'cfg').at(-1).lg, 'it', 'il telefono del P2 lo sa');
   assert.deepEqual(L.langView(E), { left: 'it', right: 'it', center: 'it' });
+});
+
+/* ---------- unione B71+B72: sistemazione dopo la verifica (docs/b72/unione.md §6) ---------- */
+test('B71+B72 sistemazione (F2): stesso schermo con tutti e due in EN, la fascia sotto il ritratto («Adulto», «Bambino», «Ragazzo») in inglese', async () => {
+  assert.deepEqual(['Adulto', 'Bambino', 'Ragazzo'].map(en), ['Adult', 'Child', 'Teen']);
+  assert.deepEqual(['Adulto', 'Bambino', 'Ragazzo'].map(s => tx(s, 'it')), ['Adulto', 'Bambino', 'Ragazzo'], 'in italiano come prima');
+  assert.equal(en('Aiuto: Bambino'), 'Help: Child', 'come l\'etichetta dell\'aiuto');
+  const { newMatch, addPoint, viewOf } = await import('../src/natpf/natpf_match_stats.js');
+  const { cardModel, cardsHtml } = await import('../src/natpf/natpf_end_card.js');
+  const { gameWinner } = await import('../src/natpf/natpf_fair_format.js');
+  const m = newMatch({ mode: 'split', level: 'evento' });
+  for (const c of 'pooooo'){ const winner = c === 'p' ? 'player' : 'opponent'; addPoint(m, { winner, why: 'Out', strokes: 6, gameWinner: gameWinner(m.cur.player + (c === 'p'), m.cur.opponent + (c === 'o')) }); }
+  const sv = viewOf(m, { names: { player: 'Giulia', opponent: 'Adulto' } }), sb = PC.matchEndView({ winner: 'opponent', games: { player: 0, opponent: 1 }, sharedNames: { player: 'Giulia', opponent: 'Adulto' } });
+  const bands = r => r.querySelectorAll('.card-band').map(n => n.textContent);
+  for (const [b, want, it] of [[null, ['Adult', 'Adult'], ['Adulto', 'Adulto']], [{ p1: 'bambino', p2: 'ragazzo' }, ['Teen', 'Child'], ['Ragazzo', 'Bambino']]]){
+    const root = miniDom(cardsHtml(cardModel(sv, sb, { bands: b })));
+    L.translateEl(root, 'en');
+    assert.deepEqual(bands(root), want, `fasce ${JSON.stringify(b)}`);
+    assert.deepEqual(root.querySelectorAll('.card-name').map(n => n.textContent), ['Adulto', 'Giulia'], 'un giocatore che si chiama «Adulto» resta «Adulto»');
+    L.translateEl(root, 'it');
+    assert.deepEqual(bands(root), it, 'e tornano in italiano');
+  }
+});
+
+test('B71+B72 sistemazione (F1): trofeo «Cecchino» in inglese «Sniper» (stava su due righe nella card, spezzato a metà parola)', async () => {
+  assert.equal(en('Cecchino'), 'Sniper');
+  assert.equal(en('Prossimo trofeo: Cecchino d’argento · 2 colpi Perfetti in più'), 'Next trophy: Silver Sniper · 2 more Perfect shots');
+  const { TROPHIES } = await import('../src/natpf/natpf_trofei.js');
+  // i nomi dei trofei in inglese non più lunghi di 10 lettere per parola (la colonna della card stretta li spezza)
+  for (const t of Object.values(TROPHIES)) for (const w of en(t.name).split(/\s+/)) assert.ok(w.length <= 10, `«${en(t.name)}»`);
 });
