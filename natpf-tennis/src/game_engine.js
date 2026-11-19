@@ -2466,7 +2466,7 @@ export class NatpfTennisEngine {
     // (gesto un po' meno forte, anche rispetto al proprio colpo, tempo meno preciso, senza la pressione degli scambi
     // lunghi, poi ogni palla); prima del 20° colpo e con l'opzione spenta hotSup è null e tutto resta com'era
     const hotSup = NH.hotSuper(b.rallyStrokeCount + 1, this.natpfHot, pressure);
-    const sup = NO.superShot({ intent, out, contact, ballSide: dx, contactY: b.pos.y, ballVz: b.vel.z, shortBall, ease: hotSup,
+    const sup = NO.superShot({ intent, out, contact, ballSide: dx, sideFromBall: NO.sideFromBall(e), contactY: b.pos.y, ballVz: b.vel.z, shortBall, ease: hotSup,
       strong: duo?.superRel ? ND.relStrong(e, hotSup ? NH.hotRatio(help?.superRatio ?? ND.superTuning.ratio ?? ND.SUPER_REL.ratio, hotSup) : help?.superRatio) : null });
     if (sup.on) out = { ...out, depth: Math.max(out.depth, NO.SUPER.minDepth), clear: S.NET_HEIGHT_CENTER + NO.SUPER.netGap, topspin: out.shot === "SMASH" ? out.topspin : NO.SUPER.topspin };
     // B20/B42: «scambio che si scalda» (natpf_hot_rally.js, acceso di base dal B42): dal 20° colpo i colpi normali passano via via

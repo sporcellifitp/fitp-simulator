@@ -417,7 +417,9 @@ export function queueUserSwing(engine, e, actor){
   // (B25: per chi è aiutato la finestra del livello è più larga, helpLevel; senza aiuto è lo stesso oggetto di prima)
   // … e con il campo aperto chi è in corsa o in allungo ha meno margine (openTight: 1 esatto se spento)
   const lateSpan = (lateSpanOf(engine.ball.vel.z, helpLevel(skillLevel(engine.matchConfig?.difficulty), helpOf(engine, actor))) + lateMargin(engine, actor))*openTight(engine, actor), key = pendKey(engine, actor);
-  const net = nearNetActor(actor), strength = swingStrength(e), weak = weakSwing(e, net);
+  // (B71: una palla corta o un pallonetto della forma ma sotto WEAK.rel del colpo tipico, fatti prima della finestra della
+  // direzione ma dentro quella del colpo a vuoto in anticipo, valgono come un gesto debole: earlySoftSpecial)
+  const net = nearNetActor(actor), strength = swingStrength(e), weak = weakSwing(e, net) || (ttc >= 0 && lead > specialSpan(engine) && lead <= earlyWindow(engine, actor) && earlySoftSpecial(e));
   if (ttc < 0){
     if (weak) return 'ignored';
     // decisione rinviata su un gesto morbido in attesa (SOFT): lo sostituisce solo uno swing chiaramente più forte; la
@@ -448,7 +450,10 @@ export function queueUserSwing(engine, e, actor){
   // braccio che torna, più veloce del colpo morbido. 28/10 sera: la palla corta di rovescio (451 °/s) sostituita 0,2 s
   // dopo dal rientro (1292 °/s), giocato come tagliato di dritto. La preparazione seguita dal colpo resta come prima: la
   // preparazione non ha la forma di una palla corta o di un pallonetto
-  if (better && cur?.natpfWindow && deliberateSpecial(cur.evt, KEEP.conf) && cur.evt.side && e.side && e.side !== cur.evt.side && now - cur.at < KEEP.within) better = false;
+  // B71: solo se la palla corta o il pallonetto sono stati fatti in tempo (entro la finestra della direzione), come durante il
+  // rinvio (keepsSpecial). Il 18-19/11 il 43% delle palle corte era «very early»: la preparazione verticale lenta letta come
+  // palla corta bloccava il colpo vero, letto dall'altra parte (un lato su tre era letto al contrario)
+  if (better && cur?.natpfWindow && deliberateSpecial(cur.evt, KEEP.conf) && cur.evt.side && e.side && e.side !== cur.evt.side && now - cur.at < KEEP.within && cur.lead <= specialSpan(engine)) better = false;
   if (better){ engine[key] = cand; holdSwingPrep(actor, e.side, ttc); }
   return 'held';
 }
@@ -457,8 +462,20 @@ export function queueUserSwing(engine, e, actor){
 // colpo forte dall'altra parte, quasi perfetto, è il colpo vero
 function keepsSpecial(engine, cur, e, now){
   if (!deliberateSpecial(cur.evt, KEEP.conf) || !cur.evt.side || !e.side || e.side === cur.evt.side || now - cur.at >= KEEP.within) return false;
-  const span = directionSpan(skillLevel(engine.matchConfig?.difficulty))*slowFactor(engine.ball?.vel?.z);
-  return cur.lead <= span;
+  return cur.lead <= specialSpan(engine);
+}
+// finestra della direzione del livello, allargata sulle palle lente (s): oltre, un colpo è «molto in anticipo»
+export const specialSpan = engine => directionSpan(skillLevel(engine?.matchConfig?.difficulty))*slowFactor(engine?.ball?.vel?.z);
+// B71 · palla corta o pallonetto della forma (deliberateSpecial) ma più deboli di WEAK.rel del proprio colpo tipico: fatti
+// in anticipo (oltre la finestra della direzione, queueUserSwing) sono la preparazione verticale lenta (la racchetta
+// alzata o abbassata per prepararsi: swing-detect VERTICAL.slow* li accetta dal 15% del colpo tipico), non un colpo voluto.
+// Il 18-19/11 il 43% delle palle corte era «very early», con margine mediano 1,32 e il 15,5% in rete. Valgono come un gesto
+// debole: il colpo vero che arriva dopo li sostituisce sempre; se non arriva, all'arrivo della palla si giocano solo se
+// ampi (resolvePending, WEAK.ample)
+export function earlySoftSpecial(e = {}){
+  if (!deliberateSpecial(e)) return false;
+  const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
+  return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < WEAK.rel*typ;
 }
 
 // A ogni passo, con la palla che arriva: lo swing in attesa si gioca quando la palla raggiunge il punto d'impatto.

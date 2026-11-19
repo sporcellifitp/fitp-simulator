@@ -47,6 +47,15 @@ superato (vicino a 1 = colpo «al limite»; dal telefono, `swing-detect.js`, sol
 gesto (ms, solo se c'è). Dritto o rovescio dalla parte opposta alla palla: c'era già (`pl` e `lato`, 17/11); errore di
 tempo, voto, esito, scarti: già presenti, non duplicati.
 
+**B71 (19/11, `docs/b71/gesti.md`)**, verso del gesto (solo numeri e codici brevi; un Worker non ricaricato li toglie in
+silenzio e accetta la riga): `vg` verso grezzo dei sensori prima del segno del rilevatore (−1, 0, 1; dal telefono,
+`swing-detect.js`) · `vc` confidenza del verso (0–1, 2 decimali: quanto il gesto gira attorno alla verticale attorno al
+picco) · `dur` durata del gesto (ms) · `hold` ms trattenuto come preparazione prima di essere giocato (solo se > 0) · `ls`
+da dove viene il lato del colpo: `g` gesto, `a` verso atteso dalla palla, `p` posizione della palla (in fiera il lato
+viene dalla palla quando il verso è incerto). Riga `tel` del cambio di segno (motivo `segno`): `voti` [d'accordo,
+contrari] che hanno deciso il cambio (scambi di prova e rilevatore del telefono, quando si sanno). Nel messaggio del colpo
+dal telefono i campi sono `vg`, `vc` e `sv` (voti del segno girato); durata e attesa c'erano già (`dur`, `hd`).
+
 ### Prestazioni del collegamento
 
 Riga `colpo`: `rit` [ms dal picco del gesto all'arrivo sul PC, ms dal picco alla risposta del gioco]. Solo con gli orologi

@@ -33,7 +33,7 @@ import { strokeIntent, shapeDistinct, strokePower, INTENT } from './natpf_stroke
 import { aimFullNow } from './natpf_aim_level.js';
 import { weakSwing, livePlan, planOf } from './natpf_impact.js';
 import { SMASH_FROM } from './natpf_stroke_outcome.js';
-import { createTrialLearner, readCalMode, phoneThresholds, TRIAL, signedSwing } from './natpf_trial_learn.js';
+import { createTrialLearner, readCalMode, phoneThresholds, TRIAL, TRIAL_SIGN, signedSwing } from './natpf_trial_learn.js';
 // B45.1: perché cade il collegamento (motivo finale, cadute di oggi per la riga del pannello dello stand)
 import { MOTIVI, motivoFinale, cadutaPrimaDellaPagina, segnaCaduta, chiarisciCaduta } from './natpf_cadute.js';
 // tempo concesso al telefono per tornare «pronto» dopo il profilo da capo chiesto dal gioco (freshPlayer): tre richieste
@@ -231,6 +231,25 @@ export const profileShapePower = profile => (profile && !profile.simple && (Numb
 // degli esercizi, letti «normali» prima che il gioco li avesse imparati, finivano nel colpo normale: in partita il colpo
 // normale diventava la propria palla corta e la palla corta si leggeva come un dritto
 export const teachesNormal = (ev, { rally = true, expect = null } = {}) => !!rally && !expect && !!ev?.natpf && NORMAL_SHOTS.has(ev.natpf.shot) && !weakSwing(ev);
+// B71 · un colpo di prova per gli scambi di prova (natpf_trial_learn, mark): conta ogni colpo dello scambio non debole per
+// il gioco (anche tagliati, pallonetti, palle corte: prima solo top spin e piatto, e metà dei visitatori della fiera restava
+// «none»); normal per il verso verticale del piatto; rise: insegna la salita abituale come in partita (createRiseModel.learn:
+// non pallonetti, schiacciate e palle corte riconosciute dalla forma)
+export function trialMark(ev, { rally = true, expect = null } = {}){
+  const N = ev?.natpf, I = N?.intent, counts = !!rally && !expect && !!N && !weakSwing(ev);
+  return { counts, normal: teachesNormal(ev, { rally, expect }), shot: typeof N?.shot === 'string' ? N.shot : null,
+    rise: counts && !!I && !I.byShape && !RISE_LEARN.skip.includes(I.shot) };
+}
+// B71 · verso del gesto incerto (modalità fiera): confidenza del verso bassa (vc dal telefono, swing-detect.simpleVerse),
+// gesto trattenuto come preparazione e poi giocato (hd), o colpo arrivato late s o più dopo il picco. Nei registri del
+// 18-19/11 i colpi arrivati 150 ms o più dopo il picco erano dalla parte sbagliata della palla nel 73% dei casi (120 su 164)
+export const VERSE_FAIR = Object.freeze({ conf: .35, hold: 20, late: .15 });
+export function verseUnsure(s, arrive = null){
+  if (!s) return false;
+  if (Number.isFinite(s.dirConf) && s.dirConf < VERSE_FAIR.conf) return true;
+  if (Number.isFinite(s.holdMs) && s.holdMs >= VERSE_FAIR.hold) return true;
+  return Number.isFinite(arrive) && arrive >= VERSE_FAIR.late;
+}
 // prototipi del proprio pallonetto e della propria palla corta dai gesti degli esercizi (mediana degli ultimi 6): { lob, drop }
 export function learnShapeSpecials(samples = {}){
   const out = {};
@@ -445,6 +464,15 @@ export function ballSideNow(engine, role = engine.playerRole, since = null){
   if (plan && plan.kind !== 'letgo' && plan.side) return plan.side*(Math.sign(me.pos.z) || 1) >= 0 ? 1 : -1;
   const rel = ballRel(engine, role);
   return rel == null || Math.abs(rel) < .3 ? 0 : rel > 0 ? 1 : -1;
+}
+// B71: lato del colpo dalla palla per chi gioca (verso del gesto incerto, modalità fiera): dal verso atteso (la palla
+// arriva da quella parte, oltre BODY_ZONE: src 'a') o, senza, dal piano d'intercetto o dalla posizione della palla
+// (ballSideNow, oltre 0,3 m: src 'p'). null se la palla non dice niente (al centro, alta, non in arrivo)
+export function ballSide(engine, hand = 'right', role = engine.playerRole){
+  const ex = expectedStrokeDir(engine, hand, role);
+  if (ex) return { side: strokeSide(ex, hand), src: 'a' };
+  const bs = ballSideNow(engine, role);
+  return bs ? { side: (bs === 1) !== (hand === 'left') ? 'forehand' : 'backhand', src: 'p' } : null;
 }
 export function expectedStrokeDir(engine, hand = 'right', role = engine.playerRole){
   const b = engine.ball, p2 = role === 'p2', me = actorOf(engine, role);
@@ -711,7 +739,7 @@ export class NatpfPhoneRacket {
     // (B45.2: non gli eventi di un collegamento di prima, fermato da useStand)
     link.on('drop', d => { if (this.link === link) this._onDrop(d); });
     // (B46: il rilevatore del telefono ha girato il suo segno, pagine dal B46; quelle di prima lo dicono solo con il colpo)
-    link.on('sign', e => this._detectorSign(e?.detector));
+    link.on('sign', e => this._detectorSign(e?.detector, e?.votes));
     await link.start();
     // (cambiato posto mentre partiva: vale il collegamento nuovo)
     if (this.link !== link){ this._starting = null; return this.start(); }
@@ -769,7 +797,10 @@ export class NatpfPhoneRacket {
   // l'avanzamento (tp: scheda mostrata e schede viste; dal B28 «Tutto chiaro» è acceso da subito)
   // net (B17.4): chi gioca è a rete (entro NET_Z m), il telefono abbassa la soglia del picco per i tocchi morbidi (swing-detect
   // setNet); si rimanda cfg senza net al rientro
-  _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}), ...(this.atNet ? { net: 1 } : {}) }; }
+  // sn (B71): segno di fiera, in modalità fiera il rilevatore del telefono gira il segno dei sensori solo con almeno
+  // TRIAL_SIGN.detector voti contrari concordi (prima 4 voti in tutto: il 18-19/11 74 cambi in partita con lo stesso telefono)
+  get signNeed(){ return this.engine.natpfUi?.fiera?.on ? TRIAL_SIGN.detector : 0; }
+  _cfg(){ const sn = this.signNeed; this.cfgSn = sn; return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}), ...(this.atNet ? { net: 1 } : {}), ...(sn ? { sn } : {}) }; }
   // a rete: entro NET_Z.in m dalla rete nello scambio; si esce oltre NET_Z.out (isteresi: niente cfg a ogni passo sul confine).
   // Manda cfg al telefono quando cambia; true se è cambiato
   setNet(v){
@@ -978,13 +1009,14 @@ export class NatpfPhoneRacket {
     if (probe != null){
       const was = this.learner.sign;
       this.learner.vote({ ball: probe, want: ballSideNow(this.engine, this.role, T.at), s });
-      if (this.learner.sign !== was) this._signEvent('prova', this.learner.sign);   // (B46: registrato)
+      // (B46: registrato; B71: con i voti che l'hanno deciso, [d'accordo, contrari])
+      if (this.learner.sign !== was){ const v = this.learner.votes; this._signEvent('prova', this.learner.sign, [v.agree, v.against]); }
     }
     s = signedSwing(s, this.learner.sign);   // B35a: con il verso anche la direzione del piatto
     // B35a: il telefono ha girato da sé verso e piatto (voto del rilevatore, profilo semplice): i riferimenti per verso
     // imparati prima stanno dalla parte sbagliata e ripartono, come dopo gli scambi di prova con il segno girato
     // (B46: _detectorSign, lo stesso del messaggio «sgn», e il cambio va nel registro)
-    this._detectorSign(s.absSign === -1 ? -1 : 1);
+    this._detectorSign(s.absSign === -1 ? -1 : 1, s.signVotes);
     // forza e profondità voluta rispetto al proprio colpo tipico imparato giocando (richiesta del 23/10, C4): un colpo più
     // forte del solito va più in fondo, uno più morbido più corto. Prima il riferimento era il gesto della calibrazione,
     // spesso un colpetto (il 23/10 143 °/s): la parte relativa della forza era sempre piena e la profondità non seguiva
@@ -1009,7 +1041,22 @@ export class NatpfPhoneRacket {
     const expect = typeof this.expectSpecial === 'function' ? this.expectSpecial() || null : null, rally = this.engine.phase === 'RALLY';
     if (rally && !expect) this.typicalModel.learn(s.peak, ev.natpf.intent);
     this.lastPrep = null;
-    if (!ev.side) ev.side = sideFromBall(this.engine, this.hand, this.role);
+    // B71: da dove viene il lato del colpo (ls: 'g' gesto, 'a' verso atteso dalla palla, 'p' posizione della palla) e le
+    // misure del verso per il registro (vg verso grezzo dei sensori, vc confidenza, dur durata del gesto, hold attesa
+    // della preparazione)
+    ev.natpf.ls = ev.side ? 'g' : null;
+    if (!ev.side){ ev.side = sideFromBall(this.engine, this.hand, this.role); if (ev.side) ev.natpf.ls = 'p'; }
+    // In fiera, con il verso del gesto incerto (verseUnsure), il lato lo dà la palla: un colpo su tre era letto dalla parte
+    // opposta alla palla, quasi sempre per un errore del verso (registri del 18-19/11). Il lato decide la direzione della
+    // palla anticipata o ritardata e il colpo super (che con il lato dalla palla non è mai «innaturale»)
+    else if (this.engine.natpfUi?.fiera?.on && verseUnsure(s, Number.isFinite(s.at) ? performance.now()/1000 - s.at : null)){
+      const b = ballSide(this.engine, this.hand, this.role);
+      if (b){ ev.side = b.side; ev.natpf.ls = b.src; }
+    }
+    if (s.rawDir === 1 || s.rawDir === -1 || s.rawDir === 0) ev.natpf.vg = s.rawDir;
+    if (Number.isFinite(s.dirConf)) ev.natpf.vc = s.dirConf;
+    if (Number.isFinite(s.dur)) ev.natpf.dur = Math.round(s.dur);
+    if (Number.isFinite(s.holdMs)) ev.natpf.hold = Math.round(s.holdMs);
     // riferimenti personali solo dai colpi normali: prima entravano anche pallonetti e palle corte, e dopo tre di fila il
     // quarto sembrava «normale» (usciva un dritto)
     if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ this.liftModel.add(s.dir, s.lift); this.headModel.add(s.dir, ev.natpf.head); }
@@ -1018,8 +1065,8 @@ export class NatpfPhoneRacket {
     if (teachesNormal(ev, { rally, expect })){ this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading); }
     if (rally && !expect) this.riseModel.learn(s.dir, s.shape?.rise, ev.natpf.intent);
     if (ev.natpf.intent && teachesNormal(ev, { rally, expect })) this.shapeModel.add(ev.natpf.intent.plane, ev.natpf.intent.shapePower);
-    // colpo di prova: insegna i riferimenti solo se è un colpo normale e non debole; marcato per la diagnostica
-    if (probe != null){ this.learner.mark(probe, teachesNormal(ev, { rally, expect })); ev.natpf.prova = true; }
+    // colpo di prova: insegna i riferimenti solo se non è debole (B71: di ogni tipo, trialMark); marcato per la diagnostica
+    if (probe != null){ this.learner.mark(probe, trialMark(ev, { rally, expect })); ev.natpf.prova = true; }
     else if (T) ev.natpf.prova = true;
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // P2 locale dello split screen: come un colpo del Player 2 arrivato dalla rete (natpf_split.js); altrimenti
@@ -1043,7 +1090,8 @@ export class NatpfPhoneRacket {
   // dei colpi con il verso atteso: sg nel colpo, messaggio «sgn») e quello imparato qui dagli scambi di prova
   // (learner.sign, natpf_trial_learn.js). Ogni cambio va alla diagnostica e al registro dello stand: _diag 'verso' con
   // causa ('tocchi' | 'pagina' | 'rilevatore' | 'prova' | 'calibrazione'), stato (il segno nuovo, ±1) e ruolo
-  _signEvent(causa, stato){ this._diag('verso', { causa, stato: stato === -1 ? -1 : 1, ruolo: this.role }); }
+  // (B71: voti = [d'accordo, contrari] che hanno deciso il cambio, quando si sanno: scambi di prova e rilevatore)
+  _signEvent(causa, stato, voti = null){ this._diag('verso', { causa, stato: stato === -1 ? -1 : 1, ruolo: this.role, ...(Array.isArray(voti) && voti.length === 2 ? { voti: [voti[0], voti[1]] } : {}) }); }
   // Segno dell'accelerazione del telefono: cambiato nello stesso collegamento (i tocchi l'hanno votato al contrario) o da
   // un collegamento all'altro (pagina ricaricata, altro telefono). Il segno imparato dagli scambi di prova compensava quello
   // di prima: con il segno nuovo la compensazione girerebbe di nuovo ogni colpo (il 14/11: dritto e rovescio scambiati in
@@ -1065,11 +1113,11 @@ export class NatpfPhoneRacket {
   // Segno del rilevatore del telefono (profilo semplice): i riferimenti per verso imparati prima stanno dalla parte
   // sbagliata e ripartono (B35a). Il segno imparato dagli scambi di prova resta: il voto del rilevatore lo corregge, non lo
   // raddoppia (il telefono vota con il verso atteso già girato da quel segno). true se è cambiato
-  _detectorSign(v){
+  _detectorSign(v, voti = null){
     const sign = v === -1 ? -1 : 1;
     if (sign === (this.phoneSign ?? 1)) return false;
     this.phoneSign = sign; this.aimModel.reset(); this.riseModel.reset(); this.faceModel.reset();
-    this._signEvent('rilevatore', sign);
+    this._signEvent('rilevatore', sign, voti);
     return true;
   }
   onDiag(fn){ this.diagListeners.add(fn); return () => this.diagListeners.delete(fn); }
@@ -1165,7 +1213,9 @@ export class NatpfPhoneRacket {
     if (!keep){ this.gestureCal = false; this.freshPlayer(); }
     // (revisione del B46, punto 7: il segno imparato dagli scambi di prova di prima che torna a +1 si scrive)
     const turned = this.learner.sign === -1;
-    this.learner.reset(); this.trial = { ball: 0, want: 0, keep }; this.lastPhase = null; this.lastExpect = null;
+    // (B71: in fiera il segno cambia solo con prova forte e concorde, TRIAL_SIGN.fiera voti)
+    this.learner.reset(); this.learner.signNeed = this.engine.natpfUi?.fiera?.on ? TRIAL_SIGN.fiera : 0;
+    this.trial = { ball: 0, want: 0, keep }; this.lastPhase = null; this.lastExpect = null;
     if (turned) this._signEvent('prova', 1);
     this._changed();
   }
@@ -1304,6 +1354,8 @@ export class NatpfPhoneRacket {
     if (this.connected && ex !== this.lastExpect){ this.lastExpect = ex; this.link.send({ t: 'ex', d: ex }); }
     // a rete (B17.4): soglie basse sul telefono per i tocchi morbidi, finché si resta entro NET_Z dalla rete nello scambio
     this.setNet(phase === 'play' && this.ready && atNet(this.engine, this.role, !!this.atNet));
+    // B71: modalità fiera accesa o spenta con il telefono già collegato: il segno di fiera va al telefono (cfg sn)
+    if (this.connected && this.gripSent && this.signNeed !== (this.cfgSn ?? 0)) this.link.send(this._cfg());
     if (!this.connected) this.lastPhase = null;
     this._syncPhoneState();
   }

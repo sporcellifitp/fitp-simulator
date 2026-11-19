@@ -8,6 +8,9 @@
 // velocità della testa m/s, velocità della mano m/s] (stroke-shape.js), sg −1 verso e piatto girati dal telefono (B35a).
 // B66 (solo misure per il registro dello stand): mg picco del gesto diviso la soglia che ha superato, gw buco più lungo nei
 // campioni del telefono durante il gesto (ms, solo se c'è stato un buco).
+// B71: vg verso grezzo dei sensori prima del segno del rilevatore (−1, 0, 1), vc confidenza del verso (0…1, 2 decimali:
+// swing-detect.simpleVerse), sv [d'accordo, contrari] i voti che hanno appena girato il segno del rilevatore (solo nel
+// colpo che lo gira). La durata del gesto (dur, ms) e l'attesa della preparazione (hd, ms) c'erano già.
 import { aimFromFace } from './face-tracker.js';
 
 export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, rtt = 80, now = s.t, sampleHz = 60, seq = 0, gapMs = null } = {}){
@@ -29,7 +32,9 @@ export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, 
     ...(Number.isFinite(s.angle) ? { an: Math.round(s.angle) } : {}),
     ...(s.shape ? { sh: [s.shape.plane, s.shape.rise, s.shape.roll, s.shape.tilt, s.shape.head, s.shape.hand] } : {}),
     sd: s.detectMs, hd: s.holdMs, hz: Math.round(sampleHz), n: seq, ...(s.vert ? { vt: s.vert } : {}), ...(sg === -1 ? { sg: -1 } : {}),
-    ...(Number.isFinite(s.margin) ? { mg: s.margin } : {}), ...(Number.isFinite(gapMs) ? { gw: Math.round(gapMs) } : {}) };
+    ...(Number.isFinite(s.margin) ? { mg: s.margin } : {}), ...(Number.isFinite(gapMs) ? { gw: Math.round(gapMs) } : {}),
+    ...(s.rawDir === 1 || s.rawDir === -1 || s.rawDir === 0 ? { vg: s.rawDir } : {}), ...(Number.isFinite(s.dirConf) ? { vc: +Math.max(0, Math.min(1, s.dirConf)).toFixed(2) } : {}),
+    ...(Array.isArray(s.signVotes) && s.signVotes.length === 2 && s.signVotes.every(Number.isInteger) ? { sv: s.signVotes } : {}) };
 }
 
 // Lettura sul computer. at: istante del picco sull'orologio del computer (s); now: adesso (ms, performance.now)
@@ -54,5 +59,8 @@ export function parseSwingMessage(d, { at, now }){
       ? { shape: { plane: n(d.sh[0], -1, 1, 0), rise: n(d.sh[1], -1, 1, 0), roll: n(d.sh[2], -1, 1, 0), tilt: n(d.sh[3], -1, 1, 0), head: n(d.sh[4], 0, 60, 0), hand: n(d.sh[5], 0, 30, 0) } } : {}),
     // B66: margine sulla soglia e buco nei campioni durante il gesto (solo per il registro dello stand)
     ...(typeof d.mg === 'number' && isFinite(d.mg) ? { margin: n(d.mg, 0, 50, 0) } : {}), ...(typeof d.gw === 'number' && isFinite(d.gw) ? { gapMs: n(d.gw, 0, 5000, 0) } : {}),
+    // B71: verso grezzo, confidenza del verso e voti del segno girato (pagine del telefono dalla B71; senza, come prima)
+    ...(d.vg === 1 || d.vg === -1 || d.vg === 0 ? { rawDir: d.vg } : {}), ...(typeof d.vc === 'number' && isFinite(d.vc) ? { dirConf: n(d.vc, 0, 1, 0) } : {}),
+    ...(Array.isArray(d.sv) && d.sv.length === 2 && d.sv.every(v => Number.isInteger(v) && v >= 0 && v < 1000) ? { signVotes: [d.sv[0], d.sv[1]] } : {}),
     receivedAt: now/1000, sentLat: n(d.lat, 0, 5000, null) };
 }

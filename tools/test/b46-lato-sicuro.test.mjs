@@ -92,9 +92,10 @@ test('B46 pagina del telefono: il voto ai tocchi passa da tapVotesSign con la sc
 
 /* ---------- segno del rilevatore: al computer subito ---------- */
 test('B46 pagina del telefono: il rilevatore che gira il segno lo dice subito al computer (sgn)', () => {
-  assert.match(JS, /det\.on\('status', s => \{ if \(s\.s === 'still-ok'\) face\.setRest\(s\.gravity, det\.profile\.bias\); if \(s\.s === 'sign'\) send\(\{ t: 'sgn', d: s\.sign === -1 \? -1 : 1 \}\); \}\);/);
+  // (B71: con i voti che hanno deciso il cambio, v [d'accordo, contrari], per la riga «segno» del registro)
+  assert.match(JS, /det\.on\('status', s => \{ if \(s\.s === 'still-ok'\) face\.setRest\(s\.gravity, det\.profile\.bias\); if \(s\.s === 'sign'\) send\(\{ t: 'sgn', d: s\.sign === -1 \? -1 : 1, \.\.\.\(Array\.isArray\(s\.votes\) \? \{ v: s\.votes \} : \{\}\) \}\); \}\);/);
   const det = readFileSync(new URL('../../site/js/tennis/swing-detect.js', import.meta.url), 'utf8');
-  assert.match(det, /absSign = -absSign; sw\.dir = -sw\.dir;[\s\S]{0,200}emit\('status', \{ s: 'sign', sign: absSign \}\);/, 'il rilevatore annuncia il suo voto (com\'era)');
+  assert.match(det, /absSign = -absSign; sw\.dir = -sw\.dir;[\s\S]{0,400}emit\('status', \{ s: 'sign', sign: absSign, votes: \[agree, against\] \}\);/, 'il rilevatore annuncia il suo voto (com\'era, B71 con i voti)');
 });
 
 class Emitter { constructor(){ this.h = {}; } on(k, f){ (this.h[k] ||= []).push(f); return this; } emit(k, v){ for (const f of this.h[k] || []) f(v); } }

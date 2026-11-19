@@ -388,7 +388,7 @@ export function createPhoneLink({ stand = null } = {}){
         case 'dev': emit('device', { ua: typeof d.ua === 'string' ? d.ua.slice(0, 200) : null, wakeLock: d.wl ?? null, motion: d.dm ?? null, orientation: typeof d.or === 'string' ? d.or.slice(0, 30) : null, screen: Array.isArray(d.sc) ? d.sc.slice(0, 3) : null, version: typeof d.vr === 'string' ? d.vr.slice(0, 40) : null, accSign: d.as === -1 ? -1 : d.as === 1 ? 1 : null, names: d.nm === 1, ...(typeof d.av === 'string' ? { app: d.av.slice(0, 16) } : {}), ...(readStory(d.cd) ? { story: readStory(d.cd) } : {}) }); break;
         // B46: il rilevatore del telefono ha girato il suo segno (swing-detect.js vote, profilo semplice): il computer lo
         // registra subito, senza aspettare il colpo dopo (che lo porta comunque, sg). Le pagine di prima non lo mandano
-        case 'sgn': if (d.d === 1 || d.d === -1) emit('sign', { detector: d.d }); break;
+        case 'sgn': if (d.d === 1 || d.d === -1) emit('sign', { detector: d.d, ...(Array.isArray(d.v) && d.v.length === 2 && d.v.every(x => Number.isInteger(x) && x >= 0 && x < 1000) ? { votes: [d.v[0], d.v[1]] } : {}) }); break;
         // B45.1: il telefono sta per chiudere il canale e dice perché (silenzio, ricollega, pagina, scollega): il motivo della
         // caduta che si vede subito dopo. Le pagine di prima non lo mandano
         case 'cl': if (CLOSE_WORDS.includes(d.w)) clSaid = { w: d.w, at: Date.now() }; break;
