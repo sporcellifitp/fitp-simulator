@@ -122,7 +122,13 @@ tradotti.
 
 ## 4. Prove (numeri)
 
-- `cd natpf-tennis && npm test`: vedi il riepilogo finale del ramo (comando eseguito sul commit finale).
+- `cd natpf-tennis && npm test`: **1885/1885** (sul codice del commit; +13 di `natpf-b72-lingua.test.mjs`). In una corsa
+  precedente, con la macchina carica (tre suite e una prova nel browser insieme), il test a tempo «registro, testi enormi:
+  pulire un testo di 1 MB costa pochi millisecondi» ha misurato 82 ms: rifatto da solo 52/52 verde, poi verde nella corsa
+  completa. Nella stessa corsa precedente `mediapipe-simd` «build del gioco» era rosso per un commento di `racchetta.js`
+  che conteneva `from 'tap'` (la ricerca degli import della pagina del telefono lo prendeva per un import): commento
+  riscritto, verde.
+- `(cd tools/lan && node --test test/*.test.mjs)`: **13/13**.
 - `node --test tools/test/*.test.mjs`: **316/316** (prima 308: +8 di `b72-lingua.test.mjs`).
 - `natpf-tennis/test/natpf-b72-lingua.test.mjs`: **13/13** (regola dello schermo; IT identico; EN per esiti, servizio,
   punti/game/partita con «CPU» e con «Avversario», fine partita e card, pausa del telefono, tabellone, conto, barre;
@@ -133,8 +139,11 @@ tradotti.
   dell'HTML, ogni `ui('…','…')` di `racchetta.js` e ogni testo di `phone-screen.js`, `stand-pairing.js`, `link.js`,
   `link-life.js`, calibrazione e presa in inglese senza parole italiane rimaste).
 - `npm run build`: verde (`dist/natpf/js/tennis/lingua.js` incluso nella pagina del telefono).
-- Browser, `CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-lingua.mjs`: **40/40** (gioco vero con vite e
-  PeerJS locale, telefoni simulati):
+- Browser, `CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-lingua.mjs`: **40/40** sul codice finale (gioco
+  vero con vite e PeerJS locale, telefoni simulati). Corse prima: 32/34 (attese della prova sbagliate: la scritta del colpo
+  dipende da dove arriva la palla ferma, e in partita il telefono è bloccato quindi la barra non si tocca: la prova ora
+  fissa l'arrivo e cambia la lingua dal riquadro bloccato), 40/40, 39/40 (la verifica della pausa leggeva la scritta mentre
+  c'era ancora il lampo dell'esito di 0,9 s: ora aspetta la scritta della pausa), 40/40:
   - A (pagina del telefono, Peer finto): annuncio IT al collegamento; selettore nella barra 86×38 px dentro lo schermo;
     tocco EN → barra «Connected to the PC», anello «Connected», «Turn on the sensors», «Hand · Right | Left»,
     «Language», «Options», `lang="en"`, salvata, messaggio `{t:'lang',l:'en'}`; al servizio «Serving» e l'istruzione;
@@ -154,9 +163,10 @@ tradotti.
     pulsante giallo), `A2-telefono-en` (tutto in inglese; la barra prima andava a capo con «Connected to the computer»:
     ora «Connected to the PC» su una riga), `A5-bloccato-domanda` («IT?» in giallo in alto a destra, «Phone 2 / Play!»),
     `B2` (casella gialla «SERVING» sopra chi batte con l'icona del lancio, riquadro delle istruzioni in inglese, tabellone
-    YOU/OPP), `B3` («OPPONENT'S POINT» con la riga in inglese), `B4` (scheda finale in inglese con la card «MATCH MVP»,
+    YOU/OPP, barra «ENERGY»), `B3` («OPPONENT'S POINT» con la riga in inglese), `B4` (scheda finale in inglese con la card «MATCH MVP»,
     «YOU», «Event level», trofei «On a roll · 4 points in a row», «First time · first match», «4 points won», pillole «1 to
-    0» e «112 points · Guest, not ranked»; pulsanti in italiano), `C2` («AL SERVIZIO» a sinistra, «SERVING» a destra),
+    0» e «112 points · Guest, not ranked»; pulsanti in italiano), `C2` («AL SERVIZIO» e «ENERGIA» a sinistra, «SERVING» e
+    «ENERGY» a destra; tabelloni uguali nelle sigle GIU/MAR e «1 GAME»),
     `C3` («PUNTO MARCO» a tutta larghezza in italiano), `C4` («POINT GIULIA» in inglese con tutti e due EN),
     `C4-telefono-p1-bloccato-en`, `D1-telefono-p2-dopo-nuovo-giocatore` (pagina di nuovo in italiano).
 - Regressioni della pagina del telefono nel browser (server statico su un'altra porta): `natpf-telefono-bloccato.mjs`

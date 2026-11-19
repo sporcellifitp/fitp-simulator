@@ -98,8 +98,9 @@ try {
     const A4 = { big: await txt(p, '#big'), sub: await txt(p, '#sub') };
     check('   esito del colpo dal computer («Fuori · In ritardo») in inglese', A4.big === 'Out' && A4.sub === 'Late', JSON.stringify(A4));
     await p.evaluate(() => fromGame({ t: 'ph', ph: 'pause', txt: 'Partita in pausa: aspetto il telefono di Giulia. Si riprende da soli.' }));
-    await sleep(800);
-    check('   pausa per il telefono dell\'altro giocatore in inglese', /waiting for Giulia's phone/.test(await txt(p, '#sub')), await txt(p, '#sub'));
+    // (finito il lampo dell'esito, 0,9 s: poi la schermata della pausa)
+    const paused = await until(p, () => /waiting for Giulia's phone/.test(document.getElementById('sub').textContent), null, 4000);
+    check('   pausa per il telefono dell\'altro giocatore in inglese', paused, await txt(p, '#sub'));
     // telefono bloccato in partita: la lingua nel riquadro, con due tocchi
     await p.evaluate(() => { fromGame({ t: 'ph', ph: 'play' }); fromGame({ t: 'tl', on: 1, slot: 'p2' }); });
     await until(p, () => __racchetta.state.touchLocked);
