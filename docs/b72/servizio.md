@@ -76,8 +76,8 @@ secondi».
 
 ## Prove (19/11, worktree)
 
-- **Gioco** `cd natpf-tennis && npm test`: vedi il risultato in fondo (nuovo file
-  `test/natpf-b72-servizio-alone.test.mjs`, **9 test**): funzione pura (lampeggio subito, alone a 2,99 s no / 3 s sì, metà
+- **Gioco** `cd natpf-tennis && npm test`: **1880/1881 superati, 0 falliti, 1 saltato** (l'avvio LAN, che vuole
+  `npm ci` in `tools/lan`, non fatto nella worktree). Nuovo file `test/natpf-b72-servizio-alone.test.mjs`, **9 test**: funzione pura (lampeggio subito, alone a 2,99 s no / 3 s sì, metà
   P1/P2, mai con CPU/altro computer/lancio/scambio/fine punto/fine partita/menu/pausa/moviola/allenamento), dalla
   fotografia del coach (CPU, doppio, sfida tra due computer host e Player 2, stesso schermo, esercizio «Servizio»,
   minigiochi, scambi di prova, menu, dimostrazione, moviola, pausa), tempo fermo del coach (2,98 s no, 3 s sì, lancio e
@@ -130,5 +130,11 @@ secondi».
 - Non provati nel browser: allenamento/esercizio «Servizio», minigiochi, scambi di prova e moviola (coperti dai test del
   gioco sulla fotografia del coach e sulla funzione pura); sfida tra due computer con la rete vera (provata con il ruolo
   del Player 2 sullo stesso motore, come `natpf-chi-serve`).
-- `tools/e2e/natpf-chi-serve.mjs` (posizione e aspetto della casella del B37.1) e `natpf-stesso-schermo-b20.mjs`: vedi
-  il risultato in fondo.
+- `tools/e2e/natpf-chi-serve.mjs` (posizione e aspetto della casella del B37.1, non toccato, rifatto come controllo):
+  **36/36 verifiche fatte superate** (Classici contro la CPU a 1920×1080 e 1280×720, prima persona, computer del Player 2,
+  stesso schermo; Lob & Drop contro la CPU; costo del riquadro +0,07 ms), con la casella che lampeggia mentre si misura:
+  posizione al pixel, fondo `rgb(232, 255, 58)`, bordo scuro e misura del carattere invariati. Poi la prova è stata
+  fermata dal tempo massimo (28 min, macchina condivisa con un altro agente e grafica in software): **non fatti** Lob &
+  Drop sul computer del Player 2 e nello stesso schermo, e i due casi dell'area stretta 720×720.
+- `tools/e2e/natpf-stesso-schermo-b20.mjs` (richiamo per nome a 9 s nello stesso schermo, con due telefoni simulati):
+  **non rifatto**; i test del gioco `natpf-b20-stesso-schermo` e `natpf-b25-stesso-schermo` sono verdi.
