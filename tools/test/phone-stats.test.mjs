@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { createSampleStats, createLockStats, appStatus, createAppReader, BUCO } from '../../site/js/tennis/phone-stats.js';
+import { createSampleStats, createLockStats, appStatus, createAppReader, BUCO, TOCCO } from '../../site/js/tennis/phone-stats.js';
 import { swingMessage, parseSwingMessage } from '../../site/js/tennis/swing-message.js';
 import { createSwingDetector } from '../../site/js/tennis/swing-detect.js';
 import { PROFILE_2810, WINDOWS_2810 } from './session-28-10.data.mjs';
@@ -42,6 +42,30 @@ test('B66: buco durante il gesto solo se c’è (finestra dei campioni), saturaz
   Q.feed(0, { accG: [39.2, 1, 1], rot: [100, 0, 0] }); Q.feed(10, { accG: [39.2, 2, 1], rot: [2000, 0, 0] }); Q.feed(20, { accG: [12, 2, 1], rot: [-2000, 0, 0] }); Q.feed(30, { accG: [3, 2, 1], rot: [1500, 0, 0] });
   const r = Q.report(); assert.equal(r[5], 1, 'accelerazione: 39,2 due volte'); assert.equal(r[6], 1, 'rotazione: 2000 due volte');
   assert.equal(BUCO.volte, 2);
+});
+
+test('B71: per ogni buco i ms dall’ultimo tocco; valore più grande visto per asse (da confrontare con il fondo scala)', () => {
+  const S = createSampleStats();
+  let t = 1000;
+  for (let i = 0; i < 30; i++){ S.feed(t, { rot: [10, -1450.6, 30], accG: [0, 9.8, i === 12 ? -78.5 : 0] }); t += 16.7; }
+  // buco senza tocchi dall'apertura della pagina: null
+  t += 200; S.feed(t, {});
+  // tocco 40 ms prima dell'inizio del buco (il blocco del B51 in partita), poi il buco da ~200 ms
+  t += 16.7; S.feed(t, {}); S.touch(t - 40); t += 210; S.feed(t, {});
+  // tocco arrivato durante il buco: negativo
+  t += 16.7; S.feed(t, {}); S.touch(t + 50); t += 190; S.feed(t, {});
+  assert.deepEqual(S.gapTouches(), [null, 40, -50]);
+  assert.deepEqual(S.gapTouches(), [], 'da capo dopo la lettura');
+  const r = S.report();
+  assert.equal(r[2], 3);
+  assert.deepEqual(r.slice(7), [78.5, 1451], 'accelerazione più grande |−78,5| m/s², rotazione |−1450,6| °/s');
+  S.feed(t + 16.7, { accG: [1, 9.7, 2] });
+  assert.deepEqual(S.report().slice(7), [9.7, 0], 'da capo a ogni rapporto');
+  // tanti buchi: al più TOCCO.max valori per rapporto
+  const M = createSampleStats(); let u = 0;
+  for (let i = 0; i < 60; i++){ M.feed(u, {}); u += 16.7; }
+  for (let i = 0; i < 40; i++){ M.feed(u, {}); u += 100; }
+  assert.equal(M.gapTouches().length, TOCCO.max);
 });
 
 test('B66: telefono bloccato, conti del blocco', () => {

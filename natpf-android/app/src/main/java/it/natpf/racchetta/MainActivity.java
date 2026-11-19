@@ -21,6 +21,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -69,6 +70,11 @@ import com.journeyapps.barcodescanner.ScanOptions;
  * B66 (1.0.4): il ponte dà alla pagina anche lo stato del telefono per il registro dello stand (PhoneStatus: segnale e banda
  * della Wi-Fi, velocità, batteria, carica, temperatura, «Fissa app», schermi spenti), solo numeri: mai nome della rete,
  * indirizzi o identificativi.
+ * B71 (1.0.5, registri della fiera del 18 e 19/11, docs/b71/sensori.md): segnale e velocità della Wi-Fi letti davvero (da
+ * Android 10 networkId vale sempre −1 senza il permesso della posizione e prima si buttavano); sensori presi dall'app
+ * (SensoriNativi: stessi valori di devicemotion, istante vero, consegnati a lotti, nessun campione perso se la pagina si
+ * ferma) con le caratteristiche dei sensori (infoSensori); lo schermo spento con il tasto di accensione mentre si gioca si
+ * riaccende da solo (RisveglioSchermo).
  * Niente di tutto questo è provato su un telefono vero (docs/b52/app-android.md).
  */
 public class MainActivity extends Activity {
@@ -105,8 +111,15 @@ public class MainActivity extends Activity {
   /** B66: schermi spenti dall'avvio dell'app (per il registro dello stand: telefono bloccato e schermo spento). */
   private volatile int screensOff;
   private final BroadcastReceiver screenOff = new BroadcastReceiver() {
-    @Override public void onReceive(Context c, Intent i) { if (Intent.ACTION_SCREEN_OFF.equals(i.getAction())) screensOff++; }
+    @Override public void onReceive(Context c, Intent i) { if (Intent.ACTION_SCREEN_OFF.equals(i.getAction())) schermoSpento(); }
   };
+  /** B71: sensori presi dall'app per la pagina (Bridge.campioni) e schermo da riaccendere se si spegne giocando. */
+  private SensoriNativi sensori;
+  private final RisveglioSchermo risveglio = new RisveglioSchermo();
+  private PowerManager.WakeLock sveglia;
+  /** Attesa tra lo spegnimento e la riaccensione (lo schermo finisce di spegnersi) e durata del wake lock. */
+  private static final long RISVEGLIO_DOPO_MS = 300, RISVEGLIO_DURA_MS = 3000;
+  private final Runnable riaccendi = this::riaccendiSchermo;
 
   private final Runnable retry = () -> { if (current != null && web != null) web.loadUrl(current); };
 
@@ -114,6 +127,8 @@ public class MainActivity extends Activity {
     super.onCreate(state);
     prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    sensori = new SensoriNativi(this);
+    mostraSulBlocco();
     root = new FrameLayout(this);
     root.setBackgroundColor(Color.rgb(8, 16, 34));
     if (Build.VERSION.SDK_INT >= 30) {
@@ -163,6 +178,7 @@ public class MainActivity extends Activity {
 
   private void showStart(String note) {
     ui.removeCallbacks(retry);
+    sensori.ferma();
     if (web != null) web.setVisibility(View.GONE);
     banner.setVisibility(View.GONE);
     if (start == null) {
@@ -255,7 +271,8 @@ public class MainActivity extends Activity {
         // dentro l'app solo la pagina del PC che l'ha aperta; tutto il resto resta fuori (niente browser)
         return current == null || !RacketLink.sameOrigin(current, req.getUrl().toString());
       }
-      @Override public void onPageStarted(WebView view, String url, Bitmap favicon) { pageFailed = false; }
+      // (B71: una pagina nuova chiede di nuovo i sensori dell'app se li vuole; fino ad allora spenti)
+      @Override public void onPageStarted(WebView view, String url, Bitmap favicon) { pageFailed = false; sensori.ferma(); }
       @Override public void onPageFinished(WebView view, String url) {
         // dopo un errore arriva anche la fine del caricamento (della pagina d'errore): l'avviso resta e l'app NON si
         // fissa (nella 1.0.1 si fissava su una pagina vuota e lo staff restava bloccato senza sapere perché)
@@ -324,7 +341,10 @@ public class MainActivity extends Activity {
     banner.bringToFront();
   }
 
-  /** Ponte per la pagina: l'orientamento, la versione dell'app e (B66) lo stato del telefono a grandi linee. */
+  /**
+   * Ponte per la pagina: l'orientamento, la versione dell'app, (B66) lo stato del telefono a grandi linee e (B71) i sensori
+   * presi dall'app e il telefono in uso. I metodi girano nel thread del ponte della WebView, non in quello principale.
+   */
   private final class Bridge {
     @JavascriptInterface public void lock(String o) {
       final int want = o != null && o.startsWith("landscape") ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
@@ -333,6 +353,68 @@ public class MainActivity extends Activity {
     @JavascriptInterface public String version() { return versionName(); }
     /** B66: lo stato del telefono per il registro dello stand (PhoneStatus.json: solo numeri). La pagina lo chiede ogni 5 s. */
     @JavascriptInterface public String stato() { return phoneStatus(); }
+    /** B71: versione del protocollo dei sensori dell'app (CampioniNativi.PROTOCOLLO), 0 se ne manca uno. */
+    @JavascriptInterface public int sensoriVersione() { return sensori.disponibili() ? CampioniNativi.PROTOCOLLO : 0; }
+    /** B71: accende i sensori dell'app (60 Hz); true se sono accesi. */
+    @JavascriptInterface public boolean sensoriAvvia() { return sensori.avvia(); }
+    /** B71: spegne i sensori dell'app. */
+    @JavascriptInterface public void sensoriFerma() { sensori.ferma(); }
+    /** B71: i campioni arrivati dall'ultima chiamata (CampioniNativi.svuota). La pagina li chiede ~60 volte al secondo. */
+    @JavascriptInterface public String campioni() { return sensori.campioni(); }
+    /** B71: l'orologio dei campioni (elapsedRealtime in ms, con i decimali), per allinearli a performance.now() della pagina. */
+    @JavascriptInterface public double orologio() { return SystemClock.elapsedRealtimeNanos() / 1e6; }
+    /** B71: fondo scala, risoluzione, periodo minimo e FIFO di accelerometro, giroscopio e accelerazione lineare (solo numeri). */
+    @JavascriptInterface public String infoSensori() { return sensori.info(); }
+    /** B71: la pagina dice se il telefono è in uso (partita, calibrazione, telefono bloccato): lo schermo spento si riaccende. */
+    @JavascriptInterface public void inUso(boolean v) { risveglio.inUso(v); }
+  }
+
+  // ---------- B71: schermo spento con il tasto di accensione mentre si gioca ----------
+
+  /** Mostrata anche sopra la schermata di blocco, con lo schermo che si accende quando torna in primo piano. */
+  @SuppressWarnings("deprecation")
+  private void mostraSulBlocco() {
+    if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true); }
+    else getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+  }
+
+  /** App fissata con la pagina della racchetta aperta: vale come «in uso» con le pagine di prima della 1.0.5. */
+  private boolean fissataConPagina() {
+    if (current == null || web == null || web.getVisibility() != View.VISIBLE || pageFailed) return false;
+    try {
+      ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+      return am != null && am.getLockTaskModeState() != ActivityManager.LOCK_TASK_MODE_NONE;
+    } catch (RuntimeException e) { return false; }
+  }
+
+  private void schermoSpento() {
+    screensOff++;
+    if (risveglio.spento(SystemClock.elapsedRealtime(), fissataConPagina())) {
+      ui.removeCallbacks(riaccendi);
+      ui.postDelayed(riaccendi, RISVEGLIO_DOPO_MS);
+    }
+  }
+
+  /**
+   * Schermo di nuovo acceso: un wake lock che sveglia il telefono (ACQUIRE_CAUSES_WAKEUP, per qualche secondo); l'attività,
+   * mostrata sopra il blocco, torna in primo piano e FLAG_KEEP_SCREEN_ON tiene acceso lo schermo. Con targetSdk 34 non
+   * serve il permesso TURN_SCREEN_ON (Android lo chiede solo alle app fatte per Android 15 e oltre: compat change
+   * REQUIRE_TURN_SCREEN_ON_PERMISSION). Nessun permesso nuovo: WAKE_LOCK c'era già (Wi-Fi).
+   */
+  @SuppressWarnings("deprecation")
+  private void riaccendiSchermo() {
+    try {
+      PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+      if (pm == null || pm.isInteractive()) return;
+      if (sveglia == null) {
+        sveglia = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE,
+            "natpf-racchetta:schermo");
+        sveglia.setReferenceCounted(false);
+      }
+      sveglia.acquire(RISVEGLIO_DURA_MS);
+    } catch (RuntimeException e) {
+      lastError = "schermo: " + e.getClass().getSimpleName();
+    }
   }
 
   // ---------- B66: stato del telefono per il registro dello stand ----------
@@ -344,7 +426,9 @@ public class MainActivity extends Activity {
     try {
       WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
       WifiInfo w = wm != null ? wm.getConnectionInfo() : null;
-      if (w != null && w.getNetworkId() != -1) { rssi = w.getRssi(); mhz = w.getFrequency(); mbps = w.getLinkSpeed(); }
+      // B71: da Android 10, senza il permesso della posizione, networkId vale sempre −1 (come SSID e BSSID): la condizione
+      // di prima era sempre falsa e segnale, banda e velocità non arrivavano mai. Collegata = frequenza e segnale veri
+      if (w != null && PhoneStatus.wifiCollegata(w.getFrequency(), w.getRssi())) { rssi = w.getRssi(); mhz = w.getFrequency(); mbps = w.getLinkSpeed(); }
     } catch (RuntimeException e) { /* Wi-Fi non leggibile: niente rete */ }
     try {
       Intent b = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
@@ -391,11 +475,16 @@ public class MainActivity extends Activity {
     }
     if (wifiLock != null) wifiLock.acquire();
     if (web != null) { web.onResume(); if (current != null && web.getVisibility() == View.VISIBLE) pin(); }
+    // B71: sensori dell'app di nuovo accesi (se la pagina li voleva); lo schermo è acceso, il wake lock non serve più
+    sensori.primoPiano();
+    ui.removeCallbacks(riaccendi);
+    if (sveglia != null && sveglia.isHeld()) sveglia.release();
   }
 
   @Override protected void onPause() {
     if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
     if (web != null) web.onPause();
+    sensori.sfondo();
     super.onPause();
   }
 
@@ -445,6 +534,9 @@ public class MainActivity extends Activity {
   @Override protected void onDestroy() {
     ui.removeCallbacksAndMessages(null);
     try { unregisterReceiver(screenOff); } catch (IllegalArgumentException e) { /* già tolto */ }
+    sensori.ferma();
+    ui.removeCallbacks(riaccendi);
+    if (sveglia != null && sveglia.isHeld()) sveglia.release();
     if (web != null) { web.destroy(); web = null; }
     if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
     super.onDestroy();

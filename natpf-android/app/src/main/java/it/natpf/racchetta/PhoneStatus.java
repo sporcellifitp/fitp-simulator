@@ -16,6 +16,13 @@ public final class PhoneStatus {
   /** Valore che manca (Wi-Fi spenta, batteria non letta…). */
   public static final int NONE = Integer.MIN_VALUE;
 
+  /**
+   * B71 (1.0.5): Wi-Fi collegata, dai soli numeri che Android dà anche senza il permesso della posizione: frequenza del
+   * canale (MHz, −1 o 0 senza rete) e segnale (dBm, −127 senza rete). Prima (1.0.4) si guardava networkId, che da Android
+   * 10 senza quel permesso vale sempre −1: segnale, banda e velocità non sono mai arrivati nei registri del 18 e 19/11.
+   */
+  public static boolean wifiCollegata(int mhz, int rssi) { return mhz > 0 && rssi > -127 && rssi <= 0; }
+
   /** Banda della Wi-Fi in GHz dalla frequenza del canale (MHz): 2.4, 5, 6; 0 se non si sa. */
   public static double band(int mhz) {
     if (mhz >= 2400 && mhz < 2500) return 2.4;

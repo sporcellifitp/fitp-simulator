@@ -33,6 +33,16 @@ public class PhoneStatusTest {
     assertEquals("{}", PhoneStatus.json(N, 0, N, N, -1, N, -1, -1));
   }
 
+  // B71 (1.0.5): la Wi-Fi si riconosce da frequenza e segnale, non da networkId (sempre −1 da Android 10 senza la posizione)
+  @Test public void wifiCollegataSenzaNetworkId() {
+    assertTrue(PhoneStatus.wifiCollegata(5180, -58));
+    assertTrue(PhoneStatus.wifiCollegata(2437, -90));
+    assertFalse("Wi-Fi spenta: frequenza −1, segnale −127", PhoneStatus.wifiCollegata(-1, -127));
+    assertFalse("frequenza 0", PhoneStatus.wifiCollegata(0, -60));
+    assertFalse("segnale non valido", PhoneStatus.wifiCollegata(5180, -127));
+    assertFalse("segnale fuori scala", PhoneStatus.wifiCollegata(5180, 5));
+  }
+
   @Test public void maiNomiDiReteOIndirizzi() {
     String s = PhoneStatus.json(-60, 5500, 300, 50, 0, 280, 1, 1);
     for (String vietato : new String[] {"ssid", "bssid", "ip", "mac", "nome", "\"id\""}) assertFalse(vietato, s.toLowerCase().contains(vietato));

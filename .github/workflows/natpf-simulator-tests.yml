@@ -48,6 +48,7 @@ jobs:
           node --input-type=module --check < site/js/tennis/viewpoint.js
           node --input-type=module --check < site/js/tennis/sweet-spot.js
           node --input-type=module --check < site/js/tennis/racchetta.js
+          node --input-type=module --check < site/js/tennis/sensori-nativi.js
 
   browser-smoke:
     name: Browser ${{ matrix.name }} tests
@@ -58,7 +59,7 @@ jobs:
       matrix:
         include:
           - name: phone and timing
-            command: node tools/e2e/run-local.mjs phone-only.mjs timing-browser.mjs
+            command: node tools/e2e/run-local.mjs phone-only.mjs timing-browser.mjs natpf-sensori-nativi.mjs
           - name: gesture and calibration
             command: node tools/e2e/run-local.mjs gesture-calibration.mjs
           - name: arcade visuals
