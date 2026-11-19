@@ -117,8 +117,16 @@ public class MainActivity extends Activity {
   private SensoriNativi sensori;
   private final RisveglioSchermo risveglio = new RisveglioSchermo();
   private PowerManager.WakeLock sveglia;
-  /** Attesa tra lo spegnimento e la riaccensione (lo schermo finisce di spegnersi) e durata del wake lock. */
-  private static final long RISVEGLIO_DOPO_MS = 300, RISVEGLIO_DURA_MS = 3000;
+  /**
+   * B71 (revisione): wake lock parziale (solo la CPU) tra lo schermo spento e la riaccensione. postDelayed conta il tempo
+   * con uptimeMillis, che si ferma nel sonno profondo: con lo schermo spento il telefono può addormentarsi in quei 300 ms e
+   * la riaccensione partire dopo secondi (sommando le brevi sveglie della Wi-Fi) o mai. Si prende dentro onReceive, che gira
+   * ancora sotto il wake lock della trasmissione di sistema, quindi senza buchi; si lascia appena lo schermo si riaccende.
+   */
+  private PowerManager.WakeLock ponte;
+  /** Attesa tra lo spegnimento e la riaccensione (lo schermo finisce di spegnersi), durata del wake lock che lo riaccende e
+   *  margine del wake lock parziale oltre l'attesa (se la riaccensione non arriva, si lascia da solo). */
+  private static final long RISVEGLIO_DOPO_MS = 300, RISVEGLIO_DURA_MS = 3000, PONTE_MARGINE_MS = 1000;
   private final Runnable riaccendi = this::riaccendiSchermo;
 
   private final Runnable retry = () -> { if (current != null && web != null) web.loadUrl(current); };
@@ -179,6 +187,8 @@ public class MainActivity extends Activity {
   private void showStart(String note) {
     ui.removeCallbacks(retry);
     sensori.ferma();
+    // (B71, revisione: sulla schermata d'avvio il telefono non è in uso, anche se la pagina nascosta diceva «in uso»)
+    risveglio.azzera();
     if (web != null) web.setVisibility(View.GONE);
     banner.setVisibility(View.GONE);
     if (start == null) {
@@ -272,7 +282,8 @@ public class MainActivity extends Activity {
         return current == null || !RacketLink.sameOrigin(current, req.getUrl().toString());
       }
       // (B71: una pagina nuova chiede di nuovo i sensori dell'app se li vuole; fino ad allora spenti)
-      @Override public void onPageStarted(WebView view, String url, Bitmap favicon) { pageFailed = false; sensori.ferma(); }
+      // (B71, revisione: quello che diceva la pagina di prima su «in uso» non vale per la pagina nuova)
+      @Override public void onPageStarted(WebView view, String url, Bitmap favicon) { pageFailed = false; sensori.ferma(); risveglio.azzera(); }
       @Override public void onPageFinished(WebView view, String url) {
         // dopo un errore arriva anche la fine del caricamento (della pagina d'errore): l'avviso resta e l'app NON si
         // fissa (nella 1.0.1 si fissava su una pagina vuota e lo staff restava bloccato senza sapere perché)
@@ -378,21 +389,47 @@ public class MainActivity extends Activity {
     else getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
   }
 
+  /** La pagina della racchetta è aperta: visibile (non la schermata d'avvio) e arrivata. */
+  private boolean paginaAperta() {
+    return current != null && web != null && web.getVisibility() == View.VISIBLE && !pageFailed;
+  }
+
   /** App fissata con la pagina della racchetta aperta: vale come «in uso» con le pagine di prima della 1.0.5. */
   private boolean fissataConPagina() {
-    if (current == null || web == null || web.getVisibility() != View.VISIBLE || pageFailed) return false;
+    if (!paginaAperta()) return false;
     try {
       ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
       return am != null && am.getLockTaskModeState() != ActivityManager.LOCK_TASK_MODE_NONE;
     } catch (RuntimeException e) { return false; }
   }
 
+  // (gira nel thread principale: il ricevitore è registrato senza Handler)
   private void schermoSpento() {
     screensOff++;
-    if (risveglio.spento(SystemClock.elapsedRealtime(), fissataConPagina())) {
+    if (risveglio.spento(SystemClock.elapsedRealtime(), paginaAperta(), fissataConPagina())) {
+      tieniSveglio();
       ui.removeCallbacks(riaccendi);
       ui.postDelayed(riaccendi, RISVEGLIO_DOPO_MS);
     }
+  }
+
+  /** B71 (revisione): la CPU resta sveglia fino alla riaccensione (al più RISVEGLIO_DOPO_MS + PONTE_MARGINE_MS). */
+  private void tieniSveglio() {
+    try {
+      if (ponte == null) {
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (pm == null) return;
+        ponte = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "natpf-racchetta:risveglio");
+        ponte.setReferenceCounted(false);
+      }
+      ponte.acquire(RISVEGLIO_DOPO_MS + PONTE_MARGINE_MS);
+    } catch (RuntimeException e) {
+      lastError = "risveglio: " + e.getClass().getSimpleName();
+    }
+  }
+
+  private void lasciaPonte() {
+    try { if (ponte != null && ponte.isHeld()) ponte.release(); } catch (RuntimeException e) { /* già scaduto */ }
   }
 
   /**
@@ -414,6 +451,8 @@ public class MainActivity extends Activity {
       sveglia.acquire(RISVEGLIO_DURA_MS);
     } catch (RuntimeException e) {
       lastError = "schermo: " + e.getClass().getSimpleName();
+    } finally {
+      lasciaPonte();
     }
   }
 
@@ -479,6 +518,7 @@ public class MainActivity extends Activity {
     sensori.primoPiano();
     ui.removeCallbacks(riaccendi);
     if (sveglia != null && sveglia.isHeld()) sveglia.release();
+    lasciaPonte();
   }
 
   @Override protected void onPause() {
@@ -537,6 +577,7 @@ public class MainActivity extends Activity {
     sensori.ferma();
     ui.removeCallbacks(riaccendi);
     if (sveglia != null && sveglia.isHeld()) sveglia.release();
+    lasciaPonte();
     if (web != null) { web.destroy(); web = null; }
     if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
     super.onDestroy();

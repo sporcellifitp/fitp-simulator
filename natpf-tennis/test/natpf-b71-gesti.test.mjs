@@ -191,6 +191,52 @@ test('B71 in fiera, con il verso incerto, il lato viene dalla palla (ls «a» o 
   }
 });
 
+// B71, revisione: con il lato dalla palla cambia il verso di tutto il colpo. Prima cambiava solo ev.side: gli scambi di prova
+// contavano il colpo nel verso scartato (a schermo 4 dritti e 2 rovesci, imparati 0 e 6, «partial», 6 palle invece di 4) e i
+// riferimenti del dritto finivano nel rovescio
+test('B71 revisione: in fiera, con le palle del dritto lette al contrario e il verso incerto (vc 0,2), gli scambi di prova contano i dritti come a schermo', async () => {
+  for (const hand of ['right', 'left']) for (const fair of [true, false]){
+    const w = await playWorld(), { ui, P } = w; ui.fiera.on = fair; if (hand === 'left') P.setHand('left', 'gioco');
+    const shown = [], gs = []; P.onSwing((ev, s) => { if (ev.natpf?.prova && ev.side){ shown.push(ev.side); if (s.dirConf < .35) gs.push([ev.side, ev.natpf.gs ?? null, ev.natpf.ls]); } });
+    let res = null, balls = null; const end = P.endTrial.bind(P);
+    P.endTrial = () => { balls = ui.trial.S?.players?.p1?.balls ?? null; return (res = end()); };
+    const fhWant = wantOfSide('forehand', hand);
+    playTrial(w, (id, n, want) => {
+      const wrong = want === fhWant;
+      return { ...stroke({ dir: wrong ? -want : want, peak: 700, heading: wrong ? 20 : -150 }), dur: 180, dirConf: wrong ? .2 : .9, rawDir: wrong ? -want : want };
+    }, { gioca: false });
+    const tag = `${hand} ${fair ? 'fiera' : 'senza fiera'}`;
+    assert.ok(res, tag); assert.equal(res.sign, 1, `${tag}: contrari da un lato solo, il segno non gira`);
+    if (fair){
+      const fh = shown.filter(s => s === 'forehand').length, bh = shown.filter(s => s === 'backhand').length;
+      assert.ok(fh >= 2 && bh >= 2, `${tag}: a schermo ${fh} dritti e ${bh} rovesci`);
+      assert.ok(res.n.forehand >= 2, `${tag}: dritti imparati ${JSON.stringify(res.n)} (prima 0)`);
+      assert.deepEqual([res.n.forehand, res.n.backhand], [fh, bh], `${tag}: i puntini contano quello che si è visto`);
+      assert.equal(res.level, 'full', tag); assert.equal(balls, 4, `${tag}: quattro palle bastano (prima sei)`);
+      // i riferimenti del dritto dai dritti: centro della mira del dritto dalla direzione del piatto dei dritti (20°)
+      const fd = wantOfSide('forehand', hand);
+      assert.equal(P.profile.trialN[fd], fh, tag); assert.equal(P.profile.faceRef[fd].heading, 20, tag); assert.equal(P.profile.faceRef[-fd].heading, -150, tag);
+      // il lato del gesto resta nel colpo (natpf.gs) per la regola KEEP del motore
+      assert.ok(gs.length >= 2 && gs.every(([side, g, ls]) => side === 'forehand' && g === 'backhand' && ['a', 'p'].includes(ls)), `${tag}: ${JSON.stringify(gs)}`);
+    } else {
+      // senza fiera com'era: il verso del gesto decide, i dritti letti al contrario sono rovesci
+      assert.equal(shown.filter(s => s === 'forehand').length, 0, tag); assert.equal(res.n.forehand, 0, tag); assert.ok(gs.every(([, g]) => g == null), tag);
+    }
+  }
+});
+
+test('B71 revisione: il colpo contato nel verso della palla resta lì anche se il segno gira dopo, negli stessi scambi di prova', () => {
+  const L = createTrialLearner({ signNeed: TRIAL_SIGN.fiera });
+  // telefono davvero al contrario. Palla 1: verso incerto, lato dalla palla (+1, mostrato dritto) uguale al verso letto
+  // allora (+1, d'accordo); poi sei colpi contrari dai due lati e il segno gira alla settima palla
+  const balls = [[1, 1, 1], [-1, 1, null], [1, -1, null], [-1, 1, null], [1, -1, null], [-1, 1, null], [1, -1, null]];
+  balls.forEach(([want, raw, dir], i) => { L.vote({ ball: i + 1, want, s: S(raw, 700) }); L.mark(i + 1, info('topspin', dir ? { dir } : {})); });
+  assert.equal(L.sign, -1, 'sei contrari dai due lati (e uno d\'accordo): il segno gira');
+  assert.deepEqual(L.counts('right'), { 1: 4, '-1': 3, forehand: 4, backhand: 3, total: 7 }, 'la palla 1 resta nel dritto mostrato (con segno·verso letto finirebbe nel rovescio)');
+  assert.deepEqual(L.votes, { agree: 1, against: 6, both: true }, 'i voti restano sul verso grezzo');
+  assert.equal(L.samples[0].dir, 1); assert.equal(L.samples[1].dir, null);
+});
+
 test('B71 colpo super: con il lato dalla palla non è mai «innaturale»; con il lato dal gesto la regola resta', () => {
   const base = { intent: { shot: 'topspin', power: 1, typePower: 1, conf: .9 }, out: { shot: 'TOPSPIN', t: 0, q: 1 }, contactY: 1.8, ballVz: 15 };
   assert.match(superShot({ ...base, contact: 1, ballSide: -1 }).why[0], /innaturale/);
@@ -233,7 +279,7 @@ test('B71 palla corta lenta (sotto il 30% del colpo tipico) fatta molto in antic
   assert.equal(NI.earlySoftSpecial(phoneSwing({ shot: 'drop', power: .2, conf: .7 }, { peak: 300, typical: 800 })), false, 'sopra il 30%: no');
   // il colpo vero arriva 0,1 s dopo il punto d'impatto: prima la palla corta in anticipo era già giocata (65 ms di attesa)
   const r = withEngine('pro', e => { cpuShot(e); return play(e, [{ lead: .35, swing: drop() }, { lead: -.1, swing: hit }]); });
-  assert.ok(r.hit, r.phase); assert.equal(r.racket.seq ?? r.racket.intent?.shot, r.racket.seq ?? 'topspin');
+  assert.ok(r.hit, r.phase); assert.equal(r.racket.seq, 2, 'si gioca il secondo gesto');
   assert.equal(r.racket.intent.shot, 'topspin', 'si gioca il colpo vero');
   // fatta in tempo (entro la finestra) la palla corta resta una palla corta
   const ok = withEngine('pro', e => { cpuShot(e); return play(e, [{ lead: .06, swing: drop() }]); });
@@ -257,7 +303,7 @@ test('B71 registro: riga «colpo» con vg, vc, dur, hold, ls (solo numeri e codi
   dg('verso', { causa: 'rilevatore', stato: -1, ruolo: 'p1', voti: [1, 'x'] });
   const rows = R.buf.map(l => JSON.parse(l)).filter(r => r.k === 'tel').map(({ t, ...r }) => r);
   assert.deepEqual(rows, [{ k: 'tel', chi: 'g', motivo: 'segno', stato: -1, causa: 'prova', ruolo: 'p1', voti: [0, 6] }, { k: 'tel', chi: 'g', motivo: 'segno', stato: -1, causa: 'rilevatore', ruolo: 'p1' }]);
-  for (const r of rows) assert.deepEqual(F.controllaRiga({ ...r, t: 1 }).riga ?? F.controllaRiga({ ...r, t: 1 }), F.controllaRiga({ ...r, t: 1 }).riga ?? F.controllaRiga({ ...r, t: 1 }));
+  for (const r of rows) assert.deepEqual(F.controllaRiga({ ...r, t: 1 }), [], JSON.stringify(r));
 });
 
 test('B71 lato dalla palla: dal verso atteso (palla in arrivo, oltre la zona del corpo), altrimenti dalla posizione', () => {

@@ -567,7 +567,7 @@ test('registro, B36.0: la riga del colpo aspetta il primo rimbalzo vero (rx, rz,
   E.ball.lastHitter = 'opponent'; M.avanti(800); E._awardPoint('player', 'Nice Shot!');
   await R.blocco();
   const rows = await tutte(M.coda), colpi = rows.filter(r => r.k === 'colpo'), [partita] = rows.filter(r => r.k === 'partita'), [avvio] = rows.filter(r => r.k === 'avvio');
-  assert.equal(avvio.v, 3, 'formato delle righe 3: con i campi della direzione e le misure del B66'); assert.equal(partita.dir, 'classica');
+  assert.equal(avvio.v, 4, 'formato delle righe 4: con i campi della direzione, le misure del B66 e i campi del B71'); assert.equal(partita.dir, 'classica');
   const v = c => [c.pf, c.dv, c.tu, c.rx, c.rz, c.fu, c.nr];
   assert.deepEqual(colpi.map(v), [
     [.42, 8.9, -.38, 1.41, -8.62, undefined, undefined],
@@ -798,4 +798,17 @@ test('registro, B71: colpo a vuoto «tardi» con l’errore di tempo e la forza;
   assert.equal((await tutte(M0.coda)).find(r => r.k === 'partita').displayLagMs, 0);
   const Mm = mondo({ ctrl: 'mouse' }); Mm.ui.lobby.visible = false; Mm.E.startNewMatch(); await Mm.R.blocco();
   assert.equal((await tutte(Mm.coda)).find(r => r.k === 'partita').displayLagMs, undefined);
+});
+
+// B71, revisione: la modalità fiera (natpfUi.fiera.on) decide correzione dell'anticipo, ritardo dello schermo non sommato,
+// «Perfetto» e segno di fiera, ma non era scritta: «fiera» e stand.fiera sono il formato della partita in fiera
+test('registro, B71 revisione: la riga «partita» dice la modalità fiera (stand.modo), che non è il formato in fiera', async () => {
+  for (const [on, fair] of [[true, false], [false, true], [false, false]]){
+    const M = mondo(), { E, ui } = M; E.natpfUi = ui; ui.fiera = { on }; E.score.fair = fair;
+    ui.lobby.visible = false; E.startNewMatch(); await M.R.blocco();
+    const p = (await tutte(M.coda)).find(r => r.k === 'partita'), tag = `fiera ${on} formato ${fair}`;
+    assert.equal(p.stand.modo, on ? 'fiera' : undefined, tag); assert.equal(p.fiera, fair, tag);
+    assert.deepEqual(F.controllaRiga(p, { nomi: M.nomi }), [], tag);
+    const W = await import('../cloudflare/registro-worker.js'); assert.deepEqual(W.pulisci(p), p, `${tag}: anche il Worker (modo è un campo di sempre)`);
+  }
 });

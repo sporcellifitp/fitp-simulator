@@ -1,4 +1,5 @@
 import { ballY, estimateLag, lagPlan, proposeLag } from './natpf_lag_measure.js';
+import { LAG_FAIR_NOTE } from './natpf_phone_racket.js';
 
 const REF = 'natpf.displayLagRef';
 const RECENT = 'natpf.displayLagTests';
@@ -127,6 +128,7 @@ export class NatpfLagTest {
          <p>${hasRef ? `Riferimento del monitor: ${ref.ms} ms. Valore proposto: <b>${this.proposed} ms</b>.` : 'Il valore comprende il tempo di chi gioca. Per stimare il ledwall, fai prima una prova sul monitor e salvala come riferimento.'}</p>
          ${recent.length ? `<p>Ultime misure: ${recent.join(' · ')} ms</p>` : ''}
          ${recent.some(ms => Math.abs(ms - result.lagMs) > 40) ? '<p>Le prove differiscono di oltre 40 ms. Ripeti la prova.</p>' : ''}
+         ${this.diag?.ui?.fiera?.on ? `<p data-lag-fiera>${LAG_FAIR_NOTE}</p>` : ''}
          <button data-lag-action="save">Salva ${this.proposed} ms</button><button data-lag-action="reference">Questa era sul monitor</button>`
       : `<h2>Ripeti la misura</h2><p>${failure[result.why]}</p>`;
     this.layer.innerHTML = `<div class="natpf-lagtest-result">${details}<button data-lag-action="again">Rifai la prova</button><button data-lag-action="close">Chiudi</button></div>`;

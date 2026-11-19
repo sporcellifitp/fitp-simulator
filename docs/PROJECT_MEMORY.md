@@ -120,6 +120,11 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   quando c'è la correzione del B56, il limite in ritardo si allarga della correzione (`natpf.ant`,
   `natpf_impact.eventAnticipation`). Il riconoscimento della forma dei colpi non cambia: le dimostrazioni del tutorial
   restano quelle (prove `natpf-gesture-*`).
+  Revisione (`docs/b71/revisione.md`): con il lato dalla palla il **verso di tutto il colpo** è quello della palla
+  (lettura, modelli per verso, colpo contato negli scambi di prova con `mark(..., { dir })`, mai moltiplicato per il segno);
+  il voto sul segno resta sul verso grezzo. Il colpo porta il lato del gesto in `natpf.gs` e la regola KEEP confronta
+  `keepSide` (gs, altrimenti side). In modalità fiera il ritardo dello schermo salvato non ha effetto e il pannello lo dice
+  (`LAG_FAIR_NOTE`); la riga «partita» del registro scrive la modalità fiera in `stand.modo`.
 
 ## Sfida tra due computer senza server (PeerJS): regole durevoli (30/10)
 
@@ -1720,4 +1725,9 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - Ritmo di 60 Hz anche con i sensori dell'app (griglia di 16,7 ms con 4 ms di tolleranza): soglie e filtri dei gesti sono
   tarati a 60 Hz. Il passaggio a 200 Hz (fase B) chiede gesti a tempo e ritaratura: decisione dell'utente.
 - Schermo spento giocando: l'app lo riaccende solo se la pagina dice `inUso` (o, con pagine di prima, se è fissata), al più
-  due volte in 20 s. Con `targetSdk` ≥ 35 servirà il permesso `TURN_SCREEN_ON`.
+  due volte in 20 s. Con `targetSdk` ≥ 35 servirà il permesso `TURN_SCREEN_ON`. Revisione: un wake lock **parziale** a tempo
+  tiene sveglia la CPU tra lo spegnimento e la riaccensione (`postDelayed` si ferma nel sonno profondo); con la pagina
+  nascosta (schermata dello staff) o cambiata «in uso» non vale (`RisveglioSchermo.azzera`).
+- Ritardo tra browser e app (revisione): la prova all'avvio lo misura sugli stessi movimenti (`stimaRitardo`, 0–40 ms) e,
+  con l'app, lo somma all'istante dei campioni: i colpi restano con **l'istante del browser**, su cui sono tarate le
+  finestre del tempo. Va nel registro (`tq.lg`). Formato delle righe del registro: **4** dal B71.

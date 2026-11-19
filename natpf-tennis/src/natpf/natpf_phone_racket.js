@@ -33,7 +33,7 @@ import { strokeIntent, shapeDistinct, strokePower, INTENT } from './natpf_stroke
 import { aimFullNow } from './natpf_aim_level.js';
 import { weakSwing, livePlan, planOf } from './natpf_impact.js';
 import { SMASH_FROM } from './natpf_stroke_outcome.js';
-import { createTrialLearner, readCalMode, phoneThresholds, TRIAL, TRIAL_SIGN, signedSwing } from './natpf_trial_learn.js';
+import { createTrialLearner, readCalMode, phoneThresholds, TRIAL, TRIAL_SIGN, signedSwing, wantOfSide } from './natpf_trial_learn.js';
 // B45.1: perché cade il collegamento (motivo finale, cadute di oggi per la riga del pannello dello stand)
 import { MOTIVI, motivoFinale, cadutaPrimaDellaPagina, segnaCaduta, chiarisciCaduta } from './natpf_cadute.js';
 // tempo concesso al telefono per tornare «pronto» dopo il profilo da capo chiesto dal gioco (freshPlayer): tre richieste
@@ -275,6 +275,9 @@ const finiteOr = (v, d = 0) => (Number.isFinite(v) ? v : d);
 // centro della finestra torna dove colpiscono le persone. Da rimisurare con il registro della giornata dopo.
 export const ANTICIPATION_S = .1;
 export const anticipationFor = engine => (engine?.natpfUi?.fiera?.on ? ANTICIPATION_S : 0);
+// B71 (revisione): in modalità fiera il ritardo dello schermo salvato non si somma (natpfSwingToEngine): lo dicono il pannello
+// della diagnostica, il messaggio dopo «Salva» e il risultato della prova del ritardo (natpf_diag, natpf_lag_test)
+export const LAG_FAIR_NOTE = `In modalità fiera il ritardo salvato non si somma: la correzione della fiera (${Math.round(ANTICIPATION_S*1000)} ms) lo comprende già. Serve fuori dalla fiera.`;
 export const DISPLAY_LAG_KEY = 'natpf.displayLagMs';
 export function readDisplayLagMs(){ try { const v = +localStorage.getItem(DISPLAY_LAG_KEY); return Number.isFinite(v) ? Math.max(0, Math.min(200, Math.round(v))) : 0; } catch { return 0; } }
 export function writeDisplayLagMs(ms){ const v = Math.max(0, Math.min(200, Math.round(+ms || 0))); try { localStorage.setItem(DISPLAY_LAG_KEY, String(v)); } catch {} return v; }
@@ -1049,6 +1052,18 @@ export class NatpfPhoneRacket {
     // imparati prima stanno dalla parte sbagliata e ripartono, come dopo gli scambi di prova con il segno girato
     // (B46: _detectorSign, lo stesso del messaggio «sgn», e il cambio va nel registro)
     this._detectorSign(s.absSign === -1 ? -1 : 1, s.signVotes);
+    // B71 (revisione): in fiera, con il verso del gesto incerto (verseUnsure), il lato lo dà la palla, e con lui il verso di
+    // tutto il colpo: lettura (salita abituale, centro della mira, verso verticale del piatto), modelli per verso e colpo
+    // contato negli scambi di prova. Prima cambiava solo il lato (ev.side): gli scambi di prova contavano il colpo nel verso
+    // appena scartato (a schermo 4 dritti e 2 rovesci, imparati 0 e 6: livello «partial», 6 palle invece di 4) e i
+    // riferimenti del dritto finivano in quelli del rovescio. Il voto sul segno resta sul verso grezzo (sopra).
+    // fair: { side, src } dalla palla; gestSide: il lato che diceva il gesto (natpf.gs, per la regola KEEP del motore)
+    const fiera = !!this.engine.natpfUi?.fiera?.on, unsure = fiera && verseUnsure(s, Number.isFinite(s.at) ? performance.now()/1000 - s.at : null);
+    let fair = null, gestSide = null;
+    if (unsure && (s.dir === 1 || s.dir === -1)){
+      fair = ballSide(this.engine, this.hand, this.role);
+      if (fair){ gestSide = strokeSide(s.dir, this.hand); const bd = wantOfSide(fair.side, this.hand); if (bd !== s.dir) s = { ...s, dir: bd }; }
+    }
     // forza e profondità voluta rispetto al proprio colpo tipico imparato giocando (richiesta del 23/10, C4): un colpo più
     // forte del solito va più in fondo, uno più morbido più corto. Prima il riferimento era il gesto della calibrazione,
     // spesso un colpetto (il 23/10 143 °/s): la parte relativa della forza era sempre piena e la profondità non seguiva
@@ -1076,14 +1091,18 @@ export class NatpfPhoneRacket {
     // B71: da dove viene il lato del colpo (ls: 'g' gesto, 'a' verso atteso dalla palla, 'p' posizione della palla) e le
     // misure del verso per il registro (vg verso grezzo dei sensori, vc confidenza, dur durata del gesto, hold attesa
     // della preparazione)
-    ev.natpf.ls = ev.side ? 'g' : null;
-    if (!ev.side){ ev.side = sideFromBall(this.engine, this.hand, this.role); if (ev.side) ev.natpf.ls = 'p'; }
     // In fiera, con il verso del gesto incerto (verseUnsure), il lato lo dà la palla: un colpo su tre era letto dalla parte
     // opposta alla palla, quasi sempre per un errore del verso (registri del 18-19/11). Il lato decide la direzione della
-    // palla anticipata o ritardata e il colpo super (che con il lato dalla palla non è mai «innaturale»)
-    else if (this.engine.natpfUi?.fiera?.on && verseUnsure(s, Number.isFinite(s.at) ? performance.now()/1000 - s.at : null)){
+    // palla anticipata o ritardata e il colpo super (che con il lato dalla palla non è mai «innaturale»). Con un verso il
+    // colpo è già stato letto nel verso della palla (fair, sopra); natpf.gs è il lato che diceva il gesto, per la regola
+    // KEEP del motore (natpf_impact: il braccio che torna si riconosce dal lato del gesto, non da quello della palla)
+    ev.natpf.ls = ev.side ? 'g' : null;
+    if (fair){ ev.side = fair.side; ev.natpf.ls = fair.src; if (gestSide) ev.natpf.gs = gestSide; }
+    else if (!ev.side){ ev.side = sideFromBall(this.engine, this.hand, this.role); if (ev.side) ev.natpf.ls = 'p'; }
+    // (gesto senza verso con il lato dalla preparazione: come prima, il lato dalla palla e basta)
+    else if (unsure && !s.dir){
       const b = ballSide(this.engine, this.hand, this.role);
-      if (b){ ev.side = b.side; ev.natpf.ls = b.src; }
+      if (b){ ev.natpf.gs = ev.side; ev.side = b.side; ev.natpf.ls = b.src; }
     }
     if (s.rawDir === 1 || s.rawDir === -1 || s.rawDir === 0) ev.natpf.vg = s.rawDir;
     if (Number.isFinite(s.dirConf)) ev.natpf.vc = s.dirConf;
@@ -1098,7 +1117,9 @@ export class NatpfPhoneRacket {
     if (rally && !expect) this.riseModel.learn(s.dir, s.shape?.rise, ev.natpf.intent);
     if (ev.natpf.intent && teachesNormal(ev, { rally, expect })) this.shapeModel.add(ev.natpf.intent.plane, ev.natpf.intent.shapePower);
     // colpo di prova: insegna i riferimenti solo se non è debole (B71: di ogni tipo, trialMark); marcato per la diagnostica
-    if (probe != null){ this.learner.mark(probe, trialMark(ev, { rally, expect })); ev.natpf.prova = true; }
+    // (B71, revisione: con il lato dalla palla il colpo conta nel verso della palla, quello mostrato a schermo; dir è il
+    // verso già corretto dal segno, il learner non lo rigira)
+    if (probe != null){ this.learner.mark(probe, { ...trialMark(ev, { rally, expect }), ...(fair ? { dir: s.dir } : {}) }); ev.natpf.prova = true; }
     else if (T) ev.natpf.prova = true;
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // P2 locale dello split screen: come un colpo del Player 2 arrivato dalla rete (natpf_split.js); altrimenti

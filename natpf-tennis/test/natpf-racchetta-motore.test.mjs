@@ -428,6 +428,25 @@ test('28/10 sera: la palla corta voluta in attesa non è sostituita dal braccio 
   assert.ok(early.hit, early.phase); assert.equal(early.racket.intent.shot, 'slice', 'molto in anticipo: vince il colpo che segue');
 });
 
+// B71, revisione: in fiera con il verso incerto il lato del colpo viene dalla palla (ls 'a' o 'p'). La palla corta
+// verticale prende il lato dalla palla da sempre; se anche il rientro è incerto i due lati coincidono e la regola KEEP non
+// scattava più. Il rientro porta il lato del suo gesto (natpf.gs) e la regola guarda quello (keepSide)
+test('B71 revisione: la palla corta voluta fatta in tempo resta anche quando palla corta e rientro hanno il lato dalla palla (fiera, verso incerto)', () => {
+  const drop = () => { const s = phoneSwing({ shot: 'drop', power: .21, rise: -.8, conf: .76 }, { side: 'backhand', peak: 451 }); s.natpf.angle = 68; s.natpf.ls = 'p'; return s; };
+  const back = gs => { const s = phoneSwing({ shot: 'slice', power: .86, rise: -.45 }, { side: 'backhand', peak: 1292 }); s.natpf.ls = 'a'; if (gs) s.natpf.gs = gs; return s; };
+  for (const lvl of ['leggenda', 'evento', 'casual', 'pro']){
+    // rientro prima dell'arrivo della palla (KEEP) e dopo (durante il rinvio: keepsSpecial)
+    for (const [lead, after] of [[.09, .03], [.09, -.04]]){
+      const run = sw => withEngine(lvl, e => { cpuShot(e, { to: [-1.6, 8.6] }); return play(e, [{ lead, swing: drop() }, { lead: after, swing: sw }]); });
+      const r = run(back('forehand'));
+      assert.ok(r.hit, `${lvl} ${after}: ${r.phase}`); assert.equal(r.racket.out.shot, 'DROP', `${lvl} ${after}: il rientro dall'altra parte del gesto non sostituisce la palla corta`);
+    }
+  }
+  assert.equal(NI.keepSide({ side: 'backhand', natpf: { gs: 'forehand' } }), 'forehand');
+  assert.equal(NI.keepSide({ side: 'backhand', natpf: {} }), 'backhand', 'senza gs il lato del colpo, come prima');
+  assert.equal(NI.keepSide({}), null);
+});
+
 // Diagnostica del 28/10 sera: tempo mediano +0,51 unità (anticipo), 9 incrociati, 3 al centro, 1 lungolinea su 13. La
 // direzione si misura attorno al ritmo di chi gioca: con il tempo solito al centro, dopo il solito lungolinea.
 test('ritmo di chi gioca: con il tempo solito la palla va al centro, dopo il solito lungolinea, prima incrociata', async () => {

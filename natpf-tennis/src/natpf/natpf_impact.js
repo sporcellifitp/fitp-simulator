@@ -466,7 +466,9 @@ export function queueUserSwing(engine, e, actor){
   // B71: solo se la palla corta o il pallonetto sono stati fatti in tempo (entro la finestra della direzione), come durante il
   // rinvio (keepsSpecial). Il 18-19/11 il 43% delle palle corte era «very early»: la preparazione verticale lenta letta come
   // palla corta bloccava il colpo vero, letto dall'altra parte (un lato su tre era letto al contrario)
-  if (better && cur?.natpfWindow && deliberateSpecial(cur.evt, KEEP.conf) && cur.evt.side && e.side && e.side !== cur.evt.side && now - cur.at < KEEP.within && cur.lead <= specialSpan(engine)) better = false;
+  // (B71, revisione: i lati del gesto, keepSide; in fiera con il verso incerto il lato del colpo viene dalla palla, uguale
+  // per la palla corta e per il rientro, e la regola non scattava più)
+  if (better && cur?.natpfWindow && deliberateSpecial(cur.evt, KEEP.conf) && otherSide(cur.evt, e) && now - cur.at < KEEP.within && cur.lead <= specialSpan(engine)) better = false;
   if (better){ engine[key] = cand; holdSwingPrep(actor, e.side, ttc); }
   return 'held';
 }
@@ -474,9 +476,15 @@ export function queueUserSwing(engine, e, actor){
 // della direzione): fatti molto prima (142317 n. 81: palla corta 233 ms prima, confidenza 1) erano la preparazione, e il
 // colpo forte dall'altra parte, quasi perfetto, è il colpo vero
 function keepsSpecial(engine, cur, e, now){
-  if (!deliberateSpecial(cur.evt, KEEP.conf) || !cur.evt.side || !e.side || e.side === cur.evt.side || now - cur.at >= KEEP.within) return false;
+  if (!deliberateSpecial(cur.evt, KEEP.conf) || !otherSide(cur.evt, e) || now - cur.at >= KEEP.within) return false;
   return cur.lead <= specialSpan(engine);
 }
+// B71 (revisione) · lato del gesto per la regola KEEP: quello che diceva il verso del gesto (natpf.gs) quando il lato del colpo
+// l'ha dato la palla (natpf_phone_racket._onSwing, fiera con il verso incerto: ls 'a' o 'p'), altrimenti il lato del colpo.
+// Prima del B71 il lato del rientro veniva sempre dal suo verso: con tutti e due i lati dalla palla (palla corta verticale e
+// rientro incerto) i due lati coincidevano e il braccio che torna sostituiva la palla corta voluta fatta in tempo
+export const keepSide = e => e?.natpf?.gs || e?.side || null;
+const otherSide = (a, b) => { const x = keepSide(a), y = keepSide(b); return !!x && !!y && x !== y; };
 // finestra della direzione del livello, allargata sulle palle lente (s): oltre, un colpo è «molto in anticipo»
 export const specialSpan = engine => directionSpan(skillLevel(engine?.matchConfig?.difficulty))*slowFactor(engine?.ball?.vel?.z);
 // B71 · palla corta o pallonetto della forma (deliberateSpecial) ma più deboli di WEAK.rel del proprio colpo tipico: fatti

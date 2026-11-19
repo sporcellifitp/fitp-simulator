@@ -142,7 +142,9 @@ export function signedSwing(s, sign = 1){
 // almeno n voti concordi (contrari per girarlo, d'accordo per tornare a +1). Resta anche dopo reset (è della postazione)
 export function createTrialLearner({ signNeed = 0 } = {}){
   // un campione per palla: { ball, raw (verso grezzo del telefono), want (verso atteso dal lato della palla), peak, rawPeak,
-  // rise, heading, head, normal (top spin o piatto non debole), counts (B71: colpo non debole che conta), shot, teachRise }
+  // rise, heading, head, normal (top spin o piatto non debole), counts (B71: colpo non debole che conta), shot, teachRise,
+  // dir (B71, revisione: verso in cui il gioco ha letto il colpo, già corretto dal segno, quando non è sign·raw: in fiera con
+  // il verso incerto il lato dalla palla; null altrimenti) }
   let samples = [], sign = 1, flips = 0, need = signNeed > 0 ? signNeed : 0;
   // B71: l'ultimo voto (palla e se il gesto è stato tenuto): mark vale solo per il gesto tenuto per quella palla. Prima un
   // gesto più debole per la stessa palla (il rientro o la preparazione), ignorato dal voto, sovrascriveva «normale» di
@@ -176,7 +178,9 @@ export function createTrialLearner({ signNeed = 0 } = {}){
     const m = median(ok.map(x => x.peak));
     return ok.filter(x => !(x.peak < TRIAL.weak*m));
   };
-  const split = list => { const by = { 1: [], '-1': [] }; for (const x of list) by[sign*x.raw].push(x); return by; };
+  // (B71, revisione: il colpo conta nel verso in cui il gioco l'ha letto, x.dir, se l'ha deciso la palla; il voto sul segno
+  // resta sul verso grezzo, votes. x.dir non dipende dal segno: se il segno gira dopo, quel colpo resta dove si è visto)
+  const split = list => { const by = { 1: [], '-1': [] }; for (const x of list) by[x.dir || sign*x.raw].push(x); return by; };
   const byDir = () => split(teaching());
   return {
     reset(){ samples = []; sign = 1; flips = 0; lastVote = null; },
@@ -195,7 +199,7 @@ export function createTrialLearner({ signNeed = 0 } = {}){
       if (!s) return sign;
       const raw = s.dir === 1 ? 1 : s.dir === -1 ? -1 : 0, peak = fin(s.peak) ? s.peak : NaN;
       const x = { ball, raw, want: want === 1 ? 1 : want === -1 ? -1 : 0, peak, rawPeak: fin(s.rawPeak) ? s.rawPeak : null,
-        rise: fin(s.shape?.rise) ? s.shape.rise : null, heading: fin(s.heading) ? s.heading : null, head: fin(s.head) ? s.head : null, normal: false, counts: false, shot: null, teachRise: false };
+        rise: fin(s.shape?.rise) ? s.shape.rise : null, heading: fin(s.heading) ? s.heading : null, head: fin(s.head) ? s.head : null, normal: false, counts: false, shot: null, teachRise: false, dir: null };
       const i = samples.findIndex(y => y.ball === ball);
       if (i < 0) samples.push(x);
       else if (!(samples[i].peak >= peak)) samples[i] = x;
@@ -205,12 +209,14 @@ export function createTrialLearner({ signNeed = 0 } = {}){
     },
     // … e dopo averlo letto. info: true/false = colpo normale (top spin o piatto) non debole per il gioco (com'era); oppure
     // (B71) { counts: colpo non debole per il gioco (conta, qualunque tipo), normal, shot (tipo letto), rise: insegna la
-    // salita abituale }. Vale solo per il gesto tenuto dall'ultimo voto di quella palla (B71: non per un gesto più debole)
+    // salita abituale, dir: verso in cui il gioco l'ha letto se non è quello del telefono (±1, già corretto dal segno) }.
+    // Vale solo per il gesto tenuto dall'ultimo voto di quella palla (B71: non per un gesto più debole)
     mark(ball, info){
       if (lastVote && lastVote.ball === ball && !lastVote.kept) return;
       const x = samples.find(y => y.ball === ball); if (!x) return;
       const o = info && typeof info === 'object' ? info : { normal: !!info, counts: !!info, rise: !!info };
       x.normal = !!o.normal; x.counts = !!o.counts; x.shot = typeof o.shot === 'string' ? o.shot : null; x.teachRise = o.rise == null ? x.counts : !!o.rise;
+      x.dir = o.dir === 1 || o.dir === -1 ? o.dir : null;
     },
     // colpi imparati per verso (già corretto) e per lato di chi gioca con quella mano
     counts(hand = 'right'){

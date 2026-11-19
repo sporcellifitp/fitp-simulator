@@ -20,7 +20,7 @@ import { compareMetrics, compareNote, summaryLines } from './diag/diag_metrics.j
 export { summaryLines };
 import { buildPackage, download } from './diag/diag_export.js';
 import { DIAG_PROTOCOLS, protocolDrills, expectedFor } from './diag/diag_protocol.js';
-import { writeDisplayLagMs } from './natpf_phone_racket.js';
+import { writeDisplayLagMs, LAG_FAIR_NOTE } from './natpf_phone_racket.js';
 import { aimLevelLabel } from './natpf_aim_level.js';
 import { gestureMeasures, gestureMeasureLines } from './diag/diag_gesture.js';
 import { isTextField } from './natpf_tastiera.js';
@@ -138,7 +138,9 @@ export class NatpfDiag {
     const input = this.el?.querySelector('[data-lag]'); if (!input && ms == null) return;
     const v = writeDisplayLagMs(ms ?? input.value);
     for (const ph of [this.engine.natpfPhone, this.engine.natpfPhone2]) if (ph) ph.displayLagMs = v;
-    this.ui?.toast?.(v ? `Ritardo dello schermo: ${v} ms (colpi del telefono)` : 'Ritardo dello schermo azzerato');
+    // (B71 revisione: in modalità fiera il valore salvato non ha effetto, lo si dice)
+    const fair = this.ui?.fiera?.on ? ` ${LAG_FAIR_NOTE}` : '';
+    this.ui?.toast?.(v ? `Ritardo dello schermo: ${v} ms (colpi del telefono).${fair}` : `Ritardo dello schermo azzerato.${fair}`, fair ? 6000 : undefined);
     this._paintRec();
     const details = this.el?.querySelector('.diag-lag'); if (details) details.open = true;
   }
@@ -223,6 +225,7 @@ export class NatpfDiag {
       <p class="diag-note" data-aim-level>Mira del telefono: ${esc(aimLevelLabel())}, si cambia nel pannello dello stand: Ctrl+Maiusc+K (F9 nel programma Windows), o 3 s sul marchio NATPF del menu. Il riassunto dice, partita per partita, da che parte vanno le palle di chi gioca con il telefono, quante sono angolate e se il riferimento della mira è storto: docs/GUIDA_MISURA_MIRA.md</p>
       <details class="diag-lag"><summary>Ritardo dello schermo: ${this.engine.natpfPhone?.displayLagMs || 0} ms</summary>
         <p class="diag-note">Lascia 0 se non l'hai misurato. Si misura con la prova guidata (mediana del «tempo dei colpi del telefono»: se è in ritardo di molti ms a ogni sessione, lo schermo è un sospetto) o meglio con un video a 240 fps del telefono e del televisore insieme. Vale solo per i colpi del telefono.</p>
+        ${this.ui?.fiera?.on ? `<p class="diag-warn" data-lag-fiera>${esc(LAG_FAIR_NOTE)}</p>` : ''}
         <div class="diag-actions"><button type="button" data-diag="lagtest" ${this.lagTest?.phone ? '' : 'disabled'}>▶ Prova del ritardo (20 s)</button><span class="diag-note" data-lag-help ${this.lagTest?.phone ? 'hidden' : ''}>Collega un telefono e attiva i sensori per iniziare.</span></div>
         <div class="diag-actions"><input data-lag type="number" min="0" max="200" step="5" value="${this.engine.natpfPhone?.displayLagMs || 0}"><button type="button" data-diag="lag">Salva</button></div></details>
       ${this.store?.kind === 'memory' ? `<p class="diag-warn">Questo browser non permette di scrivere su disco: la sessione resta in memoria (massimo 300 MB) e si perde se la pagina si chiude.</p>` : ''}

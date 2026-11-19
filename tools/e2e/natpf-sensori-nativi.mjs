@@ -106,6 +106,9 @@ try {
     check('con il movimento la prova passa ai sensori dell’app («nativi»)', b.s.sorgente === 'nativi', JSON.stringify(b.s));
     check('lo stato dice sr «n» e il fondo scala dell’app [78,5 m/s², 2000 °/s]', b.st?.sr === 'n' && JSON.stringify(b.st.fs) === '[78.5,2000]', JSON.stringify(b.st));
     check('i campioni dell’app arrivano al rilevatore: sensori vivi, ~60 Hz', b.st?.sa != null && b.st.sa < 200 && b.st.hz >= 50 && b.st.hz <= 70, `sa ${b.st?.sa} hz ${b.st?.hz}`);
+    // B71 revisione: la prova misura il ritardo del browser sull'app (qui almeno gli 8 ms del ponte finto, più l'attesa
+    // dell'evento del browser) e lo stato lo dice (lg, ms interi)
+    check('lo stato dice il ritardo del browser sull’app misurato dalla prova (lg, 0–40 ms)', Number.isInteger(b.st?.lg) && b.st.lg >= 0 && b.st.lg <= 40, JSON.stringify(b.st?.lg));
     check('la pagina chiede i lotti all’app (~60 volte al secondo)', b.calls.campioni > 100, JSON.stringify(b.calls));
     check('l’app sa che il telefono è in uso (calibrazione)', b.inUso[0] === true, JSON.stringify(b.inUso));
     // 3. l'app smette di mandare campioni (a pagina visibile): di nuovo devicemotion

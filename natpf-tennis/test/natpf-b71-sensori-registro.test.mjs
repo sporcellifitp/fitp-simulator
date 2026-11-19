@@ -21,6 +21,10 @@ test('registro, B71: sorgente, fondo scala, valori più grandi, tocchi prima dei
   R.stato({ sq: [60, 1000, 0, 0, 16, 0, 0], sr: 'b', rp: 'g' }, 1000);
   R.stato({ sr: 'z', rp: 'gravità sbagliata', fs: [0, 2000], tk: 'tanti' }, 2000);
   assert.deepEqual(JSON.parse(JSON.stringify(R.fine(3000))).tq, { hz: [60, 60], n: 60, iv: 16, sr: 'b', rp: 'g' });
+  // B71 revisione: ritardo del browser sull'app misurato dalla prova all'avvio (ms interi 0–100; l'ultimo detto)
+  const G = new MisureTelefono();
+  G.stato({ sq: [60, 1000, 0, 0, 16, 0, 0], sr: 'n', lg: 12 }, 1000); G.stato({ lg: 13.5 }, 1500); G.stato({ lg: -3 }, 1600); G.stato({ lg: 'tanto' }, 1700);
+  assert.deepEqual(JSON.parse(JSON.stringify(G.fine(2000))).tq, { hz: [60, 60], n: 60, iv: 16, sr: 'n', lg: 12 });
   // pagina di prima (B66, sq di 7 numeri e niente campi nuovi): la riga resta identica a prima
   const V = new MisureTelefono();
   V.stato({ sq: [60, 1000, 0, 0, 16, 0, 0] }, 1000); V.stato({ sq: [55, 1000, 2, 140, 16, 0, 1] }, 2000);
@@ -30,8 +34,8 @@ test('registro, B71: sorgente, fondo scala, valori più grandi, tocchi prima dei
 test('registro, B71: i campi nuovi sono previsti nel gioco e nel Worker (copia esatta), solo numeri e codici; righe pulite identiche', () => {
   for (const c of F.CAMPI_B71S){ assert.ok(F.CAMPI.includes(c), c); assert.ok(W.CAMPI.includes(c), `Worker: ${c}`); assert.ok(!F.CAMPI_VIETATI.includes(c), c); }
   assert.deepEqual([...W.CAMPI], [...F.CAMPI]);
-  assert.deepEqual(F.CAMPI_B71S, ['sr', 'fs', 'vs', 'tk', 'rp']);
-  const riga = { k: 'partita.fine', t: 90000, n: 3, tq: { g: { hz: [60, 59.5], n: 3600, b: 4, bm: 220, iv: 16.7, sat: [12, 0], sr: 'nb', fs: [78.5, 2000], vs: [78.5, 1890], tk: [35, 3], rp: 'f' } } };
+  assert.deepEqual(F.CAMPI_B71S, ['sr', 'fs', 'vs', 'tk', 'rp', 'lg']);
+  const riga = { k: 'partita.fine', t: 90000, n: 3, tq: { g: { hz: [60, 59.5], n: 3600, b: 4, bm: 220, iv: 16.7, sat: [12, 0], sr: 'nb', fs: [78.5, 2000], vs: [78.5, 1890], tk: [35, 3], rp: 'f', lg: 12 } } };
   assert.deepEqual(F.pulisci(riga), riga);
   assert.deepEqual(W.pulisci(riga), riga);
   assert.deepEqual(F.controllaRiga(riga), []);

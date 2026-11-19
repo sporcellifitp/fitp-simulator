@@ -132,7 +132,12 @@ LAN).
 4. **Tasto di accensione**: durante uno scambio premere **una volta** il tasto di accensione. Lo schermo deve
    **riaccendersi da solo entro ~1 s**, la partita va in pausa e riparte. Poi premerlo **tre volte di fila**: deve restare
    spento (è il modo per spegnerlo apposta). Se il telefono ha il blocco con PIN o segno, l'app deve comparire sopra il
-   blocco senza chiederlo.
+   blocco senza chiederlo. (Revisione del B71) **Misurare il tempo di riaccensione** con il telefono fermo sul tavolo da
+   almeno 1 minuto e la Wi-Fi in risparmio: premere il tasto durante una partita e contare con un cronometro (o un video)
+   dallo spegnimento alla riaccensione, 5 volte: deve restare sotto ~1 s ogni volta (l'app tiene sveglia la CPU con un wake
+   lock parziale fino alla riaccensione; senza, il telefono poteva addormentarsi e la riaccensione arrivare dopo secondi).
+   Poi tre volte «volume giù» (schermata dello staff) e un tasto di accensione: sulla schermata dello staff lo schermo
+   **deve restare spento**, anche se un attimo prima si giocava.
 5. **Registro della partita** (lo scarica l'utente dal Worker, mai la chiave in chat), riga `partita.fine`, telefono `g`:
    - `tq.sr` = **`n`** (o `nb`: prova all'inizio con il browser, poi l'app). Se è `b` con `tq.rp` = `g` o `r`, la prova ha
      visto sensori diversi da Chrome: annotare modello del telefono e versione di Android;
@@ -141,8 +146,23 @@ LAN).
    - `tq.b` e `tq.bm`: buchi e buco più lungo, attesi quasi zero con `sr` = `n` (prima 100–300 ms in un terzo delle partite);
      `tq.tk` dice quanti buchi erano vicini a un tocco;
    - `wifi.rssi`, `wifi.bd`, `wifi.mbps` **presenti** (prima mai);
-   - pause: «pagina nascosta» di ~1 s invece di 5–8 s dopo il tasto di accensione.
-   Per i campi `sr`, `fs`, `vs`, `tk`, `rp` il Worker deve essere stato ricaricato (`docs/b66/registro-sensori.md` §5).
+   - pause: «pagina nascosta» di ~1 s invece di 5–8 s dopo il tasto di accensione;
+   - (revisione) `tq.lg`: ritardo del browser sull'app misurato dalla prova, atteso 8–20 ms; un valore oltre 30 ms o assente
+     con `sr` = `n` va annotato (modello e versione di Android).
+   Per i campi `sr`, `fs`, `vs`, `tk`, `rp`, `lg` il Worker deve essere stato ricaricato (`docs/b66/registro-sensori.md` §5):
+   la pagina del Worker dice «Formato delle righe: 4».
 6. Se qualcosa non va: modello del telefono, versione di Android, cosa è successo e a che ora (per trovare la partita nel
    registro). Il ripiego è immediato e non chiede niente: la pagina torna da sola ai sensori del browser; in ultima
    istanza si reinstalla la 1.0.4.
+
+## 7. Revisione (19/11, ramo `b71-int`, `docs/b71/revisione.md`)
+
+Rilievi confermati dalla verifica e applicati (nessuno scartato):
+- **Riaccensione che può tardare** (importante): wake lock parziale a tempo preso in `onReceive` prima di `postDelayed`,
+  lasciato alla riaccensione, in `onResume` e in `onDestroy` (`MainActivity.java`). Misura da fare sul telefono vero: §6
+  punto 4.
+- **«In uso» della pagina nascosta o cambiata** (minore): `RisveglioSchermo.azzera()` sulla schermata d'avvio e a ogni
+  pagina nuova; con la pagina non visibile o non arrivata lo schermo resta spento (`RisveglioSchermoTest`).
+- **Ritardo tra browser e app** (minore): la prova all'avvio misura il ritardo sugli stessi movimenti (`stimaRitardo`,
+  0–40 ms) e giudica la rotazione allo spostamento migliore; con l'app il ritardo si somma all'istante dei campioni (i colpi
+  restano con l'istante del browser); il telefono lo manda (`lg`) e il registro lo scrive in `tq` (formato 4).

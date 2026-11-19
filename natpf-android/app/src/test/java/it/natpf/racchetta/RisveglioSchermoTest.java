@@ -32,4 +32,19 @@ public class RisveglioSchermoTest {
     r.inUso(false);
     assertFalse("appena la pagina parla vale la pagina", r.adesso(true));
   }
+
+  /** B71, revisione: l'«in uso» della pagina non vale più se la pagina è nascosta o cambiata. */
+  @Test public void paginaNascostaOCambiataNonVale() {
+    RisveglioSchermo r = new RisveglioSchermo();
+    r.inUso(true);
+    assertFalse("schermata d'avvio dello staff (pagina nascosta): resta spento", r.spento(1_000, false, false));
+    assertFalse("pagina non arrivata: resta spento", r.adesso(false, true));
+    assertTrue("pagina aperta che dice «in uso»", r.spento(2_000, true, false));
+    // tre volte «volume giù»: schermata d'avvio, quello che diceva la pagina si dimentica
+    r.azzera();
+    assertFalse("pagina nuova che non ha ancora parlato, app non fissata", r.spento(60_000, true, false));
+    assertTrue("pagina nuova che non ha ancora parlato, app fissata con la pagina aperta", r.spento(61_000, true, true));
+    r.inUso(false);
+    assertFalse(r.adesso(true, true));
+  }
 }

@@ -388,3 +388,25 @@ Prodotto: entrambi (solo repository). Vecchio sito, immagini dei blocchi, rami, 
   non l'unione. `natpf-registro-sensori.mjs` non esce da solo dopo il sommario anche senza il B71 (`docs/b71/unione.md` §2).
 - Non verificato: telefono vero, app 1.0.5 vera (APK non costruito: niente Android SDK qui), Windows, ledwall; Worker del
   registro non ricaricato (dodici campi nuovi).
+
+## B71 · Revisione: undici rilievi confermati applicati sul ramo `b71-int` (19/11/2026) · [x] (commit locali, niente push)
+- Documento `docs/b71/revisione.md` (cosa, perché con i numeri, prove, cosa non è verificato); note «Revisione» in
+  `docs/b71/gesti.md`, `sensori.md`, `registro-tempo.md`, `unione.md` §5.
+- Gesti (commit 0bfc1861): `natpf_phone_racket._onSwing` (in fiera con il verso incerto il verso della palla vale per tutto il
+  colpo; `natpf.gs`), `natpf_trial_learn` (`mark(..., { dir })`, `split()` con `x.dir`), `natpf_impact` (`keepSide` in KEEP e
+  keepsSpecial); prove in `natpf-b71-gesti.test.mjs` (2 nuove, 2 asserzioni sistemate) e `natpf-racchetta-motore.test.mjs` (1).
+- App, sensori, registro (commit 5bfdd5ac): `MainActivity.java` (wake lock parziale `ponte`, `paginaAperta`, `azzera`),
+  `RisveglioSchermo.java` (+ prova JUnit), `site/js/tennis/sensori-nativi.js` (`stimaRitardo`, `lag`, `shift`),
+  `racchetta.js` (`lg` nello stato), `registro_formato.js` e Worker (formato 4, `lg`), `registro_misure.js`,
+  `registro_registratore.js` (`stand.modo: 'fiera'`), `riassunto.mjs` (modalità fiera, `cf` per versione, avviso formato 4,
+  righe B71), `finto.mjs` (versione 2026-11-19.1), `natpf_diag.js` e `natpf_lag_test.js` (`LAG_FAIR_NOTE`); guide
+  `GUIDA_REGISTRO_CLOUDFLARE.md` §I, `docs/b66/registro-sensori.md` §8, `docs/b30/registro-dello-stand.md`, PROJECT_MEMORY.
+- Verifiche: gioco **1877/1877**, sito **310/310**, LAN **13/13**, desktop **56/56**, build ok, app Android (gradle offline,
+  chiave di debug) JUnit **22/22**, lint 0 errori, `controlla-classi` verde. Nel browser: scambi-di-prova 32/32,
+  training-flow 21/21, registro 39/39, registro-sensori 23/23, b47-fiera 20/20, formato-fiera 29/29, stesso-schermo-b20
+  52/52, fiera-telefoni 66/66, tutorial-phone 46/46, gesti-speciali 9/9, gesti-sequenze 47/47, sensori-nativi 16/16,
+  app-android 5/5, telefono-bloccato 12/12, gesture-calibration 21/21, phone-only 10/10, timing-browser 8/8 (scambi di prova,
+  stesso schermo e timing-browser rossi con la macchina carica dagli altri agenti, verdi rifatti a carico basso; confronto sul
+  ramo di prima nello stesso momento).
+- Non verificato: telefono vero, app 1.0.5 vera (riaccensione, ritardo `lg` vero), Windows, ledwall; Worker del registro non
+  ricaricato (deve dire «Formato delle righe: 4»).

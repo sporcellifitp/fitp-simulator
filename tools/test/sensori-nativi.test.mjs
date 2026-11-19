@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { NATIVI, nativeBridge, parseBatch, createClock, createCrossCheck, createNativeMotion } from '../../site/js/tennis/sensori-nativi.js';
+import { NATIVI, nativeBridge, parseBatch, createClock, createCrossCheck, createNativeMotion, stimaRitardo } from '../../site/js/tennis/sensori-nativi.js';
 import { createSwingDetector } from '../../site/js/tennis/swing-detect.js';
 import { PROFILE_2810, WINDOWS_2810 } from './session-28-10.data.mjs';
 
@@ -142,10 +142,12 @@ test('B71: con l’app i campioni arrivano tutti, in ordine e con l’istante ve
     const dt = A.fed[i].t - A.fed[i - 1].t;
     assert.ok(Math.abs(dt - 1000/60) < .01, `istanti veri, uno ogni 16,7 ms (${dt})`);
   }
-  // l'istante sulla pagina = quello vero del sensore (8 ms prima del passo), non l'arrivo
+  // l'istante sulla pagina = quello vero del sensore (8 ms prima del passo), non l'arrivo, più il ritardo del browser
+  // misurato dalla prova (B71 revisione: 8 ms in questo mondo): l'istante che avrebbe dato il browser
+  assert.equal(A.nm.lag, 8); assert.equal(A.nm.shift, 8);
   const last = A.fed[A.fed.length - 1];
-  assert.ok(Math.abs(A.T - 8 - last.t) < .5, `${A.T - 8} ≠ ${last.t}`);
-  assert.deepEqual(last.accG, round(motion(last.t)).accG);
+  assert.ok(Math.abs(A.T - 8 + A.nm.shift - last.t) < .5, `${A.T - 8 + A.nm.shift} ≠ ${last.t}`);
+  assert.deepEqual(last.accG, round(motion(last.t - A.nm.shift)).accG);
   assert.equal(A.nm.persi, 0);
   // campioni buttati dall'app (buffer pieno): contati
   A.persi = 4; A.step();
@@ -223,10 +225,13 @@ test('B71: i gesti veri del 28/10 dal percorso dell’app danno la stessa impron
       out.push(...A.fed.splice(0));
     }
     assert.equal(out.length, rowsK.length, `${name}: tutti i campioni`);
+    // (B71 revisione: istanti spostati tutti dello stesso ritardo del browser misurato dalla prova, 8 ms in questo mondo;
+    // l'impronta si confronta con gli istanti veri)
+    assert.equal(A.nm.shift, 8, name);
     for (const [i, k] of out.entries()){
-      assert.equal(k.t, rowsK[i].t, `${name}: istante del campione ${i}`);
+      assert.ok(Math.abs(k.t - A.nm.shift - rowsK[i].t) < 1e-6, `${name}: istante del campione ${i}`);
       assert.deepEqual([k.rot, k.acc, k.accG], [rowsK[i].rot, rowsK[i].acc, rowsK[i].accG]);
-      det.feed(k);
+      det.feed({ ...k, t: rowsK[i].t });
     }
   }
   assert.deepEqual({ swing, altri, firma: createHash('sha256').update(firma).digest('hex').slice(0, 16) }, IMPRONTA);
@@ -243,4 +248,55 @@ test('B71: racchetta.js usa i sensori dell’app solo con il ponte giusto e per 
   assert.match(js, /addEventListener\('pointerdown', e => sampleStats\.touch\(e\.timeStamp\), \{ capture: true, passive: true \}\);/);
   assert.match(js, /if \(document\.hidden\) native\.hidden\(\); else native\.visible\(\);/);
   assert.equal(NATIVI.intervallo, 16.7);
+});
+
+// B71 (revisione) · ritardo tra i due flussi nella prova all'avvio. L'evento del browser arriva dopo la lettura del sensore
+// (età della lettura più i passaggi interni): prima la rotazione si confrontava senza riallineare e con 20 ms il dritto vero
+// del 28/10 era un blocco «rotazione sbagliata» (rifiuto 'r' senza motivo). Ora il ritardo si misura sugli stessi movimenti
+// e la rotazione si giudica allo spostamento migliore
+const blocchi2810 = (L, check = {}) => {
+  const C = createCrossCheck(check); let base = 0;
+  for (const W of Object.values(WINDOWS_2810)){
+    const rows = W.map(r => ({ t: base + r[0], rot: r.slice(1, 4), acc: r.slice(4, 7), accG: r.slice(7, 10) }));
+    for (const k of rows){ C.browser({ ...k, t: k.t + L }); C.native(k); }
+    C.tick(base + 1300 + L); base += 3000;
+  }
+  return C;
+};
+test('B71 revisione: la prova misura il ritardo del browser sui colpi veri del 28/10 (12, 15, 20 ms) e non rifiuta più i colpi veloci', () => {
+  for (const L of [0, 8, 12, 15, 20]){
+    const C = blocchi2810(L);
+    assert.equal(C.blocks.length, 5, `${L} ms`);
+    assert.ok(C.blocks.every(b => b.r === true), `${L} ms: ${JSON.stringify(C.blocks)}`);
+    assert.ok(Math.abs(C.lag - L) <= 1, `${L} ms: stimato ${C.lag}`);
+  }
+  // com'era (nessuno spostamento cercato): con 20 ms il dritto vero è un blocco «rotazione sbagliata»
+  const prima = blocchi2810(20, { ritardoMax: 0 });
+  assert.ok(prima.blocks.some(b => b.r === false), JSON.stringify(prima.blocks));
+  // segno, ordine degli assi e unità sbagliati si vedono anche allo spostamento giusto (la misura non ha segno né assi)
+  const C = createCrossCheck(); let base = 0;
+  for (const W of Object.values(WINDOWS_2810)){
+    for (const r of W){ const k = { t: base + r[0], rot: r.slice(1, 4), acc: r.slice(4, 7), accG: r.slice(7, 10) }; C.browser({ ...k, t: k.t + 12 }); C.native({ ...k, rot: k.rot.map(v => -v) }); }
+    C.tick(base + 1312); base += 3000;
+  }
+  assert.deepEqual(C.verdict, { ok: false, why: 'r' }, 'segno opposto');
+  // telefono fermo o rumore: nessuna stima
+  assert.equal(stimaRitardo([{ t: 0, rot: [0, 0, 0] }], [{ t: 0, rot: [0, 0, 0] }]), null);
+  const fermo = [], fermoN = []; for (let t = 0; t < 1000; t += 1000/60){ fermo.push({ t: t + 10, rot: [.3*Math.sin(t), .2, 0] }); fermoN.push({ t, rot: [.3*Math.sin(t), .2, 0] }); }
+  assert.equal(stimaRitardo(fermo, fermoN), null);
+});
+
+test('B71 revisione: con l’app gli istanti dei campioni prendono il ritardo del browser misurato (convenzione delle finestre del tempo); il ritardo va nello stato del telefono', () => {
+  const A = world();
+  A.nm.start(); A.run(1500);
+  assert.equal(A.nm.state, 'prova'); assert.equal(A.nm.shift, 0, 'in prova gli istanti non si toccano');
+  A.run(2100);
+  assert.equal(A.nm.state, 'nativi'); assert.equal(A.nm.lag, 8);
+  A.fed.length = 0; A.run(300);
+  for (const k of A.fed) assert.deepEqual(k.rot, round(motion(k.t - 8)).rot, 'valore del sensore 8 ms prima dell’istante dato');
+  // senza app niente
+  const N = createNativeMotion({ bridge: null }); assert.equal(N.lag, null); assert.equal(N.shift, 0);
+  // racchetta.js manda il ritardo nello stato (lg, ms interi) quando si sa
+  const js = readFileSync(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  assert.match(js, /\.\.\.\(native\.lag != null \? \{ lg: native\.lag \} : \{\}\)/);
 });
