@@ -93,3 +93,19 @@ Gioco e stand:
 - Nessun file di versione: niente pacchetti nuovi (valgono quelli della 2026-11-18.3).
 
 **Prossima azione esatta (18/11)**: aspettare l'utente (punti 1–5 qui sopra).
+
+## 19/11 · B71 registri del 18 e 19/11: correzioni in giornata (richiesta dell'utente: «fixiamo subito… calibrazione
+## giocando (importantissima), dritto e rovescio, sensori… tutto in giornata»)
+
+Registri caricati dall'utente (263 partite il 18, 62 il 19; versioni 17.4 e 18.3; tutti Android 17 + Chrome 157 nell'app
+1.0.4, collegamento LAN). Riassunti con `natpf-tennis/scripts/registro/riassunto.mjs` (fuori dal repository, nello
+scratchpad della sessione). Anomalie uguali nei due giorni:
+- calibrazione giocando: «none» per ~50% dei giocatori (imparato niente), «full» 1–2%;
+- lato del colpo (`pl`) diverso dal lato della palla (`lato`) nel ~36% dei colpi, `aiutato` nel ~64%;
+- confidenza del tipo di colpo (`cf`) sempre 0,45;
+- sensori a 60 Hz esatti (intervallo 16 ms dichiarato), accelerazione satura nel 97% delle partite;
+- colpi in anticipo di +80–90 ms in media (DROP +179), «perfect» ~25%;
+- segnale Wi-Fi e batteria dall'app non registrati.
+
+- [~] Indagine nel codice in corso (tre filoni: gesti e lato, tempo, sensori e app). Poi: correzioni con test, revisore
+      indipendente, prove complete, versione nuova, pacchetti.
