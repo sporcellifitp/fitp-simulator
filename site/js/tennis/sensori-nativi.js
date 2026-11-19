@@ -40,6 +40,7 @@ export const NATIVI = Object.freeze({
 });
 
 const fin = Number.isFinite;
+const MAX_BLOCCO = 400;
 
 // Il ponte dell'app, se c'è ed è della versione giusta; altrimenti null (Chrome, app di prima della 1.0.5)
 export function nativeBridge(win){
@@ -139,8 +140,9 @@ export function createCrossCheck(o = {}){
     else if (gOk >= 1 && rOk >= 1 && rOk > 2*rNo) verdict = { ok: true };
   }
   return {
-    browser(k){ if (!verdict && k && fin(k.t)){ if (t0 == null) t0 = k.t; B.push(k); } },
-    native(k){ if (!verdict && k && fin(k.t)) N.push(k); },
+    // (al più MAX_BLOCCO campioni per flusso in un blocco: se il browser tace, quelli dell'app non si accumulano)
+    browser(k){ if (!verdict && k && fin(k.t) && B.length < MAX_BLOCCO){ if (t0 == null) t0 = k.t; B.push(k); } },
+    native(k){ if (!verdict && k && fin(k.t) && N.length < MAX_BLOCCO) N.push(k); },
     tick(now){
       if (verdict || t0 == null || now - t0 < P.bloccoMs) return verdict;
       evaluate(); B = []; N = []; t0 = null;

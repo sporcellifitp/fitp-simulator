@@ -168,3 +168,35 @@ CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-app-certificato.mjs
   `PhoneStatusTest`), `lintRelease` con gli stessi avvisi della 1.0.3, `assembleRelease`, `controlla-classi.mjs` verde.
   L'APK firmato con la chiave dello stand lo fa e lo pubblica il workflow «natpf-android» (versione salita: 1.0.4, codice 5).
 - **Non provata su un telefono vero**: i valori di Wi-Fi, batteria, temperatura e «Fissa app» vengono da Android vero solo lì.
+
+## 8. Versione 1.0.5 (19/11/2026): Wi-Fi, sensori dall'app, schermo che si riaccende (B71)
+
+Dai registri della fiera del 18 e 19/11 (325 partite, tutti con l'app 1.0.4). Dettaglio e numeri in `docs/b71/sensori.md`.
+
+- **Wi-Fi**: segnale, banda e velocità non sono mai arrivati nei registri. La 1.0.4 li leggeva solo se `networkId != -1`,
+  ma da Android 10, senza il permesso della posizione, `networkId` vale sempre −1. Ora la Wi-Fi è «collegata» se frequenza
+  > 0 e segnale > −127 dBm (`PhoneStatus.wifiCollegata`). Nessun permesso nuovo, nome della rete e indirizzi sempre esclusi.
+- **Sensori dall'app** (fase A, 60 Hz come oggi): `SensoriNativi` registra accelerometro, accelerazione lineare e
+  giroscopio con `SensorManager` (periodo 16 667 µs, thread a parte); `CampioniNativi` li tiene in un buffer con
+  l'istante vero (`SensorEvent.timestamp`, orologio `elapsedRealtime`), nelle unità e negli assi di devicemotion di Chrome
+  (m/s², °/s con alpha = x, beta = y, gamma = z, arrotondati a 0,1 come Chromium), al più uno ogni 16,7 ms anche se il
+  sensore va più veloce. Ponte nuovo: `sensoriVersione()` (1), `sensoriAvvia()`, `sensoriFerma()`, `campioni()` (lotto di
+  testo), `orologio()`, `infoSensori()` (fondo scala, risoluzione, periodo minimo, FIFO: solo numeri). Accesi solo se la
+  pagina li chiede e solo in primo piano (spenti in `onPause`, come il browser; spenti anche a ogni pagina nuova).
+- **Schermo spento giocando**: l'attività si mostra sopra il blocco (`setShowWhenLocked`, `setTurnScreenOn`); se lo schermo
+  si spegne (tasto di accensione) mentre la pagina dice che il telefono è in uso (`inUso(true)`: partita, servizio, pausa,
+  calibrazione, tocchi bloccati), dopo 0,3 s un wake lock con `ACQUIRE_CAUSES_WAKEUP` lo riaccende (per 3 s, poi lo tiene
+  acceso `FLAG_KEEP_SCREEN_ON`). Tre spegnimenti in 20 s: resta spento (lo staff che lo spegne apposta). Con una pagina di
+  prima (che non dice `inUso`) vale «app fissata con la pagina aperta». Nessun permesso nuovo: `WAKE_LOCK` c'era già;
+  con `targetSdk` 34 Android non chiede `TURN_SCREEN_ON` (lo chiede solo alle app per Android 15 e oltre: da rivedere se
+  si alza `targetSdk`).
+- Versione `appVersion` 1.0.5, `appCode` 6 (`natpf-android/app/build.gradle`).
+- **Prove qui (19/11)**: nel contenitore **non c'è l'Android SDK** (scaricarlo e accettarne la licenza non era permesso in
+  questa sessione): niente `gradle testReleaseUnitTest lintRelease assembleRelease` né `controlla-classi.mjs`. Fatto al
+  suo posto: tutti i sorgenti compilati con `javac` contro `android-all` 14 (Robolectric, API 34) con zxing e androidx.core,
+  nessun errore (un solo avviso di deprecazione, quello di prima); test JUnit delle classi pure **21/21** (PhoneStatus 5,
+  RacketLink 5, CampioniNativi 8, RisveglioSchermo 3). Lint, APK e `controlla-classi.mjs` li fa il workflow
+  `natpf-android.yml` al push (classi nuove tutte di Android 34: `SensorManager`, `HandlerThread`, `PowerManager`).
+- **Non provata su un telefono vero**: frequenza vera dei sensori, assi e segni rispetto a Chrome 157 (la pagina li
+  controlla da sola e, se non tornano, resta il browser), il wake lock che riaccende lo schermo su Android 17, la Wi-Fi.
+  Come provarla allo stand: `docs/b71/sensori.md` §6.

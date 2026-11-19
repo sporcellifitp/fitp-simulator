@@ -1690,3 +1690,19 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
   dalla partita (scambi di prova, allenamento) usano una `MisureTelefono` a parte solo per la riga «colpo».
 - App 1.0.4: `Bridge.stato()` → `PhoneStatus.json` (numeri; rssi −127 = Wi-Fi assente). Mai SSID/BSSID/indirizzi.
 - Mediana vera (media dei due di mezzo) nelle misure del gioco; il riassunto usa i suoi percentili (`Misura.p`).
+
+## Sensori presi dall'app NATPF Racchetta (B71, 19/11/2026; `docs/b71/sensori.md`)
+
+- Con l'app 1.0.5 i campioni li dà `SensorManager` (`natpf-android/.../SensoriNativi.java`, `CampioniNativi.java`) a lotti,
+  con l'istante vero; la pagina (`site/js/tennis/sensori-nativi.js`) li usa **solo** dopo una prova con devicemotion
+  (gravità e rotazione uguali per segno, assi e unità) e torna da sola al browser se l'app si ferma. Senza l'app (Chrome) il
+  percorso dei sensori è quello di prima: l'impronta `933e330650269e1e` dei gesti del 28/10 vale per tutti e due i percorsi
+  (`tools/test/sensori-nativi.test.mjs`).
+- Unità e assi di devicemotion di **Chrome su Android** (codice di Chromium, 19/11): accelerazione con e senza gravità
+  = `TYPE_ACCELEROMETER` / `TYPE_LINEAR_ACCELERATION` x, y, z in m/s² con il segno grezzo di Android; `rotationRate` =
+  `TYPE_GYROSCOPE` in °/s con **alpha = x, beta = y, gamma = z** (non z/x/y della specifica); tutto arrotondato a 0,1.
+  Chi cambia i sensori dell'app tiene questa corrispondenza: il riconoscimento è tarato su questi numeri.
+- Ritmo di 60 Hz anche con i sensori dell'app (griglia di 16,7 ms con 4 ms di tolleranza): soglie e filtri dei gesti sono
+  tarati a 60 Hz. Il passaggio a 200 Hz (fase B) chiede gesti a tempo e ritaratura: decisione dell'utente.
+- Schermo spento giocando: l'app lo riaccende solo se la pagina dice `inUso` (o, con pagine di prima, se è fissata), al più
+  due volte in 20 s. Con `targetSdk` ≥ 35 servirà il permesso `TURN_SCREEN_ON`.

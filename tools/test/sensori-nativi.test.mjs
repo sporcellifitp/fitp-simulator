@@ -190,6 +190,10 @@ test('B71: prova a blocchi: verdetto solo con la gravità a telefono fermo e la 
   for (let t = 0; t <= 1000; t += 1000/60){ C.browser({ t, ...round(motion(t - 8, { swingFrom: Infinity })) }); C.native({ t: t - 8, ...round(motion(t - 8, { swingFrom: Infinity })) }); }
   assert.equal(C.tick(1000), null);
   assert.deepEqual(C.blocks, [{ g: true, r: null }]);
+  // browser muto (devicemotion fermo): niente verdetto e i campioni dell'app non si accumulano senza fine
+  const M = createCrossCheck();
+  for (let t = 0; t < 60000; t += 1000/60){ M.native({ t, ...round(motion(t)) }); assert.equal(M.tick(t), null); }
+  assert.deepEqual(M.blocks, []);
 });
 
 // Impronta dei gesti veri del 28/10 (phone-stats.test.mjs, 933e330650269e1e): gli stessi campioni passati dal percorso

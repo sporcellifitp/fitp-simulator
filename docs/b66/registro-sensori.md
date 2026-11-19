@@ -159,3 +159,21 @@ non scriverla in chat né in un file.
   l'arrivo (`arr`).
 - `getConnectionInfo()` di Android è deprecato dalla 12 ma funziona; segnale, banda e velocità non chiedono il permesso
   della posizione (il nome della rete sì, e non si legge).
+
+## 8. B71 (19/11/2026): sensori dell'app, fondo scala, tocchi prima dei buchi
+
+Dai registri del 18 e 19/11 (`docs/b71/sensori.md`). Cinque campi nuovi in `tq` (riga `partita.fine`, per telefono),
+`CAMPI_B71S` in `registro_formato.js` (stessa riga nel Worker, tra quelli del B66 e quelli del B36.0). Solo numeri e codici
+di una lettera; una pagina di prima non li manda e la riga resta identica.
+
+| Campo | Cosa | Da dove |
+| --- | --- | --- |
+| `sr` | sorgente dei sensori nella partita: `n` app NATPF Racchetta 1.0.5, `b` browser (devicemotion), `nb` tutte e due | telefono (`sensori-nativi.js`, campo `sr` dello stato) |
+| `fs` | fondo scala dichiarato dall'app [accelerazione m/s², rotazione °/s] (`Sensor.getMaximumRange`), solo con l'app 1.0.5 | app → telefono (`infoSensori`, campo `fs`) |
+| `vs` | valori più grandi visti su un asse [accelerazione con la gravità m/s², rotazione °/s]: con `fs` dice se la saturazione è il fondo scala | telefono (`sq[7]`, `sq[8]`) |
+| `tk` | tocchi prima dei buchi: [mediana dei ms dall'ultimo tocco all'inizio del buco, buchi con un tocco nell'ultimo secondo (o durante il buco)] | telefono (campo `tk` dello stato: un valore per buco) |
+| `rp` | motivo del ritorno al browser: `g` gravità diversa nella prova, `r` rotazione diversa, `f` sensori dell'app fermi a pagina visibile, `p` ponte che non risponde | telefono |
+
+Il Worker va ricaricato (§5, file della versione con il B71) perché i cinque campi arrivino: un Worker non ricaricato li
+toglie in silenzio e accetta le righe con tutto il resto (formato delle righe ancora **3**, prova in
+`natpf-tennis/test/natpf-b71-sensori-registro.test.mjs`). Il riassunto (`riassunto.mjs`) non li mostra ancora.
