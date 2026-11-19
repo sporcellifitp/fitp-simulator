@@ -129,7 +129,7 @@ try {
   await toMatch(p); await p.waitForTimeout(500);
   let v = await view(p);
   check('pagina «Partita»: «Chi gioca?» con Bambino · Ragazzo · Adulto al posto del livello; di base Adulto (livello Evento)',
-    v.label === 'Chi gioca?' && v.tiles.join(' ') === 'Bambino=bambini Ragazzo=casual Adulto=evento*' && v.hud === 'evento' && v.note === '' && !/CPU/.test(v.sum), fmt(v));
+    v.label === 'Chi gioca?' && v.tiles.join(' ') === 'Bambino=bambini Ragazzo=casual Adulto=evento*' && v.hud === 'evento' && v.note === '' && !/Avversario|CPU/.test(v.sum), fmt(v));
   check('le tre tessere dicono in parole semplici che cosa cambia', /lenta/.test(v.desc[0]) && /facile/.test(v.desc[1]) && /si regola/.test(v.desc[2]), v.desc.join(' | '));
   for (const [w, h] of SIZES){
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(350);
@@ -141,8 +141,8 @@ try {
     const b = await view(p);
     // (aperte, su uno schermo basso la pagina scorre da sola fino all'ultima riga, come dal B15: titolo e tessere salgono)
     // B64 (17/11, ridondanze): solo i livelli che le tessere non hanno
-    check(`${w}×${h}: «Altre impostazioni» aperte: «Livelli per esperti» con Esperta e Leggenda (Bambini, Facile, Evento solo nelle tessere), in vista insieme a «Gioca»`,
-      b.levelRow && b.levels.join(' ') === 'Esperta=pro Leggenda=leggenda' && b.scroll <= 0 && b.levelsInView && b.play, fmt({ levels: b.levels, scroll: b.scroll, inView: b.levelsInView, play: b.play }));
+    check(`${w}×${h}: «Altre impostazioni» aperte: «Livelli per esperti» con Esperto e Leggenda (Bambini, Facile, Evento solo nelle tessere), in vista insieme a «Gioca»`,
+      b.levelRow && b.levels.join(' ') === 'Esperto=pro Leggenda=leggenda' && b.scroll <= 0 && b.levelsInView && b.play, fmt({ levels: b.levels, scroll: b.scroll, inView: b.levelsInView, play: b.play }));
     await p.screenshot({ path: path.join(OUT, `altre-impostazioni-${w}x${h}.png`) });
     await p.click('#match-more-btn'); await p.waitForTimeout(150);
   }
@@ -155,13 +155,13 @@ try {
   v = await view(p);
   // (revisione: con «Altre impostazioni» aperte la riga sotto le tessere non c'è: il livello scelto si vede già lì, e la
   // riga in più tagliava a metà l'ultima riga sopra «Gioca»)
-  check('«Livello della CPU» → Esperta: nessuna tessera scelta, il livello è scelto nella riga, l\'ultima riga («Visuale») resta in vista intera',
-    v.hud === 'pro' && !v.tiles.some(t => t.endsWith('*')) && v.note === '' && v.levels.includes('Esperta=pro*') && v.opp === 'CPU Pro' && v.scroll <= 0 && v.lastRow && v.play, fmt(v));
+  check('«Livelli per esperti» → Esperto: nessuna tessera scelta, il livello è scelto nella riga, sotto il ritratto «Avversario esperto», l\'ultima riga («Visuale») resta in vista intera',
+    v.hud === 'pro' && !v.tiles.some(t => t.endsWith('*')) && v.note === '' && v.levels.includes('Esperto=pro*') && v.opp === 'Avversario esperto' && v.scroll <= 0 && v.lastRow && v.play, fmt(v));
   await p.screenshot({ path: path.join(OUT, 'livello-esperta-aperte-1280x720.png') });
   await p.click('#match-more-btn'); await p.waitForTimeout(200);
   v = await view(p);
-  check('… chiuse «Altre impostazioni»: la riga sotto le tessere dice il livello, il riassunto comincia con «CPU Esperta»',
-    /CPU Esperta.*Altre impostazioni/.test(v.note) && v.sum.startsWith('CPU Esperta') && v.scroll <= 0 && v.play, fmt({ note: v.note, sum: v.sum, scroll: v.scroll }));
+  check('… chiuse «Altre impostazioni»: la riga sotto le tessere dice il livello, il riassunto comincia con «Avversario esperto»',
+    /Avversario esperto.*Altre impostazioni/.test(v.note) && v.sum.startsWith('Avversario esperto') && v.scroll <= 0 && v.play, fmt({ note: v.note, sum: v.sum, scroll: v.scroll }));
   await p.screenshot({ path: path.join(OUT, 'livello-esperta-1280x720.png') });
   await p.click('#match-more-btn'); await p.waitForTimeout(200);
   await p.click('[data-natpf-level="leggenda"]'); await p.waitForTimeout(200);
@@ -169,13 +169,13 @@ try {
   const legOpen = { hud: v.hud, note: v.note, lastRow: v.lastRow, levels: v.levels };
   await p.click('#match-more-btn'); await p.waitForTimeout(200);
   v = await view(p);
-  check('… → Leggenda: come prima si gioca contro la Leggenda', legOpen.hud === 'leggenda' && legOpen.note === '' && legOpen.lastRow && legOpen.levels.includes('Leggenda=leggenda*') && /CPU Leggenda/.test(v.note) && v.sum.startsWith('CPU Leggenda'), fmt({ legOpen, note: v.note, sum: v.sum }));
+  check('… → Leggenda: come prima si gioca contro la Leggenda', legOpen.hud === 'leggenda' && legOpen.note === '' && legOpen.lastRow && legOpen.levels.includes('Leggenda=leggenda*') && /Avversario Leggenda/.test(v.note) && v.sum.startsWith('Avversario Leggenda') && v.opp === 'Avversario Leggenda', fmt({ legOpen, note: v.note, sum: v.sum }));
   const leg = await play(p);
   check('«Gioca» con Leggenda scelta: il motore gioca a Leggenda, senza segnale', leg.level === 'leggenda' && leg.cue === false, fmt(leg));
   await menu(p);
   await p.click('#difficulty-mode-group [data-who="bambino"]'); await p.waitForTimeout(150);
   v = await view(p);
-  check('una tessera di «Chi gioca» toglie il livello scelto per nome: la riga sparisce', v.hud === 'bambini' && v.note === '' && !/CPU/.test(v.sum), fmt({ hud: v.hud, note: v.note, sum: v.sum }));
+  check('una tessera di «Chi gioca» toglie il livello scelto per nome: la riga sparisce', v.hud === 'bambini' && v.note === '' && !/Avversario|CPU/.test(v.sum), fmt({ hud: v.hud, note: v.note, sum: v.sum }));
 
   /* ---------- 3: «Gioca» con le tre tessere ---------- */
   const started = {};
@@ -328,7 +328,7 @@ try {
   await ctx.close();
 
   /* ---------- 8: indirizzi di sempre ---------- */
-  for (const [mode, name] of [['pro', 'CPU Esperta'], ['leggenda', 'CPU Leggenda'], ['casual', null], ['bambini', null]]){
+  for (const [mode, name] of [['pro', 'Avversario esperto'], ['leggenda', 'Avversario Leggenda'], ['casual', null], ['bambini', null]]){
     const u = await page(B, `${URL0}&mode=${mode}`, { w: 1280, h: 720 });
     await ready(u.p); await toMatch(u.p); await u.p.waitForTimeout(400);
     const a = await view(u.p);

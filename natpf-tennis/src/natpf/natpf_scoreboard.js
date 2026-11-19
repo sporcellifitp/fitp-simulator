@@ -17,7 +17,8 @@
 // DECISIVO». Parità e vantaggio li dicono già le caselle (40 · 40, AD) e la scritta grande del punto; il servizio che
 // passa ogni due punti lo dicono la pallina di chi serve, «Al servizio» sopra chi batte e il banner d'inizio partita (una
 // volta). Formato intero e scritta del momento restano nel testo per chi legge con lo screen reader (role="status").
-import { viewScore } from './natpf_point_call.js';
+import { viewScore, rivalOf } from './natpf_point_call.js';
+import { OPPONENT_NAME, OPPONENTS_NAME, withPartner } from './natpf_who.js';
 
 const POINTS = ['0', '15', '30', '40'];
 
@@ -52,15 +53,15 @@ export function gamePoints(p = 0, o = 0){
   return { player: POINTS[Math.min(3, p)], opponent: POINTS[Math.min(3, o)] };
 }
 
-// nome abbreviato per la riga del tabellone, come le sigle in televisione (riferimento: «DRL», «2KG»): «TU», «CPU»,
+// nome abbreviato per la riga del tabellone, come le sigle in televisione (riferimento: «DRL», «2KG»): «TU», «AVV»,
 // «P1»/«P2» per «Player 1»/«Player 2», altrimenti le prime `n` lettere (3) del nome scelto nella pagina «Collega»,
 // maiuscole. Con più parole le lettere non vanno oltre la prima parola («Jean Paul» → «JEA», «JEAN», mai «JEANPA»).
 // `mode`: con `initials` (o `true`) la sigla è fatta dalle iniziali delle parole prima dell'ultima più le lettere
 // dell'ultima («Jean Paul» → «JPA», «Marco Rossi» → «MRO»); con `ending` le ultime lettere di una parola più lunga di `n`
 // lasciano il posto all'ultima lettera, quella che in italiano distingue il nome maschile da quello femminile
 // («Francesco» a 6 → «FRANCO», «Francesca» → «FRANCA»; con le iniziali «Anna Francesco» → «AFRANO»). Le squadre del
-// doppio tengono il «+»: «TU+CPU», «MAR+CPU», «2CPU» (un numero davanti resta intero). Rifinitura del 08/11: prima un
-// nome di al più 4 caratteri restava intero («ANNA»), ma «Anna»/«Annalisa» uscivano ANNA/ANN e si confondevano: ora
+// doppio tengono il «+»: «TU+COM», «MAR+COM» (B72: «Tu + compagno»; prima «TU+CPU»), «2CPU» (un numero davanti resta
+// intero). Rifinitura del 08/11: prima un nome di al più 4 caratteri restava intero («ANNA»), ma «Anna»/«Annalisa» uscivano ANNA/ANN e si confondevano: ora
 // sempre 3 lettere, e le sigle uguali le allunga shortNames. Le lettere si contano per code point (Array.from), non per
 // unità UTF-16: «🎾🎾» a 3 resta «🎾🎾», prima slice() lasciava mezza emoji («🎾\ud83c», nel tabellone «🎾�»)
 export function shortName(name = '', n = 3, mode = false){
@@ -112,11 +113,12 @@ export function shortNames(me, them){
 }
 
 // nomi delle due righe dal lato di chi guarda: { me, them } (stesso schermo: P1 e P2 con i nomi della pagina «Collega»)
-// myName (B54): contro la CPU il nome di chi gioca (scritto sul telefono o sul computer), «Tu» senza nome
+// myName (B54): contro l'avversario il nome di chi gioca (scritto sul telefono o sul computer), «Tu» senza nome
+// B72: «Avversario» (doppio: «Avversari», e la propria squadra «Tu + compagno»); prima «CPU», «2 CPU», «Tu + CPU»
 export function rowNames({ viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '', myName = '' } = {}){
   if (split) return { me: splitNames?.p1 || 'Player 1', them: splitNames?.p2 || 'Player 2' };
-  const team = n => (doubles ? `${n} + CPU` : n);
-  if (!multiplayer) return { me: team(String(myName || '').trim() || 'Tu'), them: doubles ? '2 CPU' : 'CPU' };
+  const team = n => (doubles ? withPartner(n) : n);
+  if (!multiplayer) return { me: team(String(myName || '').trim() || 'Tu'), them: doubles ? OPPONENTS_NAME : OPPONENT_NAME };
   const rival = viewer === 'opponent' ? (hostName || 'Player 1') : (guestName || 'Player 2');
   return { me: team('Tu'), them: team(rival) };
 }
@@ -144,8 +146,9 @@ export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', 
   else if (pts.adv){
     if (split) label = `Vantaggio ${pts.adv === 'player' ? names.me : names.them}`;
     else {
-      // come negli annunci dei punti (viewScore): «Vantaggio tuo», «Vantaggio della CPU», «Vantaggio di Player 2»
-      const rival = !multiplayer ? { of: 'della CPU' } : { of: `di ${viewer === 'opponent' ? (hostName || 'Player 1') : (guestName || 'Player 2')}` };
+      // come negli annunci dei punti (viewScore): «Vantaggio tuo», «Vantaggio dell'avversario» (doppio: «degli
+      // avversari»), «Vantaggio di Player 2»
+      const rival = !multiplayer ? rivalOf({ doubles }) : { of: `di ${viewer === 'opponent' ? (hostName || 'Player 1') : (guestName || 'Player 2')}` };
       label = viewScore({ player: pts.player === 'Vant.' ? 'Ad' : '40', opponent: pts.opponent === 'Vant.' ? 'Ad' : '40' }, viewer, rival);
     }
   }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>NATPF Simulator · tennis arcade</title>
-<meta name="description" content="NATPF Simulator: tennis arcade contro la CPU o un amico. Lo smartphone è la tua racchetta: collegalo via QR code.">
+<meta name="description" content="NATPF Simulator: tennis arcade contro l’avversario o un amico. Lo smartphone è la tua racchetta: collegalo via QR code.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23ff3d8b'/%3E%3Ccircle cx='44' cy='20' r='9' fill='%23e8ff3a'/%3E%3C/svg%3E">
 <style>
   :root{--navy:#0a1a4f;--ink:#121c3a;--muted:#5b6788;--pink:#ff3d8b;--ball:#e8ff3a;--blue:#2f6bff;--ok:#16a34a;--okb:#4cff8a;--warn:#e0a020;--bad:#e5484d;--line:#e3e8f3}
@@ -121,12 +121,12 @@
     <p style="margin-top:10px">Collega il telefono via QR code e usalo come racchetta. Il giocatore corre da solo: timing per la precisione, gesto a sinistra/destra per l'angolo, movimento breve per la palla corta.</p>
     <div class="lbl">Il tuo nome</div>
     <input type="text" id="name" maxlength="16" placeholder="Come ti chiami?" autocomplete="nickname">
-    <button class="btn pink" id="btnCpu">Gioca contro la CPU</button>
+    <button class="btn pink" id="btnCpu">Gioca contro l’avversario</button>
     <button class="btn" id="btnInvite">Invita un amico</button>
     <div class="row">
       <div><div class="lbl">Durata</div><div class="seg" id="fmt"><button data-v="1">1 game</button><button data-v="4">Set a 4</button><button data-v="6">Set a 6</button></div></div>
     </div>
-    <div class="lbl">Difficoltà CPU</div><div class="seg" id="lvl"><button data-v="facile">Facile</button><button data-v="normale">Normale</button><button data-v="esperto">Esperto</button></div>
+    <div class="lbl">Difficoltà dell’avversario</div><div class="seg" id="lvl"><button data-v="facile">Facile</button><button data-v="normale">Normale</button><button data-v="esperto">Esperto</button></div>
     <label class="lbl" for="cameraMenu">Visuale</label><select id="cameraMenu" data-camera-select><option value="third">Terza persona · dietro il giocatore</option><option value="first">Prima persona · dagli occhi del giocatore</option></select>
   </div>
 </div>

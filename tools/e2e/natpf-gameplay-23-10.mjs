@@ -125,10 +125,10 @@ try {
     if (k === 0){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/fine-punto.png` }).catch(() => {}); }
   }
   const calls = await game.evaluate(() => __calls);
-  const okCall = c => (c.who === 'player' ? c.text === 'Punto tuo' && /style-won/.test(c.cls) : c.text === 'Punto della CPU' && /style-lost/.test(c.cls))
-    && (!/^(Out|Net)$/.test(c.why) || (c.who === 'player' ? /^Errore della CPU/.test(c.sub) : /^Errore tuo/.test(c.sub)));
+  const okCall = c => (c.who === 'player' ? c.text === 'Punto tuo' && /style-won/.test(c.cls) : c.text === "Punto dell'avversario" && /style-lost/.test(c.cls))
+    && (!/^(Out|Net)$/.test(c.why) || (c.who === 'player' ? /^Errore dell'avversario/.test(c.sub) : /^Errore tuo/.test(c.sub)));
   const points = calls.filter(c => c.text && !/^Game|^Partita/.test(c.text));
-  check('B. fine del punto: in grande chi vince (verde il proprio, rosa della CPU), sotto chi ha sbagliato e il punteggio', points.length >= 4 && points.every(okCall) && points.some(c => c.who === 'player') && points.some(c => c.who === 'opponent'),
+  check('B. fine del punto: in grande chi vince (verde il proprio, rosa dell’avversario), sotto chi ha sbagliato e il punteggio', points.length >= 4 && points.every(okCall) && points.some(c => c.who === 'player') && points.some(c => c.who === 'opponent'),
     `${points.length} punti: ` + calls.map(c => `${c.who}/${c.why} → «${c.text}» «${c.sub}»${okCall(c) || /^Game|^Partita/.test(c.text) ? '' : ' ✗'}`).join(' · ').slice(0, 1400));
   /* C. moviola dell'ultimo punto, dal menu della pausa */
   await game.waitForFunction(() => __natpfTennis.natpfReplay.available, null, { timeout: 5000 }).catch(() => {});

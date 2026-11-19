@@ -17,6 +17,7 @@ import { phonePageUrl } from './natpf_phone_racket.js';
 import { lanOrigin } from './natpf_lan.js';
 import { isLanMode } from '@natpf/tennis/lan-transport.js';
 import { CONFIRM } from './natpf_confirm.js';
+import { OPPONENT_NAME, OPPONENTS_NAME, OPPONENT_REF } from './natpf_who.js'; // B72: nomi senza «CPU»
 
 const NATPF_BASE = '/natpf/';
 const loadScript = src => new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = () => reject(new Error(src)); document.head.appendChild(s); });
@@ -200,9 +201,9 @@ export class NatpfRemote {
     const screen = remoteScreen(s), { cmds, labels, hints } = remoteCommands(s, screen);
     const E = this.engine, P = this.ui.phone, P2 = E.natpfPhone2;
     let detail = '';
-    if (screen.id === 'match' || screen.under === 'match' || screen.id === 'pause' || screen.id === 'victory') detail = scoreLine(E.score, { names: s.split ? ['P1', 'P2'] : s.versus ? ['Tu', 'P2'] : ['Tu', 'CPU'] });
+    if (screen.id === 'match' || screen.under === 'match' || screen.id === 'pause' || screen.id === 'victory') detail = scoreLine(E.score, { names: s.split ? ['P1', 'P2'] : s.versus ? ['Tu', 'P2'] : ['Tu', E.isDoubles ? OPPONENTS_NAME : OPPONENT_NAME] });
     else if (screen.id === 'minigame') detail = `Punti ${this.ui.events.active?.score ?? 0}`;
-    else if (screen.id.startsWith('lobby:') && s.lobby.mode) detail = { cpu: 'Contro la CPU', friend: 'Sfida un amico', training: 'Allenamento', challenge: 'Minigiochi', split: 'Stesso schermo' }[s.lobby.mode] || '';
+    else if (screen.id.startsWith('lobby:') && s.lobby.mode) detail = { cpu: `Contro ${OPPONENT_REF.who}`, friend: 'Sfida un amico', training: 'Allenamento', challenge: 'Minigiochi', split: 'Stesso schermo' }[s.lobby.mode] || '';
     if (screen.id === 'pause' || screen.id === 'staff' || screen.id === 'remote') detail = [detail, s.minigame ? `Minigioco: ${s.minigame}` : ''].filter(Boolean).join(' · ');
     const L = P?.state || {};
     this.link.status({

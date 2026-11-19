@@ -7,6 +7,7 @@ import { cardModel, cardsHtml } from "./natpf/natpf_end_card.js"; // NATPF B40: 
 import { castLooks, getCast } from "./natpf/natpf_personaggi.js";
 import { mascotRotation, mascotPlan, withMascots, mountMascots } from "./natpf/natpf_mascotte.js"; // NATPF B58
 import { cardsUse3d } from "./natpf/natpf_card_moves.js"; // NATPF B63/B69: con Lob e Drop in campo le mascotte 3D al posto delle GIF nella card
+import { OPPONENT_NAME, opponentLevelName } from "./natpf/natpf_who.js"; // NATPF B72: «Avversario» al posto di «CPU»
 // NATPF: scritture nel DOM solo se il valore cambia. updateMultiplayerRoomInfo gira a ogni risposta del relay (20 al
 // secondo nella sfida) e updateTimingGauge due volte per fotogramma (passi di fisica a 120 Hz): textContent riscritto
 // uguale sostituisce comunque il nodo di testo e fa ricalcolare lo stile (come natpf_split_ui.js)
@@ -112,11 +113,9 @@ export class HudUI {
       this.playerRole !== "p2" &&
       (e === "1v1"
         ? (s.textContent = "Player 2")
-        : e === "pro"
-          ? (s.textContent = "CPU Pro")
-          : e === "leggenda"
-            ? (s.textContent = "CPU Leggenda")
-            : (s.textContent = "CPU")),
+        : e === "pro" || e === "leggenda" // NATPF B72: «Avversario esperto», «Avversario Leggenda», «Avversario» (prima «CPU Pro», «CPU Leggenda», «CPU»)
+          ? (s.textContent = opponentLevelName(e))
+          : (s.textContent = OPPONENT_NAME)),
       this.updateOpponentPresence(this._lastRoomStatus || {}),
       n && this.callbacks.onSelectDifficulty && this.callbacks.onSelectDifficulty(e);
   }

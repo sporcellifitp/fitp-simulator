@@ -143,7 +143,7 @@ try {
     const top = await game.evaluate(() => __r.slice('topspin'));
     check(`${look}: tagliato di chi gioca, effetto all'indietro e rimbalzo più basso del top spin`, sl.hit && sl.shot === 'SLICE' && sl.spin <= -6 && sl.bounceUp > 0 && sl.bounceUp < top.bounceUp, `${JSON.stringify(sl)} · top spin ${JSON.stringify(top)}`);
     const d = await game.evaluate(() => __r.cpuDrop()); await shot('palla-corta-cpu');
-    check(`${look}: palla corta della CPU scritta «Palla corta della CPU», neutra, nell'angolo della CPU (mai «Fuori»)`, d.kind === 'drop' && !d.net && d.landingZ > 0 && !d.hidden && /palla corta della cpu/i.test(d.grade) && !/fuori|rete/i.test(d.grade + ' ' + d.detail) && /q-cpu/.test(d.gradeCls) && !/q-red/.test(d.gradeCls) && d.right && d.other, JSON.stringify(d));
+    check(`${look}: palla corta della CPU scritta «Palla corta dell'avversario», neutra, nell'angolo della CPU (mai «Fuori»)`, d.kind === 'drop' && !d.net && d.landingZ > 0 && !d.hidden && /palla corta dell'avversario/i.test(d.grade) && !/cpu/i.test(d.grade) && !/fuori|rete/i.test(d.grade + ' ' + d.detail) && /q-cpu/.test(d.gradeCls) && !/q-red/.test(d.gradeCls) && d.right && d.other, JSON.stringify(d));
     check(`${look}: nessun errore in pagina`, errs.length === 0, errs.slice(0, 3).join(' | '));
     await game.close();
   }

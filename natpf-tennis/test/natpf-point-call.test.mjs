@@ -8,14 +8,19 @@ import { t as tr, scoreText } from '../src/natpf/natpf_i18n.js';
 
 test('palla fuori: chi vince il punto e chi ha sbagliato, contro la CPU', () => {
   const won = pointCall({ winner: 'player', why: 'Out', score: { player: '15', opponent: '0' } });
-  assert.deepEqual([won.text, won.subText, won.style], ['Punto tuo', 'Errore della CPU: palla fuori · 15-0', 'style-won']);
+  assert.deepEqual([won.text, won.subText, won.style], ['Punto tuo', "Errore dell'avversario: palla fuori · 15-0", 'style-won']);
   const lost = pointCall({ winner: 'opponent', why: 'Out', score: { player: '0', opponent: '15' } });
-  assert.deepEqual([lost.text, lost.subText, lost.style], ['Punto della CPU', 'Errore tuo: palla fuori · 0-15', 'style-lost']);
+  assert.deepEqual([lost.text, lost.subText, lost.style], ["Punto dell'avversario", 'Errore tuo: palla fuori · 0-15', 'style-lost']);
   assert.match(pointCall({ winner: 'opponent', why: 'Net' }).subText, /Errore tuo: palla in rete/);
   assert.match(pointCall({ winner: 'player', why: 'Nice Shot!' }).subText, /^Vincente!/);
   assert.match(pointCall({ winner: 'opponent', why: 'Point' }).subText, /Palla non presa/);
-  assert.match(pointCall({ winner: 'player', why: 'Point' }).subText, /La CPU non ci arriva/);
-  assert.match(pointCall({ winner: 'opponent', why: 'Ace!' }).subText, /Ace della CPU/);
+  assert.match(pointCall({ winner: 'player', why: 'Point' }).subText, /L'avversario non ci arriva/);
+  assert.match(pointCall({ winner: 'opponent', why: 'Ace!' }).subText, /Ace dell'avversario/);
+  // B72: nel doppio contro il gioco i due avversari, al plurale (prima «della CPU» anche lì)
+  const two = rivalOf({ doubles: true });
+  assert.match(pointCall({ winner: 'player', why: 'Point', rival: two }).subText, /^Gli avversari non ci arrivano/);
+  assert.equal(pointCall({ winner: 'opponent', why: 'Out', rival: two }).text, 'Punto degli avversari');
+  assert.equal(callFromBroadcast({ isDoubles: true }, { call: { kind: 'game', winner: 'opponent', games: { player: 0, opponent: 1 } } }).text, 'Game degli avversari');
 });
 
 test('punteggio dal proprio lato, parità e vantaggio di chi', () => {
@@ -24,7 +29,7 @@ test('punteggio dal proprio lato, parità e vantaggio di chi', () => {
   assert.equal(viewScore({ player: '30', opponent: '15' }, 'opponent', rivalOf({ multiplayer: true, viewer: 'opponent' })), '15-30');
   assert.equal(viewScore({ player: '40', opponent: '40' }), 'Parità');
   assert.equal(viewScore({ player: 'Ad', opponent: '40' }), 'Vantaggio tuo');
-  assert.equal(viewScore({ player: '40', opponent: 'Ad' }), 'Vantaggio della CPU');
+  assert.equal(viewScore({ player: '40', opponent: 'Ad' }), "Vantaggio dell'avversario");
 });
 
 test('1v1: l’host e il Player 2 vedono lo stesso punto ciascuno dal suo lato', () => {
@@ -39,7 +44,7 @@ test('1v1: l’host e il Player 2 vedono lo stesso punto ciascuno dal suo lato',
 });
 
 test('game e partita: di chi sono', () => {
-  assert.deepEqual(Object.values(gameCall({ winner: 'opponent', games: { player: 0, opponent: 1 } })).slice(1), ['Game della CPU', 'Game 0-1', 'style-lost']);
+  assert.deepEqual(Object.values(gameCall({ winner: 'opponent', games: { player: 0, opponent: 1 } })).slice(1), ["Game dell'avversario", 'Game 0-1', 'style-lost']);
   assert.equal(gameCall({ winner: 'player', games: { player: 2, opponent: 1 }, match: true }).text, 'Partita tua!');
 });
 

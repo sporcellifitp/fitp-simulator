@@ -7,11 +7,14 @@
 //   winner: 'player' | 'opponent' nel riferimento del motore (player = chi gioca qui contro la CPU, o l'host del 1v1)
 //   why: motivo del motore: 'Out' | 'Net' | 'Nice Shot!' | 'Ace!' | 'Point'
 //   viewer: 'player' (contro la CPU, o l'host) | 'opponent' (il Player 2 del 1v1)
-//   rival: avversario visto da chi guarda: { of: 'della CPU', who: 'la CPU' } (rivalOf)
+//   rival: avversario visto da chi guarda: { of: "dell'avversario", who: "l'avversario" } (rivalOf)
 //   score: { player, opponent } punti del motore ('0', '15', '30', '40', 'Ad'), dopo il punto
+// B72: contro il gioco «dell'avversario» (prima «della CPU»); nel doppio contro il gioco (doubles) «degli avversari»
+// (prima «della CPU» anche lì). Nomi e articoli in natpf_who.js (OPPONENT_REF, OPPONENTS_REF)
+import { OPPONENT_NAME, OPPONENTS_NAME, OPPONENT_REF, OPPONENTS_REF, withPartner } from './natpf_who.js';
 
-export const rivalOf = ({ multiplayer = false, viewer = 'player' } = {}) => (!multiplayer
-  ? { of: 'della CPU', who: 'la CPU', Who: 'La CPU' }
+export const rivalOf = ({ multiplayer = false, viewer = 'player', doubles = false } = {}) => (!multiplayer
+  ? (doubles ? OPPONENTS_REF : OPPONENT_REF)
   : viewer === 'opponent' ? { of: 'di Player 1', who: 'Player 1', Who: 'Player 1' } : { of: 'di Player 2', who: 'Player 2', Who: 'Player 2' });
 
 // punteggio del game dal lato di chi guarda: «30-15» (il proprio prima), parità, vantaggio di chi
@@ -33,7 +36,7 @@ const REASON = {
   'Nice Shot!': (mine, r) => (mine ? 'Vincente!' : `Vincente ${r.of}`),
   'Ace!': (mine, r) => (mine ? 'Ace!' : `Ace ${r.of}`),
   // palla passata senza colpo
-  Point: (mine, r) => (mine ? `${r.Who} non ci arriva` : 'Palla non presa'),
+  Point: (mine, r) => (mine ? `${r.Who} non ci ${r.many ? 'arrivano' : 'arriva'}` : 'Palla non presa'),
 };
 
 // whiff (B20, audit B19 punto 18): nello stesso schermo chi ha perso il punto ha fatto il gesto ed è andato a vuoto. Prima
@@ -43,7 +46,7 @@ export function pointCall({ winner = 'player', why = '', viewer = 'player', riva
     const win = sharedNames[winner], lose = sharedNames[winner === 'player' ? 'opponent' : 'player'];
     const reason = why === 'Out' ? `Errore di ${lose}: palla fuori` : why === 'Net' ? `Errore di ${lose}: palla in rete` : why === 'Point' ? `${lose} non ci arriva` : why === 'Ace!' ? `Ace di ${win}`
       : why === 'Nice Shot!' ? (whiff ? `Colpo a vuoto di ${lose}` : `Vincente di ${win}`) : '';
-    // stesso schermo (B18, difetto 4 del B16): «0» e non «00», «Parità» a 40-40 come contro la CPU; con il formato in
+    // stesso schermo (B18, difetto 4 del B16): «0» e non «00», «Parità» a 40-40 come contro l'avversario; con il formato in
     // fiera (B18, natpf_fair_format.js) a 40-40 «Punto decisivo»
     const sc = !score ? '' : score.deciding ? 'Punto decisivo' : score.player === 'Ad' ? `Vantaggio ${sharedNames.player}` : score.opponent === 'Ad' ? `Vantaggio ${sharedNames.opponent}`
       : z(score.player) === '40' && z(score.opponent) === '40' ? 'Parità' : `${sharedNames.player} ${z(score.player)} · ${sharedNames.opponent} ${z(score.opponent)}`;
@@ -108,21 +111,22 @@ export function matchEndView({ winner = 'player', games = { player: 0, opponent:
     return { title: `Vince ${sharedNames[winner]}!`, won: true, rows, score: `${g.player}-${g.opponent}`, voice: MATCH_VOICE };
   }
   const me = viewer === 'opponent' ? 'opponent' : 'player', mine = winner === me, nick = String(nickname || '').trim();
-  // doppio in rete: ciascuno con la sua CPU in coppia, come la pagina «Partita» («Amico + CPU», revisione B18)
-  const myName = nick || 'Tu', rivalName = !multiplayer ? (doubles ? '2 CPU' : 'CPU') : doubles ? `${rival.who} + CPU` : rival.who;
-  const title = mine ? (nick ? `Vince ${nick}!` : doubles ? 'Avete vinto!' : 'Hai vinto!') : !multiplayer ? (doubles ? 'Vincono le CPU' : 'Vince la CPU') : `Vince ${rival.who}!`;
-  const rows = [{ name: doubles ? `${myName} + CPU` : myName, games: g[me], win: mine }, { name: rivalName, games: g[other(me)], win: !mine }];
+  // doppio in rete: ciascuno con il suo compagno guidato dal gioco, come la pagina «Partita» («Amico + compagno», revisione
+  // B18). B72: contro il gioco «Avversario» / «Avversari», «Vince l'avversario», «Vincono gli avversari» (prima «CPU»)
+  const myName = nick || 'Tu', rivalName = !multiplayer ? (doubles ? OPPONENTS_NAME : OPPONENT_NAME) : doubles ? withPartner(rival.who) : rival.who;
+  const title = mine ? (nick ? `Vince ${nick}!` : doubles ? 'Avete vinto!' : 'Hai vinto!') : !multiplayer ? (doubles ? `Vincono ${OPPONENTS_REF.who}` : `Vince ${OPPONENT_REF.who}`) : `Vince ${rival.who}!`;
+  const rows = [{ name: doubles ? withPartner(myName) : myName, games: g[me], win: mine }, { name: rivalName, games: g[other(me)], win: !mine }];
   return { title, won: mine, rows, score: `${g[me]}-${g[other(me)]}`, voice: MATCH_VOICE };
 }
 
 // Dati del motore per chi guarda su questo computer (anche il Player 2 del 1v1)
 export function callContext(engine){
   const viewer = engine?.playerRole === 'p2' ? 'opponent' : 'player', multiplayer = !!engine?.isMultiplayer;
-  return { viewer, rival: rivalOf({ multiplayer, viewer }), ...(engine?.natpfSplit?.active ? { sharedNames: { player: engine.natpfSplitNames?.p1 || 'Player 1', opponent: engine.natpfSplitNames?.p2 || 'Player 2' } } : {}) };
+  return { viewer, rival: rivalOf({ multiplayer, viewer, doubles: !!engine?.isDoubles }), ...(engine?.natpfSplit?.active ? { sharedNames: { player: engine.natpfSplitNames?.p1 || 'Player 1', opponent: engine.natpfSplitNames?.p2 || 'Player 2' } } : {}) };
 }
 
 // B43 (decisione dell'utente del 13/11 sera, domanda a scelta): la scritta grande del punto, del game e della partita
-// («Punto della CPU», «Punto per …» con la riga del motivo) compare mezzo secondo DOPO che la palla ha toccato terra o
+// («Punto dell'avversario», «Punto per …» con la riga del motivo) compare mezzo secondo DOPO che la palla ha toccato terra o
 // rete: prima si vedono la palla che cade, l'anello rosso del fuori e «Fuori» in basso, che restano all'atterraggio (il
 // verdetto rimandato del B37, natpf_shot_feedback.settle, con il punteggio, la voce e il telefono). Secondi del gioco
 // (phaseTimer, che parte da 0 all'atterraggio): con la partita in pausa la scritta aspetta. La pausa tra i punti resta di

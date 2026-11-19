@@ -16,8 +16,8 @@ test('tessere contro la CPU: Bambino · Ragazzo · Adulto, segnata quella di pri
   assert.deepEqual(t.map(x => [x.name, x.level, x.selected]), [['Bambino', 'bambini', false], ['Ragazzo', 'casual', false], ['Adulto', 'evento', true]]);
   assert.deepEqual(rematchCpuTiles('bambini').filter(x => x.selected).map(x => x.name), ['Bambino']);
   const pro = rematchCpuTiles('pro');
-  assert.equal(pro.length, 4); assert.deepEqual([pro[3].name, pro[3].selected], ['CPU Esperta', true]);
-  assert.equal(rematchCpuTiles('leggenda')[3].name, 'CPU Leggenda');
+  assert.equal(pro.length, 4); assert.deepEqual([pro[3].name, pro[3].selected], ['Avversario esperto', true]);
+  assert.equal(rematchCpuTiles('leggenda')[3].name, 'Avversario Leggenda');
   assert.equal(rematchCpuTiles('boh').find(x => x.selected).name, 'Adulto');
 });
 
@@ -58,7 +58,7 @@ test('contro la CPU: «Rivincita» apre la scelta (segnata con il livello di pri
   const body = $('natpf-rematch').querySelector('[data-rematch="body"]').innerHTML;
   assert.match(body, /data-rematch-level="evento" role="radio" aria-checked="true"/, 'Adulto già segnato');
   assert.match(body, />Bambino</); assert.match(body, />Ragazzo</);
-  assert.doesNotMatch(body, /CPU Esperta|CPU Leggenda/);
+  assert.doesNotMatch(body, /Avversario esperto|Avversario Leggenda|CPU/);
   assert.equal($('natpf-rematch').querySelector('[data-rematch="title"]').textContent, 'Chi gioca?');
   // «Bambino»: vale subito come nel menu (HUD e livello del motore alla partenza)
   ui.rematch.pickLevel('bambini');

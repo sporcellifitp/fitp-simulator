@@ -23,7 +23,7 @@ test('stesso schermo, game e partita: con il nome di chi vince («Vince Luca!»)
   const m = gameCall({ winner: 'opponent', games: { player: 0, opponent: 1 }, match: true, sharedNames: NAMES });
   assert.deepEqual([m.text, m.subText], ['Vince Luca!', 'Marco 0 · Luca 1']);
   // i testi passano intatti dalla traduzione dell'HUD
-  for (const s of [m.text, 'Vince la CPU', 'Hai vinto!', 'Vince Marco!']) assert.equal(tr(scoreText(s)), s);
+  for (const s of [m.text, "Vince l'avversario", 'Vincono gli avversari', 'Hai vinto!', 'Vince Marco!']) assert.equal(tr(scoreText(s)), s);
 });
 
 test('schermata finale: chi vince con il nome, i game dei due, la voce di fine partita per chiunque vinca', () => {
@@ -36,17 +36,17 @@ test('schermata finale: chi vince con il nome, i game dei due, la voce di fine p
   assert.equal(matchEndView({ winner: 'player', games: { player: 1, opponent: 0 }, nickname: 'Ada' }).title, 'Vince Ada!');
   assert.equal(matchEndView({ winner: 'player', games: { player: 1, opponent: 0 } }).title, 'Hai vinto!');
   const lost = matchEndView({ winner: 'opponent', games: { player: 0, opponent: 1 }, nickname: 'Ada' });
-  assert.deepEqual([lost.title, lost.won, lost.rows.map(r => r.name).join('/'), lost.score, lost.voice], ['Vince la CPU', false, 'Ada/CPU', '0-1', MATCH_VOICE]);
+  assert.deepEqual([lost.title, lost.won, lost.rows.map(r => r.name).join('/'), lost.score, lost.voice], ["Vince l'avversario", false, 'Ada/Avversario', '0-1', MATCH_VOICE]);
   // sfida tra due computer, sul computer del Player 2: la sua riga prima, il punteggio dal suo lato
   const g = matchEndView({ winner: 'opponent', games: { player: 1, opponent: 2 }, viewer: 'opponent', rival: rivalOf({ multiplayer: true, viewer: 'opponent' }), multiplayer: true });
   assert.deepEqual([g.title, g.won, g.score, g.rows[0].name, g.rows[1].name], ['Hai vinto!', true, '2-1', 'Tu', 'Player 1']);
   assert.equal(matchEndView({ winner: 'player', games: { player: 1, opponent: 0 }, viewer: 'opponent', rival: rivalOf({ multiplayer: true, viewer: 'opponent' }), multiplayer: true }).title, 'Vince Player 1!');
-  // doppio contro le CPU
-  assert.equal(matchEndView({ winner: 'opponent', doubles: true }).title, 'Vincono le CPU');
-  assert.deepEqual(matchEndView({ winner: 'opponent', doubles: true, nickname: 'Ada' }).rows.map(r => r.name), ['Ada + CPU', '2 CPU']);
-  // doppio in rete (revisione B18): ciascuno con la sua CPU, come la pagina «Partita»
+  // doppio contro i due avversari del gioco (B72: prima «Vincono le CPU», «Ada + CPU», «2 CPU»)
+  assert.equal(matchEndView({ winner: 'opponent', doubles: true }).title, 'Vincono gli avversari');
+  assert.deepEqual(matchEndView({ winner: 'opponent', doubles: true, nickname: 'Ada' }).rows.map(r => r.name), ['Ada + compagno', 'Avversari']);
+  // doppio in rete (revisione B18): ciascuno con il suo compagno, come la pagina «Partita»
   const d = matchEndView({ winner: 'player', games: { player: 1, opponent: 0 }, rival: rivalOf({ multiplayer: true, viewer: 'player' }), multiplayer: true, doubles: true });
-  assert.deepEqual(d.rows.map(r => r.name), ['Tu + CPU', 'Player 2 + CPU']);
+  assert.deepEqual(d.rows.map(r => r.name), ['Tu + compagno', 'Player 2 + compagno']);
 });
 
 test('niente rating finto: la schermata finale non ha più numero, grafico e nome fisso «Tu»', () => {
@@ -99,7 +99,7 @@ test('contro la CPU, vince la CPU: «Vince la CPU», con il nome di chi gioca ne
   w.advance(2000);
   assert.equal(w.shown.length, 0, 'B43: 0,5 s per la scritta, poi 1,8 s');
   w.advance(400);
-  assert.equal(w.shown[0].view.title, 'Vince la CPU');
+  assert.equal(w.shown[0].view.title, "Vince l'avversario");
   assert.equal(w.shown[0].view.rows[0].name, 'Ada');
   assert.equal(w.shown[0].view.won, false);
 });

@@ -78,8 +78,8 @@ const FAIR_SAVED = { no: 'spento', split: 'solo per lo stesso schermo', si: 'acc
 export const fairButton = (mode, forced = false) => `${FAIR_LABEL[fairMode(mode)]}${forced ? ' (indirizzo)' : ''}`;
 export function fairToast(mode, forced = false){
   const m = fairMode(mode);
-  const t = m === 'si' ? 'Formato in fiera acceso: punto decisivo sul 40-40 e servizio che passa ogni due punti (batte anche la CPU o il Player 2); al massimo al meglio di 3'
-    : m === 'split' ? 'Formato in fiera solo nello stesso schermo: tra due persone punto decisivo sul 40-40 e servizio che passa ogni due punti; contro la CPU formato classico'
+  const t = m === 'si' ? 'Formato in fiera acceso: punto decisivo sul 40-40 e servizio che passa ogni due punti (batte anche l’avversario o il Player 2); al massimo al meglio di 3'
+    : m === 'split' ? 'Formato in fiera solo nello stesso schermo: tra due persone punto decisivo sul 40-40 e servizio che passa ogni due punti; contro l’avversario formato classico'
     : 'Formato in fiera spento: un battitore per game, parità e vantaggi';
   return forced ? `Formato in fiera salvato ${FAIR_SAVED[m]}, ma in questa pagina comanda l’indirizzo (?formato=…)` : `${t}. Vale dalla prossima partita; resta salvata`;
 }

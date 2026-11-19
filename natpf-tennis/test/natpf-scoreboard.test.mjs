@@ -30,33 +30,35 @@ test('punti del game: 0, 15, 30, 40, parità e vantaggio (l\'altro resta a 40)',
 });
 
 test('nomi delle righe in tutte le modalità', () => {
-  assert.deepEqual(rowNames(), { me: 'Tu', them: 'CPU' });
-  assert.deepEqual(rowNames({ doubles: true }), { me: 'Tu + CPU', them: '2 CPU' });
+  // B72: «Avversario» al posto di «CPU»; nel doppio «Avversari» e la propria squadra «Tu + compagno»
+  assert.deepEqual(rowNames(), { me: 'Tu', them: 'Avversario' });
+  assert.deepEqual(rowNames({ doubles: true }), { me: 'Tu + compagno', them: 'Avversari' });
   assert.deepEqual(rowNames({ multiplayer: true }), { me: 'Tu', them: 'Player 2' });
   assert.deepEqual(rowNames({ multiplayer: true, viewer: 'opponent' }), { me: 'Tu', them: 'Player 1' });
   assert.deepEqual(rowNames({ multiplayer: true, guestName: 'Giulia' }), { me: 'Tu', them: 'Giulia' });
-  assert.deepEqual(rowNames({ multiplayer: true, doubles: true, viewer: 'opponent', hostName: 'Marco' }), { me: 'Tu + CPU', them: 'Marco + CPU' });
+  assert.deepEqual(rowNames({ multiplayer: true, doubles: true, viewer: 'opponent', hostName: 'Marco' }), { me: 'Tu + compagno', them: 'Marco + compagno' });
   assert.deepEqual(rowNames({ split: true }), { me: 'Player 1', them: 'Player 2' });
   assert.deepEqual(rowNames({ split: true, multiplayer: true, splitNames: { p1: 'Marco', p2: 'Giulia' } }), { me: 'Marco', them: 'Giulia' });
 });
 
 test('contro la CPU: la propria riga sopra, game e punti giusti, chi serve', () => {
   const v = scoreboardView(sc(2, 1, 1, 0, 'player'), { gamesToWin: 2 });
-  assert.deepEqual(cells(v), ['•Tu 1 30', ' CPU 0 15']);
+  assert.deepEqual(cells(v), ['•Tu 1 30', ' Avversario 0 15']);
   assert.equal(v.format, 'Al meglio di 3 game');
   assert.equal(v.label, '');
   const w = scoreboardView(sc(0, 3, 0, 1, 'opponent'), { gamesToWin: 1 });
-  assert.deepEqual(cells(w), [' Tu 0 0', '•CPU 1 40']);
+  assert.deepEqual(cells(w), [' Tu 0 0', '•Avversario 1 40']);
   assert.equal(w.format, 'Partita a 1 game');
 });
 
 test('parità e vantaggio: stessa scritta degli annunci dei punti', () => {
   assert.equal(scoreboardView(sc(3, 3)).label, 'Parità');
   assert.equal(scoreboardView(sc(5, 4)).label, 'Vantaggio tuo');
-  assert.equal(scoreboardView(sc(4, 5)).label, 'Vantaggio della CPU');
+  assert.equal(scoreboardView(sc(4, 5)).label, "Vantaggio dell'avversario");
+  assert.equal(scoreboardView(sc(4, 5), { doubles: true }).label, 'Vantaggio degli avversari', 'B72: nel doppio i due avversari');
   // l'annuncio del punto dice lo stesso (natpf_point_call.viewScore)
   assert.match(pointCall({ winner: 'player', why: 'Point', score: { player: 'Ad', opponent: '40' } }).subText, /Vantaggio tuo$/);
-  assert.match(pointCall({ winner: 'opponent', why: 'Out', score: { player: '40', opponent: 'Ad' } }).subText, /Vantaggio della CPU$/);
+  assert.match(pointCall({ winner: 'opponent', why: 'Out', score: { player: '40', opponent: 'Ad' } }).subText, /Vantaggio dell'avversario$/);
   // 1v1 con un amico, dal lato del Player 2: il vantaggio dell'host è «di Player 1»
   assert.equal(scoreboardView(sc(4, 3), { multiplayer: true, viewer: 'opponent' }).label, 'Vantaggio di Player 1');
   assert.equal(scoreboardView(sc(3, 4), { multiplayer: true, viewer: 'opponent' }).label, 'Vantaggio tuo');
@@ -89,6 +91,11 @@ test('sigle dei nomi: TU, CPU, P1/P2, prime 3 lettere del nome scelto, squadre c
   assert.equal(shortName('Tu + CPU'), 'TU+CPU');
   assert.equal(shortName('Marco + CPU'), 'MAR+CPU');
   assert.equal(shortName('2 CPU'), '2CPU');
+  // B72: i nomi che si vedono adesso («Avversario», «Avversari», «Tu + compagno»)
+  assert.equal(shortName('Avversario'), 'AVV');
+  assert.equal(shortName('Avversari'), 'AVV');
+  assert.equal(shortName('Tu + compagno'), 'TU+COM');
+  assert.equal(shortName('Marco + compagno'), 'MAR+COM');
   assert.equal(shortName('Marco', 4), 'MARC');
   assert.equal(shortName('Marco', 6), 'MARCO');
   assert.equal(shortName('Jean Paul', 6), 'JEAN');                // con più parole non oltre la prima
@@ -135,6 +142,7 @@ test('sigle uguali: 3 lettere, poi fino a 6, poi 5 più l\'ultima, poi le inizia
   assert.deepEqual(shortNames('josé', 'JOSÉ'), { me: 'P1', them: 'P2' });
   assert.deepEqual(shortNames('Marco + CPU', 'Marcello + CPU'), { me: 'MARCO+CPU', them: 'MARCE+CPU' });
   assert.deepEqual(shortNames('Tu + CPU', '2 CPU'), { me: 'TU+CPU', them: '2CPU' });
+  assert.deepEqual(shortNames('Tu + compagno', 'Avversari'), { me: 'TU+COM', them: 'AVV' });
 });
 
 test('HTML del tabellone: riquadro con linguetta, pallina, sigla (nome intero in data-sb-name e title), game, casella dei punti; niente intestazioni; etichetta del formato dentro il riquadro (B43)', () => {
@@ -182,7 +190,7 @@ test('motore: _syncScoreboardHUD passa punteggio e formato al tabellone (natpf_u
   e.matchConfig.gamesToWin = 2;
   Object.assign(e.score, sc(3, 2, 1, 0, 'opponent'));
   e._syncScoreboardHUD();
-  assert.deepEqual(cells(seen.at(-1)), [' Tu 1 40', '•CPU 0 30']);
+  assert.deepEqual(cells(seen.at(-1)), [' Tu 1 40', '•Avversario 0 30']);
   assert.equal(seen.at(-1).format, 'Al meglio di 3 game');
 });
 

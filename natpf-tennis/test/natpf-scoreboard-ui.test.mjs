@@ -17,23 +17,24 @@ function board(E, score, gamesToWin = 2){
   const rows = [...html.matchAll(/<div class="sb-row sb-(me|them)( serving)?[^"]*" data-sb-row="\1"[^>]*>.*?data-sb-name="([^"]*)"[^>]*>([^<]*)<.*?data-sb-games>([^<]*)<.*?data-sb-points>([^<]*)</g)]
     .map(m => `${m[2] ? '•' : ' '}${m[3]}=${m[4]} ${m[5]} ${m[6] === 'AD' ? 'Vant.' : m[6]}`);
   const format = html.match(/data-sb-format>([^<]*)</)?.[1];
-  const label = html.match(/data-sb-label>([^<]*)</)?.[1];
+  // (B72: l'apostrofo di «dell'avversario» nell'HTML è &#39;, sullo schermo «'»)
+  const label = html.match(/data-sb-label>([^<]*)</)?.[1]?.replace(/&#39;/g, "'");
   return { rows, format, label };
 }
 
 test('onScore vero: contro la CPU la propria riga sopra, formato in parole', async () => {
   const { E } = await makeWorld({ controller: 'mouse' });
   const b = board(E, sc(2, 1, 1, 0, 'player'), 2);
-  assert.deepEqual(b.rows, ['•Tu=TU 1 30', ' CPU=CPU 0 15']);
+  assert.deepEqual(b.rows, ['•Tu=TU 1 30', ' Avversario=AVV 0 15']);
   assert.equal(b.format, 'Al meglio di 3 game');
   assert.equal(b.label, '');
-  assert.equal(board(E, sc(3, 4), 3).label, 'Vantaggio della CPU');
+  assert.equal(board(E, sc(3, 4), 3).label, "Vantaggio dell'avversario");
 });
 
 test('onScore vero: 2v2 contro la CPU, righe delle squadre', async () => {
   const { E } = await makeWorld({ controller: 'mouse' });
   E.setMatchFormat('doubles');
-  assert.deepEqual(board(E, sc(2, 2, 0, 1, 'opponent')).rows, [' Tu + CPU=TU+CPU 0 30', '•2 CPU=2CPU 1 30']);
+  assert.deepEqual(board(E, sc(2, 2, 0, 1, 'opponent')).rows, [' Tu + compagno=TU+COM 0 30', '•Avversari=AVV 1 30']);
   E.setMatchFormat('singles');
 });
 

@@ -176,7 +176,7 @@ try {
   check('   ogni riquadro ha il numero vero della partita (scritte dei colpi e punti del motore)', v.tiles.every(t => val[t.id] === t.value), JSON.stringify(v.tiles.map(t => [t.id, t.value, val[t.id]])));
   check('   mai numeri negativi: niente errori, niente Anticipo/Ritardo, niente «cosa migliorare»', !NEG.test(v.text.replace(/Ecco cosa ti è venuto meglio/, '')), v.text.replace(/\s+/g, ' ').slice(0, 300));
   check('   pillola in basso: posizione in classifica se vince, consiglio gentile se perde', won ? v.pill === '1° posto nella classifica di oggi' : v.pill === 'Prossima volta prova il livello Facile', v.pill);
-  check('   riga sotto il titolo solo quando perde', won ? v.sub === '' : v.sub === 'La CPU ha vinto questa volta. Ecco cosa ti è venuto meglio:', v.sub);
+  check('   riga sotto il titolo solo quando perde', won ? v.sub === '' : v.sub === "Ha vinto l'avversario questa volta. Ecco cosa ti è venuto meglio:", v.sub);
   check('   bottoni a pillola: Menu, Nuovo giocatore, Gioca ancora (Rivincita se perde)', v.btns.join('|') === `Menu|Nuovo giocatore|${won ? 'Gioca ancora' : 'Rivincita'}`, v.btns.join('|'));
   // B40: card della partita
   const cA = v.cards[0] || {};
@@ -249,9 +249,9 @@ try {
   await g.setViewportSize({ width: 1280, height: 720 });
   const [dl] = await Promise.all([g.waitForEvent('download', { timeout: 8000 }), g.evaluate(() => __natpfTennis.natpfUi.kiosk.run('export'))]);
   const csv = readFileSync(await dl.path(), 'utf8');
-  const csvNicks = csv.split('\n').filter(l => l.includes('Partite contro la CPU')).map(l => l.split(';')[3].replace(/"/g, ''));
+  const csvNicks = csv.split('\n').filter(l => l.includes("Partite contro l'avversario")).map(l => l.split(';')[3].replace(/"/g, ''));
   check('B4b. B34: il CSV ha lo stesso ordine della classifica', csvNicks.join('|') === order.map(r => r.nick).join('|'), `${csvNicks.join('|')} / ${order.map(r => r.nick).join('|')}`);
-  check('B4. «Scarica CSV»: la partita c\'è, con livello e risultato (dieci partite in tutto)', csv.split('\n').filter(l => l.includes('Partite contro la CPU')).length === 10 && new RegExp(`"Partite contro la CPU";"\\d+";"Ada";"${board[0]?.score}";"[^"]+";"Evento";"(vinta|persa) \\d-\\d";"${truth.won} su ${truth.won + truth.lost}"`).test(csv), csv.split('\n').slice(0, 3).join(' | '));
+  check('B4. «Scarica CSV»: la partita c\'è, con livello e risultato (dieci partite in tutto)', csv.split('\n').filter(l => l.includes("Partite contro l'avversario")).length === 10 && new RegExp(`"Partite contro l'avversario";"\\d+";"Ada";"${board[0]?.score}";"[^"]+";"Evento";"(vinta|persa) \\d-\\d";"${truth.won} su ${truth.won + truth.lost}"`).test(csv), csv.split('\n').slice(0, 3).join(' | '));
   g.once('dialog', d => d.accept());
   await g.evaluate(() => __natpfTennis.natpfUi.kiosk.run('reset'));
   await g.evaluate(() => __natpfTennis.natpfUi.lobby._paintRanking());

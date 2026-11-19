@@ -34,7 +34,7 @@ test('opzione: di base «Sempre lo stesso», salvata in natpf-tennis.battuta, l\
   assert.equal(nextServeRule('alternata'), 'fissa');
   assert.equal(serveRuleButton('fissa'), 'Sempre lo stesso');
   assert.equal(serveRuleButton('alternata', true), 'Alternata (indirizzo)');
-  assert.match(serveRuleToast('fissa'), /contro la CPU batte sempre chi gioca, nello stesso schermo chi batte il primo game/);
+  assert.match(serveRuleToast('fissa'), /contro l’avversario batte sempre chi gioca, nello stesso schermo chi batte il primo game/);
   assert.match(serveRuleToast('alternata'), /a ogni game/);
   assert.match(serveRuleToast('fissa', true), /comanda l’indirizzo/);
 });

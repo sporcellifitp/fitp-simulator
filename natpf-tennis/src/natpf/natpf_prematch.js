@@ -18,6 +18,7 @@
 // (stile style-start) e la voce «Go!»; i telefoni dicono «Allenamento tra 3…» e «Allenati un po'!». Poi gli scambi di prova
 // e, dopo, la partita con il suo conto di sempre. Non con «Ricalibra» a partita in corso (si rigioca subito il punto).
 // Funzioni pure in cima (test/natpf-b47-conto.test.mjs, test/natpf-b59-conto-prova.test.mjs), poi il controllore.
+import { OPPONENT_REF } from './natpf_who.js';
 const $ = id => (typeof document !== 'undefined' ? document.getElementById(id) : null);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 
@@ -55,7 +56,8 @@ export function prematchServeLine({ names = null, server = 'player', fixed = fal
     const what = fixed ? 'atte sempre' : 'atte per primo';
     return drawn ? `Sorteggio: b${what} ${who}` : `B${what} ${who}`;
   }
-  if (opp) return fixed ? 'Batte sempre la CPU' : 'Batte per prima la CPU';
+  // B72: «l'avversario» (prima «Batte sempre la CPU», «Batte per prima la CPU»)
+  if (opp) return fixed ? `Batte sempre ${OPPONENT_REF.who}` : `Batte per primo ${OPPONENT_REF.who}`;
   return fixed ? 'Batti sempre tu: lancia la palla e colpisci' : 'Batti tu: lancia la palla e colpisci';
 }
 

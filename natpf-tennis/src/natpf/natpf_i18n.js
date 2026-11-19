@@ -40,7 +40,8 @@ const PHRASES = [
   ["RISING", "In salita"],
   ["READY", "Pronto"],
   ["LOB", "Pallonetto"],
-  ["CPU DROP SHOT", "Palla corta della CPU"], // B31: la palla corta della CPU, dichiarata
+  // B31: la palla corta della CPU, dichiarata. B72: «dell'avversario» (prima «della CPU»); la chiave del motore resta
+  ["CPU DROP SHOT", "Palla corta dell'avversario"],
   ["DROP SHOT", "Palla corta"],
   ["SMASH", "Schiacciata"],
   ["SLICE", "Tagliato"],

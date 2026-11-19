@@ -105,17 +105,17 @@ test('pulsanti diretti: Gioca, Pausa, livello CPU, schermo, schermo intero, Salt
   assert.match(cmdsOf(MATRIX['menu principale']).cmds.pause, /solo in campo/);
   // CPU: Facile → Esperta → Leggenda → Facile; non nello stesso schermo né nella sfida tra due computer
   assert.deepEqual([nextCpu('casual'), nextCpu('pro'), nextCpu('leggenda'), nextCpu(undefined)], ['evento', 'leggenda', 'bambini', 'pro']);
-  assert.equal(cmdsOf(MATRIX['menu principale']).labels.cpu, 'CPU: Esperta');
+  assert.equal(cmdsOf(MATRIX['menu principale']).labels.cpu, 'Avversario: Esperto');
   // dal 2026-11-12.4: «Chi gioca» (Bambino · Ragazzo · Adulto) più Esperta e Leggenda, cinque livelli in ordine
   assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'evento' }).labels.cpu, 'Chi gioca: Adulto');
-  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'evento' }).hints.cpu, 'poi CPU Esperta');
+  assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'evento' }).hints.cpu, 'poi Avversario esperto');
   assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'bambini' }).labels.cpu, 'Chi gioca: Bambino');
   assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'leggenda' }).hints.cpu, 'poi Bambino');
   assert.equal(cmdsOf({ ...MATRIX['menu principale'], cpu: 'sconosciuto' }).labels.cpu, 'Chi gioca: Adulto');
   assert.deepEqual([...CPU_LEVELS], ['bambini', 'casual', 'evento', 'pro', 'leggenda']);
   { let l = 'bambini'; const seen = []; for (let i = 0; i < 5; i++){ seen.push(l); l = nextCpu(l); } assert.equal(l, 'bambini'); assert.equal(new Set(seen).size, 5); }
-  assert.match(cmdsOf(MATRIX['stesso schermo: telefoni']).cmds.cpu, /Non c’è la CPU/);
-  assert.match(cmdsOf(MATRIX['sfida tra due computer (lobby)']).cmds.cpu, /Non c’è la CPU/);
+  assert.match(cmdsOf(MATRIX['stesso schermo: telefoni']).cmds.cpu, /Niente livello: in questa modalità si gioca tra due persone/);
+  assert.match(cmdsOf(MATRIX['sfida tra due computer (lobby)']).cmds.cpu, /Niente livello: in questa modalità si gioca tra due persone/);
   assert.equal(cmdsOf(MATRIX['fine partita']).cmds.cpu, 1, 'a fine partita sì (vale dalla prossima)');
   // schermo del gioco: solo nel programma Windows e con due monitor
   assert.equal(cmdsOf(MATRIX['menu principale']).cmds.screen, 1);
@@ -261,8 +261,8 @@ test('revisione: «Conferma» dell\'abbinamento solo da un clic vero sul compute
 });
 
 test('riga del punteggio per il telefono', () => {
-  assert.equal(scoreLine({ playerPoints: 2, opponentPoints: 1, playerGames: 1, opponentGames: 0 }), 'Tu 1 · CPU 0 (game) · 30-15');
-  assert.equal(scoreLine({ playerPoints: 3, opponentPoints: 3, playerGames: 0, opponentGames: 0 }), 'Tu 0 · CPU 0 (game) · Parità');
+  assert.equal(scoreLine({ playerPoints: 2, opponentPoints: 1, playerGames: 1, opponentGames: 0 }), 'Tu 1 · Avversario 0 (game) · 30-15');
+  assert.equal(scoreLine({ playerPoints: 3, opponentPoints: 3, playerGames: 0, opponentGames: 0 }), 'Tu 0 · Avversario 0 (game) · Parità');
   assert.equal(scoreLine({ playerPoints: 5, opponentPoints: 4, playerGames: 2, opponentGames: 2 }, { names: ['P1', 'P2'] }), 'P1 2 · P2 2 (game) · Vantaggio P1');
   assert.equal(scoreLine(null), '');
 });

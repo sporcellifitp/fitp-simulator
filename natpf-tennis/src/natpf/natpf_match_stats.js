@@ -17,7 +17,7 @@
 // non li riceve.
 // Funzioni pure in alto (le provano i test), poi la classe collegata al motore.
 import { finePunto } from './registro/registro_formato.js';
-import { CPU_LEVELS, LEVEL_NAME } from './natpf_who.js';
+import { CPU_LEVELS, LEVEL_NAME, OPPONENT_NAME, OPPONENT_REF, OPPONENTS_REF } from './natpf_who.js';
 import { gameWinner } from './natpf_fair_format.js';
 
 export const SIDES = Object.freeze(['player', 'opponent']);
@@ -242,12 +242,13 @@ export const BEST = Object.freeze({
   scambio: { weight: 1/8, min: 3, icon: 'rally', tone: 'cyan' },
   punti: { weight: 1/8, min: 1, icon: 'plus', tone: 'pink' },
 });
-// scritta sotto il numero (one: 1, many: gli altri). vsCpu: contro la CPU («vincenti che la CPU non ha preso»); split:
-// stesso schermo, scritte corte (riquadri più piccoli)
-function bestLabel(id, n, { vsCpu = false, split = false } = {}){
+// scritta sotto il numero (one: 1, many: gli altri). vsCpu: contro l'avversario del gioco («vincenti che l'avversario non
+// ha preso»; B72, prima «che la CPU non ha preso»; doppio: «che gli avversari non hanno preso»); split: stesso schermo,
+// scritte corte (riquadri più piccoli)
+function bestLabel(id, n, { vsCpu = false, doubles = false, split = false } = {}){
   const one = n === 1;
   switch (id){
-    case 'vincenti': return vsCpu ? `${one ? 'vincente' : 'vincenti'} che la CPU non ha preso` : (one ? 'vincente' : 'vincenti');
+    case 'vincenti': return vsCpu ? `${one ? 'vincente' : 'vincenti'} che ${doubles ? `${OPPONENTS_REF.who} non hanno preso` : `${OPPONENT_REF.who} non ha preso`}` : (one ? 'vincente' : 'vincenti');
     case 'ace': return 'ace';
     case 'super': return one ? 'colpo super riuscito' : 'colpi super riusciti';
     case 'perfetti': return one ? 'colpo Perfetto' : 'colpi Perfetti';
@@ -261,17 +262,17 @@ function bestLabel(id, n, { vsCpu = false, split = false } = {}){
 // computer del Player 2 della sfida tra due computer (ace e vincenti non si sanno). Se non c'è niente (nessun colpo, nessun
 // punto) un riquadro con i colpi giocati o «1 partita giocata»: mai un numero brutto. skip: cose da non ripetere (nello
 // stesso schermo lo scambio più lungo sta nella pillola in basso)
-export function bestOf(sum, { limit = 3, guest = false, vsCpu = false, split = false, skip = [] } = {}){
+export function bestOf(sum, { limit = 3, guest = false, vsCpu = false, doubles = false, split = false, skip = [] } = {}){
   if (!sum) return [];
   const value = { vincenti: guest ? 0 : sum.winners, ace: guest ? 0 : sum.aces, super: sum.superOk, perfetti: sum.timing?.perfetto || 0, kmh: sum.fastest, scambio: sum.longest, punti: sum.points };
   const all = BEST_ORDER.filter(id => !skip.includes(id)).map((id, i) => ({ id, i, value: Math.max(0, num(value[id]) | 0) })).filter(x => x.value >= BEST[x.id].min);
   const pick = all.map(x => ({ ...x, score: x.value*BEST[x.id].weight })).sort((a, b) => b.score - a.score || a.i - b.i).slice(0, Math.max(1, limit)).sort((a, b) => a.i - b.i);
-  const out = pick.map(x => ({ id: x.id, value: x.value, label: bestLabel(x.id, x.value, { vsCpu, split }), icon: BEST[x.id].icon, tone: BEST[x.id].tone }));
+  const out = pick.map(x => ({ id: x.id, value: x.value, label: bestLabel(x.id, x.value, { vsCpu, doubles, split }), icon: BEST[x.id].icon, tone: BEST[x.id].tone }));
   if (!out.length) out.push(sum.hits > 0 ? { id: 'colpi', value: sum.hits, label: sum.hits === 1 ? 'colpo giocato' : 'colpi giocati', icon: 'rally', tone: 'cyan' } : { id: 'partita', value: 1, label: 'partita giocata', icon: 'trophy', tone: 'ball' });
   return out;
 }
 
-// Pillola in basso per chi gioca contro la CPU: se vince la posizione nella classifica delle partite di oggi (rank:
+// Pillola in basso per chi gioca contro l'avversario: se vince la posizione nella classifica delle partite di oggi (rank:
 // { rank, total, score } di natpf_events.recordMatch; rank 0 = fuori dalle prime: allora i punti, mai «fuori»); se perde
 // un consiglio gentile sul livello (quello più facile, se c'è)
 export function cpuPill({ won = false, level = null, rank = null } = {}){
@@ -304,13 +305,14 @@ export function endScreen(base = {}, v = null){
       pill: rally, again: 'Rivincita' };
   }
   const c = v.cols[0], s = c.sum, won = !!s.won, cpu = v.mode === 'cpu', nick = String(v.nick || '').trim();
-  const rival = base.rows?.[1]?.name || (cpu ? 'CPU' : 'Player 2');
+  const rival = base.rows?.[1]?.name || (cpu ? OPPONENT_NAME : 'Player 2');
   const title = won ? (base.title || (nick ? `Vince ${nick}!` : 'Hai vinto!')) : nick ? `Bella sfida, ${nick}!` : 'Bella sfida!';
-  // (doppio: «Hanno vinto le CPU», «Hanno vinto Amico + CPU»)
-  const who = v.doubles ? (cpu ? 'Hanno vinto le CPU' : `Hanno vinto ${rival}`) : cpu ? 'La CPU ha vinto' : `Ha vinto ${rival}`;
+  // (doppio: «Hanno vinto gli avversari», «Hanno vinto Amico + compagno»; B72, prima «Hanno vinto le CPU» e, in singolo,
+  // «La CPU ha vinto»)
+  const who = v.doubles ? (cpu ? `Hanno vinto ${OPPONENTS_REF.who}` : `Hanno vinto ${rival}`) : cpu ? `Ha vinto ${OPPONENT_REF.who}` : `Ha vinto ${rival}`;
   const sub = won ? '' : `${who} questa volta. Ecco cosa ti è venuto meglio:`;
   return { mode: v.mode, won, kicker: cpu && v.level && LEVEL_NAME[v.level] ? `Fine partita · livello ${LEVEL_NAME[v.level]}` : 'Fine partita', title, sub,
-    games: { mine: nWon, theirs: nLost }, tiles: bestOf(s, { limit: 3, guest: !!v.guest, vsCpu: cpu }),
+    games: { mine: nWon, theirs: nLost }, tiles: bestOf(s, { limit: 3, guest: !!v.guest, vsCpu: cpu, doubles: !!v.doubles }),
     pill: cpu && !v.doubles ? cpuPill({ won, level: v.level, rank: v.rank }) : rally, again: won && cpu ? 'Gioca ancora' : 'Rivincita' };
 }
 
