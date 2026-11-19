@@ -561,6 +561,23 @@ test('punto 3 · partita nuova o giocatore nuovo: la scritta si rivede; segnale 
   const off = await cueRun('pro', 3);
   assert.deepEqual(off.out.map(o => [o.ring, o.hint]), [[false, false], [false, false], [false, false]], 'a Pro di base niente anello e niente scritta');
 });
+// unione B71+B72, sistemazione dopo la verifica (F4, docs/b72/unione.md): negli scambi di prova (livello Evento in fiera, segnale
+// acceso) la scritta finiva sotto il riquadro .trial-card, semitrasparente, e si leggeva in mezzo ai suoi testi. Ora negli
+// scambi di prova non si mostra e non consuma le prime tre palle (anche con «Ricalibra» a partita in corso, stessa partita);
+// l'anello resta. Più la regola CSS accanto a quella di #timing-popup.
+test('unione B71+B72 (F4): negli scambi di prova la scritta del segnale non si mostra e non consuma le prime tre palle; l\'anello resta', async () => {
+  let made = null;
+  const r = await cueRun('evento', 5, { between: (e, cue, f) => { if (f === 2) made = !!document.getElementById('natpf-cue-hint'); e.natpfUi = { trial: { active: f < 2 } }; } });
+  assert.ok(r.out.every(o => o.ring), `l'anello c'è anche negli scambi di prova: ${JSON.stringify(r.out)}`);
+  assert.deepEqual(r.out.map(o => o.hint), [false, false, true, true, true], 'due palle di prova senza scritta, poi le tre della partita');
+  assert.equal(made, false, 'negli scambi di prova la scritta non è mai stata messa nella pagina');
+  assert.ok(r.out.slice(2).every(o => !o.el), 'nella pagina nascosta dopo ogni palla della partita');
+  // scritta accesa da una palla della partita e «Ricalibra» subito dopo: si spegne con gli scambi di prova
+  const s = await cueRun('evento', 2, { between: (e, cue, f) => { e.natpfUi = { trial: { active: f === 1 } }; } });
+  assert.deepEqual(s.out.map(o => o.hint), [true, false]);
+  const css = readFileSync(new URL('../natpf-ui.css', import.meta.url), 'utf8');
+  assert.match(css, /body\.natpf-trial-on #natpf-cue-hint\s*\{\s*display:\s*none\s*!important;\s*\}/, 'regola CSS accanto a #timing-popup');
+});
 
 test('punto 1 · palla della CPU che va fuori: nessun segno prima che tocchi terra, punto e telefono all\'atterraggio', async () => {
   const { createHeadlessEngine, mulberry32 } = await import('../scripts/audit/headless-engine.mjs');

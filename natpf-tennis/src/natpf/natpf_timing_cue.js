@@ -144,12 +144,14 @@ export class NatpfTimingCue {
   setPref(pref){ this.pref = writeCue(pref); return this.pref; }
   // B37: scritta delle prime palle. Partita nuova (statistiche della partita: un oggetto nuovo a ogni partita): si riparte
   // da zero; palla nuova con l'anello: spiegata se è tra le prime; in vista finché c'è l'anello, poi hold secondi
+  // (unione B71+B72, F4: negli scambi di prova la scritta non si mostra e non conta: finiva sotto il riquadro .trial-card e
+  // si leggeva in mezzo ai suoi testi; le prime tre palle restano per la partita, anche dopo «Ricalibra». L'anello resta)
   _hint(fresh, flight){
-    const H = this.hint, E = this.engine, now = E.elapsedTime || 0, match = E.natpfStats?.m ?? null;
+    const H = this.hint, E = this.engine, now = E.elapsedTime || 0, match = E.natpfStats?.m ?? null, trial = !!E.natpfUi?.trial?.active;
     if (match !== H.match){ H.match = match; H.shown = 0; H.flight = null; H.until = 0; }
-    if (cueHintFor({ fresh, shown: H.shown })){ H.shown++; H.flight = flight; }
+    if (!trial && cueHintFor({ fresh, shown: H.shown })){ H.shown++; H.flight = flight; }
     if (H.flight && flight === H.flight) H.until = now + CUE_HINT.hold;
-    const on = !!H.flight && now < H.until && !E.autoPlayMode && !E.natpfReplay?.playing;
+    const on = !!H.flight && now < H.until && !trial && !E.autoPlayMode && !E.natpfReplay?.playing;
     if (!on && H.flight && now >= H.until) H.flight = null;
     if (on !== H.on) this._paintHint(on);
   }

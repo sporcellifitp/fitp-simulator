@@ -305,6 +305,9 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 /* durante gli scambi di prova i colpi non si giudicano: niente scritta dell'esito del motore (nello stesso schermo ogni
    colpo è rimandato dal gioco sul lato dell'altro: «Fuori» sarebbe falso) */
 body.natpf-trial-on #timing-popup { display: none !important; }
+/* (unione B71+B72, F4) né la scritta del segnale del momento giusto: finiva sotto il riquadro .trial-card, che è
+   semitrasparente, in mezzo ai suoi testi. Il gioco già non la accende negli scambi di prova (natpf_timing_cue._hint) */
+body.natpf-trial-on #natpf-cue-hint { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .natpf-trial[data-state="go"] .trial-card { animation: none; } }
 
 /* scheda dell'esercizio, in basso a sinistra. Misure legate allo schermo (cqw del contenitore natpf, B15): a 1280 come
