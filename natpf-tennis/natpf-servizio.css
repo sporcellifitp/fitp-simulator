@@ -76,3 +76,90 @@
   box-shadow: 0 0 0 1px #4dd7ff;
   vertical-align: middle;
 }
+
+/* =====================================================================================================================
+   B72 · Chi deve battere non può non vederlo (richiesta dell'utente del 19/11: «rendere lampeggiante il box che dice che
+   devi battere (al servizio) + aggiungi un alone pulsante attorno allo schermo … se passano 3 secondi»). Lo stato lo
+   decide natpf_serve_alert.js (serveAlertView): solo quando batte un giocatore umano di questo computer, in partita.
+   ===================================================================================================================== */
+/* la casella «Al servizio» di chi batte, dalla posizione di servizio fino al lancio: un lampo di luce e un anello giallo che
+   si allarga e svanisce, una volta al secondo. Misure in em (la casella cresce con lo schermo: 14–24 px, natpf-hud.css),
+   così l'anello è grande anche sul ledwall. Niente scala né colori di fondo che cambiano: la casella resta dov'è e com'è
+   (fondo giallo, scritta blu scura, bordo scuro); cambiano solo luce (filter) e ombre */
+.nt-server-tag.serve-blink { animation: natpf-serve-blink 1s ease-out infinite; }
+@keyframes natpf-serve-blink {
+  0%, 100% {
+    filter: brightness(1) saturate(1);
+    box-shadow:
+      0 0 0 calc(2em / 14) rgba(5, 10, 28, 0.9),
+      0 calc(3em / 14) calc(10em / 14) rgba(0, 0, 0, 0.45),
+      0 0 0 calc(2em / 14) rgba(232, 255, 58, 0),
+      0 0 0 0 rgba(232, 255, 58, 0);
+  }
+  14% {
+    filter: brightness(1.35) saturate(0.55);
+    box-shadow:
+      0 0 0 calc(2em / 14) rgba(5, 10, 28, 0.9),
+      0 calc(3em / 14) calc(10em / 14) rgba(0, 0, 0, 0.45),
+      0 0 0 calc(6em / 14) rgba(232, 255, 58, 0.95),
+      0 0 calc(26em / 14) calc(6em / 14) rgba(232, 255, 58, 0.85);
+  }
+  70% {
+    filter: brightness(1) saturate(1);
+    box-shadow:
+      0 0 0 calc(2em / 14) rgba(5, 10, 28, 0.9),
+      0 calc(3em / 14) calc(10em / 14) rgba(0, 0, 0, 0.45),
+      0 0 0 calc(18em / 14) rgba(232, 255, 58, 0),
+      0 0 calc(26em / 14) 0 rgba(232, 255, 58, 0);
+  }
+}
+
+/* l'alone: bordo giallo luminoso che pulsa ai margini interni dell'area di gioco (primo figlio di #hud-root: tabellone,
+   caselle e scritte gli stanno sopra; niente clic). Nello stesso schermo solo la metà di chi batte (natpf_split.js: le due
+   metà si dividono a 49,8 / 50,2 cqw). Spessore e sfumatura in cqw/cqh: seguono l'area del ledwall. Si anima solo
+   l'opacità (lavoro della scheda grafica, nessun ridisegno della pagina) */
+.natpf-serve-halo {
+  --halo-w: clamp(4px, min(0.8cqw, 1.2cqh), 18px);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 var(--halo-w) rgba(232, 255, 58, 0.95),
+    inset 0 0 calc(var(--halo-w) * 5) calc(var(--halo-w) * 1.5) rgba(232, 255, 58, 0.55);
+  animation: natpf-serve-halo 1s ease-in-out infinite;
+  will-change: opacity;
+}
+.natpf-serve-halo[data-half="p1"] { right: 50.2cqw; }
+.natpf-serve-halo[data-half="p2"] { left: 50.2cqw; }
+@keyframes natpf-serve-halo {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* movimento ridotto (impostazione del sistema): la stessa indicazione, più lenta e morbida, non spenta */
+@media (prefers-reduced-motion: reduce) {
+  .nt-server-tag.serve-blink { animation: natpf-serve-blink-soft 2.4s ease-in-out infinite; }
+  .natpf-serve-halo { animation: natpf-serve-halo-soft 2.4s ease-in-out infinite; }
+}
+@keyframes natpf-serve-blink-soft {
+  0%, 100% {
+    filter: brightness(1) saturate(1);
+    box-shadow:
+      0 0 0 calc(2em / 14) rgba(5, 10, 28, 0.9),
+      0 calc(3em / 14) calc(10em / 14) rgba(0, 0, 0, 0.45),
+      0 0 0 calc(2em / 14) rgba(232, 255, 58, 0),
+      0 0 0 0 rgba(232, 255, 58, 0);
+  }
+  50% {
+    filter: brightness(1.15) saturate(0.8);
+    box-shadow:
+      0 0 0 calc(2em / 14) rgba(5, 10, 28, 0.9),
+      0 calc(3em / 14) calc(10em / 14) rgba(0, 0, 0, 0.45),
+      0 0 0 calc(5em / 14) rgba(232, 255, 58, 0.7),
+      0 0 calc(16em / 14) calc(3em / 14) rgba(232, 255, 58, 0.5);
+  }
+}
+@keyframes natpf-serve-halo-soft {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
