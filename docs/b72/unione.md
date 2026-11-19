@@ -224,3 +224,65 @@ Schermate guardate (deviceScaleFactor 1, tranne `natpf-nome-telefono.mjs` che us
   nei test del gioco con l'HTML vero dei generatori letto da un DOM minimo; nel browser solo la card a una vista.
 - Restano in italiano, come prima, le parti elencate in `docs/b72/lingua.md` §5 (menu, lobby, staff, toast, pulsanti della
   schermata finale, «Scambio caldo», «perché il super non è scattato», allenamento e minigiochi…).
+
+## 6. Unione con la revisione B71 (a2937f1f)
+
+`a2937f1f` unisce nel ramo `natpf-simulator` la revisione B71 (`473b9e9d`: calibrazione giocando, dritto/rovescio,
+sensori, registro formato 4) e il B72 (questo documento). Nessun conflitto di testo; file toccati da tutti e due:
+`natpf_phone_racket.js` e `site/js/tennis/racchetta.js` (attenzione: nel messaggio di stato del telefono `lg` è il ritardo
+browser/app del B71, nel `cfg` del gioco `lg` è la lingua del B72). Una verifica avversaria sul flusso della fiera (telefono
+simulato, IT ed EN, più misure dello schermo) ha confermato 4 rilievi minori, ciascuno votato da due scettici. Tutti
+**prodotto FIERA**. Corretti con commit locali «B71+B72 sistemazione: …» (niente push, file di versione non toccati).
+
+| Id | Origine | Problema | Correzione | Prova |
+| --- | --- | --- | --- | --- |
+| **F1** | B72 | Fine partita con il telefono in EN: «Cecchino» → «Sharpshooter» andava a capo a metà parola («Sharpshoote» / «r», per `.trophy-txt b { overflow-wrap: anywhere }`); con «Marathoner» e la riga del prossimo trofeo la card non conteneva più tutto: il nome sopra il bordo e la riga del prossimo trofeo sotto (5 px a 1280×720, 6 a 1366×768, 8 a 1920×1080). In IT tutto entrava | Seguito il voto del secondo scettico: nel dizionario «Cecchino» → **«Sniper»** (traduzione letterale), una riga a tutte le misure, card con gli stessi margini dell'italiano. **CSS non toccato**: la regola proposta (`overflow-wrap: normal; word-break: keep-all`) faceva sovrapporre i nomi nella card stretta di chi perde nello stesso schermo, anche in italiano; la classe `long` di `cardHtml` avrebbe visto i nomi italiani (la traduzione arriva dopo, `translateEl`) | `natpf-b72-lingua.test.mjs` (riga del prossimo trofeo «Next trophy: Silver Sniper · …»); prova nel browser nuova `tools/e2e/natpf-fine-partita-en.mjs` (vista di una partita vera della fiera e tre varianti, IT ed EN, 1280×720, 1366×768, 1920×1080, 1024×768: niente fuori dalla card, nomi su una riga nelle card larghe, nessuna sovrapposizione): **prima 79/101, dopo 101/101** (commit `e061d1df`) |
+| **F2** | B72 | Stesso schermo con tutti e due i telefoni in EN: sotto i ritratti delle card finali la fascia restava «Adulto» / «Bambino» / «Ragazzo» (il dizionario la traduceva solo dentro «Aiuto: X») | Tre frasi esatte in `GAME_EXACT`: Bambino → Child, Ragazzo → Teen, Adulto → Adult (non tutto `BAND`, che porterebbe anche «Sì» → «Yes»). I nomi scritti dai giocatori restano com'erano (`NAME_SEL`, `nameTx`) | `natpf-b72-lingua.test.mjs` (+2: card dello stesso schermo con l'HTML vero di `cardsHtml`, fasce in inglese, ritorno in italiano; rosse prima) (commit `e061d1df`) |
+| **F3** | preesistente (B28) | Scambi di prova: dopo ogni colpo che prende la palla l'etichetta del gesto in basso diceva, 1,2 s dopo, «nessuna palla da colpire» / «no ball to hit», mentre il riquadro diceva «Colpo letto ✓». `natpf_ui.feedback` negli scambi di prova usciva prima di `gesture.onFeedback` e dopo `GESTURE_HUD.wait` l'etichetta trovava `pendingUserSwing` già consumato | `natpf_ui.feedback`, ramo degli scambi di prova: per un colpo preso (`kind 'hit'`) l'etichetta riceve un esito neutro, `{ kind: 'hit' }` con `{ color: 'green', text: 'Colpo letto' }` (evento con il solo `kind`, così un colpo difensivo non diventa «Molto in anticipo»). Il resto come prima: nessun anello, niente registro, allenamento e minigiochi. Dizionario: «Colpo letto» → **«Shot read»** (senza, in EN la riga era «Forehand · Topspin · Colpo letto») | `natpf-scambi-di-prova.test.mjs` (+2: scambi di prova veri con il telefono simulato, IT ed EN, mai «nessuna palla da colpire», almeno 2 «Colpo letto» / «Shot read» in verde; colpo difensivo di prova «Colpo letto», in partita ancora «Molto in anticipo»); `natpf-b72-lingua.test.mjs` L2 (+1 controllo, «Colpo letto» nella lista dei testi dell'etichetta): **3 rosse prima, verdi dopo** (commit `6e0445da`). Nel browser (sonda del rilievo adattata, nello scratchpad): etichetta «← DRITTO Top spin · Colpo letto» poi nascosta a 1,6 s; in EN «← FOREHAND Topspin · Shot read»; **4/4 in IT e in EN** |
+| **F4** | preesistente (B37 + B28) | Scambi di prova a livello Evento (in fiera a ogni visitatore): la scritta del segnale del momento giusto (`#natpf-cue-hint`, z-index 31) finiva sotto il riquadro `.trial-card` (z-index 41, semitrasparente) e si leggeva in mezzo ai suoi testi, a 1280×720, 1366×768, 1920×1080 e 1024×1024 (non a 720×720). Le 3 palle con la scritta si consumavano lì | `natpf_timing_cue._hint`: con gli scambi di prova attivi (`engine.natpfUi.trial.active`) la scritta **non si accende e non si conta**: le prime 3 palle restano per la partita, anche dopo «Ricalibra» a partita in corso (stessa partita, `natpfStats.m` uguale: solo il CSS le avrebbe consumate nascoste). L'anello resta. In più `body.natpf-trial-on #natpf-cue-hint { display: none !important; }` in `natpf-ui.css`, accanto a quella di `#timing-popup` | `natpf-b37-collaudo.test.mjs` (+1, motore vero senza grafica: due palle di prova senza scritta poi le tre della partita, scritta mai messa nella pagina negli scambi, scritta accesa da una palla della partita che si spegne con «Ricalibra», regola CSS presente): **rossa prima, verde dopo** (commit `2e1ef319`). Nel browser (sonda nello scratchpad: fiera, Evento, telefono simulato, scambi giocati, poi la partita): **prima 6/8** (scritta visibile e contata negli scambi), **dopo 8/8 in IT e in EN** (anello in 113–115 campioni su circa 490, scritta mai; nella partita la scritta nelle prime 3 palle, «Colpisci quando il cerchio diventa verde» / «Hit when the circle turns green», non nella quarta) |
+
+### Prove (numeri)
+
+Sul codice finale (`2e1ef319`, dopo i tre commit della sistemazione `e061d1df`, `6e0445da`, `2e1ef319`), stesso
+repository, macchina condivisa a 4 core; le prove nel browser una alla volta, con deviceScaleFactor 1.
+
+| Suite | Esito |
+| --- | --- |
+| `cd natpf-tennis && npm test` | **1915/1915** (4 min 42 s; +5 prove della sistemazione: 2 di F1/F2, 2 di F3 in `natpf-scambi-di-prova.test.mjs`, 1 di F4 in `natpf-b37-collaudo.test.mjs`; più un controllo nella prova L2) |
+| `node --test tools/test/*.test.mjs` | **322/322** (12 s) |
+
+| Prova nel browser | Esito | Note |
+| --- | --- | --- |
+| `natpf-fine-partita-en.mjs` (nuova, F1) | **101/101** | prima della correzione 79/101 |
+| `natpf-segnale-spiegato.mjs` | **14/14** | la scritta del segnale nella partita come prima |
+| `natpf-scambi-di-prova.mjs` | **32/32** | 1 min 25 s |
+| `natpf-lingua.mjs` | **46/46** | |
+| sonda F4 nello scratchpad (`b7172/sistema2/f4/sonda-f4.mjs`) | prima **6/8**, dopo **8/8** IT e **8/8** EN | schermate `out/prima-it-scambi-anello.png` (scritta in trasparenza nel riquadro) e `out/dopo-it-scambi-anello.png` (riquadro libero, anello sulla palla) |
+| sonda F3 nello scratchpad (`b7172/sistema2/f3-browser/prova-scambi2.mjs`, quella del rilievo con la misura della scritta che non c'è più) | **4/4** IT e **4/4** EN | etichetta «← DRITTO Top spin · Colpo letto» / «← FOREHAND Topspin · Shot read», poi nascosta a circa 1,6 s; mai «nessuna palla da colpire» |
+
+### Cosa cambia per chi gioca (da sapere)
+
+- **F4**: negli scambi di prova l'anello del segnale si vede senza la scritta che lo spiega, a tutte le misure (anche a
+  720×720, dove prima non si sovrapponeva). La spiegazione arriva alle prime 3 palle della partita, come il segnale del
+  B37 prevede (3 palle per partita). È lo stesso compromesso di `#timing-popup`, già nascosto negli scambi di prova.
+- **F3**: negli scambi di prova un colpo preso mostra «Colpo letto» in verde, anche se è un colpo difensivo (non si
+  giudica, come dice il riquadro). Un colpo a vuoto di prova resta senza esito, come prima: dopo 1,2 s l'etichetta può
+  ancora dire «nessuna palla da colpire» (scelta voluta per non dare un giudizio «Troppo presto» / «Troppo tardi» negli
+  scambi di prova; si può cambiare passando anche i colpi a vuoto).
+- **F1**: il trofeo si chiama «Sniper» in inglese (prima «Sharpshooter»).
+
+### Cosa NON è verificato
+
+- Telefono vero (Android/iPhone, app NATPF Racchetta 1.0.5), programma Windows, ledwall: non provati; solo Chromium con
+  sensori simulati.
+- **Card stretta di chi perde nello stesso schermo** (difetto vecchio, B57, anche in italiano): i nomi dei trofei vanno a
+  capo a metà parola («Cecchin o», «Sniper» su due righe). Non toccata: la prova nuova guarda lì solo che niente esca e
+  niente si sovrapponga. Da decidere a parte (per esempio solo le medaglie, senza i nomi, in quella card).
+- F4 con «Ricalibra» a partita in corso: provato nei test del gioco (motore vero senza grafica), non nel browser.
+- Il riquadro degli scambi di prova («Scambi di prova · Colpisci la palla», «Il gioco impara il tuo colpo…») resta in
+  italiano anche con il telefono in EN: è nelle parti non tradotte elencate in `docs/b72/lingua.md` §5.
+- Non rifatte dopo la sistemazione le altre prove nel browser `natpf-*` (stesso schermo, fiera con i telefoni, servizio
+  con l'alone, menu): i file toccati sono `natpf_lang.js` (tre voci nuove e una cambiata), `natpf_ui.feedback` (solo il
+  ramo degli scambi di prova), `natpf_timing_cue._hint` e una riga di `natpf-ui.css`; i test del gioco li coprono.
+- I documenti vivi (`PIANO_LAVORI`, `TRACCIA_PASSI`, `WORK_PROGRESS`, `PROJECT_MEMORY`) non sono aggiornati da questa
+  sistemazione: li aggiorna l'agente principale.
