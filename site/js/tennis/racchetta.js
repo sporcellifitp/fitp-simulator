@@ -22,6 +22,8 @@ import { touchLockActive, createTouchLockHistory, installStaffTouch } from './ph
 import { createSampleStats, createLockStats, createAppReader } from './phone-stats.js';
 import { nativeBridge, createNativeMotion, NATIVI } from './sensori-nativi.js';
 import { parseStandPairing, createStandStore, standHello, standWelcome, standAnswer, standDenyText, newStandNonce, slotLabel } from './stand-pairing.js';
+// B72: lingua della pagina scelta qui (IT | EN), mandata al gioco e rimandata dal gioco (lingua.js)
+import { readLang, writeLang, phoneText, translateDom, langTap, langOnCfg, langMsg, isLang, LANG_CONFIRM } from './lingua.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -29,6 +31,14 @@ const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
 { const g = $('#grip'); if (g) g.outerHTML = gripSvg({ id: 'grip', cls: g.getAttribute('class') || 'hidden', compact: true }); }
 const ss = { get(k){ try { return JSON.parse(sessionStorage.getItem('natpf-simulator.' + k)); } catch (e){ return null; } }, set(k, v){ try { sessionStorage.setItem('natpf-simulator.' + k, JSON.stringify(v)); } catch (e){} }, del(k){ try { sessionStorage.removeItem('natpf-simulator.' + k); } catch (e){} } };
 
+// B72 · lingua della pagina (IT | EN): salvata su questo telefono (lingua.js, localStorage in try/catch), mandata al gioco
+// a ogni tocco e annunciata a ogni collegamento (k 1: il gioco la prende solo se non conosce ancora la lingua di questo
+// telefono); il gioco la rimanda in cfg (lg) e la rimette a IT a ogni giocatore nuovo, come la mano. langPending: tocco
+// appena fatto che il gioco non ha ancora confermato (un cfg partito prima non lo annulla); langDirty: toccata senza
+// collegamento, al collegamento vale come un tocco; langArm: domanda aperta nel riquadro del telefono bloccato (due tocchi)
+let lang = readLang(), langPending = null, langDirty = false, langArm = null, langArmT = null;
+// testo nella lingua della pagina (i testi nascono in italiano: si traducono quando si scrivono)
+const L = s => phoneText(s, lang);
 // B41 · telefono dello stand (modalità fiera): il posto abbinato resta su questo telefono (localStorage: tra un giorno e
 // l'altro e dopo una ricarica), con l'indirizzo fisso e la chiave che non viaggia mai (stand-pairing.js). Il QR
 // dell'abbinamento (#sp=…) vale solo a foglio aperto sul computer
@@ -121,7 +131,7 @@ function paintHand(){
   for (const b of document.querySelectorAll('#profileOptions [data-hand]')){
     const on = b.dataset.hand === hand, ask = !!handArm && handArm.hand === b.dataset.hand, t = handLabel(b.dataset.hand, handArm, now);
     b.classList.toggle('on', on); b.classList.toggle('ask', ask); b.setAttribute('aria-checked', String(on));
-    if (b.textContent !== t) b.textContent = t;
+    const tt = L(t); if (b.textContent !== tt) b.textContent = tt;
   }
 }
 function applyHand(h){
@@ -137,14 +147,16 @@ function applyHand(h){
   if (saved && saved.hand !== hand){ saved.hand = hand; ss.set('profile', saved); }
   if (sensor === 'cal') paint();
 }
-function ui(big, sub, ring = '', arrow = ''){ $('#big').textContent = big; $('#sub').textContent = sub; $('#ring').className = ring; $('#arrow').textContent = arrow; }
+// (B72: le scritte in italiano, tradotte qui; lastUi per riscriverle nell'altra lingua al cambio)
+let lastUi = null;
+function ui(big, sub, ring = '', arrow = ''){ lastUi = [big, sub, ring, arrow]; $('#big').textContent = L(big); $('#sub').textContent = L(sub); $('#ring').className = ring; $('#arrow').textContent = arrow; }
 function bar(){
   const b = $('#bar');
   let txt = { off: 'Non collegato', connecting: 'Collegamento…', on: 'Collegato al computer', lost: 'Connessione persa', denied: 'Non collegato' }[linkState] || linkState;
   // (telefono dello stand: il posto sempre davanti, e «mi ricollego» al posto di «Connessione persa»)
   if (pair?.stand && stand && linkState !== 'denied') txt = standView({ slot: stand.slot, linkState, sensor, phase }).bar;
   b.className = linkState === 'on' ? 'ok' : linkState === 'lost' || linkState === 'denied' ? 'bad' : '';
-  $('#barTxt').textContent = txt; $('#lat').textContent = linkState === 'on' ? Math.round(rtt) + ' ms' : '';
+  $('#barTxt').textContent = L(txt); $('#lat').textContent = linkState === 'on' ? Math.round(rtt) + ' ms' : '';
 }
 let touchRequest = false, touchOverride = false, touchLocked = false, touchSlot = 'p1';
 const touchOverlay = $('#phoneTouchLock'), touchHit = $('#touchHit'), touchHome = touchHit.parentElement;
@@ -184,8 +196,8 @@ function paintTouchLock(){
     veil: !$('#wakeVeil').classList.contains('hidden') });
   if (on){
     touchOverlay.dataset.slot = touchSlot;
-    $('#phoneTouchSlot').textContent = slotLabel(touchSlot);
-    const label = linkState !== 'on' ? 'Ricollegamento…' : phase === 'pause' ? 'In pausa' : 'Gioca!';
+    $('#phoneTouchSlot').textContent = L(slotLabel(touchSlot));
+    const label = L(linkState !== 'on' ? 'Ricollegamento…' : phase === 'pause' ? 'In pausa' : 'Gioca!');
     if ($('#phoneTouchPhase').textContent !== label) $('#phoneTouchPhase').textContent = label;
     const actionHome = linkState === 'on' && (inputMode === 'touch' || det.profile.intentGate) ? touchOverlay : touchHome;
     if (touchHit.parentElement !== actionHome) actionHome.append(touchHit);
@@ -228,7 +240,7 @@ function paint(){
   const standOn = !!pair?.stand && !!stand;
   const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate, phase, rematch, next: nextOffer, stand: standOn, staff: staffOn(), name: nameOffer });
   paintName(!!v.show['#nameBox']);
-  if (nextOffer && $('#next').textContent !== nextOffer.label) $('#next').textContent = nextOffer.label;
+  if (nextOffer && $('#next').textContent !== L(nextOffer.label)) $('#next').textContent = L(nextOffer.label);
   // B41.6: «Sono pronto» grande e pieno (le altre offerte, «Avanti ›» e «Salta ›», restano piccole); spento dopo il tocco
   // (B41.3: spento anche appena toccato, finché il computer non manda l'offerta dopo: un doppio tocco non arriva a «Salta ›»)
   { const nb = $('#next'), big = !!nextOffer?.ready; nb.classList.toggle('alt', !big); nb.classList.toggle('big', big); nb.disabled = !!nextOffer && (!!nextOffer.sent || (big && !!nextOffer.me)); }
@@ -236,9 +248,12 @@ function paint(){
   if (v.screen !== viewScreen){ viewScreen = v.screen; document.body.dataset.screen = viewScreen; }
   for (const [sel, on] of Object.entries(v.show)) show(sel, on);
   if (v.show['#profileOptions']) paintHand();
-  $('#touchHit').textContent = inputMode === 'touch' ? 'Colpisci' : 'Arma dopo l’apertura';
+  // B72: la lingua sotto la mano, con la mano (prima di «Attiva i sensori»); nella barra in alto sempre
+  show('#langOptions', !!v.show['#profileOptions']);
+  paintLang();
+  $('#touchHit').textContent = L(inputMode === 'touch' ? 'Colpisci' : 'Arma dopo l’apertura');
   // (con i sensori la frase sotto l'anello dice già cosa fare: il consiglio del pannello dei colpi solo con i tocchi)
-  $('#shotHint').textContent = 'Scegli il colpo; schiacciata e servizio seguono la palla.'; show('#shotHint', inputMode === 'touch');
+  $('#shotHint').textContent = L('Scegli il colpo; schiacciata e servizio seguono la palla.'); show('#shotHint', inputMode === 'touch');
   paintShots();
   paintTut(v);
   const holding = viewScreen === 'cal' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
@@ -258,7 +273,7 @@ function paint(){
     const rd = phase === 'menu' ? readyView(nextOffer) : null;
     // B41.3: telefono dello stand tra una persona e l'altra (menu, partita finita): «Dai il telefono al prossimo giocatore»
     const sv = standOn ? standView({ slot: stand.slot, linkState, sensor, phase }) : null;
-    if (rv){ rb.textContent = rv.label; rb.disabled = rv.disabled; ui(rv.big, rv.sub, 'ready'); }
+    if (rv){ rb.textContent = L(rv.label); rb.disabled = rv.disabled; ui(rv.big, rv.sub, 'ready'); }
     else if (v.show['#nameBox']) ui(NAME_TEXT.big, NAME_TEXT.sub, 'ready');
     else if (rd) ui(rd.big, rd.sub, rd.ring);
     else if (trial && phase === 'play') ui(TRIAL_TEXT.big, TRIAL_TEXT.sub, 'ready');
@@ -272,7 +287,7 @@ function paintName(on){
   document.body.classList.toggle('naming', on);
   const input = $('#nameInput');
   if (!on){ if (was && document.activeElement === input) input.blur(); return; }
-  const warn = nameWhy || nameOffer?.er || '';
+  const warn = L(nameWhy || nameOffer?.er || '');
   if ($('#nameWarn').textContent !== warn) $('#nameWarn').textContent = warn;
   const off = !!nameOffer?.sent;
   $('#nameOk').disabled = off; $('#nameSkip').disabled = off; input.disabled = off;
@@ -285,7 +300,7 @@ function paintTut(v){
   const on = v.tutOk.on;
   b.disabled = !on; b.classList.toggle('off', !on); b.setAttribute('aria-disabled', String(!on));
   const t = tutorialTexts(gate, { sensor }) || { where: '', hint: '' };
-  $('#tutWhere').textContent = t.where; $('#tutHint').textContent = t.hint;
+  $('#tutWhere').textContent = L(t.where); $('#tutHint').textContent = L(t.hint);
   const nav = gateNav(gate);
   show('#tutNav', nav.show); $('#tutPrev').disabled = !nav.prev; $('#tutNext').disabled = !nav.next;
   const dots = $('#tutDots'), key = gate.n ? `${gate.n}:${gate.i}:${gate.m}` : '';
@@ -423,6 +438,8 @@ function onData(c, d){
     // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
     // (B71: sn = segno di fiera, il segno dei sensori si gira solo con almeno sn voti contrari concordi; senza, come prima)
     case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); det.setNet?.(!!d.net); det.setSignNeed?.(d.sn); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand);
+      // B72: la lingua decisa dal gioco (rimandata dopo un tocco, o IT per un giocatore nuovo); i computer di prima non la mandano
+      if (isLang(d.lg)){ const r = langOnCfg(d.lg, { current: lang, pending: langPending, now: performance.now() }); langPending = r.pending; if (r.lang !== lang) setLang(r.lang, { from: 'game' }); }
       { // tutorial: il computer lo apre (tut, con tv 2 manda l'avanzamento) o lo chiude. Si risponde che si sa aspettare
         // (w) con il pulsante spento fino all'ultima scheda (v 2). Calibrazione già partita (si entra in campo dalla pagina
         // «Collega»): si ferma e ripartirà dopo; un telefono già calibrato resta calibrato (dopo «ho capito» torna a «Pronto»)
@@ -591,8 +608,8 @@ function paintStandTag(on){
   const el = $('#standTag'); if (!el) return;
   if (!on) return;
   const n = stand.slot === 'p2' ? '2' : '1';
-  if (el.dataset.slot !== stand.slot){ el.dataset.slot = stand.slot; el.querySelector('b').textContent = n; el.querySelector('em').textContent = slotLabel(stand.slot); el.setAttribute('aria-label', `${slotLabel(stand.slot)} dello stand`); }
-  const staff = staffOn(), sm = el.querySelector('small'), t = staff ? 'staff: pulsanti in vista qui sotto' : 'dello stand · staff: tieni premuto 3 s';
+  if (el.dataset.slot !== stand.slot || el.dataset.lang !== lang){ el.dataset.slot = stand.slot; el.dataset.lang = lang; el.querySelector('b').textContent = n; el.querySelector('em').textContent = L(slotLabel(stand.slot)); el.setAttribute('aria-label', L(`${slotLabel(stand.slot)} dello stand`)); }
+  const staff = staffOn(), sm = el.querySelector('small'), t = L(staff ? 'staff: pulsanti in vista qui sotto' : 'dello stand · staff: tieni premuto 3 s');
   el.classList.toggle('staff', staff); if (sm.textContent !== t) sm.textContent = t;
 }
 $('#standTag')?.addEventListener('pointerdown', e => {
@@ -649,7 +666,9 @@ function b66State(){
 }
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 // (B45.1: cd = il racconto dell'ultima caduta, una volta sola; i computer di prima ignorano il campo)
-const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: window.screen.orientation?.type || null, sc: [window.screen.width, window.screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, nm: 1, ...(cd ? { cd } : {}), ...appVersion() }); };
+// (B72: subito dopo, la lingua di questa pagina: annuncio a ogni collegamento, k 1; toccata senza collegamento vale come un tocco)
+const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: window.screen.orientation?.type || null, sc: [window.screen.width, window.screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, nm: 1, ...(cd ? { cd } : {}), ...appVersion() }); sendLang(); };
+function sendLang(){ send(langMsg(lang, { link: !langDirty })); langDirty = false; }
 // B66: versione dell'app NATPF Racchetta (dentro l'app), per il registro dello stand
 function appVersion(){ try { const v = window.NATPFApp?.version?.(); return typeof v === 'string' && v ? { av: v.slice(0, 16) } : {}; } catch (e){ return {}; } }
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
@@ -841,8 +860,8 @@ det.on('prep', p => {
 });
 
 function paintShots(){
-  const key = `${inputMode}:${sensor === 'cal'}:${selectedShot}`; if (shotsPaintKey === key) return; shotsPaintKey = key;
-  $('#shotChoices').innerHTML = Object.entries(SHOT_NAMES).filter(([k]) => sensor === 'cal' || !['serve','smash'].includes(k)).map(([key,label]) => `<button data-shot="${key}" class="${selectedShot===key?'on':''}" aria-pressed="${selectedShot===key}">${label}</button>`).join('');
+  const key = `${inputMode}:${sensor === 'cal'}:${selectedShot}:${lang}`; if (shotsPaintKey === key) return; shotsPaintKey = key;
+  $('#shotChoices').innerHTML = Object.entries(SHOT_NAMES).filter(([k]) => sensor === 'cal' || !['serve','smash'].includes(k)).map(([key,label]) => `<button data-shot="${key}" class="${selectedShot===key?'on':''}" aria-pressed="${selectedShot===key}">${L(label)}</button>`).join('');
 }
 // La presa fisica (telefono di taglio, inclinato, girato nella mano) e l'orientamento della pagina sono due cose diverse:
 // i sensori sono nel riferimento del telefono e il rilevatore non si ferma mai per il portrait o il landscape (prima in
@@ -887,9 +906,12 @@ $('#profileOptions').addEventListener('click', e => {
   paintHand();
 });
 $('#enableTouch').addEventListener('click', () => { lockOrientation(); inputMode='touch'; selectedShot='drive'; det.stop(); needCal(); sendState(); paint(); });
+// (B72: l'ultima scritta in italiano, per riscriverla nell'altra lingua al cambio)
+let phaseFb = '';
 det.on('phase', value => {
   // (niente «Pronto» qui: lo dice già la schermata, prima compariva due volte)
-  $('#phaseFeedback').textContent = ({ preparation:'Preparazione',contact:'Colpo riconosciuto',follow:'Accompagnamento' })[value] || '';
+  phaseFb = ({ preparation:'Preparazione',contact:'Colpo riconosciuto',follow:'Accompagnamento' })[value] || '';
+  $('#phaseFeedback').textContent = L(phaseFb);
 });
 /* ---------- pulsanti ---------- */
 $('#enable').addEventListener('click', enableSensors);
@@ -1016,12 +1038,12 @@ function paintAlert(){
   }
   // B41.3: telefono dello stand con la batteria bassa (dove il browser la dà), se non c'è un avviso più urgente
   if (!a && !veil.shown && pair?.stand && linkState === 'on') a = batteryAlert({ level: battery?.level, charging: !!battery?.charging });
-  const key = a ? a.t + a.p : '';
+  const key = a ? lang + a.t + a.p : '';
   if (key === alertKey) return;
   alertKey = key; show('#alert', !!a);
   if (a){
-    $('#alertTitle').textContent = a.t; $('#alertText').textContent = a.p;
-    const b = $('#alertBtn'); b.textContent = a.b || ''; b.dataset.act = a.act || ''; show('#alertBtn', !!a.b);
+    $('#alertTitle').textContent = L(a.t); $('#alertText').textContent = L(a.p);
+    const b = $('#alertBtn'); b.textContent = L(a.b || ''); b.dataset.act = a.act || ''; show('#alertBtn', !!a.b);
   }
   paintTouchLock();   // (il blocco si toglie con un avviso da toccare e torna quando l'avviso sparisce)
 }
@@ -1030,7 +1052,7 @@ function paintVeil(){
   const on = veil.update(performance.now(), { active, wake: awake.state, wakeBusy: awake.busy, lastSample: sensorWatch.last });
   if ($('#wakeVeil').classList.contains('hidden') === on){ show('#wakeVeil', on); if (on) alertKey = null; paintTouchLock(); }
   // cosa è rimasto: la calibrazione solo se il telefono era calibrato (phone-screen.veilText)
-  if (on){ const t = veilText({ linkState, sensor, gate }), el = $('#wakeVeilText'); if (el.textContent !== t) el.textContent = t; }
+  if (on){ const t = L(veilText({ linkState, sensor, gate })), el = $('#wakeVeilText'); if (el.textContent !== t) el.textContent = t; }
 }
 setInterval(() => { paintVeil(); paintAlert(); tellAppInUse(); }, 500);
 // B71: all'app NATPF Racchetta 1.0.5 se il telefono è in uso (partita, servizio, pausa, calibrazione, tocchi bloccati):
@@ -1069,7 +1091,52 @@ function reviveSensors(){
   if (ask) ask.then(r => { if (r !== 'granted') noMotion('denied'); });
 }
 
+/* ---------- B72 · lingua IT | EN ---------- */
+// i tre selettori (barra in alto, riga sotto la mano, riquadro del telefono bloccato): quella scelta accesa; nel riquadro
+// bloccato la domanda aperta («EN?») dopo il primo tocco
+function paintLang(){
+  const now = performance.now();
+  if (langArm && now > langArm.until) langArm = null;
+  for (const b of document.querySelectorAll('.lang-seg [data-lang], #langOptions [data-lang]')){
+    const on = b.dataset.lang === lang, ask = !on && !!langArm && langArm.lang === b.dataset.lang && !!b.closest('#langLock');
+    b.classList.toggle('on', on); b.classList.toggle('ask', ask); b.setAttribute('aria-checked', String(on));
+    if (b.closest('.lang-seg')){ const t = b.dataset.lang.toUpperCase() + (ask ? '?' : ''); if (b.textContent !== t) b.textContent = t; }
+  }
+}
+// cambio della lingua, toccata qui (va al gioco) o decisa dal gioco (cfg lg). La pagina cambia subito:
+// testi fissi (translateDom), anello e scritte (lastUi), avvisi, velo, barra
+function setLang(l, { from = 'tap' } = {}){
+  const next = l === 'en' ? 'en' : 'it';
+  if (from === 'tap'){
+    langPending = { lang: next, at: performance.now() };
+    if (linkState === 'on' && conn?.open) send(langMsg(next)); else langDirty = true;
+  }
+  if (next === lang){ paintLang(); return; }
+  lang = next; writeLang(lang);
+  applyLang();
+}
+function applyLang(){
+  document.documentElement.lang = lang;
+  translateDom(document.body, lang, { skip: '.lang-seg, #langOptions [data-lang]' });
+  if (lastUi) ui(...lastUi);
+  $('#phaseFeedback').textContent = L(phaseFb);
+  alertKey = null; shotsPaintKey = '';
+  paintLang(); paint(); paintAlert(); paintVeil();
+}
+// un tocco nella barra o sotto la mano; nel riquadro del telefono bloccato due tocchi (langTap, come la mano)
+for (const box of ['#langBar', '#langOptions']) $(box)?.addEventListener('click', e => { const b = e.target.closest('[data-lang]'); if (!b) return; e.stopPropagation(); buzz([20]); setLang(b.dataset.lang); });
+$('#langLock')?.addEventListener('click', e => {
+  const b = e.target.closest('[data-lang]'); if (!b) return;
+  e.stopPropagation();
+  const r = langTap(langArm, { want: b.dataset.lang, current: lang, now: performance.now() });
+  langArm = r.armed; clearTimeout(langArmT);
+  if (langArm){ buzz([25]); langArmT = setTimeout(() => { langArm = null; paintLang(); }, LANG_CONFIRM.ms + 60); }
+  if (r.commit) setLang(r.commit);
+  paintLang();
+});
+if (lang !== 'it') applyLang();
+
 checkOrientation();
 connect();
 $('#gripMode').value = grip;
-window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state, screen: viewScreen, touchLocked, gate: gate ? { ...gate } : null, veil: !$('#wakeVeil').classList.contains('hidden'), sorgente: native.state, ripiego: native.why }; } };
+window.__racchetta = { det, cal, face, setGrip, setLang, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state, screen: viewScreen, touchLocked, gate: gate ? { ...gate } : null, veil: !$('#wakeVeil').classList.contains('hidden'), sorgente: native.state, ripiego: native.why, lang }; } };

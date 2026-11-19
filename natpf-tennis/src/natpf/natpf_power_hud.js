@@ -99,19 +99,24 @@ export class NatpfPowerHud {
     const refs = this._refs ||= this._findRefs();
     const groups = this._groups(), visible = new Set(groups.map(g => g[0]));
     for (const id in refs) refs[id].el.classList.toggle('hidden', !visible.has(id));
+    // B72: le scritte delle barre nella lingua di chi gioca (nello stesso schermo quella della sua metà, natpf_lang); si
+    // traducono solo quando cambiano scritta o lingua (la chiave le contiene tutte e due)
+    const LG = E.natpfLang, say = (t, lg) => (LG ? LG.say(t, lg) : t);
     for (const [id, actor, who] of groups){
       const r = refs[id];
       if (!r) continue;
+      const lg = LG?.at?.(id === 'p2' ? 'right' : 'left') || 'it';
       const en = energyView(fatigueLevel(E, actor));
       this._set(r, 'state', en.state, v => { r.eb.dataset.state = v; });
       this._set(r, 'ew', `${(en.fill*100).toFixed(1)}%`, v => { r.ebBar.style.width = v; });
-      this._set(r, 'el', en.state === 'stanco' ? 'Stanco!' : en.state === 'affaticato' ? 'Affaticato' : 'Energia', v => { r.ebLabel.textContent = v; });
+      const el = en.state === 'stanco' ? 'Stanco!' : en.state === 'affaticato' ? 'Affaticato' : 'Energia';
+      this._set(r, 'el', `${el}|${lg}`, () => { r.ebLabel.textContent = say(el, lg); });
       const p = this.shown[who], on = !!p && (now || 0) < p.until;
       r.pb.classList.toggle('on', on);
       r.pb.classList.toggle('super', on && p.super);
       if (on){
         this._set(r, 'pw', `${(p.fill*100).toFixed(1)}%`, v => { r.pbBar.style.width = v; });
-        this._set(r, 'pl', p.label, v => { r.pbLabel.textContent = v; });
+        this._set(r, 'pl', `${p.label}|${lg}`, () => { r.pbLabel.textContent = say(p.label, lg); });
       }
     }
   }

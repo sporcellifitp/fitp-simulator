@@ -176,6 +176,8 @@ export class NatpfSplitUi {
       // B46: mano cambiata dalla pagina del telefono del Player 2: come dalla casella del computer (personaggio, piano
       // d'intercetto e webcam del P2 compresi; prima cambiava solo il telefono), senza ridisegnare la pagina «Collega»
       p2.onHand = (h, causa = 'telefono') => this._applyHand('p2', h, causa);
+      // B72: la lingua scelta sul telefono del Player 2 cambia i testi della sua metà (natpf_lang.NatpfLang)
+      this.engine.natpfLang?.bind?.(p2);
     }
     if (!this.p1Bound){
       this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => { this._resetIfNew('p1'); this._repaint(); }); this.ui.phone.onTutorial?.(() => this._tutDone('p1'));
@@ -640,7 +642,8 @@ export class NatpfSplitUi {
     const on = this._rmOffer;
     show(el, on);
     if (!on) return;
-    const t = rematchLine(this.rematch, { p1: this.name('p1'), p2: this.name('p2') });
+    // (B72: nella scheda finale, a tutta larghezza: lingua comune dello schermo)
+    const t0 = rematchLine(this.rematch, { p1: this.name('p1'), p2: this.name('p2') }), LG = this.engine.natpfLang, t = LG ? LG.say(t0, LG.at('center')) : t0;
     if (el.textContent !== t) el.textContent = t;
     el.dataset.votes = `${+this.rematch.p1}${+this.rematch.p2}`;
   }
@@ -657,7 +660,9 @@ export class NatpfSplitUi {
       for (const id of SPLIT_PLAYERS){
         const tag = hud.querySelector(`[data-split-tag="${id}"] span`), p = this.webcam ? null : this.phone(id);
         // B25: sotto il nome di chi è aiutato in questa partita, «Aiuto: Bambino» (natpf_duo_rules.helpLabel)
-        const text = p && !p.ready ? 'Telefono in pausa' : helpLabel(E.natpfDuo?.help?.[id]);
+        // (B72: nella lingua del giocatore di questa metà; com'è in italiano)
+        const text0 = p && !p.ready ? 'Telefono in pausa' : helpLabel(E.natpfDuo?.help?.[id]), LG = E.natpfLang;
+        const text = LG ? LG.say(text0, LG.at(id === 'p2' ? 'right' : 'left')) : text0;
         if (tag && tag.textContent !== text) tag.textContent = text;
         tag?.parentElement?.classList.toggle('warn', !!p && !p.ready);
         tag?.parentElement?.classList.toggle('helped', !(p && !p.ready) && !!text);

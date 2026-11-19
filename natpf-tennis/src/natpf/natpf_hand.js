@@ -4,6 +4,7 @@
 // - Prima persona: la mano libera (sinistra per un destro, destra per un mancino) si vede solo al proprio servizio,
 //   per il lancio di palla; nel resto del gioco resta solo la mano con la racchetta.
 import { webcamGate } from './natpf_impact.js';
+import { resetLangs } from './natpf_lang.js';
 export const HAND_KEY = 'natpf-tennis.hand';
 export const normalizeHand = h => (h === 'left' ? 'left' : 'right');
 export function readHand(){ try { return normalizeHand(localStorage.getItem(HAND_KEY)); } catch { return 'right'; } }
@@ -40,6 +41,8 @@ export function resetHands(ui, causa = 'nuovo giocatore'){
   // (stesso schermo in corso: personaggio e piano del Player 2, come NatpfSplitUi.setHand)
   if (E?.natpfSplit?.active) E._natpfSetP2Hand?.('right');
   if (E?.motionController) E.motionController.p2HandPreference = 'right';
+  // B72: con la mano anche la lingua torna IT, per Player 1 e Player 2 (stesso momento, stessi telefoni: natpf_lang.resetLangs)
+  resetLangs(ui, causa);
   ui?.paintTiles?.();
 }
 // serve con la mano libera in vista?

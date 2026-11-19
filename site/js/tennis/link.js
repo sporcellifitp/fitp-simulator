@@ -368,6 +368,10 @@ export function createPhoneLink({ stand = null } = {}){
         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
         // mano cambiata sulla pagina del telefono (la decide il gioco: il computer la applica e la rimanda)
         case 'hand': if (d.h === 'left' || d.h === 'right') emit('hand', { hand: d.h }); break;
+        // B72: lingua scelta sulla pagina del telefono (IT | EN, lingua.js): toccata (link false) o annunciata al collegamento
+        // (k 1, link true: vale solo se il computer non conosce ancora la lingua di questo telefono). Le pagine di prima non
+        // la mandano (vale IT); i computer di prima ignorano il messaggio
+        case 'lang': if (d.l === 'it' || d.l === 'en') emit('lang', { lang: d.l, link: d.k === 1 }); break;
         // «Rivincita» toccata sul telefono a fine partita (stesso schermo, B20): decide il computer (natpf_split_ui)
         case 'rm': if (d.y === 1) emit('rematch', {}); break;
         // «Avanti ›» toccato sul telefono (B28): il computer aveva offerto di andare avanti senza fare il gesto. B41.3: con il

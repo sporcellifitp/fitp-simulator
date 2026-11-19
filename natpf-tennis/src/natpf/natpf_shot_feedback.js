@@ -17,6 +17,7 @@ import * as THREE from 'three';
 import { splitViewports } from './natpf_split.js';
 import { predictBall } from './natpf_impact.js';
 import { MOVE_WHY } from './natpf_movement.js';
+import { langAt } from './natpf_lang.js'; // B72: la scritta nella lingua di chi ha colpito (la sua metà nello stesso schermo)
 
 export const QUALITY_COLORS = Object.freeze({ green: 0x3be37f, yellow: 0xffd23f, red: 0xff4d5e });
 const COURT = { halfW: 4.115, halfL: 11.885, service: 6.4 };
@@ -254,7 +255,7 @@ export class NatpfShotFeedback {
       const show = (Q = q) => {
         // (verdetto arrivato dopo: la scritta dice l'esito vero, con lo stesso nome del colpo, il motivo e i km/h)
         const why1 = Q === q ? why : why0 && Q.why && (why0 === Q.why || dropTempo) ? null : why0;
-        popup({ ...o, screenPos: null, durationMs: Math.min(o.durationMs ?? POPUP_MS.hit, miss ? POPUP_MS.miss : POPUP_MS.hit), grade: qualityText(Q), detail: [who, name, why1, kmh.toLowerCase()].filter(Boolean).join(' · ') });
+        popup({ ...o, screenPos: null, durationMs: Math.min(o.durationMs ?? POPUP_MS.hit, miss ? POPUP_MS.miss : POPUP_MS.hit), grade: qualityText(Q), detail: [who, name, why1, kmh.toLowerCase()].filter(Boolean).join(' · '), lang: langAt(engine, place.side) });
         const el = document.getElementById('timing-popup-grade');
         if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red', 'q-super'); el.classList.add('q-' + Q.color); }
         this._place(document.getElementById('timing-popup'), place);

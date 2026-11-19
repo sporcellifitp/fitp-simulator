@@ -147,7 +147,9 @@ export class NatpfPrematch {
     const on = this.active && !this._held;
     show(el, on);
     if (!on) return;
-    const set = (sel, t) => { const n = el.querySelector?.(sel); if (n && n.textContent !== t) n.textContent = t; return n; };
+    // (B72: il conto è a tutto schermo: nella lingua comune, natpf_lang.screenLangs; com'è in italiano)
+    const LG = this.engine.natpfLang, lc = LG?.at?.('center') || 'it';
+    const set = (sel, t0) => { const t = LG ? LG.say(t0, lc) : t0, n = el.querySelector?.(sel); if (n && n.textContent !== t) n.textContent = t; return n; };
     const E = this.engine, split = !!E.natpfSplit?.active, nm = E.natpfSplitNames || {}, T = prematchTexts(this.kind, { split });
     if (el.dataset && el.dataset.kind !== this.kind) el.dataset.kind = this.kind;
     set('[data-prematch="kicker"]', T.kicker);
