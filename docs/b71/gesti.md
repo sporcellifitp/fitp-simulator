@@ -86,12 +86,12 @@ accetta le righe). `cf` non toccato (altro agente). Documento dei campi: `docs/b
 
 ## Prove
 
-Nuove: `natpf-tennis/test/natpf-b71-gesti.test.mjs` (12), `tools/test/b71-gesti.test.mjs` (8). Aggiornate:
+Nuove: `natpf-tennis/test/natpf-b71-gesti.test.mjs` (12), `tools/test/b71-gesti.test.mjs` (9). Aggiornate:
 `natpf-racchetta-motore.test.mjs` (KEEP entro la finestra, e molto in anticipo vince il colpo che segue),
 `natpf-b46-lato-sicuro.test.mjs` e `tools/test/b46-lato-sicuro.test.mjs` (voti nella riga del segno e nel messaggio
 `sgn`). `phone-sim.mjs` usa `trialMark` come il gioco (`legacyMark` solo per i confronti).
 
-Suite (19/11, ramo `b71-gesti`): gioco **1855/1856** (1 saltata, come prima; 0 rosse), sito **297/297**, build ok.
+Suite (19/11, ramo `b71-gesti`): gioco **1855/1856** (1 saltata, come prima; 0 rosse), sito **298/298**, build ok.
 Gesti veri del 28/10: in fiera (sn 8) e fuori, profilo semplice e calibrato, con ogni verso atteso, gli stessi colpi.
 
 La regola del 50% per la preparazione trattenuta vale **solo in fiera** (telefono con `sn`): fuori dalla fiera resta

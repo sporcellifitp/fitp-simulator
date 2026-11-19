@@ -157,6 +157,26 @@ test('B71 gesti veri del 28/10: in fiera (sn 8) gli stessi colpi di fuori dalla 
   }
 });
 
+// palla corta in anticipo (registri: 43% «very early»): la preparazione verticale lenta passa come gesto (sotto il 30% del
+// colpo tipico) ma il colpo che segue subito dopo arriva sempre al computer, che lo gioca al suo posto (natpf_impact
+// earlySoftSpecial e KEEP entro la finestra: natpf-b71-gesti.test.mjs)
+test('B71 preparazione verticale lenta e subito il dritto: il telefono manda tutti e due, il dritto con il suo verso', () => {
+  const S = { ...SIMPLE, ref: 600, refs: { 1: 600, '-1': 600 } };
+  for (const gap of [0, 60, 150, 300]) for (const fair of [false, true]){
+    const det = createSwingDetector(), sw = [];
+    det.setProfile(S); det.run(); det.setContext('play'); det.setPrepMode(true); det.setExpect(1); if (fair) det.setSignNeed(8);
+    det.on('swing', s => sw.push(s));
+    let t = still(det, 0, 1200);
+    const move = (rot, peak, ms) => { const n = Math.round(ms/10); for (let i = 0; i <= n; i++){ const m = peak*Math.sin(Math.PI*i/n)**2, a = -2*Math.sin(2*Math.PI*i/n); det.feed({ t, rot: rot.map(r => r*m), acc: [0, a, 0], accG: [0, 9.81 + a, 0] }); t += 10; } };
+    move([0, 1, 0], 160, 400);                 // racchetta abbassata lentamente (asse orizzontale): 27% del colpo tipico
+    t = still(det, t, gap);
+    move([0, 0, 1], 650, 220);                 // il dritto
+    still(det, t, 800);
+    assert.deepEqual(sw.map(s => [s.dir, s.peak < 200 ? 'lento' : 'colpo']), [[0, 'lento'], [1, 'colpo']], `pausa ${gap} ms${fair ? ', fiera' : ''}`);
+    assert.ok(sw[0].peak < .3*600 && sw[1].peak > 600);
+  }
+});
+
 /* ---------- pagina del telefono e collegamento ---------- */
 import { readFileSync } from 'node:fs';
 test('B71 pagina del telefono: cfg sn imposta il segno di fiera; «sgn» porta i voti; il computer li legge', async () => {
