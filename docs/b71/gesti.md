@@ -93,6 +93,9 @@ Nuove: `natpf-tennis/test/natpf-b71-gesti.test.mjs` (12), `tools/test/b71-gesti.
 
 Suite (19/11, ramo `b71-gesti`): gioco **1855/1856** (1 saltata, come prima; 0 rosse), sito **298/298**, build ok.
 Gesti veri del 28/10: in fiera (sn 8) e fuori, profilo semplice e calibrato, con ogni verso atteso, gli stessi colpi.
+Nel browser (Chromium, telefono simulato): `tools/e2e/natpf-scambi-di-prova.mjs` **32/32**; `tools/e2e/natpf-lob-drop.mjs`
+135/137 (riguarda le mascotte Lob e Drop, non i colpi: il controllo dei piedi in corsa già noto, e il costo del disegno
+1121 → 1728 ms misurato con la macchina carica da altre prove; codice del disegno non toccato dal B71).
 
 La regola del 50% per la preparazione trattenuta vale **solo in fiera** (telefono con `sn`): fuori dalla fiera resta
 l'80% perché il caso «rovescio lungolinea su palla appena dal lato del dritto, poi il rientro della mano» (natpf-prep)
