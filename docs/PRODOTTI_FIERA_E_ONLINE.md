@@ -64,6 +64,10 @@ Registro delle richieste in §3.
 | 18/11 | Registro dello stand: più dati su qualità dei sensori, calibrazione, prestazioni e precisione dei gesti, rete e stato del telefono dall'app, telefono bloccato; niente percorso del visitatore né salute del PC (B66) | FIERA (il registro è solo nell'installer; app Android 1.0.4) | fatto, 18.1 (`docs/b66/registro-sensori.md`); il Worker del registro va ricaricato |
 | 18/11 | Mascotte 3D: impugnatura, pose «Sei-sette» e «Aura», sconfitta visibilmente triste (B67); poi «Le mascotte ok, integra queste e butta dentro altre animazioni simili alle esultanze e balletti» (B69) | FIERA, accese anche nel web con «Lob & Drop» (solo codice, niente asset) | fatto, 18.2 (`docs/b69/balletti-mascotte.md`): accese di base dove in campo ci sono Lob e Drop; con i Classici GIF (Windows) o ritratti (web) come prima |
 | 18/11 | «Batte per primo» meno a lungo sopra il campo (B68) | FIERA (codice comune: vale anche nel web) | fatto, 18.2 |
+| 19/11 | Registri del 18 e 19/11: «fixiamo subito i punti più importanti come: calibrazione giocando (importantissima), dritto e rovescio, sensori» (B71) | FIERA (app Android 1.0.5; registro formato 4 solo nell'installer) | fatto, 19.1 (`docs/b71/unione.md`, `docs/b71/revisione.md`); il Worker del registro va ricaricato (formato 4) |
+| 19/11 | Casella «Al servizio» che lampeggia + alone pulsante dopo 3 s attorno all'area di chi deve servire, in singolo e nello stesso schermo (B72) | FIERA (codice comune: vale anche nel web) | fatto, 19.1 (`docs/b72/servizio.md`) |
+| 19/11 | «Avversario» al posto di «CPU»: molti non sanno cosa significa CPU (B72) | FIERA (vale anche nel web) | fatto, 19.1 (`docs/b72/avversario.md`) |
+| 19/11 | Selettore della lingua IT/EN dall'app del telefono, anche per uno solo dei due giocatori nello stesso schermo (B72) | FIERA (vale anche nel web) | fatto, 19.1 (`docs/b72/lingua.md`): menu, staff e toast restano in italiano |
 | 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
 
 ## 4. Domande per l'utente (prima di separare il codice)

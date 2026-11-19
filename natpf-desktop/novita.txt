@@ -77,3 +77,4 @@
 2026-11-18.2: Con «Lob & Drop» nella card di fine partita le mascotte vere ballano: dieci esultanze (tra cui robot, disco, corsa all'indietro, passi incrociati) e cinque sconfitte tristi, mai le stesse della partita prima.
 2026-11-18.2: «Batte per primo» resta meno a lungo sopra il campo.
 2026-11-18.3: Le mascotte 3D che ballano nella card di fine partita restano solo nel programma Windows della fiera; nella versione web no.
+2026-11-19.1: Al servizio la casella «Al servizio» lampeggia e, se passano 3 secondi, un alone giallo mostra chi deve battere. «Avversario» al posto di «CPU». Dal telefono ognuno sceglie la lingua, italiano o inglese. In fiera la calibrazione giocando e il dritto/rovescio sono più affidabili; l'app Android 1.0.5 usa i sensori del telefono.

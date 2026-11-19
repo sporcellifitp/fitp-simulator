@@ -272,8 +272,11 @@ try {
   check('«Salta ›» dal computer: la partita parte con il conto alla rovescia grande; il visitatore con il nome scritto sul telefono (non il numero)', started && g2.prematch && g2.nick === 'Giulia', JSON.stringify({ seq: g2.seq, prematch: g2.prematch, nick: g2.nick }));
   const sb = await until(g, () => !!document.querySelector('#natpf-scoreboard [data-sb-name="Giulia"]'), null, 8000);
   check('B54 · tabellone in alto a sinistra: «Giulia» al posto di «Tu»', sb, await g.evaluate(() => document.getElementById('natpf-scoreboard')?.textContent || ''));
-  check('B51 · conto alla rovescia e partita: niente comandi sul telefono', await until(tel1, () =>
-    __racchetta.state.touchLocked && document.getElementById('phoneTouchLock').querySelectorAll('button:not(.hidden)').length === 0, null, 3500));
+  // (B72: nel riquadro c'è solo il selettore della lingua #langLock, che cambia con due tocchi come la mano: lo prova
+  // natpf-lingua.mjs; nessun altro comando)
+  check('B51 · conto alla rovescia e partita: niente comandi sul telefono (solo il selettore della lingua del B72)', await until(tel1, () =>
+    __racchetta.state.touchLocked && [...document.getElementById('phoneTouchLock').querySelectorAll('button:not(.hidden)')].every(b => b.closest('#langLock'))
+    && !!document.querySelector('#phoneTouchLock #langLock'), null, 3500));
   await shot(tel1, 'telefono-bloccato');
   res.visitor = g2.nick;
   await sleep(350);

@@ -1731,3 +1731,33 @@ Urgenza della fiera («la ledwall si disconnette e dice "scollegato"»). Analisi
 - Ritardo tra browser e app (revisione): la prova all'avvio lo misura sugli stessi movimenti (`stimaRitardo`, 0–40 ms) e,
   con l'app, lo somma all'istante dei campioni: i colpi restano con **l'istante del browser**, su cui sono tarate le
   finestre del tempo. Va nel registro (`tq.lg`). Formato delle righe del registro: **4** dal B71.
+
+## B72 · Servizio che lampeggia, «Avversario», lingua IT/EN dal telefono (19/11/2026, versione 2026-11-19.1; `docs/b72/*.md`)
+
+Richiesta dell'utente del 19/11 (prodotto FIERA, codice comune: vale anche nel web).
+- **Servizio** (`natpf_serve_alert.js`, `natpf-servizio.css`, `docs/b72/servizio.md`): solo in partita e solo quando batte un
+  giocatore umano di questo computer, la casella «Al servizio» lampeggia (1 Hz, solo luce e anello: niente scala, la
+  posizione in pixel del B37.1 resta) dalla posizione di servizio al lancio; dopo **3 s** fermi senza lanciare
+  (`SERVE_HALO.afterS`, conto `idle` del coach) un alone giallo pulsa sui bordi interni dell'area del gioco: tutta l'area
+  a una vista, solo la metà di chi batte nello stesso schermo (`data-half`). Spariscono al lancio, in pausa, a fine punto,
+  nel menu e nel replay; la pausa azzera l'attesa (`serveCoach.hold()` da `_syncPause`). Niente negli allenamenti, nei
+  minigiochi e negli scambi di prova; in prima persona niente casella, l'alone sì. Riduzione del movimento: 2,4 s.
+- **«Avversario» al posto di «CPU»** in tutti i testi visibili (`docs/b72/avversario.md`): «Avversario», due avversari
+  «Avversari», CPU compagna «Compagno». Le chiavi interne del motore restano inglesi e con CPU (es. 'CPU DROP SHOT').
+- **Lingua IT/EN dal telefono, per giocatore** (`site/js/tennis/lingua.js`, `natpf-tennis/src/natpf/natpf_lang.js`,
+  `docs/b72/lingua.md`):
+  - protocollo: telefono → gioco `{ t: 'lang', l }` al tocco e `{ t: 'lang', l, k: 1 }` come annuncio a ogni collegamento
+    (vale solo se il gioco non conosce ancora quella lingua); gioco → telefono `cfg` con `lg: 'it'|'en'`, come la mano;
+  - «Nuovo giocatore», chiosco e «Prossimo giocatore» della fiera rimettono **IT** ai telefoni (`resetHands` →
+    `natpf_lang.resetLangs`; nello stesso schermo anche dalla strada 'split' di `resetVisitor`); al riavvio del programma no;
+  - regola dello schermo: a una vista la lingua del giocatore di questo computer; nello stesso schermo ogni metà nella
+    lingua del suo giocatore; i testi a tutta larghezza in inglese solo se tutti e due hanno scelto EN;
+  - restano **in italiano**, di proposito: menu, lobby, impostazioni, pagine e pannelli dello staff, diagnostica e
+    `LAG_FAIR_NOTE`, riassunto del registro, toast, pulsanti della schermata finale. I nomi scritti dai giocatori non si
+    traducono (`nameTx` traduce solo i nomi dati dal gioco);
+  - la pagina del telefono non usa lookbehind nelle espressioni regolari (iOS < 16.4 non carica il modulo: prova
+    «nessun `(?<`» in `tools/test/b72-lingua.test.mjs`);
+  - la lingua **non** va nel registro.
+- **Due significati di `lg`** (attenzione): nel **cfg** (gioco → telefono) `lg` è la **lingua** (B72); nello **stato del
+  telefono** (telefono → gioco, `registro_misure`, riga `tq`) `lg` è il **ritardo** in ms dei campioni del browser su quelli
+  dell'app (B71). Direzioni diverse, nessuno scambio; non riusare il nome per altro.

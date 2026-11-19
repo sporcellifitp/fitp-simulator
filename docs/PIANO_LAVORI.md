@@ -23,16 +23,19 @@ Qui sta **solo l'ultimo checkpoint**: il precedente si sostituisce, non si accod
 `docs/archivio/PIANO_LAVORI_checkpoint_fino_al_2026-11-18.md` (quelli fino al 07/11 in
 `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`).
 
-**Checkpoint del 19/11/2026 (B71, revisione applicata sul ramo locale `b71-int`, niente push, nessuna versione nuova).**
-Versione pubblicata ancora **2026-11-18.3** (app 1.0.4). Correzioni dai registri della fiera del 18 e 19/11 (richiesta
-dell'utente: calibrazione giocando, dritto e rovescio, sensori): rami `b71-gesti`, `b71-sensori`, `b71-registro` uniti in
-**`b71-int`** (`docs/b71/unione.md`), poi revisori e verifica avversaria: undici rilievi confermati, tutti applicati nei
-commit 0bfc1861 e 5bfdd5ac (`docs/b71/revisione.md`). Prove sul ramo: gioco 1877/1877, sito 310/310, LAN 13/13, desktop
-56/56, build ok, app Android con la chiave di debug (JUnit 22/22, lint 0 errori, controlla-classi verde), prove nel browser
-tutte verdi (`docs/b71/revisione.md` §11). **Prossima azione esatta:** unione di `b71-int` in `natpf-simulator`, versione
-nuova (file di versione), push, pacchetti, APK 1.0.5 dalla CI `natpf-android.yml`; il Worker del registro va ricaricato con
-il file della versione nuova (la pagina deve dire «Formato delle righe: 4»). Se il lavoro si ferma: `git branch --list
-'b71-*'`, `git log --oneline natpf-simulator..b71-int`.
+**Checkpoint del 19/11/2026, sera (B71 + B72 uniti in `natpf-simulator`, versione 2026-11-19.1).**
+B71 (correzioni dai registri della fiera del 18 e 19/11: calibrazione giocando, dritto e rovescio, sensori dell'app 1.0.5,
+registro formato 4; `docs/b71/unione.md`, `docs/b71/revisione.md`) e B72 (richieste dell'utente del 19/11, FIERA: casella
+«Al servizio» che lampeggia e alone dopo 3 s nell'area di chi batte, «Avversario» al posto di «CPU», lingua IT/EN scelta
+dal telefono per giocatore; `docs/b72/*.md`) uniti senza conflitti (a2937f1f); revisione degli incroci e del percorso dello
+stand in IT/EN con verifica avversaria: quattro rilievi corretti (fine partita in inglese, fascia Adult/Child/Teen, «Colpo
+letto» negli scambi di prova, scritta del segnale nascosta negli scambi di prova; `docs/b72/unione.md` §6). Prove sul
+codice finale: gioco 1915/1915, sito 322/322, LAN 13/13, desktop 56/56, build ok, 30 prove nel browser verdi (dopo il
+controllo B51 di `natpf-fiera-telefoni.mjs` aggiornato al selettore della lingua: 66/66). Versione **2026-11-19.1** nei
+quattro file. **Prossima azione esatta:** dopo il push aspettare la CI (installer Windows su R2 con
+`attesa-installer.sh`, APK 1.0.5 da `natpf-android.yml`), zip Cloudflare provato estratto, consegna all'utente; il Worker
+del registro va ricaricato con il file della versione nuova (la pagina deve dire «Formato delle righe: 4»). Se il lavoro
+si ferma prima del push: `git log --oneline origin/natpf-simulator..natpf-simulator`, test veloci, `git fetch`, push.
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 

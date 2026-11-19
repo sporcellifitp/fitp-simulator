@@ -410,3 +410,37 @@ Prodotto: entrambi (solo repository). Vecchio sito, immagini dei blocchi, rami, 
   ramo di prima nello stesso momento).
 - Non verificato: telefono vero, app 1.0.5 vera (riaccensione, ritardo `lg` vero), Windows, ledwall; Worker del registro non
   ricaricato (deve dire «Formato delle righe: 4»).
+
+## B72 · Casella «Al servizio» che lampeggia + alone, «Avversario», lingua IT/EN dal telefono (19/11/2026) · [x]
+- Richiesta dell'utente del 19/11 (FIERA). Workflow `wf_0254ca96-a86`: rami `b72-servizio` (d9f4c1df), `b72-avversario`
+  (563df0f5), `b72-lingua` (0a4b9d39) uniti in `b72-int` (8c343591, 7b98a7b7, 43230546, correzioni dell'unione 2fb11679,
+  documento 4e67b3ea), revisione e sistemazione fbf97642 (sette rilievi: lookbehind su iOS < 16.4, «Nuovo giocatore» nello
+  stesso schermo rimette IT, segnale del momento giusto ed etichetta del gesto in inglese, nomi dei giocatori non tradotti,
+  schede del tutorial sul telefono, tre frasi inglesi).
+- File nuovi: `natpf-tennis/src/natpf/natpf_serve_alert.js`, `natpf-tennis/src/natpf/natpf_lang.js`,
+  `site/js/tennis/lingua.js`; prove `natpf-b72-servizio-alone`, `natpf-b72-lingua`, `natpf-b72-unione` (gioco),
+  `tools/test/b72-lingua.test.mjs` (sito), `tools/e2e/natpf-servizio-alone.mjs`, `natpf-lingua.mjs`, `natpf-avversario.mjs`.
+  Documenti `docs/b72/servizio.md`, `avversario.md`, `lingua.md`, `unione.md`.
+- Verifiche su fbf97642: gioco 1905/1905, sito 320/320, LAN 13/13, desktop 56/56, build ok; nel browser lingua 46/46,
+  servizio-alone 27/27, segnale-spiegato 14/14, menu 45/45, nuovo-giocatore 29/29, fine-partita 68/68, avversario 9/9,
+  nome-telefono 23/23, telefono-bloccato 12/12, chi-serve 36/36 + 29/29 (blocco noto dopo la misura del costo, di prima).
+- Non verificato: iPhone vero con iOS 15–16.3, telefono vero, Windows, ledwall.
+
+## B71 + B72 · Unione, revisione degli incroci e versione 2026-11-19.1 (19/11/2026) · [x] (push e pacchetti: vedi TRACCIA)
+- a2937f1f: `b71-int` 473b9e9d unito in `b72-int` senza conflitti (file toccati da tutti e due: `natpf_phone_racket.js`,
+  `racchetta.js`); `natpf-simulator` portato in avanti. Workflow `wf_d699edcb-840`: revisori «incroci» (solo U1, documenti)
+  e «stand» (F1–F4), due scettici per rilievo, tutti confermati. Correzioni: e061d1df (F1 «Sniper», F2 fascia
+  Adult/Child/Teen; prova nuova `tools/e2e/natpf-fine-partita-en.mjs` 79/101 → 101/101), 6e0445da (F3 «Colpo letto» negli
+  scambi di prova al posto di «nessuna palla da colpire»), 2e1ef319 (F4 scritta del segnale nascosta e non contata negli
+  scambi di prova), afa69e53 (`docs/b72/unione.md` §6). U1: documenti vivi aggiornati qui. `tools/e2e/natpf-fiera-telefoni.mjs`:
+  il controllo B51 «niente comandi sul telefono bloccato» ammette solo il selettore della lingua del B72 (65/66 → 66/66).
+- Verifiche su afa69e53: gioco **1915/1915**, sito **322/322**, LAN 13/13, desktop 56/56, build ok (30 moduli `node --check`,
+  niente `(?<` in dist), zip Cloudflare di prova 24.022.693 B. Nel browser: training-flow 21/21, scambi-di-prova 32/32,
+  registro 39/39, registro-sensori 23/23, b47-fiera 20/20, formato-fiera 29/29, stesso-schermo-b20 52/52, fiera-telefoni
+  66/66 (dopo il controllo aggiornato), tutorial-phone 46/46, gesti-speciali 9/9, gesti-sequenze 47/47, gesture-calibration
+  21/21, phone-only 10/10, timing-browser 8/8, avversario 9/9, servizio-alone 27/27, lingua 46/46, menu 45/45,
+  nuovo-giocatore 29/29, fine-partita 68/68, chi-gioca 55/55, rete 11/11, tabellone 41/41, telecomando 91/91,
+  segnale-spiegato 14/14, sensori-nativi 16/16, nome-telefono 23/23, telefono-bloccato 12/12, app-android 5/5,
+  fine-partita-en 101/101. Non rifatte: lob-drop, modale-gesti, chi-serve (problemi noti, documenti B71/B72).
+- Versione 2026-11-19.1 nei quattro file (`version.js`, `build.json`, `lan/LEGGIMI.txt`, `novita.txt`).
+- Non verificato: telefono vero, app 1.0.5 vera, iPhone vecchi, Windows installato, ledwall; Worker del registro da ricaricare.

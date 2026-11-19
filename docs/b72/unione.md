@@ -286,3 +286,13 @@ repository, macchina condivisa a 4 core; le prove nel browser una alla volta, co
   ramo degli scambi di prova), `natpf_timing_cue._hint` e una riga di `natpf-ui.css`; i test del gioco li coprono.
 - I documenti vivi (`PIANO_LAVORI`, `TRACCIA_PASSI`, `WORK_PROGRESS`, `PROJECT_MEMORY`) non sono aggiornati da questa
   sistemazione: li aggiorna l'agente principale.
+
+### 6.1 Prove complete sul codice finale e controllo B51 aggiornato (19/11 sera)
+
+Prove complete su afa69e53 (agente delle prove del workflow `wf_d699edcb-840`): gioco 1915/1915, sito 322/322, LAN 13/13,
+desktop 56/56, build ok, 29 prove nel browser verdi. Una sola rossa, `natpf-fiera-telefoni.mjs` 65/66: il controllo B51
+«niente comandi sul telefono bloccato» contava zero pulsanti nel riquadro `#phoneTouchLock`, dove dal B72 c'è di proposito
+il selettore della lingua `#langLock` (cambia con due tocchi come la mano, lo prova `natpf-lingua.mjs`). Stessa rossa sul
+solo B72 (fbf97642), verde sul solo B71 (473b9e9d). Scelta: tenere il selettore (la richiesta è cambiare lingua dal
+telefono, anche in partita) e aggiornare il controllo: nel riquadro ci sono solo i pulsanti di `#langLock`, nessun altro
+comando. Dopo: **66/66**.

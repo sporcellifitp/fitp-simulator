@@ -12,6 +12,8 @@ a questo file; quando supera ~300 righe si sposta di nuovo la parte vecchia in u
 
 ## STATO ATTUALE (18/11/2026)
 
+- **In pubblicazione (19/11 sera): 2026-11-19.1** = B71 + B72 (sezioni in fondo). Push fatto, CI e pacchetti in corso:
+  quando sono verificati questa riga diventa la versione pubblicata con sha256.
 - **Versione pubblicata: 2026-11-18.3** (`e9409c5`, B70: mascotte 3D che ballano nella card **solo nel programma
   Windows** della fiera). Pacchetti verificati: installer dal link fisso 131.385.957 B, sha256
   `6e9ad5e40b31abf9be5529458ee7fa2382c2071d78451a2e20124d9c13bb63a1`; zip Cloudflare 23.979.122 B, sha256
@@ -130,3 +132,27 @@ scratchpad della sessione). Anomalie uguali nei due giorni:
       sistemate. Documento `docs/b71/revisione.md` (prove e numeri). **Prossimo passo**: unione in `natpf-simulator`,
       versione nuova, push, pacchetti, APK 1.0.5 (CI); Worker del registro da ricaricare (la pagina deve dire «Formato
       delle righe: 4»).
+
+## 19/11 · B72 richieste dell'utente (FIERA) e versione 2026-11-19.1 con il B71
+
+Richiesta (19/11): «1) rendere lampeggiante il box che dice che devi battere (al servizio) + aggiungi un alone pulsante
+attorno allo schermo (in singolo e in doppio nell'area specifica del player che deve servire se passano 3 secondi 2)
+cambiare CPU con Avversario (in singolo) 3) selettore lingua IT/EN dall'app del telefono: permette di tradurre anche solo
+uno dei due campi in modalità doppio».
+
+- [x] Workflow `wf_0254ca96-a86`: tre rami (`b72-servizio`, `b72-avversario`, `b72-lingua`) dal B71, unione in `b72-int`
+      (nessun conflitto), tre revisori (aspetto, lingua, regressioni) + verifica avversaria: sette rilievi corretti
+      (`docs/b72/unione.md` §5; il più grave: espressione regolare che non caricava la pagina del telefono su iOS < 16.4).
+      Documenti `docs/b72/servizio.md`, `avversario.md`, `lingua.md`, `unione.md`.
+- [x] Unione di `b71-int` (473b9e9d, revisione B71) in `b72-int` → a2937f1f, nessun conflitto; `natpf-simulator` portato in
+      avanti. Workflow `wf_d699edcb-840` (incroci B71×B72, percorso dello stand in IT/EN, verifica, sistemazione, prove):
+      quattro rilievi corretti (F1–F4, `docs/b72/unione.md` §6) e i documenti vivi aggiornati (U1). Un controllo B51 di
+      `natpf-fiera-telefoni.mjs` aggiornato: nel telefono bloccato c'è di proposito il selettore della lingua (due tocchi).
+- [x] Prove sul codice finale: gioco 1915/1915, sito 322/322, LAN 13/13, desktop 56/56, build ok, prove nel browser verdi
+      (fiera-telefoni 66/66, lingua 46/46, servizio-alone 27/27, fine-partita-en 101/101 e le altre in `docs/b72/unione.md` §6).
+- [~] Versione **2026-11-19.1** (quattro file), commit, push; poi CI: installer Windows su R2, APK 1.0.5 su R2; zip
+      Cloudflare provato estratto; consegna. **Ripresa se si ferma**: `git log --oneline origin/natpf-simulator..`, se ci
+      sono commit non pubblicati rifare i test veloci e il push; poi `attesa-installer.sh 2026-11-19.1`.
+- Da fare dall'utente: ricaricare il Worker del registro (pagina «Formato delle righe: 4»).
+- Non verificato: telefono vero (sensori dell'app 1.0.5, schermo che si riaccende, IT/EN), iPhone vecchi, programma
+  Windows installato, ledwall (leggibilità del lampeggio e dell'alone da lontano).
