@@ -18,10 +18,13 @@
 // Leggibile sul ledwall: misure in cqh (@container natpf), testo bianco su fondo scuro pieno, bordo colorato per lo stato.
 // Non nelle sfide. Nell'allenamento niente scritte (la scheda dell'esercizio ha già il suo testo), ma nell'esercizio
 // «Servizio» l'icona sì, a ogni servizio: l'allenamento dice la stessa cosa del gioco.
+// B72 (19/11): da qui anche la casella «Al servizio» che lampeggia e l'alone dopo SERVE_HALO.afterS s fermi
+// (natpf_serve_alert.js), con la stessa fotografia del gioco e lo stesso tempo fermo (idle).
 import { autoTossNext } from './natpf_duo_rules.js';
 import { NatpfServeHint } from './natpf_serve_hint.js';
 import { viewport } from './natpf_screen.js';
 import { SERVE_CHOICE } from './natpf_gesture_motion.js'; // B48: la regola della direzione del servizio dal telefono
+import { NatpfServeAlert, serveAlertView, SERVE_ALERT_OFF } from './natpf_serve_alert.js'; // B72: casella che lampeggia e alone
 export const SERVE_COACH = Object.freeze({
   firstServes: 2,      // servizi riusciti con le istruzioni piene, a ogni partita nuova
   apexBefore: .24,     // s prima del punto più alto: «Colpisci!»
@@ -107,7 +110,15 @@ export class NatpfServeCoach {
     this.state = { served: { player: 0, opponent: 0 }, missAt: null, idle: 0, phase: null };
     this.el = typeof document !== 'undefined' ? document.getElementById('natpf-serve-coach') : null;
     this.hint = new NatpfServeHint();    // B44: l'icona del lancio accanto a chi batte
+    this.alert = new NatpfServeAlert();  // B72: la casella «Al servizio» che lampeggia e, dopo 3 s fermi, l'alone
     this.shown = '';
+  }
+  // B72: partita ferma (natpf_ui._syncPause: menu della pausa, tutorial, telefono da ricollegare, pannelli dello staff): la
+  // casella smette di lampeggiare, l'alone sparisce e il tempo fermo al servizio riparte da zero alla ripresa (con la
+  // partita ferma il motore non chiama tick: prima il conto riprendeva da dove era, e l'alone sarebbe tornato subito)
+  hold(){
+    this.alert?.paint(SERVE_ALERT_OFF);
+    this.state = { ...this.state, idle: 0 };
   }
   // B44: giocatore nuovo («Nuovo giocatore», chiosco): di nuovo l'icona ai primi servizi, per tutti e due nello stesso schermo
   newPlayer(){ this.state = { ...this.state, served: { player: 0, opponent: 0 }, missAt: null, idle: 0 }; }
@@ -143,6 +154,8 @@ export class NatpfServeCoach {
     if (this.state.missed) this._tossMissed(g);
     // partita in pausa (menu della pausa, tutorial, telefono da ricollegare): niente istruzioni sopra i pannelli
     this.paint(g.paused ? null : serveCoachView(this.state, { ...g, idle: this.state.idle }), g);
+    // B72: casella che lampeggia e alone (la pagina cambia solo quando cambia lo stato)
+    this.alert?.paint(serveAlertView(g, this.state.idle));
   }
   // lancio a vuoto: anche il telefono di chi serve lo dice (prima niente)
   _tossMissed(g){

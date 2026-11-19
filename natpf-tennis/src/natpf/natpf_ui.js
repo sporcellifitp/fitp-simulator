@@ -286,7 +286,8 @@ export class NatpfUi {
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
     // B20 (revisione): a partita ferma il gioco non ridisegna le scritte del campo; le istruzioni del servizio e «Scambio
     // caldo» si tolgono subito (restavano sotto il riquadro della pausa) e tornano da sole alla ripresa
-    if (this.engine.natpfPaused){ this.serveCoach?.paint(null); this.hotRally?.hide(); }
+    // (B72: anche la casella «Al servizio» che lampeggia e l'alone; il tempo fermo al servizio riparte da zero)
+    if (this.engine.natpfPaused){ this.serveCoach?.paint(null); this.serveCoach?.hold?.(); this.hotRally?.hide(); }
   }
   tick(dt = 1/60){ this.partnerRing.update(); this.trial.tick(dt); this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.cue.update(dt); this.serveMark.update(dt); this.superHint.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); this.hotRally.tick(); this.screensaver?.tick(); this.dayBoard?.tick(); }
   // sfondo fermo dell'arena dietro il menu (motore: _natpfBackdropFrame). Il Player 2 dell'invito vede l'arena viva
