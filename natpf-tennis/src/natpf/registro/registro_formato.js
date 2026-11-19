@@ -56,6 +56,10 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   'partite', 'posti', 'abbandono', 'stato', 'dopoS', 'inPartita', 'msg', 'file', 'riga', 'col', 'volte', 'tagliata', 'perse', 'costoMs', 'costoMax', 'registro', 'in',
   // 17/11: riga «colpo», pl = da che parte di chi colpisce era la palla (+1 destra, −1 sinistra, 0 vicina al corpo)
   'pl',
+  // B71 (19/11, docs/b71/gesti.md). Riga «colpo»: vg verso grezzo dei sensori prima del segno (−1, 0, 1), vc confidenza del
+  // verso (0…1), dur durata del gesto (ms), hold ms trattenuto come preparazione prima di essere giocato, ls da dove viene
+  // il lato ('g' gesto, 'a' verso atteso dalla palla, 'p' posizione della palla). Riga «tel» del segno: voti [d'accordo, contrari]
+  'vg', 'vc', 'dur', 'hold', 'ls', 'voti',
   // B66 (18/11, docs/b66/registro-sensori.md), tutti insieme perché il Worker si ricarichi una volta sola. Riga «colpo»:
   // cf confidenza del tipo di colpo · mg picco/soglia · gb buco nei campioni durante il gesto (ms) · rit [ms dal picco
   // all'arrivo, alla risposta del gioco]. Riga «tel» e «partita»: pv versione della pagina del telefono (se diversa da quella
@@ -79,6 +83,8 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
 // i campi del B36.0 (sopra, in fondo a CAMPI): un Worker non ancora ricaricato li toglie in silenzio dalle righe e le
 // accetta lo stesso (lo strumento di riassunto lo dice: «campi della direzione assenti»)
 export const CAMPI_B36 = Object.freeze(['pf', 'dv', 'tu', 'rx', 'rz', 'fu', 'nr', 'zp', 'dir']);
+// i campi del B71 (sopra, dopo «pl»): un Worker non ancora ricaricato li toglie in silenzio (le righe le accetta lo stesso)
+export const CAMPI_B71 = Object.freeze(['vg', 'vc', 'dur', 'hold', 'ls', 'voti']);
 // i campi del B66 (sopra, prima di quelli del B36.0): un Worker non ancora ricaricato li toglie in silenzio (le righe le
 // accetta lo stesso; lo strumento di riassunto lo dice: «misure del B66 assenti»)
 export const CAMPI_B66 = Object.freeze(['cf', 'mg', 'gb', 'rit', 'pv', 'app', 'tq', 'lat', 'wifi', 'blocco', 'cal', 'pause', 'a', 'hz', 'b', 'bm', 'bg', 'iv', 'sat', 'arr', 'ris', 'jit', 'stimati', 'persi', 'ordine', 'vie',

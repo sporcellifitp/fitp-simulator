@@ -33,8 +33,12 @@
 //    di prima: un dritto e un rovescio) · 'partial' almeno due colpi ma da una parte sola (forza e salita valgono, l'altro
 //    verso si impara dai primi colpi veri) · 'none' meno di due colpi: resta il profilo semplice. Con 'full', 'ok' e
 //    'partial' il profilo non è più «semplice» (simple: false, trial: true).
-//    Un colpo di prova conta se ha un verso, è un colpo normale (non un pallonetto o un tagliato) e non è debole rispetto
-//    agli altri colpi di prova (una preparazione, un micro-movimento); per ogni palla conta il gesto più forte.
+//    Un colpo di prova conta se ha un verso e non è debole (per il gioco e rispetto agli altri colpi di prova: una
+//    preparazione, un micro-movimento); per ogni palla conta il gesto più forte. B71 (registri della fiera del 18-19/11):
+//    prima contavano solo top spin e piatto e metà dei visitatori restava «none» (i loro colpi normali, senza la salita
+//    abituale, si leggevano tagliati); ora contano anche tagliati, pallonetti e palle corte (TRIAL_SHOTS dice quali
+//    insegnano forza, salita e mira) e la salita abituale si impara anche dai tagliati, come in partita.
+//    In fiera il segno cambia solo con prova forte e concorde (TRIAL_SIGN.fiera voti, signNeed).
 
 /* ---------- opzione dello stand ---------- */
 export const CAL_MODE_KEY = 'natpf-tennis.calibrazione';
@@ -78,6 +82,19 @@ export function calModeToast(mode, forced = false){
 // palla dopo; miss: s tra una palla persa e la palla dopo; outro: s di «Si comincia!» prima del match
 export const TRIAL = Object.freeze({ perSide: 2, balls: 4, maxBalls: 6, maxS: 14, intro: 1, afterCount: 1.2, gap: .6, miss: .45, outro: 1,
   minTotal: 2, signMin: 2, signFlip: .25, signKeep: .75, weak: .5 });
+// B71 (registri della fiera del 18-19/11, 493 scambi di prova con lo stesso telefono tutto il giorno): il segno girava
+// in 147 scambi su 493 (30%) con due soli colpi letti al contrario, uno per lato (con un colpo su tre letto dalla parte
+// sbagliata succede per caso nel 14% degli scambi), e specchiava tutta la partita. In fiera (segno della postazione) il
+// segno cambia solo con almeno fiera voti contrari concordi (da tutti e due i lati, al più signFlip d'accordo)
+export const TRIAL_SIGN = Object.freeze({ fiera: 6, detector: 8 });
+// B71: colpi che contano negli scambi di prova. Prima contavano solo top spin e piatto: il 49% dei visitatori restava «none»
+// e il 44% dei loro colpi di prova era letto tagliato (senza la salita abituale il colpo normale di chi scende con la testa
+// della racchetta si legge così). Ora conta ogni colpo non debole con un verso, uno per palla; tra questi:
+//   force: colpi per il colpo tipico (refs, ref, rawRef): tutti tranne le palle corte (gesti morbidi per natura);
+//   rise:  colpi per la salita abituale (rises): tranne pallonetti, schiacciate e palle corte riconosciute dalla forma,
+//          come la salita imparata in partita (natpf_phone_racket.RISE_LEARN, createRiseModel.learn);
+//   aim:   colpi per il centro della mira (faceRef): tranne pallonetti e palle corte (piatto aperto per natura).
+export const TRIAL_SHOTS = Object.freeze({ noForce: Object.freeze(['drop']), noAim: Object.freeze(['drop', 'lob']) });
 
 const median = a => { const v = [...a].sort((x, y) => x - y), m = v.length >> 1; return v.length ? (v.length % 2 ? v[m] : (v[m - 1] + v[m])/2) : NaN; };
 const wrapDeg = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
@@ -121,10 +138,16 @@ export function signedSwing(s, sign = 1){
     ...(s.face ? { face: { ...s.face, yaw: neg(s.face.yaw), aim: s.face.aim == null ? s.face.aim : neg(s.face.aim) } } : {}) };
 }
 
-export function createTrialLearner(){
+// signNeed (B71): 0 = la regola di prima (TRIAL.signMin voti in tutto); n > 0 = segno di fiera, il segno cambia solo con
+// almeno n voti concordi (contrari per girarlo, d'accordo per tornare a +1). Resta anche dopo reset (è della postazione)
+export function createTrialLearner({ signNeed = 0 } = {}){
   // un campione per palla: { ball, raw (verso grezzo del telefono), want (verso atteso dal lato della palla), peak, rawPeak,
-  // rise, heading, head, normal }
-  let samples = [], sign = 1, flips = 0;
+  // rise, heading, head, normal (top spin o piatto non debole), counts (B71: colpo non debole che conta), shot, teachRise }
+  let samples = [], sign = 1, flips = 0, need = signNeed > 0 ? signNeed : 0;
+  // B71: l'ultimo voto (palla e se il gesto è stato tenuto): mark vale solo per il gesto tenuto per quella palla. Prima un
+  // gesto più debole per la stessa palla (il rientro o la preparazione), ignorato dal voto, sovrascriveva «normale» di
+  // quello più forte (natpf_phone_racket._onSwing chiama sempre mark dopo vote)
+  let lastVote = null;
   // voti sul segno: agree = verso letto uguale al lato della palla, against = al contrario; both = i colpi al contrario
   // ci sono stati da tutti e due i lati (palle a destra colpite «a sinistra» e palle a sinistra colpite «a destra»)
   const votes = () => {
@@ -136,27 +159,33 @@ export function createTrialLearner(){
   // lo stesso gesto (solo dritti, anche sulle palle di rovescio) non ha il telefono al contrario, gioca da un lato solo.
   // Senza i due versi al contrario non c'è informazione: non si gira mai, resta la lettura della gravità (revisione del
   // B28, difetto 1: bastavano due dritti su due palle di rovescio per specchiare destra e sinistra per tutta la partita)
+  // (B71, segno di fiera: almeno need voti concordi, contrari per girare e d'accordo per tornare a +1)
   const decide = () => {
     const { agree, against, both } = votes(), n = agree + against;
     let next = sign;
     if (!both) next = 1;
+    else if (need > 0){ if (n >= need){ const share = agree/n; next = against >= need && share <= TRIAL.signFlip ? -1 : agree >= need && share >= TRIAL.signKeep ? 1 : sign; } }
     else if (n >= TRIAL.signMin){ const share = agree/n; next = share <= TRIAL.signFlip ? -1 : share >= TRIAL.signKeep ? 1 : sign; }
     if (next !== sign){ sign = next; flips++; }
     return sign;
   };
-  // colpi che insegnano i riferimenti: normali, con un verso, e non deboli rispetto agli altri (una preparazione letta
-  // come colpo vale meno della metà del proprio colpo)
+  // colpi che insegnano i riferimenti: quelli che contano (B71: ogni colpo non debole per il gioco, prima solo i normali),
+  // con un verso, e non deboli rispetto agli altri (una preparazione letta come colpo vale meno della metà del proprio colpo)
   const teaching = () => {
-    const ok = samples.filter(x => x.normal && x.raw && fin(x.peak));
+    const ok = samples.filter(x => x.counts && x.raw && fin(x.peak));
     const m = median(ok.map(x => x.peak));
     return ok.filter(x => !(x.peak < TRIAL.weak*m));
   };
-  const byDir = () => { const by = { 1: [], '-1': [] }; for (const x of teaching()) by[sign*x.raw].push(x); return by; };
+  const split = list => { const by = { 1: [], '-1': [] }; for (const x of list) by[sign*x.raw].push(x); return by; };
+  const byDir = () => split(teaching());
   return {
-    reset(){ samples = []; sign = 1; flips = 0; },
+    reset(){ samples = []; sign = 1; flips = 0; lastVote = null; },
     // segno da applicare al verso che arriva dal telefono (+1 com'è, −1 al contrario)
     get sign(){ return sign; },
     get flips(){ return flips; },
+    // B71: voti concordi richiesti per cambiare il segno (0 = la regola di prima); il gioco lo mette a TRIAL_SIGN.fiera in fiera
+    get signNeed(){ return need; },
+    set signNeed(n){ need = Number.isFinite(n) && n > 0 ? Math.round(n) : 0; },
     get samples(){ return samples.map(x => ({ ...x })); },
     get votes(){ return votes(); },
     // Un colpo arrivato durante uno scambio di prova, prima di leggerlo: vota il verso. ball: numero della palla; want: verso
@@ -166,15 +195,23 @@ export function createTrialLearner(){
       if (!s) return sign;
       const raw = s.dir === 1 ? 1 : s.dir === -1 ? -1 : 0, peak = fin(s.peak) ? s.peak : NaN;
       const x = { ball, raw, want: want === 1 ? 1 : want === -1 ? -1 : 0, peak, rawPeak: fin(s.rawPeak) ? s.rawPeak : null,
-        rise: fin(s.shape?.rise) ? s.shape.rise : null, heading: fin(s.heading) ? s.heading : null, head: fin(s.head) ? s.head : null, normal: false };
+        rise: fin(s.shape?.rise) ? s.shape.rise : null, heading: fin(s.heading) ? s.heading : null, head: fin(s.head) ? s.head : null, normal: false, counts: false, shot: null, teachRise: false };
       const i = samples.findIndex(y => y.ball === ball);
       if (i < 0) samples.push(x);
       else if (!(samples[i].peak >= peak)) samples[i] = x;
-      else return sign;                                   // gesto più debole per la stessa palla: non conta
+      else { lastVote = { ball, kept: false }; return sign; }   // gesto più debole per la stessa palla: non conta
+      lastVote = { ball, kept: true };
       return decide();
     },
-    // … e dopo averlo letto: normal = colpo normale (topspin o piatto) non debole per il gioco
-    mark(ball, normal){ const x = samples.find(y => y.ball === ball); if (x) x.normal = !!normal; },
+    // … e dopo averlo letto. info: true/false = colpo normale (top spin o piatto) non debole per il gioco (com'era); oppure
+    // (B71) { counts: colpo non debole per il gioco (conta, qualunque tipo), normal, shot (tipo letto), rise: insegna la
+    // salita abituale }. Vale solo per il gesto tenuto dall'ultimo voto di quella palla (B71: non per un gesto più debole)
+    mark(ball, info){
+      if (lastVote && lastVote.ball === ball && !lastVote.kept) return;
+      const x = samples.find(y => y.ball === ball); if (!x) return;
+      const o = info && typeof info === 'object' ? info : { normal: !!info, counts: !!info, rise: !!info };
+      x.normal = !!o.normal; x.counts = !!o.counts; x.shot = typeof o.shot === 'string' ? o.shot : null; x.teachRise = o.rise == null ? x.counts : !!o.rise;
+    },
     // colpi imparati per verso (già corretto) e per lato di chi gioca con quella mano
     counts(hand = 'right'){
       const by = byDir(), fh = hand === 'left' ? -1 : 1;
@@ -189,19 +226,23 @@ export function createTrialLearner(){
     // Il profilo imparato, sopra quello semplice del telefono (base); null se non basta (resta il profilo semplice)
     profile(base = null){
       const level = this.level(); if (level === 'none') return null;
-      const by = byDir(), all = [...by[1], ...by[-1]];
+      const T = teaching(), by = split(T);
+      // B71: il colpo tipico senza le palle corte (se ci sono altri colpi), la salita senza pallonetti, schiacciate e palle
+      // corte della forma, il centro della mira senza pallonetti e palle corte, il verso verticale del piatto dai normali
+      const forceAll = T.filter(x => !TRIAL_SHOTS.noForce.includes(x.shot)), all = forceAll.length ? forceAll : T, F = split(all);
+      const R = split(T.filter(x => x.teachRise)), A = split(T.filter(x => !TRIAL_SHOTS.noAim.includes(x.shot))), H = split(T.filter(x => x.normal));
       const med = (a, k) => median(a.map(x => x[k]).filter(fin));
       const ref = Math.max(60, med(all, 'peak'));
       const out = { ...(base || {}), simple: false, trial: true, trialLevel: level, trialN: { 1: by[1].length, '-1': by[-1].length }, trialSign: sign,
-        ref: +ref.toFixed(1), refs: { 1: +(by[1].length ? med(by[1], 'peak') : ref).toFixed(1), '-1': +(by[-1].length ? med(by[-1], 'peak') : ref).toFixed(1) } };
+        ref: +ref.toFixed(1), refs: { 1: +(F[1].length ? med(F[1], 'peak') : ref).toFixed(1), '-1': +(F[-1].length ? med(F[-1], 'peak') : ref).toFixed(1) } };
       // colpo tipico con la velocità vera al picco, se tutti i colpi la portano (come la calibrazione con i gesti)
       if (all.every(x => fin(x.rawPeak))) out.rawRef = +Math.max(60, med(all, 'rawPeak')).toFixed(1);
       const rises = {}, heads = {}, faceRef = {};
       for (const d of [1, -1]){
-        const r = by[d].map(x => x.rise).filter(fin); if (r.length) rises[d] = +median(r).toFixed(3);
-        const h = by[d].map(x => x.head).filter(fin); if (h.length) heads[d] = +median(h).toFixed(3);
+        const r = R[d].map(x => x.rise).filter(fin); if (r.length) rises[d] = +median(r).toFixed(3);
+        const h = H[d].map(x => x.head).filter(fin); if (h.length) heads[d] = +median(h).toFixed(3);
         // B35a: con il segno girato anche la direzione del piatto è al contrario (signedSwing)
-        const f = by[d].map(x => x.heading).filter(fin).map(h => sign*h); if (f.length) faceRef[d] = { heading: +circMedian(f).toFixed(1) };
+        const f = A[d].map(x => x.heading).filter(fin).map(h => sign*h); if (f.length) faceRef[d] = { heading: +circMedian(f).toFixed(1) };
       }
       if (Object.keys(rises).length) out.rises = rises; else delete out.rises;
       if (Object.keys(heads).length) out.heads = heads; else delete out.heads;

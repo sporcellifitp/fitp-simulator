@@ -60,7 +60,7 @@ let lastRawG = null;
 det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); s.shape = strokeShape(face.history(), face.up, { peakT: s.peakT }); } });
 // (B46: il voto del rilevatore sul segno dei sensori, swing-detect.js vote, arriva subito al computer, che lo registra;
 // i computer di prima ignorano il messaggio e lo vedono dal colpo, sg)
-det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); if (s.s === 'sign') send({ t: 'sgn', d: s.sign === -1 ? -1 : 1 }); });
+det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); if (s.s === 'sign') send({ t: 'sgn', d: s.sign === -1 ? -1 : 1, ...(Array.isArray(s.votes) ? { v: s.votes } : {}) }); });
 const cal = createCalibration(det);
 let lastFaceSent = -Infinity, lastFacePaint = -Infinity, lastAttemptOk = false;
 let sensorSequence = 0, lastSensorSent = -Infinity;
@@ -407,7 +407,8 @@ function onData(c, d){
     case 'dp': send({ t: 'dq', d: d.d, p: performance.now() }); break;
     case 'grip': setGrip(d.g); break;
     // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
-    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); det.setNet?.(!!d.net); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand);
+    // (B71: sn = segno di fiera, il segno dei sensori si gira solo con almeno sn voti contrari concordi; senza, come prima)
+    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); det.setNet?.(!!d.net); det.setSignNeed?.(d.sn); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand);
       { // tutorial: il computer lo apre (tut, con tv 2 manda l'avanzamento) o lo chiude. Si risponde che si sa aspettare
         // (w) con il pulsante spento fino all'ultima scheda (v 2). Calibrazione già partita (si entra in campo dalla pagina
         // «Collega»): si ferma e ripartirà dopo; un telefono già calibrato resta calibrato (dopo «ho capito» torna a «Pronto»)

@@ -156,7 +156,7 @@ test('B46 segno dell\'accelerazione cambiato (messaggio «dev»): verso imparato
   // il «dev» del collegamento arriva qui
   const src = readFileSync(new URL('../src/natpf/natpf_phone_racket.js', import.meta.url), 'utf8');
   assert.match(src, /link\.on\('device', d => \{ const prevUa = this\.device\?\.ua \?\? null; this\.device = d; this\._diag\('dispositivo', d\); this\._accSignSeen\(d\?\.accSign, \{ ua: d\?\.ua \?\? null, prevUa \}\);/);
-  assert.match(src, /link\.on\('sign', e => this\._detectorSign\(e\?\.detector\)\);/);
+  assert.match(src, /link\.on\('sign', e => this\._detectorSign\(e\?\.detector, e\?\.votes\)\);/);
 });
 
 test('B46 voto del rilevatore: dal messaggio «sgn» o dal colpo, una volta sola, registrato; il verso imparato resta', async () => {
@@ -193,8 +193,9 @@ test('B46 scambi di prova: ogni giro del segno imparato va nella diagnostica e n
   assert.ok(!ui.trial.active);
   assert.equal(P.learner.sign, -1);
   const prova = ev.filter(e => e.kind === 'verso' && e.causa === 'prova');
-  assert.deepEqual(prova, [{ kind: 'verso', causa: 'prova', stato: -1, ruolo: 'p1' }], JSON.stringify(ev));
-  assert.deepEqual(telRows(ui).filter(r => r.motivo === 'segno').map(r => [r.causa, r.stato, r.ruolo]), [['prova', -1, 'p1']]);
+  // (B71: con i voti che hanno deciso il cambio, [d'accordo, contrari]; fuori dalla fiera bastano ancora 2 colpi)
+  assert.deepEqual(prova, [{ kind: 'verso', causa: 'prova', stato: -1, ruolo: 'p1', voti: [0, 2] }], JSON.stringify(ev));
+  assert.deepEqual(telRows(ui).filter(r => r.motivo === 'segno').map(r => [r.causa, r.stato, r.ruolo, r.voti]), [['prova', -1, 'p1', [0, 2]]]);
 });
 
 /* ---------- 5. registro e diagnostica ---------- */

@@ -34,6 +34,19 @@ import { MisureTelefono, Pause } from './registro_misure.js';
 const prova = (fn, no = null) => { try { return fn(); } catch { return no; } };
 const NOMI_BASE = new Set(['player 1', 'player 2', 'ospite', '']);
 const voto = g => { const s = String(g || '').split('•')[0].trim().toLowerCase(); return s ? s.slice(0, 24) : null; };
+// B71: misure del verso del gesto nella riga «colpo» (solo numeri e brevi codici; niente se il colpo non le porta)
+const LS = new Set(['g', 'a', 'p']);
+export function versoColpo(N){
+  if (!N || typeof N !== 'object') return {};
+  const num = (v, a, b) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : null), o = {};
+  if (N.vg === 1 || N.vg === -1 || N.vg === 0) o.vg = N.vg;
+  const vc = num(N.vc, 0, 1); if (vc != null) o.vc = Math.round(vc*100)/100;
+  const dur = num(N.dur, 0, 5000); if (dur != null) o.dur = Math.round(dur);
+  const hold = num(N.hold, 0, 5000); if (hold != null && hold > 0) o.hold = Math.round(hold);
+  if (LS.has(N.ls)) o.ls = N.ls;
+  return o;
+}
+const votiOk = v => Array.isArray(v) && v.length === 2 && v.every(x => Number.isInteger(x) && x >= 0 && x < 1000);
 const CTRL = { phone: 'telefono', webcam: 'webcam', mouse: 'mouse' };
 const base = f => String(f || '').slice(0, 2000).replace(/[?#].*$/, '').split(/[\\/]/).pop().slice(0, 60) || null;
 const MAX_NOMI = 300;                                    // nomi della giornata tenuti in memoria (i più vecchi escono)
@@ -298,7 +311,8 @@ export class RegistroStand {
   _telMotivo(chi, kind, d){
     const causa = String(d.causa || '').slice(0, 24) || null, ruolo = d.ruolo === 'p2' ? 'p2' : 'p1', dove = this._inPartita(causa) ? { inPartita: true } : {};
     if (kind === 'mano') this._riga('tel', { chi, motivo: 'mano', mano: d.mano === 'left' ? 'left' : 'right', causa, ruolo, ...dove });
-    else this._riga('tel', { chi, motivo: 'segno', stato: d.stato === -1 ? -1 : 1, causa, ruolo, ...dove });
+    // (B71: voti [d'accordo, contrari] che hanno deciso il cambio, quando si sanno)
+    else this._riga('tel', { chi, motivo: 'segno', stato: d.stato === -1 ? -1 : 1, causa, ruolo, ...(votiOk(d.voti) ? { voti: [d.voti[0], d.voti[1]] } : {}), ...dove });
   }
 
   /* ---------- partita ---------- */
@@ -453,6 +467,10 @@ export class RegistroStand {
       ...(!I.derived && Number.isFinite(I.face) ? { pf: r(I.face, 2) } : {}), ...(Number.isFinite(dev) ? { dv: r(dev, 1) } : {}), ...(Number.isFinite(O.t) ? { tu: r(O.t, 2) } : {}),
       ...(usedNewRule(O) ? { nr: 1 } : {}), ...(zp != null ? { zp } : {}),
       ...(tm ? { cf: r(tm.cf, 2) ?? undefined, mg: r(tm.mg, 2) ?? undefined, gb: tm.gb ?? undefined, rit: tm.rit || undefined } : {}),
+      // B71 (docs/b71/gesti.md): verso del gesto dal telefono. vg verso grezzo dei sensori prima del segno (−1, 0, 1), vc
+      // confidenza del verso (0…1), dur durata del gesto (ms), hold ms trattenuto come preparazione prima di essere
+      // giocato, ls da dove viene il lato ('g' gesto, 'a' verso atteso dalla palla, 'p' posizione della palla)
+      ...versoColpo(ev?.natpf),
     }), L.who === 'p2' ? 'opponent' : 'player');
   }
   // B60: km/h del colpo (q: le stesse cose date a natpf_match_stats.shot) nella riga aperta, se è di chi ha colpito

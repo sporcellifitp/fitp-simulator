@@ -413,13 +413,19 @@ test('28/10 sera: il pallonetto morbido a rete è un pallonetto e non è ignorat
 test('28/10 sera: la palla corta voluta in attesa non è sostituita dal braccio che torna dall\'altra parte', () => {
   const drop = () => { const s = phoneSwing({ shot: 'drop', power: .21, rise: -.8, conf: .76 }, { side: 'backhand', peak: 451 }); s.natpf.angle = 68; return s; };
   const back = phoneSwing({ shot: 'slice', power: .86, rise: -.45 }, { side: 'forehand', peak: 1292 });
-  const run = first => withEngine('leggenda', e => { cpuShot(e, { to: [-1.6, 8.6] }); return play(e, [{ lead: .25, swing: first }, { lead: .05, swing: back }]); });
+  // B71: la regola vale per la palla corta fatta in tempo, entro la finestra della direzione (Leggenda 0,115 s), come durante
+  // il rinvio (keepsSpecial). Prima valeva anche 0,25 s prima del punto d'impatto («very early»)
+  const run = (first, lead = .09, after = .03) => withEngine('leggenda', e => { cpuShot(e, { to: [-1.6, 8.6] }); return play(e, [{ lead, swing: first }, { lead: after, swing: back }]); });
   const r = run(drop());
   assert.ok(r.hit, r.phase);
   assert.equal(r.racket.out.shot, 'DROP');
   // senza la forma della palla corta il primo gesto era la preparazione: il colpo vero lo sostituisce come prima
   const prep = phoneSwing({ shot: 'topspin', power: .2, rise: .1 }, { side: 'backhand', peak: 451 }); prep.natpf.angle = 68;
   assert.equal(run(prep).racket.intent.shot, 'slice');
+  // B71 (registri del 18-19/11: 43% delle palle corte «very early»): fatta molto prima (0,25 s, oltre la finestra) la palla
+  // corta non blocca più il colpo forte che segue dall'altra parte
+  const early = run(drop(), .25, .05);
+  assert.ok(early.hit, early.phase); assert.equal(early.racket.intent.shot, 'slice', 'molto in anticipo: vince il colpo che segue');
 });
 
 // Diagnostica del 28/10 sera: tempo mediano +0,51 unità (anticipo), 9 incrociati, 3 al centro, 1 lungolinea su 13. La

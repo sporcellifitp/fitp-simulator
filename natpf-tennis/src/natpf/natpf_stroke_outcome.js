@@ -463,14 +463,17 @@ export const superStrength = (intent = {}, d = 0) => (Number.isFinite(intent?.ty
 // quality: qualità chiesta più bassa di tanto, misurata senza la pressione degli scambi lunghi (pressure: quella del
 // colpo; senza, dal 30° colpo il super non poteva più scattare: la pressione da sola portava la qualità sotto 0,8);
 // anyBall: va bene anche la palla veloce e bassa («palla calda»)
-export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false, strong = null, ease = null } = {}){
+// sideFromBall (B71): il lato del colpo l'ha dato la palla (natpf.ls 'a' o 'p': verso del gesto incerto in fiera, o gesto
+// senza verso), non il gesto: allora il colpo non è mai «innaturale» per il lato
+export const sideFromBall = e => e?.natpf?.ls === 'a' || e?.natpf?.ls === 'p';
+export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false, strong = null, ease = null, sideFromBall = false } = {}){
   const no = why => ({ on: false, why: [why], ball: null });
   if (!out || out.failed || out.weak || out.netFault) return no('colpo non riuscito');
   const shot = String(out.shot || '').toUpperCase();
   if (!['TOPSPIN', 'FLAT', 'SMASH'].includes(shot)) return no(`colpo ${shot.toLowerCase()}`);
   if (typeof strong === 'boolean' ? !strong : superStrength(intent) < SUPER.power - (ease ? finite(ease.power) : 0)) return no('gesto non abbastanza forte');
   if (Number.isFinite(intent.conf) && intent.conf < SUPER.conf) return no('gesto poco chiaro');
-  if (shot !== 'SMASH' && finite(ballSide)*(finite(contact, 1) >= 0 ? 1 : -1) < -SUPER.sideWrong) return no('colpo innaturale (palla dall\'altra parte)');
+  if (shot !== 'SMASH' && !sideFromBall && finite(ballSide)*(finite(contact, 1) >= 0 ? 1 : -1) < -SUPER.sideWrong) return no('colpo innaturale (palla dall\'altra parte)');
   if (finite(out.excess) > 0 || Math.abs(finite(out.t)) > SUPER.timing + (ease ? finite(ease.timing) : 0)) return no('fuori tempo');
   const q = ease ? finite(out.q, 1)/clamp(finite(ease.pressure, 1), .2, 1) : finite(out.q, 1);
   if (q < SUPER.quality - (ease ? finite(ease.quality) : 0)) return no('in corsa o in allungo');

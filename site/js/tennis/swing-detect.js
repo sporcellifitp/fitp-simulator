@@ -47,6 +47,15 @@ export const DEFAULTS = {
   prepFollow: .8,   // il gesto opposto dopo quello trattenuto è il colpo solo se veloce almeno l'80% di quello: più debole
                     // è il rientro della mano, e il colpo era quello trattenuto (il rovescio lungolinea su palla centrale
                     // diventava un dritto: rovescio morbido trattenuto, poi il rientro verso il dritto preso per il colpo)
+  // B71 (registri della fiera del 18-19/11), solo in fiera (cfg sn, setSignNeed): se il gesto che segue va nel verso atteso
+  // (da che parte arriva la palla) basta il 50% di quello trattenuto. I colpi trattenuti come preparazione e poi giocati
+  // (arrivati 150 ms o più dopo il picco) erano dalla parte sbagliata della palla nel 73% dei casi (120 su 164): il colpo
+  // vero nel verso atteso perdeva contro la preparazione sotto l'80%. Fuori dalla fiera resta l'80% (il rovescio lungolinea
+  // su una palla appena dal lato del dritto, seguito dal rientro della mano, resta un rovescio: natpf-prep.test.mjs)
+  prepFollowExpected: .5,
+  // B71: con il segno «di fiera» (messaggio cfg sn, il telefono dello stand è sempre lo stesso modello) il segno dei
+  // sensori si gira solo con almeno signNeed voti contrari concordi (setSignNeed); 0 = la regola di sempre (signVotes)
+  signNeed: 0,
   // Soglie in gioco (scambio e prova libera, non servizio né calibrazione) rispetto alla scala di chi gioca: il verso
   // più deciso della calibrazione (o i colpi veri, se sono più forti). Il 23/10 il dritto di calibrazione era 143 °/s e
   // il rovescio 1105: le soglie venivano dal più debole (40 e 50 °/s) e 28 gesti su 81 erano sotto 200 °/s
@@ -144,6 +153,37 @@ export function netTurn(turn, angle, min = .2){
   if (!Number.isFinite(turn) || !Number.isFinite(angle) || angle <= 0 || Math.abs(turn) < 4) return 0;
   const r = turn/angle;
   return r >= min ? 1 : r <= -min ? -1 : 0;
+}
+// B71 · verso attorno al picco. Nei registri della fiera (18-19/11, 7542 colpi, profilo semplice) un colpo su tre era letto
+// dalla parte opposta alla palla, a caso, colpo per colpo. Il giro netto si misurava su tutto il gesto, dall'inizio sopra
+// «on» (70 °/s nel profilo semplice): senza una pausa sotto la soglia la preparazione (la racchetta portata indietro, nel
+// verso opposto) entrava nel conto e il verso poteva prendere il suo segno. Ora il verso si misura sulla parte del gesto
+// attorno al picco: dal picco indietro finché la velocità resta sopra frac del picco (il colpo vero, non il caricamento
+// lento), fino al momento in cui il colpo parte. Confidenza (0…1): quanto il gesto gira attorno alla verticale in quella
+// parte (|giro|/percorso: ratio vale 1), meno se tutto il gesto direbbe il contrario (disagree), bassa se il verso viene
+// solo dall'asse al picco (axisConf) o da tutto il gesto (wholeConf)
+export const VERSE = Object.freeze({ frac: .35, ratio: .6, disagree: .6, axisConf: .3, wholeConf: .2 });
+// h: campioni del gesto [t, velocità °/s, giro attorno alla verticale (gradi), percorso (gradi)] → { turn, angle, from }
+export function peakWindow(h){
+  if (!h?.length) return null;
+  let iMax = 0; for (let i = 1; i < h.length; i++) if (h[i][1] > h[iMax][1]) iMax = i;
+  const lim = h[iMax][1]*VERSE.frac; let i0 = iMax; while (i0 > 0 && h[i0 - 1][1] >= lim) i0--;
+  let turn = 0, angle = 0; for (let i = i0; i < h.length; i++){ turn += h[i][2]; angle += h[i][3]; }
+  return { turn, angle, from: h[i0][0] };
+}
+// verso del profilo semplice (senza asse di calibrazione), prima del segno dei sensori: { dir, conf, whole, win }
+// whole: verso di tutto il gesto (la regola di prima); win: verso attorno al picco; turnAxis: verso dall'asse al picco
+export function simpleVerse({ turn, angle, h, turnAxis = 0 } = {}){
+  const whole = netTurn(turn, angle, .2), W = peakWindow(h), win = W ? netTurn(W.turn, W.angle, .2) : 0;
+  const clamp1 = v => Math.max(0, Math.min(1, v));
+  if (win){
+    const conf = clamp1(Math.abs(W.turn)/Math.max(1e-6, W.angle)/VERSE.ratio)*(whole && whole !== win ? VERSE.disagree : 1);
+    return { dir: win, conf: +conf.toFixed(2), whole, win, W };
+  }
+  // senza la finestra (gesti di prima, campioni senza gravità) o con la finestra che non gira: come prima, con poca fiducia
+  if (W && turnAxis) return { dir: turnAxis, conf: VERSE.axisConf, whole, win, W };
+  if (whole) return { dir: whole, conf: W ? VERSE.wholeConf : +clamp1(Math.abs(turn)/Math.max(1e-6, angle)/VERSE.ratio).toFixed(2), whole, win, W };
+  return { dir: turnAxis, conf: turnAxis ? VERSE.axisConf : 0, whole, win, W };
 }
 
 // voti sul segno dei sensori senza calibrazione, per lato atteso della palla (+1 destra, −1 sinistra)
@@ -255,12 +295,15 @@ export function createSwingDetector(opts = {}){
       const sameWay = !w || !lastAxis || dot(unit(w), lastAxis) > -.3;
       if ((k.t - lastFire < C.refractory && sameWay) || sm < T.on) return;
       setPhase('preparation');
-      cur = { t0: k.t, peak: 0, peakT: k.t, peakW: w || [0, 0, 0], gravity: null, angle: 0, turn: 0, up: 0, tot: 0, fired: false, rawPeak: 0, truePeakT: k.t };
+      cur = { t0: k.t, peak: 0, peakT: k.t, peakW: w || [0, 0, 0], gravity: null, angle: 0, turn: 0, up: 0, tot: 0, fired: false, rawPeak: 0, truePeakT: k.t, h: [] };
     }
     cur.angle += mag*dt/1000;
     // rotazione netta attorno alla verticale durante il gesto (gradi, + = antioraria vista dall'alto = da destra a
     // sinistra): il polso che prona gira attorno a un asse orizzontale e non la cambia, il dritto e il rovescio sì
-    if (w && k.accG){ const g = unit(k.accG.map((v, i) => v - (k.acc?.[i] || 0))); if (len(g)) cur.turn += dot(w, [g[2], g[0], g[1]])*dt/1000; }
+    let dTurn = 0;
+    if (w && k.accG){ const g = unit(k.accG.map((v, i) => v - (k.acc?.[i] || 0))); if (len(g)){ dTurn = dot(w, [g[2], g[0], g[1]])*dt/1000; cur.turn += dTurn; } }
+    // B71: campioni del gesto per il verso attorno al picco (peakWindow), finché il colpo non parte
+    if (!cur.fired && cur.h.length < 120) cur.h.push([k.t, mag, dTurn, mag*dt/1000]);
     cur.fallN = raw.length > 1 && mag < raw[raw.length - 2][1] ? (cur.fallN || 0) + 1 : 0;
     // picco grezzo: il campione di mezzo è un massimo locale → vertice della parabola (precisione sotto il campione)
     if (raw.length === 3 && !cur.fired){
@@ -332,11 +375,13 @@ export function createSwingDetector(opts = {}){
     const lift = c.tot > 0 ? Math.max(-1, Math.min(1, c.up/c.tot*1.6)) : 0;
     const along = prof.axis ? dot(axis, prof.axis) : 0;
     let dir = !prof.axis ? 0 : along > .25 ? 1 : along < -.25 ? -1 : 0;   // +1 da destra a sinistra, -1 da sinistra a destra
+    // B71: confidenza del verso (0…1) e verso grezzo dei sensori, prima del segno del rilevatore (absSign)
+    let dirConf = dir ? Math.min(1, Math.abs(along)/.7) : 0;
     // impugnatura cambiata dopo la calibrazione (telefono girato nella mano, polso che prona a fine colpo): l'asse
     // imparato nel riferimento del telefono non riconosce più il colpo, che prima spariva senza messaggio. Il verso
     // allora viene dalla rotazione attorno alla verticale, che non dipende da come si tiene il telefono
     const turn = dir || !prof.axis ? null : aroundVertical(axis, c.gravity || prof.gravity, prof.axis, prof.gravity);
-    if (turn) dir = turn;
+    if (turn){ dir = turn; dirConf = .5; }
     // ancora nessun verso: il gesto è dominato dalla rotazione del polso (asse al picco quasi orizzontale), ma la mano
     // gira comunque attorno alla verticale; il segno si confronta con quello del colpo di calibrazione
     // Con il telefono dritto nel pugno l'asse imparato è quasi orizzontale e prima qui serviva un coseno di 0,3 con l'alto:
@@ -344,11 +389,14 @@ export function createSwingDetector(opts = {}){
     if (!dir && prof.axis){
       const ref = prof.gravity ? dot(unit(prof.axis), unit([prof.gravity[2], prof.gravity[0], prof.gravity[1]])) : 0;
       const t = netTurn(c.turn, c.angle, Math.abs(ref) >= .3 ? .2 : C.weakRefTurn);
-      if (t && Math.abs(ref) >= C.weakRefMin) dir = t*Math.sign(ref);
+      if (t && Math.abs(ref) >= C.weakRefMin){ dir = t*Math.sign(ref); dirConf = +Math.min(1, Math.abs(c.turn)/Math.max(1e-6, c.angle)/VERSE.ratio).toFixed(2); }
     }
+    let rawDir = dir;
     // senza calibrazione (profilo semplice, «Salta»): verso assoluto dalla rotazione attorno alla verticale, che non
     // dipende da come si tiene il telefono. Prima restava 0 per ogni colpo e il lato lo decideva la palla
-    if (!dir && !prof.axis) dir = absSign*(netTurn(c.turn, c.angle, .2) || verticalTurn(axis, c.gravity || prof.gravity, .35));
+    // B71: il giro attorno alla verticale si misura attorno al picco (simpleVerse), senza la preparazione che lo precede
+    let verse = null;
+    if (!dir && !prof.axis){ const V = verse = simpleVerse({ turn: c.turn, angle: c.angle, h: c.h, turnAxis: verticalTurn(axis, c.gravity || prof.gravity, .35) }); rawDir = V.dir; dirConf = V.conf; dir = absSign*V.dir; }
     const vert = verticalGesture(axis, c.gravity || prof.gravity, lift, along);
     // istante del colpo: il picco grezzo interpolato, se c'è ed è vicino a quello della media mobile
     const peakT = c.rawPeak > 0 && Math.abs(c.truePeakT - c.peakT) < 60 ? +c.truePeakT.toFixed(1) : c.peakT;
@@ -393,10 +441,14 @@ export function createSwingDetector(opts = {}){
       ...(vert ? { vert } : {}), turn: +c.turn.toFixed(1), detectMs: +Math.max(0, t - peakT).toFixed(1),
       // B66 (solo misura, per il registro dello stand): picco diviso la soglia della forza (floor); vicino a 1 = colpo «al
       // limite». Sotto 1 solo i gesti verticali o lenti, che passano con una soglia loro
-      ...(floor > 0 ? { margin: +(c.peak/floor).toFixed(2) } : {}) };
+      ...(floor > 0 ? { margin: +(c.peak/floor).toFixed(2) } : {}),
+      // B71 (solo misure, e il computer in fiera decide il lato dalla palla se il verso è incerto): verso grezzo dei
+      // sensori prima del segno del rilevatore e confidenza del verso
+      rawDir, dirConf: +dirConf.toFixed(2), ...(verse ? { verse: { whole: verse.whole, win: verse.win, turn: +c.turn.toFixed(1), angle: Math.round(c.angle), ...(verse.W ? { wTurn: +verse.W.turn.toFixed(1), wAngle: Math.round(verse.W.angle) } : {}), up: +dot(axis, unit([gravity[2], gravity[0], gravity[1]])).toFixed(2) } } : {}) };
     if (prepMode && !training && !serving()){
       // un gesto trattenuto e ora quello opposto: il primo era la preparazione
-      if (held && dir !== 0 && dir === -held.sw.dir && c.peak < held.sw.peak*C.prepFollow){ const h = held; held = null; commit(h.sw, t); setPhase('follow'); discard('rientro', c, dir); return; }
+      // (B71: in fiera, nel verso atteso, basta prepFollowExpected del gesto trattenuto, altrimenti prepFollow)
+      if (held && dir !== 0 && dir === -held.sw.dir && c.peak < held.sw.peak*(C.signNeed > 0 && dir === expectDir ? C.prepFollowExpected : C.prepFollow)){ const h = held; held = null; commit(h.sw, t); setPhase('follow'); discard('rientro', c, dir); return; }
       if (held && dir !== 0 && dir === -held.sw.dir){ emit('prep', { peakT: held.sw.peakT, dir: held.sw.dir, peak: held.sw.peak, angle: held.sw.angle }); held = null; }
       else if (held){ const h = held; held = null; release(h.sw, t); }
       // solo un gesto debole può essere la preparazione: un colpo pieno nel verso «sbagliato» parte subito (prima
@@ -418,10 +470,15 @@ export function createSwingDetector(opts = {}){
     const side = votes[expectDir], cross = sw.dir !== expectDir;
     if (cross) side.against++; else side.agree++;
     const agree = votes[1].agree + votes[-1].agree, against = votes[1].against + votes[-1].against, n = agree + against;
-    if (cross && n >= C.signVotes && agree/n <= C.signAgree && votes[1].against > 0 && votes[-1].against > 0){
+    // B71: con il segno di fiera (signNeed, messaggio cfg sn) servono almeno signNeed voti contrari, non signVotes voti in tutto
+    // (il 18-19/11 il segno del rilevatore si è girato in 74 partite su circa 600 con lo stesso telefono tutto il giorno)
+    const need = C.signNeed > 0 ? C.signNeed : 0;
+    if (cross && n >= Math.max(C.signVotes, need) && against >= need && agree/n <= C.signAgree && votes[1].against > 0 && votes[-1].against > 0){
       absSign = -absSign; sw.dir = -sw.dir;
+      // (B71: i voti che l'hanno deciso vanno con il colpo e con il messaggio sgn, per la riga «segno» del registro)
+      sw.signVotes = [agree, against];
       votes = { 1: { agree: votes[1].against, against: votes[1].agree }, '-1': { agree: votes[-1].against, against: votes[-1].agree } };
-      emit('status', { s: 'sign', sign: absSign });
+      emit('status', { s: 'sign', sign: absSign, votes: [agree, against] });
     }
   }
   // gesto trattenuto senza il colpo opposto: se è lento era una preparazione rimasta a metà (nelle registrazioni questi
@@ -460,6 +517,10 @@ export function createSwingDetector(opts = {}){
     setExpect(d){ expectDir = d === 1 ? 1 : d === -1 ? -1 : 0; },
     // voto sul segno dei sensori acceso o spento (spento negli scambi di prova); a ogni cambio i voti ripartono
     setSignVote(on){ on = !!on; if (on !== voting){ voting = on; votes = newVotes(); } },
+    // B71: segno di fiera (messaggio cfg sn): almeno n voti contrari concordi per girare il segno; 0 = la regola di sempre.
+    // Con n > 0 il rilevatore è «in fiera» anche per la preparazione trattenuta (prepFollowExpected)
+    setSignNeed(n){ C.signNeed = Number.isFinite(n) && n > 0 ? Math.min(50, Math.round(n)) : 0; },
+    get signNeed(){ return C.signNeed; },
     // a rete (dal gioco, cfg net): soglie basse per i tocchi morbidi (DEFAULTS.netOn, netMinPeak); false al rientro
     setNet(v){ atNet = !!v; },
     get atNet(){ return atNet; },

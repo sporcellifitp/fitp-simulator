@@ -11,7 +11,7 @@ import { createCalibration, calibrationPlan } from '@natpf/tennis/calibration.js
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { strokeShape } from '@natpf/tennis/stroke-shape.js';
 import { normalizeSample } from '@natpf/tennis/motion-sign.js';
-import { natpfSwingToEngine, NORMAL_SHOTS, habitualRise, createRiseModel, createTypicalModel, powerRefs, profileTypical, teachesNormal } from '../src/natpf/natpf_phone_racket.js';
+import { natpfSwingToEngine, NORMAL_SHOTS, habitualRise, createRiseModel, createTypicalModel, powerRefs, profileTypical, teachesNormal, trialMark } from '../src/natpf/natpf_phone_racket.js';
 import { createTrialLearner, phoneThresholds, signedSwing } from '../src/natpf/natpf_trial_learn.js';
 import { trialThresholds } from '@natpf/tennis/phone-screen.js';
 import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile, headBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
@@ -101,6 +101,8 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   // sul computer: come NatpfPhoneRacket._onSwing, con i riferimenti che si adattano ai colpi della partita
   // (learned: profilo imparato dagli scambi di prova, B28: sul computer sostituisce quello semplice del telefono)
   let learned = null, trial = null, phoneSign = 1;
+  // legacyMark (B71, solo per i confronti): i colpi di prova contano come prima del B71 (solo top spin e piatto)
+  let legacyMark = false;
   const learner = createTrialLearner();
   const prof = () => learned || det.profile;
   const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = makeAim(), rises = createRiseModel(), typical = createTypicalModel();
@@ -132,7 +134,7 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     // come NatpfPhoneRacket._onSwing: colpo tipico di prima di questo colpo (il motore decide così se il gesto è debole)
     ev.natpf.typical = typical.value ?? profileTypical(p); if (Number.isFinite(s.peak) && !Number.isFinite(ev.natpf.peak)) ev.natpf.peak = s.peak;
     if (!learn) return { s, ev };
-    if (probe != null) learner.mark(probe, teachesNormal(ev, { rally, expect }));
+    if (probe != null) learner.mark(probe, legacyMark ? teachesNormal(ev, { rally, expect }) : trialMark(ev, { rally, expect }));   // B71: ogni colpo non debole conta
     if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }
     if (!expect){ faces.add(s.dir, s.face); aims.add(s.dir, s.heading); }
     if (!expect) rises.learn(s.dir, s.shape?.rise, ev.natpf.intent);
@@ -162,5 +164,6 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     return { level, n: { forehand: counts.forehand, backhand: counts.backhand }, sign: learner.sign, ref: L?.ref ?? null, votes: learner.votes };
   };
   return { det, face, cal, msgs, rest, pose, swing, calibrate, skip, game, sampleWorld, fresh, beginTrial, trialBall, endTrial, learner, get profile(){ return prof(); },
+    set legacyMark(v){ legacyMark = !!v; }, get legacyMark(){ return legacyMark; },
     models: { aims, typical, rises }, get t(){ return t; }, get q(){ return q; } };
 }
