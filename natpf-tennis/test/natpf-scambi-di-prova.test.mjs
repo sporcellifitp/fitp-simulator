@@ -660,3 +660,38 @@ test('«Riscaldati prima» con «Giocando»: il riscaldamento insegna il colpo; 
   // partita dopo: di nuovo gli scambi di prova
   ui.backToMenu('match'); assert.equal(w.pressStart(), false); assert.ok(ui.trial.active);
 });
+
+/* ---------- unione B71+B72, sistemazione dopo la verifica (F3, docs/b72/unione.md §6) ---------- */
+// Etichetta del gesto in basso al centro durante gli scambi di prova: l'esito del colpo non le arrivava (natpf_ui.feedback
+// esce prima, i colpi di prova non si giudicano) e 1,2 s dopo il gesto, a palla già presa, diceva «nessuna palla da
+// colpire» a ogni palla, in IT e in EN. Ora un colpo preso dà un esito neutro: «Colpo letto» / «Shot read», in verde.
+test('unione B71+B72 (F3): scambi di prova, un colpo preso dà «Colpo letto» nell\'etichetta del gesto, mai «nessuna palla da colpire»', async () => {
+  for (const [lang, read, none] of [['it', 'Colpo letto', 'nessuna palla da colpire'], ['en', 'Shot read', 'no ball to hit']]){
+    const w = await playWorld(), { ui } = w;
+    if (lang === 'en') ui.phone._onPhoneLang('en');
+    const el = $('natpf-gesture'), part = k => el.querySelector(`[data-g="${k}"]`).textContent, seen = [];
+    const adv = w.advance;
+    w.advance = (ms, o) => { for (let k = 0; k < ms; k += 16){ adv(Math.min(16, ms - k), o); if (ui.trial.active && !el.classList.contains('hidden')){ const v = `${part('title')} · ${part('sub')} [${el.dataset.state}]`; if (seen.at(-1) !== v) seen.push(v); } } };
+    const r = playTrial(w, (id, n, want) => stroke({ dir: want }), { gioca: false });
+    assert.ok(r.log.length >= 3, `colpi fatti: ${r.log.length}`);
+    assert.ok(!seen.some(v => v.includes(none)), `${lang}: ${JSON.stringify(seen)}`);
+    assert.ok(seen.filter(v => v.includes(read) && v.endsWith('[ok]')).length >= 2, `${lang}: «${read}» dopo i colpi presi: ${JSON.stringify(seen)}`);
+  }
+});
+
+test('unione B71+B72 (F3): negli scambi di prova l\'esito resta senza giudizio (colpo difensivo: «Colpo letto», non «Molto in anticipo»); in partita come prima', async () => {
+  const w = await makeWorld({ controller: 'phone' }), { ui, E } = w, el = $('natpf-gesture'), sub = () => el.querySelector('[data-g="sub"]').textContent;
+  E.autoPlayMode = false;
+  const inTrial = ev => ui.feedback.call({ engine: E, trial: { active: true }, gesture: ui.gesture, diag: null }, ev);
+  ui.gesture.onGesture({ side: 'forehand', natpf: { shot: 'topspin' } }, { dir: 1 });
+  assert.equal(inTrial({ kind: 'hit', role: 'p1', defensive: true, grade: 'VERY EARLY • DEFENSIVE' }), null, 'il colpo di prova non si giudica');
+  assert.equal(sub(), 'Top spin · Colpo letto'); assert.equal(el.dataset.state, 'ok');
+  // colpo a vuoto di prova: come prima, nessun esito dall'anello
+  ui.gesture.onGesture({ side: 'backhand', natpf: { shot: 'slice' } }, { dir: -1 });
+  inTrial({ kind: 'whiff', role: 'p1', grade: 'VERY EARLY • WHIFF' });
+  assert.equal(sub(), 'Tagliato'); assert.equal(el.dataset.state, 'read');
+  // in partita il colpo difensivo resta «Molto in anticipo»
+  ui.gesture.onGesture({ side: 'forehand', natpf: { shot: 'topspin' } }, { dir: 1 });
+  ui.gesture.onFeedback({ kind: 'hit', defensive: true, grade: 'VERY EARLY • DEFENSIVE' }, { color: 'yellow', label: 'Anticipo' });
+  assert.equal(sub(), 'Top spin · Molto in anticipo');
+});

@@ -74,7 +74,7 @@ export const GAME_EXACT = [
   // etichetta del gesto in basso al centro (natpf_gesture_hud.js: colpo letto, esito, gesto ignorato e perché; revisione B72, L2)
   ['Gesto ignorato', 'Swing ignored'], ['Colpo', 'Shot'], ['Top spin', 'Topspin'], ['Piatto', 'Flat'], ['Molto in anticipo', 'Very early'], ['Molto in ritardo', 'Very late'],
   ['aspetta la palla', 'waiting for the ball'], ['nessuna palla da colpire', 'no ball to hit'], ['arrivato in ritardo dalla rete', 'arrived late over the network'],
-  ['palla che si allontana', 'ball moving away'],
+  ['palla che si allontana', 'ball moving away'], ['Colpo letto', 'Shot read'],   // (unione B71+B72, F3: esito neutro degli scambi di prova)
   // casella «Al servizio» e tabellone
   ['Al servizio', 'Serving'], ['Tu', 'You'], ['CPU', 'Opponent'], ['2 CPU', 'Opponents'], ['Avversario', 'Opponent'], ['Avversari', 'Opponents'],
   ['Punto decisivo', 'Deciding point'], ['Parità', 'Deuce'], ['Vantaggio', 'Advantage'], ['1 game', '1 game'], ['Partita a 1 game', '1-game match'],

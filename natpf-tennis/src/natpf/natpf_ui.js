@@ -305,7 +305,9 @@ export class NatpfUi {
     // lo calcola splitPhoneQuality)
     if ((e.role || 'p1') !== this.engine.playerRole){ if (!this.trial?.active) this.shot.onSplitFeedback?.(e); return null; }
     // scambi di prova (B28): i colpi non si giudicano (nessun anello, nessun esito per l'allenamento e i minigiochi)
-    if (this.trial?.active){ this.diag?.onFeedback(e, null); return null; }
+    // (unione B71+B72, F3: all'etichetta del gesto un colpo preso dà un esito neutro, «Colpo letto» in verde, senza voto né
+    // «Molto in anticipo»; prima non le arrivava niente e 1,2 s dopo diceva «nessuna palla da colpire» a ogni palla)
+    if (this.trial?.active){ this.diag?.onFeedback(e, null); if (e.kind === 'hit') this.gesture?.onFeedback?.({ kind: 'hit' }, { color: 'green', text: 'Colpo letto' }); return null; }
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);
     this.registro?.rec.onFeedback(e);

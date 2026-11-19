@@ -385,6 +385,7 @@ test('revisione B72 (L2): etichetta del gesto in basso al centro nella lingua de
   ui.gesture.onGesture({ side: 'forehand', natpf: { shot: 'topspin' } }, { dir: -1 });
   ui.gesture.onFeedback({ kind: 'hit' }, { color: 'red', label: 'Fuori', text: 'Fuori · troppo presto' });
   assert.deepEqual([part('title'), part('sub')], ['Forehand', 'Topspin · Out · too early']);
+  assert.equal(say('Colpo letto', 'en'), 'Shot read');
   // tutti i testi che l'etichetta può scrivere: in inglese senza parole italiane
   const IT = /\b(Gesto|ignorato|Dritto|Rovescio|Colpo|Tagliato|Piatto|Pallonetto|Palla|corta|Schiacciata|Molto|anticipo|ritardo|Colpita|Troppo|presto|tardi|aspetta|palla|nessuna|colpire|arrivato|rete|allontana|Perfetto|Fuori|Anticipo|Ritardo|Buono|Mancata|lontana)\b/;
   const texts = [];
@@ -392,7 +393,7 @@ test('revisione B72 (L2): etichetta del gesto in basso al centro nella lingua de
   for (const why of ['arrivato in ritardo dalla rete', 'palla che si allontana']){ const g = gestureLabel({ ignored: why, natpf: {} }); texts.push(g.title, g.sub); }
   for (const [e, q] of [[{ kind: 'hit' }, { wait: true }], [{ kind: 'hit', defensive: true, grade: 'VERY EARLY' }, {}], [{ kind: 'hit', defensive: true, grade: 'VERY LATE' }, {}], [{ kind: 'whiff', grade: 'EARLY' }], [{ kind: 'whiff', grade: 'LATE' }],
     ...['Perfetto', 'Anticipo', 'Ritardo', 'Buono', 'Troppo presto', 'Troppo tardi', 'Troppo lontana', 'Mancata', 'Fuori', 'In rete', 'Troppo lunga', 'Super!'].map(label => [{ kind: 'hit' }, { label }])]) texts.push(gestureOutcome(e, q)?.text);
-  texts.push('aspetta la palla', 'nessuna palla da colpire');
+  texts.push('aspetta la palla', 'nessuna palla da colpire', 'Colpo letto');   // (unione B71+B72, F3: esito neutro degli scambi di prova)
   for (const t of texts.filter(Boolean)){ const e = say(t, 'en'); assert.doesNotMatch(e, IT, `«${t}» → «${e}»`); }
   // in italiano identici
   for (const t of texts.filter(Boolean)) assert.equal(say(t, 'it'), t);
