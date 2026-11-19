@@ -116,3 +116,9 @@ scratchpad della sessione). Anomalie uguali nei due giorni:
       allargata dei 100 ms del B56); poi unione in `b71-int`, quattro revisori + verifica avversaria, sistemazione, prove.
       **Ripresa se si ferma**: `git branch --list 'b71-*'`, `git worktree list`; rilanciare il workflow con
       `resumeFromRunId` oppure unire a mano i rami pronti in `b71-int`. Poi: versione nuova, push, pacchetti, APK 1.0.5.
+- [x] Tre rami pronti (`b71-gesti` 9167f106, `b71-sensori` bd3f28e1, `b71-registro` 9ccf2187) uniti nel ramo locale
+      **`b71-int`** (da `natpf-simulator` 9546b9a1, `git merge --no-ff` nell'ordine gesti, sensori, registro; niente push).
+      Conflitti solo nell'elenco dei campi del registro e nella riga «colpo»: i campi si sommano, `CAMPI_B71` resta ai campi
+      del verso e il ritardo dello schermo è `CAMPI_B71T` (`docs/b71/unione.md`). Prove dell'unione in `docs/b71/unione.md` §2.
+      **Prossimo passo**: revisori e verifica avversaria sul ramo `b71-int` (workflow), poi versione nuova, push, pacchetti,
+      APK 1.0.5 (CI), Worker del registro da ricaricare (dodici campi nuovi).

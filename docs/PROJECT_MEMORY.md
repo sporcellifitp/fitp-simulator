@@ -105,6 +105,21 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   (`link.relink()` → comando `relink`, hello con `rl`) rifà il collegamento senza ricaricare la pagina, a mano (riquadro
   della pausa e pagina del telefono) o da solo (`createResync`). Sullo stesso schermo il secondo telefono si registra
   nella diagnostica (`tel2.link`, `tel2.colpo`, `tel.pausa` con `chi`).
+- **B71 (19/11/2026, registri della fiera del 18 e 19/11; `docs/b71/gesti.md`, `docs/b71/registro-tempo.md`)**.
+  Sempre: nel profilo semplice il verso si misura **attorno al picco** (`swing-detect.simpleVerse`, `peakWindow`) con una
+  confidenza; negli scambi di prova conta ogni colpo non debole con un verso, uno per palla, di ogni tipo (`TRIAL_SHOTS`
+  dice chi insegna forza, salita abituale, centro della mira, verso verticale); `KEEP` (palla corta o pallonetto in attesa
+  che bloccano il colpo dall'altra parte) solo entro la finestra della direzione; palla corta o pallonetto della forma
+  sotto il 30% del colpo tipico fatti molto in anticipo valgono come gesto debole (`natpf_impact.earlySoftSpecial`).
+  **Solo in modalità fiera**: segno del verso girato solo con almeno 6 voti contrari concordi negli scambi di prova
+  (`TRIAL_SIGN.fiera`) e 8 sul telefono (`cfg sn`, `swing-detect.setSignNeed`); con il verso incerto (confidenza sotto
+  0,35, gesto trattenuto ≥ 20 ms o arrivo ≥ 150 ms dopo il picco: `VERSE_FAIR`) il lato viene dalla palla (`ballSide`,
+  campo `ls` del registro) e il colpo super non è bloccato per «lato sbagliato»; preparazione trattenuta e poi il colpo
+  nel verso atteso: basta il 50% (fuori dalla fiera resta l'80%, prova natpf-prep). Tempo in fiera: «Perfetto» in anticipo
+  fino a 0,55 unità (`natpf_skill.FAIR_PERFECT`, in ritardo 0,35), il ritardo dello schermo non si somma alla latenza
+  quando c'è la correzione del B56, il limite in ritardo si allarga della correzione (`natpf.ant`,
+  `natpf_impact.eventAnticipation`). Il riconoscimento della forma dei colpi non cambia: le dimostrazioni del tutorial
+  restano quelle (prove `natpf-gesture-*`).
 
 ## Sfida tra due computer senza server (PeerJS): regole durevoli (30/10)
 

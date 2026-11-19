@@ -369,3 +369,22 @@ Prodotto: entrambi (solo repository). Vecchio sito, immagini dei blocchi, rami, 
 - Cinque filoni (componenti, produzione e involucri, norme UE, firmware e chiavetta, processo e costi), poi sintesi.
 - Non verificato: prezzi (istantanee del 18/11), costi di laboratorio e montaggio (stime), procedura italiana per i
   trasmettitori in fiera, range del giroscopio dell'ICM-45686 e disponibilità dell'LSM6DSV32X (fonti in conflitto).
+
+## B71 · Unione dei rami gesti, sensori e registro nel ramo locale `b71-int` (19/11/2026) · [~] (niente push, niente versione)
+- [x] Ramo `b71-int` da `natpf-simulator` 9546b9a1; `git merge --no-ff` di `b71-gesti` (9d56b36c), `b71-sensori`
+  (12bc280e), `b71-registro` (65a263bf, con i conflitti risolti). Documento `docs/b71/unione.md`.
+  File dei conflitti: `natpf-tennis/src/natpf/registro/registro_formato.js`, `natpf-tennis/cloudflare/registro-worker.js`
+  (campi sommati; `CAMPI_B71` = verso, `CAMPI_B71T` = `displayLagMs`, `CAMPI_B71S` = sensori),
+  `natpf-tennis/src/natpf/registro/registro_registratore.js` (riga «colpo»: `cf` del gioco + `mg gb rit` + `versoColpo`).
+  Test adattati: `natpf-registro.test.mjs`, `registro-worker.test.mjs` («Worker del 18/11» senza nessuna delle tre righe
+  del B71). Documenti: `docs/b71/registro-tempo.md` (nome del campo), `docs/PROJECT_MEMORY.md` §Gesti (voce B71),
+  `docs/TRACCIA_PASSI.md`, questo registro, checkpoint di `docs/PIANO_LAVORI.md`.
+- Verifiche: gioco `npm test` **1872/1872** (0 saltate), sito **308/308**, LAN **13/13**, desktop **56/56**, build ok.
+  Nel browser: training-flow 21/21, scambi-di-prova 32/32, registro 39/39, registro-sensori 23/23, b47-fiera 20/20,
+  formato-fiera 29/29, stesso-schermo-b20 52/52, fiera-telefoni 66/66, tutorial-phone 46/46, gesti-speciali 9/9,
+  gesti-sequenze 47/47, sensori-nativi 15/15, app-android 5/5, telefono-bloccato 12/12, gesture-calibration 21/21,
+  phone-only 10/10, timing-browser 8/8, lob-drop 136/137 (il rosso già noto dei piedi in corsa). Modale dei gesti 28/29 e
+  27/29 (soglie di fotogrammi al secondo; su `natpf-simulator` senza il B71, stesso carico, 25/29): carico della macchina,
+  non l'unione. `natpf-registro-sensori.mjs` non esce da solo dopo il sommario anche senza il B71 (`docs/b71/unione.md` §2).
+- Non verificato: telefono vero, app 1.0.5 vera (APK non costruito: niente Android SDK qui), Windows, ledwall; Worker del
+  registro non ricaricato (dodici campi nuovi).

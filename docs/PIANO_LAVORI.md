@@ -23,18 +23,16 @@ Qui sta **solo l'ultimo checkpoint**: il precedente si sostituisce, non si accod
 `docs/archivio/PIANO_LAVORI_checkpoint_fino_al_2026-11-18.md` (quelli fino al 07/11 in
 `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`).
 
-**Checkpoint del 18/11/2026 (pulizia sicura del repository, nessuna versione nuova).** Versione pubblicata: **2026-11-18.3**
-(`e9409c5`, B70 mascotte 3D che ballano solo nel programma Windows): installer dal link fisso 131.385.957 B, sha256
-`6e9ad5e4…63a1`; zip Cloudflare 23.979.122 B, sha256 `d95b66f5…68dc`, provato estratto; app Android 1.0.4 su R2. Pulizia
-(solo documenti e file non usati, approvata dall'utente): tolti `undefined/`, `docs/b9/wip/`, `docs/b17/wip/`,
-`docs/consegna/2026-11-15/` (testo del passaggio e script di rilascio conservati in `docs/archivio/consegna-2026-11-15/`),
-`docs/SESSION_HANDOFF.md`; in `docs/archivio/` cinque documenti senza riferimenti e i diari della radice (`MEMORY.md`,
-`SESSION_HANDOFF.md`, `WORKLOG.md`); accorciati `docs/TRACCIA_PASSI.md`, `docs/WORK_PROGRESS.md` e questo §1 (parti vecchie in
-archivio, integrali); indice nuovo `docs/LEGGIMI.md`. Prove: gioco 1844/1844, sito 289/289, LAN 13/13, desktop 56/56, build (dettagli
-in `docs/WORK_PROGRESS.md`, voce «Pulizia sicura»). Pacchetti invariati (quelli della 18.3). **Prossima azione esatta:**
-aspettare l'utente: collaudo della 18.3 allo stand (mascotte che ballano sul ledwall e sul PC, app 1.0.4 sui telefoni),
-registro della prossima giornata, risposte per la separazione FIERA / ONLINE, requisiti di HW1; parti della pulizia
-ancora da confermare (vecchio sito, immagini di analisi, rami remoti, artifact delle Actions).
+**Checkpoint del 19/11/2026 (B71, unione dei tre rami nel ramo locale `b71-int`, niente push, nessuna versione nuova).**
+Versione pubblicata ancora **2026-11-18.3** (app 1.0.4). Correzioni dai registri della fiera del 18 e 19/11 (richiesta
+dell'utente: calibrazione giocando, dritto e rovescio, sensori): rami locali `b71-gesti` (9167f106), `b71-sensori`
+(bd3f28e1), `b71-registro` (9ccf2187) uniti con `git merge --no-ff` in **`b71-int`** (da `natpf-simulator` 9546b9a1).
+Conflitti solo nell'elenco dei campi del registro e nella riga «colpo», risolti tenendo tutto (`docs/b71/unione.md`).
+Prove sul ramo `b71-int`: gioco 1872/1872, sito 308/308, LAN 13/13, desktop 56/56, build ok, prove nel browser in
+`docs/b71/unione.md` §2. **Prossima azione esatta:** revisori e verifica avversaria sul ramo `b71-int` (workflow B71),
+correzioni; poi unione in `natpf-simulator`, versione nuova (file di versione), push, pacchetti, APK 1.0.5 dalla CI
+`natpf-android.yml`, Worker del registro da ricaricare (dodici campi nuovi: `vg vc dur hold ls voti displayLagMs sr fs vs
+tk rp`). Se il lavoro si ferma: `git branch --list 'b71-*'`, `git log --oneline natpf-simulator..b71-int`.
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
