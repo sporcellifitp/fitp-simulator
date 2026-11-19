@@ -93,6 +93,7 @@ LAN).
 | `natpf-tennis/test/natpf-b71-sensori-registro.test.mjs` (campi nuovi, Worker copia esatta, Worker di prima) | **2/2** |
 | Gioco completo `npm test` (con i 2 test nuovi del registro) | **1845/1846**, 0 rossi, 1 saltato (come prima) |
 | `npm run build` | ok |
+| Programma Windows `natpf-desktop` `npm test` · server LAN `tools/lan` | **56/56** · **13/13** (non toccati) |
 | Browser `tools/e2e/natpf-sensori-nativi.mjs` (pagina vera, ponte finto 1.0.5; aggiunto alla CI «phone and timing») | **15/15** |
 | Browser `natpf-app-android.mjs` 5/5, `natpf-telefono-bloccato.mjs` 12/12 | invariati |
 | Browser `natpf-registro-sensori.mjs` (gioco vero, ponte finto 1.0.4, Worker vero con R2 finto, peso della partita) | **23/23** |
