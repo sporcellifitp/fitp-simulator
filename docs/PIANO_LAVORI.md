@@ -34,12 +34,11 @@ codice finale: gioco 1915/1915, sito 322/322, LAN 13/13, desktop 56/56, build ok
 controllo B51 di `natpf-fiera-telefoni.mjs` aggiornato al selettore della lingua: 66/66). Versione **2026-11-19.1** nei
 quattro file, **pubblicata** (`c3adeae1`): installer dal link fisso verificato (sha256 `0f1b11ea…ee72`), APK 1.0.5 su
 R2 (sha256 `e5a34907…983b`), zip Cloudflare provato estratto (sha256 `a87fb88d…e3ed`); numeri in `docs/TRACCIA_PASSI.md`.
-**Prossima azione esatta (20/11):** B73 fatto e unito in `natpf-simulator` (direzione «Nuova» interna con «Classica» di
-base, passi veri delle mascotte, prove rotte sistemate, risposte di rete lette sempre; `docs/b73/`), versione **2026-11-20.1**
-**pubblicata** (`fb8f2d6a`; installer e zip verificati, sha256 in `docs/TRACCIA_PASSI.md`; APK invariata 1.0.5). Per l'utente:
-prova in fiera, Worker del registro con il file della 19.1 (formato 4), e la verifica dell'ordine degli assi del giroscopio
-sul telefono dello stand (indizio del B73, `docs/b73/misure-fiera-18-19.md`) prima di ogni passo ulteriore della B36. Se il
-lavoro si ferma: `docs/TRACCIA_PASSI.md` sezione 20/11 (B73).
+**Prossima azione esatta (20/11):** versione **2026-11-20.1** pubblicata (B73, `fb8f2d6a`; installer e zip verificati, sha256
+in `docs/TRACCIA_PASSI.md`; APK invariata 1.0.5). In corso il **B74** (ordine degli assi del giroscopio su Android:
+verifica sui dati veri e correzione dietro un interruttore dello staff spento; workflow `wf_8ead6cf7-ac3`, rami `b74-*`);
+poi unione, documenti vivi, versione nuova, push, pacchetti. Per l'utente: prova in fiera e Worker del registro con il file
+della 19.1 (formato 4). Se il lavoro si ferma: `docs/TRACCIA_PASSI.md` sezione 20/11 (B74).
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 

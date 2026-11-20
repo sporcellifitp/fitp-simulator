@@ -206,3 +206,15 @@ browser rotte da prima (`natpf-lob-drop` 136/137, `natpf-chi-serve` che si blocc
       `fac44a5a…4fef`), zip Cloudflare provato estratto (sha256 `c9d8de06…fd58`); consegnati.
 - Worker del registro: nessun campo nuovo nel B73 (`dir` e `nr` c'erano dal B36.0): basta il file della 19.1 (formato 4).
 - Non verificato: telefono vero, scheda grafica vera, programma Windows, ledwall; ordine degli assi sul telefono dello stand.
+
+## 20/11 · B74 ordine degli assi del giroscopio (scelta dell'utente: «Verifica e correzione spenta»)
+
+Indizio del B73: Chrome su Android manda `rotationRate` con alpha = x (non z come il W3C), e il gioco integrerebbe
+l'orientamento nell'ordine W3C. Scelta dell'utente (domanda a scelta, 20/11): verificare su tutti i dati veri dei sensori e,
+se confermato, correzione solo per Android dietro un interruttore dello staff **spento di base**, da provare sul telefono
+vero prima di accenderla.
+
+- [~] Workflow `wf_8ead6cf7-ac3` (B74): verifica sui dati veri del 28–31/10 (ramo `b74-verifica`, `docs/b74/verifica-assi.md`);
+      se confermata, correzione sul ramo `b74-assi` (interruttore «Assi del giroscopio», spento), revisione con tre lenti e
+      due scettici, sistemazione, prove complete. **Ripresa se si ferma**: `git branch --list 'b74-*'`, `git worktree list`,
+      rilanciare con `resumeFromRunId: 'wf_8ead6cf7-ac3'`. Poi: unione in `natpf-simulator`, documenti vivi, versione, push.
