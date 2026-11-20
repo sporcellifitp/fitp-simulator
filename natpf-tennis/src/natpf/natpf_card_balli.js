@@ -44,6 +44,9 @@ const still = () => ({ right: 0, fwd: 0, up: 0, yaw: 0, footL: 0, footR: 0 });
 // Pugno e mani ricorrenti
 const HIP_FREE = { at: [0.2, -0.14, 0.03], palm: [-1, 0, 0.2], fingers: [0.1, -1, 0.25], pole: [1, 0.1, -0.4], fist: true };
 const FEET = (a = [0, 0, 0], b = [0, 0, 0]) => ({ a, b });
+// B73: piedi nel riferimento del suolo (natpf_mascot_rig.cardLeg): fermi nel mondo mentre il personaggio si sposta sopra
+// di loro (robot, disco, pendolo, passi incrociati, sassolino); prima seguivano il corpo e il piede a terra scivolava
+const GROUND = (a = [0, 0, 0], b = [0, 0, 0]) => ({ frame: 'ground', a, b });
 
 // ---------------------------------------------------------------------------------------------------------------
 // 1 · Robot: a scatti, una posa per battuta tenuta (gli scatti cadono fra due fotogrammi), con un filo di rimbalzo
@@ -54,7 +57,7 @@ const F_FWD = { at: [0.21, -0.05, 0.17], palm: [0, -1, 0], fingers: [0.15, 0, 1]
 const F_UP = { at: [0.26, 0.1, 0.07], palm: [0, 0, 1], fingers: [0.15, 1, 0] };
 const F_DOWN = { at: [0.22, -0.13, 0.11], palm: [0, 0, 1], fingers: [0.2, -1, 0.1] };
 const robo = (racket, free, o = {}) => ({ hips: { pitch: 0, yaw: o.yaw || 0, y: o.y || 0 }, spine: { pitch: o.bow || -0.03, yaw: o.twist || 0 },
-  head: { pitch: o.look ?? -0.06, yaw: o.head || 0, roll: 0 }, racket, free, legs: FEET([0, o.la || 0, 0], [0, o.lb || 0, 0]), at: o.at || 0 });
+  head: { pitch: o.look ?? -0.06, yaw: o.head || 0, roll: 0 }, racket, free, legs: GROUND([0, o.la || 0, 0], [0, o.lb || 0, 0]), at: o.at || 0 });
 const ROBOT = [
   robo(R_FWD, F_FWD),
   robo(R_FWD, F_FWD, { head: 0.45 }),
@@ -75,7 +78,7 @@ const D_HIP = { at: [-0.24, -0.12, 0.05], dir: [-1, -0.42, -0.1], pole: [-1, 0.1
 const D_UP = { at: [0.28, 0.12, 0.08], palm: [0, 0, 1], fingers: [0.55, 1, 0.1] };
 const D_DOWN = { at: [-0.04, -0.12, 0.2], palm: [0.2, 0.3, 1], fingers: [-0.6, -0.8, 0.3] };
 const disco = (racket, free, o = {}) => ({ hips: { x: o.hx || 0, roll: o.hr || 0, pitch: -0.03, y: o.y || 0 }, spine: { pitch: o.sp ?? -0.04, roll: o.sr || 0, yaw: o.sy || 0 },
-  head: { pitch: o.hp ?? -0.1, yaw: o.hy || 0, roll: o.hrl || 0 }, racket, free, legs: FEET([o.ax || 0, o.la || 0, o.az || 0], [0, 0, 0]), at: o.at || 0 });
+  head: { pitch: o.hp ?? -0.1, yaw: o.hy || 0, roll: o.hrl || 0 }, racket, free, legs: GROUND([o.ax || 0, o.la || 0, o.az || 0], [0, 0, 0]), at: o.at || 0 });
 const D_A = disco(D_HIP, D_UP, { hx: -0.03, hr: 0.07, sr: -0.09, hp: -0.24, hy: 0.32, at: -0.04 });
 const D_B = disco(D_HIP, D_DOWN, { hx: 0.03, hr: -0.07, sr: 0.07, hp: 0.14, hy: -0.22, y: -0.018, la: 0.04, ax: -0.02, at: 0.04 });
 const D_DAB = disco({ at: [-0.3, 0.1, 0.06], dir: [-0.85, 0.55, 0.1] },
@@ -85,7 +88,13 @@ const DISCO = [D_A, D_B, D_A, D_B, D_A, D_B, D_DAB, D_DAB];
 // (Lob ha la visiera: nel dab china meno la testa, se no copre tutta la faccia)
 const D_DAB_LOB = { ...D_DAB, head: { ...D_DAB.head, pitch: 0.16 } };
 const DISCO_LOB = [D_A, D_B, D_A, D_B, D_A, D_B, D_DAB_LOB, D_DAB_LOB];
-const discoPose = (u, rig) => beats(u, rig?.key === 'lob' ? DISCO_LOB : DISCO, { hold: 0.25 });
+// (B73: il piede che batte va in fuori solo quanto è staccato da terra: con il rimbalzo delle battute l'alzata passa sotto
+// zero, cioè a terra, mentre lo spostamento in fuori tornava indietro: il piede strisciava di qualche millimetro; e va in
+// fuori solo sopra i 2 cm, così si alza e si posa in verticale)
+const discoPose = (u, rig) => {
+  const p = beats(u, rig?.key === 'lob' ? DISCO_LOB : DISCO, { hold: 0.25 }), la = Math.max(0, p.legs.a[1]);
+  return { ...p, legs: GROUND([-0.02*ss((la - 0.012)/0.028), la, 0], [0, 0, 0]) };
+};
 
 // ---------------------------------------------------------------------------------------------------------------
 // 3 · Corsa all'indietro: un ginocchio su, il piede batte davanti e scivola indietro mentre sale l'altro (quattro passi
@@ -107,21 +116,33 @@ function runPose(u){
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// 4 · Passi incrociati: un piede incrocia davanti all'altro e torna largo a ogni battuta, il corpo scivola di lato e
-// torna, la racchetta alzata che pompa e l'altra mano in fuori
+// 4 · Passi incrociati: un piede incrocia davanti all'altro e torna largo a ogni battuta, la racchetta alzata che pompa e
+// l'altra mano in fuori
+// B73: il piede che incrocia va e torna in aria (due archi: si posa incrociato un attimo, poi torna al suo posto), l'altro
+// resta fermo a terra e il corpo si sposta sopra di lui (prima il corpo scivolava di 22 cm e il piede tornava strisciando)
+const CROSS_SHIFT = 0.03;           // metri: quanto il corpo va sopra il piede fermo
+function crossFoot(f){
+  // andata (0 → 0,5) e ritorno (0,5 → 1): ciascuno si alza, va e si posa; avanti e indietro solo con il piede staccato
+  const h = f < 0.5 ? f/0.5 : (f - 0.5)/0.5, e = ss((h - 0.15)/0.7), out = f < 0.5 ? e : 1 - e;
+  return { out, lift: 0.032*Math.sin(Math.PI*h) };
+}
+function shuffleFeet(u){
+  const x = 8*u, i = Math.floor(x) % 8, f = x - Math.floor(x), lead = i % 2 === 0, c = crossFoot(f);
+  const a = lead ? [0.11*c.out, c.lift, 0.055*c.out] : [0, 0, 0];
+  const b = lead ? [0, 0, 0] : [-0.11*c.out, c.lift, 0.055*c.out];
+  return { a, b, lead, out: c.out, f };
+}
 function shufflePose(u){
-  const x = 8*u, i = Math.floor(x) % 8, f = x - Math.floor(x), side = Math.cos(TAU*u);
-  // a ogni battuta: incrocio (0 → 0,5) e apertura (0,5 → 1), un piede per battuta
-  const cross = Math.sin(Math.PI*f), lead = i % 2 === 0;
-  const a = lead ? [0.11*cross, 0.03*Math.sin(TAU*f) > 0 ? 0.03*Math.sin(TAU*f) : 0, 0.055*cross] : [-0.035*cross, 0, -0.02*cross];
-  const b = lead ? [0.035*cross, 0, -0.02*cross] : [-0.11*cross, 0.03*Math.max(0, Math.sin(TAU*f)), 0.055*cross];
+  const x = 8*u, side = Math.cos(TAU*u), S = shuffleFeet(u), cross = Math.sin(Math.PI*S.f);
   const bounce = Math.abs(Math.sin(Math.PI*x)), pump = Math.sin(Math.PI*x);
   return { hips: { y: -0.02*(1 - bounce), roll: 0.05*side*cross, yaw: 0.08*side }, spine: { pitch: -0.05, roll: -0.04*side*cross },
     head: { pitch: -0.12, roll: 0.06*pump, yaw: -0.1*side },
     racket: { at: [-0.3, 0.06 + 0.09*bounce, 0.08], dir: [-0.62, 1, 0.08] },
     free: { at: [0.27 + 0.04*side, 0.03 + 0.08*(1 - bounce), 0.1], palm: [0, -0.2, 1], fingers: [1, 0.5*side, 0] },
-    legs: FEET(a, b) };
+    legs: GROUND(S.a, S.b) };
 }
+// il corpo sopra il piede fermo: verso b (+) quando incrocia a, verso a (−) quando incrocia b
+const shuffleAt = u => { const S = shuffleFeet(u); return { ...still(), right: CROSS_SHIFT*(S.lead ? 1 : -1)*Math.sin(Math.PI*S.f) }; };
 
 // ---------------------------------------------------------------------------------------------------------------
 // 5 · Pendolo: le due braccia vanno insieme da una parte e dall'altra davanti ai fianchi (una in fuori, l'altra che
@@ -138,7 +159,8 @@ function pendPose(u, rig){
     racket: { at: R, palm: [0.2, 0, 1], fingers: [0.5*sw, -1, 0.1] },
     free: { at: F, palm: [-0.2, 0, 1], fingers: [0.5*sw, -1, 0.1] },
     rest: { frame: 'ground', at: [-0.46, k*0.985 + 0.012, 0.02], dir: [-0.17, -1, 0], face: [0, 0, 1] },
-    legs: FEET([0.01*sw, 0.025*Math.max(0, -s), 0], [0.01*sw, 0.025*Math.max(0, s), 0]) };
+    // (B73: fermi nel mondo, il piede si alza sul posto; prima scivolavano di lato con i fianchi)
+    legs: GROUND([0, 0.025*Math.max(0, -s), 0], [0, 0.025*Math.max(0, s), 0]) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -162,14 +184,15 @@ const LEAN = rig => (rig?.key === 'lob' ? 0.6 : 1);
 // piano, due volte per giro
 function kickPose(u, rig){
   const x = 2*u, f = x - Math.floor(x), hp = HEAD_DOWN(rig), l = LEAN(rig);
-  // indietro (0 → 0,45), calcio (0,45 → 0,6), giù (0,6 → 0,8), fermo
-  const z = f < 0.45 ? -0.07*ss(f/0.45) : f < 0.6 ? -0.07 + 0.17*back((f - 0.45)/0.15, 0.6) : f < 0.85 ? 0.1*(1 - ss((f - 0.6)/0.25)) : 0;
-  const lift = f < 0.45 ? 0.04*ss(f/0.45) : f < 0.6 ? 0.04 + 0.02*Math.sin(Math.PI*(f - 0.45)/0.15) : f < 0.85 ? 0.04*(1 - ss((f - 0.6)/0.25)) : 0;
+  // indietro (0 → 0,45), calcio (0,45 → 0,6), giù (0,6 → 0,85), fermo
+  // (B73: il piede va indietro e torna solo staccato da terra: prima si alza, poi va; prima torna, poi si posa)
+  const z = f < 0.45 ? -0.07*ss((f/0.45 - 0.25)/0.75) : f < 0.6 ? -0.07 + 0.17*back((f - 0.45)/0.15, 0.6) : f < 0.85 ? 0.1*(1 - ss((f - 0.6)/0.17)) : 0;
+  const lift = f < 0.45 ? 0.04*ss(f/0.45/0.6) : f < 0.6 ? 0.04 + 0.02*Math.sin(Math.PI*(f - 0.45)/0.15) : f < 0.85 ? 0.04*(1 - ss((f - 0.6)/0.25)) : 0;
   const kick = f > 0.45 && f < 0.85 ? Math.sin(Math.PI*(f - 0.45)/0.4) : 0;
   return { hips: { pitch: 0.08*l, y: -0.015, roll: -0.04*kick }, spine: { pitch: (0.22 + 0.04*kick)*l, roll: 0.04*kick }, head: { pitch: hp, roll: 0.1 - 0.05*kick, yaw: 0.1*kick },
     racket: { frame: 'level', at: [-0.2, -0.28, 0.0], dir: [-0.6, 0, 0.6], ground: true, drop: 0.3 },
     free: { frame: 'level', at: [0.2, -0.27, 0.0 + 0.03*kick], palm: [-1, 0, 0], fingers: [0.15, -1, 0.1], drop: 0.25 },
-    legs: FEET([0, 0, 0], [0.01, lift, z]), face: 'sad' };
+    legs: GROUND([0, 0, 0], [0.01, lift, z]), face: 'sad' };
 }
 // 8 · Capriccio: la racchetta buttata a terra davanti, i piedi che pestano alternati, i pugni giù e la testa che dice no
 function tantrumPose(u, rig){
@@ -193,7 +216,7 @@ export const DANCE_MOVES = Object.freeze({
     Object.freeze({ id: 'win-corsa', name: 'Corsa all\'indietro', base: 'cheer', dance: true,
       at: u => ({ ...still(), up: 0.025*pulse(u, 4), yaw: 0.5 + 0.1*Math.sin(TAU*u) }), mascot: u => runPose(u) }),
     Object.freeze({ id: 'win-incrocio', name: 'Passi incrociati', base: 'cheer', dance: true,
-      at: u => ({ ...still(), right: 0.11*Math.sin(TAU*u), up: 0.012*pulse(u, 8) }), mascot: u => shufflePose(u) }),
+      at: shuffleAt, mascot: u => shufflePose(u) }),
     Object.freeze({ id: 'win-pendolo', name: 'Braccia a pendolo', base: 'cheer', dance: true,
       at: u => ({ ...still(), right: 0.02*Math.sin(2*TAU*u) }), mascot: (u, rig) => pendPose(u, rig) }),
     Object.freeze({ id: 'win-tetto', name: 'Su il soffitto', base: 'cheer', dance: true, at: roofAt, mascot: u => roofPose(u) }),

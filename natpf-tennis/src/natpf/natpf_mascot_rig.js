@@ -499,8 +499,9 @@ export function poseMascotCard(rig, actor, P){
   rig.racketReach = actor.racketMesh ? (RACKET_TIP - RACKET_GRIP_Y)*actor.racketMesh.scale.y/S : 0.5;
   // gambe: dai piedi del tennista come in campo (il movimento della card li alza a ogni passo)
   const sideA = mirrored ? rig.left : rig.right, sideB = mirrored ? rig.right : rig.left, Pp = actor.parts || NONE;
-  // (B69: oppure dove li mette la posa, per i passi dei balletti)
-  if (P.legs){ cardLeg(rig, sideA, P.legs.a, m); cardLeg(rig, sideB, P.legs.b, m); }
+  // (B69: oppure dove li mette la posa, per i passi dei balletti; B73: nel riferimento del suolo, fermi nel mondo mentre il
+  // personaggio si sposta: legs.frame = 'ground')
+  if (P.legs){ const g = P.legs.frame === 'ground' ? actor : null; cardLeg(rig, sideA, P.legs.a, m, g); cardLeg(rig, sideB, P.legs.b, m, g); }
   else {
     poseLeg(rig, sideA, Pp.footL, ENGINE_REST.footA, 1/S, 0);
     poseLeg(rig, sideB, Pp.footR, ENGINE_REST.footB, 1/S, 0);
@@ -517,9 +518,22 @@ export function poseMascotCard(rig, actor, P){
 
 // B69 · Piede della posa (passi dei balletti): spostamento dalla pianta a riposo [x, alzata, z] (unità del modello, x
 // con il lato come le mani: per il lato della racchetta x < 0 è in fuori); senza descrizione il piede resta al suo posto
-function cardLeg(rig, side, off, m){
-  side.foot.copy(side.sole);
-  if (off){ side.foot.x += m*(off[0] || 0); side.foot.y += Math.max(0, off[1] || 0); side.foot.z += off[2] || 0; }
+// B73 · Con actor (legs.frame 'ground', natpf_card_passi.js): lo spostamento è dalla pianta a riposo sotto il POSTO DI
+// PARTENZA (actor.natpfCardPose.base), nel riferimento di chi guarda (x verso la sua destra, con il lato come le mani; z
+// verso di lui; alzata da terra), come lo spostamento di tutto il personaggio di natpf_card_moves.applyCardMove: il piede
+// a terra resta fermo nel mondo mentre il personaggio si sposta, gira o si piega. Senza posto di partenza come prima.
+const _gF = new THREE.Matrix4();
+function cardLeg(rig, side, off, m, actor = null){
+  const card = actor?.natpfCardPose, base = card?.base;
+  if (base?.pos){
+    const S = rig.scale, dir = card.dir || 1;
+    side.foot.copy(side.sole).applyMatrix4(groundMatrix(_gF, rig, actor, base));
+    if (off){ side.foot.x += dir*m*(off[0] || 0)*S; side.foot.y += Math.max(0, off[1] || 0)*S; side.foot.z += dir*(off[2] || 0)*S; }
+    side.foot.applyMatrix4(_gF.copy(rig.group.matrixWorld).invert());
+  } else {
+    side.foot.copy(side.sole);
+    if (off){ side.foot.x += m*(off[0] || 0); side.foot.y += Math.max(0, off[1] || 0); side.foot.z += off[2] || 0; }
+  }
   side.footSet = true;
   legTo(rig, side);
 }
