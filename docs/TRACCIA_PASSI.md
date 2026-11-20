@@ -175,9 +175,24 @@ identica); 6 = passi veri delle mascotte nella card (avanti, indietro, destra, s
 browser rotte da prima (`natpf-lob-drop` 136/137, `natpf-chi-serve` che si blocca, `natpf-registro-sensori` che non esce,
 `lan-e2e` rossa da prima del B8) e misura della saturazione dell'accelerazione sui registri del 18–19/11.
 
-- [~] Workflow `wf_d697e29c-598` (B73): cinque rami in worktree (`b73-registri` misure della direzione e della saturazione,
-      `b73-direzione` B36.1, `b73-mascotte`, `b73-prove-a` lob-drop e chi-serve, `b73-prove-b` registro-sensori e lan-e2e),
-      poi unione in `b73-int` (checkout principale), tre revisori + due scettici per rilievo, sistemazione, prove complete.
-      Documenti in `docs/b73/`. **Ripresa se si ferma**: `git branch --list 'b73-*'`, `git worktree list`; rilanciare il
-      workflow con `resumeFromRunId: 'wf_d697e29c-598'` (script in `.claude` della sessione) oppure unire a mano i rami pronti.
-      Poi: documenti vivi, versione nuova, push, pacchetti.
+- [x] Workflow `wf_d697e29c-598` (B73): cinque rami (`b73-registri`, `b73-direzione`, `b73-mascotte`, `b73-prove-a`,
+      `b73-prove-b`) uniti in `b73-int` senza conflitti; tre revisori + due scettici: sei rilievi confermati e corretti
+      (`docs/b73/unione.md` §7). Prove: gioco 1954/1954, sito 322/322, LAN 13/13, desktop 56/56, build ok, prove nel browser
+      tutte verdi (lob-drop **137/137**, chi-serve **64/64** e registro-sensori che ora finiscono da sole; `lan-e2e`
+      telefono, 1v1 e webcam 32/32). `natpf-stesso-schermo-b20`/`-b25` aggiornate a 20 pulsanti (voce nuova): 52/52 e 57/57;
+      `natpf-mascotte-3d-anteprima` 29/29 (prima si fermava per il disco pieno del contenitore).
+- Esiti per l'utente:
+  - **Direzione (4)**: voce «Direzione dei colpi» nel pannello dello stand, «Classica» di base = gioco identico; «Nuova»
+    interna, da non far provare. Misure del 18–19/11: la cima è imprecisa come a Torino (metà ±58°, 60% oltre 45°).
+    **Indizio**: il gioco legge gli assi del giroscopio di Chrome Android nell'ordine W3C (alpha = z) mentre Chrome manda
+    alpha = x; sui campioni veri del 28/10 l'ordine di Chrome torna molto meglio. Da verificare sul telefono dello stand.
+  - **Mascotte (6)**: passi veri nella card (piede d'appoggio fermo), «Quattro passi di festa» e «Passi indietro, a testa
+    bassa»; salti e trascinata camminano; nelle altre pose i piedi non scivolano più (prima fino a 66 cm per giro).
+  - **Tecnico**: piedi delle mascotte in campo che entravano nel terreno (gioco, corretto); risposte di rete mai lette che
+    dopo ~180 colpi bloccavano tutte le richieste della pagina (gioco, corretto, `natpf_fetch.js`); chi-serve e
+    registro-sensori sistemate nella prova; `lan-e2e` aggiornata al flusso di oggi. Saturazione dell'accelerazione: pesa
+    poco, nessuna correzione.
+- [~] Versione **2026-11-20.1** (quattro file), test veloci, push, CI, zip Cloudflare, consegna. **Ripresa se si ferma**:
+      `git log --oneline origin/natpf-simulator..`, test veloci, `git fetch`, push, `attesa-installer.sh 2026-11-20.1`.
+- Worker del registro: nessun campo nuovo nel B73 (`dir` e `nr` c'erano dal B36.0): basta il file della 19.1 (formato 4).
+- Non verificato: telefono vero, scheda grafica vera, programma Windows, ledwall; ordine degli assi sul telefono dello stand.
