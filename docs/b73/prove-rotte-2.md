@@ -86,7 +86,11 @@ webcam la racchetta non seguiva la mano.
    giroscopio integrato (`racketTiltFromRotation`). Oggi la racchetta segue il piatto (`racketTiltFromFace`, messaggi «fo»):
    asse X del telefono (piatto aperto/chiuso) → apertura della racchetta (roll), asse Y (manico) → imbardata, asse Z
    (normale allo schermo) → beccheggio. Misurato: X 64,0° di roll tra i due versi, Y 63,4° di imbardata, Z −15,9° / −15,7°
-   di beccheggio dalla presa di riposo.
+   di beccheggio dalla presa di riposo. **Corretto nella revisione del B73** (`docs/b73/unione.md` §7): queste misure sono
+   del telefono simulato che parte dritto (asse y verticale), una posa che non è la presa insegnata; lì il roll del piatto
+   perde il verso (vedi l'osservazione sotto) e la prova era stata cambiata per non guardarlo. Ora il telefono simulato parte
+   dalla presa insegnata «racchetta» e gli assi sono: X → imbardata, Y → apertura (roll), Z → beccheggio, tutti con il
+   verso.
 5. **Servizio**: dal B51 il telefono in partita è bloccato e i tocchi non lanciano; si lancia con il gesto (come
    `tools/e2e/natpf-servizio-lancio.mjs`) e si batte con un secondo gesto vicino al punto più alto. Il gesto arriva al motore
    come «swing» del telefono, che al servizio diventa il lancio.
@@ -135,19 +139,21 @@ webcam la racchetta non seguiva la mano.
    `registro/registro_invio.js` (la risposta del Worker non si leggeva: un invio = una richiesta aperta). Test:
    `test/natpf-fetch.test.mjs` (4: aiuto, registro, punti del gioco che lo usano).
 
-**Osservazione sul gioco (non corretta, da decidere):** il «roll» del piatto (`face-tracker.js`, rotazione attorno alla
-normale dello schermo) è `asin(y·alto) − 90°`: dice di quanto il manico si scosta dalla verticale, non da che parte. La
-racchetta in gioco (beccheggio = roll × 0,5) si inclina allo stesso modo ruotando il telefono a destra o a sinistra
-(misurato: −15,9° e −15,7°). Il codice lo chiama «solo presentazione»; con un roll con il segno (per esempio dall'asse x del
-telefono) la racchetta seguirebbe anche il verso. Non toccato: è il riconoscimento dei gesti (`fr` nei colpi e nel registro)
-e un altro ramo del B73 lavora sulla direzione.
+**Osservazione sul gioco (rivista nella revisione del B73, `docs/b73/unione.md` §7):** il «roll» del piatto
+(`face-tracker.js`, rotazione attorno alla normale dello schermo) è `asin(y·alto) − roll0`. Perde il verso **solo** quando a
+riposo l'asse y del telefono è verticale (telefono dritto: `asin` vicino a 90°), che era la posa del telefono simulato della
+prova, non la presa insegnata: lì la racchetta in gioco (beccheggio = roll × 0,5) si inclinava allo stesso modo nei due
+versi (−15,9° e −15,7°). Con la presa insegnata «racchetta» (`gripQuat`, gravità a riposo ≈ [0,86, 0,34, 0,37] negli assi
+del telefono) il verso c'è: in node ±30° → beccheggio −14,1° / +13,5°, nel browser polso −9,7° / +9,1°. Il gioco non è
+cambiato. Rendere il roll con il verso in ogni posa resta un miglioramento facoltativo, da decidere a parte (il campo `fr`
+va nei colpi e nel registro).
 
 ### 2.3 Cosa verifica adesso la prova
 
 | Parte | Verifiche | Cosa cambia rispetto a prima |
 | --- | --- | --- |
 | 1. server LAN | server in HTTPS con gli indirizzi di rete, gioco con `?lan=1` aggiunto dal server, `/lan/status` | pagina aperta con `?intro=0` |
-| 2. telefono | QR con l'IP di rete e `?lan=1`, trasporto `lan-webrtc`; telefono pronto (profilo semplice); **campioni**: più di 20 in 0,95 s per asse (il telefono ne manda 40 al secondo); **piatto** («fo») sul computer per tutti e tre gli assi; **racchetta**: X e Y tra i due versi > 4°, Z (inclinazione di lato) > 4° del polso dalla presa di riposo; **assi**: X → roll, Y → imbardata, Z → beccheggio; **servizio**: gesto → lancio, gesto vicino al punto più alto → battuta (scambio) | calibrazione «Giocando», telefono simulato nuovo, assi del piatto, servizio con due gesti, disegno WebGL tolto |
+| 2. telefono | QR con l'IP di rete e `?lan=1`, trasporto `lan-webrtc`; telefono pronto (profilo semplice); **campioni**: più di 20 in 0,95 s per asse (il telefono ne manda 40 al secondo); **piatto** («fo») sul computer per tutti e tre gli assi; **racchetta**: X e Y tra i due versi > 4°, Z (inclinazione di lato) > 4° del polso dalla presa di riposo **nei due versi, con segni opposti** (revisione del B73); **assi** (presa insegnata «racchetta», revisione del B73): X → imbardata, Y → apertura (roll), Z → beccheggio, sulla differenza fra i due versi; **servizio**: gesto → lancio, gesto vicino al punto più alto → battuta (scambio) | calibrazione «Giocando», telefono simulato nuovo, assi del piatto, servizio con due gesti, disegno WebGL tolto |
 | 3. 1v1 | link del P2 con l'IP di rete, P2 nella stanza; **richieste del relay chiuse** (al più 6 aperte per pagina); colpi del P2 all'host; scambio; punteggio sincronizzato | nuova la verifica delle richieste aperte |
 | 4. webcam (`?webcamMano=1`) | MediaPipe dal pacchetto locale con inferenza vera; poi landmark sintetici: racchetta a destra/sinistra, in alto/in basso, ruotata in terza e prima persona, niente colpi dai movimenti lenti; mano del personaggio; swing → colpo | disegno WebGL tolto; terza persona misurata nel campo (vedi §2.4); attesa della ripresa prima dello swing |
 | 5. corpo | Pose e Hands dal pacchetto locale; corpo sintetico → posizione in campo (P1, e P2 attraverso il relay) | tasto B al posto del pulsante (nascosto dal B17.3), tempo di gioco al posto di quello d'orologio, host della sfida con la racchetta di prova; **non verificabile qui** (§2.4) |
@@ -186,7 +192,10 @@ grafica.
 ### 2.5 Esito
 
 Giro finale (ramo `b73-prove-b` con la correzione del gioco, build rifatta), dalla cartella `natpf-tennis`:
-`ONLY=telefono,1v1,webcam … node test/e2e/lan-e2e.mjs` → **32/32**, uscita 0, 175 s.
+`ONLY=telefono,1v1,webcam … node test/e2e/lan-e2e.mjs` → **32/32**, uscita 0, 175 s. **Attenzione** (revisione del B73,
+`docs/b73/unione.md` §7): in quel giro la verifica dell'asse Z non guardava il verso; con il verso, sulla posa dritta di
+allora, la parte del telefono è 7/9 (polso −10,4° / −10,2°, stesso segno). Con il telefono simulato nella presa insegnata e
+il verso controllato: parte del telefono **9/9** (polso con Z −9,7° / +9,1°), `ONLY=telefono` 15/15.
 
 | Parte | Esito | Numeri |
 | --- | --- | --- |
@@ -238,4 +247,6 @@ questo documento.
   con una mano, solo dalla parte 5 e dai test in Node.
 - Disco del contenitore quasi pieno durante le prove (da 0 a ~390 MB liberi): non ho cancellato niente di altri; i crash
   della parte 1v1 sono stati ripetuti più volte anche per questo dubbio, prima di trovare la causa vera (§2.2 punto 7).
-- Il «roll» del piatto senza verso (§2.2, osservazione) non è corretto: da decidere.
+- Il «roll» del piatto senza verso con il telefono dritto (§2.2, osservazione): non è la presa insegnata e il gioco non è
+  cambiato; la prova ora parte dalla presa insegnata e controlla il verso (revisione del B73). Roll con il verso in ogni
+  posa: miglioramento facoltativo, da decidere.

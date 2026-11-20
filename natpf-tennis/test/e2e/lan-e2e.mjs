@@ -1,8 +1,9 @@
 // Prova nel browser della versione LAN di natpf-tennis, senza internet:
 //   1. server LAN vero (lan/server.mjs, HTTPS con certificato di prova) e nessuna richiesta fuori dal computer;
 //   2. telefono simulato (pagina NATPF /natpf/, PHONE_SIM: campioni devicemotion continui con la gravità che gira con il
-//      telefono) collegato con il trasporto LAN (?lan=1, segnalazione su /lan-signal, WebRTC diretto), pronto con la
-//      calibrazione di base «Giocando»: flusso dei sensori e piatto → racchetta, lancio e battuta con il gesto;
+//      telefono, tenuto con la presa insegnata «racchetta») collegato con il trasporto LAN (?lan=1, segnalazione su
+//      /lan-signal, WebRTC diretto), pronto con la calibrazione di base «Giocando»: flusso dei sensori e piatto →
+//      racchetta (con il verso, sui tre assi), lancio e battuta con il gesto;
 //   3. 1v1 tra due istanze (host P1 e P2) attraverso il relay del server LAN, con il link di invito con l'IP di rete, e le
 //      richieste del relay che si chiudono (B73: risposte lette, src/natpf/natpf_fetch.js);
 //   4. webcam con lo stream finto di Chrome: MediaPipe Hands caricato dal pacchetto locale e inferenza offline,
@@ -19,8 +20,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { register } from 'node:module';
 import { chromium } from '../../../tools/e2e/node_modules/playwright-core/index.mjs';
 import { seeAllCards } from '../../../tools/e2e/th.mjs';
+// (i moduli del gioco usano gli alias del pacchetto, come nelle prove in node: test/register.mjs)
+register('../alias-hooks.mjs', import.meta.url);
+const { gripQuat } = await import('../../src/natpf/natpf_gesture_pose.js');
+const { GRIP_STYLE } = await import('../../src/natpf/natpf_gesture_motion.js');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = process.env.OUT || path.join(os.tmpdir(), 'natpf-tennis-lan-e2e');
@@ -40,11 +46,15 @@ const CHROME = process.env.CHROMIUM_PATH || ['C:/Program Files/Google/Chrome/App
 // diceva «Sensori fermi») e gravità sempre lungo y, anche con il telefono ruotato di 30°: il piatto del telefono
 // (face-tracker.js, filtro con la gravità) tornava indietro da solo e la racchetta non seguiva le rotazioni attorno a x e z.
 // __sim.run(fn, ms): fn(u) con u da 0 a 1 → { w: [x, y, z] °/s negli assi del telefono, a: [x, y, z] m/s² senza gravità }
-const PHONE_SIM = () => {
+// q0: orientamento di partenza (telefono → mondo), la presa insegnata (revisione del B73, docs/b73/unione.md §7). Prima il
+// telefono partiva dritto (q identità: asse y del telefono verticale), una posa che non è la presa insegnata e in cui il
+// «roll» del piatto (face-tracker.js, asin dell'asse y sull'alto) perde il verso: la prova aveva tolto il controllo del verso
+// sull'asse Z per passare. Con la presa «racchetta» il verso c'è, e la prova lo controlla di nuovo
+const PHONE_SIM = (q0) => {
   const G = 9.81, D = Math.PI/180;
   const mul = (a, b) => [a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1], a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0], a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3], a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]];
   const conj = q => [-q[0], -q[1], -q[2], q[3]], turn = (q, v) => mul(mul(q, [v[0], v[1], v[2], 0]), conj(q)).slice(0, 3);
-  let q = [0, 0, 0, 1], last = performance.now(), drive = null;      // telefono → mondo (mondo = presa di riposo, dritto)
+  let q = Array.isArray(q0) ? q0.slice() : [0, 0, 0, 1], last = performance.now(), drive = null;      // telefono → mondo
   window.__sim = {
     run(fn, ms){ return new Promise(r => { const t0 = performance.now(); drive = now => { const u = Math.min(1, (now - t0)/ms); if (u >= 1){ drive = null; r(); } return fn(u); }; }); },
     still(ms){ return this.run(() => ({ w: [0, 0, 0] }), ms); },
@@ -154,7 +164,8 @@ try {
     const phoneCtx = await newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36' });
     const phone = await phoneCtx.newPage();
     phone.on('pageerror', e => errors.push(`telefono: ${e.message}`));
-    await phone.addInitScript(PHONE_SIM);
+    // presa di partenza: quella insegnata (GRIP_STYLE «racchetta», natpf_gesture_pose.gripQuat), come il telefono vero
+    await phone.addInitScript(PHONE_SIM, gripQuat(GRIP_STYLE));
     await phone.goto(pairing.url);
     await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
     await phone.click('#enable');
@@ -198,19 +209,20 @@ try {
     console.log('telefono → racchetta', JSON.stringify(mapping));
     check('flusso dei sensori LAN: campioni continui arrivano al computer (più di 20 in 0,95 s; il telefono ne manda 40 al secondo)', Object.values(mapping).every(m => m.samples > 20), `campioni: ${mapping.X.samples}, ${mapping.Y.samples}, ${mapping.Z.samples}`);
     check('orientamento del piatto dal telefono (messaggi «fo») sul computer: la racchetta segue il telefono', Object.values(mapping).every(m => m.ext === 'natpf-phone' && m.face), JSON.stringify(Object.fromEntries(Object.entries(mapping).map(([k, m]) => [k, [m.ext, m.face]]))));
-    // presa verticale (manico nel palmo, B3): la racchetta segue il piatto (natpf_phone_racket.racketTiltFromFace). Asse X
-    // del telefono = piatto aperto/chiuso → apertura (roll) della racchetta; asse Y (manico) = piatto girato → imbardata;
-    // asse Z (normale allo schermo) = telefono inclinato di lato → beccheggio. Il verso dell'inclinazione attorno a Z il
-    // telefono non lo manda (face-tracker.js: roll = di quanto il manico si scosta dalla verticale, «solo presentazione»):
-    // la racchetta si inclina allo stesso modo nei due versi, quindi per Z si guarda di quanto il polso della racchetta
-    // (racket_kinematics: wristSpringEuler.x = 0,65 × beccheggio) si scosta dalla presa di riposo in ciascun verso. (Lo
-    // scarto del pivot della racchetta dalla presa di riposo comprende anche il dondolio d'attesa del personaggio: 3–9°
-    // da un giro all'altro, non è una misura del telefono)
-    check('la racchetta virtuale segue il piatto del telefono: X e Y nei due versi, Z (inclinazione di lato) dalla presa di riposo', mapping.X.racketDeg > 4 && mapping.Y.racketDeg > 4 && Math.abs(mapping.Z.wristPlus[0]) > 4 && Math.abs(mapping.Z.wristMinus[0]) > 4,
+    // presa insegnata «racchetta» (GRIP_STYLE): la racchetta segue il piatto (natpf_phone_racket.racketTiltFromFace) nei
+    // due versi su tutti e tre gli assi. Per Z (normale allo schermo) si guarda il polso della racchetta (racket_kinematics:
+    // wristSpringEuler.x = 0,65 × beccheggio) dalla presa di riposo in ciascun verso, con il segno: il pivot della racchetta
+    // comprende anche il dondolio d'attesa del personaggio (3–9° da un giro all'altro, non è una misura del telefono).
+    // (Revisione del B73: con il telefono dritto, la posa di prima, il roll del piatto perde il verso e la racchetta si
+    // inclinava allo stesso modo nei due versi, −10,4° e −10,2° di polso; la prova era stata cambiata per non guardare il
+    // segno. Con la presa insegnata il verso c'è: misurato in node −14,1° / +13,5° di beccheggio per ±30°)
+    check('la racchetta virtuale segue il piatto del telefono: X e Y nei due versi, Z (inclinazione di lato) da una parte e dall’altra', mapping.X.racketDeg > 4 && mapping.Y.racketDeg > 4 && Math.abs(mapping.Z.wristPlus[0]) > 4 && Math.abs(mapping.Z.wristMinus[0]) > 4 && Math.sign(mapping.Z.wristPlus[0]) !== Math.sign(mapping.Z.wristMinus[0]),
       `racchetta tra i due versi: X ${mapping.X.racketDeg}°, Y ${mapping.Y.racketDeg}° (Z ${mapping.Z.racketDeg}°); polso con Z dalla presa di riposo: ${mapping.Z.wristPlus[0]}° e ${mapping.Z.wristMinus[0]}°`);
     const dominant = (v, i) => Math.abs(v[i]) > Math.abs(v[(i + 1) % 3]) && Math.abs(v[i]) > Math.abs(v[(i + 2) % 3]);
-    check('presa verticale: asse X del telefono → apertura del piatto (roll), asse Y (manico) → imbardata, asse Z (normale allo schermo) → beccheggio', dominant(mapping.X.tilt, 1) && dominant(mapping.Y.tilt, 2) && dominant(mapping.Z.tiltPlus, 0) && dominant(mapping.Z.tiltMinus, 0),
-      JSON.stringify({ X: mapping.X.tilt, Y: mapping.Y.tilt, Z: [mapping.Z.tiltPlus, mapping.Z.tiltMinus] }));
+    // (differenza fra il verso + e il verso −; con questa presa, in node: X imbardata ∓23,7°, Y apertura ∓27,4/28,4°, Z
+    // beccheggio ∓14,1/13,5° con 10,3° di imbardata)
+    check('presa «racchetta»: asse X del telefono → imbardata, asse Y → apertura del piatto (roll), asse Z (normale allo schermo) → beccheggio', dominant(mapping.X.tilt, 2) && dominant(mapping.Y.tilt, 1) && dominant(mapping.Z.tilt, 0),
+      JSON.stringify({ X: mapping.X.tilt, Y: mapping.Y.tilt, Z: mapping.Z.tilt, Zversi: [mapping.Z.tiltPlus, mapping.Z.tiltMinus] }));
     // la rotazione del polso si somma alle animazioni del motore base (attesa, servizio della CPU): solo informativa
     console.log('rotazione del polso per asse del telefono (info)', JSON.stringify({ X: mapping.X.wrist, Y: mapping.Y.wrist, Z: mapping.Z.wrist }));
     // (schermata: un fotogramma disegnato davvero, poi di nuovo senza disegno)
