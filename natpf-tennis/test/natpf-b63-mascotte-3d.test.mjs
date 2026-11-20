@@ -6,6 +6,7 @@
 // delle mascotte in test/natpf-b67-mascotte-pose.test.mjs).
 // B69: approvate dall'utente, accese di base (con Lob e Drop in campo) e con sei balletti di vittoria e due sconfitte in
 // più: 10 di vittoria e 5 di sconfitta (test/natpf-b69-balletti.test.mjs).
+// B73: passi veri (test/natpf-b73-passi-mascotte.test.mjs) e due movimenti nuovi: 11 di vittoria e 6 di sconfitta.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -17,9 +18,9 @@ import { playFrame } from '../src/natpf/natpf_ritratti.js';
 const memory = (init = {}) => { const m = new Map(Object.entries(init)); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), map: m }; };
 const ALL = [...CARD_MOVES.win, ...CARD_MOVES.lose];
 
-test('B63/B67/B69: quindici movimenti, dieci di vittoria e cinque di sconfitta, con la reazione del corpo giusta', () => {
-  assert.deepEqual(CARD_MOVES.win.map(m => m.id), ['win-salti', 'win-giro', 'win-sei', 'win-aura', 'win-robot', 'win-disco', 'win-corsa', 'win-incrocio', 'win-pendolo', 'win-tetto']);
-  assert.deepEqual(CARD_MOVES.lose.map(m => m.id), ['lose-trascina', 'lose-sospiro', 'lose-lacrima', 'lose-sasso', 'lose-capriccio']);
+test('B63/B67/B69/B73: diciassette movimenti, undici di vittoria e sei di sconfitta, con la reazione del corpo giusta', () => {
+  assert.deepEqual(CARD_MOVES.win.map(m => m.id), ['win-salti', 'win-giro', 'win-sei', 'win-aura', 'win-robot', 'win-disco', 'win-corsa', 'win-incrocio', 'win-pendolo', 'win-tetto', 'win-passi']);
+  assert.deepEqual(CARD_MOVES.lose.map(m => m.id), ['lose-trascina', 'lose-sospiro', 'lose-lacrima', 'lose-sasso', 'lose-capriccio', 'lose-indietro']);
   assert.ok(CARD_MOVES.win.every(m => m.base === 'cheer'));
   assert.ok(CARD_MOVES.lose.every(m => m.base === 'sad'));
   assert.equal(cardMove('win-giro').name, 'Giravolta'); assert.equal(cardMove('win-sei').name, 'Sei-sette'); assert.equal(cardMove('x'), null);
@@ -53,7 +54,7 @@ test('B63: scelta a caso tra quelli dell\'esito, mai quello della partita prima 
     assert.notEqual(w.id, lastW); assert.notEqual(l.id, lastL);
     lastW = w.id; lastL = l.id; seen.add(w.id); seen.add(l.id);
   }
-  assert.equal(seen.size, 15);
+  assert.equal(seen.size, 17);
   assert.deepEqual(JSON.parse(st.map.get(CARD_MOVES_LAST)), { win: lastW, lose: lastL });
   assert.ok(CARD_MOVES.lose.includes(pickCardMove('pari', { storage: memory({ [CARD_MOVES_LAST]: '{rotto' }), rnd: () => 0 })), 'stato rovinato: si sceglie lo stesso');
 });
@@ -75,7 +76,8 @@ test('B63: il personaggio si sposta nel riferimento di chi guarda e torna esatta
   const m = cardMove('win-aura'), o = applyCardMove(actor, m, CARD_LOOP*0.5, base, -1);
   assert.ok(Math.abs(root.position.z - (11 - o.fwd)) < 1e-9 && o.fwd > 0.03, 'avanti verso chi guarda');
   assert.ok(actor.natpfCardPose?.move === m && Math.abs(actor.natpfCardPose.u - 0.5) < 1e-9, 'B67: la posa della mascotte 3D per natpf_character');
-  const s = cardMove('win-salti'), o2 = applyCardMove(actor, s, CARD_LOOP*0.25, base, -1);
+  // (B73: i salti di lato sono passi veri: a metà giro, dopo due passi a destra, il personaggio è 24 cm più in là)
+  const s = cardMove('win-salti'), o2 = applyCardMove(actor, s, CARD_LOOP*0.5, base, -1);
   assert.ok(Math.abs(root.position.x - (1 - o2.right)) < 1e-9 && o2.right > 0.2, 'a destra di chi guarda');
   assert.ok(rig.footLPivot.position.y >= .05 && rig.footRPivot.position.y >= .05);
   const l = cardMove('lose-trascina'); applyCardMove(actor, l, CARD_LOOP*0.5, base, -1);

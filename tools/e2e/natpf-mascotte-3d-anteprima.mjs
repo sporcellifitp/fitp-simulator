@@ -1,8 +1,9 @@
 // NATPF B63/B67/B69 · anteprima delle mascotte 3D con le animazioni della card (natpf_card_moves.js e natpf_card_balli.js;
 // dal B69 accese di base con Lob & Drop). Serve all'utente per vedere i movimenti. Fa, nella cartella OUT:
 //   · i fogli veri della card (foglio-<movimento>-<lato>.png): due partite dello stesso schermo con Lob & Drop, una vinta
-//     da Drop (Player 1) e una da Lob, dieci giri ciascuna con un movimento diverso per esito (10 di vittoria, 5 di
-//     sconfitta): così ogni mascotte fa tutti e quindici i movimenti;
+//     da Drop (Player 1) e una da Lob, undici giri ciascuna con un movimento diverso per esito (11 di vittoria, 6 di
+//     sconfitta; B73: più «Quattro passi di festa» e «Passi indietro, a testa bassa»): così ogni mascotte fa tutti e
+//     diciassette i movimenti;
 //   · griglia/NN.png e griglia.webp: la griglia animata (vittorie in alto, sconfitte in basso, una riga per Drop e una per
 //     Lob; WebP con ffmpeg se c'è, altrimenti solo i fotogrammi);
 //   · grande-<movimento>-<lato>-<k>.png: qualche fotogramma singolo grande (520 × 650) con la stessa camera della card;
@@ -22,8 +23,8 @@ const vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vit
 process.on('exit', () => { try { vite.kill(); } catch {} });
 for (let i = 0; i < 120; i++){ const ok = await new Promise(r => http.get(`http://127.0.0.1:${PORT}/`, res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false))); if (ok) break; await sleep(500); }
 const png = (file, url) => writeFileSync(file, Buffer.from(url.split(',')[1], 'base64'));
-const WIN = ['win-salti', 'win-giro', 'win-sei', 'win-aura', 'win-robot', 'win-disco', 'win-corsa', 'win-incrocio', 'win-pendolo', 'win-tetto'];
-const LOSE = ['lose-trascina', 'lose-sospiro', 'lose-lacrima', 'lose-sasso', 'lose-capriccio'];
+const WIN = ['win-salti', 'win-giro', 'win-sei', 'win-aura', 'win-robot', 'win-disco', 'win-corsa', 'win-incrocio', 'win-pendolo', 'win-tetto', 'win-passi'];
+const LOSE = ['lose-trascina', 'lose-sospiro', 'lose-lacrima', 'lose-sasso', 'lose-capriccio', 'lose-indietro'];
 const ROUNDS = WIN.length;
 
 // pagina del gioco con Lob & Drop e l'interruttore acceso, partita dello stesso schermo finita (vince chi si dice)
@@ -67,11 +68,11 @@ try {
     }
   }
   const want = [...WIN, ...LOSE].flatMap(m => ['player', 'opponent'].map(s => `${m}:${s}`));
-  check('ogni mascotte ha fatto i quindici movimenti', want.every(k => seen[k]), want.filter(k => !seen[k]).join(' '));
+  check('ogni mascotte ha fatto i diciassette movimenti', want.every(k => seen[k]), want.filter(k => !seen[k]).join(' '));
   const ms = logs.map(l => l?.ms || 0);
   console.log(`   cattura: ${ms.join(', ')} ms (programmi shader nuovi: ${logs.map(l => l?.programmi).join(', ')})`);
 
-  // griglia animata: vittorie (10 colonne) e sotto le sconfitte (5), una riga per Drop (player) e una per Lob (opponent)
+  // griglia animata: vittorie (11 colonne) e sotto le sconfitte (5), una riga per Drop (player) e una per Lob (opponent)
   const frames = await g.evaluate(async ({ cols }) => {
     const { cardMove } = await import('/src/natpf/natpf_card_moves.js');
     return { cols: cols.map(id => ({ id, name: cardMove(id).name })) };
@@ -82,7 +83,7 @@ try {
   const grid = await g.evaluate(async ({ cols, sheetData }) => {
     const load = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
     const img = {}; for (const [k, v] of Object.entries(sheetData)) img[k] = await load(v);
-    const cw = 168, ch = 210, top = 40, lab = 22, K = 24, fw = 256, fh = 320, N = 10;
+    const cw = 168, ch = 210, top = 40, lab = 22, K = 24, fw = 256, fh = 320, N = 11;
     const blocks = [cols.filter(c => c.id.startsWith('win')), cols.filter(c => c.id.startsWith('lose'))];
     const bh = top + 2*(lab + ch);
     const c = document.createElement('canvas'); c.width = N*cw; c.height = 2*bh; const x = c.getContext('2d');

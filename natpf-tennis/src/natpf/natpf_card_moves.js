@@ -12,8 +12,14 @@
 // Windows e nel gioco web; con i «Classici» niente cambia (GIF del B58 nel programma Windows, ritratti dei tennisti nel
 // web). Si spegne con ?mascotte3d=0 o localStorage natpf-tennis.mascotte3d = '0' (ritorno alle GIF o ai ritratti).
 // Sei balletti di vittoria e due sconfitte in più (natpf_card_balli.js, docs/b69/balletti-mascotte.md).
+// B73 (richiesta dell'utente del 16/11 ripresa il 20/11: «migliorare le movenze con i piedi: avanti, indietro, destra e
+// sinistra», «falli»): PASSI VERI (natpf_card_passi.js, docs/b73/passi-mascotte.md). I piedi della mascotte sono sempre
+// quelli della posa (mai più quelli del tennista che salta sotto) e, dove il personaggio si sposta, fermi nel mondo
+// (riferimento del suolo): il piede a terra non scivola. Salti di gioia e trascinata camminano davvero di lato; due
+// movimenti nuovi: «Quattro passi di festa» (avanti, destra, indietro, sinistra) e «Passi indietro, a testa bassa».
 import { CHEER_PERIOD } from '../player_body_animation.js';
 import { DANCE_MOVES } from './natpf_card_balli.js';
+import { PLANTED, PLAN_FESTA, PLAN_SALTI, PLAN_TRASCINA, PLAN_INDIETRO, stepsMotion, stepsLegs } from './natpf_card_passi.js';
 
 export const CARD_LOOP = 3*CHEER_PERIOD;
 export const CARD_MOVES_KEY = 'natpf-tennis.mascotte3d';
@@ -24,8 +30,6 @@ export const CARD_K = 24, CARD_K_LOW = 12;
 const TAU = 2*Math.PI;
 const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
 const ss = (a, b, v) => { const t = clamp01((v - a)/(b - a)); return t*t*(3 - 2*t); };
-// passo: un piede si alza mentre il corpo si sposta (lift ≥ 0), l'altro dopo
-const steps = (s, h) => ({ footL: h*Math.max(0, Math.sin(s)), footR: h*Math.max(0, -Math.sin(s)) });
 
 // Movimenti: base = reazione del corpo del tennista (i personaggi «Classici», che fanno solo questa); at(u) con u in
 // [0, 1) dà lo spostamento di tutto il personaggio nel riferimento di chi guarda (right: verso la destra di chi guarda la
@@ -47,25 +51,30 @@ const CAM_LOW = -0.04;
 const RACKET_UP = (lift, sway) => ({ at: [-0.31, 0.16 + lift, 0.07], dir: [-0.4, 1, 0.1 + sway], palm: [0.1, 0, 1] });
 export const CARD_MOVES = Object.freeze({
   win: Object.freeze([
+    // (B73: passi saltellati veri, due a destra e due a sinistra: il piede che va si posa più in là, l'altro lo raggiunge;
+    // prima tutto il personaggio scivolava di 48 cm con i piedi quasi sempre in aria)
     Object.freeze({ id: 'win-salti', name: 'Salti di gioia e passi di lato', base: 'cheer',
-      at: u => { const s = TAU*u; return { right: 0.24*Math.sin(s), fwd: 0, up: 0.05*Math.abs(Math.sin(3*s)), yaw: 0.18*Math.sin(s), ...steps(2*s, 0.07) }; },
-      mascot: u => { const s = TAU*u, b = Math.abs(Math.sin(3*s)), w = Math.sin(3*s);
-        return { hips: { pitch: -0.05, roll: 0.05*Math.sin(s) }, spine: { pitch: -0.08 }, head: { pitch: -0.16, roll: 0.08*w },
-          racket: RACKET_UP(0.04*b, 0.15*w), free: { at: [0.3, 0.14 + 0.06*b, 0.08], palm: [0, 0.2, 1], fingers: [0.25 + 0.2*w, 1, 0] } }; } }),
+      at: u => stepsMotion(PLAN_SALTI, u),
+      mascot: u => { const L = stepsLegs(PLAN_SALTI, u), S = L.state, b = S.air ? Math.sin(Math.PI*S.t) : 0, w = Math.sin(4*TAU*u);
+        return { hips: { x: L.hipsX, y: L.hipsY - 0.018*(1 - b), pitch: -0.05 + 0.04*(1 - b), roll: 0.05*Math.sin(TAU*u) }, spine: { pitch: -0.08 }, head: { pitch: -0.16, roll: 0.08*w },
+          racket: RACKET_UP(0.04*b, 0.15*w), free: { at: [0.3, 0.14 + 0.06*b, 0.08], palm: [0, 0.2, 1], fingers: [0.25 + 0.2*w, 1, 0] }, legs: L.legs }; } }),
+    // (B73: la giravolta solo con i piedi staccati da terra, piedi raccolti nel salto; prima girava e andava avanti anche
+    // con i piedi a terra)
     Object.freeze({ id: 'win-giro', name: 'Giravolta', base: 'cheer',
-      at: u => { const t = ss(0.15, 0.7, u); return { right: 0, fwd: 0.06*Math.sin(TAU*u), up: 0.12*Math.sin(Math.PI*t), yaw: TAU*t, footL: 0.05*Math.sin(Math.PI*t), footR: 0.05*Math.sin(Math.PI*t) }; },
+      at: u => { const j = Math.sin(Math.PI*ss(0.15, 0.7, u)); return { right: 0, fwd: 0.06*j, up: 0.12*j, yaw: TAU*ss(0.24, 0.62, u), footL: 0.05*j, footR: 0.05*j }; },
       mascot: u => { const up = Math.sin(Math.PI*ss(0.15, 0.7, u));
         return { hips: { pitch: -0.04 }, spine: { pitch: -0.06 }, head: { pitch: -0.12 }, racket: RACKET_UP(0.03*up, 0),
-          free: { at: [0.33, 0.02 + 0.1*up, 0.05], palm: [0, -0.3, 1], fingers: [1, 0.3, 0] } }; } }),
+          free: { at: [0.33, 0.02 + 0.1*up, 0.05], palm: [0, -0.3, 1], fingers: [1, 0.3, 0] }, legs: { a: [0, 0.03*up, 0], b: [0, 0.03*up, 0] } }; } }),
     // «Sei-sette»: le due mani aperte, palmi in su, che salgono e scendono alternate davanti alla pancia come i piatti di
     // una bilancia (tre volte per giro), la testa che ondeggia a tempo; la racchetta appoggiata alla gamba, la testa a terra
     Object.freeze({ id: 'win-sei', name: 'Sei-sette', base: 'cheer',
-      at: u => { const s = TAU*u; return { right: 0.03*Math.sin(s), fwd: 0, up: 0.015*Math.abs(Math.sin(3*s)), yaw: 0.1*Math.sin(s), footL: 0, footR: 0 }; },
+      // (B73: i piedi fermi a terra, il molleggio nel bacino invece che in tutto il personaggio)
+      at: u => { const s = TAU*u; return { right: 0.03*Math.sin(s), fwd: 0, up: 0, yaw: 0.1*Math.sin(s), footL: 0, footR: 0 }; },
       mascot: (u, rig) => { const s = TAU*u, w = Math.sin(3*s), hy = rig?.hips?.wp?.y ?? 0.37, k = rig?.racketReach ?? 0.5, dy = 0.94;
-        return { spine: { pitch: 0.04, roll: 0.06*w }, head: { pitch: -0.04, roll: 0.16*w, yaw: 0.12*Math.sin(s) },
+        return { hips: { y: 0.0094*Math.abs(w) }, spine: { pitch: 0.04, roll: 0.06*w }, head: { pitch: -0.04, roll: 0.16*w, yaw: 0.12*Math.sin(s) },
           racket: { at: [-0.21, -0.1 + 0.08*w, 0.19], palm: [-0.15, 1, 0], fingers: [-0.3, 0, 1] },
           free: { at: [0.21, -0.1 - 0.08*w, 0.19], palm: [0.15, 1, 0], fingers: [0.3, 0, 1] },
-          rest: { at: [-0.23, k*dy + 0.012 - hy, -0.02], dir: [-0.35, -1, 0.05], face: [0.15, 0, 1] } }; } }),
+          rest: { at: [-0.23, k*dy + 0.012 - hy, -0.02], dir: [-0.35, -1, 0.05], face: [0.15, 0, 1] }, legs: PLANTED }; } }),
     // «Aura»: petto in fuori e mento alto, la racchetta piantata a terra come una spada con la mano sopra il manico e
     // l'altra mano sul fianco, un giro lento e deciso verso chi guarda; intorno un alone con le fiammelle (natpf_card_fx.js)
     Object.freeze({ id: 'win-aura', name: 'Aura', base: 'cheer', fx: 'aura',
@@ -73,34 +82,53 @@ export const CARD_MOVES = Object.freeze({
       mascot: (u, rig) => { const s = TAU*u, nod = (1 - Math.cos(2*s))/2, sy = rig?.spine?.wp?.y ?? 0.5, k = rig?.racketReach ?? 0.5;
         return { hips: { pitch: -0.06 }, spine: { pitch: -0.12 }, head: { pitch: -0.2 - 0.07*nod, yaw: 0.16*Math.sin(s) },
           racket: { frame: 'level', at: [-0.27, k + 0.02 - sy, 0.13], dir: [-0.12, -1, 0.06], palm: [0.4, 0, 1] },
-          free: { at: [0.22, -0.26, 0.04], palm: [-1, 0, 0.2], fingers: [0.1, -1, 0.25], pole: [1, 0.1, -0.4] } }; } }),
+          free: { at: [0.22, -0.26, 0.04], palm: [-1, 0, 0.2], fingers: [0.1, -1, 0.25], pole: [1, 0.1, -0.4] }, legs: PLANTED }; } }),
     // B69: i balletti (robot, disco con il dab, corsa all'indietro, passi incrociati, braccia a pendolo, su il soffitto)
     ...DANCE_MOVES.win,
+    // B73 · «Quattro passi di festa»: due passi avanti (verso chi guarda), due a destra, due indietro, due a sinistra, la
+    // racchetta alzata che pompa a ogni passo e l'altra mano che saluta; il personaggio disegna un quadrato e torna
+    Object.freeze({ id: 'win-passi', name: 'Quattro passi di festa', base: 'cheer', walk: true,
+      at: u => stepsMotion(PLAN_FESTA, u),
+      mascot: u => { const L = stepsLegs(PLAN_FESTA, u), S = L.state, b = S.air ? Math.sin(Math.PI*S.t) : 0, w = Math.sin(2*TAU*u);
+        return { hips: { x: L.hipsX, y: L.hipsY - 0.01*(1 - b), pitch: -0.03 }, spine: { pitch: -0.06, roll: -0.6*L.hipsX }, head: { pitch: -0.14, roll: 0.07*w },
+          racket: RACKET_UP(0.035*b, 0.12*w), free: { at: [0.3, 0.12 + 0.05*b, 0.08], palm: [0, 0.2, 1], fingers: [0.25 + 0.2*w, 1, 0] }, legs: L.legs }; } }),
   ]),
   lose: Object.freeze([
     // tutte con la faccia triste (natpf_mascot_face.js), la testa bassa e le spalle che cadono
+    // (B73: passi lenti veri di lato, due a destra e due a sinistra, il piede appena staccato da terra; prima tutto il
+    // personaggio scivolava di 28 cm con i piedi a terra, 35 cm di scivolata per giro)
     Object.freeze({ id: 'lose-trascina', camUp: CAM_LOW, name: 'Testa bassa, racchetta trascinata', base: 'sad',
-      at: u => { const s = TAU*u; return { right: 0.14*Math.sin(s), fwd: -0.03, up: 0, yaw: -0.18*Math.sin(s), pitch: 0.04, ...steps(2*s, 0.04) }; },
-      mascot: (u, rig) => { const s = TAU*u, hp = HEAD_DOWN(rig), l = LEAN(rig);
-        return { hips: { pitch: 0.08*l, y: -0.015 }, spine: { pitch: 0.24*l, roll: 0.05*Math.sin(2*s) }, head: { pitch: hp, roll: 0.14*Math.sin(s) },
+      at: u => stepsMotion(PLAN_TRASCINA, u, () => ({ yaw: -0.12*Math.sin(TAU*u), pitch: 0.04 })),
+      mascot: (u, rig) => { const s = TAU*u, hp = HEAD_DOWN(rig), l = LEAN(rig), L = stepsLegs(PLAN_TRASCINA, u);
+        return { hips: { pitch: 0.08*l, x: L.hipsX, y: -0.015 }, spine: { pitch: 0.24*l, roll: 0.05*Math.sin(2*s) }, head: { pitch: hp, roll: 0.14*Math.sin(s) },
           racket: { frame: 'level', at: [-0.2, -0.28, -0.04], dir: [-0.8, 0, -0.45], ground: true, drop: 0.3 },
-          free: { frame: 'level', at: [0.18, -0.29, 0.03], palm: [-1, 0, 0], fingers: [0.1, -1, 0.1], drop: 0.3 }, face: 'sad' }; } }),
+          free: { frame: 'level', at: [0.18, -0.29, 0.03], palm: [-1, 0, 0], fingers: [0.1, -1, 0.1], drop: 0.3 }, face: 'sad', legs: L.legs }; } }),
     // un grande sospiro: si gonfia (spalle su, testa su) e si affloscia, poi resta giù; sopra la testa una nuvoletta
+    // (B73: i piedi fermi a terra, il sospiro che solleva il bacino invece di tutto il personaggio)
     Object.freeze({ id: 'lose-sospiro', camUp: CAM_LOW, name: 'Sospiro, con la nuvoletta', base: 'sad', fx: 'nuvola',
-      at: u => { const r = bump(u, 0.05, 0.3, 0.52); return { right: 0, fwd: 0, up: 0.02*r, yaw: 0.08*Math.sin(TAU*u), footL: 0, footR: 0 }; },
+      at: u => ({ right: 0, fwd: 0, up: 0, yaw: 0.08*Math.sin(TAU*u), footL: 0, footR: 0 }),
       mascot: (u, rig) => { const r = bump(u, 0.05, 0.3, 0.52), hp = HEAD_DOWN(rig), l = LEAN(rig);
-        return { hips: { pitch: (0.1 - 0.12*r)*l, y: -0.02 + 0.02*r }, spine: { pitch: (0.26 - 0.32*r)*l }, head: { pitch: hp - (hp + 0.12)*r, roll: 0.1*(1 - r) },
+        return { hips: { pitch: (0.1 - 0.12*r)*l, y: -0.02 + 0.0325*r }, spine: { pitch: (0.26 - 0.32*r)*l }, head: { pitch: hp - (hp + 0.12)*r, roll: 0.1*(1 - r) },
           racket: { frame: 'level', at: [-0.2, -0.28 + 0.04*r, 0.06], dir: [-0.5, 0, 0.85], ground: true, drop: 0.38 - 0.5*r },
-          free: { frame: 'level', at: [0.19, -0.29 + 0.04*r, 0.04], palm: [-1, 0, 0], fingers: [0, -1, 0.1], drop: 0.38 - 0.5*r }, face: 'sad' }; } }),
+          free: { frame: 'level', at: [0.19, -0.29 + 0.04*r, 0.04], palm: [-1, 0, 0], fingers: [0, -1, 0.1], drop: 0.38 - 0.5*r }, face: 'sad', legs: PLANTED }; } }),
     // si asciuga una lacrima con la mano libera (tre volte per giro), a singhiozzi; la racchetta a terra
+    // (B73: i piedi fermi a terra, i singhiozzi nel bacino)
     Object.freeze({ id: 'lose-lacrima', camUp: CAM_LOW, name: 'Si asciuga una lacrima', base: 'sad',
-      at: u => { const s = TAU*u; return { right: 0.03*Math.sin(s), fwd: 0, up: 0.012*Math.abs(Math.sin(3*s)), yaw: 0.12*Math.sin(s), footL: 0, footR: 0 }; },
+      at: u => { const s = TAU*u; return { right: 0.03*Math.sin(s), fwd: 0, up: 0, yaw: 0.12*Math.sin(s), footL: 0, footR: 0 }; },
       mascot: (u, rig) => { const s = TAU*u, w = Math.sin(3*s), sob = Math.abs(Math.sin(3*s)), hp = HEAD_DOWN(rig), l = LEAN(rig);
-        return { hips: { pitch: 0.08*l }, spine: { pitch: (0.16 + 0.03*sob)*l, roll: -0.05 }, head: { pitch: 0.7*hp, roll: -0.14 },
+        return { hips: { pitch: 0.08*l, y: 0.0075*sob }, spine: { pitch: (0.16 + 0.03*sob)*l, roll: -0.05 }, head: { pitch: 0.7*hp, roll: -0.14 },
           racket: { frame: 'level', at: [-0.2, -0.29, 0.03], dir: [-0.45, 0, 0.9], ground: true, drop: 0.25 },
-          free: { frame: 'head', at: [0.17 + 0.025*w, 0.05 + 0.015*w, 0.25], palm: [-0.3, 0, -1], fingers: [-0.45, 1, 0], drop: 0.05*sob }, face: 'sad' }; } }),
+          free: { frame: 'head', at: [0.17 + 0.025*w, 0.05 + 0.015*w, 0.25], palm: [-0.3, 0, -1], fingers: [-0.45, 1, 0], drop: 0.05*sob }, face: 'sad', legs: PLANTED }; } }),
     // B69: calcia un sassolino, capriccio
     ...DANCE_MOVES.lose,
+    // B73 · «Passi indietro, a testa bassa»: due passi lenti indietro (lontano da chi guarda) e due avanti per tornare,
+    // spalle cadenti, la racchetta che pende con la punta a terra
+    Object.freeze({ id: 'lose-indietro', camUp: CAM_LOW, name: 'Passi indietro, a testa bassa', base: 'sad', walk: true,
+      at: u => stepsMotion(PLAN_INDIETRO, u, () => ({ yaw: 0.08*Math.sin(TAU*u), pitch: 0.03 })),
+      mascot: (u, rig) => { const s = TAU*u, hp = HEAD_DOWN(rig), l = LEAN(rig), L = stepsLegs(PLAN_INDIETRO, u), b = L.state.air ? Math.sin(Math.PI*L.state.t) : 0;
+        return { hips: { pitch: 0.07*l, x: L.hipsX, y: -0.012 - 0.006*b }, spine: { pitch: (0.2 + 0.03*b)*l, roll: 0.04*Math.sin(2*s) }, head: { pitch: hp, roll: -0.1*Math.sin(s) },
+          racket: { frame: 'level', at: [-0.2, -0.28, 0.02], dir: [-0.7, 0, 0.5], ground: true, drop: 0.32 },
+          free: { frame: 'level', at: [0.18, -0.29, 0.03], palm: [-1, 0, 0], fingers: [0.1, -1, 0.1], drop: 0.32 }, face: 'sad', legs: L.legs }; } }),
   ]),
 });
 export const cardMove = id => [...CARD_MOVES.win, ...CARD_MOVES.lose].find(m => m.id === id) || null;
@@ -154,11 +182,17 @@ export function applyCardMove(actor, move, t, base, dir = 1){
   const u = ((t % CARD_LOOP) + CARD_LOOP) % CARD_LOOP/CARD_LOOP, o = move.at(u);
   // B67: posa della mascotte 3D (la legge natpf_character.updateNatpfCharacters; natpf_ritratti la toglie al rilascio)
   // (B69: con il posto di partenza, per la racchetta piantata a terra che resta ferma mentre il personaggio balla)
-  actor.natpfCardPose = move.mascot ? { move, u, base } : null;
   // destra di chi guarda: con la camera verso +z (dir = −1) è −x, verso −z è +x
-  actor.root.position.set(base.pos.x + dir*o.right, base.pos.y + o.up, base.pos.z + dir*o.fwd);
+  // (B73: per il mancino lo spostamento di lato è allo specchio, come le mani, i piedi della posa e il giro: il balletto del
+  // mancino è lo specchio di quello del destro, e i piedi fermi a terra restano sotto il corpo dalla parte giusta)
+  const mr = actor.root.scale.x < 0 ? -1 : 1;
+  actor.root.position.set(base.pos.x + dir*mr*o.right, base.pos.y + o.up, base.pos.z + dir*o.fwd);
+  // (B73: e il verso di chi guarda e dove è andato il personaggio, per i piedi fermi nel riferimento del suolo:
+  // natpf_mascot_rig.cardLeg; se tra una fetta e l'altra della fotografia natpf_ritratti lo rimette al suo posto, i piedi
+  // vanno con lui come nella posa, invece di restare dove il movimento li aveva lasciati)
+  actor.natpfCardPose = move.mascot ? { move, u, base, dir, px: actor.root.position.x, pz: actor.root.position.z } : null;
   // (B69: il giro verso il lato libero anche per il mancino, che ha la radice specchiata: specchio·giro(θ) = giro(−θ)·specchio)
-  actor.root.rotation.y = base.rotY + (actor.root.scale.x < 0 ? -1 : 1)*o.yaw;
+  actor.root.rotation.y = base.rotY + mr*o.yaw;
   // inclinazione in avanti (verso chi guarda) e di lato, negli assi del campo (Euler XYZ: X e Z esterni a Y)
   actor.root.rotation.x = (base.rotX || 0) + dir*(o.pitch || 0);
   actor.root.rotation.z = (base.rotZ || 0) + (o.roll || 0);

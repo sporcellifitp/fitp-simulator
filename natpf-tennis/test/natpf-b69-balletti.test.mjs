@@ -49,7 +49,8 @@ const segDist = (p, a, b) => { const ab = b.clone().sub(a), t = Math.max(0, Math
 test('B69: sei balletti di vittoria e due sconfitte buffe, in più dei sette del B67; nomi originali', () => {
   assert.deepEqual(DANCE_MOVES.win.map(m => m.id), ['win-robot', 'win-disco', 'win-corsa', 'win-incrocio', 'win-pendolo', 'win-tetto']);
   assert.deepEqual(DANCE_MOVES.lose.map(m => m.id), ['lose-sasso', 'lose-capriccio']);
-  assert.equal(CARD_MOVES.win.length, 10); assert.equal(CARD_MOVES.lose.length, 5);
+  // (B73: più «Quattro passi di festa» e «Passi indietro, a testa bassa»)
+  assert.equal(CARD_MOVES.win.length, 11); assert.equal(CARD_MOVES.lose.length, 6);
   for (const m of DANCES){
     assert.equal(cardMove(m.id), m); assert.ok(m.dance && m.name.length > 3);
     assert.equal(m.base, m.id.startsWith('win') ? 'cheer' : 'sad');
@@ -105,7 +106,8 @@ test('B69: la racchetta non entra mai nella testa, nel busto o nelle gambe; pied
             assert.ok(!inside(p, rig.spine02.bone, BODY), `${who} ${move.id} ${k}: racchetta nel busto`);
             for (const [u, l, f] of legs) assert.ok(Math.min(segDist(p, u, l), segDist(p, l, f)) > 0.05, `${who} ${lefty ? 'mancino' : 'destro'} ${move.id} ${k}: racchetta nella gamba`);
           }
-          for (const s of [rig.left, rig.right]) assert.ok(s.foot.y >= 0, `${move.id} ${k}: piede sotto il campo`);
+          // (B73: con i piedi nel riferimento del suolo si guarda la pianta nel mondo: mai sotto il campo)
+          for (const s of [rig.left, rig.right]) assert.ok(s.foot.clone().applyMatrix4(rig.group.matrixWorld).y >= y0 - 1e-6, `${move.id} ${k}: piede sotto il campo`);
           assert.ok(a.root.position.y - y0 >= -1e-9);
         }
       }
@@ -165,7 +167,7 @@ test('B69: scelta a caso fra tutti i movimenti dell\'esito, mai quello della par
     assert.notEqual(w.id, lastW); assert.notEqual(l.id, lastL);
     lastW = w.id; lastL = l.id; seen.add(w.id); seen.add(l.id);
   }
-  assert.equal(seen.size, 15, 'tutti e quindici escono');
+  assert.equal(seen.size, 17, 'tutti e diciassette escono');
   // a pari nello stesso schermo (due card che perdono): diversi, e la partita dopo nessuno dei due
   const s2 = memory();
   for (let i = 0; i < 200; i++){
