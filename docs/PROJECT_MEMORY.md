@@ -1761,3 +1761,33 @@ Richiesta dell'utente del 19/11 (prodotto FIERA, codice comune: vale anche nel w
 - **Due significati di `lg`** (attenzione): nel **cfg** (gioco → telefono) `lg` è la **lingua** (B72); nello **stato del
   telefono** (telefono → gioco, `registro_misure`, riga `tq`) `lg` è il **ritardo** in ms dei campioni del browser su quelli
   dell'app (B71). Direzioni diverse, nessuno scambio; non riusare il nome per altro.
+
+## B73 · Direzione «Nuova» (B36.1, interna), passi veri delle mascotte, richieste di rete lette sempre (20/11/2026; `docs/b73/*.md`)
+
+Richiesta dell'utente del 20/11 (FIERA): «Vai avanti su 4, 6 (falli), tecnico».
+- **Direzione dei colpi** (`natpf_direction.js`, `docs/b73/direzione-b36-1.md`): voce del pannello dello stand «Direzione
+  dei colpi», subito prima di «Mira del telefono». **Classica di base = gioco identico** (impronta di 10 000 colpi,
+  `audit:legend` riga per riga). «Nuova · in lavorazione» è **interna**: non si fa provare ai visitatori fino al traguardo A
+  del piano. Salvata in `natpf-tennis.direzione`; chiosco e «Nuovo giocatore» non la cambiano; il motore la legge con
+  `natpfReadDir()` a inizio partita, minigioco, allenamento e scambi di prova (non con «Ricalibra» a partita in corso);
+  nella sfida tra due PC l'host la manda nello snapshot (`dir`) e il P2 la scrive nel suo registro dopo il primo snapshot.
+  Registro: i campi `dir` (partita) e `nr` (colpo) del B36.0, nessun Worker nuovo. Regola «Nuova» solo per i telefoni con
+  la forma, non per la schiacciata; il colpo super prende la direzione del colpo da cui nasce (piano §5.2 chiarito).
+- **La cima resta troppo imprecisa** (registri del 18–19/11, `docs/b73/misure-fiera-18-19.md`): metà dei colpi entro ±58°,
+  60% oltre 45° (il cancello del piano ne accetta il 5%); girando di 20° la palla andrebbe dalla parte giusta il 61% delle
+  volte. **Indizio da verificare prima di ogni passo della B36**: Chrome su Android manda `rotationRate` con alpha = x, beta
+  = y, gamma = z (`docs/b71/sensori.md`), ma `face-tracker.js` e `swing-detect.js` integrano l'orientamento nell'ordine W3C
+  (alpha attorno a z). Sui campioni veri del 28/10 l'errore sulla gravità è 5–10° con l'ordine di Chrome e 31–98° con
+  quello del codice. iPhone (Safari) segue invece il W3C: una correzione deve distinguere le piattaforme e ha bisogno delle
+  prove dei gesti.
+- **Saturazione dell'accelerazione**: pesa poco. Tempo, forza, km/h, colpo super, verso e cima vengono dal giroscopio;
+  l'accelerazione entra solo nella «salita della testa» (tipo di colpo). Nessuna correzione adesso.
+- **Richieste di rete: la risposta si legge sempre** (`natpf_fetch.js`: `drain`, `sendAndForget`). Un
+  `fetch(...).catch(()=>{})` che non legge la risposta tiene aperta la richiesta in Chromium: dopo ~180 colpi tutte le
+  richieste della pagina falliscono con `ERR_INSUFFICIENT_RESOURCES` (registro, sfida tra due PC, `/lan/status`).
+- **Mascotte**: nella card i piedi stanno nel riferimento del suolo (`cardLeg`, `legs.frame 'ground'`): il piede d'appoggio
+  resta fermo, l'altro fa il passo (`natpf_card_passi.js`); movimenti nuovi «Quattro passi di festa» e «Passi indietro, a
+  testa bassa». In campo `soleSupport`/`footRaise`: punta e tallone non entrano nel campo.
+- **Prove nel browser**: una misura del costo del disegno aspetta che la scheda grafica abbia finito (prima lasciava 25
+  minuti di disegni in coda a SwiftShader); il server PeerJS di prova gira in un processo a parte (i suoi timer non si
+  fermano); `lan-e2e` usa il telefono simulato nella presa insegnata.

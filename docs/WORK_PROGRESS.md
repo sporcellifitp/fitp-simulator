@@ -444,3 +444,25 @@ Prodotto: entrambi (solo repository). Vecchio sito, immagini dei blocchi, rami, 
   fine-partita-en 101/101. Non rifatte: lob-drop, modale-gesti, chi-serve (problemi noti, documenti B71/B72).
 - Versione 2026-11-19.1 nei quattro file (`version.js`, `build.json`, `lan/LEGGIMI.txt`, `novita.txt`).
 - Non verificato: telefono vero, app 1.0.5 vera, iPhone vecchi, Windows installato, ledwall; Worker del registro da ricaricare.
+
+## B73 · Direzione «Nuova» (B36.1), passi delle mascotte, prove rotte, misure del 18–19/11 (20/11/2026) · [x] (versione: vedi TRACCIA)
+- Richiesta dell'utente del 20/11: «Vai avanti su 4, 6 (falli), tecnico». Workflow `wf_d697e29c-598`: rami `b73-registri`
+  (ccb5820c), `b73-direzione` (4f9e70ad, 74968bfb), `b73-mascotte` (0a38be02, 3c48d136, dbceb379), `b73-prove-a` (e89857ca),
+  `b73-prove-b` (70e9c711, d29c67d1, 94720eeb) uniti in `b73-int` senza conflitti (dd19c7b0, `docs/b73/unione.md`); revisione
+  con tre lenti e due scettici per rilievo: sei rilievi confermati e corretti (b9a6644d direzione letta anche in minigiochi,
+  allenamenti e scambi di prova; 2760d24e direzione nel registro del P2; 44e532b0 super nel piano; a8731590 prova dei bordi;
+  3cb6bb7c piedi tra le fette della cattura; 890fd2ad lan-e2e con la presa insegnata), `docs/b73/unione.md` §7. Le prove
+  `natpf-stesso-schermo-b20` e `-b25` contano 20 pulsanti nel pannello dello stand (voce nuova «Direzione dei colpi»).
+- Documenti: `docs/b73/misure-fiera-18-19.md`, `direzione-b36-1.md`, `passi-mascotte.md`, `prove-rotte.md`,
+  `prove-rotte-2.md`, `unione.md`.
+- Verifiche su e2faf25d: gioco **1954/1954**, sito **322/322**, LAN 13/13, desktop 56/56, build ok (30 moduli `node --check`).
+  Nel browser: training-flow 21/21, scambi-di-prova 32/32, registro 39/39, registro-sensori 23/23 (esce da sola), b47-fiera
+  20/20, formato-fiera 29/29, fiera-telefoni 66/66, tutorial-phone 46/46, gesti-speciali 9/9, gesti-sequenze 47/47,
+  avversario 9/9, servizio-alone 27/27, lingua 46/46, menu 58/58, nuovo-giocatore 29/29, fine-partita 68/68, fine-partita-en
+  101/101, chi-gioca 55/55, rete 11/11, tabellone 41/41, telecomando 91/91, segnale-spiegato 14/14, **lob-drop 137/137**,
+  **chi-serve 64/64** (finisce da sola), mascotte-passi 91/91, fine-partita-ritratti 28/28, pannello-cadute 33/33,
+  modale-gesti 29/29 (rifatta da sola: soglia di fps), gesture-calibration 21/21, phone-only 10/10, timing-browser 8/8,
+  sensori-nativi 16/16, nome-telefono 23/23, telefono-bloccato 12/12, app-android 5/5; `lan-e2e` telefono, 1v1 e webcam
+  32/32 (parte «corpo» 13/16: webcam in software troppo lenta, non verificabile qui).
+- Non verificato: telefono vero, scheda grafica vera, programma Windows, ledwall; la perdita di richieste nel programma
+  Windows; l'ordine degli assi del giroscopio sul telefono dello stand.
