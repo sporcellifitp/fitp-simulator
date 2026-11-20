@@ -18,6 +18,7 @@ import { RegistroStand } from '../src/natpf/registro/registro_registratore.js';
 import { codaMemoria } from '../src/natpf/registro/registro_coda.js';
 import * as F from '../src/natpf/registro/registro_formato.js';
 import { rotOrderFor } from '@natpf/tennis/motion-sign.js';
+import { readFileSync } from 'node:fs';
 
 const storageFinto = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: k => { m.delete(k); } }; };
 
@@ -58,6 +59,34 @@ test('B74, pannello dello stand: «Assi del giroscopio» Come oggi ↔ Corretti 
   assert.equal(localStorage.getItem(AXES_KEY), 'oggi');
   assert.equal(voce().textContent, 'Come oggi');
   assert.match($('natpf-toast').textContent, /Come oggi, come sempre/);
+});
+
+/* ---------- 1b. revisione (S1): il pannello dello stand con 21 voci non scorre ---------- */
+// A 1280 × 720 le 21 voci su cinque colonne facevano una quinta fila e con le righe delle cadute il foglio scorreva (1–22 px);
+// tra 801 e 900 px di altezza (1536 × 864, 1600 × 900) su quattro colonne erano sei file (fino a 72 px). Qui la regola:
+// sei colonne (foglio più largo) fino a 800 px di altezza, cinque sopra, e le voci che ci stanno in quattro e cinque file.
+// L'impaginazione vera è nel browser: tools/e2e/natpf-pannello-cadute.mjs (anche 1536 × 864 e 1600 × 900) e
+// natpf-stand-layout.mjs. Una voce in più oltre 24 fa diventare rossa questa prova: rifare quelle due nel browser.
+test('B74 revisione: pannello dello stand dai 1000 px di larghezza, 21 voci in quattro file da sei (fino a 800 px di altezza) e cinque da cinque (sopra), nel foglio più largo', () => {
+  const css = readFileSync(new URL('../natpf-ui.css', import.meta.url), 'utf8'), html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const griglia = html.slice(html.indexOf('<div class="pause-grid">'), html.indexOf('<div class="staff-touch-status'));
+  const voci = (griglia.match(/<button type="button" data-staff="/g) || []).length;
+  assert.equal(voci, 21, 'le voci del pannello (con «Assi del giroscopio»)');
+  // l'ultima regola per ogni area vince (stesso peso dei selettori): quella in fondo al file
+  const ultima = cond => { const i = css.lastIndexOf(`@container natpf (${cond}) {`); assert.ok(i > 0, cond); return css.slice(i, css.indexOf('\n}', i)); };
+  const colonne = blocco => +(blocco.match(/\.natpf-sheet\.staff-sheet \.pause-grid \{ grid-template-columns: repeat\((\d+), minmax\(0, 1fr\)\); \}/) || [])[1];
+  const larghezza = blocco => +(blocco.match(/\.natpf-sheet-backdrop \.natpf-sheet\.staff-sheet \{ width: min\((\d+)px, calc\(100cqw - 2 \* var\(--gutter\)\)\); \}/) || [])[1];
+  const basse = ultima('min-width: 1000px) and (max-height: 800px');
+  assert.equal(colonne(basse), 6, '1280 × 720, 1366 × 768, 1366 × 657: sei colonne');
+  assert.ok(Math.ceil(voci/colonne(basse)) <= 4, `quattro file (${voci} voci su ${colonne(basse)} colonne)`);
+  assert.equal(larghezza(basse), 1500, 'foglio più largo di 1000 px (sei colonne in 1000 px: scritte su tre righe)');
+  const alte = ultima('min-width: 1000px) and (min-height: 801px');
+  assert.equal(colonne(alte), 5, '1536 × 864, 1600 × 900, 1920 × 1080: cinque colonne');
+  assert.ok(Math.ceil(voci/colonne(alte)) <= 5, `cinque file (${voci} voci su ${colonne(alte)} colonne)`);
+  assert.equal(larghezza(alte), 1250);
+  // dopo le regole del B20 (quattro colonne, 1000 px) e del B51 (quattro tra 701 e 999 px): vincono queste
+  const b20 = css.indexOf('@container natpf (min-width: 1000px) {'), b51 = css.lastIndexOf('@container natpf (min-width: 701px) and (max-width: 999px) {');
+  assert.ok(b20 > 0 && b51 > b20 && css.lastIndexOf('@container natpf (min-width: 1000px) and (max-height: 800px) {') > b51 && css.lastIndexOf('@container natpf (min-width: 1000px) and (min-height: 801px) {') > b51);
 });
 
 /* ---------- 2. al telefono ---------- */

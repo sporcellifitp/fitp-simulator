@@ -4,10 +4,14 @@
 // (pulsante «Schermo del gioco»), a 1920×1080 e a 720×720; e a 1024×600 il foglio scorreva di 5 px con il chiosco, lo
 // scambio caldo, il lancio automatico e il campo aperto accesi (natpf-stesso-schermo-b25). Per ogni misura (1024×600,
 // 1280×720, 1920×1080, 720×720, 1366×657, 1920×540), nella versione web e «come nel programma Windows» (ponte
-// window.natpfDesktop finto: compare «Schermo del gioco»), con due telefoni caduti oggi (e con uno solo a 1024×600 e
-// 720×720), opzioni spente e accese:
+// window.natpfDesktop finto: compare «Schermo del gioco»), con due telefoni caduti oggi (e con uno solo a 1024×600,
+// 720×720 e 1280×720), opzioni spente e accese.
+// B74 (revisione, S1): con «Assi del giroscopio» le voci sono 21 e a 1280×720 (cinque colonne) facevano una quinta fila:
+// il foglio scorreva di 1–22 px; a 1536×864 e 1600×900 (quattro colonne, sei file) fino a 72 px e «Chiudi» usciva. Da qui
+// anche 1536×864 (1920×1080 con la scala di Windows al 125 %) e 1600×900, le altezze tra 801 e 900 px. Controlli:
 //   • la riga delle cadute si vede tutta: niente tagliato, ogni telefono su una riga sua (a 1920×540 su due colonne);
-//   • il foglio non scorre, «Chiudi» e «Nuovo giocatore» interi nello schermo, nessuna scritta dei pulsanti tagliata;
+//   • il foglio non scorre, «Chiudi», «Nuovo giocatore» e (dal B74) «Telecomando dello staff» interi nel foglio,
+//     nessuna scritta dei pulsanti tagliata;
 //   • «Schermo del gioco» solo nel programma.
 // Schermate in $OUT/pannello-cadute (OUT come nelle altre prove).
 //   cd tools/e2e && CHROMIUM_PATH=… GAME_PORT=… node natpf-pannello-cadute.mjs
@@ -38,11 +42,11 @@ const RIGHE = {
   1: ['Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s'],
   2: ['Telefono 1: 3 cadute oggi · motivo più frequente: Wi-Fi ferma 10 s', 'Telefono 2: 12 cadute oggi · motivo più frequente: «Scollega» sul telefono'],
 };
-const SIZES = [[1024, 600], [1280, 720], [1920, 1080], [720, 720], [1366, 657], [1920, 540]];
+const SIZES = [[1024, 600], [1280, 720], [1920, 1080], [720, 720], [1366, 657], [1920, 540], [1536, 864], [1600, 900]];
 const CASES = [];
 for (const desk of [false, true]) for (const opts of [false, true]){
   for (const size of SIZES) CASES.push({ desk, opts, phones: 2, size });
-  for (const size of [[1024, 600], [720, 720]]) CASES.push({ desk, opts, phones: 1, size });
+  for (const size of [[1024, 600], [720, 720], [1280, 720]]) CASES.push({ desk, opts, phones: 1, size });
 }
 const B = await launch();
 try {
@@ -65,7 +69,7 @@ try {
     await p.mouse.move(2, 2); await sleep(4600);
     const r = await p.evaluate(() => {
       const s = document.querySelector('#natpf-staff .natpf-sheet'), c = document.getElementById('staff-cadute'), q = sel => s.querySelector(sel)?.getBoundingClientRect();
-      const close = q('[data-staff="close"]'), nuovo = q('[data-staff="newplayer"]'), disp = s.querySelector('[data-staff="display"]'), sr = s.getBoundingClientRect(), cr = c.getBoundingClientRect();
+      const close = q('[data-staff="close"]'), nuovo = q('[data-staff="newplayer"]'), remote = q('[data-staff="remote"]'), disp = s.querySelector('[data-staff="display"]'), sr = s.getBoundingClientRect(), cr = c.getBoundingClientRect();
       const btn = [...s.querySelectorAll('.pause-grid > button')], cut = btn.filter(x => x.scrollWidth > x.clientWidth + 1 || x.scrollHeight > x.clientHeight + 1).map(x => x.dataset.staff);
       // righe disegnate: un riquadro per riga del testo (con le due colonne delle aree larghe e basse, una riga per colonna);
       // una riga di un telefono che va a capo ne fa due
@@ -75,12 +79,14 @@ try {
         lines, box: [Math.round(cr.left), Math.round(cr.top), Math.round(cr.width), Math.round(cr.height)], font: getComputedStyle(c).fontSize,
         scroll: s.scrollHeight - s.clientHeight, sheet: [Math.round(sr.top), Math.round(sr.bottom)], H: innerHeight,
         closeIn: !!close && close.top >= sr.top && close.bottom <= sr.bottom && close.bottom <= innerHeight && close.right <= innerWidth, nuovoIn: !!nuovo && nuovo.top >= sr.top && nuovo.bottom <= sr.bottom,
+        // (B74, revisione S1: anche «Telecomando dello staff», che il bordo del foglio tagliava a 1280×720)
+        remoteIn: !!remote && remote.top >= sr.top && remote.bottom <= sr.bottom,
         display: !!disp && !disp.classList.contains('hidden'), tagliati: cut };
     });
     const name = `${desk ? 'programma' : 'web'}-${phones}tel-${opts ? 'opzioni-accese' : 'opzioni-spente'}-${w}x${h}`;
     const want = RIGHE[phones];
-    check(`${name}: riga delle cadute intera (${phones === 2 ? 'due telefoni, ' : ''}una riga per telefono), foglio che non scorre, «Chiudi» e «Nuovo giocatore» in vista, nessuna scritta tagliata${desk ? ', «Schermo del gioco» in vista' : ''}`,
-      r.visible && !r.cut && r.inSheet && r.text === want.join('\n') && r.lines === want.length && r.scroll <= 0 && r.closeIn && r.nuovoIn && !r.tagliati.length && r.display === desk && !errs.length,
+    check(`${name}: riga delle cadute intera (${phones === 2 ? 'due telefoni, ' : ''}una riga per telefono), foglio che non scorre, «Chiudi», «Nuovo giocatore» e «Telecomando dello staff» in vista, nessuna scritta tagliata${desk ? ', «Schermo del gioco» in vista' : ''}`,
+      r.visible && !r.cut && r.inSheet && r.text === want.join('\n') && r.lines === want.length && r.scroll <= 0 && r.closeIn && r.nuovoIn && r.remoteIn && !r.tagliati.length && r.display === desk && !errs.length,
       JSON.stringify({ ...r, text: undefined, errori: errs.slice(0, 2) }));
     await p.screenshot({ path: `${OUT}/${name}.png` });
     await ctx.close();

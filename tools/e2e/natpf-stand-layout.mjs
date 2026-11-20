@@ -3,6 +3,8 @@
 // Windows) misura la posizione del foglio, lo scorrimento e «Chiudi» in vista con il puntatore fuori, su ogni voce e su punti
 // a griglia sopra il foglio.
 //   GAME_PORT=4275 SIZES=720x720,1024x600 VARIANTS=all|quick OUT=<cartella> node natpf-stand-layout.mjs
+// B74 (revisione, S1): misure di base anche 1280×720 e 1536×864 (con 21 voci il foglio scorreva lì, con le cadute e le
+// opzioni accese; prima nessuna misura tra 801 e 900 px di altezza)
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -23,7 +25,7 @@ const CADUTE = {
   1: { giorno, p1: { n: 3, m: { silenzio: 2, 'telefono: pagina chiusa': 1 } }, p2: { n: 0, m: {} } },
   2: { giorno, p1: { n: 3, m: { silenzio: 3 } }, p2: { n: 12, m: { 'telefono: scollegato': 7, 'pagina del gioco ricaricata': 5 } } },
 };
-const sizes = (process.env.SIZES || '720x720,1024x600,1366x657,1920x540').split(',').map(s => s.split('x').map(Number));
+const sizes = (process.env.SIZES || '720x720,1024x600,1280x720,1366x657,1536x864,1920x540').split(',').map(s => s.split('x').map(Number));
 const VARIANTS = [];
 for (const fiera of [0, 1]) for (const cad of [0, 1, 2]) for (const opts of [0, 1]) for (const desk of [0, 1]) VARIANTS.push({ fiera, cad, opts, desk });
 // (PICK=1:2:0:0,… solo quelle varianti: fiera:cadute:opzioni:programma)

@@ -2333,8 +2333,9 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
   .natpf-sheet.staff-sheet .pause-grid button b { font-size: 15px; }
   .natpf-sheet.staff-sheet #staff-note { margin-bottom: 4px; font-size: 13px; line-height: 1.3; }
 }
-/* 1024 × 600, 1366 × 657 (quattro colonne) e 1920 × 540 (sei): riga sotto le voci, titolo e pulsanti un poco più piccoli;
-   le righe delle cadute su due colonne (come già a 1920 × 540: una riga per telefono, intera) */
+/* 1024 × 600, 1366 × 657 (quattro colonne; dal B51 e dal B74 sei, in fondo al blocco del B51) e 1920 × 540 (sei): riga
+   sotto le voci, titolo e pulsanti un poco più piccoli; le righe delle cadute su due colonne (come già a 1920 × 540: una
+   riga per telefono, intera) */
 @container natpf (min-width: 821px) and (max-height: 680px) {
   .natpf-sheet-backdrop .natpf-sheet.staff-sheet { padding-block: 12px; }
   .natpf-sheet.staff-sheet .sheet-kicker { margin-bottom: 4px; }
@@ -2354,7 +2355,8 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
    contro la CPU c'è la mano): nessuna riga in più. Stessa misura dei pulsanti della riga (sonda b413/probe/fierapage.mjs:
    sette misure, nove stati) */
 #title-modal .fiera-bar .fiera-bar-sheet { min-height: clamp(38px, 5.8cqh, 66px); padding-inline: clamp(14px, 1.8cqw, 30px); font-size: clamp(14px, 2cqh, 24px); }
-/* B41.3 (difetto 8, continua): 1280 × 720 e 1366 × 768 (quattro colonne, 16 voci in quattro file). Con l'altezza fissa
+/* B41.3 (difetto 8, continua): 1280 × 720 e 1366 × 768 (quattro colonne, 16 voci in quattro file; dal B74 sei colonne
+   in un foglio più largo, 21 voci in quattro file: in fondo al blocco del B51). Con l'altezza fissa
    della riga sotto le voci (la spiegazione più alta, tre righe) il foglio scorreva a 1280 × 720 di 5 px con un telefono
    caduto e di 21 con due (righe delle cadute del B45.1, prova natpf-pannello-cadute) e di 18 px con la modalità fiera e i
    telefoni dello stand da abbinare («Telefoni dello stand: 1 da abbinare · 2 da abbinare ›» va su due righe). Titolo, file
@@ -2379,7 +2381,20 @@ html.mouse-active #title-modal .menu-item:hover, html.mouse-active #title-modal 
 @container natpf (min-width: 701px) and (max-width: 999px) {
   .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+/* B74 (revisione, S1): con «Assi del giroscopio» le voci della griglia sono 21. A 1280 × 720 le cinque colonne di qui
+   facevano una quinta fila («Mira del telefono» da sola) e con le righe delle cadute il foglio scorreva di 1–22 px, con il
+   bordo sopra «Telecomando dello staff» (prove natpf-pannello-cadute e natpf-stand-layout); tra 801 e 900 px di altezza
+   (1536 × 864, cioè 1920 × 1080 con la scala di Windows al 125 %, 1440 × 900, 1600 × 900) le quattro colonne del B20 erano
+   sei file e il foglio scorreva fino a 72 px, «Chiudi» fuori. Sei colonne fino a 800 px di altezza e cinque sopra, ognuna
+   con il foglio più largo (solo sei colonne in 1000 px: scritte su tre righe e il foglio scorreva ancora): quattro file da
+   sei, cinque da cinque, posto per 24 e 25 celle (con la cella degli sblocchi del B51 sono 22). Sotto i 640 px restano le sei colonne
+   con le scritte più piccole qui sotto */
 @container natpf (min-width: 1000px) and (max-height: 800px) {
+  .natpf-sheet-backdrop .natpf-sheet.staff-sheet { width: min(1500px, calc(100cqw - 2 * var(--gutter))); }
+  .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@container natpf (min-width: 1000px) and (min-height: 801px) {
+  .natpf-sheet-backdrop .natpf-sheet.staff-sheet { width: min(1250px, calc(100cqw - 2 * var(--gutter))); }
   .natpf-sheet.staff-sheet .pause-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 @container natpf (min-width: 1000px) and (max-height: 640px) {
