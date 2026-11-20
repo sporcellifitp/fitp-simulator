@@ -204,3 +204,20 @@ test('B73: la figura resta dentro la finestra della card con l\'inquadratura del
   }
   console.log('   B73 inquadratura (coordinate del fotogramma, −1…1):\n     ' + out.join('\n     '));
 });
+
+test('B73: tra una fetta e l\'altra della fotografia (personaggio rimesso al suo posto) i piedi vanno con lui come nella posa', () => {
+  const E = stage(false);
+  for (const who of ['player', 'opponent']){
+    const a = E[who], dir = (a.sideSign || 1) > 0 ? -1 : 1, move = cardMove('win-passi');
+    const base = { pos: a.root.position.clone(), rotY: a.root.rotation.y, rotX: a.root.rotation.x, rotZ: a.root.rotation.z };
+    const local = () => { const p = a.natpfMascot3d.probe(a, {}), inv = new THREE.Matrix4().copy(a.root.matrixWorld).invert(); return [p.soleA.applyMatrix4(inv), p.soleB.applyMatrix4(inv)]; };
+    // a metà giro il personaggio è 24 cm a destra e 27 cm avanti: piedi rispetto al corpo
+    applyCardMove(a, move, 0.5*CARD_LOOP, base, dir); updateNatpfCharacters(E); a.root.updateMatrixWorld(true);
+    const moved = local();
+    // natpf_ritratti._capture lo rimette al posto di partenza (niente salti in campo) e l'arena lo disegna così
+    a.root.position.copy(base.pos); a.root.rotation.set(base.rotX, base.rotY, base.rotZ); updateNatpfCharacters(E); a.root.updateMatrixWorld(true);
+    const reset = local();
+    for (let i = 0; i < 2; i++) assert.ok(moved[i].distanceTo(reset[i]) < 1e-6, `${who}: piede ${i} a ${moved[i].distanceTo(reset[i])} m da dove stava rispetto al corpo`);
+    a.natpfCardPose = null; updateNatpfCharacters(E);
+  }
+});

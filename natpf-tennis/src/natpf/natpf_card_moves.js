@@ -182,13 +182,15 @@ export function applyCardMove(actor, move, t, base, dir = 1){
   const u = ((t % CARD_LOOP) + CARD_LOOP) % CARD_LOOP/CARD_LOOP, o = move.at(u);
   // B67: posa della mascotte 3D (la legge natpf_character.updateNatpfCharacters; natpf_ritratti la toglie al rilascio)
   // (B69: con il posto di partenza, per la racchetta piantata a terra che resta ferma mentre il personaggio balla)
-  // (B73: e il verso di chi guarda, per i piedi fermi nel riferimento del suolo: natpf_mascot_rig.cardLeg)
-  actor.natpfCardPose = move.mascot ? { move, u, base, dir } : null;
   // destra di chi guarda: con la camera verso +z (dir = −1) è −x, verso −z è +x
   // (B73: per il mancino lo spostamento di lato è allo specchio, come le mani, i piedi della posa e il giro: il balletto del
   // mancino è lo specchio di quello del destro, e i piedi fermi a terra restano sotto il corpo dalla parte giusta)
   const mr = actor.root.scale.x < 0 ? -1 : 1;
   actor.root.position.set(base.pos.x + dir*mr*o.right, base.pos.y + o.up, base.pos.z + dir*o.fwd);
+  // (B73: e il verso di chi guarda e dove è andato il personaggio, per i piedi fermi nel riferimento del suolo:
+  // natpf_mascot_rig.cardLeg; se tra una fetta e l'altra della fotografia natpf_ritratti lo rimette al suo posto, i piedi
+  // vanno con lui come nella posa, invece di restare dove il movimento li aveva lasciati)
+  actor.natpfCardPose = move.mascot ? { move, u, base, dir, px: actor.root.position.x, pz: actor.root.position.z } : null;
   // (B69: il giro verso il lato libero anche per il mancino, che ha la radice specchiata: specchio·giro(θ) = giro(−θ)·specchio)
   actor.root.rotation.y = base.rotY + mr*o.yaw;
   // inclinazione in avanti (verso chi guarda) e di lato, negli assi del campo (Euler XYZ: X e Z esterni a Y)

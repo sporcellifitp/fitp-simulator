@@ -529,6 +529,8 @@ function cardLeg(rig, side, off, m, actor = null){
     const S = rig.scale, dir = card.dir || 1;
     side.foot.copy(side.sole).applyMatrix4(groundMatrix(_gF, rig, actor, base));
     if (off){ side.foot.x += dir*m*(off[0] || 0)*S; side.foot.y += Math.max(0, off[1] || 0)*S; side.foot.z += dir*(off[2] || 0)*S; }
+    // (personaggio rimesso al suo posto fuori dal movimento: tra una fetta e l'altra della fotografia i piedi vanno con lui)
+    if (Number.isFinite(card.px)){ side.foot.x += actor.root.position.x - card.px; side.foot.z += actor.root.position.z - card.pz; }
     side.foot.applyMatrix4(_gF.copy(rig.group.matrixWorld).invert());
   } else {
     side.foot.copy(side.sole);
