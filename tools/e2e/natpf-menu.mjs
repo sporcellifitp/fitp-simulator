@@ -9,6 +9,9 @@
 //     riga in basso e «Schermo del gioco» nascosto nel browser;
 //   • con il menu aperto il gioco non avanza (niente partita dimostrativa) e l'arena non si ridisegna a ogni
 //     fotogramma: era la causa dello sfarfallio della home, insieme al campo animato dell'intro.
+//   • B36.1: nel pannello dello stand la voce «Direzione dei colpi» (Classica · Nuova · in lavorazione) in vista; con il clic
+//     del mouse passa a «Nuova · in lavorazione» e torna «Classica», salvata, e il foglio continua a non scorrere con
+//     «Chiudi» in vista (la scritta più lunga può andare su due righe).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-menu.mjs
 import { spawn } from 'node:child_process';
 import http from 'node:http';
@@ -69,6 +72,18 @@ try {
     // B28 insieme al B27: anche «Calibrazione» (opzione dello stand) è nel foglio, tutta in vista
     const calBtn = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet').getBoundingClientRect(), b = document.querySelector('#natpf-staff [data-staff="cal"]'), r = b?.getBoundingClientRect(); return b ? { text: b.textContent.replace(/\s+/g, ' ').trim(), inside: r.top >= s.top && r.bottom <= Math.min(s.bottom, innerHeight) && r.height > 0, n: document.querySelectorAll('#natpf-staff [data-staff]').length } : null; });
     check(`${tag}: «Calibrazione» nel pannello dello stand, in vista`, !!calBtn && calBtn.inside && /Calibrazione/.test(calBtn.text), JSON.stringify(calBtn));
+    // B36.1: «Direzione dei colpi» in vista, si cambia con il clic e il foglio resta com'è (con «Nuova» la scritta è più lunga)
+    const dirBox = () => p.evaluate(() => { const S = document.querySelector('#natpf-staff .natpf-sheet'), s = S.getBoundingClientRect(), b = document.querySelector('#natpf-staff [data-staff="dir"]'), r = b?.getBoundingClientRect(), c = S.querySelector('[data-staff="close"]').getBoundingClientRect();
+      return b ? { text: `${b.querySelector('span').textContent} · ${b.querySelector('b').textContent}`, inside: r.height > 0 && r.top >= s.top && r.bottom <= Math.min(s.bottom, innerHeight) && r.left >= s.left && r.right <= s.right, on: b.classList.contains('on'), scroll: S.scrollHeight - S.clientHeight, closeIn: c.top >= s.top && c.bottom <= Math.min(s.bottom, innerHeight), saved: localStorage.getItem('natpf-tennis.direzione') } : null; });
+    const dir0 = await dirBox();
+    check(`${tag}: «Direzione dei colpi: Classica» nel pannello dello stand, in vista`, !!dir0 && dir0.inside && dir0.text === 'Direzione dei colpi · Classica' && !dir0.on && dir0.saved == null, JSON.stringify(dir0));
+    await p.click('#natpf-staff [data-staff="dir"]'); await p.waitForTimeout(300);
+    const dir1 = await dirBox();
+    check(`${tag}: un clic → «Nuova · in lavorazione», salvata; il foglio non scorre e «Chiudi» resta in vista`, !!dir1 && dir1.inside && dir1.text === 'Direzione dei colpi · Nuova · in lavorazione' && dir1.on && dir1.saved === 'nuova' && dir1.scroll <= 0 && dir1.closeIn, JSON.stringify(dir1));
+    if (w === 1024) await p.screenshot({ path: `${SP}/stand-direzione-nuova-${w}x${h}.png` });
+    await p.click('#natpf-staff [data-staff="dir"]'); await p.waitForTimeout(300);
+    const dir2 = await dirBox();
+    check(`${tag}: un altro clic → di nuovo «Classica»`, !!dir2 && dir2.text === 'Direzione dei colpi · Classica' && !dir2.on && dir2.saved === 'classica' && dir2.scroll <= 0 && dir2.closeIn, JSON.stringify(dir2));
     if (w === 1024) await p.screenshot({ path: `${SP}/stand-${w}x${h}.png` });
     if (h === 1024){ await p.click('#natpf-staff [data-staff="remote"]'); await p.waitForTimeout(800); await p.screenshot({ path: `${SP}/telecomando-pannello-${w}x${h}.png` }); const rs = await p.evaluate(() => { const s = document.querySelector('#natpf-remote .natpf-sheet'); return s.scrollHeight - s.clientHeight; }); check(`${tag}: foglio «Telecomando dello staff» senza scorrere`, rs <= 0, String(rs)); await p.click('#natpf-remote [data-remote="close"]'); await p.waitForTimeout(300); }
     await p.click('#natpf-staff [data-staff="close"]');
@@ -101,6 +116,12 @@ try {
     await p.click('#natpf-staff [data-staff="cal"]'); await p.waitForTimeout(300);
     const after = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'); return { scroll: s.scrollHeight - s.clientHeight, text: s.querySelector('[data-staff="cal"]').textContent.replace(/\s+/g, ' ').trim(), saved: localStorage.getItem('natpf-tennis.calibrazione') }; });
     check('720 × 720: «Calibrazione» gira (Giocando → Con i gesti) e il foglio continua a non scorrere', after.scroll <= 0 && /Con i gesti/.test(after.text) && after.saved === 'gesti', JSON.stringify(after));
+    // B36.1: «Direzione dei colpi» anche qui in vista; con «Nuova» (scritta più lunga) il foglio continua a non scorrere
+    await p.click('#natpf-staff [data-staff="dir"]'); await p.waitForTimeout(300);
+    const dirQ = await p.evaluate(() => { const S = document.querySelector('#natpf-staff .natpf-sheet'), s = S.getBoundingClientRect(), b = S.querySelector('[data-staff="dir"]'), r = b.getBoundingClientRect(), c = S.querySelector('[data-staff="close"]').getBoundingClientRect();
+      return { text: `${b.querySelector('span').textContent} · ${b.querySelector('b').textContent}`, inside: r.height > 0 && r.top >= s.top && r.bottom <= Math.min(s.bottom, innerHeight), scroll: S.scrollHeight - S.clientHeight, closeIn: c.top >= s.top && c.bottom <= Math.min(s.bottom, innerHeight), saved: localStorage.getItem('natpf-tennis.direzione') }; });
+    check('720 × 720: «Direzione dei colpi» in vista, un clic → «Nuova · in lavorazione»; il foglio non scorre e «Chiudi» resta in vista', dirQ.inside && /Nuova · in lavorazione/.test(dirQ.text) && dirQ.saved === 'nuova' && dirQ.scroll <= 0 && dirQ.closeIn, JSON.stringify(dirQ));
+    await p.screenshot({ path: `${SP}/stand-direzione-720x720.png` });
     check('720 × 720: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
     await ctx.close();
   }

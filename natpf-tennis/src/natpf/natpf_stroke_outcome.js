@@ -15,6 +15,8 @@
 // livello. Escono solo i colpi estremi. Stessi ingressi, stesso esito.
 import { ARC, flightForClear, swingGrade, timingUnits } from './natpf_skill.js';
 import { netOff } from './natpf_net_play.js'; // B31: regole del gioco a rete (spente solo nelle prove di confronto)
+// B36.1: regola nuova della direzione («la cima comanda», solo con l'opzione dello staff «Nuova» e i telefoni con la forma)
+import { newRuleFor, DIRECTION } from './natpf_direction.js';
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -303,7 +305,11 @@ export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.
 // chiede di portare indietro il braccio); senza, vale quality.
 // hotPress (B42, scambio caldo: natpf_hot_rally.hotPressure; 1 fuori dallo scambio caldo): pressione in più che toglie
 // qualità come la pressione degli scambi lunghi, ma non stringe la finestra del tempo (spanPress di Leggenda)
-export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, touch = quality, pressure = 1, hotPress = 1, rhythm = 0, rhythmLag = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
+// dir (B36.1, docs/b73/direzione-b36-1.md): modello della direzione della partita (engine.natpfDirModel, natpf_direction.js).
+// 'nuova' e intenzione dal telefono con la forma (non ricostruita), schiacciata esclusa: la cima comanda (mira = piatto −
+// c · 0,3 · tempo, tempo vero meno il solo ritardo abituale, niente spinta naturale, punto neutro al centro) e l'esito ha
+// rule: 'nuova'. Altrimenti (null, 'classica', intenzione ricostruita, schiacciata) l'esito di sempre, identico
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, touch = quality, pressure = 1, hotPress = 1, rhythm = 0, rhythmLag = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {}, dir = null } = {}){
   const O = OUTCOME;
   let shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
@@ -353,9 +359,13 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
   // tempo neutro) e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
   // tempo rispetto al proprio ritmo (B35a: la parte del ritmo in ritardo che è diventata un ritardo è già tolta in te)
-  const aimT = clamp(te - rRest, -1, 1);
-  const aim = -c*O.natural*(1 - Math.abs(aimT)) - c*aimT*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
-  const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(te)*excess*finite(AS.pushOut, O.pushOut) + (controlled ? seedUnit(seed, 0)*O.netSpread.x*spread : 0);
+  // B36.1, regola nuova («la cima comanda»): il ritmo esce dalla direzione (resta il ritardo abituale, già tolto in te), il
+  // tempo pesa DIRECTION.timeWeight (0,3) invece del piatto intero, niente spinta naturale e punto neutro al centro
+  const nuova = newRuleFor(dir, intent, shot), DR = DIRECTION;
+  const aimT = nuova ? clamp(te, -1, 1) : clamp(te - rRest, -1, 1);
+  const aim = nuova ? -c*DR.natural*(1 - Math.abs(aimT)) - c*aimT*DR.timeWeight + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim)
+    : -c*O.natural*(1 - Math.abs(aimT)) - c*aimT*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
+  const x0 = nuova ? (DR.follow ? clamp(finite(hitX), -xMax, xMax)*DR.follow : 0) : neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(te)*excess*finite(AS.pushOut, O.pushOut) + (controlled ? seedUnit(seed, 0)*O.netSpread.x*spread : 0);
   const xa = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*sideHold;
   const x = Math.abs(xa) <= O.sideLine ? xa : Math.sign(xa)*(O.sideLine + softEdge(Math.abs(xa) - O.sideLine, O.outKnee, O.outMax));
   // profondità: voluta (forza e ampiezza dello swing), meno per la qualità che manca e il tempo oltre la finestra
@@ -425,7 +435,10 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
     controlled, spread: +spread.toFixed(3), netVolley,
     // B18.2 passo 3: palla corta, controllo del tocco (dropQ), quanto è venuta lunga (dropLack 0…1), il motivo (dropWhy) e
     // se è «troppo lunga» (dropLong: non in rete, da OUTCOME.drop.longAt); null e false per gli altri colpi
-    dropQ: DC ? DC.c : null, dropLack: DC ? DC.lack : 0, dropWhy: DC ? DC.why : null, dropLong: !!DC && !DC.net && DC.lack >= O.drop.longAt };
+    dropQ: DC ? DC.c : null, dropLack: DC ? DC.lack : 0, dropWhy: DC ? DC.why : null, dropLong: !!DC && !DC.net && DC.lack >= O.drop.longAt,
+    // B36.1: colpo giocato con la regola nuova della direzione (natpf_direction.usedNewRule; campo nr del registro). Con la
+    // regola di oggi il campo non c'è: l'esito resta identico a prima
+    ...(nuova ? { rule: 'nuova' } : {}) };
 }
 
 // Colpo super potente (richiesta del 29/10: «se rilevi una forte accelerazione o un forte gesto del braccio, un colpo
