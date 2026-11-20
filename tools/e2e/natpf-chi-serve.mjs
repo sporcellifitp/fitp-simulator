@@ -13,7 +13,8 @@
 //   • il riquadro di servizio a terra: nella metà di chi riceve, in diagonale rispetto a chi batte, in vista;
 //   • quando la palla parte, casella e riquadro spariscono;
 //   • costo del disegno con il riquadro acceso e spento (grafica in software del banco: il caso peggiore; B45.2: mediana
-//     delle differenze di 20 giri, ognuno con le due misure una dopo l'altra).
+//     delle differenze di 20 giri, ognuno con le due misure una dopo l'altra; B73: il riquadro da solo contro una scena
+//     vuota, aspettando la scheda grafica prima di ogni misura, così non resta lavoro in coda).
 // Schermate in SP/chi-serve: 1920×1080, 1280×720 e un'area stretta (?area=0,0,720,720 in una finestra 1920×1080).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-chi-serve.mjs        (porta 3159)
 //   COSTO=1: solo il costo del disegno (Lob & Drop contro la CPU)
@@ -143,19 +144,42 @@ const reset = p => p.evaluate(() => { const E = __natpfTennis; E.playerRole = 'p
 // differenze di ogni giro (diff): il carico della macchina, che in pochi secondi sale e scende, pesa uguale sulle due misure
 // di un giro e si toglie; prima si sottraevano due mediane prese in momenti diversi. Stessa soglia (1 ms): un costo vero
 // in più c'è in ogni giro e resta nella mediana. off e box (mediane di ciascuna) restano per il registro della prova
+// B73 (la prova si fermava, docs/b73/prove-rotte.md §2): i 420 disegni della scena intera, uno dopo l'altro senza mai
+// aspettare la scheda grafica, misuravano solo il tempo per mandare i comandi (3–6 ms l'uno); la grafica in software del
+// banco li disegnava dopo, 3–4,5 s l'uno a 1920×1080 (1,4 milioni di triangoli): circa 25 minuti di lavoro in coda, e il
+// primo comando che deve aspettare la scheda grafica (nel caso dopo, il computer del Player 2) restava fermo. Ora il
+// riquadro si misura da solo, con la stessa camera: una scena con il solo riquadro contro una scena vuota (stesso fondo),
+// a giri alternati come prima, e prima di ogni misura si aspetta che la scheda grafica abbia finito (readPixels di un
+// pixel, fuori dal tempo misurato): niente resta in coda. La soglia di 1 ms vale, come prima, per il lavoro del processore
+// principale (three.js e comandi WebGL: diff); gpu è lo stesso confronto aspettando anche la scheda grafica dopo ogni
+// disegno (solo per il registro della prova: con la grafica in software è il riempimento dei pixel, con una scheda vera
+// quasi niente), frame il disegno di tutta la scena aspettando la scheda grafica, per avere la proporzione
 const cost = p => p.evaluate(() => {
-  const E = __natpfTennis, M = E.natpfUi.serveMark, CONF = { off: false, box: true }, GIRI = 20;
-  const run = b => { M.box.visible = b; const t0 = performance.now(); for (let i = 0; i < 10; i++) E.render(); return (performance.now() - t0)/10; };
+  const E = __natpfTennis, M = E.natpfUi.serveMark, R = E.renderer, gl = R.getContext(), px = new Uint8Array(4), GIRI = 20, N = 10;
+  const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px), now = () => performance.now();
   if (!E.__frame0){ E.__frame0 = E._natpfFrame; E._natpfFrame = () => 'paused'; }
-  for (const c of Object.values(CONF)) run(c);
-  const T = { off: [], box: [], diff: [] };
-  for (let r = 0; r < GIRI; r++){
-    const m = {};
-    for (const k of r % 2 ? ['box', 'off'] : ['off', 'box']) m[k] = run(CONF[k]);
-    T.off.push(m.off); T.box.push(m.box); T.diff.push(m.box - m.off);
-  }
-  const med = a => { const s = [...a].sort((x, y) => x - y), h = s.length/2; return +((s[h - 1] + s[h])/2).toFixed(2); };
-  return { off: med(T.off), box: med(T.box), diff: med(T.diff), giri: GIRI };
+  const parent = M.box.parent, at = parent.children.indexOf(M.box), shown = M.box.visible, Scene = E.scene.constructor;
+  const box = new Scene(), off = new Scene();
+  for (const s of [box, off]){ s.background = E.scene.background; s.fog = E.scene.fog; }
+  box.add(M.box); M.box.visible = true;
+  // N disegni di una scena; wait: aspettando la scheda grafica dopo ognuno
+  const run = (sc, wait) => { sync(); const t0 = now(); for (let i = 0; i < N; i++){ R.render(sc, E.camera); if (wait) sync(); } return (now() - t0)/N; };
+  const med = a => { const s = [...a].sort((x, y) => x - y), h = s.length/2; return +((s[h - 1] + s[h])/2).toFixed(3); };
+  const measure = wait => {
+    run(box, wait); run(off, wait);
+    const T = { off: [], box: [], diff: [] };
+    for (let r = 0; r < GIRI; r++){
+      const m = {};
+      for (const k of r % 2 ? ['box', 'off'] : ['off', 'box']) m[k] = run(k === 'box' ? box : off, wait);
+      T.off.push(m.off); T.box.push(m.box); T.diff.push(m.box - m.off);
+    }
+    return { off: med(T.off), box: med(T.box), diff: med(T.diff) };
+  };
+  const cpu = measure(false), gpu = measure(true);
+  // il riquadro torna al suo posto nella scena, come prima
+  parent.add(M.box); parent.children.splice(parent.children.indexOf(M.box), 1); parent.children.splice(at, 0, M.box); M.box.visible = shown;
+  sync(); const t0 = now(); E.render(); sync(); const frame = +(now() - t0).toFixed(0);
+  return { ...cpu, giri: GIRI, gpu, frame };
 });
 
 // aspetto del B35b: fondo giallo accento, scritta blu scura in corsivo maiuscolo, angoli tondi (pillola), bordo scuro
@@ -208,10 +232,10 @@ for (const cast of COSTO ? ['lobdrop'] : ['sempre', 'lobdrop']){
     }
     if (cast === 'lobdrop' && mode === 'cpu'){
       const c = await cost(g.p);
-      console.log(`costo del disegno (Lob & Drop, 1920×1080, grafica in software, ${c.giri} giri): riquadro spento ${c.off} ms, acceso ${c.box} ms, in più ${c.diff} ms (mediana delle differenze di ogni giro, ${(100*c.diff/c.off).toFixed(1)} %)`);
+      console.log(`costo del disegno del riquadro (Lob & Drop, 1920×1080, grafica in software, ${c.giri} giri, scena con il solo riquadro contro scena vuota): processore principale ${c.off} → ${c.box} ms, in più ${c.diff} ms (mediana delle differenze di ogni giro); aspettando anche la scheda grafica ${c.gpu.off} → ${c.gpu.box} ms, in più ${c.gpu.diff} ms; la scena intera ${c.frame} ms a disegno aspettando la scheda grafica (il riquadro è il ${(100*c.gpu.diff/c.frame).toFixed(2)} %)`);
       rows.push({ cost: c });
       // (solo nella fase del servizio; grafica in software: il caso peggiore. Soglia: al massimo 1 ms in più per disegno)
-      check('B37.1 costo del disegno con il riquadro (solo al servizio): al massimo 1 ms in più per disegno con la grafica in software', c.diff <= 1, JSON.stringify(c));
+      check('B37.1 costo del disegno con il riquadro (solo al servizio): al massimo 1 ms in più per disegno sul processore principale (grafica in software), senza lasciare lavoro in coda alla scheda grafica', c.diff <= 1, JSON.stringify(c));
     }
     // 1280×720 (Classici, contro la CPU): la casella alla misura del B35b, 14 px
     if (cast === 'sempre' && mode === 'cpu'){

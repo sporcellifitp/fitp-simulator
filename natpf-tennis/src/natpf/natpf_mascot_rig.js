@@ -98,6 +98,13 @@ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a)/(b - a))
 export const FOOT_SPEED = 3.2;
 export const LEG_TILT = 0.55;              // quanta dell'inclinazione verso il piede prende la gamba
 export const FOOT_EDGE = 0.07;             // di quanto si alza il piede per unità di inclinazione (unità del modello)
+// B73 · Gamba e piede sono un pezzo solo: quando la gamba si inclina (corsa veloce in avanti, piedi larghi dei colpi) si
+// inclina anche la pianta, e punta o tallone scendevano nel campo fino a 6–7 cm (FOOT_EDGE alzava il piede di metà del
+// necessario) mentre il centro della pianta saliva sopra i 5 cm. Ora il piede si alza di FOOT_EDGE come prima (il passo
+// non cambia) e di più solo quando serve perché il suo punto più basso non scenda sotto quello a riposo: si calcola dai
+// vertici della pelle legati alla gamba, ridotti ai pochi che fanno da punto più basso con le inclinazioni di SOLE_TILTS
+// (gradi) in SOLE_AZIMUTHS versi (footRaise, soleSupport; docs/b73/prove-rotte.md §1)
+export const SOLE_TILTS = Object.freeze([8, 16, 24, 32, 40, 50]), SOLE_AZIMUTHS = 32;
 export const FOOT_GAIN = 1.8, FOOT_LIFT_DEAD = 0.012;      // sotto 1,2 cm di alzata il piede resta a terra (il tennista fermo sposta il peso)
 export const FOOT_LIFT_GAIN = 2.4;         // l'alzata del piede si vede di più dell'avanti e indietro: gambe corte
 export const FOOT_LIFT_MAX = 0.11;         // ...ma si addolcisce verso questo tetto (unità del modello: 18 cm in campo;
@@ -160,6 +167,43 @@ function bendDir(out, ax, side, torsoQ, dt){
 
 const boneInfo = bone => ({ bone, t: bone.position.clone(), q: bone.quaternion.clone().normalize(), wp: new THREE.Vector3(), wq: new THREE.Quaternion() });
 
+// B73 · Punti del piede che possono fare da punto più basso quando la gamba si inclina (sistema del modello, rispetto al
+// centro della pianta `sole`): vertici della pelle a riposo legati per almeno metà all'osso della gamba; di questi si
+// tengono quelli più bassi per ogni inclinazione di SOLE_TILTS in SOLE_AZIMUTHS versi (pochi: il conto a ogni fotogramma
+// è una manciata di prodotti scalari). rest: il punto più basso a riposo. null se il modello non ha la pelle.
+export function soleSupport(model, inv, legName, sole){
+  let mesh = null;
+  model.traverse(o => { if (!mesh && o.isSkinnedMesh) mesh = o; });
+  const bi = mesh ? mesh.skeleton.bones.findIndex(b => b.name === legName) : -1;
+  if (bi < 0) return null;
+  const pos = mesh.geometry.attributes.position, si = mesh.geometry.attributes.skinIndex, sw = mesh.geometry.attributes.skinWeight;
+  if (!pos || !si || !sw) return null;
+  mesh.skeleton.bones.forEach(b => b.updateMatrixWorld(true));
+  _m.multiplyMatrices(inv, mesh.matrixWorld);
+  const pts = [], v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++){
+    let w = 0;
+    if (si.getX(i) === bi) w += sw.getX(i);
+    if (si.getY(i) === bi) w += sw.getY(i);
+    if (si.getZ(i) === bi) w += sw.getZ(i);
+    if (si.getW(i) === bi) w += sw.getW(i);
+    if (w < 0.5) continue;
+    mesh.getVertexPosition(i, v);
+    pts.push(v.applyMatrix4(_m).sub(sole).clone());
+  }
+  if (!pts.length) return null;
+  const keep = new Set(), dir = new THREE.Vector3();
+  const lowest = d => { let k = 0, m = Infinity; for (let i = 0; i < pts.length; i++){ const y = pts[i].dot(d); if (y < m){ m = y; k = i; } } keep.add(k); return m; };
+  const rest = lowest(UP);
+  for (const deg of SOLE_TILTS){
+    const t = deg*Math.PI/180;
+    for (let a = 0; a < SOLE_AZIMUTHS; a++){ const az = a/SOLE_AZIMUTHS*Math.PI*2; lowest(dir.set(Math.sin(t)*Math.cos(az), Math.cos(t), Math.sin(t)*Math.sin(az))); }
+  }
+  const out = new Float32Array(keep.size*3);
+  [...keep].forEach((k, i) => pts[k].toArray(out, i*3));
+  return { pts: out, rest };
+}
+
 // Prepara il rig di un modello (la scena del GLB o una sua copia, con le ossa a riposo). Restituisce null se manca
 // un osso. `group` è il contenitore da mettere nella radice dell'attore.
 export function createMascotRig(model, key, scale = MASCOT_SCALE){
@@ -201,6 +245,7 @@ export function createMascotRig(model, key, scale = MASCOT_SCALE){
       foreFromW: new THREE.Quaternion().setFromRotationMatrix(basis(new THREE.Matrix4(), hand.wp.clone().sub(fore.wp), normal0)).invert().multiply(fore.wq),
       wrist: new THREE.Vector3(), handQ: new THREE.Quaternion(), gsin: 0.5,
       legLen: leg.wp.y, sole: new THREE.Vector3(leg.wp.x, 0, leg.wp.z),
+      support: soleSupport(model, _inv, `${name}Leg`, new THREE.Vector3(leg.wp.x, 0, leg.wp.z)),
       elbow: new THREE.Vector3(), palm: new THREE.Vector3(), foot: new THREE.Vector3(), stretch: 1, bend: new THREE.Vector3(), bendSet: false, free: new THREE.Vector3(), freeSet: false, footSet: false,
     };
   };
@@ -290,6 +335,21 @@ function poseLeg(rig, side, foot, rest, k, dt){
   } else { side.foot.copy(_F); side.footSet = true; }
   legTo(rig, side);
 }
+// B73 · Di quanto alzare il piede inclinato (unità del modello): come prima FOOT_EDGE per unità di inclinazione (il passo
+// non cambia), e di più quando non basta perché il punto più basso del piede non scenda sotto quello a riposo (il campo,
+// con il piede a terra: punta o tallone, nella corsa veloce in avanti e con i piedi larghi dei colpi). qt: inclinazione
+// della gamba (dal «giù» di riposo); senza la pelle, solo FOOT_EDGE
+const _qt = new THREE.Quaternion(), _up = new THREE.Vector3();
+export function footRaise(side, qt){
+  const edge = FOOT_EDGE*Math.sqrt(Math.max(0, 1 - _up.copy(DOWN).applyQuaternion(qt).y**2)), S = side.support;
+  if (!S) return edge;
+  // quota di un punto del piede dopo l'inclinazione, rispetto al centro della pianta: il punto per il «su» riportato indietro
+  _up.copy(UP).applyQuaternion(_qi.copy(qt).invert());
+  const P = S.pts;
+  let low = Infinity;
+  for (let i = 0; i < P.length; i += 3){ const y = P[i]*_up.x + P[i + 1]*_up.y + P[i + 2]*_up.z; if (y < low) low = y; }
+  return Math.max(edge, S.rest - low - side.foot.y);
+}
 // Gamba verso il piede side.foot (sistema del modello)
 function legTo(rig, side){
   // la coscia resta ferma con il bacino
@@ -303,10 +363,11 @@ function legTo(rig, side){
   // (solo una parte dell'inclinazione: gamba e piede sono un pezzo solo, e un piede molto inclinato punta nel campo;
   // quello che manca lo fa l'attacco della gamba, che scorre: è un peluche)
   _d.lerp(DOWN, 1 - LEG_TILT).normalize();
-  _q.setFromUnitVectors(DOWN, _d).multiply(side.leg.wq);
+  _qt.setFromUnitVectors(DOWN, _d);
+  _q.copy(_qt).multiply(side.leg.wq);
   _K.copy(side.foot).addScaledVector(_d, -side.legLen);
-  // il piede inclinato si alza un poco, perché punta o tallone non scendano sotto il campo
-  _K.y += FOOT_EDGE*Math.sqrt(_d.x*_d.x + _d.z*_d.z);
+  // il piede inclinato si alza perché punta o tallone non scendano sotto il campo
+  _K.y += footRaise(side, _qt);
   _qi.copy(_qUp).invert();
   side.leg.bone.quaternion.copy(_qi).multiply(_q);
   side.leg.bone.position.copy(_K.sub(_pUp).applyQuaternion(_qi));
