@@ -18,8 +18,6 @@ import http from 'node:http';
 import path from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import express from 'express';
-import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, seeAllCards, SP } from './th.mjs';
 import { throughTrial, phoneReadyNoGestures } from './prova.mjs';
 import worker from '../../natpf-tennis/cloudflare/registro-worker.js';
@@ -50,11 +48,18 @@ const spazio = http.createServer((req, res) => {
 await new Promise(r => spazio.listen(SPAZIO_PORT, '127.0.0.1', r));
 const nelloSpazio = () => [...env.REGISTRO.oggetti.keys()].filter(k => k.startsWith('registro/')).sort().flatMap(k => env.REGISTRO.oggetti.get(k).testo.trim().split('\n').map(l => JSON.parse(l))).filter(r => r.k !== 'blocco');
 
-const app = express(), peerServer = http.createServer(app);
-app.use('/fiw', ExpressPeerServer(peerServer, { path: '/' }));
-await new Promise(r => peerServer.listen(PEER_PORT, '127.0.0.1', r));
+// Segnalazione PeerJS in un processo a parte (peer-server.mjs), chiuso alla fine come vite. Nel processo della prova il
+// server di `peer` lasciava due timer che si riprogrammano da soli (pulizia delle connessioni ogni 300 ms e dei messaggi
+// ogni 1000 ms, senza un comando per fermarli): dopo il sommario Node non usciva (process.getActiveResourcesInfo():
+// due «Timeout»). Così la prova esce da sola, con il codice di summary(): 0 se verde, 1 se rossa (un'eccezione: 1)
+const peer = spawn(process.execPath, [path.join(here, 'peer-server.mjs'), String(PEER_PORT)], { stdio: ['ignore', 'pipe', 'inherit'] });
+await new Promise((resolve, reject) => {
+  const t = setTimeout(() => reject(new Error('server PeerJS non partito')), 15000);
+  peer.stdout.on('data', d => { if (/peer server on/.test(d)){ clearTimeout(t); resolve(); } });
+  peer.once('exit', code => { clearTimeout(t); reject(new Error(`server PeerJS uscito (${code})`)); });
+});
 const vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vite.js'), '--port', String(GAME_PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: GAME, env: { ...process.env, DISABLE_HMR: 'true' }, stdio: 'pipe' });
-const stop = () => { try { vite.kill(); } catch {} try { spazio.close(); } catch {} try { peerServer.close(); } catch {} };
+const stop = () => { for (const c of [vite, peer]) try { c.kill(); } catch {} try { spazio.close(); } catch {} };
 process.on('exit', stop);
 const up = async url => { for (let i = 0; i < 120; i++){ const ok = await new Promise(r => http.get(url, res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false))); if (ok) return true; await sleep(500); } return false; };
 check('gioco avviato con vite', await up(`${ORIGINE}/`));
@@ -198,6 +203,9 @@ try {
   writeFileSync(path.join(OUT, 'peso.json'), JSON.stringify({ prima, dopo, righe: diPartita.length, colpi: colpi.length }));
   check('peso della partita contenuto: al più +2,5 kB in chiaro con le misure', dopo - prima < 2560, `${prima} → ${dopo} byte`);
   check('nessun errore JavaScript', !errs.length && !phErrs.length, [...errs, ...phErrs].join(' | ').slice(0, 400));
+} catch (e){
+  // un'eccezione a metà (tempo scaduto, pagina chiusa) è un rosso nel sommario, non solo un errore dopo «n/n superate»
+  check('prova arrivata alla fine senza eccezioni', false, String(e?.stack || e).slice(0, 600));
 } finally {
   await B.close();
   stop();
