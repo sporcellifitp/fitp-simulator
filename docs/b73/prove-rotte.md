@@ -8,7 +8,7 @@ In breve:
 
 | prova | prima | causa | dopo |
 |---|---|---|---|
-| `natpf-lob-drop.mjs` | 136/137 (piedi: 80 passi su 2600 «con tutti e due i piedi in aria», 3,08 % contro 3 %) | nel **gioco**: gamba e piede della mascotte sono un pezzo solo, il piede a terra inclinato entrava nel campo con la punta o il tallone (fino a **5,8 cm**) e il suo centro saliva sopra i 5 cm; la **prova** misurava il centro della pianta e lo contava «in aria» | piede alzato quanto serve (punto più basso **−0,1 cm**), prova sul punto più basso vero: **1 passo** su 2600 con i due piedi in aria; vedi §1.4 |
+| `natpf-lob-drop.mjs` | 136/137 (piedi: 80 passi su 2600 «con tutti e due i piedi in aria», 3,08 % contro 3 %) | nel **gioco**: gamba e piede della mascotte sono un pezzo solo, il piede a terra inclinato entrava nel campo con la punta o il tallone (fino a **5,8 cm**) e il suo centro saliva sopra i 5 cm; la **prova** misurava il centro della pianta e lo contava «in aria» | piede alzato quanto serve (punto più basso **−0,1 cm**), prova sul punto più basso vero: **1 passo** su 2600 con i due piedi in aria; **137/137** (§3) |
 | `natpf-chi-serve.mjs` | si fermava dopo la misura del costo (oltre 10–20 minuti) | nella **prova**: 420 disegni della scena intera senza aspettare la scheda grafica, circa **25 minuti** di lavoro in coda per la grafica in software | il riquadro si misura da solo, aspettando la scheda grafica: **64/64 in 3 min 36 s**, finisce da sola |
 
 ## 1. `natpf-lob-drop.mjs`: «piedi in corsa» delle mascotte Lob e Drop
@@ -207,7 +207,10 @@ Sul ramo `b73-prove-a` (macchina a 4 core condivisa con altri agenti; carico ind
   gioco acceso, 20 fotogrammi), dopo 14 min. Parte 7 rifatta da sola (`SERVIZIO=1`): **13/13** in 8 min. Con la parte 5
   da sola (`COSTO=1`, 15/15) sono coperte tutte le 137 verifiche (117 + 6 della parte 7 + 14 della parte 5).
   Secondo giro: fermato dopo 2,5 min con il browser chiuso, il disco della macchina pieno (`/`, 99–100 %, spazio occupato
-  da altri lavori della sessione, non da questa prova): non conta. RISULTATO_TERZO_GIRO
+  da altri lavori della sessione, non da questa prova): non conta. Terzo giro uguale (fermo dopo 2 min 20 s, disco a 11 MB
+  liberi). La parte 1b da sola (`TESTA=1`), dove si erano fermati: 19/19. **Quarto giro completo, finito da solo:
+  137/137 in 26 min 57 s** (punto più basso dei piedi −0,1 cm nelle tre partite, 2 · 1 · 1 passi con i due piedi in
+  aria; fotogrammi al secondo: classici 0,51, mascotte nel codice 0,63, modelli 3D 0,73 nel giro migliore).
 - Sonde (nello scratchpad della sessione, `b73/prove-a/`): `lobdrop-sonda.mjs` (contesto dei passi, punto più basso
   vero, nel sistema della radice e del mondo, schermate dei piedi), `node/*.mjs` (corsa e colpi senza browser, geometria
   della pianta, stima della correzione), `chi-serve-repro.mjs` (blocco con il cane da guardia), `gpu-coda.mjs` e
@@ -218,6 +221,7 @@ Sul ramo `b73-prove-a` (macchina a 4 core condivisa con altri agenti; carico ind
 - Schede grafiche vere, ledwall, programma Windows: le prove sono con la grafica in software di Chromium.
 - L'aspetto del piede che poggia sulla punta o sul tallone: guardato solo in due schermate ravvicinate (§1.4), non in
   movimento né sul ledwall; le pose della card (B67/B69) provate solo dalle prove di unità.
-- Causa del «Target crashed» del primo giro completo di `natpf-lob-drop` (pagina caduta, non un KO): non trovata; la
-  stessa parte da sola è verde e non ha toccato codice cambiato qui oltre al rig (che fa solo conti).
+- Causa del «Target crashed» del primo giro completo di `natpf-lob-drop` (pagina caduta, non un KO): non dimostrata;
+  probabilmente il disco pieno della macchina, come nei due giri dopo (fermati con il disco a pochi MB liberi). La stessa
+  parte da sola è verde e il quarto giro completo è 137/137.
 - Telefono vero: non c'entra (nessun cambiamento ai gesti).
