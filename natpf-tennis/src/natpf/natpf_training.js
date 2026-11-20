@@ -268,6 +268,7 @@ export class NatpfTraining {
     this.prevDifficulty = E.hud.selectedDifficulty || E.matchConfig.difficulty;
     this.prevFormat = E.matchFormat?.id || null;
     E._applyDifficultyTuning('casual'); E.isMultiplayer = false;
+    E.natpfReadDir?.();                            // B36.1 (revisione del B73): direzione dei colpi della scelta di oggi
     E.setMatchFormat?.('singles');                 // il riscaldamento è sempre in singolare (niente compagni in campo)
     E.hud.hideTitleModal(); E.hud.hideCenterBanner();
     E.autoPlayMode = false; E.userHasInteracted = true; E.persistentStateLock = false;

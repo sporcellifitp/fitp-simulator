@@ -235,6 +235,7 @@ export class NatpfEvents {
       resolved: true, tick: 0 };
     E.hud.hideTitleModal(); E.hud.hideCenterBanner();
     E.setMatchFormat?.('singles'); E.isMultiplayer = false;
+    E.natpfReadDir?.();   // B36.1 (revisione del B73): direzione dei colpi della scelta di oggi (la riga «minigioco» la scrive)
     E.autoPlayMode = false; E.userHasInteracted = true; E.persistentStateLock = false;
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true }); E._syncScoreboardHUD();
     E._applyDifficultyTuning('casual');

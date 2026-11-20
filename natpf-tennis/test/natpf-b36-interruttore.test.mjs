@@ -71,8 +71,9 @@ test('B36.1: opzione dello stand — «Classica» di base, salvata, «Nuova» in
   assert.equal(DIR.dirModelFor({ storage: st }), 'nuova'); assert.equal(DIR.dirModelFor({ forced: 'classica', storage: st }), 'classica'); assert.equal(DIR.dirModelFor({ forced: 'x', storage: st }), 'nuova');
   assert.equal(DIR.DIR_KEY, 'natpf-tennis.direzione');
   assert.equal(DIR.dirButton('classica'), 'Classica'); assert.equal(DIR.dirButton('nuova'), 'Nuova · in lavorazione');
-  assert.match(DIR.dirToast('nuova'), /Nuova \(in lavorazione, non da provare\).*Vale dalla prossima partita; resta salvata/);
-  assert.match(DIR.dirToast('classica'), /Classica, come sempre\. Vale dalla prossima partita/);
+  // (revisione del B73: vale anche per i minigiochi, il riscaldamento e gli scambi di prova che cominciano dopo)
+  assert.match(DIR.dirToast('nuova'), /Nuova \(in lavorazione, non da provare\).*Vale dalla prossima partita o minigioco; resta salvata/);
+  assert.match(DIR.dirToast('classica'), /Classica, come sempre\. Vale dalla prossima partita o minigioco/);
   assert.deepEqual({ ...DIR.DIRECTION }, { timeWeight: .3, natural: 0, follow: 0 });
 });
 

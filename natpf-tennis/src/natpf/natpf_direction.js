@@ -4,7 +4,8 @@
 // direzione-telefono.mjs) usano per la direzione, così le tappe dopo li riempiono senza cambiare il formato del registro né
 // ricaricare il Worker:
 //   - modello della direzione di una partita: engine.natpfDirModel ('classica' | 'nuova'), letto a inizio partita
-//     (game_engine.startNewMatch: dirModelFor) e scritto nel registro in ogni riga «partita» e «minigioco» (campo dir);
+//     (game_engine.natpfReadDir: dirModelFor; dalla revisione del B73 anche all'inizio di minigiochi, riscaldamento e
+//     scambi di prova) e scritto nel registro in ogni riga «partita» e «minigioco» (campo dir);
 //   - colpo giocato con la regola nuova: lo dice l'esito del colpo (out.rule === 'nuova'; campo nr della riga «colpo»).
 //
 // Tappa B36.1 «La cima comanda (interna)» (docs/b73/direzione-b36-1.md, richiesta dell'utente del 20/11: «vai avanti»).
@@ -26,8 +27,10 @@
 // Dove si cambia: pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows, 3 s sul marchio NATPF del menu, ❚❚ tenuto
 // 3 s in campo) → «Direzione dei colpi». Resta salvata (localStorage, chiave natpf-tennis.direzione: 'classica' | 'nuova';
 // senza chiave «Classica»); il chiosco e «Nuovo giocatore» non la toccano (è dello stand, non di chi gioca). Vale dalla
-// partita dopo: il motore la legge a inizio partita e nella sfida tra due computer la manda al P2 con lo snapshot (campo
-// dir), che la usa per la previsione locale del proprio colpo. engine.natpfDirRule a mano (test e banchi) comanda.
+// prossima partita o attività: il motore la legge (game_engine.natpfReadDir) a inizio partita e all'inizio di minigiochi,
+// riscaldamento e allenamento, scambi di prova (non con «Ricalibra» a partita in corso: la partita tiene la sua regola);
+// nella sfida tra due computer la manda al P2 con lo snapshot (campo dir), che la usa per la previsione locale del proprio
+// colpo. engine.natpfDirRule a mano (test e banchi) comanda.
 export const DIR_MODELS = Object.freeze(['classica', 'nuova']);
 export const DIR_DEFAULT = 'classica';
 export const dirModelOf = engine => (DIR_MODELS.includes(engine?.natpfDirModel) ? engine.natpfDirModel : DIR_DEFAULT);
@@ -68,7 +71,7 @@ export const DIR_WIP = 'in lavorazione, non da provare';
 export const dirButton = model => (dirModelFrom(model) === 'nuova' ? 'Nuova · in lavorazione' : 'Classica');
 export const dirToast = model => `${dirModelFrom(model) === 'nuova'
   ? `Direzione dei colpi: Nuova (${DIR_WIP}): con il telefono la cima decide la direzione, il momento del colpo la ritocca`
-  : 'Direzione dei colpi: Classica, come sempre'}. Vale dalla prossima partita; resta salvata`;
+  : 'Direzione dei colpi: Classica, come sempre'}. Vale dalla prossima partita o minigioco; resta salvata`;
 
 // Zona del rimbalzo per chi colpisce (banchi e prove; la parola sullo schermo arriva con la B36.6): x nel riferimento di chi
 // colpisce (m, + a destra), contact +1 dritto del destro e rovescio del mancino, −1 l'altro lato. Lungolinea oltre `line` m

@@ -1266,11 +1266,10 @@ export class NatpfTennisEngine {
       // lo manda l'host con lo snapshot (natpfHotRally a mano per i test e le simulazioni)
       (this.natpfPartner = typeof this.natpfPartnerRule === "string" ? NDB.partnerModeOf(this.natpfPartnerRule) : NDB.readPartnerMode()),
       (this.natpfHot = NH.hotRallyFor({ split: !!this.natpfSplit?.active, webcam: !!this.natpfUi?.split?.webcam, forced: this.natpfHotRally })),
-      // B36.1: direzione dei colpi (natpf_direction.js), decisa a inizio partita: «Classica» di base, «Nuova» (in lavorazione)
-      // dal pannello dello stand; cambiarla in partita vale dalla partita dopo. Sul computer del P2 della sfida tra due
-      // computer vale «Classica» finché l'host non la manda con lo snapshot (campo dir: un host di prima non la manda e la
-      // sua regola è quella di oggi). natpfDirRule a mano per i test e i banchi
-      (this.natpfDirModel = this.playerRole === "p2" && this.isMultiplayer ? NDIR.DIR_DEFAULT : NDIR.dirModelFor({ forced: this.natpfDirRule })),
+      // B36.1: direzione dei colpi (natpf_direction.js), decisa a inizio partita (natpfReadDir, la stessa lettura delle
+      // attività fuori dalla partita): «Classica» di base, «Nuova» (in lavorazione) dal pannello dello stand; cambiarla in
+      // partita vale dalla prossima partita o attività
+      this.natpfReadDir(),
       // B25: regole della partita tra due persone nello stesso schermo (natpf_duo_rules.js), decise a inizio partita:
       // lancio automatico e campo aperto (opzioni dello staff, spente di base), colpo super sulla forza relativa,
       // preparazione che non conta, aiuto al più giovane dalle fasce dei due giocatori (natpfSplitBands). null contro la
@@ -1415,6 +1414,15 @@ export class NatpfTennisEngine {
         modeTitle: "SERVE TOSS",
         speedText: "UPWARD FLICK / SPACE",
       });
+  }
+  // B36.1: direzione dei colpi per quello che comincia (natpf_direction.js): la partita (startNewMatch) e, dalla revisione
+  // del B73, anche le attività fuori dalla partita che usano gli stessi colpi (_natpfRacketShot): scambi di prova (non
+  // «Ricalibra» a partita in corso, che tiene la regola della partita), riscaldamento e allenamento, minigiochi. Prima la
+  // leggeva solo startNewMatch e queste attività tenevano la regola dell'ultima partita. Sul computer del P2 della sfida
+  // tra due computer vale «Classica» finché l'host non la manda con lo snapshot (campo dir: un host di prima non la manda e
+  // la sua regola è quella di oggi). natpfDirRule a mano per i test e i banchi
+  natpfReadDir() {
+    return (this.natpfDirModel = this.playerRole === "p2" && this.isMultiplayer ? NDIR.DIR_DEFAULT : NDIR.dirModelFor({ forced: this.natpfDirRule }));
   }
   _setupMidRallyShowcase({ scorePlayer: e = 1, scoreOpponent: t = 0 } = {}) {
     this.natpfBannerDue = null; // NATPF B43: al menu niente scritta del punto in attesa

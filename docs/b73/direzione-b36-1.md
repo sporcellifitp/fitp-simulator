@@ -36,12 +36,15 @@ Perché lì (il piano diceva di deciderlo dopo B39 e B41, che sono fatti):
 
 Come funziona (come le altre opzioni dello stand):
 - un clic: Classica → Nuova · in lavorazione → Classica; l'avviso dice «Direzione dei colpi: Nuova (in lavorazione, non da
-  provare): con il telefono la cima decide la direzione, il momento del colpo la ritocca. Vale dalla prossima partita;
-  resta salvata»; con «Nuova» la voce si vede accesa (gialla);
+  provare): con il telefono la cima decide la direzione, il momento del colpo la ritocca. Vale dalla prossima partita o
+  minigioco; resta salvata»; con «Nuova» la voce si vede accesa (gialla);
 - **resta salvata** su quel PC (`localStorage`, chiave `natpf-tennis.direzione`); **non** la toccano il chiosco né «Nuovo
   giocatore» (né «Prossimo giocatore» in fiera): è dello stand, non di chi gioca;
-- **vale dalla partita dopo**: il motore la legge a inizio partita (`startNewMatch` → `engine.natpfDirModel`); cambiarla
-  durante una partita non cambia quella partita;
+- **vale dalla prossima partita, minigioco, riscaldamento o scambi di prova**: il motore la legge (`engine.natpfReadDir`
+  → `engine.natpfDirModel`) a inizio partita (`startNewMatch`) e, dalla revisione del B73 (`docs/b73/unione.md` §7),
+  anche all'inizio di minigiochi (`natpf_events.start`), riscaldamento e allenamento (`natpf_training.start`) e scambi di
+  prova (`natpf_trial.start`, non con «Ricalibra» a partita in corso); prima la leggeva solo `startNewMatch` e queste
+  attività tenevano la regola dell'ultima partita. Cambiarla durante una partita non cambia quella partita;
 - **sfida tra due computer**: vale quella dell'host, che la manda nello snapshot (campo facoltativo `dir`, come `hot` del
   B42); il P2 la usa per la previsione locale del suo colpo. Il P2 parte da «Classica» finché l'host non la manda: un host
   di una versione di prima non manda il campo e la sua regola è quella di oggi;

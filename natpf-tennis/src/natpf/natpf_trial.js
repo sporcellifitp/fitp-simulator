@@ -115,6 +115,9 @@ export class NatpfTrial {
       prev: { difficulty: E.hud?.selectedDifficulty || E.matchConfig?.difficulty, format: E.matchFormat?.id || null, multi: !!E.isMultiplayer } };
     // come il riscaldamento: niente menu, niente dimostrazione, punteggio a zero
     if (!split){ E._applyDifficultyTuning?.('casual'); E.isMultiplayer = false; E.setMatchFormat?.('singles'); }
+    // B36.1 (revisione del B73): direzione dei colpi della scelta di oggi, come a inizio partita; non con «Ricalibra» a
+    // partita in corso (resume), che tiene la regola della partita
+    if (!resume) E.natpfReadDir?.();
     E.hud?.hideTitleModal?.(); E.hud?.hideCenterBanner?.(); E.hud?.hideVictoryModal?.();
     E.autoPlayMode = false; E.userHasInteracted = true; E.persistentStateLock = false;
     if (E.score && !resume) Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });

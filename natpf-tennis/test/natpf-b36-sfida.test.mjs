@@ -83,7 +83,7 @@ test('B36.1, pannello dello stand: «Direzione dei colpi» Classica ↔ Nuova, s
   assert.equal(localStorage.getItem(DIR_KEY), 'nuova');
   assert.equal(voce().textContent, 'Nuova · in lavorazione');
   assert.equal(voce().parentElement.classList.contains('on'), true, '«Nuova» si vede accesa');
-  assert.match($('natpf-toast').textContent, /Nuova \(in lavorazione, non da provare\).*Vale dalla prossima partita; resta salvata/);
+  assert.match($('natpf-toast').textContent, /Nuova \(in lavorazione, non da provare\).*Vale dalla prossima partita o minigioco; resta salvata/);
   // il chiosco azzera chi gioca, non lo stand
   K.reset();
   assert.equal(localStorage.getItem(DIR_KEY), 'nuova', 'dopo il chiosco resta «Nuova»');
