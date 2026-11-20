@@ -16,6 +16,7 @@ import { webcamHealth, webcamHoldText } from './natpf_webcam_watch.js';
 import { warmupDrills } from './natpf_training.js';
 import { autoAdvance } from './natpf_lobby.js';
 import { paintBoard } from './natpf_ready.js';
+import { sendAndForget } from './natpf_fetch.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 // browser di un telefono (sistema mobile e tocco): l'invito va aperto sul computer
@@ -209,7 +210,7 @@ export class NatpfVersusUi {
     // pausa e perché
     if ((E.natpfPaused || this.waiting) && inMatch && E.roomId && E.roomId !== 'default')
       // con il punteggio e chi batte: un P2 che rientra durante la pausa li vede subito (prima 0-0 fino alla ripresa)
-      fetch('/api/match/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room: E.roomId, snapshot: { paused: true, waitingP2: this.waiting, hold: this._holdForGuest(), score: { ...E.score }, fmt: E.matchFormat?.id, gamesToWin: E.matchConfig?.gamesToWin } }) }).catch(() => {});
+      sendAndForget('/api/match/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room: E.roomId, snapshot: { paused: true, waitingP2: this.waiting, hold: this._holdForGuest(), score: { ...E.score }, fmt: E.matchFormat?.id, gamesToWin: E.matchConfig?.gamesToWin } }) }); // B73: risposta letta
   }
   /* ---------- Player 2 ---------- */
   _bindGuest(){

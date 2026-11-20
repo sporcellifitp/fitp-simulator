@@ -17,6 +17,7 @@ import { mediapipeFileUrl } from './mediapipe_locate.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const finite = v => typeof v === 'number' && Number.isFinite(v);
 import { POSE_INPUT } from './webcam_pose_strokes.js';
+import { sendAndForget } from './natpf_fetch.js';
 
 export const MOVEMENT_MODES = ['auto', 'body'];
 export const MOVEMENT_STORAGE_KEY = 'natpf-tennis.movement';
@@ -256,7 +257,7 @@ export class NatpfBodyFollow {
       this._lastSend = now;
       const t = courtTargetFromBody(this.tracker.sample(now), e.opponent, this._court());
       const room = mc.roomId || 'default';
-      fetch(`/api/body?room=${encodeURIComponent(room)}&role=p2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room, role: 'p2', active: !!t, x: t?.x ?? 0, z: t?.z ?? 0 }) }).catch(() => {});
+      sendAndForget(`/api/body?room=${encodeURIComponent(room)}&role=p2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room, role: 'p2', active: !!t, x: t?.x ?? 0, z: t?.z ?? 0 }) }); // B73: risposta letta
     }
   }
 

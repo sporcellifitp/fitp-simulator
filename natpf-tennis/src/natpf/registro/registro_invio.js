@@ -15,6 +15,7 @@
 //     Worker. Tipo text/plain: una richiesta semplice, senza la domanda preliminare CORS; niente cookie né credenziali.
 //     La chiave segreta dell'utente serve solo per leggere e cancellare, e qui non c'è.
 import { REGISTRO, indirizzoBlocco } from './registro_formato.js';
+import { drain } from '../natpf_fetch.js';
 
 // testo → gzip (Uint8Array), o null se questo browser non ha CompressionStream
 export async function comprimi(testo){
@@ -64,6 +65,9 @@ export class InvioRegistro {
     try {
       const gz = await comprimi(testo);
       const res = await this.fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: gz || testo, mode: 'cors', credentials: 'omit', cache: 'no-store', ...(ctl ? { signal: ctl.signal } : {}) });
+      // (B73: la risposta si legge anche se non serve: in Chromium una risposta mai letta resta aperta e dopo circa 180 ogni
+      // richiesta della pagina fallisce con net::ERR_INSUFFICIENT_RESOURCES, natpf_fetch.js)
+      await drain(res);
       return { status: res.status, ok: res.ok, dopo: +res.headers?.get?.('Retry-After') || 0, byte: gz ? gz.length : testo.length };
     } catch { return { status: 0, ok: false, dopo: 0 }; }
     finally { if (timer) clearTimeout(timer); }
