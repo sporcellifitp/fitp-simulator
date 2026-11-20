@@ -1,19 +1,26 @@
 // Prova nel browser della versione LAN di natpf-tennis, senza internet:
 //   1. server LAN vero (lan/server.mjs, HTTPS con certificato di prova) e nessuna richiesta fuori dal computer;
-//   2. telefono simulato (pagina NATPF /natpf/, devicemotion sintetici di tools/e2e/motion.js) collegato con il
-//      trasporto LAN (?lan=1, segnalazione su /lan-signal, WebRTC diretto): flusso continuo dei sensori → racchetta;
-//   3. 1v1 tra due istanze (host P1 e P2) attraverso il relay del server LAN, con il link di invito con l'IP di rete;
+//   2. telefono simulato (pagina NATPF /natpf/, PHONE_SIM: campioni devicemotion continui con la gravità che gira con il
+//      telefono) collegato con il trasporto LAN (?lan=1, segnalazione su /lan-signal, WebRTC diretto), pronto con la
+//      calibrazione di base «Giocando»: flusso dei sensori e piatto → racchetta, lancio e battuta con il gesto;
+//   3. 1v1 tra due istanze (host P1 e P2) attraverso il relay del server LAN, con il link di invito con l'IP di rete, e le
+//      richieste del relay che si chiudono (B73: risposte lette, src/natpf/natpf_fetch.js);
 //   4. webcam con lo stream finto di Chrome: MediaPipe Hands caricato dal pacchetto locale e inferenza offline,
-//      poi landmark sintetici della mano → posizione e inclinazione della racchetta in terza e prima persona, e swing.
+//      poi landmark sintetici della mano → posizione e inclinazione della racchetta in terza e prima persona, e swing;
+//   5. «segui il corpo» (MediaPipe Pose) per P1 e P2: qui, senza scheda grafica, non verificabile (docs/b73/prove-rotte-2.md).
+// Senza scheda grafica il disegno WebGL si toglie (stopDrawing) dopo averne misurato il costo; le schermate disegnano un
+// fotogramma vero (drawOnce). Stato e numeri: docs/b73/prove-rotte-2.md.
 // Requisiti: npm run build (dist/), npm ci in tools/lan e tools/e2e, openssl, Chrome o Chromium (CHROMIUM_PATH).
-//   node test/e2e/lan-e2e.mjs        (dalla cartella natpf-tennis; OUT=cartella per le schermate)
+//   node test/e2e/lan-e2e.mjs        (dalla cartella natpf-tennis; OUT=cartella per le schermate; ONLY=telefono,1v1,…)
+//   In un contenitore con un proxy: NO_PROXY="$NO_PROXY,<IP del PC>" (e no_proxy), altrimenti Chromium manda l'indirizzo
+//   di rete del PC al proxy.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '../../../tools/e2e/node_modules/playwright-core/index.mjs';
-import { QUICK_PLAN } from '../../../site/js/tennis/calibration.js';
+import { seeAllCards } from '../../../tools/e2e/th.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = process.env.OUT || path.join(os.tmpdir(), 'natpf-tennis-lan-e2e');
@@ -23,8 +30,35 @@ const results = [];
 const run = part => !process.env.ONLY || process.env.ONLY.split(',').includes(part);
 const check = (name, ok, info = '') => { results.push(!!ok); console.log(`${ok ? 'OK  ' : 'KO  '}${name}${info ? ' — ' + info : ''}`); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const D = Math.PI/180;
 const qAngleDeg = (a, b) => 2*Math.acos(Math.min(1, Math.abs(a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3])))*180/Math.PI;
 const CHROME = process.env.CHROMIUM_PATH || ['C:/Program Files/Google/Chrome/Application/chrome.exe', '/usr/bin/chromium', '/usr/bin/google-chrome'].find(f => fs.existsSync(f));
+
+// Telefono simulato come uno vero (pagina del telefono, prima del caricamento): campioni devicemotion continui a 100 Hz con
+// un poco di rumore anche da fermo, e accelerazione con gravità che gira con il telefono (orientamento integrato dal
+// giroscopio). Prima la prova usava tools/e2e/motion.js: campioni solo mentre la prova muoveva il telefono (la pagina
+// diceva «Sensori fermi») e gravità sempre lungo y, anche con il telefono ruotato di 30°: il piatto del telefono
+// (face-tracker.js, filtro con la gravità) tornava indietro da solo e la racchetta non seguiva le rotazioni attorno a x e z.
+// __sim.run(fn, ms): fn(u) con u da 0 a 1 → { w: [x, y, z] °/s negli assi del telefono, a: [x, y, z] m/s² senza gravità }
+const PHONE_SIM = () => {
+  const G = 9.81, D = Math.PI/180;
+  const mul = (a, b) => [a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1], a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0], a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3], a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]];
+  const conj = q => [-q[0], -q[1], -q[2], q[3]], turn = (q, v) => mul(mul(q, [v[0], v[1], v[2], 0]), conj(q)).slice(0, 3);
+  let q = [0, 0, 0, 1], last = performance.now(), drive = null;      // telefono → mondo (mondo = presa di riposo, dritto)
+  window.__sim = {
+    run(fn, ms){ return new Promise(r => { const t0 = performance.now(); drive = now => { const u = Math.min(1, (now - t0)/ms); if (u >= 1){ drive = null; r(); } return fn(u); }; }); },
+    still(ms){ return this.run(() => ({ w: [0, 0, 0] }), ms); },
+  };
+  try { DeviceMotionEvent.requestPermission = async () => 'granted'; } catch {}
+  setInterval(() => {
+    const now = performance.now(), dt = Math.min(.05, (now - last)/1000); last = now;
+    const v = drive ? drive(now) : { w: [0, 0, 0] }, a = v.a || [0, 0, 0];
+    const w = v.w.map((x, i) => x + [.4*Math.sin(now/53), .3*Math.cos(now/71), .2*Math.sin(now/97)][i]), m = Math.hypot(...w);
+    if (m > 0){ const h = m*D*dt/2, s = Math.sin(h)/m; q = mul(q, [w[0]*s, w[1]*s, w[2]*s, Math.cos(h)]); const l = Math.hypot(...q); q = q.map(x => x/l); }
+    const up = turn(conj(q), [0, 1, 0]);                                // alto del mondo negli assi del telefono
+    window.dispatchEvent(new DeviceMotionEvent('devicemotion', { rotationRate: { alpha: w[2], beta: w[0], gamma: w[1] }, acceleration: { x: a[0], y: a[1], z: a[2] }, accelerationIncludingGravity: { x: a[0] + G*up[0], y: a[1] + G*up[1], z: a[2] + G*up[2] }, interval: 10 }));
+  }, 10);
+};
 
 function lanIp(){
   for (const items of Object.values(os.networkInterfaces())) for (const a of items || []) if (a.family === 'IPv4' && !a.internal) return a.address;
@@ -42,7 +76,7 @@ server.stdout.on('data', d => { serverLog += d; }); server.stderr.on('data', d =
 const BASE = `https://127.0.0.1:${PORT}`;
 
 let browser;
-const external = [], errors = [];
+const external = [], errors = [], insufficient = [];
 async function newContext(options = {}){
   const ctx = await browser.newContext({ ignoreHTTPSErrors: true, ...options });
   // offline: tutto ciò che non è questo computer viene bloccato e contato
@@ -56,11 +90,38 @@ async function newContext(options = {}){
 async function openGame(ctx, url, label){
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(`${label}: ${e.message}`));
+  // B73: richieste al relay ancora aperte e richieste rifiutate dal browser per troppe richieste aperte (le risposte mai
+  // lette restavano aperte e dopo circa 180 ogni richiesta della pagina falliva con net::ERR_INSUFFICIENT_RESOURCES; i
+  // «Failed to load resource» della console sono esclusi dagli errori qui sotto, quindi si contano a parte)
+  page.__api = new Set();
+  page.on('request', r => { if (/\/api\//.test(r.url())) page.__api.add(r); });
+  page.on('requestfinished', r => page.__api.delete(r));
+  page.on('requestfailed', r => { page.__api.delete(r); if (/INSUFFICIENT_RESOURCES/.test(r.failure()?.errorText || '')) insufficient.push(`${label}: ${new URL(r.url()).pathname}`); });
+  page.on('crash', () => { errors.push(`${label}: pagina andata in crash`); console.log(`[${label}] pagina andata in crash (${new Date().toISOString().slice(11, 19)})`); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|favicon/.test(m.text())) errors.push(`${label}: ${m.text()}`); });
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.waitForFunction(() => window.__natpfTennis?.player?.model && window.__natpfTennis.racketKinematics, null, { timeout: 120000 });
   return page;
 }
+
+// Senza scheda grafica (WebGL in software, SwiftShader) un fotogramma disegnato costa secondi (misurato qui sotto: 2,6–3,0 s
+// la partita, 1 fotogramma al secondo con la webcam): il ciclo del gioco (update, telefono, webcam, racchetta) gira una
+// volta ogni pochi secondi e nelle finestre di mezzo secondo delle prove spesso non c'è nessun fotogramma. Come nella parte
+// 1v1 e nelle prove natpf-*, si toglie solo il disegno WebGL (renderer.render): update, personaggi (render() resta),
+// telefono, webcam e colpi sono quelli veri, e le matrici si aggiornano come nel disegno. stopDrawing misura prima il
+// fotogramma con il disegno (2 intervalli) e poi senza (1,5 s); drawOnce disegna un fotogramma vero, per le schermate
+async function stopDrawing(page, label){
+  const ms = await page.evaluate(() => new Promise(r => { const t = []; const f = n => { t.push(n); if (t.length < 3) requestAnimationFrame(f); else {
+    // (senza disegnare, le matrici del mondo e della camera si aggiornano come fa three.js all'inizio di render: le
+    // posizioni a schermo, Vector3.project(camera), restano quelle del fotogramma)
+    const R = __natpfTennis.renderer; R.__draw ||= R.render;
+    R.render = (scene, camera) => { if (scene?.matrixWorldAutoUpdate !== false) scene?.updateMatrixWorld?.(); if (camera && camera.parent === null && camera.matrixWorldAutoUpdate !== false) camera.updateMatrixWorld(); };
+    let k = 0; const t0 = performance.now(); const g = () => { k++; if (performance.now() - t0 < 1500) requestAnimationFrame(g); else r([Math.round((t[2] - t[0])/2), Math.round((performance.now() - t0)/k)]); };
+    requestAnimationFrame(g); } }; requestAnimationFrame(f); }));
+  console.log(`${label}: fotogramma ${ms[0]} ms con il disegno WebGL in software, ${ms[1]} ms senza`);
+  return ms;
+}
+const drawOnce = page => page.evaluate(() => { const E = __natpfTennis, R = E.renderer, off = R.render; if (!R.__draw) return; R.render = R.__draw; try { E.render(); } finally { R.render = off; } });
 
 try {
   await new Promise((resolve, reject) => {
@@ -73,7 +134,11 @@ try {
 
   /* ---------- 1. gioco offline dal server LAN ---------- */
   const hostCtx = await newContext({ viewport: { width: 1280, height: 760 }, permissions: ['camera'] });
-  const host = await openGame(hostCtx, BASE + '/', 'host');
+  // senza l'intro, come le altre prove nel browser: dal B21 l'intro prova prima il trailer di questo server
+  // (./media/trailer-….mp4, che c'è solo nel programma Windows: natpf-desktop/scripts/prepara.mjs lo copia in dist/media) e
+  // poi il bucket pubblico; con la build di sviluppo il file manca e la richiesta al bucket (bloccata qui) è voluta
+  // (natpf_intro.js introPlan, test/natpf-intro-trailer.test.mjs). Il server aggiunge comunque ?lan=1
+  const host = await openGame(hostCtx, BASE + '/?intro=0', 'host');
   check('il gioco si apre da / con ?lan=1 aggiunto dal server', new URL(host.url()).searchParams.get('lan') === '1', host.url());
   const status = await host.evaluate(() => fetch('/lan/status').then(r => r.json()));
   check('/lan/status: build presente e pacchetto offline completo', status.build && status.offline?.complete, JSON.stringify(status.offline));
@@ -89,69 +154,84 @@ try {
     const phoneCtx = await newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36' });
     const phone = await phoneCtx.newPage();
     phone.on('pageerror', e => errors.push(`telefono: ${e.message}`));
-    await phone.addInitScript(fs.readFileSync(path.join(ROOT, '../tools/e2e/motion.js'), 'utf8') + ';DeviceMotionEvent.requestPermission=async()=>"granted";');
+    await phone.addInitScript(PHONE_SIM);
     await phone.goto(pairing.url);
     await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
-    // calibrazione rapida NATPF vera, guidata dal computer (natpf_phone_racket.js): fermo, i gesti del percorso rapido,
-    // prova libera, conferma
     await phone.click('#enable');
-    // il telefono vuole dati di movimento entro 1,5 s dall'attivazione: telefono fermo che manda campioni, e intanto
-    // l'eventuale tutorial (dal 04/11, B4) che si chiude con «Tutto chiaro, ho capito» sul telefono
-    const quiet = phone.evaluate(() => __motion.still(9000));
-    const tut = await phone.waitForFunction(() => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden'); }, null, { timeout: 8000 }).then(() => true, () => false);
-    if (tut) await phone.click('#tutOk');
-    await quiet;
-    await phone.evaluate(() => __motion.still(1600));
-    await phone.waitForFunction(() => __racchetta.cal.state.step === 'swings', null, { timeout: 15000 }).catch(async e => {
-      const st = await phone.evaluate(() => ({ sensor: __racchetta.state.sensor, step: __racchetta.cal?.state?.step, big: document.getElementById('big')?.textContent })).catch(x => x.message);
-      console.log('telefono dopo «Attiva i sensori»:', JSON.stringify({ tutorial: tut, ...st })); throw e; });
-    for (const dir of QUICK_PLAN.map(w => w === 'L' ? 1 : -1)) await phone.evaluate(async dir => { await __motion.swing({ axis: [0, -dir, 0], peak: 42, dur: 260 }); await __motion.swing({ axis: [0, dir, 0], peak: dir === 1 ? 120 : 150, dur: 220 }); await __motion.still(650); }, dir);
-    await host.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 15000 });
-    await phone.waitForFunction(() => __racchetta.cal.state.step === 'free', null, { timeout: 10000 });
-    await phone.evaluate(async () => { await __motion.swing({ axis: [0, 1, 0], peak: 120, dur: 220 }); await __motion.still(500); });
-    await host.waitForFunction(() => __natpfTennis.natpfPhone.cal.freeOk, null, { timeout: 10000 });
-    await host.evaluate(() => __natpfTennis.natpfPhone.confirm());
-    await phone.waitForFunction(() => __racchetta.state.sensor === 'ready', null, { timeout: 10000 });
-    await host.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 10000 });
-    check('telefono collegato e pronto sul computer', true);
+    // l'eventuale tutorial (dal 04/11, B4; «Tutto chiaro» acceso dopo aver visto tutte le schede, B9) si chiude sul telefono
+    const tut = await phone.waitForFunction(() => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden'); }, null, { timeout: 3000 }).then(() => true, () => false);
+    if (tut){ await seeAllCards(phone); await phone.click('#tutOk'); }
+    // B28: di base «Calibrazione: Giocando» (l'opzione dello stand): niente gesti di calibrazione, il telefono è pronto
+    // subito con il profilo semplice e impara giocando. La calibrazione con i gesti resta un'opzione, provata dalle prove
+    // natpf-* con CAL=gesti (stesso telefono, stesso computer: cambia solo il trasporto, che qui è la LAN)
+    const ready = await host.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 15000 }).then(() => true, () => false);
+    const st = await phone.evaluate(() => ({ sensor: __racchetta.state.sensor, step: __racchetta.cal?.state?.step, big: document.getElementById('big')?.textContent })).catch(x => x.message);
+    check('telefono collegato e pronto sul computer (profilo semplice, calibrazione «Giocando»)', ready && st.sensor === 'ready', JSON.stringify({ tutorial: tut, ...st }));
     // partita contro la CPU: il telefono riceve la fase di gioco
     await host.evaluate(() => { __natpfTennis.hud.callbacks.onStartMatch({ gamesToWin: 1, inputMode: 'phone' }); __natpfTennis.hud.hideTitleModal(); });
-    await host.waitForFunction(() => __natpfTennis.phase === 'SERVE_STANCE', null, { timeout: 30000 });
+    await host.waitForFunction(() => __natpfTennis.phase === 'SERVE_STANCE' && !__natpfTennis.natpfPaused, null, { timeout: 30000 });
+    // (prima era una delle cause di «la racchetta non segue il polso»: vedi stopDrawing)
+    await stopDrawing(host, 'partita con il telefono');
     await sleep(600);
-    // flusso continuo: rotazione lenta attorno a un asse del telefono, poi indietro; la racchetta deve seguirla
+    // flusso continuo: rotazione lenta attorno a un asse del telefono (45 °/s per 0,7 s), poi nel verso opposto; la
+    // racchetta deve seguirla. Il telefono simulato ruota davvero: la gravità gira con lui (PHONE_SIM)
     const wrist = () => host.evaluate(() => {
       const e = __natpfTennis, k = e.player.racketKinematics, m = e.natpfPhone.link.motion(), o = e.motionController.phoneState.orientation;
-      return { euler: [k.wristSpringEuler.x, k.wristSpringEuler.y, k.wristSpringEuler.z], q: e.player.racketPivot.quaternion.toArray(), received: m?.received || 0, tilt: [o.pitch, o.roll, o.yaw], ext: e.motionController.externalRacket };
+      return { euler: [k.wristSpringEuler.x, k.wristSpringEuler.y, k.wristSpringEuler.z], q: e.player.racketPivot.quaternion.toArray(), received: m?.received || 0, tilt: [o.pitch, o.roll, o.yaw], ext: e.motionController.externalRacket, face: e.natpfPhone.link.face?.() || null };
     });
-    const rotate = (axis, rate, ms) => phone.evaluate(({ axis, rate, ms }) => new Promise(r => { const t0 = performance.now(); const id = setInterval(() => { __motion.emit(axis.map(v => v*rate)); if (performance.now() - t0 > ms){ clearInterval(id); r(); } }, 10); }), { axis, rate, ms });
+    const rotate = (axis, rate, ms) => phone.evaluate(({ axis, rate, ms }) => __sim.run(() => ({ w: axis.map(v => v*rate) }), ms), { axis, rate, ms });
     const qAngle = (a, b) => 2*Math.acos(Math.min(1, Math.abs(a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3])))*180/Math.PI;
-    const axes = { X: [0, 1, 0], Y: [0, 0, 1], Z: [1, 0, 0] };          // rotationRate: alpha=Z, beta=X, gamma=Y
+    const axes = { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] };          // assi del telefono (rotationRate: beta, gamma, alpha)
     const mapping = {};
     for (const [name, axis] of Object.entries(axes)){
-      await rotate(axis, 0, 400);
-      const before = await wrist();
-      await rotate(axis, 45, 700); await rotate(axis, 0, 250);   // il telefono vero manda campioni anche da fermo
+      await rotate(axis, 0, 500);
+      const rest = await wrist();
+      await rotate(axis, 45, 700); await rotate(axis, 0, 250);
       const plus = await wrist();
       await rotate(axis, -45, 1400); await rotate(axis, 0, 250);
       const minus = await wrist();
       await rotate(axis, 45, 700); await rotate(axis, 0, 300);              // di nuovo alla presa di riposo
-      const d = plus.euler.map((v, i) => v - minus.euler[i]);
-      mapping[name] = { tilt: plus.tilt.map((v, i) => +(v - minus.tilt[i]).toFixed(1)), wrist: d.map(v => +v.toFixed(3)), racketDeg: +qAngle(plus.q, minus.q).toFixed(1), samples: plus.received - before.received, ext: plus.ext };
+      const diff = (a, b) => a.map((v, i) => +(v - b[i]).toFixed(1));
+      mapping[name] = { tilt: diff(plus.tilt, minus.tilt), tiltPlus: diff(plus.tilt, rest.tilt), tiltMinus: diff(minus.tilt, rest.tilt), wrist: plus.euler.map((v, i) => +(v - minus.euler[i]).toFixed(3)),
+        racketDeg: +qAngle(plus.q, minus.q).toFixed(1), wristPlus: diff(plus.euler.map(v => v/D), rest.euler.map(v => v/D)), wristMinus: diff(minus.euler.map(v => v/D), rest.euler.map(v => v/D)), samples: plus.received - rest.received, ext: plus.ext, face: !!plus.face };
     }
     console.log('telefono → racchetta', JSON.stringify(mapping));
-    check('flusso dei sensori LAN: campioni continui arrivano al computer', mapping.X.samples > 20 && mapping.Y.samples > 20, `campioni in 0,7 s: ${mapping.X.samples}, ${mapping.Y.samples}, ${mapping.Z.samples}`);
-    check('la racchetta virtuale segue il polso in modo continuo (tutti e tre gli assi)', Object.values(mapping).every(m => m.racketDeg > 4), Object.entries(mapping).map(([k, m]) => `${k}: ${m.racketDeg}°`).join(', '));
+    check('flusso dei sensori LAN: campioni continui arrivano al computer (più di 20 in 0,95 s; il telefono ne manda 40 al secondo)', Object.values(mapping).every(m => m.samples > 20), `campioni: ${mapping.X.samples}, ${mapping.Y.samples}, ${mapping.Z.samples}`);
+    check('orientamento del piatto dal telefono (messaggi «fo») sul computer: la racchetta segue il telefono', Object.values(mapping).every(m => m.ext === 'natpf-phone' && m.face), JSON.stringify(Object.fromEntries(Object.entries(mapping).map(([k, m]) => [k, [m.ext, m.face]]))));
+    // presa verticale (manico nel palmo, B3): la racchetta segue il piatto (natpf_phone_racket.racketTiltFromFace). Asse X
+    // del telefono = piatto aperto/chiuso → apertura (roll) della racchetta; asse Y (manico) = piatto girato → imbardata;
+    // asse Z (normale allo schermo) = telefono inclinato di lato → beccheggio. Il verso dell'inclinazione attorno a Z il
+    // telefono non lo manda (face-tracker.js: roll = di quanto il manico si scosta dalla verticale, «solo presentazione»):
+    // la racchetta si inclina allo stesso modo nei due versi, quindi per Z si guarda di quanto il polso della racchetta
+    // (racket_kinematics: wristSpringEuler.x = 0,65 × beccheggio) si scosta dalla presa di riposo in ciascun verso. (Lo
+    // scarto del pivot della racchetta dalla presa di riposo comprende anche il dondolio d'attesa del personaggio: 3–9°
+    // da un giro all'altro, non è una misura del telefono)
+    check('la racchetta virtuale segue il piatto del telefono: X e Y nei due versi, Z (inclinazione di lato) dalla presa di riposo', mapping.X.racketDeg > 4 && mapping.Y.racketDeg > 4 && Math.abs(mapping.Z.wristPlus[0]) > 4 && Math.abs(mapping.Z.wristMinus[0]) > 4,
+      `racchetta tra i due versi: X ${mapping.X.racketDeg}°, Y ${mapping.Y.racketDeg}° (Z ${mapping.Z.racketDeg}°); polso con Z dalla presa di riposo: ${mapping.Z.wristPlus[0]}° e ${mapping.Z.wristMinus[0]}°`);
     const dominant = (v, i) => Math.abs(v[i]) > Math.abs(v[(i + 1) % 3]) && Math.abs(v[i]) > Math.abs(v[(i + 2) % 3]);
-    check('impugnatura NATPF: asse X del telefono → beccheggio, asse Y (manico) → rollio del piatto, asse Z (normale allo schermo) → imbardata', dominant(mapping.X.tilt, 0) && dominant(mapping.Y.tilt, 1) && dominant(mapping.Z.tilt, 2), JSON.stringify({ X: mapping.X.tilt, Y: mapping.Y.tilt, Z: mapping.Z.tilt }));
+    check('presa verticale: asse X del telefono → apertura del piatto (roll), asse Y (manico) → imbardata, asse Z (normale allo schermo) → beccheggio', dominant(mapping.X.tilt, 1) && dominant(mapping.Y.tilt, 2) && dominant(mapping.Z.tiltPlus, 0) && dominant(mapping.Z.tiltMinus, 0),
+      JSON.stringify({ X: mapping.X.tilt, Y: mapping.Y.tilt, Z: [mapping.Z.tiltPlus, mapping.Z.tiltMinus] }));
     // la rotazione del polso si somma alle animazioni del motore base (attesa, servizio della CPU): solo informativa
     console.log('rotazione del polso per asse del telefono (info)', JSON.stringify({ X: mapping.X.wrist, Y: mapping.Y.wrist, Z: mapping.Z.wrist }));
+    // (schermata: un fotogramma disegnato davvero, poi di nuovo senza disegno)
+    await drawOnce(host);
     await host.screenshot({ path: path.join(OUT, 'lan-telefono-terza-persona.png') });
-    // servizio con il telefono: un gesto lancia la palla
-    await host.evaluate(() => { window.__swings = []; __natpfTennis.motionController.on('toss', s => __swings.push(s.source)); __natpfTennis.motionController.on('swing', s => __swings.push(s.source)); });
-    await phone.evaluate(async () => { await __motion.still(300); await __motion.swing({ axis: [0, 1, 0], peak: 320 }); await __motion.still(300); });
-    await host.waitForFunction(() => __swings.length > 0, null, { timeout: 8000 }).catch(() => {});
+    // servizio con il telefono: un gesto lancia la palla, un altro vicino al punto più alto la colpisce. In partita il
+    // telefono è bloccato (B51) e i tocchi sullo schermo non lanciano più: si lancia con il gesto, come
+    // tools/e2e/natpf-servizio-lancio.mjs (gesto: rotazione attorno al manico, 900 °/s, come le prove natpf-*)
+    await host.evaluate(() => { window.__swings = []; __natpfTennis.motionController.on('toss', s => __swings.push(['toss', s.source])); __natpfTennis.motionController.on('swing', s => __swings.push(['swing', s.source])); });
+    const serve = await host.evaluate(() => ({ phase: __natpfTennis.phase, server: __natpfTennis.score.server, telefono: __natpfTennis.natpfPhone.lastPhase }));
+    const gesture = (peak, dur) => phone.evaluate(({ peak, dur }) => __sim.run(u => ({ w: [0, peak*Math.sin(Math.PI*u)**2, 0], a: [0, 0, -4*Math.sin(Math.PI*u)] }), dur).then(() => __sim.still(300)), { peak, dur });
+    await gesture(900, 160);
+    const tossed = await host.waitForFunction(() => __natpfTennis.phase === 'SERVE_TOSS', null, { timeout: 4000, polling: 20 }).then(() => true, () => false);
+    // (il gesto arriva al motore come «swing» del telefono, che al servizio diventa il lancio)
+    const atToss = await host.evaluate(() => __swings.slice());
+    // la battuta vicino al punto più alto del lancio (la palla sale per circa 0,5 s)
+    if (tossed){ await host.waitForFunction(() => __natpfTennis.phase !== 'SERVE_TOSS' || __natpfTennis.ball.vel.y < 1.2, null, { timeout: 3000, polling: 16 }).catch(() => {}); await gesture(900, 240); }
+    const served = await host.waitForFunction(() => __natpfTennis.phase === 'RALLY' || __natpfTennis.phase === 'POINT_OVER', null, { timeout: 4000 }).then(() => true, () => false);
     const swings = await host.evaluate(() => ({ swings: __swings, phase: __natpfTennis.phase }));
-    check('gesto del telefono → colpo del motore base (lancio al servizio)', swings.swings.includes('natpf-phone'), JSON.stringify(swings));
+    check('gesto del telefono → lancio della palla al servizio (motore base, dal telefono via LAN)', serve.phase === 'SERVE_STANCE' && serve.server === 'player' && tossed && atToss.some(s => s[1] === 'natpf-phone'), JSON.stringify({ serve, lancio: atToss }));
+    check('gesto del telefono vicino al punto più alto → battuta: il servizio parte', served && swings.swings.slice(atToss.length).some(s => s[0] === 'swing' && s[1] === 'natpf-phone'), JSON.stringify(swings));
     await phoneCtx.close();
     await host.evaluate(() => __natpfTennis.natpfUi.selectController('mouse', { open: false }));
     await hostCtx.close();
@@ -217,6 +297,10 @@ try {
     await sleep(1500);
     sync = await Promise.all([p1, p2].map(p => p.evaluate(() => ({ score: ['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames'].map(k => __natpfTennis.score[k]), phase: __natpfTennis.phase, rally: window.__maxRally, p2swings: window.__p2swings }))));
     console.log('1v1', JSON.stringify(sync));
+    // (prima del B73 gli snapshot dell'host, 22 al secondo, restavano tutti aperti: dopo circa 8 s di partita ogni
+    // richiesta falliva e la pagina dell'host o del P2 andava in crash; ora restano aperte solo quelle in viaggio)
+    const open = [p1, p2].map(p => [...p.__api].map(r => new URL(r.url()).pathname));
+    check('relay della sfida: le richieste si chiudono (al più 6 aperte per pagina, quelle in viaggio)', open.every(o => o.length <= 6), JSON.stringify(open.map(o => o.length)));
     check('i colpi del P2 arrivano all\'host attraverso il relay del server LAN', sync[0].p2swings >= 2, `colpi P2 ricevuti: ${sync[0].p2swings}`);
     check('scambio 1v1 tra le due istanze', sync[0].rally >= 2, `scambio più lungo: ${sync[0].rally} colpi`);
     check('punteggio e fase sincronizzati sul P2 (snapshot dell\'host)', JSON.stringify(sync[0].score) === JSON.stringify(sync[1].score) && sync[1].rally >= 1, `P1 ${sync[0].score} · P2 ${sync[1].score}`);
@@ -230,13 +314,15 @@ try {
     const camCtx = await newContext({ viewport: { width: 1100, height: 680 }, permissions: ['camera'] });
     // con i colpi dalla mano (?webcamMano=1): qui si prova la mano → racchetta, che con i colpi dal movimento (predefiniti
     // dal 29/10, webcam_motion.js) in partita non gira; i colpi dal movimento li prova test/natpf-webcam-motion.test.mjs
-    const cam = await openGame(camCtx, BASE + '/?webcamMano=1', 'webcam');
+    const cam = await openGame(camCtx, BASE + '/?webcamMano=1&intro=0', 'webcam');
     const fps = () => cam.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1500) requestAnimationFrame(f); else r({ fps: Math.round(n/(performance.now() - t0)*1000), visible: document.visibilityState }); }; requestAnimationFrame(f); }));
     console.log('fps prima della webcam', JSON.stringify(await fps()));
     const mpRequests = [];
     cam.on('request', r => { if (/mediapipe/.test(r.url())) mpRequests.push(new URL(r.url()).hostname); });
     await cam.evaluate(() => { __natpfTennis.natpfUi.selectController('webcam', { open: false }); __natpfTennis.hud.callbacks.onStartMatch({ gamesToWin: 1, inputMode: 'webcam' }), __natpfTennis.hud.hideTitleModal(); });
-    await cam.waitForFunction(() => __natpfTennis.motionController.webcamActive, null, { timeout: 20000 });
+    // (la camera finta di Chromium, con la macchina carica, si è aperta in 8–12 s: 60 s d'attesa invece di 20, la prova
+    // verifica che si apra, non quanto in fretta)
+    await cam.waitForFunction(() => __natpfTennis.motionController.webcamActive, null, { timeout: 60000 });
     await cam.waitForFunction(() => __natpfTennis.motionController.mpHands, null, { timeout: 90000 }).catch(() => {});
     const mp = await cam.evaluate(async () => {
       const mc = __natpfTennis.motionController;
@@ -266,11 +352,17 @@ try {
     mc._processWebcamFrame = () => { if (window.__handOn){ mc.latestHandLandmarks = lm(__hand); mc.latestHandSeenAt = performance.now(); mc._hasNewHandResult = true; __frames++; } process(); };
     window.__handOn = true;
     });
+    // Con la webcam la pagina andava a 1 fotogramma al secondo (inferenza vera di MediaPipe sul fotogramma finto: 4–5 s la
+    // prima, poi il disegno WebGL in software) e la racchetta non seguiva la mano tra una posa e l'altra. Con i landmark
+    // sintetici al posto dell'inferenza resta il disegno, che si toglie (stopDrawing)
+    // (prima che l'ultima inferenza vera in corso, 3–5 s in software, finisca: altrimenti la misura del fotogramma la comprende)
+    await cam.waitForFunction(() => !__natpfTennis.motionController._mpBusy, null, { timeout: 15000 }).catch(() => {});
+    await stopDrawing(cam, 'partita con la webcam (landmark sintetici)');
     await cam.waitForFunction(() => __natpfTennis.phase === 'SERVE_STANCE', null, { timeout: 30000 });
     const racket = () => cam.evaluate(() => {
       const e = __natpfTennis, a = e.localActor || e.player, w = a.racketPivot.getWorldPosition(a.racketPivot.position.clone()), s = w.clone().project(e.camera);
       const h = a.parts?.handR ? a.parts.handR.getWorldPosition(w.clone()) : null, hs = h ? h.clone().project(e.camera) : null;
-      return { screen: [s.x, s.y], hand: hs ? [hs.x, hs.y] : null, q: a.racketPivot.getWorldQuaternion(a.racketPivot.quaternion.clone()).toArray(), live: e.motionController.webcamLiveInput() };
+      return { screen: [s.x, s.y], hand: hs ? [hs.x, hs.y] : null, q: a.racketPivot.getWorldQuaternion(a.racketPivot.quaternion.clone()).toArray(), live: e.motionController.webcamLiveInput(), world: [w.x, w.y, w.z], handWorld: h ? [h.x, h.y, h.z] : null, cam: e.camera.position.distanceTo(w), fov: e.camera.fov };
     });
     // la mano si sposta piano (sotto la soglia degli swing del motore base), poi resta ferma
     const hold = async (pose, ms = 500) => {
@@ -288,23 +380,31 @@ try {
       const left = await hold({ x: .65 }), right = await hold({ x: .35 });
       const low = await hold({ x: .5, y: .72 }), high = await hold({ y: .48 });
       const straight = await hold({ y: .6, angle: 0 }), tilted = await hold({ angle: -.5 });
-      await cam.screenshot({ path: path.join(OUT, `lan-webcam-${view}.png`) });
+      await drawOnce(cam); await cam.screenshot({ path: path.join(OUT, `lan-webcam-${view}.png`) });
       await hold({ angle: 0 }, 400);
     const shotsDuringPose = await cam.evaluate(() => __webcamShots.length);
-    webcam[view] = { dx: +(right.screen[0] - left.screen[0]).toFixed(3), dy: +(high.screen[1] - low.screen[1]).toFixed(3), handDx: right.hand && left.hand ? +(right.hand[0] - left.hand[0]).toFixed(3) : null, rollDeg: +qAngleDeg(straight.q, tilted.q).toFixed(1), shots: shotsDuringPose, live: right.live };
+    webcam[view] = { worldDx: +(right.world[0] - left.world[0]).toFixed(3), worldDy: +(high.world[1] - low.world[1]).toFixed(3), handWorldDx: right.handWorld && left.handWorld ? +(right.handWorld[0] - left.handWorld[0]).toFixed(3) : null, cam: +right.cam.toFixed(1), fov: Math.round(right.fov), dx: +(right.screen[0] - left.screen[0]).toFixed(3), dy: +(high.screen[1] - low.screen[1]).toFixed(3), handDx: right.hand && left.hand ? +(right.hand[0] - left.hand[0]).toFixed(3) : null, rollDeg: +qAngleDeg(straight.q, tilted.q).toFixed(1), shots: shotsDuringPose, live: right.live };
     }
     const f1 = await cam.evaluate(() => [__frames, performance.now()]);
     webcam.fps = Math.round((f1[0] - f0[0])/(f1[1] - f0[1])*1000);
     console.log('webcam → racchetta', JSON.stringify(webcam));
     for (const view of ['third', 'first']){
       const w = webcam[view], label = view === 'first' ? 'prima persona' : 'terza persona';
-      check(`webcam, ${label}: mano a destra/sinistra → racchetta a destra/sinistra sullo schermo`, w.dx > (view === 'first' ? .05 : .01), `Δx schermo ${w.dx}`);
+      // terza persona: la camera del servizio è a ~13 m e di sbieco (fov 49°): 0,14 m della racchetta nel mondo sono
+      // 0,006 di schermo (~3 px su 1100), sotto la soglia di 0,01 della prova del 20/10. Si guarda lo spostamento nel mondo
+      // (≥ 8 cm) e il verso sullo schermo; in prima persona (camera a ~1 m) resta la soglia sullo schermo
+      if (view === 'first') check(`webcam, ${label}: mano a destra/sinistra → racchetta a destra/sinistra sullo schermo`, w.dx > .05, `Δx schermo ${w.dx}`);
+      else check(`webcam, ${label}: mano a destra/sinistra → racchetta a destra/sinistra (nel campo e sullo schermo)`, w.worldDx > .08 && w.dx > 0, `Δx nel campo ${w.worldDx} m, sullo schermo ${w.dx} (camera a ${w.cam} m)`);
       check(`webcam, ${label}: mano in alto/in basso → racchetta in alto/in basso`, w.dy > (view === 'first' ? .05 : .01), `Δy schermo ${w.dy}`);
       check(`webcam, ${label}: mano ruotata → racchetta ruotata`, w.rollDeg > 5, `${w.rollDeg}°`);
       check(`webcam, ${label}: i movimenti lenti muovono la racchetta senza far partire colpi`, w.shots === 0, `colpi: ${w.shots}`);
     }
-    check('webcam: anche la mano del personaggio segue la mano reale', webcam.third.handDx > .02, `Δx mano ${webcam.third.handDx}`);
-    // swing veloce davanti alla webcam: motore base fa partire il colpo (logica di gioco invariata)
+    check('webcam: anche la mano del personaggio segue la mano reale (terza persona, nel campo e sullo schermo)', webcam.third.handWorldDx > .08 && webcam.third.handDx > 0, `Δx mano nel campo ${webcam.third.handWorldDx} m, sullo schermo ${webcam.third.handDx}`);
+    // swing veloce davanti alla webcam: motore base fa partire il colpo (logica di gioco invariata). Prima si aspetta che la
+    // partita riparta: il fotogramma vero della schermata (drawOnce, ~2,5 s in software) ferma la webcam e il gioco va in
+    // pausa «webcam ferma», e in pausa i colpi non valgono (natpf_ui._gateDesktopInput). Succede solo per la schermata
+    await cam.waitForFunction(() => !__natpfTennis.natpfPaused && __natpfTennis.phase === 'SERVE_STANCE', null, { timeout: 15000 }).catch(() => {});
+    await hold({ x: .5, y: .6, angle: 0 }, 600);
     await cam.evaluate(async () => { for (let i = 0; i <= 5; i++){ __hand.x = .66 - i*.07; await new Promise(r => setTimeout(r, 34)); } });
     await cam.waitForFunction(() => __webcamShots.length > 0, null, { timeout: 3000 }).catch(() => {});
     const shots = await cam.evaluate(() => __webcamShots);
@@ -315,8 +415,13 @@ try {
 
   /* ---------- 5. webcam «Movimento: segui il corpo» (MediaPipe Pose offline), P1 e P2 ---------- */
   if (run('corpo')){
-    // corpo sintetico con gli stessi campi di MediaPipe Pose (spalle 11/12, anche 23/24), a ogni risultato
+    // corpo sintetico con gli stessi campi di MediaPipe Pose (spalle 11/12, anche 23/24), a ogni risultato. Da qui, come
+    // la mano nella parte 4, l'inferenza vera (già provata sul fotogramma finto) si sostituisce con una che non fa niente:
+    // in software costa secondi a fotogramma e non vede nessuno davanti alla camera finta
     const bodyInjector = () => {
+      const f = __natpfTennis.natpfBody, mc = __natpfTennis.motionController;
+      if (f.pose) f.pose = { send: async () => {}, close(){} };
+      if (mc.mpHands) mc.mpHands = { send: async () => {} };
       window.__body = { x: .5, w: .2, on: true };
       const lm = ({ x, w }) => { const l = Array.from({ length: 33 }, () => ({ x: .5, y: .5, z: 0, visibility: .1 })); l[11] = { x: x + w/2, y: .35, z: 0, visibility: .95 }; l[12] = { x: x - w/2, y: .35, z: 0, visibility: .95 }; l[23] = { x: x + w*.4, y: .65, z: 0, visibility: .9 }; l[24] = { x: x - w*.4, y: .65, z: 0, visibility: .9 }; return l; };
       window.__bodyTimer = setInterval(() => { if (__body.on) __natpfTennis.natpfBody.onPoseResults({ poseLandmarks: lm(__body) }); }, 40);
@@ -333,12 +438,15 @@ try {
       }, 8);
     };
     // posizione x del giocatore che segue il corpo dopo 0,9 s di scambio, con il corpo a destra o a sinistra
+    // (0,9 s di gioco, non d'orologio: con la webcam in software un fotogramma costa 0,4–0,7 s anche senza il disegno e il
+    // passo del motore è al più 0,08 s, quindi 0,9 s d'orologio erano 0,1–0,2 s di partita e il giocatore non arrivava)
+    const gameTime = (observer, s) => observer.evaluate(() => __natpfTennis.elapsedTime).then(t0 => observer.waitForFunction(({ t0, s }) => __natpfTennis.elapsedTime - t0 >= s, { t0, s }, { timeout: 90000 }));
     const measure = async (page, observer, actorKey, side, label) => {
       const out = [];
       for (const bodyX of side){
         await page.evaluate(x => { __body.x = x; }, bodyX);
-        await observer.waitForFunction(() => __natpfTennis.phase === 'RALLY', null, { timeout: 40000 });
-        await sleep(900);
+        await observer.waitForFunction(() => __natpfTennis.phase === 'RALLY', null, { timeout: 90000 });
+        await gameTime(observer, .9);
         const s = await observer.evaluate(k => ({ phase: __natpfTennis.phase, x: __natpfTennis[k].pos.x, z: __natpfTennis[k].pos.z }), actorKey);
         const seen = page !== observer ? await page.evaluate(k => __natpfTennis[k].pos.x, actorKey) : null;
         out.push({ bodyX, ...s, seen });
@@ -350,11 +458,13 @@ try {
 
     // P1 contro la CPU
     const bodyCtx = await newContext({ viewport: { width: 1100, height: 680 }, permissions: ['camera'] });
-    const bp = await openGame(bodyCtx, BASE + '/', 'corpo P1');
+    const bp = await openGame(bodyCtx, BASE + '/?intro=0', 'corpo P1');
     await bp.evaluate(() => { __natpfTennis.natpfUi.selectController('webcam', { open: false }); __natpfTennis.hud.callbacks.onStartMatch({ gamesToWin: 2, inputMode: 'webcam' }); __natpfTennis.hud.hideTitleModal(); });
-    await bp.waitForFunction(() => __natpfTennis.motionController.webcamActive, null, { timeout: 20000 });
-    check('pulsante «Movimento» visibile con la webcam, predefinito automatico', await bp.evaluate(() => { const b = document.getElementById('btn-natpf-movement'); return !!b && !b.classList.contains('hidden') && __natpfTennis.natpfBody.mode === 'auto' && /automatico/.test(b.textContent); }));
-    await bp.click('#btn-natpf-movement');
+    await bp.waitForFunction(() => __natpfTennis.motionController.webcamActive, null, { timeout: 60000 });   // (vedi la parte 4)
+    // (dal B17.3 il pulsante «Movimento» non si vede in partita, «HUD in partita: solo l'essenziale», natpf-round.css: resta
+    // il tasto B, come per chi gestisce la postazione)
+    check('comando «Movimento» con la webcam (tasto B), predefinito automatico', await bp.evaluate(() => { const b = document.getElementById('btn-natpf-movement'); return !!b && __natpfTennis.natpfBody.mode === 'auto' && /automatico/.test(b.textContent); }));
+    await bp.keyboard.press('KeyB');
     await bp.waitForFunction(() => __natpfTennis.natpfBody.pose, null, { timeout: 90000 }).catch(() => {});
     const poseInfo = await bp.evaluate(async () => {
       const f = __natpfTennis.natpfBody, mc = __natpfTennis.motionController;
@@ -365,6 +475,7 @@ try {
     });
     check('«segui il corpo»: MediaPipe Pose caricato dal pacchetto locale insieme a Hands (entrambi attivi), inferenza offline', poseInfo.loaded && poseInfo.hands && poseInfo.base === '/assets/mediapipe/pose/' && poseInfo.mode === 'body', JSON.stringify(poseInfo));
     await bp.evaluate(bodyInjector);
+    await stopDrawing(bp, 'partita con la webcam (corpo sintetico)');
     await bp.waitForFunction(() => __natpfTennis.natpfBody.status === 'following', null, { timeout: 10000 });
     check('il corpo viene visto e la posizione di partenza calibrata', await bp.evaluate(() => /segue il corpo/.test(document.getElementById('btn-natpf-movement').textContent)));
     await bp.evaluate(shooter);
@@ -378,10 +489,10 @@ try {
     check('P1 segue il corpo: a sinistra → a sinistra in campo (terza e prima persona)', left.every(o => o.x < -2), left.map(o => o.x.toFixed(2)).join(', '));
     // avanti verso la webcam (spalle più larghe) → verso la rete
     await bp.evaluate(() => { __body.x = .5; __body.w = .2*1.35; });
-    await bp.waitForFunction(() => __natpfTennis.phase === 'RALLY', null, { timeout: 40000 }); await sleep(900);
+    await bp.waitForFunction(() => __natpfTennis.phase === 'RALLY', null, { timeout: 90000 }); await gameTime(bp, .9);
     const fwd = await bp.evaluate(() => __natpfTennis.player.pos.z);
     check('P1 si avvicina alla webcam → va verso la rete', fwd < 9, `z = ${fwd.toFixed(2)} (fondo campo 11,89)`);
-    await bp.screenshot({ path: path.join(OUT, 'lan-corpo-p1-prima-persona.png') });
+    await drawOnce(bp); await bp.screenshot({ path: path.join(OUT, 'lan-corpo-p1-prima-persona.png') });
     // corpo che esce dall'inquadratura: si torna al movimento automatico
     await bp.evaluate(() => { __body.on = false; });
     await sleep(700);
@@ -393,8 +504,10 @@ try {
 
     // P2 in 1v1: il bersaglio del corpo passa dal relay all'host
     const hCtx = await newContext({ viewport: { width: 1000, height: 620 } });
-    const host2 = await openGame(hCtx, BASE + '/', 'corpo host');
-    await host2.evaluate(() => __natpfTennis.hud.callbacks.onSelectDifficulty('1v1'));
+    const host2 = await openGame(hCtx, BASE + '/?intro=0', 'corpo host');
+    // racchetta di prova (mouse) per l'host, come nella parte 1v1: con il telefono (predefinito) e nessun telefono collegato
+    // la partita dell'host resta in pausa e non arriva mai allo scambio
+    await host2.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.testInput = true; ui.selectController('mouse', { open: false }); __natpfTennis.hud.callbacks.onSelectDifficulty('1v1'); });
     await host2.waitForFunction(() => document.querySelector('#natpf-invite a')?.href, null, { timeout: 15000 });
     const invite2 = await host2.evaluate(() => document.querySelector('#natpf-invite a').href);
     const gCtx = await newContext({ viewport: { width: 1000, height: 620 }, permissions: ['camera'] });
@@ -403,6 +516,7 @@ try {
     await guest.waitForFunction(() => __natpfTennis.natpfBody.pose, null, { timeout: 90000 });
     check('P2: Hands e Pose entrambi attivi', await guest.evaluate(() => !!__natpfTennis.motionController.mpHands && !!__natpfTennis.natpfBody.pose));
     await guest.evaluate(bodyInjector);
+    for (const [p, l] of [[host2, 'host'], [guest, 'P2 con la webcam (corpo sintetico)']]) await stopDrawing(p, `corpo, ${l}`);
     await guest.waitForFunction(() => __natpfTennis.natpfBody.status === 'following', null, { timeout: 10000 });
     await host2.evaluate(() => { __natpfTennis.hud.callbacks.onStartMatch({ gamesToWin: 2, inputMode: 'mouse' }); __natpfTennis.hud.hideTitleModal(); });
     await host2.evaluate(shooter); await guest.evaluate(shooter);
@@ -411,7 +525,7 @@ try {
     const p2r = p2Moves.find(o => o.bodyX < .5), p2l = p2Moves.find(o => o.bodyX > .5);
     check('P2 segue il corpo attraverso il relay: destra del P2 → -x, sinistra → +x (sull\'host che simula)', p2r && p2l && p2r.x < -2 && p2l.x > 2, `destra ${p2r?.x.toFixed(2)}, sinistra ${p2l?.x.toFixed(2)}`);
     check('…e il P2 vede il proprio giocatore spostato (snapshot dell\'host)', p2r && p2l && p2r.seen < -1.5 && p2l.seen > 1.5, `x sul P2: ${p2r?.seen?.toFixed(2)}, ${p2l?.seen?.toFixed(2)}`);
-    await guest.screenshot({ path: path.join(OUT, 'lan-corpo-p2.png') });
+    await drawOnce(guest); await guest.screenshot({ path: path.join(OUT, 'lan-corpo-p2.png') });
     await hCtx.close(); await gCtx.close();
   }
 
@@ -420,6 +534,7 @@ try {
 } finally {
   check('nessuna richiesta fuori dal computer (offline)', external.length === 0, external.slice(0, 5).join(' '));
   check('nessun errore nelle pagine', errors.length === 0, errors.slice(0, 6).join(' | '));
+  check('nessuna richiesta rifiutata dal browser per troppe richieste aperte (net::ERR_INSUFFICIENT_RESOURCES)', insufficient.length === 0, `${insufficient.length}: ${insufficient.slice(0, 3).join(' ')}`);
   await browser?.close().catch(() => {});
   server.kill();
   fs.rmSync(temp, { recursive: true, force: true });
