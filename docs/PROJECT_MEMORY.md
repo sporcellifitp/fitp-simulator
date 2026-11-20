@@ -1791,3 +1791,22 @@ Richiesta dell'utente del 20/11 (FIERA): «Vai avanti su 4, 6 (falli), tecnico»
 - **Prove nel browser**: una misura del costo del disegno aspetta che la scheda grafica abbia finito (prima lasciava 25
   minuti di disegni in coda a SwiftShader); il server PeerJS di prova gira in un processo a parte (i suoi timer non si
   fermano); `lan-e2e` usa il telefono simulato nella presa insegnata.
+
+## B74 · Ordine degli assi del giroscopio su Android (20/11/2026; `docs/b74/verifica-assi.md`, `docs/b74/assi-giroscopio.md`)
+
+- **Fatto verificato**: Chrome su Android (e l'app NATPF Racchetta 1.0.5, che copia Chrome) manda `rotationRate` con
+  **alpha = x, beta = y, gamma = z** (°/s, segni positivi); il codice del telefono la legge come W3C (x = beta, y = gamma,
+  z = alpha). Sui dati veri del 28–29/10 la gravità prevista dal giroscopio sbaglia di 5,2° con l'ordine di Chrome e di
+  20,7° con quello del codice. iPhone: non verificato (nessun campione grezzo), resta W3C.
+- **Il riconoscimento di oggi è tarato sull'ordine sbagliato** (soglie di INTENT, VERTICAL, VERSE, profilo semplice,
+  impronta B66 dei gesti veri): con la correzione cambia il tipo nel 50–58% dei colpi veri e il verso nel 42% con il
+  profilo semplice. Per questo la correzione è dietro la voce dello stand **«Assi del giroscopio»**, **«Come oggi» di
+  base**; «Corretti · prova» solo dopo la prova dello staff sul telefono vero e una giornata di registro, poi ritaratura.
+- **Dove**: un solo riordino all'ingresso (`racchetta.js` feedSample con `motion-sign.js`: `rotOrderFor`, `codeRotation`,
+  `rawRotation`), solo Android; `raw` resta in ordine Chrome (statistiche, prova app/browser, flusso `rs` con `o:'c'`).
+  Nessuna modifica a face-tracker, swing-detect, gesture-intent, stroke-shape, calibration e alle soglie. Il gioco manda
+  `ax:1` nel cfg solo con la voce accesa; il telefono rifà la calibrazione al cambio; il profilo salvato si riusa solo con
+  lo stesso ordine (`ro`); il computer butta aimModel, riseModel, faceModel e learner (`_axesSeen`).
+- **Registro formato 5**: campo `assi` nella riga «partita» (stand e telefoni). Il Worker va ricaricato.
+- Il telefono simulato dei test emette l'ordine W3C: con l'ordine di Chrome e il codice di oggi perderebbe tutti i pallonetti
+  e metà dei tagliati; con la correzione è identico ai test di sempre.

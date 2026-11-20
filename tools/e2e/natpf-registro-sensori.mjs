@@ -172,7 +172,7 @@ try {
   const rows = nelloSpazio(), partita = rows.find(r => r.k === 'partita'), fine = rows.find(r => r.k === 'partita.fine'), colpi = rows.filter(r => r.k === 'colpo' && r.n === partita?.n), avvio = rows.find(r => r.k === 'avvio');
   writeFileSync(path.join(OUT, 'registro.jsonl'), rows.map(r => JSON.stringify(r)).join('\n') + '\n');
   log(`righe nello spazio: ${rows.length}; colpi della partita: ${colpi.length}; prova: ${rows.filter(r => r.k === 'colpo' && r.amb === 'prova').length}`);
-  check('riga «avvio» con il formato 4', avvio?.v === 4, fmt(avvio));
+  check('riga «avvio» con il formato 5 (dal B74: campo assi)', avvio?.v === 5, fmt(avvio));
   check('riga «partita»: telefono con la versione dell\'app (e la pagina uguale a quella del PC: niente pv)', partita?.tel?.app === '1.0.4' && partita.tel.pv === undefined, fmt(partita?.tel));
   const conMisure = colpi.filter(c => Number.isFinite(c.cf) && Number.isFinite(c.mg) && Array.isArray(c.rit));
   check('righe «colpo» del telefono con confidenza, margine e ritardo [arrivo, risposta]', colpi.length >= 1 && conMisure.length >= 1 && conMisure.every(c => c.rit[0] >= 0 && c.rit[1] >= c.rit[0]), fmt(colpi.map(c => [c.gesto, c.cf, c.mg, c.rit, c.gb])));

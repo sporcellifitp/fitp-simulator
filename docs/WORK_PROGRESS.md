@@ -466,3 +466,22 @@ Prodotto: entrambi (solo repository). Vecchio sito, immagini dei blocchi, rami, 
   32/32 (parte «corpo» 13/16: webcam in software troppo lenta, non verificabile qui).
 - Non verificato: telefono vero, scheda grafica vera, programma Windows, ledwall; la perdita di richieste nel programma
   Windows; l'ordine degli assi del giroscopio sul telefono dello stand.
+
+## B74 · Ordine degli assi del giroscopio: verifica e correzione spenta (20/11/2026) · [x] (versione: vedi TRACCIA)
+- Scelta dell'utente del 20/11: «Verifica e correzione spenta». Workflow `wf_8ead6cf7-ac3`: verifica (98d8baa5,
+  `docs/b74/verifica-assi.md`), correzione (44be5a01 sul ramo `b74-assi`), revisione con tre lenti e due scettici: due
+  rilievi corretti (1feda124 pannello dello stand a 6 colonne fino a 800 px di altezza; 37d37597 avviso del riassunto con il
+  formato del registro), documento 6b14a5b7. Unione in `natpf-simulator` (merge --no-ff); `natpf-registro-sensori.mjs`
+  attende il formato 5.
+- File: `site/js/tennis/motion-sign.js`, `racchetta.js`, `link.js`; `natpf-tennis/src/natpf/natpf_gyro_axes.js` (nuovo),
+  `natpf_kiosk.js`, `index.html`, `natpf_phone_racket.js`, `natpf-ui.css`, registro (`registro_formato.js` formato 5,
+  Worker, riassunto), diagnostica e rigiocatori; prove `tools/test/b74-assi.test.mjs` (6), `natpf-b74-assi.test.mjs` (10),
+  `registro-riassunto` e Worker; `tools/e2e/natpf-pannello-cadute.mjs`, `natpf-stand-layout.mjs`, `natpf-stesso-schermo-b20`
+  e `-b25` (21 pulsanti), `natpf-menu.mjs`. Guide `GUIDA_STAND.md`, `GUIDA_REGISTRO_CLOUDFLARE.md`.
+- Verifiche: gioco **1967/1967**, sito **328/328**, LAN 13/13, desktop 56/56, build ok; nel browser menu 71/71,
+  stesso-schermo-b20 52/52, -b25 57/57, training-flow 21/21, scambi-di-prova 32/32, fiera-telefoni 66/66, tutorial-phone
+  46/46, gesti-speciali 9/9, gesti-sequenze 47/47, registro 39/39, registro-sensori 23/23, lingua 46/46, pannello-cadute
+  45/45, stand-layout 72/72; run-local gesture-calibration 21/21, phone-only 10/10, timing-browser 8/8, sensori-nativi
+  16/16, telefono-bloccato 12/12.
+- Non verificato: telefono vero (Android e iPhone), altri browser Android, Windows, ledwall; pannello sotto i 1000 px di
+  larghezza (scorreva anche prima).

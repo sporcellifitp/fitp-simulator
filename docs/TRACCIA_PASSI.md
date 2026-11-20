@@ -214,7 +214,20 @@ l'orientamento nell'ordine W3C. Scelta dell'utente (domanda a scelta, 20/11): ve
 se confermato, correzione solo per Android dietro un interruttore dello staff **spento di base**, da provare sul telefono
 vero prima di accenderla.
 
-- [~] Workflow `wf_8ead6cf7-ac3` (B74): verifica sui dati veri del 28–31/10 (ramo `b74-verifica`, `docs/b74/verifica-assi.md`);
-      se confermata, correzione sul ramo `b74-assi` (interruttore «Assi del giroscopio», spento), revisione con tre lenti e
-      due scettici, sistemazione, prove complete. **Ripresa se si ferma**: `git branch --list 'b74-*'`, `git worktree list`,
-      rilanciare con `resumeFromRunId: 'wf_8ead6cf7-ac3'`. Poi: unione in `natpf-simulator`, documenti vivi, versione, push.
+- [x] Workflow `wf_8ead6cf7-ac3` (B74). **Verifica** (`docs/b74/verifica-assi.md`): confermato su Android (Chrome 156, 7
+      registrazioni vere del 28–29/10, 161 tratti): con l'ordine di Chrome (alpha = x, beta = y, gamma = z) la gravità prevista
+      dal giroscopio sbaglia di 5,2° in media, con l'ordine del codice di 20,7° (peggio che non usare il giroscopio, 15,2°);
+      vince in 7 registrazioni su 7 e fra tutte le 48 assegnazioni. iPhone non verificabile (nessuna registrazione grezza):
+      invariato. **Ma** il riconoscimento è tarato sull'ordine sbagliato: con la correzione sui colpi veri cambia il tipo nel
+      50–58% dei colpi e dritto/rovescio nel 42% con il profilo semplice; la cima non diventa più costante da sola (B36.1
+      resta ferma). **Correzione** (ramo `b74-assi`, unito in `natpf-simulator`): riordino della rotazione in un solo punto
+      all'ingresso (`racchetta.js` feedSample, `motion-sign.js`), solo Android, voce dello stand «Assi del giroscopio: Come
+      oggi | Corretti · prova» **spenta di base** (`docs/b74/assi-giroscopio.md`); al cambio il telefono rifà la calibrazione
+      e il computer butta i riferimenti imparati. Registro formato **5** (campo `assi`): **Worker da ricaricare**. Revisione:
+      due rilievi corretti (pannello dello stand che scorreva a 1280×720 con la riga delle cadute; avviso del riassunto).
+      Prove: gioco 1967/1967, sito 328/328, LAN 13/13, desktop 56/56, build ok; nel browser verdi (menu 71/71, stesso-schermo
+      b20 52/52 e b25 57/57 con 21 pulsanti, pannello-cadute 45/45, stand-layout 72/72, registro-sensori 23/23 dopo aver
+      portato l'attesa del formato a 5, e le altre del §7 del documento).
+- [~] Versione **2026-11-20.2**, push, pacchetti, consegna con il Worker nuovo (formato 5).
+- Per l'utente: provare «Corretti · prova» sul telefono Android vero (§8 di `docs/b74/assi-giroscopio.md`) e poi una giornata
+  di registro con l'interruttore acceso, prima di accenderlo per tutti; servirà ritarare tipi di colpo e verso.
