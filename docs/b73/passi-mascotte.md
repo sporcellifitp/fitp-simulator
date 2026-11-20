@@ -51,8 +51,10 @@ pianta a riposo sotto il POSTO DI PARTENZA del personaggio, nel riferimento di c
 il personaggio (`applyCardMove`, che ora passa anche il verso di chi guarda e dove ha messo il personaggio): quando il
 personaggio si sposta, gira o si piega, il piede a terra resta dov'è. Fra una fetta e l'altra della fotografia
 `natpf_ritratti` rimette il personaggio al suo posto (l'arena si disegna ancora per mezzo secondo prima della card): lì i
-piedi vanno con lui come nella posa, invece di restare indietro con le gambe allungate (prova apposta). Senza posto di
-partenza (pose senza movimento) come prima.
+piedi vanno con lui come nella posa, invece di restare indietro con le gambe allungate (prova apposta). Dalla revisione
+del B73 (`docs/b73/unione.md` §7) anche in altezza: nei «Salti di gioia», rimesso giù il corpo, i piedi tornavano a
+terra solo in x e z e restavano sollevati fino a 8,2 cm (Drop) e 7,4 cm (Lob); ora al più 1,1 e 0,3 cm (`py` in
+`natpfCardPose`, solo verso il basso). Senza posto di partenza (pose senza movimento) come prima.
 
 | Movimento | Prima | Dopo |
 |---|---|---|

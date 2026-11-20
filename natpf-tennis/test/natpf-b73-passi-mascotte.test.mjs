@@ -221,3 +221,34 @@ test('B73: tra una fetta e l\'altra della fotografia (personaggio rimesso al suo
     a.natpfCardPose = null; updateNatpfCharacters(E);
   }
 });
+
+// Revisione del B73 (docs/b73/unione.md, «Revisione e sistemazione», rilievo «M1»): nei «Salti di gioia» il saltello alza
+// i due piedi nel riferimento del suolo e anche la radice; tra una fetta e l'altra natpf_ritratti._capture rimette la
+// radice al posto di partenza e l'arena (in vista per circa 0,5 s prima della card) la disegna così. cardLeg spostava i
+// piedi con il personaggio solo in x e z: i piedi restavano sollevati fino a 8 cm con il corpo già a terra. A metà di un
+// passo (u 0,33 e 0,58: a 0,5 il saltello vale 0 e la prova passerebbe comunque) i piedi devono restare dove stavano
+// rispetto al corpo, e quindi a terra (la quota del piede più basso come a riposo, entro 2 cm: lo scarto che la gamba ha
+// anche nel movimento)
+test('B73 (revisione): tra una fetta e l\'altra, nei «Salti di gioia», i piedi tornano giù con il corpo (anche la quota)', () => {
+  for (const lefty of [false, true]){
+    const E = stage(lefty);
+    for (const who of ['player', 'opponent']){
+      const a = E[who], dir = (a.sideSign || 1) > 0 ? -1 : 1, move = cardMove('win-salti');
+      const base = { pos: a.root.position.clone(), rotY: a.root.rotation.y, rotX: a.root.rotation.x, rotZ: a.root.rotation.z };
+      const local = () => { const p = a.natpfMascot3d.probe(a, {}), inv = new THREE.Matrix4().copy(a.root.matrixWorld).invert(); return [p.soleA.applyMatrix4(inv), p.soleB.applyMatrix4(inv)]; };
+      const quota = () => { const p = a.natpfMascot3d.probe(a, {}); return Math.min(p.soleA.y, p.soleB.y) - base.pos.y; };
+      a.natpfCardPose = null; updateNatpfCharacters(E); a.root.updateMatrixWorld(true);
+      const riposo = quota();
+      for (const u of [0.33, 0.58]){
+        applyCardMove(a, move, u*CARD_LOOP, base, dir); updateNatpfCharacters(E); a.root.updateMatrixWorld(true);
+        assert.ok(a.root.position.y - base.pos.y > 0.02, `${who} u ${u}: il corpo è in aria (${a.root.position.y - base.pos.y})`);
+        const moved = local();
+        a.root.position.copy(base.pos); a.root.rotation.set(base.rotX, base.rotY, base.rotZ); updateNatpfCharacters(E); a.root.updateMatrixWorld(true);
+        const reset = local(), tag = `${lefty ? 'mancino' : 'destro'} ${who} u ${u}`;
+        for (let i = 0; i < 2; i++) assert.ok(moved[i].distanceTo(reset[i]) < 1e-6, `${tag}: piede ${i} a ${(100*moved[i].distanceTo(reset[i])).toFixed(1)} cm da dove stava rispetto al corpo`);
+        assert.ok(Math.abs(quota() - riposo) < 0.02, `${tag}: piede più basso a ${(100*(quota() - riposo)).toFixed(1)} cm dalla quota di riposo`);
+      }
+      a.natpfCardPose = null; updateNatpfCharacters(E);
+    }
+  }
+});

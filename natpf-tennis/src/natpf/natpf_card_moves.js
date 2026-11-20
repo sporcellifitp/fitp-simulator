@@ -190,7 +190,8 @@ export function applyCardMove(actor, move, t, base, dir = 1){
   // (B73: e il verso di chi guarda e dove è andato il personaggio, per i piedi fermi nel riferimento del suolo:
   // natpf_mascot_rig.cardLeg; se tra una fetta e l'altra della fotografia natpf_ritratti lo rimette al suo posto, i piedi
   // vanno con lui come nella posa, invece di restare dove il movimento li aveva lasciati)
-  actor.natpfCardPose = move.mascot ? { move, u, base, dir, px: actor.root.position.x, pz: actor.root.position.z } : null;
+  // (revisione del B73: anche l'altezza py, per il saltello dei «Salti di gioia»: tornato giù il corpo, i piedi con lui)
+  actor.natpfCardPose = move.mascot ? { move, u, base, dir, px: actor.root.position.x, py: actor.root.position.y, pz: actor.root.position.z } : null;
   // (B69: il giro verso il lato libero anche per il mancino, che ha la radice specchiata: specchio·giro(θ) = giro(−θ)·specchio)
   actor.root.rotation.y = base.rotY + mr*o.yaw;
   // inclinazione in avanti (verso chi guarda) e di lato, negli assi del campo (Euler XYZ: X e Z esterni a Y)

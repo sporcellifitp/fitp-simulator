@@ -592,6 +592,10 @@ function cardLeg(rig, side, off, m, actor = null){
     if (off){ side.foot.x += dir*m*(off[0] || 0)*S; side.foot.y += Math.max(0, off[1] || 0)*S; side.foot.z += dir*(off[2] || 0)*S; }
     // (personaggio rimesso al suo posto fuori dal movimento: tra una fetta e l'altra della fotografia i piedi vanno con lui)
     if (Number.isFinite(card.px)){ side.foot.x += actor.root.position.x - card.px; side.foot.z += actor.root.position.z - card.pz; }
+    // (revisione del B73: e in altezza. Nei «Salti di gioia» il saltello alza i piedi nel riferimento del suolo e la radice:
+    // rimessa giù la radice, i piedi restavano sollevati fino a 8 cm. Solo verso il basso: un movimento con i piedi a terra e
+    // il corpo piegato più in basso, rimesso al suo posto, non deve staccarli da terra)
+    if (Number.isFinite(card.py)) side.foot.y += Math.min(0, actor.root.position.y - card.py);
     side.foot.applyMatrix4(_gF.copy(rig.group.matrixWorld).invert());
   } else {
     side.foot.copy(side.sole);
