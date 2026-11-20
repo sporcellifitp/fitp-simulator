@@ -76,6 +76,32 @@ async function game({ cast = null, query = 'intro=0', w = 1280, h = 720, hand = 
       }
       sessionStorage.setItem('b24-prova', '1');
     } catch {}
+    // B73: punto più basso vero di ciascun piede del modello 3D, nel sistema della radice dell'attore (metri): i vertici
+    // della pelle legati per almeno metà all'osso della gamba (gamba e piede sono un pezzo solo), con le ossa di adesso.
+    // [lato della racchetta, l'altro], come soleA e soleB della sonda del rig. Non sorteggia e non tocca il gioco
+    window.__feetLow = a => {
+      const rig = a.natpfMascot3d;
+      if (!a.natpfMascot3dOn || !rig) return null;
+      if (!rig.__legs){
+        rig.group.traverse(o => { if (!rig.__sk && o.isSkinnedMesh) rig.__sk = o; });
+        const sk = rig.__sk, si = sk.geometry.attributes.skinIndex, sw = sk.geometry.attributes.skinWeight;
+        rig.__legs = {};
+        for (const n of ['RightLeg', 'LeftLeg']){
+          const b = sk.skeleton.bones.findIndex(x => x.name === n), L = [];
+          for (let q = 0; q < si.count; q++){
+            const I = [si.getX(q), si.getY(q), si.getZ(q), si.getW(q)], W = [sw.getX(q), sw.getY(q), sw.getZ(q), sw.getW(q)];
+            let w = 0; for (let c = 0; c < 4; c++) if (I[c] === b) w += W[c];
+            if (w >= .5) L.push(q);
+          }
+          rig.__legs[n] = L;
+        }
+      }
+      const sk = rig.__sk, v = a.root.position.clone();
+      a.root.updateMatrixWorld(true); rig.group.updateMatrixWorld(true);
+      const M = a.root.matrixWorld.clone().invert().multiply(sk.matrixWorld);
+      const low = n => { let m = 9; for (const q of rig.__legs[n]){ sk.getVertexPosition(q, v); v.applyMatrix4(M); if (v.y < m) m = v.y; } return m; };
+      return rig.mirrored ? [low('LeftLeg'), low('RightLeg')] : [low('RightLeg'), low('LeftLeg')];
+    };
   }, { KEY, cast, hand });
   for (let k = 0; ; k++){
     await p.goto(`http://127.0.0.1:${GAME_PORT}/?${query}`, { waitUntil: 'domcontentloaded', timeout: 120000 });   // a macchina carica il primo avvio è lento
@@ -249,7 +275,7 @@ const play = (p, o = {}) => p.evaluate(o => {
   // (posizioni nel sistema della radice dell'attore: il saltello della corsa e gli spostamenti in campo li fa il motore
   // sulla radice, uguali per tutti i personaggi. Gli scatti si misurano rispetto a quanto si sono mosse, nello stesso
   // passo, le parti del tennista che il motore anima: così un taglio del motore, per esempio un punto nuovo, non conta)
-  const R3 = { n: 0, on: { player: 0, opponent: 0 }, presa: 0, piantaMin: 9, piantaMax: 0, inAria: 0, allungo: 0, allungoDove: null, scatto: 0, dove: '', manoLibera: 0 };
+  const R3 = { n: 0, on: { player: 0, opponent: 0 }, presa: 0, piantaMin: 9, piantaMax: 0, inAria: 0, inAriaCentro: 0, allungo: 0, allungoDove: null, scatto: 0, dove: '', manoLibera: 0 };
   const BONES3 = ['Hips', 'Spine02', 'Head', 'LeftArm', 'LeftForeArm', 'RightArm', 'RightForeArm', 'LeftLeg', 'RightLeg'], mem3 = { player: null, opponent: null };
   const PARTS3 = ['torso', 'head', 'handR', 'handL', 'footL', 'footR'], inv3 = E.player.root.matrixWorld.clone();
   const rig3 = (k, a, i) => {
@@ -262,8 +288,13 @@ const play = (p, o = {}) => p.evaluate(o => {
     const stretch = Math.max(pr.stretchA, pr.stretchB);
     if (stretch > R3.allungo){ R3.allungo = stretch; R3.allungoDove = { passo: i, chi: a.natpfMascot }; }
     for (const pt of [pr.palmA, pr.palmB, pr.soleA, pr.soleB]) pt.applyMatrix4(inv3);
-    R3.piantaMin = Math.min(R3.piantaMin, pr.soleA.y, pr.soleB.y); R3.piantaMax = Math.max(R3.piantaMax, pr.soleA.y, pr.soleB.y);
-    if (Math.min(pr.soleA.y, pr.soleB.y) > .05) R3.inAria++;
+    // B73: «sotto il campo» e «in aria» dal punto più basso vero di ciascun piede (__feetLow): il centro della pianta
+    // (soleA, soleB) di un piede inclinato sta sopra i 5 cm anche con la punta o il tallone a terra (prima contava come in
+    // aria, e la punta scendeva nel campo senza che la prova lo vedesse). L'alzata resta misurata al centro della pianta
+    const low = window.__feetLow(a);
+    R3.piantaMin = Math.min(R3.piantaMin, ...low); R3.piantaMax = Math.max(R3.piantaMax, pr.soleA.y, pr.soleB.y);
+    if (Math.min(...low) > .05) R3.inAria++;
+    if (Math.min(pr.soleA.y, pr.soleB.y) > .05) R3.inAriaCentro++;
     // quanto si sono mosse le parti del tennista in questo passo (metri, e gradi per busto e testa)
     const mv = {}, turnOf = {};
     for (const n of PARTS3){
@@ -750,14 +781,15 @@ if (!SERVIZIO && !process.env.COSTO && !process.env.TESTA){
   // palmo sul manico e piante sul campo nelle pose (misure del rig), destri
   const poses = [['fermo', 0], ['corsa', 12], ['dritto', 3], ['dritto', 6], ['dritto', 12], ['rovescio', 6], ['servizio', 1], ['servizio', 5], ['schiacciata', 5], ['esultanza', 40]];
   const probe = () => p.evaluate(() => ['player', 'opponent'].map(k => { const a = __natpfTennis[k], r = a.natpfMascot3d.probe(a), h = a.parts.handR.getWorldPosition(r.palmA.clone());
-    return { bone: r.racketHandBone, grip: +r.palmA.distanceTo(h).toFixed(3), sole: [+r.soleA.y.toFixed(3), +r.soleB.y.toFixed(3)], stretch: +r.stretchA.toFixed(2) }; }));
+    return { bone: r.racketHandBone, grip: +r.palmA.distanceTo(h).toFixed(3), sole: [+r.soleA.y.toFixed(3), +r.soleB.y.toFixed(3)], low: window.__feetLow(a).map(y => +y.toFixed(3)), stretch: +r.stretchA.toFixed(2) }; }));
   let worst = { grip: 0, low: 9, high: 0, stretch: 0 }, bones = new Set();
   for (const who of ['player', 'opponent']) for (const [pose, steps] of poses){
     await scene(p, '3d-posa', { pose, steps, who });
-    for (const r of await probe()){ bones.add(r.bone); worst = { grip: Math.max(worst.grip, r.grip), low: Math.min(worst.low, ...r.sole), high: Math.max(worst.high, ...r.sole), stretch: Math.max(worst.stretch, r.stretch) }; }
+    for (const r of await probe()){ bones.add(r.bone); worst = { grip: Math.max(worst.grip, r.grip), low: Math.min(worst.low, ...r.low), high: Math.max(worst.high, ...r.sole), stretch: Math.max(worst.stretch, r.stretch) }; }
   }
   check('3D, nelle pose (attesa, corsa, dritto, rovescio, servizio, schiacciata, esultanza): racchetta nella mano destra (RightHand), palmo sul manico', bones.size === 1 && bones.has('RightHand') && worst.grip < .035, `${[...bones]}, palmo–manico al più ${worst.grip} m, braccio allungato al più ${worst.stretch} volte`);
-  check('3D, nelle pose: piante sul campo (mai sotto; al più 23 cm sopra: 18 di alzata più l\'inclinazione del piede, nel passo di corsa e nel saltello dell\'esultanza)', worst.low > -.005 && worst.high < .23, `da ${worst.low} a ${worst.high} m`);
+  // (B73: «mai sotto» dal punto più basso vero dei piedi, __feetLow; l'alzata al centro della pianta, come prima)
+  check('3D, nelle pose: piedi sul campo (il punto più basso dei piedi mai sotto; centro della pianta al più 23 cm sopra: 18 di alzata più l\'inclinazione del piede, nel passo di corsa e nel saltello dell\'esultanza)', worst.low > -.005 && worst.high < .23, `punto più basso ${worst.low} m, centro della pianta al più ${worst.high} m`);
   // «Classici» al volo: il modello sparisce, il disegno è quello di prima; di nuovo «Lob & Drop»: tornano i modelli
   await setCast(p, 'sempre');
   const c = await scene(p, '3d-classici', SCENES.fermo);
@@ -815,10 +847,13 @@ if (!SERVIZIO && !process.env.COSTO && !process.env.TESTA){
     const pct = n => `${n} su ${c3.n} (${(n*100/c3.n).toFixed(1)}%)`;
     console.log(`3D, partita ${name}: telaio dentro la testa del modello · Drop prima ${pct(c3.prima.player)}, dopo ${pct(c3.dopo.player)} · Lob prima ${pct(c3.prima.opponent)}, dopo ${pct(c3.dopo.opponent)}`);
     console.log(`  dove (passi prima → dopo): ${Object.entries(c3.pose).map(([k, v]) => `${k} ${v[0]} → ${v[1]}`).join(' · ')}`);
-    console.log(`  rig: palmo–manico al più ${(R.presa*100).toFixed(1)} cm, piante da ${(R.piantaMin*100).toFixed(1)} a ${(R.piantaMax*100).toFixed(1)} cm, passi con tutti e due i piedi alzati più di 5 cm ${R.inAria}, braccio allungato al più ${R.allungo.toFixed(2)} volte (${R.allungoDove?.chi} al passo ${R.allungoDove?.passo}), mano libera al più ${(R.manoLibera*100).toFixed(1)} cm per passo, scatto oltre il limite ${R.scatto.toFixed(1)} gradi ${R.dove}`);
+    console.log(`  rig: palmo–manico al più ${(R.presa*100).toFixed(1)} cm, punto più basso dei piedi ${(R.piantaMin*100).toFixed(1)} cm, centro della pianta al più ${(R.piantaMax*100).toFixed(1)} cm, passi con tutti e due i piedi alzati più di 5 cm ${R.inAria} (con il centro della pianta, la misura di prima del B73: ${R.inAriaCentro}), braccio allungato al più ${R.allungo.toFixed(2)} volte (${R.allungoDove?.chi} al passo ${R.allungoDove?.passo}), mano libera al più ${(R.manoLibera*100).toFixed(1)} cm per passo, scatto oltre il limite ${R.scatto.toFixed(1)} gradi ${R.dove}`);
     check(`3D, partita ${name}: al colpo le corde sono al più ${CORDE_TOLL*100} cm da dove le mette il motore, su tutti i colpi`, c3.colpi.length >= 6 && c3.colpi.every(x => Math.abs(x.dopo - x.prima) <= CORDE_TOLL), `${c3.colpi.length} colpi · ${JSON.stringify(c3.colpi.filter(x => x.scostamento > 0)).slice(0, 200)}`);
     check(`3D, partita ${name}: la racchetta è sempre nella mano (palmo a meno di 3,5 cm dal manico a ogni passo)`, R.presa < .035, `${(R.presa*100).toFixed(1)} cm`);
-    check(`3D, partita ${name}: piedi sul campo (le piante non scendono mai sotto; un piede si alza al più di 23 cm nel passo: 18 di alzata più l'inclinazione; tutti e due in aria, cioè la fase di volo della corsa, in meno del 3 % dei passi)`, R.piantaMin > -.005 && R.piantaMax < .23 && R.inAria < R.n*.03, `da ${(R.piantaMin*100).toFixed(1)} a ${(R.piantaMax*100).toFixed(1)} cm, ${R.inAria} passi su ${R.n} con tutti e due i piedi alzati`);
+    // (B73, docs/b73/prove-rotte.md §1: prima tutte e tre le misure al centro della pianta; un piede a terra inclinato,
+    // nella corsa veloce in avanti e con i piedi larghi dei colpi, ha il centro sopra i 5 cm con la punta o il tallone
+    // a terra, anzi fino a 6 cm sotto il campo: il gioco ora alza il piede quanto serve, la prova guarda il punto più basso)
+    check(`3D, partita ${name}: piedi sul campo (il punto più basso dei piedi non scende mai sotto; il centro della pianta si alza al più di 23 cm nel passo: 18 di alzata più l'inclinazione; tutti e due in aria, con il punto più basso sopra 5 cm, in meno del 3 % dei passi)`, R.piantaMin > -.005 && R.piantaMax < .23 && R.inAria < R.n*.03, `punto più basso ${(R.piantaMin*100).toFixed(1)} cm, centro della pianta al più ${(R.piantaMax*100).toFixed(1)} cm, ${R.inAria} passi su ${R.n} con tutti e due i piedi alzati (al centro della pianta ${R.inAriaCentro})`);
     check(`3D, partita ${name}: niente scatti (ossa e mano libera, a ogni passo, anche tra un'animazione e l'altra)`, R.scatto === 0 && R.manoLibera < .2, `${R.dove || 'nessuno'} · mano libera al più ${(R.manoLibera*100).toFixed(1)} cm per passo oltre la mano del tennista`);
     const wait = Object.entries(c3.pose).filter(([k]) => /attesa/.test(k)).reduce((t, [, v]) => [t[0] + v[0], t[1] + v[1]], [0, 0]);
     check(`3D, partita ${name}: nell'attesa dello scambio il telaio non resta nella testa del modello (al più un quinto di prima)`, wait[1] <= Math.max(12, wait[0]*.2), `${wait[0]} → ${wait[1]} passi`);
