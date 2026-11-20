@@ -97,13 +97,13 @@ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a)/(b - a))
 // 2,6 al secondo) passa intero, un salto del bersaglio (cambio di passo, punto nuovo) si spalma su qualche fotogramma
 export const FOOT_SPEED = 3.2;
 export const LEG_TILT = 0.55;              // quanta dell'inclinazione verso il piede prende la gamba
-export const FOOT_EDGE = 0.07;             // di quanto si alza il piede per unità di inclinazione (unità del modello):
-                                           // solo se il modello non ha la pelle (B73: altrimenti SOLE_TILTS, qui sotto)
+export const FOOT_EDGE = 0.07;             // di quanto si alza il piede per unità di inclinazione (unità del modello)
 // B73 · Gamba e piede sono un pezzo solo: quando la gamba si inclina (corsa veloce in avanti, piedi larghi dei colpi) si
 // inclina anche la pianta, e punta o tallone scendevano nel campo fino a 6–7 cm (FOOT_EDGE alzava il piede di metà del
-// necessario) mentre il centro della pianta saliva sopra i 5 cm. Ora il piede si alza solo quanto serve perché il suo
-// punto più basso non scenda sotto quello a riposo: si calcola dai vertici della pelle legati alla gamba, ridotti ai pochi
-// che fanno da punto più basso con le inclinazioni di SOLE_TILTS (gradi) in SOLE_AZIMUTHS versi (docs/b73/prove-rotte.md §1)
+// necessario) mentre il centro della pianta saliva sopra i 5 cm. Ora il piede si alza di FOOT_EDGE come prima (il passo
+// non cambia) e di più solo quando serve perché il suo punto più basso non scenda sotto quello a riposo: si calcola dai
+// vertici della pelle legati alla gamba, ridotti ai pochi che fanno da punto più basso con le inclinazioni di SOLE_TILTS
+// (gradi) in SOLE_AZIMUTHS versi (footRaise, soleSupport; docs/b73/prove-rotte.md §1)
 export const SOLE_TILTS = Object.freeze([8, 16, 24, 32, 40, 50]), SOLE_AZIMUTHS = 32;
 export const FOOT_GAIN = 1.8, FOOT_LIFT_DEAD = 0.012;      // sotto 1,2 cm di alzata il piede resta a terra (il tennista fermo sposta il peso)
 export const FOOT_LIFT_GAIN = 2.4;         // l'alzata del piede si vede di più dell'avanti e indietro: gambe corte
