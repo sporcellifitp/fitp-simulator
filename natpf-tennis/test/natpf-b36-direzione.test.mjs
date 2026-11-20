@@ -76,11 +76,43 @@ test('B36.1: la cima comanda — tempo che pesa 0,3, niente spinta naturale, pun
   assert.equal(faceAimFromDev(null), 0); assert.equal(faceAimFromDev(undefined), 0);
   const nul = esito({ face: faceAimFromDev(null), timing: .05 });
   assert.equal(nul.rule, 'nuova'); assert.ok(Math.abs(nul.x) <= DIRECTION.timeWeight*xMax + 1e-3, `aimDev nullo: ${nul.x}`);
-  // bordi, profondità ed effetto come oggi: con la stessa mira la stessa palla della regola di oggi (punto neutro al centro)
-  const piena = esito({ dev: 17 }), oggi = strokeOutcome({ intent: { shot: 'topspin', power: .5, depth: .5, rise: .3, face: 1, faceWeight: 1, conf: 1 }, timing: 0, lateSpan: .08, ballVz: 18, contact: 1, hitX: 0, hitZ: 11, quality: .92, level: skillLevel('pro') });
-  assert.equal(piena.aim, 1); assert.equal(piena.topspin, oggi.topspin); assert.equal(piena.clear, oggi.clear);
+  // la cima piena dà la mira piena, senza spinta naturale (bordi, profondità e spinta oltre la finestra «come oggi»: prova a
+  // parte, qui sotto, a parità di mira e di punto neutro)
+  assert.equal(esito({ dev: 17 }).aim, 1);
   // zone (banchi e prove): lungolinea dalla parte del colpo, incrociato dall'altra, centro entro 1,25 m
   assert.equal(zoneOf(2, 1), 'lungolinea'); assert.equal(zoneOf(-2, 1), 'incrociato'); assert.equal(zoneOf(2, -1), 'incrociato'); assert.equal(zoneOf(.5, 1), 'centro'); assert.equal(zoneOf(NaN), 'centro');
+});
+
+// Revisione del B73 (docs/b73/unione.md, «Revisione e sistemazione», rilievo «test-bordi-vuoto»): prima qui si confrontavano
+// solo effetto e altezza sulla rete (topspin, clear), che non dipendono dalla mira né dal punto neutro, con mire diverse
+// (1 contro 0,9) e palle in posti diversi (hitX 0,6 contro 0): la prova passava con qualunque regola della direzione. Ora
+// la regola nuova e quella di oggi si confrontano con la stessa mira ESATTA, lo stesso punto neutro (palla al centro: 0 per
+// tutte e due) e la stessa posizione: la palla deve essere la stessa, bordo morbido (sideKnee), oltre la riga (sideLine) e
+// spinta oltre la finestra (pushOut) compresi. La mira esatta della regola di oggi si ricava dal tempo solo dove è certo:
+// tempo 0 (aimT 0) e oltre la finestra (aimT ±1); dentro la finestra il tempo dell'esito è arrotondato. Tolleranza: un
+// arrotondamento dell'uscita (toFixed(3): 4 casi su 1782 cambiano di 1 mm)
+test('B36.1: bordi, profondità e spinta oltre la finestra come oggi — stessa mira esatta e stesso punto neutro, stessa palla', () => {
+  const it = F => ({ shot: 'topspin', power: .5, depth: .5, rise: .3, face: Math.sign(F), faceWeight: Math.abs(F), conf: 1 });
+  const UN_MM = 1e-3 + 1e-9;
+  let n = 0, ginocchio = 0, fuori = 0, oltre = 0;
+  for (const level of LIVELLI) for (const contact of [1, -1]) for (const hitZ of [11, 4]) for (const timing of [-.45, -.3, -.2, 0, .2, .3, .45]) for (let k = -16; k <= 16; k++){
+    const F = k/10, base = { lateSpan: .08, ballVz: 18, hitX: 0, hitZ, quality: .92, level: skillLevel(level), timing, contact };
+    const N = strokeOutcome({ ...base, intent: it(F), dir: 'nuova' });
+    if (timing !== 0 && !(N.excess > 0)) continue;
+    const aimT = timing === 0 ? 0 : Math.sign(timing);
+    // piatto della regola di oggi con la stessa mira: compensa la spinta naturale e il peso del tempo (1 contro 0,3)
+    const Fc = F + contact*aimT*(OUTCOME.timingAim - DIRECTION.timeWeight) + contact*OUTCOME.natural*(1 - Math.abs(aimT));
+    const C = strokeOutcome({ ...base, intent: it(Fc) }), tag = `${level} c ${contact} z ${hitZ} tempo ${timing} piatto ${F}`;
+    assert.equal(N.rule, 'nuova', tag); assert.equal(C.rule, undefined, tag);
+    assert.equal(N.x0, 0, tag); assert.equal(C.x0, 0, tag);
+    assert.ok(Math.abs(N.aim - C.aim) <= UN_MM, `${tag}: mira ${N.aim} contro ${C.aim}`);
+    assert.ok(Math.abs(N.x - C.x) <= UN_MM, `${tag}: x ${N.x} contro ${C.x}`);
+    assert.ok(Math.abs(N.depth - C.depth) <= UN_MM, `${tag}: profondità ${N.depth} contro ${C.depth}`);
+    for (const key of ['clear', 'topspin', 'assist', 'failed', 'excess', 'q', 'grade']) assert.deepEqual(N[key], C[key], `${tag}: ${key}`);
+    n++; if (Math.abs(N.x) > OUTCOME.sideKnee) ginocchio++; if (Math.abs(N.x) > OUTCOME.sideLine) fuori++; if (N.excess > 0) oltre++;
+  }
+  // la griglia passa davvero per le zone che contano: bordo morbido, oltre la riga laterale, oltre la finestra
+  assert.ok(n > 1000 && ginocchio > 300 && fuori > 200 && oltre > 1000, `casi ${n}, oltre sideKnee ${ginocchio}, oltre sideLine ${fuori}, oltre la finestra ${oltre}`);
 });
 
 test('B36.1: specchio — dritto e rovescio, destro e mancino danno la stessa palla allo specchio', () => {
