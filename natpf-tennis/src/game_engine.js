@@ -56,6 +56,7 @@ const NR = { c: null }; // NATPF moviola: posa della telecamera
 import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 // NATPF: sfida tra due computer anche senza server (sito statico): relay nel browser dell'host e WebRTC
 import { installNatpfP2p } from "./natpf/natpf_p2p.js";
+import { sendAndForget } from "./natpf/natpf_fetch.js"; // B73: richieste senza risposta attesa, lette comunque
 import { VERSUS, MATCH_PHASES, seqGate } from "./natpf/natpf_versus.js";
 import * as GV from "./natpf/natpf_guest_view.js";
 import { NatpfSplit } from "./natpf/natpf_split.js";
@@ -811,7 +812,7 @@ export class NatpfTennisEngine {
     try { sessionStorage.removeItem(VERSUS_ROOM_KEY); sessionStorage.removeItem("natpf.versus.checkpoint"); } catch {} // NATPF: anche il punteggio salvato (natpf_versus.CHECKPOINT_KEY)
     const room = this.roomId;
     room && room !== "default" &&
-      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room, snapshot: { closed: !0 } }) }).catch(() => {});
+      sendAndForget("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room, snapshot: { closed: !0 } }) }); // B73: risposta letta (natpf_fetch.js)
     (this.roomId = "default"), (this.isMultiplayer = !1), (this.pendingP2Swing = null);
     this.motionController?.setRoomConfig?.({ roomId: "default", role: "p1" });
     this.roomStatus = { ...this.roomStatus, roomId: "default", p2Online: !1, p2Ready: !1, isMultiplayer: !1 };
@@ -3761,7 +3762,7 @@ export class NatpfTennisEngine {
     if (!this._versusInMatch()) {
       // NATPF 1v1 (B9): con la racchetta dell'host (pronta o no), per la scheda del Player 1 sul computer del P2
       // NATPF B15: e la mano dell'host (p1Hand), perché il P2 lo veda mancino già dalla lobby (un P2 di prima la ignora)
-      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: this.roomId, snapshot: { lobby: !0, fmt: this.matchFormat.id, gamesToWin: this.matchConfig.gamesToWin, host: this.natpfUi?.versus?.hostInfo?.() || null, p1Hand: this._natpfHostHand() } }) }).catch(() => {});
+      sendAndForget("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: this.roomId, snapshot: { lobby: !0, fmt: this.matchFormat.id, gamesToWin: this.matchConfig.gamesToWin, host: this.natpfUi?.versus?.hostInfo?.() || null, p1Hand: this._natpfHostHand() } }) });
       return;
     }
     const e = (i) => ({
@@ -3806,11 +3807,13 @@ export class NatpfTennisEngine {
         hot: !!this.natpfHot, // B42: scambio caldo deciso dall'host (la scritta «Scambio caldo» sul computer del P2)
         dir: NDIR.dirModelOf(this), // B36.1: direzione dei colpi dell'host (il P2 la usa per la previsione locale del suo colpo)
       };
-    fetch("/api/match/sync", {
+    // NATPF B73: la risposta si legge (sendAndForget, natpf_fetch.js). Prima fetch(...).catch(): 22 risposte al secondo mai
+    // lette restavano aperte e dopo circa 8 s ogni richiesta della pagina falliva (net::ERR_INSUFFICIENT_RESOURCES)
+    sendAndForget("/api/match/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ room: this.roomId, snapshot: t }),
-    }).catch(() => {});
+    });
   }
   // NATPF B15 (mancini): mano dell'host (una sola per tutto il gioco, natpf_hand.js)
   _natpfHostHand() {

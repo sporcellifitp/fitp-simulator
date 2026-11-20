@@ -17,6 +17,7 @@ import { ARGON_TRACK, argonPickHand, argonBridging, argonBridgeStart, argonNearE
 import { createMotionStrokes, grayFromRGBA, swingSpeed, MOTION } from "./natpf/webcam_motion.js";
 // NATPF B8: il pacchetto offline ha solo il motore SIMD; senza SIMD i due file del motore vengono dal CDN fissato
 import { mediapipeFileUrl } from "./natpf/mediapipe_locate.js";
+import { drain, sendAndForget } from "./natpf/natpf_fetch.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
 export const MEDIAPIPE_LOCAL_BASE = "/assets/mediapipe/hands/";
 export const MEDIAPIPE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
@@ -264,7 +265,7 @@ export class MotionController {
               ...this._sentAtHost(),
             }),
           })
-            .then((r) => (r.ok ? r.json() : null))
+            .then((r) => (r.ok ? r.json() : drain(r).then(() => null))) // B73: anche la risposta d'errore si legge
             .then((r) => {
               r &&
                 r.swing &&
@@ -341,7 +342,7 @@ export class MotionController {
               ...this._sentAtHost(),
             }),
           })
-            .then((r) => (r.ok ? r.json() : null))
+            .then((r) => (r.ok ? r.json() : drain(r).then(() => null))) // B73: anche la risposta d'errore si legge
             .then((r) => {
               r &&
                 r.swing &&
@@ -1375,7 +1376,10 @@ export class MotionController {
           ac && (abortTimer = setTimeout(() => ac.abort(), (this.phonePoll || PHONE_POLL).abortMs));
           const i = await fetch(`/api/match/state${t}`, ac ? { cache: "no-store", signal: ac.signal } : { cache: "no-store" });
           // NATPF 1v1: stanza che non esiste (link vecchio o sbagliato)
-          if (i.status === 404 && this.role === "p2") { typeof this.onRoomState == "function" && this.onRoomState({ invalidRoom: !0 }); return; }
+          // (B73: le risposte che non si usano si leggono lo stesso, natpf_fetch.drain: una risposta mai letta resta aperta e
+          // dopo circa 180 ogni richiesta della pagina fallisce; senza relay, es. sito statico, questa è una ogni 0,5 s)
+          if (i.status === 404 && this.role === "p2") { await drain(i); typeof this.onRoomState == "function" && this.onRoomState({ invalidRoom: !0 }); return; }
+          if (!i.ok) await drain(i);
           if (i.ok) {
             const a = await i.json(),
               t1 = Date.now(),
@@ -1550,7 +1554,10 @@ export class MotionController {
             ? navigator.vibrate([45, 28, 65])
             : navigator.vibrate([32]);
       } catch {}
-    fetch("/api/racket/feedback", {
+    // NATPF B73: a ogni colpo di chi gioca, in tutte le modalità; la risposta si legge (natpf_fetch.js). Prima
+    // fetch(...).catch(): ogni risposta mai letta restava aperta e dopo circa 180 colpi dalla pagina caricata ogni
+    // richiesta del gioco (registro, voce, relay) falliva con net::ERR_INSUFFICIENT_RESOURCES
+    sendAndForget("/api/racket/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1562,7 +1569,7 @@ export class MotionController {
         speedKmh: Math.round(Number(a || 150)),
         intensity: Number(n || 1),
       }),
-    }).catch(() => {});
+    });
   }
   _initDOMBindings() {
     (this._onKeyDown = (e) => {
