@@ -567,7 +567,7 @@ test('registro, B36.0: la riga del colpo aspetta il primo rimbalzo vero (rx, rz,
   E.ball.lastHitter = 'opponent'; M.avanti(800); E._awardPoint('player', 'Nice Shot!');
   await R.blocco();
   const rows = await tutte(M.coda), colpi = rows.filter(r => r.k === 'colpo'), [partita] = rows.filter(r => r.k === 'partita'), [avvio] = rows.filter(r => r.k === 'avvio');
-  assert.equal(avvio.v, 4, 'formato delle righe 4: con i campi della direzione, le misure del B66 e i campi del B71'); assert.equal(partita.dir, 'classica');
+  assert.equal(avvio.v, 5, 'formato delle righe 5: con i campi della direzione, le misure del B66, i campi del B71 e gli assi del B74'); assert.equal(partita.dir, 'classica');
   const v = c => [c.pf, c.dv, c.tu, c.rx, c.rz, c.fu, c.nr];
   assert.deepEqual(colpi.map(v), [
     [.42, 8.9, -.38, 1.41, -8.62, undefined, undefined],

@@ -29,9 +29,10 @@ const MB = 1024*1024;
 export const REGISTRO = Object.freeze({
   // formato delle righe (campo «v» della riga «avvio»): 2 dal B36.0, con i campi della direzione dei colpi (CAMPI_B36); 3
   // dal B66, con le misure di sensori, calibrazione, collegamento, rete e blocco del telefono (CAMPI_B66); 4 dal B71, con il
-  // verso del gesto (CAMPI_B71), il ritardo dello schermo (CAMPI_B71T) e i sensori dell'app (CAMPI_B71S). Il numero nuovo
-  // serve a vedere se il Worker è stato ricaricato (la sua pagina lo scrive) e al riassunto per dire se i campi mancano
-  versione: 4,
+  // verso del gesto (CAMPI_B71), il ritardo dello schermo (CAMPI_B71T) e i sensori dell'app (CAMPI_B71S); 5 dal B74, con
+  // l'ordine degli assi del giroscopio (CAMPI_B74). Il numero nuovo serve a vedere se il Worker è stato ricaricato (la sua
+  // pagina lo scrive) e al riassunto per dire se i campi mancano
+  versione: 5,
   chiave: 'natpf-tennis.registro',          // scelta dello staff (Sì/No) e contatori della giornata, nel browser
   config: '/natpf/registro.json',           // {"url": "https://…workers.dev/"}: indirizzo del Worker (pacchetto)
   maxRiga: 2000,                            // caratteri per riga: oltre, la riga si accorcia ai campi essenziali
@@ -65,6 +66,11 @@ export const CAMPI = Object.freeze(['k', 't', 'n', 'v', 'ora', 'fuso', 'g', 'ver
   // B71 (19/11, docs/b71/registro-tempo.md): riga «partita», displayLagMs = ritardo dello schermo salvato (ms, 0 = mai misurato).
   // Un Worker non ancora ricaricato lo toglie in silenzio (la riga resta)
   'displayLagMs',
+  // B74 (20/11, docs/b74/assi-giroscopio.md): riga «partita», ordine degli assi del giroscopio. stand.assi 'corretti' con
+  // l'interruttore dello staff «Assi del giroscopio: Corretti (prova)» acceso (spento: niente); tel.assi / tel2.assi come
+  // lo usa il telefono con l'interruttore acceso: 'corretti' (Android, rotazione riordinata), 'oggi' (iPhone e gli altri,
+  // lasciata com'è); senza = interruttore spento o pagina del telefono di prima. Un Worker non ancora ricaricato lo toglie
+  'assi',
   // B66 (18/11, docs/b66/registro-sensori.md), tutti insieme perché il Worker si ricarichi una volta sola. Riga «colpo»:
   // cf confidenza del tipo di colpo · mg picco/soglia · gb buco nei campioni durante il gesto (ms) · rit [ms dal picco
   // all'arrivo, alla risposta del gioco]. Riga «tel» e «partita»: pv versione della pagina del telefono (se diversa da quella
@@ -107,6 +113,9 @@ export const CAMPI_B71S = Object.freeze(['sr', 'fs', 'vs', 'tk', 'rp', 'lg']);
 // il campo del B71 sul tempo (docs/b71/registro-tempo.md; sopra, dopo quelli del verso): un Worker non ancora ricaricato
 // lo toglie in silenzio (le righe le accetta lo stesso)
 export const CAMPI_B71T = Object.freeze(['displayLagMs']);
+// il campo del B74 sugli assi del giroscopio (sopra, dopo displayLagMs): un Worker non ancora ricaricato (formato 4) lo toglie
+// in silenzio (le righe le accetta lo stesso)
+export const CAMPI_B74 = Object.freeze(['assi']);
 // campi che sono un elenco «voce: quante volte» (motivi dei gesti scartati, posti della visita, passi della
 // calibrazione): le voci le decide il gioco, i valori sono solo numeri (o un elenco di numeri)
 // (B66: pause della partita per il telefono, { motivo: [volte, secondi] })

@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
+import { codeRotation } from '@natpf/tennis/motion-sign.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { natpfSwingToEngine, NORMAL_SHOTS } from '../../src/natpf/natpf_phone_racket.js';
 import { swingTimeline } from '../../src/natpf/natpf_diag.js';
@@ -21,7 +22,8 @@ function fromPackage(path){
   const prof = ev.filter(e => e.k === 'tel.profilo').at(-1);
   return {
     transport: meta.transport, startedAt: meta.inizio,
-    raw: lines('telefono-sensori.jsonl').map(k => ({ t: k.k, rot: k.r, acc: k.a, accG: k.g })),
+    // (B74: o 'c' = il telefono leggeva la rotazione riordinata, interruttore «Assi del giroscopio»: qui la stessa)
+    raw: lines('telefono-sensori.jsonl').map(k => ({ t: k.k, rot: codeRotation(k.r, k.o === 'c' ? 'chrome' : 'w3c'), acc: k.a, accG: k.g })),
     // colpi: i campi del registro tornano nella forma del messaggio letto (s) e dell'evento del gioco (ev)
     swings: ev.filter(e => e.k === 'tel.colpo').map(e => ({ s: { seq: e.n, detectMs: e.rilevamento, holdMs: e.attesa, at: e.picco != null ? e.picco/1000 : null, receivedAt: e.arrivo != null ? e.arrivo/1000 : null }, ev: { side: e.lato, ...(e.scartato ? { ignored: e.scartato } : {}), natpf: { shot: e.tipo, wrist: e.mira, aimSource: e.fonteMira } }, hitAt: null, frameAt: null })),
     stats: [], profile: prof ? { phone: prof.profilo, hand: prof.mano, liftBaseline: prof.liftBaseline } : null,

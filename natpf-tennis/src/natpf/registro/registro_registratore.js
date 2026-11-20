@@ -31,6 +31,8 @@ import { readFairMode } from '../natpf_fair_format.js';
 import { readAimLevel } from '../natpf_aim_level.js';
 import { NATPF_BUILD } from '@natpf/tennis/version.js';
 import { dirModelOf, usedNewRule } from '../natpf_direction.js';
+// B74: interruttore dello staff «Assi del giroscopio» (stand.assi) e ordine usato dal telefono (tel.assi)
+import { axesOn } from '../natpf_gyro_axes.js';
 import { MisureTelefono, Pause } from './registro_misure.js';
 
 const prova = (fn, no = null) => { try { return fn(); } catch { return no; } };
@@ -333,7 +335,10 @@ export class RegistroStand {
     // B66: versione della pagina del telefono se non è quella del PC (telefono rimasto indietro, pagina da Cloudflare) e
     // dell'app NATPF Racchetta (dal messaggio «dev»; telefoni di prima: dalla fine del nome del browser)
     const pv = ph.device?.version, app = ph.device?.app || /NATPFApp\/([\w.]+)/.exec(String(ph.device?.ua || ''))?.[1];
-    return { strada: strada(L?.route, L?.transport), rtt: r(ph.state?.rtt, 0), ...(d || {}), ...(pv && pv !== NATPF_BUILD ? { pv: String(pv).slice(0, 20) } : {}), ...(app ? { app: String(app).slice(0, 12) } : {}) };
+    // B74: assi del giroscopio come li usa il telefono con l'interruttore acceso (messaggio «dev» ax): 'corretti' riordinati
+    // (Android), 'oggi' lasciati com'erano (iPhone e gli altri); niente con l'interruttore spento o una pagina di prima
+    const ax = ph.device?.axes === 1 ? 'corretti' : ph.device?.axes === 0 ? 'oggi' : null;
+    return { strada: strada(L?.route, L?.transport), rtt: r(ph.state?.rtt, 0), ...(d || {}), ...(pv && pv !== NATPF_BUILD ? { pv: String(pv).slice(0, 20) } : {}), ...(app ? { app: String(app).slice(0, 12) } : {}), ...(ax ? { assi: ax } : {}) };
   }
   // B71: ritardo dello schermo dei telefoni (ms, 0…200: lo stesso per i due telefoni, natpf_diag.saveLag)
   _ritardoSchermo(){ const v = Number(this.engine.natpfPhone?.displayLagMs ?? this.engine.natpfPhone2?.displayLagMs ?? 0); return Number.isFinite(v) ? Math.max(0, Math.min(200, Math.round(v))) : 0; }
@@ -364,8 +369,9 @@ export class RegistroStand {
       // (stand.fiera è l'opzione «Formato in fiera», come «fiera» qui sopra; B71 revisione: modo 'fiera' = modalità fiera
       // accesa, natpfUi.fiera.on, quella che decide correzione dell'anticipo, ritardo dello schermo non sommato, «Perfetto»
       // di fiera e segno di fiera. Prima non era scritta da nessuna parte e il riassunto la confondeva con il formato)
+      // (B74: assi 'corretti' con l'interruttore «Assi del giroscopio: Corretti (prova)» acceso; spento, niente: riga com'era)
       stand: { chiosco: this.chiosco, fiera: prova(() => readFairMode()), mira: prova(() => readAimLevel()), caldo: !!E.natpfHot, ...(split ? { lancioAuto: !!duo?.autoToss, campoAperto: !!duo?.open } : {}),
-        ...(prova(() => E.natpfUi?.fiera?.on || ui?.fiera?.on) ? { modo: 'fiera' } : {}) },
+        ...(prova(() => E.natpfUi?.fiera?.on || ui?.fiera?.on) ? { modo: 'fiera' } : {}), ...(prova(() => axesOn()) ? { assi: 'corretti' } : {}) },
       // B36.0: modello della direzione dei colpi della partita (natpf_direction.js; B36.1: «classica» di base, «nuova» in
       // lavorazione). Sul computer del P2 della sfida la scrive _rigaPartita, con la direzione dell'host
       dir: dirModelOf(E),

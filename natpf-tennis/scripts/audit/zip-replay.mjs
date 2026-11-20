@@ -17,6 +17,7 @@ import { pathToFileURL } from 'node:url';
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { strokeShape } from '@natpf/tennis/stroke-shape.js';
+import { codeRotation } from '@natpf/tennis/motion-sign.js';
 import { strokeIntent } from '../../src/natpf/natpf_stroke_intent.js';
 
 const args = process.argv.slice(2);
@@ -39,7 +40,8 @@ export function replay(raw, profile, { prep = true, detector = createSwingDetect
   det.setProfile(profile); det.run(); det.setContext('play'); det.setPrepMode(prep);
   face.setRest(profile.gravity, det.profile.bias);
   for (const s of raw){
-    const k = { t: s.k, rot: s.r, acc: s.a, accG: s.g };
+    // (B74: o 'c' = il telefono leggeva la rotazione riordinata, interruttore «Assi del giroscopio»: qui la stessa)
+    const k = { t: s.k, rot: codeRotation(s.r, s.o === 'c' ? 'chrome' : 'w3c'), acc: s.a, accG: s.g };
     if (face.ready) face.feed(k);
     det.feed(k);
   }

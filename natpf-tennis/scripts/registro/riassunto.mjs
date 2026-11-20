@@ -211,6 +211,8 @@ export class Riassunto {
     // oltre 20 e oltre 30 colpi nelle partite con l'opzione accesa (c) e spenta (s), colpi super con la «palla calda»
     this.lunghi = { partite: 0, caldo: 0, c: { punti: 0, oltre20: 0, oltre30: 0 }, s: { punti: 0, oltre20: 0, oltre30: 0 }, superCaldi: 0 };
     this.evento = { n: 0, inizio: new Misura(), fine: new Misura(), delta: new Misura(), sale: 0, scende: 0, uguale: 0, perOrdine: [] };
+    // B74: partite con «Assi del giroscopio: Corretti (prova)» e, per telefono, cosa ha fatto il telefono
+    this.assi = { partite: 0, tel: {} };
     this.tel = { stati: {}, cadutePerOra: {}, strade: {}, rtt: new Misura(), rttMax: new Misura(), so: {}, browser: {}, cadutePartite: 0, dopoS: new Misura(),
       // B46: cambi di mano (mano · causa) e del segno del verso (causa · segno), con quanti in partita
       mano: {}, segno: {}, manoInPartita: 0, segnoInPartita: 0,
@@ -247,6 +249,8 @@ export class Riassunto {
     // B36.0: i campi della direzione ci sono? (un gioco nuovo, formato 2, senza «dir» = Worker non ricaricato)
     const D = this.dir.partite; if (r.dir != null) D.conCampi++; else if ((x.formato ?? 0) >= 2) D.senzaCampi++; else D.vecchie++;
     for (const t of [r.tel, r.tel2]) if (t){ piu(this.tel.strade, t.strada); piu(this.tel.so, t.so); piu(this.tel.browser, t.browser); }
+    // B74: assi del giroscopio (stand.assi con l'interruttore acceso; tel.assi come li usa il telefono, docs/b74/assi-giroscopio.md)
+    if (r.stand?.assi === 'corretti'){ const A = this.assi; A.partite++; for (const t of [r.tel, r.tel2]) if (t) piu(A.tel, t.assi === 'corretti' ? 'riordinati (Android)' : t.assi === 'oggi' ? 'come oggi (iPhone e altri)' : 'senza risposta (pagina di prima)'); }
     this._b66Partita(r, x);
     if (r.modo === 'stesso-schermo'){ const S = this.split; S.n++; if (Array.isArray(r.fasce)) piu(S.fasce, r.fasce.join(' · ')); if (r.stand?.caldo) S.caldo++; if (r.stand?.lancioAuto) S.lancioAuto++; }
     this.lunghi.partite++; if (r.stand?.caldo) this.lunghi.caldo++;
@@ -658,20 +662,24 @@ function lsTesto(T){
 }
 export function sezioniB66(R, sez){
   const B = R.b66, Pt = B.partite;
-  const avviso = [Pt.senzaMisure ? `ATTENZIONE: ${N(Pt.senzaMisure)} partite con il telefono di un gioco nuovo (formato 3) senza le misure del B66: il Worker del registro non è stato ricaricato (docs/b66/registro-sensori.md, «Ricaricare il Worker»).` : '',
-    // B71 (revisione): stessa rete di sicurezza per i campi del B71 (verso del gesto, ritardo dello schermo, sensori dell'app)
-    B.b71.senzaCampi ? `ATTENZIONE: ${N(B.b71.senzaCampi)} partite con il telefono di un gioco con formato 4 senza displayLagMs: il Worker del registro non è stato ricaricato e ha tolto i campi del B71 (docs/GUIDA_REGISTRO_CLOUDFLARE.md §I, «Formato delle righe: 4»).` : ''].filter(Boolean).join(' ');
+  const avviso = [Pt.senzaMisure ? `ATTENZIONE: ${N(Pt.senzaMisure)} partite con il telefono di un gioco nuovo (formato 3 o più) senza le misure del B66: il Worker del registro non è stato ricaricato (docs/b66/registro-sensori.md, «Ricaricare il Worker»).` : '',
+    // B71 (revisione): stessa rete di sicurezza per i campi del B71 (verso del gesto, ritardo dello schermo, sensori dell'app).
+    // B74 (revisione, S2): si contano i giochi con formato 4 o più e la pagina del Worker da caricare dice il formato di
+    // adesso (REGISTRO.versione, uguale al FORMATO del Worker: registro-worker.test.mjs), non più un «4» fisso
+    B.b71.senzaCampi ? `ATTENZIONE: ${N(B.b71.senzaCampi)} partite con il telefono di un gioco con formato 4 o più senza displayLagMs: il Worker del registro non è stato ricaricato e ha tolto i campi del B71 e, dal formato 5, il campo \`assi\` del B74 (docs/GUIDA_REGISTRO_CLOUDFLARE.md §I: dopo il Deploy la pagina del Worker dice «Formato delle righe: ${REGISTRO.versione}»).` : ''].filter(Boolean).join(' ');
   const T71 = B.b71, srTesto = Object.keys(T71.sr).length ? `Sensori in partita (B71, app NATPF Racchetta 1.0.5): ${elenco(T71.sr).map(([k, v]) => `${{ n: 'app', b: 'browser', nb: 'app e browser' }[k] || k} ${v}`).join(' · ')}${Object.keys(T71.rp).length ? `; ritorni al browser per motivo (g gravità, r rotazione, f sensori dell'app fermi, p ponte): ${elenco(T71.rp).map(([k, v]) => `${k} ${v}`).join(' · ')}` : ''}${T71.lg.n ? `; ritardo dei campioni del browser su quelli dell'app (prova all'avvio) ${mis(T71.lg, 0, ' ms')}` : ''}.` : '';
   const vuoto = 'Nessuna partita con le misure del B66: il registro è di una versione prima della 2026-11-18.1' + (Pt.senzaMisure ? ' o il Worker non è stato ricaricato.' : '.');
   const S = B.sensori, totColpiTel = B.coll.colpi;
+  // B74: l'interruttore dello staff «Assi del giroscopio» (docs/b74/assi-giroscopio.md), solo se è stato acceso
+  const AX = R.assi, assiTesto = AX?.partite ? `Assi del giroscopio «Corretti (prova)» (B74): ${N(AX.partite)} partite; telefoni: ${elenco(AX.tel).map(([k, v]) => `${k} ${v}`).join(' · ') || 'nessuno'}.` : '';
   sez('Sensori del telefono', S.n ? [
-    avviso,
+    avviso, assiTesto,
     `Telefoni in partita con le misure: ${N(S.n)}. Frequenza vera dei sensori (campioni contati sul telefono): mediana di ogni partita ${mis(S.hz, 1, ' Hz')}; la più bassa di ogni partita ${mis(S.hzMin, 1, ' Hz')}. Partite con un tratto sotto 50 Hz: ${N(S.sotto50)} (${pc(S.sotto50, S.n, 1)}).${S.soloMedia ? ` Di ${N(S.soloMedia)} telefoni (pagina di prima) solo la frequenza dichiarata dal telefono (media mobile).` : ''}`,
     `Buchi nei campioni (intervallo oltre 2 volte il periodo del telefono): ${N(S.buchi)} su ${N(S.campioni)} campioni; a partita ${mis(S.buchiPartita, 1)}; il più lungo di ogni partita ${mis(S.bucoMax, 0, ' ms')}.`,
     `Colpi con un buco nei campioni durante il gesto: ${N(S.colpiBuco)} su ${N(totColpiTel)} colpi arrivati (${pc(S.colpiBuco, totColpiTel, 1)}); righe «colpo» con il buco: ${N(B.gesto.conBuco)}.`,
     `Saturazione (lo stesso valore grande ripetuto: il sensore arriva al suo massimo): partite con campioni saturi ${N(S.saturi)} (${pc(S.saturi, S.n, 1)}); campioni saturi dell'accelerazione ${N(S.satAcc)}, della rotazione ${N(S.satGiro)}.`,
     srTesto,
-  ] : [avviso, vuoto], S.n ? [
+  ] : [avviso, vuoto, assiTesto], S.n ? [
     { titolo: 'Per telefono e browser (dalla riga della partita)', colonne: ['Telefono · browser', 'Partite', 'Frequenza (mediana, Hz)', 'La più bassa (metà sotto, Hz)', 'Sotto 50 Hz', 'Buchi a partita'],
       righe: Object.entries(S.perTel).sort((a, b) => b[1].n - a[1].n).slice(0, 15).map(([k, G]) => [k, N(G.n), N(G.hz.p(.5), 1), N(G.hzMin.p(.5), 1), pc(G.sotto50, G.n), N(G.buchi.media, 1)]) },
     { titolo: 'Intervallo dei sensori dichiarato dal browser', colonne: ['Intervallo', 'Telefoni'], righe: elenco(S.intervallo) },
@@ -771,7 +779,7 @@ export function sezioneDirezione(R, sez){
   const modelli = [...new Set(prec.map(p => p.dir))].sort();
   sez('Direzione (B36.0: misure, il gioco non cambia)', [
     `Partite con i campi della direzione: ${N(P.conCampi)} su ${N(tot)}${P.vecchie ? `; ${N(P.vecchie)} di versioni del gioco di prima del B36.0` : ''}. Colpi della racchetta in partita con il tempo in finestre: ${N(D.colpiConTempo)} su ${N(D.colpiRacchetta)}.`,
-    P.senzaCampi ? `ATTENZIONE: ${N(P.senzaCampi)} partite di un gioco con il formato delle righe 2 senza i campi della direzione: il Worker del registro non è stato ricaricato e li ha tolti (docs/b36/misure-b36-0.md, «Ricaricare il Worker»).` : '',
+    P.senzaCampi ? `ATTENZIONE: ${N(P.senzaCampi)} partite di un gioco con il formato delle righe 2 o più senza i campi della direzione: il Worker del registro non è stato ricaricato e li ha tolti (docs/b36/misure-b36-0.md, «Ricaricare il Worker»).` : '',
     'Cima: scarto in gradi dal proprio colpo abituale (+ a destra). Tempo: unità della finestra (+ anticipo). Rimbalzo: dove la palla tocca terra davvero, nel riferimento di chi colpisce (+ alla sua destra). Gruppi: modello della direzione · chi gioca · livello.',
     D.partiteP2 ? `Partite del computer del Player 2 nelle sfide tra due computer: ${N(D.partiteP2)}, fuori dai gruppi (i colpi del Player 2 sono già nella partita dell'host, con la sua direzione).` : '',
     ...modelli.map(testoFit),

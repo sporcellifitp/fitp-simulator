@@ -10,7 +10,7 @@ import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { createCalibration, calibrationPlan } from '@natpf/tennis/calibration.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { strokeShape } from '@natpf/tennis/stroke-shape.js';
-import { normalizeSample } from '@natpf/tennis/motion-sign.js';
+import { normalizeSample, rotOrderFor } from '@natpf/tennis/motion-sign.js';
 import { natpfSwingToEngine, NORMAL_SHOTS, habitualRise, createRiseModel, createTypicalModel, powerRefs, profileTypical, teachesNormal, trialMark } from '../src/natpf/natpf_phone_racket.js';
 import { createTrialLearner, phoneThresholds, signedSwing } from '../src/natpf/natpf_trial_learn.js';
 import { trialThresholds } from '@natpf/tennis/phone-screen.js';
@@ -30,7 +30,13 @@ export function rng(seed = 1){ let a = seed >>> 0; return () => { a = (a + 0x6D2
 // ios: accelerazione con il segno di Safari su iPhone (opposto ad Android, motion-sign.js); fix: la pagina del telefono
 // la riporta al segno di Android (normalizeSample), come racchetta.js
 // makeAim: fabbrica del centro della mira (predefinita createAimModel; il banco scripts/audit/colpi.mjs ci prova dei candidati)
-export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = true, calibrationHeading = true, ios = false, fix = false, makeAim = createAimModel } = {}){
+// B74 (docs/b74/assi-giroscopio.md): order 'chrome' = il telefono manda la rotazione come Chrome su Android e l'app NATPF
+// Racchetta (α attorno a x, β attorno a y, γ attorno a z); di base 'w3c' (α attorno a z), come prima. axes: interruttore dello
+// staff «Assi del giroscopio: Corretti (prova)» acceso; con fix la pagina del telefono riordina allora la rotazione dei
+// telefoni Android (normalizeSample con motion-sign.rotOrderFor), come racchetta.js. Telefono Android, iPhone con ios
+export const SIM_UA = Object.freeze({ android: 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', iphone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' });
+export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = true, calibrationHeading = true, ios = false, fix = false, makeAim = createAimModel, order = 'w3c', axes = false } = {}){
+  const rotOrder = rotOrderFor(axes, { ua: ios ? SIM_UA.iphone : SIM_UA.android });
   const det = createSwingDetector(), face = createFaceTracker({ quietHold: 400, relax: 2.5 });
   const cal = createCalibration(det), R = rng(seed);
   det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
@@ -46,10 +52,11 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     const wd = rotate(qconj(q), wr);
     if (th > 1e-9) q = qmul(qaxis(wr, th*180/Math.PI), q);
     const g = rotate(qconj(q), [0, G, 0]), a = rotate(qconj(q), acc);
-    const rot = [wd[2], wd[0], wd[1]].map(v => v*180/Math.PI);          // ordine del browser: α(z), β(x), γ(y)
+    // ordine del W3C: α(z), β(x), γ(y); B74: con order 'chrome' quello di Chrome su Android, α(x), β(y), γ(z)
+    const rot = (order === 'chrome' ? [wd[0], wd[1], wd[2]] : [wd[2], wd[0], wd[1]]).map(v => v*180/Math.PI);
     let k = { t, rot, acc: a, accG: [g[0] + a[0], g[1] + a[1], g[2] + a[2]] };
     if (ios) k = { ...k, acc: k.acc.map(v => -v), accG: k.accG.map(v => -v) };
-    if (fix) k = normalizeSample(k, ios ? -1 : 1);
+    if (fix) k = normalizeSample(k, ios ? -1 : 1, rotOrder);
     if (face.ready) face.feed(k);
     det.feed(k); if (cal.state.step !== 'done' && cal.state.step !== 'idle') cal.tick(t, k);
     t += DT;

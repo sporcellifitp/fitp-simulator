@@ -158,8 +158,16 @@ La terza è il B71 (19/11, prima versione dopo la 2026-11-18.3: verso del gesto,
 NATPF Racchetta 1.0.5, formato delle righe 4; `docs/b71/revisione.md`): stessi passi, con il file della versione nuova;
 dopo il Deploy la pagina dice **«Formato delle righe: 4 (con la direzione dei colpi, le misure dei sensori del B66 e del
 B71: verso del gesto, ritardo dello schermo, sensori dell'app)»**. Se dice ancora 3, il Deploy non è andato. Se il Worker
-non è ricaricato il riassunto lo dice: «ATTENZIONE: … partite con il telefono di un gioco con formato 4 senza
-displayLagMs: il Worker del registro non è stato ricaricato».
+non è ricaricato il riassunto lo dice: «ATTENZIONE: … partite con il telefono di un gioco con formato 4 o più senza
+displayLagMs: il Worker del registro non è stato ricaricato … dopo il Deploy la pagina del Worker dice «Formato delle
+righe: 5»» (dal B74 il riassunto scrive il formato del Worker da caricare adesso, non più un 4 fisso).
+La quarta è il B74 (20/11: assi del giroscopio, campo `assi` della riga «partita», formato delle righe 5;
+`docs/b74/assi-giroscopio.md` §5): stessi passi, con il file della versione nuova; dopo il Deploy la pagina dice
+**«Formato delle righe: 5 (… sensori dell'app; dal B74 gli assi del giroscopio)»**. Se dice ancora 4, il Deploy non è
+andato: il Worker accetta lo stesso le righe ma toglie il campo `assi` (serve solo quando lo staff accende «Assi del
+giroscopio: Corretti (prova)»). Attenzione: un Worker fermo al formato 4 lascia `displayLagMs` e il riassunto **non può
+accorgersene** (con l'interruttore spento il gioco non manda `assi`): prima di accendere l'interruttore controllare che la
+pagina dica 5.
 
 ## Sicurezza in breve
 

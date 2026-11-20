@@ -16,7 +16,7 @@ import { swingMessage } from './swing-message.js';
 import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
-import { platformAccSign, createAccSign, normalizeSample, SIGN } from './motion-sign.js';
+import { platformAccSign, createAccSign, normalizeSample, SIGN, rotOrderFor } from './motion-sign.js';
 import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, rematchOnMsg, rematchView, pauseNote, eventFlash, verdictText, veilText, trialOnMsg, TRIAL_TEXT, trialThresholds, nextOnMsg, nextTap, NEXT_REARM_MS, readyView, nameOnMsg, nameSubmit, NAME_REARM_MS, NAME_TEXT, standView, STAFF_HOLD, batteryAlert, standSignStep, tapVotesSign, handTap, handLabel, HAND_CONFIRM } from './phone-screen.js';
 import { touchLockActive, createTouchLockHistory, installStaffTouch } from './phone-touch-lock.js';
 import { createSampleStats, createLockStats, createAppReader } from './phone-stats.js';
@@ -66,6 +66,12 @@ const det = createSwingDetector(), face = createFaceTracker(ALLOW_FLAT ? {} : { 
 // (telefono dello stand: il segno confermato e salvato su questo telefono, B41.3)
 const accSign = createAccSign({ prior: stand?.as ?? platformAccSign(navigator.userAgent, navigator.maxTouchPoints || 0) });
 let lastRawG = null;
+// B74 · ordine degli assi del giroscopio (motion-sign.js, docs/b74/assi-giroscopio.md). axesOn: l'interruttore dello staff
+// «Assi del giroscopio» come l'ha mandato il gioco (cfg ax 1 = «Corretti»; senza = «Come oggi», anche dai computer di
+// prima), ricordato nella scheda (pagina ricaricata: niente calibrazione rifatta per niente). rotOrder: 'chrome' (rotazione
+// riordinata all'ingresso, in feedSample) solo con l'interruttore acceso su un telefono Android; 'w3c' (com'è) altrimenti
+const AXES_DEVICE = { ua: navigator.userAgent, platform: navigator.userAgentData?.platform || '' };
+let axesOn = ss.get('ax') === 1, rotOrder = rotOrderFor(axesOn, AXES_DEVICE);
 // ogni gesto porta con sé il piatto all'istante del picco (l'impatto)
 // … e la forma del colpo (stroke-shape.js): piano, verso della testa della racchetta, rotazione sul manico
 det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); s.shape = strokeShape(face.history(), face.up, { peakT: s.peakT }); } });
@@ -448,6 +454,8 @@ function onData(c, d){
         // il computer ha chiuso il tutorial da solo (o non lo chiede più): chi aspettava calibra
         else if (was && sensor === 'idle') startCal();
       }
+      // B74: interruttore dello staff «Assi del giroscopio» (ax 1 = «Corretti»; i computer di prima non lo mandano)
+      setAxes(d.ax === 1);
       sendState(); paint(); break;
     // avanzamento del tutorial dal computer: scheda mostrata, schede viste (solo informazione: «ho capito» è acceso da subito, B28)
     case 'tp': if (gate){ setGate(gateOnProgress(gate, d)); paint(); } break;
@@ -669,7 +677,9 @@ function b66State(){
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 // (B45.1: cd = il racconto dell'ultima caduta, una volta sola; i computer di prima ignorano il campo)
 // (B72: subito dopo, la lingua di questa pagina: annuncio a ogni collegamento, k 1; toccata senza collegamento vale come un tocco)
-const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: window.screen.orientation?.type || null, sc: [window.screen.width, window.screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, nm: 1, ...(cd ? { cd } : {}), ...appVersion() }); sendLang(); };
+// (B74: ax solo con l'interruttore «Assi del giroscopio» acceso: 1 = rotazione riordinata (Android), 0 = ricevuto ma
+// lasciata com'è (iPhone e gli altri); senza ax = interruttore spento o pagina di prima)
+const sendDevice = () => { const cd = story.tell(); send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: window.screen.orientation?.type || null, sc: [window.screen.width, window.screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign, nm: 1, ...(cd ? { cd } : {}), ...(axesOn ? { ax: rotOrder === 'chrome' ? 1 : 0 } : {}), ...appVersion() }); sendLang(); };
 function sendLang(){ send(langMsg(lang, { link: !langDirty })); langDirty = false; }
 // B66: versione dell'app NATPF Racchetta (dentro l'app), per il registro dello stand
 function appVersion(){ try { const v = window.NATPFApp?.version?.(); return typeof v === 'string' && v ? { av: v.slice(0, 16) } : {}; } catch (e){ return {}; } }
@@ -716,7 +726,8 @@ async function enableSensors(){
   setTimeout(() => { if (!motionSeen && inputMode === 'motion') noMotion('nomotion'); }, 1500);
   const saved = ss.get('profile');
   // (profilo fatto con il segno dei sensori di prima, per esempio su iPhone prima della correzione: si ricalibra)
-  if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip && (saved.accSign ?? 1) === accSign.sign){ det.setProfile(saved); det.run(); sensor = 'ready'; face.setRest(saved.gravity, saved.bias); }
+  // (B74: anche se fatto con l'altro ordine degli assi del giroscopio: ro 'chrome' con l'interruttore acceso su Android)
+  if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip && (saved.accSign ?? 1) === accSign.sign && (saved.ro || 'w3c') === rotOrder){ det.setProfile(saved); det.run(); sensor = 'ready'; face.setRest(saved.gravity, saved.bias); }
   else needCal();                                   // con il tutorial aperto: prima il tutorial, poi la calibrazione
   sendState(); paint();
 }
@@ -739,9 +750,11 @@ function onMotion(e){
 }
 // un campione dei sensori, del browser (e: l'evento devicemotion) o dell'app (B71, e: NATIVE_EV), per il rilevatore, la
 // calibrazione, le misure e il computer: lo stesso lavoro per tutti e due
+// (B74: k ha l'accelerazione nel verso di Android e la rotazione nell'ordine del codice: riordinata solo con l'interruttore
+// «Assi del giroscopio» acceso su Android, motion-sign.js. raw resta com'è il sensore: misure, prova app/browser, flusso rs)
 function feedSample(raw, e){
   lastRawG = raw.accG;
-  const k = normalizeSample(raw, accSign.sign);
+  const k = normalizeSample(raw, accSign.sign, rotOrder);
   if (!k.rot && !k.acc) return;
   motionSeen = true; sensorWatch.feed(performance.now());
   sampleStats.feed(raw.t, { rot: raw.rot, accG: raw.accG, interval: e.interval });
@@ -754,8 +767,9 @@ function feedSample(raw, e){
   if (lastSampleT != null && k.t > lastSampleT) sampleHz += (1000/Math.min(200, k.t - lastSampleT) - sampleHz)*.05;
   lastSampleT = k.t;
   // diagnostica (il computer la chiede con cfg.diag): ogni campione grezzo, uguale in LAN e via internet, per registrarlo
+  // (B74: la rotazione com'è il sensore, anche con gli assi riordinati, e allora o 'c': il codice l'ha letta riordinata)
   if (linkState === 'on' && diagStream){
-    const rs = { t: 'rs', q: rawSeq++, k: Math.round(k.t*10)/10, r: k.rot && k.rot.map(v => Math.round(v*10)/10), a: k.acc && k.acc.map(v => Math.round(v*100)/100), g: k.accG && k.accG.map(v => Math.round(v*100)/100) };
+    const rs = { t: 'rs', q: rawSeq++, k: Math.round(k.t*10)/10, r: raw.rot && raw.rot.map(v => Math.round(v*10)/10), a: k.acc && k.acc.map(v => Math.round(v*100)/100), g: k.accG && k.accG.map(v => Math.round(v*100)/100), ...(rotOrder === 'chrome' ? { o: 'c' } : {}) };
     if (!sendFast(rs)) send(rs);
   }
   // Orientamento del piatto al computer, 30 volte al secondo: la racchetta in gioco segue questo, identico in LAN e via
@@ -824,7 +838,20 @@ function command(c){
   // dal computer: «Salta» durante la calibrazione, anche nel passo «fermo» → profilo semplice: verso, tipo di colpo e
   // forza vengono comunque dal gesto (manca solo il colpo tipico)
   if (c === 'skip' && sensor === 'cal' && inputMode === 'motion'){ const p = cal.skip(); det.setContext(phase); if (p){ sensor = 'ready'; sendState(); paint(); } }
-  if (c === 'confirm'){ const p = cal.confirm(); det.setContext(phase); if (p){ ss.set('profile', { ...p, accSign: accSign.sign }); sensor = 'ready'; sendState(); paint(); } }
+  if (c === 'confirm'){ const p = cal.confirm(); det.setContext(phase); if (p){ ss.set('profile', { ...p, accSign: accSign.sign, ...(rotOrder !== 'w3c' ? { ro: rotOrder } : {}) }); sensor = 'ready'; sendState(); paint(); } }
+}
+// B74 · interruttore dello staff «Assi del giroscopio» dal gioco (cfg ax). Cambia l'ordine della rotazione solo su Android
+// (motion-sign.rotOrderFor); allora il profilo, la posa di riposo e i riferimenti fatti con l'altro ordine non valgono più:
+// si rifà la calibrazione (con «Giocando» il computer chiede subito il profilo semplice), come al cambio del segno dei
+// sensori. Il computer lo sa dal messaggio «dev» (ax), anche quando l'ordine non cambia (iPhone: ricevuto, lasciato com'è)
+function setAxes(on){
+  const want = !!on, next = rotOrderFor(want, AXES_DEVICE), told = want !== axesOn;
+  if (told){ axesOn = want; ss.set('ax', want ? 1 : 0); }
+  if (next === rotOrder){ if (told && linkState === 'on') sendDevice(); return false; }
+  rotOrder = next; face.reset();
+  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); needCal(); }
+  if (linkState === 'on') sendDevice();
+  return true;
 }
 cal.on(e => { sendCal(e);
   // gesto successivo pronto: il «Riconosciuto» del gesto prima lascia subito il posto alla nuova freccia (come sul
