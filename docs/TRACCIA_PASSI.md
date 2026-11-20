@@ -166,3 +166,18 @@ uno dei due campi in modalità doppio».
 - Da fare dall'utente: ricaricare il Worker del registro (pagina «Formato delle righe: 4»).
 - Non verificato: telefono vero (sensori dell'app 1.0.5, schermo che si riaccende, IT/EN), iPhone vecchi, programma
   Windows installato, ledwall (leggibilità del lampeggio e dell'alone da lontano).
+
+## 20/11 · B73 direzione dei colpi (B36.1), passi delle mascotte, prove rotte (richiesta dell'utente: «Vai avanti su 4, 6
+## (falli), tecnico»)
+
+4 = direzione dei colpi (tappa B36.1 del piano `docs/b36/piano-direzionalita.md`, «Nuova» interna, «Classica» di base e
+identica); 6 = passi veri delle mascotte nella card (avanti, indietro, destra, sinistra, con i piedi); tecnico = prove nel
+browser rotte da prima (`natpf-lob-drop` 136/137, `natpf-chi-serve` che si blocca, `natpf-registro-sensori` che non esce,
+`lan-e2e` rossa da prima del B8) e misura della saturazione dell'accelerazione sui registri del 18–19/11.
+
+- [~] Workflow `wf_d697e29c-598` (B73): cinque rami in worktree (`b73-registri` misure della direzione e della saturazione,
+      `b73-direzione` B36.1, `b73-mascotte`, `b73-prove-a` lob-drop e chi-serve, `b73-prove-b` registro-sensori e lan-e2e),
+      poi unione in `b73-int` (checkout principale), tre revisori + due scettici per rilievo, sistemazione, prove complete.
+      Documenti in `docs/b73/`. **Ripresa se si ferma**: `git branch --list 'b73-*'`, `git worktree list`; rilanciare il
+      workflow con `resumeFromRunId: 'wf_d697e29c-598'` (script in `.claude` della sessione) oppure unire a mano i rami pronti.
+      Poi: documenti vivi, versione nuova, push, pacchetti.

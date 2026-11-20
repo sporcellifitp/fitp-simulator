@@ -68,7 +68,9 @@ Registro delle richieste in §3.
 | 19/11 | Casella «Al servizio» che lampeggia + alone pulsante dopo 3 s attorno all'area di chi deve servire, in singolo e nello stesso schermo (B72) | FIERA (codice comune: vale anche nel web) | fatto, 19.1 (`docs/b72/servizio.md`) |
 | 19/11 | «Avversario» al posto di «CPU»: molti non sanno cosa significa CPU (B72) | FIERA (vale anche nel web) | fatto, 19.1 (`docs/b72/avversario.md`) |
 | 19/11 | Selettore della lingua IT/EN dall'app del telefono, anche per uno solo dei due giocatori nello stesso schermo (B72) | FIERA (vale anche nel web) | fatto, 19.1 (`docs/b72/lingua.md`): menu, staff e toast restano in italiano |
-| 16/11 | Direzione dei colpi (B36.1) | da decidere | ferma: la cima è troppo imprecisa nei dati veri (`docs/b36/misure-torino.md`) |
+| 16/11 | Direzione dei colpi (B36.1) | FIERA (interruttore dello staff, «Classica» di base) | 20/11 l'utente: «vai avanti»: tappa B36.1 «Nuova» interna in corso (B73, `docs/b73/`); misure nuove sui registri del 18–19/11 |
+| 20/11 | Mascotte della card: passi veri con i piedi, avanti, indietro, destra, sinistra (B73, ripresa della B58.1: «falli») | FIERA (mascotte solo nel programma Windows) | in corso (B73) |
+| 20/11 | Prove nel browser rotte da prima e misura della saturazione dell'accelerazione (B73, «tecnico») | ENTRAMBE (prove e analisi) | in corso (B73) |
 
 ## 4. Domande per l'utente (prima di separare il codice)
 
