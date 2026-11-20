@@ -106,7 +106,7 @@ export const PLAN_TRASCINA = stepPlan([
   { foot: 'a', to: [-DRAG_SIDE, 0], beat: 4, len: 2 }, { foot: 'b', to: [-DRAG_SIDE, 0], beat: 6, len: 2 },
 ], { lift: 0.022, swing: 0.8, shift: 0.3, bob: 0 });
 // Sconfitta · «Passi indietro, a testa bassa»: due passi lenti indietro (lontano da chi guarda) e due avanti, per tornare
-export const BACK = 0.13;
+export const BACK = 0.15;
 export const PLAN_INDIETRO = stepPlan([
   { foot: 'a', to: [0, -BACK], beat: 0, len: 2 }, { foot: 'b', to: [0, -BACK], beat: 2, len: 2 },
   { foot: 'b', to: [0, BACK], beat: 4, len: 2 }, { foot: 'a', to: [0, BACK], beat: 6, len: 2 },
