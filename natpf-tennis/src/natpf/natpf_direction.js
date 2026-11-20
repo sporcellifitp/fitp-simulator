@@ -23,7 +23,9 @@
 //     rispetto al proprio tempo abituale (rRest);
 //   • scarto della cima che manca (aimDev nullo: centro non ancora imparato, gesto verticale, telefono senza direzione):
 //     piatto 0 con la regola nuova, mai il ritorno alla regola di oggi;
-//   • bordi, aria, profondità, voto, finestra d'impatto, colpo super, scambio caldo: come oggi.
+//   • bordi, aria, profondità, voto, finestra d'impatto, scambio caldo: come oggi;
+//   • colpo super: quando scatta e cosa fa (profondità, altezza sul nastro, effetto, velocità) come oggi; la direzione è
+//     quella del colpo da cui nasce, cioè la regola nuova (piano §5.2, chiarito nella revisione del B73).
 // Dove si cambia: pannello dello stand (Ctrl+Maiusc+K, F9 nel programma Windows, 3 s sul marchio NATPF del menu, ❚❚ tenuto
 // 3 s in campo) → «Direzione dei colpi». Resta salvata (localStorage, chiave natpf-tennis.direzione: 'classica' | 'nuova';
 // senza chiave «Classica»); il chiosco e «Nuovo giocatore» non la toccano (è dello stand, non di chi gioca). Vale dalla

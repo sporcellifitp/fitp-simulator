@@ -63,7 +63,10 @@ non scorre. L'avviso dopo il clic copre per 6 s la riga in basso, come gli avvis
 
 Vale **solo** per i colpi dei telefoni con la forma del colpo (intenzione dal telefono, `natpf.intent`), **non** per la
 schiacciata (il piano la lascia com'è). Webcam, mouse, tastiera, telefoni senza la forma (intenzione ricostruita,
-`eventIntent` con `derived`) restano con la regola di oggi anche con «Nuova». Il servizio non passa di qui.
+`eventIntent` con `derived`) restano con la regola di oggi anche con «Nuova». Il servizio non passa di qui. Il **colpo
+super** scatta e agisce come oggi (stesse condizioni, profondità, altezza sul nastro, effetto, velocità: `superShot` non
+dipende dalla regola), ma la sua direzione è quella del colpo da cui nasce: con «Nuova», la regola nuova (chiarimento del
+piano §5.2 nella revisione del B73, `docs/b73/unione.md` §7; prova in `natpf-b36-interruttore`).
 
 ```
 tempo   = clamp(te ; −1 ; +1)       te = tempo vero meno il solo ritardo abituale del B35a (lag); il ritmo (rRest) non conta

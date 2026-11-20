@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { casiB36 } from './b36-casi.mjs';
-import { strokeOutcome, lateSpanOf, directionSpan, slowFactor, eventIntent } from '../src/natpf/natpf_stroke_outcome.js';
+import { strokeOutcome, lateSpanOf, directionSpan, slowFactor, eventIntent, superShot, SUPER } from '../src/natpf/natpf_stroke_outcome.js';
 import { skillLevel } from '../src/natpf/natpf_skill.js';
 import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
 import { RegistroStand } from '../src/natpf/registro/registro_registratore.js';
@@ -139,4 +139,59 @@ test('B36.1: il registro dello stand scrive la direzione della partita (dir) e i
     assert.equal(N.find(r => r.k === 'partita').dir, 'nuova');
     assert.deepEqual(N.filter(r => r.k === 'colpo').map(c => c.nr), [1, 1, 1, undefined], 'tre colpi del telefono con la regola nuova, il colpo del mouse no');
   } finally { Math.random = real; }
+});
+
+// Revisione del B73 (docs/b73/unione.md, «Revisione e sistemazione», rilievo «super-regola-nuova»): il piano §5.2 metteva il
+// colpo super tra gli «invariati» insieme a schiacciata e servizio. Scelta fissata qui (chiarimento del piano, non cambia la
+// D1): il super scatta e agisce come oggi (stesse condizioni, profondità, altezza sul nastro, effetto, B42), la sua direzione
+// è quella del colpo da cui nasce (con «Nuova», la regola nuova). Rifare l'esito senza dir quando scatta il super darebbe un
+// salto nascosto sulla soglia della forza (SUPER.power) e due regole nello stesso scambio (contro la frase finale del §5.2)
+test('B36.1 (revisione B73): il colpo super scatta allo stesso modo con «Classica» e «Nuova»; con «Nuova» la sua direzione è quella della regola nuova', () => {
+  // i 10 000 casi con il gesto forte e chiaro, colpi che possono diventare super, palla spesso alta, buona qualità e tempo
+  // dimezzato (nei casi a caso il super scatta solo 3 volte): restano lato, velocità della palla, livelli, intenzioni
+  // ricostruite, tempi fuori finestra
+  const casi = casiB36().map((c, i) => ({ ...c, intent: { ...c.intent, shot: ['topspin', 'flat', 'smash'][i % 3], typePower: .86 + .14*((i*7919) % 100)/100, conf: .9 },
+    contactY: i % 2 ? 1.5 : c.contactY, quality: .95, touch: .95, pressure: 1, hotPress: 1, timing: c.timing/2 }));
+  let on = 0, nuoviSuper = 0, altrove = 0;
+  for (const [i, c] of casi.entries()){
+    const o = strokeOutcome(c), n = strokeOutcome({ ...c, dir: 'nuova' });
+    // gli stessi argomenti del motore (ballSide dal lato della palla rispetto a chi colpisce: qui il segno di hitX)
+    const sa = { intent: c.intent, contact: c.contact, ballSide: Math.sign(c.hitX)*.5, contactY: c.contactY, ballVz: c.ballVz ?? 15, shortBall: c.shortBall };
+    const so = superShot({ ...sa, out: o }), sn = superShot({ ...sa, out: n });
+    assert.deepEqual(sn, so, `caso ${i}: il super scatta (o no) per gli stessi motivi`);
+    if (so.on && n.rule === 'nuova'){ nuoviSuper++; if (n.x !== o.x) altrove++; }
+    if (so.on) on++;
+  }
+  // (oggi: 3746 super, 1473 con la regola nuova, tutti con la palla da un'altra parte; gli altri sono schiacciate e
+  // intenzioni ricostruite, con la regola di oggi)
+  assert.ok(on > 3000 && nuoviSuper > 1000 && altrove > .9*nuoviSuper, `super ${on}, con la regola nuova ${nuoviSuper}, palla altrove ${altrove}`);
+});
+
+test('B36.1 (revisione B73): nel motore, con «Nuova» il super su una palla alta (gesto 0,95) è lo stesso super di «Classica», ma va dove dice la cima', () => {
+  const tiro = (dir, dev, tau) => {
+    const real = Math.random; Math.random = () => .5;
+    try {
+      const e = createHeadlessEngine({ difficulty: 'pro' }); e.natpfDirRule = dir; e.startNewMatch({ showStartBanner: false });
+      const p = e.player;
+      e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 1; e.ball.rallyStrokeCount = 3;
+      p.pos.set(0, 0, 11.4); p.vel.set(0, 0, 0); p.targetPos.copy(p.pos);
+      e.ball.pos.set(.6, 1.45, 10.9); e.ball.vel.set(0, 0, 18);                     // palla alta: super possibile
+      const ev = { source: 'natpf-phone', side: 'forehand', shotType: 'flat', speed: 1.6, dirX: 0, timing: null,
+        natpf: { aim: 'swing', shot: 'flat', power: .95, latency: 0, hand: 'right', aimDev: dev, peak: 1400, typical: 780, aimFull: 17,
+          intent: { shot: 'flat', power: .95, typePower: .95, depth: .9, rise: 0, face: 0, conf: 1 } } };
+      e._natpfRacketShot({ ...ev, natpfTau: tau, natpfLateSpan: .075 }, p, { lateral: .6 });
+      return e.natpfLastRacket;
+    } finally { Math.random = real; }
+  };
+  let diversi = 0;
+  for (const tau of [-.04, .04]){
+    const c = tiro('classica', 0, tau), n = tiro('nuova', 0, tau);
+    assert.equal(c.super, 'alta', `tempo ${tau}: super con «Classica»`); assert.equal(n.super, 'alta', `tempo ${tau}: super con «Nuova»`);
+    assert.equal(c.out.rule, undefined); assert.equal(n.out.rule, 'nuova', 'la direzione del super segue la regola nuova');
+    // quello che decide il super non cambia: altezza sul nastro, effetto, profondità minima del super
+    assert.equal(n.out.clear, c.out.clear); assert.equal(n.out.topspin, c.out.topspin); assert.equal(n.out.topspin, SUPER.topspin);
+    assert.ok(n.out.depth >= SUPER.minDepth && c.out.depth >= SUPER.minDepth);
+    if (Math.abs(n.out.x - c.out.x) > .1) diversi++;
+  }
+  assert.equal(diversi, 2, 'cima al centro: con «Nuova» il tempo pesa meno e la palla va da un’altra parte');
 });

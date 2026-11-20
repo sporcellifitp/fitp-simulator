@@ -356,7 +356,8 @@ LANCIO              il rimbalzo vero cade su x (aria corretta anche di lato): so
 | Pallonetto | nuova per la direzione; con un gesto verticale senza verso il piatto vale 0 |
 | Gesto della palla corta | diventa un tagliato morbido (D2) |
 | Volée | spenta: si aspetta il rimbalzo (D2) |
-| Schiacciata, servizio, colpo super | invariati |
+| Schiacciata, servizio | invariati |
+| Colpo super | scatta e agisce come oggi (stesse condizioni, profondità, altezza sul nastro, effetto, velocità; B42); la direzione è quella del colpo da cui nasce, quindi nuova. Chiarimento della revisione del B73 (`docs/b73/unione.md` §7), non cambia la D1: rifare l'esito con la regola di oggi solo quando scatta il super darebbe un salto nascosto sulla soglia della forza e due regole nello stesso scambio |
 | Webcam, mouse, tastiera, telefoni senza la forma (intenti ricostruiti, `:506-516`) [V] | regola di oggi |
 | Doppio, P2 senza telefono | regola di oggi con i sorteggi [L]: lì la coerenza non vale, e si scrive |
 
