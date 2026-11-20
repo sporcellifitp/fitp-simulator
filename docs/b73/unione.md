@@ -14,6 +14,8 @@ Richiesta dell'utente del 20/11 (prodotto FIERA): «Vai avanti su 4, 6 (falli), 
 - Gioco **1942/1942**, sito **322/322**, LAN **13/13**, programma Windows **56/56**, build riuscita; nel browser tutte verdi
   tranne la seconda parte di `natpf-mascotte-3d-anteprima`, che si ferma allo stesso punto anche sul solo ramo delle
   mascotte e sul codice di prima del B73 (ambiente, §4.2).
+- **Dopo la revisione** (§7): sei rilievi confermati e corretti (sei commit «B73 sistemazione»); gioco **1954/1954**, sito
+  **322/322**, `lan-e2e` 32/32 con il verso dell'asse Z controllato di nuovo.
 
 ---
 
@@ -151,3 +153,164 @@ comportamenti persi.
 - Telefono vero, webcam vera, programma Windows (Electron) vero, schede grafiche vere, ledwall: niente di questo qui.
 - L'aspetto dei piedi della card con le due correzioni insieme: misurato con la sonda (§3) e dalle verifiche di
   `natpf-mascotte-passi`; le strisce e i fotogrammi non li ho guardati a occhio.
+
+## 7. Revisione e sistemazione
+
+Dopo l'unione una revisione (con due scettici per ogni rilievo) ha confermato **sei rilievi**. Li ho corretti sul ramo
+`b73-int`, un commit per rilievo («B73 sistemazione: …»), **niente push**, file di versione e documenti vivi non toccati.
+Per ognuno: prima la prova rossa, poi la correzione minima; dove uno scettico indicava una correzione migliore ho seguito
+quella. Sonde e registri fuori dal repository, in
+`/tmp/claude-0/-home-user/03b77816-cd94-58d3-a4c5-bfdcf33f65d0/scratchpad/b73/sistemazione/`.
+
+| # | Rilievo | Commit | Cosa cambia | Prova |
+|---|---|---|---|---|
+| 1 | direzione letta solo a inizio partita (importante) | `b9a6644d` | gioco | `natpf-b36-attivita` (4, nuova): rossa 3 su 4 prima, verde dopo |
+| 2 | sul P2 della sfida il registro scrive «classica» (minore) | `2760d24e` | registro, riassunto, diagnostica | `natpf-b36-sfida` (+3): rosse prima, verdi dopo |
+| 3 | colpo super con «Nuova» non scritto (minore) | `44e532b0` | solo documenti e una prova | `natpf-b36-interruttore` (+2): verdi prima e dopo (il codice non cambia); rossa con la scelta opposta |
+| 4 | prova «bordi e profondità come oggi» vuota (minore) | `a8731590` | solo la prova | `natpf-b36-direzione` (+1): verde; due errori finti nel codice passano la prova vecchia e non la nuova |
+| 5 | piedi delle mascotte sollevati tra una fetta e l'altra (minore) | `3cb6bb7c` | gioco (card) | `natpf-b73-passi-mascotte` (+1): rossa prima (7,9 cm), verde dopo |
+| 6 | `lan-e2e` senza il verso sull'asse Z (importante) | `890fd2ad` | solo la prova nel browser e una prova in node | `lan-e2e` con il verso: 13/15 prima, 15/15 dopo; `natpf-b73-presa-verso` (1, nuova) |
+
+### 7.1 Direzione letta anche fuori dalla partita (rilievo «dir-stantia-fuori-partita»)
+
+**Difetto.** `natpfDirModel` si leggeva solo in `startNewMatch`. Scambi di prova, riscaldamento e minigiochi non chiamano
+`startNewMatch` e giocavano la regola dell'ultima partita:
+- pannello di nuovo su «Classica» dopo una partita con «Nuova»: Precision, riscaldamento e scambi di prova con la regola
+  nuova (in fiera gli scambi di prova li fa ogni visitatore);
+- «Nuova» salvata e PC appena acceso: Precision con «Classica», quindi la misura a Precision della B36 misurava la regola
+  sbagliata.
+
+**Correzione.** Un metodo solo nel motore, `natpfReadDir()` (`game_engine.js`), con la regola di prima (P2 della sfida:
+«Classica» fino allo snapshot; altrimenti `dirModelFor({ forced: natpfDirRule })`). Lo usano `startNewMatch`,
+`natpf_events.start`, `natpf_training.start` e `natpf_trial.start`. Negli scambi di prova non con `resume` («Ricalibra» a
+partita in corso: la partita tiene la sua regola). Avviso del pannello: «Vale dalla prossima partita o minigioco».
+Aggiornati il commento di `natpf_direction.js`, `docs/b73/direzione-b36-1.md` §1 e la riga di `docs/GUIDA_STAND.md`.
+
+**Prova.** `natpf-b36-attivita.test.mjs` (interfaccia vera): partita con «Nuova», pannello di nuovo su «Classica», poi
+Precision, riscaldamento e scambi di prova → colpo del telefono senza `rule`, riga «minigioco» con `dir: 'classica'`;
+«Nuova» salvata a PC appena acceso → `rule: 'nuova'` e riga «minigioco» `dir: 'nuova'`; «Ricalibra» non cambia la regola
+della partita; il forzato dei banchi comanda anche nei minigiochi. Prima: 3 rosse su 4 (la terza, «Ricalibra», era già
+verde: protegge dalla correzione esagerata). La sonda della revisione dopo la correzione: Precision `classica · rule
+undefined`, riscaldamento uguale, scambi di prova uguale; «Nuova» salvata → Precision `nuova · rule nuova`.
+
+### 7.2 Registro del P2 della sfida (rilievo «p2-registro-dir»)
+
+**Difetto.** Sul computer del P2 la riga «partita» si scriveva subito dopo `startNewMatch`, quando la direzione vale
+ancora «Classica»; lo snapshot dell'host porta poi «Nuova» e i colpi del P2 (`nr: 1`) finivano nel gruppo «classica ·
+due-computer» del riassunto. In più quei colpi c'erano due volte: li scrive già il registro dell'host (`chi: 'a'`).
+
+**Correzione (quella degli scettici, non quella del rilievo).** Gli scettici hanno mostrato che una riga «senza dir» o la
+direzione scritta solo a fine partita non bastano (il riassunto mette ogni colpo nel gruppo appena lo legge, e una riga
+senza `dir` diventa il falso allarme «Worker non ricaricato»).
+- `registro_registratore.js`: sul P2 (modo `due-computer`) la riga «partita» aspetta il primo snapshot della partita
+  dell'host applicato (non la lobby né la pausa, che non portano `dir`) e scrive la sua direzione. Un host di prima, senza
+  `dir`, dà «classica», che è la sua regola. Se la partita finisce prima, la riga si scrive alla fine, prima di
+  «partita.fine». Il formato delle righe non cambia (nessun tipo nuovo, Worker invariato). Sull'host, contro la CPU e
+  nello stesso schermo la riga si scrive subito, come prima.
+- `scripts/registro/riassunto.mjs`: le partite con `ruolo: 'p2'` restano fuori dai gruppi della direzione, contate a parte
+  (`dir.partiteP2`, una riga nel testo).
+- `diag_recorder.js`: sul P2 un evento `partita.direzione` (`da: 'host'`) quando lo snapshot cambia la direzione, e la
+  partita in corso (anche la copia per le parti dopo) dice quella dell'host.
+
+**Prove** in `natpf-b36-sfida.test.mjs`: (a) P2 con lo snapshot `dir: 'nuova'` → riga «partita» con `dir: 'nuova'`, colpo
+`nr: 1` dopo la riga, nessuna riga «classica», riassunto senza gruppi «classica» e `senzaCampi` 0; host di prima → «classica»;
+partita chiusa prima di uno snapshot della partita → `partita`, `partita.fine`, `partita` nell'ordine giusto. (b) Righe
+dell'host e del P2 insieme al riassunto: solo `nuova · due-computer` con 1 colpo e 1 partita (prima: anche
+`classica · due-computer` con 1 colpo). (c) Diagnostica del P2: un evento `partita.direzione` con `n: 1, direzione:
+'nuova'`. Tutte e tre rosse prima.
+
+### 7.3 Colpo super con «Nuova» (rilievo «super-regola-nuova»)
+
+**Difetto.** Il piano §5.2 metteva il super tra gli «invariati» con schiacciata e servizio; il codice gli dà la direzione
+della regola nuova e il documento della B36.1 non ne parlava.
+
+**Scelta (dei due scettici), da confermare dall'agente principale perché tocca il piano.** Il codice resta: il super
+scatta e agisce come oggi (stesse condizioni, profondità, altezza sul nastro, effetto, velocità; `superShot` non dipende
+dalla regola), la sua direzione è quella del colpo da cui nasce. L'altra strada (rifare l'esito con la regola di oggi solo
+quando scatta il super) darebbe un salto nascosto sulla soglia della forza (0,58 m che diventano 1,9 m) e due regole nello
+stesso scambio, contro la D1 e contro la frase finale del §5.2. Corretti `docs/b36/piano-direzionalita.md` §5.2 (riga a
+parte per il super, scritta come chiarimento), `docs/b73/direzione-b36-1.md` §2 e il commento di `natpf_direction.js`.
+
+**Prove** in `natpf-b36-interruttore.test.mjs`: sui 10 000 casi con il gesto forte (3746 super, 1473 con la regola nuova,
+tutti con la palla altrove) `superShot` dà lo stesso esito con le due regole; nel motore, palla alta e gesto 0,95, il
+super «alta» ha clear, effetto e profondità minima di «Classica» e `rule: 'nuova'`. Verdi prima e dopo, perché il codice
+non cambia; la seconda diventa rossa se il super torna alla regola di oggi (provato con il codice cambiato apposta, poi
+rimesso).
+
+### 7.4 Prova dei bordi (rilievo «test-bordi-vuoto»)
+
+**Difetto.** La prova confrontava solo `topspin` e `clear`, che non dipendono né dalla mira né dal punto neutro, e con mire
+diverse (1 contro 0,9) e palle in posti diversi: passava con qualunque regola della direzione.
+
+**Correzione (degli scettici).** Regola nuova e regola di oggi con la stessa mira **esatta** (tempo 0 e oltre la finestra,
+dove la mira si ricava senza arrotondamenti; il piatto di oggi compensa la spinta naturale e il peso del tempo), lo stesso
+punto neutro (palla al centro) e la stessa posizione: x, profondità e mira entro 1 mm (un arrotondamento dell'uscita), il
+resto uguale. 3564 casi: 1848 oltre `sideKnee`, 1236 oltre `sideLine`, 3036 oltre la finestra (`pushOut`); differenza
+massima 1,0 mm in x, 0 in profondità. Il codice del gioco non cambia: la prova è verde. Due errori messi apposta nella
+regola nuova (spinta oltre la finestra 1,2 volte, bordo morbido tolto) passano la prova di prima (6/6) e fanno rossa la
+nuova; poi tolti.
+
+### 7.5 Piedi delle mascotte tra una fetta e l'altra (rilievo «M1»)
+
+**Difetto (portato dal B73).** Dopo ogni fetta della fotografia `natpf_ritratti._capture` rimette il personaggio al posto di
+partenza e l'arena lo disegna così per circa mezzo secondo prima della card. `cardLeg` spostava i piedi con lui solo in x
+e z; nei «Salti di gioia» il saltello alza anche i piedi, che restavano staccati fino a 8,2 cm (Drop) e 7,4 cm (Lob).
+
+**Correzione.** `applyCardMove` salva anche `py`; `cardLeg` aggiunge `min(0, root.y − py)` all'altezza del piede. Il
+`min(0, …)` è la cautela del secondo scettico: un movimento futuro con i piedi a terra e il corpo più in basso, rimesso al
+suo posto, non deve staccare i piedi. Durante il movimento non cambia niente (lì `root.y = py`). Aggiornato
+`docs/b73/passi-mascotte.md`.
+
+**Prova** in `natpf-b73-passi-mascotte.test.mjs`: «Salti di gioia» a metà passo (u 0,33 e 0,58; a 0,5 il saltello vale 0 e
+la prova passerebbe comunque), destro e mancino, P1 e P2: piedi dove stavano rispetto al corpo e piede più basso entro 2
+cm dalla quota di riposo. Prima rossa (7,9 cm), dopo verde. Sonda della revisione dopo la correzione: «win-salti» rimesso
+al posto 1,1 cm (Drop) e 0,3 cm (Lob), 0 fasi su 96 sopra 2 cm (prima 52 e 48).
+
+### 7.6 Verso dell'asse Z in `lan-e2e` (rilievo «R1»)
+
+**Difetto della prova.** La verifica dell'asse Z era stata riscritta per passare anche con la racchetta che si inclina dalla
+stessa parte nei due versi (polso −10,4° / −10,2°).
+
+**Correzione: quella del secondo scettico, non «KO noto».** Il roll del piatto (`face-tracker.js`, `asin(y·alto) − roll0`)
+perde il verso **solo** quando a riposo l'asse y del telefono è verticale. Era la posa del telefono simulato (dritto), non
+la presa insegnata. Con la presa «racchetta» (`gripQuat`, gravità a riposo ≈ [0,86, 0,34, 0,37] negli assi del telefono)
+il gioco dà già il verso: in node ±30° → beccheggio −14,1° / +13,5°. Tenere la verifica rossa avrebbe segnato come difetto
+del gioco una cosa della posa di prova. Il gioco non cambia.
+- `lan-e2e.mjs`: il telefono simulato parte da `gripQuat(GRIP_STYLE)`; Z di nuovo con il verso (polso nei due versi, segni
+  opposti) e con la differenza fra i due versi; assi della presa insegnata: X → imbardata, Y → apertura (roll), Z →
+  beccheggio. Commento corretto.
+- `natpf-b73-presa-verso.test.mjs` (nuova, in node): roll e beccheggio con il verso e zero a riposo, gli altri due assi.
+  Diventa rossa se il roll perde il segno (provato con il codice cambiato apposta, poi rimesso).
+- `docs/b73/prove-rotte-2.md`: osservazione rivista, il 32/32 di allora corretto (con il verso sulla posa dritta la parte
+  del telefono era 7/9).
+
+**Nel browser**, `ONLY=telefono`: con il verso controllato e la posa dritta **13/15** (le due verifiche dell'asse Z
+rosse); con la presa insegnata **15/15** (polso con Z −9,7° / +9,1°; il servizio con il gesto funziona anche con la presa
+nuova). Margine stretto da sapere: con questa presa la rotazione attorno a Z dà anche imbardata (nel browser beccheggio
+28,9° contro 24,3° di imbardata fra i due versi; in node 27,6° contro 20,6°). Il roll con il verso in ogni posa resta un
+miglioramento facoltativo, da decidere a parte (il campo `fr` va nei colpi e nel registro).
+
+### 7.7 Prove sul risultato (`890fd2ad`)
+
+| Suite | Esito |
+|---|---|
+| Gioco (`npm test`) | **1954/1954**, 5 min 33 s (1942 + 12 nuove) |
+| Sito e pagina del telefono | **322/322** |
+| Server LAN | **13/13** |
+| Programma Windows | **56/56** |
+| Build | riuscita (5,5 s) |
+| `lan-e2e.mjs`, `ONLY=telefono,1v1,webcam` | **32/32**, 167 s (polso con Z −9,7° / +9,2°; 14 colpi del P2 all'host; scambio più lungo 28 colpi) |
+| `natpf-mascotte-passi` | **91/91**, 118 s |
+| `natpf-training-flow` | **21/21**, 35 s |
+| `natpf-menu` | **58/58**, 105 s |
+
+**Da decidere (agente principale).**
+- §7.3: il chiarimento del piano §5.2 sul colpo super (direzione con la regola nuova) tocca il piano: se l'utente lo
+  vuole diverso, la prova di `natpf-b36-interruttore` dice dove cambiare.
+- §7.6: il roll del piatto con il verso in ogni posa (non solo nella presa insegnata).
+- Il rilievo 1 ha mostrato lo stesso schema per altre opzioni lette solo a inizio partita (per esempio lo scambio che si
+  scalda): fuori da questa sistemazione, non guardato.
+
+**Non verificato.** Telefono vero, sfida tra due computer veri (il registro del P2 l'ho provato solo con l'interfaccia vera
+in node e il motore senza disegno), le altre prove nel browser fuori dalla tabella, `NATPF_DIREZIONE=nuova npm test`
+(la lista del traguardo C), la parte 5 di `lan-e2e` («corpo»).
