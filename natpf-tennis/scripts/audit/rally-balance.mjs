@@ -52,16 +52,23 @@ function phoneIntent(e, P, rng){
   const lv = skillLevel(e.matchConfig.difficulty), span = directionSpan(lv), open = e.opponent.pos.x >= 0 ? -1 : 1, xMax = assistOf(lv).xMax;
   const contact = e.ball.targetLanding.x >= e.player.pos.x ? 1 : -1;
   let tau = 0, face = 0, aimed = false;
+  // B36.1: con la direzione «Nuova» della partita (e.natpfDirModel) chi mira usa l'inversa della regola nuova
+  const nuova = e.natpfDirModel === 'nuova';
   if (rng() < P.intent){
     aimed = true;
     // punto voluto sul lato libero (dal 70% della mira piena alla mira piena), come mira attorno al punto neutro, che
     // segue la palla (natpf_stroke_outcome.js). Dal 23/10 il tempo copre da una riga all'altra: si mira soprattutto con
     // il tempo (in anticipo l'incrociato, in ritardo il lungolinea, dentro la finestra del livello) e il piatto
     // corregge il resto. Prima (regola vecchia) metà con il tempo e il lungolinea quasi tutto con il piatto
-    const aim = aimForLanding(open*(.7 + rng()*.3)*xMax, neutralX(e.ball.targetLanding.x, xMax), xMax);
-    const u = clamp(-aim*.85/(contact*OUTCOME.timingAim), -1, 1);
-    tau = u*(u >= 0 ? span : lateSpanOf(e.ball.vel.z, skillLevel(e.matchConfig.difficulty)))*.9;
-    face = clamp((aim + contact*.9*u*OUTCOME.timingAim + contact*OUTCOME.natural*(1 - Math.abs(.9*u)))/OUTCOME.faceAim, -1, 1);
+    // B36.1, regola nuova: punto neutro al centro, la cima porta tutta la mira e il colpo resta a tempo (tau 0; il tempo
+    // pesa solo 0,3 e con lo stesso sorteggio del punto voluto, così le partite «Classica» restano identiche)
+    const aim = aimForLanding(open*(.7 + rng()*.3)*xMax, nuova ? 0 : neutralX(e.ball.targetLanding.x, xMax), xMax);
+    if (nuova) face = clamp(aim/OUTCOME.faceAim, -1, 1);
+    else {
+      const u = clamp(-aim*.85/(contact*OUTCOME.timingAim), -1, 1);
+      tau = u*(u >= 0 ? span : lateSpanOf(e.ball.vel.z, skillLevel(e.matchConfig.difficulty)))*.9;
+      face = clamp((aim + contact*.9*u*OUTCOME.timingAim + contact*OUTCOME.natural*(1 - Math.abs(.9*u)))/OUTCOME.faceAim, -1, 1);
+    }
   }
   const peak = Math.max(150, P.peak + gauss(rng)*P.peakSd), power = strokePower(peak);
   const special = rng() < (P.specials || 0);
@@ -81,7 +88,9 @@ function phoneIntent(e, P, rng){
 // serve(e, rng): facoltativo, il servizio di chi gioca lo sceglie il banco (B18.2: scripts/audit/servizio.mjs). Restituisce
 //   { tau, swing }: il gesto «swing» parte quando al punto più alto del lancio mancano tau secondi (negativo = dopo)
 // cap: colpi oltre i quali lo scambio si chiude d'ufficio («scambio infinito»; di base RALLY_CAP; B42: scripts/audit/b42/scambi-lunghi.mjs usa 150)
-export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000, onStep = null, setup = null, serve = null, cap = RALLY_CAP } = {}){
+// dir (B36.1): direzione dei colpi della partita ('classica' | 'nuova'; engine.natpfDirRule); di base quella salvata, cioè
+// «Classica» nei banchi (senza localStorage)
+export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000, onStep = null, setup = null, serve = null, cap = RALLY_CAP, dir = null } = {}){
   const P = typeof profile === 'string' ? PROFILES[profile] : profile;
   const rng = mulberry32(seed), engineRng = mulberry32(seed*7919 + 13);
   const realRandom = Math.random; Math.random = engineRng;
@@ -117,6 +126,7 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
     const popup = e.hud.showTimingPopup;
     e.hud = new Proxy({}, { get: (t, k) => k === 'showTimingPopup' ? ({ grade = '' } = {}) => { const g = String(grade).split(' ')[0]; out.grades[g] = (out.grades[g] || 0) + 1; if (/WHIFF/.test(grade)) out.whiffs++; } : () => {} });
     void popup;
+    if (dir) e.natpfDirRule = dir;
     setup?.(e);
     e.startNewMatch({ showStartBanner: false });
     let intent = null, serveAt = null, servePlan = null, lastSeenShot = null, lastSeenCpu = null, lastSeenRacket = null, lastSeenPlan = null, bounceAt = null;
@@ -212,10 +222,10 @@ export function openCourtStats(runs){
   return Object.fromEntries(Object.entries(rows).map(([k, r]) => [k, { n: r.n, vincenti: pct(r.vincente, r.n), erroriCPU: pct(r['errore CPU'], r.n), riprese: pct(r.ripresa, r.n), cpuColpisceM: med(r.hitZ), corsaM: med(r.run) }]));
 }
 
-export function auditAll({ points = 200, seeds = [7, 11, 23], difficulties = ['casual', 'pro'], profiles = Object.keys(PROFILES) } = {}){
+export function auditAll({ points = 200, seeds = [7, 11, 23], difficulties = ['casual', 'pro'], profiles = Object.keys(PROFILES), dir = null } = {}){
   const rows = [];
   for (const difficulty of difficulties) for (const profile of profiles){
-    const runs = seeds.map(seed => simulate({ profile, difficulty, points, seed }));
+    const runs = seeds.map(seed => simulate({ profile, difficulty, points, seed, dir }));
     const all = runs.flatMap(r => r.rallies), won = runs.reduce((s, r) => s + r.won, 0), pts = runs.reduce((s, r) => s + r.points, 0);
     const reasons = {}; for (const r of runs) for (const [k, v] of Object.entries(r.reasons)) reasons[k] = (reasons[k] || 0) + v;
     const sorted = [...all].sort((a, b) => a - b);
@@ -244,7 +254,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv.incl
   }
 } else if (import.meta.url === pathToFileURL(process.argv[1]).href){
   const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
-  const rows = auditAll({ points: +(arg('points') || 200), difficulties: arg('difficulty') ? [arg('difficulty')] : undefined, profiles: arg('profiles') ? arg('profiles').split(',') : undefined });
+  // (B36.1: --dir=nuova gioca con la direzione «Nuova»)
+  const rows = auditAll({ points: +(arg('points') || 200), difficulties: arg('difficulty') ? [arg('difficulty')] : undefined, profiles: arg('profiles') ? arg('profiles').split(',') : undefined, dir: arg('dir') || null });
   if (process.argv.includes('--json')) console.log(JSON.stringify(rows, null, 2));
   else {
     console.log('difficoltà  profilo     punti  colpi/punto  mediana  max  infiniti  punti vinti');

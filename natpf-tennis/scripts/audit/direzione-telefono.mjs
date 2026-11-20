@@ -32,6 +32,9 @@
 //     di ±4°, ±8° e ±15°; errore del seme degli scambi di prova (telefono simulato, rumore di posa e di velocità); stessa
 //     mira con un'attesa della posa «pronto» di 0, 0,5, 1 e 2 s; colpi con la regola nuova (oggi 0).
 //   node --import ./test/register.mjs scripts/audit/direzione-telefono.mjs --b36 [--quick] [--json=file]
+// B36.1 «La cima comanda (interna)» (docs/b73/direzione-b36-1.md): --dir=nuova gioca tutto il banco con la direzione «Nuova»
+// (engine.natpfDirRule; di base «Classica», come sempre). Modello del gesto nuovo «insegnato»: la cima girata di 15° (circa
+// 0,85 della mira piena, come la insegnerà la B36.6), tempo solito
 import { pathToFileURL } from 'node:url';
 import { writeFileSync } from 'node:fs';
 import { rng } from '../../test/phone-sim.mjs';
@@ -49,6 +52,10 @@ import { partite } from './colpi.mjs';
 
 const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
 const QUICK = process.argv.includes('--quick');
+// B36.1: direzione dei colpi delle partite del banco ('classica' | 'nuova'); di base quella di sempre
+const DIR = arg('dir') || null;
+// motore della partita di prova con la direzione voluta (letta a inizio partita, come nel gioco)
+const motore = (difficulty, dir = DIR) => { const e = createHeadlessEngine({ difficulty }); if (dir) e.natpfDirRule = dir; e.startNewMatch({ showStartBanner: false }); return e; };
 const DT = 1/120, SIDE_LINE = 4.115, BASE_LINE = 11.885;
 const clip = (v, a, b) => Math.max(a, Math.min(b, v));
 const strokesOf = hand => (hand === 'left' ? { forehand: mirrorStroke(STROKES.dritto), backhand: mirrorStroke(STROKES.rovescio) } : { forehand: STROKES.dritto, backhand: STROKES.rovescio });
@@ -64,6 +71,8 @@ export const MODELS = Object.freeze({
   // chi cerca le righe: piatto girato quasi alla mira piena e tempo nello stesso verso (la precisione è un merito: qui un
   // colpo può uscire)
   riga: { face: 16, shift: 0, u: .4 },
+  // B36.1: il giro insegnato (circa 0,85 della mira piena di 17°), tempo solito; non è tra i modelli del B35a (MAIN_MODELS)
+  insegnato: { face: 15, shift: 0, u: 0 },
 });
 // modelli del banco principale (vicino solo nel confronto dei fuori, --fuori)
 export const MAIN_MODELS = Object.freeze(['piatto', 'polso', 'tempo', 'naturale', 'riga']);
@@ -153,9 +162,9 @@ export const got = r => (!r ? 'perso' : r.netFault ? 'rete' : r.fuori ? 'fuori' 
 // della mira riparte: servono altri 3 colpi per verso)
 // late: tempo spostato di tanto (unità della finestra, − ritardo; senza il limite ±0,95), come uno schermo in ritardo non
 // misurato; aimFull: gradi della mira piena (opzione «Mira» dello stand: alta 17, media 20, bassa 23)
-export function match({ cal = 'prova', hand = 'right', seed = 1, n = 4, model = 'naturale', noise = 'buono', difficulty = 'pro', run = 0, lateral = .6, warm = 8, late = 0, aimFull = null, posizione = 0, giudice = 'bersaglio' } = {}){
+export function match({ cal = 'prova', hand = 'right', seed = 1, n = 4, model = 'naturale', noise = 'buono', difficulty = 'pro', run = 0, lateral = .6, warm = 8, late = 0, aimFull = null, posizione = 0, giudice = 'bersaglio', dir = DIR } = {}){
   const p = CALS[cal].make(seed, hand); p.hand = hand;
-  const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
+  const e = motore(difficulty, dir);
   const R = rng(seed*977 + 13), M = MODELS[model], N = NOISE[noise], rows = [];
   const one = (side, want, learnOnly = false) => {
     const c = contactOf(hand, side), w = want === 'cross' ? 1 : want === 'line' ? -1 : 0;
@@ -174,9 +183,9 @@ export function match({ cal = 'prova', hand = 'right', seed = 1, n = 4, model = 
   return { cal, hand, seed, model, noise, sign: p.learner?.sign ?? 1, rows };
 }
 // Serie: lo stesso voluto ripetuto (chi prova l'incrociato dieci volte di fila): ottenuto per colpo
-export function serie({ cal = 'prova', hand = 'right', seed = 1, n = 14, side = 'forehand', want = 'cross', model = 'naturale', noise = 'buono', difficulty = 'pro', posizione = 0, giudice = 'bersaglio' } = {}){
+export function serie({ cal = 'prova', hand = 'right', seed = 1, n = 14, side = 'forehand', want = 'cross', model = 'naturale', noise = 'buono', difficulty = 'pro', posizione = 0, giudice = 'bersaglio', dir = DIR } = {}){
   const p = CALS[cal].make(seed, hand); p.hand = hand;
-  const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
+  const e = motore(difficulty, dir);
   const R = rng(seed*131 + 3), M = MODELS[model], N = NOISE[noise], out = [];
   for (let i = 0; i < 8 + n; i++){
     const s = i < 8 ? (i % 2 ? 'backhand' : 'forehand') : side, w = i < 8 ? 0 : want === 'cross' ? 1 : want === 'line' ? -1 : 0, c = contactOf(hand, s);
@@ -198,10 +207,10 @@ export function matrix(rows){
   const all = rows.length, hit = rows.filter(r => r.want === r.got).length;
   return { m, ok: pct(hit, all), fuori: pct(rows.filter(r => r.got === 'fuori' || r.got === 'rete').length, all), crossFuori: pct(rows.filter(r => r.want !== 'line' && (r.got === 'fuori' || r.got === 'rete')).length, rows.filter(r => r.want !== 'line').length) };
 }
-export function audit({ seeds = [1, 2], n = 4, hands = ['right', 'left'], cals = Object.keys(CALS), models = MAIN_MODELS, noise = 'buono', difficulty = 'pro', run = 0, lateral = .6, late = 0, aimFull = null, posizione = 0, giudice = 'bersaglio' } = {}){
+export function audit({ seeds = [1, 2], n = 4, hands = ['right', 'left'], cals = Object.keys(CALS), models = MAIN_MODELS, noise = 'buono', difficulty = 'pro', run = 0, lateral = .6, late = 0, aimFull = null, posizione = 0, giudice = 'bersaglio', dir = DIR } = {}){
   const res = [];
   for (const hand of hands) for (const cal of cals) for (const model of models) for (const seed of seeds){
-    const r = match({ cal, hand, seed, n, model, noise, difficulty, run, lateral, late, aimFull, posizione, giudice });
+    const r = match({ cal, hand, seed, n, model, noise, difficulty, run, lateral, late, aimFull, posizione, giudice, dir });
     for (const row of r.rows) res.push({ hand, cal, model, seed, sign: r.sign, ...row });
   }
   return res;
@@ -230,14 +239,14 @@ export function sintesi(rows){
     incrLung: pct(fra(voluti('cross'), r => r.got === 'line'), voluti('cross').length), lungIncr: pct(fra(voluti('line'), r => r.got === 'cross'), voluti('line').length) };
 }
 // matrice della direzione con le tre posizioni della palla, sul rimbalzo vero (o sul bersaglio, per il confronto)
-export function matriceB36({ seeds = [1, 2, 3, 4], n = 4, noise = 'buono', models = ['piatto', 'naturale', 'tempo', 'riga'], hands = ['right', 'left'], cals = CALS_B36, giudice = 'rimbalzo', posizioni = POSIZIONI } = {}){
-  return Object.fromEntries(Object.entries(posizioni).map(([nome, posizione]) => [nome, audit({ seeds, n, hands, cals, models, noise, posizione, giudice })]));
+export function matriceB36({ seeds = [1, 2, 3, 4], n = 4, noise = 'buono', models = ['piatto', 'naturale', 'tempo', 'riga'], hands = ['right', 'left'], cals = CALS_B36, giudice = 'rimbalzo', posizioni = POSIZIONI, dir = DIR } = {}){
+  return Object.fromEntries(Object.entries(posizioni).map(([nome, posizione]) => [nome, audit({ seeds, n, hands, cals, models, noise, posizione, giudice, dir })]));
 }
 // serie (lo stesso voluto 14 volte di fila) come quote su `semi` serie con semi diversi: giusti con l'errore standard
-export function serieB36({ semi = 20, models = ['piatto', 'naturale'], wants = WANTS, noise = 'buono', giudice = 'rimbalzo' } = {}){
+export function serieB36({ semi = 20, models = ['piatto', 'naturale'], wants = WANTS, noise = 'buono', giudice = 'rimbalzo', dir = DIR } = {}){
   const out = [];
   for (const model of models) for (const want of wants){
-    const all = []; for (let k = 1; k <= semi; k++) all.push(...serie({ seed: 100 + k, want, model, noise, giudice }));
+    const all = []; for (let k = 1; k <= semi; k++) all.push(...serie({ seed: 100 + k, want, model, noise, giudice, dir }));
     const n = all.length, p = fra(all, g => g === want)/Math.max(1, n);
     out.push({ model, want, semi, colpi: n, giusti: Math.round(100*p), errore: Math.round(100*Math.sqrt(p*(1 - p)/Math.max(1, n))), fuori: pct(fra(all, g => g === 'fuori' || g === 'rete'), n) });
   }
@@ -267,11 +276,11 @@ export function semeB36({ semi = 20, persone = ['adulto', 'bambino', 'impreciso'
 // stessa mira con l'attesa della posa «pronto»: la cima girata di `giro` gradi verso l'incrociato, poi ferma `attesa` ms
 // prima del colpo; tempo a 0, senza rumore; dritti e rovesci. Scarto letto dal gioco e dove rimbalza la palla (verso
 // l'incrociato), rispetto all'attesa 0
-export function attesaB36({ semi = 8, attese = [0, 500, 1000, 2000], giro = 15, hand = 'right', cal = 'prova' } = {}){
+export function attesaB36({ semi = 8, attese = [0, 500, 1000, 2000], giro = 15, hand = 'right', cal = 'prova', dir = DIR } = {}){
   const rows = [];
   for (let seed = 1; seed <= semi; seed++){
     const p = CALS[cal].make(seed, hand); p.hand = hand;
-    const e = createHeadlessEngine({ difficulty: 'pro' }); e.startNewMatch({ showStartBanner: false });
+    const e = motore('pro', dir);
     const R = rng(seed*977 + 13);
     for (let i = 0; i < 8; i++){ const m = stroke(p, { side: i % 2 ? 'backhand' : 'forehand', R }); if (m.length === 1) p.game(m[0]); }
     for (const attesa of attese) for (const side of ['forehand', 'backhand']){
@@ -288,8 +297,10 @@ export function attesaB36({ semi = 8, attese = [0, 500, 1000, 2000], giro = 15, 
 const f1 = v => (v == null || !Number.isFinite(v) ? '–' : v.toFixed(1).replace('.', ','));
 const f2 = v => (v == null || !Number.isFinite(v) ? '–' : v.toFixed(2).replace('.', ','));
 export function mainB36({ quick = QUICK } = {}){
-  const json = {}, t0 = Date.now(), seeds = quick ? [1, 2] : [1, 2, 3, 4], models = quick ? ['piatto', 'naturale'] : ['piatto', 'naturale', 'tempo', 'riga'];
+  // (B36.1: --modelli=piatto,naturale,tempo,insegnato sceglie i modelli del gesto della matrice)
+  const json = {}, t0 = Date.now(), seeds = quick ? [1, 2] : [1, 2, 3, 4], models = arg('modelli') ? arg('modelli').split(',') : quick ? ['piatto', 'naturale'] : ['piatto', 'naturale', 'tempo', 'riga'];
   console.log('== B36.0 · misure della direzione dei colpi. SIMULAZIONE: telefono simulato con il braccio, motore vero senza grafica, Esperta (pro); non sono persone ==');
+  if (DIR) console.log(`== B36.1: direzione dei colpi «${DIR}» in tutte le partite del banco (le partite con il rumore e il seme restano sul motore di colpi.mjs e scambi-di-prova.mjs, con la direzione di sempre) ==`);
   console.log(`
 -- Matrice della direzione, tre posizioni della palla, sul RIMBALZO VERO (fuori con la regola dell'arbitro del motore); semi ${seeds.join(',')}, destri e mancini, calibrazioni ${CALS_B36.join(', ')}, 4 colpi per voluto e lato --`);
   console.log('gesto                     posizione  giusti  fuori/rete  incrociato→lungolinea  lungolinea→incrociato  colpi');
@@ -327,7 +338,7 @@ export function mainB36({ quick = QUICK } = {}){
   const A = attesaB36({ semi: semiAtt }); json.attesa = A;
   for (const r of A) console.log(`attesa ${f1(r.attesa/1000)} s: scarto letto ${f1(r.giro)}° (${r.giroPct}% di quello senza attesa), palla a ${f2(r.x)} m verso l'incrociato (${r.dx >= 0 ? '+' : ''}${f2(r.dx)} m)${r.persi ? `, colpi persi ${r.persi}` : ''}`);
   console.log(`
--- Colpi con la regola nuova della direzione: ${REGOLA.nuova} su ${REGOLA.colpi} (oggi c'è solo «Classica»: 0). Tempo del banco: ${Math.round((Date.now() - t0)/1000)} s --`);
+-- Colpi con la regola nuova della direzione: ${REGOLA.nuova} su ${REGOLA.colpi} (${DIR === 'nuova' ? 'direzione «Nuova»: le partite con il rumore restano con quella di sempre' : 'con «Classica» sono sempre 0'}). Tempo del banco: ${Math.round((Date.now() - t0)/1000)} s --`);
   json.regolaNuova = { ...REGOLA };
   const file = arg('json'); if (file) writeFileSync(file, JSON.stringify(json));
 }

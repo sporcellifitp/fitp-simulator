@@ -24,12 +24,17 @@ export function mkIntent(e, who, P, rng, opts = {}){
   const V = side(e, who), lv = skillLevel(e.matchConfig.difficulty), span = NO.directionSpan(lv), xMax = NO.assistOf(lv).xMax;
   const open = V.oppX >= 0 ? -1 : 1, contact = V.landX >= V.meX ? 1 : -1;
   let tau = 0, face = 0, aimed = false;
+  // B36.1: con la direzione «Nuova» della partita (e.natpfDirModel) l'inversa della regola nuova (come rally-balance.phoneIntent)
+  const nuova = e.natpfDirModel === 'nuova';
   if (rng() < P.intent){
     aimed = true;
-    const aim = NO.aimForLanding(open*(.7 + rng()*.3)*xMax, NO.neutralX(V.landX, xMax), xMax);
-    const u = clamp(-aim*.85/(contact*NO.OUTCOME.timingAim), -1, 1);
-    tau = u*(u >= 0 ? span : NO.lateSpanOf(V.vz, lv))*.9;
-    face = clamp((aim + contact*.9*u*NO.OUTCOME.timingAim + contact*NO.OUTCOME.natural*(1 - Math.abs(.9*u)))/NO.OUTCOME.faceAim, -1, 1);
+    const aim = NO.aimForLanding(open*(.7 + rng()*.3)*xMax, nuova ? 0 : NO.neutralX(V.landX, xMax), xMax);
+    if (nuova) face = clamp(aim/NO.OUTCOME.faceAim, -1, 1);
+    else {
+      const u = clamp(-aim*.85/(contact*NO.OUTCOME.timingAim), -1, 1);
+      tau = u*(u >= 0 ? span : NO.lateSpanOf(V.vz, lv))*.9;
+      face = clamp((aim + contact*.9*u*NO.OUTCOME.timingAim + contact*NO.OUTCOME.natural*(1 - Math.abs(.9*u)))/NO.OUTCOME.faceAim, -1, 1);
+    }
   }
   const peak = Math.max(150, P.peak + gauss(rng)*P.peakSd), power = strokePower(peak);
   const special = rng() < (P.specials || 0);
@@ -49,7 +54,8 @@ function serveEvt(P, rng){
     natpf: { aim: 'swing', shot: 'flat', intent: { shot: 'flat', power: +power.toFixed(3), depth: power, rise: -.08, plane: .55 + gauss(rng)*.1, face: gauss(rng)*P.wristSd }, power, peak: Math.round(peak), latency: 0, hand: 'right' } };
 }
 // una partita. Ritorna punti (con colpi, perché, chi ha colpito a vuoto e perché, distanza minima palla-giocatore), tempi, colpi.
-export function match({ p1 = 'amatore', p2 = 'amatore', fair = false, games = 1, seed = 1, serveDelay = 1.5, first = 'player', speed = null, cap = 80, returnShot = null, returnEvt = null, allEvt = null, serveEvtOf = null, tune = null, idle = null, cpu = null }){
+// dir (B36.1): direzione dei colpi della partita ('classica' | 'nuova'; engine.natpfDirRule); di base «Classica»
+export function match({ p1 = 'amatore', p2 = 'amatore', fair = false, games = 1, seed = 1, serveDelay = 1.5, first = 'player', speed = null, cap = 80, returnShot = null, returnEvt = null, allEvt = null, serveEvtOf = null, tune = null, idle = null, cpu = null, dir = null }){
   const P = { p1: typeof p1 === 'string' ? PROFILES[p1] : p1, p2: typeof p2 === 'string' ? PROFILES[p2] : p2 };
   const rng = mulberry32(seed*2654435761 % 4294967296), erng = mulberry32(seed*40503 + 977), real = Math.random; Math.random = erng;
   const out = { points: [], strokes: [], seconds: 0, pauses: [], capped: 0, speedEnd: null, direzione: { colpi: 0, nuova: 0 } };
@@ -57,6 +63,7 @@ export function match({ p1 = 'amatore', p2 = 'amatore', fair = false, games = 1,
     const e = createHeadlessEngine({ difficulty: cpu || 'casual' });
     if (!cpu) e.startSplit();
     e.matchConfig.gamesToWin = games; e.natpfFair = fair; e.natpfServeFirst = first;
+    if (dir) e.natpfDirRule = dir;
     let lastPopup = { p1: null, p2: null }, minD = { p1: 99, p2: 99 }, pStart = 0, pEnd = null, curStroke = null;
     e.hud = new Proxy({}, { get: (t, k) => k === 'showTimingPopup' ? (o = {}) => { const g = String(o.grade || ''), who = /^P2\b/.test(g) ? 'p2' : 'p1'; lastPopup[who] = { g: g.replace(/^P2\s*/, ''), t: e.elapsedTime }; } : () => {} });
     const award = e._awardPoint.bind(e);

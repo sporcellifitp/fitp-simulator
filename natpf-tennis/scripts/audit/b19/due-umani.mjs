@@ -36,11 +36,14 @@ function makeSwing(e, me, other, sgn, P, rng){
   let tau = 0, face = 0;
   const tac = P.tac || '';
   const aims = tac === 'centro' ? false : tac === 'mira' ? true : rng() < P.intent;
+  // B36.1: con la direzione «Nuova» della partita (e.natpfDirModel) chi mira usa l'inversa della regola nuova: punto neutro
+  // al centro, la cima porta tutta la mira e il colpo resta a tempo (stessi sorteggi: con «Classica» tutto identico)
+  const nuova = e.natpfDirModel === 'nuova';
   if (aims){
     const open = other.pos.x*sgn >= 0 ? -1 : 1;
     // P.aimLo, P.aimHi (B25): quanto vicino alla riga mira (frazione della mira piena); di base da 0,7 a 1, come sempre
-    const aim = NO.aimForLanding(open*(P.aimLo == null ? .7 + rng()*.3 : P.aimLo + rng()*(P.aimHi - P.aimLo))*xMax, NO.neutralX(e.ball.targetLanding.x*sgn, xMax), xMax);
-    if (P.aimBy === 'polso'){ face = cl(aim/NO.OUTCOME.faceAim, -1, 1); }
+    const aim = NO.aimForLanding(open*(P.aimLo == null ? .7 + rng()*.3 : P.aimLo + rng()*(P.aimHi - P.aimLo))*xMax, nuova ? 0 : NO.neutralX(e.ball.targetLanding.x*sgn, xMax), xMax);
+    if (P.aimBy === 'polso' || nuova){ face = cl(aim/NO.OUTCOME.faceAim, -1, 1); }
     else {
       const u = cl(-aim*.85/(side*NO.OUTCOME.timingAim), -1, 1);
       tau = u*(u >= 0 ? NO.directionSpan(lv) : NO.lateSpanOf(e.ball.vel.z, lv))*.9;
@@ -78,7 +81,8 @@ function makeServe(P, rng){
 }
 
 // una serie di partite. Ritorna i punti (con la classificazione MIA), i game, le partite, i colpi.
-export function play({ a = 'medio', b = 'medio', mode = 'split', fair = false, gamesToWin = 1, matches = 100, seed = 1, first = 'alt', cap = 150, tweak = null, hook = null, maxPts = Infinity } = {}){
+// dir (B36.1): direzione dei colpi delle partite ('classica' | 'nuova'; engine.natpfDirRule); di base «Classica»
+export function play({ a = 'medio', b = 'medio', mode = 'split', fair = false, gamesToWin = 1, matches = 100, seed = 1, first = 'alt', cap = 150, tweak = null, hook = null, maxPts = Infinity, dir = null } = {}){
   const A = P_(a), B = P_(b), rng = mulberry32(seed), eng = mulberry32((seed*104729 + 17) >>> 0), R0 = Math.random;
   Math.random = eng;
   const out = { a: A.name, b: B.name, pts: [], games: [], matches: [], shots: [], serves: [], direzione: { colpi: 0, nuova: 0 } };
@@ -86,6 +90,7 @@ export function play({ a = 'medio', b = 'medio', mode = 'split', fair = false, g
     const e = H.createHeadlessEngine({ difficulty: '1v1' });
     if (mode === 'split') e.startSplit(); else { e.versus = { active: true }; e.roomId = 'AT-ZZ99'; }
     e.matchConfig.gamesToWin = gamesToWin; e.natpfFair = fair; e.natpfP2Hand = 'right';
+    if (dir) e.natpfDirRule = dir;
     tweak?.(e);
     const S = [{ k: 'p1', P: A, me: e.player, other: e.opponent, role: 'player', sgn: 1, sw: null }, { k: 'p2', P: B, me: e.opponent, other: e.player, role: 'opponent', sgn: -1, sw: null }];
     const byActor = act => (act === e.opponent ? S[1] : S[0]);

@@ -16,6 +16,7 @@ import { nextPartnerMode, partnerButton, partnerModeFromUrl, readPartnerMode, wr
 // E il formato in fiera (B18: punto decisivo e servizio come nel tie-break, natpf_fair_format.js): dal B20 tre valori,
 // «No · Solo stesso schermo · Sì», di base «Solo stesso schermo».
 // E lo «scambio che si scalda» (B20, natpf_hot_rally.js): Sì · No; dal B42 acceso di base, in tutti i modi.
+// E la «Direzione dei colpi» (B36.1, natpf_direction.js): Classica · Nuova; di base Classica, Nuova in lavorazione.
 // E le due opzioni dello stesso schermo del B25 (natpf_duo_rules.js), spente di base: «Lancio automatico» (No · 30 s) e
 // «Stesso schermo: campo aperto» (No · Sì).
 // B27: «Telecomando dello staff» (natpf_remote.js) e, nel programma Windows, «Schermo del gioco» (monitor successivo),
@@ -29,6 +30,8 @@ import { nextPartnerMode, partnerButton, partnerModeFromUrl, readPartnerMode, wr
 import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLevel } from './natpf_aim_level.js';
 import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './natpf_fair_format.js';
 import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
+// B36.1: «Direzione dei colpi: Classica · Nuova» (natpf_direction.js), di base «Classica»; «Nuova» in lavorazione
+import { readDirModel, writeDirModel, nextDirModel, dirButton, dirToast } from './natpf_direction.js';
 import { readAutoToss, writeAutoToss, autoTossButton, autoTossToast, readOpenCourt, writeOpenCourt, openCourtButton, openCourtToast } from './natpf_duo_rules.js';
 // B28: «Calibrazione: Giocando · Con i gesti · Nessuna» (natpf_trial_learn.js), di base «Giocando»
 import { readSavedCalMode, writeCalMode, nextCalMode, calModeButton, calModeToast, calModeFromUrl } from './natpf_trial_learn.js';
@@ -308,6 +311,13 @@ export class NatpfKiosk {
     // mira del telefono: alta → media → bassa → alta; vale dal colpo successivo (anche per il secondo telefono). L'avviso
     // dice anche cosa vuol dire (nel foglio non c'è posto per un paragrafo: a 1024 × 600 «Chiudi» finiva fuori vista)
     if (cmd === 'aim'){ const v = writeAimLevel(nextAimLevel(readAimLevel())); ui.toast?.(`Mira del telefono: ${aimLevelLabel(v)} · ${AIM_HINT[v]}; resta salvata`); }
+    // B36.1: direzione dei colpi, classica ↔ nuova, salvata; vale dalla partita dopo (il motore la legge a inizio partita).
+    // È dello stand: il chiosco e «Nuovo giocatore» non la toccano
+    if (cmd === 'dir'){
+      const m = writeDirModel(nextDirModel(readDirModel()));
+      ui.toast?.(dirToast(m), 6000);
+      ui.diag?.recorder?.log?.('stand.direzione', { modello: m });
+    }
     // formato in fiera: no → solo stesso schermo → sì → no, salvato; vale dalla partita dopo (quella in corso resta con la
     // sua regola)
     if (cmd === 'fair'){
@@ -390,6 +400,7 @@ export class NatpfKiosk {
     set('phone', fon ? standPanelSummary(F.status('p1'), F.status('p2')) : this.ui.phone.connected ? 'Scollega' : 'Nessuno collegato', fon && F.status('p1').state === 'ready');
     set('ranking', this.rankingFull ? 'Chiudi lo schermo intero' : 'A schermo intero', this.rankingFull);
     set('aim', aimLevelButton(readAimLevel()));
+    const dirM = readDirModel(); set('dir', dirButton(dirM), dirM === 'nuova');
     const osk = readOskMode(); set('osk', oskButton(osk), osk !== 'mai');
     const fair = readFairMode(); set('fair', fairButton(fair, fairForcedByUrl()), fair !== 'no');
     const dm = readPartnerMode(); set('partner', partnerButton(dm, !!partnerModeFromUrl()), dm === 'solo');

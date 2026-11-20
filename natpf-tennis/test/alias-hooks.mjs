@@ -13,3 +13,17 @@ export async function resolve(specifier, context, next){
   if (specifier === 'three') return next(specifier, { ...context, parentURL: pathToFileURL(path.join(ROOT, 'package.json')).href });
   return next(specifier, context);
 }
+
+// B36.1 (docs/b73/direzione-b36-1.md): prova del traguardo C. Con NATPF_DIREZIONE=nuova tutti i test e i banchi (che
+// caricano il gioco con --import ./test/register.mjs) girano con «Nuova» come valore di base della direzione dei colpi, senza
+// toccare il codice del gioco: «NATPF_DIREZIONE=nuova npm test», «NATPF_DIREZIONE=nuova npm run audit:legend». Senza la
+// variabile niente cambia. Al traguardo C l'accensione cambierà solo questo valore di base (natpf_direction.DIR_DEFAULT)
+const DIREZIONE = process.env.NATPF_DIREZIONE;
+const DIR_DEFAULT = "export const DIR_DEFAULT = 'classica';";
+export async function load(url, context, next){
+  const r = await next(url, context);
+  if (DIREZIONE !== 'nuova' || !url.endsWith('/src/natpf/natpf_direction.js')) return r;
+  const src = String(r.source);
+  if (!src.includes(DIR_DEFAULT)) throw new Error('NATPF_DIREZIONE: valore di base della direzione non trovato in natpf_direction.js');
+  return { ...r, source: src.replace(DIR_DEFAULT, "export const DIR_DEFAULT = 'nuova';") };
+}

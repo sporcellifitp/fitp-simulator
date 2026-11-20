@@ -35,6 +35,8 @@ import * as NF from "./natpf/natpf_fair_format.js";
 // NATPF B47: battuta a un solo giocatore (opzione dello stand «Battuta: Sempre lo stesso · Alternata», di base la prima)
 import * as NB from "./natpf/natpf_battuta.js";
 import * as NH from "./natpf/natpf_hot_rally.js";
+// NATPF B36.1: direzione dei colpi «Classica · Nuova» (opzione dello staff, letta a inizio partita; docs/b73/direzione-b36-1.md)
+import * as NDIR from "./natpf/natpf_direction.js";
 import * as ND from "./natpf/natpf_duo_rules.js";
 import { NatpfBallGlow } from "./natpf/natpf_ball_glow.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
@@ -1263,6 +1265,11 @@ export class NatpfTennisEngine {
       // lo manda l'host con lo snapshot (natpfHotRally a mano per i test e le simulazioni)
       (this.natpfPartner = typeof this.natpfPartnerRule === "string" ? NDB.partnerModeOf(this.natpfPartnerRule) : NDB.readPartnerMode()),
       (this.natpfHot = NH.hotRallyFor({ split: !!this.natpfSplit?.active, webcam: !!this.natpfUi?.split?.webcam, forced: this.natpfHotRally })),
+      // B36.1: direzione dei colpi (natpf_direction.js), decisa a inizio partita: «Classica» di base, «Nuova» (in lavorazione)
+      // dal pannello dello stand; cambiarla in partita vale dalla partita dopo. Sul computer del P2 della sfida tra due
+      // computer vale «Classica» finché l'host non la manda con lo snapshot (campo dir: un host di prima non la manda e la
+      // sua regola è quella di oggi). natpfDirRule a mano per i test e i banchi
+      (this.natpfDirModel = this.playerRole === "p2" && this.isMultiplayer ? NDIR.DIR_DEFAULT : NDIR.dirModelFor({ forced: this.natpfDirRule })),
       // B25: regole della partita tra due persone nello stesso schermo (natpf_duo_rules.js), decise a inizio partita:
       // lancio automatico e campo aperto (opzioni dello staff, spente di base), colpo super sulla forza relativa,
       // preparazione che non conta, aiuto al più giovane dalle fasce dei due giocatori (natpfSplitBands). null contro la
@@ -2456,7 +2463,9 @@ export class NatpfTennisEngine {
     const shortBall = b.bounceCountOnCurrentSide > 0 && b.rallyStrokeCount > 1 && Math.abs(b.targetLanding.z) <= 6.4 && Math.abs(b.pos.z) <= 7;
     // ritmo di chi colpisce (natpf_stroke_outcome.createRhythm): la direzione si misura attorno al suo tempo abituale
     const rhythms = (this.natpfRhythm ||= { player: NO.createRhythm(), p2: NO.createRhythm() }), rhythm = rhythms[toward === 1 ? "p2" : "player"];
-    let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, ballVz: b.vel.z, contact, hitX, hitZ: Math.abs(b.pos.z), quality, touch: Q.reach * Q.stretch * Q.pace, pressure: pressure0, hotPress, rhythm: rhythm.value, rhythmLag: rhythm.lag, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
+    // B36.1: con la direzione «Nuova» (this.natpfDirModel, letta a inizio partita) i colpi dei telefoni con la forma seguono
+    // la cima (natpf_direction.js); con «Classica», e per webcam, mouse, tastiera e telefoni vecchi, l'esito di sempre
+    let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, ballVz: b.vel.z, contact, hitX, hitZ: Math.abs(b.pos.z), quality, touch: Q.reach * Q.stretch * Q.pace, pressure: pressure0, hotPress, rhythm: rhythm.value, rhythmLag: rhythm.lag, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv, dir: this.natpfDirModel });
     rhythm.add(out.t, e.natpfTau);
     out = ND.helpOutcome(out, help); // B25: lo stesso oggetto senza aiuto
     // NATPF: colpo super potente (natpf_stroke_outcome.superShot): gesto fortissimo, naturale, a tempo, su una palla alta,
@@ -3795,6 +3804,7 @@ export class NatpfTennisEngine {
         bounces: this.ball.bounceCountOnCurrentSide,
         p1Hand: this._natpfHostHand(), // NATPF B15: mano dell'host, per il suo personaggio sul computer del P2
         hot: !!this.natpfHot, // B42: scambio caldo deciso dall'host (la scritta «Scambio caldo» sul computer del P2)
+        dir: NDIR.dirModelOf(this), // B36.1: direzione dei colpi dell'host (il P2 la usa per la previsione locale del suo colpo)
       };
     fetch("/api/match/sync", {
       method: "POST",
@@ -3875,6 +3885,7 @@ export class NatpfTennisEngine {
       n.fmt && n.fmt !== this.matchFormat.id && this.setMatchFormat(n.fmt);
       n.gamesToWin && (this.matchConfig.gamesToWin = n.gamesToWin);
       typeof n.hot === "boolean" && (this.natpfHot = n.hot); // B42: lo scambio caldo lo decide l'host (host di prima: nessun campo)
+      NDIR.DIR_MODELS.includes(n.dir) && (this.natpfDirModel = n.dir); // B36.1: direzione dei colpi dell'host (host di prima: nessun campo, resta «Classica»)
       // l'host ha chiuso la stanza o è in lobby: niente partita da mostrare
       // (B15: anche la mano dell'host non vale più: il suo personaggio torna destro)
       if (n.closed) { G.closed = !0; G.lobby = !0; this.natpfUi?.hand?.mirrorRemote?.(this.player, "right"); return; }

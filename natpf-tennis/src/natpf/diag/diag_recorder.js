@@ -21,6 +21,8 @@
 // della mira; B16, lato delle palle per partita in diag_metrics.sideBalance).
 import { latencyShift, eventLatency, swingTiming, eventoK } from '../natpf_skill.js';
 import { readAimLevel, aimFullNow } from '../natpf_aim_level.js';
+// B36.1: direzione dei colpi della partita e regola usata da ogni colpo (natpf_direction.js)
+import { dirModelOf, usedNewRule } from '../natpf_direction.js';
 import { shotDirection } from './diag_metrics.js';
 import { NATPF_BUILD } from '@natpf/tennis/version.js';
 
@@ -275,6 +277,8 @@ export class DiagRecorder {
         // webcam), gradi della mira piena con cui il telefono ha letto il piatto; colpi dell'allenamento (riscaldamento
         // compreso) e dei minigiochi segnati, perché non sono una partita
         mano: L.hand || null, fonte: L.source || null, ...(Number.isFinite(L.aimFull) ? { miraPiena: L.aimFull } : {}),
+        // B36.1: colpo con la regola nuova della direzione («la cima comanda»: solo con «Nuova» e il telefono con la forma)
+        ...(usedNewRule(O) ? { regola: 'nuova' } : {}),
         ...(R.ui?.training?.active || R.ui?.trial?.active ? { allenamento: true } : {}), ...(R.ui?.trial?.active ? { prova: true } : {}), ...(R.ui?.events?.active ? { minigioco: true } : {}) });
       return out;
     });
@@ -286,6 +290,7 @@ export class DiagRecorder {
       R.lastMatch = { n: R.matchN, modo: R.ui?.lobby?.mode || null, difficolta: E.matchConfig?.difficulty || null, formato: E.matchFormat?.id || null,
         '1v1': !!(E.versus?.active || E.isMultiplayer), mano: R.ui?.hand?.hand || E.natpfPhone?.hand || null, mano2: E.natpfPhone2?.hand || null,
         mira: readAimLevel(), miraPiena: aimFullNow(), ruolo: E.playerRole || 'p1',   // ruolo: B18, chi gioca qui (misure del rimbalzo)
+        direzione: dirModelOf(E),   // B36.1: direzione dei colpi della partita («classica» di base, «nuova» in lavorazione)
         // B18: formato in fiera (punto decisivo e servizio come nel tie-break) e game per vincere dopo la sua regola
         formatoFiera: !!E.score?.fair, gameDaVincere: E.matchConfig?.gamesToWin ?? null,
         // B18.2 gruppo 3 (revisione): segnale del momento giusto acceso in questa partita (per confrontare la quota di
