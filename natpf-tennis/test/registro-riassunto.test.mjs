@@ -13,7 +13,7 @@ import { riassumi, Misura, Riassunto, rapporto, kmhVeri, kmhVecchi, KMH_VECCHI_F
 import { PRECISION_ZONES } from '../src/natpf/natpf_arcade.js';
 import { main as scarica } from '../scripts/registro/scarica.mjs';
 import { workerLocale } from '../scripts/registro/worker-locale.mjs';
-import { controllaRiga, TIPI } from '../src/natpf/registro/registro_formato.js';
+import { controllaRiga, TIPI, REGISTRO } from '../src/natpf/registro/registro_formato.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-registro-'));
 const somma = (list, k) => list.reduce((a, v) => a + v[k], 0);
@@ -256,7 +256,7 @@ test('B36.0: riassunto «Direzione» — giro della cima, tempo, E1–E5, Precis
   const P = precisionRiga(D.precision[0]); assert.equal(P.palle, 10); assert.equal(P.laterali, 7); assert.equal(P.cima, 1); assert.equal(P.distanza, 0); assert.equal(P.punti, 1000);
   const S = rapporto(R, L).find(x => x.titolo.startsWith('Direzione')), testo = S.testo.join('\n');
   assert.ok(S, 'sezione «Direzione»');
-  assert.match(testo, /ATTENZIONE: 1 partite di un gioco con il formato delle righe 2 senza i campi della direzione: il Worker del registro non è stato ricaricato/);
+  assert.match(testo, /ATTENZIONE: 1 partite di un gioco con il formato delle righe 2 o più senza i campi della direzione: il Worker del registro non è stato ricaricato/);
   assert.match(testo, /Precision con «classica»: 10 palle in 1 partite\. Cima → zona: 4,0° per metro di zona, il giro voluto sparge ±0,0°/);
   const tab = t => S.tabelle.find(x => x.titolo.startsWith(t));
   assert.equal(tab('Obiettivi').righe[0][0], `classica · adulto · evento (pochi colpi: 31 < ${DIR_MIN})`);
@@ -371,7 +371,7 @@ test('B66: numeri esatti delle sezioni nuove; registri di prima e Worker non ric
   assert.deepEqual(B.pause, { 'segnale debole': [2, 5], 'scollegato (2)': [1, 3] });
   assert.equal(B.perSegnale['da −80 a −71 dBm'].pauseS, 5, 'solo le pause del Player 1 con il suo segnale');
   const S = rapporto(R, L), sz = t => S.find(x => x.titolo === t), txt = t => sz(t).testo.join('\n');
-  assert.match(txt('Sensori del telefono'), /ATTENZIONE: 1 partite con il telefono di un gioco nuovo \(formato 3\) senza le misure del B66: il Worker del registro non è stato ricaricato/);
+  assert.match(txt('Sensori del telefono'), /ATTENZIONE: 1 partite con il telefono di un gioco nuovo \(formato 3 o più\) senza le misure del B66: il Worker del registro non è stato ricaricato/);
   assert.match(txt('Collegamento: distribuzione'), /: 60 · 250 · 250 ms\. Dal picco alla risposta del gioco/);
   assert.match(txt('Telefono bloccato'), /dallo staff sul telefono \(due dita 3 s\) 1, dal PC 1, finiti da soli \(fine del gioco, avviso o velo da toccare\) 2/);
   // registri di prima: le sezioni ci sono e dicono che le misure mancano
@@ -466,14 +466,39 @@ test('B71 revisione: «non sommato» solo con la modalità fiera (stand.modo), n
   assert.match(txt('Precisione dei gesti'), /Colpi con la confidenza del telefono \(registri fino alla 2026-11-18\.3\): 6/);
   assert.match(txt('Precisione dei gesti'), /Lato dei colpi \(B71\): dal gesto 3 \(75,0%\) · dal verso atteso dalla palla 1 \(25,0%\); verso del gesto incerto \(confidenza sotto 0,35\): 1 su 4/);
   assert.match(txt('Sensori del telefono'), /Sensori in partita \(B71, app NATPF Racchetta 1\.0\.5\): app 1 · app e browser 1; ritorni al browser per motivo .*: r 1; ritardo dei campioni del browser su quelli dell'app \(prova all'avvio\) 10 ms/);
-  assert.ok(!txt('Sensori del telefono').includes('formato 4 senza displayLagMs'));
+  // (B74 revisione, S2: controllo sulla parte del testo che resta, «senza displayLagMs», non sulla frase di prima)
+  assert.ok(!txt('Sensori del telefono').includes('senza displayLagMs'));
   // Worker del 18/11 (non ricaricato): righe di un gioco con formato 4 senza i campi del B71
   const V = new Riassunto();
   V.aggiungi({ k: 'avvio', t: 0, v: 4, versione: '2026-11-20.1' }, ctx);
   V.aggiungi({ k: 'partita', t: 1, n: 1, versione: '2026-11-20.1', modo: 'cpu', ctrl: 'telefono', tel: { strada: 'lan' } }, ctx);
   V.aggiungi({ k: 'partita.fine', t: 2, n: 1, esito: 'finita', durS: 60, tq: { g: { hz: [60, 58], n: 3600 } } }, ctx);
   V.fine();
-  assert.match(rapporto(V, L).find(x => x.titolo === 'Sensori del telefono').testo.join('\n'), /ATTENZIONE: 1 partite con il telefono di un gioco con formato 4 senza displayLagMs: il Worker del registro non è stato ricaricato/);
+  assert.match(rapporto(V, L).find(x => x.titolo === 'Sensori del telefono').testo.join('\n'), /ATTENZIONE: 1 partite con il telefono di un gioco con formato 4 o più senza displayLagMs: il Worker del registro non è stato ricaricato/);
+});
+
+/* ---------- B74, revisione (S2): l'avviso del B71 con il gioco del formato 5 ---------- */
+// Il conteggio prende i giochi con formato 4 o più (il gioco del B74 scrive v 5); il testo era fisso su «formato 4» e
+// «Formato delle righe: 4», mentre la pagina del Worker da caricare dopo il Deploy dice 5 (REGISTRO.versione, uguale al
+// FORMATO del Worker: registro-worker.test.mjs). Un Worker di prima toglie anche il campo `assi` del B74.
+test('B74 revisione: avviso senza displayLagMs per i giochi con formato 4 o più, con il formato che la pagina del Worker mostra dopo il Deploy', () => {
+  const ctx = { giorno: '2026-11-21', postazione: 'abcd1234' }, L = { file: 1, blocchi: 1, righe: 1, byte: 1 };
+  assert.equal(REGISTRO.versione, 5, 'il gioco del B74 scrive il formato 5');
+  const sensori = campi => {
+    const R = new Riassunto();
+    R.aggiungi({ k: 'avvio', t: 0, v: REGISTRO.versione, versione: '2026-11-21.1', g: 'abcd1234' }, ctx);
+    R.aggiungi({ k: 'partita', t: 1, n: 1, versione: '2026-11-21.1', modo: 'cpu', ctrl: 'telefono', tel: { strada: 'lan' }, ...campi }, ctx);
+    R.aggiungi({ k: 'partita.fine', t: 2, n: 1, esito: 'finita', durS: 60, tq: { g: { hz: [60, 58], n: 3600 } } }, ctx);
+    R.fine();
+    return rapporto(R, L).find(x => x.titolo === 'Sensori del telefono').testo.join('\n');
+  };
+  // Worker di prima (formato 3): ha tolto displayLagMs (e stand.assi, tel.assi)
+  const t = sensori({});
+  assert.match(t, /ATTENZIONE: 1 partite con il telefono di un gioco con formato 4 o più senza displayLagMs: il Worker del registro non è stato ricaricato e ha tolto i campi del B71 e, dal formato 5, il campo `assi` del B74/);
+  assert.ok(t.includes('«Formato delle righe: 5»'), t);
+  assert.ok(!t.includes('Formato delle righe: 4'), 'non più il 4 fisso');
+  // controprova: Worker ricaricato (displayLagMs c'è): nessun avviso
+  assert.ok(!sensori({ displayLagMs: 40 }).includes('senza displayLagMs'));
 });
 
 test('B71: registri finti con i voti veri del registro: i «Perfetti» per numero di colpo non sono più 0 %', async () => {

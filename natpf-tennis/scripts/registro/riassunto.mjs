@@ -662,9 +662,11 @@ function lsTesto(T){
 }
 export function sezioniB66(R, sez){
   const B = R.b66, Pt = B.partite;
-  const avviso = [Pt.senzaMisure ? `ATTENZIONE: ${N(Pt.senzaMisure)} partite con il telefono di un gioco nuovo (formato 3) senza le misure del B66: il Worker del registro non è stato ricaricato (docs/b66/registro-sensori.md, «Ricaricare il Worker»).` : '',
-    // B71 (revisione): stessa rete di sicurezza per i campi del B71 (verso del gesto, ritardo dello schermo, sensori dell'app)
-    B.b71.senzaCampi ? `ATTENZIONE: ${N(B.b71.senzaCampi)} partite con il telefono di un gioco con formato 4 senza displayLagMs: il Worker del registro non è stato ricaricato e ha tolto i campi del B71 (docs/GUIDA_REGISTRO_CLOUDFLARE.md §I, «Formato delle righe: 4»).` : ''].filter(Boolean).join(' ');
+  const avviso = [Pt.senzaMisure ? `ATTENZIONE: ${N(Pt.senzaMisure)} partite con il telefono di un gioco nuovo (formato 3 o più) senza le misure del B66: il Worker del registro non è stato ricaricato (docs/b66/registro-sensori.md, «Ricaricare il Worker»).` : '',
+    // B71 (revisione): stessa rete di sicurezza per i campi del B71 (verso del gesto, ritardo dello schermo, sensori dell'app).
+    // B74 (revisione, S2): si contano i giochi con formato 4 o più e la pagina del Worker da caricare dice il formato di
+    // adesso (REGISTRO.versione, uguale al FORMATO del Worker: registro-worker.test.mjs), non più un «4» fisso
+    B.b71.senzaCampi ? `ATTENZIONE: ${N(B.b71.senzaCampi)} partite con il telefono di un gioco con formato 4 o più senza displayLagMs: il Worker del registro non è stato ricaricato e ha tolto i campi del B71 e, dal formato 5, il campo \`assi\` del B74 (docs/GUIDA_REGISTRO_CLOUDFLARE.md §I: dopo il Deploy la pagina del Worker dice «Formato delle righe: ${REGISTRO.versione}»).` : ''].filter(Boolean).join(' ');
   const T71 = B.b71, srTesto = Object.keys(T71.sr).length ? `Sensori in partita (B71, app NATPF Racchetta 1.0.5): ${elenco(T71.sr).map(([k, v]) => `${{ n: 'app', b: 'browser', nb: 'app e browser' }[k] || k} ${v}`).join(' · ')}${Object.keys(T71.rp).length ? `; ritorni al browser per motivo (g gravità, r rotazione, f sensori dell'app fermi, p ponte): ${elenco(T71.rp).map(([k, v]) => `${k} ${v}`).join(' · ')}` : ''}${T71.lg.n ? `; ritardo dei campioni del browser su quelli dell'app (prova all'avvio) ${mis(T71.lg, 0, ' ms')}` : ''}.` : '';
   const vuoto = 'Nessuna partita con le misure del B66: il registro è di una versione prima della 2026-11-18.1' + (Pt.senzaMisure ? ' o il Worker non è stato ricaricato.' : '.');
   const S = B.sensori, totColpiTel = B.coll.colpi;
@@ -777,7 +779,7 @@ export function sezioneDirezione(R, sez){
   const modelli = [...new Set(prec.map(p => p.dir))].sort();
   sez('Direzione (B36.0: misure, il gioco non cambia)', [
     `Partite con i campi della direzione: ${N(P.conCampi)} su ${N(tot)}${P.vecchie ? `; ${N(P.vecchie)} di versioni del gioco di prima del B36.0` : ''}. Colpi della racchetta in partita con il tempo in finestre: ${N(D.colpiConTempo)} su ${N(D.colpiRacchetta)}.`,
-    P.senzaCampi ? `ATTENZIONE: ${N(P.senzaCampi)} partite di un gioco con il formato delle righe 2 senza i campi della direzione: il Worker del registro non è stato ricaricato e li ha tolti (docs/b36/misure-b36-0.md, «Ricaricare il Worker»).` : '',
+    P.senzaCampi ? `ATTENZIONE: ${N(P.senzaCampi)} partite di un gioco con il formato delle righe 2 o più senza i campi della direzione: il Worker del registro non è stato ricaricato e li ha tolti (docs/b36/misure-b36-0.md, «Ricaricare il Worker»).` : '',
     'Cima: scarto in gradi dal proprio colpo abituale (+ a destra). Tempo: unità della finestra (+ anticipo). Rimbalzo: dove la palla tocca terra davvero, nel riferimento di chi colpisce (+ alla sua destra). Gruppi: modello della direzione · chi gioca · livello.',
     D.partiteP2 ? `Partite del computer del Player 2 nelle sfide tra due computer: ${N(D.partiteP2)}, fuori dai gruppi (i colpi del Player 2 sono già nella partita dell'host, con la sua direzione).` : '',
     ...modelli.map(testoFit),
