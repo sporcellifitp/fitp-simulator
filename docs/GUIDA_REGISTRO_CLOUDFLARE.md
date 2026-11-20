@@ -160,6 +160,11 @@ dopo il Deploy la pagina dice **«Formato delle righe: 4 (con la direzione dei c
 B71: verso del gesto, ritardo dello schermo, sensori dell'app)»**. Se dice ancora 3, il Deploy non è andato. Se il Worker
 non è ricaricato il riassunto lo dice: «ATTENZIONE: … partite con il telefono di un gioco con formato 4 senza
 displayLagMs: il Worker del registro non è stato ricaricato».
+La quarta è il B74 (20/11: assi del giroscopio, campo `assi` della riga «partita», formato delle righe 5;
+`docs/b74/assi-giroscopio.md` §5): stessi passi, con il file della versione nuova; dopo il Deploy la pagina dice
+**«Formato delle righe: 5 (… sensori dell'app; dal B74 gli assi del giroscopio)»**. Se dice ancora 4, il Deploy non è
+andato: il Worker accetta lo stesso le righe ma toglie il campo `assi` (serve solo quando lo staff accende «Assi del
+giroscopio: Corretti (prova)»).
 
 ## Sicurezza in breve
 

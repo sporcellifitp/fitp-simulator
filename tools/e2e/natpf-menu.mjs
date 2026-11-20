@@ -12,6 +12,8 @@
 //   • B36.1: nel pannello dello stand la voce «Direzione dei colpi» (Classica · Nuova · in lavorazione) in vista; con il clic
 //     del mouse passa a «Nuova · in lavorazione» e torna «Classica», salvata, e il foglio continua a non scorrere con
 //     «Chiudi» in vista (la scritta più lunga può andare su due righe).
+//   • B74: la voce «Assi del giroscopio» (Come oggi · Corretti · prova) in vista; con il clic del mouse passa a «Corretti ·
+//     prova» e torna «Come oggi», salvata; il foglio (21 voci) continua a non scorrere con «Chiudi» in vista.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-menu.mjs
 import { spawn } from 'node:child_process';
 import http from 'node:http';
@@ -84,6 +86,19 @@ try {
     await p.click('#natpf-staff [data-staff="dir"]'); await p.waitForTimeout(300);
     const dir2 = await dirBox();
     check(`${tag}: un altro clic → di nuovo «Classica»`, !!dir2 && dir2.text === 'Direzione dei colpi · Classica' && !dir2.on && dir2.saved === 'classica' && dir2.scroll <= 0 && dir2.closeIn, JSON.stringify(dir2));
+    // B74: «Assi del giroscopio» in vista (di base «Come oggi»), un clic con il mouse → «Corretti · prova», salvata, un altro
+    // → «Come oggi»; il foglio non scorre e «Chiudi» resta in vista
+    const axBox = () => p.evaluate(() => { const S = document.querySelector('#natpf-staff .natpf-sheet'), s = S.getBoundingClientRect(), b = document.querySelector('#natpf-staff [data-staff="axes"]'), r = b?.getBoundingClientRect(), c = S.querySelector('[data-staff="close"]').getBoundingClientRect();
+      return b ? { text: `${b.querySelector('span').textContent} · ${b.querySelector('b').textContent}`, inside: r.height > 0 && r.top >= s.top && r.bottom <= Math.min(s.bottom, innerHeight) && r.left >= s.left && r.right <= s.right, on: b.classList.contains('on'), scroll: S.scrollHeight - S.clientHeight, closeIn: c.top >= s.top && c.bottom <= Math.min(s.bottom, innerHeight), saved: localStorage.getItem('natpf-tennis.assiGiroscopio') } : null; });
+    const ax0 = await axBox();
+    check(`${tag}: «Assi del giroscopio: Come oggi» nel pannello dello stand, in vista`, !!ax0 && ax0.inside && ax0.text === 'Assi del giroscopio · Come oggi' && !ax0.on && ax0.saved == null && ax0.scroll <= 0 && ax0.closeIn, JSON.stringify(ax0));
+    await p.click('#natpf-staff [data-staff="axes"]'); await p.waitForTimeout(300);
+    const ax1 = await axBox();
+    check(`${tag}: un clic → «Corretti · prova», salvata; il foglio non scorre e «Chiudi» resta in vista`, !!ax1 && ax1.inside && ax1.text === 'Assi del giroscopio · Corretti · prova' && ax1.on && ax1.saved === 'corretti' && ax1.scroll <= 0 && ax1.closeIn, JSON.stringify(ax1));
+    if (w === 1024) await p.screenshot({ path: `${SP}/stand-assi-corretti-${w}x${h}.png` });
+    await p.click('#natpf-staff [data-staff="axes"]'); await p.waitForTimeout(300);
+    const ax2 = await axBox();
+    check(`${tag}: un altro clic → di nuovo «Come oggi»`, !!ax2 && ax2.text === 'Assi del giroscopio · Come oggi' && !ax2.on && ax2.saved === 'oggi' && ax2.scroll <= 0 && ax2.closeIn, JSON.stringify(ax2));
     if (w === 1024) await p.screenshot({ path: `${SP}/stand-${w}x${h}.png` });
     if (h === 1024){ await p.click('#natpf-staff [data-staff="remote"]'); await p.waitForTimeout(800); await p.screenshot({ path: `${SP}/telecomando-pannello-${w}x${h}.png` }); const rs = await p.evaluate(() => { const s = document.querySelector('#natpf-remote .natpf-sheet'); return s.scrollHeight - s.clientHeight; }); check(`${tag}: foglio «Telecomando dello staff» senza scorrere`, rs <= 0, String(rs)); await p.click('#natpf-remote [data-remote="close"]'); await p.waitForTimeout(300); }
     await p.click('#natpf-staff [data-staff="close"]');
@@ -122,6 +137,12 @@ try {
       return { text: `${b.querySelector('span').textContent} · ${b.querySelector('b').textContent}`, inside: r.height > 0 && r.top >= s.top && r.bottom <= Math.min(s.bottom, innerHeight), scroll: S.scrollHeight - S.clientHeight, closeIn: c.top >= s.top && c.bottom <= Math.min(s.bottom, innerHeight), saved: localStorage.getItem('natpf-tennis.direzione') }; });
     check('720 × 720: «Direzione dei colpi» in vista, un clic → «Nuova · in lavorazione»; il foglio non scorre e «Chiudi» resta in vista', dirQ.inside && /Nuova · in lavorazione/.test(dirQ.text) && dirQ.saved === 'nuova' && dirQ.scroll <= 0 && dirQ.closeIn, JSON.stringify(dirQ));
     await p.screenshot({ path: `${SP}/stand-direzione-720x720.png` });
+    // B74: «Assi del giroscopio» anche qui in vista; con «Corretti · prova» il foglio continua a non scorrere
+    await p.click('#natpf-staff [data-staff="axes"]'); await p.waitForTimeout(300);
+    const axQ = await p.evaluate(() => { const S = document.querySelector('#natpf-staff .natpf-sheet'), s = S.getBoundingClientRect(), b = S.querySelector('[data-staff="axes"]'), r = b.getBoundingClientRect(), c = S.querySelector('[data-staff="close"]').getBoundingClientRect();
+      return { text: `${b.querySelector('span').textContent} · ${b.querySelector('b').textContent}`, inside: r.height > 0 && r.top >= s.top && r.bottom <= Math.min(s.bottom, innerHeight), scroll: S.scrollHeight - S.clientHeight, closeIn: c.top >= s.top && c.bottom <= Math.min(s.bottom, innerHeight), saved: localStorage.getItem('natpf-tennis.assiGiroscopio') }; });
+    check('720 × 720: «Assi del giroscopio» in vista, un clic → «Corretti · prova»; il foglio non scorre e «Chiudi» resta in vista', axQ.inside && /Corretti · prova/.test(axQ.text) && axQ.saved === 'corretti' && axQ.scroll <= 0 && axQ.closeIn, JSON.stringify(axQ));
+    await p.screenshot({ path: `${SP}/stand-assi-720x720.png` });
     check('720 × 720: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
     await ctx.close();
   }

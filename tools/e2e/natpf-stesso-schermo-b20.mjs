@@ -91,7 +91,7 @@ try {
   for (const [w, h] of [[1280, 720], [1920, 540], [1024, 600], [1366, 657], [1920, 1080], [720, 720]]){
     await g.setViewportSize({ width: w, height: h }); await sleep(450);
     const s = await sheetAt();
-    check(`   pannello dello stand a ${w}×${h}: venti pulsanti (dodici dal B25, dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo», dal B47 «Battuta», dalla B41 «Modalità fiera», dal B51 «Blocco del telefono in partita», dal B49 «Doppio: compagno», dal B73 «Direzione dei colpi»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 20 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
+    check(`   pannello dello stand a ${w}×${h}: ventuno pulsanti (dodici dal B25, dal B28 anche «Calibrazione», dal B38 «Tastiera a schermo», dal B47 «Battuta», dalla B41 «Modalità fiera», dal B51 «Blocco del telefono in partita», dal B49 «Doppio: compagno», dal B73 «Direzione dei colpi», dal B74 «Assi del giroscopio»), niente scorrimento, «Chiudi» e «Nuovo giocatore» interi nello schermo`, s.pulsanti === 21 && s.scroll <= 0 && s.top >= 0 && s.bottom <= s.H && s.close[0] >= s.top && s.close[1] <= s.bottom && s.nuovo[0] >= s.top && s.nuovo[1] <= s.bottom, fmt(s));
     if (w === 1920 && h === 540 || w === 1024) await shot(`1-pannello-stand-${w}x${h}`);
   }
   await g.setViewportSize({ width: 1280, height: 720 }); await sleep(400);

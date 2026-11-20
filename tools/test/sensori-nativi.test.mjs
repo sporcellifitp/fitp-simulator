@@ -242,7 +242,8 @@ test('B71: racchetta.js usa i sensori dell’app solo con il ponte giusto e per 
   assert.match(js, /createNativeMotion\(\{ bridge: nativeBridge\(window\), onSample: k => feedSample\(k, NATIVE_EV\)/);
   // devicemotion: il campione del browser va al confronto in prova e al rilevatore come sempre (stessa funzione per i due)
   assert.match(js, /if \(native\.state !== 'off'\)\{ if \(native\.feeds\) return; native\.browser\(raw\); \}\n  feedSample\(raw, e\);/);
-  assert.match(js, /function feedSample\(raw, e\)\{\n  lastRawG = raw\.accG;\n  const k = normalizeSample\(raw, accSign\.sign\);/);
+  // (B74: con l'ordine degli assi del giroscopio, rotOrder: 'w3c' com'è con l'interruttore spento, b74-assi.test.mjs)
+  assert.match(js, /function feedSample\(raw, e\)\{\n  lastRawG = raw\.accG;\n  const k = normalizeSample\(raw, accSign\.sign, rotOrder\);/);
   // misure per il registro: sorgente, fondo scala, motivo del ritorno al browser, tocchi prima dei buchi
   assert.match(js, /sr: native\.source/);
   assert.match(js, /addEventListener\('pointerdown', e => sampleStats\.touch\(e\.timeStamp\), \{ capture: true, passive: true \}\);/);

@@ -36,6 +36,8 @@ import { SMASH_FROM } from './natpf_stroke_outcome.js';
 import { createTrialLearner, readCalMode, phoneThresholds, TRIAL, TRIAL_SIGN, signedSwing, wantOfSide } from './natpf_trial_learn.js';
 // B45.1: perché cade il collegamento (motivo finale, cadute di oggi per la riga del pannello dello stand)
 import { MOTIVI, motivoFinale, cadutaPrimaDellaPagina, segnaCaduta, chiarisciCaduta } from './natpf_cadute.js';
+// B74: interruttore dello staff «Assi del giroscopio» (cfg ax al telefono)
+import { axesOn } from './natpf_gyro_axes.js';
 // tempo concesso al telefono per tornare «pronto» dopo il profilo da capo chiesto dal gioco (freshPlayer): tre richieste
 // del profilo semplice a 700 ms l'una. Oltre, vale la pausa «telefono non pronto» di sempre
 export const RESET_GRACE_MS = 2500;
@@ -588,6 +590,9 @@ export class NatpfPhoneRacket {
     // B46: segno dell'accelerazione della pagina del telefono (motion-sign.js, messaggio «dev» as) e numero del collegamento
     // in cui è arrivato; segno del rilevatore del telefono (swing-detect.js, absSign: dal colpo o dal messaggio «sgn»)
     this.accSign = null; this.accSignJoins = null; this.phoneSign = 1;
+    // B74: ordine degli assi del giroscopio usato dal telefono (1 riordinati, 0 no, null non ancora visto: _axesSeen) e
+    // interruttore mandato nell'ultimo cfg (cfgAx)
+    this.axesApplied = null; this.cfgAx = false;
     // B46 (revisione, punto 6): telefono (ua) e abbinamento (pairs) del segno visto per ultimo: un telefono diverso tra due
     // visitatori è un «telefono nuovo», non una «pagina» ricaricata
     this.accSignUa = null; this.accSignPairs = null;
@@ -768,7 +773,8 @@ export class NatpfPhoneRacket {
     link.on('discard', d => this._diag('scartato', d));
     link.on('mark', d => { this._activity(); this._diag('segno', d); });
     // (B46: il segno dei sensori; B45.1: il racconto della caduta del telefono, una volta dopo il benvenuto)
-    link.on('device', d => { const prevUa = this.device?.ua ?? null; this.device = d; this._diag('dispositivo', d); this._accSignSeen(d?.accSign, { ua: d?.ua ?? null, prevUa }); this._onStory(d?.story); });
+    // (B74: l'ordine degli assi del giroscopio che il telefono usa, con l'interruttore «Assi del giroscopio» acceso)
+    link.on('device', d => { const prevUa = this.device?.ua ?? null; this.device = d; this._diag('dispositivo', d); this._accSignSeen(d?.accSign, { ua: d?.ua ?? null, prevUa }); this._axesSeen(d?.axes); this._onStory(d?.story); });
     // B45.1: il collegamento è caduto, con il motivo visto da questo computer (link.js, evento «drop»)
     // (B45.2: non gli eventi di un collegamento di prima, fermato da useStand)
     link.on('drop', d => { if (this.link === link) this._onDrop(d); });
@@ -835,7 +841,10 @@ export class NatpfPhoneRacket {
   // TRIAL_SIGN.detector voti contrari concordi (prima 4 voti in tutto: il 18-19/11 74 cambi in partita con lo stesso telefono)
   get signNeed(){ return this.engine.natpfUi?.fiera?.on ? TRIAL_SIGN.detector : 0; }
   // lg (B72): la lingua di chi tiene il telefono, solo quando il gioco la conosce (le pagine di prima ignorano il campo)
-  _cfg(){ const sn = this.signNeed; this.cfgSn = sn; return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}), ...(this.atNet ? { net: 1 } : {}), ...(sn ? { sn } : {}), ...(this.lang ? { lg: this.lang } : {}) }; }
+  // ax (B74): 1 con l'interruttore dello staff «Assi del giroscopio: Corretti (prova)», natpf_gyro_axes.js; con «Come oggi»
+  // niente (cfg identico a prima). Il telefono Android riordina la rotazione; le pagine di prima ignorano il campo
+  get axesWanted(){ return axesOn(); }
+  _cfg(){ const sn = this.signNeed, ax = this.axesWanted; this.cfgSn = sn; this.cfgAx = ax; return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}), ...(this.atNet ? { net: 1 } : {}), ...(sn ? { sn } : {}), ...(this.lang ? { lg: this.lang } : {}), ...(ax ? { ax: 1 } : {}) }; }
   // a rete: entro NET_Z.in m dalla rete nello scambio; si esce oltre NET_Z.out (isteresi: niente cfg a ogni passo sul confine).
   // Manda cfg al telefono quando cambia; true se è cambiato
   setNet(v){
@@ -1173,6 +1182,19 @@ export class NatpfPhoneRacket {
     this._signEvent('rilevatore', sign, voti);
     return true;
   }
+  // B74: ordine degli assi del giroscopio che il telefono usa davvero (messaggio «dev» ax, natpf_gyro_axes.js): 1 rotazione
+  // riordinata (Android con «Corretti»), 0 lasciata com'era (iPhone con «Corretti»), senza = «Come oggi» o pagina di prima.
+  // Quando cambia tra riordinata e no, la cima, la salita e il piatto imparati con l'altro ordine non valgono più e ripartono,
+  // con quello che si era imparato dagli scambi di prova (come al cambio del segno); il telefono, se era calibrato, rifà la
+  // calibrazione da sé. true se è cambiato
+  _axesSeen(ax){
+    const v = ax === 1 ? 1 : 0, prev = this.axesApplied;
+    this.axesApplied = v;
+    if (prev == null || prev === v) return false;
+    this.learner.reset(); this.aimModel.reset(); this.riseModel.reset(); this.faceModel.reset(); this.lastExpect = null;
+    this._diag('assi', { corretti: v === 1, ruolo: this.role });
+    return true;
+  }
   onDiag(fn){ this.diagListeners.add(fn); return () => this.diagListeners.delete(fn); }
   onState(fn){ this.stateListeners.add(fn); return () => this.stateListeners.delete(fn); }
   _diag(kind, d){ for (const fn of this.diagListeners) try { fn(kind, d); } catch (e){ console.error(e); } }
@@ -1409,6 +1431,8 @@ export class NatpfPhoneRacket {
     this.setNet(phase === 'play' && this.ready && atNet(this.engine, this.role, !!this.atNet));
     // B71: modalità fiera accesa o spenta con il telefono già collegato: il segno di fiera va al telefono (cfg sn)
     if (this.connected && this.gripSent && this.signNeed !== (this.cfgSn ?? 0)) this.link.send(this._cfg());
+    // B74: «Assi del giroscopio» cambiato nel pannello dello stand con il telefono già collegato: va al telefono (cfg ax)
+    else if (this.connected && this.gripSent && this.axesWanted !== (this.cfgAx ?? false)) this.link.send(this._cfg());
     if (!this.connected) this.lastPhase = null;
     this._syncPhoneState();
   }

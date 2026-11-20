@@ -179,7 +179,8 @@ File:
 - sessione.json        dati della sessione (dispositivi, impostazioni, file, durata)
 - metriche.json        metriche calcolate (latenze, jitter, frequenze, fps, perdite, prova guidata)
 - eventi.jsonl         tutti gli eventi, una riga JSON ciascuno; t = ms dall'inizio, orologio del computer
-- telefono-sensori.jsonl  campioni grezzi del telefono (t computer all'arrivo, k istante sul telefono, q numero)
+- telefono-sensori.jsonl  campioni grezzi del telefono (t computer all'arrivo, k istante sul telefono, q numero; o "c":
+                       il telefono leggeva la rotazione riordinata, «Assi del giroscopio: Corretti», B74)
 - video-webcam.*, video-gioco.*  video della sessione (se registrati)
 
 Orologi: il telefono ha il suo orologio; gli scambi tel.orologio (d invio e r ricezione sul computer, p ora del

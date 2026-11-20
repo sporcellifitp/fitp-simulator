@@ -262,7 +262,8 @@ export function createPhoneLink({ stand = null } = {}){
       }
       case 'rs':
         countMsg('rs');
-        if (typeof d.k === 'number') emit('raw', { t: d.k, q: Number.isInteger(d.q) ? d.q : null, rot: Array.isArray(d.r) ? d.r : null, acc: Array.isArray(d.a) ? d.a : null, accG: Array.isArray(d.g) ? d.g : null, at: performance.now(), path });
+        // (B74: o 'c' = rotazione com'è il sensore, letta dal telefono riordinata con l'ordine di Chrome: motion-sign.js)
+        if (typeof d.k === 'number') emit('raw', { t: d.k, q: Number.isInteger(d.q) ? d.q : null, rot: Array.isArray(d.r) ? d.r : null, acc: Array.isArray(d.a) ? d.a : null, accG: Array.isArray(d.g) ? d.g : null, at: performance.now(), path, ...(d.o === 'c' ? { o: 'c' } : {}) });
         return;
     }
   }
@@ -389,7 +390,9 @@ export function createPhoneLink({ stand = null } = {}){
         // secondo); segno «qui è successo un problema» toccato sul telefono; telefono e browser (una volta per collegamento)
         case 'gx': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); emit('discard', { why: typeof d.r === 'string' ? d.r.slice(0, 40) : '?', peak: Number.isFinite(d.v) ? d.v : null, angle: Number.isFinite(d.a) ? d.a : null, dir: [-1, 0, 1].includes(d.d) ? d.d : null, at }); break; }
         case 'mk': emit('mark', { text: typeof d.x === 'string' ? d.x.slice(0, 80) : 'segno dal telefono' }); break;
-        case 'dev': emit('device', { ua: typeof d.ua === 'string' ? d.ua.slice(0, 200) : null, wakeLock: d.wl ?? null, motion: d.dm ?? null, orientation: typeof d.or === 'string' ? d.or.slice(0, 30) : null, screen: Array.isArray(d.sc) ? d.sc.slice(0, 3) : null, version: typeof d.vr === 'string' ? d.vr.slice(0, 40) : null, accSign: d.as === -1 ? -1 : d.as === 1 ? 1 : null, names: d.nm === 1, ...(typeof d.av === 'string' ? { app: d.av.slice(0, 16) } : {}), ...(readStory(d.cd) ? { story: readStory(d.cd) } : {}) }); break;
+        // (B74: axes = ordine degli assi del giroscopio che il telefono usa con l'interruttore «Assi del giroscopio» acceso:
+        // 1 riordinati, 0 lasciati com'erano; senza, interruttore spento o pagina di prima)
+        case 'dev': emit('device', { ua: typeof d.ua === 'string' ? d.ua.slice(0, 200) : null, wakeLock: d.wl ?? null, motion: d.dm ?? null, orientation: typeof d.or === 'string' ? d.or.slice(0, 30) : null, screen: Array.isArray(d.sc) ? d.sc.slice(0, 3) : null, version: typeof d.vr === 'string' ? d.vr.slice(0, 40) : null, accSign: d.as === -1 ? -1 : d.as === 1 ? 1 : null, names: d.nm === 1, ...(typeof d.av === 'string' ? { app: d.av.slice(0, 16) } : {}), ...(readStory(d.cd) ? { story: readStory(d.cd) } : {}), ...(d.ax === 1 || d.ax === 0 ? { axes: d.ax } : {}) }); break;
         // B46: il rilevatore del telefono ha girato il suo segno (swing-detect.js vote, profilo semplice): il computer lo
         // registra subito, senza aspettare il colpo dopo (che lo porta comunque, sg). Le pagine di prima non lo mandano
         case 'sgn': if (d.d === 1 || d.d === -1) emit('sign', { detector: d.d, ...(Array.isArray(d.v) && d.v.length === 2 && d.v.every(x => Number.isInteger(x) && x >= 0 && x < 1000) ? { votes: [d.v[0], d.v[1]] } : {}) }); break;

@@ -490,3 +490,24 @@ test('B71: registri finti con i voti veri del registro: i «Perfetti» per numer
     assert.ok(r.R.b66.wifi.batterie.length >= 1);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+/* ---------- B74: assi del giroscopio ---------- */
+test('B74: il riassunto conta le partite con «Assi del giroscopio: Corretti (prova)» e cosa hanno fatto i telefoni; spento, niente', () => {
+  const ctx = { giorno: '2026-11-21', postazione: 'abcd1234' }, L = { file: 1, blocchi: 1, righe: 1, byte: 1 };
+  const R = new Riassunto();
+  R.aggiungi({ k: 'avvio', t: 0, v: 5, versione: '2026-11-21.1', g: 'abcd1234' }, ctx);
+  R.aggiungi({ k: 'partita', t: 10, n: 1, versione: '2026-11-21.1', modo: 'stesso-schermo', ctrl: 'telefono', displayLagMs: 0, stand: { assi: 'corretti' }, tel: { strada: 'lan', assi: 'corretti' }, tel2: { strada: 'lan', assi: 'oggi' } }, ctx);
+  R.aggiungi({ k: 'partita.fine', t: 20, n: 1, esito: 'finita', vince: 'g', durS: 60 }, ctx);
+  R.aggiungi({ k: 'partita', t: 30, n: 2, versione: '2026-11-21.1', modo: 'cpu', ctrl: 'telefono', displayLagMs: 0, stand: { assi: 'corretti' }, tel: { strada: 'lan' } }, ctx);
+  R.aggiungi({ k: 'partita.fine', t: 40, n: 2, esito: 'finita', vince: 'g', durS: 60 }, ctx);
+  R.aggiungi({ k: 'partita', t: 50, n: 3, versione: '2026-11-21.1', modo: 'cpu', ctrl: 'telefono', displayLagMs: 0, stand: {}, tel: { strada: 'lan' } }, ctx);
+  R.aggiungi({ k: 'partita.fine', t: 60, n: 3, esito: 'finita', vince: 'g', durS: 60 }, ctx);
+  R.fine();
+  assert.deepEqual(R.assi, { partite: 2, tel: { 'riordinati (Android)': 1, 'come oggi (iPhone e altri)': 1, 'senza risposta (pagina di prima)': 1 } });
+  assert.match(rapporto(R, L).find(x => x.titolo === 'Sensori del telefono').testo.join('\n'), /Assi del giroscopio «Corretti \(prova\)» \(B74\): 2 partite; telefoni: .*riordinati \(Android\) 1/);
+  const V = new Riassunto();
+  V.aggiungi({ k: 'avvio', t: 0, v: 5, versione: '2026-11-21.1' }, ctx);
+  V.aggiungi({ k: 'partita', t: 1, n: 1, versione: '2026-11-21.1', modo: 'cpu', ctrl: 'telefono', tel: { strada: 'lan' } }, ctx);
+  V.fine();
+  assert.ok(!rapporto(V, L).find(x => x.titolo === 'Sensori del telefono').testo.join('\n').includes('Assi del giroscopio'), 'spento: niente riga');
+});

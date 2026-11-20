@@ -17,6 +17,7 @@ import { nextPartnerMode, partnerButton, partnerModeFromUrl, readPartnerMode, wr
 // «No · Solo stesso schermo · Sì», di base «Solo stesso schermo».
 // E lo «scambio che si scalda» (B20, natpf_hot_rally.js): Sì · No; dal B42 acceso di base, in tutti i modi.
 // E la «Direzione dei colpi» (B36.1, natpf_direction.js): Classica · Nuova; di base Classica, Nuova in lavorazione.
+// E gli «Assi del giroscopio» (B74, natpf_gyro_axes.js): Come oggi · Corretti (prova); di base Come oggi.
 // E le due opzioni dello stesso schermo del B25 (natpf_duo_rules.js), spente di base: «Lancio automatico» (No · 30 s) e
 // «Stesso schermo: campo aperto» (No · Sì).
 // B27: «Telecomando dello staff» (natpf_remote.js) e, nel programma Windows, «Schermo del gioco» (monitor successivo),
@@ -32,6 +33,8 @@ import { readFairMode, writeFairMode, nextFairMode, fairForcedByUrl } from './na
 import { readHotRally, writeHotRally, hotButton, hotToast } from './natpf_hot_rally.js';
 // B36.1: «Direzione dei colpi: Classica · Nuova» (natpf_direction.js), di base «Classica»; «Nuova» in lavorazione
 import { readDirModel, writeDirModel, nextDirModel, dirButton, dirToast } from './natpf_direction.js';
+// B74: «Assi del giroscopio: Come oggi · Corretti (prova)» (natpf_gyro_axes.js), di base «Come oggi»
+import { readAxesMode, writeAxesMode, nextAxesMode, axesButton, axesToast } from './natpf_gyro_axes.js';
 import { readAutoToss, writeAutoToss, autoTossButton, autoTossToast, readOpenCourt, writeOpenCourt, openCourtButton, openCourtToast } from './natpf_duo_rules.js';
 // B28: «Calibrazione: Giocando · Con i gesti · Nessuna» (natpf_trial_learn.js), di base «Giocando»
 import { readSavedCalMode, writeCalMode, nextCalMode, calModeButton, calModeToast, calModeFromUrl } from './natpf_trial_learn.js';
@@ -318,6 +321,14 @@ export class NatpfKiosk {
       ui.toast?.(dirToast(m), 6000);
       ui.diag?.recorder?.log?.('stand.direzione', { modello: m });
     }
+    // B74: assi del giroscopio, come oggi ↔ corretti (prova), salvata; vale subito: i telefoni collegati la ricevono
+    // (natpf_phone_racket.update, cfg ax) e quelli Android rifanno la calibrazione. È dello stand: il chiosco e «Nuovo
+    // giocatore» non la toccano
+    if (cmd === 'axes'){
+      const m = writeAxesMode(nextAxesMode(readAxesMode()));
+      ui.toast?.(axesToast(m), 6000);
+      ui.diag?.recorder?.log?.('stand.assi', { modo: m });
+    }
     // formato in fiera: no → solo stesso schermo → sì → no, salvato; vale dalla partita dopo (quella in corso resta con la
     // sua regola)
     if (cmd === 'fair'){
@@ -401,6 +412,7 @@ export class NatpfKiosk {
     set('ranking', this.rankingFull ? 'Chiudi lo schermo intero' : 'A schermo intero', this.rankingFull);
     set('aim', aimLevelButton(readAimLevel()));
     const dirM = readDirModel(); set('dir', dirButton(dirM), dirM === 'nuova');
+    const axM = readAxesMode(); set('axes', axesButton(axM), axM === 'corretti');
     const osk = readOskMode(); set('osk', oskButton(osk), osk !== 'mai');
     const fair = readFairMode(); set('fair', fairButton(fair, fairForcedByUrl()), fair !== 'no');
     const dm = readPartnerMode(); set('partner', partnerButton(dm, !!partnerModeFromUrl()), dm === 'solo');

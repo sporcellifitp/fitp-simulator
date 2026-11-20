@@ -235,7 +235,11 @@
              servizio come nel tie-break (natpf_fair_format.js); vale dalla partita dopo, resta salvata.
              «Direzione dei colpi» (B36.1, piano della direzione dei colpi): Classica (di base) · Nuova (in lavorazione, non
              da provare), accanto a «Mira del telefono» perché tutte e due decidono dove va la palla del telefono
-             (natpf_direction.js); vale dalla partita dopo, resta salvata, il chiosco e «Nuovo giocatore» non la toccano -->
+             (natpf_direction.js); vale dalla partita dopo, resta salvata, il chiosco e «Nuovo giocatore» non la toccano.
+             «Assi del giroscopio» (B74, documento del blocco B74 «assi-giroscopio»): Come oggi (di base) · Corretti (prova):
+             i telefoni Android leggono la rotazione nell'ordine giusto e rifanno la calibrazione; iPhone come prima
+             (natpf_gyro_axes.js), tra «Direzione dei colpi» e «Mira del telefono»; vale subito, resta salvata, il chiosco e
+             «Nuovo giocatore» non la toccano -->
         <!-- B41.4: «Modalità fiera: No · Sì» (natpf_fiera.js), in testa: accesa, la pagina della fiera prende il posto del menu e
              si apre «Telefoni dello stand»; la voce «Telefono» diventa «Telefoni dello stand ›» (natpf_kiosk.js) -->
         <div class="pause-grid">
@@ -258,6 +262,7 @@
           ><button type="button" data-staff="osk" title="Automatica (di base): la tastiera a schermo compare cliccando con il mouse (o toccando) un campo di testo e sparisce se si usa una tastiera vera. Sempre: compare in ogni campo di testo, anche con una tastiera vera. Mai: non compare. Resta salvata."><span>Tastiera a schermo</span><b>Automatica</b></button
           ><button type="button" data-staff="saver" title="Dopo 1, 2 o 5 minuti senza nessuno, con il gioco al menu, parte a schermo intero una partita dimostrativa tra due giocatori del gioco. Si chiude con il mouse, un tasto, un tocco o un telefono e si torna alla pagina di prima. Resta salvato."><span>Salvaschermo</span><b>Dopo 1 min</b></button
           ><button type="button" data-staff="dir" title="Classica (di base): la direzione dei colpi come sempre. Nuova: in lavorazione, non da provare; con il telefono la cima decide la direzione e il momento del colpo la ritocca. Vale dalla prossima partita e resta salvata: il chiosco e «Nuovo giocatore» non la cambiano."><span>Direzione dei colpi</span><b>Classica</b></button
+          ><button type="button" data-staff="axes" title="Come oggi (di base): i sensori dei telefoni come sempre. Corretti (prova): i telefoni Android leggono il giroscopio nell’ordine giusto e rifanno la calibrazione; iPhone come prima. Da provare sul telefono vero prima di lasciarlo acceso. Vale subito e resta salvata: il chiosco e «Nuovo giocatore» non la cambiano."><span>Assi del giroscopio</span><b>Come oggi</b></button
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
           <div class="staff-touch-status hidden" id="staff-touch-status">
             <button type="button" class="lobby-ghost hidden" data-staff="unlock-touch-p1">Sblocca Telefono 1</button>
