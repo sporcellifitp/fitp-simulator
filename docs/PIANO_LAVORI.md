@@ -36,7 +36,7 @@ quattro file, **pubblicata** (`c3adeae1`): installer dal link fisso verificato (
 R2 (sha256 `e5a34907…983b`), zip Cloudflare provato estratto (sha256 `a87fb88d…e3ed`); numeri in `docs/TRACCIA_PASSI.md`.
 **Prossima azione esatta (20/11):** B73 fatto e unito in `natpf-simulator` (direzione «Nuova» interna con «Classica» di
 base, passi veri delle mascotte, prove rotte sistemate, risposte di rete lette sempre; `docs/b73/`), versione **2026-11-20.1**
-in pubblicazione: test veloci, push, CI (installer, APK invariata 1.0.5), zip Cloudflare, consegna. Poi, per l'utente:
+**pubblicata** (`fb8f2d6a`; installer e zip verificati, sha256 in `docs/TRACCIA_PASSI.md`; APK invariata 1.0.5). Per l'utente:
 prova in fiera, Worker del registro con il file della 19.1 (formato 4), e la verifica dell'ordine degli assi del giroscopio
 sul telefono dello stand (indizio del B73, `docs/b73/misure-fiera-18-19.md`) prima di ogni passo ulteriore della B36. Se il
 lavoro si ferma: `docs/TRACCIA_PASSI.md` sezione 20/11 (B73).

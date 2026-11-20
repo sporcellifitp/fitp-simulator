@@ -10,8 +10,18 @@ Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) 
 `docs/archivio/TRACCIA_PASSI_fino_al_2026-11-18.md`. Si consulta, non si aggiorna. Le nuove sezioni vanno **in fondo**
 a questo file; quando supera ~300 righe si sposta di nuovo la parte vecchia in un file d'archivio datato.
 
-## STATO ATTUALE (19/11/2026)
+## STATO ATTUALE (20/11/2026)
 
+- **Versione pubblicata: 2026-11-20.1** (`fb8f2d6a`, B73: passi veri delle mascotte nella card, piedi che non entrano nel
+  campo, risposte di rete lette sempre, «Direzione dei colpi» nel pannello dello stand con «Classica» di base, prove rotte
+  sistemate). Pacchetti verificati: installer dal link fisso 131.436.915 B, sha256
+  `fac44a5ad4b05cb63ffaa36673141e02062aa32da1296981d1a5873858904fef`; zip Cloudflare 24.025.878 B, sha256
+  `c9d8de0660988bf52fcf33c3e0d5a192a148b574dc9820c9be65f04bf6e3fd58`, provato estratto (stessi errori attesi della 19.1).
+- **App NATPF Racchetta 1.0.5** invariata (sha256 `e5a34907…983b`): il B73 non tocca l'app.
+- **Worker del registro**: da ricaricare dall'utente con il file della 19.1 (formato 4); il B73 non aggiunge campi.
+- **Prove** (20/11): gioco 1954/1954, sito 322/322, LAN 13/13, desktop 56/56, build ok.
+
+**Prima (19/11): 2026-11-19.1**
 - **Versione pubblicata: 2026-11-19.1** (`c3adeae1`, B71 + B72: casella «Al servizio» che lampeggia e alone dopo 3 s,
   «Avversario» al posto di «CPU», lingua IT/EN dal telefono per giocatore, correzioni dai registri della fiera). Pacchetti
   verificati: installer dal link fisso 131.406.666 B, sha256
@@ -192,7 +202,7 @@ browser rotte da prima (`natpf-lob-drop` 136/137, `natpf-chi-serve` che si blocc
     dopo ~180 colpi bloccavano tutte le richieste della pagina (gioco, corretto, `natpf_fetch.js`); chi-serve e
     registro-sensori sistemate nella prova; `lan-e2e` aggiornata al flusso di oggi. Saturazione dell'accelerazione: pesa
     poco, nessuna correzione.
-- [~] Versione **2026-11-20.1** (quattro file), test veloci, push, CI, zip Cloudflare, consegna. **Ripresa se si ferma**:
-      `git log --oneline origin/natpf-simulator..`, test veloci, `git fetch`, push, `attesa-installer.sh 2026-11-20.1`.
+- [x] Versione **2026-11-20.1** (`fb8f2d6a`): test veloci verdi, push; installer dal link fisso verificato (sha256
+      `fac44a5a…4fef`), zip Cloudflare provato estratto (sha256 `c9d8de06…fd58`); consegnati.
 - Worker del registro: nessun campo nuovo nel B73 (`dir` e `nr` c'erano dal B36.0): basta il file della 19.1 (formato 4).
 - Non verificato: telefono vero, scheda grafica vera, programma Windows, ledwall; ordine degli assi sul telefono dello stand.
