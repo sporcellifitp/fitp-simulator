@@ -50,6 +50,10 @@ Come funziona (come le altre opzioni dello stand):
   di una versione di prima non manda il campo e la sua regola è quella di oggi;
 - scritta nel **registro dello stand** per partita e minigioco (`dir`) e per colpo (`nr: 1` = colpo con la regola nuova);
   nella **diagnostica** `partita.direzione`, `racchetta.regola: 'nuova'` e l'evento `stand.direzione` al cambio.
+  Sul computer del P2 della sfida (revisione del B73, `docs/b73/unione.md` §7) la riga «partita» del registro aspetta il
+  primo snapshot della partita dell'host e scrive la sua direzione (prima diceva sempre «classica»); la diagnostica scrive
+  l'evento `partita.direzione` (`da: 'host'`) quando lo snapshot la cambia. Il riassunto non conta nei gruppi della
+  direzione le partite del P2: i suoi colpi sono già nella partita dell'host (`chi: 'a'`).
 
 Schermate guardate (prova `natpf-menu`, non nel repository): pannello con «Nuova · in lavorazione» a 1024 × 600, 1024 × 1024 e
 720 × 720; la voce sta nell'ultima fila, «Nuova · in lavorazione» va su due righe solo dove i pulsanti sono stretti, il foglio

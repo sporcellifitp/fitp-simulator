@@ -209,6 +209,12 @@ export class RegistroStand {
     const wrap = (obj, name, fn) => { const orig = obj?.[name]; if (typeof orig !== 'function') return; obj[name] = function(...a){ return R.on ? fn.call(this, orig.bind(this), ...a) : orig.apply(this, a); }; };
     const dopo = (obj, name, fn) => wrap(obj, name, function(orig, ...a){ const out = orig(...a); const t = R.now(); try { fn.call(this, out, ...a); } catch {} R._costo(t); return out; });
     dopo(E, 'startNewMatch', () => R._partita());
+    // B36.1 (revisione del B73): computer del P2 della sfida, primo snapshot della partita dell'host applicato (non la lobby,
+    // non la pausa: non portano dir) → la riga «partita» in attesa, con la direzione dell'host
+    dopo(E, '_handleRoomStateUpdate', (_o, e) => {
+      const n = e?.snapshot;
+      if (R.partita?.riga && n && !n.lobby && !n.paused && !n.closed && E.lastAppliedSnapshotSeq === e.snapshotSeq) R._rigaPartita();
+    });
     wrap(E, '_awardPoint', function(orig, winner, why = ''){
       R._chiudiColpo();                                                      // B36.0: il colpo di prima (rimbalzo o no) prima del punto
       const b = E.ball, prima = R.partita ? { colpi: b?.rallyStrokeCount || 0, ultimo: b?.lastHitter || null, vuoto: E.natpfLastWhiff?.side || null, batte: E.score?.server || null, pt: (E.score?.playerPoints || 0) + (E.score?.opponentPoints || 0), game: (E.score?.playerGames || 0) + (E.score?.opponentGames || 0), over: E.phase === 'MATCH_OVER' } : null;
@@ -347,7 +353,7 @@ export class RegistroStand {
       m: {}, pause: new Pause(), cal0: {} };
     this._misFuori = {};
     for (const chi of Object.keys(this.tel)) if (this.tel[chi].ph?.connected){ this.partita.m[chi] = new MisureTelefono(); this.partita.cal0[chi] = this._calTel(chi); }
-    this._riga('partita', {
+    const riga = {
       n: G.n, ora: new Date(this.wallNow()).toISOString(), g: G.g, versione: NATPF_BUILD, modo,
       // contro la CPU: «Chi gioca» (Bambino · Ragazzo · Adulto) quando il livello viene da lì, e il livello
       ...(modo === 'cpu' ? { chi: whoOfLevel(liv), livello: liv } : {}), ruolo: E.playerRole === 'p2' ? 'p2' : undefined,
@@ -360,7 +366,8 @@ export class RegistroStand {
       // di fiera e segno di fiera. Prima non era scritta da nessuna parte e il riassunto la confondeva con il formato)
       stand: { chiosco: this.chiosco, fiera: prova(() => readFairMode()), mira: prova(() => readAimLevel()), caldo: !!E.natpfHot, ...(split ? { lancioAuto: !!duo?.autoToss, campoAperto: !!duo?.open } : {}),
         ...(prova(() => E.natpfUi?.fiera?.on || ui?.fiera?.on) ? { modo: 'fiera' } : {}) },
-      // B36.0: modello della direzione dei colpi della partita (natpf_direction.js; oggi sempre «classica»)
+      // B36.0: modello della direzione dei colpi della partita (natpf_direction.js; B36.1: «classica» di base, «nuova» in
+      // lavorazione). Sul computer del P2 della sfida la scrive _rigaPartita, con la direzione dell'host
       dir: dirModelOf(E),
       // stesso schermo: fasce dei due giocatori e chi riceve l'aiuto (il più giovane)
       ...(split ? { fasce: [E.natpfSplitBands?.p1 || 'adulto', E.natpfSplitBands?.p2 || 'adulto'], aiuto: duo?.help?.p1 ? 'g' : duo?.help?.p2 ? 'a' : null } : {}),
@@ -369,11 +376,20 @@ export class RegistroStand {
       // B71: ritardo dello schermo salvato (ms, prova del B50; 0 = mai misurato). In fiera non si somma alla correzione
       // dell'anticipo (natpf_phone_racket.natpfSwingToEngine), fuori sì: serve per leggere l'errore di tempo dei colpi
       ...(ctrl === 'telefono' ? { displayLagMs: this._ritardoSchermo() } : {}),
-    });
+    };
+    // B36.1 (revisione del B73): sul computer del P2 della sfida tra due computer la direzione dei colpi la decide l'host e
+    // arriva con lo snapshot (game_engine._handleRoomStateUpdate, campo dir); a inizio partita qui vale ancora «Classica»
+    // (DIR_DEFAULT). La riga aspetta il primo snapshot della partita dell'host (_rigaPartita: un host di prima non manda dir
+    // e la sua regola è «classica»), o la fine della partita se arriva prima. I colpi del P2 non arrivano prima (palla e fase
+    // vengono dall'host): l'ordine partita → colpi resta. Altrove si scrive subito, come prima
+    if (E.playerRole === 'p2' && modo === 'due-computer') this.partita.riga = riga;
+    else this._riga('partita', riga);
     if (this.visita) this.visita.partite++;
     this._salvaGiornata();
     this._fotogrammi();
   }
+  // riga «partita» in attesa (computer del P2 della sfida): si scrive con la direzione che il motore ha adesso
+  _rigaPartita(){ const P = this.partita, riga = P?.riga; if (!riga) return; P.riga = null; this._riga('partita', { ...riga, dir: dirModelOf(this.engine) }); }
   // conto dei fotogrammi in partita: fps medi, secondo peggiore, fotogramma più lungo, fotogrammi oltre 50 ms. A gioco
   // fermo (pausa, pagina nascosta) non conta
   _fotogrammi(){
@@ -411,6 +427,7 @@ export class RegistroStand {
   }
   _finePartita(esito, come){
     const P = this.partita, E = this.engine; if (!P) return;
+    this._rigaPartita();                                                     // (P2 della sfida: la riga se non c'è ancora)
     this._chiudiColpo();
     const f = P.f, kiosk = this.now() - this._chiosco < 3000, mis = this._misFine(P);
     this._riga('partita.fine', {

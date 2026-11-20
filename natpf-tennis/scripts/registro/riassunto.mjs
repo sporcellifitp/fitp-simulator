@@ -221,7 +221,7 @@ export class Riassunto {
     this.errori = new Map(); this.altro = { allenamenti: 0, allenamentiFiniti: 0, minigiochi: {}, note: 0, perse: 0 };
     // B36.0: direzione dei colpi del telefono (docs/b36/misure-b36-0.md): per modello della direzione e livello, partite
     // con e senza i campi nuovi, partite a Precision (zona chiesta → dove è caduta)
-    this.dir = { gruppi: {}, partite: { conCampi: 0, vecchie: 0, senzaCampi: 0 }, colpiRacchetta: 0, colpiConTempo: 0, precision: [], precisionSenzaFine: 0 };
+    this.dir = { gruppi: {}, partite: { conCampi: 0, vecchie: 0, senzaCampi: 0 }, partiteP2: 0, colpiRacchetta: 0, colpiConTempo: 0, precision: [], precisionSenzaFine: 0 };
     // B66 (docs/b66/registro-sensori.md): sensori, calibrazione, precisione dei gesti, collegamento, rete e blocco del telefono
     this.b66 = nuovoB66();
   }
@@ -440,6 +440,9 @@ export class Riassunto {
     if (Number.isFinite(r.ms) && !r.amb){ this.dir.colpiRacchetta++; if (Number.isFinite(r.tu)) this.dir.colpiConTempo++; }
     if (r.amb === 'minigioco' && Number.isInteger(r.zp)){ if (x.prec.length < 40) x.prec.push(r); return; }   // Precision: aspetta la riga del minigioco
     const P = x.P; if (r.amb || !P) return;
+    // revisione del B73: le partite del computer del P2 della sfida non entrano nei gruppi: i colpi del P2 li scrive già il
+    // registro dell'host (chi 'a', con la direzione dell'host), qui sarebbero contati due volte
+    if (P.r.ruolo === 'p2') return;
     const G = this._dirGruppo(P.r.dir || 'classica', this._chiave(P)), M = P.dir[r.chi === 'a' ? 'a' : 'g'], lato = r.chi === 'a' ? -1 : 1;
     G.colpi++; M.colpi++;
     if (Number.isFinite(r.dv)){ G.conDv++; G.dv.metti(r.dv); G.absDv.metti(Math.abs(r.dv)); if (Math.abs(r.dv) > 45) G.oltre45++; if (Math.abs(r.dv) > 60) G.oltre60++; if (M.dv.length < 20) M.dv.push(r.dv); }
@@ -463,6 +466,7 @@ export class Riassunto {
   // fine di una partita: partite storte (E5, come la diagnostica: almeno il 70 % dei colpi in una metà), durata, centro
   // della mira (mediana dello scarto della cima nei primi 20 colpi: stima dell'errore del seme, mire volute comprese)
   _dirFine(P, r){
+    if (P.r.ruolo === 'p2'){ this.dir.partiteP2++; return; }                // (come in _direzione: le ha già l'host)
     const G = this._dirGruppo(P.r.dir || 'classica', this._chiave(P));
     G.partite++; if (r?.esito === 'finita' && Number.isFinite(r.durS)) G.durata.metti(r.durS);
     for (const M of Object.values(P.dir)){
@@ -769,6 +773,7 @@ export function sezioneDirezione(R, sez){
     `Partite con i campi della direzione: ${N(P.conCampi)} su ${N(tot)}${P.vecchie ? `; ${N(P.vecchie)} di versioni del gioco di prima del B36.0` : ''}. Colpi della racchetta in partita con il tempo in finestre: ${N(D.colpiConTempo)} su ${N(D.colpiRacchetta)}.`,
     P.senzaCampi ? `ATTENZIONE: ${N(P.senzaCampi)} partite di un gioco con il formato delle righe 2 senza i campi della direzione: il Worker del registro non è stato ricaricato e li ha tolti (docs/b36/misure-b36-0.md, «Ricaricare il Worker»).` : '',
     'Cima: scarto in gradi dal proprio colpo abituale (+ a destra). Tempo: unità della finestra (+ anticipo). Rimbalzo: dove la palla tocca terra davvero, nel riferimento di chi colpisce (+ alla sua destra). Gruppi: modello della direzione · chi gioca · livello.',
+    D.partiteP2 ? `Partite del computer del Player 2 nelle sfide tra due computer: ${N(D.partiteP2)}, fuori dai gruppi (i colpi del Player 2 sono già nella partita dell'host, con la sua direzione).` : '',
     ...modelli.map(testoFit),
     prec.length ? 'Precision, come leggere: nella prova dello stand ognuno fa due partite «come ti viene» e poi due «gira la cima verso la zona», in quest’ordine; le righe qui sotto sono in ordine di tempo. «Cima verso la zona»: palle delle zone laterali con la cima girata dalla parte della zona (oltre 3°). Il cancello della B36.0: giro voluto entro ±15° su almeno 100 palle di 3 persone, nei blocchi «gira la cima» almeno 8 palle su 10 verso la zona, scarti oltre 45° al più il 5%.' : 'Nessuna partita a Precision con i campi della direzione.',
     D.precisionSenzaFine ? `Colpi di Precision senza la riga di fine del minigioco (registro tronco): ${N(D.precisionSenzaFine)} partite, lasciate fuori.` : '',

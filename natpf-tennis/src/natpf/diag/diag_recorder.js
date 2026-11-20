@@ -299,6 +299,14 @@ export class DiagRecorder {
       R.log('partita', R.lastMatch);
       return out;
     });
+    // B36.1 (revisione del B73): sul computer del P2 della sfida la direzione dei colpi la decide l'host e arriva con lo
+    // snapshot (campo dir) dopo l'inizio della partita, quando «partita» qui sopra ha già scritto «classica»: un evento
+    // «partita.direzione» quando cambia, e la partita in corso (anche la copia per le parti dopo) dice quella dell'host
+    wrap('_handleRoomStateUpdate', function(orig, ...a){
+      const out = orig(...a), M = R.lastMatch, d = dirModelOf(E);
+      if (M && E.playerRole === 'p2' && M.direzione !== d){ M.direzione = d; R.log('partita.direzione', { n: M.n, direzione: d, da: 'host' }); }
+      return out;
+    });
     // tc: secondi da adesso all'impatto previsto (prima si chiamava t e copriva l'istante dell'evento)
     // pos, meta: dove è chi gioca e dove va (targetPos) quando nasce il piano; ripiano: piano rifatto dopo una schiacciata o
     // una volée prevista e non colpita (diagnostiche del 30/10, C7: il P2 restava fermo, causa da capire)

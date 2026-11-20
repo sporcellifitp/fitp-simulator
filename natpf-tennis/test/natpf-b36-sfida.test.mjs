@@ -9,6 +9,11 @@ import assert from 'node:assert/strict';
 import { makeWorld, fetches, $ } from './ui-world.mjs';
 import { DIR_KEY } from '../src/natpf/natpf_direction.js';
 import { faceAimFromDev } from '../src/natpf/natpf_stroke_intent.js';
+import { RegistroStand } from '../src/natpf/registro/registro_registratore.js';
+import { codaMemoria } from '../src/natpf/registro/registro_coda.js';
+import { DiagRecorder } from '../src/natpf/diag/diag_recorder.js';
+import { memoryStore } from '../src/natpf/diag/diag_store.js';
+import { Riassunto } from '../scripts/registro/riassunto.mjs';
 
 const snapshots = since => fetches.slice(since).filter(f => String(f.url).includes('/api/match/sync')).map(f => JSON.parse(f.body).snapshot);
 
@@ -96,4 +101,110 @@ test('B36.1, pannello dello stand: «Direzione dei colpi» Classica ↔ Nuova, s
   assert.equal(localStorage.getItem(DIR_KEY), 'classica');
   assert.equal(voce().textContent, 'Classica');
   assert.match($('natpf-toast').textContent, /Classica, come sempre/);
+});
+
+// Revisione del B73 (docs/b73/unione.md, «Revisione e sistemazione», rilievo «p2-registro-dir»): sul computer del P2 la riga
+// «partita» del registro si scriveva subito dopo startNewMatch, quando la direzione vale ancora «Classica» (DIR_DEFAULT),
+// e i colpi del P2, giocati con la regola dell'host («Nuova»), finivano nel gruppo «classica · due-computer» del riassunto.
+// Ora sul P2 la riga «partita» aspetta il primo snapshot della partita dell'host (dir dell'host; un host di prima non lo
+// manda: «classica», la sua regola). In più il riassunto non conta nei gruppi della direzione le partite del P2: i colpi del
+// P2 li ha già il registro dell'host (chi 'a', con la direzione giusta), sarebbero contati due volte.
+const storageFinto = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: k => { m.delete(k); } }; };
+const snapPartita = (E, seq, extra = {}) => E._handleRoomStateUpdate({ p1Online: true, hostName: 'Ada', epoch: 'x', snapshotSeq: seq,
+  snapshot: { phase: 'RALLY', phaseTimer: 1, score: { ...E.score }, ball: { px: 0, py: 1.4, pz: 0, vx: 0, vy: 3, vz: -4, inPlay: true, lastHitter: 'player', shotType: 'TOPSPIN', rallyStrokeCount: 3 }, ...extra } });
+// un colpo del P2 (sull'host: il colpo vero; sul P2: la previsione locale), poi la palla vola
+function colpoP2(w){
+  const E = w.E, p = E.opponent, real = Math.random; Math.random = () => .5;
+  try {
+    E.autoPlayMode = false; E.phase = 'RALLY'; E.ball.inPlay = true; E.ball.lastHitter = 'player'; E.ball.bounceCountOnCurrentSide = 1; E.ball.rallyStrokeCount = 3;
+    p.pos.set(0, 0, -11.4); p.vel.set(0, 0, 0); E.ball.pos.set(-.6, 1, -10.9); E.ball.vel.set(0, 0, -18);
+    return E._natpfRacketShot({ ...colpoTel(10), natpfTau: .03, natpfLateSpan: .075 }, p, { lateral: .6 });
+  } finally { Math.random = real; }
+}
+const righeDi = async (coda, R) => { await R.blocco(); const rows = []; for (const b of await coda.elenco()) for (const l of (await coda.leggi(b.id)).trim().split('\n')) if (l) rows.push(JSON.parse(l)); return rows; };
+// un computer della sfida con il suo registro: role 'p1' (host su «hostDir») o 'p2' (snap: campi dello snapshot dell'host;
+// null: nessuno snapshot della partita)
+async function computerSfida(role, { hostDir = 'nuova', snap = { dir: 'nuova' } } = {}){
+  const w = await makeWorld({ controller: 'mouse', role }); w.advance(300);
+  const { E } = w, coda = codaMemoria();
+  if (role === 'p1'){ E.isMultiplayer = true; E.natpfDirRule = hostDir; E.autoPlayMode = false; }
+  const R = new RegistroStand({ engine: E, ui: {}, coda, storage: storageFinto(), now: () => E.elapsedTime*1000, wallNow: () => Date.UTC(2026, 10, 20, 10), win: null, raf: () => {}, timers: false });
+  E.startNewMatch({ showStartBanner: false });
+  return { w, E, R, coda };
+}
+
+test('B36.1 (revisione B73), computer del P2: la riga «partita» del registro ha la direzione dell’host, non «Classica» indovinata', async () => {
+  // host su «Nuova»: snapshot con dir 'nuova'
+  {
+    const { w, E, R, coda } = await computerSfida('p2');
+    snapPartita(E, 1, { dir: 'nuova' }); w.advance(50);
+    assert.equal(E.natpfDirModel, 'nuova');
+    assert.equal(colpoP2(w)?.out?.rule, 'nuova');
+    for (let i = 0; i < 240 && E.ball.inPlay; i++) E.step(1/120);
+    const rows = await righeDi(coda, R), part = rows.filter(r => r.k === 'partita');
+    assert.equal(part.length, 1, 'una riga «partita»');
+    assert.deepEqual({ modo: part[0].modo, ruolo: part[0].ruolo, dir: part[0].dir }, { modo: 'due-computer', ruolo: 'p2', dir: 'nuova' });
+    assert.ok(!rows.some(r => r.k === 'partita' && r.dir === 'classica'), 'nessuna riga del P2 dice «classica» per questa partita');
+    assert.deepEqual(rows.filter(r => r.k === 'colpo').map(c => ({ nr: c.nr, chi: c.chi })), [{ nr: 1, chi: 'a' }]);
+    assert.ok(rows.findIndex(r => r.k === 'partita') < rows.findIndex(r => r.k === 'colpo'), 'la riga «partita» viene prima dei suoi colpi');
+    // il riassunto del solo registro del P2: nessun colpo in «classica», nessun falso allarme «senza campi»
+    const S = new Riassunto(); for (const r of rows) S.aggiungi(r, { giorno: '2026-11-20', postazione: 'bbbbbbbb' }); S.fine();
+    assert.equal(S.dir.partite.senzaCampi, 0);
+    assert.ok(!Object.keys(S.dir.gruppi).some(k => k.startsWith('classica')), JSON.stringify(Object.keys(S.dir.gruppi)));
+  }
+  // host di prima (snapshot senza dir): «classica», la sua regola
+  {
+    const { w, E, R, coda } = await computerSfida('p2');
+    snapPartita(E, 1); w.advance(50);
+    const rows = await righeDi(coda, R);
+    assert.equal(rows.find(r => r.k === 'partita')?.dir, 'classica');
+  }
+  // partita chiusa prima di uno snapshot della partita (solo la lobby dell'host): la riga si scrive alla chiusura, prima
+  // della sua fine, con il numero giusto
+  {
+    const { w, E, R, coda } = await computerSfida('p2');
+    E._handleRoomStateUpdate({ p1Online: true, epoch: 'x', snapshotSeq: 1, snapshot: { lobby: true, fmt: E.matchFormat.id } }); w.advance(50);
+    E.startNewMatch({ showStartBanner: false });                  // la partita dopo
+    snapPartita(E, 2, { dir: 'nuova' }); w.advance(50);
+    const rows = await righeDi(coda, R), ks = rows.filter(r => r.k.startsWith('partita')).map(r => [r.k, r.n, r.dir]);
+    assert.deepEqual(ks.map(([k, n]) => [k, n]), [['partita', 1], ['partita.fine', 1], ['partita', 2]], JSON.stringify(ks));
+    assert.equal(ks[2][2], 'nuova');
+  }
+});
+
+test('B36.1 (revisione B73), host e P2 della stessa sfida al riassunto: il colpo del P2 una volta sola, nel gruppo della regola dell’host', async () => {
+  const host = await computerSfida('p1', { hostDir: 'nuova' });
+  assert.equal(colpoP2(host.w)?.out?.rule, 'nuova', 'sull’host il colpo vero del P2 con la regola nuova');
+  for (let i = 0; i < 240 && host.E.ball.inPlay; i++) host.E.step(1/120);
+  const hostRows = await righeDi(host.coda, host.R);
+  const p2 = await computerSfida('p2');
+  snapPartita(p2.E, 1, { dir: 'nuova' }); p2.w.advance(50);
+  colpoP2(p2.w); for (let i = 0; i < 240 && p2.E.ball.inPlay; i++) p2.E.step(1/120);
+  const p2Rows = await righeDi(p2.coda, p2.R);
+  assert.equal(hostRows.filter(r => r.k === 'colpo').length, 1); assert.equal(p2Rows.filter(r => r.k === 'colpo').length, 1);
+  const S = new Riassunto();
+  for (const r of hostRows) S.aggiungi(r, { giorno: '2026-11-20', postazione: 'aaaaaaaa' });
+  for (const r of p2Rows) S.aggiungi(r, { giorno: '2026-11-20', postazione: 'bbbbbbbb' });
+  S.fine();
+  const gruppi = Object.fromEntries(Object.values(S.dir.gruppi).filter(g => g.colpi || g.partite).map(g => [`${g.modello} · ${g.chiave}`, { colpi: g.colpi, partite: g.partite }]));
+  assert.deepEqual(gruppi, { 'nuova · due-computer': { colpi: 1, partite: 1 } }, JSON.stringify(gruppi));
+  assert.equal(S.dir.partite.senzaCampi, 0);
+});
+
+test('B36.1 (revisione B73), diagnostica sul computer del P2: la direzione della partita segue lo snapshot dell’host', async () => {
+  const w = await makeWorld({ controller: 'mouse', role: 'p2' }); w.advance(300);
+  const { E } = w, store = memoryStore();
+  const R = new DiagRecorder({ engine: E, ui: w.ui, store });
+  const id = await R.start({ webcamVideo: false, gameVideo: false, phoneSamples: false });
+  try {
+    E.startNewMatch({ showStartBanner: false });
+    snapPartita(E, 1, { dir: 'nuova' }); w.advance(50);
+    snapPartita(E, 2, { dir: 'nuova' }); w.advance(50);                // stessa direzione: niente di nuovo
+    assert.equal(R.lastMatch?.direzione, 'nuova', 'la partita in corso (anche la copia per le parti dopo) dice «nuova»');
+    await R.flush();
+  } finally { R.stop(); }
+  const ev = (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l));
+  const cambi = ev.filter(e => e.k === 'partita.direzione');
+  assert.equal(cambi.length, 1, JSON.stringify(cambi));
+  assert.deepEqual({ n: cambi[0].n, direzione: cambi[0].direzione, da: cambi[0].da }, { n: 1, direzione: 'nuova', da: 'host' });
 });
