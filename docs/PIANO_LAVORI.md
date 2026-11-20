@@ -36,7 +36,8 @@ quattro file, **pubblicata** (`c3adeae1`): installer dal link fisso verificato (
 R2 (sha256 `e5a34907…983b`), zip Cloudflare provato estratto (sha256 `a87fb88d…e3ed`); numeri in `docs/TRACCIA_PASSI.md`.
 **Prossima azione esatta (20/11, sera):** B74 fatto e unito (ordine degli assi del giroscopio confermato su Android;
 correzione dietro la voce dello stand «Assi del giroscopio», spenta di base; registro formato 5; `docs/b74/`); versione
-**2026-11-20.2** in pubblicazione (push, installer, zip, consegna con il Worker del registro nuovo). Per l'utente: ricaricare
+**2026-11-20.2** pubblicata (`9dfd3f58`; installer e zip verificati, sha256 in `docs/TRACCIA_PASSI.md`; Worker del
+registro nuovo consegnato). Per l'utente: ricaricare
 il Worker (pagina «Formato delle righe: 5»), provare «Corretti · prova» sul telefono Android vero (§8 di
 `docs/b74/assi-giroscopio.md`) e una giornata di registro con la voce accesa; poi ritaratura dei tipi di colpo e del verso
 (B75) prima di accenderla per tutti. B36 (direzione «Nuova») ferma fino ad allora.

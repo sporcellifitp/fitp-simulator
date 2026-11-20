@@ -10,8 +10,17 @@ Segni: `[x]` fatto e su GitHub · `[~]` in corso (c'è scritto il punto esatto) 
 `docs/archivio/TRACCIA_PASSI_fino_al_2026-11-18.md`. Si consulta, non si aggiorna. Le nuove sezioni vanno **in fondo**
 a questo file; quando supera ~300 righe si sposta di nuovo la parte vecchia in un file d'archivio datato.
 
-## STATO ATTUALE (20/11/2026)
+## STATO ATTUALE (20/11/2026, sera)
 
+- **Versione pubblicata: 2026-11-20.2** (`9dfd3f58`, B74: voce dello stand «Assi del giroscopio», «Come oggi» di base;
+  pannello dello stand che non scorre a 1280×720 con la riga delle cadute). Pacchetti verificati: installer dal link fisso
+  131.409.062 B, sha256 `359b47df9284f5418f640134ac9f2f61b7fad68f9f07e4378f21931d93121bb6`; zip Cloudflare 24.028.985 B, sha256
+  `e9e56aa42056bb3db7b490c872bcbe35e9fcc05fa93ad372e978e2bfaf29f40d`, provato estratto (stessi errori attesi).
+- **App NATPF Racchetta 1.0.5** invariata.
+- **Worker del registro**: da ricaricare con il file della **20.2** (formato **5**, campo `assi`): pagina «Formato delle righe: 5».
+- **Prove** (20/11 sera): gioco 1967/1967, sito 328/328, LAN 13/13, desktop 56/56, build ok.
+
+**Prima (20/11): 2026-11-20.1**
 - **Versione pubblicata: 2026-11-20.1** (`fb8f2d6a`, B73: passi veri delle mascotte nella card, piedi che non entrano nel
   campo, risposte di rete lette sempre, «Direzione dei colpi» nel pannello dello stand con «Classica» di base, prove rotte
   sistemate). Pacchetti verificati: installer dal link fisso 131.436.915 B, sha256
@@ -228,6 +237,7 @@ vero prima di accenderla.
       Prove: gioco 1967/1967, sito 328/328, LAN 13/13, desktop 56/56, build ok; nel browser verdi (menu 71/71, stesso-schermo
       b20 52/52 e b25 57/57 con 21 pulsanti, pannello-cadute 45/45, stand-layout 72/72, registro-sensori 23/23 dopo aver
       portato l'attesa del formato a 5, e le altre del §7 del documento).
-- [~] Versione **2026-11-20.2**, push, pacchetti, consegna con il Worker nuovo (formato 5).
+- [x] Versione **2026-11-20.2** (`9dfd3f58`): push; installer dal link fisso verificato (sha256 `359b47df…1bb6`), zip
+      Cloudflare provato estratto (sha256 `e9e56aa4…f40d`); consegnati con il Worker nuovo (formato 5).
 - Per l'utente: provare «Corretti · prova» sul telefono Android vero (§8 di `docs/b74/assi-giroscopio.md`) e poi una giornata
   di registro con l'interruttore acceso, prima di accenderlo per tutti; servirà ritarare tipi di colpo e verso.
