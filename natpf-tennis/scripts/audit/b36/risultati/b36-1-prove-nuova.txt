@@ -1,0 +1,38 @@
+# NATPF_DIREZIONE=nuova npm test (20/11, ramo b73-direzione): prove rosse con «Nuova» come valore di base
+# (registro-worker «testi enormi»: di tempo, verde da sola con la variabile). Motivi: docs/b73/direzione-b36-1.md §7
+
+# tests 1929
+# pass 1897
+# fail 31
+
+test/natpf-b18-t2-cpu-pressione.test.mjs | banco ridotto: obiettivi del passo sul gioco simulato (CPU in rete, palle facili, campo aperto a Pro, livelli) | 'casual/bambino 29.4%'
+test/natpf-b18-t2-servizio.test.mjs | D11 (revisione): a Casual chi batte tardi con il telefono non perde il servizio (partite sul motore vero, servizio con la forma) | 'tardi: punti diretti 17.1%, punti al servizio 43.5%, q 0.81 · insegnato: punti diretti 13.8%, punti al servizio 38.5%, q 1'
+test/natpf-b25-stesso-schermo.test.mjs | con le opzioni spente, le fasce uguali e le due regole nuove spente a mano le partite sono identiche a f08243a, punto per punto | expected: '909a097fe488' actual: '94b9ce9d9236'
+test/natpf-b32-movimento.test.mjs | B34: «in corsa» scritto solo da 0,8 della velocità massima; la regola del colpo in corsa e il registro non cambiano | 'Evento ora: 50 scritte in 80 punti (prima 201)'
+test/natpf-b33-fine-partita.test.mjs | B33: partita registrata a sorteggi fissi, i numeri della schermata sono quelli del motore | 'ci sono colpi fuori o in rete {"profile":"bambino","difficulty":"bambini","seed":23}: {"in":173,"fuori":0,"tutti":173}'
+test/natpf-b35-direzione.test.mjs | nel motore (banco): con il tempo sempre 1,2 finestre in ritardo il gesto buono non esce quasi mai e l'incrociato voluto resta incrociato | 'lungolinea voluto: {"n":16,"cross":0,"center":44,"line":56,"fuori":0,"rete":0,"perso":0}'
+test/natpf-b36-direzione.test.mjs | B36.1: i banchi dei giocatori simulati con «Nuova» giocano la regola nuova (e con «Classica» mai) | expected: 0 actual: 64
+test/natpf-b36-interruttore.test.mjs | B36.1: opzione dello stand — «Classica» di base, salvata, «Nuova» in lavorazione, il forzato dei banchi comanda | expected: 'classica' actual: 'nuova'
+test/natpf-b36-interruttore.test.mjs | B36.1: il motore legge la direzione a inizio partita (cambiarla in partita vale dalla partita dopo); il forzato comanda | expected: 'classica' actual: 'nuova'
+test/natpf-b36-interruttore.test.mjs | B36.1: il registro dello stand scrive la direzione della partita (dir) e i colpi con la regola nuova (nr) | expected: 'classica' actual: 'nuova'
+test/natpf-b36-misure.test.mjs | B36.0: modello della direzione — oggi solo «classica», nessun colpo con la regola nuova | expected: 'classica' actual: 'nuova'
+test/natpf-b36-misure.test.mjs | B36.0: sul motore vero il registro scrive il primo rimbalzo vero e «fuori» come l’arbitro del motore | expected: 'classica' actual: 'nuova'
+test/natpf-b36-misure.test.mjs | B36.0: rally-balance con lo scarto della cima — partite identiche alla base, colpi contati, nessuno con la regola nuova | expected: 'cd9e73f51f9c' actual: 'b3e03cbbf9b2'
+test/natpf-b36-sfida.test.mjs | B36.1, sfida tra due computer: l’host manda la direzione dei colpi nello snapshot della partita | expected: 'classica' actual: 'nuova'
+test/natpf-b36-sfida.test.mjs | B36.1, computer del P2: vale la direzione dell’host (anche con «Nuova» salvata qui), e la previsione del colpo del P2 la usa | expected: 'classica' actual: 'nuova'
+test/natpf-b36-sfida.test.mjs | B36.1, pannello dello stand: «Direzione dei colpi» Classica ↔ Nuova, salvata; il chiosco e «Nuovo giocatore» non la toccano | expected: 'Classica' actual: 'Nuova · in lavorazione'
+test/natpf-b42-scambi-lunghi.test.mjs | B42: contro la CPU e nello stesso schermo le partite cambiano solo dal 20° colpo dello scambio | 'Leggenda, tennista: prima ci sono punti uguali'
+test/natpf-campo-aperto.test.mjs | la posizione in cui il movimento porta il corpo non cambia la direzione: conta il lato del gesto e dove è la palla | 'rovescio 0.545, dritto -0.545'
+test/natpf-colpi-b15.test.mjs | tempo → direzione, uguale a ogni livello; stessi ingressi stesso esito | 'casual: 1.095,0.547,0,-0.547,-1.095'
+test/natpf-colpi-b15.test.mjs | persona vera (banco colpi.mjs): palle più aperte, e il mancino è lo specchio esatto del destro | 'x p90−p10 6.16'
+test/natpf-colpi-b15.test.mjs | forza più ampia: la persona vera varia di più velocità e profondità, il colpo tipico resta a 0,5 | 'profondità p90−p10 3.15'
+test/natpf-legend-b16.test.mjs | B16: la Leggenda batte i profili forti (torneo ridotto, deterministico) | 'tennista: chi gioca vince il 44% dei punti (massimo 33.5%)'
+test/natpf-mira-lato.test.mjs | banco: seme giusto nessuna partita sbilanciata né storta (17°, 20°, 23°); seme sbagliato di ±15° storto e meno da una parte con media e bassa | expected: 0 actual: 1
+test/natpf-racchetta-motore.test.mjs | incrociato e lungolinea: in anticipo la palla va incrociata, in ritardo lungolinea; il piatto sposta la direzione | 'anticipo -0.696'
+test/natpf-racchetta-motore.test.mjs | scambi che finiscono e dinamici: nessuno scambio infinito; palle lasciate andare, tagliati, pallonetti; volée e schiacciate quando la palla le chiede, mai la corsa a rete senza motivo | 'casual seme 7: {"shots":57,"cells":20,"top3Pct":42.1,"depth":{"p10":8.88,"p50":10.23,"p90":10.79},"side":{"p10":-3.44,"p50":0,"p90":3.6},"moves":57,"toNetPct":26.3,"toNetFromBackPct":15.8,"volleyPct"
+test/natpf-racchetta-motore.test.mjs | ritmo nel motore: dopo colpi sempre in anticipo, lo stesso colpo in anticipo non va più incrociato | 'senza ritmo: incrociato -0.696'
+test/natpf-registro.test.mjs | registro, B36.0: la riga del colpo aspetta il primo rimbalzo vero (rx, rz, fu come l’arbitro del motore); piatto, scarto, tempo; modello nella partita | expected: 'classica' actual: 'nuova'
+test/natpf-registro.test.mjs | registro, B36.0: Precision scrive la zona chiesta (zp) e il modello della direzione nella riga del minigioco | expected: 'classica' actual: 'nuova'
+? | motore a rete, la situazione dell'utente: stessa situazione in allungo (q 0,61), dodici gesti → dodici esiti diversi, nessuno debole o fallito | '-0.854 / 0.817'
+test/natpf-scritte-esito.test.mjs | revisione B18, motore: nessuna «Fuori» con la palla poi dentro (prima più di metà), nessun «in campo» poi Out | '{"before":[12,11],"after":[1,0,406,0]}'
+test/registro-worker.test.mjs | Worker del registro: testi enormi costano pochi millisecondi (il testo si taglia prima delle espressioni) | '39.3 ms'

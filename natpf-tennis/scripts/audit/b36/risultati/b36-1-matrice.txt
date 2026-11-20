@@ -1,0 +1,87 @@
+
+== direzione «classica» ==
+gesto                         posizione  giusti  fuori/rete  incr→lung  lung→incr  colpi
+piatto (gesto buono)          centro        69%         0%         0%         0%    576
+piatto (gesto buono)          destra        64%         0%         1%         2%    576
+piatto (gesto buono)          sinistra      63%         0%         2%         3%    576
+piatto (gesto buono)          TUTTE         65%         0%         1%         2%   1728
+naturale (gesto buono)        centro        74%         0%         0%         0%    576
+naturale (gesto buono)        destra        71%         0%         0%         0%    576
+naturale (gesto buono)        sinistra      69%         0%         1%         0%    576
+naturale (gesto buono)        TUTTE         71%         0%         0%         0%   1728
+tempo (gesto buono)           centro        58%         0%         0%         1%    576
+tempo (gesto buono)           destra        56%         0%         4%         7%    576
+tempo (gesto buono)           sinistra      53%         0%         3%         6%    576
+tempo (gesto buono)           TUTTE         56%         0%         2%         5%   1728
+insegnato (gesto buono)       centro        78%         0%         0%         0%    576
+insegnato (gesto buono)       destra        72%         0%         0%         0%    576
+insegnato (gesto buono)       sinistra      68%         0%         1%         1%    576
+insegnato (gesto buono)       TUTTE         73%         0%         0%         0%   1728
+piatto (persona vera)         centro        48%         0%         7%        20%    576
+piatto (persona vera)         destra        49%         0%        16%        19%    576
+piatto (persona vera)         sinistra      48%         0%        11%        26%    576
+piatto (persona vera)         TUTTE         48%         0%        11%        22%   1728
+naturale (persona vera)       centro        53%         0%         4%        19%    576
+naturale (persona vera)       destra        52%         0%         7%        14%    576
+naturale (persona vera)       sinistra      52%         0%         8%        22%    576
+naturale (persona vera)       TUTTE         53%         0%         7%        18%   1728
+tempo (persona vera)          centro        42%         0%        12%        27%    576
+tempo (persona vera)          destra        43%         0%        18%        31%    576
+tempo (persona vera)          sinistra      39%         0%        19%        25%    576
+tempo (persona vera)          TUTTE         41%         0%        16%        28%   1728
+insegnato (persona vera)      centro        51%         0%         4%        14%    576
+insegnato (persona vera)      destra        53%         0%        10%        15%    576
+insegnato (persona vera)      sinistra      51%         0%         9%        19%    576
+insegnato (persona vera)      TUTTE         52%         0%         8%        16%   1728
+-- serie: lo stesso voluto 14 volte, 20 serie (dritto del destro, scambi di prova, gesto buono, rimbalzo vero) --
+piatto     cross   giusti  69% ± 3  fuori/rete 0%  (280 colpi)
+piatto     center  giusti  67% ± 3  fuori/rete 0%  (280 colpi)
+piatto     line    giusti  48% ± 3  fuori/rete 0%  (280 colpi)
+insegnato  cross   giusti  78% ± 2  fuori/rete 0%  (280 colpi)
+insegnato  center  giusti  67% ± 3  fuori/rete 0%  (280 colpi)
+insegnato  line    giusti  61% ± 3  fuori/rete 0%  (280 colpi)
+
+== direzione «nuova» ==
+gesto                         posizione  giusti  fuori/rete  incr→lung  lung→incr  colpi
+piatto (gesto buono)          centro        75%         0%         0%         0%    576
+piatto (gesto buono)          destra        75%         0%         0%         0%    576
+piatto (gesto buono)          sinistra      74%         0%         0%         0%    576
+piatto (gesto buono)          TUTTE         75%         0%         0%         0%   1728
+naturale (gesto buono)        centro        72%         0%         0%         0%    576
+naturale (gesto buono)        destra        72%         0%         0%         0%    576
+naturale (gesto buono)        sinistra      70%         0%         0%         0%    576
+naturale (gesto buono)        TUTTE         71%         0%         0%         0%   1728
+tempo (gesto buono)           centro        39%         0%         4%         8%    576
+tempo (gesto buono)           destra        39%         0%         2%         7%    576
+tempo (gesto buono)           sinistra      39%         0%         6%        10%    576
+tempo (gesto buono)           TUTTE         39%         0%         4%         8%   1728
+insegnato (gesto buono)       centro        87%         0%         0%         0%    576
+insegnato (gesto buono)       destra        87%         0%         0%         0%    576
+insegnato (gesto buono)       sinistra      85%         0%         0%         0%    576
+insegnato (gesto buono)       TUTTE         86%         0%         0%         0%   1728
+piatto (persona vera)         centro        57%         0%         4%        13%    576
+piatto (persona vera)         destra        57%         0%         4%         9%    576
+piatto (persona vera)         sinistra      56%         0%         4%        14%    576
+piatto (persona vera)         TUTTE         57%         0%         4%        12%   1728
+naturale (persona vera)       centro        55%         0%         6%        15%    576
+naturale (persona vera)       destra        55%         0%         5%        13%    576
+naturale (persona vera)       sinistra      54%         0%         6%        15%    576
+naturale (persona vera)       TUTTE         55%         0%         5%        14%   1728
+tempo (persona vera)          centro        38%         0%        19%        35%    576
+tempo (persona vera)          destra        38%         0%        20%        35%    576
+tempo (persona vera)          sinistra      35%         0%        20%        35%    576
+tempo (persona vera)          TUTTE         37%         0%        20%        35%   1728
+insegnato (persona vera)      centro        61%         0%         3%         8%    576
+insegnato (persona vera)      destra        62%         0%         2%         8%    576
+insegnato (persona vera)      sinistra      60%         0%         2%        10%    576
+insegnato (persona vera)      TUTTE         61%         0%         2%         9%   1728
+-- serie: lo stesso voluto 14 volte, 20 serie (dritto del destro, scambi di prova, gesto buono, rimbalzo vero) --
+piatto     cross   giusti  67% ± 3  fuori/rete 0%  (280 colpi)
+piatto     center  giusti  78% ± 2  fuori/rete 0%  (280 colpi)
+piatto     line    giusti  50% ± 3  fuori/rete 0%  (280 colpi)
+insegnato  cross   giusti  78% ± 2  fuori/rete 0%  (280 colpi)
+insegnato  center  giusti  78% ± 2  fuori/rete 0%  (280 colpi)
+insegnato  line    giusti  61% ± 3  fuori/rete 0%  (280 colpi)
+
+colpi con la regola nuova: 21072 su 42144; 92 s
+
