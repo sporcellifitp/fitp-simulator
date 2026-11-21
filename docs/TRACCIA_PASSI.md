@@ -242,3 +242,17 @@ vero prima di accenderla.
       Cloudflare provato estratto (sha256 `e9e56aa4…f40d`); consegnati con il Worker nuovo (formato 5).
 - Per l'utente: provare «Corretti · prova» sul telefono Android vero (§8 di `docs/b74/assi-giroscopio.md`) e poi una giornata
   di registro con l'interruttore acceso, prima di accenderlo per tutti; servirà ritarare tipi di colpo e verso.
+
+## 21/11 · Prova allo stand di «Corretti» e «Nuova»; B75 preparazione del confronto nel riassunto del registro
+
+L'utente (21/11): «stiamo provando assi del giroscopio corretti e poi nuova direzione colpi, ora stiamo usando questi»;
+il registro della giornata arriva stasera o domattina.
+- [x] B75 preparazione (workflow `wf_d5aa1c6d-f2d`, solo strumenti di analisi, gioco invariato): sezione «Confronto: assi
+      del giroscopio × direzione dei colpi» in `natpf-tennis/scripts/registro/riassunto.mjs` (quattro gruppi oggi/corretti ×
+      classica/nuova: cima, lato e verso, tipi di colpo, tempo, calibrazione giocando, punti per livello, dove va la palla,
+      Precision, per telefono; avvisi di pochi dati), `finto.mjs --confronto=1`, prova `registro-confronto.test.mjs`
+      (11), documento `docs/b75/confronto-registro.md` (come leggerlo e criteri per accendere «Corretti» e per ritarare).
+      Revisione con due revisori: sette rilievi corretti. Prove: gioco 1978/1978, sito 328/328. Nessun pacchetto nuovo
+      (valgono quelli della 2026-11-20.2).
+- [ ] Quando arriva il registro: `node natpf-tennis/scripts/registro/riassunto.mjs <file del giorno> --out=<cartella>`,
+      leggere la sezione di confronto (`docs/b75/confronto-registro.md` §4), proporre la ritaratura (B75) all'utente.

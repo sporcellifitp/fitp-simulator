@@ -34,13 +34,11 @@ codice finale: gioco 1915/1915, sito 322/322, LAN 13/13, desktop 56/56, build ok
 controllo B51 di `natpf-fiera-telefoni.mjs` aggiornato al selettore della lingua: 66/66). Versione **2026-11-19.1** nei
 quattro file, **pubblicata** (`c3adeae1`): installer dal link fisso verificato (sha256 `0f1b11ea…ee72`), APK 1.0.5 su
 R2 (sha256 `e5a34907…983b`), zip Cloudflare provato estratto (sha256 `a87fb88d…e3ed`); numeri in `docs/TRACCIA_PASSI.md`.
-**Prossima azione esatta (20/11, sera):** B74 fatto e unito (ordine degli assi del giroscopio confermato su Android;
-correzione dietro la voce dello stand «Assi del giroscopio», spenta di base; registro formato 5; `docs/b74/`); versione
-**2026-11-20.2** pubblicata (`9dfd3f58`; installer e zip verificati, sha256 in `docs/TRACCIA_PASSI.md`; Worker del
-registro nuovo consegnato). Worker del registro ricaricato
-dall'utente il 21/11 (formato 5, controllato). Per l'utente: provare «Corretti · prova» sul telefono Android vero (§8 di
-`docs/b74/assi-giroscopio.md`) e una giornata di registro con la voce accesa; poi ritaratura dei tipi di colpo e del verso
-(B75) prima di accenderla per tutti. B36 (direzione «Nuova») ferma fino ad allora.
+**Prossima azione esatta (21/11):** l'utente prova allo stand «Assi del giroscopio: Corretti · prova» e «Direzione dei
+colpi: Nuova» con la 2026-11-20.2 (Worker del registro al formato 5, controllato). Pronto il confronto nel riassunto del
+registro (B75 preparazione, `docs/b75/confronto-registro.md`). Appena arriva il registro della giornata: riassunto,
+sezione di confronto, proposta di ritaratura di tipi di colpo e verso con «Corretti» (B75) e decisione sull'accensione;
+B36 dopo. Se il lavoro si ferma: `docs/TRACCIA_PASSI.md` sezione 21/11.
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 

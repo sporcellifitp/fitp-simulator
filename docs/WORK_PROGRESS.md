@@ -485,3 +485,12 @@ Prodotto: entrambi (solo repository). Vecchio sito, immagini dei blocchi, rami, 
   16/16, telefono-bloccato 12/12.
 - Non verificato: telefono vero (Android e iPhone), altri browser Android, Windows, ledwall; pannello sotto i 1000 px di
   larghezza (scorreva anche prima).
+
+## B75 preparazione · Confronto assi × direzione nel riassunto del registro (21/11/2026) · [x] (niente pacchetti nuovi)
+- Workflow `wf_d5aa1c6d-f2d`: 904e0cd0 (riassunto, finto, prova), 93aeafb2 (documento), babddc58 (sistemazione: P2 della sfida
+  tra due computer contato a parte, avvisi a due livelli e nelle tabelle di dettaglio, giorni, regole del §4). File:
+  `natpf-tennis/scripts/registro/riassunto.mjs`, `finto.mjs`, `natpf-tennis/test/registro-confronto.test.mjs`,
+  `docs/b75/confronto-registro.md`.
+- Verifiche: gioco **1978/1978**, sito **328/328**; riassunto sui registri veri del 18–19/11: un solo gruppo «oggi · classica»
+  (325 partite, 5.618 colpi), nessun errore; due revisori indipendenti hanno rifatto i numeri con script propri.
+- Non verificato: nessun registro vero con «Corretti» o «Nuova» ancora.
