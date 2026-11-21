@@ -19,6 +19,7 @@ const confronto = S => S.find(x => x.titolo.startsWith(TITOLO));
 const tabella = (sz, t) => sz.tabelle.find(x => x.titolo.startsWith(t));
 const riga = (sz, t, k) => tabella(sz, t)?.righe.find(r => r[0] === k);
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-confronto-'));
+const N = (v, d = 0) => v.toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 test('B75: nomi dei tipi di colpo, telefoni e gruppi', () => {
   assert.deepEqual(['TOPSPIN', 'FLAT', 'SLICE', 'LOB', 'DROP', 'SMASH', 'MOON', 'dritto', 'palla corta', null].map(tipoColpo), ['topspin', 'piatto', 'tagliato', 'pallonetto', 'palla corta', 'schiacciata', 'altri', 'altri', 'palla corta', 'altri']);
@@ -72,21 +73,23 @@ test('B75: valori noti nei quattro gruppi (righe scritte a mano), per telefono, 
 
   const C = R.cfr;
   assert.deepEqual(Object.keys(C.gruppi).sort(), [...CONFRONTO_GRUPPI].sort(), 'solo i quattro gruppi');
-  assert.deepEqual(C.partite, { formato5: 4, vecchie: 0, conAssi: 2, assiNonNoti: 0, dirNonNota: 0, p2: 0, senzaTelefono: 0 });
+  assert.deepEqual(C.partite, { formato5: 4, vecchie: 0, conAssi: 2, assiNonNoti: 0, dirNonNota: 0, p2: 0, p2Corretti: 0, senzaTelefono: 0 });
+  assert.deepEqual(C.p2Remoti, { colpi: 0, vuoti: 0, cal: 0 });
   assert.equal(C.precisionSenzaPartita, 1); assert.equal(C.calSenzaPartita, 0);
   const S = confronto(rapporto(R, L0)), testo = S.testo.join('\n');
   assert.ok(S, 'sezione del confronto');
   assert.ok(!testo.includes('ATTENZIONE'), testo);
+  assert.ok(!testo.includes('Più giornate') && !testo.includes('Differenze piccole') && !testo.includes('Colpi del Player 2 della sfida') && !testo.includes('Partite del computer del Player 2'), testo);
   assert.match(testo, /Gruppi: oggi · classica 1 partite, 5 colpi · oggi · nuova 1 partite, 3 colpi · corretti · classica 1 partite, 3 colpi · corretti · nuova 1 partite, 1 colpi\./);
   assert.match(testo, /Pochi dati \(meno di 20 partite o di 200 colpi: i numeri sono indizi, non bastano per decidere\): oggi · classica \(1 partite, 5 colpi\)/);
   assert.match(testo, /Con «oggi · nuova» la palla va dalla parte della cima\? Cima → rimbalzo 1,00 \(obiettivo E1: almeno 0,80\), tempo → rimbalzo —; con la cima girata \(\|piatto\| da 0,5\) la palla cade dalla sua parte in 100,0% dei colpi \(2\)\. Colpi giocati con la regola nuova: 2 su 3 colpi con la forma\./);
   assert.match(testo, /Partite a Precision senza nessuna partita della postazione \(assi non noti\): 1\./);
   // le tabelle, riga per riga
   assert.deepEqual(tabella(S, 'Gruppi').righe, [
-    ['oggi · classica', '1', '1', '120 s', '5', '0 su 5 (0%)', 'pochi dati (servono 20 partite e 200 colpi)'],
-    ['oggi · nuova', '1', '0', '—', '3', '2 su 3 (67%)', 'pochi dati (servono 20 partite e 200 colpi)'],
-    ['corretti · classica', '1', '1', '90 s', '3', '—', 'pochi dati (servono 20 partite e 200 colpi)'],
-    ['corretti · nuova', '1', '1', '60 s', '1', '—', 'pochi dati (servono 20 partite e 200 colpi)'],
+    ['oggi · classica', '1', '1', '120 s', '5', '0 su 5 (0%)', 'pochi dati (servono 20 partite e 200 colpi)', '2026-11-21 (1)'],
+    ['oggi · nuova', '1', '0', '—', '3', '2 su 3 (67%)', 'pochi dati (servono 20 partite e 200 colpi)', '2026-11-21 (1)'],
+    ['corretti · classica', '1', '1', '90 s', '3', '—', 'pochi dati (servono 20 partite e 200 colpi)', '2026-11-21 (1)'],
+    ['corretti · nuova', '1', '1', '60 s', '1', '—', 'pochi dati (servono 20 partite e 200 colpi)', '2026-11-21 (1)'],
   ]);
   assert.deepEqual(riga(S, 'Cima rispetto', 'oggi · classica'), ['oggi · classica', '5 (100%)', '10,0', '20,0', '70,0', '40,0%', '20,0%', '—']);
   assert.deepEqual(riga(S, 'Lato del colpo', 'oggi · classica'), ['oggi · classica', '5', '40,0%', '40,0%', '60% · 20% · 20%', '40,0%', '0,50', '20% · 20% · 60%']);
@@ -95,26 +98,26 @@ test('B75: valori noti nei quattro gruppi (righe scritte a mano), per telefono, 
   assert.deepEqual(riga(S, 'Tipi di colpo', 'corretti · nuova'), ['corretti · nuova', '0,0%', '0,0%', '0,0%', '0,0%', '100,0%', '0,0%', '0,0%', 'palla corta +100,0 punti']);
   assert.deepEqual(riga(S, 'Tempo del colpo', 'oggi · classica'), ['oggi · classica', '40,0%', '40,0%', '20,0%', '10', '60', '20,0%', '20,0%', '20,0 (1)']);
   assert.deepEqual(riga(S, 'Tempo del colpo', 'corretti · classica'), ['corretti · classica', '33,3%', '33,3%', '33,3%', '0', '50', '0,0%', '0,0%', '33,3 (1)']);
-  assert.deepEqual(tabella(S, 'Calibrazione giocando').righe, [['oggi · classica', '2', '50,0%', '0,0%', '50,0%', '0,0%', '0,0%']]);
+  assert.deepEqual(tabella(S, 'Calibrazione giocando').righe, [['oggi · classica', '2', '50,0%', '0,0%', '50,0%', '0,0%', '0,0%', 'pochi dati (servono 50 giocatori)']]);
   assert.deepEqual(tabella(S, 'Contro l’avversario').righe, [
-    ['oggi · classica · evento', '1', '1', '100,0%', '66,7%', '40,0%', '20,0%'],
-    ['oggi · nuova · bambini', '1', '0', '—', '—', '0,0%', '0,0%'],
-    ['corretti · classica · stesso schermo', '1', '1', '—', '—', '—', '—'],
-    ['corretti · nuova · evento', '1', '1', '0,0%', '—', '—', '—'],
+    ['oggi · classica · evento', '1', '1', '100,0%', '66,7%', '40,0%', '20,0%', '120 s', '3,0', 'pochi dati (servono 20 partite)'],
+    ['oggi · nuova · bambini', '1', '0', '—', '—', '0,0%', '0,0%', '—', '—', 'pochi dati (servono 20 partite)'],
+    ['corretti · classica · stesso schermo', '1', '1', '—', '—', '—', '—', '90 s', '0,0', 'pochi dati (servono 20 partite)'],
+    ['corretti · nuova · evento', '1', '1', '0,0%', '—', '—', '—', '60 s', '0,0', 'pochi dati (servono 20 partite)'],
   ]);
   assert.deepEqual(riga(S, 'Dove va la palla', 'oggi · classica'), ['oggi · classica', '5', '1,00', '—', '100,0% di 4', '29%', '40,0%', '20,0%', '80,0%', '—']);
   assert.deepEqual(riga(S, 'Dove va la palla', 'oggi · nuova'), ['oggi · nuova', '3', '1,00', '—', '100,0% di 2', '0%', '0,0%', '0,0%', '66,7%', '—']);
   assert.deepEqual(tabella(S, 'Precision').righe, [
-    ['corretti · nuova', '1', '10', '1000', '1000', '100% di 7', '0,00', '100% di 10'],
-    ['non noti · classica', '1', '10', '1000', '1000', '100% di 7', '0,00', '100% di 10'],
+    ['corretti · nuova', '1', '10', '1000', '1000', '100% di 7', '0,00', '100% di 10', '1', 'pochi dati (servono 100 palle di almeno 3 visite)'],
+    ['non noti · classica', '1', '10', '1000', '1000', '100% di 7', '0,00', '100% di 10', '1', 'pochi dati (servono 100 palle di almeno 3 visite)'],
   ]);
   assert.deepEqual(tabella(S, 'Per telefono').righe.map(r => r.slice(0, 3)), [
     ['oggi · classica · Android', '1', '5'], ['oggi · nuova · iPhone', '1', '3'],
     ['corretti · classica · Android riordinato', '1', '2'], ['corretti · classica · iPhone e altri, come oggi', '1', '1'],
     ['corretti · nuova · senza risposta (pagina di prima)', '1', '1'],
   ]);
-  assert.deepEqual(riga(S, 'Per telefono', 'oggi · classica · Android'), ['oggi · classica · Android', '1', '5', '20,0', '40,0%', '40,0%', '40,0%', '40,0%', '40,0% · 20,0%', '1,00', '50%']);
-  assert.deepEqual(riga(S, 'Per telefono', 'corretti · classica · iPhone e altri, come oggi').slice(5), ['100,0%', '—', '0,0%', '0,0% · 100,0%', '—', '—']);
+  assert.deepEqual(riga(S, 'Per telefono', 'oggi · classica · Android'), ['oggi · classica · Android', '1', '5', '20,0', '40,0%', '40,0%', '40,0%', '60,0%', '40,0%', '40,0% · 20,0%', '1,00', '50%', 'pochi dati (servono 200 colpi)']);
+  assert.deepEqual(riga(S, 'Per telefono', 'corretti · classica · iPhone e altri, come oggi').slice(5), ['100,0%', '—', '—', '0,0%', '0,0% · 100,0%', '—', '—', 'pochi dati (servono 200 colpi)']);
   assert.equal(C.telefoni['corretti · classica · iPhone e altri, come oggi'].vuoti, 1, 'il colpo a vuoto del Player 2 va al suo telefono');
 });
 
@@ -142,8 +145,11 @@ test('B75: centro della mira per partita e partite storte (E5) dai primi colpi d
   assert.match(testo, /Partite del computer del Player 2 della sfida: 1, fuori dal confronto\./);
   assert.match(testo, /Partite senza il telefono \(mouse, tastiera, webcam\): 1, fuori dal confronto\./);
   assert.match(testo, /Nessuna partita in: oggi · classica, oggi · nuova, corretti · classica\./);
-  assert.equal(riga(S, 'Cima rispetto', 'corretti · nuova')[7], '30,0 · 30,0 (1 partite)');
-  assert.equal(riga(S, 'Dove va la palla', 'corretti · nuova')[9], '100,0% (1)');
+  // (revisione U6: si contano i giocatori di ogni partita, non le partite)
+  assert.equal(tabella(S, 'Cima rispetto').colonne[7], 'Centro della mira di ogni giocatore in ogni partita: metà sotto · 9 su 10 sotto (°)');
+  assert.equal(tabella(S, 'Dove va la palla').colonne[9], 'E5 partite storte, per giocatore (≤ 10%)');
+  assert.equal(riga(S, 'Cima rispetto', 'corretti · nuova')[7], '30,0 · 30,0 (1 giocatori)');
+  assert.equal(riga(S, 'Dove va la palla', 'corretti · nuova')[9], '100,0% (1 giocatori giudicati)');
 });
 
 test('B75: registri finti con i quattro gruppi: il riassunto dà i numeri della verità del generatore', async () => {
@@ -184,12 +190,22 @@ test('B75: registri finti con i quattro gruppi: il riassunto dà i numeri della 
     assert.equal(T('corretti · classica · Android riordinato').vcBassa, 0, 'verso sicuro con gli Android riordinati (vc da 0,4)');
     assert.ok(vcb('oggi · classica') > .2, 'verso incerto di oggi');
     const S = confronto(r.sezioni), testo = S.testo.join('\n');
-    assert.ok(!testo.includes('ATTENZIONE') && !testo.includes('Pochi dati') && !testo.includes('Nessuna partita'), testo);
+    assert.ok(!testo.includes('ATTENZIONE') && !testo.includes('Pochi dati') && !testo.includes('Nessuna partita') && !testo.includes('Differenze piccole'), testo);
     for (const x of tabella(S, 'Gruppi').righe) assert.equal(x[6], '—', `${x[0]}: abbastanza dati`);
+    // (revisione U5: due giornate finte, 240 partite ciascuna)
+    assert.match(testo, /Più giornate nello stesso confronto: 2026-11-14 \(240 partite\), 2026-11-15 \(240 partite\)\./);
+    for (const x of tabella(S, 'Gruppi').righe) assert.equal(x[7], `2026-11-14 (${N(verita(x[0])[0].partite)}) · 2026-11-15 (${N(verita(x[0])[1].partite)})`, x[0]);
     assert.match(riga(S, 'Tipi di colpo', 'corretti · classica')[8], /^(pallonetto \+|topspin −)\d/, 'più pallonetti con gli Android riordinati');
     assert.match(riga(S, 'Tipi di colpo', 'oggi · nuova')[8], /^\S+( corta)? [+−]?\d,\d punti$/);
     assert.equal(tabella(S, 'Per telefono').righe.length, 8, 'Android e iPhone in ognuno dei quattro gruppi');
-    assert.equal(tabella(S, 'Contro l’avversario').righe.length, 16, 'tre livelli e lo stesso schermo per gruppo');
+    assert.equal(tabella(S, 'Contro l’avversario').righe.length, 20, 'tre livelli, tutti i livelli insieme e lo stesso schermo per gruppo');
+    // (revisione U3: la riga «tutti i livelli» è la somma dei livelli contro l'avversario della verità del generatore)
+    for (const k of CONFRONTO_GRUPPI){
+      const w = { partite: 0, finite: 0, vinte: 0, punti: 0, vinti: 0 };
+      for (const v of verita(k)) for (const [lv, x] of Object.entries(v.livelli)) if (lv !== 'stesso schermo') for (const c of Object.keys(w)) w[c] += x[c];
+      const T = riga(S, 'Contro l’avversario', `${k} · tutti i livelli contro l’avversario`);
+      assert.deepEqual(T.slice(1, 5), [N(w.partite), N(w.finite), `${N(100*w.vinte/w.finite, 1)}%`, `${N(100*w.vinti/w.punti, 1)}%`], k);
+    }
     assert.equal(tabella(S, 'Precision').righe.length, 4);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
@@ -250,4 +266,152 @@ test('B75: Worker non ricaricato: avviso chiaro, partite nei gruppi «non noti»
   const t2 = confronto(rapporto(W, L0)).testo.join('\n');
   assert.ok(!t2.includes('ATTENZIONE'));
   assert.match(t2, /Nessuna partita con «Corretti»: o la voce dello stand era spenta, o il Worker è fermo al formato 4 \(lascia displayLagMs e toglie solo `assi`: il riassunto non può accorgersene\)\. Prima della prova controllare che la pagina del Worker dica «Formato delle righe: 5»\./);
+});
+
+/* ---------- revisione del B75 (docs/b75/confronto-registro.md, «Revisione»): rilievi B75-N1 e U1–U6 ---------- */
+// N partite di fila in un gruppo, sulla postazione ctx (o: assi, dir, modo, livello, so, colpi per partita, cal livello della
+// calibrazione giocando dentro la partita, ora della prima riga)
+function partiteDi(R, ctx, n, o = {}){
+  const { assi = 'oggi', dir = 'classica', modo = 'cpu', livello = 'evento', so = 'Android 14', colpi = 1, cal = null, ora = null, punti = 0 } = o;
+  for (let i = 0; i < n; i++){
+    const t = (R._t = (R._t || 0) + 100);
+    R.aggiungi({ k: 'partita', t, n: i + 1, versione: '2026-11-20.2', ...(ora && !i ? { ora } : {}), modo, ...(modo === 'cpu' ? { chi: 'adulto', livello } : {}), ctrl: 'telefono', displayLagMs: 0,
+      stand: assi === 'corretti' ? { assi } : {}, tel: { so, ...(assi === 'corretti' ? { assi: /android/i.test(so) ? 'corretti' : 'oggi' } : {}) }, dir }, ctx);
+    if (cal) R.aggiungi({ k: 'calibrazione', t: t + 1, chi: 'g', tipo: 'giocando', finita: true, prove: 6, livello: cal }, ctx);
+    for (let c = 0; c < colpi; c++) R.aggiungi({ k: 'colpo', t: t + 2 + c, n: i + 1, gesto: 'TOPSPIN', voto: 'perfect', ms: 0 }, ctx);
+    for (let p = 0; p < punti; p++) R.aggiungi({ k: 'punto', t: t + 50 + p, n: i + 1, p: p + 1, vince: p % 2 ? 'a' : 'g', fine: 'vincente', colpi: 3 }, ctx);
+    R.aggiungi({ k: 'partita.fine', t: t + 90, n: i + 1, esito: 'finita', vince: 'g', durS: 60 }, ctx);
+  }
+}
+
+test('B75 revisione (N1): sfida tra due computer: i colpi del Player 2 fuori dai gruppi dell’host, nessun telefono con il nome sbagliato, nessun avviso falso', () => {
+  const H = { giorno: '2026-11-21', postazione: 'aaaaaaaa' }, P2 = { giorno: '2026-11-21', postazione: 'bbbbbbbb' }, V = '2026-11-20.2';
+  // host con la voce spenta (oggi), computer del P2 con «Corretti» e un Android riordinato
+  const sfida = hostAssi => {
+    const R = new Riassunto();
+    R.aggiungi({ k: 'avvio', t: 0, v: 5, versione: V, ora: '2026-11-21T09:00:00.000Z' }, H);
+    R.aggiungi({ k: 'partita', t: 1, n: 1, versione: V, modo: 'due-computer', ctrl: 'telefono', displayLagMs: 0, stand: hostAssi ? { assi: 'corretti' } : {}, tel: { so: 'Android 14', ...(hostAssi ? { assi: 'corretti' } : {}) }, dir: 'classica' }, H);
+    R.aggiungi({ k: 'calibrazione', t: 2, chi: 'a', tipo: 'giocando', finita: true, prove: 6, livello: 'ok' }, H);
+    for (let i = 0; i < 10; i++) R.aggiungi({ k: 'colpo', t: 3 + i, n: 1, gesto: 'TOPSPIN', voto: 'perfect', ms: 0 }, H);
+    // 30 colpi del P2 sull'host (chi 'a'): scarto della cima e rimbalzo (abbastanza per centro della mira ed E5)
+    for (let i = 0; i < 30; i++) R.aggiungi({ k: 'colpo', t: 20 + i, n: 1, chi: 'a', gesto: 'LOB', voto: 'perfect', ms: 0, dv: 40, pf: .5, d: .5, tu: 0, lato: 1, rx: -3, rz: 9 }, H);
+    R.aggiungi({ k: 'vuoto', t: 55, n: 1, chi: 'a', perche: 'tardi', ms: -200 }, H);
+    R.aggiungi({ k: 'partita.fine', t: 60, n: 1, esito: 'finita', vince: 'g', durS: 60 }, H);
+    R.aggiungi({ k: 'avvio', t: 0, v: 5, versione: V, ora: '2026-11-21T09:00:00.000Z' }, P2);
+    R.aggiungi({ k: 'partita', t: 1, n: 1, versione: V, modo: 'due-computer', ruolo: 'p2', ctrl: 'telefono', displayLagMs: 0, stand: { assi: 'corretti' }, tel: { so: 'Android 14', assi: 'corretti' }, dir: 'classica' }, P2);
+    for (let i = 0; i < 30; i++) R.aggiungi({ k: 'colpo', t: 20 + i, n: 1, gesto: 'LOB', voto: 'perfect', ms: 0 }, P2);
+    R.aggiungi({ k: 'partita.fine', t: 60, n: 1, esito: 'finita', vince: 'a', durS: 60 }, P2);
+    R.fine();
+    return R;
+  };
+  const R = sfida(false), C = R.cfr, G = C.gruppi['oggi · classica'];
+  assert.deepEqual(Object.keys(C.gruppi), ['oggi · classica']);
+  assert.deepEqual([G.partite, G.colpi, G.vuoti, G.seme.n, G.giudicate], [1, 10, 0, 0, 0], 'nel gruppo dell’host solo i suoi colpi');
+  assert.deepEqual(G.cal, {}, 'la calibrazione del P2 non è nel gruppo dell’host');
+  assert.deepEqual(Object.keys(C.telefoni), ['oggi · classica · Android'], 'nessun telefono «altro o non noto» per il P2');
+  assert.deepEqual(C.p2Remoti, { colpi: 30, vuoti: 1, cal: 1 });
+  assert.deepEqual([C.partite.p2, C.partite.p2Corretti], [1, 1]);
+  const S = confronto(rapporto(R, L0)), testo = S.testo.join('\n');
+  assert.match(testo, /Gruppi: oggi · classica 1 partite, 10 colpi · /);
+  assert.match(testo, /Partite del computer del Player 2 della sfida: 1 \(1 con «Corretti»\), fuori dal confronto\./);
+  assert.match(testo, /Colpi del Player 2 della sfida tra due computer: 30 \(più 1 colpi a vuoto e 1 calibrazioni giocando\), fuori dal confronto: gli assi del suo telefono li decide il suo computer, non quello dell’host\./);
+  assert.ok(!/o il Worker è fermo al formato 4/.test(testo), 'niente dubbio sul Worker: la riga del P2 ha tenuto `assi`');
+  assert.match(testo, /Nessuna partita con «Corretti» nel confronto: la voce era accesa solo sul computer del Player 2 della sfida \(1 partite\)/);
+  assert.ok(!/i suoi colpi sono già nella partita dell’host/.test(testo), 'il testo non dice più che i colpi del P2 sono nella partita dell’host');
+  // host con «Corretti»: il telefono del P2 non diventa «senza risposta (pagina di prima)»
+  const R2 = sfida(true);
+  assert.deepEqual(Object.keys(R2.cfr.telefoni), ['corretti · classica · Android riordinato']);
+  assert.equal(R2.cfr.gruppi['corretti · classica'].colpi, 10);
+  assert.ok(!/Nessuna partita con «Corretti»/.test(confronto(rapporto(R2, L0)).testo.join('\n')));
+});
+
+test('B75 revisione (U1): da 20 a 99 partite per gruppo l’avviso dice che bastano solo per differenze grandi; da 100 «—»', async () => {
+  const A = { giorno: '2026-11-21', postazione: 'abcd1234' }, R = new Riassunto();
+  R.aggiungi({ k: 'avvio', t: 0, v: 5, versione: '2026-11-20.2' }, A);
+  partiteDi(R, A, 19, { colpi: 11 });
+  partiteDi(R, A, 20, { dir: 'nuova', colpi: 10 });
+  partiteDi(R, A, 99, { assi: 'corretti', colpi: 3 });
+  partiteDi(R, A, 100, { assi: 'corretti', dir: 'nuova', colpi: 2 });
+  R.fine();
+  const S = confronto(rapporto(R, L0)), testo = S.testo.join('\n'), grandi = 'bastano solo per differenze di 10 punti o più (per 2–5 punti servono 100 partite)';
+  assert.deepEqual(tabella(S, 'Gruppi').righe.map(x => [x[0], x[1], x[6]]), [
+    ['oggi · classica', '19', 'pochi dati (servono 20 partite e 200 colpi)'],
+    ['oggi · nuova', '20', grandi], ['corretti · classica', '99', grandi], ['corretti · nuova', '100', '—'],
+  ]);
+  assert.match(testo, /Differenze piccole non decidibili \(da 20 a 99 partite: contano solo differenze di 10 punti o più; le soglie di 2–5 punti del documento, §4\.2 e §4\.4, valgono da 100 partite per gruppo, sotto il risultato è «non decidibile: continuare la prova»\): oggi · nuova \(20 partite\), corretti · classica \(99 partite\)\./);
+  // un giorno finto da 100 partite (25 per gruppo): nessun gruppo con «—»
+  const dir = tmp();
+  try {
+    await scriviFinto({ out: dir, giorni: 1, partite: 100, seme: 1, confronto: true });
+    const S2 = confronto((await riassumi(dir, { quando: 'prova' })).sezioni);
+    for (const x of tabella(S2, 'Gruppi').righe) assert.equal(x[6], grandi, `${x[0]}: ${x[1]} partite`);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('B75 revisione (U2): avvisi di pochi dati nelle tabelle per telefono, per livello, Precision (con le visite) e calibrazione giocando', () => {
+  const A = { giorno: '2026-11-21', postazione: 'abcd1234' }, R = new Riassunto();
+  R.aggiungi({ k: 'avvio', t: 0, v: 5, versione: '2026-11-20.2' }, A);
+  // oggi · classica: 19 partite a Bambini (iPhone, 10 colpi: 190) e 20 a Evento (Android, 10 colpi: 200), calibrazioni ok
+  partiteDi(R, A, 19, { livello: 'bambini', so: 'iPhone iOS 17', colpi: 10, cal: 'ok', punti: 2 });
+  partiteDi(R, A, 20, { livello: 'evento', colpi: 10, cal: 'none', punti: 2 });
+  // oggi · nuova: 800 calibrazioni (metà ok): la differenza che conta scende a 5 punti
+  partiteDi(R, A, 400, { dir: 'nuova', cal: 'ok' }); partiteDi(R, A, 400, { dir: 'nuova', cal: 'none' });
+  // Precision: tre partite in due visite (assi dell'ultima partita della postazione, «oggi»; direzione della riga: «classica»)
+  const precision = t0 => { for (const [zp, z] of PRECISION_ZONES.entries()) R.aggiungi({ k: 'colpo', t: t0 + zp, amb: 'minigioco', gesto: 'TOPSPIN', ms: 0, lato: 1, pf: 0, tu: 0, rx: z.x, rz: z.z, zp }, A); R.aggiungi({ k: 'minigioco', t: t0 + 20, gioco: 'precision', finito: true, punti: 1000, durS: 60, dir: 'classica' }, A); };
+  precision(900000); precision(900100);
+  R.aggiungi({ k: 'visita', t: 900200, durS: 300, partite: 0, posti: { menu: 3 } }, A);
+  precision(900300);
+  R.fine();
+  const S = confronto(rapporto(R, L0)), ultima = (t, k) => riga(S, t, k)?.at(-1);
+  // per telefono: sotto 200 colpi
+  assert.equal(tabella(S, 'Per telefono').colonne.at(-1), 'Avviso');
+  assert.equal(ultima('Per telefono', 'oggi · classica · iPhone'), 'pochi dati (servono 200 colpi)');
+  assert.equal(ultima('Per telefono', 'oggi · classica · Android'), '—');
+  // per livello: sotto 20 partite
+  assert.equal(tabella(S, 'Contro l’avversario').colonne.at(-1), 'Avviso');
+  assert.equal(ultima('Contro l’avversario', 'oggi · classica · bambini'), 'pochi dati (servono 20 partite)');
+  assert.equal(ultima('Contro l’avversario', 'oggi · classica · evento'), '—');
+  // Precision: 30 palle in 2 visite
+  assert.deepEqual(tabella(S, 'Precision').colonne.slice(-2), ['Visite (circa le persone)', 'Avviso']);
+  const pr = riga(S, 'Precision', 'oggi · classica');
+  assert.deepEqual([...pr.slice(1, 3), ...pr.slice(-2)], ['3', '30', '2', 'pochi dati (servono 100 palle di almeno 3 visite)']);
+  // calibrazione giocando: 39 giocatori (pochi dati), 800 (conta una differenza di 5 punti: «—»)
+  assert.equal(tabella(S, 'Calibrazione giocando').colonne.at(-1), 'Avviso');
+  assert.equal(ultima('Calibrazione giocando', 'oggi · classica'), 'pochi dati (servono 50 giocatori)');
+  assert.equal(ultima('Calibrazione giocando', 'oggi · nuova'), '—');
+  const R3 = new Riassunto(); R3.aggiungi({ k: 'avvio', t: 0, v: 5, versione: '2026-11-20.2' }, A); partiteDi(R3, A, 50, { cal: 'ok' }); partiteDi(R3, A, 22, { cal: 'none' }); R3.fine();
+  assert.equal(confronto(rapporto(R3, L0)).tabelle.find(t => t.titolo.startsWith('Calibrazione giocando')).righe[0].at(-1), 'conta solo una differenza di 17 punti o più');
+});
+
+test('B75 revisione (U3): riga «tutti i livelli» contro l’avversario per gruppo, durata e punti a partita anche per lo stesso schermo', () => {
+  const A = { giorno: '2026-11-21', postazione: 'abcd1234' }, R = new Riassunto();
+  R.aggiungi({ k: 'avvio', t: 0, v: 5, versione: '2026-11-20.2' }, A);
+  partiteDi(R, A, 3, { livello: 'bambini', punti: 4 }); partiteDi(R, A, 2, { livello: 'leggenda', punti: 2 }); partiteDi(R, A, 4, { modo: 'stesso-schermo', punti: 5 });
+  R.fine();
+  const S = confronto(rapporto(R, L0)), T = tabella(S, 'Contro l’avversario');
+  assert.deepEqual(T.colonne, ['Assi · direzione · livello', 'Partite', 'Finite', 'Vinte da chi gioca', 'Punti vinti da chi gioca', 'E2 oltre 2,5 m', 'E3 fuori con il tempo nella finestra', 'Durata (media)', 'Punti a partita (finite)', 'Avviso']);
+  assert.deepEqual(T.righe.map(x => [x[0], x[1], x[2], x[3], x[4], x[7], x[8]]), [
+    ['oggi · classica · bambini', '3', '3', '100,0%', '50,0%', '60 s', '4,0'],
+    ['oggi · classica · leggenda', '2', '2', '100,0%', '50,0%', '60 s', '2,0'],
+    ['oggi · classica · tutti i livelli contro l’avversario', '5', '5', '100,0%', '50,0%', '60 s', '3,2'],
+    ['oggi · classica · stesso schermo', '4', '4', '—', '—', '60 s', '5,0'],
+  ]);
+});
+
+test('B75 revisione (U5): più giornate nello stesso confronto: giorni di ogni gruppo e un avviso', () => {
+  const A = { giorno: '2026-11-18', postazione: 'abcd1234' }, B = { giorno: '2026-11-21', postazione: 'abcd1234' }, R = new Riassunto();
+  R.aggiungi({ k: 'avvio', t: 0, v: 3, versione: '2026-11-18.3' }, A);
+  partiteDi(R, A, 2, { ora: '2026-11-18T10:00:00.000Z' });
+  R.aggiungi({ k: 'avvio', t: 0, v: 5, versione: '2026-11-20.2' }, B);
+  partiteDi(R, B, 3, { ora: '2026-11-21T10:00:00.000Z' }); partiteDi(R, B, 1, { assi: 'corretti' });
+  R.fine();
+  const S = confronto(rapporto(R, L0)), testo = S.testo.join('\n');
+  assert.equal(tabella(S, 'Gruppi').colonne.at(-1), 'Giorni (partite)');
+  assert.equal(riga(S, 'Gruppi', 'oggi · classica').at(-1), '2026-11-18 (2) · 2026-11-21 (3)');
+  assert.equal(riga(S, 'Gruppi', 'corretti · classica').at(-1), '2026-11-21 (1)');
+  assert.equal(riga(S, 'Gruppi', 'oggi · nuova').at(-1), '—');
+  assert.match(testo, /Più giornate nello stesso confronto: 2026-11-18 \(2 partite\), 2026-11-21 \(4 partite\)\. I gruppi possono mescolare giornate diverse \(visitatori, versioni del gioco, postazioni\): per decidere usare solo il file del giorno della prova \(docs\/b75\/confronto-registro\.md §4\.1 punto 3\)\./);
+  // un giorno solo: niente avviso
+  const R1 = new Riassunto(); R1.aggiungi({ k: 'avvio', t: 0, v: 5, versione: '2026-11-20.2' }, B); partiteDi(R1, B, 2, { ora: '2026-11-21T10:00:00.000Z' }); R1.fine();
+  assert.ok(!confronto(rapporto(R1, L0)).testo.join('\n').includes('Più giornate'));
 });

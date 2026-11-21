@@ -195,6 +195,14 @@ export const CONFRONTO_GRUPPI = Object.freeze(['oggi · classica', 'oggi · nuov
 // sotto queste soglie un gruppo ha «pochi dati» (i colpi come la sezione «Direzione», DIR_MIN; le partite come il criterio
 // della B36.8: almeno 20 partite)
 export const CONFRONTO_MIN = Object.freeze({ partite: 20, colpi: 200 });
+// revisione del B75 (U1): da 20 a 99 partite per gruppo contano solo differenze grandi (10 punti o più); le soglie di 2–5
+// punti del documento (§4.2, §4.4) valgono da 100 partite per gruppo (docs/b75/confronto-registro.md §4.1 punto 4)
+export const CONFRONTO_FINE = Object.freeze({ partite: 100 });
+// revisione del B75 (U2): sotto queste soglie le tabelle di dettaglio dicono «pochi dati»: colpi per telefono (§4.1), partite
+// per livello (criterio 6 del §4.2), palle e visite di Precision (B36.8: 100 palle di almeno 3 persone), giocatori della
+// calibrazione giocando. Da 50 giocatori in su la tabella dice la differenza più piccola che conta (caso peggiore, una quota
+// del 50 %: 2·√(2·0,25/n) = √(2/n)), «—» da 5 punti in giù (la tolleranza del criterio 4)
+export const CONFRONTO_DETTAGLIO = Object.freeze({ colpiTelefono: 200, partiteLivello: 20, palle: 100, visite: 3, giocatori: 50, puntiCal: 5 });
 // cima «girata»: |piatto| da 0,5 (come l'obiettivo E4 del piano B36 §7.6)
 export const CIMA_GIRATA = .5;
 // tipi di colpo nel registro: il gioco scrive i nomi del motore (TOPSPIN, FLAT…), i registri finti di prima quelli italiani
@@ -215,10 +223,14 @@ const nuovoCfrGruppo = () => ({ partite: 0, finite: 0, durata: new Misura(), tel
   conPl: 0, opposti: 0, aiutati: 0, ls: {}, vc: new Misura(), vcBassa: 0, vg: {}, tipi: {},
   voti: { perfetti: 0, anticipo: 0, ritardo: 0, altri: 0 }, ms: new Misura(), absMs: new Misura(), deboli: 0, sbagliati: 0, vuoti: 0,
   conPf: 0, nr: 0, sommaTempo: 0, sommaPiatto: 0, cima: new Coppie(), tempoX: new Coppie(), conRimbalzo: 0, girata: 0, girataGiusta: 0, largo: 0, nellaFinestra: 0, fuoriFinestra: 0,
-  primi: 0, primi05: 0, giudicate: 0, storte: 0, cal: {} });
-const nuovoCfrLivello = () => ({ partite: 0, finite: 0, vinte: 0, punti: 0, vinti: 0, conRimbalzo: 0, largo: 0, nellaFinestra: 0, fuoriFinestra: 0 });
+  primi: 0, primi05: 0, giudicate: 0, storte: 0, cal: {}, giorni: {} });
+// (revisione U3: durata e punti delle partite finite, anche per lo stesso schermo)
+const nuovoCfrLivello = () => ({ partite: 0, finite: 0, vinte: 0, punti: 0, vinti: 0, conRimbalzo: 0, largo: 0, nellaFinestra: 0, fuoriFinestra: 0, durata: new Misura(), puntiFinite: 0 });
+// (revisione N1: p2Corretti, partite del computer del P2 della sfida con «Corretti»; p2Remoti, colpi, colpi a vuoto e
+// calibrazioni giocando del P2 della sfida nelle partite dell'host, fuori dai gruppi; nVisite, visite con Precision, U2)
 const nuovoConfronto = () => ({ gruppi: {}, telefoni: {}, livelli: {}, precision: {},
-  partite: { formato5: 0, vecchie: 0, conAssi: 0, assiNonNoti: 0, dirNonNota: 0, p2: 0, senzaTelefono: 0 }, calSenzaPartita: 0, precisionSenzaPartita: 0 });
+  partite: { formato5: 0, vecchie: 0, conAssi: 0, assiNonNoti: 0, dirNonNota: 0, p2: 0, p2Corretti: 0, senzaTelefono: 0 }, calSenzaPartita: 0, precisionSenzaPartita: 0,
+  p2Remoti: { colpi: 0, vuoti: 0, cal: 0 }, nVisite: 0 });
 const mediana = v => { const s = [...v].sort((a, b) => a - b), k = s.length >> 1; return s.length % 2 ? s[k] : (s[k - 1] + s[k])/2; };
 // un colpo del telefono nelle misure di un gruppo (o di un telefono di un gruppo)
 function cfrColpo(S, r){
@@ -288,8 +300,9 @@ export class Riassunto {
     this.cfr = nuovoConfronto();
   }
   // (B75: assi, ultimo stato degli assi della postazione, per le partite a Precision; cfrCal e cfrPrec, calibrazioni giocando
-  // e partite a Precision arrivate prima di una partita, che aspettano la partita dopo)
-  _ctx(c){ const k = `${c.giorno || ''}|${c.postazione || ''}`; let x = this.ctx.get(k); if (!x){ x = { P: null, orologio: null, fuso: 60, ordineEvento: 0, formato: null, prec: [], postazione: c.postazione || null, assi: null, cfrCal: [], cfrPrec: [] }; this.ctx.set(k, x); } return x; }
+  // e partite a Precision arrivate prima di una partita, che aspettano la partita dopo; visitaCfr, numero della visita in
+  // corso con Precision, per contare le visite di Precision senza identificativi: revisione U2)
+  _ctx(c){ const k = `${c.giorno || ''}|${c.postazione || ''}`; let x = this.ctx.get(k); if (!x){ x = { P: null, orologio: null, fuso: 60, ordineEvento: 0, formato: null, prec: [], postazione: c.postazione || null, assi: null, cfrCal: [], cfrPrec: [], visitaCfr: null }; this.ctx.set(k, x); } return x; }
   // ora locale dello stand di una riga: dall'ultima riga con l'ora (avvio, partita) e dai ms trascorsi
   _quando(x, row){ if (!x.orologio) return null; return new Date(x.orologio.wall + (row.t - x.orologio.t) + x.fuso*60000); }
   aggiungi(row, c = {}){
@@ -299,7 +312,7 @@ export class Riassunto {
     const fn = this[`_${row.k.replace('.', '_')}`];
     if (fn) fn.call(this, row, x);
   }
-  _avvio(r, x){ if (x) x.formato = Number.isFinite(r.v) ? r.v : null; const A = this.avvii; A.n++; if (r.prima === 'improvvisa') A.improvvise++; if (r.pagina === 'reload') A.ricaricamenti++; piu(A.dove, r.dove); if (Array.isArray(r.area)) piu(A.schermi, r.area.join(' × ')); piu(A.gpu, r.gpu === true ? `sì${r.gpuTipo ? ` · ${r.gpuTipo}` : ''}` : r.gpu === false ? 'no (disegno dal processore)' : 'non letta'); }
+  _avvio(r, x){ if (x){ x.formato = Number.isFinite(r.v) ? r.v : null; x.visitaCfr = null; } const A = this.avvii; A.n++; if (r.prima === 'improvvisa') A.improvvise++; if (r.pagina === 'reload') A.ricaricamenti++; piu(A.dove, r.dove); if (Array.isArray(r.area)) piu(A.schermi, r.area.join(' × ')); piu(A.gpu, r.gpu === true ? `sì${r.gpuTipo ? ` · ${r.gpuTipo}` : ''}` : r.gpu === false ? 'no (disegno dal processore)' : 'non letta'); }
   _crash(){ this.avvii.crash++; }
   _nota(r){ this.altro.note++; this.altro.perse += r.perse || 0; }
   _partita(r, x){
@@ -401,7 +414,7 @@ export class Riassunto {
       x.prec = [];
     }
   }
-  _visita(r){ const V = this.visite; V.n++; V.durata.metti(r.durS); somma(this.scartati, r.scartati); if (r.abbandono){ V.senzaGiocare++; piu(V.dove, r.abbandono); piu(this.abbandoni, `prima di giocare · ${r.abbandono}${r.come === 'chiosco' ? ' (chiosco)' : ''}`); } }
+  _visita(r, x){ if (x) x.visitaCfr = null; const V = this.visite; V.n++; V.durata.metti(r.durS); somma(this.scartati, r.scartati); if (r.abbandono){ V.senzaGiocare++; piu(V.dove, r.abbandono); piu(this.abbandoni, `prima di giocare · ${r.abbandono}${r.come === 'chiosco' ? ' (chiosco)' : ''}`); } }
   _tel(r, x){
     const T = this.tel;
     // B46: righe con un motivo (cambio di mano o del segno del verso del telefono), contate a parte
@@ -510,13 +523,16 @@ export class Riassunto {
     const C = this.cfr, Pt = C.partite, f = x.formato ?? 0;
     const assi = r.stand?.assi === 'corretti' ? 'corretti' : f >= 5 && r.ctrl === 'telefono' && !Number.isFinite(r.displayLagMs) ? 'non noti' : 'oggi';
     x.assi = assi;
-    if (r.ruolo === 'p2'){ Pt.p2++; return; }                                 // (come la sezione «Direzione»: i colpi li ha l'host)
+    // computer del P2 della sfida: fuori (le sue righe «colpo» sono la previsione locale del colpo, B73 §7.2). Revisione N1:
+    // i colpi del P2 restano fuori anche dalla partita dell'host (_cfrRemoto): gli assi del suo telefono li decide il suo
+    // computer (natpf_gyro_axes legge la voce di quel computer), e li scrive solo questa riga
+    if (r.ruolo === 'p2'){ Pt.p2++; if (assi === 'corretti') Pt.p2Corretti++; return; }
     if (r.ctrl && r.ctrl !== 'telefono'){ Pt.senzaTelefono++; return; }
     const dir = r.dir === 'classica' || r.dir === 'nuova' ? r.dir : r.dir != null ? String(r.dir).slice(0, 20) : f >= 2 ? 'non nota' : 'classica';
     if (f >= 5) Pt.formato5++; else Pt.vecchie++;
     if (assi === 'corretti') Pt.conAssi++; else if (assi === 'non noti') Pt.assiNonNoti++;
     if (dir === 'non nota') Pt.dirNonNota++;
-    const key = `${assi} · ${dir}`, G = voce(C.gruppi, key, nuovoCfrGruppo); G.partite++;
+    const key = `${assi} · ${dir}`, G = voce(C.gruppi, key, nuovoCfrGruppo); G.partite++; piu(G.giorni, x.P.giorno);
     const L = r.modo === 'cpu' || r.modo === 'stesso-schermo' ? voce(C.livelli, `${key} · ${r.modo === 'cpu' ? r.livello || '—' : 'stesso schermo'}`, nuovoCfrLivello) : null; if (L) L.partite++;
     x.P.cfr = { key, assi, dir, L, tel: {}, dv: { g: [], a: [] }, xs: { g: [], a: [] }, primi: { g: 0, a: 0 } };
     this._cfrTel(x.P, 'g'); if (r.tel2) this._cfrTel(x.P, 'a');
@@ -526,10 +542,14 @@ export class Riassunto {
   // il telefono di un giocatore della partita ('g' chi gioca, 'a' il Player 2): la prima volta si conta tra i telefoni
   _cfrTel(P, k){ const Q = P.cfr; if (!Q.tel[k]){ Q.tel[k] = telefonoCfr(k === 'a' ? P.r.tel2 : P.r.tel, Q.assi); voce(this.cfr.telefoni, `${Q.key} · ${Q.tel[k]}`, nuovoCfrGruppo).telefoni++; } return Q.tel[k]; }
   _cfrMisure(P, k){ const Q = P.cfr; return [this.cfr.gruppi[Q.key], voce(this.cfr.telefoni, `${Q.key} · ${this._cfrTel(P, k)}`, nuovoCfrGruppo)]; }
+  // revisione N1: il Player 2 della sfida tra due computer ('a' di una partita «due-computer» dell'host) gioca con gli assi del
+  // suo computer, che la riga dell'host non dice: i suoi colpi, colpi a vuoto e calibrazioni giocando si contano a parte
+  _cfrRemoto(P, k, campo){ if (k !== 'a' || P.r.modo !== 'due-computer') return false; this.cfr.p2Remoti[campo]++; return true; }
   // un colpo del telefono in partita (non allenamento, minigiochi, scambi di prova)
   _cfrColpo(r, x){
     const P = x?.P, Q = P?.cfr; if (r.amb || !Q) return;
     const k = r.chi === 'a' ? 'a' : 'g';
+    if (this._cfrRemoto(P, k, 'colpi')) return;
     for (const S of this._cfrMisure(P, k)) cfrColpo(S, r);
     if (Number.isFinite(r.dv) && Q.dv[k].length < 20) Q.dv[k].push(r.dv);
     if (Number.isFinite(r.pf) && Q.primi[k] < 10){ Q.primi[k]++; const pieno = Math.abs(r.pf) >= CIMA_GIRATA; for (const S of this._cfrMisure(P, k)){ S.primi++; if (pieno) S.primi05++; } }
@@ -538,13 +558,13 @@ export class Riassunto {
       const L = Q.L; if (L){ L.conRimbalzo++; if (Math.abs(xr) > 2.5) L.largo++; if (Number.isFinite(r.tu) && Math.abs(r.tu) <= 1){ L.nellaFinestra++; if (r.fu) L.fuoriFinestra++; } }
     }
   }
-  _cfrVuoto(r, x){ const P = x?.P; if (r.amb || !P?.cfr) return; for (const S of this._cfrMisure(P, r.chi === 'a' ? 'a' : 'g')) S.vuoti++; }
+  _cfrVuoto(r, x){ const P = x?.P, k = r.chi === 'a' ? 'a' : 'g'; if (r.amb || !P?.cfr || this._cfrRemoto(P, k, 'vuoti')) return; for (const S of this._cfrMisure(P, k)) S.vuoti++; }
   // contro l'avversario (CPU): punti vinti da chi gioca
   _cfrPunto(r, x){ const L = x?.P?.cfr?.L; if (!L || x.P.r.modo !== 'cpu') return; L.punti++; if (r.vince === 'g') L.vinti++; }
   _cfrFine(P, r){
     const Q = P.cfr; if (!Q) return;
     const G = this.cfr.gruppi[Q.key];
-    if (r?.esito === 'finita'){ G.finite++; if (Number.isFinite(r.durS)) G.durata.metti(r.durS); if (Q.L){ Q.L.finite++; if (P.r.modo === 'cpu' && r.vince === 'g') Q.L.vinte++; } }
+    if (r?.esito === 'finita'){ G.finite++; if (Number.isFinite(r.durS)) G.durata.metti(r.durS); if (Q.L){ Q.L.finite++; Q.L.durata.metti(r.durS); Q.L.puntiFinite += P.punti || 0; if (P.r.modo === 'cpu' && r.vince === 'g') Q.L.vinte++; } }
     for (const k of ['g', 'a']){
       if (!Q.tel[k]) continue;
       const S = this._cfrMisure(P, k);
@@ -557,15 +577,18 @@ export class Riassunto {
   // calibrazione giocando: della partita in corso (in fiera gli scambi di prova sono dentro la partita) o, se arriva prima,
   // della partita dopo sulla stessa postazione
   _cfrCalibrazione(r, x){ if (!x) return; if (x.P){ if (x.P.cfr) this._cfrCal(r, x.P); return; } if (x.cfrCal.length < 4) x.cfrCal.push(r); else this.cfr.calSenzaPartita++; }
-  _cfrCal(r, P){ const liv = livelloCal(r); for (const S of this._cfrMisure(P, r.chi === 'a' ? 'a' : 'g')) piu(S.cal, liv); }
+  _cfrCal(r, P){ const k = r.chi === 'a' ? 'a' : 'g'; if (this._cfrRemoto(P, k, 'cal')) return; const liv = livelloCal(r); for (const S of this._cfrMisure(P, k)) piu(S.cal, liv); }
   // una partita a Precision: assi dell'ultima partita della postazione (o della prima dopo), direzione della riga del minigioco
   _cfrPrecisione(run, r, x){
     run.dirCfr = r.dir === 'classica' || r.dir === 'nuova' ? r.dir : r.dir != null ? String(r.dir).slice(0, 20) : (x.formato ?? 0) >= 2 ? 'non nota' : 'classica';
+    // (revisione U2: la visita della partita a Precision, un numero e basta: le partite della stessa visita sono della stessa
+    // persona o compagnia; una visita finisce con la riga «visita» o con un avvio del gioco)
+    if (x.visitaCfr == null) x.visitaCfr = ++this.cfr.nVisite; run.visitaCfr = x.visitaCfr;
     if (x.assi) this._cfrPrec(run, x.assi); else if (x.cfrPrec.length < 40) x.cfrPrec.push(run); else this._cfrPrec(run, 'non noti');
   }
   _cfrPrec(run, assi){
-    const p = precisionRiga(run), S = voce(this.cfr.precision, `${assi} · ${run.dirCfr}`, () => ({ partite: 0, palle: 0, rimbalzi: 0, punti: new Misura(), puntiVeri: new Misura(), cima: 0, nCima: 0, distanza: 0, nellaZona: 0 }));
-    S.partite++; S.palle += p.palle; S.rimbalzi += p.rimbalzi; if (run.punti != null) S.punti.metti(run.punti); S.puntiVeri.metti(p.punti);
+    const p = precisionRiga(run), S = voce(this.cfr.precision, `${assi} · ${run.dirCfr}`, () => ({ partite: 0, palle: 0, rimbalzi: 0, punti: new Misura(), puntiVeri: new Misura(), cima: 0, nCima: 0, distanza: 0, nellaZona: 0, visite: new Set() }));
+    S.partite++; if (run.visitaCfr != null) S.visite.add(run.visitaCfr); S.palle += p.palle; S.rimbalzi += p.rimbalzi; if (run.punti != null) S.punti.metti(run.punti); S.puntiVeri.metti(p.punti);
     if (p.cima != null){ S.cima += Math.round(p.cima*p.nCima); S.nCima += p.nCima; }
     if (p.distanza != null) S.distanza += p.distanza*p.rimbalzi;
     for (const c of run.colpi){ const z = PRECISION_ZONES[c.zp]; if (z && Number.isFinite(c.rx) && Number.isFinite(c.rz) && Math.hypot(c.rx - z.x, c.rz - z.z) <= z.r) S.nellaZona++; }
@@ -946,14 +969,38 @@ export function sezioneDirezione(R, sez){
 // (assi oggi/corretti × direzione classica/nuova) uno accanto all'altro, sempre tutti e quattro (anche vuoti), poi gli
 // eventuali gruppi con i campi tolti dal Worker; con «corretti» anche per telefono (Android riordinato, iPhone come oggi)
 export function sezioneConfronto(R, sez){
-  const C = R.cfr, Pt = C.partite, vuoto = nuovoCfrGruppo();
+  const C = R.cfr, Pt = C.partite, P2r = C.p2Remoti, D = CONFRONTO_DETTAGLIO, vuoto = nuovoCfrGruppo();
   const extra = Object.keys(C.gruppi).filter(k => !CONFRONTO_GRUPPI.includes(k)).sort(), chiavi = [...CONFRONTO_GRUPPI, ...extra], G = k => C.gruppi[k] || vuoto;
   const pochi = g => g.partite < CONFRONTO_MIN.partite || g.colpi < CONFRONTO_MIN.colpi;
-  const avviso = g => (!g.partite ? 'nessuna partita' : pochi(g) ? `pochi dati (servono ${CONFRONTO_MIN.partite} partite e ${CONFRONTO_MIN.colpi} colpi)` : '—');
+  // (revisione U1: da 20 a 99 partite i dati bastano solo per differenze grandi)
+  const grandi = g => g.partite && !pochi(g) && g.partite < CONFRONTO_FINE.partite;
+  const avviso = g => (!g.partite ? 'nessuna partita' : pochi(g) ? `pochi dati (servono ${CONFRONTO_MIN.partite} partite e ${CONFRONTO_MIN.colpi} colpi)` : grandi(g) ? `bastano solo per differenze di 10 punti o più (per 2–5 punti servono ${CONFRONTO_FINE.partite} partite)` : '—');
   const corr = v => (v == null ? '—' : N(v, 2)), pcq = (a, b) => (b ? pc(a, b, 1) : '—');
   const tot = o => Object.values(o).reduce((a, v) => a + v, 0);
   const pochiElenco = chiavi.filter(k => G(k).partite && pochi(G(k))).map(k => `${k} (${N(G(k).partite)} partite, ${N(G(k).colpi)} colpi)`);
+  const grandiElenco = chiavi.filter(k => grandi(G(k))).map(k => `${k} (${N(G(k).partite)} partite)`);
   const vuoti = CONFRONTO_GRUPPI.filter(k => !G(k).partite);
+  // (revisione U5: giorni delle partite di ogni gruppo; più di uno = giornate mescolate)
+  const giorni = {}; for (const k of chiavi) somma(giorni, G(k).giorni);
+  const elencoGiorni = o => Object.keys(o).sort().map(d => `${d} (${N(o[d])})`).join(' · ') || '—';
+  // (revisione U2: avvisi delle tabelle di dettaglio)
+  const pocheVoci = (n, min, cosa) => (n < min ? `pochi dati (servono ${N(min)} ${cosa})` : '—');
+  const avvisoCal = n => { if (n < D.giocatori) return `pochi dati (servono ${N(D.giocatori)} giocatori)`; const d = Math.ceil(100*Math.sqrt(2/n) - 1e-9); return d <= D.puntiCal ? '—' : `conta solo una differenza di ${N(d)} punti o più`; };
+  const avvisoPrec = p => (p.palle < D.palle || p.visite.size < D.visite ? `pochi dati (servono ${N(D.palle)} palle di almeno ${N(D.visite)} visite)` : '—');
+  // (revisione U3: per livello, in ordine di gruppo; con due livelli o più contro l'avversario anche tutti insieme)
+  const TUTTI = 'tutti i livelli contro l’avversario';
+  const livRiga = (k, L, cpu, dur) => [k, N(L.partite), N(L.finite), cpu ? pcq(L.vinte, L.finite) : '—', cpu ? pcq(L.vinti, L.punti) : '—', pcq(L.largo, L.conRimbalzo), pcq(L.fuoriFinestra, L.nellaFinestra),
+    dur.n ? `${N(dur.somma/dur.n)} s` : '—', L.finite ? N(L.puntiFinite/L.finite, 1) : '—', pocheVoci(L.partite, D.partiteLivello, 'partite')];
+  const livRighe = chiavi.flatMap(k => {
+    const mie = Object.keys(C.livelli).filter(x => x.startsWith(`${k} · `)).sort(), ss = x => x.endsWith(' · stesso schermo'), cpu = mie.filter(x => !ss(x));
+    const righe = cpu.map(x => livRiga(x, C.livelli[x], true, C.livelli[x].durata));
+    if (cpu.length >= 2){
+      const T = nuovoCfrLivello(), dur = { n: 0, somma: 0 };
+      for (const x of cpu){ const L = C.livelli[x]; for (const c of Object.keys(T)) if (typeof T[c] === 'number') T[c] += L[c]; dur.n += L.durata.n; dur.somma += L.durata.somma; }
+      righe.push(livRiga(`${k} · ${TUTTI}`, T, true, dur));
+    }
+    return righe.concat(mie.filter(ss).map(x => livRiga(x, C.livelli[x], false, C.livelli[x].durata)));
+  });
   const base = C.gruppi['oggi · classica'], quota = (g, t) => (g.colpi ? 100*(g.tipi[t] || 0)/g.colpi : null);
   const scartoTipi = k => {
     const g = G(k); if (k === 'oggi · classica' || !g.colpi || !base?.colpi) return '—';
@@ -963,42 +1010,46 @@ export function sezioneConfronto(R, sez){
   // per telefono: le righe in ordine di gruppo e poi di telefono
   const telefoni = Object.keys(C.telefoni).sort((a, b) => { const ga = chiavi.findIndex(k => a.startsWith(`${k} · `)), gb = chiavi.findIndex(k => b.startsWith(`${k} · `)); return ga - gb || (a < b ? -1 : 1); });
   const nuove = chiavi.filter(k => k.endsWith(' · nuova') && G(k).partite);
-  const lv = Object.keys(C.livelli).sort((a, b) => { const ga = chiavi.findIndex(k => a.startsWith(`${k} · `)), gb = chiavi.findIndex(k => b.startsWith(`${k} · `)); return ga - gb || (a < b ? -1 : 1); });
   const prec = chiavi.filter(k => C.precision[k]).concat(Object.keys(C.precision).filter(k => !chiavi.includes(k)).sort());
   sez('Confronto: assi del giroscopio × direzione dei colpi (B75)', [
-    'Quattro gruppi, partita per partita: assi del giroscopio «oggi» (voce dello stand spenta, di base) o «corretti» («Assi del giroscopio: Corretti · prova», B74) × direzione dei colpi «classica» (di base) o «nuova» (B73). Colpi del telefono in partita di chi gioca e del Player 2 dello stesso schermo; niente allenamento, minigiochi (Precision a parte) e scambi di prova; niente partite del computer del Player 2 della sfida (i suoi colpi sono già nella partita dell’host). Con «corretti» i telefoni Android riordinano la rotazione, gli iPhone restano come oggi: la tabella «Per telefono» li tiene separati. Come leggerla e cosa serve per decidere: docs/b75/confronto-registro.md.',
+    'Quattro gruppi, partita per partita: assi del giroscopio «oggi» (voce dello stand spenta, di base) o «corretti» («Assi del giroscopio: Corretti · prova», B74) × direzione dei colpi «classica» (di base) o «nuova» (B73). Colpi del telefono in partita di chi gioca e del Player 2 dello stesso schermo; niente allenamento, minigiochi (Precision a parte) e scambi di prova; niente colpi del Player 2 della sfida tra due computer, né dalla partita dell’host né da quella del suo computer (gli assi del suo telefono li decide il suo computer, non l’host). Con «corretti» i telefoni Android riordinano la rotazione, gli iPhone restano come oggi: la tabella «Per telefono» li tiene separati. Come leggerla e cosa serve per decidere: docs/b75/confronto-registro.md.',
     `Gruppi: ${chiavi.filter(k => CONFRONTO_GRUPPI.includes(k) || G(k).partite).map(k => `${k} ${G(k).partite ? `${N(G(k).partite)} partite, ${N(G(k).colpi)} colpi` : 'nessuna partita'}`).join(' · ')}.`,
     Pt.assiNonNoti ? `ATTENZIONE: ${N(Pt.assiNonNoti)} partite con il telefono di un gioco con il formato delle righe 5 o più senza displayLagMs: il Worker del registro non è stato ricaricato e ha tolto anche \`assi\`. Non si sa se avevano «Corretti»: sono nel gruppo «non noti», fuori dai quattro (docs/GUIDA_REGISTRO_CLOUDFLARE.md §I: dopo il Deploy la pagina del Worker dice «Formato delle righe: ${REGISTRO.versione}»).` : '',
     Pt.dirNonNota ? `ATTENZIONE: ${N(Pt.dirNonNota)} partite di un gioco con il formato delle righe 2 o più senza \`dir\`: il Worker del registro non è stato ricaricato e ha tolto il modello della direzione. Non si sa se avevano «Nuova»: sono nel gruppo «non nota», fuori dai quattro.` : '',
-    Pt.formato5 && !Pt.conAssi ? 'Nessuna partita con «Corretti»: o la voce dello stand era spenta, o il Worker è fermo al formato 4 (lascia displayLagMs e toglie solo `assi`: il riassunto non può accorgersene). Prima della prova controllare che la pagina del Worker dica «Formato delle righe: 5».' : '',
+    Pt.formato5 && !Pt.conAssi ? (Pt.p2Corretti ? `Nessuna partita con «Corretti» nel confronto: la voce era accesa solo sul computer del Player 2 della sfida (${N(Pt.p2Corretti)} partite), i cui colpi restano fuori. Il Worker ha tenuto \`assi\`: è al formato 5.`
+      : 'Nessuna partita con «Corretti»: o la voce dello stand era spenta, o il Worker è fermo al formato 4 (lascia displayLagMs e toglie solo `assi`: il riassunto non può accorgersene). Prima della prova controllare che la pagina del Worker dica «Formato delle righe: 5».') : '',
+    Object.keys(giorni).length > 1 ? `Più giornate nello stesso confronto: ${Object.keys(giorni).sort().map(d => `${d} (${N(giorni[d])} partite)`).join(', ')}. I gruppi possono mescolare giornate diverse (visitatori, versioni del gioco, postazioni): per decidere usare solo il file del giorno della prova (docs/b75/confronto-registro.md §4.1 punto 3).` : '',
     Pt.vecchie ? `Partite di versioni del gioco prima del B74 (formato delle righe sotto 5, senza la voce degli assi): ${N(Pt.vecchie)}, contate con gli assi «oggi».` : '',
-    Pt.p2 ? `Partite del computer del Player 2 della sfida: ${N(Pt.p2)}, fuori dal confronto.` : '', Pt.senzaTelefono ? `Partite senza il telefono (mouse, tastiera, webcam): ${N(Pt.senzaTelefono)}, fuori dal confronto.` : '',
+    Pt.p2 ? `Partite del computer del Player 2 della sfida: ${N(Pt.p2)}${Pt.p2Corretti ? ` (${N(Pt.p2Corretti)} con «Corretti»)` : ''}, fuori dal confronto.` : '',
+    P2r.colpi + P2r.vuoti + P2r.cal ? `Colpi del Player 2 della sfida tra due computer: ${N(P2r.colpi)}${(a => (a.length ? ` (più ${a.join(' e ')})` : ''))([P2r.vuoti ? `${N(P2r.vuoti)} colpi a vuoto` : '', P2r.cal ? `${N(P2r.cal)} calibrazioni giocando` : ''].filter(Boolean))}, fuori dal confronto: gli assi del suo telefono li decide il suo computer, non quello dell’host.` : '',
+    Pt.senzaTelefono ? `Partite senza il telefono (mouse, tastiera, webcam): ${N(Pt.senzaTelefono)}, fuori dal confronto.` : '',
     vuoti.length ? `Nessuna partita in: ${vuoti.join(', ')}.` : '',
     pochiElenco.length ? `Pochi dati (meno di ${CONFRONTO_MIN.partite} partite o di ${CONFRONTO_MIN.colpi} colpi: i numeri sono indizi, non bastano per decidere): ${pochiElenco.join(', ')}.` : '',
+    grandiElenco.length ? `Differenze piccole non decidibili (da ${CONFRONTO_MIN.partite} a ${CONFRONTO_FINE.partite - 1} partite: contano solo differenze di 10 punti o più; le soglie di 2–5 punti del documento, §4.2 e §4.4, valgono da ${CONFRONTO_FINE.partite} partite per gruppo, sotto il risultato è «non decidibile: continuare la prova»): ${grandiElenco.join(', ')}.` : '',
     ...nuove.map(k => { const g = G(k); return `Con «${k}» la palla va dalla parte della cima? Cima → rimbalzo ${corr(g.cima.rango)} (obiettivo E1: almeno 0,80), tempo → rimbalzo ${corr(g.tempoX.rango)}; con la cima girata (|piatto| da ${N(CIMA_GIRATA, 1)}) la palla cade dalla sua parte in ${pcq(g.girataGiusta, g.girata)} dei colpi (${N(g.girata)}). Colpi giocati con la regola nuova: ${N(g.nr)} su ${N(g.conPf)} colpi con la forma.`; }),
     C.calSenzaPartita ? `Calibrazioni giocando senza una partita dopo (fuori dal confronto): ${N(C.calSenzaPartita)}.` : '',
     C.precisionSenzaPartita ? `Partite a Precision senza nessuna partita della postazione (assi non noti): ${N(C.precisionSenzaPartita)}.` : '',
   ], [
-    { titolo: 'Gruppi', colonne: ['Assi · direzione', 'Partite', 'Finite', 'Durata (media)', 'Colpi del telefono', 'Colpi con la regola nuova', 'Avviso'],
-      righe: chiavi.filter(k => CONFRONTO_GRUPPI.includes(k) || G(k).partite).map(k => { const g = G(k); return [k, N(g.partite), N(g.finite), g.durata.n ? `${N(g.durata.media)} s` : '—', N(g.colpi), g.conPf ? `${N(g.nr)} su ${N(g.conPf)} (${pc(g.nr, g.conPf)})` : '—', avviso(g)]; }) },
-    { titolo: 'Cima rispetto al colpo abituale (scarto in gradi, + a destra)', colonne: ['Assi · direzione', 'Con lo scarto', 'Mediana (°)', '|Scarto|: metà entro ±°', '9 su 10 entro ±°', 'Oltre 45°', 'Oltre 60°', 'Centro della mira per partita: metà sotto · 9 su 10 sotto (°)'],
-      righe: chiavi.filter(k => G(k).colpi).map(k => { const g = G(k); return [k, `${N(g.conDv)} (${pc(g.conDv, g.colpi)})`, N(g.dv.p(.5), 1), N(g.absDv.p(.5), 1), N(g.absDv.p(.9), 1), pcq(g.oltre45, g.conDv), pcq(g.oltre60, g.conDv), g.seme.n ? `${N(g.seme.p(.5), 1)} · ${N(g.seme.p(.9), 1)} (${N(g.seme.n)} partite)` : '—']; }) },
+    { titolo: 'Gruppi', colonne: ['Assi · direzione', 'Partite', 'Finite', 'Durata (media)', 'Colpi del telefono', 'Colpi con la regola nuova', 'Avviso', 'Giorni (partite)'],
+      righe: chiavi.filter(k => CONFRONTO_GRUPPI.includes(k) || G(k).partite).map(k => { const g = G(k); return [k, N(g.partite), N(g.finite), g.durata.n ? `${N(g.durata.media)} s` : '—', N(g.colpi), g.conPf ? `${N(g.nr)} su ${N(g.conPf)} (${pc(g.nr, g.conPf)})` : '—', avviso(g), elencoGiorni(g.giorni)]; }) },
+    { titolo: 'Cima rispetto al colpo abituale (scarto in gradi, + a destra)', colonne: ['Assi · direzione', 'Con lo scarto', 'Mediana (°)', '|Scarto|: metà entro ±°', '9 su 10 entro ±°', 'Oltre 45°', 'Oltre 60°', 'Centro della mira di ogni giocatore in ogni partita: metà sotto · 9 su 10 sotto (°)'],
+      righe: chiavi.filter(k => G(k).colpi).map(k => { const g = G(k); return [k, `${N(g.conDv)} (${pc(g.conDv, g.colpi)})`, N(g.dv.p(.5), 1), N(g.absDv.p(.5), 1), N(g.absDv.p(.9), 1), pcq(g.oltre45, g.conDv), pcq(g.oltre60, g.conDv), g.seme.n ? `${N(g.seme.p(.5), 1)} · ${N(g.seme.p(.9), 1)} (${N(g.seme.n)} giocatori)` : '—']; }) },
     { titolo: 'Lato del colpo rispetto alla palla e verso del gesto', colonne: ['Assi · direzione', 'Colpi con la palla di lato', 'Dalla parte opposta alla palla', 'Aiutati', 'Lato: dal gesto · dal verso atteso · dalla posizione', `Verso incerto (sotto ${N(VC_INCERTA, 2)})`, 'Confidenza del verso (mediana)', 'Verso grezzo −1 · 0 · +1'],
       righe: chiavi.filter(k => G(k).colpi).map(k => { const g = G(k), nl = tot(g.ls), nv = tot(g.vg); return [k, N(g.conPl), pcq(g.opposti, g.conPl), pc(g.aiutati, g.colpi, 1), nl ? ['g', 'a', 'p'].map(c => pc(g.ls[c] || 0, nl)).join(' · ') : '—', pcq(g.vcBassa, g.vc.n), N(g.vc.p(.5), 2), nv ? ['-1', '0', '1'].map(c => pc(g.vg[c] || 0, nv)).join(' · ') : '—']; }) },
     { titolo: 'Tipi di colpo (quota dei colpi)', colonne: ['Assi · direzione', ...TIPI_COLPO, 'altri', 'Scarto più grande da «oggi · classica»'],
       righe: chiavi.filter(k => G(k).colpi).map(k => { const g = G(k); return [k, ...[...TIPI_COLPO, 'altri'].map(t => pc(g.tipi[t] || 0, g.colpi, 1)), scartoTipi(k)]; }) },
     { titolo: 'Tempo del colpo, colpi deboli e a vuoto', colonne: ['Assi · direzione', 'Perfetto', 'In anticipo', 'In ritardo', 'Errore di tempo mediano (ms, + anticipo)', '|Errore|: metà entro (ms)', 'Deboli', 'Rete o fuori', 'Colpi a vuoto (ogni 100 colpi)'],
       righe: chiavi.filter(k => G(k).colpi).map(k => { const g = G(k); return [k, pc(g.voti.perfetti, g.colpi, 1), pc(g.voti.anticipo, g.colpi, 1), pc(g.voti.ritardo, g.colpi, 1), N(g.ms.p(.5)), N(g.absMs.p(.5)), pc(g.deboli, g.colpi, 1), pc(g.sbagliati, g.colpi, 1), `${N(100*g.vuoti/g.colpi, 1)} (${N(g.vuoti)})`]; }) },
-    { titolo: 'Calibrazione giocando: quanto ha imparato il gioco (giocatori)', colonne: ['Assi · direzione', 'Giocatori', ...LIVELLI_CAL, 'altro o senza livello'],
-      righe: chiavi.filter(k => tot(G(k).cal)).map(k => { const g = G(k), n = tot(g.cal); return [k, N(n), ...LIVELLI_CAL.map(l => pc(g.cal[l] || 0, n, 1)), pc(n - LIVELLI_CAL.reduce((a, l) => a + (g.cal[l] || 0), 0), n, 1)]; }) },
-    { titolo: 'Contro l’avversario, per livello (e lo stesso schermo): partite, punti e gli obiettivi E2 ed E3 del piano B36', colonne: ['Assi · direzione · livello', 'Partite', 'Finite', 'Vinte da chi gioca', 'Punti vinti da chi gioca', 'E2 oltre 2,5 m', 'E3 fuori con il tempo nella finestra'],
-      righe: lv.map(k => { const L = C.livelli[k], cpu = !k.endsWith(' · stesso schermo'); return [k, N(L.partite), N(L.finite), cpu ? pcq(L.vinte, L.finite) : '—', cpu ? pcq(L.vinti, L.punti) : '—', pcq(L.largo, L.conRimbalzo), pcq(L.fuoriFinestra, L.nellaFinestra)]; }) },
-    { titolo: 'Dove va la palla: cima e tempo, obiettivi dello stand (piano B36 §7.6)', colonne: ['Assi · direzione', 'Colpi con il rimbalzo', 'E1 cima → rimbalzo (rango; ≥ 0,80 con «nuova»)', 'Tempo → rimbalzo (rango)', `Cima girata: palla dalla sua parte`, 'Peso del tempo nella mira', 'E2 oltre 2,5 m', 'E3 fuori con il tempo nella finestra (≤ 3%)', 'E4 primi 10 colpi con |piatto| ≥ 0,5 (≥ 30%)', 'E5 partite storte (≤ 10%)'],
-      righe: chiavi.filter(k => G(k).colpi).map(k => { const g = G(k); return [k, N(g.conRimbalzo), corr(g.cima.rango), corr(g.tempoX.rango), g.girata ? `${pc(g.girataGiusta, g.girata, 1)} di ${N(g.girata)}` : '—', g.sommaTempo + g.sommaPiatto ? pc(g.sommaTempo, g.sommaTempo + g.sommaPiatto) : '—', pcq(g.largo, g.conRimbalzo), pcq(g.fuoriFinestra, g.nellaFinestra), pcq(g.primi05, g.primi), g.giudicate ? `${pc(g.storte, g.giudicate, 1)} (${N(g.giudicate)})` : '—']; }) },
-    { titolo: 'Precision (assi dell’ultima partita della postazione, direzione della partita a Precision)', colonne: ['Assi · direzione', 'Partite', 'Palle', 'Punti del gioco (media)', 'Punti col rimbalzo vero (media)', 'Cima verso la zona', 'Distanza dal centro della zona (m)', 'Nella zona'],
-      righe: prec.map(k => { const p = C.precision[k]; return [k, N(p.partite), N(p.palle), N(p.punti.media), N(p.puntiVeri.media), p.nCima ? `${pc(p.cima, p.nCima)} di ${N(p.nCima)}` : '—', p.rimbalzi ? N(p.distanza/p.rimbalzi, 2) : '—', p.rimbalzi ? `${pc(p.nellaZona, p.rimbalzi)} di ${N(p.rimbalzi)}` : '—']; }) },
-    { titolo: 'Per telefono (con «corretti»: Android riordinato, iPhone e altri come oggi)', colonne: ['Assi · direzione · telefono', 'Telefoni in partita', 'Colpi', '|Scarto|: metà entro ±°', 'Oltre 45°', 'Dalla parte opposta alla palla', 'Verso incerto', 'Perfetto', 'Pallonetti · tagliati', 'Cima → rimbalzo (rango)', 'Calibrazione ok o full'],
-      righe: telefoni.map(k => { const g = C.telefoni[k], nc = tot(g.cal); return [k, N(g.telefoni), N(g.colpi), N(g.absDv.p(.5), 1), pcq(g.oltre45, g.conDv), pcq(g.opposti, g.conPl), pcq(g.vcBassa, g.vc.n), pcq(g.voti.perfetti, g.colpi), g.colpi ? `${pc(g.tipi.pallonetto || 0, g.colpi, 1)} · ${pc(g.tipi.tagliato || 0, g.colpi, 1)}` : '—', corr(g.cima.rango), nc ? pc((g.cal.ok || 0) + (g.cal.full || 0), nc) : '—']; }) },
+    { titolo: 'Calibrazione giocando: quanto ha imparato il gioco (giocatori)', colonne: ['Assi · direzione', 'Giocatori', ...LIVELLI_CAL, 'altro o senza livello', 'Avviso'],
+      righe: chiavi.filter(k => tot(G(k).cal)).map(k => { const g = G(k), n = tot(g.cal); return [k, N(n), ...LIVELLI_CAL.map(l => pc(g.cal[l] || 0, n, 1)), pc(n - LIVELLI_CAL.reduce((a, l) => a + (g.cal[l] || 0), 0), n, 1), avvisoCal(n)]; }) },
+    { titolo: 'Contro l’avversario, per livello (e lo stesso schermo): partite, punti e gli obiettivi E2 ed E3 del piano B36', colonne: ['Assi · direzione · livello', 'Partite', 'Finite', 'Vinte da chi gioca', 'Punti vinti da chi gioca', 'E2 oltre 2,5 m', 'E3 fuori con il tempo nella finestra', 'Durata (media)', 'Punti a partita (finite)', 'Avviso'],
+      righe: livRighe },
+    { titolo: 'Dove va la palla: cima e tempo, obiettivi dello stand (piano B36 §7.6)', colonne: ['Assi · direzione', 'Colpi con il rimbalzo', 'E1 cima → rimbalzo (rango; ≥ 0,80 con «nuova»)', 'Tempo → rimbalzo (rango)', `Cima girata: palla dalla sua parte`, 'Peso del tempo nella mira', 'E2 oltre 2,5 m', 'E3 fuori con il tempo nella finestra (≤ 3%)', 'E4 primi 10 colpi con |piatto| ≥ 0,5 (≥ 30%)', 'E5 partite storte, per giocatore (≤ 10%)'],
+      righe: chiavi.filter(k => G(k).colpi).map(k => { const g = G(k); return [k, N(g.conRimbalzo), corr(g.cima.rango), corr(g.tempoX.rango), g.girata ? `${pc(g.girataGiusta, g.girata, 1)} di ${N(g.girata)}` : '—', g.sommaTempo + g.sommaPiatto ? pc(g.sommaTempo, g.sommaTempo + g.sommaPiatto) : '—', pcq(g.largo, g.conRimbalzo), pcq(g.fuoriFinestra, g.nellaFinestra), pcq(g.primi05, g.primi), g.giudicate ? `${pc(g.storte, g.giudicate, 1)} (${N(g.giudicate)} giocatori giudicati)` : '—']; }) },
+    { titolo: 'Precision (assi dell’ultima partita della postazione, direzione della partita a Precision)', colonne: ['Assi · direzione', 'Partite', 'Palle', 'Punti del gioco (media)', 'Punti col rimbalzo vero (media)', 'Cima verso la zona', 'Distanza dal centro della zona (m)', 'Nella zona', 'Visite (circa le persone)', 'Avviso'],
+      righe: prec.map(k => { const p = C.precision[k]; return [k, N(p.partite), N(p.palle), N(p.punti.media), N(p.puntiVeri.media), p.nCima ? `${pc(p.cima, p.nCima)} di ${N(p.nCima)}` : '—', p.rimbalzi ? N(p.distanza/p.rimbalzi, 2) : '—', p.rimbalzi ? `${pc(p.nellaZona, p.rimbalzi)} di ${N(p.rimbalzi)}` : '—', N(p.visite.size), avvisoPrec(p)]; }) },
+    { titolo: 'Per telefono (con «corretti»: Android riordinato, iPhone e altri come oggi)', colonne: ['Assi · direzione · telefono', 'Telefoni in partita', 'Colpi', '|Scarto|: metà entro ±°', 'Oltre 45°', 'Dalla parte opposta alla palla', 'Verso incerto', 'Lato dal gesto', 'Perfetto', 'Pallonetti · tagliati', 'Cima → rimbalzo (rango)', 'Calibrazione ok o full', 'Avviso'],
+      righe: telefoni.map(k => { const g = C.telefoni[k], nc = tot(g.cal), nl = tot(g.ls); return [k, N(g.telefoni), N(g.colpi), N(g.absDv.p(.5), 1), pcq(g.oltre45, g.conDv), pcq(g.opposti, g.conPl), pcq(g.vcBassa, g.vc.n), nl ? pc(g.ls.g || 0, nl, 1) : '—', pcq(g.voti.perfetti, g.colpi), g.colpi ? `${pc(g.tipi.pallonetto || 0, g.colpi, 1)} · ${pc(g.tipi.tagliato || 0, g.colpi, 1)}` : '—', corr(g.cima.rango), nc ? pc((g.cal.ok || 0) + (g.cal.full || 0), nc) : '—', pocheVoci(g.colpi, D.colpiTelefono, 'colpi')]; }) },
   ]);
 }
 const md = v => String(v).replace(/\|/g, '\\|').replace(/\n/g, ' ');
