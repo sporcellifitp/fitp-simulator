@@ -17,7 +17,8 @@ a questo file; quando supera ~300 righe si sposta di nuovo la parte vecchia in u
   131.409.062 B, sha256 `359b47df9284f5418f640134ac9f2f61b7fad68f9f07e4378f21931d93121bb6`; zip Cloudflare 24.028.985 B, sha256
   `e9e56aa42056bb3db7b490c872bcbe35e9fcc05fa93ad372e978e2bfaf29f40d`, provato estratto (stessi errori attesi).
 - **App NATPF Racchetta 1.0.5** invariata.
-- **Worker del registro**: da ricaricare con il file della **20.2** (formato **5**, campo `assi`): pagina «Formato delle righe: 5».
+- **Worker del registro** ricaricato dall'utente il 21/11 con il file della 20.2: risposta pubblica
+  `{"ok":true,"registro":"pronto","spazio":true,"chiave":true,"formato":5}` (controllata il 21/11).
 - **Prove** (20/11 sera): gioco 1967/1967, sito 328/328, LAN 13/13, desktop 56/56, build ok.
 
 **Prima (20/11): 2026-11-20.1**
